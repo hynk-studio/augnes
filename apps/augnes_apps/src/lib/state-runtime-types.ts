@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProjectionSchema as CodexCurrentContinuityProjectionSchema } from "../../scripts/codex-current-continuity.js";
 
 export const StateRuntimeScopeSchema = z.string().min(1);
 export const StateRuntimeLimitSchema = z.number().int().min(1).max(50);
@@ -1632,7 +1633,60 @@ export interface StateRuntimeWorkEventInput {
   relatedStateKeys?: string[];
 }
 
+const CodexRepositoryAuthoritySchema = z.object({
+  writes_database: z.literal(false),
+  writes_project_files: z.literal(false),
+  changes_project_selection: z.literal(false),
+  changes_operator_session: z.literal(false),
+  creates_run: z.literal(false),
+  starts_codex_or_native_host: z.literal(false),
+  calls_provider: z.literal(false),
+  approves_host_action: z.literal(false),
+  cancels_or_resumes_run: z.literal(false),
+  creates_or_admits_result: z.literal(false),
+  creates_proof_or_evidence: z.literal(false),
+  creates_proposal: z.literal(false),
+  creates_review_decision: z.literal(false),
+  creates_or_applies_transition: z.literal(false),
+  mutates_accepted_state: z.literal(false),
+  retries_or_replays: z.literal(false),
+  calls_github: z.literal(false),
+  creates_branch_or_pr: z.literal(false),
+  merges_releases_or_deploys: z.literal(false),
+  starts_background_work: z.literal(false),
+}).strict();
+
+export const CodexRepositoryContinuityResultSchema = z.object({
+  projection_version: z.literal("codex_repository_continuity.v0.1"),
+  generated_at: z.string().datetime(),
+  repository_resolution: z.object({
+    status: z.enum([
+      "resolved_exact",
+      "project_not_registered",
+      "project_ambiguous",
+      "root_unavailable",
+      "repository_input_invalid",
+      "companion_unavailable",
+    ]),
+    project_key: z.string().nullable(),
+    display_name: z.string().nullable(),
+    message: z.string(),
+  }).strict(),
+  continuity: CodexCurrentContinuityProjectionSchema.nullable(),
+  current_situation: z.string(),
+  next_meaningful_action: z.object({
+    label: z.string(),
+    reason: z.string(),
+    executes: z.literal(false),
+  }).strict(),
+  browser_deep_link: z.string().url().nullable(),
+  authority: CodexRepositoryAuthoritySchema,
+}).strict();
+
+export type CodexRepositoryContinuityResult = z.infer<typeof CodexRepositoryContinuityResultSchema>;
+
 export interface StateRuntimeBridgeAdapter {
+  getRepositoryContinuity(input: { repositoryRoot: string }): Promise<CodexRepositoryContinuityResult>;
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
   getGuideBrief(input: { scope: StateRuntimeScope; projectId?: string }): Promise<GuideBriefResult>;

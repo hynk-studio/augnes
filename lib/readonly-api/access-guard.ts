@@ -17,6 +17,7 @@ export type ReadonlyApiAccessPolicy = {
   required_marker_value: string;
   allowed_hosts: readonly string[];
   route_family: string;
+  allowed_methods?: readonly string[];
 };
 
 export type ReadonlyApiAccessResult =
@@ -56,7 +57,8 @@ export function validateReadonlyApiLocalAccess(
   }
 
   const method = typeof request.method === "string" ? request.method : "";
-  if (method && method.toUpperCase() !== "GET") {
+  const allowedMethods = policy.allowed_methods ?? ["GET"];
+  if (method && !allowedMethods.includes(method.toUpperCase())) {
     return accessError("method_not_allowed", 405);
   }
 

@@ -8,20 +8,21 @@ const requiredFiles = [
   "AGENTS.md",
   "docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md",
   "plugins/augnes-operator/.codex-plugin/plugin.json",
+  "plugins/augnes-operator/.mcp.json",
+  "plugins/augnes-operator/mcp/companion-proxy.mjs",
   "apps/augnes_apps/package.json",
 ];
 
 const localSetupCommands = [
   "npm install",
-  "npm run db:reset",
-  "npm run db:migrate",
-  "npm run demo:seed",
-  "env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000",
+  "npm --prefix apps/augnes_apps install",
+  "npm run augnes",
 ];
 
 const mcpBridgeSetupCommands = [
-  "npm --prefix apps/augnes_apps install",
-  "AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev",
+  "codex plugin marketplace add .",
+  "codex plugin add augnes-operator@augnes-local",
+  "# Then ask Codex: Resume this repository with Augnes.",
 ];
 
 const codexReadCommands = [
@@ -30,26 +31,17 @@ const codexReadCommands = [
 ];
 
 const configExamplePath = ".codex/config.toml.example";
-const configExampleText = `# Project-local example for connecting Codex to the local Augnes MCP bridge.
-# This file is inert documentation. It is not loaded automatically.
-# Review and copy the relevant shape into your user-level Codex config only if
-# your local Codex build supports this MCP server syntax.
+const configExampleText = `# Project-local compatibility example only. The normal CDX2B1 setup installs
+# plugins/augnes-operator, whose .mcp.json starts a local stdio discovery proxy.
+# That proxy verifies the supervised runtime manifest and follows the current
+# dynamic bridge port. Do not copy a fixed localhost:8787 URL for normal use.
 #
-# Do not put secrets in this file.
-# This repository script never writes ~/.codex/config.toml.
-# Enabling this bridge does not grant commit, reject, merge, approve, publish,
-# retry, replay, auto-merge, provider, GitHub, DB write, or Augnes state authority.
+# If a test harness deliberately owns an exact bridge port, current Codex
+# builds support the following URL shape after replacing PORT. This file is
+# inert, is never loaded or copied automatically, and must contain no secrets.
 #
-# Recommended local Augnes app:
-# env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
-#
-# Recommended local Augnes MCP bridge:
-# npm --prefix apps/augnes_apps install
-# AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
-#
-# URL-based MCP bridge example:
-[mcp_servers.augnes_local_bridge]
-url = "http://localhost:8787/mcp"
+# [mcp_servers.augnes_direct_test_only]
+# url = "http://127.0.0.1:PORT/mcp"
 `;
 
 const checks = [];
@@ -149,7 +141,7 @@ function printReport({ repoRoot, npmVersion, gitStatus, configStatus }) {
   console.log("## Recommended Local Setup Commands");
   printCommands(localSetupCommands);
   console.log("");
-  console.log("## Recommended MCP Bridge Setup Commands");
+  console.log("## Recommended live Companion plugin setup");
   printCommands(mcpBridgeSetupCommands);
   console.log("");
   console.log("## Codex Read Commands");

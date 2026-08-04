@@ -2,7 +2,7 @@ import "dotenv/config";
 
 export type AugnesCoreMode = "mock" | "http" | "file";
 export type AugnesAppProfile = "public" | "chrono_lab";
-export type AugnesAppToolSurface = "public" | "work_loop_readonly";
+export type AugnesAppToolSurface = "public" | "work_loop_readonly" | "companion_repository_readonly";
 
 function optionalIntegerEnv(name: string): number | null {
   const value = process.env[name];
@@ -45,7 +45,11 @@ function resolveAppToolSurface(): AugnesAppToolSurface {
   const rawSurface = process.env.AUGNES_APP_TOOL_SURFACE;
   if (!rawSurface) return "public";
 
-  if (rawSurface === "public" || rawSurface === "work_loop_readonly") {
+  if (
+    rawSurface === "public" ||
+    rawSurface === "work_loop_readonly" ||
+    rawSurface === "companion_repository_readonly"
+  ) {
     return rawSurface;
   }
 
@@ -87,6 +91,7 @@ export const config = {
     process.env.AUGNES_RUNTIME_CHILD_ROOT_PID ?? "0",
   ),
   runtimeOwnershipToken: process.env.AUGNES_RUNTIME_OWNERSHIP_TOKEN,
+  companionProxyToken: process.env.AUGNES_COMPANION_PROXY_TOKEN,
   distributionMode: process.env.AUGNES_DISTRIBUTION_MODE,
   applicationVersion: process.env.AUGNES_APPLICATION_VERSION,
   packageContract: process.env.AUGNES_PACKAGE_CONTRACT,

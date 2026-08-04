@@ -30,6 +30,20 @@ import { PassThrough } from "node:stream";
 import Database from "better-sqlite3";
 
 import {
+  confirmLocalProjectOnboardingV01,
+  pickAndInspectLocalProjectV01,
+} from "../lib/vnext/onboarding/local-project-onboarding";
+import { readDefaultWorkspaceIdentityV01 } from "../lib/vnext/persistence/project-identity-registry";
+import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
+import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
+import {
+  consumeVNextLocalOperatorBootstrapV01,
+  issueVNextLocalOperatorBootstrapV01,
+} from "../lib/vnext/runtime/local-operator-session";
+
+import {
   DEFAULT_BRIDGE_PORT,
   DEFAULT_UI_PORT,
   RUNTIME_CONTRACT,
@@ -90,6 +104,10 @@ const repositoryDatabasePath = path.join(repoRoot, "data", "augnes.db");
 const runtimeMarkerScope = "project:runtime-supervisor-mcp-behavior-v0-1";
 const runtimeMarkerStateKey = "runtime_supervisor.mcp_behavior_marker";
 const runtimeMarkerValue = "disposable-root-runtime-marker-v0-1";
+const registeredRuntimeWorkspaceId = "workspace:10000000-0000-4000-8000-000000000001";
+const registeredRuntimeProjectAId = "project:20000000-0000-4000-8000-000000000001";
+const registeredRuntimeProjectBId = "project:20000000-0000-4000-8000-000000000002";
+const registeredRuntimeOperatorId = "operator:cdx2b1-runtime-positive-path";
 const publicSecretSentinel = "must-not-escape-runtime-parent";
 const publicModelSentinel = "reviewed-model-sentinel-must-not-escape";
 const reviewedBridgeCompatibilityEnvironment = Object.freeze({
@@ -119,6 +137,7 @@ let unrelatedProcess = null;
 let unrelatedIdentityServer = null;
 let proxyServer = null;
 let mcpBehaviorVerified = false;
+let registeredRepositoryMcpEvidence = null;
 let legacyRootRequestCount = 0;
 
 mkdirSync(homeRoot, { recursive: true });
@@ -170,6 +189,11 @@ try {
   await testUnverifiedOwnershipRefusal();
 
   assert.equal(mcpBehaviorVerified, true, "real public and StateRuntime MCP tools must be verified");
+  assert.equal(
+    registeredRepositoryMcpEvidence?.verified,
+    true,
+    "the real registered-repository MCP positive path must be verified",
+  );
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
@@ -213,10 +237,29 @@ try {
     recovery_response_close_shutdown_verified: true,
     concurrent_recovery_request_refusal_verified: true,
     reviewed_ui_provider_environment_verified: true,
-    bridge_core_mode: "mock",
-    public_mcp_mock_tool_verified: mcpBehaviorVerified,
-    state_runtime_mcp_tool_verified: mcpBehaviorVerified,
-    state_runtime_disposable_marker_verified: mcpBehaviorVerified,
+    bridge_core_mode: "http",
+    live_repository_mcp_tool_verified: mcpBehaviorVerified,
+    registered_repository_positive_path: registeredRepositoryMcpEvidence?.verified === true,
+    registered_repository_status: registeredRepositoryMcpEvidence?.repository_status ?? null,
+    initial_binding: registeredRepositoryMcpEvidence?.initial_binding ?? null,
+    revised_binding: registeredRepositoryMcpEvidence?.revised_binding ?? null,
+    selection_coupled_binding: registeredRepositoryMcpEvidence?.selection_coupled_binding ?? null,
+    browser_revision_refresh_verified: registeredRepositoryMcpEvidence?.revision_refresh === true,
+    browser_selection_coupling_verified: registeredRepositoryMcpEvidence?.selection_coupling === true,
+    registered_repository_read_database_mutations:
+      registeredRepositoryMcpEvidence?.read_database_mutations ?? null,
+    registered_repository_read_project_file_mutations:
+      registeredRepositoryMcpEvidence?.read_project_file_mutations ?? null,
+    codex_only_database_copies:
+      registeredRepositoryMcpEvidence?.codex_only_database_copies ?? null,
+    browser_process_required:
+      registeredRepositoryMcpEvidence?.browser_process_required ?? null,
+    start_or_execution_created:
+      registeredRepositoryMcpEvidence?.start_or_execution_created ?? null,
+    official_stdio_mcp_client: true,
+    private_companion_bridge_refusals_verified: true,
+    narrow_companion_proxy_credential: true,
+    mock_contribution: false,
     legacy_root_requests_observed: legacyRootRequestCount,
     runtime_state_physical_path_verified: true,
     path_fixture_skip_reason: pathFixtureSkipReason,
@@ -260,10 +303,28 @@ try {
         reviewed_ui_provider_environment_verified:
           summary.reviewed_ui_provider_environment_verified,
         bridge_core_mode: summary.bridge_core_mode,
-        public_mcp_mock_tool_verified: summary.public_mcp_mock_tool_verified,
-        state_runtime_mcp_tool_verified: summary.state_runtime_mcp_tool_verified,
-        state_runtime_disposable_marker_verified:
-          summary.state_runtime_disposable_marker_verified,
+        live_repository_mcp_tool_verified:
+          summary.live_repository_mcp_tool_verified,
+        registered_repository_positive_path:
+          summary.registered_repository_positive_path,
+        registered_repository_status: summary.registered_repository_status,
+        browser_revision_refresh_verified:
+          summary.browser_revision_refresh_verified,
+        browser_selection_coupling_verified:
+          summary.browser_selection_coupling_verified,
+        registered_repository_read_database_mutations:
+          summary.registered_repository_read_database_mutations,
+        registered_repository_read_project_file_mutations:
+          summary.registered_repository_read_project_file_mutations,
+        codex_only_database_copies: summary.codex_only_database_copies,
+        browser_process_required: summary.browser_process_required,
+        start_or_execution_created: summary.start_or_execution_created,
+        official_stdio_mcp_client: summary.official_stdio_mcp_client,
+        private_companion_bridge_refusals_verified:
+          summary.private_companion_bridge_refusals_verified,
+        narrow_companion_proxy_credential:
+          summary.narrow_companion_proxy_credential,
+        mock_contribution: summary.mock_contribution,
         legacy_root_requests_observed: summary.legacy_root_requests_observed,
         runtime_state_physical_path_verified:
           summary.runtime_state_physical_path_verified,
@@ -477,12 +538,19 @@ async function testRuntimeStatePathSafety() {
 
 async function testReadyDuplicateStatusAndStop() {
   const scenario = createScenario("ready-stop");
+  const registeredRepositories = createRegisteredRepositoryFixtureV01(scenario);
   const uiBlocker = await createTcpSentinel(DEFAULT_UI_PORT);
   const bridgeBlocker = await createTcpSentinel(DEFAULT_BRIDGE_PORT);
   const environment = scenarioEnvironment(scenario, {
     uiPort: uiBlocker.port,
     bridgePort: bridgeBlocker.port,
     providerMode: "absent",
+  });
+  Object.assign(environment, {
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: registeredRuntimeWorkspaceId,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: registeredRuntimeProjectAId,
+    AUGNES_VNEXT_OPERATOR_ID: registeredRuntimeOperatorId,
   });
 
   const managed = startManagedSupervisor(
@@ -518,7 +586,13 @@ async function testReadyDuplicateStatusAndStop() {
     );
   }
 
-  await assertReadyEndpoints(ready, environment, scenario, managed);
+  await assertReadyEndpoints(
+    ready,
+    environment,
+    scenario,
+    managed,
+    registeredRepositories,
+  );
   await assertLoopbackOnly(ready.ui_port);
   await assertLoopbackOnly(ready.bridge_port);
   const manifest = assertOwnershipFiles(scenario.stateDirectory, ready);
@@ -627,7 +701,8 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
     `http://127.0.0.1:${ready.bridge_port}/healthz`,
   );
   assert.equal(bridgeHealth.statusCode, 200);
-  assert.equal(bridgeHealth.body.mode, "mock");
+  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.live_core_status, "ready");
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.profile, "chrono_lab");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "poisoned bridge health");
@@ -792,6 +867,23 @@ function createScenario(name) {
   mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
   mkdirSync(scenarioLogRoot, { recursive: true });
   return { name, root, stateDirectory, logRoot: scenarioLogRoot };
+}
+
+function createRegisteredRepositoryFixtureV01(scenario) {
+  const root = path.join(scenario.root, "registered-repositories");
+  const repositoryA = path.join(root, "repository-a");
+  const repositoryB = path.join(root, "repository-b");
+  mkdirSync(repositoryA, { recursive: true });
+  mkdirSync(repositoryB, { recursive: true });
+  writeFileSync(
+    path.join(repositoryA, "fixture.txt"),
+    "CDX2B1 registered repository A fixture\n",
+  );
+  writeFileSync(
+    path.join(repositoryB, "fixture.txt"),
+    "CDX2B1 registered repository B fixture\n",
+  );
+  return { repositoryA, repositoryB };
 }
 
 function scenarioEnvironment(
@@ -1004,7 +1096,13 @@ function assertReadyResult(result) {
   }
 }
 
-async function assertReadyEndpoints(ready, environment, scenario, managed) {
+async function assertReadyEndpoints(
+  ready,
+  environment,
+  scenario,
+  managed,
+  registeredRepositories,
+) {
   const uiHealth = await fetchJson(`${ready.effective_url}/api/healthz`);
   assert.equal(uiHealth.statusCode, 200);
   assert.equal(uiHealth.body.runtime_instance_id, ready.instance_id);
@@ -1021,14 +1119,27 @@ async function assertReadyEndpoints(ready, environment, scenario, managed) {
   assert.equal(bridgeHealth.statusCode, 200);
   assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
   assert.equal(bridgeHealth.body.ok, true);
-  assert.equal(bridgeHealth.body.mode, "mock");
+  assert.equal(bridgeHealth.body.mode, "http");
+  assert.equal(bridgeHealth.body.live_core_status, "ready");
   assertSourceRuntimeDiagnostics(bridgeHealth.body);
   assertPublicSafe(JSON.stringify(uiHealth.body), "UI health response");
   assertPublicSafe(JSON.stringify(bridgeHealth.body), "bridge health response");
-  await assertSupervisedMcpAdapterSplit({ environment, ready, scenario, managed });
+  await assertSupervisedMcpAdapterSplit({
+    environment,
+    ready,
+    scenario,
+    managed,
+    registeredRepositories,
+  });
 }
 
-async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, managed }) {
+async function assertSupervisedMcpAdapterSplit({
+  environment,
+  ready,
+  scenario,
+  managed,
+  registeredRepositories,
+}) {
   const values = buildSupervisorChildValues({
     role: "bridge",
     environment,
@@ -1042,105 +1153,46 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
     ambientEnvironment: environment,
     values,
   });
-  assert.equal(values.AUGNES_CORE_MODE, "mock");
+  assert.equal(values.AUGNES_CORE_MODE, "http");
   assert.equal(values.AUGNES_API_BASE_URL, ready.effective_url);
   assert.equal(values.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(values.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
-  assert.equal(childEnvironment.AUGNES_CORE_MODE, "mock");
+  assert.equal(childEnvironment.AUGNES_CORE_MODE, "http");
   assert.equal(childEnvironment.AUGNES_API_BASE_URL, ready.effective_url);
   assert.equal(childEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(childEnvironment.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
   assert.equal(Object.hasOwn(childEnvironment, "OPENAI_API_KEY"), false);
   assert.equal(Object.hasOwn(childEnvironment, "OPENAI_MODEL"), false);
 
-  const databaseBeforeMcpReads = snapshotDatabaseFamily(databasePath);
-  const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
-  const { StreamableHTTPClientTransport } = requireMcpSdk(
-    "@modelcontextprotocol/sdk/client/streamableHttp.js",
-  );
-  const client = new Client({
-    name: "augnes-runtime-operability",
-    version: "0.1.0",
+  const access = JSON.parse(readFileSync(path.join(scenario.stateDirectory, "companion-access.json"), "utf8"));
+  await assertPrivateCompanionBridgeV01({ ready, proxyToken: access.proxy_token });
+
+  const sourceBlindResult = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ tools, callRepository }) => {
+      const unregistered = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repoRoot,
+        callRepository,
+        verifyProjectFiles: false,
+      });
+      const positivePath = await assertRegisteredRepositoryPositivePathV01({
+        repositories: registeredRepositories,
+        callRepository,
+      });
+      return { tools, call: unregistered, positivePath };
+    },
   });
-  const transport = new StreamableHTTPClientTransport(
-    new URL(`http://127.0.0.1:${ready.bridge_port}/mcp`),
-  );
-  const cancelPendingMcpOperation = () => transport.close();
+  assert.equal(sourceBlindResult.tools.some((tool) => tool.name === "augnes_resume_repository"), true);
+  assert.notEqual(sourceBlindResult.call.isError, true);
+  assert.equal(sourceBlindResult.call.structuredContent?.companion?.status, "live");
+  assert.equal(sourceBlindResult.call.structuredContent?.repository_resolution?.status, "project_not_registered");
+  assert.equal(sourceBlindResult.positivePath.verified, true);
+  registeredRepositoryMcpEvidence = sourceBlindResult.positivePath;
 
-  let publicResult;
-  let runtimeResult;
-  try {
-    await withTimeout(
-      client.connect(transport),
-      15_000,
-      "MCP client connect",
-      cancelPendingMcpOperation,
-    );
-    const tools = await withTimeout(
-      client.listTools(),
-      15_000,
-      "MCP tool listing",
-      cancelPendingMcpOperation,
-    );
-    const toolNames = tools.tools.map((tool) => tool.name);
-    assert.equal(toolNames.includes("get_working_view"), true);
-    assert.equal(toolNames.includes("augnes_get_state_brief"), true);
-
-    publicResult = await withTimeout(
-      client.callTool({
-        name: "get_working_view",
-        arguments: { scope: runtimeMarkerScope },
-      }),
-      15_000,
-      "public MCP tool call",
-      cancelPendingMcpOperation,
-    );
-    assert.notEqual(publicResult.isError, true);
-    assert.equal(Object.hasOwn(publicResult.structuredContent ?? {}, "error"), false);
-    assert.deepEqual(publicResult.structuredContent?.workingView?.claimIds, [
-      "claim-augnes-app-01",
-    ]);
-    assert.equal(
-      publicResult.structuredContent?.workingView?.summary,
-      "Shipping Augnes as an Evidence & Continuity Console inside ChatGPT. Current emphasis: read-only tools, strong rationale surface, boundary packet review, continuity visibility.",
-    );
-
-    runtimeResult = await withTimeout(
-      client.callTool({
-        name: "augnes_get_state_brief",
-        arguments: { scope: runtimeMarkerScope },
-      }),
-      15_000,
-      "state runtime MCP tool call",
-      cancelPendingMcpOperation,
-    );
-    assert.notEqual(runtimeResult.isError, true);
-    assert.equal(Object.hasOwn(runtimeResult.structuredContent ?? {}, "error"), false);
-    const stateBrief = runtimeResult.structuredContent?.brief;
-    assert.equal(stateBrief?.scope, runtimeMarkerScope);
-    assert.equal(Array.isArray(stateBrief?.active_state), true);
-    const markerEntry = stateBrief.active_state.find(
-      (entry) => entry?.state_key === runtimeMarkerStateKey,
-    );
-    assert.equal(markerEntry?.value, runtimeMarkerValue);
-  } finally {
-    await withTimeout(
-      client.close(),
-      10_000,
-      "MCP client close",
-      cancelPendingMcpOperation,
-    );
-  }
-
-  const mcpPublicOutput = JSON.stringify({ publicResult, runtimeResult });
+  const mcpPublicOutput = JSON.stringify({ sourceBlindResult });
   assertPublicSafe(mcpPublicOutput, "real MCP tool results");
-  assert.equal(mcpPublicOutput.includes(runtimeMarkerValue), true);
-  assert.deepEqual(
-    snapshotDatabaseFamily(databasePath),
-    databaseBeforeMcpReads,
-    "read-only MCP tool calls must not mutate the disposable DB or side files",
-  );
-
+  assert.equal(mcpPublicOutput.includes("claim-augnes-app-01"), false);
   const legacyRoutePattern = /\b(?:GET|POST)\s+\/(?:search|working-view|casefile|strategy|boundary-packet|continuity-report|repo\/navigate|governance-audit)(?:[?\s]|$)/g;
   const legacyRequests = managed.output().match(legacyRoutePattern) ?? [];
   legacyRootRequestCount += legacyRequests.length;
@@ -1152,9 +1204,512 @@ async function assertSupervisedMcpAdapterSplit({ environment, ready, scenario, m
   mcpBehaviorVerified = true;
 }
 
+async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
+  const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
+  const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.join(repoRoot, "plugins", "augnes-operator", "mcp", "companion-proxy.mjs")],
+    cwd: repoRoot,
+    env: { ...environment, AUGNES_RUNTIME_STATE_DIR: path.dirname(manifestPath) },
+    stderr: "pipe",
+  });
+  const client = new Client({
+    name: "augnes-runtime-operability-stdio",
+    version: "0.1.0",
+  });
+  let stderr = "";
+  transport.stderr?.setEncoding("utf8");
+  transport.stderr?.on("data", (chunk) => { stderr += chunk; });
+  const cancel = () => transport.close();
+  try {
+    await withTimeout(client.connect(transport), 15_000, "official stdio MCP client connect", cancel);
+    if (transport.pid) observedOwnedPids.add(transport.pid);
+    const tools = await withTimeout(client.listTools(), 15_000, "official stdio MCP tools/list", cancel);
+    const callRepository = (repositoryRoot) => withTimeout(client.callTool({
+      name: "augnes_resume_repository",
+      arguments: { repositoryRoot },
+    }), 20_000, "official stdio MCP tools/call", cancel);
+    return await run({ tools: tools.tools, callRepository });
+  } finally {
+    await withTimeout(client.close(), 10_000, "official stdio MCP client close", cancel).catch(() => {});
+  }
+}
+
+async function assertRegisteredRepositoryPositivePathV01({
+  repositories,
+  callRepository,
+}) {
+  const clock = advancingClockV01();
+  const registeredA = await registerRepositoryThroughOnboardingV01({
+    repositoryRoot: repositories.repositoryA,
+    displayName: "CDX2B1 Runtime Repository A",
+    createUuids: [
+      registeredRuntimeWorkspaceId.slice("workspace:".length),
+      registeredRuntimeProjectAId.slice("project:".length),
+    ],
+    clock,
+  });
+  assert.equal(registeredA.workspace.workspace_id, registeredRuntimeWorkspaceId);
+  assert.equal(registeredA.project.project_id, registeredRuntimeProjectAId);
+
+  const initialDefinition = {
+    goal: "Create the CDX2B1 positive-path continuity fixture.",
+    success_criteria: [
+      "The registered repository resolves through the live Companion.",
+      "Codex and Browser read the same current work.",
+      "A Browser-side revision changes the refreshed Codex binding.",
+    ],
+    non_goals: ["Do not Start or execute work."],
+  };
+  const initial = defineFixtureWorkV01({
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    definition: initialDefinition,
+    clock,
+  });
+  assertNonExecutingProductMutationV01(initial);
+
+  const initialRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: initialRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition: initialDefinition,
+  });
+  const initialContinuity = initialRead.structuredContent.continuity;
+  assert.equal(initialContinuity.project.status, "active_project");
+  assert.equal(initialContinuity.project.active, true);
+  assert.equal(initialContinuity.current_work.currentness, "fresh");
+  assert.equal(initialContinuity.current_work.start_eligible, true);
+  assert.equal(initialContinuity.next_action.kind, "start_current_work");
+  assert.equal(initialContinuity.managed_execution.stage, "no_run");
+
+  const revisedDefinition = {
+    goal: "Refresh the CDX2B1 positive-path continuity fixture.",
+    success_criteria: [
+      "The refreshed live Companion returns the revised current work.",
+      "The exact snapshot binding changes after Browser-side revision.",
+      "Repository A remains attached while Browser selects repository B.",
+    ],
+    non_goals: ["Do not Start or execute work."],
+  };
+  const revised = reviseFixtureWorkV01({
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    currentPacket: initial.packet,
+    definition: revisedDefinition,
+    clock,
+  });
+  assertNonExecutingProductMutationV01(revised);
+  assert.notEqual(revised.packet.packet_id, initial.packet.packet_id);
+  assert.notEqual(
+    revised.packet.integrity.fingerprint,
+    initial.packet.integrity.fingerprint,
+  );
+
+  const revisedRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: revisedRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition: revisedDefinition,
+  });
+  const revisedContinuity = revisedRead.structuredContent.continuity;
+  assert.equal(
+    revisedContinuity.current_work.lineage_kind,
+    "pre_execution_user_revision",
+  );
+  assert.notEqual(
+    revisedContinuity.snapshot.binding,
+    initialContinuity.snapshot.binding,
+  );
+  assert.equal(revisedContinuity.managed_execution.stage, "no_run");
+
+  const registeredB = await registerRepositoryThroughOnboardingV01({
+    repositoryRoot: repositories.repositoryB,
+    displayName: "CDX2B1 Runtime Repository B",
+    createUuids: [registeredRuntimeProjectBId.slice("project:".length)],
+    clock,
+  });
+  assert.equal(registeredB.workspace.workspace_id, registeredRuntimeWorkspaceId);
+  assert.equal(registeredB.project.project_id, registeredRuntimeProjectBId);
+  const selectedB = readFixtureSelectionV01();
+  assert.equal(selectedB.project_id, registeredRuntimeProjectBId);
+
+  const selectionCoupledRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: selectionCoupledRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition: revisedDefinition,
+  });
+  const selectionCoupledContinuity =
+    selectionCoupledRead.structuredContent.continuity;
+  assert.equal(selectionCoupledContinuity.project.status, "inactive_project");
+  assert.equal(selectionCoupledContinuity.project.active, false);
+  assert.equal(
+    selectionCoupledContinuity.project.selection_revision,
+    selectedB.selection_revision,
+  );
+  assert.notEqual(
+    selectionCoupledContinuity.project.selection_revision,
+    revisedContinuity.project.selection_revision,
+  );
+  assert.notEqual(
+    selectionCoupledContinuity.snapshot.binding,
+    revisedContinuity.snapshot.binding,
+  );
+  assert.equal(selectionCoupledContinuity.current_work.currentness, "fresh");
+  assert.equal(selectionCoupledContinuity.current_work.start_eligible, false);
+  assert.equal(
+    selectionCoupledContinuity.current_work.start_blocker,
+    "The project is not active.",
+  );
+  assert.equal(
+    selectionCoupledContinuity.next_action.kind,
+    "make_project_active",
+  );
+  assert.equal(selectionCoupledContinuity.managed_execution.stage, "no_run");
+  assert.deepEqual(
+    listFilesRecursively(temporaryRoot).filter((file) =>
+      /\.(?:db|sqlite|sqlite3)$/u.test(file)
+    ),
+    [databasePath],
+    "the stdio proxy must not create a Codex-only database copy",
+  );
+
+  return {
+    verified: true,
+    repository_status:
+      selectionCoupledRead.structuredContent.repository_resolution.status,
+    initial_binding: initialContinuity.snapshot.binding,
+    revised_binding: revisedContinuity.snapshot.binding,
+    selection_coupled_binding: selectionCoupledContinuity.snapshot.binding,
+    revision_refresh: true,
+    selection_coupling: true,
+    read_database_mutations: 0,
+    read_project_file_mutations: 0,
+    codex_only_database_copies: 0,
+    browser_process_required: false,
+    start_or_execution_created: false,
+  };
+}
+
+async function registerRepositoryThroughOnboardingV01({
+  repositoryRoot,
+  displayName,
+  createUuids,
+  clock,
+}) {
+  const nowMs = Date.now();
+  const picked = await pickAndInspectLocalProjectV01({
+    environment: {
+      ...process.env,
+      AUGNES_CANONICAL_TEST_MODE: "1",
+      AUGNES_CANONICAL_TEMP_ROOT: temporaryRoot,
+      AUGNES_TEST_FOLDER_PICKER_PATH: repositoryRoot,
+    },
+    open_database: openFixtureDatabaseV01,
+    now: clock.now,
+    now_ms: () => nowMs,
+    create_token: () => `selection:${path.basename(repositoryRoot)}`,
+  });
+  assert.equal(picked.status, "selected");
+  const uuidQueue = [...createUuids];
+  const db = openFixtureDatabaseV01();
+  try {
+    const confirmed = await confirmLocalProjectOnboardingV01(db, {
+      selection_token: picked.selection_token,
+      inspection_fingerprint: picked.inspection.inspection_fingerprint,
+      display_name: displayName,
+    }, {
+      now: clock.now,
+      now_ms: () => nowMs,
+      create_uuid: () => {
+        const next = uuidQueue.shift();
+        assert(next, "canonical onboarding requested an unexpected identity");
+        return next;
+      },
+    });
+    assert.equal(uuidQueue.length, 0);
+    assert.equal(confirmed.status, "created");
+    const workspace = readDefaultWorkspaceIdentityV01(db);
+    assert(workspace);
+    const selection = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    assert.equal(selection?.project_id, confirmed.project.project_id);
+    return { workspace, project: confirmed.project, selection };
+  } finally {
+    db.close();
+  }
+}
+
+function defineFixtureWorkV01({ workspaceId, projectId, definition, clock }) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const config = fixtureOperatorConfigV01(workspaceId, projectId);
+    const selection = readActiveProjectSelectionV01(db, workspaceId);
+    assert.equal(selection?.project_id, projectId);
+    const credential = issueFixtureOperatorCredentialV01(db, config, clock);
+    return defineInitialProjectWorkV01(db, {
+      config,
+      credential,
+      request: {
+        action: "define_initial_project_work",
+        workspace_id: workspaceId,
+        project_id: projectId,
+        expected_active_project_id: projectId,
+        expected_active_selection_revision: selection.selection_revision,
+        expected_initialization_state: "not_defined",
+        ...definition,
+      },
+      clock,
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function reviseFixtureWorkV01({
+  workspaceId,
+  projectId,
+  currentPacket,
+  definition,
+  clock,
+}) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const config = fixtureOperatorConfigV01(workspaceId, projectId);
+    const selection = readActiveProjectSelectionV01(db, workspaceId);
+    assert.equal(selection?.project_id, projectId);
+    const credential = issueFixtureOperatorCredentialV01(db, config, clock);
+    return revisePreExecutionProjectWorkV01(db, {
+      config,
+      credential,
+      request: {
+        action: "revise_pre_execution_project_work",
+        workspace_id: workspaceId,
+        project_id: projectId,
+        expected_active_project_id: projectId,
+        expected_active_selection_revision: selection.selection_revision,
+        expected_current_packet_id: currentPacket.packet_id,
+        expected_current_packet_fingerprint:
+          currentPacket.integrity.fingerprint,
+        expected_current_lineage_kind: "initial_user_defined",
+        ...definition,
+      },
+      clock,
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function issueFixtureOperatorCredentialV01(db, config, clock) {
+  const issued = issueVNextLocalOperatorBootstrapV01(db, { config, clock });
+  return consumeVNextLocalOperatorBootstrapV01(db, {
+    config,
+    bootstrap_token: issued.bootstrap_token,
+    clock,
+  }).credential;
+}
+
+function fixtureOperatorConfigV01(workspaceId, projectId) {
+  return {
+    enabled: true,
+    workspace_id: workspaceId,
+    project_id: projectId,
+    operator_id: registeredRuntimeOperatorId,
+    database_path: databasePath,
+  };
+}
+
+function readFixtureSelectionV01() {
+  const db = openFixtureDatabaseV01();
+  try {
+    const selection = readActiveProjectSelectionV01(
+      db,
+      registeredRuntimeWorkspaceId,
+    );
+    assert(selection);
+    return selection;
+  } finally {
+    db.close();
+  }
+}
+
+function openFixtureDatabaseV01() {
+  const db = new Database(databasePath, { fileMustExist: true });
+  db.pragma("foreign_keys = ON");
+  db.pragma("busy_timeout = 5000");
+  return db;
+}
+
+function advancingClockV01() {
+  let milliseconds = Date.now();
+  return { now: () => new Date(++milliseconds).toISOString() };
+}
+
+async function assertReadOnlyRepositoryCallV01({
+  repositoryRoot,
+  callRepository,
+  verifyProjectFiles = true,
+}) {
+  const databaseBefore = snapshotDatabaseFamily(databasePath);
+  const repositoryBefore = verifyProjectFiles
+    ? snapshotDirectoryContentV01(repositoryRoot)
+    : null;
+  const result = await callRepository(repositoryRoot);
+  assert.deepEqual(
+    snapshotDatabaseFamily(databasePath),
+    databaseBefore,
+    "a repository continuity MCP read must not mutate the canonical database",
+  );
+  if (verifyProjectFiles) {
+    assert.deepEqual(
+      snapshotDirectoryContentV01(repositoryRoot),
+      repositoryBefore,
+      "a repository continuity MCP read must not mutate project files",
+    );
+  }
+  return result;
+}
+
+function assertExactRegisteredRepositoryResultV01({
+  result,
+  workspaceId,
+  projectId,
+  displayName,
+  definition,
+}) {
+  assert.notEqual(
+    result.isError,
+    true,
+    `registered repository MCP call failed: ${JSON.stringify(result)}`,
+  );
+  const projection = result.structuredContent;
+  assert.equal(projection.companion.status, "live");
+  assert.equal(projection.repository_resolution.status, "resolved_exact");
+  assert.equal(projection.repository_resolution.display_name, displayName);
+  assert.equal(
+    projection.repository_resolution.project_key,
+    publicProjectKeyV01(workspaceId, projectId),
+  );
+  assert(projection.continuity);
+  assert.equal(
+    projection.continuity.projection_version,
+    "codex_current_continuity.v0.1",
+  );
+  assert.equal(projection.continuity.source_status, "exact");
+  assert.equal(projection.continuity.snapshot.status, "exact");
+  assert.match(
+    projection.continuity.snapshot.binding,
+    /^sha256:[a-f0-9]{64}$/u,
+  );
+  assert.equal(
+    projection.continuity.project.project_key,
+    projection.repository_resolution.project_key,
+  );
+  assert.equal(projection.continuity.current_work.goal, definition.goal);
+  assert.deepEqual(
+    [...projection.continuity.current_work.success_criteria].sort(),
+    [...definition.success_criteria].sort(),
+  );
+  assert.deepEqual(
+    [...projection.continuity.current_work.non_goals].sort(),
+    [...definition.non_goals].sort(),
+  );
+  assertAllAuthorityFlagsFalseV01(projection.authority);
+  assertAllAuthorityFlagsFalseV01(projection.continuity.authority);
+}
+
+function publicProjectKeyV01(workspaceId, projectId) {
+  const canonical = canonicalizeProtocolValueV01({
+    purpose: "codex-current-continuity-public-project-key.v0.1",
+    workspace_id: workspaceId,
+    project_id: projectId,
+  });
+  return `sha256:${createHash("sha256").update(canonical).digest("hex")}`;
+}
+
+function assertAllAuthorityFlagsFalseV01(authority) {
+  assert(authority && typeof authority === "object");
+  assert.equal(Object.values(authority).length > 0, true);
+  assert.equal(
+    Object.values(authority).every((value) => value === false),
+    true,
+  );
+}
+
+function assertNonExecutingProductMutationV01(result) {
+  for (const key of [
+    "run_created",
+    "provider_called",
+    "project_files_written",
+    "proposal_created",
+    "review_decision_created",
+    "transition_created",
+    "semantic_state_changed",
+    "execution_started",
+    "semantic_authority_granted",
+    "execution_authority_granted",
+  ]) {
+    assert.equal(result[key], false, key);
+  }
+}
+
+async function assertPrivateCompanionBridgeV01({ ready, proxyToken }) {
+  const endpoint = `http://127.0.0.1:${ready.bridge_port}/mcp`;
+  const requestBody = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "privacy-test", version: "0.1.0" } } });
+  const cases = [
+    { name: "hostile origin", headers: { host: `127.0.0.1:${ready.bridge_port}`, origin: "https://attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "hostile host", headers: { host: "attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "dns rebinding host", headers: { host: "127.0.0.1.attacker.example", "x-augnes-companion-proxy": proxyToken } },
+    { name: "missing credential", headers: { host: `127.0.0.1:${ready.bridge_port}` } },
+    { name: "invalid credential", headers: { host: `127.0.0.1:${ready.bridge_port}`, "x-augnes-companion-proxy": "invalid" } },
+  ];
+  for (const testCase of cases) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...testCase.headers },
+      body: requestBody,
+      signal: AbortSignal.timeout(5_000),
+    });
+    assert.equal(response.status, 403, testCase.name);
+    assert.equal(response.headers.get("access-control-allow-origin"), null, testCase.name);
+    assert.deepEqual(await response.json(), { error: "companion_channel_refused" }, testCase.name);
+  }
+  const preflight = await fetch(endpoint, {
+    method: "OPTIONS",
+    headers: {
+      host: `127.0.0.1:${ready.bridge_port}`,
+      origin: "https://attacker.example",
+      "access-control-request-method": "POST",
+      "x-augnes-companion-proxy": proxyToken,
+    },
+    signal: AbortSignal.timeout(5_000),
+  });
+  assert.equal(preflight.status, 403);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), null);
+  assert.deepEqual(await preflight.json(), { error: "companion_channel_refused" });
+}
+
 function assertOwnershipFiles(stateDirectory, ready) {
   const expected = [
     "bridge-supervisor.env",
+    "companion-access.json",
     "control-token.json",
     "owner.lock",
     "runtime.json",
@@ -1173,6 +1728,14 @@ function assertOwnershipFiles(stateDirectory, ready) {
     }
   }
   const manifest = JSON.parse(readFileSync(path.join(stateDirectory, "runtime.json"), "utf8"));
+  const controlToken = JSON.parse(readFileSync(path.join(stateDirectory, "control-token.json"), "utf8"));
+  const companionAccess = JSON.parse(readFileSync(path.join(stateDirectory, "companion-access.json"), "utf8"));
+  assert.equal(companionAccess.access_version, "augnes-companion-proxy-access.v0.1");
+  assert.equal(typeof companionAccess.proxy_token, "string");
+  assert.notEqual(companionAccess.proxy_token, controlToken.token);
+  assert.notEqual(companionAccess.proxy_token, controlToken.child_ownership_token);
+  assert.equal("token" in companionAccess, false);
+  assert.equal("child_ownership_token" in companionAccess, false);
   assert.equal(manifest.instance_id, ready.instance_id);
   assert.equal(manifest.supervisor_pid, ready.supervisor_pid);
   assert.equal(manifest.lifecycle_state, "ready");
@@ -1651,6 +2214,7 @@ function assertRuntimeEnvironmentIsolation() {
   const sharedArguments = {
     paths: { bridgeEnvironment: bridgeEnvironmentPath },
     instanceId: "environment-isolation-instance",
+    companionProxyToken: "companion-proxy-token-environment-isolation",
     effectiveUrl: "http://127.0.0.1:3000",
     port: 8787,
   };
@@ -1694,6 +2258,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiValues.PORT, null);
   assert.equal(uiValues.AUGNES_DISTRIBUTION_MODE, "source");
   assert.equal(uiValues.AUGNES_APPLICATION_VERSION, applicationVersion);
+  assert.equal(uiValues.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   const uiEnvironment = buildRuntimeChildEnvironment({
     role: "ui",
     ambientEnvironment,
@@ -1712,6 +2277,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_ID, "reviewed-operator");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS, "45000");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS, "60000");
+  assert.equal(uiEnvironment.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   assert.equal(Object.hasOwn(uiEnvironment, "NODE_OPTIONS"), false);
 
   const bridgeValues = buildSupervisorChildValues({
@@ -1719,24 +2285,31 @@ function assertRuntimeEnvironmentIsolation() {
     environment: ambientEnvironment,
     ...sharedArguments,
   });
-  assert.equal(bridgeValues.AUGNES_CORE_MODE, "mock");
+  assert.equal(bridgeValues.AUGNES_CORE_MODE, "http");
   assert.equal(bridgeValues.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeValues.AUGNES_ENABLE_AGENT_BRIDGE, "true");
   assert.equal(bridgeValues.NODE_ENV, "development");
   assert.equal(bridgeValues.NODE_OPTIONS, null);
   assert.equal(bridgeValues.AUGNES_DISTRIBUTION_MODE, "source");
   assert.equal(bridgeValues.AUGNES_APPLICATION_VERSION, applicationVersion);
+  assert.equal(bridgeValues.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   for (const [key, value] of Object.entries(reviewedBridgeCompatibilityEnvironment)) {
-    assert.equal(bridgeValues[key], value);
+    assert.equal(
+      bridgeValues[key],
+      key === "AUGNES_APP_TOOL_SURFACE"
+        ? "companion_repository_readonly"
+        : value,
+    );
   }
   const bridgeEnvironment = buildRuntimeChildEnvironment({
     role: "bridge",
     ambientEnvironment,
     values: bridgeValues,
   });
-  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "mock");
+  assert.equal(bridgeEnvironment.AUGNES_CORE_MODE, "http");
   assert.equal(bridgeEnvironment.AUGNES_API_BASE_URL, sharedArguments.effectiveUrl);
   assert.equal(bridgeEnvironment.AUGNES_ENABLE_AGENT_BRIDGE, "true");
+  assert.equal(bridgeEnvironment.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_API_KEY"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "OPENAI_MODEL"), false);
   assert.equal(Object.hasOwn(bridgeEnvironment, "CODEX_HOME"), false);
@@ -2178,6 +2751,31 @@ function listRelativeEntriesRecursively(root, relativeRoot = "") {
     }
   }
   return results.sort();
+}
+
+function snapshotDirectoryContentV01(root, relativeRoot = "") {
+  if (!existsSync(root)) return [];
+  const results = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const relativePath = path.join(relativeRoot, entry.name);
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      results.push({ kind: "directory", path: relativePath });
+      results.push(...snapshotDirectoryContentV01(fullPath, relativePath));
+    } else if (entry.isSymbolicLink()) {
+      results.push({ kind: "symlink", path: relativePath });
+    } else {
+      const stats = statSync(fullPath, { bigint: true });
+      results.push({
+        kind: "file",
+        path: relativePath,
+        sha256: hashFile(fullPath),
+        size: stats.size.toString(),
+        mode: (stats.mode & 0o777n).toString(8),
+      });
+    }
+  }
+  return results.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function createDirectoryLink(target, linkPath) {

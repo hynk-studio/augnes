@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
-import { createServer } from "node:http";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage } from "node:http";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
@@ -58,6 +58,7 @@ export const LEGACY_PUBLIC_TOOL_NAMES = [
   "get_governance_audit",
 ] as const;
 export const AUGNES_BRIDGE_TOOL_NAMES = [
+  "augnes_resume_repository",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -211,7 +212,46 @@ function buildBridgeToolError(tool: string, error: unknown) {
   };
 }
 
-export function buildHealthPayload() {
+function companionBindingV01(): string | null {
+  if (!config.runtimeInstanceId || !config.runtimeGenerationId || !config.runtimeRepositoryFingerprint) {
+    return null;
+  }
+  return `sha256:${createHash("sha256").update(JSON.stringify({
+    instance: config.runtimeInstanceId,
+    generation: config.runtimeGenerationId,
+    repository: config.runtimeRepositoryFingerprint,
+  })).digest("hex")}`;
+}
+
+function buildRepositoryCompanionError(error: unknown) {
+  const message = error instanceof Error ? error.message : "The live Augnes Companion is unavailable.";
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    companion: { status: "unavailable", mode: config.coreMode, binding: null },
+    repository_resolution: {
+      status: "companion_unavailable",
+      project_key: null,
+      display_name: null,
+      message,
+    },
+    continuity: null,
+    current_situation: "Exact repository continuity is unavailable because the live supervised Companion could not be verified.",
+    next_meaningful_action: {
+      label: "Start or restore the local Augnes Companion",
+      reason: message,
+      executes: false,
+    },
+    browser_deep_link: null,
+  });
+  return {
+    isError: true,
+    structuredContent,
+    content: narrative(`Augnes repository continuity unavailable: ${message}`),
+    _meta: structuredContent,
+  };
+}
+
+export function buildHealthPayload(liveCoreReady = false) {
   return {
     ok: true,
     name: APP_NAME,
@@ -221,6 +261,14 @@ export function buildHealthPayload() {
     profile: config.appProfile,
     ...(config.runtimeInstanceId
       ? { runtime_instance_id: config.runtimeInstanceId }
+      : {}),
+    ...(config.coreMode === "http"
+      ? {
+          runtime_generation_id: config.runtimeGenerationId ?? null,
+          runtime_repository_fingerprint:
+            config.runtimeRepositoryFingerprint ?? null,
+          live_core_status: liveCoreReady ? "ready" : "unavailable",
+        }
       : {}),
     ...(config.distributionMode
       ? {
@@ -237,6 +285,28 @@ export function buildHealthPayload() {
         }
       : {}),
   };
+}
+
+async function verifyLiveCoreHealth(): Promise<boolean> {
+  if (config.coreMode !== "http") return false;
+  try {
+    const response = await fetch(new URL("/api/healthz", `${config.apiBaseUrl}/`), {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(1_500),
+    });
+    if (!response.ok) return false;
+    const body = await response.json() as Record<string, unknown>;
+    return body.ok === true &&
+      body.service === "augnes-ui" &&
+      body.status === "ready" &&
+      body.recovery_mode === false &&
+      body.runtime_instance_id === config.runtimeInstanceId &&
+      body.runtime_generation_id === config.runtimeGenerationId &&
+      body.runtime_repository_fingerprint === config.runtimeRepositoryFingerprint;
+  } catch {
+    return false;
+  }
 }
 
 function buildPrivateOwnershipPayload(suppliedToken: string | undefined) {
@@ -1894,8 +1964,10 @@ export function createMcpAppServer(
 ) {
   const enableAgentBridge = options.enableAgentBridge ?? config.enableAgentBridge;
   const toolSurface = options.toolSurface ?? config.appToolSurface;
-  const enableLegacyPublicTools = toolSurface !== "work_loop_readonly";
-  const enableBridgeTools = enableAgentBridge && toolSurface !== "work_loop_readonly";
+  const enableLegacyPublicTools = toolSurface === "public";
+  const enableBridgeTools = enableAgentBridge && toolSurface === "public";
+  const enableRepositoryTool = enableAgentBridge &&
+    (toolSurface === "public" || toolSurface === "companion_repository_readonly");
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION });
 
   registerAppResource(
@@ -1933,6 +2005,45 @@ export function createMcpAppServer(
       ],
     })
   );
+
+  if (enableRepositoryTool) {
+    registerAppTool(
+      server,
+      "augnes_resume_repository",
+      {
+        title: "Resume this repository with Augnes",
+        description:
+          "Use for requests such as 'Resume this repository with Augnes', 'What was I working on here?', or 'Show the current Augnes project state'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review continuity.",
+        inputSchema: { repositoryRoot: z.string().min(1) },
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ repositoryRoot }) => {
+        if (config.coreMode !== "http") {
+          return buildRepositoryCompanionError(new Error("The repository tool requires the live HTTP Companion profile."));
+        }
+        try {
+          const result = await stateRuntimeAdapter.getRepositoryContinuity({ repositoryRoot });
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            companion: {
+              status: "live",
+              mode: "http",
+              binding: companionBindingV01(),
+            },
+            ...result,
+          });
+          return {
+            structuredContent,
+            content: narrative(`${result.current_situation} Next: ${result.next_meaningful_action.label}.`),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildRepositoryCompanionError(error);
+        }
+      },
+    );
+  }
 
   if (enableLegacyPublicTools) {
     registerAppTool(
@@ -3019,9 +3130,29 @@ export function createHttpServer(
       return;
     }
 
-    const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+    const url = new URL(req.url, "http://127.0.0.1");
+    const companionSurface = config.appToolSurface === "companion_repository_readonly";
+
+    if (url.pathname === config.mcpPath && companionSurface) {
+      const refusal = companionChannelRefusalV01(req);
+      if (refusal) {
+        res.writeHead(403, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+        }).end(JSON.stringify({ error: "companion_channel_refused" }));
+        return;
+      }
+    }
 
     if (req.method === "OPTIONS" && url.pathname === config.mcpPath) {
+      if (companionSurface) {
+        res.writeHead(405, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          allow: "POST, GET, DELETE",
+        }).end(JSON.stringify({ error: "browser_preflight_not_supported" }));
+        return;
+      }
       res.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS, DELETE",
@@ -3060,16 +3191,20 @@ export function createHttpServer(
           );
         return;
       }
-      res.writeHead(200, { "content-type": "application/json" }).end(
-        JSON.stringify(buildHealthPayload())
+      const liveCoreReady = await verifyLiveCoreHealth();
+      const status = config.coreMode === "http" && !liveCoreReady ? 503 : 200;
+      res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }).end(
+        JSON.stringify(buildHealthPayload(liveCoreReady))
       );
       return;
     }
 
     const mcpMethods = new Set(["POST", "GET", "DELETE"]);
     if (url.pathname === config.mcpPath && req.method && mcpMethods.has(req.method)) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+      if (!companionSurface) {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+      }
 
       const server = createMcpAppServer(adapter, stateRuntimeAdapter, options);
       const transport = new StreamableHTTPServerTransport({
@@ -3094,6 +3229,29 @@ export function createHttpServer(
 
     res.writeHead(404).end("Not Found");
   });
+}
+
+function companionChannelRefusalV01(req: IncomingMessage): string | null {
+  const host = singleHeaderV01(req.headers.host);
+  if (host !== `127.0.0.1:${config.port}`) return "host_refused";
+  if (
+    req.headers.origin !== undefined ||
+    req.headers["sec-fetch-site"] !== undefined ||
+    req.headers["sec-fetch-mode"] !== undefined ||
+    req.headers.forwarded !== undefined ||
+    req.headers["x-forwarded-host"] !== undefined ||
+    req.headers["x-forwarded-for"] !== undefined
+  ) {
+    return "browser_or_proxy_refused";
+  }
+  const supplied = singleHeaderV01(req.headers["x-augnes-companion-proxy"]);
+  return constantTimeEqual(supplied, config.companionProxyToken)
+    ? null
+    : "credential_refused";
+}
+
+function singleHeaderV01(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? undefined : value;
 }
 
 function isDirectExecution(): boolean {

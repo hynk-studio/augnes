@@ -1285,7 +1285,8 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     const bridgeHealth = await fetchJson(`http://127.0.0.1:${ready.bridge_port}/healthz`);
     assert.equal(bridgeHealth.status, 200);
     assert.equal(bridgeHealth.body.ok, true);
-    assert.equal(bridgeHealth.body.mode, "mock");
+    assert.equal(bridgeHealth.body.mode, "http");
+    assert.equal(bridgeHealth.body.live_core_status, "ready");
     assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
     assertDistributionMetadata(bridgeHealth.body, manifest);
 

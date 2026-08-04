@@ -776,6 +776,9 @@ export async function handleMockStateRuntimeReadRoute(request: Request): Promise
 }
 
 export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter {
+  async getRepositoryContinuity(): Promise<never> {
+    throw new Error("Live supervised Augnes Companion required.");
+  }
   async getStateBrief(scope: StateRuntimeScope): Promise<StateBrief> {
     return {
       runtime: "augnes",

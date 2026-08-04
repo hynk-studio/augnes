@@ -54,7 +54,7 @@ import {
   type CodexCurrentContinuityV01,
 } from "@/types/vnext/codex-current-continuity";
 
-const AUTHORITY_V01 = Object.freeze({
+export const CODEX_CURRENT_CONTINUITY_AUTHORITY_V01 = Object.freeze({
   writes_database: false,
   writes_project_files: false,
   changes_project_selection: false,
@@ -76,6 +76,8 @@ const AUTHORITY_V01 = Object.freeze({
   merges_releases_or_deploys: false,
   starts_background_work: false,
 } as const);
+
+const AUTHORITY_V01 = CODEX_CURRENT_CONTINUITY_AUTHORITY_V01;
 
 type ContinuityProjectScopeV01 = {
   workspace_id: string;
@@ -115,6 +117,22 @@ export async function loadCodexCurrentContinuityV01(
   } finally {
     db.close();
   }
+}
+
+/**
+ * Thin explicit-project adapter over the CDX2A owner. Repository attachment
+ * resolves the canonical project before this call; CDX2A keeps ownership of
+ * the work/run/result/review projection and deterministic snapshot.
+ */
+export async function readCodexProjectContinuityV01(
+  db: Database.Database,
+  input: { project_id: string; generated_at?: string },
+  dependencies: Partial<Omit<CodexCurrentContinuityDependenciesV01, "open_database">> = {},
+): Promise<CodexCurrentContinuityV01> {
+  return readCodexCurrentContinuityV01(db, {
+    viewed_project_id: input.project_id,
+    generated_at: input.generated_at,
+  }, dependencies);
 }
 
 export async function readCodexCurrentContinuityV01(

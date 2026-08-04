@@ -47,6 +47,8 @@ The bootstrap script verifies that these files exist:
 - `AGENTS.md`
 - `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
 - `plugins/augnes-operator/.codex-plugin/plugin.json`
+- `plugins/augnes-operator/.mcp.json`
+- `plugins/augnes-operator/mcp/companion-proxy.mjs`
 - `apps/augnes_apps/package.json`
 
 Missing files fail the bootstrap check because a fresh Codex worker would not
@@ -58,35 +60,16 @@ The script prints the recommended deterministic local runtime setup:
 
 ```bash
 npm install
-npm run db:reset
-npm run db:migrate
-npm run demo:seed
-env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
+npm --prefix apps/augnes_apps install
+npm run augnes
 ```
 
 These commands are printed for the operator to run. The bootstrap script does
 not execute them.
 
-The `env -u OPENAI_API_KEY` shape keeps the basic local demo path independent
-from provider credentials.
-
-## Printed MCP Bridge Setup Commands
-
-The script prints the recommended local bridge setup:
-
-```bash
-npm --prefix apps/augnes_apps install
-AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
-```
-
-The bridge endpoint is expected at:
-
-```text
-http://localhost:8787/mcp
-```
-
-These commands are printed for an operator to run in a separate process. The
-bootstrap script does not start the bridge.
+The single supervisor starts both UI and bridge and keeps provider credentials
+optional. The bootstrap also prints the one plugin-install instruction; it
+does not install the plugin or start the Companion itself.
 
 ## Install Mode 1: Repo-native Codex Use
 
@@ -103,23 +86,24 @@ Recommended entry points:
 
 This mode is the safest default for ordinary repo implementation work.
 
-## Install Mode 2: Local Codex plus Augnes MCP Bridge
+## Install Mode 2: Local Codex plus live Augnes Companion
 
-The repo-local `.codex/config.toml.example` shows an example URL-based MCP
-server entry for the local Augnes bridge:
+The current ordinary setup is the repo-local `augnes-operator` plugin plus the
+existing supervised Companion:
 
-```toml
-[mcp_servers.augnes_local_bridge]
-url = "http://localhost:8787/mcp"
+```bash
+codex plugin marketplace add .
+codex plugin add augnes-operator@augnes-local
+npm run augnes
+# Ask Codex: Resume this repository with Augnes.
 ```
 
-This example is inert. It is not loaded automatically and is not copied into a
-user-level Codex config by any repo script.
-
-Use this mode only after starting:
-
-1. the Augnes runtime on `http://localhost:3000`
-2. the Augnes Apps MCP bridge on `http://localhost:8787/mcp`
+The supervisor owns both UI and bridge and may move either after a port
+collision. The plugin's stdio proxy verifies the live manifest, bridge identity,
+and narrow generation-bound Companion access record, then calls the strict
+UI/Core repository route directly. `.codex/config.toml.example` retains only a
+commented direct-URL compatibility shape for explicit test harnesses; a fixed
+`8787` URL is not the product setup.
 
 Bridge use does not grant Codex commit/reject authority, proof authority,
 publication authority, provider authority, GitHub authority, or merge authority.
@@ -138,15 +122,17 @@ Installation guidance is in:
 plugins/augnes-operator/INSTALL.md
 ```
 
-The plugin packages local skills and optional hook guardrails. It does not add
-MCP config, app mappings, runtime calls, provider calls, GitHub calls, secrets,
-or state authority.
+The plugin packages local skills, optional hook guardrails, and one reviewed
+read-only MCP connection to the live supervised Companion. It adds no daemon,
+database, provider/GitHub call, secret, Start, managed delegation, or state
+authority.
 
-Plugin and hook verification:
+Plugin and Companion verification:
 
 ```bash
-npm run smoke:augnes-operator-plugin-scaffold
-npm run smoke:augnes-operator-plugin-hooks
+npm run test:codex-companion-discovery
+npm run test:codex-repository-continuity
+npm run test:operability:supervisor
 ```
 
 ## Verification
@@ -170,7 +156,11 @@ evidence writes, Augnes state commit/reject authority, merge automation,
 approval automation, publication automation, retry/replay automation, hidden
 background daemons, or "Run Codex from ChatGPT" behavior.
 
-## Codex-access improvement proposals
+## Historical Codex-access improvement inventory
+
+The inventory below predates CDX2A and CDX2B1. Its per-item statements such as
+"no MCP config" describe the historical proposal scopes only; they do not
+override the current live Companion product path or authorize new work.
 
 These proposals come from inspecting the current Augnes repo as a Codex
 implementation worker. The ranking is intentionally conservative:

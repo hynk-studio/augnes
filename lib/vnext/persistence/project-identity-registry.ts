@@ -635,6 +635,27 @@ export function findCanonicalProjectByLocalRootV01(
   return rows ? parseRegistration(rows.project, rows.root) : null;
 }
 
+/** Read-only enumeration for physical-root resolution. */
+export function listCanonicalProjectsWithRootsV01(
+  db: Database.Database,
+  input: { workspace_id: string },
+): CanonicalProjectRegistrationV01[] {
+  assertVNextProjectIdentityRegistrySchemaV01(db);
+  const workspaceId = normalizeWorkspaceId(input.workspace_id);
+  const rows = db.prepare(
+    `SELECT project_id FROM vnext_project_identities
+     WHERE workspace_id = ? ORDER BY created_at, project_id`,
+  ).all(workspaceId) as Array<{ project_id: string }>;
+  return rows.map((row) => {
+    const registration = readCanonicalProjectWithRootV01(db, {
+      workspace_id: workspaceId,
+      project_id: row.project_id,
+    });
+    if (!registration) fail("project_identity_registry_corrupt", "project");
+    return registration;
+  });
+}
+
 export function rebindCanonicalProjectLocalRootV01(
   db: Database.Database,
   input: {
