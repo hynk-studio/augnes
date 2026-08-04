@@ -867,6 +867,8 @@ function validateAdditiveAndRepeatedMigration(): void {
     assert.deepEqual(first.created_tables, ["vnext_local_operator_sessions"]);
     assert.deepEqual(first.created_indexes, [
       "idx_vnext_local_operator_sessions_scope_expiry",
+      "idx_vnext_local_operator_sessions_decision_token",
+      "idx_vnext_local_operator_sessions_decision_nonce",
     ]);
     pass("legacy_database_upgraded_additively");
     const second = migrateVNextLocalOperatorSessionsV01(db);

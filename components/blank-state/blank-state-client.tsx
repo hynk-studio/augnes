@@ -277,11 +277,19 @@ export function BlankStateClient({
     setBusy(true);
     setRenameMessage(null);
     try {
+      const prepared = await mutate({
+        action: "prepare_repository_execution_decision_confirmation",
+        workspace_id: decision.workspace_id,
+        project_id: decision.project_id,
+        request_fingerprint: decision.request_fingerprint,
+      });
       const value = await mutate({
         action: "confirm_repository_execution_decision",
         workspace_id: decision.workspace_id,
         project_id: decision.project_id,
         request_fingerprint: decision.request_fingerprint,
+        challenge_fingerprint:
+          prepared.confirmation.challenge_fingerprint,
       });
       setRecent((items) => items.map((item) =>
         item.project.project_id === entry.project.project_id
@@ -294,6 +302,8 @@ export function BlankStateClient({
       setRenameMessage(errorMessage(
         error instanceof Error && error.message === "repository_execution_decision_expired"
           ? "This decision expired. Ask Augnes to prepare a fresh request."
+          : error instanceof Error && error.message.startsWith("operator_")
+            ? "Confirm this change from an authenticated local review session."
           : "The repository decision changed or could not be confirmed. Refresh and try again.",
       ));
     } finally {
@@ -400,6 +410,15 @@ export function BlankStateClient({
     setMessage(null);
     setDialogError(null);
     try {
+      const prepared = await mutate({
+        action: "prepare_repository_execution_rebind_confirmation",
+        project_id: entry.project.project_id,
+        selection_token: chosen.selection_token,
+        inspection_fingerprint: chosen.inspection.inspection_fingerprint,
+        expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+        expected_old_baseline_fingerprint:
+          entry.physical_root_baseline_fingerprint,
+      });
       const value = await mutate({
         action: "confirm_rebind",
         project_id: entry.project.project_id,
@@ -407,11 +426,17 @@ export function BlankStateClient({
         inspection_fingerprint: chosen.inspection.inspection_fingerprint,
         expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
         expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint,
+        decision_request_fingerprint:
+          prepared.decision_request_fingerprint,
+        challenge_fingerprint:
+          prepared.confirmation.challenge_fingerprint,
       });
       window.location.assign(value.result.destination);
     } catch (error) {
       setDialogError(error instanceof Error && error.message === "active_selection_conflict"
         ? "The current project changed. Refresh before retrying this folder change."
+        : error instanceof Error && error.message.startsWith("operator_")
+          ? "Confirm this folder change from an authenticated local review session."
         : "The replacement folder conflicts with another project or changed during confirmation. Nothing was changed; you can retry or cancel.");
     } finally {
       setBusy(false);

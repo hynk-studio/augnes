@@ -44,11 +44,11 @@ import { readPhysicalRootBaselineV01 } from "@/lib/vnext/persistence/repository-
 import {
   buildPhysicalRootBaselineV01,
   fingerprintProjectRootBindingV01,
-  grantRepositoryExecutionDecisionV01,
   inspectPhysicalRootForExecutionV01,
   previewRepositoryExecutionRootRebindV01,
   readOpenRepositoryExecutionDecisionProjectionV01,
   rebindRepositoryExecutionRootV01,
+  type RepositoryExecutionDependenciesV01,
 } from "@/lib/vnext/repository-execution/repository-execution";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
@@ -571,13 +571,70 @@ export function renameActiveProjectDisplayNameV01(
   }).immediate();
 }
 
+export async function previewLocalProjectRootRebindFromSelectionV01(
+  db: Database.Database,
+  input: {
+    project_id: string;
+    selection_token: string;
+    inspection_fingerprint: string;
+    expected_old_root_binding_fingerprint: string;
+    expected_old_baseline_fingerprint: string | null;
+  },
+  options: { now?: () => string; now_ms?: () => number } = {},
+) {
+  const record = selections.get(input.selection_token);
+  if (!record || record.expires_at < (options.now_ms ?? Date.now)()) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  if (record.fingerprint !== input.inspection_fingerprint) {
+    throw new ProjectOnboardingErrorV01("selection_tampered", 409);
+  }
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
+    now: options.now,
+    db,
+    workspace_id: workspace.workspace_id,
+  });
+  if (inspection.inspection_fingerprint !== record.fingerprint) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const preview = await previewRepositoryExecutionRootRebindV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+  }, { now: options.now });
+  if (
+    preview.status !== "ready" ||
+    !preview.decision_request ||
+    preview.expected_old_root_binding_fingerprint !==
+      input.expected_old_root_binding_fingerprint ||
+    preview.expected_old_baseline_fingerprint !==
+      input.expected_old_baseline_fingerprint ||
+    preview.expected_new_observation_fingerprint !==
+      inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  return preview;
+}
+
 export async function rebindLocalProjectRootFromSelectionV01(db: Database.Database, input: {
   project_id: string;
   selection_token: string;
   inspection_fingerprint: string;
   expected_old_root_binding_fingerprint: string;
   expected_old_baseline_fingerprint: string | null;
-}, options: { now?: () => string; now_ms?: () => number } = {}): Promise<ProjectRootRebindResultV01> {
+  decision_request_fingerprint: string;
+}, options: {
+  now?: () => string;
+  now_ms?: () => number;
+  decision_grant_fingerprint?: string;
+  authorize_decision_inside_transaction?:
+    RepositoryExecutionDependenciesV01["authorize_decision_inside_transaction"];
+} = {}): Promise<ProjectRootRebindResultV01> {
   const record = consumeSelection(input.selection_token, options.now_ms);
   if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
   const workspace = readDefaultWorkspaceIdentityV01(db);
@@ -606,17 +663,10 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
     preview.expected_old_baseline_fingerprint !==
       input.expected_old_baseline_fingerprint ||
     preview.expected_new_observation_fingerprint !==
-      inspection.physical_root_observation_fingerprint
+      inspection.physical_root_observation_fingerprint ||
+    preview.decision_request.request_fingerprint !==
+      input.decision_request_fingerprint
   ) {
-    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
-  }
-  const grant = grantRepositoryExecutionDecisionV01(db, {
-    request_fingerprint: preview.decision_request.request_fingerprint,
-    workspace_id: workspace.workspace_id,
-    project_id: input.project_id,
-    confirmation_source: "browser_same_origin_button",
-  }, { now: () => now });
-  if (!grant.grant_fingerprint) {
     throw new ProjectOnboardingErrorV01("inspection_stale", 409);
   }
   await rebindRepositoryExecutionRootV01(db, {
@@ -626,10 +676,12 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
     expected_old_root_binding_fingerprint: input.expected_old_root_binding_fingerprint,
     expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
     expected_new_observation_fingerprint: inspection.physical_root_observation_fingerprint,
-    decision_request_fingerprint: grant.request_fingerprint,
-    decision_grant_fingerprint: grant.grant_fingerprint,
+    decision_request_fingerprint: preview.decision_request.request_fingerprint,
+    decision_grant_fingerprint: options.decision_grant_fingerprint,
   }, {
     now: () => now,
+    authorize_decision_inside_transaction:
+      options.authorize_decision_inside_transaction,
     after_rebind_inside_transaction: () => {
       touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
       selectActiveProjectV01(db, {

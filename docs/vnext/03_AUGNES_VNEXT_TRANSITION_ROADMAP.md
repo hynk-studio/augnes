@@ -305,11 +305,15 @@ write, provider call, or external effect.
 PR #117 binds tracked dirty diff content, staged index content, bounded
 untracked file content, and relevant submodule state rather than paths alone.
 Preparation uses an exact database-state compare-and-swap and post-commit
-physical/worktree/database reobservation. Baseline onboarding/adoption expect
+physical-root, bounded-worktree, then final-database reobservation. Baseline onboarding/adoption expect
 absence, while rebind requires the exact old baseline fingerprint. Legacy
 adoption, root rebind, and revocation use a versioned expiring decision request
-and one same-origin Browser-issued grant; model-supplied literals are not user
-decisions. Non-Git continuity remains supported, but v0.1 blocks execution
+and one same-origin Browser-issued grant. The one-time Browser bootstrap creates
+a separate decision session in an HttpOnly, SameSite=Strict cookie; a
+request-bound action nonce rotates atomically with the grant, while the server
+stores only hashes. Forged local headers without that capability fail closed,
+and MCP/runtime/Companion/delegated inputs expose no session or bootstrap
+operation. Model-supplied literals are not user decisions. Non-Git continuity remains supported, but v0.1 blocks execution
 admission rather than claiming an unobservable ready attachment.
 
 PR #117 is verified on macOS. Linux has adapter-contract coverage but no

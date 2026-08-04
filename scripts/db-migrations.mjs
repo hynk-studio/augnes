@@ -5204,6 +5204,17 @@ export const vNextLocalOperatorSessionSchemaSqlV01 = `
     ),
     action_nonce_expires_at TEXT,
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    decision_session_token_hash TEXT CHECK (
+      decision_session_token_hash IS NULL OR
+      (length(decision_session_token_hash) = 71 AND
+       substr(decision_session_token_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_hash TEXT CHECK (
+      decision_action_nonce_hash IS NULL OR
+      (length(decision_action_nonce_hash) = 71 AND
+       substr(decision_action_nonce_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_expires_at TEXT,
     CHECK (
       (bootstrap_consumed_at IS NULL AND
        session_token_hash IS NULL AND
@@ -5220,14 +5231,45 @@ export const vNextLocalOperatorSessionSchemaSqlV01 = `
     ON vnext_local_operator_sessions(
       workspace_id, project_id, operator_id, revoked_at, expires_at, session_id
     );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_token
+    ON vnext_local_operator_sessions(decision_session_token_hash)
+    WHERE decision_session_token_hash IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_nonce
+    ON vnext_local_operator_sessions(decision_action_nonce_hash)
+    WHERE decision_action_nonce_hash IS NOT NULL;
 `;
 
 const vNextLocalOperatorSessionArtifactsV01 = {
   tables: ["vnext_local_operator_sessions"],
-  indexes: ["idx_vnext_local_operator_sessions_scope_expiry"],
+  indexes: [
+    "idx_vnext_local_operator_sessions_scope_expiry",
+    "idx_vnext_local_operator_sessions_decision_token",
+    "idx_vnext_local_operator_sessions_decision_nonce",
+  ],
 };
 
 export function migrateVNextLocalOperatorSessionsV01(db) {
+  const tableExists = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_local_operator_sessions'",
+  ).get();
+  if (tableExists) {
+    const columns = new Set(
+      db.prepare("PRAGMA table_info(vnext_local_operator_sessions)")
+        .all()
+        .map((row) => row.name),
+    );
+    for (const [name, definition] of [
+      ["decision_session_token_hash", "TEXT CHECK (decision_session_token_hash IS NULL OR (length(decision_session_token_hash) = 71 AND substr(decision_session_token_hash, 1, 7) = 'sha256:'))"],
+      ["decision_action_nonce_hash", "TEXT CHECK (decision_action_nonce_hash IS NULL OR (length(decision_action_nonce_hash) = 71 AND substr(decision_action_nonce_hash, 1, 7) = 'sha256:'))"],
+      ["decision_action_nonce_expires_at", "TEXT"],
+    ]) {
+      if (!columns.has(name)) {
+        db.prepare(
+          `ALTER TABLE vnext_local_operator_sessions ADD COLUMN ${name} ${definition}`,
+        ).run();
+      }
+    }
+  }
   const names = Object.values(vNextLocalOperatorSessionArtifactsV01).flat();
   const before = new Set(
     db

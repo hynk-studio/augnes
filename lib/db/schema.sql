@@ -4342,6 +4342,17 @@ CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
   ),
   action_nonce_expires_at TEXT,
   updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  decision_session_token_hash TEXT CHECK (
+    decision_session_token_hash IS NULL OR
+    (length(decision_session_token_hash) = 71 AND
+     substr(decision_session_token_hash, 1, 7) = 'sha256:')
+  ),
+  decision_action_nonce_hash TEXT CHECK (
+    decision_action_nonce_hash IS NULL OR
+    (length(decision_action_nonce_hash) = 71 AND
+     substr(decision_action_nonce_hash, 1, 7) = 'sha256:')
+  ),
+  decision_action_nonce_expires_at TEXT,
   CHECK (
     (bootstrap_consumed_at IS NULL AND
      session_token_hash IS NULL AND
@@ -4393,3 +4404,9 @@ CREATE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_scope_expiry
   ON vnext_local_operator_sessions(
     workspace_id, project_id, operator_id, revoked_at, expires_at, session_id
   );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_token
+  ON vnext_local_operator_sessions(decision_session_token_hash)
+  WHERE decision_session_token_hash IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_nonce
+  ON vnext_local_operator_sessions(decision_action_nonce_hash)
+  WHERE decision_action_nonce_hash IS NOT NULL;

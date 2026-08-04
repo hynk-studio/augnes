@@ -43,7 +43,7 @@ import {
 import {
   adoptLegacyPhysicalRootBaselineV01,
   buildPhysicalRootBaselineV01,
-  grantRepositoryExecutionDecisionV01,
+  grantRepositoryExecutionDecisionFromBrowserSessionV01,
   inspectPhysicalRootForExecutionV01,
   prepareRepositoryExecutionV01,
   previewRepositoryExecutionAttachmentRevocationV01,
@@ -56,10 +56,14 @@ import {
 } from "../lib/vnext/repository-execution/repository-execution";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
+import { inspectRepositoryWorktreeV01 } from "../lib/vnext/repository-execution/worktree-observation";
 import { exportActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import {
+  authenticateVNextLocalOperatorSessionV01,
   consumeVNextLocalOperatorBootstrapV01,
   issueVNextLocalOperatorBootstrapV01,
+  issueVNextRepositoryDecisionChallengeV01,
+  VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
   type VNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
@@ -795,13 +799,13 @@ async function main(): Promise<void> {
       project_id: postCommitPacketProject.project_id,
     }, {
       now: () => "2026-08-04T00:00:17.297Z",
-      after_prepare_transaction_before_reobserve: () => reviseWorkV01(
-        db,
-        postCommitPacketProject.project_id,
-        postCommitPacketInitial,
-        "Changed after attachment metadata committed",
-        "2026-08-04T00:00:17.298Z",
-      ),
+      inspect_worktree: secondObservationMutationV01(() => reviseWorkV01(
+          db,
+          postCommitPacketProject.project_id,
+          postCommitPacketInitial,
+          "Changed during the post-commit worktree observation",
+          "2026-08-04T00:00:17.298Z",
+        )),
     });
     assert.equal(postCommitPacketRace.status, "blocked");
     assert.equal(postCommitPacketRace.attachment, null);
@@ -809,6 +813,82 @@ async function main(): Promise<void> {
       `SELECT stale_reason FROM vnext_repository_execution_attachments
        WHERE project_id = ? ORDER BY lifecycle_updated_at DESC LIMIT 1`,
     ).get(postCommitPacketProject.project_id) as { stale_reason: string }).stale_reason, "packet_changed");
+
+    const postCommitRunRoot = createRepository("post-commit-run-race-repository");
+    const postCommitRunProject = await onboardV01(
+      db,
+      postCommitRunRoot,
+      "Post-commit Managed Run Race Repository",
+      "2026-08-04T00:00:17.298Z",
+    );
+    defineWorkV01(
+      db,
+      postCommitRunProject.project_id,
+      "Re-read managed-run state after the worktree observation",
+      "2026-08-04T00:00:17.299Z",
+    );
+    const postCommitRunRace = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: postCommitRunProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.299Z",
+      inspect_worktree: secondObservationMutationV01(() =>
+        insertManagedRunFixtureV01(
+          db,
+          workspaceId,
+          postCommitRunProject.project_id,
+          "autonomy-run:cdx2b2a-post-commit-race",
+          "2026-08-04T00:00:17.299Z",
+        )),
+    });
+    assert.equal(postCommitRunRace.status, "blocked");
+    assert.equal(postCommitRunRace.reason, "managed_run_conflict");
+    assert.equal(postCommitRunRace.attachment, null);
+    assert.equal((db.prepare(
+      `SELECT stale_reason FROM vnext_repository_execution_attachments
+       WHERE project_id = ? ORDER BY lifecycle_updated_at DESC LIMIT 1`,
+    ).get(postCommitRunProject.project_id) as { stale_reason: string }).stale_reason, "managed_run_conflict");
+    db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(
+      "autonomy-run:cdx2b2a-post-commit-race",
+    );
+
+    const postCommitRootRoot = createRepository("post-commit-root-race-repository");
+    const postCommitRootProject = await onboardV01(
+      db,
+      postCommitRootRoot,
+      "Post-commit Root Race Repository",
+      "2026-08-04T00:00:17.299Z",
+    );
+    defineWorkV01(
+      db,
+      postCommitRootProject.project_id,
+      "Re-read root binding after the worktree observation",
+      "2026-08-04T00:00:17.299Z",
+    );
+    const postCommitRootReplacement = createRepository(
+      "post-commit-root-race-replacement",
+    );
+    const postCommitRootRace = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: postCommitRootProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.299Z",
+      inspect_worktree: secondObservationMutationV01(() =>
+        rebindCanonicalProjectLocalRootV01(db, {
+          workspace_id: workspaceId,
+          project_id: postCommitRootProject.project_id,
+          local_root: normalizeLocalProjectRootRefV01(
+            postCommitRootReplacement,
+            { base_path: ROOT },
+          ),
+        }, { now: () => "2026-08-04T00:00:17.299Z" })),
+    });
+    assert.equal(postCommitRootRace.status, "blocked");
+    assert.equal(postCommitRootRace.attachment, null);
+    assert.equal((db.prepare(
+      `SELECT stale_reason FROM vnext_repository_execution_attachments
+       WHERE project_id = ? ORDER BY lifecycle_updated_at DESC LIMIT 1`,
+    ).get(postCommitRootProject.project_id) as { stale_reason: string }).stale_reason, "root_binding_changed");
 
     const rebindRoot = createRepository("rebind-repository");
     const rebindProject = await onboardV01(
@@ -975,6 +1055,10 @@ async function main(): Promise<void> {
       exact_preparation_idempotent: true,
       explicit_revocation_idempotent: true,
       browser_decision_grant_independent_of_mcp_literal: true,
+      forged_browser_headers_without_session_refused: true,
+      browser_session_exact_nonce_grants_once: true,
+      browser_decision_nonce_rotation_preserves_operator_session: true,
+      browser_session_secret_absent_from_response_database_and_environment: true,
       decision_grant_expiry_mismatch_and_one_time_consumption: true,
       backup_restore_retains_local_metadata: true,
       recovery_validator_accepts_exact_metadata: true,
@@ -989,6 +1073,8 @@ async function main(): Promise<void> {
       baseline_expected_absent_and_expected_old_cas: true,
       preparation_packet_root_and_managed_run_races_refused: true,
       post_commit_reobservation_compensates_stale: true,
+      post_commit_database_read_after_worktree_observation: true,
+      post_commit_packet_run_and_root_races_stale: true,
       moved_root_rebind_decisions: 1,
       missing_root_refused_before_rebind: true,
       old_baseline_cannot_authorize_new_root: true,
@@ -1285,65 +1371,209 @@ function countWhere(db: Database.Database, table: string, where: string): number
   return (db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${where}`).get() as { count: number }).count;
 }
 
+function secondObservationMutationV01(
+  mutate: () => void,
+): typeof inspectRepositoryWorktreeV01 {
+  let observationCount = 0;
+  return async (repositoryRoot, options) => {
+    const observation = await inspectRepositoryWorktreeV01(
+      repositoryRoot,
+      options,
+    );
+    observationCount += 1;
+    if (observationCount === 2) mutate();
+    return observation;
+  };
+}
+
 function grantDecisionV01(
   db: Database.Database,
   request: RepositoryExecutionDecisionRequestProjectionV01,
   now: string,
 ): RepositoryExecutionDecisionRequestProjectionV01 {
-  return grantRepositoryExecutionDecisionV01(db, {
+  const browserSession = browserDecisionSessionV01(
+    db,
+    request.project_id,
+    now,
+  );
+  const admission = browserSession.repository_decision_session;
+  const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
     request_fingerprint: request.request_fingerprint,
     workspace_id: request.workspace_id,
     project_id: request.project_id,
-    confirmation_source: "browser_same_origin_button",
-  }, { now: () => now });
+    credential: admission.credential,
+    clock: { now: () => now },
+  });
+  return grantRepositoryExecutionDecisionFromBrowserSessionV01(db, {
+    request_fingerprint: request.request_fingerprint,
+    workspace_id: request.workspace_id,
+    project_id: request.project_id,
+    challenge_fingerprint: challenge.challenge_fingerprint,
+    credential: admission.credential,
+  }, { now: () => now }).decision;
 }
 
 async function confirmDecisionThroughBrowserRouteV01(
   request: RepositoryExecutionDecisionRequestProjectionV01,
 ): Promise<RepositoryExecutionDecisionRequestProjectionV01> {
+  const exactHeaders = {
+    host: "127.0.0.1:4321",
+    origin: "http://127.0.0.1:4321",
+    "content-type": "application/json",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+  };
   const inventedResponse = await projectRoutePost(new Request(
     "http://127.0.0.1:4321/api/vnext/projects",
     {
       method: "POST",
-      headers: {
-        host: "127.0.0.1:4321",
-        origin: "http://127.0.0.1:4321",
-        "content-type": "application/json",
-      },
+      headers: exactHeaders,
       body: JSON.stringify({
         action: "confirm_repository_execution_decision",
         workspace_id: request.workspace_id,
         project_id: request.project_id,
         request_fingerprint: request.request_fingerprint,
+        challenge_fingerprint: `sha256:${"0".repeat(64)}`,
       }),
     },
   ));
-  assert.equal(inventedResponse.status, 403);
-  const response = await projectRoutePost(new Request(
+  assert.equal(inventedResponse.status, 401);
+
+  const browserDatabase = openDatabaseV01();
+  let session: ReturnType<typeof browserDecisionSessionV01>;
+  try {
+    session = browserDecisionSessionV01(
+      browserDatabase,
+      request.project_id,
+      request.requested_at,
+    );
+  } finally {
+    browserDatabase.close();
+  }
+  const decisionSession = session.repository_decision_session;
+  const cookie = `${VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01}=${decisionSession.cookie_value}`;
+  const challengeResponse = await projectRoutePost(new Request(
     "http://127.0.0.1:4321/api/vnext/projects",
     {
       method: "POST",
       headers: {
-        host: "127.0.0.1:4321",
-        origin: "http://127.0.0.1:4321",
-        "content-type": "application/json",
-        "sec-fetch-site": "same-origin",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-dest": "empty",
+        ...exactHeaders,
+        cookie,
       },
       body: JSON.stringify({
-        action: "confirm_repository_execution_decision",
+        action: "prepare_repository_execution_decision_confirmation",
         workspace_id: request.workspace_id,
         project_id: request.project_id,
         request_fingerprint: request.request_fingerprint,
       }),
     },
   ));
+  assert.equal(challengeResponse.status, 200);
+  const challengeText = await challengeResponse.text();
+  assert.equal(challengeText.includes(decisionSession.credential.session_secret), false);
+  assert.equal(challengeText.includes(decisionSession.credential.action_nonce), false);
+  const challengeBody = JSON.parse(challengeText) as {
+    confirmation: { challenge_fingerprint: string };
+  };
+
+  const mismatchResponse = await projectRoutePost(new Request(
+    "http://127.0.0.1:4321/api/vnext/projects",
+    {
+      method: "POST",
+      headers: { ...exactHeaders, cookie },
+      body: JSON.stringify({
+        action: "confirm_repository_execution_decision",
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        request_fingerprint: request.request_fingerprint,
+        challenge_fingerprint: `sha256:${"f".repeat(64)}`,
+      }),
+    },
+  ));
+  assert.equal(mismatchResponse.status, 409);
+
+  const response = await projectRoutePost(new Request(
+    "http://127.0.0.1:4321/api/vnext/projects",
+    {
+      method: "POST",
+      headers: { ...exactHeaders, cookie },
+      body: JSON.stringify({
+        action: "confirm_repository_execution_decision",
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        request_fingerprint: request.request_fingerprint,
+        challenge_fingerprint:
+          challengeBody.confirmation.challenge_fingerprint,
+      }),
+    },
+  ));
   assert.equal(response.status, 200);
-  const body = await response.json() as {
+  const rotatedCookie = response.headers.get("set-cookie") ?? "";
+  assert.match(
+    rotatedCookie,
+    new RegExp(`^${VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01}=`),
+  );
+  assert.match(rotatedCookie, /Path=\/api\/vnext\/projects/);
+  assert.match(rotatedCookie, /HttpOnly/);
+  assert.match(rotatedCookie, /SameSite=Strict/);
+  const responseText = await response.text();
+  assert.equal(responseText.includes(decisionSession.credential.session_secret), false);
+  assert.equal(responseText.includes(decisionSession.credential.action_nonce), false);
+  const body = JSON.parse(responseText) as {
     result: RepositoryExecutionDecisionRequestProjectionV01;
   };
   assert.equal(body.result.status, "granted");
   assert(body.result.grant_fingerprint);
+
+  const replayResponse = await projectRoutePost(new Request(
+    "http://127.0.0.1:4321/api/vnext/projects",
+    {
+      method: "POST",
+      headers: { ...exactHeaders, cookie },
+      body: JSON.stringify({
+        action: "confirm_repository_execution_decision",
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        request_fingerprint: request.request_fingerprint,
+        challenge_fingerprint:
+          challengeBody.confirmation.challenge_fingerprint,
+      }),
+    },
+  ));
+  assert.equal(replayResponse.status, 409);
+  const operatorDb = openDatabaseV01();
+  try {
+    assert.equal(authenticateVNextLocalOperatorSessionV01(operatorDb, {
+      config: operatorConfig(operatorDb, request.project_id),
+      credential: session.credential,
+      clock: { now: () => request.requested_at },
+    }).session.authenticated, true);
+  } finally {
+    operatorDb.close();
+  }
+  assert.equal(JSON.stringify(process.env).includes(decisionSession.credential.session_secret), false);
+  assert.equal(JSON.stringify(process.env).includes(decisionSession.credential.action_nonce), false);
+  const databaseBytes = readFileSync(DATABASE_PATH);
+  assert.equal(databaseBytes.includes(Buffer.from(decisionSession.credential.session_secret)), false);
+  assert.equal(databaseBytes.includes(Buffer.from(decisionSession.credential.action_nonce)), false);
   return body.result;
+}
+
+function browserDecisionSessionV01(
+  db: Database.Database,
+  projectId: string,
+  now: string,
+) {
+  const base = Date.parse(now);
+  const config = operatorConfig(db, projectId);
+  const issued = issueVNextLocalOperatorBootstrapV01(db, {
+    config,
+    clock: { now: () => new Date(base - 2_000).toISOString() },
+  });
+  return consumeVNextLocalOperatorBootstrapV01(db, {
+    config,
+    bootstrap_token: issued.bootstrap_token,
+    clock: { now: () => new Date(base - 1_000).toISOString() },
+  });
 }

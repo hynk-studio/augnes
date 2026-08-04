@@ -32,6 +32,12 @@ import {
 } from "@/lib/vnext/persistence/repository-execution-store";
 import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 import {
+  admitVNextRepositoryDecisionConfirmationInsideTransactionV01,
+  type VNextLocalOperatorSecretSourceV01,
+  type VNextLocalOperatorSessionCredentialV01,
+  type VNextLocalOperatorSessionMutationAdmissionV01,
+} from "@/lib/vnext/runtime/local-operator-session";
+import {
   inspectNativeHostPhysicalRootIdentityV01,
   type ProjectRootIdentityFilesystemV01,
 } from "@/lib/vnext/native-host/project-root-identity";
@@ -95,6 +101,14 @@ export interface RepositoryExecutionDependenciesV01 {
     root_binding: ProjectLocalRootBindingV01;
     baseline: PhysicalRootBaselineV01;
   }) => void;
+  authorize_decision_inside_transaction?: (input: {
+    action: RepositoryExecutionDecisionActionV01;
+    workspace_id: string;
+    project_id: string;
+    request_fingerprint: string;
+    expected_state_fingerprint: string;
+    now: string;
+  }) => { grant_fingerprint: string };
 }
 
 export function projectPhysicalRootMutationResultV01(
@@ -380,7 +394,103 @@ export function createRepositoryExecutionDecisionRequestV01(
   return repositoryExecutionDecisionProjectionV01(selected);
 }
 
-export function grantRepositoryExecutionDecisionV01(
+export function grantRepositoryExecutionDecisionFromBrowserSessionV01(
+  db: Database.Database,
+  input: {
+    request_fingerprint: string;
+    workspace_id: string;
+    project_id: string;
+    challenge_fingerprint: string;
+    credential: VNextLocalOperatorSessionCredentialV01;
+  },
+  options: {
+    now?: () => string;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  } = {},
+): {
+  decision: RepositoryExecutionDecisionRequestProjectionV01;
+  session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+} {
+  let result!: {
+    decision: RepositoryExecutionDecisionRequestProjectionV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  };
+  let expired = false;
+  db.transaction(() => {
+    const authorized = authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+      db,
+      input,
+      options,
+      { allow_expired_result: true },
+    );
+    result = {
+      decision: authorized.decision,
+      session_admission: authorized.session_admission,
+    };
+    expired = authorized.expired;
+  }).immediate();
+  if (expired) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_expired", 409);
+  }
+  return result;
+}
+
+export function authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    request_fingerprint: string;
+    workspace_id: string;
+    project_id: string;
+    challenge_fingerprint: string;
+    credential: VNextLocalOperatorSessionCredentialV01;
+  },
+  options: {
+    now?: () => string;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  } = {},
+  behavior: { allow_expired_result?: boolean } = {},
+): {
+  decision: RepositoryExecutionDecisionRequestProjectionV01;
+  session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+  expired: boolean;
+} {
+  if (!db.inTransaction) {
+    throw new Error("repository_execution_decision_transaction_required");
+  }
+  const sessionAdmission =
+    admitVNextRepositoryDecisionConfirmationInsideTransactionV01(db, {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      request_fingerprint: input.request_fingerprint,
+      challenge_fingerprint: input.challenge_fingerprint,
+      credential: input.credential,
+      clock: options.now ? { now: options.now } : undefined,
+      secret_source: options.secret_source,
+    });
+  const granted = grantRepositoryExecutionDecisionInsideTransactionV01(
+    db,
+    {
+      request_fingerprint: input.request_fingerprint,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      confirmation_source: "browser_same_origin_button",
+    },
+    options,
+  );
+  if (granted.expired && !behavior.allow_expired_result) {
+    throw new RepositoryExecutionErrorV01(
+      "repository_execution_decision_expired",
+      409,
+    );
+  }
+  return {
+    decision: repositoryExecutionDecisionProjectionV01(granted.request),
+    session_admission: sessionAdmission,
+    expired: granted.expired,
+  };
+}
+
+function grantRepositoryExecutionDecisionInsideTransactionV01(
   db: Database.Database,
   input: {
     request_fingerprint: string;
@@ -389,40 +499,37 @@ export function grantRepositoryExecutionDecisionV01(
     confirmation_source: "browser_same_origin_button";
   },
   options: { now?: () => string } = {},
-): RepositoryExecutionDecisionRequestProjectionV01 {
+): { request: RepositoryExecutionDecisionRequestV01; expired: boolean } {
+  if (!db.inTransaction) {
+    throw new Error("repository_execution_decision_transaction_required");
+  }
   const now = (options.now ?? (() => new Date().toISOString()))();
   const nowMs = Date.parse(now);
-  let result!: RepositoryExecutionDecisionRequestV01;
-  let expired = false;
-  db.transaction(() => {
-    const request = readRepositoryExecutionDecisionRequestV01(
-      db,
-      input.request_fingerprint,
-    );
-    if (
-      !request ||
-      request.workspace_id !== input.workspace_id ||
-      request.project_id !== input.project_id
-    ) {
-      throw new RepositoryExecutionErrorV01("repository_execution_decision_unavailable", 404);
-    }
-    if (request.status === "granted" || request.status === "consumed") {
-      result = request;
-      return;
-    }
-    if (request.status !== "pending") {
-      throw new RepositoryExecutionErrorV01("repository_execution_decision_not_confirmable", 409);
-    }
-    if (!Number.isFinite(nowMs) || nowMs >= Date.parse(request.expires_at)) {
-      updateRepositoryExecutionDecisionInsideTransactionV01(db, {
-        request_fingerprint: request.request_fingerprint,
-        from: ["pending"],
-        to: "expired",
-      });
-      expired = true;
-      result = { ...request, status: "expired" };
-      return;
-    }
+  const request = readRepositoryExecutionDecisionRequestV01(
+    db,
+    input.request_fingerprint,
+  );
+  if (
+    !request ||
+    request.workspace_id !== input.workspace_id ||
+    request.project_id !== input.project_id
+  ) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_unavailable", 404);
+  }
+  if (request.status === "granted" || request.status === "consumed") {
+    return { request, expired: false };
+  }
+  if (request.status !== "pending") {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_not_confirmable", 409);
+  }
+  if (!Number.isFinite(nowMs) || nowMs >= Date.parse(request.expires_at)) {
+    updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+      request_fingerprint: request.request_fingerprint,
+      from: ["pending"],
+      to: "expired",
+    });
+    return { request: { ...request, status: "expired" }, expired: true };
+  }
     const grantFingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         grant_version: "repository_execution_decision_grant.v0.1",
@@ -430,22 +537,23 @@ export function grantRepositoryExecutionDecisionV01(
         confirmation_source: input.confirmation_source,
       }),
     );
-    if (!updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+  if (!updateRepositoryExecutionDecisionInsideTransactionV01(db, {
       request_fingerprint: request.request_fingerprint,
       from: ["pending"],
       to: "granted",
       grant_fingerprint: grantFingerprint,
       confirmation_source: input.confirmation_source,
       granted_at: now,
-    })) {
-      throw new RepositoryExecutionErrorV01("repository_execution_decision_stale", 409);
-    }
-    result = readRepositoryExecutionDecisionRequestV01(db, request.request_fingerprint)!;
-  }).immediate();
-  if (expired) {
-    throw new RepositoryExecutionErrorV01("repository_execution_decision_expired", 409);
+  })) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_stale", 409);
   }
-  return repositoryExecutionDecisionProjectionV01(result);
+  return {
+    request: readRepositoryExecutionDecisionRequestV01(
+      db,
+      request.request_fingerprint,
+    )!,
+    expired: false,
+  };
 }
 
 export function readOpenRepositoryExecutionDecisionProjectionV01(
@@ -958,21 +1066,24 @@ export async function prepareRepositoryExecutionV01(
     )!;
   }).immediate();
   dependencies.after_prepare_transaction_before_reobserve?.();
+  const physicalAfter = await inspectPhysicalRootForExecutionV01(
+    db,
+    registration!.root_binding.local_root.normalized_path,
+    dependencies,
+  );
+  const worktreeAfter = await (
+    dependencies.inspect_worktree ?? inspectRepositoryWorktreeV01
+  )(
+    registration!.root_binding.local_root.normalized_path,
+    { now: dependencies.now },
+  );
+  // This must remain the last admission-state read. A packet, work, root,
+  // baseline, or managed-run mutation may commit while the bounded filesystem
+  // observations are in flight.
   const databaseAfter = readExpectedDatabaseAdmissionStateV01(db, {
     ...input,
     node_scope_fingerprint: admission.node_scope_fingerprint!,
   });
-  const [physicalAfter, worktreeAfter] = await Promise.all([
-    inspectPhysicalRootForExecutionV01(
-      db,
-      registration!.root_binding.local_root.normalized_path,
-      dependencies,
-    ),
-    (dependencies.inspect_worktree ?? inspectRepositoryWorktreeV01)(
-      registration!.root_binding.local_root.normalized_path,
-      { now: dependencies.now },
-    ),
-  ]);
   const physicalChanged = physicalAfter.status !== "exact" ||
     physicalAfter.observation_fingerprint !==
       admission.physical_root_observation_fingerprint;
@@ -1250,7 +1361,7 @@ export async function rebindRepositoryExecutionRootV01(
     expected_old_baseline_fingerprint: string;
     expected_new_observation_fingerprint: string;
     decision_request_fingerprint: string;
-    decision_grant_fingerprint: string;
+    decision_grant_fingerprint?: string;
   },
   dependencies: RepositoryExecutionDependenciesV01 = {},
 ): Promise<{ status: "rebound" | "exact_replay"; root_binding: ProjectLocalRootBindingV01; baseline: PhysicalRootBaselineV01; authority: RepositoryExecutionAuthorityBoundaryV01 }> {
@@ -1279,13 +1390,28 @@ export async function rebindRepositoryExecutionRootV01(
   let resultStatus: "rebound" | "exact_replay" = "rebound";
   let result!: { root_binding: ProjectLocalRootBindingV01; baseline: PhysicalRootBaselineV01 };
   db.transaction(() => {
+    const authorizedGrant =
+      dependencies.authorize_decision_inside_transaction?.({
+        action: "rebind_root",
+        workspace_id: input.workspace_id,
+        project_id: input.project_id,
+        request_fingerprint: input.decision_request_fingerprint,
+        expected_state_fingerprint: expectedStateFingerprint,
+        now,
+      }).grant_fingerprint ?? input.decision_grant_fingerprint;
+    if (!authorizedGrant) {
+      throw new RepositoryExecutionErrorV01(
+        "repository_execution_decision_not_granted",
+        409,
+      );
+    }
     const decision = assertGrantedRepositoryExecutionDecisionInsideTransactionV01(db, {
       action: "rebind_root",
       workspace_id: input.workspace_id,
       project_id: input.project_id,
       expected_state_fingerprint: expectedStateFingerprint,
       decision_request_fingerprint: input.decision_request_fingerprint,
-      decision_grant_fingerprint: input.decision_grant_fingerprint,
+      decision_grant_fingerprint: authorizedGrant,
       now,
     });
     const receipt = db.prepare(
@@ -1583,6 +1709,11 @@ function classifyDatabaseStateChangeV01(
       state.physical_root_baseline_fingerprint
   ) return "physical_root_mismatch";
   if (
+    state.managed_run_conflict ||
+    attachment.managed_run_state_fingerprint !==
+      state.managed_run_state_fingerprint
+  ) return "managed_run_conflict";
+  if (
     attachment.task_context_packet_id !== state.task_context_packet_id ||
     attachment.task_context_packet_fingerprint !==
       state.task_context_packet_fingerprint
@@ -1590,11 +1721,6 @@ function classifyDatabaseStateChangeV01(
   if (attachment.current_work_fingerprint !== state.current_work_fingerprint) {
     return "current_work_changed";
   }
-  if (
-    state.managed_run_conflict ||
-    attachment.managed_run_state_fingerprint !==
-      state.managed_run_state_fingerprint
-  ) return "managed_run_conflict";
   return "project_unavailable";
 }
 

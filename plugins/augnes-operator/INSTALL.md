@@ -66,7 +66,10 @@ trust and attachment metadata. They never Start a host, create or consume a
 managed run, run repository commands as product behavior, or write project
 files. Legacy adoption, root rebind, and revocation require exact expected
 state and a one-time grant produced by an explicit same-origin Augnes Browser
-confirmation. A model-supplied literal or tool annotation cannot issue it.
+confirmation. The Browser uses a bootstrap-derived HttpOnly decision session
+and an exact request-bound one-time nonce; the MCP proxy, runtime manifest, and
+Companion access record do not expose either capability. Forged Browser-shaped
+headers, a model-supplied literal, or a tool annotation cannot issue a grant.
 
 ## Supported and unsupported surfaces
 

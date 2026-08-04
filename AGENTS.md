@@ -126,9 +126,12 @@ capability, compatibility, or deferred work rather than default product UI.
   legacy baselines and intentional root moves require their exact explicit
   adoption/rebind actions; explicit revocation is separate. Those exceptional
   mutations require one expiring expected-state request and a one-time grant
-  from the same-origin Browser confirmation surface. MCP literals, annotations,
-  and assistant prose are not confirmation. Ordinary exact preparation requires
-  no confirmation.
+  from the same-origin Browser confirmation surface. That surface requires its
+  HttpOnly, SameSite=Strict decision-session cookie and exact request-bound
+  rotating nonce; Origin and Fetch Metadata headers alone are insufficient.
+  MCP literals, annotations, assistant prose, runtime manifests, Companion
+  access records, and delegated environments are not confirmation and expose
+  no Browser session capability. Ordinary exact preparation requires no confirmation.
 - `repository_execution_attachment.v0.1` remains preparation metadata only.
   CDX2B2A may prepare, validate, stale, supersede, and revoke it, but only
   separately authorized CDX2B2B work may consume it into a managed run.

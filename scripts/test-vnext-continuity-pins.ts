@@ -1046,6 +1046,11 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
       DROP TABLE vnext_repository_execution_attachments;
       DROP TABLE vnext_repository_root_rebind_receipts;
       DROP TABLE vnext_physical_root_baselines;
+      DROP INDEX idx_vnext_local_operator_sessions_decision_token;
+      DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;
+      ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_session_token_hash;
+      ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_hash;
+      ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_expires_at;
     `);
     assert.equal(
       structuralSchemaContractSignature(runtime),

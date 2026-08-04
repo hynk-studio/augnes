@@ -617,6 +617,11 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
   try {
     database.pragma("foreign_keys = ON");
     database.exec(
+      "DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;" +
+        "DROP INDEX idx_vnext_local_operator_sessions_decision_token;" +
+        "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_expires_at;" +
+        "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_hash;" +
+        "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_session_token_hash;" +
       "DROP TABLE vnext_project_continuity_pins;" +
         "DROP TABLE vnext_project_continuity_pin_collections;" +
         "DROP TABLE vnext_repository_execution_decision_requests;" +

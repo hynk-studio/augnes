@@ -19,6 +19,7 @@ import {
   listRecentProjectsV01,
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
+  previewLocalProjectRootRebindFromSelectionV01,
   readProjectDestinationV01,
   readRootAvailabilityV01,
   rebindLocalProjectRootFromSelectionV01,
@@ -29,7 +30,15 @@ import {
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { getOrCreateDefaultWorkspaceIdentityV01, VNEXT_PROJECT_IDENTITY_REGISTRY_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-identity-registry";
 import { VNEXT_PROJECT_LIFECYCLE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-lifecycle-registry";
-import { fingerprintProjectRootBindingV01 } from "../lib/vnext/repository-execution/repository-execution";
+import {
+  authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
+  fingerprintProjectRootBindingV01,
+} from "../lib/vnext/repository-execution/repository-execution";
+import {
+  consumeVNextLocalOperatorBootstrapV01,
+  issueVNextLocalOperatorBootstrapV01,
+  issueVNextRepositoryDecisionChallengeV01,
+} from "../lib/vnext/runtime/local-operator-session";
 import { POST as projectRoutePost } from "../app/api/vnext/projects/route";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-project-onboarding-"));
@@ -92,6 +101,77 @@ function activeSnapshot(entries: Awaited<ReturnType<typeof listRecentProjectsV01
     expected_project_id: entry?.active_project_id ?? null,
     expected_revision: entry?.active_selection_revision ?? null,
   };
+}
+
+async function rebindWithBrowserDecisionV01(
+  db: Database.Database,
+  input: Omit<
+    Parameters<typeof rebindLocalProjectRootFromSelectionV01>[1],
+    "decision_request_fingerprint"
+  >,
+  options: { now?: () => string; now_ms?: () => number } = {},
+) {
+  const preview = await previewLocalProjectRootRebindFromSelectionV01(
+    db,
+    input,
+    options,
+  );
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const config = {
+    enabled: true as const,
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    operator_id: "operator:project-onboarding-rebind",
+    database_path: dbPath,
+  };
+  const base = Date.parse(now);
+  const bootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+    config,
+    clock: { now: () => new Date(base - 2_000).toISOString() },
+  });
+  const session = consumeVNextLocalOperatorBootstrapV01(db, {
+    config,
+    bootstrap_token: bootstrap.bootstrap_token,
+    clock: { now: () => new Date(base - 1_000).toISOString() },
+  });
+  const decisionSession = session.repository_decision_session;
+  const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    request_fingerprint: preview.decision_request!.request_fingerprint,
+    credential: decisionSession.credential,
+    clock: { now: () => now },
+  });
+  return rebindLocalProjectRootFromSelectionV01(
+    db,
+    {
+      ...input,
+      decision_request_fingerprint:
+        preview.decision_request!.request_fingerprint,
+    },
+    {
+      ...options,
+      authorize_decision_inside_transaction: () => {
+        const authorized =
+          authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+            db,
+            {
+              workspace_id: preview.workspace_id,
+              project_id: preview.project_id,
+              request_fingerprint:
+                preview.decision_request!.request_fingerprint,
+              challenge_fingerprint: challenge.challenge_fingerprint,
+              credential: decisionSession.credential,
+            },
+            { now: () => now },
+          );
+        assert(authorized.decision.grant_fingerprint);
+        return {
+          grant_fingerprint: authorized.decision.grant_fingerprint,
+        };
+      },
+    },
+  );
 }
 
 async function main() {
@@ -552,7 +632,7 @@ try {
   const occupiedExpected = (await listRecentProjectsV01(db)).find(
     (entry) => entry.project.project_id === confirmedA.project.project_id,
   )!;
-  await assert.rejects(rebindLocalProjectRootFromSelectionV01(db, {
+  await assert.rejects(rebindWithBrowserDecisionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: occupiedRecovery.selection_token,
     inspection_fingerprint: occupiedRecovery.inspection.inspection_fingerprint,
@@ -679,7 +759,7 @@ try {
     confirmedA.project.workspace_id,
     confirmedA.project.project_id,
   ) as { baseline_fingerprint: string };
-  await assert.rejects(rebindLocalProjectRootFromSelectionV01(db, {
+  await assert.rejects(rebindWithBrowserDecisionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: staleRecovery.selection_token,
     inspection_fingerprint: staleRecovery.inspection.inspection_fingerprint,
@@ -700,7 +780,7 @@ try {
 
   const recovery = await selection(folderA2, "2026-07-15T00:05:00.000Z");
   assert.equal(recovery.status, "selected");
-  const rebound = await rebindLocalProjectRootFromSelectionV01(db, {
+  const rebound = await rebindWithBrowserDecisionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: recovery.selection_token,
     inspection_fingerprint: recovery.inspection.inspection_fingerprint,

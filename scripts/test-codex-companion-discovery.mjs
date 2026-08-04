@@ -127,6 +127,22 @@ try {
       "augnes_preview_repository_execution_attachment_revocation",
       "augnes_revoke_repository_execution_attachment",
     ]);
+    const delegatedToolContract = JSON.stringify(tools.tools);
+    for (const forbiddenCapability of [
+      "bootstrap_token",
+      "session_secret",
+      "action_nonce",
+      "challenge_fingerprint",
+      "confirm_repository_execution_decision",
+      "prepare_repository_execution_decision_confirmation",
+      "augnes_vnext_repository_decision_session_v01",
+    ]) {
+      assert.equal(
+        delegatedToolContract.includes(forbiddenCapability),
+        false,
+        `MCP tool inventory must not expose Browser decision capability: ${forbiddenCapability}`,
+      );
+    }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
     for (const name of [
       "augnes_prepare_repository_execution",
@@ -166,6 +182,8 @@ try {
     stale_foreign_recovery_refused: true,
     mock_refused: true,
     official_stdio_mcp_client: true,
+    browser_decision_session_absent_from_mcp_inventory: true,
+    browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
     synthetic_discovery_harness: true,
   }, null, 2));
@@ -175,7 +193,7 @@ try {
 }
 
 function writeRuntimeFiles(manifestPath) {
-  writeFileSync(manifestPath, `${JSON.stringify({
+  const manifest = `${JSON.stringify({
     schema_version: 2,
     contract: "augnes-local-runtime-supervisor-v1",
     generation_version: 1,
@@ -192,8 +210,8 @@ function writeRuntimeFiles(manifestPath) {
       { role: "ui", pid: process.pid, port: ui.address().port, state: "ready" },
       { role: "bridge", pid: process.pid, port: bridge.address().port, state: "ready" },
     ],
-  })}\n`, { mode: 0o600 });
-  writeFileSync(path.join(path.dirname(manifestPath), "companion-access.json"), `${JSON.stringify({
+  })}\n`;
+  const companionAccess = `${JSON.stringify({
     schema_version: 2,
     contract: "augnes-local-runtime-supervisor-v1",
     generation_version: 1,
@@ -202,7 +220,19 @@ function writeRuntimeFiles(manifestPath) {
     repository_fingerprint: repository,
     access_version: "augnes-companion-proxy-access.v0.1",
     proxy_token: proxyToken,
-  })}\n`, { mode: 0o600 });
+  })}\n`;
+  for (const protectedSurface of [manifest, companionAccess]) {
+    assert.equal(protectedSurface.includes("repository_decision_session"), false);
+    assert.equal(protectedSurface.includes("bootstrap_token"), false);
+    assert.equal(protectedSurface.includes("action_nonce"), false);
+    assert.equal(protectedSurface.includes("session_secret"), false);
+  }
+  writeFileSync(manifestPath, manifest, { mode: 0o600 });
+  writeFileSync(
+    path.join(path.dirname(manifestPath), "companion-access.json"),
+    companionAccess,
+    { mode: 0o600 },
+  );
 }
 
 function unregisteredProjectionV01() {

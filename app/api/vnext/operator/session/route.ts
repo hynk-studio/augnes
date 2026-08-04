@@ -13,6 +13,8 @@ import {
   revokeVNextLocalOperatorSessionByCredentialV01,
   serializeVNextLocalOperatorSessionCookieClearV01,
   serializeVNextLocalOperatorSessionCookieV01,
+  serializeVNextRepositoryDecisionSessionCookieClearV01,
+  serializeVNextRepositoryDecisionSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
 } from "@/lib/vnext/runtime/local-operator-session";
@@ -117,12 +119,22 @@ export function createVNextLocalOperatorSessionHandlersV01(
             semantic_authority_granted: false,
           },
           200,
-          serializeVNextLocalOperatorSessionCookieV01({
-            value: admission.cookie_value,
-            expires_at: admission.cookie_expires_at,
-            max_age_seconds: admission.cookie_max_age_seconds,
-            secure: requestUrl.protocol === "https:",
-          }),
+          [
+            serializeVNextLocalOperatorSessionCookieV01({
+              value: admission.cookie_value,
+              expires_at: admission.cookie_expires_at,
+              max_age_seconds: admission.cookie_max_age_seconds,
+              secure: requestUrl.protocol === "https:",
+            }),
+            serializeVNextRepositoryDecisionSessionCookieV01({
+              value: admission.repository_decision_session.cookie_value,
+              expires_at:
+                admission.repository_decision_session.cookie_expires_at,
+              max_age_seconds:
+                admission.repository_decision_session.cookie_max_age_seconds,
+              secure: requestUrl.protocol === "https:",
+            }),
+          ],
         );
       }
       if (action === "logout") {
@@ -144,9 +156,14 @@ export function createVNextLocalOperatorSessionHandlersV01(
             semantic_authority_granted: false,
           },
           200,
-          serializeVNextLocalOperatorSessionCookieClearV01({
-            secure: requestUrl.protocol === "https:",
-          }),
+          [
+            serializeVNextLocalOperatorSessionCookieClearV01({
+              secure: requestUrl.protocol === "https:",
+            }),
+            serializeVNextRepositoryDecisionSessionCookieClearV01({
+              secure: requestUrl.protocol === "https:",
+            }),
+          ],
         );
       }
       throw new VNextLocalOperatorSessionErrorV01(
@@ -243,9 +260,11 @@ function routeErrorResponse(error: unknown): NextResponse {
 function jsonResponse(
   body: unknown,
   status = 200,
-  setCookie?: string,
+  setCookies?: readonly string[],
 ): NextResponse {
   const headers = new Headers(SECURITY_HEADERS);
-  if (setCookie) headers.set("Set-Cookie", setCookie);
+  for (const setCookie of setCookies ?? []) {
+    headers.append("Set-Cookie", setCookie);
+  }
   return NextResponse.json(body, { status, headers });
 }

@@ -80,6 +80,10 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // This admits only that complete ledgerless contract for one-way repair;
     // arbitrary partial schemas remain fail-closed.
     "e218d8bc2c60b991c50f1b0982abb74361ca0e38bccaa28e6ec43d18165132b0",
+    // Exact Browser decision-session CDX2B2A structural contract with the
+    // migration ledger and package identity guard removed by the bounded
+    // recovery fixture. Only this complete ledgerless contract is accepted.
+    "94b48f5951c32e4ffc27578970e08bda305e332f102ee54c3bd798fd9bad2b46",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

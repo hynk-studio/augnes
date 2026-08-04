@@ -33,7 +33,8 @@ the current Augnes project state.”
    rebind tool after the same Browser confirmation. Revocation first uses
    `augnes_preview_repository_execution_attachment_revocation`. Never infer
    any decision from Git remote equality, annotations, or assistant-generated
-   prose.
+   prose. The Browser's HttpOnly decision session and request-bound nonce are
+   intentionally unavailable to this skill and all MCP tools.
 8. Validate a prepared handle with
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact

@@ -43,8 +43,17 @@ import {
   confirmLocalProjectOnboardingV01,
   listRecentProjectsV01,
   pickAndInspectLocalProjectV01,
+  previewLocalProjectRootRebindFromSelectionV01,
   rebindLocalProjectRootFromSelectionV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
+import {
+  authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
+} from "../lib/vnext/repository-execution/repository-execution";
+import {
+  consumeVNextLocalOperatorBootstrapV01,
+  issueVNextLocalOperatorBootstrapV01,
+  issueVNextRepositoryDecisionChallengeV01,
+} from "../lib/vnext/runtime/local-operator-session";
 import {
   insertVNextCoreRecordV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -158,6 +167,77 @@ function openDatabase() {
   database.pragma("foreign_keys = ON");
   applyCanonicalDatabaseMigrations(database);
   return database;
+}
+
+async function rebindWithBrowserDecisionV01(
+  db: Database.Database,
+  input: Omit<
+    Parameters<typeof rebindLocalProjectRootFromSelectionV01>[1],
+    "decision_request_fingerprint"
+  >,
+  options: { now?: () => string; now_ms?: () => number } = {},
+) {
+  const preview = await previewLocalProjectRootRebindFromSelectionV01(
+    db,
+    input,
+    options,
+  );
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const config = {
+    enabled: true as const,
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    operator_id: "operator:project-home-rebind",
+    database_path: dbPath,
+  };
+  const base = Date.parse(now);
+  const bootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+    config,
+    clock: { now: () => new Date(base - 2_000).toISOString() },
+  });
+  const session = consumeVNextLocalOperatorBootstrapV01(db, {
+    config,
+    bootstrap_token: bootstrap.bootstrap_token,
+    clock: { now: () => new Date(base - 1_000).toISOString() },
+  });
+  const decisionSession = session.repository_decision_session;
+  const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    request_fingerprint: preview.decision_request!.request_fingerprint,
+    credential: decisionSession.credential,
+    clock: { now: () => now },
+  });
+  return rebindLocalProjectRootFromSelectionV01(
+    db,
+    {
+      ...input,
+      decision_request_fingerprint:
+        preview.decision_request!.request_fingerprint,
+    },
+    {
+      ...options,
+      authorize_decision_inside_transaction: () => {
+        const authorized =
+          authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+            db,
+            {
+              workspace_id: preview.workspace_id,
+              project_id: preview.project_id,
+              request_fingerprint:
+                preview.decision_request!.request_fingerprint,
+              challenge_fingerprint: challenge.challenge_fingerprint,
+              credential: decisionSession.credential,
+            },
+            { now: () => now },
+          );
+        assert(authorized.decision.grant_fingerprint);
+        return {
+          grant_fingerprint: authorized.decision.grant_fingerprint,
+        };
+      },
+    },
+  );
 }
 
 function pickerProcess() {
@@ -1690,7 +1770,7 @@ async function main() {
     const recoveryExpected = (await listRecentProjectsV01(db)).find(
       (entry) => entry.project.project_id === confirmedA.project.project_id,
     )!;
-    const rebound = await rebindLocalProjectRootFromSelectionV01(
+    const rebound = await rebindWithBrowserDecisionV01(
       db,
       {
         project_id: confirmedA.project.project_id,

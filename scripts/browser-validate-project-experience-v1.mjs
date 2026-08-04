@@ -22,6 +22,9 @@ import {
   issueVNextLocalOperatorBootstrapV01,
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
+import {
+  createRepositoryExecutionDecisionRequestV01,
+} from "../lib/vnext/repository-execution/repository-execution.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import {
@@ -178,6 +181,7 @@ const result = {
   retired_route_statuses: {},
   retired_routes_non_mutating: false,
   first_work_browser_viewports: false,
+  repository_decision_browser_confirmation: false,
   delegated_work_narrow_viewport_no_overflow: false,
   shared_inspector_narrow_viewport_no_overflow: false,
   workbench_result_narrow_viewport_no_overflow: false,
@@ -1002,6 +1006,12 @@ async function main() {
     await validateFirstWorkComposerViewports();
     result.first_work_browser_viewports = true;
     completeDetailedField("first_work_browser_viewports");
+    await proveRepositoryDecisionBrowserConfirmation(
+      fixture.writable_database_path,
+      manifest,
+      projectAlphaId,
+    );
+    result.repository_decision_browser_confirmation = true;
     await cdp.send("Network.clearBrowserCookies");
   });
 
@@ -1136,6 +1146,17 @@ async function main() {
         absolute_path: onboardingFolderBRecovered,
       },
     ]);
+    await restartRuntime(
+      fixture.writable_database_path,
+      manifest,
+      projectBetaId,
+    );
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await authenticateCurrentPage(
+      fixture.writable_database_path,
+      manifest,
+      projectBetaId,
+    );
     await navigate(`${appOrigin}${projectBetaDestination}`);
     await waitForCondition(
       `document.querySelector('[data-blank-state-focus="project_root_unavailable"] [data-blank-state-primary-action="locate_folder"]') !== null && document.body.textContent.includes('The project record is safe')`,
@@ -1821,6 +1842,164 @@ async function authenticateCurrentPage(databasePath, manifest, projectId) {
   );
   assert.equal(serverLog.includes(bootstrapToken), false);
   bootstrapToken = null;
+}
+
+async function proveRepositoryDecisionBrowserConfirmation(
+  databasePath,
+  manifest,
+  projectId,
+) {
+  const browserCookies = await cdp.send("Network.getAllCookies");
+  const decisionCookie = browserCookies.cookies.find(
+    (cookie) =>
+      cookie.name === "augnes_vnext_repository_decision_session_v01" &&
+      cookie.path === "/api/vnext/projects" &&
+      cookie.httpOnly === true &&
+      cookie.sameSite === "Strict",
+  );
+  assert(decisionCookie, "repository_decision_browser_cookie_missing");
+  assert.equal(
+    JSON.stringify(runtimeEnvironment(databasePath, manifest, projectId))
+      .includes(decisionCookie.value),
+    false,
+  );
+  assert.equal(serverLog.includes(decisionCookie.value), false);
+  assert.equal(
+    await evaluateBoolean(
+      `!document.documentElement.innerHTML.includes(${JSON.stringify(decisionCookie.value)})`,
+    ),
+    true,
+  );
+  const database = new Database(databasePath);
+  let requestFingerprint;
+  let nonceHashBefore;
+  try {
+    const request = createRepositoryExecutionDecisionRequestV01(database, {
+      action: "revoke_attachment",
+      workspace_id: manifest.workspace_id,
+      project_id: projectId,
+      expected_state: {
+        attachment_id: "attachment:project-experience-browser-proof",
+        expected_binding_fingerprint: `sha256:${"b".repeat(64)}`,
+      },
+    });
+    requestFingerprint = request.request_fingerprint;
+    nonceHashBefore = database.prepare(
+      `SELECT decision_action_nonce_hash FROM vnext_local_operator_sessions
+       WHERE workspace_id = ? AND project_id = ? AND operator_id = ?
+         AND revoked_at IS NULL
+       ORDER BY issued_at DESC LIMIT 1`,
+    ).pluck().get(manifest.workspace_id, projectId, manifest.operator_id);
+    assert.equal(typeof nonceHashBefore, "string");
+  } finally {
+    database.close();
+  }
+
+  await navigate(`${appOrigin}/#project-settings`);
+  await waitForCondition(
+    `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('[data-repository-execution-decision-confirm="true"]') !== null`,
+    "repository decision Browser confirmation button",
+  );
+  assert.equal(
+    await evaluateBoolean(
+      `!document.cookie.includes('augnes_vnext_repository_decision_session_v01=')`,
+    ),
+    true,
+    "the Browser decision capability must remain HttpOnly",
+  );
+  const projectRequestOffset = requests.length;
+  await clickSelector('[data-repository-execution-decision-confirm="true"]');
+  const firstProjectResponse = await waitForObservedResponse(
+    "/api/vnext/projects",
+    "POST",
+    projectRequestOffset,
+  );
+  assert.equal(firstProjectResponse.status, 200);
+  const secondProjectResponse = await waitForObservedResponse(
+    "/api/vnext/projects",
+    "POST",
+    firstProjectResponse.request_offset + 1,
+  );
+  assert.equal(secondProjectResponse.status, 200);
+  await waitForCondition(
+    `document.querySelector('[data-repository-execution-decision-status="granted"]') !== null || document.querySelector('[data-project-message-tone="error"]') !== null`,
+    "repository decision confirmation result",
+  );
+  const confirmationState = await evaluateString(`JSON.stringify({
+    granted: document.querySelector('[data-repository-execution-decision-status="granted"]') !== null,
+    message: document.querySelector('[data-project-message-tone]')?.textContent?.trim() ?? null
+  })`);
+  assert.deepEqual(
+    JSON.parse(confirmationState),
+    {
+      granted: true,
+      message: "Decision confirmed. Augnes can finish the exact requested repository change.",
+    },
+    JSON.stringify({
+      project_requests: requests.filter(
+        (entry) => entry.phase === currentPhase &&
+          entry.path === "/api/vnext/projects",
+      ),
+      project_responses: responses.filter(
+        (entry) => entry.phase === currentPhase &&
+          entry.path === "/api/vnext/projects",
+      ),
+    }),
+  );
+  assert.equal(
+    await evaluateBoolean(
+      `document.querySelector('[data-repository-execution-decision-confirm="true"]') === null`,
+    ),
+    true,
+  );
+
+  const verified = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const decision = verified.prepare(
+      `SELECT status, confirmation_source, grant_fingerprint
+       FROM vnext_repository_execution_decision_requests
+       WHERE request_fingerprint = ?`,
+    ).get(requestFingerprint);
+    assert.equal(decision?.status, "granted");
+    assert.equal(decision?.confirmation_source, "browser_same_origin_button");
+    assert.match(decision?.grant_fingerprint ?? "", /^sha256:[a-f0-9]{64}$/u);
+    const nonceHashAfter = verified.prepare(
+      `SELECT decision_action_nonce_hash FROM vnext_local_operator_sessions
+       WHERE workspace_id = ? AND project_id = ? AND operator_id = ?
+         AND revoked_at IS NULL
+       ORDER BY issued_at DESC LIMIT 1`,
+    ).pluck().get(manifest.workspace_id, projectId, manifest.operator_id);
+    assert.equal(typeof nonceHashAfter, "string");
+    assert.notEqual(nonceHashAfter, nonceHashBefore);
+  } finally {
+    verified.close();
+  }
+}
+
+async function waitForObservedResponse(pathname, method, requestOffset) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
+    const requestOffsetFound = requests.findIndex(
+      (entry, index) =>
+        index >= requestOffset &&
+        entry.path === pathname &&
+        entry.method === method,
+    );
+    if (requestOffsetFound >= 0) {
+      const request = requests[requestOffsetFound];
+      const response = responses.find(
+        (entry) => entry.request_id === request.request_id,
+      );
+      if (response) {
+        return { ...response, request_offset: requestOffsetFound };
+      }
+    }
+    await delay(100);
+  }
+  throw new Error(`observed_response_timeout:${publicToken(pathname)}`);
 }
 
 function runtimeEnvironment(databasePath, manifest, projectId) {

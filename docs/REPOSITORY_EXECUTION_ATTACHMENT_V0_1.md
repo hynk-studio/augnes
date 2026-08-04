@@ -59,8 +59,16 @@ An existing project without a current-node baseline reports
 `baseline_adoption_required`. The explicit adoption action requires the exact
 project/root admission fingerprint and the expected physical observation
 fingerprint. The preview also creates one expiring decision request. Only the
-same-origin Browser project-settings confirmation can issue its one-time grant;
-an MCP literal or assistant prose is not confirmation. Grant consumption and
+same-origin Browser project-settings confirmation can issue its one-time grant.
+The established one-time local-review bootstrap creates a separate decision
+session in an `HttpOnly`, `SameSite=Strict`, project-route cookie. The database
+stores only session-secret and rotating action-nonce hashes. The Browser first
+obtains a request-bound challenge and then consumes that exact nonce atomically
+with the grant. Origin, Host, forwarded-header, and Fetch Metadata checks remain
+defense in depth; forged headers without the session cookie receive 401/403.
+The MCP proxy, Companion access record, runtime manifest, tool output, and
+delegated environment expose no bootstrap, decision-session, or challenge
+capability. An MCP literal or assistant prose is not confirmation. Grant consumption and
 baseline insertion share one immediate transaction. Exact consumed replay is
 idempotent; missing, expired, mismatched, reused-for-another-state, or stale
 input refuses. The ordinary meaning is “Use this folder as this project's
@@ -155,9 +163,12 @@ Preparation observes the physical root/worktree, computes one proposed
 admission, then enters an immediate canonical transaction. Inside it, Augnes
 re-reads the root binding, baseline, TaskContextPacket, current-work semantic
 fingerprint, and managed-run state and compares one exact database-state
-fingerprint before inserting or superseding. After commit it re-reads database
-state and re-observes the physical root/worktree. Any difference produces a
-deterministic compensating stale transition and no exact prepared result.
+fingerprint before inserting or superseding. After commit it re-observes the
+physical root, then the bounded worktree, and only then performs the final
+canonical database admission read. Any difference produces a deterministic
+compensating stale transition and no exact prepared result. A packet/work,
+root/baseline, or managed-run write that commits during either post-commit
+filesystem observation is therefore included in the final comparison.
 
 Lifecycle values are `prepared`, `stale`, `superseded`, `revoked`, and the
 reserved `consumed`. CDX2B2A never produces `consumed`. Validation classifies a
