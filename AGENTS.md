@@ -132,12 +132,30 @@ capability, compatibility, or deferred work rather than default product UI.
   MCP literals, annotations, assistant prose, runtime manifests, Companion
   access records, and delegated environments are not confirmation and expose
   no Browser session capability. Ordinary exact preparation requires no confirmation.
-- `repository_execution_attachment.v0.1` remains preparation metadata only.
-  CDX2B2A may prepare, validate, stale, supersede, and revoke it, but only
-  separately authorized CDX2B2B work may consume it into a managed run.
-  CDX2B2B must later validate, consume, and create the managed run atomically.
-  Non-Git work remains available for continuity but is not eligible for a
-  ready execution attachment in v0.1.
+- `repository_execution_attachment.v0.1` is immutable start-snapshot metadata.
+  CDX2B2A may prepare, validate, stale, supersede, and revoke it. The CDX2B2B
+  attachment-backed start owner may consume one exact prepared attachment into
+  one admitted managed run only after one Browser-confirmed start decision.
+  Grant validation, attachment consumption, and run-claim admission are one
+  immediate transaction; physical/worktree reobservation and the final
+  database read gate the first adapter invocation. Exact replay returns the
+  same run. A consumed attachment never returns to prepared and cannot bind a
+  second run. Non-Git work remains available for continuity but is not eligible
+  for managed repository delegation in v0.1.
+- The CDX2B2B execution envelope permits broad bounded local reversible work
+  only inside the exact macOS repository root. Network project commands,
+  dependency downloads, push/GitHub, release/deploy/publish, injected
+  Browser/Companion/provider/database/runtime/OS credentials, outside-root
+  secret material or writes, and semantic approval remain outside the
+  envelope. Files already present inside the exact repository remain in its
+  read scope; do not claim content-based secret unreadability without a
+  separately enforced read-time owner.
+  Existing operation approval is separate from Start, and result review,
+  ReviewDecision, and Transition remain separate from both. A durable run
+  without its exact controller is disconnected/paused and never auto-resumes.
+  Risk-reducing cancellation binds only the immutable consumed attachment and
+  exact run/controller ownership; packet, work, root, baseline, worktree, and
+  Browser-selection drift must not prevent cancelling that owned run.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

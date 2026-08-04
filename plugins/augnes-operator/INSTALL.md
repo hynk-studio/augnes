@@ -71,16 +71,47 @@ and an exact request-bound one-time nonce; the MCP proxy, runtime manifest, and
 Companion access record do not expose either capability. Forged Browser-shaped
 headers, a model-supplied literal, or a tool annotation cannot issue a grant.
 
+CDX2B2B adds `augnes_request_repository_delegation`,
+`augnes_start_repository_delegation`, and
+`augnes_cancel_repository_delegation`. Request creates one exact start decision
+but no run. The user confirms it in the same Browser-only decision session.
+Start atomically consumes that grant and one prepared attachment into one
+managed run, then rechecks physical root, worktree, database state, adapter,
+capability, and execution envelope before the first worker invocation. Exact
+replay returns the same run and launches nothing twice. Cancellation is bound
+to the exact attachment/run and creates no semantic decision. Use
+`augnes_resume_repository` for current status, result, receipt, and review
+continuity.
+
+The start decision permits bounded reversible local work inside the exact
+repository root. It does not grant arbitrary command network access,
+dependency downloads, push/GitHub, injected Browser/Companion/provider/
+database/runtime/OS credentials, outside-root secret material,
+release/deployment, publication, or semantic result acceptance. Files already
+inside the repository remain in repository read scope; no content-based secret
+unreadability is claimed. A later NativeHost operation
+approval is separate from Start; ReviewDecision and Transition are separate
+from both.
+
+Cancellation uses the immutable consumed attachment/run binding rather than
+current execution eligibility. It can still signal the exact owned controller
+after packet, work, root, baseline, worktree, or Browser-selection drift. If
+the controller is absent it reports disconnected reconciliation and does not
+start or resume anything. Exact Start replay reports the run's actual state;
+`worker_started` is true only when that specific request started the worker.
+
 ## Supported and unsupported surfaces
 
 Supported: local Codex, local filesystem checkout, installed Augnes Operator,
 and the existing local supervised Companion.
 
 Not claimed: automatic plugin installation, remote Codex filesystem access,
-ChatGPT/mobile repository attachment, remote nodes, managed delegation, Start,
-Linux filesystem proof, Windows physical identity/managed delegation, or broad
-Windows packaging. PR #117 is filesystem-verified on macOS; Linux has adapter
-contract coverage only. A Codex build without plugin `mcpServers` support
+ChatGPT/mobile repository attachment, remote nodes, current-session workers,
+automatic resume after controller loss, continuous/multi-agent automation,
+Linux product filesystem/runtime proof, Windows physical identity/delegation,
+or broad Windows packaging. PR #117 is filesystem-verified on macOS; Linux has
+adapter contract coverage only. CDX2B2B v0.1 is explicitly macOS-only. A Codex
+build without plugin `mcpServers` support
 must be upgraded or use an explicitly configured direct test connection; the
 product docs do not pretend that limitation is solved.
 
@@ -99,15 +130,18 @@ and is never returned by the tool. Results exclude database
 paths, ownership tokens, credentials, cookies, provider configuration, private
 controller material, and unrelated projects.
 
-The tool is read-only. It cannot register or rename a project, change Browser
-selection, define/revise work, create/start/control a run, approve, write
-proof/evidence, call providers or GitHub, merge, release, or deploy.
+Continuity is read-only. Attachment preparation writes only canonical local
+metadata. An explicitly Browser-confirmed CDX2B2B Start may create/control one
+exact managed run and its envelope-bounded local repository effects. It cannot
+change Browser selection, call GitHub, push, merge, release, deploy, publish,
+create semantic approval/Decision/Transition, accept state, or close work.
 
 ## Verification
 
 ```bash
 npm run test:codex-companion-discovery
 npm run test:codex-repository-continuity
+npm run test:repository-managed-delegation
 npm run test:operability:supervisor
 npm --prefix apps/augnes_apps run typecheck
 ```
@@ -117,11 +151,13 @@ npm --prefix apps/augnes_apps run typecheck
 actual supervised UI/Core and bridge, invokes the actual stdio proxy with the
 official MCP stdio client, registers disposable repositories through canonical
 onboarding, defines and revises work through the production work owners, and
-parses the live route contract. It proves the revised binding refreshes and
-repository A remains the target while Browser selection moves to B, with the
-documented inactive/Start-ineligible projection. Every continuity read leaves
-the one canonical database and disposable project files unchanged. Neither
-test is described as a genuine model-mediated Codex conversation. The current
+uses the real Browser session/challenge/grant routes. It proves the revised
+binding refreshes, consumes one exact attachment, starts one managed
+deterministic worker while Browser selects B, performs one bounded fixture edit
+and check in A, records the RunReceipt and pending-review proposal, returns the
+same run on exact replay, and cleans every owned process and port. Provider and
+proxy request counts remain zero. Neither test is described as a genuine
+model-mediated Codex conversation. The current
 Codex CLI has no provider-free direct `tools/call` command, so automating that
 final conversation would require a separately configured model/provider
 invocation.

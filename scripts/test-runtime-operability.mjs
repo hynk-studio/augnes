@@ -30,6 +30,7 @@ import { PassThrough } from "node:stream";
 
 import Database from "better-sqlite3";
 
+import { readAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
 import {
   confirmLocalProjectOnboardingV01,
   pickAndInspectLocalProjectV01,
@@ -208,6 +209,9 @@ try {
     registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
     true,
   );
+  assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
+  assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
+  assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
@@ -264,6 +268,13 @@ try {
       registeredRepositoryMcpEvidence?.selection_independent_attachment === true,
     repository_attachment_binding:
       registeredRepositoryMcpEvidence?.repository_attachment_binding ?? null,
+    consumed_attachment_binding:
+      registeredRepositoryMcpEvidence?.consumed_attachment_binding ?? null,
+    managed_run_id: registeredRepositoryMcpEvidence?.managed_run_id ?? null,
+    managed_run_status:
+      registeredRepositoryMcpEvidence?.managed_run_status ?? null,
+    run_receipt_id: registeredRepositoryMcpEvidence?.run_receipt_id ?? null,
+    proposal_status: registeredRepositoryMcpEvidence?.proposal_status ?? null,
     attachment_stale_reason:
       registeredRepositoryMcpEvidence?.attachment_stale_reason ?? null,
     same_path_replacement_blocked:
@@ -337,6 +348,11 @@ try {
         selection_independent_attachment_verified:
           summary.selection_independent_attachment_verified,
         repository_attachment_binding: summary.repository_attachment_binding,
+        consumed_attachment_binding: summary.consumed_attachment_binding,
+        managed_run_id: summary.managed_run_id,
+        managed_run_status: summary.managed_run_status,
+        run_receipt_id: summary.run_receipt_id,
+        proposal_status: summary.proposal_status,
         attachment_stale_reason: summary.attachment_stale_reason,
         same_path_replacement_blocked: summary.same_path_replacement_blocked,
         registered_repository_read_database_mutations:
@@ -574,10 +590,13 @@ async function testReadyDuplicateStatusAndStop() {
     providerMode: "absent",
   });
   Object.assign(environment, {
+    AUGNES_CANONICAL_TEST_MODE: "1",
+    AUGNES_CANONICAL_TEMP_ROOT: temporaryRoot,
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: registeredRuntimeWorkspaceId,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: registeredRuntimeProjectAId,
     AUGNES_VNEXT_OPERATOR_ID: registeredRuntimeOperatorId,
+    AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER: "1",
   });
 
   const managed = startManagedSupervisor(
@@ -1220,6 +1239,7 @@ async function assertSupervisedMcpAdapterSplit({
         repositories: registeredRepositories,
         callRepository,
         callExecution,
+        effectiveUrl: ready.effective_url,
       });
       return { tools, call: unregistered, positivePath };
     },
@@ -1285,6 +1305,7 @@ async function assertRegisteredRepositoryPositivePathV01({
   repositories,
   callRepository,
   callExecution,
+  effectiveUrl,
 }) {
   const clock = advancingClockV01();
   const registeredA = await registerRepositoryThroughOnboardingV01({
@@ -1469,21 +1490,140 @@ async function assertRegisteredRepositoryPositivePathV01({
     { repositoryRoot: repositories.repositoryA },
   );
   assert.equal(revisedPreparation.structuredContent.status, "prepared");
+  const revisedAttachment = revisedPreparation.structuredContent.attachment;
+  assert(revisedAttachment?.attachment_id);
+
+  selectFixtureProjectV01(registeredB.project.project_id);
+  const startRequest = await callExecution(
+    "augnes_request_repository_delegation",
+    {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      attachmentId: revisedAttachment.attachment_id,
+    },
+  );
+  assert.notEqual(startRequest.isError, true);
+  assert.equal(startRequest.structuredContent.status, "decision_required");
+  assert(startRequest.structuredContent.decision_request?.request_fingerprint);
+  assert(startRequest.structuredContent.execution_envelope?.envelope_fingerprint);
+  assert.equal(startRequest.structuredContent.authority.managed_run_created, false);
+  const grantedStart = await confirmRepositoryDecisionThroughBrowserV01({
+    effectiveUrl,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    requestFingerprint:
+      startRequest.structuredContent.decision_request.request_fingerprint,
+  });
+  assert.equal(grantedStart.action, "start_repository_managed_delegation");
+  assert.equal(grantedStart.status, "granted");
+  const startArguments = {
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    attachmentId: revisedAttachment.attachment_id,
+    expectedAttachmentBindingFingerprint: revisedAttachment.binding_fingerprint,
+    expectedExecutionEnvelopeFingerprint:
+      startRequest.structuredContent.execution_envelope.envelope_fingerprint,
+    decisionRequestFingerprint: grantedStart.request_fingerprint,
+    decisionGrantFingerprint: grantedStart.grant_fingerprint,
+  };
+  const started = await callExecution(
+    "augnes_start_repository_delegation",
+    startArguments,
+  );
+  assert.notEqual(started.isError, true);
+  assert.equal(started.structuredContent.status, "accepted");
+  assert.equal(started.structuredContent.authority.attachment_consumed, true);
+  assert.equal(started.structuredContent.authority.managed_run_created, true);
+  assert.equal(started.structuredContent.authority.semantic_authority_granted, false);
+  assert.equal(started.structuredContent.authority.provider_egress_may_occur, false);
+  assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
+  writeFileSync(
+    path.join(repositories.repositoryB, "b-change-during-a-run.txt"),
+    "repository B changed while A was managed\n",
+    "utf8",
+  );
+  const terminalRun = await waitForFixtureManagedRunV01(
+    started.structuredContent.run_id,
+  );
+  assert.equal(terminalRun.status, "completed");
+  assert.equal(terminalRun.metadata.repository_attachment_id, revisedAttachment.attachment_id);
+  assert.equal(typeof terminalRun.metadata.run_receipt_id, "string");
+  assert.equal(terminalRun.metadata.run_assessment_proposal_status, "available");
+  assert.equal(
+    readFileSync(
+      path.join(repositories.repositoryA, "cdx2b2b-runtime-proof.txt"),
+      "utf8",
+    ),
+    "CDX2B2B managed repository delegation runtime proof\n",
+  );
+  const runContinuity = await callRepository(repositories.repositoryA);
+  assert.notEqual(runContinuity.isError, true);
+  assert.equal(runContinuity.structuredContent.continuity.project.active, false);
+  assert.equal(
+    runContinuity.structuredContent.continuity.managed_execution.stage,
+    "terminal_result_ready",
+  );
+  assert.equal(
+    runContinuity.structuredContent.continuity.managed_execution.mode,
+    "repository_attachment",
+  );
+  assert.equal(
+    runContinuity.structuredContent.continuity.latest_result.state,
+    "result_present",
+  );
+  const exactStartReplay = await callExecution(
+    "augnes_start_repository_delegation",
+    startArguments,
+  );
+  assert.equal(exactStartReplay.structuredContent.status, "exact_replay");
+  assert.equal(exactStartReplay.structuredContent.run_id, started.structuredContent.run_id);
+
+  const replacementRepository = path.join(
+    path.dirname(repositories.repositoryA),
+    "repository-replacement-proof",
+  );
+  mkdirSync(replacementRepository, { recursive: true });
+  writeFileSync(
+    path.join(replacementRepository, "fixture.txt"),
+    "CDX2B2B same-path replacement fixture\n",
+  );
+  initializeGitFixtureV01(replacementRepository);
+  const registeredReplacement = await registerRepositoryThroughOnboardingV01({
+    repositoryRoot: replacementRepository,
+    displayName: "CDX2B2B Replacement Proof",
+    createUuids: ["20000000-0000-4000-8000-000000000003"],
+    clock,
+  });
+  defineFixtureWorkV01({
+    workspaceId: registeredReplacement.workspace.workspace_id,
+    projectId: registeredReplacement.project.project_id,
+    definition: {
+      goal: "Prove same-path physical replacement remains fail-closed.",
+      success_criteria: ["The replacement cannot consume the old baseline."],
+      non_goals: ["Do not start this repository."],
+    },
+    clock,
+  });
+  const replacementAttachment = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: replacementRepository },
+  );
+  assert.equal(replacementAttachment.structuredContent.status, "prepared");
   const dbBeforeReplacement = openFixtureDatabaseV01();
   const baselineCountBeforeReplacement = dbBeforeReplacement.prepare(
     "SELECT COUNT(*) AS count FROM vnext_physical_root_baselines",
   ).get().count;
   dbBeforeReplacement.close();
-  renameSync(repositories.repositoryA, `${repositories.repositoryA}-original`);
-  mkdirSync(repositories.repositoryA, { recursive: true });
+  renameSync(replacementRepository, `${replacementRepository}-original`);
+  mkdirSync(replacementRepository, { recursive: true });
   writeFileSync(
-    path.join(repositories.repositoryA, "fixture.txt"),
+    path.join(replacementRepository, "fixture.txt"),
     "CDX2B2A same-path replacement fixture\n",
   );
-  initializeGitFixtureV01(repositories.repositoryA);
+  initializeGitFixtureV01(replacementRepository);
   const replacementPreparation = await callExecution(
     "augnes_prepare_repository_execution",
-    { repositoryRoot: repositories.repositoryA },
+    { repositoryRoot: replacementRepository },
   );
   assert.equal(replacementPreparation.structuredContent.status, "blocked");
   assert.equal(replacementPreparation.structuredContent.reason, "physical_root_mismatch");
@@ -1493,11 +1633,11 @@ async function assertRegisteredRepositoryPositivePathV01({
     baselineCountBeforeReplacement,
   );
   assert.equal(
-    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM vnext_repository_execution_attachments WHERE lifecycle = 'prepared'").get().count,
+    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM vnext_repository_execution_attachments WHERE project_id = ? AND lifecycle = 'prepared'").get(registeredReplacement.project.project_id).count,
     0,
   );
   assert.equal(
-    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM autonomy_runs").get().count,
+    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM autonomy_runs WHERE scope = ?").get(registeredReplacement.project.project_id).count,
     0,
   );
   dbAfterReplacement.close();
@@ -1518,6 +1658,11 @@ async function assertRegisteredRepositoryPositivePathV01({
     revised_binding: revisedContinuity.snapshot.binding,
     selection_coupled_binding: selectionCoupledContinuity.snapshot.binding,
     repository_attachment_binding: initialAttachment.binding_fingerprint,
+    consumed_attachment_binding: revisedAttachment.binding_fingerprint,
+    managed_run_id: started.structuredContent.run_id,
+    managed_run_status: terminalRun.status,
+    run_receipt_id: terminalRun.metadata.run_receipt_id,
+    proposal_status: terminalRun.metadata.run_assessment_proposal_status,
     attachment_stale_reason: staleValidation.structuredContent.attachment.stale_reason,
     same_path_replacement_blocked: true,
     revision_refresh: true,
@@ -1526,9 +1671,96 @@ async function assertRegisteredRepositoryPositivePathV01({
     read_database_mutations: 0,
     read_project_file_mutations: 0,
     codex_only_database_copies: 0,
-    browser_process_required: false,
-    start_or_execution_created: false,
+    browser_process_required: true,
+    start_or_execution_created: true,
   };
+}
+
+async function confirmRepositoryDecisionThroughBrowserV01({
+  effectiveUrl,
+  workspaceId,
+  projectId,
+  requestFingerprint,
+}) {
+  const db = openFixtureDatabaseV01();
+  let bootstrap;
+  try {
+    bootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+      config: fixtureOperatorConfigV01(workspaceId, projectId),
+    });
+  } finally {
+    db.close();
+  }
+  const cookies = new Map();
+  const request = async (pathname, body) => {
+    const url = new URL(pathname, effectiveUrl);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: url.origin,
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-dest": "empty",
+        ...(cookies.size > 0
+          ? { cookie: [...cookies.entries()].map(([key, value]) => `${key}=${value}`).join("; ") }
+          : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    const setCookies = typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [response.headers.get("set-cookie")].filter(Boolean);
+    for (const setCookie of setCookies) {
+      const pair = setCookie.split(";", 1)[0];
+      const separator = pair.indexOf("=");
+      if (separator > 0) cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+    }
+    const value = await response.json();
+    assert.equal(response.ok, true, JSON.stringify(value));
+    return value;
+  };
+  const session = await request("/api/vnext/operator/session", {
+    action: "bootstrap",
+    bootstrap_token: bootstrap.bootstrap_token,
+  });
+  assert.equal(session.status, "authenticated");
+  const prepared = await request("/api/vnext/projects", {
+    action: "prepare_repository_execution_decision_confirmation",
+    workspace_id: workspaceId,
+    project_id: projectId,
+    request_fingerprint: requestFingerprint,
+  });
+  assert(prepared.confirmation?.challenge_fingerprint);
+  const confirmed = await request("/api/vnext/projects", {
+    action: "confirm_repository_execution_decision",
+    workspace_id: workspaceId,
+    project_id: projectId,
+    request_fingerprint: requestFingerprint,
+    challenge_fingerprint: prepared.confirmation.challenge_fingerprint,
+  });
+  assert.equal(typeof confirmed.result?.grant_fingerprint, "string");
+  return confirmed.result;
+}
+
+async function waitForFixtureManagedRunV01(runId) {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const db = openFixtureDatabaseV01();
+    try {
+      const run = readAutonomyRunLedgerRecord(runId, { db });
+      if (
+        run &&
+        ["blocked", "completed", "needs_review", "cancelled", "timed_out", "failed", "stopped"]
+          .includes(run.status)
+      ) {
+        return run;
+      }
+    } finally {
+      db.close();
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.fail(`managed repository run ${runId} did not settle`);
 }
 
 async function registerRepositoryThroughOnboardingV01({

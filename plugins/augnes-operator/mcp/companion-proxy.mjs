@@ -14,6 +14,9 @@ const PREVIEW_REBIND_TOOL_NAME = "augnes_preview_repository_execution_root_rebin
 const REBIND_TOOL_NAME = "augnes_rebind_repository_execution_root";
 const PREVIEW_REVOKE_TOOL_NAME = "augnes_preview_repository_execution_attachment_revocation";
 const REVOKE_TOOL_NAME = "augnes_revoke_repository_execution_attachment";
+const REQUEST_DELEGATION_TOOL_NAME = "augnes_request_repository_delegation";
+const START_DELEGATION_TOOL_NAME = "augnes_start_repository_delegation";
+const CANCEL_DELEGATION_TOOL_NAME = "augnes_cancel_repository_delegation";
 const MAX_RUNTIME_FILE_BYTES = 64 * 1024;
 const MAX_CONTINUITY_RESPONSE_BYTES = 256 * 1024;
 const REQUEST_TIMEOUT_MS = 2_000;
@@ -256,6 +259,9 @@ function parseRepositoryExecutionResponseV01(value, action) {
     preview_revoke: ["authority", "decision_request", "ordinary_text", "preview_version", "status"],
     rebind_root: ["authority", "baseline_fingerprint", "ordinary_text", "project_id", "status"],
     revoke: ["attachment", "status"],
+    request_start: ["attachment_id", "authority", "decision_request", "execution_envelope", "ordinary_text", "preparation_version", "project", "status"],
+    start: ["attachment_binding_fingerprint", "attachment_id", "authority", "execution_envelope_fingerprint", "ordinary_text", "projection", "run_id", "start_version", "status"],
+    cancel_run: ["attachment_id", "decision_created", "ordinary_text", "projection", "run_id", "semantic_authority_granted", "status", "transition_created", "work_closed"],
   };
   const expectedKeys = keysByAction[action];
   if (!expectedKeys || !exactKeysV01(value, expectedKeys)) invalidExecutionContractV01();
@@ -288,8 +294,38 @@ function parseRepositoryExecutionResponseV01(value, action) {
     stringV01(value.ordinary_text);
   } else if (action === "revoke" && value.status !== "revoked") {
     invalidExecutionContractV01();
+  } else if (action === "request_start") {
+    if (value.preparation_version !== "repository_managed_delegation_preparation.v0.1" || !["decision_required", "blocked"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
+    repositoryManagedAuthorityV01(value.authority);
+  } else if (action === "start") {
+    if (value.start_version !== "repository_managed_delegation_start.v0.1" || !["accepted", "exact_replay", "blocked"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
+    stringV01(value.run_id);
+    repositoryManagedAuthorityV01(value.authority);
+  } else if (action === "cancel_run") {
+    if (!["cancel_requested", "cancelled", "exact_replay", "reconciliation_required"].includes(value.status) || value.semantic_authority_granted !== false || value.decision_created !== false || value.transition_created !== false || value.work_closed !== false) invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
   }
   return value;
+}
+
+function repositoryManagedAuthorityV01(value) {
+  const keys = [
+    "accepted_state_mutated", "arbitrary_network_access_granted",
+    "attachment_consumed", "decision_created", "github_authority_granted",
+    "managed_run_created", "project_commands_may_be_executed",
+    "project_files_may_be_written", "provider_egress_may_occur",
+    "release_authority_granted", "semantic_authority_granted",
+    "transition_created", "work_closed", "worker_started",
+  ];
+  if (!exactKeysV01(value, keys)) invalidExecutionContractV01();
+  for (const key of keys) if (typeof value[key] !== "boolean") invalidExecutionContractV01();
+  for (const key of [
+    "accepted_state_mutated", "arbitrary_network_access_granted",
+    "decision_created", "github_authority_granted", "release_authority_granted",
+    "semantic_authority_granted", "transition_created", "work_closed",
+  ]) if (value[key] !== false) invalidExecutionContractV01();
 }
 
 function repositoryExecutionAuthorityV01(value) {
@@ -604,6 +640,58 @@ function repositoryExecutionToolDescriptionsV01() {
       },
       annotations: explicitIdentityDecisionAnnotations,
     },
+    {
+      name: REQUEST_DELEGATION_TOOL_NAME,
+      title: "Request one managed repository run",
+      description: "Create one exact Browser-confirmed start decision for a prepared repository attachment. This does not consume the attachment or start a worker.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["workspaceId", "projectId", "attachmentId"],
+        properties: {
+          workspaceId: { type: "string", minLength: 1 },
+          projectId: { type: "string", minLength: 1 },
+          attachmentId: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: START_DELEGATION_TOOL_NAME,
+      title: "Start one managed repository run",
+      description: "Consume one exact prepared attachment using its Browser-confirmed start grant and launch at most one managed worker. Browser session and nonce capabilities are never exposed here.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["workspaceId", "projectId", "attachmentId", "expectedAttachmentBindingFingerprint", "expectedExecutionEnvelopeFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
+        properties: {
+          workspaceId: { type: "string", minLength: 1 },
+          projectId: { type: "string", minLength: 1 },
+          attachmentId: { type: "string", minLength: 1 },
+          expectedAttachmentBindingFingerprint: { type: "string", minLength: 1 },
+          expectedExecutionEnvelopeFingerprint: { type: "string", minLength: 1 },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: { ...mutationAnnotations, destructiveHint: true },
+    },
+    {
+      name: CANCEL_DELEGATION_TOOL_NAME,
+      title: "Cancel one managed repository run",
+      description: "Idempotently cancel only the exact attachment-backed run. This risk-reducing action creates no semantic decision.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["workspaceId", "projectId", "attachmentId", "expectedAttachmentBindingFingerprint", "runId", "controlRevision"],
+        properties: {
+          workspaceId: { type: "string", minLength: 1 },
+          projectId: { type: "string", minLength: 1 },
+          attachmentId: { type: "string", minLength: 1 },
+          expectedAttachmentBindingFingerprint: { type: "string", minLength: 1 },
+          runId: { type: "string", minLength: 1 },
+          controlRevision: { type: "integer", minimum: 0 },
+        },
+      },
+      annotations: mutationAnnotations,
+    },
   ];
 }
 
@@ -702,6 +790,27 @@ async function handleMessageV01(message) {
           expected_binding_fingerprint: args.expectedBindingFingerprint,
           decision_request_fingerprint: args.decisionRequestFingerprint,
           decision_grant_fingerprint: args.decisionGrantFingerprint,
+        };
+      } else if (toolName === REQUEST_DELEGATION_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "attachmentId"])) {
+        body = {
+          action: "request_start", workspace_id: args.workspaceId,
+          project_id: args.projectId, attachment_id: args.attachmentId,
+        };
+      } else if (toolName === START_DELEGATION_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "attachmentId", "expectedAttachmentBindingFingerprint", "expectedExecutionEnvelopeFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
+        body = {
+          action: "start", workspace_id: args.workspaceId, project_id: args.projectId,
+          attachment_id: args.attachmentId,
+          expected_attachment_binding_fingerprint: args.expectedAttachmentBindingFingerprint,
+          expected_execution_envelope_fingerprint: args.expectedExecutionEnvelopeFingerprint,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
+        };
+      } else if (toolName === CANCEL_DELEGATION_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "attachmentId", "expectedAttachmentBindingFingerprint", "runId", "controlRevision"])) {
+        body = {
+          action: "cancel_run", workspace_id: args.workspaceId,
+          project_id: args.projectId, attachment_id: args.attachmentId,
+          expected_attachment_binding_fingerprint: args.expectedAttachmentBindingFingerprint,
+          run_id: args.runId, control_revision: args.controlRevision,
         };
       } else {
         return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };

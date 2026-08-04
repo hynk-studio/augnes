@@ -1,6 +1,6 @@
 ---
 name: augnes-live-repository-continuity
-description: Resume or inspect current repository continuity and prepare or validate its trusted execution attachment through the live supervised Augnes Companion.
+description: Resume current repository continuity, manage its trusted attachment, and start or cancel one Browser-confirmed attachment-backed managed run through the live supervised Augnes Companion.
 ---
 
 # Augnes Live Repository Continuity
@@ -39,6 +39,20 @@ the current Augnes project state.”
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact
    attachment.
+9. To start managed repository work, call
+   `augnes_request_repository_delegation` for the exact prepared attachment.
+   Ask the user to confirm the displayed start card in Augnes Browser. Never
+   request, infer, or reproduce the Browser session, challenge, cookie, or
+   nonce. After confirmation, call `augnes_start_repository_delegation` with
+   the exact attachment, envelope, request, and grant binding returned by the
+   canonical flow. Exact replay must return the same run.
+10. Use `augnes_resume_repository` for managed status/result/review continuity.
+    Use `augnes_cancel_repository_delegation` only with the exact attachment,
+    run, binding, and control revision. Cancellation is risk-reducing and needs
+    no second Browser decision. It remains available when current packet, work,
+    root, baseline, worktree, or Browser selection has drifted. A missing
+    controller reports disconnected reconciliation and never starts or resumes
+    a worker.
 
 Repository identity is not redirected by Browser selection. The nested CDX2A
 projection still reports active status, selection revision, Start eligibility,
@@ -46,9 +60,16 @@ and the corresponding next action, so do not describe those semantics as
 selection-independent. The separate CDX2B2A admission and attachment binding
 exclude Browser selection and reject same-path filesystem-object replacement.
 
-Continuity is read-only. CDX2B2A tools may write only node-local baseline,
-attachment, rebind-receipt, and lifecycle metadata. They do not rename project
-meaning, change Browser selection, define or revise work, create or consume a
-managed run, Start a host, run project commands, write project files, approve
-anything, call a provider or GitHub, or grant merge, release, deployment,
-remote, mobile, or managed-delegation authority.
+Continuity is read-only. CDX2B2A tools write only node-local baseline,
+attachment, rebind-receipt, and lifecycle metadata. A Browser-confirmed CDX2B2B
+Start may consume one attachment, create one run, and permit bounded reversible
+local work only inside the exact macOS Git root. It never grants arbitrary
+network commands, downloads, push/GitHub, injected Browser/Companion/provider/
+database/runtime/OS credentials, outside-root secret material, external publication,
+semantic approval, ReviewDecision, Transition, accepted state, work closure,
+remote/mobile execution, automatic resume, continuous automation, or another
+attachment/run/project. Later operation approval and semantic review remain
+separate from Start. Files already inside the exact repository remain in the
+repository read scope; do not claim content-based secret unreadability. Exact
+Start replay reports the bound run's actual state and never starts another
+worker.

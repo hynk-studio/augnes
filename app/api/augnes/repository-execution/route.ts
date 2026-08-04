@@ -17,6 +17,17 @@ import {
   revokeRepositoryExecutionAttachmentV01,
   validateRepositoryExecutionAttachmentV01,
 } from "@/lib/vnext/repository-execution/repository-execution";
+import {
+  cancelRepositoryManagedDelegationV01,
+  prepareRepositoryManagedDelegationV01,
+  RepositoryManagedDelegationErrorV01,
+  startRepositoryManagedDelegationV01,
+} from "@/lib/vnext/repository-execution/repository-managed-delegation";
+import {
+  getLiveNativeHostRunServiceV01,
+  LiveNativeHostRunServiceErrorV01,
+} from "@/lib/vnext/runtime/live-native-host-run-service";
+import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,7 +69,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    if (error instanceof RepositoryExecutionErrorV01) {
+    if (
+      error instanceof RepositoryExecutionErrorV01 ||
+      error instanceof RepositoryManagedDelegationErrorV01 ||
+      error instanceof LiveNativeHostRunServiceErrorV01
+    ) {
       return routeError(error.code, error.status);
     }
     return routeError("repository_execution_unavailable", 503);
@@ -68,6 +83,68 @@ export async function POST(request: Request) {
 }
 
 async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<string, unknown>) {
+  if (body.action === "cancel_run") {
+    exactKeys(body, [
+      "action", "workspace_id", "project_id", "attachment_id",
+      "expected_attachment_binding_fingerprint", "run_id", "control_revision",
+    ]);
+    const workspaceId = requiredString(body.workspace_id);
+    const projectId = requiredString(body.project_id);
+    const baseConfig = readVNextLocalOperatorPilotConfigV01();
+    if (baseConfig.workspace_id !== workspaceId) {
+      throw new RepositoryManagedDelegationErrorV01(
+        "repository_delegation_workspace_scope_mismatch",
+      );
+    }
+    return cancelRepositoryManagedDelegationV01(db, {
+      config: { ...baseConfig, workspace_id: workspaceId, project_id: projectId },
+      attachment_id: requiredString(body.attachment_id),
+      expected_attachment_binding_fingerprint: requiredString(
+        body.expected_attachment_binding_fingerprint,
+      ),
+      run_id: requiredString(body.run_id),
+      control_revision: requiredInteger(body.control_revision),
+    }, getLiveNativeHostRunServiceV01());
+  }
+  if (body.action === "request_start") {
+    exactKeys(body, ["action", "workspace_id", "project_id", "attachment_id"]);
+    return prepareRepositoryManagedDelegationV01(db, {
+      workspace_id: requiredString(body.workspace_id),
+      project_id: requiredString(body.project_id),
+      attachment_id: requiredString(body.attachment_id),
+    }, getLiveNativeHostRunServiceV01());
+  }
+  if (body.action === "start") {
+    exactKeys(body, [
+      "action", "workspace_id", "project_id", "attachment_id",
+      "expected_attachment_binding_fingerprint",
+      "expected_execution_envelope_fingerprint",
+      "decision_request_fingerprint", "decision_grant_fingerprint",
+    ]);
+    const workspaceId = requiredString(body.workspace_id);
+    const projectId = requiredString(body.project_id);
+    const baseConfig = readVNextLocalOperatorPilotConfigV01();
+    if (baseConfig.workspace_id !== workspaceId) {
+      throw new RepositoryManagedDelegationErrorV01(
+        "repository_delegation_workspace_scope_mismatch",
+        409,
+      );
+    }
+    return startRepositoryManagedDelegationV01(db, {
+      config: { ...baseConfig, workspace_id: workspaceId, project_id: projectId },
+      workspace_id: workspaceId,
+      project_id: projectId,
+      attachment_id: requiredString(body.attachment_id),
+      expected_attachment_binding_fingerprint: requiredString(
+        body.expected_attachment_binding_fingerprint,
+      ),
+      expected_execution_envelope_fingerprint: requiredString(
+        body.expected_execution_envelope_fingerprint,
+      ),
+      decision_request_fingerprint: requiredString(body.decision_request_fingerprint),
+      decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
+    }, getLiveNativeHostRunServiceV01());
+  }
   if (body.action === "prepare") {
     exactKeys(body, ["action", "repository_root"]);
     const resolution = await resolveProject(db, body.repository_root);
@@ -187,6 +264,13 @@ function requiredString(value: unknown): string {
     throw new RepositoryExecutionErrorV01("repository_execution_request_invalid", 400);
   }
   return value;
+}
+
+function requiredInteger(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new RepositoryExecutionErrorV01("repository_execution_request_invalid", 400);
+  }
+  return value as number;
 }
 
 function localRequestV01(request: Request): boolean {

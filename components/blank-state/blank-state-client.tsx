@@ -296,7 +296,9 @@ export function BlankStateClient({
           ? { ...item, repository_execution_decision: value.result }
           : item));
       setRenameMessage(infoMessage(
-        "Decision confirmed. Augnes can finish the exact requested repository change.",
+        decision.action === "start_repository_managed_delegation"
+          ? "Start confirmed. The exact prepared attachment can be consumed into one managed run."
+          : "Decision confirmed. Augnes can finish the exact requested repository change.",
       ));
     } catch (error) {
       setRenameMessage(errorMessage(
@@ -1889,10 +1891,16 @@ function ProjectIdentityManagement({
           data-repository-execution-decision-status={entry.repository_execution_decision.status}
         >
           <p className="blank-state-region-label">Repository decision</p>
-          <h3>Confirm this identity change</h3>
+          <h3>
+            {entry.repository_execution_decision.action === "start_repository_managed_delegation"
+              ? "Start this exact repository work"
+              : "Confirm this identity change"}
+          </h3>
           <p>{entry.repository_execution_decision.ordinary_text}</p>
           <p className="blank-state-meta">
-            This confirmation is separate from the assistant request and grants no execution authority.
+            {entry.repository_execution_decision.action === "start_repository_managed_delegation"
+              ? "This confirmation is separate from the assistant request and authorizes one exact managed run. It does not approve later external effects or accept the result."
+              : "This confirmation is separate from the assistant request and grants no execution authority."}
           </p>
           {entry.repository_execution_decision.status === "pending" ? (
             <button
@@ -1902,10 +1910,18 @@ function ProjectIdentityManagement({
               disabled={busy}
               onClick={() => onConfirmRepositoryDecision(entry)}
             >
-              {busy ? "Confirming…" : "Confirm repository decision"}
+              {busy
+                ? "Confirming…"
+                : entry.repository_execution_decision.action === "start_repository_managed_delegation"
+                  ? "Start one managed run"
+                  : "Confirm repository decision"}
             </button>
           ) : (
-            <p role="status">Confirmed. Augnes can finish this exact requested change.</p>
+            <p role="status">
+              {entry.repository_execution_decision.action === "start_repository_managed_delegation"
+                ? "Confirmed. The exact prepared attachment can start once."
+                : "Confirmed. Augnes can finish this exact requested change."}
+            </p>
           )}
         </div>
       ) : null}

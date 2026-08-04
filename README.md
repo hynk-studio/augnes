@@ -58,16 +58,31 @@ the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
 
 ## What works today
 
-Repository-scoped Codex continuity and trusted local execution preparation are
+Repository-scoped Codex continuity, trusted local execution preparation, and
+one attachment-backed managed run are
 documented in [Repository execution attachment v0.1](./docs/REPOSITORY_EXECUTION_ATTACHMENT_V0_1.md).
 Preparation binds canonical project, physical root, current work, and bounded
 Git worktree content state without starting a run or depending on Browser
 active selection. Legacy adoption, intentional rebind, and revocation use one
 same-origin Browser confirmation backed by a separate HttpOnly decision session
 and a request-bound one-time nonce; forged request headers and MCP literals are
-insufficient. Ordinary exact preparation remains silent.
-Windows managed delegation remains unavailable while stable physical identity
-is unsupported.
+insufficient. Ordinary exact preparation remains silent. Starting consumes one
+exact attachment only after one Browser confirmation, then permits bounded
+reversible local repository work within its deterministic envelope. Later
+operation approval and semantic result review remain separate. The
+managed-delegation product boundary is verified local macOS only: Linux has no
+separate product filesystem/runtime proof, and Windows remains unavailable
+while stable physical identity is unsupported.
+
+Cancellation remains available from the immutable consumed attachment/run
+binding even when current packet, work, root, baseline, worktree, or Browser
+selection has drifted. Exact Start replay reports the persisted run's actual
+queued, active, approval, disconnected, blocked, or terminal state and never
+starts another worker. Browser, Companion, provider, database, runtime, and OS
+credentials are not injected into the worker, and outside-root material stays
+blocked. Files already inside the exact repository are nevertheless within the
+repository read scope; Augnes does not claim content-based secret unreadability
+for those files.
 
 The checked-in runtime currently provides:
 

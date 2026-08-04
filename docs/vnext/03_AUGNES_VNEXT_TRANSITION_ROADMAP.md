@@ -281,15 +281,14 @@ continuity. It creates no daemon, database, project record, Browser selection,
 work, run, provider call, or fallback truth. This local read-only slice does not
 authorize Start or managed delegation.
 
-## Current
+## CDX2B2A completed lifecycle
 
 ### CDX2B2A trusted repository execution attachment
 
 [Issue #116](https://github.com/hynk-studio/augnes-perspective-lab/issues/116)
-defines CDX2B2A. The Draft PR titled **CDX2B2A — Establish trusted repository
-execution attachment** on branch
-`codex/cdx2b2a-execution-admission-substrate` is its current implementation and
-outcome record as Draft PR #117.
+defined CDX2B2A. [PR #117](https://github.com/hynk-studio/augnes-perspective-lab/pull/117)
+is its completed implementation and outcome record, merged at
+`8289a302ebe87198a02cff04e4fe16e460da1dff`.
 
 CDX2B2A strongly identifies the canonical project, its node-local physical
 root, current TaskContextPacket/current work, managed-run absence, and bounded
@@ -321,22 +320,60 @@ separate filesystem proof. Windows physical identity and managed delegation
 remain unsupported and fail closed. Broad CDX2B2B rollout requires either a
 verified Windows adapter or an explicitly macOS-only product boundary.
 
+## Current
+
+### CDX2B2B exact attachment-backed managed delegation
+
+[Issue #118](https://github.com/hynk-studio/augnes-perspective-lab/issues/118)
+defines CDX2B2B. The Draft PR titled **CDX2B2B — Start one managed Codex run
+from an exact repository attachment** on branch
+`codex/cdx2b2b-managed-repository-delegation` is its current implementation and
+outcome record.
+
+CDX2B2B adds one Browser-confirmed start decision bound to one prepared
+attachment and deterministic execution envelope. One immediate transaction
+revalidates the grant, attachment, project/root/baseline, current packet/work,
+managed-run absence, adapter/capability, and envelope; admits one existing
+NativeHost claim; marks the attachment `consumed` with its exact run ID;
+consumes the decision; and creates one queued managed run. Physical root and
+bounded worktree are observed again after commit, canonical database state is
+read last, and the delivery path repeats the exact gate before the adapter's
+first invocation. Drift leaves the attachment consumed and deterministically
+blocks the same run; exact replay returns that run without a second controller,
+provider request, command, or mutation.
+
+The v0.1 execution envelope allows bounded reads, in-root repository edits,
+tracked deletion, local test/typecheck/lint/format/build commands, Git
+inspection, and bounded local branch/commit work. It refuses network-enabled
+project commands, dependency downloads, push/GitHub, release/deploy/publish,
+injected Browser/Companion/provider/database/runtime/OS credentials,
+outside-root secret material or writes, and semantic authority. Files already
+inside the exact repository remain in repository read scope; the phase does
+not claim content-based secret unreadability. Destructive
+pre-existing untracked-data changes and other outside-envelope operations use
+the existing exact run approval boundary or refuse. Cancellation is exact,
+selection-independent, idempotent, and creates no semantic acceptance. It
+remains available across packet/work/root/baseline/worktree and Browser
+selection drift, signals only the exact owned controller, and truthfully
+projects missing ownership as disconnected/reconciliation-required. Exact
+Start replay reports the persisted queued, active, approval, disconnected,
+blocked, or terminal state without creating another effect.
+
+CDX2B2B is product-supported only on a verified local macOS filesystem. Linux
+remains non-product without a separate real filesystem/runtime proof. Windows,
+non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
+no start decision consumption, attachment consumption, run, controller,
+provider call, command, or project mutation.
+
 ## Next separately authorized work
 
-CDX2B2B managed delegation is next. It requires separate explicit authority and
-must define the exact Start/grant, managed-run, control, verification,
-reconciliation, cancellation, effect, and user-decision boundaries before any
-execution mutation is implemented. It may consume an exact prepared CDX2B2A
-attachment into one managed run, but CDX2B2A does not produce `consumed`, start
-Codex or NativeHost, run project commands, or pre-authorize CDX2B2B.
-Validation, attachment consumption, and managed-run creation must be one atomic
-CDX2B2B transaction; a validation/read followed by a separate run write cannot
-reuse CDX2B2A preparation as authority.
-
-The phase doctrine is: establish one strong repository, project, current-work,
-and execution attachment, then permit broad local reversible autonomy only
-inside that exact attachment. Current-session attachment and continuous
-control remain later and separate.
+The phase doctrine remains: establish one strong repository, project,
+current-work, and execution attachment; make one explicit start decision; then
+permit broad local reversible autonomy only inside that exact attachment and
+run. Current-session attachment, automatic resume after controller loss,
+Windows/Linux product rollout, remote nodes, long-horizon continuation,
+policy-triggered continuous control, and multi-agent orchestration remain
+later and separate.
 
 ## Pending C9
 

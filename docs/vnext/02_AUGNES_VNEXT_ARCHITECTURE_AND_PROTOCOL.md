@@ -551,6 +551,66 @@ unchanged. Portable project v0.1, backup, restore, and recovery preserve and
 canonically revalidate the entire chain without a schema or portable-contract
 version bump.
 
+#### RepositoryExecutionAttachment and managed delegation v0.1
+
+Repository identity, local root binding, node-local physical-root baseline,
+Browser active selection, execution attachment, and managed-run binding are
+independent meanings. `repository_execution_attachment.v0.1` immutably binds
+the canonical workspace/project, node scope, baseline/root binding, current
+TaskContextPacket and work semantics, project-scoped admission, bounded Git
+worktree, managed-run absence, and freshness. Browser project ID and selection
+revision are excluded.
+
+CDX2B2B adds `repository_execution_envelope.v0.1` and the explicit
+`repository_attachment` NativeHost run mode. One Browser-confirmed start grant
+is bound to one prepared attachment, its complete expected database state, the
+physical/worktree fingerprints, adapter/capability versions, timeout/budgets,
+and envelope fingerprint. An immediate transaction validates and consumes the
+grant, prepares and admits one existing NativeHost claim, changes the
+attachment to `consumed` with its exact run ID, and creates one queued managed
+run. These writes commit all or none. Post-commit physical/worktree observation
+precedes the final database read, and NativeHost delivery repeats the gate
+before invocation. Drift blocks the same run and never un-consumes the
+attachment. Exact replay returns the same run and creates no duplicate
+controller or effect.
+
+The execution envelope pre-authorizes bounded reversible work inside the exact
+verified macOS Git root: reads, file creation/edit, tracked deletion, local
+repository checks/builds, Git inspection, and bounded local branch/commit work.
+Arbitrary command network, dependency downloads, push/GitHub, external posting,
+release/deploy/publish, injected Browser/Companion/provider/database/runtime
+or OS credentials, outside-root secret material or writes, OS persistence,
+destructive pre-existing untracked-data mutation, semantic
+approval, Decision, Transition, accepted state, and work closure are not
+pre-authorized. Existing run-operation approval, cancellation, result
+normalization, RunReceipt, and proposal review owners remain authoritative and
+separate from Start.
+
+Repository read scope is path-based, not content-classified: a potentially
+sensitive file already inside the exact root can be read as repository
+material. The protocol therefore does not claim arbitrary in-repository secret
+content is unreadable. It continues to omit Browser/Companion/provider/runtime
+credentials from delegated inputs, block system and other outside-root secret
+sources, minimize the child environment, refuse command-network egress, and
+keep file contents and secret-detection results out of MCP projections.
+
+Repository-delegation cancellation is a separate risk-reducing control. It
+validates only the immutable consumed attachment/run binding and exact live
+controller ownership, never current packet/work/root/baseline/worktree or
+Browser selection. Queued cancellation atomically cancels the planned step and
+run. An owned active or approval-waiting controller receives one signal.
+Missing ownership projects paused/disconnected reconciliation and never
+launches or resumes a worker. Exact terminal/cancelling replay performs no new
+signal. Exact Start replay likewise uses the exact run projection for ordinary
+state text; `worker_started` records only a worker newly started by that
+specific request.
+
+The product boundary is a verified local macOS filesystem. Linux has no
+separate product filesystem/runtime proof in v0.1. Windows, non-Git, remote,
+network, virtual, unsupported, unavailable, and ambiguous roots create no run.
+A durable nonterminal run without its exact live controller projects
+disconnected/paused and is never automatically resumed in this phase.
+
 ---
 
 ### 5.2 RunReceipt

@@ -126,6 +126,9 @@ try {
       "augnes_rebind_repository_execution_root",
       "augnes_preview_repository_execution_attachment_revocation",
       "augnes_revoke_repository_execution_attachment",
+      "augnes_request_repository_delegation",
+      "augnes_start_repository_delegation",
+      "augnes_cancel_repository_delegation",
     ]);
     const delegatedToolContract = JSON.stringify(tools.tools);
     for (const forbiddenCapability of [
@@ -149,6 +152,8 @@ try {
       "augnes_validate_repository_execution_attachment",
       "augnes_preview_repository_execution_root_rebind",
       "augnes_preview_repository_execution_attachment_revocation",
+      "augnes_request_repository_delegation",
+      "augnes_cancel_repository_delegation",
     ]) {
       assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
       assert.equal(byName.get(name)?.annotations?.destructiveHint, false);
@@ -157,6 +162,7 @@ try {
       "augnes_adopt_repository_execution_root",
       "augnes_rebind_repository_execution_root",
       "augnes_revoke_repository_execution_attachment",
+      "augnes_start_repository_delegation",
     ]) {
       assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
       assert.equal(byName.get(name)?.annotations?.destructiveHint, true);

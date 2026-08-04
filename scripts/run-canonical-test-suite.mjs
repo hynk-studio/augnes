@@ -231,6 +231,11 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label: "managed repository delegation contract",
+      ...rootNode("scripts/test-repository-managed-delegation.ts"),
+      timeoutMs: 60_000,
+    },
+    {
       label: "live Companion discovery and dynamic bridge-port contract",
       ...rootNode("scripts/test-codex-companion-discovery.mjs"),
       timeoutMs: 30_000,

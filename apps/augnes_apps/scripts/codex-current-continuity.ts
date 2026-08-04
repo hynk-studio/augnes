@@ -78,7 +78,12 @@ export const ProjectionSchema = z.object({
       "timed_out",
       "unavailable_or_inconsistent",
     ]),
-    mode: z.enum(["interactive", "policy_triggered", "unknown"]).nullable(),
+    mode: z.enum([
+      "interactive",
+      "policy_triggered",
+      "repository_attachment",
+      "unknown",
+    ]).nullable(),
     latest_checkpoint: NullableStringSchema,
     blocker_or_attention: NullableStringSchema,
     attention_required: z.boolean(),

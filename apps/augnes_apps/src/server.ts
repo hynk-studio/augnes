@@ -66,6 +66,9 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_validate_repository_execution_attachment",
   "augnes_preview_repository_execution_attachment_revocation",
   "augnes_revoke_repository_execution_attachment",
+  "augnes_request_repository_delegation",
+  "augnes_start_repository_delegation",
+  "augnes_cancel_repository_delegation",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -2258,6 +2261,86 @@ export function createMcpAppServer(
         expected_binding_fingerprint: input.expectedBindingFingerprint,
         decision_request_fingerprint: input.decisionRequestFingerprint,
         decision_grant_fingerprint: input.decisionGrantFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_request_repository_delegation",
+      {
+        title: "Request one managed repository run",
+        description: "Create one exact start decision for confirmation in the Augnes Browser. This does not consume the attachment, create a run, or start a worker.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          attachmentId: z.string().min(1),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "request_start",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        attachment_id: input.attachmentId,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_start_repository_delegation",
+      {
+        title: "Start one managed repository run",
+        description: "Consume one exact prepared attachment using its Browser-confirmed start grant and launch at most one managed worker. Browser session and nonce capabilities are never exposed by this tool.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          attachmentId: z.string().min(1),
+          expectedAttachmentBindingFingerprint: z.string().min(1),
+          expectedExecutionEnvelopeFingerprint: z.string().min(1),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
+        },
+        annotations: explicitRepositoryIdentityDecisionAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "start",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        attachment_id: input.attachmentId,
+        expected_attachment_binding_fingerprint: input.expectedAttachmentBindingFingerprint,
+        expected_execution_envelope_fingerprint: input.expectedExecutionEnvelopeFingerprint,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_cancel_repository_delegation",
+      {
+        title: "Cancel one managed repository run",
+        description: "Idempotently cancel only the exact attachment-backed run. Cancellation is risk-reducing and creates no semantic decision.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          attachmentId: z.string().min(1),
+          expectedAttachmentBindingFingerprint: z.string().min(1),
+          runId: z.string().min(1),
+          controlRevision: z.number().int().nonnegative(),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "cancel_run",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        attachment_id: input.attachmentId,
+        expected_attachment_binding_fingerprint: input.expectedAttachmentBindingFingerprint,
+        run_id: input.runId,
+        control_revision: input.controlRevision,
       }),
     );
     }

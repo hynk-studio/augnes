@@ -844,6 +844,7 @@ class CodexAppServerInvocationV01 {
       "decline",
       "cancel_run",
     ];
+    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] = null;
 
     if (method === "item/commandExecution/requestApproval") {
       const cwd = stringV01(source.cwd);
@@ -861,15 +862,24 @@ class CodexAppServerInvocationV01 {
         const protocol = canonicalNetworkProtocolV01(network.protocol);
         resources = [`${protocol}://${host}`];
         operation = "network_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "refused"
+          : null;
         resourceSummary = `Network access to ${resources[0]}.`;
       } else {
         operation = "command_execution";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? classifyRepositoryEnvelopeCommandV01(command)
+          : null;
         resourceSummary = paths.length
           ? `Command scoped to ${paths.join(", ")}.`
           : "Command scoped to the selected project root.";
       }
     } else if (method === "item/fileChange/requestApproval") {
       operation = "file_change";
+      repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+        ? "preauthorized"
+        : null;
       const grantRoot = stringV01(source.grantRoot);
       if (grantRoot) paths = relativeScopeForHostPathV01(this.request, grantRoot);
       resourceSummary = paths.length
@@ -888,11 +898,17 @@ class CodexAppServerInvocationV01 {
         : null;
       if (network?.enabled === true) {
         operation = "network_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "refused"
+          : null;
         resourceSummary =
           "Network permission requested without an exact destination in the stable payload.";
         available = ["decline", "cancel_run"];
       } else {
         operation = "filesystem_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "preauthorized"
+          : null;
         paths = uniqueSortedV01([
           ...paths,
           ...repositoryPathsFromPermissionProfileV01(this.request, permissions),
@@ -921,6 +937,7 @@ class CodexAppServerInvocationV01 {
       paths,
       resources,
       command_fingerprint: commandFingerprint,
+      repository_envelope_classification: repositoryEnvelopeClassification,
       public_reason: reason,
       resource_summary: resourceSummary,
     };
@@ -953,6 +970,7 @@ class CodexAppServerInvocationV01 {
       issued_at: observedAt,
       expires_at: new Date(Date.parse(observedAt) + APPROVAL_TTL_MS).toISOString(),
       coverage: "observed",
+      repository_envelope_classification: repositoryEnvelopeClassification,
     };
     return approval;
   }
@@ -1506,6 +1524,30 @@ class CodexAppServerInvocationV01 {
       ...(publicReason ? { public_reason: publicReason } : {}),
     });
   }
+}
+
+export function classifyRepositoryEnvelopeCommandV01(
+  command: string | null,
+): NativeHostApprovalRequestV01["repository_envelope_classification"] {
+  if (!command) return "approval_required";
+  const normalized = command.trim().toLowerCase();
+  if (!normalized || /[\n\r]/u.test(normalized)) return "approval_required";
+  if (
+    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(normalized) ||
+    /(^|\s)git\s+(push|fetch|pull|clone|remote)(\s|$)/u.test(normalized) ||
+    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(normalized) ||
+    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(normalized) ||
+    /(^|\s)(deploy|release|publish)(\s|$)/u.test(normalized)
+  ) {
+    return "refused";
+  }
+  if (/[;&|`]|\$\(|>|</u.test(normalized)) return "approval_required";
+  if (
+    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(normalized)
+  ) {
+    return "preauthorized";
+  }
+  return "approval_required";
 }
 
 class CodexStdioJsonRpcTransportV01 {
@@ -2121,6 +2163,22 @@ function renderPacketV01(request: NativeHostRequestV01): string {
     `Request binding: ${request.request_id}`,
     `Packet fingerprint: ${request.packet.integrity.fingerprint}`,
     canonicalizeProtocolValueV01(request.packet),
+    ...(request.mode === "repository_attachment"
+      ? [
+          "## Repository execution envelope — exact start authority",
+          "This one-time Browser-confirmed start permits broad local reversible work only inside the exact repository root. Ordinary reads, edits, bounded checks/builds, and local Git inspection/branch/commit work are permitted through the host sandbox. Networked project commands, downloads, push, GitHub, release, deployment, publication, Browser/Companion/provider/database/runtime/OS credential access, outside-root secret material or writes, destructive changes to pre-existing untracked data, semantic approval, Decision, Transition, accepted-state mutation, and another run remain forbidden or require their separate existing approval boundary. Files already inside the exact repository remain within repository read scope; Augnes does not claim content-based secret unreadability for those files, and their contents must not be exposed through the bounded result surface.",
+          canonicalizeProtocolValueV01({
+            attachment_id: request.repository_delegation_context?.attachment_id,
+            attachment_binding_fingerprint:
+              request.repository_delegation_context?.attachment_binding_fingerprint,
+            execution_envelope_fingerprint:
+              request.repository_delegation_context?.execution_envelope_fingerprint,
+            allowed_operation_categories: request.allowed_operation_categories,
+            forbidden_operation_categories: request.forbidden_operation_categories,
+            policy: request.policy,
+          }),
+        ]
+      : []),
   ].join("\n\n");
   if (Buffer.byteLength(rendered, "utf8") > MAX_PROMPT_BYTES) {
     throw new NativeHostContractErrorV01("codex_rendered_packet_bound_exceeded");

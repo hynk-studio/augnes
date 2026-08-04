@@ -3,10 +3,10 @@
 ## Purpose
 
 CDX2B2A establishes one trusted, node-local repository attachment for a
-canonical Augnes project. It answers one question: can later managed delegation
-start from the exact project, root, work, and bounded repository state that the
-user already established? This phase prepares and validates that answer. It
-does not execute it.
+canonical Augnes project. CDX2B2B consumes one exact prepared attachment into
+one admitted managed run after one independent Browser start decision. Together
+they answer: can one worker start from the exact project, root, work, bounded
+repository state, adapter, and execution envelope the user established?
 
 The product doctrine is:
 
@@ -25,7 +25,8 @@ These records are deliberately not interchangeable:
 - Browser active selection is presentation and mutation context only.
 - `repository_execution_attachment.v0.1` is a prepared future-execution
   binding.
-- a managed-run binding remains CDX2B2B work.
+- a managed-run binding is the one exact CDX2B2B consumption result and never
+  replaces project identity, root identity, or the immutable attachment.
 
 Git remote equality is external-reference evidence. It is never physical
 identity and never authorizes adoption or rebind.
@@ -46,8 +47,9 @@ stability fail as `identity_ambiguous`. Windows returns
 verified on an actual Windows filesystem. PR #117 has actual filesystem proof
 on macOS. Linux has adapter-contract coverage but no separate Linux filesystem
 proof. No Windows verification is claimed, and Windows managed delegation
-remains unavailable. Broad CDX2B2B rollout therefore requires either a
-verified Windows adapter or an explicitly macOS-only product boundary.
+remains unavailable. CDX2B2B v0.1 therefore adopts an explicit macOS-only
+product boundary; a wider rollout requires separate Linux proof and a verified
+Windows adapter.
 
 New canonical onboarding observes and creates the project, root binding, and
 baseline in the same confirmation flow. Project/root/baseline writes commit
@@ -96,6 +98,14 @@ backup/restore, recovery validation, packaging, and database copying include
 these tables. Removing a project from recents preserves its canonical project
 data and node-local baseline; canonical project deletion cascades the linked
 metadata if a separately authorized deletion owner removes the identity.
+
+The CDX2B2B additive migration rebuilds the attachment constraint so
+`consumed` requires a non-null run ID, adds the one-run uniqueness index, and
+adds the start-decision action while preserving every valid CDX2B2A row. An
+impossible legacy consumed row fails migration rather than inventing a run.
+Backup/restore retain consumed attachment/run lineage and decision receipts.
+Recovery may project a restored nonterminal run as disconnected/paused, but it
+does not reconstruct a controller or automatically launch another worker.
 
 Physical identity and decision grants are machine-local, not portable project
 truth. Portable export explicitly excludes physical baselines, attachments,
@@ -170,12 +180,88 @@ compensating stale transition and no exact prepared result. A packet/work,
 root/baseline, or managed-run write that commits during either post-commit
 filesystem observation is therefore included in the final comparison.
 
-Lifecycle values are `prepared`, `stale`, `superseded`, `revoked`, and the
-reserved `consumed`. CDX2B2A never produces `consumed`. Validation classifies a
+Lifecycle values are `prepared`, `stale`, `superseded`, `revoked`, and
+`consumed`. CDX2B2A never produces `consumed`; only the CDX2B2B start owner may
+set it, and only with a non-null exact `consumed_run_id` in the same transaction
+that admits that run. A consumed attachment never returns to prepared and one
+attachment cannot bind two runs. Validation classifies a
 prepared attachment stale for physical mismatch, root rebind, packet/current
 work change, project loss, conflicting managed run, bounded worktree change,
 freshness expiry, or explicit revocation. Browser selection, tabs, filters,
 ordering, views, and unrelated project changes do not alter it.
+
+## Attachment-backed managed delegation
+
+`repository_execution_envelope.v0.1` binds the macOS platform boundary,
+attachment-backed run mode, exact-root filesystem scope, adapter/capability
+versions, timeout and settle bounds, result budgets, protected-untracked-path
+fingerprint, and allowed/forbidden operation categories. The start expected
+state additionally binds every attachment input, the current database-state
+fingerprint, and request/expiry timestamps.
+
+`augnes_request_repository_delegation` creates or replays one expiring start
+decision request but creates no run. The user confirms that exact request in
+the existing Browser project card using the separate HttpOnly decision session
+and rotating request-bound nonce. The MCP proxy exposes no session, bootstrap,
+challenge, nonce, cookie, or confirmation operation. Normal attachment
+preparation needs no decision; only Start and the pre-existing identity/revoke
+exceptions require Browser confirmation.
+
+Start first observes the physical root and bounded Git worktree and compiles
+the adapter capability and envelope. Inside one immediate transaction it
+validates and consumes the Browser grant, re-reads every DB-owned attachment
+input, requires no conflicting nonterminal run, prepares and admits one
+existing NativeHost claim, marks the attachment consumed with that run ID, and
+creates the canonical queued run and initial events. Failure at any mutation
+boundary rolls back grant, attachment, and run together.
+
+After commit, Augnes observes physical root, bounded worktree, protected
+untracked paths, and adapter capability, then reads canonical database state
+last. The existing NativeHost delivery path repeats that gate immediately
+before invocation. Any drift blocks the same run without invoking the worker;
+the attachment remains consumed for truthful reconciliation. Exact replay
+returns the same run and launches no second controller, provider request,
+command, or file mutation. Its ordinary text is derived from the exact run
+projection and distinguishes queued, starting, running, waiting for approval,
+cancelling, paused/disconnected, blocked, completed, failed, cancelled, and
+timed-out states. `worker_started` means that this specific Start request newly
+started the worker; it is false for exact replay even when the bound run still
+has an owned worker.
+
+The envelope pre-authorizes bounded repository reads, in-root file creation and
+edits, tracked-file deletion, local tests/typechecks/linters/formatters/builds,
+Git inspection, and bounded local branch/commit work. It refuses arbitrary
+project-command network access, dependency downloads, push/GitHub, release,
+deployment, publication, injected Browser/Companion/provider/database/runtime
+or OS credentials, outside-root secret material or writes, OS persistence, and
+semantic authority. System secrets outside the repository remain blocked by
+the root/sandbox boundary. Files already present inside the exact repository
+remain within repository read scope and are not made technically unreadable by
+content classification; no such content or secret-detection result is added to
+MCP output. A destructive change that could cover pre-existing
+untracked user data is not silently pre-authorized. Existing NativeHost
+operation approval remains separate from Start and stays bound to the exact
+run/operation. Cancellation is selection-independent, exact-run scoped, and
+idempotent. It relies only on the immutable consumed attachment/run binding and
+exact controller ownership, so packet/work expiry or change, root/baseline or
+worktree drift, root unavailability/replacement, and Browser selection do not
+prevent signalling an owned worker. A queued run cancels atomically without a
+worker; a missing controller reports paused/disconnected reconciliation and
+never creates or resumes one. Cancellation creates no semantic acceptance.
+
+The existing live service owns one controller per exact project/run. A durable
+nonterminal run without that controller projects disconnected/paused and is
+not automatically resumed. Completion records normalized result, changed
+files, commands/checks, RunReceipt, and at most one proposal pending review.
+It never creates ReviewDecision, Transition, accepted-state mutation, work
+closure, push, merge, release, deployment, or publication.
+
+Managed repository delegation is product-supported only on a verified local
+macOS filesystem. Linux remains non-product without a separate real
+filesystem/runtime proof. Windows, non-Git, network, virtual, unsupported,
+unavailable, and ambiguous roots fail before decision consumption,
+attachment consumption, run creation, controller/provider invocation, command,
+or project mutation.
 
 ## Product and authority boundary
 
@@ -185,11 +271,14 @@ Ordinary text does not expose raw paths, device IDs, inode/file IDs, database
 paths, credentials, or internal ownership material.
 
 Preparation, validation, adoption, rebind, supersession, and revocation may
-write only their canonical metadata. All project-file, project-command,
-managed-run creation, Start, provider, branch/commit, GitHub, semantic
-approval, result admission, Transition, merge, release, deployment,
-publication, and external-effect authority flags remain false. Explicit
+write only their canonical metadata. CDX2B2B Start may additionally consume one
+attachment, admit one run, invoke one separately managed worker, and perform
+only the bounded local work in its exact envelope. GitHub, arbitrary network,
+ambient/outside-root credential or secret access, semantic approval,
+ReviewDecision, Transition, accepted-state, work
+closure, merge, release, deployment, and publication authority remain false.
+Explicit
 revocation uses the same preview, Browser grant, atomic consumption, and exact
-replay rules as adoption and rebind. CDX2B2B must later validate and consume an
-attachment and create its managed run atomically; separate validation followed
-by run creation is not sufficient.
+replay rules as adoption and rebind. Start confirmation, later NativeHost
+operation approval, and semantic result review are three distinct authority
+boundaries.
