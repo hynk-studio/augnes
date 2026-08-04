@@ -88,6 +88,12 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // identity guard removed by the bounded recovery fixture. The start/run
     // migration remains one-way and arbitrary partial schemas still refuse.
     "d28eb1500f9cd646cb3979d6a499745cb79e4448c7ba36d7990090594e26a7c3",
+    // Exact merged CDX2B2B schema. CDX2B3A rebuilds only the physical-root
+    // baseline constraint/columns and preserves every valid prior row.
+    "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
+    // Exact CDX2B3A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture.
+    "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

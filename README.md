@@ -70,9 +70,12 @@ insufficient. Ordinary exact preparation remains silent. Starting consumes one
 exact attachment only after one Browser confirmation, then permits bounded
 reversible local repository work within its deterministic envelope. Later
 operation approval and semantic result review remain separate. The
-managed-delegation product boundary is verified local macOS only: Linux has no
-separate product filesystem/runtime proof, and Windows remains unavailable
-while stable physical identity is unsupported.
+managed-delegation product boundary is verified local macOS only. Linux has no
+separate product filesystem/runtime proof. CDX2B3A contains a reviewed
+Windows 11 x64 local-NTFS identity candidate, but Windows attachment admission
+remains fail-closed until real Windows filesystem and source-runtime proof is
+completed; packaged Windows support is also unproven. Windows managed Start
+remains unavailable and belongs to a separate CDX2B3B phase.
 
 Cancellation remains available from the immutable consumed attachment/run
 binding even when current packet, work, root, baseline, worktree, or Browser

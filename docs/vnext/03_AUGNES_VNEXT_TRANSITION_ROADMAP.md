@@ -320,15 +320,14 @@ separate filesystem proof. Windows physical identity and managed delegation
 remain unsupported and fail closed. Broad CDX2B2B rollout requires either a
 verified Windows adapter or an explicitly macOS-only product boundary.
 
-## Current
+## CDX2B2B completed lifecycle
 
 ### CDX2B2B exact attachment-backed managed delegation
 
 [Issue #118](https://github.com/hynk-studio/augnes-perspective-lab/issues/118)
-defines CDX2B2B. The Draft PR titled **CDX2B2B — Start one managed Codex run
-from an exact repository attachment** on branch
-`codex/cdx2b2b-managed-repository-delegation` is its current implementation and
-outcome record.
+defined CDX2B2B. [PR #119](https://github.com/hynk-studio/augnes-perspective-lab/pull/119)
+is its completed implementation and outcome record, merged at
+`d610032de5f74bd078ac8b280df6564bc6e058a6`.
 
 CDX2B2B adds one Browser-confirmed start decision bound to one prepared
 attachment and deterministic execution envelope. One immediate transaction
@@ -365,15 +364,36 @@ non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
 no start decision consumption, attachment consumption, run, controller,
 provider call, command, or project mutation.
 
+## Current
+
+### CDX2B3A verified Windows physical-root identity and attachment admission
+
+[Issue #120](https://github.com/hynk-studio/augnes-perspective-lab/issues/120)
+defines CDX2B3A. Its authorized implementation branch is
+`codex/cdx2b3a-windows-repository-identity`, and its authorized Draft PR title
+is **CDX2B3A — Establish verified Windows repository identity**. A Draft PR is
+not yet recorded here: the required real Windows 11 x64 local NTFS filesystem
+and source-runtime proof is a completion gate, and the current macOS
+implementation environment cannot supply it.
+
+The current candidate introduces a versioned Windows final-target,
+volume-serial, and file-ID contract plus a reviewed narrow Win32 directory-
+handle helper source and additive persistence contracts. Platform-neutral
+parser, migration, privacy, attachment, same-path-replacement, and continued
+Start-refusal tests may proceed elsewhere. Product Windows attachment admission
+remains fail-closed until the exact real-Windows proof is completed; no Windows
+native binary or packaged-support claim is created from macOS.
+
 ## Next separately authorized work
 
-The phase doctrine remains: establish one strong repository, project,
-current-work, and execution attachment; make one explicit start decision; then
-permit broad local reversible autonomy only inside that exact attachment and
-run. Current-session attachment, automatic resume after controller loss,
-Windows/Linux product rollout, remote nodes, long-horizon continuation,
-policy-triggered continuous control, and multi-agent orchestration remain
-later and separate.
+CDX2B3B is the separately authorized future Windows managed-delegation runtime
+enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
+attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
+change the CDX2B2B Windows Start gate.
+
+Current-session attachment, automatic resume after controller loss, Linux
+product rollout, remote nodes, long-horizon continuation, policy-triggered
+continuous control, and multi-agent orchestration remain later and separate.
 
 ## Pending C9
 

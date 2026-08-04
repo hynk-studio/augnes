@@ -32,6 +32,16 @@ not create or consume a managed run,
 Start Codex/NativeHost, run project commands, write project files, call a
 provider or GitHub, or create external effects.
 
+CDX2B3A adds a platform-discriminated Windows identity candidate beneath these
+same tools; it does not add another MCP surface. Windows 11 x64 local fixed
+NTFS is the only intended Windows target. Windows ARM64, Windows 10,
+ReFS/Dev Drive, FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and
+unclassified reparse roots fail closed, and there is no path-only fallback.
+The current macOS implementation run cannot provide deciding Windows
+filesystem or source-runtime evidence, so ordinary Windows attachment
+preparation remains unavailable. No MCP result exposes the native component
+path, volume serial, file ID, or canonical private path.
+
 ## Current local product path
 
 The supported CDX2B1 path is:
@@ -151,8 +161,9 @@ GitHub, merge, release, deployment, retry, replay, scheduler, or background
 authority.
 
 This is local Codex against a local checkout. Remote Codex, ChatGPT/mobile
-filesystem access, current-session continuous control, managed delegation,
-remote nodes, and broader cross-platform package support remain later work.
+filesystem access, current-session continuous control, remote nodes, and
+broader cross-platform package support remain later work. CDX2B2B managed
+delegation is macOS-only; CDX2B3A does not enable Windows Start.
 
 ## Verification
 

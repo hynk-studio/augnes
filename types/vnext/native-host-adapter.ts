@@ -53,12 +53,30 @@ export type NativeHostExecutionProfileV01 =
   | "native_host_managed_model";
 export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
 
-export interface NativeHostPhysicalRootIdentityV01 {
+export interface NativeHostPosixPhysicalRootIdentityV01 {
   identity_version: "native_host_physical_root_identity.v0.1";
   canonical_realpath_fingerprint: string;
   device: string;
   inode: string;
 }
+
+export interface NativeHostWindowsPhysicalRootIdentityV01 {
+  identity_version: "physical_root_identity.windows.v0.1";
+  canonical_final_path_fingerprint: string;
+  volume_serial_identity: string;
+  file_id: string;
+  filesystem_family: "NTFS";
+  drive_type: "fixed";
+}
+
+/**
+ * The historical POSIX member intentionally retains its exact v0.1 field
+ * names and serialization. Windows volume/file identity is a distinct
+ * contract and is never presented as POSIX device/inode identity.
+ */
+export type NativeHostPhysicalRootIdentityV01 =
+  | NativeHostPosixPhysicalRootIdentityV01
+  | NativeHostWindowsPhysicalRootIdentityV01;
 
 export interface NativeHostRootScopeV01 {
   canonical_root: string;

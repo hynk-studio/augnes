@@ -1483,6 +1483,7 @@ async function assertPlatformAndNonGitRefusalV01(
     "2026-08-04T01:05:00.000Z",
   );
   const before = count(db, "autonomy_runs");
+  const decisionsBefore = count(db, "vnext_repository_execution_decision_requests");
   for (const platform of ["win32", "linux"] as const) {
     const result = await prepareRepositoryManagedDelegationV01(db, {
       workspace_id: workspaceId,
@@ -1494,8 +1495,34 @@ async function assertPlatformAndNonGitRefusalV01(
     });
     assert.equal(result.status, "blocked");
     assert.equal(result.decision_request, null);
+    if (platform === "win32") {
+      await assert.rejects(
+        startRepositoryManagedDelegationV01(db, {
+          config: operatorConfig(workspaceId, fixture.project_id),
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          expected_execution_envelope_fingerprint: `sha256:${"0".repeat(64)}`,
+          decision_request_fingerprint: `sha256:${"1".repeat(64)}`,
+          decision_grant_fingerprint: `sha256:${"2".repeat(64)}`,
+        }, service, {
+          now: () => "2026-08-04T01:05:10.500Z",
+          platform,
+        }),
+        (error: unknown) =>
+          error instanceof RepositoryManagedDelegationErrorV01 &&
+          error.code === "repository_managed_delegation_platform_unsupported",
+      );
+      assert.equal(
+        readRepositoryExecutionAttachmentV01(db, fixture.attachment_id)
+          ?.lifecycle,
+        "prepared",
+      );
+    }
   }
   assert.equal(count(db, "autonomy_runs"), before);
+  assert.equal(count(db, "vnext_repository_execution_decision_requests"), decisionsBefore);
 
   const plainRoot = path.join(ROOT, "plain-folder");
   mkdirSync(plainRoot);

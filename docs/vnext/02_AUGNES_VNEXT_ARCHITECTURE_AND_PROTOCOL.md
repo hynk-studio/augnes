@@ -561,6 +561,24 @@ TaskContextPacket and work semantics, project-scoped admission, bounded Git
 worktree, managed-run absence, and freshness. Browser project ID and selection
 revision are excluded.
 
+The physical observation is a versioned platform union. Existing Darwin/Linux
+records retain `native_host_physical_root_identity.v0.1` realpath/device/inode
+semantics and serialization. The CDX2B3A Windows candidate uses
+`physical_root_identity.windows.v0.1`: canonical final-target-path fingerprint,
+volume serial identity, stable file ID, and supported filesystem family. Its
+node scope binds installation identity, platform, x64 architecture, and the
+physical-identity contract version. Machine-local POSIX or Windows identifiers
+never become canonical project identity or portable truth.
+
+The Windows candidate obtains final target, volume serial, and file ID from one
+opened directory target handle through a narrow reviewed Win32 helper, then
+admits only Windows 11 x64 local fixed NTFS. It has no shell, network, runtime
+download, elevation, or path-only fallback. The current macOS development run
+cannot supply deciding Windows evidence, so the ordinary repository-execution
+owner remains fail-closed on Windows even though its parser, schema, and
+attachment contracts have platform-neutral coverage. Windows package support
+is not claimed.
+
 CDX2B2B adds `repository_execution_envelope.v0.1` and the explicit
 `repository_attachment` NativeHost run mode. One Browser-confirmed start grant
 is bound to one prepared attachment, its complete expected database state, the
@@ -605,9 +623,11 @@ signal. Exact Start replay likewise uses the exact run projection for ordinary
 state text; `worker_started` records only a worker newly started by that
 specific request.
 
-The product boundary is a verified local macOS filesystem. Linux has no
-separate product filesystem/runtime proof in v0.1. Windows, non-Git, remote,
-network, virtual, unsupported, unavailable, and ambiguous roots create no run.
+The managed-Start product boundary remains a verified local macOS filesystem.
+Linux has no separate product filesystem/runtime proof in v0.1. Windows,
+non-Git, remote, network, virtual, unsupported, unavailable, and ambiguous
+roots create no start decision consumption, attachment consumption, or run.
+CDX2B3A does not change that gate; Windows Start belongs to CDX2B3B.
 A durable nonterminal run without its exact live controller projects
 disconnected/paused and is never automatically resumed in this phase.
 

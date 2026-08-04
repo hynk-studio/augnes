@@ -39,6 +39,12 @@ the current Augnes project state.”
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact
    attachment.
+   On Windows, preserve `identity_unsupported`, `identity_ambiguous`, missing-
+   component, or proof-required results exactly. Never fall back to a path,
+   Git remote, simulated `win32`, or raw volume/file identifiers. Windows
+   attachment readiness requires the product's verified Windows 11 x64 local
+   NTFS owner; the current CDX2B3A candidate remains fail-closed until its real
+   Windows evidence is completed.
 9. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never
@@ -63,7 +69,9 @@ exclude Browser selection and reject same-path filesystem-object replacement.
 Continuity is read-only. CDX2B2A tools write only node-local baseline,
 attachment, rebind-receipt, and lifecycle metadata. A Browser-confirmed CDX2B2B
 Start may consume one attachment, create one run, and permit bounded reversible
-local work only inside the exact macOS Git root. It never grants arbitrary
+local work only inside the exact macOS Git root. A Windows prepared attachment,
+if a later verified CDX2B3A owner makes one available, still must not be offered
+for Start in this phase; CDX2B3B is separate. Start never grants arbitrary
 network commands, downloads, push/GitHub, injected Browser/Companion/provider/
 database/runtime/OS credentials, outside-root secret material, external publication,
 semantic approval, ReviewDecision, Transition, accepted state, work closure,

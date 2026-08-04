@@ -226,6 +226,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "Windows physical-root identity adapter contract",
+      ...rootNode("scripts/test-windows-physical-root-identity.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "trusted repository execution admission and attachment contract",
       ...rootNode("scripts/test-repository-execution-attachment.ts"),
       timeoutMs: 60_000,

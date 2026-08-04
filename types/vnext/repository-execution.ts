@@ -1,4 +1,7 @@
-import type { NativeHostPhysicalRootIdentityV01 } from "./native-host-adapter";
+import type {
+  NativeHostPosixPhysicalRootIdentityV01,
+  NativeHostWindowsPhysicalRootIdentityV01,
+} from "./native-host-adapter";
 
 export const PHYSICAL_ROOT_BASELINE_VERSION_V01 =
   "physical_root_baseline.v0.1" as const;
@@ -18,7 +21,16 @@ export type PhysicalRootObservationV01 =
       status: "exact";
       platform: "darwin" | "linux";
       node_scope_fingerprint: string;
-      identity: NativeHostPhysicalRootIdentityV01;
+      identity: NativeHostPosixPhysicalRootIdentityV01;
+      observation_fingerprint: string;
+      observed_at: string;
+    }
+  | {
+      status: "exact";
+      platform: "win32";
+      architecture: "x64";
+      node_scope_fingerprint: string;
+      identity: NativeHostWindowsPhysicalRootIdentityV01;
       observation_fingerprint: string;
       observed_at: string;
     }
@@ -30,20 +42,36 @@ export type PhysicalRootObservationV01 =
       observed_at: string;
     };
 
-export interface PhysicalRootBaselineV01 {
+interface PhysicalRootBaselineBaseV01 {
   baseline_version: typeof PHYSICAL_ROOT_BASELINE_VERSION_V01;
   workspace_id: string;
   project_id: string;
   node_scope_fingerprint: string;
   root_binding_fingerprint: string;
-  identity_version: NativeHostPhysicalRootIdentityV01["identity_version"];
-  canonical_realpath_fingerprint: string;
   filesystem_volume_identity: string;
   filesystem_object_identity: string;
   observed_at: string;
   provenance: "canonical_new_project_onboarding" | "explicit_legacy_adoption" | "explicit_root_rebind";
   baseline_fingerprint: string;
 }
+
+export interface PosixPhysicalRootBaselineV01
+  extends PhysicalRootBaselineBaseV01 {
+  identity_version: NativeHostPosixPhysicalRootIdentityV01["identity_version"];
+  canonical_realpath_fingerprint: string;
+}
+
+export interface WindowsPhysicalRootBaselineV01
+  extends PhysicalRootBaselineBaseV01 {
+  identity_version: NativeHostWindowsPhysicalRootIdentityV01["identity_version"];
+  identity_platform: "win32";
+  canonical_final_path_fingerprint: string;
+  supported_filesystem_family: "NTFS";
+}
+
+export type PhysicalRootBaselineV01 =
+  | PosixPhysicalRootBaselineV01
+  | WindowsPhysicalRootBaselineV01;
 
 export type RepositoryWorktreeObservationV01 =
   | {

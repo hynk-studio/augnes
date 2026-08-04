@@ -4050,9 +4050,21 @@ CREATE TABLE IF NOT EXISTS vnext_physical_root_baselines (
   root_binding_fingerprint TEXT NOT NULL CHECK (
     length(root_binding_fingerprint) = 71 AND substr(root_binding_fingerprint, 1, 7) = 'sha256:'
   ),
-  identity_version TEXT NOT NULL CHECK (identity_version = 'native_host_physical_root_identity.v0.1'),
-  canonical_realpath_fingerprint TEXT NOT NULL CHECK (
-    length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:'
+  identity_version TEXT NOT NULL CHECK (identity_version IN (
+    'native_host_physical_root_identity.v0.1',
+    'physical_root_identity.windows.v0.1'
+  )),
+  identity_platform TEXT CHECK (identity_platform IS NULL OR identity_platform = 'win32'),
+  canonical_realpath_fingerprint TEXT CHECK (
+    canonical_realpath_fingerprint IS NULL OR
+    (length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:')
+  ),
+  canonical_final_path_fingerprint TEXT CHECK (
+    canonical_final_path_fingerprint IS NULL OR
+    (length(canonical_final_path_fingerprint) = 71 AND substr(canonical_final_path_fingerprint, 1, 7) = 'sha256:')
+  ),
+  supported_filesystem_family TEXT CHECK (
+    supported_filesystem_family IS NULL OR supported_filesystem_family = 'NTFS'
   ),
   filesystem_volume_identity TEXT NOT NULL CHECK (length(filesystem_volume_identity) > 0),
   filesystem_object_identity TEXT NOT NULL CHECK (length(filesystem_object_identity) > 0),
@@ -4063,6 +4075,19 @@ CREATE TABLE IF NOT EXISTS vnext_physical_root_baselines (
   baseline_fingerprint TEXT NOT NULL UNIQUE CHECK (
     length(baseline_fingerprint) = 71 AND substr(baseline_fingerprint, 1, 7) = 'sha256:'
   ),
+  CHECK (
+    (identity_version = 'native_host_physical_root_identity.v0.1'
+      AND identity_platform IS NULL
+      AND canonical_realpath_fingerprint IS NOT NULL
+      AND canonical_final_path_fingerprint IS NULL
+      AND supported_filesystem_family IS NULL)
+    OR
+    (identity_version = 'physical_root_identity.windows.v0.1'
+      AND identity_platform = 'win32'
+      AND canonical_realpath_fingerprint IS NULL
+      AND canonical_final_path_fingerprint IS NOT NULL
+      AND supported_filesystem_family = 'NTFS')
+  ),
   PRIMARY KEY (workspace_id, project_id, node_scope_fingerprint),
   FOREIGN KEY (workspace_id, project_id)
     REFERENCES vnext_project_identities(workspace_id, project_id)
@@ -4071,6 +4096,12 @@ CREATE TABLE IF NOT EXISTS vnext_physical_root_baselines (
 
 CREATE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_project
   ON vnext_physical_root_baselines(workspace_id, project_id, observed_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_object
+  ON vnext_physical_root_baselines(
+    workspace_id, node_scope_fingerprint, identity_version,
+    filesystem_volume_identity, filesystem_object_identity
+  ) WHERE identity_version = 'physical_root_identity.windows.v0.1';
 
 CREATE TABLE IF NOT EXISTS vnext_repository_execution_attachments (
   attachment_id TEXT PRIMARY KEY CHECK (
