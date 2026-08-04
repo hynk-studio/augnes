@@ -7,6 +7,7 @@ import {
   listRecentProjectsV01,
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
+  previewLocalProjectRootRebindFromSelectionV01,
   readProjectDestinationV01,
   renameActiveProjectDisplayNameV01,
   rebindLocalProjectRootFromSelectionV01,
@@ -17,7 +18,16 @@ import { ProjectIdentityRegistryErrorV01 } from "@/lib/vnext/persistence/project
 import {
   VNextLocalOperatorSessionErrorV01,
   assertVNextLocalOperatorRequestBoundaryV01,
+  issueVNextRepositoryDecisionChallengeV01,
+  readVNextRepositoryDecisionCredentialFromRequestV01,
+  serializeVNextRepositoryDecisionSessionCookieV01,
+  type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
+import {
+  authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
+  grantRepositoryExecutionDecisionFromBrowserSessionV01,
+  RepositoryExecutionErrorV01,
+} from "@/lib/vnext/repository-execution/repository-execution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,7 +51,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let db = null;
+  let db: ReturnType<typeof openDatabase> | null = null;
   try {
     assertVNextLocalOperatorRequestBoundaryV01(request, { mutating: true });
     const body = await readBoundedBody(request);
@@ -79,12 +89,128 @@ export async function POST(request: Request) {
         expected_revision: requiredNullableRevision(body, "expected_revision"),
       }) });
     }
-    if (body.action === "confirm_rebind") {
-      return json({ ok: true, result: await rebindLocalProjectRootFromSelectionV01(db, {
+    if (body.action === "prepare_repository_execution_rebind_confirmation") {
+      assertBrowserUserConfirmationV01(request);
+      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      );
+      const preview = await previewLocalProjectRootRebindFromSelectionV01(db, {
         project_id: requiredString(body.project_id),
         selection_token: requiredString(body.selection_token),
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
-      }) });
+        expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
+        expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+      });
+      return json({
+        ok: true,
+        decision_request_fingerprint:
+          preview.decision_request!.request_fingerprint,
+        confirmation: issueVNextRepositoryDecisionChallengeV01(db, {
+          request_fingerprint: preview.decision_request!.request_fingerprint,
+          workspace_id: preview.workspace_id,
+          project_id: preview.project_id,
+          credential,
+        }),
+      });
+    }
+    if (body.action === "confirm_rebind") {
+      assertBrowserUserConfirmationV01(request);
+      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      );
+      const sessionHolder: {
+        current: VNextLocalOperatorSessionMutationAdmissionV01 | null;
+      } = { current: null };
+      const result = await rebindLocalProjectRootFromSelectionV01(db, {
+        project_id: requiredString(body.project_id),
+        selection_token: requiredString(body.selection_token),
+        inspection_fingerprint: requiredString(body.inspection_fingerprint),
+        expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
+        expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+        decision_request_fingerprint: requiredString(
+          body.decision_request_fingerprint,
+        ),
+      }, {
+        authorize_decision_inside_transaction: (decision) => {
+          const authorized =
+            authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+              db!,
+              {
+                request_fingerprint: decision.request_fingerprint,
+                workspace_id: decision.workspace_id,
+                project_id: decision.project_id,
+                challenge_fingerprint: requiredString(
+                  body.challenge_fingerprint,
+                ),
+                credential,
+              },
+            );
+          sessionHolder.current = authorized.session_admission;
+          if (!authorized.decision.grant_fingerprint) {
+            throw new RepositoryExecutionErrorV01(
+              "repository_execution_decision_not_granted",
+              409,
+            );
+          }
+          return {
+            grant_fingerprint: authorized.decision.grant_fingerprint,
+          };
+        },
+      });
+      const sessionAdmission = sessionHolder.current;
+      if (!sessionAdmission) {
+        throw new RepositoryExecutionErrorV01(
+          "repository_execution_decision_not_granted",
+          409,
+        );
+      }
+      return json(
+        { ok: true, result },
+        200,
+        serializeVNextRepositoryDecisionSessionCookieV01({
+          value: sessionAdmission.cookie_value,
+          expires_at: sessionAdmission.cookie_expires_at,
+          max_age_seconds: sessionAdmission.cookie_max_age_seconds,
+          secure: new URL(request.url).protocol === "https:",
+        }),
+      );
+    }
+    if (body.action === "prepare_repository_execution_decision_confirmation") {
+      assertBrowserUserConfirmationV01(request);
+      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      );
+      return json({ ok: true, confirmation:
+        issueVNextRepositoryDecisionChallengeV01(db, {
+          request_fingerprint: requiredString(body.request_fingerprint),
+          workspace_id: requiredString(body.workspace_id),
+          project_id: requiredString(body.project_id),
+          credential,
+        }) });
+    }
+    if (body.action === "confirm_repository_execution_decision") {
+      assertBrowserUserConfirmationV01(request);
+      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      );
+      const authorized = grantRepositoryExecutionDecisionFromBrowserSessionV01(db, {
+        request_fingerprint: requiredString(body.request_fingerprint),
+        workspace_id: requiredString(body.workspace_id),
+        project_id: requiredString(body.project_id),
+        challenge_fingerprint: requiredString(body.challenge_fingerprint),
+        credential,
+      });
+      return json(
+        { ok: true, result: authorized.decision },
+        200,
+        serializeVNextRepositoryDecisionSessionCookieV01({
+          value: authorized.session_admission.cookie_value,
+          expires_at: authorized.session_admission.cookie_expires_at,
+          max_age_seconds:
+            authorized.session_admission.cookie_max_age_seconds,
+          secure: new URL(request.url).protocol === "https:",
+        }),
+      );
     }
     throw new ProjectOnboardingErrorV01("selection_invalid", 400);
   } catch (error) { return routeError(error); }
@@ -165,6 +291,15 @@ function requiredRevision(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
+function assertBrowserUserConfirmationV01(request: Request): void {
+  if (
+    request.headers.get("sec-fetch-site") !== "same-origin" ||
+    request.headers.get("sec-fetch-mode") !== "cors" ||
+    request.headers.get("sec-fetch-dest") !== "empty"
+  ) {
+    throw new ProjectOnboardingErrorV01("selection_invalid", 403);
+  }
+}
 function routeError(error: unknown) {
   if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404);
@@ -177,6 +312,11 @@ function routeError(error: unknown) {
     return json({ ok: false, error_code: error.code }, status);
   }
   if (error instanceof VNextLocalOperatorSessionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
+  if (error instanceof RepositoryExecutionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   return json({ ok: false, error_code: "onboarding_unavailable" }, 500);
 }
-function json(body: unknown, status = 200) { return NextResponse.json(body, { status, headers: HEADERS }); }
+function json(body: unknown, status = 200, setCookie?: string) {
+  const headers = new Headers(HEADERS);
+  if (setCookie) headers.set("Set-Cookie", setCookie);
+  return NextResponse.json(body, { status, headers });
+}

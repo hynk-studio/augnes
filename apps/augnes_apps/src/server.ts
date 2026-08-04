@@ -59,6 +59,13 @@ export const LEGACY_PUBLIC_TOOL_NAMES = [
 ] as const;
 export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_resume_repository",
+  "augnes_prepare_repository_execution",
+  "augnes_adopt_repository_execution_root",
+  "augnes_rebind_repository_execution_root",
+  "augnes_preview_repository_execution_root_rebind",
+  "augnes_validate_repository_execution_attachment",
+  "augnes_preview_repository_execution_attachment_revocation",
+  "augnes_revoke_repository_execution_attachment",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -97,6 +104,18 @@ const bridgeReadAnnotations = {
 const localRouteReadAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+const localRepositoryAttachmentAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+const explicitRepositoryIdentityDecisionAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
   idempotentHint: true,
   openWorldHint: false,
 } as const;
@@ -249,6 +268,43 @@ function buildRepositoryCompanionError(error: unknown) {
     content: narrative(`Augnes repository continuity unavailable: ${message}`),
     _meta: structuredContent,
   };
+}
+
+async function repositoryExecutionToolResultV01(
+  adapter: StateRuntimeBridgeAdapter,
+  request: Record<string, unknown>,
+) {
+  if (config.coreMode !== "http") {
+    return buildRepositoryCompanionError(
+      new Error("Repository execution attachment tools require the live HTTP Companion profile."),
+    );
+  }
+  try {
+    const result = await adapter.callRepositoryExecution(request);
+    // The HTTP adapter has already parsed the route through the strict
+    // RepositoryExecutionResultSchema. Preserve its explicit false authority
+    // fields and opaque workspace/run bindings instead of applying the broad
+    // legacy payload sanitizer a second time.
+    const structuredContent = {
+      profile: config.appProfile,
+      companion: {
+        status: "live",
+        mode: "http",
+        binding: companionBindingV01(),
+      },
+      ...result,
+    };
+    const ordinaryText = "ordinary_text" in result && typeof result.ordinary_text === "string"
+      ? result.ordinary_text
+      : "Augnes updated the repository execution attachment metadata.";
+    return {
+      structuredContent,
+      content: narrative(ordinaryText),
+      _meta: structuredContent,
+    };
+  } catch (error) {
+    return buildRepositoryCompanionError(error);
+  }
 }
 
 export function buildHealthPayload(liveCoreReady = false) {
@@ -1967,7 +2023,11 @@ export function createMcpAppServer(
   const enableLegacyPublicTools = toolSurface === "public";
   const enableBridgeTools = enableAgentBridge && toolSurface === "public";
   const enableRepositoryTool = enableAgentBridge &&
-    (toolSurface === "public" || toolSurface === "companion_repository_readonly");
+    (toolSurface === "public" ||
+      toolSurface === "companion_repository_readonly" ||
+      toolSurface === "companion_repository_attachment");
+  const enableRepositoryAttachmentTools = enableAgentBridge &&
+    (toolSurface === "public" || toolSurface === "companion_repository_attachment");
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION });
 
   registerAppResource(
@@ -2043,6 +2103,164 @@ export function createMcpAppServer(
         }
       },
     );
+
+    if (enableRepositoryAttachmentTools) {
+    registerAppTool(
+      server,
+      "augnes_prepare_repository_execution",
+      {
+        title: "Prepare repository execution",
+        description: "Prepare or return one exact project-scoped repository execution attachment through the verified live Companion. This does not start Codex, NativeHost, commands, or a managed run.",
+        inputSchema: { repositoryRoot: z.string().min(1) },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ repositoryRoot }) => repositoryExecutionToolResultV01(
+        stateRuntimeAdapter,
+        { action: "prepare", repository_root: repositoryRoot },
+      ),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_adopt_repository_execution_root",
+      {
+        title: "Adopt a legacy repository root",
+        description: "Complete a legacy-root adoption only after the exact decision request was confirmed in the Augnes Browser. Expected-state fingerprints are required and no execution authority is granted.",
+        inputSchema: {
+          repositoryRoot: z.string().min(1),
+          expectedAdmissionFingerprint: z.string().min(1),
+          expectedObservationFingerprint: z.string().min(1),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
+        },
+        annotations: explicitRepositoryIdentityDecisionAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "adopt_legacy_baseline",
+        repository_root: input.repositoryRoot,
+        expected_admission_fingerprint: input.expectedAdmissionFingerprint,
+        expected_observation_fingerprint: input.expectedObservationFingerprint,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_rebind_repository_execution_root",
+      {
+        title: "Rebind a moved repository root",
+        description: "Complete a canonical root rebind only after the exact decision request was confirmed in the Augnes Browser. Remote equality alone is insufficient and no execution authority is granted.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          newRepositoryRoot: z.string().min(1),
+          expectedOldRootBindingFingerprint: z.string().min(1),
+          expectedOldBaselineFingerprint: z.string().min(1),
+          expectedNewObservationFingerprint: z.string().min(1),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
+        },
+        annotations: explicitRepositoryIdentityDecisionAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "rebind_root",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        new_repository_root: input.newRepositoryRoot,
+        expected_old_root_binding_fingerprint: input.expectedOldRootBindingFingerprint,
+        expected_old_baseline_fingerprint: input.expectedOldBaselineFingerprint,
+        expected_new_observation_fingerprint: input.expectedNewObservationFingerprint,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_preview_repository_execution_root_rebind",
+      {
+        title: "Preview repository root rebind",
+        description: "Inspect an intended new root and create one exact decision request without changing the project root.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          newRepositoryRoot: z.string().min(1),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "preview_rebind_root",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        new_repository_root: input.newRepositoryRoot,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_validate_repository_execution_attachment",
+      {
+        title: "Validate repository execution attachment",
+        description: "Revalidate one prepared attachment against current canonical project, root, work, managed-run, and bounded worktree state. This does not start execution.",
+        inputSchema: { attachmentId: z.string().min(1) },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ attachmentId }) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "validate",
+        attachment_id: attachmentId,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_preview_repository_execution_attachment_revocation",
+      {
+        title: "Preview repository attachment revocation",
+        description: "Create one exact revocation decision request for confirmation in the Augnes Browser without revoking the attachment.",
+        inputSchema: {
+          attachmentId: z.string().min(1),
+          expectedBindingFingerprint: z.string().min(1),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "preview_revoke",
+        attachment_id: input.attachmentId,
+        expected_binding_fingerprint: input.expectedBindingFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_revoke_repository_execution_attachment",
+      {
+        title: "Revoke repository execution attachment",
+        description: "Complete revocation only after the exact decision request was confirmed in the Augnes Browser. This does not cancel or mutate any managed run.",
+        inputSchema: {
+          attachmentId: z.string().min(1),
+          expectedBindingFingerprint: z.string().min(1),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
+        },
+        annotations: explicitRepositoryIdentityDecisionAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "revoke",
+        attachment_id: input.attachmentId,
+        expected_binding_fingerprint: input.expectedBindingFingerprint,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
+      }),
+    );
+    }
   }
 
   if (enableLegacyPublicTools) {
@@ -3131,7 +3349,9 @@ export function createHttpServer(
     }
 
     const url = new URL(req.url, "http://127.0.0.1");
-    const companionSurface = config.appToolSurface === "companion_repository_readonly";
+    const companionSurface =
+      config.appToolSurface === "companion_repository_readonly" ||
+      config.appToolSurface === "companion_repository_attachment";
 
     if (url.pathname === config.mcpPath && companionSurface) {
       const refusal = companionChannelRefusalV01(req);

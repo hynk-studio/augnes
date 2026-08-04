@@ -13,6 +13,7 @@ import {
 import {
   ensureVNextProjectIdentityRegistrySchemaV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
+import { ensureVNextRepositoryExecutionStoreSchemaV01 } from "@/lib/vnext/persistence/repository-execution-store";
 import { ensureVNextProjectLifecycleSchemaV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { ensureVNextProjectControlSchemaV01 } from "@/lib/vnext/persistence/project-control-store";
 import { ensureVNextProjectContinuityPinSchemaV01 } from "@/lib/vnext/persistence/project-continuity-pin-store";
@@ -272,6 +273,7 @@ export function openDatabase() {
   migratePerspectiveMemoryItemsTable(db);
   ensureVNextDurableSemanticStoreSchemaV01(db);
   ensureVNextProjectIdentityRegistrySchemaV01(db);
+  ensureVNextRepositoryExecutionStoreSchemaV01(db);
   ensureVNextProjectLifecycleSchemaV01(db);
   ensureVNextProjectControlSchemaV01(db);
   ensureVNextProjectContinuityPinSchemaV01(db);

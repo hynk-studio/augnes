@@ -1,6 +1,6 @@
 ---
 name: augnes-live-repository-continuity
-description: Resume, continue, or inspect the current local repository through the live supervised Augnes Companion and exact canonical project continuity.
+description: Resume or inspect current repository continuity and prepare or validate its trusted execution attachment through the live supervised Augnes Companion.
 ---
 
 # Augnes Live Repository Continuity
@@ -21,14 +21,34 @@ the current Augnes project state.”
    result. Do not reconstruct missing continuity from source, docs, fixtures,
    GuideBrief, Work Brief, names, branches, GitHub URLs, or active Browser
    selection.
+6. When later managed work needs a trusted repository attachment, call
+   `augnes_prepare_repository_execution` with the same physical root. Exact
+   preparation is silent and requires no Browser-active match.
+7. If the result is `baseline_adoption_required`, request the one explicit
+   legacy-root decision, direct the user to confirm the exact request in Augnes
+   Browser project settings, and use `augnes_adopt_repository_execution_root`
+   only with the returned expected admission/observation fingerprints plus the
+   Browser-issued request/grant fingerprints. Moved roots first use
+   `augnes_preview_repository_execution_root_rebind`, then the separate exact
+   rebind tool after the same Browser confirmation. Revocation first uses
+   `augnes_preview_repository_execution_attachment_revocation`. Never infer
+   any decision from Git remote equality, annotations, or assistant-generated
+   prose. The Browser's HttpOnly decision session and request-bound nonce are
+   intentionally unavailable to this skill and all MCP tools.
+8. Validate a prepared handle with
+   `augnes_validate_repository_execution_attachment` before treating it as
+   current. Use the explicit revoke tool only for a user-authorized exact
+   attachment.
 
 Repository identity is not redirected by Browser selection. The nested CDX2A
 projection still reports active status, selection revision, Start eligibility,
 and the corresponding next action, so do not describe those semantics as
-selection-independent. Also do not claim same-path directory replacement
-detection; the current root registry has no registration-time physical baseline.
+selection-independent. The separate CDX2B2A admission and attachment binding
+exclude Browser selection and reject same-path filesystem-object replacement.
 
-This surface is local and read-only. It does not register or rename projects,
-change Browser selection, define or revise work, create or start a run, approve
-anything, write proof/evidence, call a provider or GitHub, or grant merge,
-release, deployment, remote, mobile, or managed-delegation authority.
+Continuity is read-only. CDX2B2A tools may write only node-local baseline,
+attachment, rebind-receipt, and lifecycle metadata. They do not rename project
+meaning, change Browser selection, define or revise work, create or consume a
+managed run, Start a host, run project commands, write project files, approve
+anything, call a provider or GitHub, or grant merge, release, deployment,
+remote, mobile, or managed-delegation authority.

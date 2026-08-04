@@ -226,6 +226,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "trusted repository execution admission and attachment contract",
+      ...rootNode("scripts/test-repository-execution-attachment.ts"),
+      timeoutMs: 60_000,
+    },
+    {
       label: "live Companion discovery and dynamic bridge-port contract",
       ...rootNode("scripts/test-codex-companion-discovery.mjs"),
       timeoutMs: 30_000,

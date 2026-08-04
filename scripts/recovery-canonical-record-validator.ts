@@ -37,6 +37,7 @@ import {
   validateVNextPersistedSemanticStateV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
+import { assertVNextRepositoryExecutionStoreSchemaV01 } from "../lib/vnext/persistence/repository-execution-store";
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   readClaimEvidenceRelationV01,
@@ -1346,6 +1347,22 @@ export function validateRecoveryCanonicalDatabaseV01(
   db: Database.Database,
 ): RecoveryCanonicalRecordValidationResultV01 {
   try {
+    const repositoryExecutionTables = [
+      "vnext_physical_root_baselines",
+      "vnext_repository_execution_attachments",
+      "vnext_repository_root_rebind_receipts",
+      "vnext_repository_execution_decision_requests",
+    ];
+    if (
+      repositoryExecutionTables.some((tableName) =>
+        databaseTableExistsV01(db, tableName),
+      )
+    ) {
+      // Exact supported predecessor signatures may predate CDX2B2A. If any
+      // table in the new store is present, however, the complete current
+      // schema must validate; partial stores are never accepted.
+      assertVNextRepositoryExecutionStoreSchemaV01(db);
+    }
     const records = readCanonicalRecordsV01(db);
     const byIdentity = new Map<string, ParsedCanonicalRecordV01>();
     for (const record of records) {

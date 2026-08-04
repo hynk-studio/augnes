@@ -58,6 +58,17 @@ the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
 
 ## What works today
 
+Repository-scoped Codex continuity and trusted local execution preparation are
+documented in [Repository execution attachment v0.1](./docs/REPOSITORY_EXECUTION_ATTACHMENT_V0_1.md).
+Preparation binds canonical project, physical root, current work, and bounded
+Git worktree content state without starting a run or depending on Browser
+active selection. Legacy adoption, intentional rebind, and revocation use one
+same-origin Browser confirmation backed by a separate HttpOnly decision session
+and a request-bound one-time nonce; forged request headers and MCP literals are
+insufficient. Ordinary exact preparation remains silent.
+Windows managed delegation remains unavailable while stable physical identity
+is unsupported.
+
 The checked-in runtime currently provides:
 
 - local workspace/project onboarding and project isolation;

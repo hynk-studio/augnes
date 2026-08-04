@@ -14,6 +14,7 @@ import {
   readFileSync,
   realpathSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -34,7 +35,7 @@ import {
   pickAndInspectLocalProjectV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { readDefaultWorkspaceIdentityV01 } from "../lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -194,6 +195,19 @@ try {
     true,
     "the real registered-repository MCP positive path must be verified",
   );
+  assert.equal(
+    registeredRepositoryMcpEvidence?.selection_independent_attachment,
+    true,
+    "Browser selection must not change the exact repository attachment",
+  );
+  assert.equal(
+    registeredRepositoryMcpEvidence?.attachment_stale_reason,
+    "packet_changed",
+  );
+  assert.equal(
+    registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
+    true,
+  );
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
@@ -246,6 +260,14 @@ try {
     selection_coupled_binding: registeredRepositoryMcpEvidence?.selection_coupled_binding ?? null,
     browser_revision_refresh_verified: registeredRepositoryMcpEvidence?.revision_refresh === true,
     browser_selection_coupling_verified: registeredRepositoryMcpEvidence?.selection_coupling === true,
+    selection_independent_attachment_verified:
+      registeredRepositoryMcpEvidence?.selection_independent_attachment === true,
+    repository_attachment_binding:
+      registeredRepositoryMcpEvidence?.repository_attachment_binding ?? null,
+    attachment_stale_reason:
+      registeredRepositoryMcpEvidence?.attachment_stale_reason ?? null,
+    same_path_replacement_blocked:
+      registeredRepositoryMcpEvidence?.same_path_replacement_blocked === true,
     registered_repository_read_database_mutations:
       registeredRepositoryMcpEvidence?.read_database_mutations ?? null,
     registered_repository_read_project_file_mutations:
@@ -312,6 +334,11 @@ try {
           summary.browser_revision_refresh_verified,
         browser_selection_coupling_verified:
           summary.browser_selection_coupling_verified,
+        selection_independent_attachment_verified:
+          summary.selection_independent_attachment_verified,
+        repository_attachment_binding: summary.repository_attachment_binding,
+        attachment_stale_reason: summary.attachment_stale_reason,
+        same_path_replacement_blocked: summary.same_path_replacement_blocked,
         registered_repository_read_database_mutations:
           summary.registered_repository_read_database_mutations,
         registered_repository_read_project_file_mutations:
@@ -877,13 +904,26 @@ function createRegisteredRepositoryFixtureV01(scenario) {
   mkdirSync(repositoryB, { recursive: true });
   writeFileSync(
     path.join(repositoryA, "fixture.txt"),
-    "CDX2B1 registered repository A fixture\n",
+    "CDX2B2A registered repository A fixture\n",
   );
   writeFileSync(
     path.join(repositoryB, "fixture.txt"),
-    "CDX2B1 registered repository B fixture\n",
+    "CDX2B2A registered repository B fixture\n",
   );
+  initializeGitFixtureV01(repositoryA);
+  initializeGitFixtureV01(repositoryB);
   return { repositoryA, repositoryB };
+}
+
+function initializeGitFixtureV01(root) {
+  for (const args of [
+    ["init", "--quiet", root],
+    ["-C", root, "add", "fixture.txt"],
+    ["-C", root, "-c", "user.name=Augnes Test", "-c", "user.email=test@augnes.local", "commit", "--quiet", "-m", "fixture"],
+  ]) {
+    const result = spawnSync("git", args, { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr || `git fixture failed: ${args.join(" ")}`);
+  }
 }
 
 function scenarioEnvironment(
@@ -1170,7 +1210,7 @@ async function assertSupervisedMcpAdapterSplit({
   const sourceBlindResult = await withLiveCompanionProxyV01({
     environment,
     manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
-    run: async ({ tools, callRepository }) => {
+    run: async ({ tools, callRepository, callExecution }) => {
       const unregistered = await assertReadOnlyRepositoryCallV01({
         repositoryRoot: repoRoot,
         callRepository,
@@ -1179,6 +1219,7 @@ async function assertSupervisedMcpAdapterSplit({
       const positivePath = await assertRegisteredRepositoryPositivePathV01({
         repositories: registeredRepositories,
         callRepository,
+        callExecution,
       });
       return { tools, call: unregistered, positivePath };
     },
@@ -1230,7 +1271,11 @@ async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
       name: "augnes_resume_repository",
       arguments: { repositoryRoot },
     }), 20_000, "official stdio MCP tools/call", cancel);
-    return await run({ tools: tools.tools, callRepository });
+    const callExecution = (name, args) => withTimeout(client.callTool({
+      name,
+      arguments: args,
+    }), 20_000, `official stdio MCP ${name}`, cancel);
+    return await run({ tools: tools.tools, callRepository, callExecution });
   } finally {
     await withTimeout(client.close(), 10_000, "official stdio MCP client close", cancel).catch(() => {});
   }
@@ -1239,6 +1284,7 @@ async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
 async function assertRegisteredRepositoryPositivePathV01({
   repositories,
   callRepository,
+  callExecution,
 }) {
   const clock = advancingClockV01();
   const registeredA = await registerRepositoryThroughOnboardingV01({
@@ -1289,8 +1335,84 @@ async function assertRegisteredRepositoryPositivePathV01({
   assert.equal(initialContinuity.next_action.kind, "start_current_work");
   assert.equal(initialContinuity.managed_execution.stage, "no_run");
 
+  const projectTreeBeforePreparation = snapshotDirectoryContentV01(
+    repositories.repositoryA,
+  );
+  const initialPreparation = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.notEqual(initialPreparation.isError, true);
+  assert.equal(initialPreparation.structuredContent.status, "prepared");
+  assert.equal(initialPreparation.structuredContent.reason, "ready");
+  assert.equal(
+    Object.values(initialPreparation.structuredContent.authority).every(
+      (value) => value === false,
+    ),
+    true,
+  );
+  assert.deepEqual(
+    snapshotDirectoryContentV01(repositories.repositoryA),
+    projectTreeBeforePreparation,
+    "attachment preparation must not mutate project A files",
+  );
+  const initialAttachment = initialPreparation.structuredContent.attachment;
+  assert(initialAttachment?.attachment_id);
+
+  const registeredB = await registerRepositoryThroughOnboardingV01({
+    repositoryRoot: repositories.repositoryB,
+    displayName: "CDX2B2A Runtime Repository B",
+    createUuids: [registeredRuntimeProjectBId.slice("project:".length)],
+    clock,
+  });
+  assert.equal(registeredB.workspace.workspace_id, registeredRuntimeWorkspaceId);
+  assert.equal(registeredB.project.project_id, registeredRuntimeProjectBId);
+  const selectedB = readFixtureSelectionV01();
+  assert.equal(selectedB.project_id, registeredRuntimeProjectBId);
+
+  const selectionCoupledRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: selectionCoupledRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition: initialDefinition,
+  });
+  const selectionCoupledContinuity = selectionCoupledRead.structuredContent.continuity;
+  assert.equal(selectionCoupledContinuity.project.status, "inactive_project");
+  assert.equal(selectionCoupledContinuity.project.active, false);
+  assert.equal(selectionCoupledContinuity.current_work.start_eligible, false);
+  assert.equal(selectionCoupledContinuity.current_work.start_blocker, "The project is not active.");
+
+  const afterSelectionPreparation = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.equal(
+    afterSelectionPreparation.structuredContent.attachment.binding_fingerprint,
+    initialAttachment.binding_fingerprint,
+  );
+  writeFileSync(
+    path.join(repositories.repositoryB, "unrelated-b-change.txt"),
+    "repository B only\n",
+    "utf8",
+  );
+  const afterBChangePreparation = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.equal(
+    afterBChangePreparation.structuredContent.attachment.binding_fingerprint,
+    initialAttachment.binding_fingerprint,
+  );
+
+  selectFixtureProjectV01(registeredA.project.project_id);
+
   const revisedDefinition = {
-    goal: "Refresh the CDX2B1 positive-path continuity fixture.",
+    goal: "Refresh the CDX2B2A selection-independent attachment fixture.",
     success_criteria: [
       "The refreshed live Companion returns the revised current work.",
       "The exact snapshot binding changes after Browser-side revision.",
@@ -1311,6 +1433,14 @@ async function assertRegisteredRepositoryPositivePathV01({
     revised.packet.integrity.fingerprint,
     initial.packet.integrity.fingerprint,
   );
+
+  const staleValidation = await callExecution(
+    "augnes_validate_repository_execution_attachment",
+    { attachmentId: initialAttachment.attachment_id },
+  );
+  assert.equal(staleValidation.structuredContent.status, "validated");
+  assert.equal(staleValidation.structuredContent.attachment.lifecycle, "stale");
+  assert.equal(staleValidation.structuredContent.attachment.stale_reason, "packet_changed");
 
   const revisedRead = await assertReadOnlyRepositoryCallV01({
     repositoryRoot: repositories.repositoryA,
@@ -1334,55 +1464,44 @@ async function assertRegisteredRepositoryPositivePathV01({
   );
   assert.equal(revisedContinuity.managed_execution.stage, "no_run");
 
-  const registeredB = await registerRepositoryThroughOnboardingV01({
-    repositoryRoot: repositories.repositoryB,
-    displayName: "CDX2B1 Runtime Repository B",
-    createUuids: [registeredRuntimeProjectBId.slice("project:".length)],
-    clock,
-  });
-  assert.equal(registeredB.workspace.workspace_id, registeredRuntimeWorkspaceId);
-  assert.equal(registeredB.project.project_id, registeredRuntimeProjectBId);
-  const selectedB = readFixtureSelectionV01();
-  assert.equal(selectedB.project_id, registeredRuntimeProjectBId);
+  const revisedPreparation = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.equal(revisedPreparation.structuredContent.status, "prepared");
+  const dbBeforeReplacement = openFixtureDatabaseV01();
+  const baselineCountBeforeReplacement = dbBeforeReplacement.prepare(
+    "SELECT COUNT(*) AS count FROM vnext_physical_root_baselines",
+  ).get().count;
+  dbBeforeReplacement.close();
+  renameSync(repositories.repositoryA, `${repositories.repositoryA}-original`);
+  mkdirSync(repositories.repositoryA, { recursive: true });
+  writeFileSync(
+    path.join(repositories.repositoryA, "fixture.txt"),
+    "CDX2B2A same-path replacement fixture\n",
+  );
+  initializeGitFixtureV01(repositories.repositoryA);
+  const replacementPreparation = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.equal(replacementPreparation.structuredContent.status, "blocked");
+  assert.equal(replacementPreparation.structuredContent.reason, "physical_root_mismatch");
+  const dbAfterReplacement = openFixtureDatabaseV01();
+  assert.equal(
+    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM vnext_physical_root_baselines").get().count,
+    baselineCountBeforeReplacement,
+  );
+  assert.equal(
+    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM vnext_repository_execution_attachments WHERE lifecycle = 'prepared'").get().count,
+    0,
+  );
+  assert.equal(
+    dbAfterReplacement.prepare("SELECT COUNT(*) AS count FROM autonomy_runs").get().count,
+    0,
+  );
+  dbAfterReplacement.close();
 
-  const selectionCoupledRead = await assertReadOnlyRepositoryCallV01({
-    repositoryRoot: repositories.repositoryA,
-    callRepository,
-  });
-  assertExactRegisteredRepositoryResultV01({
-    result: selectionCoupledRead,
-    workspaceId: registeredA.workspace.workspace_id,
-    projectId: registeredA.project.project_id,
-    displayName: registeredA.project.display_name,
-    definition: revisedDefinition,
-  });
-  const selectionCoupledContinuity =
-    selectionCoupledRead.structuredContent.continuity;
-  assert.equal(selectionCoupledContinuity.project.status, "inactive_project");
-  assert.equal(selectionCoupledContinuity.project.active, false);
-  assert.equal(
-    selectionCoupledContinuity.project.selection_revision,
-    selectedB.selection_revision,
-  );
-  assert.notEqual(
-    selectionCoupledContinuity.project.selection_revision,
-    revisedContinuity.project.selection_revision,
-  );
-  assert.notEqual(
-    selectionCoupledContinuity.snapshot.binding,
-    revisedContinuity.snapshot.binding,
-  );
-  assert.equal(selectionCoupledContinuity.current_work.currentness, "fresh");
-  assert.equal(selectionCoupledContinuity.current_work.start_eligible, false);
-  assert.equal(
-    selectionCoupledContinuity.current_work.start_blocker,
-    "The project is not active.",
-  );
-  assert.equal(
-    selectionCoupledContinuity.next_action.kind,
-    "make_project_active",
-  );
-  assert.equal(selectionCoupledContinuity.managed_execution.stage, "no_run");
   assert.deepEqual(
     listFilesRecursively(temporaryRoot).filter((file) =>
       /\.(?:db|sqlite|sqlite3)$/u.test(file)
@@ -1394,12 +1513,16 @@ async function assertRegisteredRepositoryPositivePathV01({
   return {
     verified: true,
     repository_status:
-      selectionCoupledRead.structuredContent.repository_resolution.status,
+      revisedRead.structuredContent.repository_resolution.status,
     initial_binding: initialContinuity.snapshot.binding,
     revised_binding: revisedContinuity.snapshot.binding,
     selection_coupled_binding: selectionCoupledContinuity.snapshot.binding,
+    repository_attachment_binding: initialAttachment.binding_fingerprint,
+    attachment_stale_reason: staleValidation.structuredContent.attachment.stale_reason,
+    same_path_replacement_blocked: true,
     revision_refresh: true,
     selection_coupling: true,
+    selection_independent_attachment: true,
     read_database_mutations: 0,
     read_project_file_mutations: 0,
     codex_only_database_copies: 0,
@@ -1545,6 +1668,27 @@ function readFixtureSelectionV01() {
     );
     assert(selection);
     return selection;
+  } finally {
+    db.close();
+  }
+}
+
+function selectFixtureProjectV01(projectId) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const active = readActiveProjectSelectionV01(
+      db,
+      registeredRuntimeWorkspaceId,
+    );
+    assert(active);
+    if (active.project_id === projectId) return active;
+    return selectActiveProjectV01(db, {
+      workspace_id: registeredRuntimeWorkspaceId,
+      project_id: projectId,
+      expected_project_id: active.project_id,
+      expected_revision: active.selection_revision,
+      now: new Date().toISOString(),
+    });
   } finally {
     db.close();
   }
@@ -2297,7 +2441,7 @@ function assertRuntimeEnvironmentIsolation() {
     assert.equal(
       bridgeValues[key],
       key === "AUGNES_APP_TOOL_SURFACE"
-        ? "companion_repository_readonly"
+        ? "companion_repository_attachment"
         : value,
     );
   }

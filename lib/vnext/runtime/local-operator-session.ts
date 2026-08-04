@@ -17,6 +17,12 @@ export const VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 =
   "augnes_vnext_operator_session_v01" as const;
 export const VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 =
   "/api/vnext/operator" as const;
+export const VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01 =
+  "augnes_vnext_repository_decision_session_v01" as const;
+export const VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01 =
+  "/api/vnext/projects" as const;
+export const VNEXT_REPOSITORY_DECISION_CHALLENGE_VERSION_V01 =
+  "repository_execution_browser_decision_challenge.v0.1" as const;
 export const VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01 = 16 * 1024;
 export const VNEXT_LOCAL_OPERATOR_BOOTSTRAP_TTL_MS_V01 = 10 * 60 * 1000;
 export const VNEXT_LOCAL_OPERATOR_SESSION_TTL_MS_V01 = 8 * 60 * 60 * 1000;
@@ -76,6 +82,17 @@ export const VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01 = `
     ),
     action_nonce_expires_at TEXT,
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    decision_session_token_hash TEXT CHECK (
+      decision_session_token_hash IS NULL OR
+      (length(decision_session_token_hash) = 71 AND
+       substr(decision_session_token_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_hash TEXT CHECK (
+      decision_action_nonce_hash IS NULL OR
+      (length(decision_action_nonce_hash) = 71 AND
+       substr(decision_action_nonce_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_expires_at TEXT,
     CHECK (
       (bootstrap_consumed_at IS NULL AND
        session_token_hash IS NULL AND
@@ -92,6 +109,12 @@ export const VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01 = `
     ON vnext_local_operator_sessions(
       workspace_id, project_id, operator_id, revoked_at, expires_at, session_id
     );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_token
+    ON vnext_local_operator_sessions(decision_session_token_hash)
+    WHERE decision_session_token_hash IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_nonce
+    ON vnext_local_operator_sessions(decision_action_nonce_hash)
+    WHERE decision_action_nonce_hash IS NOT NULL;
 `;
 
 export type VNextLocalOperatorSessionErrorCodeV01 =
@@ -118,6 +141,7 @@ export type VNextLocalOperatorSessionErrorCodeV01 =
   | "operator_session_invalid"
   | "operator_action_nonce_invalid"
   | "operator_action_nonce_expired"
+  | "operator_decision_challenge_invalid"
   | "operator_session_not_found"
   | "operator_session_conflict";
 
@@ -185,6 +209,20 @@ export interface VNextLocalOperatorSessionMutationAdmissionV01
   cookie_max_age_seconds: number;
 }
 
+export interface VNextLocalOperatorBootstrapAdmissionV01
+  extends VNextLocalOperatorSessionMutationAdmissionV01 {
+  repository_decision_session: VNextLocalOperatorSessionMutationAdmissionV01;
+}
+
+export interface VNextRepositoryDecisionChallengeV01 {
+  challenge_version: typeof VNEXT_REPOSITORY_DECISION_CHALLENGE_VERSION_V01;
+  workspace_id: string;
+  project_id: string;
+  request_fingerprint: string;
+  challenge_fingerprint: string;
+  expires_at: string;
+}
+
 interface LocalOperatorSessionRowV01 {
   session_id: string;
   workspace_id: string;
@@ -198,6 +236,9 @@ interface LocalOperatorSessionRowV01 {
   revoked_at: string | null;
   action_nonce_hash: string | null;
   action_nonce_expires_at: string | null;
+  decision_session_token_hash: string | null;
+  decision_action_nonce_hash: string | null;
+  decision_action_nonce_expires_at: string | null;
   updated_at: string;
 }
 
@@ -270,6 +311,8 @@ export function assertVNextLocalOperatorSessionSchemaV01(
   const requiredArtifacts = [
     ["table", "vnext_local_operator_sessions"],
     ["index", "idx_vnext_local_operator_sessions_scope_expiry"],
+    ["index", "idx_vnext_local_operator_sessions_decision_token"],
+    ["index", "idx_vnext_local_operator_sessions_decision_nonce"],
   ] as const;
   const lookup = db.prepare(
     "SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?",
@@ -319,6 +362,9 @@ export function issueVNextLocalOperatorBootstrapV01(
     revoked_at: null,
     action_nonce_hash: null,
     action_nonce_expires_at: null,
+    decision_session_token_hash: null,
+    decision_action_nonce_hash: null,
+    decision_action_nonce_expires_at: null,
     updated_at: now,
   };
 
@@ -329,12 +375,16 @@ export function issueVNextLocalOperatorBootstrapV01(
           session_id, workspace_id, project_id, operator_id,
           bootstrap_token_hash, session_token_hash, issued_at, expires_at,
           bootstrap_consumed_at, revoked_at, action_nonce_hash,
-          action_nonce_expires_at, updated_at
+          action_nonce_expires_at, decision_session_token_hash,
+          decision_action_nonce_hash, decision_action_nonce_expires_at,
+          updated_at
         ) VALUES (
           @session_id, @workspace_id, @project_id, @operator_id,
           @bootstrap_token_hash, @session_token_hash, @issued_at, @expires_at,
           @bootstrap_consumed_at, @revoked_at, @action_nonce_hash,
-          @action_nonce_expires_at, @updated_at
+          @action_nonce_expires_at, @decision_session_token_hash,
+          @decision_action_nonce_hash, @decision_action_nonce_expires_at,
+          @updated_at
         )`,
       ).run(row);
     });
@@ -357,7 +407,7 @@ export function consumeVNextLocalOperatorBootstrapV01(
     secret_source?: VNextLocalOperatorSecretSourceV01;
     session_ttl_ms?: number;
   },
-): VNextLocalOperatorSessionMutationAdmissionV01 {
+): VNextLocalOperatorBootstrapAdmissionV01 {
   assertVNextLocalOperatorSessionSchemaV01(db);
   const parsed = parseBootstrapToken(input.bootstrap_token);
   const now = readVNextLocalRuntimeClockNowV01(
@@ -375,6 +425,17 @@ export function consumeVNextLocalOperatorBootstrapV01(
     session_id: parsed.session_id,
     session_secret: randomBase64Url(source, 32),
     action_nonce: randomBase64Url(source, 32),
+  };
+  const decisionCredential: VNextLocalOperatorSessionCredentialV01 = {
+    session_id: parsed.session_id,
+    session_secret: deriveRepositoryDecisionCredentialSecret(
+      credential,
+      "session",
+    ),
+    action_nonce: deriveRepositoryDecisionCredentialSecret(
+      credential,
+      "action-nonce",
+    ),
   };
 
   const row = withImmediateTransaction(db, () => {
@@ -394,6 +455,9 @@ export function consumeVNextLocalOperatorBootstrapV01(
         bootstrap_consumed_at = ?,
         action_nonce_hash = ?,
         action_nonce_expires_at = ?,
+        decision_session_token_hash = ?,
+        decision_action_nonce_hash = ?,
+        decision_action_nonce_expires_at = ?,
         updated_at = ?
        WHERE session_id = ?
          AND bootstrap_consumed_at IS NULL
@@ -405,6 +469,9 @@ export function consumeVNextLocalOperatorBootstrapV01(
       now,
       actionNonceHash,
       expiresAt,
+      decisionSessionCredentialHash(decisionCredential),
+      decisionActionNonceCredentialHash(decisionCredential),
+      expiresAt,
       now,
       parsed.session_id,
       credentialHash("bootstrap", parsed.token),
@@ -415,11 +482,37 @@ export function consumeVNextLocalOperatorBootstrapV01(
     return requireSession(db, parsed.session_id);
   });
 
-  return sessionAdmission(row, credential, now);
+  return {
+    ...sessionAdmission(row, credential, now),
+    repository_decision_session: sessionAdmission(
+      row,
+      decisionCredential,
+      now,
+    ),
+  };
 }
 
 export function readVNextLocalOperatorCredentialFromRequestV01(
   request: Request,
+): VNextLocalOperatorSessionCredentialV01 {
+  return readCredentialCookieV01(
+    request,
+    VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+  );
+}
+
+export function readVNextRepositoryDecisionCredentialFromRequestV01(
+  request: Request,
+): VNextLocalOperatorSessionCredentialV01 {
+  return readCredentialCookieV01(
+    request,
+    VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
+  );
+}
+
+function readCredentialCookieV01(
+  request: Request,
+  cookieName: string,
 ): VNextLocalOperatorSessionCredentialV01 {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) {
@@ -431,12 +524,109 @@ export function readVNextLocalOperatorCredentialFromRequestV01(
   const values = cookieHeader
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => part.startsWith(`${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=`))
+    .filter((part) => part.startsWith(`${cookieName}=`))
     .map((part) => part.slice(part.indexOf("=") + 1));
   if (values.length !== 1) {
     throw sessionError("operator_session_cookie_invalid", 401);
   }
   return parseSessionCookieValue(values[0]);
+}
+
+export function issueVNextRepositoryDecisionChallengeV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    request_fingerprint: string;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    clock?: VNextLocalRuntimeClockV01;
+  },
+): VNextRepositoryDecisionChallengeV01 {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  const now = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "repository_decision_challenge_issued_at",
+  );
+  const requestFingerprint = requiredProtocolFingerprint(
+    input.request_fingerprint,
+  );
+  if (!requestFingerprint) {
+    throw sessionError("operator_decision_challenge_invalid", 409);
+  }
+  const row = requireSession(db, input.credential.session_id);
+  assertRepositoryDecisionSessionCanAuthenticate(
+    row,
+    input.workspace_id,
+    input.project_id,
+    input.credential,
+    now,
+  );
+  return {
+    challenge_version: VNEXT_REPOSITORY_DECISION_CHALLENGE_VERSION_V01,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    request_fingerprint: requestFingerprint,
+    challenge_fingerprint: repositoryDecisionChallengeFingerprint(
+      input.credential,
+      requestFingerprint,
+    ),
+    expires_at: row.decision_action_nonce_expires_at!,
+  };
+}
+
+export function admitVNextRepositoryDecisionConfirmationInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    request_fingerprint: string;
+    challenge_fingerprint: string;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    clock?: VNextLocalRuntimeClockV01;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  },
+): VNextLocalOperatorSessionMutationAdmissionV01 {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  if (!db.inTransaction) {
+    throw sessionError("operator_session_conflict", 500);
+  }
+  const requestFingerprint = requiredProtocolFingerprint(
+    input.request_fingerprint,
+  );
+  const challengeFingerprint = requiredProtocolFingerprint(
+    input.challenge_fingerprint,
+  );
+  if (
+    !requestFingerprint ||
+    !challengeFingerprint ||
+    !safeDigestEqual(
+      challengeFingerprint,
+      repositoryDecisionChallengeFingerprint(
+        input.credential,
+        requestFingerprint,
+      ),
+    )
+  ) {
+    throw sessionError("operator_decision_challenge_invalid", 409);
+  }
+  const now = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "repository_decision_confirmed_at",
+  );
+  const current = requireSession(db, input.credential.session_id);
+  assertRepositoryDecisionSessionCanAuthenticate(
+    current,
+    input.workspace_id,
+    input.project_id,
+    input.credential,
+    now,
+  );
+  return rotateRepositoryDecisionNonceInsideTransactionV01(db, {
+    current,
+    credential: input.credential,
+    now,
+    secret_source: input.secret_source,
+  });
 }
 
 export function authenticateVNextLocalOperatorSessionV01(
@@ -512,13 +702,6 @@ export function admitVNextLocalOperatorMutationInsideTransactionV01(
     input.clock,
     "operator_action_nonce_rotated_at",
   );
-  const nextCredential = {
-    ...input.credential,
-    action_nonce: randomBase64Url(
-      input.secret_source ?? SYSTEM_SECRET_SOURCE,
-      32,
-    ),
-  };
   const current = requireSession(db, input.credential.session_id);
   assertSessionCanAuthenticate(
     current,
@@ -526,6 +709,30 @@ export function admitVNextLocalOperatorMutationInsideTransactionV01(
     input.credential,
     now,
   );
+  return rotateActionNonceInsideTransactionV01(db, {
+    current,
+    credential: input.credential,
+    now,
+    secret_source: input.secret_source,
+  });
+}
+
+function rotateActionNonceInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    current: LocalOperatorSessionRowV01;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    now: string;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  },
+): VNextLocalOperatorSessionMutationAdmissionV01 {
+  const nextCredential = {
+    ...input.credential,
+    action_nonce: randomBase64Url(
+      input.secret_source ?? SYSTEM_SECRET_SOURCE,
+      32,
+    ),
+  };
   const currentHash = actionNonceCredentialHash(input.credential);
   const result = db.prepare(
     `UPDATE vnext_local_operator_sessions SET
@@ -537,7 +744,7 @@ export function admitVNextLocalOperatorMutationInsideTransactionV01(
          AND revoked_at IS NULL`,
   ).run(
     actionNonceCredentialHash(nextCredential),
-    now,
+    input.now,
     input.credential.session_id,
     currentHash,
   );
@@ -545,7 +752,47 @@ export function admitVNextLocalOperatorMutationInsideTransactionV01(
     throw sessionError("operator_action_nonce_invalid", 409);
   }
   const row = requireSession(db, input.credential.session_id);
-  return sessionAdmission(row, nextCredential, now);
+  return sessionAdmission(row, nextCredential, input.now);
+}
+
+function rotateRepositoryDecisionNonceInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    current: LocalOperatorSessionRowV01;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    now: string;
+    secret_source?: VNextLocalOperatorSecretSourceV01;
+  },
+): VNextLocalOperatorSessionMutationAdmissionV01 {
+  const nextCredential = {
+    ...input.credential,
+    action_nonce: randomBase64Url(
+      input.secret_source ?? SYSTEM_SECRET_SOURCE,
+      32,
+    ),
+  };
+  const result = db.prepare(
+    `UPDATE vnext_local_operator_sessions SET
+         decision_action_nonce_hash = ?,
+         decision_action_nonce_expires_at = expires_at,
+         updated_at = ?
+       WHERE session_id = ?
+         AND decision_action_nonce_hash = ?
+         AND revoked_at IS NULL`,
+  ).run(
+    decisionActionNonceCredentialHash(nextCredential),
+    input.now,
+    input.credential.session_id,
+    decisionActionNonceCredentialHash(input.credential),
+  );
+  if (result.changes !== 1) {
+    throw sessionError("operator_action_nonce_invalid", 409);
+  }
+  return sessionAdmission(
+    requireSession(db, input.credential.session_id),
+    nextCredential,
+    input.now,
+  );
 }
 
 export function revokeVNextLocalOperatorSessionByCredentialV01(
@@ -636,6 +883,34 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
   max_age_seconds: number;
   secure: boolean;
 }): string {
+  return serializeSessionCookieV01({
+    ...input,
+    cookie_name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+    path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
+  });
+}
+
+export function serializeVNextRepositoryDecisionSessionCookieV01(input: {
+  value: string;
+  expires_at: string;
+  max_age_seconds: number;
+  secure: boolean;
+}): string {
+  return serializeSessionCookieV01({
+    ...input,
+    cookie_name: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
+    path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
+  });
+}
+
+function serializeSessionCookieV01(input: {
+  value: string;
+  expires_at: string;
+  max_age_seconds: number;
+  secure: boolean;
+  cookie_name: string;
+  path: string;
+}): string {
   parseSessionCookieValue(input.value);
   const expires = strictTimestampMilliseconds(input.expires_at);
   if (expires === null) {
@@ -643,8 +918,8 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
   }
   const maxAge = Math.max(0, Math.floor(input.max_age_seconds));
   return [
-    `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${input.value}`,
-    `Path=${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01}`,
+    `${input.cookie_name}=${input.value}`,
+    `Path=${input.path}`,
     "HttpOnly",
     "SameSite=Strict",
     `Expires=${new Date(expires).toUTCString()}`,
@@ -656,9 +931,31 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
 export function serializeVNextLocalOperatorSessionCookieClearV01(input: {
   secure: boolean;
 }): string {
+  return serializeSessionCookieClearV01({
+    ...input,
+    cookie_name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+    path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
+  });
+}
+
+export function serializeVNextRepositoryDecisionSessionCookieClearV01(input: {
+  secure: boolean;
+}): string {
+  return serializeSessionCookieClearV01({
+    ...input,
+    cookie_name: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
+    path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
+  });
+}
+
+function serializeSessionCookieClearV01(input: {
+  secure: boolean;
+  cookie_name: string;
+  path: string;
+}): string {
   return [
-    `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=`,
-    `Path=${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01}`,
+    `${input.cookie_name}=`,
+    `Path=${input.path}`,
     "HttpOnly",
     "SameSite=Strict",
     "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
@@ -871,6 +1168,52 @@ function assertSessionCanAuthenticate(
   }
 }
 
+function assertRepositoryDecisionSessionCanAuthenticate(
+  row: LocalOperatorSessionRowV01,
+  workspaceId: string,
+  projectId: string,
+  credential: VNextLocalOperatorSessionCredentialV01,
+  now: string,
+): void {
+  if (
+    row.workspace_id !== workspaceId ||
+    row.project_id !== projectId
+  ) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
+  if (row.revoked_at) throw sessionError("operator_session_revoked", 401);
+  if (!row.bootstrap_consumed_at || !row.session_token_hash || !row.action_nonce_hash) {
+    throw sessionError("operator_session_invalid", 401);
+  }
+  if (timestampExpired(row.expires_at, now)) {
+    throw sessionError("operator_session_expired", 401);
+  }
+  if (
+    !row.decision_action_nonce_expires_at ||
+    timestampExpired(row.decision_action_nonce_expires_at, now)
+  ) {
+    throw sessionError("operator_action_nonce_expired", 401);
+  }
+  if (
+    !row.decision_session_token_hash ||
+    !safeDigestEqual(
+      row.decision_session_token_hash,
+      decisionSessionCredentialHash(credential),
+    )
+  ) {
+    throw sessionError("operator_session_invalid", 401);
+  }
+  if (
+    !row.decision_action_nonce_hash ||
+    !safeDigestEqual(
+      row.decision_action_nonce_hash,
+      decisionActionNonceCredentialHash(credential),
+    )
+  ) {
+    throw sessionError("operator_action_nonce_invalid", 409);
+  }
+}
+
 function assertScope(
   row: LocalOperatorSessionRowV01,
   config: VNextLocalOperatorPilotConfigV01,
@@ -990,6 +1333,12 @@ function requiredCanonicalId(value: unknown): string | null {
   return normalized;
 }
 
+function requiredProtocolFingerprint(value: unknown): string | null {
+  return typeof value === "string" && /^sha256:[a-f0-9]{64}$/.test(value)
+    ? value
+    : null;
+}
+
 function normalizeExplicitDatabasePath(value: string): string | null {
   if (
     value !== value.trim() ||
@@ -1057,6 +1406,56 @@ function actionNonceCredentialHash(
     "action-nonce",
     `${credential.session_id}.${credential.action_nonce}`,
   );
+}
+
+function decisionSessionCredentialHash(
+  credential: VNextLocalOperatorSessionCredentialV01,
+): string {
+  return credentialHash(
+    "repository-decision-session",
+    `${credential.session_id}.${credential.session_secret}`,
+  );
+}
+
+function decisionActionNonceCredentialHash(
+  credential: VNextLocalOperatorSessionCredentialV01,
+): string {
+  return credentialHash(
+    "repository-decision-action-nonce",
+    `${credential.session_id}.${credential.action_nonce}`,
+  );
+}
+
+function repositoryDecisionChallengeFingerprint(
+  credential: VNextLocalOperatorSessionCredentialV01,
+  requestFingerprint: string,
+): string {
+  return credentialHash(
+    "repository-decision-challenge",
+    [
+      credential.session_id,
+      credential.session_secret,
+      credential.action_nonce,
+      requestFingerprint,
+    ].join("\0"),
+  );
+}
+
+function deriveRepositoryDecisionCredentialSecret(
+  credential: VNextLocalOperatorSessionCredentialV01,
+  purpose: "session" | "action-nonce",
+): string {
+  return createHash("sha256")
+    .update(
+      `augnes-vnext-repository-decision-credential.${purpose}.v0.1\0`,
+      "utf8",
+    )
+    .update(credential.session_id, "utf8")
+    .update("\0", "utf8")
+    .update(credential.session_secret, "utf8")
+    .update("\0", "utf8")
+    .update(credential.action_nonce, "utf8")
+    .digest("base64url");
 }
 
 function credentialHash(domain: string, value: string): string {

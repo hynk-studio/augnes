@@ -1767,7 +1767,7 @@ export function buildSupervisorChildValues({
       ...ownershipValues,
       ...diagnosticValues,
       AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
-      AUGNES_APP_TOOL_SURFACE: "companion_repository_readonly",
+      AUGNES_APP_TOOL_SURFACE: "companion_repository_attachment",
       AUGNES_APP_DOMAIN: nonEmptyString(environment.AUGNES_APP_DOMAIN),
       AUGNES_CONNECT_DOMAIN: nonEmptyString(environment.AUGNES_CONNECT_DOMAIN),
       AUGNES_RESOURCE_DOMAIN: nonEmptyString(environment.AUGNES_RESOURCE_DOMAIN),

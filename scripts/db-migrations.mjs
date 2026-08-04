@@ -4602,6 +4602,108 @@ export function migrateVNextProjectIdentityRegistryV01(db) {
   };
 }
 
+export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
+  CREATE TABLE IF NOT EXISTS vnext_physical_root_baselines (
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
+    node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71 AND substr(node_scope_fingerprint, 1, 7) = 'sha256:'),
+    baseline_version TEXT NOT NULL CHECK (baseline_version = 'physical_root_baseline.v0.1'),
+    root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71 AND substr(root_binding_fingerprint, 1, 7) = 'sha256:'),
+    identity_version TEXT NOT NULL CHECK (identity_version = 'native_host_physical_root_identity.v0.1'),
+    canonical_realpath_fingerprint TEXT NOT NULL CHECK (length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:'),
+    filesystem_volume_identity TEXT NOT NULL CHECK (length(filesystem_volume_identity) > 0),
+    filesystem_object_identity TEXT NOT NULL CHECK (length(filesystem_object_identity) > 0),
+    observed_at TEXT NOT NULL CHECK (length(trim(observed_at)) > 0),
+    provenance TEXT NOT NULL CHECK (provenance IN ('canonical_new_project_onboarding', 'explicit_legacy_adoption', 'explicit_root_rebind')),
+    baseline_fingerprint TEXT NOT NULL UNIQUE CHECK (length(baseline_fingerprint) = 71 AND substr(baseline_fingerprint, 1, 7) = 'sha256:'),
+    PRIMARY KEY (workspace_id, project_id, node_scope_fingerprint),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_project
+    ON vnext_physical_root_baselines(workspace_id, project_id, observed_at);
+  CREATE TABLE IF NOT EXISTS vnext_repository_execution_attachments (
+    attachment_id TEXT PRIMARY KEY CHECK (length(attachment_id) = 71 AND substr(attachment_id, 1, 7) = 'sha256:'),
+    attachment_version TEXT NOT NULL CHECK (attachment_version = 'repository_execution_attachment.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
+    node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71),
+    physical_root_baseline_fingerprint TEXT NOT NULL CHECK (length(physical_root_baseline_fingerprint) = 71),
+    root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71),
+    task_context_packet_id TEXT NOT NULL,
+    task_context_packet_fingerprint TEXT NOT NULL CHECK (length(task_context_packet_fingerprint) = 71),
+    current_work_fingerprint TEXT NOT NULL CHECK (length(current_work_fingerprint) = 71),
+    project_execution_admission_fingerprint TEXT NOT NULL CHECK (length(project_execution_admission_fingerprint) = 71),
+    worktree_observation_fingerprint TEXT NOT NULL CHECK (length(worktree_observation_fingerprint) = 71),
+    managed_run_state_fingerprint TEXT NOT NULL CHECK (length(managed_run_state_fingerprint) = 71),
+    binding_fingerprint TEXT NOT NULL UNIQUE CHECK (length(binding_fingerprint) = 71),
+    prepared_at TEXT NOT NULL CHECK (length(trim(prepared_at)) > 0),
+    freshness_policy_json TEXT NOT NULL CHECK (json_valid(freshness_policy_json) AND json_type(freshness_policy_json) = 'object'),
+    lifecycle TEXT NOT NULL CHECK (lifecycle IN ('prepared', 'stale', 'superseded', 'revoked', 'consumed')),
+    stale_reason TEXT CHECK (stale_reason IS NULL OR stale_reason IN ('physical_root_mismatch', 'root_binding_changed', 'packet_changed', 'current_work_changed', 'project_unavailable', 'managed_run_conflict', 'worktree_changed', 'freshness_expired', 'explicitly_revoked', 'superseded')),
+    lifecycle_updated_at TEXT NOT NULL CHECK (length(trim(lifecycle_updated_at)) > 0),
+    consumed_run_id TEXT CHECK (consumed_run_id IS NULL),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_attachments_project
+    ON vnext_repository_execution_attachments(workspace_id, project_id, lifecycle_updated_at DESC, attachment_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_prepared
+    ON vnext_repository_execution_attachments(workspace_id, project_id) WHERE lifecycle = 'prepared';
+  CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
+    request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
+    old_root_binding_fingerprint TEXT NOT NULL CHECK (length(old_root_binding_fingerprint) = 71),
+    old_baseline_fingerprint TEXT CHECK (old_baseline_fingerprint IS NULL OR length(old_baseline_fingerprint) = 71),
+    new_root_binding_fingerprint TEXT NOT NULL CHECK (length(new_root_binding_fingerprint) = 71),
+    new_baseline_fingerprint TEXT NOT NULL CHECK (length(new_baseline_fingerprint) = 71),
+    recorded_at TEXT NOT NULL CHECK (length(trim(recorded_at)) > 0),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_root_rebind_receipts_project
+    ON vnext_repository_root_rebind_receipts(workspace_id, project_id, recorded_at);
+  CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
+    request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71 AND substr(request_fingerprint, 1, 7) = 'sha256:'),
+    decision_request_version TEXT NOT NULL CHECK (decision_request_version = 'repository_execution_decision_request.v0.1'),
+    action TEXT NOT NULL CHECK (action IN ('adopt_legacy_baseline', 'rebind_root', 'revoke_attachment')),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
+    expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+    expected_state_json TEXT NOT NULL CHECK (json_valid(expected_state_json) AND json_type(expected_state_json) = 'object'),
+    requested_at TEXT NOT NULL CHECK (length(trim(requested_at)) > 0),
+    expires_at TEXT NOT NULL CHECK (length(trim(expires_at)) > 0),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'granted', 'consumed', 'expired', 'superseded')),
+    grant_fingerprint TEXT UNIQUE CHECK (grant_fingerprint IS NULL OR length(grant_fingerprint) = 71),
+    confirmation_source TEXT CHECK (confirmation_source IS NULL OR confirmation_source = 'browser_same_origin_button'),
+    granted_at TEXT, consumed_at TEXT,
+    result_fingerprint TEXT CHECK (result_fingerprint IS NULL OR length(result_fingerprint) = 71),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_decisions_project
+    ON vnext_repository_execution_decision_requests(workspace_id, project_id, status, requested_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_open_decision
+    ON vnext_repository_execution_decision_requests(workspace_id, project_id, action)
+    WHERE status IN ('pending', 'granted');
+`;
+
+export function migrateVNextRepositoryExecutionStoreV01(db) {
+  const names = [
+    "vnext_physical_root_baselines",
+    "vnext_repository_execution_attachments",
+    "vnext_repository_root_rebind_receipts",
+    "vnext_repository_execution_decision_requests",
+    "idx_vnext_physical_root_baselines_project",
+    "idx_vnext_repository_execution_attachments_project",
+    "idx_vnext_repository_execution_one_prepared",
+    "idx_vnext_repository_root_rebind_receipts_project",
+    "idx_vnext_repository_execution_decisions_project",
+    "idx_vnext_repository_execution_one_open_decision",
+  ];
+  const before = new Set(db.prepare(
+    `SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (${names.map(() => "?").join(", ")})`,
+  ).all(...names).map((row) => row.key));
+  db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
+  return {
+    created_tables: names.slice(0, 4).filter((name) => !before.has(`table:${name}`)),
+    created_indexes: names.slice(4).filter((name) => !before.has(`index:${name}`)),
+  };
+}
+
 export const vNextProjectLifecycleSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_recent_projects (
     workspace_id TEXT NOT NULL,
@@ -5102,6 +5204,17 @@ export const vNextLocalOperatorSessionSchemaSqlV01 = `
     ),
     action_nonce_expires_at TEXT,
     updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    decision_session_token_hash TEXT CHECK (
+      decision_session_token_hash IS NULL OR
+      (length(decision_session_token_hash) = 71 AND
+       substr(decision_session_token_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_hash TEXT CHECK (
+      decision_action_nonce_hash IS NULL OR
+      (length(decision_action_nonce_hash) = 71 AND
+       substr(decision_action_nonce_hash, 1, 7) = 'sha256:')
+    ),
+    decision_action_nonce_expires_at TEXT,
     CHECK (
       (bootstrap_consumed_at IS NULL AND
        session_token_hash IS NULL AND
@@ -5118,14 +5231,45 @@ export const vNextLocalOperatorSessionSchemaSqlV01 = `
     ON vnext_local_operator_sessions(
       workspace_id, project_id, operator_id, revoked_at, expires_at, session_id
     );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_token
+    ON vnext_local_operator_sessions(decision_session_token_hash)
+    WHERE decision_session_token_hash IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_nonce
+    ON vnext_local_operator_sessions(decision_action_nonce_hash)
+    WHERE decision_action_nonce_hash IS NOT NULL;
 `;
 
 const vNextLocalOperatorSessionArtifactsV01 = {
   tables: ["vnext_local_operator_sessions"],
-  indexes: ["idx_vnext_local_operator_sessions_scope_expiry"],
+  indexes: [
+    "idx_vnext_local_operator_sessions_scope_expiry",
+    "idx_vnext_local_operator_sessions_decision_token",
+    "idx_vnext_local_operator_sessions_decision_nonce",
+  ],
 };
 
 export function migrateVNextLocalOperatorSessionsV01(db) {
+  const tableExists = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_local_operator_sessions'",
+  ).get();
+  if (tableExists) {
+    const columns = new Set(
+      db.prepare("PRAGMA table_info(vnext_local_operator_sessions)")
+        .all()
+        .map((row) => row.name),
+    );
+    for (const [name, definition] of [
+      ["decision_session_token_hash", "TEXT CHECK (decision_session_token_hash IS NULL OR (length(decision_session_token_hash) = 71 AND substr(decision_session_token_hash, 1, 7) = 'sha256:'))"],
+      ["decision_action_nonce_hash", "TEXT CHECK (decision_action_nonce_hash IS NULL OR (length(decision_action_nonce_hash) = 71 AND substr(decision_action_nonce_hash, 1, 7) = 'sha256:'))"],
+      ["decision_action_nonce_expires_at", "TEXT"],
+    ]) {
+      if (!columns.has(name)) {
+        db.prepare(
+          `ALTER TABLE vnext_local_operator_sessions ADD COLUMN ${name} ${definition}`,
+        ).run();
+      }
+    }
+  }
   const names = Object.values(vNextLocalOperatorSessionArtifactsV01).flat();
   const before = new Set(
     db

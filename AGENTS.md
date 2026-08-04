@@ -119,6 +119,25 @@ capability, compatibility, or deferred work rather than default product UI.
   or legacy Work Brief material. Exit `0` means the continuity and snapshot
   are exact, `2` means local runtime transport is unavailable, and `3` means
   canonical continuity is partial/unavailable or the route contract is invalid.
+- Repository execution preparation is project-scoped and selection-independent.
+  Reuse the canonical physical-root baseline, current work/packet, managed-run
+  read, and bounded worktree owners. Never use Browser active selection,
+  selection revision, or Git remote equality as attachment authority. Missing
+  legacy baselines and intentional root moves require their exact explicit
+  adoption/rebind actions; explicit revocation is separate. Those exceptional
+  mutations require one expiring expected-state request and a one-time grant
+  from the same-origin Browser confirmation surface. That surface requires its
+  HttpOnly, SameSite=Strict decision-session cookie and exact request-bound
+  rotating nonce; Origin and Fetch Metadata headers alone are insufficient.
+  MCP literals, annotations, assistant prose, runtime manifests, Companion
+  access records, and delegated environments are not confirmation and expose
+  no Browser session capability. Ordinary exact preparation requires no confirmation.
+- `repository_execution_attachment.v0.1` remains preparation metadata only.
+  CDX2B2A may prepare, validate, stale, supersede, and revoke it, but only
+  separately authorized CDX2B2B work may consume it into a managed run.
+  CDX2B2B must later validate, consume, and create the managed run atomically.
+  Non-Git work remains available for continuity but is not eligible for a
+  ready execution attachment in v0.1.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

@@ -7,10 +7,18 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const TOOL_NAME = "augnes_resume_repository";
+const PREPARE_TOOL_NAME = "augnes_prepare_repository_execution";
+const ADOPT_TOOL_NAME = "augnes_adopt_repository_execution_root";
+const VALIDATE_TOOL_NAME = "augnes_validate_repository_execution_attachment";
+const PREVIEW_REBIND_TOOL_NAME = "augnes_preview_repository_execution_root_rebind";
+const REBIND_TOOL_NAME = "augnes_rebind_repository_execution_root";
+const PREVIEW_REVOKE_TOOL_NAME = "augnes_preview_repository_execution_attachment_revocation";
+const REVOKE_TOOL_NAME = "augnes_revoke_repository_execution_attachment";
 const MAX_RUNTIME_FILE_BYTES = 64 * 1024;
 const MAX_CONTINUITY_RESPONSE_BYTES = 256 * 1024;
 const REQUEST_TIMEOUT_MS = 2_000;
 const ROUTE_MARKER = "codex-repository-continuity-v0.1";
+const EXECUTION_ROUTE_MARKER = "repository-execution-attachment-v0.1";
 const PROXY_ACCESS_VERSION = "augnes-companion-proxy-access.v0.1";
 
 export async function discoverVerifiedCompanionV01(environment = process.env) {
@@ -209,6 +217,130 @@ async function readRepositoryContinuityV01(companion, repositoryRoot) {
   return parseRepositoryContinuityResponseV01(JSON.parse(text));
 }
 
+async function callRepositoryExecutionV01(companion, body) {
+  const route = new URL("/api/augnes/repository-execution", `${companion.ui_url}/`);
+  const response = await fetch(route, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      "x-augnes-repository-execution": EXECUTION_ROUTE_MARKER,
+      "x-augnes-companion-proxy": companion.proxy_token,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`live_companion_execution_route_status_${response.status}`);
+  if (
+    response.headers.get("x-augnes-repository-execution") !== EXECUTION_ROUTE_MARKER ||
+    response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
+    response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
+    response.headers.get("x-augnes-runtime-repository") !== companion.repository_fingerprint
+  ) throw new Error("live_companion_execution_route_identity_invalid");
+  const text = await response.text();
+  if (Buffer.byteLength(text, "utf8") > MAX_CONTINUITY_RESPONSE_BYTES) {
+    throw new Error("live_companion_execution_route_response_too_large");
+  }
+  return parseRepositoryExecutionResponseV01(JSON.parse(text), body.action);
+}
+
+function parseRepositoryExecutionResponseV01(value, action) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("live_companion_execution_route_contract_invalid");
+  }
+  const keysByAction = {
+    prepare: ["admission", "attachment", "authority", "decision_request", "ordinary_text", "preparation_version", "project", "reason", "status"],
+    adopt_legacy_baseline: ["authority", "baseline_fingerprint", "ordinary_text", "project_id", "status"],
+    validate: ["attachment", "status"],
+    preview_rebind_root: ["authority", "decision_request", "expected_new_observation_fingerprint", "expected_old_baseline_fingerprint", "expected_old_root_binding_fingerprint", "ordinary_text", "preview_version", "project_id", "reason", "status", "workspace_id"],
+    preview_revoke: ["authority", "decision_request", "ordinary_text", "preview_version", "status"],
+    rebind_root: ["authority", "baseline_fingerprint", "ordinary_text", "project_id", "status"],
+    revoke: ["attachment", "status"],
+  };
+  const expectedKeys = keysByAction[action];
+  if (!expectedKeys || !exactKeysV01(value, expectedKeys)) invalidExecutionContractV01();
+  rejectPrivatePhysicalMaterialV01(value);
+  if (["prepare", "adopt_legacy_baseline", "preview_rebind_root", "preview_revoke", "rebind_root"].includes(action)) {
+    repositoryExecutionAuthorityV01(value.authority);
+  }
+  if (action === "prepare") {
+    if (value.preparation_version !== "repository_execution_preparation.v0.1") invalidExecutionContractV01();
+    if (!["prepared", "baseline_adoption_required", "blocked"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
+  } else if (action === "adopt_legacy_baseline") {
+    if (!["adopted", "exact_replay"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.project_id);
+    stringV01(value.baseline_fingerprint);
+    stringV01(value.ordinary_text);
+  } else if (action === "validate") {
+    if (value.status !== "validated") invalidExecutionContractV01();
+  } else if (action === "preview_rebind_root") {
+    if (value.preview_version !== "repository_execution_root_rebind_preview.v0.1") invalidExecutionContractV01();
+    if (!["ready", "blocked"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
+  } else if (action === "rebind_root") {
+    if (!["rebound", "exact_replay"].includes(value.status)) invalidExecutionContractV01();
+    stringV01(value.project_id);
+    stringV01(value.baseline_fingerprint);
+    stringV01(value.ordinary_text);
+  } else if (action === "preview_revoke") {
+    if (value.preview_version !== "repository_execution_attachment_revocation_preview.v0.1" || value.status !== "ready") invalidExecutionContractV01();
+    stringV01(value.ordinary_text);
+  } else if (action === "revoke" && value.status !== "revoked") {
+    invalidExecutionContractV01();
+  }
+  return value;
+}
+
+function repositoryExecutionAuthorityV01(value) {
+  const keys = [
+    "branch_or_commit_created",
+    "execution_authority_granted",
+    "execution_started",
+    "external_effect_authority_granted",
+    "github_called",
+    "managed_run_created",
+    "project_commands_executed",
+    "project_files_written",
+    "provider_called",
+    "semantic_authority_granted",
+  ];
+  if (!exactKeysV01(value, keys)) invalidExecutionContractV01();
+  for (const key of keys) if (value[key] !== false) invalidExecutionContractV01();
+}
+
+function rejectPrivatePhysicalMaterialV01(value) {
+  const forbidden = new Set([
+    "canonical_realpath_fingerprint",
+    "credential",
+    "database_path",
+    "device",
+    "filesystem_object_identity",
+    "filesystem_volume_identity",
+    "inode",
+    "local_root",
+    "normalized_path",
+    "password",
+    "secret",
+  ]);
+  const visit = (candidate) => {
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) visit(item);
+      return;
+    }
+    if (!candidate || typeof candidate !== "object") return;
+    for (const [key, nested] of Object.entries(candidate)) {
+      if (forbidden.has(key)) invalidExecutionContractV01();
+      visit(nested);
+    }
+  };
+  visit(value);
+}
+
+function invalidExecutionContractV01() {
+  throw new Error("live_companion_execution_route_contract_invalid");
+}
+
 export function parseRepositoryContinuityResponseV01(value) {
   exactObjectV01(value, [
     "authority",
@@ -358,6 +490,123 @@ function toolDescriptionV01() {
   };
 }
 
+function repositoryExecutionToolDescriptionsV01() {
+  const mutationAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  };
+  const explicitIdentityDecisionAnnotations = {
+    ...mutationAnnotations,
+    destructiveHint: true,
+  };
+  return [
+    {
+      name: PREPARE_TOOL_NAME,
+      title: "Prepare repository execution",
+      description: "Prepare or return one exact project-scoped repository execution attachment through the verified live Augnes Companion. This does not start execution or create a managed run.",
+      inputSchema: {
+        type: "object", additionalProperties: false, required: ["repositoryRoot"],
+        properties: { repositoryRoot: { type: "string", minLength: 1 } },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: ADOPT_TOOL_NAME,
+      title: "Adopt a legacy repository root",
+      description: "Complete legacy-root adoption using an exact decision grant confirmed in the Augnes Browser. This grants no execution authority.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
+        properties: {
+          repositoryRoot: { type: "string", minLength: 1 },
+          expectedAdmissionFingerprint: { type: "string", minLength: 1 },
+          expectedObservationFingerprint: { type: "string", minLength: 1 },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: explicitIdentityDecisionAnnotations,
+    },
+    {
+      name: VALIDATE_TOOL_NAME,
+      title: "Validate repository execution attachment",
+      description: "Revalidate one prepared attachment against current canonical project, root, work, managed-run, and bounded worktree state. This does not start execution.",
+      inputSchema: {
+        type: "object", additionalProperties: false, required: ["attachmentId"],
+        properties: { attachmentId: { type: "string", minLength: 1 } },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: PREVIEW_REBIND_TOOL_NAME,
+      title: "Preview repository root rebind",
+      description: "Inspect an intended new root and create one exact decision request without changing the project root.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["workspaceId", "projectId", "newRepositoryRoot"],
+        properties: {
+          workspaceId: { type: "string", minLength: 1 },
+          projectId: { type: "string", minLength: 1 },
+          newRepositoryRoot: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: REBIND_TOOL_NAME,
+      title: "Rebind a moved repository root",
+      description: "Complete one exact root rebind using a decision grant confirmed in the Augnes Browser. Git remote equality alone is insufficient and this grants no execution authority.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
+        properties: {
+          workspaceId: { type: "string", minLength: 1 },
+          projectId: { type: "string", minLength: 1 },
+          newRepositoryRoot: { type: "string", minLength: 1 },
+          expectedOldRootBindingFingerprint: { type: "string", minLength: 1 },
+          expectedOldBaselineFingerprint: { type: "string", minLength: 1 },
+          expectedNewObservationFingerprint: { type: "string", minLength: 1 },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: explicitIdentityDecisionAnnotations,
+    },
+    {
+      name: PREVIEW_REVOKE_TOOL_NAME,
+      title: "Preview repository attachment revocation",
+      description: "Create one exact revocation decision request for confirmation in the Augnes Browser without revoking the attachment.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["attachmentId", "expectedBindingFingerprint"],
+        properties: {
+          attachmentId: { type: "string", minLength: 1 },
+          expectedBindingFingerprint: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: REVOKE_TOOL_NAME,
+      title: "Revoke repository execution attachment",
+      description: "Complete revocation using its expected binding and an exact decision grant confirmed in the Augnes Browser. This does not cancel or change any managed run.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["attachmentId", "expectedBindingFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
+        properties: {
+          attachmentId: { type: "string", minLength: 1 },
+          expectedBindingFingerprint: { type: "string", minLength: 1 },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
+        },
+      },
+      annotations: explicitIdentityDecisionAnnotations,
+    },
+  ];
+}
+
 function unavailableToolResultV01(reason) {
   const structuredContent = {
     companion: { status: "unavailable", mode: "http", binding: null },
@@ -390,18 +639,12 @@ async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [toolDescriptionV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [toolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
-    if (
-      message.params?.name !== TOOL_NAME ||
-      !args ||
-      typeof args !== "object" ||
-      Array.isArray(args) ||
-      Object.keys(args).length !== 1 ||
-      typeof args.repositoryRoot !== "string"
-    ) {
+    const toolName = message.params?.name;
+    if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
     }
     const discovery = await discoverVerifiedCompanionV01();
@@ -412,20 +655,79 @@ async function handleMessageV01(message) {
       return { jsonrpc: "2.0", id: message.id, result: unavailableToolResultV01(reason) };
     }
     try {
-      const projection = await readRepositoryContinuityV01(
-        discovery.companion,
-        args.repositoryRoot,
-      );
+      if (toolName === TOOL_NAME && exactKeysV01(args, ["repositoryRoot"]) && typeof args.repositoryRoot === "string") {
+        const projection = await readRepositoryContinuityV01(discovery.companion, args.repositoryRoot);
+        return {
+          jsonrpc: "2.0", id: message.id,
+          result: repositoryToolResultV01(discovery.companion, projection),
+        };
+      }
+      let body;
+      if (toolName === PREPARE_TOOL_NAME && exactKeysV01(args, ["repositoryRoot"])) {
+        body = { action: "prepare", repository_root: args.repositoryRoot };
+      } else if (toolName === ADOPT_TOOL_NAME && exactKeysV01(args, ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
+        body = {
+          action: "adopt_legacy_baseline",
+          repository_root: args.repositoryRoot,
+          expected_admission_fingerprint: args.expectedAdmissionFingerprint,
+          expected_observation_fingerprint: args.expectedObservationFingerprint,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
+        };
+      } else if (toolName === VALIDATE_TOOL_NAME && exactKeysV01(args, ["attachmentId"])) {
+        body = { action: "validate", attachment_id: args.attachmentId };
+      } else if (toolName === PREVIEW_REBIND_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "newRepositoryRoot"])) {
+        body = {
+          action: "preview_rebind_root", workspace_id: args.workspaceId,
+          project_id: args.projectId, new_repository_root: args.newRepositoryRoot,
+        };
+      } else if (toolName === REBIND_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
+        body = {
+          action: "rebind_root", workspace_id: args.workspaceId, project_id: args.projectId,
+          new_repository_root: args.newRepositoryRoot,
+          expected_old_root_binding_fingerprint: args.expectedOldRootBindingFingerprint,
+          expected_old_baseline_fingerprint: args.expectedOldBaselineFingerprint,
+          expected_new_observation_fingerprint: args.expectedNewObservationFingerprint,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
+        };
+      } else if (toolName === PREVIEW_REVOKE_TOOL_NAME && exactKeysV01(args, ["attachmentId", "expectedBindingFingerprint"])) {
+        body = {
+          action: "preview_revoke", attachment_id: args.attachmentId,
+          expected_binding_fingerprint: args.expectedBindingFingerprint,
+        };
+      } else if (toolName === REVOKE_TOOL_NAME && exactKeysV01(args, ["attachmentId", "expectedBindingFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
+        body = {
+          action: "revoke", attachment_id: args.attachmentId,
+          expected_binding_fingerprint: args.expectedBindingFingerprint,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
+        };
+      } else {
+        return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+      }
+      const projection = await callRepositoryExecutionV01(discovery.companion, body);
+      const structuredContent = {
+        companion: { status: "live", mode: "http", binding: discovery.companion.binding },
+        ...projection,
+      };
       return {
         jsonrpc: "2.0",
         id: message.id,
-        result: repositoryToolResultV01(discovery.companion, projection),
+        result: {
+          structuredContent,
+          content: [{ type: "text", text: projection.ordinary_text ?? "Augnes updated the repository execution attachment metadata." }],
+        },
       };
     } catch {
       return { jsonrpc: "2.0", id: message.id, result: unavailableToolResultV01("The verified Companion became unavailable before the continuity read completed.") };
     }
   }
   return { jsonrpc: "2.0", id: message.id ?? null, error: { code: -32601, message: "method_not_found" } };
+}
+
+function exactKeysV01(value, keys) {
+  return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
 }
 
 async function runStdioV01() {
