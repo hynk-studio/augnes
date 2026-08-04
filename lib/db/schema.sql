@@ -4135,6 +4135,51 @@ CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
 CREATE INDEX IF NOT EXISTS idx_vnext_repository_root_rebind_receipts_project
   ON vnext_repository_root_rebind_receipts(workspace_id, project_id, recorded_at);
 
+CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
+  request_fingerprint TEXT PRIMARY KEY CHECK (
+    length(request_fingerprint) = 71 AND substr(request_fingerprint, 1, 7) = 'sha256:'
+  ),
+  decision_request_version TEXT NOT NULL CHECK (
+    decision_request_version = 'repository_execution_decision_request.v0.1'
+  ),
+  action TEXT NOT NULL CHECK (action IN (
+    'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment'
+  )),
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+  expected_state_json TEXT NOT NULL CHECK (
+    json_valid(expected_state_json) AND json_type(expected_state_json) = 'object'
+  ),
+  requested_at TEXT NOT NULL CHECK (length(trim(requested_at)) > 0),
+  expires_at TEXT NOT NULL CHECK (length(trim(expires_at)) > 0),
+  status TEXT NOT NULL CHECK (status IN (
+    'pending', 'granted', 'consumed', 'expired', 'superseded'
+  )),
+  grant_fingerprint TEXT UNIQUE CHECK (
+    grant_fingerprint IS NULL OR length(grant_fingerprint) = 71
+  ),
+  confirmation_source TEXT CHECK (
+    confirmation_source IS NULL OR confirmation_source = 'browser_same_origin_button'
+  ),
+  granted_at TEXT,
+  consumed_at TEXT,
+  result_fingerprint TEXT CHECK (
+    result_fingerprint IS NULL OR length(result_fingerprint) = 71
+  ),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_decisions_project
+  ON vnext_repository_execution_decision_requests(
+    workspace_id, project_id, status, requested_at DESC
+  );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_open_decision
+  ON vnext_repository_execution_decision_requests(workspace_id, project_id, action)
+  WHERE status IN ('pending', 'granted');
+
 CREATE TABLE IF NOT EXISTS vnext_recent_projects (
   workspace_id TEXT NOT NULL,
   project_id TEXT NOT NULL,

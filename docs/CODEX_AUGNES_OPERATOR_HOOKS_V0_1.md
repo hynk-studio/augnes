@@ -10,10 +10,13 @@ require a warning or confirmation and does not change the attachment.
 
 If preparation reports `baseline_adoption_required`, present exactly one
 ordinary decision to use the current folder as that project's trusted execution
-root, then call the explicit adoption tool with its expected-state
-fingerprints. A moved root uses the separate rebind tool; never infer rebind
-from Git remote equality. Do not expose device, inode/file-ID, node-scope, or
-baseline details in normal user text.
+root. The user confirms the versioned request in Augnes Browser project
+settings; only then call the explicit adoption tool with its expected-state and
+Browser-issued request/grant fingerprints. A moved root uses the separate
+rebind preview and confirmation; revocation uses its own preview and
+confirmation. Never infer any of these decisions from Git remote equality,
+annotations, or assistant prose. Do not expose device, inode/file-ID,
+node-scope, or baseline details in normal user text.
 
 ## Purpose
 

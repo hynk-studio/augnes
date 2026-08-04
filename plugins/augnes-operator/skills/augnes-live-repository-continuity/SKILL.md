@@ -25,12 +25,15 @@ the current Augnes project state.”
    `augnes_prepare_repository_execution` with the same physical root. Exact
    preparation is silent and requires no Browser-active match.
 7. If the result is `baseline_adoption_required`, request the one explicit
-   legacy-root decision and use `augnes_adopt_repository_execution_root` only
-   with the returned expected admission/observation fingerprints and literal
-   user intent. Moved roots first use
+   legacy-root decision, direct the user to confirm the exact request in Augnes
+   Browser project settings, and use `augnes_adopt_repository_execution_root`
+   only with the returned expected admission/observation fingerprints plus the
+   Browser-issued request/grant fingerprints. Moved roots first use
    `augnes_preview_repository_execution_root_rebind`, then the separate exact
-   rebind tool with that expected state. Never infer either action from Git
-   remote equality or assistant-generated prose.
+   rebind tool after the same Browser confirmation. Revocation first uses
+   `augnes_preview_repository_execution_attachment_revocation`. Never infer
+   any decision from Git remote equality, annotations, or assistant-generated
+   prose.
 8. Validate a prepared handle with
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact

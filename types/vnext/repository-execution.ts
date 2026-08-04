@@ -10,6 +10,8 @@ export const REPOSITORY_EXECUTION_ATTACHMENT_VERSION_V01 =
   "repository_execution_attachment.v0.1" as const;
 export const REPOSITORY_EXECUTION_FRESHNESS_POLICY_VERSION_V01 =
   "repository_execution_freshness_policy.v0.1" as const;
+export const REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01 =
+  "repository_execution_decision_request.v0.1" as const;
 
 export type PhysicalRootObservationV01 =
   | {
@@ -53,8 +55,19 @@ export type RepositoryWorktreeObservationV01 =
       head_state: "branch" | "detached" | "unborn";
       branch_name: string | null;
       index_fingerprint: string;
+      staged_content_fingerprint: string;
       tracked_dirty_paths_fingerprint: string;
+      unstaged_tracked_content_fingerprint: string;
       relevant_untracked_paths_fingerprint: string;
+      relevant_untracked_content_fingerprint: string;
+      submodule_state_fingerprint: string;
+      inspected_path_count: number;
+      inspected_content_bytes: number;
+      limits: {
+        maximum_path_count: number;
+        maximum_individual_file_bytes: number;
+        maximum_total_inspected_bytes: number;
+      };
       observed_at: string;
       observation_fingerprint: string;
     }
@@ -84,8 +97,10 @@ export type ProjectExecutionAdmissionReasonV01 =
   | "identity_unsupported"
   | "identity_ambiguous"
   | "current_work_unavailable"
+  | "admission_state_changed"
   | "worktree_unavailable"
   | "worktree_ambiguous"
+  | "non_git_execution_unsupported"
   | "managed_run_conflict";
 
 export interface ProjectExecutionAdmissionV01 {
@@ -102,6 +117,7 @@ export interface ProjectExecutionAdmissionV01 {
   task_context_packet_fingerprint: string | null;
   current_work_fingerprint: string | null;
   managed_run_state_fingerprint: string;
+  expected_database_state_fingerprint: string | null;
   worktree_observation: RepositoryWorktreeObservationV01 | null;
   admission_fingerprint: string;
   browser_observation: {
@@ -180,5 +196,50 @@ export interface RepositoryExecutionPreparationV01 {
   ordinary_text: string;
   attachment: RepositoryExecutionAttachmentV01 | null;
   admission: ProjectExecutionAdmissionV01 | null;
+  decision_request: RepositoryExecutionDecisionRequestProjectionV01 | null;
   authority: RepositoryExecutionAuthorityBoundaryV01;
+}
+
+export type RepositoryExecutionDecisionActionV01 =
+  | "adopt_legacy_baseline"
+  | "rebind_root"
+  | "revoke_attachment";
+
+export type RepositoryExecutionDecisionStatusV01 =
+  | "pending"
+  | "granted"
+  | "consumed"
+  | "expired"
+  | "superseded";
+
+export interface RepositoryExecutionDecisionRequestV01 {
+  decision_request_version: typeof REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01;
+  request_fingerprint: string;
+  action: RepositoryExecutionDecisionActionV01;
+  workspace_id: string;
+  project_id: string;
+  expected_state_fingerprint: string;
+  expected_state_json: string;
+  requested_at: string;
+  expires_at: string;
+  status: RepositoryExecutionDecisionStatusV01;
+  grant_fingerprint: string | null;
+  confirmation_source: "browser_same_origin_button" | null;
+  granted_at: string | null;
+  consumed_at: string | null;
+  result_fingerprint: string | null;
+}
+
+export interface RepositoryExecutionDecisionRequestProjectionV01 {
+  decision_request_version: typeof REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01;
+  request_fingerprint: string;
+  action: RepositoryExecutionDecisionActionV01;
+  workspace_id: string;
+  project_id: string;
+  expected_state_fingerprint: string;
+  requested_at: string;
+  expires_at: string;
+  status: RepositoryExecutionDecisionStatusV01;
+  grant_fingerprint: string | null;
+  ordinary_text: string;
 }

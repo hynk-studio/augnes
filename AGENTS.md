@@ -124,10 +124,17 @@ capability, compatibility, or deferred work rather than default product UI.
   read, and bounded worktree owners. Never use Browser active selection,
   selection revision, or Git remote equality as attachment authority. Missing
   legacy baselines and intentional root moves require their exact explicit
-  adoption/rebind actions; ordinary exact preparation requires no confirmation.
+  adoption/rebind actions; explicit revocation is separate. Those exceptional
+  mutations require one expiring expected-state request and a one-time grant
+  from the same-origin Browser confirmation surface. MCP literals, annotations,
+  and assistant prose are not confirmation. Ordinary exact preparation requires
+  no confirmation.
 - `repository_execution_attachment.v0.1` remains preparation metadata only.
   CDX2B2A may prepare, validate, stale, supersede, and revoke it, but only
   separately authorized CDX2B2B work may consume it into a managed run.
+  CDX2B2B must later validate, consume, and create the managed run atomically.
+  Non-Git work remains available for continuity but is not eligible for a
+  ready execution attachment in v0.1.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

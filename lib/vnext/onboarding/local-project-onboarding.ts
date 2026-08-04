@@ -37,12 +37,17 @@ import {
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
-import { writePhysicalRootBaselineInsideTransactionV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import {
+  insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
+} from "@/lib/vnext/persistence/repository-execution-store";
 import { readPhysicalRootBaselineV01 } from "@/lib/vnext/persistence/repository-execution-store";
 import {
   buildPhysicalRootBaselineV01,
   fingerprintProjectRootBindingV01,
+  grantRepositoryExecutionDecisionV01,
   inspectPhysicalRootForExecutionV01,
+  previewRepositoryExecutionRootRebindV01,
+  readOpenRepositoryExecutionDecisionProjectionV01,
   rebindRepositoryExecutionRootV01,
 } from "@/lib/vnext/repository-execution/repository-execution";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -428,7 +433,12 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   selection_token: string;
   inspection_fingerprint: string;
   display_name?: string;
-}, options: { now?: () => string; now_ms?: () => number; create_uuid?: () => string } = {}): Promise<ProjectOnboardingConfirmationV01> {
+}, options: {
+  now?: () => string;
+  now_ms?: () => number;
+  create_uuid?: () => string;
+  before_baseline_insert_inside_transaction?: () => void;
+} = {}): Promise<ProjectOnboardingConfirmationV01> {
   const record = consumeSelection(input.selection_token, options.now_ms);
   if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
   const existingWorkspace = readDefaultWorkspaceIdentityV01(db);
@@ -481,7 +491,8 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
       ...(displayName === undefined ? {} : { display_name: displayName }),
     }, { now: options.now, create_uuid: options.create_uuid });
     if (registration.status === "inserted") {
-      writePhysicalRootBaselineInsideTransactionV01(
+      options.before_baseline_insert_inside_transaction?.();
+      const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
         db,
         buildPhysicalRootBaselineV01({
           workspace_id: workspace.workspace_id,
@@ -491,6 +502,9 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
           provenance: "canonical_new_project_onboarding",
         }),
       );
+      if (insertion.status !== "inserted") {
+        throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+      }
     }
     const existingRepositoryRefs = listProjectExternalRefsV01(db, {
       workspace_id: workspace.workspace_id,
@@ -576,6 +590,35 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
   if (!inspection.physical_root_observation_fingerprint) {
     throw new ProjectOnboardingErrorV01("physical_identity_unavailable", 409);
   }
+  if (!input.expected_old_baseline_fingerprint) {
+    throw new ProjectOnboardingErrorV01("physical_identity_unavailable", 409);
+  }
+  const preview = await previewRepositoryExecutionRootRebindV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+  }, { now: () => now });
+  if (
+    preview.status !== "ready" ||
+    !preview.decision_request ||
+    preview.expected_old_root_binding_fingerprint !==
+      input.expected_old_root_binding_fingerprint ||
+    preview.expected_old_baseline_fingerprint !==
+      input.expected_old_baseline_fingerprint ||
+    preview.expected_new_observation_fingerprint !==
+      inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const grant = grantRepositoryExecutionDecisionV01(db, {
+    request_fingerprint: preview.decision_request.request_fingerprint,
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    confirmation_source: "browser_same_origin_button",
+  }, { now: () => now });
+  if (!grant.grant_fingerprint) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
   await rebindRepositoryExecutionRootV01(db, {
     workspace_id: workspace.workspace_id,
     project_id: input.project_id,
@@ -583,7 +626,8 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
     expected_old_root_binding_fingerprint: input.expected_old_root_binding_fingerprint,
     expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
     expected_new_observation_fingerprint: inspection.physical_root_observation_fingerprint,
-    user_intent: "rebind_project_root",
+    decision_request_fingerprint: grant.request_fingerprint,
+    decision_grant_fingerprint: grant.grant_fingerprint,
   }, {
     now: () => now,
     after_rebind_inside_transaction: () => {
@@ -634,6 +678,11 @@ export async function listRecentProjectsV01(db: Database.Database): Promise<Rece
             node_scope_fingerprint: nodeObservation.node_scope_fingerprint,
           })?.baseline_fingerprint ?? null
         : null,
+      repository_execution_decision:
+        readOpenRepositoryExecutionDecisionProjectionV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: row.project_id,
+        }),
     };
   }));
 }

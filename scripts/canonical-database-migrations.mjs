@@ -75,6 +75,11 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // lane. The migration ledger and package identity guard are both absent;
     // arbitrary partial schemas remain fail-closed.
     "cdc300623c2a79fadba08eb452d34aeb3a009ae15c4e45737e5edc7e004bdd53",
+    // Exact corrected CDX2B2A structural contract with the migration ledger
+    // and package identity guard removed by the bounded recovery fixture.
+    // This admits only that complete ledgerless contract for one-way repair;
+    // arbitrary partial schemas remain fail-closed.
+    "e218d8bc2c60b991c50f1b0982abb74361ca0e38bccaa28e6ec43d18165132b0",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

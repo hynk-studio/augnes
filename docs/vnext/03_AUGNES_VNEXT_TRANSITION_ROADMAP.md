@@ -289,7 +289,7 @@ authorize Start or managed delegation.
 defines CDX2B2A. The Draft PR titled **CDX2B2A — Establish trusted repository
 execution attachment** on branch
 `codex/cdx2b2a-execution-admission-substrate` is its current implementation and
-outcome record.
+outcome record as Draft PR #117.
 
 CDX2B2A strongly identifies the canonical project, its node-local physical
 root, current TaskContextPacket/current work, managed-run absence, and bounded
@@ -302,6 +302,21 @@ narrow explicit identity decisions. Preparation, validation, supersession,
 staleness, and revocation create no run, Start, project command, project-file
 write, provider call, or external effect.
 
+PR #117 binds tracked dirty diff content, staged index content, bounded
+untracked file content, and relevant submodule state rather than paths alone.
+Preparation uses an exact database-state compare-and-swap and post-commit
+physical/worktree/database reobservation. Baseline onboarding/adoption expect
+absence, while rebind requires the exact old baseline fingerprint. Legacy
+adoption, root rebind, and revocation use a versioned expiring decision request
+and one same-origin Browser-issued grant; model-supplied literals are not user
+decisions. Non-Git continuity remains supported, but v0.1 blocks execution
+admission rather than claiming an unobservable ready attachment.
+
+PR #117 is verified on macOS. Linux has adapter-contract coverage but no
+separate filesystem proof. Windows physical identity and managed delegation
+remain unsupported and fail closed. Broad CDX2B2B rollout requires either a
+verified Windows adapter or an explicitly macOS-only product boundary.
+
 ## Next separately authorized work
 
 CDX2B2B managed delegation is next. It requires separate explicit authority and
@@ -310,6 +325,9 @@ reconciliation, cancellation, effect, and user-decision boundaries before any
 execution mutation is implemented. It may consume an exact prepared CDX2B2A
 attachment into one managed run, but CDX2B2A does not produce `consumed`, start
 Codex or NativeHost, run project commands, or pre-authorize CDX2B2B.
+Validation, attachment consumption, and managed-run creation must be one atomic
+CDX2B2B transaction; a validation/read followed by a separate run write cannot
+reuse CDX2B2A preparation as authority.
 
 The phase doctrine is: establish one strong repository, project, current-work,
 and execution attachment, then permit broad local reversible autonomy only

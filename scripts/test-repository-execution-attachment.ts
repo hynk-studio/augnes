@@ -17,24 +17,36 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import { POST as projectRoutePost } from "../app/api/vnext/projects/route";
+
 import {
   confirmLocalProjectOnboardingV01,
+  listRecentProjectsV01,
   pickAndInspectLocalProjectV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   normalizeLocalProjectRootRefV01,
+  readCanonicalProjectWithRootV01,
+  rebindCanonicalProjectLocalRootV01,
   VNEXT_PROJECT_IDENTITY_REGISTRY_SCHEMA_SQL_V01,
 } from "../lib/vnext/persistence/project-identity-registry";
-import { VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/repository-execution-store";
+import {
+  insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
+  VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01,
+} from "../lib/vnext/persistence/repository-execution-store";
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
+  touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
   adoptLegacyPhysicalRootBaselineV01,
+  buildPhysicalRootBaselineV01,
+  grantRepositoryExecutionDecisionV01,
   inspectPhysicalRootForExecutionV01,
   prepareRepositoryExecutionV01,
+  previewRepositoryExecutionAttachmentRevocationV01,
   previewRepositoryExecutionRootRebindV01,
   projectPhysicalRootMutationResultV01,
   readProjectExecutionAdmissionV01,
@@ -53,6 +65,7 @@ import {
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { vNextRepositoryExecutionStoreSchemaSqlV01 } from "./db-migrations.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+import type { RepositoryExecutionDecisionRequestProjectionV01 } from "../types/vnext/repository-execution";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b2a-"));
 const DATABASE_PATH = path.join(ROOT, "augnes.db");
@@ -66,6 +79,7 @@ void main().finally(() => {
 async function main(): Promise<void> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
+  process.env.AUGNES_DB_PATH = DATABASE_PATH;
   assertSchemaParityV01();
   const rootA = createRepository("repository-a");
   const rootB = createRepository("repository-b");
@@ -76,6 +90,12 @@ async function main(): Promise<void> {
     const baselineCountAfterA = count(db, "vnext_physical_root_baselines");
     assert.equal(baselineCountAfterA, 1, "new onboarding must atomically create one physical baseline");
     const projectB = await onboardV01(db, rootB, "Repository B", "2026-08-04T00:00:01.000Z");
+    assert.equal(count(db, "vnext_physical_root_baselines"), 2);
+    await assertConcurrentOnboardingBaselineRollbackV01(
+      db,
+      createRepository("onboarding-baseline-race"),
+      "2026-08-04T00:00:01.100Z",
+    );
     assert.equal(count(db, "vnext_physical_root_baselines"), 2);
 
     const rootAlias = path.join(ROOT, "repository-a-alias");
@@ -137,10 +157,79 @@ async function main(): Promise<void> {
     assert.equal(afterBChange.attachment?.binding_fingerprint, preparedA.attachment.binding_fingerprint);
 
     selectProjectV01(db, workspaceId, projectA.project_id);
+    writeFileSync(path.join(rootA, "foo.ts"), "export const value = 0;\n", "utf8");
+    commitFixtureV01(rootA, "add tracked fixture");
+    writeFileSync(path.join(rootA, "foo.ts"), "export const value = 1;\n", "utf8");
+    const dirtyTrackedAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { now: () => "2026-08-04T00:00:07.100Z" });
+    assert.equal(dirtyTrackedAttachment.status, "prepared");
+    writeFileSync(path.join(rootA, "foo.ts"), "export const value = 2;\n", "utf8");
+    const staleTrackedContent = await validateRepositoryExecutionAttachmentV01(
+      db,
+      dirtyTrackedAttachment.attachment!.attachment_id,
+      { now: () => "2026-08-04T00:00:07.200Z" },
+    );
+    assert.equal(staleTrackedContent?.stale_reason, "worktree_changed");
+    writeFileSync(path.join(rootA, "foo.ts"), "export const value = 0;\n", "utf8");
+
+    writeFileSync(path.join(rootA, "new.ts"), "export const newValue = 1;\n", "utf8");
+    const untrackedAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { now: () => "2026-08-04T00:00:07.300Z" });
+    assert.equal(untrackedAttachment.status, "prepared");
+    writeFileSync(path.join(rootA, "new.ts"), "export const newValue = 2;\n", "utf8");
+    const staleUntrackedContent = await validateRepositoryExecutionAttachmentV01(
+      db,
+      untrackedAttachment.attachment!.attachment_id,
+      { now: () => "2026-08-04T00:00:07.400Z" },
+    );
+    assert.equal(staleUntrackedContent?.stale_reason, "worktree_changed");
+    rmSync(path.join(rootA, "new.ts"));
+
+    writeFileSync(
+      path.join(rootA, "oversized-untracked.bin"),
+      Buffer.alloc(8 * 1024 * 1024 + 1, 0x61),
+    );
+    const oversizedWorktree = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { now: () => "2026-08-04T00:00:07.450Z" });
+    assert.equal(oversizedWorktree.status, "blocked");
+    assert.equal(oversizedWorktree.reason, "worktree_ambiguous");
+    assert.equal(oversizedWorktree.attachment, null);
+    rmSync(path.join(rootA, "oversized-untracked.bin"));
+
+    writeFileSync(path.join(rootA, "staged.ts"), "export const staged = 0;\n", "utf8");
+    commitFixtureV01(rootA, "add staged fixture");
+    writeFileSync(path.join(rootA, "staged.ts"), "export const staged = 1;\n", "utf8");
+    execFileSync("git", ["-C", rootA, "add", "staged.ts"], { stdio: "ignore" });
+    const stagedAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { now: () => "2026-08-04T00:00:07.500Z" });
+    assert.equal(stagedAttachment.status, "prepared");
+    writeFileSync(path.join(rootA, "staged.ts"), "export const staged = 2;\n", "utf8");
+    execFileSync("git", ["-C", rootA, "add", "staged.ts"], { stdio: "ignore" });
+    assert.equal((await validateRepositoryExecutionAttachmentV01(
+      db,
+      stagedAttachment.attachment!.attachment_id,
+      { now: () => "2026-08-04T00:00:07.600Z" },
+    ))?.stale_reason, "worktree_changed");
+    writeFileSync(path.join(rootA, "staged.ts"), "export const staged = 0;\n", "utf8");
+    execFileSync("git", ["-C", rootA, "add", "staged.ts"], { stdio: "ignore" });
+
+    const preRevisionAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { now: () => "2026-08-04T00:00:07.700Z" });
+    assert(preRevisionAttachment.attachment);
     reviseWorkV01(db, projectA.project_id, initial, "Repository A revised work", "2026-08-04T00:00:08.000Z");
     const staleAfterRevision = await validateRepositoryExecutionAttachmentV01(
       db,
-      preparedA.attachment.attachment_id,
+      preRevisionAttachment.attachment.attachment_id,
       { now: () => "2026-08-04T00:00:09.000Z" },
     );
     assert.equal(staleAfterRevision?.lifecycle, "stale");
@@ -151,7 +240,10 @@ async function main(): Promise<void> {
       project_id: projectA.project_id,
     }, { now: () => "2026-08-04T00:00:10.000Z" });
     assert.equal(revisedAttachment.status, "prepared");
-    assert.notEqual(revisedAttachment.attachment?.attachment_id, preparedA.attachment.attachment_id);
+    assert.notEqual(
+      revisedAttachment.attachment?.attachment_id,
+      preRevisionAttachment.attachment.attachment_id,
+    );
     writeFileSync(path.join(rootA, "untracked-change.txt"), "bounded change\n", "utf8");
     const staleAfterWorktree = await validateRepositoryExecutionAttachmentV01(
       db,
@@ -165,10 +257,20 @@ async function main(): Promise<void> {
       workspace_id: workspaceId,
       project_id: projectA.project_id,
     }, { now: () => "2026-08-04T00:00:12.000Z" });
+    const revokePreview = previewRepositoryExecutionAttachmentRevocationV01(db, {
+      attachment_id: revocable.attachment!.attachment_id,
+      expected_binding_fingerprint: revocable.attachment!.binding_fingerprint,
+    }, { now: () => "2026-08-04T00:00:12.100Z" });
+    const revokeGrant = grantDecisionV01(
+      db,
+      revokePreview.decision_request,
+      "2026-08-04T00:00:12.200Z",
+    );
     const revoked = revokeRepositoryExecutionAttachmentV01(db, {
       attachment_id: revocable.attachment!.attachment_id,
       expected_binding_fingerprint: revocable.attachment!.binding_fingerprint,
-      user_intent: "revoke_repository_execution_attachment",
+      decision_request_fingerprint: revokeGrant.request_fingerprint,
+      decision_grant_fingerprint: revokeGrant.grant_fingerprint!,
       now: "2026-08-04T00:00:13.000Z",
     });
     assert.equal(revoked.lifecycle, "revoked");
@@ -176,8 +278,15 @@ async function main(): Promise<void> {
     assert.equal(revokeRepositoryExecutionAttachmentV01(db, {
       attachment_id: revoked.attachment_id,
       expected_binding_fingerprint: revoked.binding_fingerprint,
-      user_intent: "revoke_repository_execution_attachment",
+      decision_request_fingerprint: revokeGrant.request_fingerprint,
+      decision_grant_fingerprint: revokeGrant.grant_fingerprint!,
+      now: "2026-08-04T00:30:13.100Z",
     }).attachment_id, revoked.attachment_id);
+    assert.deepEqual(db.prepare(
+      `SELECT status, COUNT(*) AS count
+       FROM vnext_repository_execution_decision_requests
+       WHERE request_fingerprint = ?`,
+    ).get(revokeGrant.request_fingerprint), { status: "consumed", count: 1 });
 
     const legacyRoot = createRepository("legacy-repository");
     const legacy = getOrCreateCanonicalProjectForLocalRootV01(db, {
@@ -195,19 +304,63 @@ async function main(): Promise<void> {
     assert.equal(legacyAdmission.reason, "baseline_adoption_required");
     assert.equal(legacyAdmission.readiness, "decision_required");
     assert(legacyAdmission.physical_root_observation_fingerprint);
+    touchRecentProjectV01(db, {
+      workspace_id: workspaceId,
+      project_id: legacy.project.project_id,
+      now: "2026-08-04T00:00:14.100Z",
+    });
+    selectProjectV01(db, workspaceId, legacy.project.project_id);
+    const legacyPreparation = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: legacy.project.project_id,
+    });
+    assert(legacyPreparation.decision_request);
+    const pendingDecisionEntry = (await listRecentProjectsV01(db)).find(
+      (entry) => entry.project.project_id === legacy.project.project_id,
+    );
+    assert.equal(pendingDecisionEntry?.repository_execution_decision?.status, "pending");
+    assert.equal(
+      pendingDecisionEntry?.repository_execution_decision?.ordinary_text.includes("sha256:"),
+      false,
+    );
+    const adoptionGrant = await confirmDecisionThroughBrowserRouteV01(
+      legacyPreparation.decision_request,
+    );
+    assert.equal(
+      (await listRecentProjectsV01(db)).find(
+        (entry) => entry.project.project_id === legacy.project.project_id,
+      )?.repository_execution_decision?.status,
+      "granted",
+    );
+    assert.equal(
+      grantDecisionV01(db, adoptionGrant, "2026-08-04T00:00:15.200Z")
+        .grant_fingerprint,
+      adoptionGrant.grant_fingerprint,
+      "exact Browser confirmation replay must not mint another grant",
+    );
+    await assert.rejects(adoptLegacyPhysicalRootBaselineV01(db, {
+      workspace_id: workspaceId,
+      project_id: legacy.project.project_id,
+      expected_admission_fingerprint: legacyAdmission.admission_fingerprint,
+      expected_observation_fingerprint: legacyAdmission.physical_root_observation_fingerprint,
+      decision_request_fingerprint: adoptionGrant.request_fingerprint,
+      decision_grant_fingerprint: "sha256:model-invented-grant",
+    }), /repository_execution_decision_mismatch/u);
     await assert.rejects(adoptLegacyPhysicalRootBaselineV01(db, {
       workspace_id: workspaceId,
       project_id: legacy.project.project_id,
       expected_admission_fingerprint: "sha256:stale",
       expected_observation_fingerprint: legacyAdmission.physical_root_observation_fingerprint,
-      user_intent: "adopt_current_root",
-    }), /baseline_adoption_stale/u);
+      decision_request_fingerprint: adoptionGrant.request_fingerprint,
+      decision_grant_fingerprint: adoptionGrant.grant_fingerprint!,
+    }), /repository_execution_decision_mismatch/u);
     const adoption = await adoptLegacyPhysicalRootBaselineV01(db, {
       workspace_id: workspaceId,
       project_id: legacy.project.project_id,
       expected_admission_fingerprint: legacyAdmission.admission_fingerprint,
       expected_observation_fingerprint: legacyAdmission.physical_root_observation_fingerprint,
-      user_intent: "adopt_current_root",
+      decision_request_fingerprint: adoptionGrant.request_fingerprint,
+      decision_grant_fingerprint: adoptionGrant.grant_fingerprint!,
     }, { now: () => "2026-08-04T00:00:15.000Z" });
     assert.equal(adoption.status, "adopted");
     const adoptionProjection = projectPhysicalRootMutationResultV01(
@@ -230,8 +383,88 @@ async function main(): Promise<void> {
       project_id: legacy.project.project_id,
       expected_admission_fingerprint: legacyAdmission.admission_fingerprint,
       expected_observation_fingerprint: legacyAdmission.physical_root_observation_fingerprint,
-      user_intent: "adopt_current_root",
+      decision_request_fingerprint: adoptionGrant.request_fingerprint,
+      decision_grant_fingerprint: adoptionGrant.grant_fingerprint!,
     }, { now: () => "2026-08-04T00:00:16.000Z" })).status, "exact_replay");
+    assert.equal(
+      (await listRecentProjectsV01(db)).find(
+        (entry) => entry.project.project_id === legacy.project.project_id,
+      )?.repository_execution_decision,
+      null,
+    );
+    selectProjectV01(db, workspaceId, projectA.project_id);
+
+    const staleLegacyRoot = createRepository("stale-legacy-repository");
+    const staleLegacy = getOrCreateCanonicalProjectForLocalRootV01(db, {
+      workspace_id: workspaceId,
+      local_root: normalizeLocalProjectRootRefV01(staleLegacyRoot, { base_path: ROOT }),
+      display_name: "Stale Legacy Repository",
+    }, {
+      create_uuid: () => "50000000-0000-4000-8000-000000000002",
+      now: () => "2026-08-04T00:00:16.100Z",
+    });
+    const staleLegacyPreparation = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: staleLegacy.project.project_id,
+    }, { now: () => "2026-08-04T00:00:16.200Z" });
+    assert(staleLegacyPreparation.admission?.physical_root_observation_fingerprint);
+    assert(staleLegacyPreparation.decision_request);
+    const staleLegacyGrant = grantDecisionV01(
+      db,
+      staleLegacyPreparation.decision_request,
+      "2026-08-04T00:00:16.250Z",
+    );
+    const staleLegacyPhysical = await inspectPhysicalRootForExecutionV01(
+      db,
+      staleLegacyRoot,
+      { now: () => "2026-08-04T00:00:16.300Z" },
+    );
+    assert.equal(staleLegacyPhysical.status, "exact");
+    db.transaction(() => {
+      const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
+        db,
+        buildPhysicalRootBaselineV01({
+          workspace_id: workspaceId,
+          project_id: staleLegacy.project.project_id,
+          root_binding: staleLegacy.root_binding,
+          observation: staleLegacyPhysical.status === "exact"
+            ? staleLegacyPhysical
+            : assert.fail(),
+          provenance: "explicit_root_rebind",
+        }),
+      );
+      assert.equal(insertion.status, "inserted");
+    }).immediate();
+    await assert.rejects(adoptLegacyPhysicalRootBaselineV01(db, {
+      workspace_id: workspaceId,
+      project_id: staleLegacy.project.project_id,
+      expected_admission_fingerprint:
+        staleLegacyPreparation.admission.admission_fingerprint,
+      expected_observation_fingerprint:
+        staleLegacyPreparation.admission.physical_root_observation_fingerprint,
+      decision_request_fingerprint: staleLegacyGrant.request_fingerprint,
+      decision_grant_fingerprint: staleLegacyGrant.grant_fingerprint!,
+    }, { now: () => "2026-08-04T00:00:16.400Z" }), /baseline_adoption_stale/u);
+
+    const expiredLegacyRoot = createRepository("expired-decision-repository");
+    const expiredLegacy = getOrCreateCanonicalProjectForLocalRootV01(db, {
+      workspace_id: workspaceId,
+      local_root: normalizeLocalProjectRootRefV01(expiredLegacyRoot, { base_path: ROOT }),
+      display_name: "Expired Decision Repository",
+    }, {
+      create_uuid: () => "50000000-0000-4000-8000-000000000003",
+      now: () => "2026-08-04T00:00:16.500Z",
+    });
+    const expiredPreparation = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: expiredLegacy.project.project_id,
+    }, { now: () => "2026-08-04T00:00:16.600Z" });
+    assert(expiredPreparation.decision_request);
+    assert.throws(() => grantDecisionV01(
+      db,
+      expiredPreparation.decision_request!,
+      "2026-08-04T00:16:16.601Z",
+    ), /repository_execution_decision_expired/u);
 
     const portable = exportActivePortableProjectV01(db, {
       include_personal_perspective: false,
@@ -247,6 +480,93 @@ async function main(): Promise<void> {
       ),
       true,
     );
+    assert.equal(
+      portable.package.manifest.exclusions.includes(
+        "machine_local_repository_execution_decision_requests_and_grants",
+      ),
+      true,
+    );
+    assert.equal(portableText.includes("repository_execution_decision_request.v0.1"), false);
+
+    const plainRoot = path.join(ROOT, "plain-project");
+    mkdirSync(plainRoot);
+    writeFileSync(path.join(plainRoot, "notes.txt"), "plain folder\n", "utf8");
+    const plainProject = await onboardV01(
+      db,
+      plainRoot,
+      "Plain Project",
+      "2026-08-04T00:00:16.600Z",
+    );
+    defineWorkV01(
+      db,
+      plainProject.project_id,
+      "Keep non-Git continuity without claiming managed execution readiness",
+      "2026-08-04T00:00:16.700Z",
+    );
+    const plainPreparation = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: plainProject.project_id,
+    }, { now: () => "2026-08-04T00:00:16.800Z" });
+    assert.equal(plainPreparation.status, "blocked");
+    assert.equal(plainPreparation.reason, "non_git_execution_unsupported");
+    assert.equal(plainPreparation.attachment, null);
+
+    const submoduleSource = createRepository("submodule-source");
+    const submoduleParent = createRepository("submodule-parent");
+    execFileSync("git", [
+      "-c", "protocol.file.allow=always",
+      "-C", submoduleParent,
+      "submodule", "add", "--quiet", submoduleSource, "modules/source",
+    ], { stdio: "ignore" });
+    commitFixtureV01(submoduleParent, "add bounded submodule");
+    const submoduleProject = await onboardV01(
+      db,
+      submoduleParent,
+      "Submodule Project",
+      "2026-08-04T00:00:16.810Z",
+    );
+    defineWorkV01(
+      db,
+      submoduleProject.project_id,
+      "Bind supported submodule commit state",
+      "2026-08-04T00:00:16.820Z",
+    );
+    const nestedSubmodule = path.join(submoduleParent, "modules", "source");
+    writeFileSync(path.join(nestedSubmodule, "submodule.ts"), "export const sub = 1;\n", "utf8");
+    commitFixtureV01(nestedSubmodule, "advance submodule once");
+    const submoduleAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: submoduleProject.project_id,
+    }, { now: () => "2026-08-04T00:00:16.830Z" });
+    assert.equal(
+      submoduleAttachment.status,
+      "prepared",
+      `supported submodule commit state: ${submoduleAttachment.reason}`,
+    );
+    writeFileSync(path.join(nestedSubmodule, "submodule.ts"), "export const sub = 2;\n", "utf8");
+    commitFixtureV01(nestedSubmodule, "advance submodule twice");
+    assert.equal((await validateRepositoryExecutionAttachmentV01(
+      db,
+      submoduleAttachment.attachment!.attachment_id,
+      { now: () => "2026-08-04T00:00:16.840Z" },
+    ))?.stale_reason, "worktree_changed");
+    const dirtySubmoduleAttachment = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: submoduleProject.project_id,
+    }, { now: () => "2026-08-04T00:00:16.850Z" });
+    assert.equal(dirtySubmoduleAttachment.status, "prepared");
+    writeFileSync(path.join(nestedSubmodule, "submodule.ts"), "export const sub = 3;\n", "utf8");
+    const dirtySubmoduleAdmission = await readProjectExecutionAdmissionV01(db, {
+      workspace_id: workspaceId,
+      project_id: submoduleProject.project_id,
+    }, { now: () => "2026-08-04T00:00:16.860Z" });
+    assert.equal(dirtySubmoduleAdmission.reason, "worktree_ambiguous");
+    assert.equal((await validateRepositoryExecutionAttachmentV01(
+      db,
+      dirtySubmoduleAttachment.attachment!.attachment_id,
+      { now: () => "2026-08-04T00:00:16.870Z" },
+    ))?.stale_reason, "worktree_changed");
+    selectProjectV01(db, workspaceId, projectA.project_id);
 
     const backupPath = path.join(ROOT, "attachment-backup.db");
     await db.backup(backupPath);
@@ -254,6 +574,10 @@ async function main(): Promise<void> {
     try {
       assert.equal(count(restored, "vnext_physical_root_baselines"), count(db, "vnext_physical_root_baselines"));
       assert.equal(count(restored, "vnext_repository_execution_attachments"), count(db, "vnext_repository_execution_attachments"));
+      assert.equal(
+        count(restored, "vnext_repository_execution_decision_requests"),
+        count(db, "vnext_repository_execution_decision_requests"),
+      );
       assert.equal(validateRecoveryCanonicalDatabaseV01(restored).status, "valid");
     } finally {
       restored.close();
@@ -323,6 +647,169 @@ async function main(): Promise<void> {
     });
     assert.equal(darwinVirtualFilesystem.reason, "identity_ambiguous");
 
+    const packetRaceRoot = createRepository("packet-race-repository");
+    const packetRaceProject = await onboardV01(
+      db,
+      packetRaceRoot,
+      "Packet Race Repository",
+      "2026-08-04T00:00:17.280Z",
+    );
+    const packetRaceInitial = defineWorkV01(
+      db,
+      packetRaceProject.project_id,
+      "Observe current work before the write race",
+      "2026-08-04T00:00:17.281Z",
+    );
+    await assert.rejects(prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: packetRaceProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.282Z",
+      before_prepare_transaction: () => reviseWorkV01(
+        db,
+        packetRaceProject.project_id,
+        packetRaceInitial,
+        "Mutated between observation and write",
+        "2026-08-04T00:00:17.283Z",
+      ),
+    }), /repository_execution_preparation_stale/u);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_execution_attachments",
+      `project_id = '${packetRaceProject.project_id}'`,
+    ), 0);
+
+    const rootRaceRoot = createRepository("root-race-repository");
+    const rootRaceProject = await onboardV01(
+      db,
+      rootRaceRoot,
+      "Root Race Repository",
+      "2026-08-04T00:00:17.284Z",
+    );
+    defineWorkV01(
+      db,
+      rootRaceProject.project_id,
+      "Observe the root before the write race",
+      "2026-08-04T00:00:17.285Z",
+    );
+    const rootRaceReplacement = createRepository("root-race-replacement");
+    await assert.rejects(prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: rootRaceProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.286Z",
+      before_prepare_transaction: () => {
+        rebindCanonicalProjectLocalRootV01(db, {
+          workspace_id: workspaceId,
+          project_id: rootRaceProject.project_id,
+          local_root: normalizeLocalProjectRootRefV01(rootRaceReplacement, { base_path: ROOT }),
+        }, { now: () => "2026-08-04T00:00:17.287Z" });
+      },
+    }), /repository_execution_preparation_stale/u);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_execution_attachments",
+      `project_id = '${rootRaceProject.project_id}'`,
+    ), 0);
+
+    const runRaceRoot = createRepository("managed-run-race-repository");
+    const runRaceProject = await onboardV01(
+      db,
+      runRaceRoot,
+      "Managed Run Race Repository",
+      "2026-08-04T00:00:17.288Z",
+    );
+    defineWorkV01(
+      db,
+      runRaceProject.project_id,
+      "Observe managed-run state before the write race",
+      "2026-08-04T00:00:17.289Z",
+    );
+    await assert.rejects(prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: runRaceProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.290Z",
+      before_prepare_transaction: () => insertManagedRunFixtureV01(
+        db,
+        workspaceId,
+        runRaceProject.project_id,
+        "autonomy-run:cdx2b2a-prepare-race",
+        "2026-08-04T00:00:17.291Z",
+      ),
+    }), /repository_execution_preparation_stale/u);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_execution_attachments",
+      `project_id = '${runRaceProject.project_id}'`,
+    ), 0);
+    db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(
+      "autonomy-run:cdx2b2a-prepare-race",
+    );
+
+    const postCommitRaceRoot = createRepository("post-commit-race-repository");
+    const postCommitRaceProject = await onboardV01(
+      db,
+      postCommitRaceRoot,
+      "Post-commit Race Repository",
+      "2026-08-04T00:00:17.292Z",
+    );
+    defineWorkV01(
+      db,
+      postCommitRaceProject.project_id,
+      "Reobserve after attachment metadata commits",
+      "2026-08-04T00:00:17.293Z",
+    );
+    const postCommitRace = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: postCommitRaceProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.294Z",
+      after_prepare_transaction_before_reobserve: () => {
+        writeFileSync(path.join(postCommitRaceRoot, "changed-after-commit.ts"), "changed\n", "utf8");
+      },
+    });
+    assert.equal(postCommitRace.status, "blocked");
+    assert.equal(postCommitRace.attachment, null);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_execution_attachments",
+      `project_id = '${postCommitRaceProject.project_id}' AND lifecycle = 'stale'`,
+    ), 1);
+
+    const postCommitPacketRoot = createRepository("post-commit-packet-race-repository");
+    const postCommitPacketProject = await onboardV01(
+      db,
+      postCommitPacketRoot,
+      "Post-commit Packet Race Repository",
+      "2026-08-04T00:00:17.295Z",
+    );
+    const postCommitPacketInitial = defineWorkV01(
+      db,
+      postCommitPacketProject.project_id,
+      "Re-read database state after attachment metadata commits",
+      "2026-08-04T00:00:17.296Z",
+    );
+    const postCommitPacketRace = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: postCommitPacketProject.project_id,
+    }, {
+      now: () => "2026-08-04T00:00:17.297Z",
+      after_prepare_transaction_before_reobserve: () => reviseWorkV01(
+        db,
+        postCommitPacketProject.project_id,
+        postCommitPacketInitial,
+        "Changed after attachment metadata committed",
+        "2026-08-04T00:00:17.298Z",
+      ),
+    });
+    assert.equal(postCommitPacketRace.status, "blocked");
+    assert.equal(postCommitPacketRace.attachment, null);
+    assert.equal((db.prepare(
+      `SELECT stale_reason FROM vnext_repository_execution_attachments
+       WHERE project_id = ? ORDER BY lifecycle_updated_at DESC LIMIT 1`,
+    ).get(postCommitPacketProject.project_id) as { stale_reason: string }).stale_reason, "packet_changed");
+
     const rebindRoot = createRepository("rebind-repository");
     const rebindProject = await onboardV01(
       db,
@@ -362,15 +849,25 @@ async function main(): Promise<void> {
     }, { now: () => "2026-08-04T00:00:17.600Z" });
     assert.equal(rebindPreview.status, "ready");
     assert.equal(rebindPreview.authority.execution_authority_granted, false);
+    const rebindGrant = grantDecisionV01(
+      db,
+      rebindPreview.decision_request!,
+      "2026-08-04T00:00:17.650Z",
+    );
     const rebindInput = {
       workspace_id: workspaceId,
       project_id: rebindProject.project_id,
       new_local_root: normalizeLocalProjectRootRefV01(movedRoot, { base_path: ROOT }),
       expected_old_root_binding_fingerprint: rebindPreview.expected_old_root_binding_fingerprint!,
-      expected_old_baseline_fingerprint: rebindPreview.expected_old_baseline_fingerprint,
+      expected_old_baseline_fingerprint: rebindPreview.expected_old_baseline_fingerprint!,
       expected_new_observation_fingerprint: rebindPreview.expected_new_observation_fingerprint!,
-      user_intent: "rebind_project_root" as const,
+      decision_request_fingerprint: rebindPreview.decision_request!.request_fingerprint,
+      decision_grant_fingerprint: rebindGrant.grant_fingerprint!,
     };
+    await assert.rejects(rebindRepositoryExecutionRootV01(db, {
+      ...rebindInput,
+      expected_old_baseline_fingerprint: "sha256:stale-old-baseline",
+    }, { now: () => "2026-08-04T00:00:17.660Z" }), /repository_execution_decision_mismatch/u);
     const rebound = await rebindRepositoryExecutionRootV01(db, rebindInput, {
       now: () => "2026-08-04T00:00:17.600Z",
     });
@@ -468,9 +965,17 @@ async function main(): Promise<void> {
       unrelated_project_change_ignored: true,
       work_revision_stale: "packet_changed",
       worktree_change_stale: true,
+      tracked_dirty_content_only_change_stale: "worktree_changed",
+      untracked_content_only_change_stale: "worktree_changed",
+      staged_content_change_stale: "worktree_changed",
+      submodule_commit_change_stale_and_dirty_state_blocked: true,
+      worktree_bounds_fail_closed: "worktree_ambiguous",
+      non_git_execution_admission: "non_git_execution_unsupported",
       same_path_replacement_blocked: true,
       exact_preparation_idempotent: true,
       explicit_revocation_idempotent: true,
+      browser_decision_grant_independent_of_mcp_literal: true,
+      decision_grant_expiry_mismatch_and_one_time_consumption: true,
       backup_restore_retains_local_metadata: true,
       recovery_validator_accepts_exact_metadata: true,
       portable_export_excludes_machine_local_metadata: true,
@@ -481,6 +986,9 @@ async function main(): Promise<void> {
       network_filesystem_identity_refused: true,
       symlink_alias_identity_exact: true,
       intentional_rebind_atomic_and_idempotent: true,
+      baseline_expected_absent_and_expected_old_cas: true,
+      preparation_packet_root_and_managed_run_races_refused: true,
+      post_commit_reobservation_compensates_stale: true,
       moved_root_rebind_decisions: 1,
       missing_root_refused_before_rebind: true,
       old_baseline_cannot_authorize_new_root: true,
@@ -499,10 +1007,13 @@ function assertSchemaParityV01(): void {
     "vnext_physical_root_baselines",
     "vnext_repository_execution_attachments",
     "vnext_repository_root_rebind_receipts",
+    "vnext_repository_execution_decision_requests",
     "idx_vnext_physical_root_baselines_project",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
     "idx_vnext_repository_root_rebind_receipts_project",
+    "idx_vnext_repository_execution_decisions_project",
+    "idx_vnext_repository_execution_one_open_decision",
   ];
   const create = (sql: string, includesIdentity = true) => {
     const db = new Database(":memory:");
@@ -546,6 +1057,51 @@ async function onboardV01(
   }, { now: () => now });
   assert.equal(result.status, "created");
   return result.project;
+}
+
+async function assertConcurrentOnboardingBaselineRollbackV01(
+  db: Database.Database,
+  root: string,
+  now: string,
+): Promise<void> {
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = root;
+  const picked = await pickAndInspectLocalProjectV01({
+    open_database: openDatabaseV01,
+    now: () => now,
+  });
+  assert.equal(picked.status, "selected");
+  const physical = await inspectPhysicalRootForExecutionV01(db, root, {
+    now: () => now,
+  });
+  assert.equal(physical.status, "exact");
+  await assert.rejects(confirmLocalProjectOnboardingV01(db, {
+    selection_token: picked.selection_token,
+    inspection_fingerprint: picked.inspection.inspection_fingerprint,
+    display_name: "Onboarding Baseline Race",
+  }, {
+    now: () => now,
+    before_baseline_insert_inside_transaction: () => {
+      const row = db.prepare(
+        "SELECT workspace_id, project_id FROM vnext_project_root_bindings WHERE normalized_root = ?",
+      ).get(root) as { workspace_id: string; project_id: string } | undefined;
+      assert(row);
+      const registration = readCanonicalProjectWithRootV01(db, row);
+      assert(registration);
+      const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
+        db,
+        buildPhysicalRootBaselineV01({
+          ...row,
+          root_binding: registration.root_binding,
+          observation: physical.status === "exact" ? physical : assert.fail(),
+          provenance: "explicit_legacy_adoption",
+        }),
+      );
+      assert.equal(insertion.status, "inserted");
+    },
+  }), /inspection_stale/u);
+  assert.equal((db.prepare(
+    "SELECT COUNT(*) AS count FROM vnext_project_root_bindings WHERE normalized_root = ?",
+  ).get(root) as { count: number }).count, 0);
 }
 
 function defineWorkV01(
@@ -643,6 +1199,34 @@ function projectScope(db: Database.Database, projectId: string): { workspace_id:
   return row;
 }
 
+function insertManagedRunFixtureV01(
+  db: Database.Database,
+  workspaceId: string,
+  projectId: string,
+  runId: string,
+  now: string,
+): void {
+  db.prepare(
+    `INSERT INTO autonomy_runs (
+      run_id, scope, autonomy_contract_ref, title, status, scheduled_for,
+      started_at, finished_at, created_at, updated_at, stop_reason,
+      source_refs_json, authority_boundary_json, budget_snapshot_json,
+      metadata_json
+    ) VALUES (?, ?, NULL, ?, 'queued', NULL, NULL, NULL, ?, ?, NULL, '{}', '{}', '{}', ?)`,
+  ).run(
+    runId,
+    projectId,
+    "CDX2B2A race fixture",
+    now,
+    now,
+    JSON.stringify({
+      workspace_id: workspaceId,
+      project_id: projectId,
+      lifecycle_mode: "managed_live",
+    }),
+  );
+}
+
 function openDatabaseV01(): Database.Database {
   const db = new Database(DATABASE_PATH);
   db.pragma("foreign_keys = ON");
@@ -676,6 +1260,16 @@ function createRepositoryAtPath(root: string, name: string): void {
   execFileSync("git", ["-C", root, "-c", "user.name=Augnes Test", "-c", "user.email=test@augnes.local", "commit", "--quiet", "-m", "fixture"], { stdio: "ignore" });
 }
 
+function commitFixtureV01(root: string, message: string): void {
+  execFileSync("git", ["-C", root, "add", "--all"], { stdio: "ignore" });
+  execFileSync("git", [
+    "-C", root,
+    "-c", "user.name=Augnes Test",
+    "-c", "user.email=test@augnes.local",
+    "commit", "--quiet", "-m", message,
+  ], { stdio: "ignore" });
+}
+
 function snapshotProjectFiles(root: string) {
   return {
     entries: readdirSync(root).sort(),
@@ -689,4 +1283,67 @@ function count(db: Database.Database, table: string): number {
 
 function countWhere(db: Database.Database, table: string, where: string): number {
   return (db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${where}`).get() as { count: number }).count;
+}
+
+function grantDecisionV01(
+  db: Database.Database,
+  request: RepositoryExecutionDecisionRequestProjectionV01,
+  now: string,
+): RepositoryExecutionDecisionRequestProjectionV01 {
+  return grantRepositoryExecutionDecisionV01(db, {
+    request_fingerprint: request.request_fingerprint,
+    workspace_id: request.workspace_id,
+    project_id: request.project_id,
+    confirmation_source: "browser_same_origin_button",
+  }, { now: () => now });
+}
+
+async function confirmDecisionThroughBrowserRouteV01(
+  request: RepositoryExecutionDecisionRequestProjectionV01,
+): Promise<RepositoryExecutionDecisionRequestProjectionV01> {
+  const inventedResponse = await projectRoutePost(new Request(
+    "http://127.0.0.1:4321/api/vnext/projects",
+    {
+      method: "POST",
+      headers: {
+        host: "127.0.0.1:4321",
+        origin: "http://127.0.0.1:4321",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "confirm_repository_execution_decision",
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        request_fingerprint: request.request_fingerprint,
+      }),
+    },
+  ));
+  assert.equal(inventedResponse.status, 403);
+  const response = await projectRoutePost(new Request(
+    "http://127.0.0.1:4321/api/vnext/projects",
+    {
+      method: "POST",
+      headers: {
+        host: "127.0.0.1:4321",
+        origin: "http://127.0.0.1:4321",
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-dest": "empty",
+      },
+      body: JSON.stringify({
+        action: "confirm_repository_execution_decision",
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        request_fingerprint: request.request_fingerprint,
+      }),
+    },
+  ));
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    result: RepositoryExecutionDecisionRequestProjectionV01;
+  };
+  assert.equal(body.result.status, "granted");
+  assert(body.result.grant_fingerprint);
+  return body.result;
 }

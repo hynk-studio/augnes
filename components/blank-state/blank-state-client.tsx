@@ -271,6 +271,36 @@ export function BlankStateClient({
     }
   }
 
+  async function confirmRepositoryExecutionDecision(entry: RecentProjectEntryV01) {
+    const decision = entry.repository_execution_decision;
+    if (!decision || decision.status !== "pending") return;
+    setBusy(true);
+    setRenameMessage(null);
+    try {
+      const value = await mutate({
+        action: "confirm_repository_execution_decision",
+        workspace_id: decision.workspace_id,
+        project_id: decision.project_id,
+        request_fingerprint: decision.request_fingerprint,
+      });
+      setRecent((items) => items.map((item) =>
+        item.project.project_id === entry.project.project_id
+          ? { ...item, repository_execution_decision: value.result }
+          : item));
+      setRenameMessage(infoMessage(
+        "Decision confirmed. Augnes can finish the exact requested repository change.",
+      ));
+    } catch (error) {
+      setRenameMessage(errorMessage(
+        error instanceof Error && error.message === "repository_execution_decision_expired"
+          ? "This decision expired. Ask Augnes to prepare a fresh request."
+          : "The repository decision changed or could not be confirmed. Refresh and try again.",
+      ));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function open(entry: RecentProjectEntryV01) {
     if (entry.root_availability !== "available") {
       setMessage(errorMessage("Locate the folder before opening this project."));
@@ -532,6 +562,8 @@ export function BlankStateClient({
       busy={busy}
       message={renameMessage}
       onSave={(displayName) => void renameProject(displayName)}
+      onConfirmRepositoryDecision={(entry) =>
+        void confirmRepositoryExecutionDecision(entry)}
     />
   ) : null;
   const normalizedContinuityFilter = continuityFilter.trim().toLocaleLowerCase();
@@ -1736,6 +1768,7 @@ function ProjectIdentityManagement({
   busy,
   message,
   onSave,
+  onConfirmRepositoryDecision,
 }: {
   ownerId?: string;
   ownerRef: RefObject<HTMLElement | null>;
@@ -1743,6 +1776,7 @@ function ProjectIdentityManagement({
   busy: boolean;
   message: ProjectFolderSelectionMessageV01 | null;
   onSave: (displayName: string) => void;
+  onConfirmRepositoryDecision: (entry: RecentProjectEntryV01) => void;
 }) {
   const savedName = entry.project.display_name ?? "";
   const [name, setName] = useState(savedName);
@@ -1823,6 +1857,33 @@ function ProjectIdentityManagement({
           <dd>Current project</dd>
         </div>
       </dl>
+      {entry.repository_execution_decision ? (
+        <div
+          className="project-inspection"
+          data-repository-execution-decision={entry.repository_execution_decision.action}
+          data-repository-execution-decision-status={entry.repository_execution_decision.status}
+        >
+          <p className="blank-state-region-label">Repository decision</p>
+          <h3>Confirm this identity change</h3>
+          <p>{entry.repository_execution_decision.ordinary_text}</p>
+          <p className="blank-state-meta">
+            This confirmation is separate from the assistant request and grants no execution authority.
+          </p>
+          {entry.repository_execution_decision.status === "pending" ? (
+            <button
+              type="button"
+              className="blank-state-primary-action"
+              data-repository-execution-decision-confirm="true"
+              disabled={busy}
+              onClick={() => onConfirmRepositoryDecision(entry)}
+            >
+              {busy ? "Confirming…" : "Confirm repository decision"}
+            </button>
+          ) : (
+            <p role="status">Confirmed. Augnes can finish this exact requested change.</p>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

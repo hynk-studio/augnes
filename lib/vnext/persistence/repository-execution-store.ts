@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import type {
   PhysicalRootBaselineV01,
+  RepositoryExecutionDecisionRequestV01,
   RepositoryExecutionAttachmentLifecycleV01,
   RepositoryExecutionAttachmentStaleReasonV01,
   RepositoryExecutionAttachmentV01,
@@ -108,6 +109,51 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
 
   CREATE INDEX IF NOT EXISTS idx_vnext_repository_root_rebind_receipts_project
     ON vnext_repository_root_rebind_receipts(workspace_id, project_id, recorded_at);
+
+  CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
+    request_fingerprint TEXT PRIMARY KEY CHECK (
+      length(request_fingerprint) = 71 AND substr(request_fingerprint, 1, 7) = 'sha256:'
+    ),
+    decision_request_version TEXT NOT NULL CHECK (
+      decision_request_version = 'repository_execution_decision_request.v0.1'
+    ),
+    action TEXT NOT NULL CHECK (action IN (
+      'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment'
+    )),
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+    expected_state_json TEXT NOT NULL CHECK (
+      json_valid(expected_state_json) AND json_type(expected_state_json) = 'object'
+    ),
+    requested_at TEXT NOT NULL CHECK (length(trim(requested_at)) > 0),
+    expires_at TEXT NOT NULL CHECK (length(trim(expires_at)) > 0),
+    status TEXT NOT NULL CHECK (status IN (
+      'pending', 'granted', 'consumed', 'expired', 'superseded'
+    )),
+    grant_fingerprint TEXT UNIQUE CHECK (
+      grant_fingerprint IS NULL OR length(grant_fingerprint) = 71
+    ),
+    confirmation_source TEXT CHECK (
+      confirmation_source IS NULL OR confirmation_source = 'browser_same_origin_button'
+    ),
+    granted_at TEXT,
+    consumed_at TEXT,
+    result_fingerprint TEXT CHECK (
+      result_fingerprint IS NULL OR length(result_fingerprint) = 71
+    ),
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_execution_decisions_project
+    ON vnext_repository_execution_decision_requests(
+      workspace_id, project_id, status, requested_at DESC
+    );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_one_open_decision
+    ON vnext_repository_execution_decision_requests(workspace_id, project_id, action)
+    WHERE status IN ('pending', 'granted');
 `;
 
 export function ensureVNextRepositoryExecutionStoreSchemaV01(
@@ -128,6 +174,9 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
     ["index", "idx_vnext_repository_execution_attachments_project"],
     ["index", "idx_vnext_repository_execution_one_prepared"],
     ["index", "idx_vnext_repository_root_rebind_receipts_project"],
+    ["table", "vnext_repository_execution_decision_requests"],
+    ["index", "idx_vnext_repository_execution_decisions_project"],
+    ["index", "idx_vnext_repository_execution_one_open_decision"],
   ] as const;
   const find = db.prepare(
     "SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?",
@@ -156,33 +205,24 @@ export function readPhysicalRootBaselineV01(
   return row ? { ...row } : null;
 }
 
-export function writePhysicalRootBaselineInsideTransactionV01(
+export function insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
   db: Database.Database,
   baseline: PhysicalRootBaselineV01,
-): { status: "inserted" | "exact_replay" | "replaced"; baseline: PhysicalRootBaselineV01 } {
+): { status: "inserted" | "exact_replay" | "conflict"; baseline: PhysicalRootBaselineV01 } {
   assertVNextRepositoryExecutionStoreSchemaV01(db);
   if (!db.inTransaction) throw new Error("physical_root_baseline_transaction_required");
   const existing = readPhysicalRootBaselineV01(db, baseline);
   if (existing?.baseline_fingerprint === baseline.baseline_fingerprint) {
     return { status: "exact_replay", baseline: existing };
   }
+  if (existing) return { status: "conflict", baseline: existing };
   db.prepare(
     `INSERT INTO vnext_physical_root_baselines (
       workspace_id, project_id, node_scope_fingerprint, baseline_version,
       root_binding_fingerprint, identity_version, canonical_realpath_fingerprint,
       filesystem_volume_identity, filesystem_object_identity, observed_at,
       provenance, baseline_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(workspace_id, project_id, node_scope_fingerprint) DO UPDATE SET
-      baseline_version = excluded.baseline_version,
-      root_binding_fingerprint = excluded.root_binding_fingerprint,
-      identity_version = excluded.identity_version,
-      canonical_realpath_fingerprint = excluded.canonical_realpath_fingerprint,
-      filesystem_volume_identity = excluded.filesystem_volume_identity,
-      filesystem_object_identity = excluded.filesystem_object_identity,
-      observed_at = excluded.observed_at,
-      provenance = excluded.provenance,
-      baseline_fingerprint = excluded.baseline_fingerprint`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     baseline.workspace_id,
     baseline.project_id,
@@ -197,7 +237,164 @@ export function writePhysicalRootBaselineInsideTransactionV01(
     baseline.provenance,
     baseline.baseline_fingerprint,
   );
-  return { status: existing ? "replaced" : "inserted", baseline };
+  return { status: "inserted", baseline };
+}
+
+export function replacePhysicalRootBaselineExpectedInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    baseline: PhysicalRootBaselineV01;
+    expected_old_baseline_fingerprint: string;
+  },
+): { status: "replaced" | "exact_replay" | "conflict"; baseline: PhysicalRootBaselineV01 } {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  if (!db.inTransaction) throw new Error("physical_root_baseline_transaction_required");
+  const existing = readPhysicalRootBaselineV01(db, input.baseline);
+  if (existing?.baseline_fingerprint === input.baseline.baseline_fingerprint) {
+    return { status: "exact_replay", baseline: existing };
+  }
+  if (!existing || existing.baseline_fingerprint !== input.expected_old_baseline_fingerprint) {
+    return { status: "conflict", baseline: existing ?? input.baseline };
+  }
+  const result = db.prepare(
+    `UPDATE vnext_physical_root_baselines SET
+      baseline_version = ?, root_binding_fingerprint = ?, identity_version = ?,
+      canonical_realpath_fingerprint = ?, filesystem_volume_identity = ?,
+      filesystem_object_identity = ?, observed_at = ?, provenance = ?,
+      baseline_fingerprint = ?
+     WHERE workspace_id = ? AND project_id = ? AND node_scope_fingerprint = ?
+       AND baseline_fingerprint = ?`,
+  ).run(
+    input.baseline.baseline_version,
+    input.baseline.root_binding_fingerprint,
+    input.baseline.identity_version,
+    input.baseline.canonical_realpath_fingerprint,
+    input.baseline.filesystem_volume_identity,
+    input.baseline.filesystem_object_identity,
+    input.baseline.observed_at,
+    input.baseline.provenance,
+    input.baseline.baseline_fingerprint,
+    input.baseline.workspace_id,
+    input.baseline.project_id,
+    input.baseline.node_scope_fingerprint,
+    input.expected_old_baseline_fingerprint,
+  );
+  return result.changes === 1
+    ? { status: "replaced", baseline: input.baseline }
+    : { status: "conflict", baseline: existing };
+}
+
+export function readRepositoryExecutionDecisionRequestV01(
+  db: Database.Database,
+  requestFingerprint: string,
+): RepositoryExecutionDecisionRequestV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    "SELECT * FROM vnext_repository_execution_decision_requests WHERE request_fingerprint = ?",
+  ).get(requestFingerprint) as RepositoryExecutionDecisionRequestV01 | undefined;
+  return row ? { ...row } : null;
+}
+
+export function readOpenRepositoryExecutionDecisionV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; action?: RepositoryExecutionDecisionRequestV01["action"] },
+): RepositoryExecutionDecisionRequestV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_execution_decision_requests
+      WHERE workspace_id = ? AND project_id = ?
+        AND status IN ('pending', 'granted')
+        ${input.action ? "AND action = ?" : ""}
+      ORDER BY requested_at DESC, request_fingerprint DESC LIMIT 1`,
+  ).get(
+    input.workspace_id,
+    input.project_id,
+    ...(input.action ? [input.action] : []),
+  ) as RepositoryExecutionDecisionRequestV01 | undefined;
+  return row ? { ...row } : null;
+}
+
+export function insertRepositoryExecutionDecisionRequestInsideTransactionV01(
+  db: Database.Database,
+  request: RepositoryExecutionDecisionRequestV01,
+): void {
+  if (!db.inTransaction) throw new Error("repository_execution_decision_transaction_required");
+  db.prepare(
+    `INSERT INTO vnext_repository_execution_decision_requests (
+      request_fingerprint, decision_request_version, action, workspace_id,
+      project_id, expected_state_fingerprint, expected_state_json,
+      requested_at, expires_at, status, grant_fingerprint,
+      confirmation_source, granted_at, consumed_at, result_fingerprint
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    request.request_fingerprint,
+    request.decision_request_version,
+    request.action,
+    request.workspace_id,
+    request.project_id,
+    request.expected_state_fingerprint,
+    request.expected_state_json,
+    request.requested_at,
+    request.expires_at,
+    request.status,
+    request.grant_fingerprint,
+    request.confirmation_source,
+    request.granted_at,
+    request.consumed_at,
+    request.result_fingerprint,
+  );
+}
+
+export function updateRepositoryExecutionDecisionInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    request_fingerprint: string;
+    from: readonly RepositoryExecutionDecisionRequestV01["status"][];
+    to: RepositoryExecutionDecisionRequestV01["status"];
+    grant_fingerprint?: string | null;
+    confirmation_source?: RepositoryExecutionDecisionRequestV01["confirmation_source"];
+    granted_at?: string | null;
+    consumed_at?: string | null;
+    result_fingerprint?: string | null;
+  },
+): boolean {
+  if (!db.inTransaction) throw new Error("repository_execution_decision_transaction_required");
+  const placeholders = input.from.map(() => "?").join(", ");
+  const result = db.prepare(
+    `UPDATE vnext_repository_execution_decision_requests SET
+       status = ?, grant_fingerprint = COALESCE(?, grant_fingerprint),
+       confirmation_source = COALESCE(?, confirmation_source),
+       granted_at = COALESCE(?, granted_at), consumed_at = COALESCE(?, consumed_at),
+       result_fingerprint = COALESCE(?, result_fingerprint)
+     WHERE request_fingerprint = ? AND status IN (${placeholders})`,
+  ).run(
+    input.to,
+    input.grant_fingerprint ?? null,
+    input.confirmation_source ?? null,
+    input.granted_at ?? null,
+    input.consumed_at ?? null,
+    input.result_fingerprint ?? null,
+    input.request_fingerprint,
+    ...input.from,
+  );
+  return result.changes === 1;
+}
+
+export function pruneRepositoryExecutionDecisionsInsideTransactionV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; retain: number },
+): number {
+  if (!db.inTransaction) throw new Error("repository_execution_decision_transaction_required");
+  return db.prepare(
+    `DELETE FROM vnext_repository_execution_decision_requests
+      WHERE request_fingerprint IN (
+        SELECT request_fingerprint FROM vnext_repository_execution_decision_requests
+         WHERE workspace_id = ? AND project_id = ?
+           AND status NOT IN ('pending', 'granted')
+         ORDER BY requested_at DESC, request_fingerprint DESC
+         LIMIT -1 OFFSET ?
+      )`,
+  ).run(input.workspace_id, input.project_id, input.retain).changes;
 }
 
 interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy" | "consumed_run_id"> {

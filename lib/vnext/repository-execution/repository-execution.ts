@@ -15,14 +15,20 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
+  insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
+  insertRepositoryExecutionDecisionRequestInsideTransactionV01,
   insertRepositoryExecutionAttachmentInsideTransactionV01,
+  pruneRepositoryExecutionDecisionsInsideTransactionV01,
   pruneRepositoryExecutionAttachmentsInsideTransactionV01,
   readPhysicalRootBaselineV01,
+  readOpenRepositoryExecutionDecisionV01,
   readPreparedRepositoryExecutionAttachmentV01,
+  readRepositoryExecutionDecisionRequestV01,
   readRepositoryExecutionAttachmentByBindingV01,
   readRepositoryExecutionAttachmentV01,
+  replacePhysicalRootBaselineExpectedInsideTransactionV01,
+  updateRepositoryExecutionDecisionInsideTransactionV01,
   updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01,
-  writePhysicalRootBaselineInsideTransactionV01,
 } from "@/lib/vnext/persistence/repository-execution-store";
 import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 import {
@@ -35,6 +41,7 @@ import {
   PHYSICAL_ROOT_BASELINE_VERSION_V01,
   PROJECT_EXECUTION_ADMISSION_VERSION_V01,
   REPOSITORY_EXECUTION_ATTACHMENT_VERSION_V01,
+  REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01,
   REPOSITORY_EXECUTION_FRESHNESS_POLICY_VERSION_V01,
   type PhysicalRootBaselineV01,
   type PhysicalRootObservationV01,
@@ -43,11 +50,16 @@ import {
   type RepositoryExecutionAttachmentStaleReasonV01,
   type RepositoryExecutionAttachmentV01,
   type RepositoryExecutionAuthorityBoundaryV01,
+  type RepositoryExecutionDecisionActionV01,
+  type RepositoryExecutionDecisionRequestProjectionV01,
+  type RepositoryExecutionDecisionRequestV01,
   type RepositoryExecutionPreparationV01,
 } from "@/types/vnext/repository-execution";
 
 const DEFAULT_ATTACHMENT_MAX_AGE_MS = 30 * 60 * 1_000;
 const ATTACHMENT_HISTORY_RETAIN = 16;
+const DEFAULT_DECISION_MAX_AGE_MS = 15 * 60 * 1_000;
+const DECISION_HISTORY_RETAIN = 16;
 
 export const REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 = Object.freeze({
   project_files_written: false,
@@ -76,6 +88,9 @@ export interface RepositoryExecutionDependenciesV01 {
   filesystem_type?: (root: string) => Promise<number | bigint>;
   node_scope_root?: string;
   inspect_worktree?: typeof inspectRepositoryWorktreeV01;
+  before_prepare_transaction?: () => void;
+  after_prepare_transaction_before_reobserve?: () => void;
+  before_onboarding_baseline_insert_inside_transaction?: () => void;
   after_rebind_inside_transaction?: (result: {
     root_binding: ProjectLocalRootBindingV01;
     baseline: PhysicalRootBaselineV01;
@@ -234,6 +249,363 @@ export function buildPhysicalRootBaselineV01(input: {
   };
 }
 
+function readExpectedDatabaseAdmissionStateV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    project_id: string;
+    node_scope_fingerprint: string;
+  },
+): {
+  root_binding_fingerprint: string | null;
+  physical_root_baseline_fingerprint: string | null;
+  task_context_packet_id: string | null;
+  task_context_packet_fingerprint: string | null;
+  current_work_fingerprint: string | null;
+  managed_run_state_fingerprint: string;
+  managed_run_conflict: boolean;
+  expected_database_state_fingerprint: string;
+} {
+  const registration = readCanonicalProjectWithRootV01(db, input);
+  const baseline = readPhysicalRootBaselineV01(db, input);
+  const work = readProjectWorkInitializationV01(db, input);
+  const run = readLatestManagedLiveAutonomyRunSummaryV01(input, db);
+  const managedRunStateFingerprint = managedRunStateFingerprintV01(db, input);
+  const material = {
+    state_version: "repository_execution_database_admission_state.v0.1",
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    root_binding_fingerprint: registration
+      ? fingerprintProjectRootBindingV01(registration.root_binding)
+      : null,
+    physical_root_baseline_fingerprint: baseline?.baseline_fingerprint ?? null,
+    task_context_packet_id: work.current_packet?.packet_id ?? null,
+    task_context_packet_fingerprint: work.current_packet?.packet_fingerprint ?? null,
+    current_work_fingerprint: work.current_work
+      ? createProtocolSha256V01(canonicalizeProtocolValueV01(work.current_work))
+      : null,
+    managed_run_state_fingerprint: managedRunStateFingerprint,
+    managed_run_conflict: Boolean(run && !isTerminalRunnerStatus(run.status)),
+  };
+  return {
+    ...material,
+    expected_database_state_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  };
+}
+
+function managedRunStateFingerprintV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): string {
+  const run = readLatestManagedLiveAutonomyRunSummaryV01(input, db);
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01(
+      run
+        ? { run_id: run.run_id, status: run.status, updated_at: run.updated_at }
+        : { run: null },
+    ),
+  );
+}
+
+export function createRepositoryExecutionDecisionRequestV01(
+  db: Database.Database,
+  input: {
+    action: RepositoryExecutionDecisionActionV01;
+    workspace_id: string;
+    project_id: string;
+    expected_state: Record<string, unknown>;
+  },
+  options: { now?: () => string; max_age_ms?: number } = {},
+): RepositoryExecutionDecisionRequestProjectionV01 {
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const nowMs = Date.parse(now);
+  const maxAgeMs = options.max_age_ms ?? DEFAULT_DECISION_MAX_AGE_MS;
+  if (!Number.isFinite(nowMs) || !Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_clock_invalid", 500);
+  }
+  const expiresAt = new Date(nowMs + maxAgeMs).toISOString();
+  const expectedStateJson = canonicalizeProtocolValueV01(input.expected_state);
+  const expectedStateFingerprint = createProtocolSha256V01(expectedStateJson);
+  let selected!: RepositoryExecutionDecisionRequestV01;
+  db.transaction(() => {
+    const open = readOpenRepositoryExecutionDecisionV01(db, input);
+    if (open && Date.parse(open.expires_at) <= nowMs) {
+      updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+        request_fingerprint: open.request_fingerprint,
+        from: ["pending", "granted"],
+        to: "expired",
+      });
+    } else if (open?.expected_state_fingerprint === expectedStateFingerprint) {
+      selected = open;
+      return;
+    } else if (open) {
+      updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+        request_fingerprint: open.request_fingerprint,
+        from: ["pending", "granted"],
+        to: "superseded",
+      });
+    }
+    const requestMaterial = {
+      decision_request_version: REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01,
+      action: input.action,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      expected_state_fingerprint: expectedStateFingerprint,
+      requested_at: now,
+      expires_at: expiresAt,
+    };
+    const request: RepositoryExecutionDecisionRequestV01 = {
+      ...requestMaterial,
+      request_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(requestMaterial),
+      ),
+      expected_state_json: expectedStateJson,
+      status: "pending",
+      grant_fingerprint: null,
+      confirmation_source: null,
+      granted_at: null,
+      consumed_at: null,
+      result_fingerprint: null,
+    };
+    insertRepositoryExecutionDecisionRequestInsideTransactionV01(db, request);
+    pruneRepositoryExecutionDecisionsInsideTransactionV01(db, {
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      retain: DECISION_HISTORY_RETAIN,
+    });
+    selected = request;
+  }).immediate();
+  return repositoryExecutionDecisionProjectionV01(selected);
+}
+
+export function grantRepositoryExecutionDecisionV01(
+  db: Database.Database,
+  input: {
+    request_fingerprint: string;
+    workspace_id: string;
+    project_id: string;
+    confirmation_source: "browser_same_origin_button";
+  },
+  options: { now?: () => string } = {},
+): RepositoryExecutionDecisionRequestProjectionV01 {
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const nowMs = Date.parse(now);
+  let result!: RepositoryExecutionDecisionRequestV01;
+  let expired = false;
+  db.transaction(() => {
+    const request = readRepositoryExecutionDecisionRequestV01(
+      db,
+      input.request_fingerprint,
+    );
+    if (
+      !request ||
+      request.workspace_id !== input.workspace_id ||
+      request.project_id !== input.project_id
+    ) {
+      throw new RepositoryExecutionErrorV01("repository_execution_decision_unavailable", 404);
+    }
+    if (request.status === "granted" || request.status === "consumed") {
+      result = request;
+      return;
+    }
+    if (request.status !== "pending") {
+      throw new RepositoryExecutionErrorV01("repository_execution_decision_not_confirmable", 409);
+    }
+    if (!Number.isFinite(nowMs) || nowMs >= Date.parse(request.expires_at)) {
+      updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+        request_fingerprint: request.request_fingerprint,
+        from: ["pending"],
+        to: "expired",
+      });
+      expired = true;
+      result = { ...request, status: "expired" };
+      return;
+    }
+    const grantFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        grant_version: "repository_execution_decision_grant.v0.1",
+        request_fingerprint: request.request_fingerprint,
+        confirmation_source: input.confirmation_source,
+      }),
+    );
+    if (!updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+      request_fingerprint: request.request_fingerprint,
+      from: ["pending"],
+      to: "granted",
+      grant_fingerprint: grantFingerprint,
+      confirmation_source: input.confirmation_source,
+      granted_at: now,
+    })) {
+      throw new RepositoryExecutionErrorV01("repository_execution_decision_stale", 409);
+    }
+    result = readRepositoryExecutionDecisionRequestV01(db, request.request_fingerprint)!;
+  }).immediate();
+  if (expired) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_expired", 409);
+  }
+  return repositoryExecutionDecisionProjectionV01(result);
+}
+
+export function readOpenRepositoryExecutionDecisionProjectionV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  options: { now?: () => string } = {},
+): RepositoryExecutionDecisionRequestProjectionV01 | null {
+  const request = readOpenRepositoryExecutionDecisionV01(db, input);
+  if (!request) return null;
+  const nowMs = Date.parse((options.now ?? (() => new Date().toISOString()))());
+  if (!Number.isFinite(nowMs) || nowMs >= Date.parse(request.expires_at)) return null;
+  return repositoryExecutionDecisionProjectionV01(request);
+}
+
+function repositoryExecutionDecisionProjectionV01(
+  request: RepositoryExecutionDecisionRequestV01,
+): RepositoryExecutionDecisionRequestProjectionV01 {
+  return {
+    decision_request_version: request.decision_request_version,
+    request_fingerprint: request.request_fingerprint,
+    action: request.action,
+    workspace_id: request.workspace_id,
+    project_id: request.project_id,
+    expected_state_fingerprint: request.expected_state_fingerprint,
+    requested_at: request.requested_at,
+    expires_at: request.expires_at,
+    status: request.status,
+    grant_fingerprint: request.grant_fingerprint,
+    ordinary_text: decisionOrdinaryTextV01(request.action),
+  };
+}
+
+function decisionOrdinaryTextV01(action: RepositoryExecutionDecisionActionV01): string {
+  if (action === "adopt_legacy_baseline") {
+    return "Use this folder as this project's trusted execution root?";
+  }
+  if (action === "rebind_root") {
+    return "Use the selected folder as this project's new trusted execution root?";
+  }
+  return "Revoke this prepared repository attachment?";
+}
+
+function adoptionDecisionExpectedStateV01(input: {
+  workspace_id: string;
+  project_id: string;
+  expected_admission_fingerprint: string;
+  expected_observation_fingerprint: string;
+  expected_root_binding_fingerprint: string;
+}): Record<string, unknown> {
+  return {
+    expected_state_version: "repository_execution_adoption_expected_state.v0.1",
+    action: "adopt_legacy_baseline",
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    expected_admission_fingerprint: input.expected_admission_fingerprint,
+    expected_observation_fingerprint: input.expected_observation_fingerprint,
+    expected_root_binding_fingerprint: input.expected_root_binding_fingerprint,
+    expected_baseline: "absent",
+  };
+}
+
+function rebindDecisionExpectedStateV01(input: {
+  workspace_id: string;
+  project_id: string;
+  new_local_root: LocalProjectRootRefV01;
+  expected_old_root_binding_fingerprint: string;
+  expected_old_baseline_fingerprint: string;
+  expected_new_observation_fingerprint: string;
+}): Record<string, unknown> {
+  return {
+    expected_state_version: "repository_execution_rebind_expected_state.v0.1",
+    action: "rebind_root",
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    new_local_root: input.new_local_root,
+    expected_old_root_binding_fingerprint:
+      input.expected_old_root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      input.expected_old_baseline_fingerprint,
+    expected_new_observation_fingerprint:
+      input.expected_new_observation_fingerprint,
+  };
+}
+
+function revocationDecisionExpectedStateV01(input: {
+  attachment_id: string;
+  expected_binding_fingerprint: string;
+}): Record<string, unknown> {
+  return {
+    expected_state_version: "repository_execution_revocation_expected_state.v0.1",
+    action: "revoke_attachment",
+    attachment_id: input.attachment_id,
+    expected_binding_fingerprint: input.expected_binding_fingerprint,
+  };
+}
+
+function assertGrantedRepositoryExecutionDecisionInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    action: RepositoryExecutionDecisionActionV01;
+    workspace_id: string;
+    project_id: string;
+    expected_state_fingerprint: string;
+    decision_request_fingerprint: string;
+    decision_grant_fingerprint: string;
+    now: string;
+  },
+): RepositoryExecutionDecisionRequestV01 {
+  if (!db.inTransaction) throw new Error("repository_execution_decision_transaction_required");
+  const request = readRepositoryExecutionDecisionRequestV01(
+    db,
+    input.decision_request_fingerprint,
+  );
+  if (
+    !request ||
+    request.action !== input.action ||
+    request.workspace_id !== input.workspace_id ||
+    request.project_id !== input.project_id ||
+    request.expected_state_fingerprint !== input.expected_state_fingerprint ||
+    request.grant_fingerprint !== input.decision_grant_fingerprint
+  ) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_mismatch", 409);
+  }
+  if (
+    request.status !== "consumed" &&
+    Date.parse(input.now) >= Date.parse(request.expires_at)
+  ) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_expired", 409);
+  }
+  if (request.status !== "granted" && request.status !== "consumed") {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_not_granted", 409);
+  }
+  return request;
+}
+
+function consumeRepositoryExecutionDecisionInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    request: RepositoryExecutionDecisionRequestV01;
+    consumed_at: string;
+    result_fingerprint: string;
+  },
+): void {
+  if (input.request.status === "consumed") {
+    if (input.request.result_fingerprint !== input.result_fingerprint) {
+      throw new RepositoryExecutionErrorV01("repository_execution_decision_replay_conflict", 409);
+    }
+    return;
+  }
+  if (!updateRepositoryExecutionDecisionInsideTransactionV01(db, {
+    request_fingerprint: input.request.request_fingerprint,
+    from: ["granted"],
+    to: "consumed",
+    consumed_at: input.consumed_at,
+    result_fingerprint: input.result_fingerprint,
+  })) {
+    throw new RepositoryExecutionErrorV01("repository_execution_decision_stale", 409);
+  }
+}
+
 export async function readProjectExecutionAdmissionV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
@@ -293,7 +665,6 @@ export async function readProjectExecutionAdmissionV01(
       baseline.baseline_fingerprint,
     );
   }
-
   const work = readProjectWorkInitializationV01(db, input);
   if (!work.current_packet || !work.current_work || !work.state.startsWith("defined_")) {
     return blockedAdmission(
@@ -305,13 +676,7 @@ export async function readProjectExecutionAdmissionV01(
     );
   }
   const run = readLatestManagedLiveAutonomyRunSummaryV01(input, db);
-  const managedRunStateFingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01(
-      run
-        ? { run_id: run.run_id, status: run.status, updated_at: run.updated_at }
-        : { run: null },
-    ),
-  );
+  const managedRunStateFingerprint = managedRunStateFingerprintV01(db, input);
   if (run && !isTerminalRunnerStatus(run.status)) {
     return blockedAdmission(
       input,
@@ -327,6 +692,17 @@ export async function readProjectExecutionAdmissionV01(
     registration.root_binding.local_root.normalized_path,
     { now: dependencies.now },
   );
+  if (worktree.status === "non_git") {
+    return blockedAdmission(
+      input,
+      browserObservation,
+      "non_git_execution_unsupported",
+      rootBindingFingerprint,
+      baseline.baseline_fingerprint,
+      "blocked",
+      managedRunStateFingerprint,
+    );
+  }
   if (worktree.status === "unavailable" || worktree.status === "ambiguous") {
     return blockedAdmission(
       input,
@@ -338,9 +714,63 @@ export async function readProjectExecutionAdmissionV01(
       managedRunStateFingerprint,
     );
   }
-  const currentWorkFingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01(work.current_work),
-  );
+  const postObservationRun = readLatestManagedLiveAutonomyRunSummaryV01(input, db);
+  const postObservationManagedRunStateFingerprint = managedRunStateFingerprintV01(db, input);
+  if (postObservationRun && !isTerminalRunnerStatus(postObservationRun.status)) {
+    return blockedAdmission(
+      input,
+      browserObservation,
+      "managed_run_conflict",
+      rootBindingFingerprint,
+      baseline.baseline_fingerprint,
+      "blocked",
+      postObservationManagedRunStateFingerprint,
+    );
+  }
+  const databaseState = readExpectedDatabaseAdmissionStateV01(db, {
+    ...input,
+    node_scope_fingerprint: physical.node_scope_fingerprint,
+  });
+  if (
+    databaseState.root_binding_fingerprint !== rootBindingFingerprint ||
+    databaseState.physical_root_baseline_fingerprint !== baseline.baseline_fingerprint
+  ) {
+    return blockedAdmission(
+      input,
+      browserObservation,
+      "admission_state_changed",
+      databaseState.root_binding_fingerprint,
+      databaseState.physical_root_baseline_fingerprint,
+      "blocked",
+      databaseState.managed_run_state_fingerprint,
+    );
+  }
+  if (databaseState.managed_run_conflict) {
+    return blockedAdmission(
+      input,
+      browserObservation,
+      "managed_run_conflict",
+      rootBindingFingerprint,
+      baseline.baseline_fingerprint,
+      "blocked",
+      databaseState.managed_run_state_fingerprint,
+    );
+  }
+  if (
+    !databaseState.task_context_packet_id ||
+    !databaseState.task_context_packet_fingerprint ||
+    !databaseState.current_work_fingerprint
+  ) {
+    return blockedAdmission(
+      input,
+      browserObservation,
+      "current_work_unavailable",
+      rootBindingFingerprint,
+      baseline.baseline_fingerprint,
+      "blocked",
+      databaseState.managed_run_state_fingerprint,
+    );
+  }
   const bindingMaterial = {
     admission_version: PROJECT_EXECUTION_ADMISSION_VERSION_V01,
     workspace_id: input.workspace_id,
@@ -351,10 +781,12 @@ export async function readProjectExecutionAdmissionV01(
     node_scope_fingerprint: physical.node_scope_fingerprint,
     physical_root_observation_fingerprint: physical.observation_fingerprint,
     physical_root_baseline_fingerprint: baseline.baseline_fingerprint,
-    task_context_packet_id: work.current_packet.packet_id,
-    task_context_packet_fingerprint: work.current_packet.packet_fingerprint,
-    current_work_fingerprint: currentWorkFingerprint,
-    managed_run_state_fingerprint: managedRunStateFingerprint,
+    task_context_packet_id: databaseState.task_context_packet_id,
+    task_context_packet_fingerprint: databaseState.task_context_packet_fingerprint,
+    current_work_fingerprint: databaseState.current_work_fingerprint,
+    managed_run_state_fingerprint: databaseState.managed_run_state_fingerprint,
+    expected_database_state_fingerprint:
+      databaseState.expected_database_state_fingerprint,
     worktree_observation_fingerprint: worktree.observation_fingerprint,
   };
   return {
@@ -380,7 +812,7 @@ export async function prepareRepositoryExecutionV01(
   const project = registration
     ? { project_id: registration.project.project_id, display_name: registration.project.display_name }
     : null;
-  if (admission.readiness !== "ready" || !admission.worktree_observation) {
+  if (admission.readiness !== "ready" || admission.worktree_observation?.status !== "exact") {
     const existingPrepared = readPreparedRepositoryExecutionAttachmentV01(db, input);
     if (existingPrepared) {
       const updatedAt = (dependencies.now ?? (() => new Date().toISOString()))();
@@ -395,6 +827,21 @@ export async function prepareRepositoryExecutionV01(
         });
       }).immediate();
     }
+    const decisionRequest = admission.reason === "baseline_adoption_required" &&
+      admission.physical_root_observation_fingerprint &&
+      admission.root_binding_fingerprint
+      ? createRepositoryExecutionDecisionRequestV01(db, {
+          action: "adopt_legacy_baseline",
+          ...input,
+          expected_state: adoptionDecisionExpectedStateV01({
+            ...input,
+            expected_admission_fingerprint: admission.admission_fingerprint,
+            expected_observation_fingerprint:
+              admission.physical_root_observation_fingerprint,
+            expected_root_binding_fingerprint: admission.root_binding_fingerprint,
+          }),
+        }, { now: dependencies.now })
+      : null;
     return {
       preparation_version: "repository_execution_preparation.v0.1",
       status: admission.reason === "baseline_adoption_required"
@@ -405,6 +852,7 @@ export async function prepareRepositoryExecutionV01(
       ordinary_text: ordinaryBlockedText(admission.reason, project?.display_name ?? null),
       attachment: null,
       admission,
+      decision_request: decisionRequest,
       authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
     };
   }
@@ -413,10 +861,6 @@ export async function prepareRepositoryExecutionV01(
   const maxAgeMs = dependencies.max_age_ms ?? DEFAULT_ATTACHMENT_MAX_AGE_MS;
   if (!Number.isFinite(nowMs) || !Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1) {
     throw new RepositoryExecutionErrorV01("repository_execution_clock_invalid", 500);
-  }
-  const active = readPreparedRepositoryExecutionAttachmentV01(db, input);
-  if (active && samePreparedMaterial(active, admission) && Date.parse(active.freshness_policy.expires_at) > nowMs) {
-    return preparedResult(project, admission, active);
   }
   const preparedAt = now;
   const expiresAt = new Date(nowMs + maxAgeMs).toISOString();
@@ -442,8 +886,7 @@ export async function prepareRepositoryExecutionV01(
   const bindingFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01(bindingMaterial),
   );
-  const existing = readRepositoryExecutionAttachmentByBindingV01(db, bindingFingerprint);
-  const attachment: RepositoryExecutionAttachmentV01 = existing ?? {
+  const proposedAttachment: RepositoryExecutionAttachmentV01 = {
     attachment_version: REPOSITORY_EXECUTION_ATTACHMENT_VERSION_V01,
     attachment_id: createProtocolSha256V01(`attachment:${bindingFingerprint}`),
     ...bindingMaterial,
@@ -453,7 +896,36 @@ export async function prepareRepositoryExecutionV01(
     lifecycle_updated_at: preparedAt,
     consumed_run_id: null,
   };
+  dependencies.before_prepare_transaction?.();
+  let selectedAttachment!: RepositoryExecutionAttachmentV01;
   db.transaction(() => {
+    const exactDatabaseState = readExpectedDatabaseAdmissionStateV01(db, {
+      ...input,
+      node_scope_fingerprint: admission.node_scope_fingerprint!,
+    });
+    if (
+      !admission.expected_database_state_fingerprint ||
+      exactDatabaseState.expected_database_state_fingerprint !==
+        admission.expected_database_state_fingerprint
+    ) {
+      throw new RepositoryExecutionErrorV01(
+        "repository_execution_preparation_stale",
+        409,
+      );
+    }
+    const active = readPreparedRepositoryExecutionAttachmentV01(db, input);
+    if (
+      active &&
+      samePreparedMaterial(active, admission) &&
+      Date.parse(active.freshness_policy.expires_at) > nowMs
+    ) {
+      selectedAttachment = active;
+      return;
+    }
+    const existing = readRepositoryExecutionAttachmentByBindingV01(
+      db,
+      bindingFingerprint,
+    );
     if (active) {
       updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01(db, {
         attachment_id: active.attachment_id,
@@ -471,18 +943,98 @@ export async function prepareRepositoryExecutionV01(
         updated_at: now,
       });
     } else {
-      insertRepositoryExecutionAttachmentInsideTransactionV01(db, attachment);
+      insertRepositoryExecutionAttachmentInsideTransactionV01(
+        db,
+        proposedAttachment,
+      );
     }
     pruneRepositoryExecutionAttachmentsInsideTransactionV01(db, {
       ...input,
       retain: ATTACHMENT_HISTORY_RETAIN,
     });
+    selectedAttachment = readRepositoryExecutionAttachmentV01(
+      db,
+      proposedAttachment.attachment_id,
+    )!;
   }).immediate();
-  return preparedResult(
-    project,
-    admission,
-    readRepositoryExecutionAttachmentV01(db, attachment.attachment_id)!,
-  );
+  dependencies.after_prepare_transaction_before_reobserve?.();
+  const databaseAfter = readExpectedDatabaseAdmissionStateV01(db, {
+    ...input,
+    node_scope_fingerprint: admission.node_scope_fingerprint!,
+  });
+  const [physicalAfter, worktreeAfter] = await Promise.all([
+    inspectPhysicalRootForExecutionV01(
+      db,
+      registration!.root_binding.local_root.normalized_path,
+      dependencies,
+    ),
+    (dependencies.inspect_worktree ?? inspectRepositoryWorktreeV01)(
+      registration!.root_binding.local_root.normalized_path,
+      { now: dependencies.now },
+    ),
+  ]);
+  const physicalChanged = physicalAfter.status !== "exact" ||
+    physicalAfter.observation_fingerprint !==
+      admission.physical_root_observation_fingerprint;
+  const worktreeChanged = worktreeAfter.status !== "exact" ||
+    worktreeAfter.observation_fingerprint !==
+      admission.worktree_observation.observation_fingerprint;
+  const databaseChanged = databaseAfter.expected_database_state_fingerprint !==
+    admission.expected_database_state_fingerprint;
+  if (physicalChanged || worktreeChanged || databaseChanged) {
+    const updatedAt = (dependencies.now ?? (() => new Date().toISOString()))();
+    db.transaction(() => {
+      updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01(db, {
+        attachment_id: selectedAttachment.attachment_id,
+        from: "prepared",
+        to: "stale",
+        stale_reason: physicalChanged
+          ? "physical_root_mismatch"
+          : worktreeChanged
+            ? "worktree_changed"
+            : classifyDatabaseStateChangeV01(selectedAttachment, databaseAfter),
+        updated_at: updatedAt,
+      });
+    }).immediate();
+    const reason: ProjectExecutionAdmissionReasonV01 = physicalChanged
+      ? "physical_root_mismatch"
+      : worktreeAfter.status === "ambiguous"
+        ? "worktree_ambiguous"
+        : worktreeAfter.status === "unavailable"
+          ? "worktree_unavailable"
+          : worktreeAfter.status === "non_git"
+            ? "non_git_execution_unsupported"
+            : databaseAfter.managed_run_conflict
+              ? "managed_run_conflict"
+              : "admission_state_changed";
+    const postChangeAdmission = blockedAdmission(
+      input,
+      admission.browser_observation,
+      reason,
+      databaseAfter.root_binding_fingerprint,
+      databaseAfter.physical_root_baseline_fingerprint,
+      "blocked",
+      databaseAfter.managed_run_state_fingerprint,
+      physicalAfter.status === "exact"
+        ? physicalAfter.node_scope_fingerprint
+        : null,
+      physicalAfter.status === "exact"
+        ? physicalAfter.observation_fingerprint
+        : null,
+    );
+    return {
+      preparation_version: "repository_execution_preparation.v0.1",
+      status: "blocked",
+      reason,
+      project,
+      ordinary_text: ordinaryBlockedText(reason, project?.display_name ?? null),
+      attachment: null,
+      admission: postChangeAdmission,
+      decision_request: null,
+      authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
+    };
+  }
+  return preparedResult(project, admission, selectedAttachment);
 }
 
 export async function adoptLegacyPhysicalRootBaselineV01(
@@ -492,13 +1044,11 @@ export async function adoptLegacyPhysicalRootBaselineV01(
     project_id: string;
     expected_admission_fingerprint: string;
     expected_observation_fingerprint: string;
-    user_intent: "adopt_current_root";
+    decision_request_fingerprint: string;
+    decision_grant_fingerprint: string;
   },
   dependencies: RepositoryExecutionDependenciesV01 = {},
 ): Promise<{ status: "adopted" | "exact_replay"; baseline: PhysicalRootBaselineV01; authority: RepositoryExecutionAuthorityBoundaryV01 }> {
-  if (input.user_intent !== "adopt_current_root") {
-    throw new RepositoryExecutionErrorV01("baseline_adoption_intent_required", 400);
-  }
   const admission = await readProjectExecutionAdmissionV01(db, input, dependencies);
   const registration = readCanonicalProjectWithRootV01(db, input);
   if (!registration) throw new RepositoryExecutionErrorV01("project_unavailable", 404);
@@ -508,35 +1058,69 @@ export async function adoptLegacyPhysicalRootBaselineV01(
     dependencies,
   );
   if (physical.status !== "exact") throw new RepositoryExecutionErrorV01(physical.status, 409);
-  const existing = readPhysicalRootBaselineV01(db, {
+  const expectedRootBindingFingerprint = fingerprintProjectRootBindingV01(
+    registration.root_binding,
+  );
+  const expectedState = adoptionDecisionExpectedStateV01({
     ...input,
-    node_scope_fingerprint: physical.node_scope_fingerprint,
+    expected_root_binding_fingerprint: expectedRootBindingFingerprint,
   });
-  if (existing && baselineMatchesObservation(existing, physical) &&
-      existing.root_binding_fingerprint === fingerprintProjectRootBindingV01(registration.root_binding)) {
-    return { status: "exact_replay", baseline: existing, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
-  }
-  if (
-    admission.reason !== "baseline_adoption_required" ||
-    admission.admission_fingerprint !== input.expected_admission_fingerprint ||
-    physical.observation_fingerprint !== input.expected_observation_fingerprint
-  ) {
-    throw new RepositoryExecutionErrorV01("baseline_adoption_stale", 409);
-  }
+  const expectedStateFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(expectedState),
+  );
   const baseline = buildPhysicalRootBaselineV01({
     ...input,
     root_binding: registration.root_binding,
     observation: physical,
     provenance: "explicit_legacy_adoption",
   });
+  let resultStatus: "adopted" | "exact_replay" = "adopted";
+  let resultBaseline = baseline;
   db.transaction(() => {
+    const decision = assertGrantedRepositoryExecutionDecisionInsideTransactionV01(db, {
+      action: "adopt_legacy_baseline",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      expected_state_fingerprint: expectedStateFingerprint,
+      decision_request_fingerprint: input.decision_request_fingerprint,
+      decision_grant_fingerprint: input.decision_grant_fingerprint,
+      now: (dependencies.now ?? (() => new Date().toISOString()))(),
+    });
     const current = readCanonicalProjectWithRootV01(db, input);
-    if (!current || fingerprintProjectRootBindingV01(current.root_binding) !== baseline.root_binding_fingerprint) {
+    if (!current || fingerprintProjectRootBindingV01(current.root_binding) !== expectedRootBindingFingerprint) {
       throw new RepositoryExecutionErrorV01("baseline_adoption_stale", 409);
     }
-    writePhysicalRootBaselineInsideTransactionV01(db, baseline);
+    const existing = readPhysicalRootBaselineV01(db, {
+      ...input,
+      node_scope_fingerprint: physical.node_scope_fingerprint,
+    });
+    if (decision.status === "consumed") {
+      if (!existing || existing.baseline_fingerprint !== decision.result_fingerprint) {
+        throw new RepositoryExecutionErrorV01("baseline_adoption_replay_conflict", 409);
+      }
+      resultStatus = "exact_replay";
+      resultBaseline = existing;
+      return;
+    }
+    if (
+      admission.reason !== "baseline_adoption_required" ||
+      admission.admission_fingerprint !== input.expected_admission_fingerprint ||
+      physical.observation_fingerprint !== input.expected_observation_fingerprint ||
+      existing
+    ) {
+      throw new RepositoryExecutionErrorV01("baseline_adoption_stale", 409);
+    }
+    const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(db, baseline);
+    if (insertion.status !== "inserted") {
+      throw new RepositoryExecutionErrorV01("baseline_adoption_stale", 409);
+    }
+    consumeRepositoryExecutionDecisionInsideTransactionV01(db, {
+      request: decision,
+      consumed_at: baseline.observed_at,
+      result_fingerprint: baseline.baseline_fingerprint,
+    });
   }).immediate();
-  return { status: "adopted", baseline, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
+  return { status: resultStatus, baseline: resultBaseline, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
 }
 
 export async function validateRepositoryExecutionAttachmentV01(
@@ -567,24 +1151,47 @@ export function revokeRepositoryExecutionAttachmentV01(
   input: {
     attachment_id: string;
     expected_binding_fingerprint: string;
-    user_intent: "revoke_repository_execution_attachment";
+    decision_request_fingerprint: string;
+    decision_grant_fingerprint: string;
     now?: string;
   },
 ): RepositoryExecutionAttachmentV01 {
-  if (input.user_intent !== "revoke_repository_execution_attachment") {
-    throw new RepositoryExecutionErrorV01("attachment_revocation_intent_required", 400);
-  }
-  const attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
+  let attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
   if (!attachment) throw new RepositoryExecutionErrorV01("attachment_unavailable", 404);
-  if (attachment.binding_fingerprint !== input.expected_binding_fingerprint) {
-    throw new RepositoryExecutionErrorV01("attachment_revocation_stale", 409);
-  }
-  if (attachment.lifecycle === "revoked") return attachment;
-  if (attachment.lifecycle !== "prepared") {
-    throw new RepositoryExecutionErrorV01("attachment_not_revocable", 409);
-  }
   const now = input.now ?? new Date().toISOString();
+  const expectedStateFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(revocationDecisionExpectedStateV01({
+      attachment_id: input.attachment_id,
+      expected_binding_fingerprint: input.expected_binding_fingerprint,
+    })),
+  );
   db.transaction(() => {
+    attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
+    if (!attachment) throw new RepositoryExecutionErrorV01("attachment_unavailable", 404);
+    const decision = assertGrantedRepositoryExecutionDecisionInsideTransactionV01(db, {
+      action: "revoke_attachment",
+      workspace_id: attachment.workspace_id,
+      project_id: attachment.project_id,
+      expected_state_fingerprint: expectedStateFingerprint,
+      decision_request_fingerprint: input.decision_request_fingerprint,
+      decision_grant_fingerprint: input.decision_grant_fingerprint,
+      now,
+    });
+    if (decision.status === "consumed") {
+      if (
+        attachment.lifecycle !== "revoked" ||
+        decision.result_fingerprint !== attachment.binding_fingerprint
+      ) {
+        throw new RepositoryExecutionErrorV01("attachment_revocation_replay_conflict", 409);
+      }
+      return;
+    }
+    if (attachment.binding_fingerprint !== input.expected_binding_fingerprint) {
+      throw new RepositoryExecutionErrorV01("attachment_revocation_stale", 409);
+    }
+    if (attachment.lifecycle !== "prepared") {
+      throw new RepositoryExecutionErrorV01("attachment_not_revocable", 409);
+    }
     updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01(db, {
       attachment_id: attachment.attachment_id,
       from: "prepared",
@@ -592,8 +1199,45 @@ export function revokeRepositoryExecutionAttachmentV01(
       stale_reason: "explicitly_revoked",
       updated_at: now,
     });
+    consumeRepositoryExecutionDecisionInsideTransactionV01(db, {
+      request: decision,
+      consumed_at: now,
+      result_fingerprint: attachment.binding_fingerprint,
+    });
   }).immediate();
   return readRepositoryExecutionAttachmentV01(db, input.attachment_id)!;
+}
+
+export function previewRepositoryExecutionAttachmentRevocationV01(
+  db: Database.Database,
+  input: { attachment_id: string; expected_binding_fingerprint: string },
+  options: { now?: () => string } = {},
+): {
+  preview_version: "repository_execution_attachment_revocation_preview.v0.1";
+  status: "ready";
+  ordinary_text: string;
+  decision_request: RepositoryExecutionDecisionRequestProjectionV01;
+  authority: RepositoryExecutionAuthorityBoundaryV01;
+} {
+  const attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
+  if (!attachment || attachment.lifecycle !== "prepared") {
+    throw new RepositoryExecutionErrorV01("attachment_not_revocable", 409);
+  }
+  if (attachment.binding_fingerprint !== input.expected_binding_fingerprint) {
+    throw new RepositoryExecutionErrorV01("attachment_revocation_stale", 409);
+  }
+  return {
+    preview_version: "repository_execution_attachment_revocation_preview.v0.1",
+    status: "ready",
+    ordinary_text: "Confirm revocation in the Augnes Browser project settings.",
+    decision_request: createRepositoryExecutionDecisionRequestV01(db, {
+      action: "revoke_attachment",
+      workspace_id: attachment.workspace_id,
+      project_id: attachment.project_id,
+      expected_state: revocationDecisionExpectedStateV01(input),
+    }, options),
+    authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
+  };
 }
 
 export async function rebindRepositoryExecutionRootV01(
@@ -603,15 +1247,13 @@ export async function rebindRepositoryExecutionRootV01(
     project_id: string;
     new_local_root: LocalProjectRootRefV01;
     expected_old_root_binding_fingerprint: string;
-    expected_old_baseline_fingerprint: string | null;
+    expected_old_baseline_fingerprint: string;
     expected_new_observation_fingerprint: string;
-    user_intent: "rebind_project_root";
+    decision_request_fingerprint: string;
+    decision_grant_fingerprint: string;
   },
   dependencies: RepositoryExecutionDependenciesV01 = {},
 ): Promise<{ status: "rebound" | "exact_replay"; root_binding: ProjectLocalRootBindingV01; baseline: PhysicalRootBaselineV01; authority: RepositoryExecutionAuthorityBoundaryV01 }> {
-  if (input.user_intent !== "rebind_project_root") {
-    throw new RepositoryExecutionErrorV01("root_rebind_intent_required", 400);
-  }
   const physical = await inspectPhysicalRootForExecutionV01(
     db,
     input.new_local_root.normalized_path,
@@ -630,36 +1272,59 @@ export async function rebindRepositoryExecutionRootV01(
     expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
     expected_new_observation_fingerprint: input.expected_new_observation_fingerprint,
   }));
-  const receipt = db.prepare(
-    "SELECT * FROM vnext_repository_root_rebind_receipts WHERE request_fingerprint = ?",
-  ).get(requestFingerprint) as { new_baseline_fingerprint: string } | undefined;
-  if (receipt) {
+  const now = (dependencies.now ?? (() => new Date().toISOString()))();
+  const expectedStateFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(rebindDecisionExpectedStateV01(input)),
+  );
+  let resultStatus: "rebound" | "exact_replay" = "rebound";
+  let result!: { root_binding: ProjectLocalRootBindingV01; baseline: PhysicalRootBaselineV01 };
+  db.transaction(() => {
+    const decision = assertGrantedRepositoryExecutionDecisionInsideTransactionV01(db, {
+      action: "rebind_root",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      expected_state_fingerprint: expectedStateFingerprint,
+      decision_request_fingerprint: input.decision_request_fingerprint,
+      decision_grant_fingerprint: input.decision_grant_fingerprint,
+      now,
+    });
+    const receipt = db.prepare(
+      "SELECT * FROM vnext_repository_root_rebind_receipts WHERE request_fingerprint = ?",
+    ).get(requestFingerprint) as { new_baseline_fingerprint: string } | undefined;
+    if (receipt) {
+      const replayCurrent = readCanonicalProjectWithRootV01(db, input);
+      const replayBaseline = readPhysicalRootBaselineV01(db, {
+        ...input,
+        node_scope_fingerprint: physical.node_scope_fingerprint,
+      });
+      if (
+        decision.status === "consumed" &&
+        decision.result_fingerprint === receipt.new_baseline_fingerprint &&
+        replayCurrent &&
+        replayBaseline?.baseline_fingerprint === receipt.new_baseline_fingerprint
+      ) {
+        resultStatus = "exact_replay";
+        result = { root_binding: replayCurrent.root_binding, baseline: replayBaseline };
+        return;
+      }
+      throw new RepositoryExecutionErrorV01("root_rebind_replay_conflict", 409);
+    }
+    if (decision.status === "consumed") {
+      throw new RepositoryExecutionErrorV01("root_rebind_replay_conflict", 409);
+    }
     const current = readCanonicalProjectWithRootV01(db, input);
-    const baseline = readPhysicalRootBaselineV01(db, {
+    if (!current) throw new RepositoryExecutionErrorV01("project_unavailable", 404);
+    const currentRootFingerprint = fingerprintProjectRootBindingV01(current.root_binding);
+    const oldBaseline = readPhysicalRootBaselineV01(db, {
       ...input,
       node_scope_fingerprint: physical.node_scope_fingerprint,
     });
-    if (current && baseline?.baseline_fingerprint === receipt.new_baseline_fingerprint) {
-      return { status: "exact_replay", root_binding: current.root_binding, baseline, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
+    if (
+      currentRootFingerprint !== input.expected_old_root_binding_fingerprint ||
+      oldBaseline?.baseline_fingerprint !== input.expected_old_baseline_fingerprint
+    ) {
+      throw new RepositoryExecutionErrorV01("root_rebind_stale", 409);
     }
-    throw new RepositoryExecutionErrorV01("root_rebind_replay_conflict", 409);
-  }
-  const current = readCanonicalProjectWithRootV01(db, input);
-  if (!current) throw new RepositoryExecutionErrorV01("project_unavailable", 404);
-  const currentRootFingerprint = fingerprintProjectRootBindingV01(current.root_binding);
-  const oldBaseline = readPhysicalRootBaselineV01(db, {
-    ...input,
-    node_scope_fingerprint: physical.node_scope_fingerprint,
-  });
-  if (
-    currentRootFingerprint !== input.expected_old_root_binding_fingerprint ||
-    (oldBaseline?.baseline_fingerprint ?? null) !== input.expected_old_baseline_fingerprint
-  ) {
-    throw new RepositoryExecutionErrorV01("root_rebind_stale", 409);
-  }
-  const now = (dependencies.now ?? (() => new Date().toISOString()))();
-  let result!: { root_binding: ProjectLocalRootBindingV01; baseline: PhysicalRootBaselineV01 };
-  db.transaction(() => {
     const rootBinding = rebindCanonicalProjectLocalRootV01(db, {
       ...input,
       local_root: input.new_local_root,
@@ -670,7 +1335,13 @@ export async function rebindRepositoryExecutionRootV01(
       observation: physical,
       provenance: "explicit_root_rebind",
     });
-    writePhysicalRootBaselineInsideTransactionV01(db, baseline);
+    const replacement = replacePhysicalRootBaselineExpectedInsideTransactionV01(db, {
+      baseline,
+      expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
+    });
+    if (replacement.status === "conflict") {
+      throw new RepositoryExecutionErrorV01("root_rebind_stale", 409);
+    }
     const prepared = readPreparedRepositoryExecutionAttachmentV01(db, input);
     if (prepared) {
       updateRepositoryExecutionAttachmentLifecycleInsideTransactionV01(db, {
@@ -697,10 +1368,15 @@ export async function rebindRepositoryExecutionRootV01(
       baseline.baseline_fingerprint,
       now,
     );
+    consumeRepositoryExecutionDecisionInsideTransactionV01(db, {
+      request: decision,
+      consumed_at: now,
+      result_fingerprint: baseline.baseline_fingerprint,
+    });
     result = { root_binding: rootBinding, baseline };
     dependencies.after_rebind_inside_transaction?.(result);
   }).immediate();
-  return { status: "rebound", ...result, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
+  return { status: resultStatus, ...result, authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01 };
 }
 
 export async function previewRepositoryExecutionRootRebindV01(
@@ -714,12 +1390,13 @@ export async function previewRepositoryExecutionRootRebindV01(
 ): Promise<{
   preview_version: "repository_execution_root_rebind_preview.v0.1";
   status: "ready" | "blocked";
-  reason: "ready" | "project_unavailable" | "identity_unavailable" | "identity_unsupported" | "identity_ambiguous";
+  reason: "ready" | "project_unavailable" | "baseline_adoption_required" | "identity_unavailable" | "identity_unsupported" | "identity_ambiguous";
   workspace_id: string;
   project_id: string;
   expected_old_root_binding_fingerprint: string | null;
   expected_old_baseline_fingerprint: string | null;
   expected_new_observation_fingerprint: string | null;
+  decision_request: RepositoryExecutionDecisionRequestProjectionV01 | null;
   ordinary_text: string;
   authority: RepositoryExecutionAuthorityBoundaryV01;
 }> {
@@ -734,6 +1411,7 @@ export async function previewRepositoryExecutionRootRebindV01(
       expected_old_root_binding_fingerprint: null,
       expected_old_baseline_fingerprint: null,
       expected_new_observation_fingerprint: null,
+      decision_request: null,
       ordinary_text: "The project is unavailable, so its folder cannot be changed.",
       authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
     };
@@ -753,6 +1431,7 @@ export async function previewRepositoryExecutionRootRebindV01(
       expected_old_root_binding_fingerprint: fingerprintProjectRootBindingV01(current.root_binding),
       expected_old_baseline_fingerprint: null,
       expected_new_observation_fingerprint: null,
+      decision_request: null,
       ordinary_text: "The selected folder identity cannot be established.",
       authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
     };
@@ -761,6 +1440,29 @@ export async function previewRepositoryExecutionRootRebindV01(
     ...input,
     node_scope_fingerprint: physical.node_scope_fingerprint,
   });
+  if (!baseline) {
+    return {
+      preview_version: "repository_execution_root_rebind_preview.v0.1",
+      status: "blocked",
+      reason: "baseline_adoption_required",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      expected_old_root_binding_fingerprint:
+        fingerprintProjectRootBindingV01(current.root_binding),
+      expected_old_baseline_fingerprint: null,
+      expected_new_observation_fingerprint: physical.observation_fingerprint,
+      decision_request: null,
+      ordinary_text: "Adopt the current trusted root before moving this project.",
+      authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
+    };
+  }
+  const expectedState = rebindDecisionExpectedStateV01({
+    ...input,
+    expected_old_root_binding_fingerprint:
+      fingerprintProjectRootBindingV01(current.root_binding),
+    expected_old_baseline_fingerprint: baseline.baseline_fingerprint,
+    expected_new_observation_fingerprint: physical.observation_fingerprint,
+  });
   return {
     preview_version: "repository_execution_root_rebind_preview.v0.1",
     status: "ready",
@@ -768,8 +1470,14 @@ export async function previewRepositoryExecutionRootRebindV01(
     workspace_id: input.workspace_id,
     project_id: input.project_id,
     expected_old_root_binding_fingerprint: fingerprintProjectRootBindingV01(current.root_binding),
-    expected_old_baseline_fingerprint: baseline?.baseline_fingerprint ?? null,
+    expected_old_baseline_fingerprint: baseline.baseline_fingerprint,
     expected_new_observation_fingerprint: physical.observation_fingerprint,
+    decision_request: createRepositoryExecutionDecisionRequestV01(db, {
+      action: "rebind_root",
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      expected_state: expectedState,
+    }, { now: dependencies.now }),
     ordinary_text: `Use this folder as ${(current.project.display_name ?? "this project")}'s trusted execution root.`,
     authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
   };
@@ -800,6 +1508,7 @@ function blockedAdmission(
     task_context_packet_fingerprint: null,
     current_work_fingerprint: null,
     managed_run_state_fingerprint: managedRunStateFingerprint,
+    expected_database_state_fingerprint: null,
     worktree_observation_fingerprint: null,
   };
   return {
@@ -846,6 +1555,11 @@ function classifyStaleReason(
   if (admission.reason === "project_unavailable") return "project_unavailable";
   if (admission.reason === "physical_root_mismatch" || admission.reason.startsWith("identity_")) return "physical_root_mismatch";
   if (admission.reason === "managed_run_conflict") return "managed_run_conflict";
+  if (
+    admission.reason === "worktree_unavailable" ||
+    admission.reason === "worktree_ambiguous" ||
+    admission.reason === "non_git_execution_unsupported"
+  ) return "worktree_changed";
   if (attachment.root_binding_fingerprint !== admission.root_binding_fingerprint) return "root_binding_changed";
   if (attachment.physical_root_baseline_fingerprint !== admission.physical_root_baseline_fingerprint) return "physical_root_mismatch";
   if (attachment.task_context_packet_id !== admission.task_context_packet_id ||
@@ -854,6 +1568,34 @@ function classifyStaleReason(
   if (attachment.worktree_observation_fingerprint !== admission.worktree_observation?.observation_fingerprint) return "worktree_changed";
   if (attachment.managed_run_state_fingerprint !== admission.managed_run_state_fingerprint) return "managed_run_conflict";
   return null;
+}
+
+function classifyDatabaseStateChangeV01(
+  attachment: RepositoryExecutionAttachmentV01,
+  state: ReturnType<typeof readExpectedDatabaseAdmissionStateV01>,
+): RepositoryExecutionAttachmentStaleReasonV01 {
+  if (!state.root_binding_fingerprint) return "project_unavailable";
+  if (attachment.root_binding_fingerprint !== state.root_binding_fingerprint) {
+    return "root_binding_changed";
+  }
+  if (
+    attachment.physical_root_baseline_fingerprint !==
+      state.physical_root_baseline_fingerprint
+  ) return "physical_root_mismatch";
+  if (
+    attachment.task_context_packet_id !== state.task_context_packet_id ||
+    attachment.task_context_packet_fingerprint !==
+      state.task_context_packet_fingerprint
+  ) return "packet_changed";
+  if (attachment.current_work_fingerprint !== state.current_work_fingerprint) {
+    return "current_work_changed";
+  }
+  if (
+    state.managed_run_conflict ||
+    attachment.managed_run_state_fingerprint !==
+      state.managed_run_state_fingerprint
+  ) return "managed_run_conflict";
+  return "project_unavailable";
 }
 
 function preparedResult(
@@ -870,6 +1612,7 @@ function preparedResult(
     ordinary_text: `${label} is ready to continue.`,
     attachment,
     admission,
+    decision_request: null,
     authority: REPOSITORY_EXECUTION_AUTHORITY_BOUNDARY_V01,
   };
 }
@@ -887,6 +1630,15 @@ function ordinaryBlockedText(
   }
   if (reason === "identity_unsupported" || reason === "identity_ambiguous") {
     return `${label}'s folder identity cannot be established on this filesystem.`;
+  }
+  if (reason === "non_git_execution_unsupported") {
+    return `${label} remains available for continuity, but managed repository execution requires bounded Git worktree evidence.`;
+  }
+  if (reason === "worktree_ambiguous" || reason === "worktree_unavailable") {
+    return `${label}'s worktree cannot be bounded exactly, so execution preparation is blocked.`;
+  }
+  if (reason === "admission_state_changed") {
+    return `${label} changed during preparation. Retry from its current state.`;
   }
   return `${label} is not ready to continue.`;
 }

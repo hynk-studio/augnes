@@ -1351,6 +1351,7 @@ export function validateRecoveryCanonicalDatabaseV01(
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",
       "vnext_repository_root_rebind_receipts",
+      "vnext_repository_execution_decision_requests",
     ];
     if (
       repositoryExecutionTables.some((tableName) =>

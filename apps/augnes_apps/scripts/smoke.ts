@@ -138,21 +138,28 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_prepare_repository_execution: { repositoryRoot: process.cwd() },
           augnes_adopt_repository_execution_root: {
             repositoryRoot: process.cwd(), expectedAdmissionFingerprint: 'sha256:admission',
-            expectedObservationFingerprint: 'sha256:observation', userIntent: 'adopt_current_root',
+            expectedObservationFingerprint: 'sha256:observation',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
           },
           augnes_rebind_repository_execution_root: {
             workspaceId: 'workspace:smoke', projectId: 'project:smoke',
             newRepositoryRoot: process.cwd(), expectedOldRootBindingFingerprint: 'sha256:root',
-            expectedOldBaselineFingerprint: null, expectedNewObservationFingerprint: 'sha256:observation',
-            userIntent: 'rebind_project_root',
+            expectedOldBaselineFingerprint: 'sha256:baseline', expectedNewObservationFingerprint: 'sha256:observation',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
           },
           augnes_preview_repository_execution_root_rebind: {
             workspaceId: 'workspace:smoke', projectId: 'project:smoke', newRepositoryRoot: process.cwd(),
           },
           augnes_validate_repository_execution_attachment: { attachmentId: 'sha256:attachment' },
+          augnes_preview_repository_execution_attachment_revocation: {
+            attachmentId: 'sha256:attachment', expectedBindingFingerprint: 'sha256:binding',
+          },
           augnes_revoke_repository_execution_attachment: {
             attachmentId: 'sha256:attachment', expectedBindingFingerprint: 'sha256:binding',
-            userIntent: 'revoke_repository_execution_attachment',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
           },
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
@@ -676,7 +683,7 @@ async function main() {
   const envBridgeSnapshot = JSON.parse(envBridgeToolProfiles.stdout);
   assert.deepEqual(
     envBridgeSnapshot.toolNames,
-    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 7), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(7)],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 8), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(8)],
     "AUGNES_ENABLE_AGENT_BRIDGE=true should expose bridge tools in addition to the public tools"
   );
 
@@ -699,7 +706,7 @@ async function main() {
   assert.equal(bridgeSnapshot.widgetUri, WIDGET_URI, "bridge child snapshot should use the versioned widget URI");
   assert.deepEqual(
     bridgeSnapshot.toolNames,
-    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 7), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(7)],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 8), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(8)],
     "bridge-enabled snapshot should expose public tools plus the explicit Augnes bridge tools"
   );
   for (const toolName of AUGNES_BRIDGE_TOOL_NAMES) {

@@ -3,6 +3,7 @@ import type {
   LocalProjectRootRefV01,
   ProjectIdentityV01,
 } from "./project-identity";
+import type { RepositoryExecutionDecisionRequestProjectionV01 } from "./repository-execution";
 
 export const LOCAL_PROJECT_INSPECTION_VERSION_V01 =
   "local_project_inspection.v0.1" as const;
@@ -56,6 +57,7 @@ export interface RecentProjectEntryV01 {
   active_selection_revision: number | null;
   root_binding_fingerprint: string;
   physical_root_baseline_fingerprint: string | null;
+  repository_execution_decision: RepositoryExecutionDecisionRequestProjectionV01 | null;
 }
 
 export interface ActiveProjectSelectionV01 {

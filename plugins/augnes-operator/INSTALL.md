@@ -60,11 +60,13 @@ The same verified Companion exposes the CDX2B2A tools
 `augnes_adopt_repository_execution_root`,
 `augnes_preview_repository_execution_root_rebind`,
 `augnes_rebind_repository_execution_root`, and
+`augnes_preview_repository_execution_attachment_revocation`,
 `augnes_revoke_repository_execution_attachment`. They persist only node-local
 trust and attachment metadata. They never Start a host, create or consume a
 managed run, run repository commands as product behavior, or write project
 files. Legacy adoption, root rebind, and revocation require exact expected
-state and literal user intent.
+state and a one-time grant produced by an explicit same-origin Augnes Browser
+confirmation. A model-supplied literal or tool annotation cannot issue it.
 
 ## Supported and unsupported surfaces
 
@@ -73,16 +75,18 @@ and the existing local supervised Companion.
 
 Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, managed delegation, Start,
-or broad Windows packaging. A Codex build without plugin `mcpServers` support
+Linux filesystem proof, Windows physical identity/managed delegation, or broad
+Windows packaging. PR #117 is filesystem-verified on macOS; Linux has adapter
+contract coverage only. A Codex build without plugin `mcpServers` support
 must be upgraded or use an explicitly configured direct test connection; the
 product docs do not pretend that limitation is solved.
 
-The canonical v0.1 root binding has no registration-time physical-identity
-baseline, so same-path directory replacement is not detected. Repository
-identity stays attached to A when Browser selects B, while the unchanged CDX2A
-projection still reports A inactive and closes Start eligibility. Both durable
-replacement refusal and selection-independent eligibility are CDX2B2
-prerequisites, not CDX2B1 claims.
+CDX2B2A's node-local baseline detects same-path directory replacement, and its
+separate admission/attachment remain bound to repository A when Browser selects
+B. The unchanged CDX2A projection still reports A inactive and closes its own
+Start eligibility. Windows remains fail-closed until a stable verified adapter
+exists; broad CDX2B2B rollout therefore needs that adapter or an explicit
+macOS-only product boundary.
 
 ## Security and authority
 

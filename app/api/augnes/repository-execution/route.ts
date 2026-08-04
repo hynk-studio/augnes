@@ -9,6 +9,7 @@ import { normalizeLocalProjectRootRefV01 } from "@/lib/vnext/persistence/project
 import {
   adoptLegacyPhysicalRootBaselineV01,
   prepareRepositoryExecutionV01,
+  previewRepositoryExecutionAttachmentRevocationV01,
   previewRepositoryExecutionRootRebindV01,
   projectPhysicalRootMutationResultV01,
   RepositoryExecutionErrorV01,
@@ -75,14 +76,16 @@ async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<str
   if (body.action === "adopt_legacy_baseline") {
     exactKeys(body, [
       "action", "repository_root", "expected_admission_fingerprint",
-      "expected_observation_fingerprint", "user_intent",
+      "expected_observation_fingerprint", "decision_request_fingerprint",
+      "decision_grant_fingerprint",
     ]);
     const resolution = await resolveProject(db, body.repository_root);
     const result = await adoptLegacyPhysicalRootBaselineV01(db, {
       ...resolution,
       expected_admission_fingerprint: requiredString(body.expected_admission_fingerprint),
       expected_observation_fingerprint: requiredString(body.expected_observation_fingerprint),
-      user_intent: requiredLiteral(body.user_intent, "adopt_current_root"),
+      decision_request_fingerprint: requiredString(body.decision_request_fingerprint),
+      decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
     });
     return projectPhysicalRootMutationResultV01(
       result,
@@ -100,21 +103,33 @@ async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<str
     };
   }
   if (body.action === "revoke") {
-    exactKeys(body, ["action", "attachment_id", "expected_binding_fingerprint", "user_intent"]);
+    exactKeys(body, [
+      "action", "attachment_id", "expected_binding_fingerprint",
+      "decision_request_fingerprint", "decision_grant_fingerprint",
+    ]);
     return {
       status: "revoked",
       attachment: revokeRepositoryExecutionAttachmentV01(db, {
         attachment_id: requiredString(body.attachment_id),
         expected_binding_fingerprint: requiredString(body.expected_binding_fingerprint),
-        user_intent: requiredLiteral(body.user_intent, "revoke_repository_execution_attachment"),
+        decision_request_fingerprint: requiredString(body.decision_request_fingerprint),
+        decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
       }),
     };
+  }
+  if (body.action === "preview_revoke") {
+    exactKeys(body, ["action", "attachment_id", "expected_binding_fingerprint"]);
+    return previewRepositoryExecutionAttachmentRevocationV01(db, {
+      attachment_id: requiredString(body.attachment_id),
+      expected_binding_fingerprint: requiredString(body.expected_binding_fingerprint),
+    });
   }
   if (body.action === "rebind_root") {
     exactKeys(body, [
       "action", "workspace_id", "project_id", "new_repository_root",
       "expected_old_root_binding_fingerprint", "expected_old_baseline_fingerprint",
-      "expected_new_observation_fingerprint", "user_intent",
+      "expected_new_observation_fingerprint", "decision_request_fingerprint",
+      "decision_grant_fingerprint",
     ]);
     const newRoot = requiredString(body.new_repository_root);
     const result = await rebindRepositoryExecutionRootV01(db, {
@@ -124,9 +139,10 @@ async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<str
         base_path: path.parse(newRoot).root,
       }),
       expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
-      expected_old_baseline_fingerprint: nullableString(body.expected_old_baseline_fingerprint),
+      expected_old_baseline_fingerprint: requiredString(body.expected_old_baseline_fingerprint),
       expected_new_observation_fingerprint: requiredString(body.expected_new_observation_fingerprint),
-      user_intent: requiredLiteral(body.user_intent, "rebind_project_root"),
+      decision_request_fingerprint: requiredString(body.decision_request_fingerprint),
+      decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
     });
     return projectPhysicalRootMutationResultV01(
       result,
@@ -171,15 +187,6 @@ function requiredString(value: unknown): string {
     throw new RepositoryExecutionErrorV01("repository_execution_request_invalid", 400);
   }
   return value;
-}
-
-function nullableString(value: unknown): string | null {
-  return value === null ? null : requiredString(value);
-}
-
-function requiredLiteral<T extends string>(value: unknown, literal: T): T {
-  if (value !== literal) throw new RepositoryExecutionErrorV01("repository_execution_intent_invalid", 400);
-  return literal;
 }
 
 function localRequestV01(request: Request): boolean {

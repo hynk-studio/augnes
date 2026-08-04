@@ -13,16 +13,22 @@ selection-independent CDX2B2A family:
 - `augnes_adopt_repository_execution_root` is the explicit legacy baseline
   decision;
 - `augnes_preview_repository_execution_root_rebind` performs the bounded
-  read-only new-root observation and returns the expected state for rebind;
+  new-root observation and creates the expected-state decision request without
+  changing the project root;
 - `augnes_rebind_repository_execution_root` is the explicit moved-root
   decision;
+- `augnes_preview_repository_execution_attachment_revocation` creates the
+  exact revocation decision request without revoking;
 - `augnes_revoke_repository_execution_attachment` explicitly revokes one
   prepared attachment.
 
 Normal preparation requires no confirmation and ordinary text contains no
-filesystem identifiers. Adoption, rebind, and revocation require exact
-expected-state fields plus literal user intent; assistant or tool prose is not
-approval. These local metadata tools do not create or consume a managed run,
+filesystem identifiers. Adoption, rebind, and revocation first create an
+expiring expected-state decision request. The user confirms it once in the
+same-origin Augnes Browser project-settings surface; only the resulting exact
+grant can complete the mutation. MCP literals, destructive annotations,
+assistant prose, and tool prose are not approval. These local metadata tools do
+not create or consume a managed run,
 Start Codex/NativeHost, run project commands, write project files, call a
 provider or GitHub, or create external effects.
 
@@ -99,19 +105,18 @@ project/root registrations. It does not use display name, branch, GitHub URL,
 caller project ID, docs, or Browser selection. It never registers, renames,
 rebinds, selects, defines, revises, starts, or writes anything.
 
-The current canonical root binding stores the normalized local path but no
-registration-time device/inode/realpath baseline. Therefore CDX2B1 does not
-claim to detect a different directory later created at the exact same path;
-`root_identity_changed` is not a public outcome. Adding a versioned durable
-physical-root baseline, including migration/backup/restore/portability rules,
-is a prerequisite before CDX2B2 may claim same-path replacement refusal.
+The CDX2B1 continuity contract still resolves the canonical normalized root and
+does not add a physical-identity outcome. CDX2B2A's separate execution owner
+uses its versioned node-local baseline to refuse same-path replacement; this
+does not redefine the read-only CDX2B1 response.
 
 Repository resolution remains attached to project A when Browser selects B,
 but the nested unchanged CDX2A projection intentionally retains active-project
 semantics: project status becomes inactive, selection revision and snapshot
 binding change, fresh work remains fresh, Start eligibility becomes false, and
-the next action asks to make A active. Fully selection-independent eligibility
-is therefore also an explicit CDX2B2 prerequisite.
+the next action asks to make A active. The separate CDX2B2A admission and
+attachment are selection-independent; the nested CDX2A continuity contract
+deliberately remains selection-coupled.
 
 ## Live and fail-closed requirements
 

@@ -1708,8 +1708,19 @@ const RepositoryWorktreeObservationSchema = z.union([
     head_state: z.enum(["branch", "detached", "unborn"]),
     branch_name: z.string().nullable(),
     index_fingerprint: z.string(),
+    staged_content_fingerprint: z.string(),
     tracked_dirty_paths_fingerprint: z.string(),
+    unstaged_tracked_content_fingerprint: z.string(),
     relevant_untracked_paths_fingerprint: z.string(),
+    relevant_untracked_content_fingerprint: z.string(),
+    submodule_state_fingerprint: z.string(),
+    inspected_path_count: z.number().int().nonnegative(),
+    inspected_content_bytes: z.number().int().nonnegative(),
+    limits: z.object({
+      maximum_path_count: z.number().int().positive(),
+      maximum_individual_file_bytes: z.number().int().positive(),
+      maximum_total_inspected_bytes: z.number().int().positive(),
+    }).strict(),
     observed_at: z.string().datetime(),
     observation_fingerprint: z.string(),
   }).strict(),
@@ -1783,8 +1794,10 @@ const ProjectExecutionAdmissionSchema = z.object({
     "identity_unsupported",
     "identity_ambiguous",
     "current_work_unavailable",
+    "admission_state_changed",
     "worktree_unavailable",
     "worktree_ambiguous",
+    "non_git_execution_unsupported",
     "managed_run_conflict",
   ]),
   node_scope_fingerprint: z.string().nullable(),
@@ -1795,6 +1808,7 @@ const ProjectExecutionAdmissionSchema = z.object({
   task_context_packet_fingerprint: z.string().nullable(),
   current_work_fingerprint: z.string().nullable(),
   managed_run_state_fingerprint: z.string(),
+  expected_database_state_fingerprint: z.string().nullable(),
   worktree_observation: RepositoryWorktreeObservationSchema.nullable(),
   admission_fingerprint: z.string(),
   browser_observation: z.object({
@@ -1804,6 +1818,20 @@ const ProjectExecutionAdmissionSchema = z.object({
   projection_only: z.literal(true),
   execution_authority_granted: z.literal(false),
   semantic_authority_granted: z.literal(false),
+}).strict();
+
+const RepositoryExecutionDecisionRequestSchema = z.object({
+  decision_request_version: z.literal("repository_execution_decision_request.v0.1"),
+  request_fingerprint: z.string(),
+  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment"]),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  expected_state_fingerprint: z.string(),
+  requested_at: z.string().datetime(),
+  expires_at: z.string().datetime(),
+  status: z.enum(["pending", "granted", "consumed", "expired", "superseded"]),
+  grant_fingerprint: z.string().nullable(),
+  ordinary_text: z.string(),
 }).strict();
 
 const RepositoryExecutionPreparationSchema = z.object({
@@ -1817,6 +1845,7 @@ const RepositoryExecutionPreparationSchema = z.object({
   ordinary_text: z.string(),
   attachment: RepositoryExecutionAttachmentSchema.nullable(),
   admission: ProjectExecutionAdmissionSchema.nullable(),
+  decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
   authority: RepositoryExecutionAuthoritySchema,
 }).strict();
 
@@ -1834,6 +1863,7 @@ const RepositoryRootRebindPreviewSchema = z.object({
   reason: z.enum([
     "ready",
     "project_unavailable",
+    "baseline_adoption_required",
     "identity_unavailable",
     "identity_unsupported",
     "identity_ambiguous",
@@ -1843,7 +1873,16 @@ const RepositoryRootRebindPreviewSchema = z.object({
   expected_old_root_binding_fingerprint: z.string().nullable(),
   expected_old_baseline_fingerprint: z.string().nullable(),
   expected_new_observation_fingerprint: z.string().nullable(),
+  decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
   ordinary_text: z.string(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const RepositoryAttachmentRevocationPreviewSchema = z.object({
+  preview_version: z.literal("repository_execution_attachment_revocation_preview.v0.1"),
+  status: z.literal("ready"),
+  ordinary_text: z.string(),
+  decision_request: RepositoryExecutionDecisionRequestSchema,
   authority: RepositoryExecutionAuthoritySchema,
 }).strict();
 
@@ -1851,6 +1890,7 @@ export const RepositoryExecutionResultSchema = z.union([
   RepositoryExecutionPreparationSchema,
   PhysicalRootMutationProjectionSchema,
   RepositoryRootRebindPreviewSchema,
+  RepositoryAttachmentRevocationPreviewSchema,
   z.object({
     status: z.literal("validated"),
     attachment: RepositoryExecutionAttachmentSchema.nullable(),

@@ -64,6 +64,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_rebind_repository_execution_root",
   "augnes_preview_repository_execution_root_rebind",
   "augnes_validate_repository_execution_attachment",
+  "augnes_preview_repository_execution_attachment_revocation",
   "augnes_revoke_repository_execution_attachment",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
@@ -2125,12 +2126,13 @@ export function createMcpAppServer(
       "augnes_adopt_repository_execution_root",
       {
         title: "Adopt a legacy repository root",
-        description: "Explicitly adopt the exact current folder as a legacy project's trusted execution root. Expected-state fingerprints are required and no execution authority is granted.",
+        description: "Complete a legacy-root adoption only after the exact decision request was confirmed in the Augnes Browser. Expected-state fingerprints are required and no execution authority is granted.",
         inputSchema: {
           repositoryRoot: z.string().min(1),
           expectedAdmissionFingerprint: z.string().min(1),
           expectedObservationFingerprint: z.string().min(1),
-          userIntent: z.literal("adopt_current_root"),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
         },
         annotations: explicitRepositoryIdentityDecisionAnnotations,
         _meta: modelOnlyToolMeta,
@@ -2140,7 +2142,8 @@ export function createMcpAppServer(
         repository_root: input.repositoryRoot,
         expected_admission_fingerprint: input.expectedAdmissionFingerprint,
         expected_observation_fingerprint: input.expectedObservationFingerprint,
-        user_intent: input.userIntent,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
       }),
     );
 
@@ -2149,15 +2152,16 @@ export function createMcpAppServer(
       "augnes_rebind_repository_execution_root",
       {
         title: "Rebind a moved repository root",
-        description: "Explicitly rebind one canonical project to an exactly observed new root. Remote equality alone is insufficient and no execution authority is granted.",
+        description: "Complete a canonical root rebind only after the exact decision request was confirmed in the Augnes Browser. Remote equality alone is insufficient and no execution authority is granted.",
         inputSchema: {
           workspaceId: z.string().min(1),
           projectId: z.string().min(1),
           newRepositoryRoot: z.string().min(1),
           expectedOldRootBindingFingerprint: z.string().min(1),
-          expectedOldBaselineFingerprint: z.string().min(1).nullable(),
+          expectedOldBaselineFingerprint: z.string().min(1),
           expectedNewObservationFingerprint: z.string().min(1),
-          userIntent: z.literal("rebind_project_root"),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
         },
         annotations: explicitRepositoryIdentityDecisionAnnotations,
         _meta: modelOnlyToolMeta,
@@ -2170,7 +2174,8 @@ export function createMcpAppServer(
         expected_old_root_binding_fingerprint: input.expectedOldRootBindingFingerprint,
         expected_old_baseline_fingerprint: input.expectedOldBaselineFingerprint,
         expected_new_observation_fingerprint: input.expectedNewObservationFingerprint,
-        user_intent: input.userIntent,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
       }),
     );
 
@@ -2179,13 +2184,13 @@ export function createMcpAppServer(
       "augnes_preview_repository_execution_root_rebind",
       {
         title: "Preview repository root rebind",
-        description: "Inspect an intended new root and return exact expected-state material for one explicit rebind decision without mutating the project.",
+        description: "Inspect an intended new root and create one exact decision request without changing the project root.",
         inputSchema: {
           workspaceId: z.string().min(1),
           projectId: z.string().min(1),
           newRepositoryRoot: z.string().min(1),
         },
-        annotations: localRouteReadAnnotations,
+        annotations: localRepositoryAttachmentAnnotations,
         _meta: modelOnlyToolMeta,
       },
       async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
@@ -2214,14 +2219,35 @@ export function createMcpAppServer(
 
     registerAppTool(
       server,
-      "augnes_revoke_repository_execution_attachment",
+      "augnes_preview_repository_execution_attachment_revocation",
       {
-        title: "Revoke repository execution attachment",
-        description: "Explicitly revoke one exact prepared attachment. This does not cancel or mutate any managed run.",
+        title: "Preview repository attachment revocation",
+        description: "Create one exact revocation decision request for confirmation in the Augnes Browser without revoking the attachment.",
         inputSchema: {
           attachmentId: z.string().min(1),
           expectedBindingFingerprint: z.string().min(1),
-          userIntent: z.literal("revoke_repository_execution_attachment"),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "preview_revoke",
+        attachment_id: input.attachmentId,
+        expected_binding_fingerprint: input.expectedBindingFingerprint,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_revoke_repository_execution_attachment",
+      {
+        title: "Revoke repository execution attachment",
+        description: "Complete revocation only after the exact decision request was confirmed in the Augnes Browser. This does not cancel or mutate any managed run.",
+        inputSchema: {
+          attachmentId: z.string().min(1),
+          expectedBindingFingerprint: z.string().min(1),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
         },
         annotations: explicitRepositoryIdentityDecisionAnnotations,
         _meta: modelOnlyToolMeta,
@@ -2230,7 +2256,8 @@ export function createMcpAppServer(
         action: "revoke",
         attachment_id: input.attachmentId,
         expected_binding_fingerprint: input.expectedBindingFingerprint,
-        user_intent: input.userIntent,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
       }),
     );
     }

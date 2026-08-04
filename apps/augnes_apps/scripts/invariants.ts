@@ -22,6 +22,7 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_rebind_repository_execution_root",
   "augnes_preview_repository_execution_root_rebind",
   "augnes_validate_repository_execution_attachment",
+  "augnes_preview_repository_execution_attachment_revocation",
   "augnes_revoke_repository_execution_attachment",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
@@ -64,6 +65,16 @@ const LOCAL_ROUTE_READ_ANNOTATIONS = {
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
+} as const;
+const LOCAL_REPOSITORY_ATTACHMENT_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+const EXPLICIT_REPOSITORY_IDENTITY_DECISION_ANNOTATIONS = {
+  ...LOCAL_REPOSITORY_ATTACHMENT_ANNOTATIONS,
+  destructiveHint: true,
 } as const;
 const BRIDGE_WRITE_ANNOTATIONS = {
   readOnlyHint: false,
@@ -108,6 +119,39 @@ function assertLegacyTools(tools: Record<string, RegisteredTool>) {
 }
 
 function assertBridgeTools(tools: Record<string, RegisteredTool>) {
+  for (const name of [
+    "augnes_prepare_repository_execution",
+    "augnes_validate_repository_execution_attachment",
+    "augnes_preview_repository_execution_root_rebind",
+    "augnes_preview_repository_execution_attachment_revocation",
+  ] as const) {
+    const tool = tools[name];
+    assert.ok(tool, `${name} should be registered`);
+    assert.equal(tool.enabled, true, `${name} should be enabled`);
+    assert.deepEqual(
+      tool.annotations,
+      LOCAL_REPOSITORY_ATTACHMENT_ANNOTATIONS,
+      `${name} must disclose its bounded canonical metadata write`,
+    );
+    assert.equal(tool.execution?.taskSupport, "forbidden", `${name} must not expose task/job execution`);
+  }
+
+  for (const name of [
+    "augnes_adopt_repository_execution_root",
+    "augnes_rebind_repository_execution_root",
+    "augnes_revoke_repository_execution_attachment",
+  ] as const) {
+    const tool = tools[name];
+    assert.ok(tool, `${name} should be registered`);
+    assert.equal(tool.enabled, true, `${name} should be enabled`);
+    assert.deepEqual(
+      tool.annotations,
+      EXPLICIT_REPOSITORY_IDENTITY_DECISION_ANNOTATIONS,
+      `${name} must remain destructive and decision-gated`,
+    );
+    assert.equal(tool.execution?.taskSupport, "forbidden", `${name} must not expose task/job execution`);
+  }
+
   const repositoryTool = tools.augnes_resume_repository;
   assert.ok(repositoryTool, "augnes_resume_repository should be registered");
   assert.deepEqual(
@@ -195,7 +239,7 @@ function assertPublicToolSurface() {
     const registeredNames = Object.keys(tools);
     assert.deepEqual(
       registeredNames,
-      [...INTENDED_BRIDGE_TOOL_NAMES.slice(0, 7), ...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES.slice(7)],
+      [...INTENDED_BRIDGE_TOOL_NAMES.slice(0, 8), ...INTENDED_PUBLIC_TOOL_NAMES, ...INTENDED_BRIDGE_TOOL_NAMES.slice(8)],
       "bridge-enabled registered tools must include public tools plus the Augnes bridge surface"
     );
     assertNoDangerousTools(registeredNames, "bridge-enabled");

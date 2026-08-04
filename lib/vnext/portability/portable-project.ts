@@ -81,6 +81,7 @@ export const PORTABLE_PROJECT_EXCLUDED_CATEGORIES_V01 = Object.freeze([
   "terminal_output_unbounded_logs_and_ephemeral_host_state",
   "absolute_local_paths_and_unrelated_projects",
   "machine_local_physical_root_baselines_and_execution_attachments",
+  "machine_local_repository_execution_decision_requests_and_grants",
   "rebuildable_layout_ranking_cache_and_diagnostics",
 ] as const);
 

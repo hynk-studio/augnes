@@ -12,6 +12,7 @@ const ADOPT_TOOL_NAME = "augnes_adopt_repository_execution_root";
 const VALIDATE_TOOL_NAME = "augnes_validate_repository_execution_attachment";
 const PREVIEW_REBIND_TOOL_NAME = "augnes_preview_repository_execution_root_rebind";
 const REBIND_TOOL_NAME = "augnes_rebind_repository_execution_root";
+const PREVIEW_REVOKE_TOOL_NAME = "augnes_preview_repository_execution_attachment_revocation";
 const REVOKE_TOOL_NAME = "augnes_revoke_repository_execution_attachment";
 const MAX_RUNTIME_FILE_BYTES = 64 * 1024;
 const MAX_CONTINUITY_RESPONSE_BYTES = 256 * 1024;
@@ -248,17 +249,18 @@ function parseRepositoryExecutionResponseV01(value, action) {
     throw new Error("live_companion_execution_route_contract_invalid");
   }
   const keysByAction = {
-    prepare: ["admission", "attachment", "authority", "ordinary_text", "preparation_version", "project", "reason", "status"],
+    prepare: ["admission", "attachment", "authority", "decision_request", "ordinary_text", "preparation_version", "project", "reason", "status"],
     adopt_legacy_baseline: ["authority", "baseline_fingerprint", "ordinary_text", "project_id", "status"],
     validate: ["attachment", "status"],
-    preview_rebind_root: ["authority", "expected_new_observation_fingerprint", "expected_old_baseline_fingerprint", "expected_old_root_binding_fingerprint", "ordinary_text", "preview_version", "project_id", "reason", "status", "workspace_id"],
+    preview_rebind_root: ["authority", "decision_request", "expected_new_observation_fingerprint", "expected_old_baseline_fingerprint", "expected_old_root_binding_fingerprint", "ordinary_text", "preview_version", "project_id", "reason", "status", "workspace_id"],
+    preview_revoke: ["authority", "decision_request", "ordinary_text", "preview_version", "status"],
     rebind_root: ["authority", "baseline_fingerprint", "ordinary_text", "project_id", "status"],
     revoke: ["attachment", "status"],
   };
   const expectedKeys = keysByAction[action];
   if (!expectedKeys || !exactKeysV01(value, expectedKeys)) invalidExecutionContractV01();
   rejectPrivatePhysicalMaterialV01(value);
-  if (["prepare", "adopt_legacy_baseline", "preview_rebind_root", "rebind_root"].includes(action)) {
+  if (["prepare", "adopt_legacy_baseline", "preview_rebind_root", "preview_revoke", "rebind_root"].includes(action)) {
     repositoryExecutionAuthorityV01(value.authority);
   }
   if (action === "prepare") {
@@ -280,6 +282,9 @@ function parseRepositoryExecutionResponseV01(value, action) {
     if (!["rebound", "exact_replay"].includes(value.status)) invalidExecutionContractV01();
     stringV01(value.project_id);
     stringV01(value.baseline_fingerprint);
+    stringV01(value.ordinary_text);
+  } else if (action === "preview_revoke") {
+    if (value.preview_version !== "repository_execution_attachment_revocation_preview.v0.1" || value.status !== "ready") invalidExecutionContractV01();
     stringV01(value.ordinary_text);
   } else if (action === "revoke" && value.status !== "revoked") {
     invalidExecutionContractV01();
@@ -510,15 +515,16 @@ function repositoryExecutionToolDescriptionsV01() {
     {
       name: ADOPT_TOOL_NAME,
       title: "Adopt a legacy repository root",
-      description: "Explicitly record the currently observed folder as a legacy project's trusted execution root using exact expected-state fingerprints. This grants no execution authority.",
+      description: "Complete legacy-root adoption using an exact decision grant confirmed in the Augnes Browser. This grants no execution authority.",
       inputSchema: {
         type: "object", additionalProperties: false,
-        required: ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "userIntent"],
+        required: ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
         properties: {
           repositoryRoot: { type: "string", minLength: 1 },
           expectedAdmissionFingerprint: { type: "string", minLength: 1 },
           expectedObservationFingerprint: { type: "string", minLength: 1 },
-          userIntent: { type: "string", const: "adopt_current_root" },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
         },
       },
       annotations: explicitIdentityDecisionAnnotations,
@@ -536,7 +542,7 @@ function repositoryExecutionToolDescriptionsV01() {
     {
       name: PREVIEW_REBIND_TOOL_NAME,
       title: "Preview repository root rebind",
-      description: "Inspect an intended new root and return the exact expected-state material for one explicit rebind decision. This preview does not mutate the project.",
+      description: "Inspect an intended new root and create one exact decision request without changing the project root.",
       inputSchema: {
         type: "object", additionalProperties: false,
         required: ["workspaceId", "projectId", "newRepositoryRoot"],
@@ -546,38 +552,54 @@ function repositoryExecutionToolDescriptionsV01() {
           newRepositoryRoot: { type: "string", minLength: 1 },
         },
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: mutationAnnotations,
     },
     {
       name: REBIND_TOOL_NAME,
       title: "Rebind a moved repository root",
-      description: "Explicitly rebind one canonical project to an exactly observed new local root. Git remote equality alone is insufficient and this grants no execution authority.",
+      description: "Complete one exact root rebind using a decision grant confirmed in the Augnes Browser. Git remote equality alone is insufficient and this grants no execution authority.",
       inputSchema: {
         type: "object", additionalProperties: false,
-        required: ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "userIntent"],
+        required: ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
         properties: {
           workspaceId: { type: "string", minLength: 1 },
           projectId: { type: "string", minLength: 1 },
           newRepositoryRoot: { type: "string", minLength: 1 },
           expectedOldRootBindingFingerprint: { type: "string", minLength: 1 },
-          expectedOldBaselineFingerprint: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
+          expectedOldBaselineFingerprint: { type: "string", minLength: 1 },
           expectedNewObservationFingerprint: { type: "string", minLength: 1 },
-          userIntent: { type: "string", const: "rebind_project_root" },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
         },
       },
       annotations: explicitIdentityDecisionAnnotations,
     },
     {
-      name: REVOKE_TOOL_NAME,
-      title: "Revoke repository execution attachment",
-      description: "Explicitly revoke one prepared repository execution attachment using its expected binding. This does not cancel or change any managed run.",
+      name: PREVIEW_REVOKE_TOOL_NAME,
+      title: "Preview repository attachment revocation",
+      description: "Create one exact revocation decision request for confirmation in the Augnes Browser without revoking the attachment.",
       inputSchema: {
         type: "object", additionalProperties: false,
-        required: ["attachmentId", "expectedBindingFingerprint", "userIntent"],
+        required: ["attachmentId", "expectedBindingFingerprint"],
         properties: {
           attachmentId: { type: "string", minLength: 1 },
           expectedBindingFingerprint: { type: "string", minLength: 1 },
-          userIntent: { type: "string", const: "revoke_repository_execution_attachment" },
+        },
+      },
+      annotations: mutationAnnotations,
+    },
+    {
+      name: REVOKE_TOOL_NAME,
+      title: "Revoke repository execution attachment",
+      description: "Complete revocation using its expected binding and an exact decision grant confirmed in the Augnes Browser. This does not cancel or change any managed run.",
+      inputSchema: {
+        type: "object", additionalProperties: false,
+        required: ["attachmentId", "expectedBindingFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"],
+        properties: {
+          attachmentId: { type: "string", minLength: 1 },
+          expectedBindingFingerprint: { type: "string", minLength: 1 },
+          decisionRequestFingerprint: { type: "string", minLength: 1 },
+          decisionGrantFingerprint: { type: "string", minLength: 1 },
         },
       },
       annotations: explicitIdentityDecisionAnnotations,
@@ -643,13 +665,14 @@ async function handleMessageV01(message) {
       let body;
       if (toolName === PREPARE_TOOL_NAME && exactKeysV01(args, ["repositoryRoot"])) {
         body = { action: "prepare", repository_root: args.repositoryRoot };
-      } else if (toolName === ADOPT_TOOL_NAME && exactKeysV01(args, ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "userIntent"])) {
+      } else if (toolName === ADOPT_TOOL_NAME && exactKeysV01(args, ["repositoryRoot", "expectedAdmissionFingerprint", "expectedObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
         body = {
           action: "adopt_legacy_baseline",
           repository_root: args.repositoryRoot,
           expected_admission_fingerprint: args.expectedAdmissionFingerprint,
           expected_observation_fingerprint: args.expectedObservationFingerprint,
-          user_intent: args.userIntent,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
         };
       } else if (toolName === VALIDATE_TOOL_NAME && exactKeysV01(args, ["attachmentId"])) {
         body = { action: "validate", attachment_id: args.attachmentId };
@@ -658,20 +681,27 @@ async function handleMessageV01(message) {
           action: "preview_rebind_root", workspace_id: args.workspaceId,
           project_id: args.projectId, new_repository_root: args.newRepositoryRoot,
         };
-      } else if (toolName === REBIND_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "userIntent"])) {
+      } else if (toolName === REBIND_TOOL_NAME && exactKeysV01(args, ["workspaceId", "projectId", "newRepositoryRoot", "expectedOldRootBindingFingerprint", "expectedOldBaselineFingerprint", "expectedNewObservationFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
         body = {
           action: "rebind_root", workspace_id: args.workspaceId, project_id: args.projectId,
           new_repository_root: args.newRepositoryRoot,
           expected_old_root_binding_fingerprint: args.expectedOldRootBindingFingerprint,
           expected_old_baseline_fingerprint: args.expectedOldBaselineFingerprint,
           expected_new_observation_fingerprint: args.expectedNewObservationFingerprint,
-          user_intent: args.userIntent,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
         };
-      } else if (toolName === REVOKE_TOOL_NAME && exactKeysV01(args, ["attachmentId", "expectedBindingFingerprint", "userIntent"])) {
+      } else if (toolName === PREVIEW_REVOKE_TOOL_NAME && exactKeysV01(args, ["attachmentId", "expectedBindingFingerprint"])) {
+        body = {
+          action: "preview_revoke", attachment_id: args.attachmentId,
+          expected_binding_fingerprint: args.expectedBindingFingerprint,
+        };
+      } else if (toolName === REVOKE_TOOL_NAME && exactKeysV01(args, ["attachmentId", "expectedBindingFingerprint", "decisionRequestFingerprint", "decisionGrantFingerprint"])) {
         body = {
           action: "revoke", attachment_id: args.attachmentId,
           expected_binding_fingerprint: args.expectedBindingFingerprint,
-          user_intent: args.userIntent,
+          decision_request_fingerprint: args.decisionRequestFingerprint,
+          decision_grant_fingerprint: args.decisionGrantFingerprint,
         };
       } else {
         return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };

@@ -18,6 +18,10 @@ import {
   VNextLocalOperatorSessionErrorV01,
   assertVNextLocalOperatorRequestBoundaryV01,
 } from "@/lib/vnext/runtime/local-operator-session";
+import {
+  grantRepositoryExecutionDecisionV01,
+  RepositoryExecutionErrorV01,
+} from "@/lib/vnext/repository-execution/repository-execution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,12 +84,22 @@ export async function POST(request: Request) {
       }) });
     }
     if (body.action === "confirm_rebind") {
+      assertBrowserUserConfirmationV01(request);
       return json({ ok: true, result: await rebindLocalProjectRootFromSelectionV01(db, {
         project_id: requiredString(body.project_id),
         selection_token: requiredString(body.selection_token),
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
         expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
         expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+      }) });
+    }
+    if (body.action === "confirm_repository_execution_decision") {
+      assertBrowserUserConfirmationV01(request);
+      return json({ ok: true, result: grantRepositoryExecutionDecisionV01(db, {
+        request_fingerprint: requiredString(body.request_fingerprint),
+        workspace_id: requiredString(body.workspace_id),
+        project_id: requiredString(body.project_id),
+        confirmation_source: "browser_same_origin_button",
       }) });
     }
     throw new ProjectOnboardingErrorV01("selection_invalid", 400);
@@ -167,6 +181,15 @@ function requiredRevision(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
+function assertBrowserUserConfirmationV01(request: Request): void {
+  if (
+    request.headers.get("sec-fetch-site") !== "same-origin" ||
+    request.headers.get("sec-fetch-mode") !== "cors" ||
+    request.headers.get("sec-fetch-dest") !== "empty"
+  ) {
+    throw new ProjectOnboardingErrorV01("selection_invalid", 403);
+  }
+}
 function routeError(error: unknown) {
   if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404);
@@ -179,6 +202,7 @@ function routeError(error: unknown) {
     return json({ ok: false, error_code: error.code }, status);
   }
   if (error instanceof VNextLocalOperatorSessionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
+  if (error instanceof RepositoryExecutionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   return json({ ok: false, error_code: "onboarding_unavailable" }, 500);
 }
 function json(body: unknown, status = 200) { return NextResponse.json(body, { status, headers: HEADERS }); }

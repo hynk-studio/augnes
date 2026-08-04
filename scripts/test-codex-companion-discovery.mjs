@@ -124,8 +124,27 @@ try {
       "augnes_validate_repository_execution_attachment",
       "augnes_preview_repository_execution_root_rebind",
       "augnes_rebind_repository_execution_root",
+      "augnes_preview_repository_execution_attachment_revocation",
       "augnes_revoke_repository_execution_attachment",
     ]);
+    const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    for (const name of [
+      "augnes_prepare_repository_execution",
+      "augnes_validate_repository_execution_attachment",
+      "augnes_preview_repository_execution_root_rebind",
+      "augnes_preview_repository_execution_attachment_revocation",
+    ]) {
+      assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
+      assert.equal(byName.get(name)?.annotations?.destructiveHint, false);
+    }
+    for (const name of [
+      "augnes_adopt_repository_execution_root",
+      "augnes_rebind_repository_execution_root",
+      "augnes_revoke_repository_execution_attachment",
+    ]) {
+      assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
+      assert.equal(byName.get(name)?.annotations?.destructiveHint, true);
+    }
     const result = await client.callTool({
       name: "augnes_resume_repository",
       arguments: { repositoryRoot: process.cwd() },

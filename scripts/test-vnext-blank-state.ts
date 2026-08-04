@@ -177,6 +177,8 @@ function recentEntry(overrides: Partial<RecentProjectEntryV01> = {}): RecentProj
     root_binding_fingerprint: "sha256:root-binding",
     physical_root_baseline_fingerprint: "sha256:physical-root-baseline",
     ...overrides,
+    repository_execution_decision:
+      overrides.repository_execution_decision ?? null,
   };
 }
 
