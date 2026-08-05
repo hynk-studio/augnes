@@ -1828,6 +1828,15 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
               ? { checkpoint: checkpointMetadata }
               : {}),
             control_revision: revision,
+            ...(checkpointMetadata
+              ? {
+                  controller_generation: this.input.controller_generation,
+                  runtime_instance_fingerprint:
+                    this.input.runtime_instance_fingerprint,
+                  runtime_generation_fingerprint:
+                    this.input.runtime_generation_fingerprint,
+                }
+              : {}),
             raw_protocol_persisted: false,
           },
           created_at: event.observed_at,

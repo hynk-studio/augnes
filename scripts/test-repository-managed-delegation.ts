@@ -76,6 +76,7 @@ import {
 import type { RepositoryExecutionDecisionRequestProjectionV01 } from "../types/vnext/repository-execution";
 import type {
   NativeHostApprovalRequestV01,
+  NativeHostLifecycleEventV01,
   NativeHostRequestV01,
 } from "../types/vnext/native-host-adapter";
 import { REPOSITORY_RUN_RESUME_LIMITS_V01 } from "../types/vnext/repository-run-resume";
@@ -292,6 +293,10 @@ async function main(): Promise<void> {
       in_repository_secret_scope_claim_bounded: true,
       cdx2b2a_schema_migration_preserved_and_upgraded: true,
       resume_checkpoint_exact_replay_and_monotonicity: true,
+      resume_checkpoint_strict_operation_lifecycle_grammar: true,
+      resume_checkpoint_exact_lifecycle_event_replay: true,
+      resume_candidate_selection_bounded_and_canonical: true,
+      resume_candidate_relations_fail_closed: true,
       resume_eligibility_state_matrix: true,
       resume_eligibility_browser_selection_independent: true,
       resume_eligibility_zero_effect_read: true,
@@ -382,7 +387,7 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       "exact_replay",
     );
     db.exec("COMMIT");
-    const latestCheckpoint = admittedCheckpoints.at(-1)!;
+    let latestCheckpoint = admittedCheckpoints.at(-1)!;
     const conflictingMaterial = {
       ...latestCheckpoint,
       operation_certainty: "failed" as const,
@@ -452,11 +457,258 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       read_capability: () => restarted.readCapabilityContractV01(),
       platform: "darwin",
     });
-    const ready = await readRestarted();
+    let ready = await readRestarted();
     assert.equal(ready.status, "resume_ready", JSON.stringify(ready));
     assert.equal(ready.authority.starts_or_resumes_worker, false);
     assert.equal(ready.authority.writes_database, false);
     assert.equal(ready.last_confirmed_operation?.certainty, "completed");
+    const lifecycleReplaySource = db.prepare(
+      `SELECT payload_json FROM autonomy_run_events
+        WHERE run_id = ? AND json_extract(payload_json, '$.event_kind') = 'work_checkpoint'
+        ORDER BY rowid DESC LIMIT 1`,
+    ).pluck().get(started.run_id) as string;
+    const replaySourcePayload = JSON.parse(lifecycleReplaySource) as {
+      host_refs: NativeHostLifecycleEventV01["host_refs"];
+    };
+    const replayOperationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        run_id: started.run_id,
+        operation: "exact-lifecycle-replay",
+      }),
+    );
+    const replayEvent: NativeHostLifecycleEventV01 = {
+      event_id: "native-host-event:exact-lifecycle-replay",
+      run_id: started.run_id,
+      state: "running",
+      event_kind: "work_checkpoint",
+      observed_at: "2026-08-04T02:00:21.500Z",
+      coverage: "observed",
+      host_refs: replaySourcePayload.host_refs,
+      bounded_metadata: {
+        checkpoint_kind: "file_change",
+        phase: "declared",
+        status: "active",
+        operation_ref: replayOperationRef,
+        certainty: "not_started",
+        change_count: 0,
+      },
+    };
+    const controller = [...(
+      service as unknown as {
+        controllers: Map<string, { report_event(event: NativeHostLifecycleEventV01): Promise<void> }>;
+      }
+    ).controllers.values()][0]!;
+    await controller.report_event(replayEvent);
+    const lifecycleRowsAfterFirstAdmission = countWhere(
+      db,
+      "autonomy_run_events",
+      `json_extract(payload_json, '$.event_id') = '${replayEvent.event_id}'`,
+    );
+    const checkpointsAfterFirstAdmission = countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    );
+    await controller.report_event(replayEvent);
+    assert.equal(countWhere(
+      db,
+      "autonomy_run_events",
+      `json_extract(payload_json, '$.event_id') = '${replayEvent.event_id}'`,
+    ), lifecycleRowsAfterFirstAdmission);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    ), checkpointsAfterFirstAdmission);
+    latestCheckpoint = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    }).at(-1)!;
+    ready = await readRestarted();
+    assert.equal(ready.status, "resume_ready");
+    const insertAttachmentRunCandidate = (
+      label: string,
+      status: "running" | "paused" | "completed" | "failed",
+      updatedAt: string,
+    ) => {
+      const sourceRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const candidateRunId = `host-run:resume-candidate:${label}`;
+      const candidateAttachmentId = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ label, kind: "attachment" }),
+      );
+      const candidateBinding = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ label, kind: "binding" }),
+      );
+      db.prepare(
+        `INSERT INTO vnext_repository_execution_attachments (
+           attachment_id, attachment_version, workspace_id, project_id,
+           node_scope_fingerprint, physical_root_baseline_fingerprint,
+           root_binding_fingerprint, task_context_packet_id,
+           task_context_packet_fingerprint, current_work_fingerprint,
+           project_execution_admission_fingerprint,
+           worktree_observation_fingerprint, managed_run_state_fingerprint,
+           binding_fingerprint, prepared_at, freshness_policy_json, lifecycle,
+           stale_reason, lifecycle_updated_at, consumed_run_id
+         )
+         SELECT ?, attachment_version, workspace_id, project_id,
+                node_scope_fingerprint, physical_root_baseline_fingerprint,
+                root_binding_fingerprint, task_context_packet_id,
+                task_context_packet_fingerprint, current_work_fingerprint,
+                project_execution_admission_fingerprint,
+                worktree_observation_fingerprint, managed_run_state_fingerprint,
+                ?, prepared_at, freshness_policy_json, 'consumed', NULL, ?, ?
+           FROM vnext_repository_execution_attachments WHERE attachment_id = ?`,
+      ).run(
+        candidateAttachmentId,
+        candidateBinding,
+        updatedAt,
+        candidateRunId,
+        fixture.attachment_id,
+      );
+      insertAutonomyRunLedgerRecord({
+        ...sourceRun,
+        run_id: candidateRunId,
+        status,
+        updated_at: updatedAt,
+        finished_at: status === "completed" || status === "failed"
+          ? updatedAt
+          : null,
+        metadata: {
+          ...sourceRun.metadata,
+          repository_attachment_id: candidateAttachmentId,
+          repository_attachment_binding_fingerprint: candidateBinding,
+        },
+      }, [], [], { db });
+      return {
+        run_id: candidateRunId,
+        attachment_id: candidateAttachmentId,
+        remove: () => {
+          db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(
+            candidateRunId,
+          );
+          db.prepare(
+            "DELETE FROM vnext_repository_execution_attachments WHERE attachment_id = ?",
+          ).run(candidateAttachmentId);
+        },
+      };
+    };
+
+    const newerTerminal = insertAttachmentRunCandidate(
+      "newer-terminal",
+      "completed",
+      "2026-08-04T02:10:00.000Z",
+    );
+    assert.equal((await readRestarted()).status, "resume_ready");
+    const selectedControllerRunIds: string[] = [];
+    const olderActiveWithNewerTerminal = await readRepositoryRunResumeEligibilityV01(
+      db,
+      { config, generated_at: "2026-08-04T02:10:01.000Z" },
+      {
+        read_controller: (_exactConfig, runId) => {
+          selectedControllerRunIds.push(runId);
+          return runId === started.run_id
+            ? {
+                owned: true,
+                controller_generation: Number(
+                  readAutonomyRunLedgerRecord(runId, { db })!.metadata
+                    .controller_generation,
+                ),
+                runtime_instance_fingerprint: runtimeInstance,
+                runtime_generation_fingerprint: runtimeGeneration,
+              }
+            : {
+                owned: false,
+                controller_generation: null,
+                runtime_instance_fingerprint: null,
+                runtime_generation_fingerprint: null,
+              };
+        },
+        read_capability: () => restarted.readCapabilityContractV01(),
+        platform: "darwin",
+      },
+    );
+    assert.equal(olderActiveWithNewerTerminal.status, "active_owned");
+    assert.deepEqual(selectedControllerRunIds, [started.run_id]);
+    const wrongCandidateController = await readRepositoryRunResumeEligibilityV01(
+      db,
+      { config, generated_at: "2026-08-04T02:10:02.000Z" },
+      {
+        read_controller: (_exactConfig, runId) => ({
+          owned: runId === newerTerminal.run_id,
+          controller_generation: runId === newerTerminal.run_id ? 1 : null,
+          runtime_instance_fingerprint:
+            runId === newerTerminal.run_id ? runtimeInstance : null,
+          runtime_generation_fingerprint:
+            runId === newerTerminal.run_id ? runtimeGeneration : null,
+        }),
+        read_capability: () => restarted.readCapabilityContractV01(),
+        platform: "darwin",
+      },
+    );
+    assert.equal(wrongCandidateController.status, "resume_ready");
+    updateAutonomyRunLedgerFields(started.run_id, { status: "paused" }, { db });
+    assert.equal((await readRestarted()).status, "resume_ready");
+    updateAutonomyRunLedgerFields(started.run_id, { status: "running" }, { db });
+
+    updateAutonomyRunLedgerFields(newerTerminal.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(newerTerminal.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:10:00.000Z",
+    }, { db });
+    newerTerminal.remove();
+
+    const originalRunForCandidateRelations = readAutonomyRunLedgerRecord(
+      started.run_id,
+      { db },
+    )!;
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...originalRunForCandidateRelations.metadata,
+        repository_attachment_id: `sha256:${"0".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...originalRunForCandidateRelations.metadata,
+        repository_attachment_binding_fingerprint: `sha256:${"1".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: originalRunForCandidateRelations.metadata,
+    }, { db });
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:11:00.000Z",
+    }, { db });
+    const secondTerminal = insertAttachmentRunCandidate(
+      "second-terminal",
+      "failed",
+      "2026-08-04T02:12:00.000Z",
+    );
+    assert.equal((await readRestarted()).status, "terminal");
+    const consumedRunId = db.prepare(
+      "SELECT consumed_run_id FROM vnext_repository_execution_attachments WHERE attachment_id = ?",
+    ).pluck().get(secondTerminal.attachment_id) as string;
+    db.prepare(
+      "UPDATE vnext_repository_execution_attachments SET consumed_run_id = ? WHERE attachment_id = ?",
+    ).run("host-run:wrong-terminal-consumer", secondTerminal.attachment_id);
+    assert.equal((await readRestarted()).status, "unavailable");
+    db.prepare(
+      "UPDATE vnext_repository_execution_attachments SET consumed_run_id = ? WHERE attachment_id = ?",
+    ).run(consumedRunId, secondTerminal.attachment_id);
+    secondTerminal.remove();
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
     const publicEligibility = JSON.stringify(ready);
     assert(
       Buffer.byteLength(publicEligibility, "utf8") <=
@@ -637,12 +889,18 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       latestCheckpoint.checkpoint_fingerprint,
     );
 
+    const checkpointsBeforeHistoryDeletion =
+      listRepositoryRunResumeCheckpointsV01(db, {
+        workspace_id: workspaceId,
+        project_id: fixture.project_id,
+        run_id: started.run_id,
+      });
     db.prepare(
       "DELETE FROM vnext_repository_run_resume_checkpoints WHERE run_id = ?",
     ).run(started.run_id);
     assert.equal((await readRestarted()).status, "reconciliation_required");
     db.exec("BEGIN IMMEDIATE");
-    for (const checkpoint of admittedCheckpoints) {
+    for (const checkpoint of checkpointsBeforeHistoryDeletion) {
       assert.equal(
         insertRepositoryRunResumeCheckpointInsideTransactionV01(db, checkpoint),
         "inserted",
@@ -654,6 +912,7 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
     const appendTerminalLifecycle = (
       label: string,
       certainty: "completed" | "failed" | "cancelled",
+      includeDeclaration = true,
     ) => {
       const current = readAutonomyRunLedgerRecord(started.run_id, { db })!;
       const step = current.steps[0]!;
@@ -661,7 +920,10 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
         canonicalizeProtocolValueV01({ run_id: started.run_id, label }),
       );
       const lifecycleEventIds: string[] = [];
-      for (const [index, phase] of ["declared", "started", "completed"].entries()) {
+      const phases = includeDeclaration
+        ? ["declared", "started", "completed"]
+        : ["started", "completed"];
+      for (const [index, phase] of phases.entries()) {
         const lifecycleEventId = `native-host-event:${label}:${phase}`;
         lifecycleEventIds.push(lifecycleEventId);
         appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
@@ -686,6 +948,9 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
               change_count: null,
             },
             control_revision: Number(current.metadata.control_revision),
+            controller_generation: Number(current.metadata.controller_generation),
+            runtime_instance_fingerprint: runtimeInstance,
+            runtime_generation_fingerprint: runtimeGeneration,
             raw_protocol_persisted: false,
           },
           created_at: `2026-08-04T02:00:${30 + index}.000Z`,
@@ -722,7 +987,11 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       platform: "darwin" as const,
     };
 
-    const failedBoundary = appendTerminalLifecycle("failed-boundary", "failed");
+    const failedBoundary = appendTerminalLifecycle(
+      "failed-boundary",
+      "failed",
+      false,
+    );
     await admitRepositoryRunResumeCheckpointV01(
       db,
       failedBoundary.admission,
@@ -733,6 +1002,7 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
     const cancelledBoundary = appendTerminalLifecycle(
       "cancelled-boundary",
       "cancelled",
+      false,
     );
     await admitRepositoryRunResumeCheckpointV01(
       db,
@@ -850,6 +1120,9 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
           change_count: 1,
         },
         control_revision: Number(declaredRun.metadata.control_revision),
+        controller_generation: Number(declaredRun.metadata.controller_generation),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
         raw_protocol_persisted: false,
       },
       created_at: "2026-08-04T02:00:36.000Z",
@@ -874,6 +1147,217 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       "not_started",
     );
 
+    type GrammarEventV01 = {
+      operation: string;
+      phase: "declared" | "started" | "completed" | "future_phase";
+      certainty:
+        | "not_started"
+        | "started"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "waiting_for_approval"
+        | "future_certainty";
+      operation_class?: "command_execution" | "file_change";
+      step_id?: string;
+      lifecycle_event_id?: string;
+      controller_generation?: number;
+    };
+    const foreignStepId = db.prepare(
+      "SELECT step_id FROM autonomy_run_steps WHERE run_id <> ? ORDER BY step_id LIMIT 1",
+    ).pluck().get(started.run_id) as string;
+    assert.equal(typeof foreignStepId, "string");
+    const assertRejectedGrammarV01 = async (
+      label: string,
+      sequence: GrammarEventV01[],
+      boundaryIndex = sequence.length - 1,
+    ) => {
+      const current = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const step = current.steps[0]!;
+      const insertedEventIds: string[] = [];
+      const operationRefs = new Map<string, string>();
+      for (const [index, candidate] of sequence.entries()) {
+        const operationRef = operationRefs.get(candidate.operation) ??
+          createProtocolSha256V01(canonicalizeProtocolValueV01({
+            label,
+            operation: candidate.operation,
+          }));
+        operationRefs.set(candidate.operation, operationRef);
+        const lifecycleEventId = candidate.lifecycle_event_id ??
+          `native-host-event:grammar:${label}:${index}`;
+        const event = buildAutonomyRunEventRecord({
+          run_id: started.run_id,
+          step_id: candidate.step_id ?? step.step_id,
+          event_type: "host_event_observed",
+          status: "running",
+          message: "A bounded native-host lifecycle event was admitted.",
+          payload: {
+            event_id: lifecycleEventId,
+            event_kind: "work_checkpoint",
+            checkpoint: {
+              kind: candidate.operation_class ?? "command_execution",
+              phase: candidate.phase,
+              status: candidate.phase === "completed" ? "completed" : "active",
+              operation_ref: operationRef,
+              certainty: candidate.certainty,
+              change_count: null,
+            },
+            control_revision: Number(current.metadata.control_revision),
+            controller_generation: candidate.controller_generation ??
+              Number(current.metadata.controller_generation),
+            runtime_instance_fingerprint: runtimeInstance,
+            runtime_generation_fingerprint: runtimeGeneration,
+            raw_protocol_persisted: false,
+          },
+          created_at: `2026-08-04T02:${20 + boundaryIndex}:${
+            String(index).padStart(2, "0")
+          }.000Z`,
+        });
+        insertedEventIds.push(event.event_id);
+        appendAutonomyRunLedgerEvent(event, { db });
+      }
+      const boundary = sequence[boundaryIndex]!;
+      const operationRef = operationRefs.get(boundary.operation)!;
+      await assert.rejects(admitRepositoryRunResumeCheckpointV01(db, {
+        config,
+        run_id: started.run_id,
+        lifecycle_event_id: boundary.lifecycle_event_id ??
+          `native-host-event:grammar:${label}:${boundaryIndex}`,
+        controller_generation: Number(current.metadata.controller_generation),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+        expected_run_control_revision: Number(current.metadata.control_revision),
+        expected_step_control_revision: Number(step.output.control_revision),
+        operation_ref: operationRef,
+        operation_class: boundary.operation_class ?? "command_execution",
+        checkpoint_phase: boundary.phase === "declared"
+          ? "declared_pre_start"
+          : "post_operation",
+        operation_certainty: boundary.certainty === "not_started"
+          ? "not_started"
+          : ["completed", "failed", "cancelled"].includes(boundary.certainty)
+            ? boundary.certainty as "completed" | "failed" | "cancelled"
+            : "completed",
+        observed_at: "2026-08-04T02:59:59.000Z",
+      }, admissionDependencies));
+      assert.equal((await readRestarted()).status, "reconciliation_required");
+      for (const eventId of insertedEventIds) {
+        db.prepare("DELETE FROM autonomy_run_events WHERE event_id = ?").run(eventId);
+      }
+      assert.equal((await readRestarted()).status, "resume_ready");
+    };
+
+    await assertRejectedGrammarV01("terminal-without-start", [
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("start-without-terminal", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-start", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-terminal", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("terminal-before-start", [
+      { operation: "one", phase: "completed", certainty: "completed" },
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-declaration", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      { operation: "one", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("repeated-lifecycle-event-id", [
+      {
+        operation: "one",
+        phase: "declared",
+        certainty: "not_started",
+        lifecycle_event_id: "native-host-event:grammar:repeated-id",
+      },
+      {
+        operation: "two",
+        phase: "declared",
+        certainty: "not_started",
+        lifecycle_event_id: "native-host-event:grammar:repeated-id",
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-class-drift", [
+      {
+        operation: "one",
+        operation_class: "command_execution",
+        phase: "declared",
+        certainty: "not_started",
+      },
+      {
+        operation: "one",
+        operation_class: "file_change",
+        phase: "started",
+        certainty: "started",
+      },
+      {
+        operation: "one",
+        operation_class: "file_change",
+        phase: "completed",
+        certainty: "completed",
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-step-drift", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      {
+        operation: "one",
+        phase: "started",
+        certainty: "started",
+        step_id: foreignStepId,
+      },
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "completed",
+        step_id: foreignStepId,
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-generation-drift", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      {
+        operation: "one",
+        phase: "started",
+        certainty: "started",
+        controller_generation: Number(declaredRun.metadata.controller_generation) + 1,
+      },
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "completed",
+        controller_generation: Number(declaredRun.metadata.controller_generation) + 1,
+      },
+    ]);
+    await assertRejectedGrammarV01("phase-certainty-mismatch", [
+      { operation: "one", phase: "started", certainty: "completed" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("approval-is-not-terminal", [
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "waiting_for_approval",
+      },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("unknown-future-phase", [
+      { operation: "one", phase: "future_phase", certainty: "future_certainty" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("later-lifecycle-activity", [
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+      { operation: "later", phase: "declared", certainty: "not_started" },
+    ], 0);
+
     updateAutonomyRunLedgerFields(started.run_id, {
       status: "waiting_for_approval",
       metadata: {
@@ -893,6 +1377,14 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       },
     }, { db });
     assert.equal((await readRestarted()).status, "approval_pending");
+    const pendingApprovalRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...pendingApprovalRun.metadata,
+        repository_attachment_binding_fingerprint: `sha256:${"2".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
     updateAutonomyRunLedgerFields(started.run_id, {
       status: "running",
       metadata: run.metadata,
@@ -928,6 +1420,12 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
           change_count: 1,
         },
         control_revision: 2,
+        controller_generation: Number(
+          readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata
+            .controller_generation,
+        ),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
         raw_protocol_persisted: false,
       },
       created_at: "2026-08-04T02:00:23.500Z",

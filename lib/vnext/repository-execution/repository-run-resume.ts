@@ -99,7 +99,12 @@ interface CheckpointEventV01 {
   operation_class: "command_execution" | "file_change";
   phase: "declared" | "started" | "completed";
   certainty: RepositoryRunOperationCertaintyV01;
+  controller_generation: number;
+  runtime_instance_fingerprint: string;
+  runtime_generation_fingerprint: string;
 }
+
+const MAX_REPOSITORY_ATTACHMENT_RUN_CANDIDATES_V01 = 64;
 
 export class RepositoryRunResumeErrorV01 extends Error {
   constructor(readonly code: string, readonly status = 409) {
@@ -197,6 +202,11 @@ export async function admitRepositoryRunResumeCheckpointV01(
       exactEvent.operation_ref !== input.operation_ref ||
       exactEvent.operation_class !== input.operation_class ||
       exactEvent.certainty !== input.operation_certainty ||
+      exactEvent.controller_generation !== input.controller_generation ||
+      exactEvent.runtime_instance_fingerprint !==
+        input.runtime_instance_fingerprint ||
+      exactEvent.runtime_generation_fingerprint !==
+        input.runtime_generation_fingerprint ||
       (input.checkpoint_phase === "declared_pre_start"
         ? exactEvent.phase !== "declared"
         : exactEvent.phase !== "completed")
@@ -353,18 +363,22 @@ export async function readRepositoryRunResumeEligibilityV01(
   const generatedAt = input.generated_at ??
     (dependencies.now ?? (() => new Date().toISOString()))();
   try {
-    const runId = readLatestRepositoryAttachmentRunIdV01(db, input.config);
-    if (!runId) {
+    const run = selectCanonicalRepositoryAttachmentRunV01(db, input.config);
+    if (!run) {
       return projectionV01(generatedAt, "unavailable", {
         summary: "No attachment-backed run is available for resume review.",
         gap: "attachment_backed_run_unavailable",
       });
     }
-    const run = readAutonomyRunLedgerRecord(runId, { db });
-    if (!run) {
-      return projectionV01(generatedAt, "unavailable", {
-        summary: "The attachment-backed run record is unavailable.",
-        gap: "run_record_unavailable",
+    const conflictingRun = countConflictingManagedRunsV01(
+      db,
+      run.run_id,
+      input.config,
+    );
+    if (conflictingRun > 0) {
+      return projectionV01(generatedAt, "stale", {
+        summary: "Another managed run conflicts with this checkpoint.",
+        gap: "conflicting_managed_run",
       });
     }
     if (isTerminalRunnerStatus(run.status)) {
@@ -476,7 +490,17 @@ export async function readRepositoryRunResumeEligibilityV01(
       });
     }
     const eventRows = readEventRowsV01(db, run.run_id);
-    const events = parseCheckpointEventsV01(eventRows);
+    let events: CheckpointEventV01[];
+    try {
+      events = parseCheckpointEventsV01(eventRows);
+    } catch (error) {
+      return projectionV01(generatedAt, "reconciliation_required", {
+        summary: "A durable operation lifecycle observation is malformed or ambiguous.",
+        gap: error instanceof RepositoryRunResumeErrorV01
+          ? error.code
+          : "effect_lifecycle_malformed",
+      });
+    }
     const matchingEvent = events.find(
       (event) => event.row.sequence === latest.effect_ledger_high_water_mark,
     );
@@ -484,6 +508,18 @@ export async function readRepositoryRunResumeEligibilityV01(
       return projectionV01(generatedAt, "reconciliation_required", {
         summary: "The checkpoint no longer binds one exact lifecycle event.",
         gap: "checkpoint_effect_event_missing",
+      });
+    }
+    if (
+      matchingEvent.controller_generation !== latest.controller_generation ||
+      matchingEvent.runtime_instance_fingerprint !==
+        latest.runtime_instance_fingerprint ||
+      matchingEvent.runtime_generation_fingerprint !==
+        latest.runtime_generation_fingerprint
+    ) {
+      return projectionV01(generatedAt, "reconciliation_required", {
+        summary: "The checkpoint lifecycle generation binding disagrees.",
+        gap: "checkpoint_lifecycle_generation_mismatch",
       });
     }
     try {
@@ -640,13 +676,6 @@ export async function readRepositoryRunResumeEligibilityV01(
         gap: "packet_or_current_work_drift",
       });
     }
-    const conflictingRun = countConflictingManagedRunsV01(db, run.run_id, input.config);
-    if (conflictingRun > 0) {
-      return projectionV01(generatedAt, "stale", {
-        summary: "Another managed run conflicts with this checkpoint.",
-        gap: "conflicting_managed_run",
-      });
-    }
     const worktree = await (
       dependencies.inspect_worktree ?? inspectRepositoryWorktreeV01
     )(registration.root_binding.local_root.normalized_path, {
@@ -760,6 +789,8 @@ function requireConsumedAttachmentV01(db: Database.Database, run: AutonomyRunRec
   const attachment = readRepositoryExecutionAttachmentV01(db, attachmentId);
   if (
     !attachment ||
+    attachment.workspace_id !== run.metadata.workspace_id ||
+    attachment.project_id !== run.metadata.project_id ||
     attachment.lifecycle !== "consumed" ||
     attachment.consumed_run_id !== run.run_id ||
     attachment.binding_fingerprint !==
@@ -815,24 +846,40 @@ function parseCheckpointEventsV01(rows: EventRowV01[]): CheckpointEventV01[] {
       throw new RepositoryRunResumeErrorV01("repository_resume_checkpoint_event_malformed");
     }
     const value = checkpoint as Record<string, unknown>;
+    const controllerGeneration = exactNonNegativeIntegerV01(
+      payload.controller_generation,
+    );
     if (
+      !boundedIdentifierV01(row.step_id) ||
+      typeof payload.event_id !== "string" ||
+      !boundedIdentifierV01(payload.event_id) ||
       typeof value.operation_ref !== "string" ||
       !isFingerprintV01(value.operation_ref) ||
       !["command_execution", "file_change"].includes(String(value.kind)) ||
       !["declared", "started", "completed"].includes(String(value.phase)) ||
-      !["not_started", "started", "completed", "failed", "cancelled", "waiting_for_approval"].includes(String(value.certainty))
+      !["not_started", "started", "completed", "failed", "cancelled"].includes(String(value.certainty)) ||
+      !(
+        (value.phase === "declared" && value.certainty === "not_started") ||
+        (value.phase === "started" && value.certainty === "started") ||
+        (value.phase === "completed" &&
+          ["completed", "failed", "cancelled"].includes(String(value.certainty)))
+      ) ||
+      controllerGeneration < 1 ||
+      !isFingerprintV01(payload.runtime_instance_fingerprint) ||
+      !isFingerprintV01(payload.runtime_generation_fingerprint)
     ) {
       throw new RepositoryRunResumeErrorV01("repository_resume_checkpoint_event_malformed");
     }
     return [{
       row,
-      lifecycle_event_id: typeof payload.event_id === "string"
-        ? payload.event_id
-        : "",
+      lifecycle_event_id: payload.event_id,
       operation_ref: value.operation_ref,
       operation_class: value.kind as CheckpointEventV01["operation_class"],
       phase: value.phase as CheckpointEventV01["phase"],
       certainty: value.certainty as CheckpointEventV01["certainty"],
+      controller_generation: controllerGeneration,
+      runtime_instance_fingerprint: payload.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: payload.runtime_generation_fingerprint,
     }];
   });
 }
@@ -840,6 +887,7 @@ function parseCheckpointEventsV01(rows: EventRowV01[]): CheckpointEventV01[] {
 function assertSafeEffectBoundaryV01(
   events: CheckpointEventV01[],
   boundary: CheckpointEventV01,
+  requireCurrentBoundary = true,
 ): void {
   if (
     !(
@@ -853,35 +901,83 @@ function assertSafeEffectBoundaryV01(
   const throughBoundary = events.filter(
     (event) => event.row.sequence <= boundary.row.sequence,
   );
-  const perOperation = new Map<string, { started: number; terminal: string[] }>();
+  const later = events.filter((event) => event.row.sequence > boundary.row.sequence);
+  if (requireCurrentBoundary && later.length > 0) {
+    refuse("repository_resume_checkpoint_later_effect_observed");
+  }
+  const lifecycleEventIds = new Set<string>();
+  const perOperation = new Map<string, {
+    operation_class: CheckpointEventV01["operation_class"];
+    step_id: string;
+    controller_generation: number;
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
+    phases: CheckpointEventV01["phase"][];
+    certainties: RepositoryRunOperationCertaintyV01[];
+  }>();
+  let activeOperationRef: string | null = null;
   for (const event of throughBoundary) {
-    const state = perOperation.get(event.operation_ref) ?? {
-      started: 0,
-      terminal: [],
+    if (lifecycleEventIds.has(event.lifecycle_event_id)) {
+      refuse("repository_resume_checkpoint_lifecycle_event_repeated");
+    }
+    lifecycleEventIds.add(event.lifecycle_event_id);
+    const existing = perOperation.get(event.operation_ref);
+    const state = existing ?? {
+      operation_class: event.operation_class,
+      step_id: event.row.step_id!,
+      controller_generation: event.controller_generation,
+      runtime_instance_fingerprint: event.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: event.runtime_generation_fingerprint,
+      phases: [],
+      certainties: [],
     };
-    if (event.phase === "started") state.started += 1;
-    if (event.phase === "completed") state.terminal.push(event.certainty);
+    if (
+      state.operation_class !== event.operation_class ||
+      state.step_id !== event.row.step_id ||
+      state.controller_generation !== event.controller_generation ||
+      state.runtime_instance_fingerprint !== event.runtime_instance_fingerprint ||
+      state.runtime_generation_fingerprint !== event.runtime_generation_fingerprint
+    ) {
+      refuse("repository_resume_checkpoint_operation_binding_conflict");
+    }
+    if (event.phase === "started") {
+      if (activeOperationRef !== null) {
+        refuse("repository_resume_checkpoint_operation_overlap");
+      }
+      activeOperationRef = event.operation_ref;
+    } else if (event.phase === "completed") {
+      if (activeOperationRef !== event.operation_ref) {
+        refuse("repository_resume_checkpoint_terminal_sequence_invalid");
+      }
+      activeOperationRef = null;
+    } else if (activeOperationRef !== null) {
+      refuse("repository_resume_checkpoint_operation_overlap");
+    }
+    state.phases.push(event.phase);
+    state.certainties.push(event.certainty);
     perOperation.set(event.operation_ref, state);
   }
   for (const state of perOperation.values()) {
-    if (state.terminal.length > 1 || (state.started > 0 && state.terminal.length === 0)) {
-      refuse("repository_resume_checkpoint_unterminated_operation");
+    const phases = state.phases.join(",");
+    const certainties = state.certainties.join(",");
+    const declaredOnly = phases === "declared" && certainties === "not_started";
+    const startedTerminal = phases === "started,completed" &&
+      ["started,completed", "started,failed", "started,cancelled"].includes(
+        certainties,
+      );
+    const declaredStartedTerminal = phases === "declared,started,completed" &&
+      [
+        "not_started,started,completed",
+        "not_started,started,failed",
+        "not_started,started,cancelled",
+      ].includes(certainties);
+    if (!declaredOnly && !startedTerminal && !declaredStartedTerminal) {
+      refuse(
+        state.phases.includes("started") && !state.phases.includes("completed")
+          ? "repository_resume_checkpoint_unterminated_operation"
+          : "repository_resume_checkpoint_terminal_sequence_invalid",
+      );
     }
-  }
-  if (boundary.phase === "completed") {
-    const boundaryOperation = perOperation.get(boundary.operation_ref);
-    if (
-      !boundaryOperation ||
-      boundaryOperation.started !== 1 ||
-      boundaryOperation.terminal.length !== 1 ||
-      boundaryOperation.terminal[0] !== boundary.certainty
-    ) {
-      refuse("repository_resume_checkpoint_terminal_sequence_invalid");
-    }
-  }
-  const later = events.filter((event) => event.row.sequence > boundary.row.sequence);
-  if (later.some((event) => event.phase === "started" || event.phase === "completed")) {
-    refuse("repository_resume_checkpoint_later_effect_observed");
   }
 }
 
@@ -929,11 +1025,17 @@ export function validateRepositoryRunResumeCheckpointRelationsV01(
       (candidate) =>
         candidate.row.sequence === checkpoint.effect_ledger_high_water_mark,
     );
+    if (!event) return false;
+    assertSafeEffectBoundaryV01(events, event, false);
     return Boolean(
-      event &&
       event.operation_ref === checkpoint.operation_ref &&
       event.operation_class === checkpoint.operation_class &&
       event.certainty === checkpoint.operation_certainty &&
+      event.controller_generation === checkpoint.controller_generation &&
+      event.runtime_instance_fingerprint ===
+        checkpoint.runtime_instance_fingerprint &&
+      event.runtime_generation_fingerprint ===
+        checkpoint.runtime_generation_fingerprint &&
       event.phase ===
         (checkpoint.checkpoint_phase === "declared_pre_start"
           ? "declared"
@@ -1070,22 +1172,34 @@ function isPausedOrDisconnectedV01(run: AutonomyRunRecord): boolean {
     run.metadata.controller_disconnected === true;
 }
 
-function readLatestRepositoryAttachmentRunIdV01(
+function selectCanonicalRepositoryAttachmentRunV01(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
-): string | null {
-  const row = db.prepare(
+): AutonomyRunRecord | null {
+  const rows = db.prepare(
     `SELECT run_id FROM autonomy_runs
       WHERE scope = ?
-        AND json_extract(metadata_json, '$.workspace_id') = ?
-        AND json_extract(metadata_json, '$.project_id') = ?
-        AND json_extract(metadata_json, '$.lifecycle_mode') = 'managed_live'
         AND json_extract(metadata_json, '$.invocation_origin') = 'repository_attachment'
-      ORDER BY updated_at DESC, run_id DESC LIMIT 1`,
-  ).get(config.project_id, config.workspace_id, config.project_id) as
-    | { run_id: string }
-    | undefined;
-  return row?.run_id ?? null;
+      ORDER BY updated_at DESC, run_id DESC LIMIT ?`,
+  ).all(
+    config.project_id,
+    MAX_REPOSITORY_ATTACHMENT_RUN_CANDIDATES_V01 + 1,
+  ) as Array<{ run_id: string }>;
+  if (rows.length > MAX_REPOSITORY_ATTACHMENT_RUN_CANDIDATES_V01) {
+    refuse("repository_resume_run_candidate_bound_exceeded");
+  }
+  const candidates = rows.map(({ run_id: runId }) => {
+    const run = requireRepositoryRunV01(db, config, runId);
+    requireConsumedAttachmentV01(db, run);
+    return run;
+  });
+  const nonterminal = candidates.filter(
+    (candidate) => !isTerminalRunnerStatus(candidate.status),
+  );
+  if (nonterminal.length > 1) {
+    refuse("repository_resume_multiple_nonterminal_candidates");
+  }
+  return nonterminal[0] ?? candidates[0] ?? null;
 }
 
 function externalRefV01(
