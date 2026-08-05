@@ -4649,6 +4649,49 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
     ON vnext_repository_execution_attachments(workspace_id, project_id) WHERE lifecycle = 'prepared';
   CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_consumed_run
     ON vnext_repository_execution_attachments(consumed_run_id) WHERE consumed_run_id IS NOT NULL;
+  CREATE TABLE IF NOT EXISTS vnext_repository_run_resume_checkpoints (
+    checkpoint_fingerprint TEXT PRIMARY KEY CHECK (length(checkpoint_fingerprint) = 71 AND substr(checkpoint_fingerprint, 1, 7) = 'sha256:'),
+    checkpoint_version TEXT NOT NULL CHECK (checkpoint_version = 'repository_run_resume_checkpoint.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    invocation_origin TEXT NOT NULL CHECK (invocation_origin = 'repository_attachment'),
+    attachment_id TEXT NOT NULL,
+    attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+    node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71),
+    execution_envelope_version TEXT NOT NULL CHECK (execution_envelope_version = 'repository_execution_envelope.v0.1'),
+    execution_envelope_fingerprint TEXT NOT NULL CHECK (length(execution_envelope_fingerprint) = 71),
+    adapter_version TEXT NOT NULL CHECK (length(adapter_version) BETWEEN 1 AND 160),
+    capability_version TEXT NOT NULL CHECK (length(capability_version) BETWEEN 1 AND 160),
+    provider_resume_binding_version TEXT NOT NULL CHECK (provider_resume_binding_version = 'native_host_resume_binding.v0.1'),
+    provider_thread_ref_json TEXT NOT NULL CHECK (json_valid(provider_thread_ref_json) AND json_type(provider_thread_ref_json) = 'object'),
+    last_turn_ref_json TEXT NOT NULL CHECK (json_valid(last_turn_ref_json) AND json_type(last_turn_ref_json) = 'object'),
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    run_control_revision INTEGER NOT NULL CHECK (run_control_revision >= 0),
+    step_id TEXT NOT NULL CHECK (length(trim(step_id)) > 0),
+    step_control_revision INTEGER NOT NULL CHECK (step_control_revision >= 0),
+    event_high_water_mark INTEGER NOT NULL CHECK (event_high_water_mark >= 0),
+    step_high_water_mark INTEGER NOT NULL CHECK (step_high_water_mark >= 0),
+    effect_ledger_high_water_mark INTEGER NOT NULL CHECK (effect_ledger_high_water_mark >= 0),
+    operation_ref TEXT NOT NULL CHECK (length(operation_ref) = 71 AND substr(operation_ref, 1, 7) = 'sha256:'),
+    operation_class TEXT NOT NULL CHECK (operation_class IN ('command_execution', 'file_change')),
+    checkpoint_phase TEXT NOT NULL CHECK (checkpoint_phase IN ('declared_pre_start', 'post_operation')),
+    operation_certainty TEXT NOT NULL CHECK (operation_certainty IN ('not_started', 'started', 'completed', 'failed', 'cancelled', 'waiting_for_approval')),
+    approval_ref TEXT,
+    approval_state TEXT CHECK (approval_state IS NULL OR approval_state IN ('pending', 'decided', 'expired')),
+    root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71),
+    physical_root_baseline_fingerprint TEXT NOT NULL CHECK (length(physical_root_baseline_fingerprint) = 71),
+    worktree_observation_fingerprint TEXT NOT NULL CHECK (length(worktree_observation_fingerprint) = 71),
+    observed_at TEXT NOT NULL CHECK (length(trim(observed_at)) > 0),
+    CHECK ((approval_ref IS NULL AND approval_state IS NULL) OR (approval_ref IS NOT NULL AND approval_state IS NOT NULL)),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+    FOREIGN KEY (attachment_id) REFERENCES vnext_repository_execution_attachments(attachment_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_operation
+    ON vnext_repository_run_resume_checkpoints(run_id, operation_ref, checkpoint_phase);
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_current
+    ON vnext_repository_run_resume_checkpoints(workspace_id, project_id, run_id, effect_ledger_high_water_mark DESC, event_high_water_mark DESC, checkpoint_fingerprint);
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -4685,19 +4728,25 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
 `;
 
 export function migrateVNextRepositoryExecutionStoreV01(db) {
-  const names = [
+  const tableNames = [
     "vnext_physical_root_baselines",
     "vnext_repository_execution_attachments",
+    "vnext_repository_run_resume_checkpoints",
     "vnext_repository_root_rebind_receipts",
     "vnext_repository_execution_decision_requests",
+  ];
+  const indexNames = [
     "idx_vnext_physical_root_baselines_project",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
     "idx_vnext_repository_execution_consumed_run",
+    "idx_vnext_repository_resume_checkpoint_operation",
+    "idx_vnext_repository_resume_checkpoint_current",
     "idx_vnext_repository_root_rebind_receipts_project",
     "idx_vnext_repository_execution_decisions_project",
     "idx_vnext_repository_execution_one_open_decision",
   ];
+  const names = [...tableNames, ...indexNames];
   const before = new Set(db.prepare(
     `SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (${names.map(() => "?").join(", ")})`,
   ).all(...names).map((row) => row.key));
@@ -4783,8 +4832,8 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
   }
   db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
   return {
-    created_tables: names.slice(0, 4).filter((name) => !before.has(`table:${name}`)),
-    created_indexes: names.slice(4).filter((name) => !before.has(`index:${name}`)),
+    created_tables: tableNames.filter((name) => !before.has(`table:${name}`)),
+    created_indexes: indexNames.filter((name) => !before.has(`index:${name}`)),
   };
 }
 

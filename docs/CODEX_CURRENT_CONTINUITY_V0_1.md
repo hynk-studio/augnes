@@ -184,10 +184,14 @@ The stdio proxy validates the UI runtime instance, runtime generation,
 repository/application fingerprint, and exact route contract before accepting
 the response. The
 tool returns ordinary current situation, one next meaningful action, an exact
-Browser project link when available, and the bounded CDX2A projection. It never
+Browser project link when available, the bounded CDX2A projection, and the
+canonical public resume-eligibility projection when an attachment-backed run
+exists. That addition is a read only: it never starts/resumes a worker, creates
+a controller/run/attachment, calls a provider, executes a command, or writes
+the database or repository. It never
 uses mock, fixture, seed, docs, GuideBrief, legacy Work Brief, repository-source
 reconstruction, or a second database as fallback.
 
 This support is for local Codex and a local checkout only. Remote Codex,
-ChatGPT/mobile filesystem attachment, Start, and CDX2B2 managed delegation are
+ChatGPT/mobile filesystem attachment, and actual attachment-backed resume are
 not claimed.

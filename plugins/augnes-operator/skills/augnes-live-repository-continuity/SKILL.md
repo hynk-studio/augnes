@@ -47,6 +47,10 @@ the current Augnes project state.”
    the exact attachment, envelope, request, and grant binding returned by the
    canonical flow. Exact replay must return the same run.
 10. Use `augnes_resume_repository` for managed status/result/review continuity.
+    For an attachment-backed run, report its canonical resume-eligibility
+    status and last confirmed operation without invoking resume. Treat
+    `approval_pending` as approval review and `reconciliation_required` as an
+    uncertain operation boundary; never translate either into resume-ready.
     Use `augnes_cancel_repository_delegation` only with the exact attachment,
     run, binding, and control revision. Cancellation is risk-reducing and needs
     no second Browser decision. It remains available when current packet, work,

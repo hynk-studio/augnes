@@ -611,6 +611,35 @@ network, virtual, unsupported, unavailable, and ambiguous roots create no run.
 A durable nonterminal run without its exact live controller projects
 disconnected/paused and is never automatically resumed in this phase.
 
+CDX2B4A adds one private node-local
+`repository_run_resume_checkpoint.v0.1` history owner. It does not redefine the
+consumed attachment: that record remains the immutable start snapshot. A safe
+checkpoint instead binds one exact declared-not-started boundary or one exact
+terminal operation observation (`completed`, `failed`, or `cancelled`) to the
+same run, step, controller generation, attachment, execution envelope,
+provider resume binding, monotonic event/step/effect high-water marks, and a
+fresh post-boundary physical-root and bounded-worktree observation. Raw command
+text/output, provider bodies, environment, credentials, absolute paths,
+transcripts, and unbounded file lists are excluded.
+
+Admission follows terminal event persistence, physical-root observation,
+bounded-worktree observation, then one immediate compare-and-swap transaction
+and final consistency read. A later start, conflicting terminal, old
+controller generation, high-water regression, approval ambiguity, or expected
+state drift refuses the checkpoint. Event or result persistence remains
+truthful if checkpoint persistence fails, but the run cannot become
+resume-ready.
+
+`repository_run_resume_eligibility.v0.1` is the single pure read projection for
+`active_owned`, `terminal`, `approval_pending`, `resume_ready`,
+`reconciliation_required`, `stale`, `unsupported`, or `unavailable`. It
+compares the current repository with the latest safe checkpoint rather than
+the consumed attachment, excludes Browser selection from binding material,
+and exposes only bounded ordinary language plus all-false mutation authority.
+CDX2B4A never calls `thread/resume`, creates a controller generation, or changes
+the existing attachment-backed resume refusal. Historical interactive and
+policy-triggered resume remain on their existing owner.
+
 ---
 
 ### 5.2 RunReceipt

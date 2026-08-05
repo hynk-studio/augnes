@@ -387,6 +387,7 @@ export function parseRepositoryContinuityResponseV01(value) {
     "next_meaningful_action",
     "projection_version",
     "repository_resolution",
+    "resume_eligibility",
   ], "repository continuity");
   if (value.projection_version !== "codex_repository_continuity.v0.1") invalidContractV01();
   isoTimestampV01(value.generated_at);
@@ -409,10 +410,45 @@ export function parseRepositoryContinuityResponseV01(value) {
     ) invalidContractV01();
   }
   authorityV01(value.authority);
+  if (value.resume_eligibility !== null) resumeEligibilityV01(value.resume_eligibility);
   if (value.continuity !== null) continuityV01(value.continuity);
   if (value.repository_resolution.status === "resolved_exact" && value.continuity === null) invalidContractV01();
   if (value.repository_resolution.status !== "resolved_exact" && value.continuity !== null) invalidContractV01();
   return value;
+}
+
+function resumeEligibilityV01(value) {
+  exactObjectV01(value, ["authority", "gaps", "generated_at", "last_confirmed_operation", "next_action", "pending_approval", "projection_version", "run_state", "status", "summary"], "resume eligibility");
+  if (value.projection_version !== "repository_run_resume_eligibility.v0.1") invalidContractV01();
+  isoTimestampV01(value.generated_at);
+  if (!["active_owned", "terminal", "approval_pending", "resume_ready", "reconciliation_required", "stale", "unsupported", "unavailable"].includes(value.status)) invalidContractV01();
+  if (!["active", "paused_or_disconnected", "terminal", "not_available"].includes(value.run_state)) invalidContractV01();
+  stringV01(value.summary);
+  stringArrayV01(value.gaps);
+  exactObjectV01(value.next_action, ["executes", "kind", "label", "reason"], "resume next action");
+  stringV01(value.next_action.kind);
+  stringV01(value.next_action.label);
+  stringV01(value.next_action.reason);
+  if (value.next_action.executes !== false) invalidContractV01();
+  if (value.last_confirmed_operation !== null) {
+    exactObjectV01(value.last_confirmed_operation, ["certainty", "observed_at", "operation_class", "summary"], "confirmed operation");
+    if (!["command_execution", "file_change"].includes(value.last_confirmed_operation.operation_class)) invalidContractV01();
+    if (!["not_started", "completed", "failed", "cancelled"].includes(value.last_confirmed_operation.certainty)) invalidContractV01();
+    stringV01(value.last_confirmed_operation.summary);
+    isoTimestampV01(value.last_confirmed_operation.observed_at);
+  }
+  if (value.pending_approval !== null) {
+    exactObjectV01(value.pending_approval, ["available_decisions", "expires_at", "operation_class", "reason", "resource_summary", "risk", "title"], "pending approval");
+    if (!["command_execution", "file_change", "filesystem_permission", "network_permission"].includes(value.pending_approval.operation_class)) invalidContractV01();
+    for (const key of ["title", "reason", "risk", "resource_summary"]) stringV01(value.pending_approval[key]);
+    stringArrayV01(value.pending_approval.available_decisions);
+    if (value.pending_approval.expires_at !== null) isoTimestampV01(value.pending_approval.expires_at);
+  }
+  const authorityKeys = ["calls_github_or_external_network", "calls_provider_or_thread_resume", "consumes_grant", "creates_controller_generation", "creates_result_or_proposal", "creates_review_decision_or_transition", "creates_run_or_attachment", "executes_command", "issues_or_decides_approval", "mutates_accepted_state_or_closes_work", "starts_or_resumes_worker", "writes_database", "writes_project_files"];
+  exactObjectV01(value.authority, authorityKeys, "resume authority");
+  for (const key of authorityKeys) if (value.authority[key] !== false) invalidContractV01();
+  const serialized = JSON.stringify(value);
+  if (Buffer.byteLength(serialized, "utf8") > 24 * 1024 || /provider_thread_ref|last_turn_ref|operation_ref|worktree_observation_fingerprint|baseline_fingerprint|database_path/u.test(serialized)) invalidContractV01();
 }
 
 function continuityV01(value) {
@@ -515,7 +551,7 @@ function toolDescriptionV01() {
   return {
     name: TOOL_NAME,
     title: "Resume this repository with Augnes",
-    description: "Resolve the current local repository through the live supervised Augnes Companion and return exact read-only project/work/run/result/review continuity.",
+    description: "Resolve the current local repository through the live supervised Augnes Companion and return exact read-only project/work/run/result/review continuity plus attachment-backed resume eligibility. This tool never starts or resumes work.",
     inputSchema: {
       type: "object",
       additionalProperties: false,

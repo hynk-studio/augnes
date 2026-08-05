@@ -256,6 +256,41 @@ files, commands/checks, RunReceipt, and at most one proposal pending review.
 It never creates ReviewDecision, Transition, accepted-state mutation, work
 closure, push, merge, release, deployment, or publication.
 
+## CDX2B4A checkpoint and resume-eligibility boundary
+
+The consumed attachment is immutable start-snapshot metadata. It is never
+updated to follow legitimate worker edits. The private additive
+`repository_run_resume_checkpoint.v0.1` table records bounded checkpoint
+history inside the same database because the existing run/event rows cannot
+unambiguously bind one current post-operation filesystem observation and
+private provider resume reference without overwriting history.
+
+A checkpoint is admitted only for a durably declared operation that definitely
+did not start, or for a durably terminal completed/failed/cancelled operation
+with fresh same-boundary physical-root and worktree observations. Exact replay
+writes nothing. High-water marks advance monotonically; an older controller,
+conflicting terminal, later unclosed start, ambiguous approval, or CAS drift
+fails closed. Checkpoint failure never rewrites the RunReceipt/result path and
+instead prevents resume-ready eligibility.
+
+`repository_run_resume_eligibility.v0.1` is read-only and selection-independent.
+It returns active-owned, terminal, approval-pending, resume-ready,
+reconciliation-required, stale, unsupported, or unavailable and one bounded
+next action. It never exposes provider thread/turn IDs, operation IDs,
+fingerprints, baseline IDs, paths, commands, output, or transcripts. Full local
+backup/restore retains checkpoint history; portable project export excludes it
+as machine-local operational truth, so an imported project cannot become
+resume-ready from another node's checkpoint.
+
+Startup reconciliation never resumes a checkpoint-backed run and does not
+append a generic uncertain-effect event over its preserved operation boundary.
+It leaves the run for the canonical eligibility read, which can still return
+reconciliation-required, approval-pending, stale, unsupported, or unavailable.
+
+No attachment-backed resume exists in CDX2B4A. `thread/resume`, worker launch,
+controller creation, automatic restart resume, and explicit same-run resume are
+reserved for CDX2B4B.
+
 Managed repository delegation is product-supported only on a verified local
 macOS filesystem. Linux remains non-product without a separate real
 filesystem/runtime proof. Windows, non-Git, network, virtual, unsupported,

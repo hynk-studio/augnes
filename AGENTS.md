@@ -156,6 +156,13 @@ capability, compatibility, or deferred work rather than default product UI.
   Risk-reducing cancellation binds only the immutable consumed attachment and
   exact run/controller ownership; packet, work, root, baseline, worktree, and
   Browser-selection drift must not prevent cancelling that owned run.
+- CDX2B4A resume checkpoints are private node-local operational history, not a
+  mutable attachment or portable project truth. Resume eligibility is an exact
+  read-only projection over the same run, attachment, event/step/effect,
+  approval, controller, provider binding, root/baseline, worktree, and envelope
+  owners. It never resumes a repository run. Ambiguous effect or missing
+  post-effect state requires reconciliation; pending approval stays the next
+  action. Browser active selection is not binding material.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

@@ -25,6 +25,7 @@ import type {
   AutonomyRunnerStatus,
 } from "../types/autonomy-runner-execution";
 import type { LiveNativeHostRunProjectionV01 } from "../lib/vnext/runtime/live-native-host-run-service";
+import { REPOSITORY_RUN_RESUME_ELIGIBILITY_AUTHORITY_V01 } from "../types/vnext/repository-run-resume";
 import {
   delegatedProjectionUnavailableV01,
   delegatedWorkSuccessProjectionV01,
@@ -129,6 +130,7 @@ function projection(
   events: AutonomyRunEventRecord[],
   liveProjection: LiveNativeHostRunProjectionV01,
   metadata: Record<string, unknown> = {},
+  resumeEligibility: Parameters<typeof buildDelegatedWorkProjectionV01>[0]["resume_eligibility"] = null,
 ) {
   return buildDelegatedWorkProjectionV01({
     workspace_id: WORKSPACE_ID,
@@ -140,6 +142,7 @@ function projection(
     current_goal: "Ship the exact bounded delegated-work projection",
     start_eligible: status == null,
     start_blocker: null,
+    resume_eligibility: resumeEligibility,
   });
 }
 
@@ -347,6 +350,43 @@ const interrupted = projection(
 assert.equal(interrupted.stage, "resume_required");
 assert.equal(interrupted.next_action.kind, "resume_codex_work");
 assert.equal(shouldPollDelegatedWorkV01(interrupted), false);
+
+const repositoryInterrupted = projection(
+  "paused",
+  [...workingEvents, event(7, "run_reconciliation_required", "paused")],
+  live("paused", {
+    mode: "repository_attachment",
+    reconciliation_required: false,
+    public_reason: "repository_checkpoint_available",
+  }),
+  { invocation_origin: "repository_attachment" },
+  {
+    projection_version: "repository_run_resume_eligibility.v0.1",
+    generated_at: NOW,
+    status: "resume_ready",
+    summary: "One exact safe checkpoint is available for later explicit resume.",
+    run_state: "paused_or_disconnected",
+    last_confirmed_operation: {
+      operation_class: "file_change",
+      certainty: "completed",
+      summary: "The last file change reached a durably confirmed completed boundary.",
+      observed_at: NOW,
+    },
+    pending_approval: null,
+    next_action: {
+      kind: "explicit_resume_not_yet_available",
+      label: "Review safe checkpoint",
+      reason: "CDX2B4A is read-only; explicit same-run resume is not implemented.",
+      executes: false,
+    },
+    gaps: [],
+    authority: REPOSITORY_RUN_RESUME_ELIGIBILITY_AUTHORITY_V01,
+  },
+);
+assert.equal(repositoryInterrupted.mode, "repository_attachment");
+assert.equal(repositoryInterrupted.resume_eligibility?.status, "resume_ready");
+assert.equal(repositoryInterrupted.next_action.kind, "review_resume_status");
+assert.notEqual(repositoryInterrupted.next_action.kind, "resume_codex_work");
 
 const resumed = projection(
   "running",

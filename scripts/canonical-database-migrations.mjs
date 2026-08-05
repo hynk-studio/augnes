@@ -88,6 +88,11 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // identity guard removed by the bounded recovery fixture. The start/run
     // migration remains one-way and arbitrary partial schemas still refuse.
     "d28eb1500f9cd646cb3979d6a499745cb79e4448c7ba36d7990090594e26a7c3",
+    // Exact CDX2B4A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. The checkpoint
+    // table remains machine-local run history; only this complete ledgerless
+    // contract is accepted for one-way repair.
+    "4fcaf45675a2a4604fa5c2a0b545366621dca967dce33bd6bab0759ee3c18db4",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

@@ -12,6 +12,7 @@ import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { RepositoryRunResumeEligibilityV01 } from "@/types/vnext/repository-run-resume";
 
 export function readDelegatedWorkProjectionV01(
   db: Database.Database,
@@ -19,6 +20,7 @@ export function readDelegatedWorkProjectionV01(
     config: VNextLocalOperatorPilotConfigV01;
     live_run: LiveNativeHostRunProjectionV01;
     now?: () => string;
+    resume_eligibility?: RepositoryRunResumeEligibilityV01 | null;
   },
 ): DelegatedWorkProjectionV01 {
   const ledger = readLatestManagedLiveDelegatedWorkLedgerSliceV01(
@@ -84,6 +86,7 @@ export function readDelegatedWorkProjectionV01(
     start_eligible: startEligible,
     start_blocker: startBlocker,
     source_status: sourceStatus,
+    resume_eligibility: input.resume_eligibility ?? null,
   });
 }
 

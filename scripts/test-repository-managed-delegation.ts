@@ -17,6 +17,9 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  appendAutonomyRunLedgerEvent,
+  buildAutonomyRunEventRecord,
+  insertAutonomyRunLedgerRecord,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
 } from "../lib/autonomy/runner-ledger";
@@ -29,8 +32,11 @@ import {
   selectActiveProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
+  insertRepositoryRunResumeCheckpointInsideTransactionV01,
+  listRepositoryRunResumeCheckpointsV01,
   readRepositoryExecutionAttachmentV01,
 } from "../lib/vnext/persistence/repository-execution-store";
+import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import {
   grantRepositoryExecutionDecisionFromBrowserSessionV01,
   prepareRepositoryExecutionV01,
@@ -45,6 +51,11 @@ import {
 import { inspectRepositoryWorktreeV01 } from "../lib/vnext/repository-execution/worktree-observation";
 import { classifyRepositoryEnvelopeCommandV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
+import { createCanonicalRepositoryDelegationTestAdapterV01 } from "../lib/vnext/native-host/canonical-repository-delegation-test-adapter";
+import {
+  admitRepositoryRunResumeCheckpointV01,
+  readRepositoryRunResumeEligibilityV01,
+} from "../lib/vnext/repository-execution/repository-run-resume";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import {
@@ -67,6 +78,7 @@ import type {
   NativeHostApprovalRequestV01,
   NativeHostRequestV01,
 } from "../types/vnext/native-host-adapter";
+import { REPOSITORY_RUN_RESUME_LIMITS_V01 } from "../types/vnext/repository-run-resume";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b2b-"));
 const DATABASE_PATH = path.join(ROOT, "augnes.db");
@@ -80,6 +92,7 @@ void main().finally(() => {
 
 async function main(): Promise<void> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  process.env.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
   process.env.AUGNES_DB_PATH = DATABASE_PATH;
   assertRepositoryExecutionMigrationV01();
@@ -213,6 +226,11 @@ async function main(): Promise<void> {
     assertExecutionEnvelopeAuthorityV01();
     assertSecretBoundaryDocumentationV01();
     await assertPlatformAndNonGitRefusalV01(db, service, projectA.workspace_id);
+    await assertRepositoryResumeCheckpointEligibilityV01(
+      db,
+      projectA.workspace_id,
+      projectB.project_id,
+    );
 
     await waitForTerminalV01(db, result.run_id);
     const terminal = readAutonomyRunLedgerRecord(result.run_id, { db });
@@ -273,6 +291,11 @@ async function main(): Promise<void> {
       execution_envelope_authority_classification: true,
       in_repository_secret_scope_claim_bounded: true,
       cdx2b2a_schema_migration_preserved_and_upgraded: true,
+      resume_checkpoint_exact_replay_and_monotonicity: true,
+      resume_eligibility_state_matrix: true,
+      resume_eligibility_browser_selection_independent: true,
+      resume_eligibility_zero_effect_read: true,
+      repository_attachment_resume_still_refused: true,
       windows_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
       non_git_status: "unsupported_no_run",
@@ -284,6 +307,661 @@ async function main(): Promise<void> {
   } finally {
     await service.shutdown();
     db.close();
+  }
+}
+
+async function assertRepositoryResumeCheckpointEligibilityV01(
+  db: Database.Database,
+  workspaceId: string,
+  browserProjectId: string,
+): Promise<void> {
+  const fixture = await createPreparedFixtureV01(
+    db,
+    "resume-checkpoint-repository",
+    "Resume Checkpoint Repository",
+    "2026-08-04T02:00:00.000Z",
+  );
+  process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+  const runtimeInstance = `sha256:${"8".repeat(64)}`;
+  const runtimeGeneration = `sha256:${"9".repeat(64)}`;
+  const service = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () =>
+      createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+    runtime_instance_fingerprint: runtimeInstance,
+    runtime_generation_fingerprint: runtimeGeneration,
+  });
+  try {
+    const request = await requestAndGrantV01(
+      db,
+      service,
+      fixture,
+      "2026-08-04T02:00:10.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(fixture, request),
+      service,
+      { now: () => "2026-08-04T02:00:12.000Z", platform: "darwin" },
+    );
+    assert.equal(started.status, "accepted");
+    await waitForCheckpointCountV01(db, started.run_id, 4);
+    const admittedCheckpointCount = countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    );
+    assert.equal(
+      admittedCheckpointCount,
+      4,
+      JSON.stringify(readAutonomyRunLedgerRecord(started.run_id, { db }), null, 2),
+    );
+    const admittedCheckpoints = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.deepEqual(
+      admittedCheckpoints.map((checkpoint) => checkpoint.operation_certainty),
+      ["not_started", "completed", "not_started", "completed"],
+    );
+    assert.equal(
+      admittedCheckpoints.every((checkpoint, index) =>
+        index === 0 ||
+        checkpoint.effect_ledger_high_water_mark >
+          admittedCheckpoints[index - 1]!.effect_ledger_high_water_mark
+      ),
+      true,
+    );
+    db.exec("BEGIN IMMEDIATE");
+    assert.equal(
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        admittedCheckpoints.at(-1)!,
+      ),
+      "exact_replay",
+    );
+    db.exec("COMMIT");
+    const latestCheckpoint = admittedCheckpoints.at(-1)!;
+    const conflictingMaterial = {
+      ...latestCheckpoint,
+      operation_certainty: "failed" as const,
+    };
+    const { checkpoint_fingerprint: _priorFingerprint, ...conflictingBasis } =
+      conflictingMaterial;
+    const conflictingCheckpoint = {
+      ...conflictingBasis,
+      checkpoint_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(conflictingBasis),
+      ),
+    };
+    db.exec("BEGIN IMMEDIATE");
+    assert.throws(() =>
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        conflictingCheckpoint,
+      ),
+    );
+    db.exec("ROLLBACK");
+    const config = operatorConfig(workspaceId, fixture.project_id);
+    const active = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:20.000Z",
+    }, {
+      read_controller: (exactConfig, runId) =>
+        service.readRepositoryControllerObservationV01(exactConfig, runId),
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    assert.equal(active.status, "active_owned");
+    const mismatchedController = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:20.500Z",
+    }, {
+      read_controller: () => ({
+        owned: true,
+        controller_generation: 2,
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+      }),
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    assert.equal(mismatchedController.status, "reconciliation_required");
+
+    const restarted = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () =>
+        createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+      runtime_instance_fingerprint: `sha256:${"a".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"b".repeat(64)}`,
+    });
+    const zeroEffectBefore = {
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      results: countWhere(db, "vnext_core_records", "record_kind = 'run_receipt'"),
+      proposals: countWhere(db, "vnext_core_records", "record_kind = 'run_assessment_proposal'"),
+    };
+    const readRestarted = () => readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:21.000Z",
+    }, {
+      read_controller: (exactConfig, runId) =>
+        restarted.readRepositoryControllerObservationV01(exactConfig, runId),
+      read_capability: () => restarted.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    const ready = await readRestarted();
+    assert.equal(ready.status, "resume_ready", JSON.stringify(ready));
+    assert.equal(ready.authority.starts_or_resumes_worker, false);
+    assert.equal(ready.authority.writes_database, false);
+    assert.equal(ready.last_confirmed_operation?.certainty, "completed");
+    const publicEligibility = JSON.stringify(ready);
+    assert(
+      Buffer.byteLength(publicEligibility, "utf8") <=
+        REPOSITORY_RUN_RESUME_LIMITS_V01.public_serialized_bytes,
+    );
+    for (const forbidden of [
+      "provider_thread_ref",
+      "last_turn_ref",
+      "operation_ref",
+      "worktree_observation_fingerprint",
+      fixture.root,
+    ]) {
+      assert.equal(publicEligibility.includes(forbidden), false, forbidden);
+    }
+    assert.equal(
+      (await inspectRepositoryWorktreeV01(fixture.root)).observation_fingerprint,
+      db.prepare(
+        `SELECT worktree_observation_fingerprint
+           FROM vnext_repository_run_resume_checkpoints
+          WHERE run_id = ? ORDER BY effect_ledger_high_water_mark DESC LIMIT 1`,
+      ).pluck().get(started.run_id),
+    );
+    assert.notEqual(
+      (await inspectRepositoryWorktreeV01(fixture.root)).observation_fingerprint,
+      readRepositoryExecutionAttachmentV01(db, fixture.attachment_id)?.worktree_observation_fingerprint,
+    );
+
+    selectProjectV01(db, workspaceId, browserProjectId);
+    assert.deepEqual(await readRestarted(), ready);
+    assert.deepEqual({
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      results: countWhere(db, "vnext_core_records", "record_kind = 'run_receipt'"),
+      proposals: countWhere(db, "vnext_core_records", "record_kind = 'run_assessment_proposal'"),
+    }, zeroEffectBefore);
+
+    const driftPath = path.join(fixture.root, "after-safe-checkpoint.txt");
+    writeFileSync(driftPath, "drift\n", "utf8");
+    assert.equal((await readRestarted()).status, "stale");
+    rmSync(driftPath);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const unsupported = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:22.000Z",
+    }, {
+      read_controller: () => ({
+        owned: false,
+        controller_generation: null,
+        runtime_instance_fingerprint: null,
+        runtime_generation_fingerprint: null,
+      }),
+      read_capability: () => ({
+        ...restarted.readCapabilityContractV01(),
+        resumable_after_detach: false,
+      }),
+      platform: "darwin",
+    });
+    assert.equal(unsupported.status, "unsupported");
+
+    const run = readAutonomyRunLedgerRecord(started.run_id, { db });
+    assert(run);
+    const originalMetadata = run.metadata;
+    for (const metadata of [
+      { ...originalMetadata, host_thread_ref: null },
+      { ...originalMetadata, host_turn_ref: null },
+      { ...originalMetadata, host_thread_ref: { malformed: true } },
+    ]) {
+      updateAutonomyRunLedgerFields(started.run_id, { metadata }, { db });
+      assert.equal((await readRestarted()).status, "unsupported");
+    }
+    for (const metadata of [
+      {
+        ...originalMetadata,
+        repository_execution_envelope_fingerprint: `sha256:${"d".repeat(64)}`,
+      },
+      { ...originalMetadata, adapter_version: "drifted-adapter.v0.1" },
+      { ...originalMetadata, capability_version: "drifted-capability.v0.1" },
+      { ...originalMetadata, packet_fingerprint: `sha256:${"e".repeat(64)}` },
+    ]) {
+      updateAutonomyRunLedgerFields(started.run_id, { metadata }, { db });
+      assert.equal((await readRestarted()).status, "stale");
+    }
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "waiting_for_approval",
+      metadata: { ...originalMetadata, pending_approval: { malformed: true } },
+    }, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      metadata: originalMetadata,
+    }, { db });
+
+    const conflictRunId = "host-run:resume-eligibility-conflict";
+    insertAutonomyRunLedgerRecord({
+      ...run,
+      run_id: conflictRunId,
+      status: "running",
+      metadata: {
+        ...run.metadata,
+        invocation_origin: "interactive",
+      },
+    }, [], [], { db });
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(conflictRunId);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const baselineIdentity = db.prepare(
+      `SELECT filesystem_object_identity
+         FROM vnext_physical_root_baselines
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).pluck().get(workspaceId, fixture.project_id) as string;
+    db.prepare(
+      `UPDATE vnext_physical_root_baselines
+          SET filesystem_object_identity = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(`${baselineIdentity}:drift`, workspaceId, fixture.project_id);
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare(
+      `UPDATE vnext_physical_root_baselines
+          SET filesystem_object_identity = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(baselineIdentity, workspaceId, fixture.project_id);
+
+    const rootBinding = db.prepare(
+      `SELECT normalized_root FROM vnext_project_root_bindings
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).pluck().get(workspaceId, fixture.project_id) as string;
+    db.prepare(
+      `UPDATE vnext_project_root_bindings SET normalized_root = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(`${rootBinding}-drift`, workspaceId, fixture.project_id);
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare(
+      `UPDATE vnext_project_root_bindings SET normalized_root = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(rootBinding, workspaceId, fixture.project_id);
+
+    const multipleBasis = {
+      ...latestCheckpoint,
+      operation_ref: `sha256:${"f".repeat(64)}`,
+    };
+    const { checkpoint_fingerprint: _multiplePrior, ...multipleMaterial } =
+      multipleBasis;
+    const multipleCheckpoint = {
+      ...multipleMaterial,
+      checkpoint_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(multipleMaterial),
+      ),
+    };
+    db.exec("BEGIN IMMEDIATE");
+    assert.equal(
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        multipleCheckpoint,
+      ),
+      "inserted",
+    );
+    db.exec("COMMIT");
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.prepare(
+      "DELETE FROM vnext_repository_run_resume_checkpoints WHERE checkpoint_fingerprint = ?",
+    ).run(multipleCheckpoint.checkpoint_fingerprint);
+
+    db.prepare(
+      `UPDATE vnext_repository_run_resume_checkpoints
+          SET provider_thread_ref_json = '{"malformed":true}'
+        WHERE checkpoint_fingerprint = ?`,
+    ).run(latestCheckpoint.checkpoint_fingerprint);
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.prepare(
+      `UPDATE vnext_repository_run_resume_checkpoints
+          SET provider_thread_ref_json = ?
+        WHERE checkpoint_fingerprint = ?`,
+    ).run(
+      JSON.stringify(latestCheckpoint.provider_thread_ref),
+      latestCheckpoint.checkpoint_fingerprint,
+    );
+
+    db.prepare(
+      "DELETE FROM vnext_repository_run_resume_checkpoints WHERE run_id = ?",
+    ).run(started.run_id);
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.exec("BEGIN IMMEDIATE");
+    for (const checkpoint of admittedCheckpoints) {
+      assert.equal(
+        insertRepositoryRunResumeCheckpointInsideTransactionV01(db, checkpoint),
+        "inserted",
+      );
+    }
+    db.exec("COMMIT");
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const appendTerminalLifecycle = (
+      label: string,
+      certainty: "completed" | "failed" | "cancelled",
+    ) => {
+      const current = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const step = current.steps[0]!;
+      const operationRef = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ run_id: started.run_id, label }),
+      );
+      const lifecycleEventIds: string[] = [];
+      for (const [index, phase] of ["declared", "started", "completed"].entries()) {
+        const lifecycleEventId = `native-host-event:${label}:${phase}`;
+        lifecycleEventIds.push(lifecycleEventId);
+        appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+          run_id: started.run_id,
+          step_id: step.step_id,
+          event_type: "host_event_observed",
+          status: "running",
+          message: "A bounded native-host lifecycle event was admitted.",
+          payload: {
+            event_id: lifecycleEventId,
+            event_kind: "work_checkpoint",
+            checkpoint: {
+              kind: "command_execution",
+              phase,
+              status: phase === "completed" ? certainty : "active",
+              operation_ref: operationRef,
+              certainty: phase === "declared"
+                ? "not_started"
+                : phase === "started"
+                  ? "started"
+                  : certainty,
+              change_count: null,
+            },
+            control_revision: Number(current.metadata.control_revision),
+            raw_protocol_persisted: false,
+          },
+          created_at: `2026-08-04T02:00:${30 + index}.000Z`,
+        }), { db });
+      }
+      return {
+        event_ids: lifecycleEventIds,
+        admission: {
+          config,
+          run_id: started.run_id,
+          lifecycle_event_id: lifecycleEventIds.at(-1)!,
+          controller_generation: Number(current.metadata.controller_generation),
+          runtime_instance_fingerprint: runtimeInstance,
+          runtime_generation_fingerprint: runtimeGeneration,
+          expected_run_control_revision: Number(current.metadata.control_revision),
+          expected_step_control_revision: Number(step.output.control_revision),
+          operation_ref: operationRef,
+          operation_class: "command_execution" as const,
+          checkpoint_phase: "post_operation" as const,
+          operation_certainty: certainty,
+          observed_at: "2026-08-04T02:00:33.000Z",
+        },
+      };
+    };
+    const removeLifecycleEvents = (eventIds: string[]) => {
+      for (const lifecycleEventId of eventIds) {
+        db.prepare(
+          "DELETE FROM autonomy_run_events WHERE json_extract(payload_json, '$.event_id') = ?",
+        ).run(lifecycleEventId);
+      }
+    };
+    const admissionDependencies = {
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin" as const,
+    };
+
+    const failedBoundary = appendTerminalLifecycle("failed-boundary", "failed");
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      failedBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal((await readRestarted()).last_confirmed_operation?.certainty, "failed");
+
+    const cancelledBoundary = appendTerminalLifecycle(
+      "cancelled-boundary",
+      "cancelled",
+    );
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      cancelledBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "cancelled",
+    );
+
+    const finalCompletedBoundary = appendTerminalLifecycle(
+      "final-completed-boundary",
+      "completed",
+    );
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      finalCompletedBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "completed",
+    );
+
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, {
+        ...finalCompletedBoundary.admission,
+        controller_generation:
+          finalCompletedBoundary.admission.controller_generation - 1,
+      }, admissionDependencies),
+    );
+
+    const noPostState = appendTerminalLifecycle("missing-post-state", "completed");
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, noPostState.admission, {
+        ...admissionDependencies,
+        inspect_worktree: async () => ({
+          observation_version: "repository_worktree_observation.v0.1",
+          status: "unavailable" as const,
+          repository_kind: "unknown" as const,
+          reason: "deterministic_post_state_unavailable",
+          observed_at: "2026-08-04T02:00:34.000Z",
+          observation_fingerprint: `sha256:${"1".repeat(64)}`,
+        }),
+      }),
+    );
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(noPostState.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const persistenceFailure = appendTerminalLifecycle(
+      "persistence-failure",
+      "completed",
+    );
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, persistenceFailure.admission, {
+        ...admissionDependencies,
+        before_checkpoint_insert: () => {
+          throw new Error("deterministic_checkpoint_persistence_failure");
+        },
+      }),
+    );
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(persistenceFailure.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const admissionRace = appendTerminalLifecycle("admission-race", "completed");
+    const beforeRace = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, admissionRace.admission, {
+        ...admissionDependencies,
+        before_checkpoint_transaction: () => {
+          updateAutonomyRunLedgerFields(started.run_id, {
+            metadata: {
+              ...beforeRace.metadata,
+              control_revision: Number(beforeRace.metadata.control_revision) + 1,
+            },
+          }, { db });
+        },
+      }),
+    );
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: beforeRace.metadata,
+    }, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(admissionRace.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const declaredRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    const declaredStep = declaredRun.steps[0]!;
+    const declaredOperationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        run_id: started.run_id,
+        label: "definitely-not-started",
+      }),
+    );
+    const declaredLifecycleEventId =
+      "native-host-event:definitely-not-started:declared";
+    appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+      run_id: started.run_id,
+      step_id: declaredStep.step_id,
+      event_type: "host_event_observed",
+      status: "running",
+      message: "A bounded native-host lifecycle event was admitted.",
+      payload: {
+        event_id: declaredLifecycleEventId,
+        event_kind: "work_checkpoint",
+        checkpoint: {
+          kind: "file_change",
+          phase: "declared",
+          status: "active",
+          operation_ref: declaredOperationRef,
+          certainty: "not_started",
+          change_count: 1,
+        },
+        control_revision: Number(declaredRun.metadata.control_revision),
+        raw_protocol_persisted: false,
+      },
+      created_at: "2026-08-04T02:00:36.000Z",
+    }), { db });
+    await admitRepositoryRunResumeCheckpointV01(db, {
+      config,
+      run_id: started.run_id,
+      lifecycle_event_id: declaredLifecycleEventId,
+      controller_generation: Number(declaredRun.metadata.controller_generation),
+      runtime_instance_fingerprint: runtimeInstance,
+      runtime_generation_fingerprint: runtimeGeneration,
+      expected_run_control_revision: Number(declaredRun.metadata.control_revision),
+      expected_step_control_revision: Number(declaredStep.output.control_revision),
+      operation_ref: declaredOperationRef,
+      operation_class: "file_change",
+      checkpoint_phase: "declared_pre_start",
+      operation_certainty: "not_started",
+      observed_at: "2026-08-04T02:00:36.000Z",
+    }, admissionDependencies);
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "not_started",
+    );
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "waiting_for_approval",
+      metadata: {
+        ...run.metadata,
+        pending_approval: {
+          approval_version: "native_host_approval.v0.1",
+          approval_id: "approval:resume-checkpoint",
+          operation_class: "file_change",
+          resource_summary: "One bounded file change",
+          public_reason: "Review one bounded file change.",
+          public_risk_summary: "The local repository may change.",
+          available_decisions: ["approve_once", "decline", "cancel_run"],
+          expires_at: null,
+          control_revision: Number(run.metadata.control_revision),
+          decision_submitted: false,
+        },
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "approval_pending");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      metadata: run.metadata,
+    }, { db });
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:00:23.000Z",
+    }, { db });
+    assert.equal((await readRestarted()).status, "terminal");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
+
+    const incompleteOperationRef = `sha256:${"c".repeat(64)}`;
+    const incompleteEvent = buildAutonomyRunEventRecord({
+      run_id: started.run_id,
+      step_id: readAutonomyRunLedgerRecord(started.run_id, { db })!.steps[0]!.step_id,
+      event_type: "host_event_observed",
+      status: "running",
+      message: "A bounded native-host lifecycle event was admitted.",
+      payload: {
+        event_id: "native-host-event:incomplete-resume-test",
+        event_kind: "work_checkpoint",
+        checkpoint: {
+          kind: "file_change",
+          phase: "started",
+          status: "active",
+          operation_ref: incompleteOperationRef,
+          certainty: "started",
+          change_count: 1,
+        },
+        control_revision: 2,
+        raw_protocol_persisted: false,
+      },
+      created_at: "2026-08-04T02:00:23.500Z",
+    });
+    appendAutonomyRunLedgerEvent(incompleteEvent, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.prepare("DELETE FROM autonomy_run_events WHERE event_id = ?").run(
+      incompleteEvent.event_id,
+    );
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    selectProjectV01(db, workspaceId, fixture.project_id);
+    const credential = operatorCredentialV01(
+      db,
+      config,
+      "2026-08-04T02:00:24.000Z",
+    );
+    updateAutonomyRunLedgerFields(started.run_id, { status: "paused" }, { db });
+    const paused = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    await assert.rejects(
+      service.resume({
+        config,
+        run_ref: started.run_id,
+        control_revision: Number(paused.metadata.control_revision),
+        credential,
+        clock: { now: () => "2026-08-04T02:00:25.000Z" },
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === "live_host_repository_resume_not_supported",
+    );
+  } finally {
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    await service.shutdown();
   }
 }
 
@@ -304,7 +982,11 @@ function assertRepositoryExecutionMigrationV01(): void {
     const legacySql = vNextRepositoryExecutionStoreSchemaSqlV01
       .replace(currentAttachmentLifecycle, legacyAttachmentLifecycle)
       .replace(", 'start_repository_managed_delegation'", "")
-      .replace(consumedIndex, "");
+      .replace(consumedIndex, "")
+      .replace(
+        /  CREATE TABLE IF NOT EXISTS vnext_repository_run_resume_checkpoints[\s\S]*?  CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts/u,
+        "  CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts",
+      );
     assert(!legacySql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL"));
     assert(!legacySql.includes("start_repository_managed_delegation"));
     legacy.exec(`CREATE TABLE vnext_project_identities (
@@ -1781,6 +2463,23 @@ async function waitForTerminalV01(db: Database.Database, runId: string): Promise
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
   assert.fail("managed repository run did not settle within the bounded test loop");
+}
+
+async function waitForCheckpointCountV01(
+  db: Database.Database,
+  runId: string,
+  expectedCount: number,
+): Promise<void> {
+  for (let index = 0; index < 20_000; index += 1) {
+    if (
+      countWhere(
+        db,
+        "vnext_repository_run_resume_checkpoints",
+        `run_id = '${runId}'`,
+      ) >= expectedCount
+    ) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
 }
 
 function count(db: Database.Database, table: string): number {
