@@ -522,14 +522,15 @@ async function replayOrLaunchAttemptV01(
     attempt.run_id,
   );
   if (controller.owned) {
-    if (
-      controller.controller_generation !== attempt.resumed_controller_generation ||
-      controller.runtime_instance_fingerprint !==
-        runtimeClaim.runtime_instance_fingerprint ||
-      controller.runtime_generation_fingerprint !==
-        runtimeClaim.runtime_generation_fingerprint
-    ) {
-      refuse("repository_managed_resume_controller_conflict");
+    if (!controllerExactlyOwnsAttemptV01(controller, attempt, runtimeClaim)) {
+      return resultV01(
+        "reconciliation_required",
+        "A controller is present, but its exact resume attempt binding does not match this admitted attempt.",
+        attempt,
+        service,
+        config,
+        false,
+      );
     }
     return resultV01(
       "exact_replay",
@@ -576,17 +577,31 @@ async function replayOrLaunchAttemptV01(
     runtimeClaim.runtime_instance_fingerprint !== runtime.runtime_instance_fingerprint ||
     runtimeClaim.runtime_generation_fingerprint !== runtime.runtime_generation_fingerprint
   ) {
-    const transferred = await transferRuntimeClaimV01(
-      db, config, attempt, runtimeClaim, service, dependencies,
-    );
+    const priorClaim = runtimeClaim;
+    let transferred: RepositoryManagedResumeRuntimeClaimV01 | null;
+    try {
+      transferred = await transferRuntimeClaimV01(
+        db, config, attempt, priorClaim, service, dependencies,
+      );
+    } catch (error) {
+      return resultAfterExistingAttemptFailureV01(
+        db,
+        config,
+        attempt,
+        priorClaim,
+        service,
+        error,
+      );
+    }
     if (!transferred) {
-      const winner = service.readRepositoryControllerObservationV01(config, attempt.run_id);
-      return resultV01(
-        winner.owned ? "exact_replay" : "reconciliation_required",
-        winner.owned
-          ? "The exact resumed controller already owns this run."
-          : "Another verified runtime changed the resume claim; provider resume was not invoked by this request.",
-        attempt, service, config, false,
+      return resultAfterExistingAttemptFailureV01(
+        db,
+        config,
+        attempt,
+        priorClaim,
+        service,
+        null,
+        true,
       );
     }
     runtimeClaim = transferred;
@@ -611,13 +626,11 @@ async function replayOrLaunchAttemptV01(
       config,
       attempt.run_id,
     );
-    const exactRacedController = racedController.owned &&
-      racedController.controller_generation ===
-        attempt.resumed_controller_generation &&
-      racedController.runtime_instance_fingerprint ===
-        runtimeClaim.runtime_instance_fingerprint &&
-      racedController.runtime_generation_fingerprint ===
-        runtimeClaim.runtime_generation_fingerprint;
+    const exactRacedController = controllerExactlyOwnsAttemptV01(
+      racedController,
+      attempt,
+      runtimeClaim,
+    );
     if (
       current.attempt_state === "settled" ||
       ((current.attempt_state === "provider_resume_invocation_started" ||
@@ -634,17 +647,13 @@ async function replayOrLaunchAttemptV01(
         false,
       );
     }
-    return resultV01(
-      current.attempt_state === "admitted_not_invoked"
-        ? "blocked"
-        : "reconciliation_required",
-      current.attempt_state === "admitted_not_invoked"
-        ? "The admitted resume attempt remains available, but this request did not start its worker."
-        : "The admitted resume claim changed after provider invocation became uncertain; review it before continuing.",
-      attempt,
-      service,
+    return resultAfterExistingAttemptFailureV01(
+      db,
       config,
-      false,
+      current,
+      runtimeClaim,
+      service,
+      null,
     );
   }
   const resumeContext = repositoryResumeContextV01(attempt);
@@ -689,19 +698,129 @@ async function replayOrLaunchAttemptV01(
         strictNowV01(dependencies.now),
       );
     }
-    return resultV01(
-      current?.attempt_state === "admitted_not_invoked"
-        ? "blocked"
-        : "reconciliation_required",
-      current?.attempt_state === "admitted_not_invoked"
-        ? "The admitted resume attempt remains available, but this request did not start its worker."
-        : "Provider resume may have started; this request will not invoke it again.",
+    return resultAfterExistingAttemptFailureV01(
+      db,
+      config,
       current ?? attempt,
+      runtimeClaim,
+      service,
+      error,
+    );
+  }
+}
+
+function controllerExactlyOwnsAttemptV01(
+  controller: ReturnType<
+    LiveNativeHostRunServiceV01["readRepositoryControllerObservationV01"]
+  >,
+  attempt: RepositoryManagedResumeAttemptV01,
+  runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
+): boolean {
+  return Boolean(
+    controller.owned &&
+      controller.mode === "repository_attachment" &&
+      controller.workspace_id === attempt.workspace_id &&
+      controller.project_id === attempt.project_id &&
+      controller.attachment_id === attempt.attachment_id &&
+      controller.attachment_binding_fingerprint ===
+        attempt.attachment_binding_fingerprint &&
+      controller.controller_generation ===
+        attempt.resumed_controller_generation &&
+      controller.runtime_instance_fingerprint ===
+        runtimeClaim.runtime_instance_fingerprint &&
+      controller.runtime_generation_fingerprint ===
+        runtimeClaim.runtime_generation_fingerprint &&
+      controller.attempt_fingerprint === attempt.attempt_fingerprint &&
+      controller.checkpoint_fingerprint === attempt.checkpoint_fingerprint &&
+      controller.expected_state_fingerprint ===
+        attempt.expected_state_fingerprint &&
+      controller.admitted_run_control_revision ===
+        attempt.admitted_run_control_revision &&
+      controller.admitted_step_control_revision ===
+        attempt.admitted_step_control_revision
+  );
+}
+
+function resultAfterExistingAttemptFailureV01(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  admittedAttempt: RepositoryManagedResumeAttemptV01,
+  priorClaim: RepositoryManagedResumeRuntimeClaimV01,
+  service: LiveNativeHostRunServiceV01,
+  error: unknown,
+  forceReconciliation = false,
+): RepositoryManagedResumeResultV01 {
+  const current = readRepositoryManagedResumeAttemptV01(
+    db,
+    admittedAttempt.attempt_fingerprint,
+  ) ?? admittedAttempt;
+  const currentClaim = readRepositoryManagedResumeRuntimeClaimV01(
+    db,
+    admittedAttempt.attempt_fingerprint,
+  );
+  const controller = service.readRepositoryControllerObservationV01(
+    config,
+    admittedAttempt.run_id,
+  );
+  if (
+    currentClaim &&
+    controllerExactlyOwnsAttemptV01(controller, current, currentClaim)
+  ) {
+    return resultV01(
+      "exact_replay",
+      "The exact resumed controller already owns this run.",
+      current,
       service,
       config,
       false,
     );
   }
+  if (current.attempt_state === "settled") {
+    return resultV01(
+      "exact_replay",
+      "This exact resume attempt is already settled.",
+      current,
+      service,
+      config,
+      false,
+    );
+  }
+  const markerPresent =
+    current.provider_invocation_started_at != null ||
+    current.attempt_state !== "admitted_not_invoked";
+  const claimChanged = !currentClaim ||
+    currentClaim.claim_revision !== priorClaim.claim_revision ||
+    currentClaim.runtime_instance_fingerprint !==
+      priorClaim.runtime_instance_fingerprint ||
+    currentClaim.runtime_generation_fingerprint !==
+      priorClaim.runtime_generation_fingerprint ||
+    currentClaim.claim_lifecycle !== priorClaim.claim_lifecycle;
+  const malformedCode = error instanceof RepositoryManagedResumeErrorV01 &&
+    [
+      "repository_managed_resume_consumed_decision_invalid",
+      "repository_managed_resume_expected_state_invalid",
+      "repository_managed_resume_provider_binding_invalid",
+      "repository_managed_resume_run_missing",
+      "repository_managed_resume_source_invalid",
+      "repository_managed_resume_source_unavailable",
+      "repository_managed_resume_step_missing",
+    ].includes(error.code);
+  const reconciliation = forceReconciliation || markerPresent || claimChanged || controller.owned ||
+    malformedCode ||
+    readRepositoryManagedResumeCancellationV01(
+      db,
+      admittedAttempt.attempt_fingerprint,
+    ) != null;
+  return resultV01(
+    reconciliation ? "reconciliation_required" : "blocked",
+    reconciliation
+      ? "The exact admitted resume attempt remains recorded, but its execution ownership or source material is ambiguous; provider resume will not be invoked again by this request."
+      : "The admitted resume attempt remains available, but this request did not start its worker.",
+    current,
+    service,
+    config,
+    false,
+  );
 }
 
 async function transferRuntimeClaimV01(
@@ -1121,10 +1240,7 @@ async function requireAdmittedAttemptSourceV01(
     run.metadata.repository_resume_attempt_fingerprint !==
       attempt.attempt_fingerprint ||
     (controller.owned &&
-      (controller.controller_generation !== attempt.resumed_controller_generation ||
-        controller.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
-        controller.runtime_generation_fingerprint !==
-          runtimeClaim.runtime_generation_fingerprint)) ||
+      !controllerExactlyOwnsAttemptV01(controller, attempt, runtimeClaim)) ||
     selected?.run_id !== run.run_id ||
     attachment.attachment_id !== attempt.attachment_id ||
     attachment.binding_fingerprint !== attempt.attachment_binding_fingerprint ||
@@ -1305,11 +1421,7 @@ async function assertImmediateInvocationGateAndMarkV01(
         expected.provider_thread_binding_fingerprint ||
       createProtocolSha256V01(canonicalizeProtocolValueV01(turn)) !==
         expected.provider_turn_binding_fingerprint ||
-      !controller.owned ||
-      controller.controller_generation !== attempt.resumed_controller_generation ||
-      controller.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
-      controller.runtime_generation_fingerprint !==
-        runtimeClaim.runtime_generation_fingerprint ||
+      !controllerExactlyOwnsAttemptV01(controller, attempt, runtimeClaim) ||
       physical.status !== "exact" ||
       !physicalMatchesBaselineV01(physical, baseline) ||
       physical.node_scope_fingerprint !== attachment.node_scope_fingerprint ||

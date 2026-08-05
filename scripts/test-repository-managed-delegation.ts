@@ -316,6 +316,11 @@ async function main(): Promise<void> {
       explicit_same_run_resume: true,
       resume_attempt_crash_boundary: true,
       resumed_cancellation_boundaries: true,
+      resumed_cancellation_exact_controller_binding: true,
+      resumed_cancellation_foreign_controller_refused: true,
+      resumed_cancellation_signal_idempotent: true,
+      cross_runtime_transfer_failures_structured: true,
+      consumed_resume_decision_mismatch_structured: true,
       provider_thread_resume_once_and_start_zero: true,
       windows_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
@@ -1829,6 +1834,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
       runtime_generation_fingerprint: `sha256:${"2".repeat(64)}`,
     });
     let resumeCalls = 0;
+    let resumeCancellationSignals = 0;
     const resumedService = new LiveNativeHostRunServiceV01({
       open_database: () => openDatabaseV01(),
       adapter_factory: () => {
@@ -1839,6 +1845,13 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
           ...adapter,
           invoke(request, control) {
             if (control.resume_binding) resumeCalls += 1;
+            if (control.resume_binding) {
+              control.cancellation_signal.addEventListener(
+                "abort",
+                () => { resumeCancellationSignals += 1; },
+                { once: true },
+              );
+            }
             return adapter.invoke(request, control);
           },
         };
@@ -1933,6 +1946,130 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
             runtime_instance_fingerprint: instance,
             runtime_generation_fingerprint: generation,
           });
+        const assertAttemptBoundFailure = (
+          result: Awaited<ReturnType<typeof resumeRepositoryManagedDelegationV01>>,
+          expected: "blocked" | "reconciliation_required",
+        ) => {
+          assert.equal(result.resume_version, "repository_managed_resume.v0.1");
+          assert.equal(result.status, expected);
+          assert.equal(result.run_id, started.run_id);
+          assert.equal(result.attachment_id, fixture.attachment_id);
+          assert.equal(
+            result.controller_generation,
+            attempt.resumed_controller_generation,
+          );
+          assert.equal(result.authority.worker_started, false);
+          assert.equal(result.authority.provider_resume_may_occur, false);
+        };
+        const probe = replacement(
+          `sha256:${"b".repeat(64)}`,
+          `sha256:${"c".repeat(64)}`,
+        );
+        const driftPath = path.join(fixture.root, "resume-transfer-drift.txt");
+        writeFileSync(driftPath, "post-checkpoint drift\n", "utf8");
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_100), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        rmSync(driftPath);
+        const baselineRow = db.prepare(
+          `SELECT baseline_fingerprint FROM vnext_physical_root_baselines
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).get(workspaceId, fixture.project_id) as {
+          baseline_fingerprint: string;
+        };
+        db.prepare(
+          `UPDATE vnext_physical_root_baselines SET baseline_fingerprint = ?
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).run(`sha256:${"d".repeat(64)}`, workspaceId, fixture.project_id);
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_200), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        db.prepare(
+          `UPDATE vnext_physical_root_baselines SET baseline_fingerprint = ?
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).run(baselineRow.baseline_fingerprint, workspaceId, fixture.project_id);
+        const decisionResultFingerprint = db.prepare(
+          `SELECT result_fingerprint FROM vnext_repository_execution_decision_requests
+            WHERE request_fingerprint = ?`,
+        ).pluck().get(attempt.decision_request_fingerprint) as string;
+        db.prepare(
+          `UPDATE vnext_repository_execution_decision_requests
+              SET result_fingerprint = ? WHERE request_fingerprint = ?`,
+        ).run(`sha256:${"e".repeat(64)}`, attempt.decision_request_fingerprint);
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_300), platform: "darwin" },
+          ),
+          "reconciliation_required",
+        );
+        db.prepare(
+          `UPDATE vnext_repository_execution_decision_requests
+              SET result_fingerprint = ? WHERE request_fingerprint = ?`,
+        ).run(decisionResultFingerprint, attempt.decision_request_fingerprint);
+        const admittedRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+        const originalTurn = admittedRun.metadata.host_turn_ref;
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: {
+            ...admittedRun.metadata,
+            host_turn_ref: {
+              ...(originalTurn as Record<string, unknown>),
+              source_ref: `sha256:${"f".repeat(64)}`,
+            },
+          },
+        }, { db });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_400), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: { ...admittedRun.metadata, host_turn_ref: originalTurn },
+        }, { db });
+        const incompatibleService = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () => {
+            const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+            return { ...adapter, capability_version: "incompatible-resume-capability.v0.1" };
+          },
+          runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"0".repeat(64)}`,
+        });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, incompatibleService,
+            { now: () => at(22_500), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        await incompatibleService.shutdown();
+        const originalObservation = probe.readRepositoryControllerObservationV01.bind(probe);
+        probe.readRepositoryControllerObservationV01 = () => ({
+          ...originalObservation(config, started.run_id),
+          owned: true,
+          controller_generation: attempt.resumed_controller_generation - 1,
+          mode: "repository_attachment",
+        });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_600), platform: "darwin" },
+          ),
+          "reconciliation_required",
+        );
+        probe.readRepositoryControllerObservationV01 = originalObservation;
+        await probe.shutdown();
+        assert.equal(resumeCalls, 0);
         const serviceB = replacement(`sha256:${"5".repeat(64)}`, `sha256:${"6".repeat(64)}`);
         const serviceC = replacement(`sha256:${"7".repeat(64)}`, `sha256:${"8".repeat(64)}`);
         let releaseWinner!: () => void;
@@ -2125,14 +2262,112 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
         await waitForCheckpointCountV01(db, started.run_id, 8);
         const running = readAutonomyRunLedgerRecord(started.run_id, { db });
         assert(running);
-        const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+        const observer = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () =>
+            createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+          runtime_instance_fingerprint: `sha256:${"d".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"e".repeat(64)}`,
+        });
+        const cancellationInput = {
           config,
           attachment_id: fixture.attachment_id,
           expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
           run_id: started.run_id,
           control_revision: Number(running.metadata.control_revision),
-        }, resumedService);
+        };
+        const recorded = await cancelRepositoryManagedDelegationV01(
+          db,
+          cancellationInput,
+          observer,
+        );
+        assert.equal(recorded.status, "reconciliation_required");
+        assert.equal(resumeCancellationSignals, 0);
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const controllers = (
+          resumedService as unknown as {
+            controllers: Map<string, {
+              input: {
+                controller_generation: number;
+                runtime_instance_fingerprint: string;
+                runtime_generation_fingerprint: string;
+              };
+              request: NativeHostRequestV01 | null;
+            }>;
+          }
+        ).controllers;
+        const controller = [...controllers.values()][0]!;
+        assert(controller.request?.repository_resume_context);
+        const cancelExact = () => {
+          const exactRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+          return cancelRepositoryManagedDelegationV01(db, {
+            ...cancellationInput,
+            control_revision: Number(exactRun.metadata.control_revision),
+          }, resumedService);
+        };
+        const assertSignalUnsent = () => {
+          assert.equal(
+            readRepositoryManagedResumeCancellationV01(
+              db,
+              attempt.attempt_fingerprint,
+            )?.cancellation_signal_sent,
+            0,
+          );
+          assert.equal(resumeCancellationSignals, 0);
+        };
+        const originalGeneration = controller.input.controller_generation;
+        controller.input.controller_generation = originalGeneration - 1;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.controller_generation = originalGeneration + 1;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.controller_generation = originalGeneration;
+        const claimedRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: {
+            ...claimedRun.metadata,
+            repository_resume_runtime_claim_revision:
+              Number(claimedRun.metadata.repository_resume_runtime_claim_revision) + 1,
+          },
+        }, { db });
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: claimedRun.metadata,
+        }, { db });
+        const originalRuntimeInstance = controller.input.runtime_instance_fingerprint;
+        const originalRuntimeGeneration = controller.input.runtime_generation_fingerprint;
+        controller.input.runtime_instance_fingerprint = `sha256:${"f".repeat(64)}`;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.runtime_instance_fingerprint = originalRuntimeInstance;
+        controller.input.runtime_generation_fingerprint = `sha256:${"0".repeat(64)}`;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.runtime_generation_fingerprint = originalRuntimeGeneration;
+        const resumeContext = controller.request.repository_resume_context;
+        controller.request.repository_resume_context = {
+          ...resumeContext,
+          attempt_fingerprint: `sha256:${"0".repeat(64)}`,
+        };
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.request.repository_resume_context = resumeContext;
+        const exactRunId = controller.request.run_id;
+        controller.request.run_id = "autonomy-run:foreign-controller";
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.request.run_id = exactRunId;
+        const cancelled = await cancelExact();
         assert.equal(cancelled.status, "cancel_requested");
+        assert.equal(resumeCancellationSignals, 1);
+        assert.equal((await cancelExact()).status, "exact_replay");
+        assert.equal(resumeCancellationSignals, 1);
         await waitForTerminalV01(db, started.run_id);
         assert.equal(
           readAutonomyRunLedgerRecord(started.run_id, { db })?.status,
@@ -2146,6 +2381,15 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
           })[0]?.final_outcome,
           "cancelled",
         );
+        const terminalCancellation = readRepositoryManagedResumeCancellationV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(terminalCancellation?.cancellation_signal_sent, 1);
+        assert.equal(terminalCancellation?.provider_stop_confirmed, 1);
+        assert.equal((await cancelExact()).status, "exact_replay");
+        assert.equal(resumeCancellationSignals, 1);
+        await observer.shutdown();
       }
     } finally {
       delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;

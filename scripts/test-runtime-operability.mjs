@@ -1121,6 +1121,46 @@ async function testRepositoryResumeEligibilityRestart() {
     environment,
     manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
     run: async ({ callExecution }) => {
+      const transferDriftPath = path.join(
+        repositories.repositoryA,
+        "cross-runtime-transfer-drift.txt",
+      );
+      writeFileSync(
+        transferDriftPath,
+        "cross-runtime drift before exact replay\n",
+        "utf8",
+      );
+      const structuredTransferFailure = await callExecution(
+        "augnes_resume_repository_delegation",
+        afterRestart.resumeInput,
+      );
+      assert.equal(structuredTransferFailure.structuredContent.status, "blocked");
+      assert.equal(
+        structuredTransferFailure.structuredContent.resume_version,
+        "repository_managed_resume.v0.1",
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.run_id,
+        beforeRestart.runId,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.attachment_id,
+        beforeRestart.attachmentId,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.authority.worker_started,
+        false,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.authority
+          .provider_resume_may_occur,
+        false,
+      );
+      assert.equal(
+        Object.hasOwn(structuredTransferFailure.structuredContent, "error"),
+        false,
+      );
+      unlinkSync(transferDriftPath);
       const resumed = await callExecution(
         "augnes_resume_repository_delegation",
         afterRestart.resumeInput,
@@ -1153,7 +1193,13 @@ async function testRepositoryResumeEligibilityRestart() {
           afterRestart.attempt.resumed_controller_generation);
         assert.equal(checkpoints.at(-1)?.controller_generation,
           attempts[0].resumed_controller_generation);
-        return { resumed, replay, terminal, checkpointCount: checkpoints.length };
+        return {
+          structuredTransferFailure,
+          resumed,
+          replay,
+          terminal,
+          checkpointCount: checkpoints.length,
+        };
       } finally {
         verificationDb.close();
       }
@@ -1181,6 +1227,13 @@ async function testRepositoryResumeEligibilityRestart() {
       reacquiredResult.resumed.structuredContent.status === "accepted",
     exact_replay_worker_started:
       reacquiredResult.replay.structuredContent.authority.worker_started,
+    cross_runtime_drift_structured:
+      reacquiredResult.structuredTransferFailure.structuredContent.status ===
+        "blocked" &&
+      !Object.hasOwn(
+        reacquiredResult.structuredTransferFailure.structuredContent,
+        "error",
+      ),
     same_run: reacquiredResult.resumed.structuredContent.run_id === beforeRestart.runId,
     same_attachment:
       reacquiredResult.resumed.structuredContent.attachment_id ===

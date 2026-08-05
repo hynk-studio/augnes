@@ -28,6 +28,7 @@ import {
   readRepositoryManagedResumeAttemptV01,
   insertRepositoryManagedResumeCancellationInsideTransactionV01,
   markRepositoryManagedResumeCancellationSignalInsideTransactionV01,
+  markRepositoryManagedResumeCancellationStopConfirmedInsideTransactionV01,
   readRepositoryManagedResumeCancellationV01,
   readRepositoryManagedResumeRuntimeClaimV01,
   readRepositoryExecutionAttachmentV01,
@@ -244,6 +245,16 @@ export class LiveNativeHostRunServiceV01 {
     controller_generation: number | null;
     runtime_instance_fingerprint: string | null;
     runtime_generation_fingerprint: string | null;
+    mode: NativeHostRunModeV01 | null;
+    workspace_id: string | null;
+    project_id: string | null;
+    attachment_id: string | null;
+    attachment_binding_fingerprint: string | null;
+    attempt_fingerprint: string | null;
+    checkpoint_fingerprint: string | null;
+    expected_state_fingerprint: string | null;
+    admitted_run_control_revision: number | null;
+    admitted_step_control_revision: number | null;
   } {
     const controller = this.controllers.get(projectKeyV01(config));
     const owned = Boolean(
@@ -251,15 +262,36 @@ export class LiveNativeHostRunServiceV01 {
         !controller.completionSettled &&
         controller.runId === runId,
     );
+    const request = owned ? controller!.request : null;
+    const delegationContext = request?.repository_delegation_context ??
+      (owned ? controller!.repositoryDelegationContext : null);
+    const resumeContext = request?.repository_resume_context ??
+      (owned ? controller!.repositoryResumeContext : null);
     return {
       owned,
       controller_generation: owned ? controller!.controllerGeneration : null,
       runtime_instance_fingerprint: owned
-        ? this.runtimeInstanceFingerprint
+        ? controller!.runtimeInstanceFingerprint
         : null,
       runtime_generation_fingerprint: owned
-        ? this.runtimeGenerationFingerprint
+        ? controller!.runtimeGenerationFingerprint
         : null,
+      mode: owned ? controller!.mode : null,
+      workspace_id: request?.workspace_id ??
+        (owned ? controller!.workspaceId : null),
+      project_id: request?.project_id ??
+        (owned ? controller!.projectId : null),
+      attachment_id: delegationContext?.attachment_id ?? null,
+      attachment_binding_fingerprint:
+        delegationContext?.attachment_binding_fingerprint ?? null,
+      attempt_fingerprint: resumeContext?.attempt_fingerprint ?? null,
+      checkpoint_fingerprint: resumeContext?.checkpoint_fingerprint ?? null,
+      expected_state_fingerprint:
+        resumeContext?.expected_state_fingerprint ?? null,
+      admitted_run_control_revision:
+        resumeContext?.admitted_run_control_revision ?? null,
+      admitted_step_control_revision:
+        resumeContext?.admitted_step_control_revision ?? null,
     };
   }
 
@@ -444,7 +476,17 @@ export class LiveNativeHostRunServiceV01 {
       if (
         active.runId !== input.claim.run_id ||
         active.mode !== "repository_attachment" ||
-        active.controllerGeneration !== input.claim.resumed_controller_generation
+        active.workspaceId !== input.config.workspace_id ||
+        active.projectId !== input.config.project_id ||
+        active.controllerGeneration !== input.claim.resumed_controller_generation ||
+        active.runtimeInstanceFingerprint !==
+          input.claim.runtime_instance_fingerprint ||
+        active.runtimeGenerationFingerprint !==
+          input.claim.runtime_generation_fingerprint ||
+        canonicalizeProtocolValueV01(active.repositoryResumeContext) !==
+          canonicalizeProtocolValueV01(input.repository_resume_context) ||
+        canonicalizeProtocolValueV01(active.repositoryDelegationContext) !==
+          canonicalizeProtocolValueV01(input.repository_delegation_context)
       ) {
         refuseV01("live_host_repository_resume_controller_conflict", 409);
       }
@@ -954,11 +996,6 @@ export class LiveNativeHostRunServiceV01 {
       db.exec("BEGIN IMMEDIATE");
       const run = this.requireRunV01(db, input.config, input.run_ref);
       assertRepositoryCancellationBindingV01(db, input, run);
-      const activeController = controllerOwnsRepositoryCancellationV01(
-        controller,
-        input,
-        run,
-      );
       const resumeAttemptFingerprint = stringMetadataV01(
         run.metadata.repository_resume_attempt_fingerprint,
       );
@@ -968,15 +1005,29 @@ export class LiveNativeHostRunServiceV01 {
       const resumeCancellation = resumeAttemptFingerprint
         ? readRepositoryManagedResumeCancellationV01(db, resumeAttemptFingerprint)
         : null;
+      const resumeRuntimeClaim = resumeAttemptFingerprint
+        ? readRepositoryManagedResumeRuntimeClaimV01(db, resumeAttemptFingerprint)
+        : null;
+      const controllerRelation = resumeAttempt
+        ? classifyRepositoryResumeCancellationControllerV01(
+            controller,
+            input,
+            run,
+            resumeAttempt,
+            resumeRuntimeClaim,
+            resumeCancellation,
+          )
+        : controllerOwnsRepositoryCancellationV01(controller, input, run)
+          ? "exact"
+          : controller && !controller.completionSettled
+            ? "mismatch"
+            : "none";
+      const activeController = controllerRelation === "exact";
       if (isTerminalRunnerStatus(run.status)) {
         outcome = "exact_replay";
+      } else if (resumeAttempt && controllerRelation === "mismatch") {
+        outcome = "reconciliation_required";
       } else if (resumeAttempt && resumeCancellation) {
-        if (
-          controller && !controller.completionSettled &&
-          !activeController
-        ) {
-          refuseV01("live_host_repository_cancel_controller_mismatch", 409);
-        }
         if (
           activeController &&
           resumeCancellation.controller_generation ===
@@ -987,6 +1038,22 @@ export class LiveNativeHostRunServiceV01 {
             this.now(),
           )
         ) {
+          if (run.status === "paused") {
+            const observedAt = this.now();
+            updateAutonomyRunLedgerFields(run.run_id, {
+              status: "cancelling",
+              stop_reason: "cancellation_requested_provider_stop_unconfirmed",
+              updated_at: observedAt,
+              metadata: {
+                ...run.metadata,
+                cancellation_requested: true,
+                provider_stop_confirmed: false,
+                resume_reacquisition_forbidden: true,
+                reconciliation_required: true,
+                public_reason: "cancellation_recorded_provider_stop_unconfirmed",
+              },
+            }, { db });
+          }
           interrupt = true;
           outcome = "cancel_requested";
         } else {
@@ -1335,6 +1402,8 @@ export class LiveNativeHostRunServiceV01 {
       controller_generation: input.controller_generation ?? 1,
       runtime_instance_fingerprint: this.runtimeInstanceFingerprint,
       runtime_generation_fingerprint: this.runtimeGenerationFingerprint,
+      repository_delegation_context: input.repository_delegation_context,
+      repository_resume_context: input.repository_resume_context ?? null,
       read_capability: () => this.readCapabilityContractV01(),
       claimed_run_id:
         input.pre_admitted_repository_resume_claim?.run_id ??
@@ -1393,7 +1462,11 @@ export class LiveNativeHostRunServiceV01 {
           transitionResumeAttemptV01(db, {
             attempt_fingerprint:
               input.pre_admitted_repository_resume_claim.attempt_fingerprint,
-            from: ["controller_owned", "provider_resume_invocation_started"],
+            from: [
+              "controller_owned",
+              "provider_resume_invocation_started",
+              "reconciliation_required",
+            ],
             to: "settled",
             observed_at: this.now(),
             final_outcome: resumeAttemptOutcomeV01(result.host_result?.outcome),
@@ -1735,6 +1808,8 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       controller_generation: number;
       runtime_instance_fingerprint: string;
       runtime_generation_fingerprint: string;
+      repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
+      repository_resume_context: NativeHostRepositoryResumeContextV01 | null;
       read_capability: () => ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>;
       claimed_run_id: string | null;
     },
@@ -1777,6 +1852,30 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
 
   get controllerGeneration(): number {
     return this.input.controller_generation;
+  }
+
+  get runtimeInstanceFingerprint(): string {
+    return this.input.runtime_instance_fingerprint;
+  }
+
+  get runtimeGenerationFingerprint(): string {
+    return this.input.runtime_generation_fingerprint;
+  }
+
+  get workspaceId(): string {
+    return this.input.config.workspace_id;
+  }
+
+  get projectId(): string {
+    return this.input.config.project_id;
+  }
+
+  get repositoryDelegationContext(): NativeHostRepositoryDelegationContextV01 | null {
+    return this.input.repository_delegation_context;
+  }
+
+  get repositoryResumeContext(): NativeHostRepositoryResumeContextV01 | null {
+    return this.input.repository_resume_context;
   }
 
   matchesStart(
@@ -2479,6 +2578,38 @@ function transitionResumeAttemptV01(
         to: "released",
         updated_at: input.observed_at,
       });
+    }
+    if (input.to === "settled" && input.final_outcome === "cancelled") {
+      const attempt = readRepositoryManagedResumeAttemptV01(
+        db,
+        input.attempt_fingerprint,
+      );
+      const run = attempt
+        ? readAutonomyRunLedgerRecord(attempt.run_id, { db })
+        : null;
+      if (
+        attempt &&
+        run?.status === "cancelled" &&
+        run.metadata.repository_resume_attempt_fingerprint ===
+          attempt.attempt_fingerprint &&
+        numberMetadataV01(run.metadata.controller_generation) ===
+          attempt.resumed_controller_generation &&
+        markRepositoryManagedResumeCancellationStopConfirmedInsideTransactionV01(
+          db,
+          attempt.attempt_fingerprint,
+          input.observed_at,
+        )
+      ) {
+        updateAutonomyRunLedgerFields(run.run_id, {
+          updated_at: input.observed_at,
+          metadata: {
+            ...run.metadata,
+            cancellation_requested: true,
+            provider_stop_confirmed: true,
+            resume_reacquisition_forbidden: true,
+          },
+        }, { db });
+      }
     }
     db.exec("COMMIT");
   } catch (error) {
@@ -3202,6 +3333,85 @@ function controllerOwnsRepositoryCancellationV01(
       request.repository_delegation_context.attachment_binding_fingerprint ===
         input.expected_attachment_binding_fingerprint,
   );
+}
+
+function classifyRepositoryResumeCancellationControllerV01(
+  controller: LiveRunControllerV01 | undefined,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    run_ref: string;
+    attachment_id: string;
+    expected_attachment_binding_fingerprint: string;
+  },
+  run: AutonomyRunRecord,
+  attempt: RepositoryManagedResumeAttemptV01,
+  runtimeClaim: ReturnType<typeof readRepositoryManagedResumeRuntimeClaimV01>,
+  cancellation: ReturnType<typeof readRepositoryManagedResumeCancellationV01>,
+): "none" | "exact" | "mismatch" {
+  if (!controller || controller.completionSettled) return "none";
+  const request = controller.request;
+  const resumeContext = request?.repository_resume_context;
+  const exact = Boolean(
+    runtimeClaim &&
+      controller.runId === input.run_ref &&
+      controller.runId === run.run_id &&
+      controller.mode === "repository_attachment" &&
+      controller.controllerGeneration === attempt.resumed_controller_generation &&
+      (!cancellation ||
+        cancellation.controller_generation ===
+          attempt.resumed_controller_generation) &&
+      controller.runtimeInstanceFingerprint ===
+        runtimeClaim.runtime_instance_fingerprint &&
+      controller.runtimeGenerationFingerprint ===
+        runtimeClaim.runtime_generation_fingerprint &&
+      runtimeClaim.attempt_fingerprint === attempt.attempt_fingerprint &&
+      runtimeClaim.claim_lifecycle === "invocation_started" &&
+      runtimeClaim.claim_revision ===
+        numberMetadataV01(
+          run.metadata.repository_resume_runtime_claim_revision,
+        ) &&
+      run.metadata.repository_resume_attempt_fingerprint ===
+        attempt.attempt_fingerprint &&
+      numberMetadataV01(run.metadata.controller_generation) ===
+        attempt.resumed_controller_generation &&
+      run.metadata.runtime_instance_fingerprint ===
+        runtimeClaim.runtime_instance_fingerprint &&
+      run.metadata.runtime_generation_fingerprint ===
+        runtimeClaim.runtime_generation_fingerprint &&
+      request?.workspace_id === input.config.workspace_id &&
+      request.project_id === input.config.project_id &&
+      request.run_id === input.run_ref &&
+      request.repository_delegation_context?.attachment_id ===
+        input.attachment_id &&
+      request.repository_delegation_context.attachment_binding_fingerprint ===
+        input.expected_attachment_binding_fingerprint &&
+      resumeContext?.attempt_fingerprint === attempt.attempt_fingerprint &&
+      resumeContext.checkpoint_fingerprint === attempt.checkpoint_fingerprint &&
+      resumeContext.expected_state_fingerprint ===
+        attempt.expected_state_fingerprint &&
+      resumeContext.prior_controller_generation ===
+        attempt.prior_controller_generation &&
+      resumeContext.resumed_controller_generation ===
+        attempt.resumed_controller_generation &&
+      resumeContext.admitted_run_control_revision ===
+        attempt.admitted_run_control_revision &&
+      resumeContext.admitted_step_control_revision ===
+        attempt.admitted_step_control_revision &&
+      run.metadata.repository_resume_checkpoint_fingerprint ===
+        attempt.checkpoint_fingerprint &&
+      run.metadata.workspace_id === input.config.workspace_id &&
+      run.metadata.project_id === input.config.project_id &&
+      run.metadata.repository_attachment_id === input.attachment_id &&
+      run.metadata.repository_attachment_binding_fingerprint ===
+        input.expected_attachment_binding_fingerprint &&
+      (!cancellation ||
+        (cancellation.attempt_fingerprint === attempt.attempt_fingerprint &&
+          cancellation.workspace_id === input.config.workspace_id &&
+          cancellation.project_id === input.config.project_id &&
+          cancellation.run_id === input.run_ref &&
+          cancellation.attachment_id === input.attachment_id))
+  );
+  return exact ? "exact" : "mismatch";
 }
 
 function startMaterialMatchesRunV01(

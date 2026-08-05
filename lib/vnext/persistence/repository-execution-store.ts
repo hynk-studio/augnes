@@ -1095,6 +1095,19 @@ export function markRepositoryManagedResumeCancellationSignalInsideTransactionV0
   ).run(updatedAt, attemptFingerprint).changes === 1;
 }
 
+export function markRepositoryManagedResumeCancellationStopConfirmedInsideTransactionV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+  updatedAt: string,
+): boolean {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_cancellation_transaction_required");
+  return db.prepare(
+    `UPDATE vnext_repository_managed_resume_cancellations
+        SET provider_stop_confirmed = 1, updated_at = ?
+      WHERE attempt_fingerprint = ? AND provider_stop_confirmed = 0`,
+  ).run(updatedAt, attemptFingerprint).changes === 1;
+}
+
 interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy"> {
   freshness_policy_json: string;
 }
