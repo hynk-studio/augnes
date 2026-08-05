@@ -24,6 +24,11 @@ import {
   startRepositoryManagedDelegationV01,
 } from "@/lib/vnext/repository-execution/repository-managed-delegation";
 import {
+  prepareRepositoryManagedResumeV01,
+  RepositoryManagedResumeErrorV01,
+  resumeRepositoryManagedDelegationV01,
+} from "@/lib/vnext/repository-execution/repository-managed-resume";
+import {
   getLiveNativeHostRunServiceV01,
   LiveNativeHostRunServiceErrorV01,
 } from "@/lib/vnext/runtime/live-native-host-run-service";
@@ -72,6 +77,7 @@ export async function POST(request: Request) {
     if (
       error instanceof RepositoryExecutionErrorV01 ||
       error instanceof RepositoryManagedDelegationErrorV01 ||
+      error instanceof RepositoryManagedResumeErrorV01 ||
       error instanceof LiveNativeHostRunServiceErrorV01
     ) {
       return routeError(error.code, error.status);
@@ -83,6 +89,63 @@ export async function POST(request: Request) {
 }
 
 async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<string, unknown>) {
+  if (body.action === "request_resume") {
+    exactKeys(body, ["action", "workspace_id", "project_id"]);
+    const workspaceId = requiredString(body.workspace_id);
+    const projectId = requiredString(body.project_id);
+    const baseConfig = readVNextLocalOperatorPilotConfigV01();
+    if (baseConfig.workspace_id !== workspaceId) {
+      throw new RepositoryManagedResumeErrorV01(
+        "repository_managed_resume_workspace_scope_mismatch",
+      );
+    }
+    return prepareRepositoryManagedResumeV01(db, {
+      config: { ...baseConfig, workspace_id: workspaceId, project_id: projectId },
+    }, getLiveNativeHostRunServiceV01());
+  }
+  if (body.action === "resume_run") {
+    exactKeys(body, [
+      "action", "workspace_id", "project_id", "run_id", "attachment_id",
+      "expected_attachment_binding_fingerprint", "expected_state_fingerprint",
+      "expected_controller_generation", "expected_run_control_revision",
+      "decision_request_fingerprint", "decision_grant_fingerprint",
+    ]);
+    const workspaceId = requiredString(body.workspace_id);
+    const projectId = requiredString(body.project_id);
+    const baseConfig = readVNextLocalOperatorPilotConfigV01();
+    if (baseConfig.workspace_id !== workspaceId) {
+      throw new RepositoryManagedResumeErrorV01(
+        "repository_managed_resume_workspace_scope_mismatch",
+      );
+    }
+    return resumeRepositoryManagedDelegationV01(db, {
+      config: { ...baseConfig, workspace_id: workspaceId, project_id: projectId },
+      run_id: requiredString(body.run_id),
+      attachment_id: requiredString(body.attachment_id),
+      expected_attachment_binding_fingerprint: requiredString(
+        body.expected_attachment_binding_fingerprint,
+      ),
+      expected_state_fingerprint: requiredString(body.expected_state_fingerprint),
+      expected_controller_generation: requiredInteger(
+        body.expected_controller_generation,
+      ),
+      expected_run_control_revision: requiredInteger(
+        body.expected_run_control_revision,
+      ),
+      decision_request_fingerprint: requiredString(
+        body.decision_request_fingerprint,
+      ),
+      decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
+    }, getLiveNativeHostRunServiceV01(),
+    process.env.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        process.env.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION === "1"
+      ? {
+          after_admission_commit: () => {
+            throw new Error("canonical_resume_fail_after_admission");
+          },
+        }
+      : {});
+  }
   if (body.action === "cancel_run") {
     exactKeys(body, [
       "action", "workspace_id", "project_id", "attachment_id",

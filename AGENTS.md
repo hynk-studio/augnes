@@ -146,8 +146,11 @@ capability, compatibility, or deferred work rather than default product UI.
   directory-handle helper source. The supported target is Windows 10 Pro 22H2
   build 19045 or newer, or Windows 11 build 22000 or newer, on x64 local fixed
   NTFS. Support claims must name the exact Windows lane actually verified.
-  Independent source-runtime proof exists for Windows 10 Pro 22H2 build
-  19045.6456 and Windows 11 Home 25H2 build 26200.8875. ARM64, ReFS/Dev Drive,
+  Exact source-runtime proof exists for Windows 10 Pro 22H2 build 19045.6456
+  at checkpoint `374a582b766a10616667633eb911d3df2d49b85e` and for Windows
+  11 Home 25H2 build 26200.8875 at pre-integration checkpoint
+  `567c9bbbad5d35e6803ad740adfac1b881983912`. A later integrated head is not
+  Windows 10 exact-head verified without a fresh run there. ARM64, ReFS/Dev Drive,
   FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and unclassified
   reparse roots fail closed.
   Windows source-runtime attachment admission is enabled only for the exact
@@ -155,7 +158,7 @@ capability, compatibility, or deferred work rather than default product UI.
   proof. A parser test, mocked platform value, reviewed source, or another
   platform's package build is not that proof. Packaged Windows admission stays
   disabled until a native Windows package lane proves the helper and manifest.
-  CDX2B3A never enables Windows managed Start; CDX2B3B remains separate.
+  CDX2B3A never enables Windows managed Start or Resume; CDX2B3B remains separate.
 - The CDX2B2B execution envelope permits broad bounded local reversible work
   only inside the exact macOS repository root. Network project commands,
   dependency downloads, push/GitHub, release/deploy/publish, injected
@@ -170,6 +173,25 @@ capability, compatibility, or deferred work rather than default product UI.
   Risk-reducing cancellation binds only the immutable consumed attachment and
   exact run/controller ownership; packet, work, root, baseline, worktree, and
   Browser-selection drift must not prevent cancelling that owned run.
+- CDX2B4A resume checkpoints are private node-local operational history, not a
+  mutable attachment or portable project truth. Resume eligibility is an exact
+  read-only projection over the same run, attachment, event/step/effect,
+  approval, controller, provider binding, root/baseline, worktree, and envelope
+  owners. It never resumes a repository run. Ambiguous effect or missing
+  post-effect state requires reconciliation; pending approval stays the next
+  action. Browser active selection is not binding material.
+- CDX2B4B may turn only exact `resume_ready` material into one expiring
+  Browser-only Resume decision and one atomic same-run attempt. Eligibility is
+  not authority, Resume decision is not operation approval, and the consumed
+  Start grant is never reused. The same run, attachment, execution envelope,
+  checkpoint, and provider thread are preserved while controller generation
+  advances exactly once. A durable provider-invocation-start marker precedes
+  `thread/resume`; once present, controller/result loss is reconciliation and
+  never a second provider call. The immutable attempt and mutable supervised
+  runtime claim are separate: exact user replay may transfer only a pre-marker
+  claim by CAS, while durable lost-controller cancellation forbids later
+  reacquisition without claiming provider stop. Generic historical interactive/policy resume
+  keeps its existing owner. Companion startup never resumes automatically.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical

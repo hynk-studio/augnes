@@ -70,4 +70,4 @@ Directory-symlink creation was unavailable without host privilege on the
 Windows 11 node, and no second local fixed NTFS volume was available for
 cross-volume proof there. The existing package builder returns
 `package_build_runtime_unsupported` on Windows, so packaged admission remains
-disabled. Windows managed Start remains blocked and belongs to CDX2B3B.
+disabled. Windows managed Start and Resume remain blocked and belong to CDX2B3B.

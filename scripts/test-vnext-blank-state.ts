@@ -238,6 +238,7 @@ function delegatedWork(
       executes: false,
     },
     pending_approval: null,
+    resume_eligibility: null,
     result: resultReady
       ? {
           receipt_ref: "run-receipt:test",

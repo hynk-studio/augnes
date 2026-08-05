@@ -81,7 +81,17 @@ capability, and execution envelope before the first worker invocation. Exact
 replay returns the same run and launches nothing twice. Cancellation is bound
 to the exact attachment/run and creates no semantic decision. Use
 `augnes_resume_repository` for current status, result, receipt, and review
-continuity.
+continuity. For attachment-backed runs it also returns the one canonical
+read-only resume-eligibility projection and last confirmed operation summary.
+`resume_ready` means a later explicit same-run resume could be safe; it does
+not itself resume, launch, call a provider, or create a controller. To continue,
+call `augnes_request_repository_resume`, have the user confirm the exact Resume
+card in Browser, then submit the returned grant with
+`augnes_resume_repository_delegation`. The MCP proxy cannot issue or confirm
+that grant. The request preserves the same run, consumed attachment, execution
+envelope, and provider thread; it uses `thread/resume`, never `thread/start`.
+Exact replay starts no second controller. Pending approval remains
+`approval_pending`, and uncertain effects remain `reconciliation_required`.
 
 The start decision permits bounded reversible local work inside the exact
 repository root. It does not grant arbitrary command network access,
@@ -107,15 +117,16 @@ and the existing local supervised Companion.
 
 Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, current-session workers,
-automatic resume after controller loss, continuous/multi-agent automation,
+automatic resume after controller loss or Companion startup,
+continuous/multi-agent automation,
 Linux product filesystem/runtime proof, Windows managed delegation, or Windows
-packaging. PR #117 is
-filesystem-verified on macOS; Linux has adapter contract coverage only.
-CDX2B3A source-runtime attachment admission is verified independently on
-Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build 26200.8875,
-both x64 local fixed NTFS. The current package builder refuses Windows, so
-packaged Windows preparation remains fail-closed. CDX2B2B Start remains
-explicitly macOS-only. A Codex
+packaging. PR #117 is filesystem-verified on macOS; Linux has adapter contract
+coverage only. CDX2B3A source-runtime attachment admission has exact Windows 10
+proof at checkpoint `374a582b` and exact Windows 11 proof at pre-integration
+checkpoint `567c9bbb`, both on x64 local fixed NTFS. The integrated head is not
+claimed as Windows 10 exact-head verified without a rerun there. The current
+package builder refuses Windows, so packaged Windows preparation remains
+fail-closed. CDX2B2B Start and CDX2B4B Resume remain explicitly macOS-only. A Codex
 build without plugin `mcpServers` support
 must be upgraded or use an explicitly configured direct test connection; the
 product docs do not pretend that limitation is solved.

@@ -9,6 +9,8 @@ import {
   type CodexCurrentContinuityDependenciesV01,
 } from "@/lib/vnext/codex-current-continuity/codex-current-continuity";
 import { inspectNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native-host/project-root-identity";
+import { readRepositoryRunResumeEligibilityV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
+import { getLiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import {
   listCanonicalProjectsWithRootsV01,
   normalizeLocalProjectRootRefV01,
@@ -39,7 +41,9 @@ export interface CodexRepositoryResolutionDependenciesV01 {
 
 export interface CodexRepositoryContinuityDependenciesV01
   extends Partial<Omit<CodexCurrentContinuityDependenciesV01, "open_database">>,
-    Partial<CodexRepositoryResolutionDependenciesV01> {}
+    Partial<CodexRepositoryResolutionDependenciesV01> {
+  read_resume_eligibility?: typeof readRepositoryRunResumeEligibilityV01;
+}
 
 export async function resolveCodexRepositoryProjectV01(
   db: Database.Database,
@@ -112,6 +116,25 @@ export async function readCodexRepositoryContinuityV01(
     project_id: resolution.project_id,
     generated_at: generatedAt,
   }, dependencies);
+  const service = getLiveNativeHostRunServiceV01();
+  const resumeEligibility = await (
+    dependencies.read_resume_eligibility ?? readRepositoryRunResumeEligibilityV01
+  )(db, {
+    config: {
+      enabled: true,
+      workspace_id: resolution.workspace_id!,
+      project_id: resolution.project_id,
+      operator_id: "repository-continuity-read",
+      database_path: db.name,
+    },
+    generated_at: generatedAt,
+  }, {
+    now: dependencies.now,
+    read_controller: (config, runId) =>
+      service.readRepositoryControllerObservationV01(config, runId),
+    read_capability: () => service.readCapabilityContractV01(),
+  });
+  const resumeRelevant = resumeEligibility.status !== "unavailable";
   return {
     projection_version: CODEX_REPOSITORY_CONTINUITY_VERSION_V01,
     generated_at: generatedAt,
@@ -122,10 +145,17 @@ export async function readCodexRepositoryContinuityV01(
       message: "The supplied physical repository root resolved to one existing canonical Augnes project.",
     },
     continuity,
-    current_situation: currentSituationV01(continuity),
+    resume_eligibility: resumeEligibility,
+    current_situation: resumeRelevant
+      ? resumeEligibility.summary
+      : currentSituationV01(continuity),
     next_meaningful_action: {
-      label: continuity.next_action.label,
-      reason: continuity.next_action.reason,
+      label: resumeRelevant
+        ? resumeEligibility.next_action.label
+        : continuity.next_action.label,
+      reason: resumeRelevant
+        ? resumeEligibility.next_action.reason
+        : continuity.next_action.reason,
       executes: false,
     },
     browser_deep_link: browserDeepLinkV01(input.browser_base_url, resolution.project_id),
@@ -198,6 +228,7 @@ function unavailableProjectionV01(
       message: messages[status],
     },
     continuity: null,
+    resume_eligibility: null,
     current_situation: messages[status],
     next_meaningful_action: {
       label: status === "project_not_registered"

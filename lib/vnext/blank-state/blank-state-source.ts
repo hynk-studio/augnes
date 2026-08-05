@@ -23,6 +23,7 @@ import {
 import { DEFAULT_LIVE_TIMEOUT_MS } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { getLiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import { readDelegatedWorkProjectionV01 } from "@/lib/vnext/delegated-work/delegated-work-source";
+import { readRepositoryRunResumeEligibilityV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
 import { readVNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { VNextOperatorPilotContinuityErrorV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
@@ -119,12 +120,27 @@ export async function readBlankStateSourceV01(
     workspace.workspace_id,
     targetProjectId,
   );
+  const liveService = getLiveNativeHostRunServiceV01();
+  const liveRun = operatorConfig
+    ? liveService.readLatestProjectionOnlyV01(operatorConfig)
+    : null;
+  const resumeEligibility =
+    projection?.project_summary.is_active && operatorConfig &&
+      liveRun?.mode === "repository_attachment"
+      ? await readRepositoryRunResumeEligibilityV01(db, {
+          config: operatorConfig,
+        }, {
+          read_controller: (config, runId) =>
+            liveService.readRepositoryControllerObservationV01(config, runId),
+          read_capability: () => liveService.readCapabilityContractV01(),
+        })
+      : null;
   const delegatedWork =
-    projection?.project_summary.is_active && operatorConfig
+    projection?.project_summary.is_active && operatorConfig && liveRun
       ? readDelegatedWorkProjectionV01(db, {
           config: operatorConfig,
-          live_run:
-            getLiveNativeHostRunServiceV01().read(operatorConfig),
+          live_run: liveRun,
+          resume_eligibility: resumeEligibility,
         })
       : null;
 

@@ -156,6 +156,17 @@ function reconcileDatabase(db, observedAt) {
         continue;
       }
 
+      // CDX2B4A keeps startup non-executing for attachment-backed runs while
+      // preserving the latest operation boundary. The exact read-only resume
+      // eligibility owner performs the full attachment/checkpoint/root/
+      // worktree/capability decision after the runtime is live. Merely finding
+      // checkpoint material here does not claim that resume is safe.
+      if (hasAttachmentResumeCheckpointCandidate(db, row, metadata)) {
+        noRetry += 1;
+        reasons.add("attachment_resume_eligibility_read_required");
+        continue;
+      }
+
       const hostBound = metadata.lifecycle_mode === "managed_live";
       const activeOperation = ACTIVE_OPERATION.has(row.status);
       if (hostBound || activeOperation || row.status === "paused") {
@@ -218,6 +229,24 @@ function reconcileDatabase(db, observedAt) {
     semantic_authority_created: false,
     external_action_created: false,
   };
+}
+
+function hasAttachmentResumeCheckpointCandidate(db, row, metadata) {
+  if (
+    metadata.lifecycle_mode !== "managed_live" ||
+    metadata.invocation_origin !== "repository_attachment" ||
+    typeof metadata.repository_attachment_id !== "string" ||
+    !tableExists(db, "vnext_repository_run_resume_checkpoints")
+  ) {
+    return false;
+  }
+  const candidate = db.prepare(
+    `SELECT 1
+       FROM vnext_repository_run_resume_checkpoints
+      WHERE run_id = ? AND attachment_id = ?
+      LIMIT 1`,
+  ).get(row.run_id, metadata.repository_attachment_id);
+  return Boolean(candidate);
 }
 
 function inspectTerminalReceiptReplay(db, row, metadata) {

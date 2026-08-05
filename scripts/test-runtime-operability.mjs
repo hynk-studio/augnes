@@ -36,6 +36,10 @@ import {
   pickAndInspectLocalProjectV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { readDefaultWorkspaceIdentityV01 } from "../lib/vnext/persistence/project-identity-registry";
+import {
+  listRepositoryManagedResumeAttemptsV01,
+  listRepositoryRunResumeCheckpointsV01,
+} from "../lib/vnext/persistence/repository-execution-store";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
@@ -109,6 +113,10 @@ const runtimeMarkerValue = "disposable-root-runtime-marker-v0-1";
 const registeredRuntimeWorkspaceId = "workspace:10000000-0000-4000-8000-000000000001";
 const registeredRuntimeProjectAId = "project:20000000-0000-4000-8000-000000000001";
 const registeredRuntimeProjectBId = "project:20000000-0000-4000-8000-000000000002";
+const registeredRuntimeResumeProjectAId = "project:20000000-0000-4000-8000-000000000004";
+const registeredRuntimeResumeProjectBId = "project:20000000-0000-4000-8000-000000000005";
+const registeredRuntimeIncompleteProjectId = "project:20000000-0000-4000-8000-000000000006";
+const registeredRuntimeApprovalProjectId = "project:20000000-0000-4000-8000-000000000007";
 const registeredRuntimeOperatorId = "operator:cdx2b1-runtime-positive-path";
 const publicSecretSentinel = "must-not-escape-runtime-parent";
 const publicModelSentinel = "reviewed-model-sentinel-must-not-escape";
@@ -140,6 +148,7 @@ let unrelatedIdentityServer = null;
 let proxyServer = null;
 let mcpBehaviorVerified = false;
 let registeredRepositoryMcpEvidence = null;
+let repositoryResumeMcpEvidence = null;
 let legacyRootRequestCount = 0;
 let parentSignalCleanupVerified = false;
 let parentSignalCleanupSkipReason = null;
@@ -187,6 +196,10 @@ try {
   assert(Number.isInteger(unrelatedProcess.pid));
 
   await testReadyDuplicateStatusAndStop();
+  if (process.platform !== "win32") {
+    await testRepositoryResumeEligibilityRestart();
+    await testRepositoryResumeAmbiguityAndApproval();
+  }
   await testPoisonedEnvironmentRestart(proxyPort);
   await testParentSignalCleanup();
   await testRequiredChildFailure();
@@ -216,6 +229,9 @@ try {
     assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, false);
     assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, null);
     assert.equal(registeredRepositoryMcpEvidence?.proposal_status, null);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_request_refused, true);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_refused, true);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_zero_effects, true);
     assert.equal(
       registeredRepositoryMcpEvidence?.restart_attachment_validation,
       true,
@@ -224,6 +240,23 @@ try {
     assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
     assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
     assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
+    assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
+    assert.equal(repositoryResumeMcpEvidence?.selection_independent, true);
+    assert.equal(repositoryResumeMcpEvidence?.zero_effect_read, true);
+    assert.equal(
+      repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
+      true,
+    );
+    assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
+    assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
+    assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
+    assert.equal(repositoryResumeMcpEvidence?.same_run, true);
+    assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
+    assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
+    assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
+    assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
+    assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
+    assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
   }
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
@@ -309,9 +342,31 @@ try {
       registeredRepositoryMcpEvidence?.start_or_execution_created ?? null,
     windows_start_refused:
       registeredRepositoryMcpEvidence?.windows_start_refused ?? false,
+    windows_resume_request_refused:
+      repositoryResumeMcpEvidence?.windows_resume_request_refused ?? false,
+    windows_resume_refused:
+      repositoryResumeMcpEvidence?.windows_resume_refused ?? false,
+    windows_resume_zero_effects:
+      repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
     restart_attachment_validation:
       registeredRepositoryMcpEvidence?.restart_attachment_validation ?? false,
     official_stdio_mcp_client: true,
+    repository_resume_eligibility_runtime_proof:
+      repositoryResumeMcpEvidence?.resume_ready === true,
+    repository_resume_selection_independent:
+      repositoryResumeMcpEvidence?.selection_independent === true,
+    repository_resume_zero_effect_read:
+      repositoryResumeMcpEvidence?.zero_effect_read === true,
+    repository_resume_stale_after_worktree_change:
+      repositoryResumeMcpEvidence?.stale_after_repository_a_drift === true,
+    repository_resume_worker_relaunched:
+      repositoryResumeMcpEvidence?.worker_relaunched ?? null,
+    repository_resume_process_replacement_pre_marker:
+      repositoryResumeMcpEvidence?.process_replacement_pre_marker === true,
+    repository_resume_ambiguous_operation:
+      repositoryResumeMcpEvidence?.ambiguous_operation === true,
+    repository_resume_approval_pending:
+      repositoryResumeMcpEvidence?.approval_pending === true,
     private_companion_bridge_refusals_verified: true,
     narrow_companion_proxy_credential: true,
     mock_contribution: false,
@@ -816,6 +871,686 @@ async function assertWindowsAttachmentAfterRuntimeRestartV01({
   const supervisorExit = await waitForManagedExit(managed, 20_000);
   assert.equal(supervisorExit.code, 0, managed.output());
   await assertStoppedScenario(scenario, ready, ownedProcessTree);
+}
+
+async function testRepositoryResumeEligibilityRestart() {
+  const scenario = createScenario("resume-eligibility-restart");
+  const repositories = createRegisteredRepositoryFixtureV01(scenario);
+  const environment = scenarioEnvironment(scenario, {
+    uiPort: await findPreferredPort(),
+    bridgePort: await findPreferredPort(),
+    providerMode: "absent",
+  });
+  Object.assign(environment, {
+    AUGNES_CANONICAL_TEST_MODE: "1",
+    AUGNES_CANONICAL_TEMP_ROOT: temporaryRoot,
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: registeredRuntimeWorkspaceId,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: registeredRuntimeResumeProjectAId,
+    AUGNES_VNEXT_OPERATOR_ID: registeredRuntimeOperatorId,
+    AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER: "1",
+    AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD: "1",
+  });
+
+  const managed = startManagedSupervisor(
+    environment,
+    scenario,
+    "resume-eligibility-before-restart",
+    "canonical",
+  );
+  const ready = await waitForJsonEvent(
+    managed,
+    (event) => event.command === "start" && event.result === "ready",
+  );
+  assertReadyResult(ready);
+  selectedPorts.push({ scenario: scenario.name, ui: ready.ui_port, bridge: ready.bridge_port });
+  rememberOwnedPids(ready);
+  const firstProcessTree = processTreePids(ready);
+  for (const pid of firstProcessTree) observedOwnedPids.add(pid);
+
+  const beforeRestart = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ callRepository, callExecution }) => {
+      const clock = advancingClockV01();
+      const registeredA = await registerRepositoryThroughOnboardingV01({
+        repositoryRoot: repositories.repositoryA,
+        displayName: "CDX2B4A Resume Repository A",
+        createUuids: [registeredRuntimeResumeProjectAId.slice("project:".length)],
+        clock,
+      });
+      assert.equal(registeredA.workspace.workspace_id, registeredRuntimeWorkspaceId);
+      assert.equal(registeredA.project.project_id, registeredRuntimeResumeProjectAId);
+      defineFixtureWorkV01({
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+        definition: {
+          goal: "Prove exact read-only attachment-backed resume eligibility.",
+          success_criteria: [
+            "One bounded operation reaches a durable safe checkpoint.",
+            "A fresh Companion reads the same run as resume-ready without launching work.",
+          ],
+          non_goals: ["Do not resume the run."],
+        },
+        clock,
+      });
+      const prepared = await callExecution(
+        "augnes_prepare_repository_execution",
+        { repositoryRoot: repositories.repositoryA },
+      );
+      assert.equal(prepared.structuredContent.status, "prepared");
+      const attachment = prepared.structuredContent.attachment;
+      assert(attachment?.attachment_id);
+
+      const registeredB = await registerRepositoryThroughOnboardingV01({
+        repositoryRoot: repositories.repositoryB,
+        displayName: "CDX2B4A Selection Repository B",
+        createUuids: [registeredRuntimeResumeProjectBId.slice("project:".length)],
+        clock,
+      });
+      assert.equal(registeredB.project.project_id, registeredRuntimeResumeProjectBId);
+      writeFileSync(
+        path.join(repositories.repositoryB, "selection-only-change.txt"),
+        "repository B does not bind repository A resume eligibility\n",
+        "utf8",
+      );
+
+      const requested = await callExecution(
+        "augnes_request_repository_delegation",
+        {
+          workspaceId: registeredA.workspace.workspace_id,
+          projectId: registeredA.project.project_id,
+          attachmentId: attachment.attachment_id,
+        },
+      );
+      assert.equal(requested.structuredContent.status, "decision_required");
+      const granted = await confirmRepositoryDecisionThroughBrowserV01({
+        effectiveUrl: ready.effective_url,
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+        requestFingerprint:
+          requested.structuredContent.decision_request.request_fingerprint,
+      });
+      const started = await callExecution(
+        "augnes_start_repository_delegation",
+        {
+          workspaceId: registeredA.workspace.workspace_id,
+          projectId: registeredA.project.project_id,
+          attachmentId: attachment.attachment_id,
+          expectedAttachmentBindingFingerprint: attachment.binding_fingerprint,
+          expectedExecutionEnvelopeFingerprint:
+            requested.structuredContent.execution_envelope.envelope_fingerprint,
+          decisionRequestFingerprint: granted.request_fingerprint,
+          decisionGrantFingerprint: granted.grant_fingerprint,
+        },
+      );
+      assert.equal(started.structuredContent.status, "accepted");
+
+      let activeRead = null;
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        activeRead = await callRepository(repositories.repositoryA);
+        const eligibility =
+          activeRead.structuredContent?.resume_eligibility;
+        if (
+          eligibility?.status === "active_owned" &&
+          eligibility.last_confirmed_operation?.certainty === "completed"
+        ) break;
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      const stableActiveRead = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      });
+      const activeEligibility =
+        stableActiveRead.structuredContent.resume_eligibility;
+      assert.equal(activeEligibility.status, "active_owned");
+      assert.equal(activeEligibility.last_confirmed_operation?.certainty, "completed");
+      assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
+      return {
+        runId: started.structuredContent.run_id,
+        attachmentId: attachment.attachment_id,
+        attachmentBinding: attachment.binding_fingerprint,
+        projectSnapshot: snapshotDirectoryContentV01(repositories.repositoryA),
+      };
+    },
+  });
+
+  const ui = ready.children.find((child) => child.role === "ui");
+  assert(ui, "ready result must identify the UI child");
+  process.kill(ui.pid, "SIGKILL");
+  const failed = await waitForJsonEvent(
+    managed,
+    (event) =>
+      event.command === "start" &&
+      event.result === "failed" &&
+      event.reason === "required_child_exited",
+  );
+  assert.equal(failed.failed_role, "ui");
+  const firstExit = await waitForManagedExit(managed, 20_000);
+  assert.notEqual(firstExit.code, 0);
+  await assertStoppedScenario(scenario, ready, firstProcessTree);
+
+  // The first process inherited the deterministic hold. The fresh Companion
+  // gets no automatic-resume policy and may continue only after the exact
+  // Browser-confirmed MCP request below.
+  delete environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+  environment.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION = "1";
+
+  const restarted = startManagedSupervisor(
+    environment,
+    scenario,
+    "resume-eligibility-after-restart",
+    "canonical",
+  );
+  const restartedReady = await waitForJsonEvent(
+    restarted,
+    (event) => event.command === "start" && event.result === "ready",
+  );
+  assertReadyResult(restartedReady);
+  selectedPorts.push({
+    scenario: `${scenario.name}-restarted`,
+    ui: restartedReady.ui_port,
+    bridge: restartedReady.bridge_port,
+  });
+  rememberOwnedPids(restartedReady);
+  const restartedProcessTree = processTreePids(restartedReady);
+  for (const pid of restartedProcessTree) observedOwnedPids.add(pid);
+
+  const afterRestart = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ callRepository, callExecution }) => {
+      const exactRead = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      });
+      const eligibility = exactRead.structuredContent.resume_eligibility;
+      assert.equal(eligibility.status, "resume_ready", JSON.stringify(eligibility));
+      assert.equal(eligibility.last_confirmed_operation?.certainty, "completed");
+      assert.equal(eligibility.next_action.executes, false);
+      assert.equal(
+        Object.values(eligibility.authority).every((value) => value === false),
+        true,
+      );
+      assert.deepEqual(
+        snapshotDirectoryContentV01(repositories.repositoryA),
+        beforeRestart.projectSnapshot,
+      );
+      const driftPath = path.join(
+        repositories.repositoryA,
+        "post-checkpoint-drift.txt",
+      );
+      writeFileSync(driftPath, "repository A changed after its safe checkpoint\n", "utf8");
+      const staleRead = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      });
+      assert.equal(staleRead.structuredContent.resume_eligibility.status, "stale");
+      unlinkSync(driftPath);
+      const restoredRead = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      });
+      assert.equal(
+        restoredRead.structuredContent.resume_eligibility.status,
+        "resume_ready",
+      );
+      writeFileSync(
+        path.join(repositories.repositoryB, "selection-after-restart.txt"),
+        "another repository B change\n",
+        "utf8",
+      );
+      const afterBChange = await assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      });
+      const afterBEligibility =
+        afterBChange.structuredContent.resume_eligibility;
+      assert.equal(afterBEligibility.status, "resume_ready");
+      assert.deepEqual(
+        afterBEligibility.last_confirmed_operation,
+        eligibility.last_confirmed_operation,
+      );
+      const requestedResume = await callExecution(
+        "augnes_request_repository_resume",
+        {
+          workspaceId: registeredRuntimeWorkspaceId,
+          projectId: registeredRuntimeResumeProjectAId,
+        },
+      );
+      assert.equal(requestedResume.structuredContent.status, "decision_required");
+      assert.equal(requestedResume.structuredContent.authority.worker_started, false);
+      assert.equal(
+        JSON.stringify(requestedResume).includes("challenge_fingerprint"),
+        false,
+      );
+      const resumeGrant = await confirmRepositoryDecisionThroughBrowserV01({
+        effectiveUrl: restartedReady.effective_url,
+        workspaceId: registeredRuntimeWorkspaceId,
+        projectId: registeredRuntimeResumeProjectAId,
+        requestFingerprint:
+          requestedResume.structuredContent.decision_request.request_fingerprint,
+      });
+      const resumed = await callExecution(
+        "augnes_resume_repository_delegation",
+        {
+          workspaceId: registeredRuntimeWorkspaceId,
+          projectId: registeredRuntimeResumeProjectAId,
+          runId: beforeRestart.runId,
+          attachmentId: beforeRestart.attachmentId,
+          expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
+          expectedStateFingerprint:
+            requestedResume.structuredContent.expected_state_fingerprint,
+          expectedControllerGeneration:
+            requestedResume.structuredContent.expected_controller_generation,
+          expectedRunControlRevision:
+            requestedResume.structuredContent.expected_run_control_revision,
+          decisionRequestFingerprint: resumeGrant.request_fingerprint,
+          decisionGrantFingerprint: resumeGrant.grant_fingerprint,
+        },
+      );
+      assert.equal(resumed.structuredContent.status, "blocked");
+      assert.equal(resumed.structuredContent.run_id, beforeRestart.runId);
+      assert.equal(resumed.structuredContent.attachment_id, beforeRestart.attachmentId);
+      assert.equal(resumed.structuredContent.authority.worker_started, false);
+      const verificationDb = openFixtureDatabaseV01();
+      try {
+        const attempts = listRepositoryManagedResumeAttemptsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        assert.equal(attempts.length, 1);
+        assert.equal(attempts[0].attempt_state, "admitted_not_invoked");
+        assert.equal(
+          attempts[0].resumed_controller_generation,
+          attempts[0].prior_controller_generation + 1,
+        );
+        return {
+          eligibility,
+          afterBEligibility,
+          staleRead,
+          resumed,
+          attempt: attempts[0],
+          resumeInput: {
+            workspaceId: registeredRuntimeWorkspaceId,
+            projectId: registeredRuntimeResumeProjectAId,
+            runId: beforeRestart.runId,
+            attachmentId: beforeRestart.attachmentId,
+            expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
+            expectedStateFingerprint:
+              requestedResume.structuredContent.expected_state_fingerprint,
+            expectedControllerGeneration:
+              requestedResume.structuredContent.expected_controller_generation,
+            expectedRunControlRevision:
+              requestedResume.structuredContent.expected_run_control_revision,
+            decisionRequestFingerprint: resumeGrant.request_fingerprint,
+            decisionGrantFingerprint: resumeGrant.grant_fingerprint,
+          },
+        };
+      } finally {
+        verificationDb.close();
+      }
+    },
+  });
+
+  const restartedUi = restartedReady.children.find((child) => child.role === "ui");
+  assert(restartedUi, "restarted result must identify the UI child");
+  process.kill(restartedUi.pid, "SIGKILL");
+  await waitForJsonEvent(
+    restarted,
+    (event) => event.command === "start" && event.result === "failed" &&
+      event.reason === "required_child_exited",
+  );
+  const restartedExit = await waitForManagedExit(restarted, 20_000);
+  assert.notEqual(restartedExit.code, 0);
+  await assertStoppedScenario(scenario, restartedReady, restartedProcessTree);
+
+  delete environment.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION;
+  const reacquired = startManagedSupervisor(
+    environment,
+    scenario,
+    "resume-reacquire-after-admission",
+    "canonical",
+  );
+  const reacquiredReady = await waitForJsonEvent(
+    reacquired,
+    (event) => event.command === "start" && event.result === "ready",
+  );
+  assertReadyResult(reacquiredReady);
+  selectedPorts.push({
+    scenario: `${scenario.name}-reacquired`,
+    ui: reacquiredReady.ui_port,
+    bridge: reacquiredReady.bridge_port,
+  });
+  rememberOwnedPids(reacquiredReady);
+  const reacquiredTree = processTreePids(reacquiredReady);
+  for (const pid of reacquiredTree) observedOwnedPids.add(pid);
+  const reacquiredResult = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ callExecution }) => {
+      const transferDriftPath = path.join(
+        repositories.repositoryA,
+        "cross-runtime-transfer-drift.txt",
+      );
+      writeFileSync(
+        transferDriftPath,
+        "cross-runtime drift before exact replay\n",
+        "utf8",
+      );
+      const structuredTransferFailure = await callExecution(
+        "augnes_resume_repository_delegation",
+        afterRestart.resumeInput,
+      );
+      assert.equal(structuredTransferFailure.structuredContent.status, "blocked");
+      assert.equal(
+        structuredTransferFailure.structuredContent.resume_version,
+        "repository_managed_resume.v0.1",
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.run_id,
+        beforeRestart.runId,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.attachment_id,
+        beforeRestart.attachmentId,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.authority.worker_started,
+        false,
+      );
+      assert.equal(
+        structuredTransferFailure.structuredContent.authority
+          .provider_resume_may_occur,
+        false,
+      );
+      assert.equal(
+        Object.hasOwn(structuredTransferFailure.structuredContent, "error"),
+        false,
+      );
+      unlinkSync(transferDriftPath);
+      const resumed = await callExecution(
+        "augnes_resume_repository_delegation",
+        afterRestart.resumeInput,
+      );
+      assert.equal(resumed.structuredContent.status, "accepted");
+      assert.equal(resumed.structuredContent.authority.worker_started, true);
+      const replay = await callExecution(
+        "augnes_resume_repository_delegation",
+        afterRestart.resumeInput,
+      );
+      assert.equal(replay.structuredContent.status, "exact_replay");
+      assert.equal(replay.structuredContent.authority.worker_started, false);
+      const terminal = await waitForFixtureManagedRunV01(beforeRestart.runId);
+      assert.equal(terminal.status, "completed");
+      const verificationDb = openFixtureDatabaseV01();
+      try {
+        const attempts = listRepositoryManagedResumeAttemptsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        const checkpoints = listRepositoryRunResumeCheckpointsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        assert.equal(attempts.length, 1);
+        assert.equal(attempts[0].attempt_fingerprint, afterRestart.attempt.attempt_fingerprint);
+        assert.equal(attempts[0].resumed_controller_generation,
+          afterRestart.attempt.resumed_controller_generation);
+        assert.equal(checkpoints.at(-1)?.controller_generation,
+          attempts[0].resumed_controller_generation);
+        return {
+          structuredTransferFailure,
+          resumed,
+          replay,
+          terminal,
+          checkpointCount: checkpoints.length,
+        };
+      } finally {
+        verificationDb.close();
+      }
+    },
+  });
+  const stop = await runCli(["stop"], environment, scenario, "resume-reacquire-stop", "canonical");
+  assert.equal(stop.code, 0, stop.output);
+  const reacquiredExit = await waitForManagedExit(reacquired, 20_000);
+  assert.equal(reacquiredExit.code, 0, reacquired.output());
+  await assertStoppedScenario(scenario, reacquiredReady, reacquiredTree);
+  removeScenarioLogs(scenario);
+
+  repositoryResumeMcpEvidence = {
+    run_id: beforeRestart.runId,
+    resume_ready: afterRestart.eligibility.status === "resume_ready",
+    selection_independent:
+      afterRestart.afterBEligibility.status === "resume_ready",
+    zero_effect_read: true,
+    stale_after_repository_a_drift:
+      afterRestart.staleRead.structuredContent.resume_eligibility.status ===
+      "stale",
+    worker_relaunched: reacquiredResult.resumed.structuredContent.authority.worker_started,
+    process_replacement_pre_marker:
+      afterRestart.resumed.structuredContent.status === "blocked" &&
+      reacquiredResult.resumed.structuredContent.status === "accepted",
+    exact_replay_worker_started:
+      reacquiredResult.replay.structuredContent.authority.worker_started,
+    cross_runtime_drift_structured:
+      reacquiredResult.structuredTransferFailure.structuredContent.status ===
+        "blocked" &&
+      !Object.hasOwn(
+        reacquiredResult.structuredTransferFailure.structuredContent,
+        "error",
+      ),
+    same_run: reacquiredResult.resumed.structuredContent.run_id === beforeRestart.runId,
+    same_attachment:
+      reacquiredResult.resumed.structuredContent.attachment_id ===
+      beforeRestart.attachmentId,
+    generation_incremented_once:
+      afterRestart.attempt.resumed_controller_generation ===
+      afterRestart.attempt.prior_controller_generation + 1,
+    resumed_checkpoint: reacquiredResult.checkpointCount === 8,
+    terminal_result: reacquiredResult.terminal.status === "completed",
+  };
+}
+
+async function testRepositoryResumeAmbiguityAndApproval() {
+  const runScenario = async ({
+    name,
+    projectId,
+    adapterScenario,
+    expectedStatus,
+  }) => {
+    const scenario = createScenario(name);
+    const repositories = createRegisteredRepositoryFixtureV01(scenario);
+    const environment = scenarioEnvironment(scenario, {
+      uiPort: await findPreferredPort(),
+      bridgePort: await findPreferredPort(),
+      providerMode: "absent",
+    });
+    Object.assign(environment, {
+      AUGNES_CANONICAL_TEST_MODE: "1",
+      AUGNES_CANONICAL_TEMP_ROOT: temporaryRoot,
+      AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+      AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: registeredRuntimeWorkspaceId,
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: projectId,
+      AUGNES_VNEXT_OPERATOR_ID: registeredRuntimeOperatorId,
+      AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER: "1",
+      AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO: adapterScenario,
+    });
+    const managed = startManagedSupervisor(
+      environment,
+      scenario,
+      `${name}-before-restart`,
+      "canonical",
+    );
+    const ready = await waitForJsonEvent(
+      managed,
+      (event) => event.command === "start" && event.result === "ready",
+    );
+    assertReadyResult(ready);
+    selectedPorts.push({ scenario: name, ui: ready.ui_port, bridge: ready.bridge_port });
+    rememberOwnedPids(ready);
+    const firstTree = processTreePids(ready);
+    for (const pid of firstTree) observedOwnedPids.add(pid);
+
+    await withLiveCompanionProxyV01({
+      environment,
+      manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+      run: async ({ callRepository, callExecution }) => {
+        const clock = advancingClockV01();
+        const registered = await registerRepositoryThroughOnboardingV01({
+          repositoryRoot: repositories.repositoryA,
+          displayName: `CDX2B4A ${adapterScenario} repository`,
+          createUuids: [projectId.slice("project:".length)],
+          clock,
+        });
+        defineFixtureWorkV01({
+          workspaceId: registered.workspace.workspace_id,
+          projectId: registered.project.project_id,
+          definition: {
+            goal: `Prove ${adapterScenario} resume eligibility through the live Companion.`,
+            success_criteria: ["The exact lifecycle projects without worker restart."],
+            non_goals: ["Do not resume the run."],
+          },
+          clock,
+        });
+        const prepared = await callExecution(
+          "augnes_prepare_repository_execution",
+          { repositoryRoot: repositories.repositoryA },
+        );
+        const attachment = prepared.structuredContent.attachment;
+        assert(attachment?.attachment_id);
+        const requested = await callExecution(
+          "augnes_request_repository_delegation",
+          {
+            workspaceId: registered.workspace.workspace_id,
+            projectId: registered.project.project_id,
+            attachmentId: attachment.attachment_id,
+          },
+        );
+        const granted = await confirmRepositoryDecisionThroughBrowserV01({
+          effectiveUrl: ready.effective_url,
+          workspaceId: registered.workspace.workspace_id,
+          projectId: registered.project.project_id,
+          requestFingerprint:
+            requested.structuredContent.decision_request.request_fingerprint,
+        });
+        const started = await callExecution(
+          "augnes_start_repository_delegation",
+          {
+            workspaceId: registered.workspace.workspace_id,
+            projectId: registered.project.project_id,
+            attachmentId: attachment.attachment_id,
+            expectedAttachmentBindingFingerprint: attachment.binding_fingerprint,
+            expectedExecutionEnvelopeFingerprint:
+              requested.structuredContent.execution_envelope.envelope_fingerprint,
+            decisionRequestFingerprint: granted.request_fingerprint,
+            decisionGrantFingerprint: granted.grant_fingerprint,
+          },
+        );
+        assert.equal(started.structuredContent.status, "accepted");
+        let observed = false;
+        for (let attempt = 0; attempt < 200; attempt += 1) {
+          const current = await callRepository(repositories.repositoryA);
+          const eligibility = current.structuredContent?.resume_eligibility;
+          observed = adapterScenario === "incomplete"
+            ? eligibility?.status === "active_owned" &&
+              eligibility.last_confirmed_operation?.certainty === "not_started"
+            : current.structuredContent?.continuity?.managed_execution?.stage ===
+              "waiting_for_approval";
+          if (observed) break;
+          await new Promise((resolve) => setImmediate(resolve));
+        }
+        assert.equal(observed, true, `${adapterScenario} lifecycle was not observed`);
+      },
+    });
+
+    const ui = ready.children.find((child) => child.role === "ui");
+    assert(ui);
+    process.kill(ui.pid, "SIGKILL");
+    await waitForJsonEvent(
+      managed,
+      (event) =>
+        event.command === "start" &&
+        event.result === "failed" &&
+        event.reason === "required_child_exited",
+    );
+    const firstExit = await waitForManagedExit(managed, 20_000);
+    assert.notEqual(firstExit.code, 0);
+    await assertStoppedScenario(scenario, ready, firstTree);
+
+    const restarted = startManagedSupervisor(
+      environment,
+      scenario,
+      `${name}-after-restart`,
+      "canonical",
+    );
+    const restartedReady = await waitForJsonEvent(
+      restarted,
+      (event) => event.command === "start" && event.result === "ready",
+    );
+    assertReadyResult(restartedReady);
+    selectedPorts.push({
+      scenario: `${name}-restarted`,
+      ui: restartedReady.ui_port,
+      bridge: restartedReady.bridge_port,
+    });
+    rememberOwnedPids(restartedReady);
+    const restartedTree = processTreePids(restartedReady);
+    for (const pid of restartedTree) observedOwnedPids.add(pid);
+    const result = await withLiveCompanionProxyV01({
+      environment,
+      manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+      run: ({ callRepository }) => assertReadOnlyRepositoryCallV01({
+        repositoryRoot: repositories.repositoryA,
+        callRepository,
+      }),
+    });
+    const eligibility = result.structuredContent.resume_eligibility;
+    assert.equal(eligibility.status, expectedStatus, JSON.stringify(eligibility));
+    if (expectedStatus === "approval_pending") {
+      assert.deepEqual(
+        eligibility.pending_approval.available_decisions,
+        ["approve_once", "decline", "cancel_run"],
+      );
+    } else {
+      assert.equal(eligibility.pending_approval, null);
+      assert.equal(eligibility.gaps.length > 0, true);
+    }
+    const stop = await runCli(
+      ["stop"],
+      environment,
+      scenario,
+      `${name}-stop`,
+      "canonical",
+    );
+    assert.equal(stop.code, 0, stop.output);
+    const exit = await waitForManagedExit(restarted, 20_000);
+    assert.equal(exit.code, 0, restarted.output());
+    await assertStoppedScenario(scenario, restartedReady, restartedTree);
+    removeScenarioLogs(scenario);
+    return eligibility;
+  };
+
+  const ambiguous = await runScenario({
+    name: "resume-eligibility-ambiguous",
+    projectId: registeredRuntimeIncompleteProjectId,
+    adapterScenario: "incomplete",
+    expectedStatus: "reconciliation_required",
+  });
+  const approval = await runScenario({
+    name: "resume-eligibility-approval",
+    projectId: registeredRuntimeApprovalProjectId,
+    adapterScenario: "approval",
+    expectedStatus: "approval_pending",
+  });
+  repositoryResumeMcpEvidence = {
+    ...repositoryResumeMcpEvidence,
+    ambiguous_operation: ambiguous.status === "reconciliation_required",
+    approval_pending: approval.status === "approval_pending",
+  };
 }
 
 async function testPoisonedEnvironmentRestart(proxyPort) {
@@ -1670,6 +2405,67 @@ async function assertRegisteredRepositoryPositivePathV01({
       projectTreeBeforeStartRequest,
       "Windows preflight refusal must not mutate repository A",
     );
+    const resumeStateBefore = readFixtureWindowsAdmissionStateV01(
+      registeredA.project.project_id,
+      revisedAttachment.attachment_id,
+    );
+    const resumeRequest = await callExecution(
+      "augnes_request_repository_resume",
+      {
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+      },
+    );
+    assert.equal(resumeRequest.structuredContent.status, "unsupported");
+    assert.equal(resumeRequest.structuredContent.decision_request, null);
+    assert.equal(
+      Object.values(resumeRequest.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
+    const resumeResult = await callExecution(
+      "augnes_resume_repository_delegation",
+      {
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+        runId: "run:windows-integrated-refusal",
+        attachmentId: revisedAttachment.attachment_id,
+        expectedAttachmentBindingFingerprint:
+          revisedAttachment.binding_fingerprint,
+        expectedStateFingerprint: `sha256:${"1".repeat(64)}`,
+        expectedControllerGeneration: 2,
+        expectedRunControlRevision: 0,
+        decisionRequestFingerprint: `sha256:${"2".repeat(64)}`,
+        decisionGrantFingerprint: `sha256:${"3".repeat(64)}`,
+      },
+    );
+    assert.equal(resumeResult.structuredContent.status, "blocked");
+    assert.equal(resumeResult.structuredContent.authority.worker_started, false);
+    assert.equal(
+      Object.values(resumeResult.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
+    assert.deepEqual(
+      readFixtureWindowsAdmissionStateV01(
+        registeredA.project.project_id,
+        revisedAttachment.attachment_id,
+      ),
+      resumeStateBefore,
+      "Windows Resume refusal must create no decision, attempt, run, or attachment change",
+    );
+    assert.deepEqual(
+      snapshotDirectoryContentV01(repositories.repositoryA),
+      projectTreeBeforeStartRequest,
+      "Windows Resume refusal must not mutate repository A",
+    );
+    repositoryResumeMcpEvidence = {
+      windows_resume_request_refused: true,
+      windows_resume_refused: true,
+      windows_resume_zero_effects: true,
+    };
     windowsStartRefused = true;
   } else {
     assert.equal(startRequest.structuredContent.status, "decision_required");
@@ -1881,6 +2677,41 @@ function readFixtureStartStateV01(projectId, attachmentId) {
   }
 }
 
+function readFixtureWindowsAdmissionStateV01(projectId, attachmentId) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const attachment = db.prepare(
+      `SELECT lifecycle, consumed_run_id
+         FROM vnext_repository_execution_attachments
+        WHERE attachment_id = ?`,
+    ).get(attachmentId);
+    return {
+      start_decision_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_execution_decision_requests
+          WHERE project_id = ? AND action = 'start_repository_managed_delegation'`,
+      ).get(projectId).count,
+      resume_decision_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_execution_decision_requests
+          WHERE project_id = ? AND action = 'resume_repository_managed_delegation'`,
+      ).get(projectId).count,
+      managed_run_count: db.prepare(
+        "SELECT COUNT(*) AS count FROM autonomy_runs WHERE scope = ?",
+      ).get(projectId).count,
+      resume_attempt_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_managed_resume_attempts
+          WHERE project_id = ?`,
+      ).get(projectId).count,
+      attachment_lifecycle: attachment?.lifecycle ?? null,
+      consumed_run_id: attachment?.consumed_run_id ?? null,
+    };
+  } finally {
+    db.close();
+  }
+}
+
 async function confirmRepositoryDecisionThroughBrowserV01({
   effectiveUrl,
   workspaceId,
@@ -1956,7 +2787,9 @@ async function waitForFixtureManagedRunV01(runId) {
       if (
         run &&
         ["blocked", "completed", "needs_review", "cancelled", "timed_out", "failed", "stopped"]
-          .includes(run.status)
+          .includes(run.status) &&
+        (run.status !== "completed" ||
+          typeof run.metadata.run_assessment_proposal_status === "string")
       ) {
         return run;
       }

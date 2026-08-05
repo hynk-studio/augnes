@@ -72,11 +72,14 @@ reversible local repository work within its deterministic envelope. Later
 operation approval and semantic result review remain separate. The
 managed-delegation product boundary is verified local macOS only. Linux has no
 separate product filesystem/runtime proof. CDX2B3A source-runtime attachment
-admission is verified independently on Windows 10 Pro 22H2 build 19045.6456
-and Windows 11 Home 25H2 build 26200.8875, both x64 local fixed NTFS. The
-existing package builder still refuses Windows, so packaged Windows admission
-remains unavailable.
-Windows managed Start remains unavailable and belongs to CDX2B3B.
+admission has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. The existing package builder still refuses Windows, so packaged Windows
+admission remains unavailable. Windows managed Start and Resume remain
+unavailable and belong to CDX2B3B.
 
 Cancellation remains available from the immutable consumed attachment/run
 binding even when current packet, work, root, baseline, worktree, or Browser
@@ -167,6 +170,18 @@ and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
 RR1 is documentation authority reconciliation defined by
 [issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
 C9 remains pending separate explicit authorization.
+
+Attachment-backed managed runs retain one private exact safe-operation
+checkpoint history and expose one bounded read-only resume-eligibility status
+through repository continuity, Browser, Apps MCP, and the Augnes Operator.
+This distinguishes the immutable consumed start attachment from the latest
+confirmed post-operation repository state. Exact `resume_ready` material may
+now create one expiring Browser-only Resume decision and one atomic same-run,
+same-attachment, same-thread attempt. The provider path uses `thread/resume`,
+not `thread/start`; ambiguous effects require reconciliation and pending
+operation approval remains separate. Resume completion does not create a
+ReviewDecision, Transition, accepted state, or work closure, and Companion
+startup never resumes automatically.
 
 ## Canonical verification
 

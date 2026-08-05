@@ -574,10 +574,13 @@ The Windows owner obtains final target, volume serial, and file ID from one
 opened directory target handle through a narrow reviewed Win32 helper, then
 admits Windows 10 Pro 22H2 build 19045 or newer and Windows 11 build 22000 or
 newer on x64 local fixed NTFS. It has no shell, network, runtime download,
-elevation, or path-only fallback. The source-runtime owner is verified
-independently on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2
-build 26200.8875, both x64 local fixed NTFS. Packaged Windows remains
-unsupported. Unsupported platforms and package modes remain fail-closed even
+elevation, or path-only fallback. The source-runtime owner has exact Windows 10
+Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. Packaged Windows remains unsupported. Unsupported platforms and package modes remain fail-closed even
 though the parser, schema, and attachment contracts have platform-neutral
 coverage. Windows package support is not claimed.
 
@@ -629,9 +632,85 @@ The managed-Start product boundary remains a verified local macOS filesystem.
 Linux has no separate product filesystem/runtime proof in v0.1. Windows,
 non-Git, remote, network, virtual, unsupported, unavailable, and ambiguous
 roots create no start decision consumption, attachment consumption, or run.
-CDX2B3A does not change that gate; Windows Start belongs to CDX2B3B.
+CDX2B3A does not change that gate; Windows Start and Resume belong to CDX2B3B.
 A durable nonterminal run without its exact live controller projects
 disconnected/paused and is never automatically resumed in this phase.
+
+CDX2B4A adds one private node-local
+`repository_run_resume_checkpoint.v0.1` history owner. It does not redefine the
+consumed attachment: that record remains the immutable start snapshot. A safe
+checkpoint instead binds one exact declared-not-started boundary or one exact
+terminal operation observation (`completed`, `failed`, or `cancelled`) to the
+same run, step, controller generation, attachment, execution envelope,
+provider resume binding, monotonic event/step/effect high-water marks, and a
+fresh post-boundary physical-root and bounded-worktree observation. Raw command
+text/output, provider bodies, environment, credentials, absolute paths,
+transcripts, and unbounded file lists are excluded.
+
+Admission follows terminal event persistence, physical-root observation,
+bounded-worktree observation, then one immediate compare-and-swap transaction
+and final consistency read. A later start, conflicting terminal, old
+controller generation, high-water regression, approval ambiguity, or expected
+state drift refuses the checkpoint. Event or result persistence remains
+truthful if checkpoint persistence fails, but the run cannot become
+resume-ready.
+
+`repository_run_resume_eligibility.v0.1` is the single pure read projection for
+`active_owned`, `terminal`, `approval_pending`, `resume_ready`,
+`reconciliation_required`, `stale`, `unsupported`, or `unavailable`. It
+compares the current repository with the latest safe checkpoint rather than
+the consumed attachment, excludes Browser selection from binding material,
+and exposes only bounded ordinary language plus all-false mutation authority.
+CDX2B4A never calls `thread/resume`, creates a controller generation, or changes
+the existing attachment-backed resume refusal. Historical interactive and
+policy-triggered resume remain on their existing owner.
+
+CDX2B4B adds `repository_managed_resume_preparation.v0.1` and one Browser-only
+`resume_repository_managed_delegation` decision. Resume eligibility is not
+Resume authority: only exact `resume_ready` material produces a request, and
+the Start grant cannot be reused. Resume decision is not operation approval.
+MCP may request the decision and submit its already issued exact grant, but it
+cannot bootstrap the HttpOnly decision session or obtain/issue the Browser
+challenge, nonce, cookie, or grant.
+
+`repository_managed_resume_attempt.v0.1` is private machine-local history. One
+immediate transaction consumes the exact grant, rechecks the selected run,
+consumed attachment, latest checkpoint/high-water marks, packet/current work,
+root/baseline, bounded worktree, execution envelope, adapter/capability,
+provider binding, approval absence, and controller absence; preserves the run,
+attachment, envelope, and provider thread; and advances the controller
+generation exactly once. Same run does not mean new run.
+
+The immutable attempt is distinct from the mutable
+`repository_managed_resume_runtime_claim.v0.1`. A verified replacement
+Companion runtime may transfer that claim with one immediate exact CAS only
+while the attempt is `admitted_not_invoked`, the invocation marker is absent,
+and every admission relation still matches. Transfer changes only the claim
+revision and supervised runtime binding; it cannot consume the decision again
+or create another attempt, run, attachment, controller generation, event
+lifecycle, or provider thread. A stale claimant fails closed, and a surviving
+invocation marker forbids transfer.
+
+After commit, the launch gate observes physical root, bounded worktree,
+adapter/capability, controller absence, then canonical database state. It
+durably changes the attempt from `admitted_not_invoked` to
+`provider_resume_invocation_started` before adapter delivery. A crash before
+that marker can replay the same admitted attempt and launch once. A surviving
+marker without controller/result is conservatively reconciliation-required
+and cannot call the provider again. `thread/resume` is not `thread/start`.
+Later operations use the resumed generation and the existing checkpoint owner;
+old-generation lifecycle events fail closed.
+
+Cancellation remains risk-reducing and attachment/run bound. It may cancel an
+admitted-not-invoked attempt atomically with zero provider calls or signal only
+the exact resumed controller after invocation. When the controller is lost or
+provider stop cannot be confirmed,
+`repository_managed_resume_cancellation.v0.1` records the exact intent and
+forbids later claim reacquisition without pretending that the provider stopped.
+Result normalization,
+RunReceipt, and at-most-one proposal remain shared owners. Run completion is
+not semantic acceptance. Historical interactive and policy-triggered resume
+retain their existing identity and active-selection compatibility contract.
 
 ---
 

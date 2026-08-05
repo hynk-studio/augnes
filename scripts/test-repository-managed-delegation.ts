@@ -17,6 +17,9 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  appendAutonomyRunLedgerEvent,
+  buildAutonomyRunEventRecord,
+  insertAutonomyRunLedgerRecord,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
 } from "../lib/autonomy/runner-ledger";
@@ -29,8 +32,14 @@ import {
   selectActiveProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
+  insertRepositoryRunResumeCheckpointInsideTransactionV01,
+  listRepositoryManagedResumeAttemptsV01,
+  listRepositoryRunResumeCheckpointsV01,
   readRepositoryExecutionAttachmentV01,
+  readRepositoryManagedResumeCancellationV01,
+  readRepositoryManagedResumeRuntimeClaimV01,
 } from "../lib/vnext/persistence/repository-execution-store";
+import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import {
   grantRepositoryExecutionDecisionFromBrowserSessionV01,
   prepareRepositoryExecutionV01,
@@ -42,9 +51,18 @@ import {
   RepositoryManagedDelegationErrorV01,
   startRepositoryManagedDelegationV01,
 } from "../lib/vnext/repository-execution/repository-managed-delegation";
+import {
+  prepareRepositoryManagedResumeV01,
+  resumeRepositoryManagedDelegationV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
 import { inspectRepositoryWorktreeV01 } from "../lib/vnext/repository-execution/worktree-observation";
 import { classifyRepositoryEnvelopeCommandV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
+import { createCanonicalRepositoryDelegationTestAdapterV01 } from "../lib/vnext/native-host/canonical-repository-delegation-test-adapter";
+import {
+  admitRepositoryRunResumeCheckpointV01,
+  readRepositoryRunResumeEligibilityV01,
+} from "../lib/vnext/repository-execution/repository-run-resume";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import {
@@ -65,8 +83,10 @@ import {
 import type { RepositoryExecutionDecisionRequestProjectionV01 } from "../types/vnext/repository-execution";
 import type {
   NativeHostApprovalRequestV01,
+  NativeHostLifecycleEventV01,
   NativeHostRequestV01,
 } from "../types/vnext/native-host-adapter";
+import { REPOSITORY_RUN_RESUME_LIMITS_V01 } from "../types/vnext/repository-run-resume";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b2b-"));
 const DATABASE_PATH = path.join(ROOT, "augnes.db");
@@ -80,6 +100,7 @@ void main().finally(() => {
 
 async function main(): Promise<void> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  process.env.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
   process.env.AUGNES_DB_PATH = DATABASE_PATH;
   assertRepositoryExecutionMigrationV01();
@@ -213,6 +234,16 @@ async function main(): Promise<void> {
     assertExecutionEnvelopeAuthorityV01();
     assertSecretBoundaryDocumentationV01();
     await assertPlatformAndNonGitRefusalV01(db, service, projectA.workspace_id);
+    await assertRepositoryResumeCheckpointEligibilityV01(
+      db,
+      projectA.workspace_id,
+      projectB.project_id,
+    );
+    await assertRepositoryManagedResumeV01(db, projectA.workspace_id);
+    await assertRepositoryManagedResumeCrashBoundariesV01(
+      db,
+      projectA.workspace_id,
+    );
 
     await waitForTerminalV01(db, result.run_id);
     const terminal = readAutonomyRunLedgerRecord(result.run_id, { db });
@@ -273,6 +304,24 @@ async function main(): Promise<void> {
       execution_envelope_authority_classification: true,
       in_repository_secret_scope_claim_bounded: true,
       cdx2b2a_schema_migration_preserved_and_upgraded: true,
+      resume_checkpoint_exact_replay_and_monotonicity: true,
+      resume_checkpoint_strict_operation_lifecycle_grammar: true,
+      resume_checkpoint_exact_lifecycle_event_replay: true,
+      resume_candidate_selection_bounded_and_canonical: true,
+      resume_candidate_relations_fail_closed: true,
+      resume_eligibility_state_matrix: true,
+      resume_eligibility_browser_selection_independent: true,
+      resume_eligibility_zero_effect_read: true,
+      repository_attachment_resume_still_refused: true,
+      explicit_same_run_resume: true,
+      resume_attempt_crash_boundary: true,
+      resumed_cancellation_boundaries: true,
+      resumed_cancellation_exact_controller_binding: true,
+      resumed_cancellation_foreign_controller_refused: true,
+      resumed_cancellation_signal_idempotent: true,
+      cross_runtime_transfer_failures_structured: true,
+      consumed_resume_decision_mismatch_structured: true,
+      provider_thread_resume_once_and_start_zero: true,
       windows_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
       non_git_status: "unsupported_no_run",
@@ -284,6 +333,2079 @@ async function main(): Promise<void> {
   } finally {
     await service.shutdown();
     db.close();
+  }
+}
+
+async function assertRepositoryResumeCheckpointEligibilityV01(
+  db: Database.Database,
+  workspaceId: string,
+  browserProjectId: string,
+): Promise<void> {
+  const fixture = await createPreparedFixtureV01(
+    db,
+    "resume-checkpoint-repository",
+    "Resume Checkpoint Repository",
+    "2026-08-04T02:00:00.000Z",
+  );
+  process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+  const runtimeInstance = `sha256:${"8".repeat(64)}`;
+  const runtimeGeneration = `sha256:${"9".repeat(64)}`;
+  const service = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () =>
+      createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+    runtime_instance_fingerprint: runtimeInstance,
+    runtime_generation_fingerprint: runtimeGeneration,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
+  try {
+    const request = await requestAndGrantV01(
+      db,
+      service,
+      fixture,
+      "2026-08-04T02:00:10.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(fixture, request),
+      service,
+      { now: () => "2026-08-04T02:00:12.000Z", platform: "darwin" },
+    );
+    assert.equal(started.status, "accepted");
+    await waitForCheckpointCountV01(db, started.run_id, 4);
+    const admittedCheckpointCount = countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    );
+    assert.equal(
+      admittedCheckpointCount,
+      4,
+      JSON.stringify(readAutonomyRunLedgerRecord(started.run_id, { db }), null, 2),
+    );
+    const admittedCheckpoints = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.deepEqual(
+      admittedCheckpoints.map((checkpoint) => checkpoint.operation_certainty),
+      ["not_started", "completed", "not_started", "completed"],
+    );
+    assert.equal(
+      admittedCheckpoints.every((checkpoint, index) =>
+        index === 0 ||
+        checkpoint.effect_ledger_high_water_mark >
+          admittedCheckpoints[index - 1]!.effect_ledger_high_water_mark
+      ),
+      true,
+    );
+    db.exec("BEGIN IMMEDIATE");
+    assert.equal(
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        admittedCheckpoints.at(-1)!,
+      ),
+      "exact_replay",
+    );
+    db.exec("COMMIT");
+    let latestCheckpoint = admittedCheckpoints.at(-1)!;
+    const conflictingMaterial = {
+      ...latestCheckpoint,
+      operation_certainty: "failed" as const,
+    };
+    const { checkpoint_fingerprint: _priorFingerprint, ...conflictingBasis } =
+      conflictingMaterial;
+    const conflictingCheckpoint = {
+      ...conflictingBasis,
+      checkpoint_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(conflictingBasis),
+      ),
+    };
+    db.exec("BEGIN IMMEDIATE");
+    assert.throws(() =>
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        conflictingCheckpoint,
+      ),
+    );
+    db.exec("ROLLBACK");
+    const config = operatorConfig(workspaceId, fixture.project_id);
+    const active = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:20.000Z",
+    }, {
+      read_controller: (exactConfig, runId) =>
+        service.readRepositoryControllerObservationV01(exactConfig, runId),
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    assert.equal(active.status, "active_owned");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      service,
+      { now: () => "2026-08-04T02:00:20.100Z", platform: "darwin" },
+    )).status, "active_owned");
+    const mismatchedController = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:20.500Z",
+    }, {
+      read_controller: () => ({
+        owned: true,
+        controller_generation: 2,
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+      }),
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    assert.equal(mismatchedController.status, "reconciliation_required");
+
+    const restarted = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () =>
+        createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+      runtime_instance_fingerprint: `sha256:${"a".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"b".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
+    });
+    const zeroEffectBefore = {
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      results: countWhere(db, "vnext_core_records", "record_kind = 'run_receipt'"),
+      proposals: countWhere(db, "vnext_core_records", "record_kind = 'run_assessment_proposal'"),
+    };
+    const readRestarted = () => readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:21.000Z",
+    }, {
+      read_controller: (exactConfig, runId) =>
+        restarted.readRepositoryControllerObservationV01(exactConfig, runId),
+      read_capability: () => restarted.readCapabilityContractV01(),
+      platform: "darwin",
+    });
+    let ready = await readRestarted();
+    assert.equal(ready.status, "resume_ready", JSON.stringify(ready));
+    assert.equal(ready.authority.starts_or_resumes_worker, false);
+    assert.equal(ready.authority.writes_database, false);
+    assert.equal(ready.last_confirmed_operation?.certainty, "completed");
+    const lifecycleReplaySource = db.prepare(
+      `SELECT payload_json FROM autonomy_run_events
+        WHERE run_id = ? AND json_extract(payload_json, '$.event_kind') = 'work_checkpoint'
+        ORDER BY rowid DESC LIMIT 1`,
+    ).pluck().get(started.run_id) as string;
+    const replaySourcePayload = JSON.parse(lifecycleReplaySource) as {
+      host_refs: NativeHostLifecycleEventV01["host_refs"];
+    };
+    const replayOperationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        run_id: started.run_id,
+        operation: "exact-lifecycle-replay",
+      }),
+    );
+    const replayEvent: NativeHostLifecycleEventV01 = {
+      event_id: "native-host-event:exact-lifecycle-replay",
+      run_id: started.run_id,
+      state: "running",
+      event_kind: "work_checkpoint",
+      observed_at: "2026-08-04T02:00:21.500Z",
+      coverage: "observed",
+      host_refs: replaySourcePayload.host_refs,
+      bounded_metadata: {
+        checkpoint_kind: "file_change",
+        phase: "declared",
+        status: "active",
+        operation_ref: replayOperationRef,
+        certainty: "not_started",
+        change_count: 0,
+      },
+    };
+    const controller = [...(
+      service as unknown as {
+        controllers: Map<string, { report_event(event: NativeHostLifecycleEventV01): Promise<void> }>;
+      }
+    ).controllers.values()][0]!;
+    await controller.report_event(replayEvent);
+    const lifecycleRowsAfterFirstAdmission = countWhere(
+      db,
+      "autonomy_run_events",
+      `json_extract(payload_json, '$.event_id') = '${replayEvent.event_id}'`,
+    );
+    const checkpointsAfterFirstAdmission = countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    );
+    await controller.report_event(replayEvent);
+    assert.equal(countWhere(
+      db,
+      "autonomy_run_events",
+      `json_extract(payload_json, '$.event_id') = '${replayEvent.event_id}'`,
+    ), lifecycleRowsAfterFirstAdmission);
+    assert.equal(countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${started.run_id}'`,
+    ), checkpointsAfterFirstAdmission);
+    latestCheckpoint = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    }).at(-1)!;
+    ready = await readRestarted();
+    assert.equal(ready.status, "resume_ready");
+    const insertAttachmentRunCandidate = (
+      label: string,
+      status: "running" | "paused" | "completed" | "failed",
+      updatedAt: string,
+    ) => {
+      const sourceRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const candidateRunId = `host-run:resume-candidate:${label}`;
+      const candidateAttachmentId = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ label, kind: "attachment" }),
+      );
+      const candidateBinding = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ label, kind: "binding" }),
+      );
+      db.prepare(
+        `INSERT INTO vnext_repository_execution_attachments (
+           attachment_id, attachment_version, workspace_id, project_id,
+           node_scope_fingerprint, physical_root_baseline_fingerprint,
+           root_binding_fingerprint, task_context_packet_id,
+           task_context_packet_fingerprint, current_work_fingerprint,
+           project_execution_admission_fingerprint,
+           worktree_observation_fingerprint, managed_run_state_fingerprint,
+           binding_fingerprint, prepared_at, freshness_policy_json, lifecycle,
+           stale_reason, lifecycle_updated_at, consumed_run_id
+         )
+         SELECT ?, attachment_version, workspace_id, project_id,
+                node_scope_fingerprint, physical_root_baseline_fingerprint,
+                root_binding_fingerprint, task_context_packet_id,
+                task_context_packet_fingerprint, current_work_fingerprint,
+                project_execution_admission_fingerprint,
+                worktree_observation_fingerprint, managed_run_state_fingerprint,
+                ?, prepared_at, freshness_policy_json, 'consumed', NULL, ?, ?
+           FROM vnext_repository_execution_attachments WHERE attachment_id = ?`,
+      ).run(
+        candidateAttachmentId,
+        candidateBinding,
+        updatedAt,
+        candidateRunId,
+        fixture.attachment_id,
+      );
+      insertAutonomyRunLedgerRecord({
+        ...sourceRun,
+        run_id: candidateRunId,
+        status,
+        updated_at: updatedAt,
+        finished_at: status === "completed" || status === "failed"
+          ? updatedAt
+          : null,
+        metadata: {
+          ...sourceRun.metadata,
+          repository_attachment_id: candidateAttachmentId,
+          repository_attachment_binding_fingerprint: candidateBinding,
+        },
+      }, [], [], { db });
+      return {
+        run_id: candidateRunId,
+        attachment_id: candidateAttachmentId,
+        remove: () => {
+          db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(
+            candidateRunId,
+          );
+          db.prepare(
+            "DELETE FROM vnext_repository_execution_attachments WHERE attachment_id = ?",
+          ).run(candidateAttachmentId);
+        },
+      };
+    };
+
+    const newerTerminal = insertAttachmentRunCandidate(
+      "newer-terminal",
+      "completed",
+      "2026-08-04T02:10:00.000Z",
+    );
+    assert.equal((await readRestarted()).status, "resume_ready");
+    const selectedControllerRunIds: string[] = [];
+    const olderActiveWithNewerTerminal = await readRepositoryRunResumeEligibilityV01(
+      db,
+      { config, generated_at: "2026-08-04T02:10:01.000Z" },
+      {
+        read_controller: (_exactConfig, runId) => {
+          selectedControllerRunIds.push(runId);
+          return runId === started.run_id
+            ? {
+                owned: true,
+                controller_generation: Number(
+                  readAutonomyRunLedgerRecord(runId, { db })!.metadata
+                    .controller_generation,
+                ),
+                runtime_instance_fingerprint: runtimeInstance,
+                runtime_generation_fingerprint: runtimeGeneration,
+              }
+            : {
+                owned: false,
+                controller_generation: null,
+                runtime_instance_fingerprint: null,
+                runtime_generation_fingerprint: null,
+              };
+        },
+        read_capability: () => restarted.readCapabilityContractV01(),
+        platform: "darwin",
+      },
+    );
+    assert.equal(olderActiveWithNewerTerminal.status, "active_owned");
+    assert.deepEqual(selectedControllerRunIds, [started.run_id]);
+    const wrongCandidateController = await readRepositoryRunResumeEligibilityV01(
+      db,
+      { config, generated_at: "2026-08-04T02:10:02.000Z" },
+      {
+        read_controller: (_exactConfig, runId) => ({
+          owned: runId === newerTerminal.run_id,
+          controller_generation: runId === newerTerminal.run_id ? 1 : null,
+          runtime_instance_fingerprint:
+            runId === newerTerminal.run_id ? runtimeInstance : null,
+          runtime_generation_fingerprint:
+            runId === newerTerminal.run_id ? runtimeGeneration : null,
+        }),
+        read_capability: () => restarted.readCapabilityContractV01(),
+        platform: "darwin",
+      },
+    );
+    assert.equal(wrongCandidateController.status, "resume_ready");
+    updateAutonomyRunLedgerFields(started.run_id, { status: "paused" }, { db });
+    assert.equal((await readRestarted()).status, "resume_ready");
+    updateAutonomyRunLedgerFields(started.run_id, { status: "running" }, { db });
+
+    updateAutonomyRunLedgerFields(newerTerminal.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(newerTerminal.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:10:00.000Z",
+    }, { db });
+    newerTerminal.remove();
+
+    const originalRunForCandidateRelations = readAutonomyRunLedgerRecord(
+      started.run_id,
+      { db },
+    )!;
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...originalRunForCandidateRelations.metadata,
+        repository_attachment_id: `sha256:${"0".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...originalRunForCandidateRelations.metadata,
+        repository_attachment_binding_fingerprint: `sha256:${"1".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: originalRunForCandidateRelations.metadata,
+    }, { db });
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:11:00.000Z",
+    }, { db });
+    const secondTerminal = insertAttachmentRunCandidate(
+      "second-terminal",
+      "failed",
+      "2026-08-04T02:12:00.000Z",
+    );
+    assert.equal((await readRestarted()).status, "terminal");
+    const consumedRunId = db.prepare(
+      "SELECT consumed_run_id FROM vnext_repository_execution_attachments WHERE attachment_id = ?",
+    ).pluck().get(secondTerminal.attachment_id) as string;
+    db.prepare(
+      "UPDATE vnext_repository_execution_attachments SET consumed_run_id = ? WHERE attachment_id = ?",
+    ).run("host-run:wrong-terminal-consumer", secondTerminal.attachment_id);
+    assert.equal((await readRestarted()).status, "unavailable");
+    db.prepare(
+      "UPDATE vnext_repository_execution_attachments SET consumed_run_id = ? WHERE attachment_id = ?",
+    ).run(consumedRunId, secondTerminal.attachment_id);
+    secondTerminal.remove();
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
+    const publicEligibility = JSON.stringify(ready);
+    assert(
+      Buffer.byteLength(publicEligibility, "utf8") <=
+        REPOSITORY_RUN_RESUME_LIMITS_V01.public_serialized_bytes,
+    );
+    for (const forbidden of [
+      "provider_thread_ref",
+      "last_turn_ref",
+      "operation_ref",
+      "worktree_observation_fingerprint",
+      fixture.root,
+    ]) {
+      assert.equal(publicEligibility.includes(forbidden), false, forbidden);
+    }
+    assert.equal(
+      (await inspectRepositoryWorktreeV01(fixture.root)).observation_fingerprint,
+      db.prepare(
+        `SELECT worktree_observation_fingerprint
+           FROM vnext_repository_run_resume_checkpoints
+          WHERE run_id = ? ORDER BY effect_ledger_high_water_mark DESC LIMIT 1`,
+      ).pluck().get(started.run_id),
+    );
+    assert.notEqual(
+      (await inspectRepositoryWorktreeV01(fixture.root)).observation_fingerprint,
+      readRepositoryExecutionAttachmentV01(db, fixture.attachment_id)?.worktree_observation_fingerprint,
+    );
+
+    selectProjectV01(db, workspaceId, browserProjectId);
+    assert.deepEqual(await readRestarted(), ready);
+    assert.deepEqual({
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      results: countWhere(db, "vnext_core_records", "record_kind = 'run_receipt'"),
+      proposals: countWhere(db, "vnext_core_records", "record_kind = 'run_assessment_proposal'"),
+    }, zeroEffectBefore);
+
+    const driftPath = path.join(fixture.root, "after-safe-checkpoint.txt");
+    writeFileSync(driftPath, "drift\n", "utf8");
+    assert.equal((await readRestarted()).status, "stale");
+    rmSync(driftPath);
+    assert.equal((await readRestarted()).status, "resume_ready");
+    const resumePreparation = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:21.900Z", platform: "darwin" },
+    );
+    assert.equal(resumePreparation.status, "decision_required");
+    assert.equal(resumePreparation.authority.worker_started, false);
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:21.950Z", platform: "linux" },
+    )).status, "unsupported");
+
+    const unsupported = await readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T02:00:22.000Z",
+    }, {
+      read_controller: () => ({
+        owned: false,
+        controller_generation: null,
+        runtime_instance_fingerprint: null,
+        runtime_generation_fingerprint: null,
+      }),
+      read_capability: () => ({
+        ...restarted.readCapabilityContractV01(),
+        resumable_after_detach: false,
+      }),
+      platform: "darwin",
+    });
+    assert.equal(unsupported.status, "unsupported");
+
+    const run = readAutonomyRunLedgerRecord(started.run_id, { db });
+    assert(run);
+    const originalMetadata = run.metadata;
+    for (const metadata of [
+      { ...originalMetadata, host_thread_ref: null },
+      { ...originalMetadata, host_turn_ref: null },
+      { ...originalMetadata, host_thread_ref: { malformed: true } },
+    ]) {
+      updateAutonomyRunLedgerFields(started.run_id, { metadata }, { db });
+      assert.equal((await readRestarted()).status, "unsupported");
+    }
+    for (const metadata of [
+      {
+        ...originalMetadata,
+        repository_execution_envelope_fingerprint: `sha256:${"d".repeat(64)}`,
+      },
+      { ...originalMetadata, adapter_version: "drifted-adapter.v0.1" },
+      { ...originalMetadata, capability_version: "drifted-capability.v0.1" },
+      { ...originalMetadata, packet_fingerprint: `sha256:${"e".repeat(64)}` },
+    ]) {
+      updateAutonomyRunLedgerFields(started.run_id, { metadata }, { db });
+      assert.equal((await readRestarted()).status, "stale");
+    }
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "waiting_for_approval",
+      metadata: { ...originalMetadata, pending_approval: { malformed: true } },
+    }, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      metadata: originalMetadata,
+    }, { db });
+
+    const conflictRunId = "host-run:resume-eligibility-conflict";
+    insertAutonomyRunLedgerRecord({
+      ...run,
+      run_id: conflictRunId,
+      status: "running",
+      metadata: {
+        ...run.metadata,
+        invocation_origin: "interactive",
+      },
+    }, [], [], { db });
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run(conflictRunId);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const baselineIdentity = db.prepare(
+      `SELECT filesystem_object_identity
+         FROM vnext_physical_root_baselines
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).pluck().get(workspaceId, fixture.project_id) as string;
+    db.prepare(
+      `UPDATE vnext_physical_root_baselines
+          SET filesystem_object_identity = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(`${baselineIdentity}:drift`, workspaceId, fixture.project_id);
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare(
+      `UPDATE vnext_physical_root_baselines
+          SET filesystem_object_identity = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(baselineIdentity, workspaceId, fixture.project_id);
+
+    const rootBinding = db.prepare(
+      `SELECT normalized_root FROM vnext_project_root_bindings
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).pluck().get(workspaceId, fixture.project_id) as string;
+    db.prepare(
+      `UPDATE vnext_project_root_bindings SET normalized_root = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(`${rootBinding}-drift`, workspaceId, fixture.project_id);
+    assert.equal((await readRestarted()).status, "stale");
+    db.prepare(
+      `UPDATE vnext_project_root_bindings SET normalized_root = ?
+        WHERE workspace_id = ? AND project_id = ?`,
+    ).run(rootBinding, workspaceId, fixture.project_id);
+
+    const multipleBasis = {
+      ...latestCheckpoint,
+      operation_ref: `sha256:${"f".repeat(64)}`,
+    };
+    const { checkpoint_fingerprint: _multiplePrior, ...multipleMaterial } =
+      multipleBasis;
+    const multipleCheckpoint = {
+      ...multipleMaterial,
+      checkpoint_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(multipleMaterial),
+      ),
+    };
+    db.exec("BEGIN IMMEDIATE");
+    assert.equal(
+      insertRepositoryRunResumeCheckpointInsideTransactionV01(
+        db,
+        multipleCheckpoint,
+      ),
+      "inserted",
+    );
+    db.exec("COMMIT");
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.prepare(
+      "DELETE FROM vnext_repository_run_resume_checkpoints WHERE checkpoint_fingerprint = ?",
+    ).run(multipleCheckpoint.checkpoint_fingerprint);
+
+    db.prepare(
+      `UPDATE vnext_repository_run_resume_checkpoints
+          SET provider_thread_ref_json = '{"malformed":true}'
+        WHERE checkpoint_fingerprint = ?`,
+    ).run(latestCheckpoint.checkpoint_fingerprint);
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.prepare(
+      `UPDATE vnext_repository_run_resume_checkpoints
+          SET provider_thread_ref_json = ?
+        WHERE checkpoint_fingerprint = ?`,
+    ).run(
+      JSON.stringify(latestCheckpoint.provider_thread_ref),
+      latestCheckpoint.checkpoint_fingerprint,
+    );
+
+    const checkpointsBeforeHistoryDeletion =
+      listRepositoryRunResumeCheckpointsV01(db, {
+        workspace_id: workspaceId,
+        project_id: fixture.project_id,
+        run_id: started.run_id,
+      });
+    db.prepare(
+      "DELETE FROM vnext_repository_run_resume_checkpoints WHERE run_id = ?",
+    ).run(started.run_id);
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    db.exec("BEGIN IMMEDIATE");
+    for (const checkpoint of checkpointsBeforeHistoryDeletion) {
+      assert.equal(
+        insertRepositoryRunResumeCheckpointInsideTransactionV01(db, checkpoint),
+        "inserted",
+      );
+    }
+    db.exec("COMMIT");
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const appendTerminalLifecycle = (
+      label: string,
+      certainty: "completed" | "failed" | "cancelled",
+      includeDeclaration = true,
+    ) => {
+      const current = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const step = current.steps[0]!;
+      const operationRef = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({ run_id: started.run_id, label }),
+      );
+      const lifecycleEventIds: string[] = [];
+      const phases = includeDeclaration
+        ? ["declared", "started", "completed"]
+        : ["started", "completed"];
+      for (const [index, phase] of phases.entries()) {
+        const lifecycleEventId = `native-host-event:${label}:${phase}`;
+        lifecycleEventIds.push(lifecycleEventId);
+        appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+          run_id: started.run_id,
+          step_id: step.step_id,
+          event_type: "host_event_observed",
+          status: "running",
+          message: "A bounded native-host lifecycle event was admitted.",
+          payload: {
+            event_id: lifecycleEventId,
+            event_kind: "work_checkpoint",
+            checkpoint: {
+              kind: "command_execution",
+              phase,
+              status: phase === "completed" ? certainty : "active",
+              operation_ref: operationRef,
+              certainty: phase === "declared"
+                ? "not_started"
+                : phase === "started"
+                  ? "started"
+                  : certainty,
+              change_count: null,
+            },
+            control_revision: Number(current.metadata.control_revision),
+            controller_generation: Number(current.metadata.controller_generation),
+            runtime_instance_fingerprint: runtimeInstance,
+            runtime_generation_fingerprint: runtimeGeneration,
+            raw_protocol_persisted: false,
+          },
+          created_at: `2026-08-04T02:00:${30 + index}.000Z`,
+        }), { db });
+      }
+      return {
+        event_ids: lifecycleEventIds,
+        admission: {
+          config,
+          run_id: started.run_id,
+          lifecycle_event_id: lifecycleEventIds.at(-1)!,
+          controller_generation: Number(current.metadata.controller_generation),
+          runtime_instance_fingerprint: runtimeInstance,
+          runtime_generation_fingerprint: runtimeGeneration,
+          expected_run_control_revision: Number(current.metadata.control_revision),
+          expected_step_control_revision: Number(step.output.control_revision),
+          operation_ref: operationRef,
+          operation_class: "command_execution" as const,
+          checkpoint_phase: "post_operation" as const,
+          operation_certainty: certainty,
+          observed_at: "2026-08-04T02:00:33.000Z",
+        },
+      };
+    };
+    const removeLifecycleEvents = (eventIds: string[]) => {
+      for (const lifecycleEventId of eventIds) {
+        db.prepare(
+          "DELETE FROM autonomy_run_events WHERE json_extract(payload_json, '$.event_id') = ?",
+        ).run(lifecycleEventId);
+      }
+    };
+    const admissionDependencies = {
+      read_capability: () => service.readCapabilityContractV01(),
+      platform: "darwin" as const,
+    };
+
+    const failedBoundary = appendTerminalLifecycle(
+      "failed-boundary",
+      "failed",
+      false,
+    );
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      failedBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal((await readRestarted()).last_confirmed_operation?.certainty, "failed");
+
+    const cancelledBoundary = appendTerminalLifecycle(
+      "cancelled-boundary",
+      "cancelled",
+      false,
+    );
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      cancelledBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "cancelled",
+    );
+
+    const finalCompletedBoundary = appendTerminalLifecycle(
+      "final-completed-boundary",
+      "completed",
+    );
+    await admitRepositoryRunResumeCheckpointV01(
+      db,
+      finalCompletedBoundary.admission,
+      admissionDependencies,
+    );
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "completed",
+    );
+
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, {
+        ...finalCompletedBoundary.admission,
+        controller_generation:
+          finalCompletedBoundary.admission.controller_generation - 1,
+      }, admissionDependencies),
+    );
+
+    const noPostState = appendTerminalLifecycle("missing-post-state", "completed");
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, noPostState.admission, {
+        ...admissionDependencies,
+        inspect_worktree: async () => ({
+          observation_version: "repository_worktree_observation.v0.1",
+          status: "unavailable" as const,
+          repository_kind: "unknown" as const,
+          reason: "deterministic_post_state_unavailable",
+          observed_at: "2026-08-04T02:00:34.000Z",
+          observation_fingerprint: `sha256:${"1".repeat(64)}`,
+        }),
+      }),
+    );
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(noPostState.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const persistenceFailure = appendTerminalLifecycle(
+      "persistence-failure",
+      "completed",
+    );
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, persistenceFailure.admission, {
+        ...admissionDependencies,
+        before_checkpoint_insert: () => {
+          throw new Error("deterministic_checkpoint_persistence_failure");
+        },
+      }),
+    );
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(persistenceFailure.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const admissionRace = appendTerminalLifecycle("admission-race", "completed");
+    const beforeRace = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, admissionRace.admission, {
+        ...admissionDependencies,
+        before_checkpoint_transaction: () => {
+          updateAutonomyRunLedgerFields(started.run_id, {
+            metadata: {
+              ...beforeRace.metadata,
+              control_revision: Number(beforeRace.metadata.control_revision) + 1,
+            },
+          }, { db });
+        },
+      }),
+    );
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: beforeRace.metadata,
+    }, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    removeLifecycleEvents(admissionRace.event_ids);
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    const declaredRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    const declaredStep = declaredRun.steps[0]!;
+    const declaredOperationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        run_id: started.run_id,
+        label: "definitely-not-started",
+      }),
+    );
+    const declaredLifecycleEventId =
+      "native-host-event:definitely-not-started:declared";
+    appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+      run_id: started.run_id,
+      step_id: declaredStep.step_id,
+      event_type: "host_event_observed",
+      status: "running",
+      message: "A bounded native-host lifecycle event was admitted.",
+      payload: {
+        event_id: declaredLifecycleEventId,
+        event_kind: "work_checkpoint",
+        checkpoint: {
+          kind: "file_change",
+          phase: "declared",
+          status: "active",
+          operation_ref: declaredOperationRef,
+          certainty: "not_started",
+          change_count: 1,
+        },
+        control_revision: Number(declaredRun.metadata.control_revision),
+        controller_generation: Number(declaredRun.metadata.controller_generation),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+        raw_protocol_persisted: false,
+      },
+      created_at: "2026-08-04T02:00:36.000Z",
+    }), { db });
+    await admitRepositoryRunResumeCheckpointV01(db, {
+      config,
+      run_id: started.run_id,
+      lifecycle_event_id: declaredLifecycleEventId,
+      controller_generation: Number(declaredRun.metadata.controller_generation),
+      runtime_instance_fingerprint: runtimeInstance,
+      runtime_generation_fingerprint: runtimeGeneration,
+      expected_run_control_revision: Number(declaredRun.metadata.control_revision),
+      expected_step_control_revision: Number(declaredStep.output.control_revision),
+      operation_ref: declaredOperationRef,
+      operation_class: "file_change",
+      checkpoint_phase: "declared_pre_start",
+      operation_certainty: "not_started",
+      observed_at: "2026-08-04T02:00:36.000Z",
+    }, admissionDependencies);
+    assert.equal(
+      (await readRestarted()).last_confirmed_operation?.certainty,
+      "not_started",
+    );
+
+    type GrammarEventV01 = {
+      operation: string;
+      phase: "declared" | "started" | "completed" | "future_phase";
+      certainty:
+        | "not_started"
+        | "started"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "waiting_for_approval"
+        | "future_certainty";
+      operation_class?: "command_execution" | "file_change";
+      step_id?: string;
+      lifecycle_event_id?: string;
+      controller_generation?: number;
+    };
+    const foreignStepId = db.prepare(
+      "SELECT step_id FROM autonomy_run_steps WHERE run_id <> ? ORDER BY step_id LIMIT 1",
+    ).pluck().get(started.run_id) as string;
+    assert.equal(typeof foreignStepId, "string");
+    const assertRejectedGrammarV01 = async (
+      label: string,
+      sequence: GrammarEventV01[],
+      boundaryIndex = sequence.length - 1,
+    ) => {
+      const current = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+      const step = current.steps[0]!;
+      const insertedEventIds: string[] = [];
+      const operationRefs = new Map<string, string>();
+      for (const [index, candidate] of sequence.entries()) {
+        const operationRef = operationRefs.get(candidate.operation) ??
+          createProtocolSha256V01(canonicalizeProtocolValueV01({
+            label,
+            operation: candidate.operation,
+          }));
+        operationRefs.set(candidate.operation, operationRef);
+        const lifecycleEventId = candidate.lifecycle_event_id ??
+          `native-host-event:grammar:${label}:${index}`;
+        const event = buildAutonomyRunEventRecord({
+          run_id: started.run_id,
+          step_id: candidate.step_id ?? step.step_id,
+          event_type: "host_event_observed",
+          status: "running",
+          message: "A bounded native-host lifecycle event was admitted.",
+          payload: {
+            event_id: lifecycleEventId,
+            event_kind: "work_checkpoint",
+            checkpoint: {
+              kind: candidate.operation_class ?? "command_execution",
+              phase: candidate.phase,
+              status: candidate.phase === "completed" ? "completed" : "active",
+              operation_ref: operationRef,
+              certainty: candidate.certainty,
+              change_count: null,
+            },
+            control_revision: Number(current.metadata.control_revision),
+            controller_generation: candidate.controller_generation ??
+              Number(current.metadata.controller_generation),
+            runtime_instance_fingerprint: runtimeInstance,
+            runtime_generation_fingerprint: runtimeGeneration,
+            raw_protocol_persisted: false,
+          },
+          created_at: `2026-08-04T02:${20 + boundaryIndex}:${
+            String(index).padStart(2, "0")
+          }.000Z`,
+        });
+        insertedEventIds.push(event.event_id);
+        appendAutonomyRunLedgerEvent(event, { db });
+      }
+      const boundary = sequence[boundaryIndex]!;
+      const operationRef = operationRefs.get(boundary.operation)!;
+      await assert.rejects(admitRepositoryRunResumeCheckpointV01(db, {
+        config,
+        run_id: started.run_id,
+        lifecycle_event_id: boundary.lifecycle_event_id ??
+          `native-host-event:grammar:${label}:${boundaryIndex}`,
+        controller_generation: Number(current.metadata.controller_generation),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+        expected_run_control_revision: Number(current.metadata.control_revision),
+        expected_step_control_revision: Number(step.output.control_revision),
+        operation_ref: operationRef,
+        operation_class: boundary.operation_class ?? "command_execution",
+        checkpoint_phase: boundary.phase === "declared"
+          ? "declared_pre_start"
+          : "post_operation",
+        operation_certainty: boundary.certainty === "not_started"
+          ? "not_started"
+          : ["completed", "failed", "cancelled"].includes(boundary.certainty)
+            ? boundary.certainty as "completed" | "failed" | "cancelled"
+            : "completed",
+        observed_at: "2026-08-04T02:59:59.000Z",
+      }, admissionDependencies));
+      assert.equal((await readRestarted()).status, "reconciliation_required");
+      for (const eventId of insertedEventIds) {
+        db.prepare("DELETE FROM autonomy_run_events WHERE event_id = ?").run(eventId);
+      }
+      assert.equal((await readRestarted()).status, "resume_ready");
+    };
+
+    await assertRejectedGrammarV01("terminal-without-start", [
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("start-without-terminal", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-start", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-terminal", [
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("terminal-before-start", [
+      { operation: "one", phase: "completed", certainty: "completed" },
+      { operation: "one", phase: "started", certainty: "started" },
+      { operation: "one", phase: "completed", certainty: "completed" },
+    ]);
+    await assertRejectedGrammarV01("duplicate-declaration", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      { operation: "one", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("repeated-lifecycle-event-id", [
+      {
+        operation: "one",
+        phase: "declared",
+        certainty: "not_started",
+        lifecycle_event_id: "native-host-event:grammar:repeated-id",
+      },
+      {
+        operation: "two",
+        phase: "declared",
+        certainty: "not_started",
+        lifecycle_event_id: "native-host-event:grammar:repeated-id",
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-class-drift", [
+      {
+        operation: "one",
+        operation_class: "command_execution",
+        phase: "declared",
+        certainty: "not_started",
+      },
+      {
+        operation: "one",
+        operation_class: "file_change",
+        phase: "started",
+        certainty: "started",
+      },
+      {
+        operation: "one",
+        operation_class: "file_change",
+        phase: "completed",
+        certainty: "completed",
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-step-drift", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      {
+        operation: "one",
+        phase: "started",
+        certainty: "started",
+        step_id: foreignStepId,
+      },
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "completed",
+        step_id: foreignStepId,
+      },
+    ]);
+    await assertRejectedGrammarV01("operation-generation-drift", [
+      { operation: "one", phase: "declared", certainty: "not_started" },
+      {
+        operation: "one",
+        phase: "started",
+        certainty: "started",
+        controller_generation: Number(declaredRun.metadata.controller_generation) + 1,
+      },
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "completed",
+        controller_generation: Number(declaredRun.metadata.controller_generation) + 1,
+      },
+    ]);
+    await assertRejectedGrammarV01("phase-certainty-mismatch", [
+      { operation: "one", phase: "started", certainty: "completed" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("approval-is-not-terminal", [
+      {
+        operation: "one",
+        phase: "completed",
+        certainty: "waiting_for_approval",
+      },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("unknown-future-phase", [
+      { operation: "one", phase: "future_phase", certainty: "future_certainty" },
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+    ]);
+    await assertRejectedGrammarV01("later-lifecycle-activity", [
+      { operation: "boundary", phase: "declared", certainty: "not_started" },
+      { operation: "later", phase: "declared", certainty: "not_started" },
+    ], 0);
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "waiting_for_approval",
+      metadata: {
+        ...run.metadata,
+        pending_approval: {
+          approval_version: "native_host_approval.v0.1",
+          approval_id: "approval:resume-checkpoint",
+          operation_class: "file_change",
+          resource_summary: "One bounded file change",
+          public_reason: "Review one bounded file change.",
+          public_risk_summary: "The local repository may change.",
+          available_decisions: ["approve_once", "decline", "cancel_run"],
+          expires_at: null,
+          control_revision: Number(run.metadata.control_revision),
+          decision_submitted: false,
+        },
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "approval_pending");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:22.700Z", platform: "darwin" },
+    )).status, "approval_pending");
+    const pendingApprovalRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    updateAutonomyRunLedgerFields(started.run_id, {
+      metadata: {
+        ...pendingApprovalRun.metadata,
+        repository_attachment_binding_fingerprint: `sha256:${"2".repeat(64)}`,
+      },
+    }, { db });
+    assert.equal((await readRestarted()).status, "unavailable");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      metadata: run.metadata,
+    }, { db });
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "completed",
+      finished_at: "2026-08-04T02:00:23.000Z",
+    }, { db });
+    assert.equal((await readRestarted()).status, "terminal");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:23.100Z", platform: "darwin" },
+    )).status, "terminal");
+    updateAutonomyRunLedgerFields(started.run_id, {
+      status: "running",
+      finished_at: null,
+    }, { db });
+
+    const incompleteOperationRef = `sha256:${"c".repeat(64)}`;
+    const incompleteEvent = buildAutonomyRunEventRecord({
+      run_id: started.run_id,
+      step_id: readAutonomyRunLedgerRecord(started.run_id, { db })!.steps[0]!.step_id,
+      event_type: "host_event_observed",
+      status: "running",
+      message: "A bounded native-host lifecycle event was admitted.",
+      payload: {
+        event_id: "native-host-event:incomplete-resume-test",
+        event_kind: "work_checkpoint",
+        checkpoint: {
+          kind: "file_change",
+          phase: "started",
+          status: "active",
+          operation_ref: incompleteOperationRef,
+          certainty: "started",
+          change_count: 1,
+        },
+        control_revision: 2,
+        controller_generation: Number(
+          readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata
+            .controller_generation,
+        ),
+        runtime_instance_fingerprint: runtimeInstance,
+        runtime_generation_fingerprint: runtimeGeneration,
+        raw_protocol_persisted: false,
+      },
+      created_at: "2026-08-04T02:00:23.500Z",
+    });
+    appendAutonomyRunLedgerEvent(incompleteEvent, { db });
+    assert.equal((await readRestarted()).status, "reconciliation_required");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:23.600Z", platform: "darwin" },
+    )).status, "reconciliation_required");
+    db.prepare("DELETE FROM autonomy_run_events WHERE event_id = ?").run(
+      incompleteEvent.event_id,
+    );
+    assert.equal((await readRestarted()).status, "resume_ready");
+
+    selectProjectV01(db, workspaceId, fixture.project_id);
+    const credential = operatorCredentialV01(
+      db,
+      config,
+      "2026-08-04T02:00:24.000Z",
+    );
+    updateAutonomyRunLedgerFields(started.run_id, { status: "paused" }, { db });
+    const paused = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    await assert.rejects(
+      service.resume({
+        config,
+        run_ref: started.run_id,
+        control_revision: Number(paused.metadata.control_revision),
+        credential,
+        clock: { now: () => "2026-08-04T02:00:25.000Z" },
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === "live_host_repository_resume_not_supported",
+    );
+  } finally {
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    await service.shutdown();
+  }
+}
+
+async function assertRepositoryManagedResumeV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  const fixture = await createPreparedFixtureV01(
+    db,
+    "explicit-resume-repository",
+    "Explicit Resume Repository",
+    "2026-08-04T04:00:00.000Z",
+  );
+  process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+  const originalService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () =>
+      createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+    runtime_instance_fingerprint: `sha256:${"c".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"d".repeat(64)}`,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
+  let resumeInvocations = 0;
+  let startInvocations = 0;
+  const resumedService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => {
+      const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+        process.env,
+      );
+      return {
+        ...adapter,
+        invoke(request, control) {
+          if (control.resume_binding) resumeInvocations += 1;
+          else startInvocations += 1;
+          return adapter.invoke(request, control);
+        },
+      };
+    },
+    runtime_instance_fingerprint: `sha256:${"e".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"f".repeat(64)}`,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
+  const config = operatorConfig(workspaceId, fixture.project_id);
+  try {
+    const startRequest = await requestAndGrantV01(
+      db,
+      originalService,
+      fixture,
+      "2026-08-04T04:00:10.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(fixture, startRequest),
+      originalService,
+      { now: () => "2026-08-04T04:00:12.000Z", platform: "darwin" },
+    );
+    await waitForCheckpointCountV01(db, started.run_id, 4);
+    const before = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    const beforeGeneration = Number(before.metadata.controller_generation);
+    const preparation = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      resumedService,
+      { now: () => "2026-08-04T04:00:20.000Z", platform: "darwin" },
+    );
+    assert.equal(preparation.status, "decision_required", JSON.stringify(preparation));
+    assert(preparation.decision_request);
+    assert(preparation.expected_state_fingerprint);
+    assert.equal(preparation.expected_controller_generation, beforeGeneration + 1);
+    assert.equal(preparation.authority.worker_started, false);
+    const preparationReplay = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      resumedService,
+      { now: () => "2026-08-04T04:00:20.500Z", platform: "darwin" },
+    );
+    assert.equal(preparationReplay.status, "decision_required");
+    assert.equal(
+      preparationReplay.decision_request?.request_fingerprint,
+      preparation.decision_request.request_fingerprint,
+    );
+    assert.equal(
+      preparationReplay.expected_state_fingerprint,
+      preparation.expected_state_fingerprint,
+    );
+    assert.equal(
+      countWhere(
+        db,
+        "vnext_repository_managed_resume_attempts",
+        `run_id = '${started.run_id}'`,
+      ),
+      0,
+    );
+    const granted = grantDecisionV01(
+      db,
+      preparation.decision_request,
+      "2026-08-04T04:00:21.000Z",
+    );
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    const resumeInput = {
+      config,
+      run_id: started.run_id,
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      expected_state_fingerprint: preparation.expected_state_fingerprint,
+      expected_controller_generation: preparation.expected_controller_generation!,
+      expected_run_control_revision: preparation.expected_run_control_revision!,
+      decision_request_fingerprint: granted.request_fingerprint,
+      decision_grant_fingerprint: granted.grant_fingerprint!,
+    };
+    for (const platform of ["win32", "linux"] as const) {
+      const unsupportedResume = await resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        {
+          now: () => "2026-08-04T04:00:21.250Z",
+          platform,
+        },
+      );
+      assert.equal(unsupportedResume.status, "blocked");
+      assert.equal(unsupportedResume.authority.decision_grant_consumed, false);
+      assert.equal(unsupportedResume.authority.worker_started, false);
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(resumeInvocations, 0);
+      assert.equal(startInvocations, 0);
+    }
+    for (const staleInput of [
+      { ...resumeInput, attachment_id: `attachment:${"0".repeat(24)}` },
+      { ...resumeInput, expected_attachment_binding_fingerprint: `sha256:${"0".repeat(64)}` },
+      { ...resumeInput, expected_state_fingerprint: `sha256:${"1".repeat(64)}` },
+      { ...resumeInput, expected_controller_generation: resumeInput.expected_controller_generation + 1 },
+      { ...resumeInput, expected_run_control_revision: resumeInput.expected_run_control_revision + 1 },
+      { ...resumeInput, decision_request_fingerprint: `sha256:${"2".repeat(64)}` },
+      { ...resumeInput, decision_grant_fingerprint: `sha256:${"3".repeat(64)}` },
+    ]) {
+      await assert.rejects(
+        resumeRepositoryManagedDelegationV01(db, staleInput, resumedService, {
+          now: () => "2026-08-04T04:00:21.500Z",
+          platform: "darwin",
+        }),
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_execution_decision_requests",
+          `request_fingerprint = '${granted.request_fingerprint}' AND status = 'granted'`,
+        ),
+        1,
+      );
+    }
+    const rollbackHooks = [
+      { after_attempt_insert_inside_transaction: () => { throw new Error("resume_rollback_attempt"); } },
+      { after_run_update_inside_transaction: () => { throw new Error("resume_rollback_run"); } },
+      { after_step_update_inside_transaction: () => { throw new Error("resume_rollback_step"); } },
+      { after_event_append_inside_transaction: () => { throw new Error("resume_rollback_event"); } },
+      { after_decision_consume_inside_transaction: () => { throw new Error("resume_rollback_decision"); } },
+    ];
+    for (const hook of rollbackHooks) {
+      await assert.rejects(
+        resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          {
+            now: () => "2026-08-04T04:00:22.000Z",
+            platform: "darwin",
+            ...hook,
+          },
+        ),
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(
+        Number(readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata.controller_generation),
+        beforeGeneration,
+      );
+    }
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    const [resumed, concurrentReplay] = await Promise.all([
+      resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
+      ),
+      resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
+      ),
+    ]);
+    assert.equal(resumed.status, "accepted", JSON.stringify(resumed));
+    assert.equal(resumed.run_id, started.run_id);
+    assert.equal(resumed.attachment_id, fixture.attachment_id);
+    assert.equal(resumed.controller_generation, beforeGeneration + 1);
+    assert.equal(resumed.authority.worker_started, true);
+    assert.equal(concurrentReplay.status, "exact_replay");
+    assert.equal(concurrentReplay.authority.worker_started, false);
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    await waitForCheckpointCountV01(db, started.run_id, 8);
+    await waitForTerminalV01(db, started.run_id);
+    const attempts = listRepositoryManagedResumeAttemptsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.equal(attempts.length, 1);
+    assert.equal(attempts[0]?.resumed_controller_generation, beforeGeneration + 1);
+    assert.equal(attempts[0]?.attempt_state, "settled");
+    const checkpoints = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.equal(checkpoints.at(-1)?.controller_generation, beforeGeneration + 1);
+    assert.equal(
+      readFileSync(path.join(fixture.root, "cdx2b4b-runtime-proof.txt"), "utf8"),
+      "CDX2B4B explicit same-run resume runtime proof\n",
+    );
+    const replay = await resumeRepositoryManagedDelegationV01(
+      db,
+      resumeInput,
+      resumedService,
+      { now: () => "2026-08-04T04:00:23.000Z", platform: "darwin" },
+    );
+    assert.equal(replay.status, "exact_replay");
+    assert.equal(replay.authority.worker_started, false);
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    await assert.rejects(
+      resumeRepositoryManagedDelegationV01(
+        db,
+        {
+          ...resumeInput,
+          expected_run_control_revision:
+            resumeInput.expected_run_control_revision + 1,
+        },
+        resumedService,
+        { now: () => "2026-08-04T04:00:23.500Z", platform: "darwin" },
+      ),
+    );
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    assert.equal(countWhere(db, "autonomy_runs", `run_id = '${started.run_id}'`), 1);
+    assert.equal(
+      countWhere(
+        db,
+        "vnext_repository_execution_attachments",
+        `attachment_id = '${fixture.attachment_id}'`,
+      ),
+      1,
+    );
+  } finally {
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    await resumedService.shutdown();
+    await originalService.shutdown();
+  }
+}
+
+async function assertRepositoryManagedResumeCrashBoundariesV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  for (const scenario of [
+    "before_marker",
+    "after_marker",
+    "cancel_before_marker",
+    "cancel_during_execution",
+  ] as const) {
+    const baseMs = scenario === "before_marker"
+      ? Date.parse("2026-08-04T05:00:00.000Z")
+      : scenario === "after_marker"
+        ? Date.parse("2026-08-04T06:00:00.000Z")
+        : scenario === "cancel_before_marker"
+          ? Date.parse("2026-08-04T07:00:00.000Z")
+          : Date.parse("2026-08-04T08:00:00.000Z");
+    const at = (offset: number) => new Date(baseMs + offset).toISOString();
+    const fixture = await createPreparedFixtureV01(
+      db,
+      `resume-crash-${scenario}`,
+      `Resume Crash ${scenario}`,
+      at(0),
+    );
+    process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+    const originalService = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () =>
+        createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+      runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"2".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
+    });
+    let resumeCalls = 0;
+    let resumeCancellationSignals = 0;
+    const resumedService = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () => {
+        const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+          process.env,
+        );
+        return {
+          ...adapter,
+          invoke(request, control) {
+            if (control.resume_binding) resumeCalls += 1;
+            if (control.resume_binding) {
+              control.cancellation_signal.addEventListener(
+                "abort",
+                () => { resumeCancellationSignals += 1; },
+                { once: true },
+              );
+            }
+            return adapter.invoke(request, control);
+          },
+        };
+      },
+      runtime_instance_fingerprint: `sha256:${"3".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"4".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
+    });
+    const config = operatorConfig(workspaceId, fixture.project_id);
+    try {
+      const startRequest = await requestAndGrantV01(
+        db,
+        originalService,
+        fixture,
+        at(10_000),
+      );
+      const started = await startRepositoryManagedDelegationV01(
+        db,
+        startInputV01(fixture, startRequest),
+        originalService,
+        { now: () => at(12_000), platform: "darwin" },
+      );
+      await waitForCheckpointCountV01(db, started.run_id, 4);
+      const preparation = await prepareRepositoryManagedResumeV01(
+        db,
+        { config },
+        resumedService,
+        { now: () => at(20_000), platform: "darwin" },
+      );
+      assert.equal(preparation.status, "decision_required");
+      assert(preparation.decision_request && preparation.expected_state_fingerprint);
+      const grant = grantDecisionV01(db, preparation.decision_request, at(21_000));
+      const resumeInput = {
+        config,
+        run_id: started.run_id,
+        attachment_id: fixture.attachment_id,
+        expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+        expected_state_fingerprint: preparation.expected_state_fingerprint,
+        expected_controller_generation: preparation.expected_controller_generation!,
+        expected_run_control_revision: preparation.expected_run_control_revision!,
+        decision_request_fingerprint: grant.request_fingerprint,
+        decision_grant_fingerprint: grant.grant_fingerprint!,
+      };
+      if (scenario === "before_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        const blocked = await resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_admission_commit: () => {
+                throw new Error("simulated_crash_before_invocation_marker");
+              },
+            },
+          );
+        assert.equal(blocked.status, "blocked");
+        assert.equal(blocked.authority.worker_started, false);
+        assert.equal(resumeCalls, 0);
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.attempt_state,
+          "admitted_not_invoked",
+        );
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const admittedClaim = readRepositoryManagedResumeRuntimeClaimV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(admittedClaim?.claim_revision, 1);
+        await resumedService.shutdown();
+        const replacement = (instance: string, generation: string) =>
+          new LiveNativeHostRunServiceV01({
+            open_database: () => openDatabaseV01(),
+            adapter_factory: () => {
+              const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+              return {
+                ...adapter,
+                invoke(request, control) {
+                  if (control.resume_binding) resumeCalls += 1;
+                  return adapter.invoke(request, control);
+                },
+              };
+            },
+            runtime_instance_fingerprint: instance,
+            runtime_generation_fingerprint: generation,
+            repository_execution_dependencies: { platform: "darwin" },
+          });
+        const assertAttemptBoundFailure = (
+          result: Awaited<ReturnType<typeof resumeRepositoryManagedDelegationV01>>,
+          expected: "blocked" | "reconciliation_required",
+        ) => {
+          assert.equal(result.resume_version, "repository_managed_resume.v0.1");
+          assert.equal(result.status, expected);
+          assert.equal(result.run_id, started.run_id);
+          assert.equal(result.attachment_id, fixture.attachment_id);
+          assert.equal(
+            result.controller_generation,
+            attempt.resumed_controller_generation,
+          );
+          assert.equal(result.authority.worker_started, false);
+          assert.equal(result.authority.provider_resume_may_occur, false);
+        };
+        const probe = replacement(
+          `sha256:${"b".repeat(64)}`,
+          `sha256:${"c".repeat(64)}`,
+        );
+        const driftPath = path.join(fixture.root, "resume-transfer-drift.txt");
+        writeFileSync(driftPath, "post-checkpoint drift\n", "utf8");
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_100), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        rmSync(driftPath);
+        const baselineRow = db.prepare(
+          `SELECT baseline_fingerprint FROM vnext_physical_root_baselines
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).get(workspaceId, fixture.project_id) as {
+          baseline_fingerprint: string;
+        };
+        db.prepare(
+          `UPDATE vnext_physical_root_baselines SET baseline_fingerprint = ?
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).run(`sha256:${"d".repeat(64)}`, workspaceId, fixture.project_id);
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_200), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        db.prepare(
+          `UPDATE vnext_physical_root_baselines SET baseline_fingerprint = ?
+            WHERE workspace_id = ? AND project_id = ?`,
+        ).run(baselineRow.baseline_fingerprint, workspaceId, fixture.project_id);
+        const decisionResultFingerprint = db.prepare(
+          `SELECT result_fingerprint FROM vnext_repository_execution_decision_requests
+            WHERE request_fingerprint = ?`,
+        ).pluck().get(attempt.decision_request_fingerprint) as string;
+        db.prepare(
+          `UPDATE vnext_repository_execution_decision_requests
+              SET result_fingerprint = ? WHERE request_fingerprint = ?`,
+        ).run(`sha256:${"e".repeat(64)}`, attempt.decision_request_fingerprint);
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_300), platform: "darwin" },
+          ),
+          "reconciliation_required",
+        );
+        db.prepare(
+          `UPDATE vnext_repository_execution_decision_requests
+              SET result_fingerprint = ? WHERE request_fingerprint = ?`,
+        ).run(decisionResultFingerprint, attempt.decision_request_fingerprint);
+        const admittedRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+        const originalTurn = admittedRun.metadata.host_turn_ref;
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: {
+            ...admittedRun.metadata,
+            host_turn_ref: {
+              ...(originalTurn as Record<string, unknown>),
+              source_ref: `sha256:${"f".repeat(64)}`,
+            },
+          },
+        }, { db });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_400), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: { ...admittedRun.metadata, host_turn_ref: originalTurn },
+        }, { db });
+        const incompatibleService = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () => {
+            const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+            return { ...adapter, capability_version: "incompatible-resume-capability.v0.1" };
+          },
+          runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"0".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
+        });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, incompatibleService,
+            { now: () => at(22_500), platform: "darwin" },
+          ),
+          "blocked",
+        );
+        await incompatibleService.shutdown();
+        const originalObservation = probe.readRepositoryControllerObservationV01.bind(probe);
+        probe.readRepositoryControllerObservationV01 = () => ({
+          ...originalObservation(config, started.run_id),
+          owned: true,
+          controller_generation: attempt.resumed_controller_generation - 1,
+          mode: "repository_attachment",
+        });
+        assertAttemptBoundFailure(
+          await resumeRepositoryManagedDelegationV01(
+            db, resumeInput, probe,
+            { now: () => at(22_600), platform: "darwin" },
+          ),
+          "reconciliation_required",
+        );
+        probe.readRepositoryControllerObservationV01 = originalObservation;
+        await probe.shutdown();
+        assert.equal(resumeCalls, 0);
+        const serviceB = replacement(`sha256:${"5".repeat(64)}`, `sha256:${"6".repeat(64)}`);
+        const serviceC = replacement(`sha256:${"7".repeat(64)}`, `sha256:${"8".repeat(64)}`);
+        let releaseWinner!: () => void;
+        let observeWinner!: () => void;
+        const winnerObserved = new Promise<void>((resolve) => {
+          observeWinner = resolve;
+        });
+        const winnerRelease = new Promise<void>((resolve) => {
+          releaseWinner = resolve;
+        });
+        const race = (service: LiveNativeHostRunServiceV01) =>
+          resumeRepositoryManagedDelegationV01(db, resumeInput, service, {
+            now: () => at(23_000),
+            platform: "darwin",
+            after_post_commit_launch_gate: async () => {
+              observeWinner();
+              await winnerRelease;
+            },
+          });
+        const replayBPromise = race(serviceB);
+        const replayCPromise = race(serviceC);
+        await winnerObserved;
+        const staleBeforeMarker = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, resumedService,
+          { now: () => at(23_250), platform: "darwin" },
+        );
+        assert.equal(staleBeforeMarker.status, "reconciliation_required");
+        assert.equal(staleBeforeMarker.authority.worker_started, false);
+        releaseWinner();
+        const [replayB, replayC] = await Promise.all([replayBPromise, replayCPromise]);
+        assert.equal(
+          [replayB, replayC].filter((value) => value.status === "accepted").length,
+          1,
+        );
+        assert.equal(
+          [replayB, replayC].filter((value) => value.authority.worker_started).length,
+          1,
+        );
+        const transferredClaim = readRepositoryManagedResumeRuntimeClaimV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(transferredClaim?.claim_revision, 2);
+        assert.notEqual(
+          transferredClaim?.runtime_instance_fingerprint,
+          admittedClaim?.runtime_instance_fingerprint,
+        );
+        const staleRuntimeReplay = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, resumedService,
+          { now: () => at(23_500), platform: "darwin" },
+        );
+        assert.equal(staleRuntimeReplay.authority.worker_started, false);
+        assert.equal(resumeCalls, 1);
+        await waitForCheckpointCountV01(db, started.run_id, 8);
+        await waitForTerminalV01(db, started.run_id);
+        await serviceB.shutdown();
+        await serviceC.shutdown();
+      } else if (scenario === "after_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        const uncertain = await resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_invocation_marker: () => {
+                throw new Error("simulated_crash_after_invocation_marker");
+              },
+            },
+          );
+        assert.equal(uncertain.status, "reconciliation_required");
+        assert.equal(uncertain.authority.worker_started, false);
+        assert.equal(resumeCalls, 0);
+        await resumedService.shutdown();
+        const replacementService = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () => {
+            const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+            return {
+              ...adapter,
+              invoke(request, control) {
+                if (control.resume_binding) resumeCalls += 1;
+                return adapter.invoke(request, control);
+              },
+            };
+          },
+          runtime_instance_fingerprint: `sha256:${"9".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"a".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
+        });
+        const replay = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          replacementService,
+          { now: () => at(23_000), platform: "darwin" },
+        );
+        assert.equal(replay.status, "reconciliation_required");
+        assert.equal(replay.authority.worker_started, false);
+        assert.equal(resumeCalls, 0);
+        const lost = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(lost);
+        const cancellation = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(lost.metadata.control_revision),
+        }, replacementService);
+        assert.equal(cancellation.status, "reconciliation_required");
+        assert.match(cancellation.ordinary_text, /durably recorded/u);
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const cancellationIntent = readRepositoryManagedResumeCancellationV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(cancellationIntent?.provider_stop_confirmed, 0);
+        assert.equal(cancellationIntent?.resume_reacquisition_forbidden, 1);
+        const cancellationReplay = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(
+            readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata.control_revision,
+          ),
+        }, replacementService);
+        assert.equal(cancellationReplay.status, "exact_replay");
+        const blockedReplay = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, replacementService,
+          { now: () => at(24_000), platform: "darwin" },
+        );
+        assert.equal(blockedReplay.status, "reconciliation_required");
+        assert.equal(resumeCalls, 0);
+        await replacementService.shutdown();
+      } else if (scenario === "cancel_before_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        const blocked = await resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_admission_commit: () => {
+                throw new Error("cancel_before_invocation_marker");
+              },
+            },
+          );
+        assert.equal(blocked.status, "blocked");
+        const admitted = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(admitted);
+        const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(admitted.metadata.control_revision),
+        }, resumedService);
+        assert.equal(cancelled.status, "cancelled");
+        assert.equal(resumeCalls, 0);
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.final_outcome,
+          "cancelled",
+        );
+        const replay = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(23_000), platform: "darwin" },
+        );
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.authority.worker_started, false);
+      } else {
+        const resumed = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(22_000), platform: "darwin" },
+        );
+        assert.equal(resumed.status, "accepted");
+        assert.equal(resumeCalls, 1);
+        await waitForCheckpointCountV01(db, started.run_id, 8);
+        const running = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(running);
+        const observer = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () =>
+            createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+          runtime_instance_fingerprint: `sha256:${"d".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"e".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
+        });
+        const cancellationInput = {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(running.metadata.control_revision),
+        };
+        const recorded = await cancelRepositoryManagedDelegationV01(
+          db,
+          cancellationInput,
+          observer,
+        );
+        assert.equal(recorded.status, "reconciliation_required");
+        assert.equal(resumeCancellationSignals, 0);
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const controllers = (
+          resumedService as unknown as {
+            controllers: Map<string, {
+              input: {
+                controller_generation: number;
+                runtime_instance_fingerprint: string;
+                runtime_generation_fingerprint: string;
+              };
+              request: NativeHostRequestV01 | null;
+            }>;
+          }
+        ).controllers;
+        const controller = [...controllers.values()][0]!;
+        assert(controller.request?.repository_resume_context);
+        const cancelExact = () => {
+          const exactRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+          return cancelRepositoryManagedDelegationV01(db, {
+            ...cancellationInput,
+            control_revision: Number(exactRun.metadata.control_revision),
+          }, resumedService);
+        };
+        const assertSignalUnsent = () => {
+          assert.equal(
+            readRepositoryManagedResumeCancellationV01(
+              db,
+              attempt.attempt_fingerprint,
+            )?.cancellation_signal_sent,
+            0,
+          );
+          assert.equal(resumeCancellationSignals, 0);
+        };
+        const originalGeneration = controller.input.controller_generation;
+        controller.input.controller_generation = originalGeneration - 1;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.controller_generation = originalGeneration + 1;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.controller_generation = originalGeneration;
+        const claimedRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: {
+            ...claimedRun.metadata,
+            repository_resume_runtime_claim_revision:
+              Number(claimedRun.metadata.repository_resume_runtime_claim_revision) + 1,
+          },
+        }, { db });
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        updateAutonomyRunLedgerFields(started.run_id, {
+          metadata: claimedRun.metadata,
+        }, { db });
+        const originalRuntimeInstance = controller.input.runtime_instance_fingerprint;
+        const originalRuntimeGeneration = controller.input.runtime_generation_fingerprint;
+        controller.input.runtime_instance_fingerprint = `sha256:${"f".repeat(64)}`;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.runtime_instance_fingerprint = originalRuntimeInstance;
+        controller.input.runtime_generation_fingerprint = `sha256:${"0".repeat(64)}`;
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.input.runtime_generation_fingerprint = originalRuntimeGeneration;
+        const resumeContext = controller.request.repository_resume_context;
+        controller.request.repository_resume_context = {
+          ...resumeContext,
+          attempt_fingerprint: `sha256:${"0".repeat(64)}`,
+        };
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.request.repository_resume_context = resumeContext;
+        const exactRunId = controller.request.run_id;
+        controller.request.run_id = "autonomy-run:foreign-controller";
+        assert.equal((await cancelExact()).status, "reconciliation_required");
+        assertSignalUnsent();
+        controller.request.run_id = exactRunId;
+        const cancelled = await cancelExact();
+        assert.equal(cancelled.status, "cancel_requested");
+        assert.equal(resumeCancellationSignals, 1);
+        assert.equal((await cancelExact()).status, "exact_replay");
+        assert.equal(resumeCancellationSignals, 1);
+        await waitForTerminalV01(db, started.run_id);
+        assert.equal(
+          readAutonomyRunLedgerRecord(started.run_id, { db })?.status,
+          "cancelled",
+        );
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.final_outcome,
+          "cancelled",
+        );
+        const terminalCancellation = readRepositoryManagedResumeCancellationV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(terminalCancellation?.cancellation_signal_sent, 1);
+        assert.equal(terminalCancellation?.provider_stop_confirmed, 1);
+        assert.equal((await cancelExact()).status, "exact_replay");
+        assert.equal(resumeCancellationSignals, 1);
+        await observer.shutdown();
+      }
+    } finally {
+      delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+      await resumedService.shutdown();
+      await originalService.shutdown();
+    }
   }
 }
 
@@ -304,7 +2426,11 @@ function assertRepositoryExecutionMigrationV01(): void {
     const legacySql = vNextRepositoryExecutionStoreSchemaSqlV01
       .replace(currentAttachmentLifecycle, legacyAttachmentLifecycle)
       .replace(", 'start_repository_managed_delegation'", "")
-      .replace(consumedIndex, "");
+      .replace(consumedIndex, "")
+      .replace(
+        /  CREATE TABLE IF NOT EXISTS vnext_repository_run_resume_checkpoints[\s\S]*?  CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts/u,
+        "  CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts",
+      );
     assert(!legacySql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL"));
     assert(!legacySql.includes("start_repository_managed_delegation"));
     legacy.exec(`CREATE TABLE vnext_project_identities (
@@ -352,6 +2478,22 @@ function assertRepositoryExecutionMigrationV01(): void {
     ).pluck().get());
     assert(attachmentSql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL"));
     assert(decisionSql.includes("start_repository_managed_delegation"));
+    assert(decisionSql.includes("resume_repository_managed_delegation"));
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_attempts'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_runtime_claims'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_runtime_claim_history'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_cancellations'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_vnext_repository_managed_resume_attempts_run'",
+    ).get());
     assert(legacy.prepare(
       "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_vnext_repository_execution_consumed_run'",
     ).get());
@@ -1815,6 +3957,23 @@ async function waitForTerminalV01(db: Database.Database, runId: string): Promise
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
   assert.fail("managed repository run did not settle within the bounded test loop");
+}
+
+async function waitForCheckpointCountV01(
+  db: Database.Database,
+  runId: string,
+  expectedCount: number,
+): Promise<void> {
+  for (let index = 0; index < 20_000; index += 1) {
+    if (
+      countWhere(
+        db,
+        "vnext_repository_run_resume_checkpoints",
+        `run_id = '${runId}'`,
+      ) >= expectedCount
+    ) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
 }
 
 function count(db: Database.Database, table: string): number {

@@ -153,6 +153,7 @@ export interface NativeHostRequestV01 {
   execution_grant_ref: ExternalRefV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
+  repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
     network: "forbidden" | "exact_grant_only";
@@ -191,6 +192,18 @@ export interface NativeHostRepositoryDelegationContextV01 {
   start_decision_request_fingerprint: string;
   protected_untracked_paths_fingerprint: string;
   protected_untracked_paths: string[];
+}
+
+/** Private exact claim for one admitted repository resume attempt. */
+export interface NativeHostRepositoryResumeContextV01 {
+  context_version: "native_host_repository_resume_context.v0.1";
+  attempt_fingerprint: string;
+  checkpoint_fingerprint: string;
+  expected_state_fingerprint: string;
+  prior_controller_generation: number;
+  resumed_controller_generation: number;
+  admitted_run_control_revision: number;
+  admitted_step_control_revision: number;
 }
 
 export interface NativeHostChangedFileV01 {
@@ -375,6 +388,14 @@ export interface NativeHostAdapterV01 {
   readonly capability_version: string;
   readonly execution_profile: NativeHostExecutionProfileV01;
   readonly provider_egress: NativeHostProviderEgressV01;
+  /**
+   * Private capability declaration only. CDX2B4A reads this flag but never
+   * invokes resume. Adapters that omit it are deliberately unsupported.
+   */
+  readonly resume_capability?: {
+    binding_version: "native_host_resume_binding.v0.1";
+    resumable_after_detach: boolean;
+  };
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,

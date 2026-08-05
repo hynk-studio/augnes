@@ -371,33 +371,97 @@ provider call, command, or project mutation.
 [Issue #120](https://github.com/hynk-studio/augnes-perspective-lab/issues/120)
 defines CDX2B3A. Its authorized implementation branch is
 `codex/cdx2b3a-windows-repository-identity`, and its authorized Draft PR title
-is **CDX2B3A — Establish verified Windows repository identity**. A Draft PR is
-not yet recorded here. The source-runtime completion gate is verified
-independently on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2
-build 26200.8875, both x64 local fixed NTFS, through the official MCP client,
-live Companion, strict route, and canonical attachment owner. The existing
-package lane returns
+is **CDX2B3A — Establish verified Windows repository identity**.
+[Draft PR #125](https://github.com/hynk-studio/augnes-perspective-lab/pull/125)
+is its implementation and outcome record. The source-runtime completion gate
+has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint `374a582b`
+and exact Windows 11 Home 25H2 build 26200.8875 proof at the pre-integration
+checkpoint `567c9bbb`, both x64 local fixed NTFS through the official MCP
+client, live Companion, strict route, and canonical attachment owner. The
+integrated head is not claimed as Windows 10 exact-head verified without a
+rerun on that host. The existing package lane returns
 `package_build_runtime_unsupported` on Windows, so packaged Windows admission
 remains disabled without weakening source-runtime attachment support.
 
-The completed source-runtime slice introduces a versioned Windows final-target,
+The source-runtime slice introduces a versioned Windows final-target,
 volume-serial, and file-ID contract plus a reviewed narrow Win32 directory-
-handle helper source and additive persistence contracts. Its independent real
-Windows 10 and Windows 11 proofs cover physical identity, privacy, attachment,
-replacement, restart, and continued Start refusal. No native binary is
-committed, no Windows package
-support is claimed, and no Windows managed run is enabled.
+handle helper source and additive persistence contracts. The helper inspects
+every requested-path ancestor reparse component, permits only intended symlink
+and junction traversal, and fails closed for cloud, projected, unknown,
+unavailable, or ambiguous reparse state. The package loader confines manifest
+and helper physical targets to the canonical package root and revalidates them
+immediately before invocation. No native binary is committed, no Windows
+package support is claimed, and neither Windows Start nor Resume is enabled.
 
 ## Next separately authorized work
 
 CDX2B3B is the separately authorized future Windows managed-delegation runtime
 enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
 attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
-change the CDX2B2B Windows Start gate.
+change the CDX2B2B Windows Start or CDX2B4B Windows Resume gates.
 
 Current-session attachment, automatic resume after controller loss, Linux
 product rollout, remote nodes, long-horizon continuation, policy-triggered
 continuous control, and multi-agent orchestration remain later and separate.
+
+## Integrated completed lifecycle
+
+### CDX2B4A exact resume eligibility and durable checkpoints — Completed
+
+[Issue #121](https://github.com/hynk-studio/augnes-perspective-lab/issues/121)
+and [PR #122](https://github.com/hynk-studio/augnes-perspective-lab/pull/122)
+define the completed CDX2B4A slice. It merged as
+`169b1f99a6ab2cdc09cafbdbfda15b71b973585f`. CDX2B4A adds one private, node-local
+`repository_run_resume_checkpoint.v0.1` owner and one read-only
+`repository_run_resume_eligibility.v0.1` projection. A consumed attachment
+remains the immutable run-start snapshot; the checkpoint instead binds the
+latest durably confirmed operation boundary to a fresh post-operation physical
+root and bounded worktree observation. Repository changes legitimately made by
+the admitted worker are compared with that checkpoint, not the original
+attachment.
+
+Checkpoint admission is exact-replay idempotent and fail-closed under run,
+step, operation, controller-generation, event/effect high-water, attachment,
+or envelope drift. An unclosed operation, missing post-effect observation,
+failed checkpoint write, conflicting candidate, or historical checkpointless
+run becomes reconciliation-required. One existing unresolved approval remains
+approval-pending. The eligibility read creates no controller, run, attachment,
+grant, decision, provider call, command, result, proposal, semantic record, or
+project-file change. Browser active selection is not binding material.
+
+CDX2B4A itself did not resume an attachment-backed run; its generic
+live-service refusal remains covered as the compatibility path.
+
+### CDX2B4B explicit exact same-run resume — Completed
+
+[Issue #123](https://github.com/hynk-studio/augnes-perspective-lab/issues/123)
+and [PR #124](https://github.com/hynk-studio/augnes-perspective-lab/pull/124)
+define the completed slice, merged at
+`0f8d21339cb15ed7a11798ddf00af43e6adb50c3`. Only canonical
+`resume_ready` material can create one expiring Browser-only Resume decision.
+The Start grant is not reusable. One immediate transaction consumes the exact
+Resume grant, claims one deterministic attempt, preserves the run, attachment,
+envelope, packet/current work, and provider thread, advances the controller
+generation exactly once, and appends bounded same-run admission events.
+
+The post-commit launch gate rechecks physical root, bounded worktree,
+adapter/capability, controller ownership, and canonical database state. A
+durable `provider_resume_invocation_started` marker precedes the adapter call.
+A crash before that marker may replay the same admitted attempt once; a marker
+without a surviving controller/result is reconciliation-required and never
+calls the provider again. The resumed path uses `thread/resume`, never
+`thread/start`, and continues checkpoint, cancellation, result, RunReceipt,
+and proposal owners under the next generation. Resume completion is not
+semantic acceptance.
+
+## Next separately authorized work
+
+No automatic-resume policy is authorized by CDX2B4B. A bounded automatic-resume
+policy, if pursued, is a later separately authorized phase. Current-session
+attachment, automatic resume after controller loss or Companion startup,
+Linux product rollout, remote nodes, long-horizon continuation,
+policy-triggered continuous control, and multi-agent orchestration remain later
+and separate. Windows enablement remains separately authorized under CDX2B3B.
 
 ## Pending C9
 

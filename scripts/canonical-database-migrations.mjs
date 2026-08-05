@@ -94,6 +94,20 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // Exact CDX2B3A structural contract with the migration ledger and package
     // identity guard removed by the bounded recovery fixture.
     "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
+    // Exact CDX2B4A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. The checkpoint
+    // table remains machine-local run history; only this complete ledgerless
+    // contract is accepted for one-way repair.
+    "4fcaf45675a2a4604fa5c2a0b545366621dca967dce33bd6bab0759ee3c18db4",
+    // Exact CDX2B4B structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. Resume attempts
+    // remain private machine-local history and arbitrary partial stores fail.
+    "0bbd52cf5430bce8102865ea347b15aa90341e60d822b2000282080018698d8a",
+    // Exact corrected CDX2B4B structural contract with the migration ledger
+    // and package identity guard removed by the bounded recovery fixture.
+    // Runtime claims, their stale-claim history, and cancellation intent stay
+    // private machine-local history; partial stores remain unsupported.
+    "6ba9e92e9632a88373805fa6c123d24b5fbd3e311052a76be953815e8e98190f",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

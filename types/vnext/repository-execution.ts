@@ -232,7 +232,8 @@ export type RepositoryExecutionDecisionActionV01 =
   | "adopt_legacy_baseline"
   | "rebind_root"
   | "revoke_attachment"
-  | "start_repository_managed_delegation";
+  | "start_repository_managed_delegation"
+  | "resume_repository_managed_delegation";
 
 export type RepositoryExecutionDecisionStatusV01 =
   | "pending"

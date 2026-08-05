@@ -69,6 +69,8 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_request_repository_delegation",
   "augnes_start_repository_delegation",
   "augnes_cancel_repository_delegation",
+  "augnes_request_repository_resume",
+  "augnes_resume_repository_delegation",
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
@@ -257,6 +259,7 @@ function buildRepositoryCompanionError(error: unknown) {
       message,
     },
     continuity: null,
+    resume_eligibility: null,
     current_situation: "Exact repository continuity is unavailable because the live supervised Companion could not be verified.",
     next_meaningful_action: {
       label: "Start or restore the local Augnes Companion",
@@ -2076,7 +2079,7 @@ export function createMcpAppServer(
       {
         title: "Resume this repository with Augnes",
         description:
-          "Use for requests such as 'Resume this repository with Augnes', 'What was I working on here?', or 'Show the current Augnes project state'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review continuity.",
+          "Use for requests such as 'Resume this repository with Augnes', 'Can this run resume safely?', 'What was the last confirmed operation?', or 'Is an approval pending?'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review and attachment-backed resume-eligibility continuity. It never starts or resumes work.",
         inputSchema: { repositoryRoot: z.string().min(1) },
         annotations: localRouteReadAnnotations,
         _meta: modelOnlyToolMeta,
@@ -2341,6 +2344,63 @@ export function createMcpAppServer(
         expected_attachment_binding_fingerprint: input.expectedAttachmentBindingFingerprint,
         run_id: input.runId,
         control_revision: input.controlRevision,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_request_repository_resume",
+      {
+        title: "Request exact repository resume",
+        description: "Create one expiring exact resume decision for Browser confirmation only when canonical eligibility is resume-ready. This read/preparation path never starts a controller or calls a provider.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+        },
+        annotations: localRepositoryAttachmentAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "request_resume",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+      }),
+    );
+
+    registerAppTool(
+      server,
+      "augnes_resume_repository_delegation",
+      {
+        title: "Resume one exact managed repository run",
+        description: "Consume one exact Browser-issued resume grant and resume the same run, attachment, envelope, and provider thread at most once. Browser session and confirmation capabilities are never exposed by this tool.",
+        inputSchema: {
+          workspaceId: z.string().min(1),
+          projectId: z.string().min(1),
+          runId: z.string().min(1),
+          attachmentId: z.string().min(1),
+          expectedAttachmentBindingFingerprint: z.string().min(1),
+          expectedStateFingerprint: z.string().min(1),
+          expectedControllerGeneration: z.number().int().positive(),
+          expectedRunControlRevision: z.number().int().nonnegative(),
+          decisionRequestFingerprint: z.string().min(1),
+          decisionGrantFingerprint: z.string().min(1),
+        },
+        annotations: explicitRepositoryIdentityDecisionAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async (input) => repositoryExecutionToolResultV01(stateRuntimeAdapter, {
+        action: "resume_run",
+        workspace_id: input.workspaceId,
+        project_id: input.projectId,
+        run_id: input.runId,
+        attachment_id: input.attachmentId,
+        expected_attachment_binding_fingerprint:
+          input.expectedAttachmentBindingFingerprint,
+        expected_state_fingerprint: input.expectedStateFingerprint,
+        expected_controller_generation: input.expectedControllerGeneration,
+        expected_run_control_revision: input.expectedRunControlRevision,
+        decision_request_fingerprint: input.decisionRequestFingerprint,
+        decision_grant_fingerprint: input.decisionGrantFingerprint,
       }),
     );
     }

@@ -129,6 +129,8 @@ try {
       "augnes_request_repository_delegation",
       "augnes_start_repository_delegation",
       "augnes_cancel_repository_delegation",
+      "augnes_request_repository_resume",
+      "augnes_resume_repository_delegation",
     ]);
     const delegatedToolContract = JSON.stringify(tools.tools);
     for (const forbiddenCapability of [
@@ -154,6 +156,7 @@ try {
       "augnes_preview_repository_execution_attachment_revocation",
       "augnes_request_repository_delegation",
       "augnes_cancel_repository_delegation",
+      "augnes_request_repository_resume",
     ]) {
       assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
       assert.equal(byName.get(name)?.annotations?.destructiveHint, false);
@@ -163,6 +166,7 @@ try {
       "augnes_rebind_repository_execution_root",
       "augnes_revoke_repository_execution_attachment",
       "augnes_start_repository_delegation",
+      "augnes_resume_repository_delegation",
     ]) {
       assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
       assert.equal(byName.get(name)?.annotations?.destructiveHint, true);
@@ -255,6 +259,7 @@ function unregisteredProjectionV01() {
     generated_at: "2026-08-04T00:00:00.000Z",
     repository_resolution: { status: "project_not_registered", project_key: null, display_name: null, message },
     continuity: null,
+    resume_eligibility: null,
     current_situation: message,
     next_meaningful_action: { label: "Open this repository in Augnes first", reason: message, executes: false },
     browser_deep_link: null,

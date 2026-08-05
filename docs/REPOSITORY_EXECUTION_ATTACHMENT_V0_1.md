@@ -9,9 +9,13 @@ they answer: can one worker start from the exact project, root, work, bounded
 repository state, adapter, and execution envelope the user established?
 
 CDX2B3A evolves the physical-root contract for Windows without authorizing
-Windows Start. Source-runtime attachment admission is verified independently
-on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build
-26200.8875, both x64 local fixed NTFS. Packaged Windows remains unsupported.
+Windows Start or Resume. Source-runtime attachment admission has exact Windows
+10 Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. Packaged Windows remains unsupported.
 
 The product doctrine is:
 
@@ -62,17 +66,22 @@ Win32 helper source opens the directory with `CreateFileW`, resolves its final
 target with `GetFinalPathNameByHandleW`, and reads volume/file identity with
 `GetFileInformationByHandleEx` from that same target handle. It validates
 supported symlink/junction tags separately, classifies NTFS and fixed-drive
-status, accepts Unicode and extended-length paths, closes handles through one
-RAII owner, and returns bounded versioned JSON. The Node owner uses
+status, walks every requested-path ancestor component, accepts only intended
+symlink/junction reparse tags, and refuses cloud, projected, unknown,
+unavailable, or ambiguous reparse state. It accepts Unicode and extended-length
+paths, closes handles through one RAII owner, and returns bounded versioned JSON. The Node owner uses
 `execFile` with `shell: false`, a minimal environment, bounded output and
-timeout, package-root-bounded resolution, and a reviewed manifest SHA-256.
+timeout, physically package-root-bounded resolution, immediate pre-invocation
+revalidation, and a reviewed manifest SHA-256.
 It exposes no command interface or runtime download.
 
 Windows versions below build 19045, ARM64, ReFS/Dev Drive, FAT/exFAT,
 removable, UNC/SMB, mapped/network/NAS, WSL, volume-GUID, virtual/projected, and unclassified
 reparse targets remain explicitly unsupported or ambiguous. There is no
-path-only fallback. Independent deciding source proofs used Windows 10 Pro
-22H2 build 19045.6456 and Windows 11 Home 25H2 build 26200.8875 with Visual
+path-only fallback. Exact deciding source proof used Windows 10 Pro 22H2 build
+19045.6456 at checkpoint `374a582b766a10616667633eb911d3df2d49b85e` and
+Windows 11 Home 25H2 build 26200.8875 at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, with Visual
 Studio Build Tools 2022 17.14.37, MSVC 19.44.35228, Windows SDK 10.0.26100.0,
 Node 24.18.0, and npm 11.16.0. Restart, case and dot-segment normalization,
 Unicode, long paths, junction aliases, reparse-loop refusal, replacement,
@@ -80,8 +89,8 @@ delete/recreate, rename, rebind, attachment, source-runtime MCP, and recovery
 boundaries passed. Directory-symlink privilege and a second local fixed NTFS
 volume were unavailable on the Windows 11 node, so those cases are not claimed
 there. The package builder returned `package_build_runtime_unsupported`, so
-packaged Windows admission remains disabled. Windows managed Start remains
-blocked independently by CDX2B2B.
+packaged Windows admission remains disabled. Windows managed Start and Resume
+remain blocked independently by CDX2B2B and CDX2B4B.
 
 New canonical onboarding observes and creates the project, root binding, and
 baseline in the same confirmation flow. Project/root/baseline writes commit
@@ -313,6 +322,83 @@ not automatically resumed. Completion records normalized result, changed
 files, commands/checks, RunReceipt, and at most one proposal pending review.
 It never creates ReviewDecision, Transition, accepted-state mutation, work
 closure, push, merge, release, deployment, or publication.
+
+## CDX2B4A checkpoint and resume-eligibility boundary
+
+The consumed attachment is immutable start-snapshot metadata. It is never
+updated to follow legitimate worker edits. The private additive
+`repository_run_resume_checkpoint.v0.1` table records bounded checkpoint
+history inside the same database because the existing run/event rows cannot
+unambiguously bind one current post-operation filesystem observation and
+private provider resume reference without overwriting history.
+
+A checkpoint is admitted only for a durably declared operation that definitely
+did not start, or for a durably terminal completed/failed/cancelled operation
+with fresh same-boundary physical-root and worktree observations. Exact replay
+writes nothing. High-water marks advance monotonically; an older controller,
+conflicting terminal, later unclosed start, ambiguous approval, or CAS drift
+fails closed. Checkpoint failure never rewrites the RunReceipt/result path and
+instead prevents resume-ready eligibility.
+
+`repository_run_resume_eligibility.v0.1` is read-only and selection-independent.
+It returns active-owned, terminal, approval-pending, resume-ready,
+reconciliation-required, stale, unsupported, or unavailable and one bounded
+next action. It never exposes provider thread/turn IDs, operation IDs,
+fingerprints, baseline IDs, paths, commands, output, or transcripts. Full local
+backup/restore retains checkpoint history; portable project export excludes it
+as machine-local operational truth, so an imported project cannot become
+resume-ready from another node's checkpoint.
+
+Startup reconciliation never resumes a checkpoint-backed run and does not
+append a generic uncertain-effect event over its preserved operation boundary.
+It leaves the run for the canonical eligibility read, which can still return
+reconciliation-required, approval-pending, stale, unsupported, or unavailable.
+
+CDX2B4A eligibility grants no execution authority by itself. CDX2B4B adds the
+separate explicit boundary below; the generic historical live-service API
+continues to refuse repository-attachment resume.
+
+## CDX2B4B explicit same-run resume boundary
+
+`repository_managed_resume_preparation.v0.1` creates one 15-minute exact
+Browser decision request only from `resume_ready`. The Browser's existing
+HttpOnly session, request-bound challenge, rotating nonce, and one-time grant
+remain canonical. Apps MCP and the Operator can request the decision and later
+submit the exact grant, but cannot issue or confirm it or access Browser
+decision-session material. Approval-pending, active, terminal, ambiguous,
+stale, unsupported, and blocked states create no Resume grant or attempt.
+
+The private additive `repository_managed_resume_attempt.v0.1` history is needed
+to represent repeated lifetime resumes and the provider invocation crash
+boundary without overwriting runs, events, or checkpoints. One immediate
+transaction consumes the exact grant; compares run, attachment, checkpoint,
+high-water marks, revisions, packet/current work, root/baseline/worktree,
+envelope, adapter/capability, private provider binding, approvals, conflicts,
+and controller ownership; inserts one deterministic attempt; and advances one
+controller generation. It never inserts a second run or attachment and never
+reconstructs authority from Browser selection.
+
+The post-commit gate rechecks physical root, bounded worktree,
+adapter/capability, exact controller absence, then canonical database state.
+The attempt records `provider_resume_invocation_started` before the adapter
+call. Exact replay before that marker may launch the same attempt once. Once
+the marker exists, loss of the controller/result is reconciliation-required
+and cannot invoke the provider again. The exact stored
+`NativeHostResumeBindingV01` reaches `thread/resume`; `thread/start` is not used.
+New lifecycle events and checkpoints bind the resumed generation, while the
+original consumed attachment and all prior checkpoints remain immutable.
+
+Cancellation before the invocation marker settles the same attempt with zero
+provider calls. After invocation it signals only the exact resumed controller
+and stays independent of current packet, root, baseline, worktree, or Browser
+selection. The existing result, RunReceipt, and proposal owners settle the same
+run idempotently. Resume decision is not operation approval, and run completion
+is not ReviewDecision, Transition, accepted state, or work closure.
+
+Backup/restore retains local attempt history. Portable project export excludes
+attempt, checkpoint, decision, provider, and controller identity, so another
+node cannot import resume-ready or resume-admitted authority. Product support
+remains verified local macOS only; startup never automatically resumes.
 
 Managed repository delegation is product-supported only on a verified local
 macOS filesystem. Linux remains non-product without a separate real

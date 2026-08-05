@@ -37,7 +37,19 @@ import {
   validateVNextPersistedSemanticStateV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
-import { assertVNextRepositoryExecutionStoreSchemaV01 } from "../lib/vnext/persistence/repository-execution-store";
+import {
+  assertVNextRepositoryExecutionStoreSchemaV01,
+  listAllRepositoryManagedResumeAttemptsForRecoveryV01,
+  listAllRepositoryRunResumeCheckpointsForRecoveryV01,
+} from "../lib/vnext/persistence/repository-execution-store";
+import {
+  validateRepositoryManagedResumeAttemptRelationsV01,
+  validateRepositoryManagedResumeAttemptV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
+import {
+  validateRepositoryRunResumeCheckpointRelationsV01,
+  validateRepositoryRunResumeCheckpointV01,
+} from "../lib/vnext/repository-execution/repository-run-resume";
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   readClaimEvidenceRelationV01,
@@ -1350,6 +1362,11 @@ export function validateRecoveryCanonicalDatabaseV01(
     const repositoryExecutionTables = [
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",
+      "vnext_repository_run_resume_checkpoints",
+      "vnext_repository_managed_resume_attempts",
+      "vnext_repository_managed_resume_runtime_claims",
+      "vnext_repository_managed_resume_runtime_claim_history",
+      "vnext_repository_managed_resume_cancellations",
       "vnext_repository_root_rebind_receipts",
       "vnext_repository_execution_decision_requests",
     ];
@@ -1362,6 +1379,58 @@ export function validateRecoveryCanonicalDatabaseV01(
       // table in the new store is present, however, the complete current
       // schema must validate; partial stores are never accepted.
       assertVNextRepositoryExecutionStoreSchemaV01(db);
+      if (
+        listAllRepositoryRunResumeCheckpointsForRecoveryV01(db).some(
+          (checkpoint) =>
+            !validateRepositoryRunResumeCheckpointV01(checkpoint) ||
+            !validateRepositoryRunResumeCheckpointRelationsV01(db, checkpoint),
+        )
+      ) refuseV01();
+      if (
+        listAllRepositoryManagedResumeAttemptsForRecoveryV01(db).some(
+          (attempt) =>
+            !validateRepositoryManagedResumeAttemptV01(attempt) ||
+            !validateRepositoryManagedResumeAttemptRelationsV01(db, attempt),
+        )
+      ) refuseV01();
+      const invalidRuntimeClaims = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claims claim
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = claim.attempt_fingerprint
+          LEFT JOIN vnext_repository_managed_resume_runtime_claim_history history
+            ON history.attempt_fingerprint = claim.attempt_fingerprint
+           AND history.claim_revision = claim.claim_revision
+           AND history.runtime_instance_fingerprint = claim.runtime_instance_fingerprint
+           AND history.runtime_generation_fingerprint = claim.runtime_generation_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR history.attempt_fingerprint IS NULL
+            OR claim.claim_revision < 1
+            OR (claim.claim_lifecycle = 'claimed'
+                AND attempt.attempt_state <> 'admitted_not_invoked')
+      `).get() as { count: number }).count);
+      const invalidCancellations = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_cancellations cancellation
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = cancellation.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR cancellation.workspace_id <> attempt.workspace_id
+            OR cancellation.project_id <> attempt.project_id
+            OR cancellation.run_id <> attempt.run_id
+            OR cancellation.attachment_id <> attempt.attachment_id
+            OR cancellation.controller_generation <> attempt.resumed_controller_generation
+            OR cancellation.provider_stop_confirmed <> 0
+            OR cancellation.resume_reacquisition_forbidden <> 1
+      `).get() as { count: number }).count);
+      const invalidClaimHistory = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claim_history history
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = history.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL OR history.claim_revision < 1
+      `).get() as { count: number }).count);
+      if (invalidRuntimeClaims > 0 || invalidClaimHistory > 0 || invalidCancellations > 0) refuseV01();
     }
     const records = readCanonicalRecordsV01(db);
     const byIdentity = new Map<string, ParsedCanonicalRecordV01>();

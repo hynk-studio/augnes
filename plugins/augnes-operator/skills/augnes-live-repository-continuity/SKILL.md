@@ -44,9 +44,12 @@ the current Augnes project state.”
    Git remote, simulated `win32`, or raw volume/file identifiers. Windows
    source-runtime attachment readiness requires Windows 10 Pro 22H2 build
    19045 or newer or Windows 11 build 22000 or newer on x64 local fixed NTFS.
-   Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build
-   26200.8875 are independently verified; packaged Windows remains unsupported
-   and must remain truthfully distinguished.
+   Exact proof exists for Windows 10 Pro 22H2 build 19045.6456 at checkpoint
+   `374a582b766a10616667633eb911d3df2d49b85e` and Windows 11 Home 25H2 build
+   26200.8875 at pre-integration checkpoint
+   `567c9bbbad5d35e6803ad740adfac1b881983912`. A later integrated head is not
+   Windows 10 exact-head verified without a fresh run there; packaged Windows
+   remains unsupported and must remain truthfully distinguished.
 9. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never
@@ -55,6 +58,16 @@ the current Augnes project state.”
    the exact attachment, envelope, request, and grant binding returned by the
    canonical flow. Exact replay must return the same run.
 10. Use `augnes_resume_repository` for managed status/result/review continuity.
+    For an attachment-backed run, report its canonical resume-eligibility
+    status and last confirmed operation without invoking resume. Treat
+    `approval_pending` as approval review and `reconciliation_required` as an
+    uncertain operation boundary; never translate either into resume-ready.
+    For exact `resume_ready`, call `augnes_request_repository_resume`, ask the
+    user to confirm the exact Resume card in Browser, and only then call
+    `augnes_resume_repository_delegation` with the returned exact grant. Never
+    request, infer, or reproduce Browser decision-session, cookie, challenge,
+    or nonce material. Exact replay must preserve the same run and report
+    `worker_started=false`.
     Use `augnes_cancel_repository_delegation` only with the exact attachment,
     run, binding, and control revision. Cancellation is risk-reducing and needs
     no second Browser decision. It remains available when current packet, work,

@@ -4656,6 +4656,117 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
     ON vnext_repository_execution_attachments(workspace_id, project_id) WHERE lifecycle = 'prepared';
   CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_execution_consumed_run
     ON vnext_repository_execution_attachments(consumed_run_id) WHERE consumed_run_id IS NOT NULL;
+  CREATE TABLE IF NOT EXISTS vnext_repository_run_resume_checkpoints (
+    checkpoint_fingerprint TEXT PRIMARY KEY CHECK (length(checkpoint_fingerprint) = 71 AND substr(checkpoint_fingerprint, 1, 7) = 'sha256:'),
+    checkpoint_version TEXT NOT NULL CHECK (checkpoint_version = 'repository_run_resume_checkpoint.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    invocation_origin TEXT NOT NULL CHECK (invocation_origin = 'repository_attachment'),
+    attachment_id TEXT NOT NULL,
+    attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+    node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71),
+    execution_envelope_version TEXT NOT NULL CHECK (execution_envelope_version = 'repository_execution_envelope.v0.1'),
+    execution_envelope_fingerprint TEXT NOT NULL CHECK (length(execution_envelope_fingerprint) = 71),
+    adapter_version TEXT NOT NULL CHECK (length(adapter_version) BETWEEN 1 AND 160),
+    capability_version TEXT NOT NULL CHECK (length(capability_version) BETWEEN 1 AND 160),
+    provider_resume_binding_version TEXT NOT NULL CHECK (provider_resume_binding_version = 'native_host_resume_binding.v0.1'),
+    provider_thread_ref_json TEXT NOT NULL CHECK (json_valid(provider_thread_ref_json) AND json_type(provider_thread_ref_json) = 'object'),
+    last_turn_ref_json TEXT NOT NULL CHECK (json_valid(last_turn_ref_json) AND json_type(last_turn_ref_json) = 'object'),
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    run_control_revision INTEGER NOT NULL CHECK (run_control_revision >= 0),
+    step_id TEXT NOT NULL CHECK (length(trim(step_id)) > 0),
+    step_control_revision INTEGER NOT NULL CHECK (step_control_revision >= 0),
+    event_high_water_mark INTEGER NOT NULL CHECK (event_high_water_mark >= 0),
+    step_high_water_mark INTEGER NOT NULL CHECK (step_high_water_mark >= 0),
+    effect_ledger_high_water_mark INTEGER NOT NULL CHECK (effect_ledger_high_water_mark >= 0),
+    operation_ref TEXT NOT NULL CHECK (length(operation_ref) = 71 AND substr(operation_ref, 1, 7) = 'sha256:'),
+    operation_class TEXT NOT NULL CHECK (operation_class IN ('command_execution', 'file_change')),
+    checkpoint_phase TEXT NOT NULL CHECK (checkpoint_phase IN ('declared_pre_start', 'post_operation')),
+    operation_certainty TEXT NOT NULL CHECK (operation_certainty IN ('not_started', 'started', 'completed', 'failed', 'cancelled', 'waiting_for_approval')),
+    approval_ref TEXT,
+    approval_state TEXT CHECK (approval_state IS NULL OR approval_state IN ('pending', 'decided', 'expired')),
+    root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71),
+    physical_root_baseline_fingerprint TEXT NOT NULL CHECK (length(physical_root_baseline_fingerprint) = 71),
+    worktree_observation_fingerprint TEXT NOT NULL CHECK (length(worktree_observation_fingerprint) = 71),
+    observed_at TEXT NOT NULL CHECK (length(trim(observed_at)) > 0),
+    CHECK ((approval_ref IS NULL AND approval_state IS NULL) OR (approval_ref IS NOT NULL AND approval_state IS NOT NULL)),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+    FOREIGN KEY (attachment_id) REFERENCES vnext_repository_execution_attachments(attachment_id) ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_operation
+    ON vnext_repository_run_resume_checkpoints(run_id, operation_ref, checkpoint_phase);
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_current
+    ON vnext_repository_run_resume_checkpoints(workspace_id, project_id, run_id, effect_ledger_high_water_mark DESC, event_high_water_mark DESC, checkpoint_fingerprint);
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_attempts (
+    attempt_fingerprint TEXT PRIMARY KEY CHECK (length(attempt_fingerprint) = 71 AND substr(attempt_fingerprint, 1, 7) = 'sha256:'),
+    attempt_version TEXT NOT NULL CHECK (attempt_version = 'repository_managed_resume_attempt.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    attachment_id TEXT NOT NULL,
+    attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+    checkpoint_fingerprint TEXT NOT NULL,
+    checkpoint_version TEXT NOT NULL CHECK (checkpoint_version = 'repository_run_resume_checkpoint.v0.1'),
+    prior_controller_generation INTEGER NOT NULL CHECK (prior_controller_generation >= 1),
+    resumed_controller_generation INTEGER NOT NULL CHECK (resumed_controller_generation = prior_controller_generation + 1),
+    decision_request_fingerprint TEXT NOT NULL CHECK (length(decision_request_fingerprint) = 71),
+    decision_grant_fingerprint TEXT NOT NULL CHECK (length(decision_grant_fingerprint) = 71),
+    expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+    admitted_run_control_revision INTEGER NOT NULL CHECK (admitted_run_control_revision >= 1),
+    admitted_step_control_revision INTEGER NOT NULL CHECK (admitted_step_control_revision >= 1),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    attempt_state TEXT NOT NULL CHECK (attempt_state IN ('admitted_not_invoked', 'provider_resume_invocation_started', 'controller_owned', 'settled', 'reconciliation_required')),
+    final_outcome TEXT CHECK (final_outcome IS NULL OR final_outcome IN ('completed', 'failed', 'cancelled', 'timed_out')),
+    admitted_at TEXT NOT NULL CHECK (length(trim(admitted_at)) > 0),
+    provider_invocation_started_at TEXT, settled_at TEXT,
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    UNIQUE (run_id, checkpoint_fingerprint), UNIQUE (decision_request_fingerprint),
+    FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+    FOREIGN KEY (attachment_id) REFERENCES vnext_repository_execution_attachments(attachment_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (checkpoint_fingerprint) REFERENCES vnext_repository_run_resume_checkpoints(checkpoint_fingerprint) ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (decision_request_fingerprint) REFERENCES vnext_repository_execution_decision_requests(request_fingerprint) ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_managed_resume_attempts_run
+    ON vnext_repository_managed_resume_attempts(workspace_id, project_id, run_id, admitted_at DESC, attempt_fingerprint);
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claims (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_lifecycle TEXT NOT NULL CHECK (claim_lifecycle IN ('claimed', 'invocation_started', 'released', 'cancelled')),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claim_history (
+    attempt_fingerprint TEXT NOT NULL,
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    PRIMARY KEY (attempt_fingerprint, claim_revision),
+    UNIQUE (attempt_fingerprint, runtime_instance_fingerprint, runtime_generation_fingerprint),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_cancellations (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    cancellation_version TEXT NOT NULL CHECK (cancellation_version = 'repository_managed_resume_cancellation.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    attachment_id TEXT NOT NULL,
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    cancellation_requested_at TEXT NOT NULL CHECK (length(trim(cancellation_requested_at)) > 0),
+    cancellation_control_revision INTEGER NOT NULL CHECK (cancellation_control_revision >= 1),
+    provider_stop_confirmed INTEGER NOT NULL CHECK (provider_stop_confirmed IN (0, 1)),
+    resume_reacquisition_forbidden INTEGER NOT NULL CHECK (resume_reacquisition_forbidden = 1),
+    cancellation_signal_sent INTEGER NOT NULL CHECK (cancellation_signal_sent IN (0, 1)),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -4671,7 +4782,7 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
   CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71 AND substr(request_fingerprint, 1, 7) = 'sha256:'),
     decision_request_version TEXT NOT NULL CHECK (decision_request_version = 'repository_execution_decision_request.v0.1'),
-    action TEXT NOT NULL CHECK (action IN ('adopt_legacy_baseline', 'rebind_root', 'revoke_attachment', 'start_repository_managed_delegation')),
+    action TEXT NOT NULL CHECK (action IN ('adopt_legacy_baseline', 'rebind_root', 'revoke_attachment', 'start_repository_managed_delegation', 'resume_repository_managed_delegation')),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
     expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
     expected_state_json TEXT NOT NULL CHECK (json_valid(expected_state_json) AND json_type(expected_state_json) = 'object'),
@@ -4692,20 +4803,31 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
 `;
 
 export function migrateVNextRepositoryExecutionStoreV01(db) {
-  const names = [
+  const tableNames = [
     "vnext_physical_root_baselines",
     "vnext_repository_execution_attachments",
+    "vnext_repository_run_resume_checkpoints",
+    "vnext_repository_managed_resume_attempts",
+    "vnext_repository_managed_resume_runtime_claims",
+    "vnext_repository_managed_resume_runtime_claim_history",
+    "vnext_repository_managed_resume_cancellations",
     "vnext_repository_root_rebind_receipts",
     "vnext_repository_execution_decision_requests",
+  ];
+  const indexNames = [
     "idx_vnext_physical_root_baselines_project",
     "idx_vnext_physical_root_baselines_object",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
     "idx_vnext_repository_execution_consumed_run",
+    "idx_vnext_repository_resume_checkpoint_operation",
+    "idx_vnext_repository_resume_checkpoint_current",
+    "idx_vnext_repository_managed_resume_attempts_run",
     "idx_vnext_repository_root_rebind_receipts_project",
     "idx_vnext_repository_execution_decisions_project",
     "idx_vnext_repository_execution_one_open_decision",
   ];
+  const names = [...tableNames, ...indexNames];
   const before = new Set(db.prepare(
     `SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (${names.map(() => "?").join(", ")})`,
   ).all(...names).map((row) => row.key));
@@ -4726,7 +4848,8 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
     !baselineSql.includes("physical_root_identity.windows.v0.1");
   const decisionUpgradeRequired =
     typeof decisionSql === "string" &&
-    !decisionSql.includes("start_repository_managed_delegation");
+    (!decisionSql.includes("start_repository_managed_delegation") ||
+      !decisionSql.includes("resume_repository_managed_delegation"));
   if (baselineUpgradeRequired || attachmentUpgradeRequired || decisionUpgradeRequired) {
     if (
       attachmentUpgradeRequired &&
@@ -4824,8 +4947,8 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
   }
   db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
   return {
-    created_tables: names.slice(0, 4).filter((name) => !before.has(`table:${name}`)),
-    created_indexes: names.slice(4).filter((name) => !before.has(`index:${name}`)),
+    created_tables: tableNames.filter((name) => !before.has(`table:${name}`)),
+    created_indexes: indexNames.filter((name) => !before.has(`index:${name}`)),
   };
 }
 
