@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -128,6 +130,7 @@ import { applyCanonicalDatabaseMigrations } from "./canonical-database-migration
 const NOW = "2026-08-03T00:00:00.000Z";
 const LATER = "2026-08-03T00:00:01.000Z";
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2a-"));
+const CANONICAL_DATABASE_TEMPLATE = path.join(ROOT, "canonical-template.db");
 const ORIGINAL_ENV = { ...process.env };
 
 void main().catch((error) => {
@@ -1460,6 +1463,24 @@ async function assertExactOwnerStatesV01(): Promise<void> {
     assert.equal(afterInitial.current_work.start_eligible, true);
     assert.equal(afterInitial.next_action.kind, "start_current_work");
     assert.notEqual(afterInitial.snapshot.binding, noWork.snapshot.binding);
+    const unavailableManagedStart = await readCodexCurrentContinuityV01(
+      fixture.db,
+      { generated_at: "2026-08-03T00:00:01.500Z" },
+      {
+        ...dependenciesV01(fixture.config),
+        managed_start_available: () => false,
+      },
+    );
+    assert.equal(unavailableManagedStart.current_work.start_eligible, false);
+    assert.equal(
+      unavailableManagedStart.current_work.start_blocker,
+      "Managed Start is unavailable on this platform.",
+    );
+    assert.notEqual(unavailableManagedStart.next_action.kind, "start_current_work");
+    assert.notEqual(
+      unavailableManagedStart.snapshot.binding,
+      afterInitial.snapshot.binding,
+    );
     const unavailableOperator = await readCodexCurrentContinuityV01(
       fixture.db,
       { generated_at: "2026-08-03T00:00:02.000Z" },
@@ -1962,9 +1983,18 @@ function registerProjectV01(
 }
 
 function createDatabaseV01(databasePath: string): Database.Database {
+  if (!existsSync(CANONICAL_DATABASE_TEMPLATE)) {
+    const template = new Database(CANONICAL_DATABASE_TEMPLATE);
+    try {
+      template.pragma("foreign_keys = ON");
+      applyCanonicalDatabaseMigrations(template);
+    } finally {
+      template.close();
+    }
+  }
+  copyFileSync(CANONICAL_DATABASE_TEMPLATE, databasePath);
   const db = new Database(databasePath);
   db.pragma("foreign_keys = ON");
-  applyCanonicalDatabaseMigrations(db);
   return db;
 }
 
@@ -2008,6 +2038,7 @@ function updateManagedRunMetadataV01(
 
 function dependenciesV01(config: VNextLocalOperatorPilotConfigV01) {
   return {
+    managed_start_available: () => true,
     read_root_availability: async () => "available" as const,
     read_operator_config: () => config,
     read_live_projection: () => liveObservationV01(config, idleLiveProjectionV01()),

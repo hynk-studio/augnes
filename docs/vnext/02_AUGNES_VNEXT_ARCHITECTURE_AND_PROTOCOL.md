@@ -574,9 +574,10 @@ The Windows owner obtains final target, volume serial, and file ID from one
 opened directory target handle through a narrow reviewed Win32 helper, then
 admits Windows 10 Pro 22H2 build 19045 or newer and Windows 11 build 22000 or
 newer on x64 local fixed NTFS. It has no shell, network, runtime download,
-elevation, or path-only fallback. The source-runtime owner is verified on
-Windows 10 Pro 22H2 build 19045.6456; Windows 11 and packaged Windows remain
-unverified. Unsupported platforms and package modes remain fail-closed even
+elevation, or path-only fallback. The source-runtime owner is verified
+independently on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2
+build 26200.8875, both x64 local fixed NTFS. Packaged Windows remains
+unsupported. Unsupported platforms and package modes remain fail-closed even
 though the parser, schema, and attachment contracts have platform-neutral
 coverage. Windows package support is not claimed.
 

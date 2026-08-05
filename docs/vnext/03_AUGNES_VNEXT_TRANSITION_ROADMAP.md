@@ -372,18 +372,20 @@ provider call, command, or project mutation.
 defines CDX2B3A. Its authorized implementation branch is
 `codex/cdx2b3a-windows-repository-identity`, and its authorized Draft PR title
 is **CDX2B3A — Establish verified Windows repository identity**. A Draft PR is
-not yet recorded here. The source-runtime completion gate is verified on
-Windows 10 Pro 22H2 build 19045.6456 x64 local fixed NTFS through the official
-MCP client, live Companion, strict route, and canonical attachment owner.
-Windows 11 remains unverified. The existing package lane returns
+not yet recorded here. The source-runtime completion gate is verified
+independently on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2
+build 26200.8875, both x64 local fixed NTFS, through the official MCP client,
+live Companion, strict route, and canonical attachment owner. The existing
+package lane returns
 `package_build_runtime_unsupported` on Windows, so packaged Windows admission
 remains disabled without weakening source-runtime attachment support.
 
 The completed source-runtime slice introduces a versioned Windows final-target,
 volume-serial, and file-ID contract plus a reviewed narrow Win32 directory-
-handle helper source and additive persistence contracts. Its real Windows 10
-proof covers physical identity, privacy, attachment, replacement, restart, and
-continued Start refusal. No native binary is committed, no Windows package
+handle helper source and additive persistence contracts. Its independent real
+Windows 10 and Windows 11 proofs cover physical identity, privacy, attachment,
+replacement, restart, and continued Start refusal. No native binary is
+committed, no Windows package
 support is claimed, and no Windows managed run is enabled.
 
 ## Next separately authorized work

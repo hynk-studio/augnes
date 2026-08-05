@@ -9,9 +9,9 @@ they answer: can one worker start from the exact project, root, work, bounded
 repository state, adapter, and execution envelope the user established?
 
 CDX2B3A evolves the physical-root contract for Windows without authorizing
-Windows Start. Source-runtime attachment admission is verified on Windows 10
-Pro 22H2 build 19045.6456 x64 local fixed NTFS. Windows 11 and packaged Windows
-remain unverified.
+Windows Start. Source-runtime attachment admission is verified independently
+on Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build
+26200.8875, both x64 local fixed NTFS. Packaged Windows remains unsupported.
 
 The product doctrine is:
 
@@ -71,15 +71,16 @@ It exposes no command interface or runtime download.
 Windows versions below build 19045, ARM64, ReFS/Dev Drive, FAT/exFAT,
 removable, UNC/SMB, mapped/network/NAS, WSL, volume-GUID, virtual/projected, and unclassified
 reparse targets remain explicitly unsupported or ambiguous. There is no
-path-only fallback. The deciding source proof used Windows 10 Pro 22H2 build
-19045.6456, Visual Studio Build Tools 2022 17.14.37, MSVC 19.44.35228, Windows
-SDK 10.0.26100.0, Node 24.18.0, and npm 11.16.0. Restart, case and dot-segment
-normalization, Unicode, long paths, junction aliases, reparse-loop refusal,
-replacement, delete/recreate, rename, rebind, attachment, source-runtime MCP,
-and recovery boundaries passed. Directory-symlink privilege and a second local
-fixed NTFS volume were unavailable, so those cases are not claimed. Windows 11
-was not run. The package builder returned `package_build_runtime_unsupported`,
-so packaged Windows admission remains disabled. Windows managed Start remains
+path-only fallback. Independent deciding source proofs used Windows 10 Pro
+22H2 build 19045.6456 and Windows 11 Home 25H2 build 26200.8875 with Visual
+Studio Build Tools 2022 17.14.37, MSVC 19.44.35228, Windows SDK 10.0.26100.0,
+Node 24.18.0, and npm 11.16.0. Restart, case and dot-segment normalization,
+Unicode, long paths, junction aliases, reparse-loop refusal, replacement,
+delete/recreate, rename, rebind, attachment, source-runtime MCP, and recovery
+boundaries passed. Directory-symlink privilege and a second local fixed NTFS
+volume were unavailable on the Windows 11 node, so those cases are not claimed
+there. The package builder returned `package_build_runtime_unsupported`, so
+packaged Windows admission remains disabled. Windows managed Start remains
 blocked independently by CDX2B2B.
 
 New canonical onboarding observes and creates the project, root binding, and

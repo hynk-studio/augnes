@@ -949,6 +949,25 @@ for (const variable of [
     `canonical child resource isolation is missing: ${variable}`,
   );
 }
+for (const fragment of [
+  `"native-windows-identity"`,
+  `"build:native:windows-identity"`,
+  `generatedWindowsHelperRoot`,
+  `generated_windows_helper`,
+  `browserExecutablePath: phase.browser ? browserExecutablePath : null`,
+  `environment.AUGNES_BROWSER_EXECUTABLE_PATH = browserExecutablePath`,
+]) {
+  requireText(
+    localExecutor,
+    fragment,
+    `Windows native Canonical ownership is missing: ${fragment}`,
+  );
+}
+requireText(
+  canonicalEnvironment,
+  `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
+  "canonical child Windows repository-root authorization is not forwarded",
+);
 for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],

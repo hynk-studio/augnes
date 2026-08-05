@@ -33,7 +33,9 @@ npm run build:native:windows-identity
 The build writes an ignored executable and integrity manifest beneath
 `native/windows-x64/`. The runtime verifies the helper contract, platform,
 architecture, minimum Windows build, deterministic location, and SHA-256
-before invocation. There is no runtime download or compilation path.
+before invocation. The source-build owner discovers an installed official
+Visual Studio Build Tools and Windows SDK toolchain without requiring a
+Developer Command Prompt. There is no runtime download or compilation path.
 
 ## Proof and packaging boundary
 
@@ -41,14 +43,15 @@ The existing distributable owner packages macOS and Linux only. It does not
 stage this Windows helper. A normal user must not be told to install a compiler,
 and an opaque executable must not be committed merely to create a pass.
 
-Source-runtime attachment admission was verified on Windows 10 Pro 22H2 build
-19045.6456 x64 local fixed NTFS with Visual Studio Build Tools 2022 17.14.37,
-MSVC 19.44.35228, Windows SDK 10.0.26100.0, Node 24.18.0, and npm 11.16.0.
-The real matrix covered restart, drive-letter case, dot/dot-dot normalization,
-Unicode, a path longer than 320 characters, junction aliases, reparse-loop
-refusal, same-path replacement, delete/recreate, and rename/rebind semantics.
-Directory-symlink creation was unavailable without host privilege, and no
-second local fixed NTFS volume was available for cross-volume proof. Windows 11
-has not been run. The existing package builder returns
+Source-runtime attachment admission was verified independently on Windows 10
+Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build 26200.8875, both x64
+local fixed NTFS with Visual Studio Build Tools 2022 17.14.37, MSVC
+19.44.35228, Windows SDK 10.0.26100.0, Node 24.18.0, and npm 11.16.0. The real
+matrix covered restart, drive-letter case, dot/dot-dot normalization, Unicode,
+a path longer than 320 characters, junction aliases, reparse-loop refusal,
+same-path replacement, delete/recreate, and rename/rebind semantics.
+Directory-symlink creation was unavailable without host privilege on the
+Windows 11 node, and no second local fixed NTFS volume was available for
+cross-volume proof there. The existing package builder returns
 `package_build_runtime_unsupported` on Windows, so packaged admission remains
 disabled. Windows managed Start remains blocked and belongs to CDX2B3B.

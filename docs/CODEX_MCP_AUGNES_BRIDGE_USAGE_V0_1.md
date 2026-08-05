@@ -38,8 +38,9 @@ same tools; it does not add another MCP surface. Windows 10 Pro 22H2 build
 the intended Windows targets. Windows versions below build 19045, ARM64,
 ReFS/Dev Drive, FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and
 unclassified reparse roots fail closed, and there is no path-only fallback.
-The source-runtime path is verified on Windows 10 Pro 22H2 build 19045.6456;
-Windows 11 and packaged Windows remain unverified. The package builder's
+The source-runtime path is verified independently on Windows 10 Pro 22H2 build
+19045.6456 and Windows 11 Home 25H2 build 26200.8875, both x64 local fixed
+NTFS. Packaged Windows remains unsupported. The package builder's
 `package_build_runtime_unsupported` result preserves fail-closed packaged
 admission. No simulated or another-platform run can provide deciding Windows
 filesystem or source-runtime evidence. Ordinary source-runtime Windows

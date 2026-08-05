@@ -83,6 +83,7 @@ try {
   createSentinelMaterial();
   const before = snapshotSentinelMaterial();
   const poisonedEnvironment = Object.fromEntries(Object.entries(process.env));
+  const authorizedWindowsRepositoryRoot = process.cwd();
   Object.assign(poisonedEnvironment, {
     AUGNES_DB_PATH: sentinelDatabasePath,
     AUGNES_M3D_RUNNER_RUNTIME_ROOT: sentinelRoot,
@@ -96,6 +97,7 @@ try {
     AUGNES_BROWSER_APP_REPO: sentinelRoot,
     AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR: sentinelRoot,
     AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath,
+    AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT: authorizedWindowsRepositoryRoot,
     OPENAI_API_KEY: "poisoned-openai-credential",
     GITHUB_TOKEN: "poisoned-github-credential",
     ANTHROPIC_API_KEY: "poisoned-anthropic-credential",
@@ -144,6 +146,7 @@ const result = {
   home: process.env.HOME ?? null,
   tmpdir: process.env.TMPDIR ?? null,
   browser_executable_path: process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? null,
+  windows_repository_root: process.env.AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT ?? null,
   forbidden_keys_present: forbidden.filter((key) => Object.hasOwn(process.env, key)),
 };
 process.stdout.write(JSON.stringify(result));`,
@@ -177,6 +180,10 @@ process.stdout.write(JSON.stringify(result));`,
     assert.equal(isPathInsideOrEqual(sentinelRoot, childOwnedPath), false);
   }
   assert.equal(probeResult.browser_executable_path, browserExecutablePath);
+  assert.equal(
+    probeResult.windows_repository_root,
+    authorizedWindowsRepositoryRoot,
+  );
   assert.deepEqual(probeResult.forbidden_keys_present, []);
   assert.equal(existsSync(safeChildDatabasePath), false);
 
@@ -208,6 +215,7 @@ process.stdout.write(JSON.stringify(result));`,
     forbidden_environment_keys_forwarded: unexpectedForwarded.length,
     forbidden_probe_keys_present: probeResult.forbidden_keys_present.length,
     allowed_browser_executable_path_preserved: true,
+    allowed_windows_repository_root_preserved: true,
     explicit_step_database_inside_canonical_root: true,
     explicit_step_database_outside_canonical_root_refused: true,
     child_home_tmp_runtime_and_database_uniquely_owned: true,

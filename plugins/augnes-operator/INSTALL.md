@@ -108,12 +108,12 @@ and the existing local supervised Companion.
 Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, current-session workers,
 automatic resume after controller loss, continuous/multi-agent automation,
-Linux product filesystem/runtime proof, Windows managed delegation, Windows 11
-verification, or Windows packaging. PR #117 is
+Linux product filesystem/runtime proof, Windows managed delegation, or Windows
+packaging. PR #117 is
 filesystem-verified on macOS; Linux has adapter contract coverage only.
-CDX2B3A source-runtime attachment admission is verified on Windows 10 Pro 22H2
-build 19045.6456 x64 local fixed NTFS. Windows 11 is supported by the version
-gate but remains unverified. The current package builder refuses Windows, so
+CDX2B3A source-runtime attachment admission is verified independently on
+Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build 26200.8875,
+both x64 local fixed NTFS. The current package builder refuses Windows, so
 packaged Windows preparation remains fail-closed. CDX2B2B Start remains
 explicitly macOS-only. A Codex
 build without plugin `mcpServers` support

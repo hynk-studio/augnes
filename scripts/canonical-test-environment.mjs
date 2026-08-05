@@ -25,9 +25,11 @@ export const CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "CI",
 ]);
 
-// The browser test may need an operator-selected installed browser binary.
+// These inputs are explicitly selected by the local operator and remain
+// subject to their owning browser or repository-identity validation.
 export const CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "AUGNES_BROWSER_EXECUTABLE_PATH",
+  "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT",
 ]);
 
 // These values are authored by the canonical suite, never copied from ambient state.

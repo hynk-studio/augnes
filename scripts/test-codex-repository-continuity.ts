@@ -399,6 +399,7 @@ function selectV01(db: Database.Database, workspaceId: string, projectId: string
 
 function continuityDependenciesV01(config: VNextLocalOperatorPilotConfigV01) {
   return {
+    managed_start_available: () => true,
     read_root_availability: async () => "available" as const,
     read_operator_config: () => config,
   };

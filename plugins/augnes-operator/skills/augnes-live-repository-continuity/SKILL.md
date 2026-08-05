@@ -44,8 +44,9 @@ the current Augnes project state.”
    Git remote, simulated `win32`, or raw volume/file identifiers. Windows
    source-runtime attachment readiness requires Windows 10 Pro 22H2 build
    19045 or newer or Windows 11 build 22000 or newer on x64 local fixed NTFS.
-   Windows 10 build 19045.6456 is verified; Windows 11 and packaged Windows are
-   unverified and must remain truthfully distinguished.
+   Windows 10 Pro 22H2 build 19045.6456 and Windows 11 Home 25H2 build
+   26200.8875 are independently verified; packaged Windows remains unsupported
+   and must remain truthfully distinguished.
 9. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never

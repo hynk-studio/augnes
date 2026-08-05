@@ -145,10 +145,11 @@ capability, compatibility, or deferred work rather than default product UI.
 - CDX2B3A owns the candidate Windows physical identity union and narrow Win32
   directory-handle helper source. The supported target is Windows 10 Pro 22H2
   build 19045 or newer, or Windows 11 build 22000 or newer, on x64 local fixed
-  NTFS. Support claims must name the exact Windows lane actually verified;
-  Windows 11 remains unverified until a separate real Windows 11 run. ARM64,
-  ReFS/Dev Drive, FAT/exFAT, UNC/network, WSL, removable, virtual/projected,
-  and unclassified reparse roots fail closed.
+  NTFS. Support claims must name the exact Windows lane actually verified.
+  Independent source-runtime proof exists for Windows 10 Pro 22H2 build
+  19045.6456 and Windows 11 Home 25H2 build 26200.8875. ARM64, ReFS/Dev Drive,
+  FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and unclassified
+  reparse roots fail closed.
   Windows source-runtime attachment admission is enabled only for the exact
   supported lane after the required real Windows filesystem and source-runtime
   proof. A parser test, mocked platform value, reviewed source, or another

@@ -575,7 +575,25 @@ async function main() {
       'input[name="project-display-name"]',
       editedName,
     );
+    const confirmRequestOffset = requests.length;
     await clickSelector('[data-blank-state-primary-action="confirm_folder"]');
+    const confirmResponse = await waitForObservedResponse(
+      "/api/vnext/projects",
+      "POST",
+      confirmRequestOffset,
+    );
+    if (confirmResponse.status !== 200) {
+      const confirmResponseBody = JSON.parse(
+        (
+          await cdp.send("Network.getResponseBody", {
+            requestId: confirmResponse.request_id,
+          })
+        ).body,
+      );
+      throw new Error(
+        `project_confirmation_failed:${confirmResponse.status}:${publicToken(confirmResponseBody.error_code ?? "unknown")}`,
+      );
+    }
     await waitForCondition(
       `location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')`,
       "canonical project destination",
