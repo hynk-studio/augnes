@@ -1722,7 +1722,7 @@ async function assertRepositoryManagedResumeV01(
       );
     }
     delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
-    const [resumed, concurrentReplay] = await Promise.all([
+    const concurrentResults = await Promise.all([
       resumeRepositoryManagedDelegationV01(
         db,
         resumeInput,
@@ -1736,6 +1736,12 @@ async function assertRepositoryManagedResumeV01(
         { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
       ),
     ]);
+    const resumed = concurrentResults.find((candidate) => candidate.status === "accepted");
+    const concurrentReplay = concurrentResults.find(
+      (candidate) => candidate.status === "exact_replay",
+    );
+    assert(resumed, JSON.stringify(concurrentResults));
+    assert(concurrentReplay, JSON.stringify(concurrentResults));
     assert.equal(resumed.status, "accepted", JSON.stringify(resumed));
     assert.equal(resumed.run_id, started.run_id);
     assert.equal(resumed.attachment_id, fixture.attachment_id);
