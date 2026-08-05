@@ -10,6 +10,7 @@ import {
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   insertRepositoryManagedResumeAttemptInsideTransactionV01,
+  insertRepositoryManagedResumeRuntimeClaimInsideTransactionV01,
   listRepositoryRunResumeCheckpointsV01,
   readOpenRepositoryExecutionDecisionV01,
   readPhysicalRootBaselineV01,
@@ -17,7 +18,11 @@ import {
   readRepositoryManagedResumeAttemptForCheckpointV01,
   readRepositoryManagedResumeAttemptForDecisionV01,
   readRepositoryManagedResumeAttemptV01,
+  readRepositoryManagedResumeCancellationV01,
+  readRepositoryManagedResumeRuntimeClaimV01,
+  transferRepositoryManagedResumeRuntimeClaimInsideTransactionV01,
   transitionRepositoryManagedResumeAttemptInsideTransactionV01,
+  transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01,
 } from "@/lib/vnext/persistence/repository-execution-store";
 import {
   canonicalizeProtocolValueV01,
@@ -50,6 +55,7 @@ import type {
 } from "@/types/vnext/native-host-adapter";
 import {
   REPOSITORY_MANAGED_RESUME_ATTEMPT_VERSION_V01,
+  REPOSITORY_MANAGED_RESUME_RUNTIME_CLAIM_VERSION_V01,
   REPOSITORY_MANAGED_RESUME_PREPARATION_VERSION_V01,
   REPOSITORY_MANAGED_RESUME_VERSION_V01,
   type RepositoryManagedResumeAttemptV01,
@@ -57,6 +63,7 @@ import {
   type RepositoryManagedResumeExpectedStateV01,
   type RepositoryManagedResumePreparationV01,
   type RepositoryManagedResumeResultV01,
+  type RepositoryManagedResumeRuntimeClaimV01,
 } from "@/types/vnext/repository-managed-resume";
 import type { RepositoryRunResumeCheckpointV01 } from "@/types/vnext/repository-run-resume";
 
@@ -382,8 +389,6 @@ export async function resumeRepositoryManagedDelegationV01(
       expected_state_fingerprint: input.expected_state_fingerprint,
       admitted_run_control_revision: admittedRunRevision,
       admitted_step_control_revision: admittedStepRevision,
-      runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
-      runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
       attempt_state: "admitted_not_invoked" as const,
       final_outcome: null,
       admitted_at: now,
@@ -393,11 +398,25 @@ export async function resumeRepositoryManagedDelegationV01(
     };
     attempt = {
       ...attemptMaterial,
+      // Admission observations remain for compatibility, but execution ownership
+      // is exclusively the mutable runtime claim below.
+      runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
       attempt_fingerprint: createProtocolSha256V01(
         canonicalizeProtocolValueV01(attemptMaterial),
       ),
     };
     insertRepositoryManagedResumeAttemptInsideTransactionV01(db, attempt);
+    insertRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+      claim_version: REPOSITORY_MANAGED_RESUME_RUNTIME_CLAIM_VERSION_V01,
+      attempt_fingerprint: attempt.attempt_fingerprint,
+      runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
+      claim_revision: 1,
+      claim_lifecycle: "claimed",
+      claimed_at: now,
+      updated_at: now,
+    });
     dependencies.after_attempt_insert_inside_transaction?.();
     updateAutonomyRunLedgerFields(exact.run.run_id, {
       status: "starting",
@@ -410,6 +429,7 @@ export async function resumeRepositoryManagedDelegationV01(
         runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
         runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
         repository_resume_attempt_fingerprint: attempt.attempt_fingerprint,
+        repository_resume_runtime_claim_revision: 1,
         repository_resume_checkpoint_fingerprint:
           exact.checkpoint.checkpoint_fingerprint,
         repository_resume_step_id: exact.checkpoint.step_id,
@@ -457,7 +477,18 @@ export async function resumeRepositoryManagedDelegationV01(
     if (db.inTransaction) db.exec("ROLLBACK");
     throw normalizeErrorV01(error);
   }
-  await dependencies.after_admission_commit?.();
+  try {
+    await dependencies.after_admission_commit?.();
+  } catch {
+    return resultV01(
+      "blocked",
+      "The resume attempt was admitted, but this request did not start its worker. Exact replay may continue the same attempt.",
+      attempt,
+      service,
+      input.config,
+      false,
+    );
+  }
   return replayOrLaunchAttemptV01(
     db,
     input.config,
@@ -474,6 +505,18 @@ async function replayOrLaunchAttemptV01(
   service: LiveNativeHostRunServiceV01,
   dependencies: RepositoryManagedResumeDependenciesV01,
 ): Promise<RepositoryManagedResumeResultV01> {
+  let runtimeClaim = readRepositoryManagedResumeRuntimeClaimV01(
+    db,
+    attempt.attempt_fingerprint,
+  );
+  if (!runtimeClaim) {
+    markAttemptReconciliationV01(db, attempt, strictNowV01(dependencies.now));
+    return resultV01(
+      "reconciliation_required",
+      "The resume attempt has no exact runtime claim; provider resume will not be invoked.",
+      attempt, service, config, false,
+    );
+  }
   const controller = service.readRepositoryControllerObservationV01(
     config,
     attempt.run_id,
@@ -482,9 +525,9 @@ async function replayOrLaunchAttemptV01(
     if (
       controller.controller_generation !== attempt.resumed_controller_generation ||
       controller.runtime_instance_fingerprint !==
-        attempt.runtime_instance_fingerprint ||
+        runtimeClaim.runtime_instance_fingerprint ||
       controller.runtime_generation_fingerprint !==
-        attempt.runtime_generation_fingerprint
+        runtimeClaim.runtime_generation_fingerprint
     ) {
       refuse("repository_managed_resume_controller_conflict");
     }
@@ -502,7 +545,6 @@ async function replayOrLaunchAttemptV01(
     attempt.attempt_state === "controller_owned" ||
     attempt.attempt_state === "reconciliation_required"
   ) {
-    markAttemptReconciliationV01(db, attempt, strictNowV01(dependencies.now));
     return resultV01(
       "reconciliation_required",
       "Provider resume may already have started; it will not be invoked again.",
@@ -510,6 +552,13 @@ async function replayOrLaunchAttemptV01(
       service,
       config,
       false,
+    );
+  }
+  if (readRepositoryManagedResumeCancellationV01(db, attempt.attempt_fingerprint)) {
+    return resultV01(
+      "reconciliation_required",
+      "Cancellation is durably recorded for this resume attempt; it cannot be reacquired.",
+      attempt, service, config, false,
     );
   }
   if (attempt.attempt_state === "settled") {
@@ -522,6 +571,26 @@ async function replayOrLaunchAttemptV01(
       false,
     );
   }
+  const runtime = service.readRepositoryResumeRuntimeClaimV01();
+  if (
+    runtimeClaim.runtime_instance_fingerprint !== runtime.runtime_instance_fingerprint ||
+    runtimeClaim.runtime_generation_fingerprint !== runtime.runtime_generation_fingerprint
+  ) {
+    const transferred = await transferRuntimeClaimV01(
+      db, config, attempt, runtimeClaim, service, dependencies,
+    );
+    if (!transferred) {
+      const winner = service.readRepositoryControllerObservationV01(config, attempt.run_id);
+      return resultV01(
+        winner.owned ? "exact_replay" : "reconciliation_required",
+        winner.owned
+          ? "The exact resumed controller already owns this run."
+          : "Another verified runtime changed the resume claim; provider resume was not invoked by this request.",
+        attempt, service, config, false,
+      );
+    }
+    runtimeClaim = transferred;
+  }
   let source: ResumeSourceV01;
   try {
     source = await requireAdmittedAttemptSourceV01(
@@ -530,6 +599,7 @@ async function replayOrLaunchAttemptV01(
       attempt,
       service,
       dependencies,
+      runtimeClaim,
     );
     await dependencies.after_post_commit_launch_gate?.();
   } catch {
@@ -545,9 +615,9 @@ async function replayOrLaunchAttemptV01(
       racedController.controller_generation ===
         attempt.resumed_controller_generation &&
       racedController.runtime_instance_fingerprint ===
-        attempt.runtime_instance_fingerprint &&
+        runtimeClaim.runtime_instance_fingerprint &&
       racedController.runtime_generation_fingerprint ===
-        attempt.runtime_generation_fingerprint;
+        runtimeClaim.runtime_generation_fingerprint;
     if (
       current.attempt_state === "settled" ||
       ((current.attempt_state === "provider_resume_invocation_started" ||
@@ -564,14 +634,13 @@ async function replayOrLaunchAttemptV01(
         false,
       );
     }
-    markAttemptReconciliationV01(
-      db,
-      current,
-      strictNowV01(dependencies.now),
-    );
     return resultV01(
-      "reconciliation_required",
-      "The admitted resume claim changed before provider invocation; review it before continuing.",
+      current.attempt_state === "admitted_not_invoked"
+        ? "blocked"
+        : "reconciliation_required",
+      current.attempt_state === "admitted_not_invoked"
+        ? "The admitted resume attempt remains available, but this request did not start its worker."
+        : "The admitted resume claim changed after provider invocation became uncertain; review it before continuing.",
       attempt,
       service,
       config,
@@ -579,7 +648,7 @@ async function replayOrLaunchAttemptV01(
     );
   }
   const resumeContext = repositoryResumeContextV01(attempt);
-  const claim = repositoryResumeClaimV01(source, attempt);
+  const claim = repositoryResumeClaimV01(source, attempt, runtimeClaim);
   try {
     const launched = await service.launchAdmittedRepositoryResumeV01({
       config,
@@ -594,6 +663,7 @@ async function replayOrLaunchAttemptV01(
           attempt,
           service,
           dependencies,
+          runtimeClaim,
         );
       },
     });
@@ -619,8 +689,154 @@ async function replayOrLaunchAttemptV01(
         strictNowV01(dependencies.now),
       );
     }
-    throw normalizeErrorV01(error);
+    return resultV01(
+      current?.attempt_state === "admitted_not_invoked"
+        ? "blocked"
+        : "reconciliation_required",
+      current?.attempt_state === "admitted_not_invoked"
+        ? "The admitted resume attempt remains available, but this request did not start its worker."
+        : "Provider resume may have started; this request will not invoke it again.",
+      current ?? attempt,
+      service,
+      config,
+      false,
+    );
   }
+}
+
+async function transferRuntimeClaimV01(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  attempt: RepositoryManagedResumeAttemptV01,
+  priorClaim: RepositoryManagedResumeRuntimeClaimV01,
+  service: LiveNativeHostRunServiceV01,
+  dependencies: RepositoryManagedResumeDependenciesV01,
+): Promise<RepositoryManagedResumeRuntimeClaimV01 | null> {
+  if (
+    attempt.attempt_state !== "admitted_not_invoked" ||
+    attempt.provider_invocation_started_at != null ||
+    priorClaim.claim_lifecycle !== "claimed"
+  ) return null;
+  const runtime = service.readRepositoryResumeRuntimeClaimV01();
+  await requireAdmittedAttemptSourceV01(
+    db, config, attempt, service, dependencies, priorClaim, true,
+  );
+  const now = strictNowV01(dependencies.now);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const currentAttempt = readRepositoryManagedResumeAttemptV01(db, attempt.attempt_fingerprint);
+    const run = readAutonomyRunLedgerRecord(attempt.run_id, { db });
+    const controller = service.readRepositoryControllerObservationV01(config, attempt.run_id);
+    const attachment = run ? requireConsumedRepositoryRunAttachmentV01(db, run) : null;
+    const checkpoint = listRepositoryRunResumeCheckpointsV01(db, {
+      ...config,
+      run_id: attempt.run_id,
+    }).at(-1);
+    const step = run?.steps.find((candidate) => candidate.step_id === checkpoint?.step_id);
+    const selected = selectCanonicalRepositoryAttachmentRunV01(db, config);
+    const registration = readCanonicalProjectWithRootV01(db, config);
+    const baseline = checkpoint
+      ? readPhysicalRootBaselineV01(db, {
+          ...config,
+          node_scope_fingerprint: checkpoint.node_scope_fingerprint,
+        })
+      : null;
+    const databaseState = checkpoint
+      ? readExpectedDatabaseAdmissionStateV01(db, {
+          ...config,
+          node_scope_fingerprint: checkpoint.node_scope_fingerprint,
+        })
+      : null;
+    const expected = parseExpectedStateV01(
+      readRepositoryExecutionDecisionRequestV01(
+        db,
+        attempt.decision_request_fingerprint,
+      )?.expected_state_json,
+    );
+    const thread = externalRefForFingerprintV01(run?.metadata.host_thread_ref, "host_thread");
+    const turn = externalRefForFingerprintV01(run?.metadata.host_turn_ref, "host_turn");
+    if (
+      !currentAttempt || currentAttempt.attempt_state !== "admitted_not_invoked" ||
+      currentAttempt.provider_invocation_started_at != null || !run ||
+      !attachment || !checkpoint || !step || !registration || !baseline ||
+      !databaseState || !thread || !turn || run.status !== "starting" ||
+      controller.owned || run.metadata.pending_approval != null ||
+      readRepositoryManagedResumeCancellationV01(db, attempt.attempt_fingerprint) != null ||
+      selected?.run_id !== run.run_id ||
+      attachment.attachment_id !== attempt.attachment_id ||
+      attachment.binding_fingerprint !== attempt.attachment_binding_fingerprint ||
+      checkpoint.checkpoint_fingerprint !== attempt.checkpoint_fingerprint ||
+      checkpoint.event_high_water_mark !== expected.checkpoint_event_high_water_mark ||
+      checkpoint.step_high_water_mark !== expected.checkpoint_step_high_water_mark ||
+      checkpoint.effect_ledger_high_water_mark !== expected.checkpoint_effect_high_water_mark ||
+      checkpoint.controller_generation !== attempt.prior_controller_generation ||
+      numberV01(run.metadata.controller_generation) !== attempt.resumed_controller_generation ||
+      numberV01(run.metadata.control_revision) !== attempt.admitted_run_control_revision ||
+      numberV01(step.output.control_revision) !== attempt.admitted_step_control_revision ||
+      run.metadata.repository_resume_attempt_fingerprint !== attempt.attempt_fingerprint ||
+      run.metadata.repository_execution_envelope_fingerprint !== expected.execution_envelope_fingerprint ||
+      run.metadata.packet_id !== expected.packet_id ||
+      run.metadata.packet_fingerprint !== expected.packet_fingerprint ||
+      databaseState.current_work_fingerprint !== expected.current_work_fingerprint ||
+      fingerprintProjectRootBindingV01(registration.root_binding) !== expected.root_binding_fingerprint ||
+      baseline.baseline_fingerprint !== expected.physical_root_baseline_fingerprint ||
+      createProtocolSha256V01(canonicalizeProtocolValueV01(thread)) !==
+        expected.provider_thread_binding_fingerprint ||
+      createProtocolSha256V01(canonicalizeProtocolValueV01(turn)) !==
+        expected.provider_turn_binding_fingerprint ||
+      runtime.capability.adapter_version !== expected.adapter_version ||
+      runtime.capability.capability_version !== expected.capability_version ||
+      runtime.capability.provider_resume_binding_version !==
+        expected.provider_resume_binding_version ||
+      !runtime.capability.resumable_after_detach
+    ) {
+      db.exec("ROLLBACK");
+      return null;
+    }
+    requireConsumedResumeDecisionV01(db, attempt);
+    const transferred = transferRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+      attempt_fingerprint: attempt.attempt_fingerprint,
+      expected_claim_revision: priorClaim.claim_revision,
+      expected_runtime_instance_fingerprint: priorClaim.runtime_instance_fingerprint,
+      expected_runtime_generation_fingerprint: priorClaim.runtime_generation_fingerprint,
+      runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
+      claimed_at: now,
+    });
+    if (!transferred) {
+      db.exec("ROLLBACK");
+      return null;
+    }
+    updateAutonomyRunLedgerFields(run.run_id, {
+      updated_at: now,
+      metadata: {
+        ...run.metadata,
+        runtime_instance_fingerprint: transferred.runtime_instance_fingerprint,
+        runtime_generation_fingerprint: transferred.runtime_generation_fingerprint,
+        repository_resume_runtime_claim_revision: transferred.claim_revision,
+      },
+    }, { db });
+    db.exec("COMMIT");
+    return transferred;
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function requireConsumedResumeDecisionV01(
+  db: Database.Database,
+  attempt: RepositoryManagedResumeAttemptV01,
+): void {
+  const decision = readRepositoryExecutionDecisionRequestV01(db, attempt.decision_request_fingerprint);
+  if (
+    !decision || decision.action !== "resume_repository_managed_delegation" ||
+    decision.status !== "consumed" || decision.workspace_id !== attempt.workspace_id ||
+    decision.project_id !== attempt.project_id ||
+    decision.expected_state_fingerprint !== attempt.expected_state_fingerprint ||
+    decision.grant_fingerprint !== attempt.decision_grant_fingerprint ||
+    decision.result_fingerprint !== attempt.attempt_fingerprint
+  ) refuse("repository_managed_resume_consumed_decision_invalid");
 }
 
 async function observeResumeReadySourceV01(
@@ -843,6 +1059,8 @@ async function requireAdmittedAttemptSourceV01(
   attempt: RepositoryManagedResumeAttemptV01,
   service: LiveNativeHostRunServiceV01,
   dependencies: RepositoryManagedResumeDependenciesV01,
+  runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
+  allowRuntimeTransfer = false,
 ): Promise<ResumeSourceV01> {
   const run = readAutonomyRunLedgerRecord(attempt.run_id, { db });
   if (!run) refuse("repository_managed_resume_run_missing");
@@ -891,6 +1109,7 @@ async function requireAdmittedAttemptSourceV01(
   if (
     !exactAttempt ||
     exactAttempt.attempt_state !== "admitted_not_invoked" ||
+    readRepositoryManagedResumeCancellationV01(db, attempt.attempt_fingerprint) != null ||
     run.status !== "starting" ||
     numberV01(run.metadata.controller_generation) !==
       attempt.resumed_controller_generation ||
@@ -903,9 +1122,9 @@ async function requireAdmittedAttemptSourceV01(
       attempt.attempt_fingerprint ||
     (controller.owned &&
       (controller.controller_generation !== attempt.resumed_controller_generation ||
-        controller.runtime_instance_fingerprint !== attempt.runtime_instance_fingerprint ||
+        controller.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
         controller.runtime_generation_fingerprint !==
-          attempt.runtime_generation_fingerprint)) ||
+          runtimeClaim.runtime_generation_fingerprint)) ||
     selected?.run_id !== run.run_id ||
     attachment.attachment_id !== attempt.attachment_id ||
     attachment.binding_fingerprint !== attempt.attachment_binding_fingerprint ||
@@ -938,9 +1157,10 @@ async function requireAdmittedAttemptSourceV01(
     worktree.observation_fingerprint !== checkpoint.worktree_observation_fingerprint ||
     fingerprintProjectRootBindingV01(registration.root_binding) !==
       checkpoint.root_binding_fingerprint ||
-    runtime.runtime_instance_fingerprint !== attempt.runtime_instance_fingerprint ||
-    runtime.runtime_generation_fingerprint !==
-      attempt.runtime_generation_fingerprint ||
+    (!allowRuntimeTransfer &&
+      (runtime.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
+        runtime.runtime_generation_fingerprint !==
+          runtimeClaim.runtime_generation_fingerprint)) ||
     runtime.capability.adapter_version !== checkpoint.adapter_version ||
     runtime.capability.capability_version !== checkpoint.capability_version ||
     runtime.capability.provider_resume_binding_version !==
@@ -949,6 +1169,7 @@ async function requireAdmittedAttemptSourceV01(
   ) {
     refuse("repository_managed_resume_launch_gate_changed");
   }
+  requireConsumedResumeDecisionV01(db, attempt);
   return {
     run,
     attachment,
@@ -968,6 +1189,7 @@ async function assertImmediateInvocationGateAndMarkV01(
   attempt: RepositoryManagedResumeAttemptV01,
   service: LiveNativeHostRunServiceV01,
   dependencies: RepositoryManagedResumeDependenciesV01,
+  runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
 ): Promise<void> {
   const registration = readCanonicalProjectWithRootV01(db, config);
   if (!registration) refuse("repository_managed_resume_launch_gate_changed");
@@ -1034,6 +1256,7 @@ async function assertImmediateInvocationGateAndMarkV01(
     if (
       !current ||
       current.attempt_state !== "admitted_not_invoked" ||
+      readRepositoryManagedResumeCancellationV01(db, attempt.attempt_fingerprint) != null ||
       !run ||
       !checkpoint ||
       !selected ||
@@ -1070,9 +1293,9 @@ async function assertImmediateInvocationGateAndMarkV01(
       fingerprintProjectRootBindingV01(exactRegistration.root_binding) !==
         expected.root_binding_fingerprint ||
       baseline.baseline_fingerprint !== expected.physical_root_baseline_fingerprint ||
-      runtime.runtime_instance_fingerprint !== attempt.runtime_instance_fingerprint ||
+      runtime.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
       runtime.runtime_generation_fingerprint !==
-        attempt.runtime_generation_fingerprint ||
+        runtimeClaim.runtime_generation_fingerprint ||
       runtime.capability.adapter_version !== expected.adapter_version ||
       runtime.capability.capability_version !== expected.capability_version ||
       runtime.capability.provider_resume_binding_version !==
@@ -1084,9 +1307,9 @@ async function assertImmediateInvocationGateAndMarkV01(
         expected.provider_turn_binding_fingerprint ||
       !controller.owned ||
       controller.controller_generation !== attempt.resumed_controller_generation ||
-      controller.runtime_instance_fingerprint !== attempt.runtime_instance_fingerprint ||
+      controller.runtime_instance_fingerprint !== runtimeClaim.runtime_instance_fingerprint ||
       controller.runtime_generation_fingerprint !==
-        attempt.runtime_generation_fingerprint ||
+        runtimeClaim.runtime_generation_fingerprint ||
       physical.status !== "exact" ||
       !physicalMatchesBaselineV01(physical, baseline) ||
       physical.node_scope_fingerprint !== attachment.node_scope_fingerprint ||
@@ -1094,6 +1317,18 @@ async function assertImmediateInvocationGateAndMarkV01(
       worktree.observation_fingerprint !== checkpoint.worktree_observation_fingerprint
     ) {
       refuse("repository_managed_resume_invocation_gate_changed");
+    }
+    requireConsumedResumeDecisionV01(db, attempt);
+    if (!transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+      attempt_fingerprint: attempt.attempt_fingerprint,
+      claim_revision: runtimeClaim.claim_revision,
+      runtime_instance_fingerprint: runtimeClaim.runtime_instance_fingerprint,
+      runtime_generation_fingerprint: runtimeClaim.runtime_generation_fingerprint,
+      from: "claimed",
+      to: "invocation_started",
+      updated_at: now,
+    })) {
+      refuse("repository_managed_resume_runtime_claim_conflict");
     }
     if (!transitionRepositoryManagedResumeAttemptInsideTransactionV01(db, {
       attempt_fingerprint: attempt.attempt_fingerprint,
@@ -1136,6 +1371,7 @@ async function assertImmediateInvocationGateAndMarkV01(
 function repositoryResumeClaimV01(
   source: ResumeSourceV01,
   attempt: RepositoryManagedResumeAttemptV01,
+  runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
 ) {
   return {
     run_id: attempt.run_id,
@@ -1150,6 +1386,9 @@ function repositoryResumeClaimV01(
     admitted_run_control_revision: attempt.admitted_run_control_revision,
     admitted_step_control_revision: attempt.admitted_step_control_revision,
     attempt_fingerprint: attempt.attempt_fingerprint,
+    runtime_claim_revision: runtimeClaim.claim_revision,
+    runtime_instance_fingerprint: runtimeClaim.runtime_instance_fingerprint,
+    runtime_generation_fingerprint: runtimeClaim.runtime_generation_fingerprint,
   };
 }
 
@@ -1351,8 +1590,6 @@ export function validateRepositoryManagedResumeAttemptV01(
       expected_state_fingerprint: attempt.expected_state_fingerprint,
       admitted_run_control_revision: attempt.admitted_run_control_revision,
       admitted_step_control_revision: attempt.admitted_step_control_revision,
-      runtime_instance_fingerprint: attempt.runtime_instance_fingerprint,
-      runtime_generation_fingerprint: attempt.runtime_generation_fingerprint,
       attempt_state: "admitted_not_invoked",
       final_outcome: null,
       admitted_at: attempt.admitted_at,
@@ -1404,7 +1641,9 @@ export function validateRepositoryManagedResumeAttemptRelationsV01(
       decision.project_id === attempt.project_id &&
       decision.expected_state_fingerprint === attempt.expected_state_fingerprint &&
       decision.grant_fingerprint === attempt.decision_grant_fingerprint &&
-      decision.status === "consumed"
+      decision.status === "consumed" &&
+      decision.result_fingerprint === attempt.attempt_fingerprint &&
+      readRepositoryManagedResumeRuntimeClaimV01(db, attempt.attempt_fingerprint) != null
     );
   } catch {
     return false;
@@ -1457,6 +1696,25 @@ function markAttemptReconciliationV01(
       to: "reconciliation_required",
       updated_at: now,
     });
+    const runtimeClaim = readRepositoryManagedResumeRuntimeClaimV01(
+      db,
+      attempt.attempt_fingerprint,
+    );
+    if (
+      runtimeClaim &&
+      (runtimeClaim.claim_lifecycle === "claimed" ||
+        runtimeClaim.claim_lifecycle === "invocation_started")
+    ) {
+      transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+        attempt_fingerprint: attempt.attempt_fingerprint,
+        claim_revision: runtimeClaim.claim_revision,
+        runtime_instance_fingerprint: runtimeClaim.runtime_instance_fingerprint,
+        runtime_generation_fingerprint: runtimeClaim.runtime_generation_fingerprint,
+        from: runtimeClaim.claim_lifecycle,
+        to: "released",
+        updated_at: now,
+      });
+    }
     const run = readAutonomyRunLedgerRecord(attempt.run_id, { db });
     if (run && !["completed", "failed", "cancelled", "timed_out"].includes(run.status)) {
       updateAutonomyRunLedgerFields(run.run_id, {

@@ -36,6 +36,8 @@ import {
   listRepositoryManagedResumeAttemptsV01,
   listRepositoryRunResumeCheckpointsV01,
   readRepositoryExecutionAttachmentV01,
+  readRepositoryManagedResumeCancellationV01,
+  readRepositoryManagedResumeRuntimeClaimV01,
 } from "../lib/vnext/persistence/repository-execution-store";
 import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import {
@@ -1881,8 +1883,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
       };
       if (scenario === "before_marker") {
         delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
-        await assert.rejects(
-          resumeRepositoryManagedDelegationV01(
+        const blocked = await resumeRepositoryManagedDelegationV01(
             db,
             resumeInput,
             resumedService,
@@ -1893,8 +1894,9 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
                 throw new Error("simulated_crash_before_invocation_marker");
               },
             },
-          ),
-        );
+          );
+        assert.equal(blocked.status, "blocked");
+        assert.equal(blocked.authority.worker_started, false);
         assert.equal(resumeCalls, 0);
         assert.equal(
           listRepositoryManagedResumeAttemptsV01(db, {
@@ -1904,21 +1906,93 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
           })[0]?.attempt_state,
           "admitted_not_invoked",
         );
-        const replay = await resumeRepositoryManagedDelegationV01(
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const admittedClaim = readRepositoryManagedResumeRuntimeClaimV01(
           db,
-          resumeInput,
-          resumedService,
-          { now: () => at(23_000), platform: "darwin" },
+          attempt.attempt_fingerprint,
         );
-        assert.equal(replay.status, "accepted");
-        assert.equal(replay.authority.worker_started, true);
+        assert.equal(admittedClaim?.claim_revision, 1);
+        await resumedService.shutdown();
+        const replacement = (instance: string, generation: string) =>
+          new LiveNativeHostRunServiceV01({
+            open_database: () => openDatabaseV01(),
+            adapter_factory: () => {
+              const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+              return {
+                ...adapter,
+                invoke(request, control) {
+                  if (control.resume_binding) resumeCalls += 1;
+                  return adapter.invoke(request, control);
+                },
+              };
+            },
+            runtime_instance_fingerprint: instance,
+            runtime_generation_fingerprint: generation,
+          });
+        const serviceB = replacement(`sha256:${"5".repeat(64)}`, `sha256:${"6".repeat(64)}`);
+        const serviceC = replacement(`sha256:${"7".repeat(64)}`, `sha256:${"8".repeat(64)}`);
+        let releaseWinner!: () => void;
+        let observeWinner!: () => void;
+        const winnerObserved = new Promise<void>((resolve) => {
+          observeWinner = resolve;
+        });
+        const winnerRelease = new Promise<void>((resolve) => {
+          releaseWinner = resolve;
+        });
+        const race = (service: LiveNativeHostRunServiceV01) =>
+          resumeRepositoryManagedDelegationV01(db, resumeInput, service, {
+            now: () => at(23_000),
+            platform: "darwin",
+            after_post_commit_launch_gate: async () => {
+              observeWinner();
+              await winnerRelease;
+            },
+          });
+        const replayBPromise = race(serviceB);
+        const replayCPromise = race(serviceC);
+        await winnerObserved;
+        const staleBeforeMarker = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, resumedService,
+          { now: () => at(23_250), platform: "darwin" },
+        );
+        assert.equal(staleBeforeMarker.status, "reconciliation_required");
+        assert.equal(staleBeforeMarker.authority.worker_started, false);
+        releaseWinner();
+        const [replayB, replayC] = await Promise.all([replayBPromise, replayCPromise]);
+        assert.equal(
+          [replayB, replayC].filter((value) => value.status === "accepted").length,
+          1,
+        );
+        assert.equal(
+          [replayB, replayC].filter((value) => value.authority.worker_started).length,
+          1,
+        );
+        const transferredClaim = readRepositoryManagedResumeRuntimeClaimV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(transferredClaim?.claim_revision, 2);
+        assert.notEqual(
+          transferredClaim?.runtime_instance_fingerprint,
+          admittedClaim?.runtime_instance_fingerprint,
+        );
+        const staleRuntimeReplay = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, resumedService,
+          { now: () => at(23_500), platform: "darwin" },
+        );
+        assert.equal(staleRuntimeReplay.authority.worker_started, false);
         assert.equal(resumeCalls, 1);
         await waitForCheckpointCountV01(db, started.run_id, 8);
         await waitForTerminalV01(db, started.run_id);
+        await serviceB.shutdown();
+        await serviceC.shutdown();
       } else if (scenario === "after_marker") {
         delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
-        await assert.rejects(
-          resumeRepositoryManagedDelegationV01(
+        const uncertain = await resumeRepositoryManagedDelegationV01(
             db,
             resumeInput,
             resumedService,
@@ -1929,22 +2003,77 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
                 throw new Error("simulated_crash_after_invocation_marker");
               },
             },
-          ),
-        );
+          );
+        assert.equal(uncertain.status, "reconciliation_required");
+        assert.equal(uncertain.authority.worker_started, false);
         assert.equal(resumeCalls, 0);
+        await resumedService.shutdown();
+        const replacementService = new LiveNativeHostRunServiceV01({
+          open_database: () => openDatabaseV01(),
+          adapter_factory: () => {
+            const adapter = createCanonicalRepositoryDelegationTestAdapterV01(process.env);
+            return {
+              ...adapter,
+              invoke(request, control) {
+                if (control.resume_binding) resumeCalls += 1;
+                return adapter.invoke(request, control);
+              },
+            };
+          },
+          runtime_instance_fingerprint: `sha256:${"9".repeat(64)}`,
+          runtime_generation_fingerprint: `sha256:${"a".repeat(64)}`,
+        });
         const replay = await resumeRepositoryManagedDelegationV01(
           db,
           resumeInput,
-          resumedService,
+          replacementService,
           { now: () => at(23_000), platform: "darwin" },
         );
         assert.equal(replay.status, "reconciliation_required");
         assert.equal(replay.authority.worker_started, false);
         assert.equal(resumeCalls, 0);
+        const lost = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(lost);
+        const cancellation = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(lost.metadata.control_revision),
+        }, replacementService);
+        assert.equal(cancellation.status, "reconciliation_required");
+        assert.match(cancellation.ordinary_text, /durably recorded/u);
+        const attempt = listRepositoryManagedResumeAttemptsV01(db, {
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          run_id: started.run_id,
+        })[0]!;
+        const cancellationIntent = readRepositoryManagedResumeCancellationV01(
+          db,
+          attempt.attempt_fingerprint,
+        );
+        assert.equal(cancellationIntent?.provider_stop_confirmed, 0);
+        assert.equal(cancellationIntent?.resume_reacquisition_forbidden, 1);
+        const cancellationReplay = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(
+            readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata.control_revision,
+          ),
+        }, replacementService);
+        assert.equal(cancellationReplay.status, "exact_replay");
+        const blockedReplay = await resumeRepositoryManagedDelegationV01(
+          db, resumeInput, replacementService,
+          { now: () => at(24_000), platform: "darwin" },
+        );
+        assert.equal(blockedReplay.status, "reconciliation_required");
+        assert.equal(resumeCalls, 0);
+        await replacementService.shutdown();
       } else if (scenario === "cancel_before_marker") {
         delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
-        await assert.rejects(
-          resumeRepositoryManagedDelegationV01(
+        const blocked = await resumeRepositoryManagedDelegationV01(
             db,
             resumeInput,
             resumedService,
@@ -1955,8 +2084,8 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
                 throw new Error("cancel_before_invocation_marker");
               },
             },
-          ),
-        );
+          );
+        assert.equal(blocked.status, "blocked");
         const admitted = readAutonomyRunLedgerRecord(started.run_id, { db });
         assert(admitted);
         const cancelled = await cancelRepositoryManagedDelegationV01(db, {
@@ -2098,6 +2227,15 @@ function assertRepositoryExecutionMigrationV01(): void {
     assert(decisionSql.includes("resume_repository_managed_delegation"));
     assert(legacy.prepare(
       "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_attempts'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_runtime_claims'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_runtime_claim_history'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_cancellations'",
     ).get());
     assert(legacy.prepare(
       "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_vnext_repository_managed_resume_attempts_run'",

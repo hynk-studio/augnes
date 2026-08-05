@@ -600,6 +600,18 @@ async function main(): Promise<void> {
         count(restored, "vnext_repository_managed_resume_attempts"),
         count(db, "vnext_repository_managed_resume_attempts"),
       );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_runtime_claims"),
+        count(db, "vnext_repository_managed_resume_runtime_claims"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_runtime_claim_history"),
+        count(db, "vnext_repository_managed_resume_runtime_claim_history"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_cancellations"),
+        count(db, "vnext_repository_managed_resume_cancellations"),
+      );
       assert.equal(validateRecoveryCanonicalDatabaseV01(restored).status, "valid");
     } finally {
       restored.close();
@@ -1112,6 +1124,9 @@ function assertSchemaParityV01(): void {
     "vnext_repository_execution_attachments",
     "vnext_repository_run_resume_checkpoints",
     "vnext_repository_managed_resume_attempts",
+    "vnext_repository_managed_resume_runtime_claims",
+    "vnext_repository_managed_resume_runtime_claim_history",
+    "vnext_repository_managed_resume_cancellations",
     "vnext_repository_root_rebind_receipts",
     "vnext_repository_execution_decision_requests",
     "idx_vnext_physical_root_baselines_project",

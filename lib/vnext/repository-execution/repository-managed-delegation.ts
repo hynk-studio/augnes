@@ -863,7 +863,7 @@ function ordinaryCancellationTextV01(
     return "The exact queued managed repository run was cancelled before a worker started.";
   }
   if (outcome === "reconciliation_required") {
-    return `The exact managed repository run is ${state}; no owned worker was available to signal and no worker was started.`;
+    return `Cancellation is durably recorded for the exact managed repository run, which is ${state}; provider stop is not confirmed, no owned worker was available to signal, and no worker was started.`;
   }
   return `This is the same cancellation state for the exact managed repository run. Its current state is ${state}; no new signal was sent.`;
 }

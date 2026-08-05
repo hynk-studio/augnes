@@ -136,7 +136,15 @@ async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<str
         body.decision_request_fingerprint,
       ),
       decision_grant_fingerprint: requiredString(body.decision_grant_fingerprint),
-    }, getLiveNativeHostRunServiceV01());
+    }, getLiveNativeHostRunServiceV01(),
+    process.env.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        process.env.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION === "1"
+      ? {
+          after_admission_commit: () => {
+            throw new Error("canonical_resume_fail_after_admission");
+          },
+        }
+      : {});
   }
   if (body.action === "cancel_run") {
     exactKeys(body, [

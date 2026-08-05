@@ -4723,6 +4723,43 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
   );
   CREATE INDEX IF NOT EXISTS idx_vnext_repository_managed_resume_attempts_run
     ON vnext_repository_managed_resume_attempts(workspace_id, project_id, run_id, admitted_at DESC, attempt_fingerprint);
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claims (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_lifecycle TEXT NOT NULL CHECK (claim_lifecycle IN ('claimed', 'invocation_started', 'released', 'cancelled')),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claim_history (
+    attempt_fingerprint TEXT NOT NULL,
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    PRIMARY KEY (attempt_fingerprint, claim_revision),
+    UNIQUE (attempt_fingerprint, runtime_instance_fingerprint, runtime_generation_fingerprint),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_cancellations (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    cancellation_version TEXT NOT NULL CHECK (cancellation_version = 'repository_managed_resume_cancellation.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    attachment_id TEXT NOT NULL,
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    cancellation_requested_at TEXT NOT NULL CHECK (length(trim(cancellation_requested_at)) > 0),
+    cancellation_control_revision INTEGER NOT NULL CHECK (cancellation_control_revision >= 1),
+    provider_stop_confirmed INTEGER NOT NULL CHECK (provider_stop_confirmed IN (0, 1)),
+    resume_reacquisition_forbidden INTEGER NOT NULL CHECK (resume_reacquisition_forbidden = 1),
+    cancellation_signal_sent INTEGER NOT NULL CHECK (cancellation_signal_sent IN (0, 1)),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -4764,6 +4801,9 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
     "vnext_repository_execution_attachments",
     "vnext_repository_run_resume_checkpoints",
     "vnext_repository_managed_resume_attempts",
+    "vnext_repository_managed_resume_runtime_claims",
+    "vnext_repository_managed_resume_runtime_claim_history",
+    "vnext_repository_managed_resume_cancellations",
     "vnext_repository_root_rebind_receipts",
     "vnext_repository_execution_decision_requests",
   ];

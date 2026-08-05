@@ -624,6 +624,9 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
         "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_session_token_hash;" +
       "DROP TABLE vnext_project_continuity_pins;" +
         "DROP TABLE vnext_project_continuity_pin_collections;" +
+        "DROP TABLE vnext_repository_managed_resume_cancellations;" +
+        "DROP TABLE vnext_repository_managed_resume_runtime_claim_history;" +
+        "DROP TABLE vnext_repository_managed_resume_runtime_claims;" +
         "DROP TABLE vnext_repository_managed_resume_attempts;" +
         "DROP TABLE vnext_repository_run_resume_checkpoints;" +
         "DROP TABLE vnext_repository_execution_decision_requests;" +

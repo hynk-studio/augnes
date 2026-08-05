@@ -7,6 +7,10 @@ export const REPOSITORY_MANAGED_RESUME_VERSION_V01 =
   "repository_managed_resume.v0.1" as const;
 export const REPOSITORY_MANAGED_RESUME_ATTEMPT_VERSION_V01 =
   "repository_managed_resume_attempt.v0.1" as const;
+export const REPOSITORY_MANAGED_RESUME_RUNTIME_CLAIM_VERSION_V01 =
+  "repository_managed_resume_runtime_claim.v0.1" as const;
+export const REPOSITORY_MANAGED_RESUME_CANCELLATION_VERSION_V01 =
+  "repository_managed_resume_cancellation.v0.1" as const;
 export const NATIVE_HOST_REPOSITORY_RESUME_CONTEXT_VERSION_V01 =
   "native_host_repository_resume_context.v0.1" as const;
 
@@ -42,6 +46,35 @@ export interface RepositoryManagedResumeAttemptV01 {
   admitted_at: string;
   provider_invocation_started_at: string | null;
   settled_at: string | null;
+  updated_at: string;
+}
+
+/** Private, machine-local current execution claim. It is mutable; the attempt is not. */
+export interface RepositoryManagedResumeRuntimeClaimV01 {
+  claim_version: typeof REPOSITORY_MANAGED_RESUME_RUNTIME_CLAIM_VERSION_V01;
+  attempt_fingerprint: string;
+  runtime_instance_fingerprint: string;
+  runtime_generation_fingerprint: string;
+  claim_revision: number;
+  claim_lifecycle: "claimed" | "invocation_started" | "released" | "cancelled";
+  claimed_at: string;
+  updated_at: string;
+}
+
+/** Private exact cancellation intent when provider stop is not yet confirmed. */
+export interface RepositoryManagedResumeCancellationV01 {
+  cancellation_version: typeof REPOSITORY_MANAGED_RESUME_CANCELLATION_VERSION_V01;
+  attempt_fingerprint: string;
+  workspace_id: string;
+  project_id: string;
+  run_id: string;
+  attachment_id: string;
+  controller_generation: number;
+  cancellation_requested_at: string;
+  cancellation_control_revision: number;
+  provider_stop_confirmed: 0 | 1;
+  resume_reacquisition_forbidden: 1;
+  cancellation_signal_sent: 0 | 1;
   updated_at: string;
 }
 

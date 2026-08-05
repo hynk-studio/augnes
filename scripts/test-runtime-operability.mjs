@@ -231,6 +231,7 @@ try {
     true,
   );
   assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
+  assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
   assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
   assert.equal(repositoryResumeMcpEvidence?.same_run, true);
   assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
@@ -327,6 +328,8 @@ try {
       repositoryResumeMcpEvidence?.stale_after_repository_a_drift === true,
     repository_resume_worker_relaunched:
       repositoryResumeMcpEvidence?.worker_relaunched ?? null,
+    repository_resume_process_replacement_pre_marker:
+      repositoryResumeMcpEvidence?.process_replacement_pre_marker === true,
     repository_resume_ambiguous_operation:
       repositoryResumeMcpEvidence?.ambiguous_operation === true,
     repository_resume_approval_pending:
@@ -922,6 +925,7 @@ async function testRepositoryResumeEligibilityRestart() {
   // gets no automatic-resume policy and may continue only after the exact
   // Browser-confirmed MCP request below.
   delete environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+  environment.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION = "1";
 
   const restarted = startManagedSupervisor(
     environment,
@@ -1036,27 +1040,96 @@ async function testRepositoryResumeEligibilityRestart() {
           decisionGrantFingerprint: resumeGrant.grant_fingerprint,
         },
       );
-      assert.equal(resumed.structuredContent.status, "accepted");
+      assert.equal(resumed.structuredContent.status, "blocked");
       assert.equal(resumed.structuredContent.run_id, beforeRestart.runId);
       assert.equal(resumed.structuredContent.attachment_id, beforeRestart.attachmentId);
+      assert.equal(resumed.structuredContent.authority.worker_started, false);
+      const verificationDb = openFixtureDatabaseV01();
+      try {
+        const attempts = listRepositoryManagedResumeAttemptsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        assert.equal(attempts.length, 1);
+        assert.equal(attempts[0].attempt_state, "admitted_not_invoked");
+        assert.equal(
+          attempts[0].resumed_controller_generation,
+          attempts[0].prior_controller_generation + 1,
+        );
+        return {
+          eligibility,
+          afterBEligibility,
+          staleRead,
+          resumed,
+          attempt: attempts[0],
+          resumeInput: {
+            workspaceId: registeredRuntimeWorkspaceId,
+            projectId: registeredRuntimeResumeProjectAId,
+            runId: beforeRestart.runId,
+            attachmentId: beforeRestart.attachmentId,
+            expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
+            expectedStateFingerprint:
+              requestedResume.structuredContent.expected_state_fingerprint,
+            expectedControllerGeneration:
+              requestedResume.structuredContent.expected_controller_generation,
+            expectedRunControlRevision:
+              requestedResume.structuredContent.expected_run_control_revision,
+            decisionRequestFingerprint: resumeGrant.request_fingerprint,
+            decisionGrantFingerprint: resumeGrant.grant_fingerprint,
+          },
+        };
+      } finally {
+        verificationDb.close();
+      }
+    },
+  });
+
+  const restartedUi = restartedReady.children.find((child) => child.role === "ui");
+  assert(restartedUi, "restarted result must identify the UI child");
+  process.kill(restartedUi.pid, "SIGKILL");
+  await waitForJsonEvent(
+    restarted,
+    (event) => event.command === "start" && event.result === "failed" &&
+      event.reason === "required_child_exited",
+  );
+  const restartedExit = await waitForManagedExit(restarted, 20_000);
+  assert.notEqual(restartedExit.code, 0);
+  await assertStoppedScenario(scenario, restartedReady, restartedProcessTree);
+
+  delete environment.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION;
+  const reacquired = startManagedSupervisor(
+    environment,
+    scenario,
+    "resume-reacquire-after-admission",
+    "canonical",
+  );
+  const reacquiredReady = await waitForJsonEvent(
+    reacquired,
+    (event) => event.command === "start" && event.result === "ready",
+  );
+  assertReadyResult(reacquiredReady);
+  selectedPorts.push({
+    scenario: `${scenario.name}-reacquired`,
+    ui: reacquiredReady.ui_port,
+    bridge: reacquiredReady.bridge_port,
+  });
+  rememberOwnedPids(reacquiredReady);
+  const reacquiredTree = processTreePids(reacquiredReady);
+  for (const pid of reacquiredTree) observedOwnedPids.add(pid);
+  const reacquiredResult = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ callExecution }) => {
+      const resumed = await callExecution(
+        "augnes_resume_repository_delegation",
+        afterRestart.resumeInput,
+      );
+      assert.equal(resumed.structuredContent.status, "accepted");
       assert.equal(resumed.structuredContent.authority.worker_started, true);
       const replay = await callExecution(
         "augnes_resume_repository_delegation",
-        {
-          workspaceId: registeredRuntimeWorkspaceId,
-          projectId: registeredRuntimeResumeProjectAId,
-          runId: beforeRestart.runId,
-          attachmentId: beforeRestart.attachmentId,
-          expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
-          expectedStateFingerprint:
-            requestedResume.structuredContent.expected_state_fingerprint,
-          expectedControllerGeneration:
-            requestedResume.structuredContent.expected_controller_generation,
-          expectedRunControlRevision:
-            requestedResume.structuredContent.expected_run_control_revision,
-          decisionRequestFingerprint: resumeGrant.request_fingerprint,
-          decisionGrantFingerprint: resumeGrant.grant_fingerprint,
-        },
+        afterRestart.resumeInput,
       );
       assert.equal(replay.structuredContent.status, "exact_replay");
       assert.equal(replay.structuredContent.authority.worker_started, false);
@@ -1075,43 +1148,22 @@ async function testRepositoryResumeEligibilityRestart() {
           run_id: beforeRestart.runId,
         });
         assert.equal(attempts.length, 1);
-        assert.equal(attempts[0].attempt_state, "settled");
-        assert.equal(
-          attempts[0].resumed_controller_generation,
-          attempts[0].prior_controller_generation + 1,
-        );
-        assert.equal(
-          checkpoints.at(-1)?.controller_generation,
-          attempts[0].resumed_controller_generation,
-        );
-        return {
-          eligibility,
-          afterBEligibility,
-          staleRead,
-          resumed,
-          replay,
-          terminal,
-          attempt: attempts[0],
-          checkpointCount: checkpoints.length,
-        };
+        assert.equal(attempts[0].attempt_fingerprint, afterRestart.attempt.attempt_fingerprint);
+        assert.equal(attempts[0].resumed_controller_generation,
+          afterRestart.attempt.resumed_controller_generation);
+        assert.equal(checkpoints.at(-1)?.controller_generation,
+          attempts[0].resumed_controller_generation);
+        return { resumed, replay, terminal, checkpointCount: checkpoints.length };
       } finally {
         verificationDb.close();
       }
     },
   });
-
-  const stop = await runCli(
-    ["stop"],
-    environment,
-    scenario,
-    "resume-eligibility-stop",
-    "canonical",
-  );
+  const stop = await runCli(["stop"], environment, scenario, "resume-reacquire-stop", "canonical");
   assert.equal(stop.code, 0, stop.output);
-  assert.equal(lastJsonResult(stop.stdout).state, "stopped");
-  const restartedExit = await waitForManagedExit(restarted, 20_000);
-  assert.equal(restartedExit.code, 0, restarted.output());
-  await assertStoppedScenario(scenario, restartedReady, restartedProcessTree);
+  const reacquiredExit = await waitForManagedExit(reacquired, 20_000);
+  assert.equal(reacquiredExit.code, 0, reacquired.output());
+  await assertStoppedScenario(scenario, reacquiredReady, reacquiredTree);
   removeScenarioLogs(scenario);
 
   repositoryResumeMcpEvidence = {
@@ -1123,18 +1175,21 @@ async function testRepositoryResumeEligibilityRestart() {
     stale_after_repository_a_drift:
       afterRestart.staleRead.structuredContent.resume_eligibility.status ===
       "stale",
-    worker_relaunched: afterRestart.resumed.structuredContent.authority.worker_started,
+    worker_relaunched: reacquiredResult.resumed.structuredContent.authority.worker_started,
+    process_replacement_pre_marker:
+      afterRestart.resumed.structuredContent.status === "blocked" &&
+      reacquiredResult.resumed.structuredContent.status === "accepted",
     exact_replay_worker_started:
-      afterRestart.replay.structuredContent.authority.worker_started,
-    same_run: afterRestart.resumed.structuredContent.run_id === beforeRestart.runId,
+      reacquiredResult.replay.structuredContent.authority.worker_started,
+    same_run: reacquiredResult.resumed.structuredContent.run_id === beforeRestart.runId,
     same_attachment:
-      afterRestart.resumed.structuredContent.attachment_id ===
+      reacquiredResult.resumed.structuredContent.attachment_id ===
       beforeRestart.attachmentId,
     generation_incremented_once:
       afterRestart.attempt.resumed_controller_generation ===
       afterRestart.attempt.prior_controller_generation + 1,
-    resumed_checkpoint: afterRestart.checkpointCount === 8,
-    terminal_result: afterRestart.terminal.status === "completed",
+    resumed_checkpoint: reacquiredResult.checkpointCount === 8,
+    terminal_result: reacquiredResult.terminal.status === "completed",
   };
 }
 

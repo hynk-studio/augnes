@@ -272,6 +272,9 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
     admitted_run_control_revision: number;
     admitted_step_control_revision: number;
     attempt_fingerprint: string;
+    runtime_claim_revision: number;
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
   };
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
   repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
@@ -2009,6 +2012,12 @@ function assertPreAdmittedRepositoryResumeMatchesV01(
       claim.execution_envelope_fingerprint ||
     run.metadata.repository_resume_attempt_fingerprint !==
       claim.attempt_fingerprint ||
+    run.metadata.repository_resume_runtime_claim_revision !==
+      claim.runtime_claim_revision ||
+    run.metadata.runtime_instance_fingerprint !==
+      claim.runtime_instance_fingerprint ||
+    run.metadata.runtime_generation_fingerprint !==
+      claim.runtime_generation_fingerprint ||
     run.metadata.controller_generation !== claim.resumed_controller_generation ||
     run.metadata.control_revision !== claim.admitted_run_control_revision ||
     !step ||

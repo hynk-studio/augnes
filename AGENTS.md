@@ -170,7 +170,10 @@ capability, compatibility, or deferred work rather than default product UI.
   checkpoint, and provider thread are preserved while controller generation
   advances exactly once. A durable provider-invocation-start marker precedes
   `thread/resume`; once present, controller/result loss is reconciliation and
-  never a second provider call. Generic historical interactive/policy resume
+  never a second provider call. The immutable attempt and mutable supervised
+  runtime claim are separate: exact user replay may transfer only a pre-marker
+  claim by CAS, while durable lost-controller cancellation forbids later
+  reacquisition without claiming provider stop. Generic historical interactive/policy resume
   keeps its existing owner. Companion startup never resumes automatically.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must

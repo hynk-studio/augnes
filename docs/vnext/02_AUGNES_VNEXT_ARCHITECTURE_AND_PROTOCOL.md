@@ -656,6 +656,16 @@ provider binding, approval absence, and controller absence; preserves the run,
 attachment, envelope, and provider thread; and advances the controller
 generation exactly once. Same run does not mean new run.
 
+The immutable attempt is distinct from the mutable
+`repository_managed_resume_runtime_claim.v0.1`. A verified replacement
+Companion runtime may transfer that claim with one immediate exact CAS only
+while the attempt is `admitted_not_invoked`, the invocation marker is absent,
+and every admission relation still matches. Transfer changes only the claim
+revision and supervised runtime binding; it cannot consume the decision again
+or create another attempt, run, attachment, controller generation, event
+lifecycle, or provider thread. A stale claimant fails closed, and a surviving
+invocation marker forbids transfer.
+
 After commit, the launch gate observes physical root, bounded worktree,
 adapter/capability, controller absence, then canonical database state. It
 durably changes the attempt from `admitted_not_invoked` to
@@ -668,7 +678,11 @@ old-generation lifecycle events fail closed.
 
 Cancellation remains risk-reducing and attachment/run bound. It may cancel an
 admitted-not-invoked attempt atomically with zero provider calls or signal only
-the exact resumed controller after invocation. Result normalization,
+the exact resumed controller after invocation. When the controller is lost or
+provider stop cannot be confirmed,
+`repository_managed_resume_cancellation.v0.1` records the exact intent and
+forbids later claim reacquisition without pretending that the provider stopped.
+Result normalization,
 RunReceipt, and at-most-one proposal remain shared owners. Run completion is
 not semantic acceptance. Historical interactive and policy-triggered resume
 retain their existing identity and active-selection compatibility contract.

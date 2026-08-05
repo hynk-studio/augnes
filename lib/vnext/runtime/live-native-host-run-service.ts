@@ -26,9 +26,14 @@ import {
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   readRepositoryManagedResumeAttemptV01,
+  insertRepositoryManagedResumeCancellationInsideTransactionV01,
+  markRepositoryManagedResumeCancellationSignalInsideTransactionV01,
+  readRepositoryManagedResumeCancellationV01,
+  readRepositoryManagedResumeRuntimeClaimV01,
   readRepositoryExecutionAttachmentV01,
   readRepositoryRunResumeCheckpointV01,
   transitionRepositoryManagedResumeAttemptInsideTransactionV01,
+  transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01,
 } from "@/lib/vnext/persistence/repository-execution-store";
 import { admitRepositoryRunResumeCheckpointV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
 import {
@@ -79,6 +84,7 @@ import {
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { RepositoryManagedResumeAttemptV01 } from "@/types/vnext/repository-managed-resume";
+import { REPOSITORY_MANAGED_RESUME_CANCELLATION_VERSION_V01 } from "@/types/vnext/repository-managed-resume";
 import { validateBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/bounded-automation-cycle";
 import { readBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
@@ -179,6 +185,36 @@ export class LiveNativeHostRunServiceErrorV01 extends Error {
   }
 }
 
+function supervisedRuntimeFingerprintsV01(
+  environment: NodeJS.ProcessEnv,
+): {
+  runtime_instance_fingerprint: string;
+  runtime_generation_fingerprint: string;
+} | null {
+  const instanceId = environment.AUGNES_RUNTIME_INSTANCE_ID?.trim();
+  const generationId = environment.AUGNES_RUNTIME_GENERATION_ID?.trim();
+  const repositoryFingerprint =
+    environment.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT?.trim();
+  if (!instanceId || !generationId || !repositoryFingerprint) return null;
+  return {
+    runtime_instance_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        owner: "verified_companion_runtime_instance",
+        instance_id: instanceId,
+        repository_fingerprint: repositoryFingerprint,
+      }),
+    ),
+    runtime_generation_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        owner: "verified_companion_runtime_generation",
+        instance_id: instanceId,
+        generation_id: generationId,
+        repository_fingerprint: repositoryFingerprint,
+      }),
+    ),
+  };
+}
+
 export class LiveNativeHostRunServiceV01 {
   private readonly controllers = new Map<string, LiveRunControllerV01>();
   private readonly openDatabase: NonNullable<
@@ -191,9 +227,12 @@ export class LiveNativeHostRunServiceV01 {
   constructor(private readonly options: LiveNativeHostRunServiceOptionsV01 = {}) {
     this.openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
     this.now = options.now ?? (() => new Date().toISOString());
+    const supervised = supervisedRuntimeFingerprintsV01(process.env);
     this.runtimeInstanceFingerprint = options.runtime_instance_fingerprint ??
+      supervised?.runtime_instance_fingerprint ??
       createProtocolSha256V01(`live-native-host-runtime:${randomUUID()}`);
     this.runtimeGenerationFingerprint = options.runtime_generation_fingerprint ??
+      supervised?.runtime_generation_fingerprint ??
       createProtocolSha256V01(`live-native-host-generation:${randomUUID()}`);
   }
 
@@ -926,8 +965,33 @@ export class LiveNativeHostRunServiceV01 {
       const resumeAttempt = resumeAttemptFingerprint
         ? readRepositoryManagedResumeAttemptV01(db, resumeAttemptFingerprint)
         : null;
+      const resumeCancellation = resumeAttemptFingerprint
+        ? readRepositoryManagedResumeCancellationV01(db, resumeAttemptFingerprint)
+        : null;
       if (isTerminalRunnerStatus(run.status)) {
         outcome = "exact_replay";
+      } else if (resumeAttempt && resumeCancellation) {
+        if (
+          controller && !controller.completionSettled &&
+          !activeController
+        ) {
+          refuseV01("live_host_repository_cancel_controller_mismatch", 409);
+        }
+        if (
+          activeController &&
+          resumeCancellation.controller_generation ===
+            resumeAttempt.resumed_controller_generation &&
+          markRepositoryManagedResumeCancellationSignalInsideTransactionV01(
+            db,
+            resumeAttempt.attempt_fingerprint,
+            this.now(),
+          )
+        ) {
+          interrupt = true;
+          outcome = "cancel_requested";
+        } else {
+          outcome = "exact_replay";
+        }
       } else if (run.status === "cancelling") {
         outcome = "exact_replay";
       } else if (run.status === "queued") {
@@ -1035,6 +1099,91 @@ export class LiveNativeHostRunServiceV01 {
         }), { db });
         interrupt = activeController;
         outcome = "cancelled";
+      } else if (
+        resumeAttempt &&
+        (run.status === "paused" ||
+          resumeAttempt.attempt_state === "provider_resume_invocation_started" ||
+          resumeAttempt.attempt_state === "controller_owned" ||
+          resumeAttempt.attempt_state === "reconciliation_required") &&
+        !activeController
+      ) {
+        if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
+          refuseV01("live_host_control_revision_conflict", 409);
+        }
+        if (controller && !controller.completionSettled) {
+          refuseV01("live_host_repository_cancel_controller_mismatch", 409);
+        }
+        const observedAt = this.now();
+        const cancellationRevision = input.control_revision + 1;
+        insertRepositoryManagedResumeCancellationInsideTransactionV01(db, {
+          cancellation_version: REPOSITORY_MANAGED_RESUME_CANCELLATION_VERSION_V01,
+          attempt_fingerprint: resumeAttempt.attempt_fingerprint,
+          workspace_id: input.config.workspace_id,
+          project_id: input.config.project_id,
+          run_id: run.run_id,
+          attachment_id: input.attachment_id,
+          controller_generation: resumeAttempt.resumed_controller_generation,
+          cancellation_requested_at: observedAt,
+          cancellation_control_revision: cancellationRevision,
+          provider_stop_confirmed: 0,
+          resume_reacquisition_forbidden: 1,
+          cancellation_signal_sent: 0,
+          updated_at: observedAt,
+        });
+        if (resumeAttempt.attempt_state !== "reconciliation_required") {
+          transitionRepositoryManagedResumeAttemptInsideTransactionV01(db, {
+            attempt_fingerprint: resumeAttempt.attempt_fingerprint,
+            from: [resumeAttempt.attempt_state],
+            to: "reconciliation_required",
+            updated_at: observedAt,
+          });
+        }
+        const runtimeClaim = readRepositoryManagedResumeRuntimeClaimV01(
+          db,
+          resumeAttempt.attempt_fingerprint,
+        );
+        if (runtimeClaim?.claim_lifecycle === "claimed") {
+          transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+            attempt_fingerprint: resumeAttempt.attempt_fingerprint,
+            claim_revision: runtimeClaim.claim_revision,
+            runtime_instance_fingerprint: runtimeClaim.runtime_instance_fingerprint,
+            runtime_generation_fingerprint: runtimeClaim.runtime_generation_fingerprint,
+            from: "claimed",
+            to: "cancelled",
+            updated_at: observedAt,
+          });
+        }
+        updateAutonomyRunLedgerFields(run.run_id, {
+          status: "paused",
+          updated_at: observedAt,
+          stop_reason: "cancellation_requested_provider_stop_unconfirmed",
+          metadata: {
+            ...run.metadata,
+            control_revision: cancellationRevision,
+            cancellation_requested: true,
+            cancellation_requested_at: observedAt,
+            cancellation_request_revision: cancellationRevision,
+            provider_stop_confirmed: false,
+            resume_reacquisition_forbidden: true,
+            reconciliation_required: true,
+            public_reason: "cancellation_recorded_provider_stop_unconfirmed",
+          },
+        }, { db });
+        appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+          run_id: run.run_id,
+          step_id: stringMetadataV01(run.metadata.repository_resume_step_id) ?? undefined,
+          event_type: "run_cancelling",
+          status: "paused",
+          message:
+            "Cancellation is recorded for the exact resumed generation; provider stop is not yet confirmed.",
+          payload: {
+            controller_generation: resumeAttempt.resumed_controller_generation,
+            provider_stop_confirmed: false,
+            resume_reacquisition_forbidden: true,
+          },
+          created_at: observedAt,
+        }), { db });
+        outcome = "reconciliation_required";
       } else if (run.status === "paused") {
         outcome = "reconciliation_required";
       } else {
@@ -2311,6 +2460,26 @@ function transitionResumeAttemptV01(
         ? { final_outcome: input.final_outcome ?? null }
         : {}),
     });
+    const runtimeClaim = readRepositoryManagedResumeRuntimeClaimV01(
+      db,
+      input.attempt_fingerprint,
+    );
+    if (
+      runtimeClaim &&
+      (input.to === "settled" || input.to === "reconciliation_required") &&
+      (runtimeClaim.claim_lifecycle === "claimed" ||
+        runtimeClaim.claim_lifecycle === "invocation_started")
+    ) {
+      transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01(db, {
+        attempt_fingerprint: input.attempt_fingerprint,
+        claim_revision: runtimeClaim.claim_revision,
+        runtime_instance_fingerprint: runtimeClaim.runtime_instance_fingerprint,
+        runtime_generation_fingerprint: runtimeClaim.runtime_generation_fingerprint,
+        from: runtimeClaim.claim_lifecycle,
+        to: "released",
+        updated_at: input.observed_at,
+      });
+    }
     db.exec("COMMIT");
   } catch (error) {
     if (db.inTransaction) db.exec("ROLLBACK");

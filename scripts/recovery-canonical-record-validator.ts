@@ -1364,6 +1364,9 @@ export function validateRecoveryCanonicalDatabaseV01(
       "vnext_repository_execution_attachments",
       "vnext_repository_run_resume_checkpoints",
       "vnext_repository_managed_resume_attempts",
+      "vnext_repository_managed_resume_runtime_claims",
+      "vnext_repository_managed_resume_runtime_claim_history",
+      "vnext_repository_managed_resume_cancellations",
       "vnext_repository_root_rebind_receipts",
       "vnext_repository_execution_decision_requests",
     ];
@@ -1390,6 +1393,44 @@ export function validateRecoveryCanonicalDatabaseV01(
             !validateRepositoryManagedResumeAttemptRelationsV01(db, attempt),
         )
       ) refuseV01();
+      const invalidRuntimeClaims = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claims claim
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = claim.attempt_fingerprint
+          LEFT JOIN vnext_repository_managed_resume_runtime_claim_history history
+            ON history.attempt_fingerprint = claim.attempt_fingerprint
+           AND history.claim_revision = claim.claim_revision
+           AND history.runtime_instance_fingerprint = claim.runtime_instance_fingerprint
+           AND history.runtime_generation_fingerprint = claim.runtime_generation_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR history.attempt_fingerprint IS NULL
+            OR claim.claim_revision < 1
+            OR (claim.claim_lifecycle = 'claimed'
+                AND attempt.attempt_state <> 'admitted_not_invoked')
+      `).get() as { count: number }).count);
+      const invalidCancellations = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_cancellations cancellation
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = cancellation.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR cancellation.workspace_id <> attempt.workspace_id
+            OR cancellation.project_id <> attempt.project_id
+            OR cancellation.run_id <> attempt.run_id
+            OR cancellation.attachment_id <> attempt.attachment_id
+            OR cancellation.controller_generation <> attempt.resumed_controller_generation
+            OR cancellation.provider_stop_confirmed <> 0
+            OR cancellation.resume_reacquisition_forbidden <> 1
+      `).get() as { count: number }).count);
+      const invalidClaimHistory = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claim_history history
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = history.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL OR history.claim_revision < 1
+      `).get() as { count: number }).count);
+      if (invalidRuntimeClaims > 0 || invalidClaimHistory > 0 || invalidCancellations > 0) refuseV01();
     }
     const records = readCanonicalRecordsV01(db);
     const byIdentity = new Map<string, ParsedCanonicalRecordV01>();
