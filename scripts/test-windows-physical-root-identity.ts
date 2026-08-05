@@ -210,6 +210,87 @@ try {
   assert.deepEqual(observed, identity);
   assert.equal(helperCalls, 1);
 
+  let replacementHelperCalls = 0;
+  queueMicrotask(() => {
+    writeFileSync(helperPath, "replaced-test-double\n", "utf8");
+  });
+  await assert.rejects(
+    inspectWindowsPhysicalRootIdentityV01("C:\\repo", {
+      platform: "win32",
+      architecture: "x64",
+      windows_version: "10.0.26100",
+      runtime_root: temporaryRoot,
+      helper_process: {
+        async run() {
+          replacementHelperCalls += 1;
+          throw new Error("must not execute replaced helper");
+        },
+      },
+    }),
+    isWindowsError("windows_physical_identity_component_changed"),
+  );
+  assert.equal(replacementHelperCalls, 0);
+  writeFileSync(helperPath, "reviewed-test-double\n", "utf8");
+
+  const escapeRuntimeRoot = mkdtempSync(
+    path.join(os.tmpdir(), "augnes-windows-component-runtime-"),
+  );
+  const escapeOutsideRoot = mkdtempSync(
+    path.join(os.tmpdir(), "augnes-windows-component-outside-"),
+  );
+  let escapedHelperCalls = 0;
+  try {
+    const escapeLogicalParent = path.join(escapeRuntimeRoot, "native");
+    const escapeLogicalDirectory = path.join(escapeLogicalParent, "windows-x64");
+    mkdirSync(escapeLogicalParent, { recursive: true });
+    symlinkSync(
+      escapeOutsideRoot,
+      escapeLogicalDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const escapedHelperPath = path.join(
+      escapeOutsideRoot,
+      path.basename(WINDOWS_PHYSICAL_ROOT_HELPER_RELATIVE_PATH_V01),
+    );
+    const escapedManifestPath = path.join(
+      escapeOutsideRoot,
+      path.basename(WINDOWS_PHYSICAL_ROOT_HELPER_MANIFEST_RELATIVE_PATH_V01),
+    );
+    writeFileSync(escapedHelperPath, "escaped-test-double\n", "utf8");
+    const escapedHelperSha256 = createHash("sha256")
+      .update("escaped-test-double\n")
+      .digest("hex");
+    writeFileSync(escapedManifestPath, `${JSON.stringify({
+      architecture: "x64",
+      contract: WINDOWS_PHYSICAL_ROOT_HELPER_MANIFEST_V01,
+      helper_contract: WINDOWS_PHYSICAL_ROOT_HELPER_CONTRACT_V01,
+      helper_file: WINDOWS_PHYSICAL_ROOT_HELPER_RELATIVE_PATH_V01,
+      helper_sha256: escapedHelperSha256,
+      identity_version: WINDOWS_PHYSICAL_ROOT_IDENTITY_VERSION_V01,
+      minimum_windows_build: 19045,
+      platform: "win32",
+    }, null, 2)}\n`, "utf8");
+    await assert.rejects(
+      inspectWindowsPhysicalRootIdentityV01("C:\\normal\\descendant", {
+        platform: "win32",
+        architecture: "x64",
+        windows_version: "10.0.26100",
+        runtime_root: escapeRuntimeRoot,
+        helper_process: {
+          async run() {
+            escapedHelperCalls += 1;
+            throw new Error("must not execute physically escaped helper");
+          },
+        },
+      }),
+      isWindowsError("windows_physical_identity_component_physical_escape"),
+    );
+    assert.equal(escapedHelperCalls, 0);
+  } finally {
+    rmSync(escapeRuntimeRoot, { recursive: true, force: true });
+    rmSync(escapeOutsideRoot, { recursive: true, force: true });
+  }
+
   await assert.rejects(
     inspectWindowsPhysicalRootIdentityV01("C:\\repo", {
       platform: "win32",
@@ -253,6 +334,28 @@ try {
       },
     }),
     isWindowsError("windows_physical_identity_directory_unavailable"),
+  );
+  await assert.rejects(
+    inspectWindowsPhysicalRootIdentityV01("C:\\normal\\descendant", {
+      platform: "win32",
+      architecture: "x64",
+      windows_version: "10.0.26100",
+      runtime_root: temporaryRoot,
+      helper_process: {
+        async run() {
+          return {
+            stdout: JSON.stringify({
+              code: "reparse_ancestor_unsupported",
+              contract: WINDOWS_PHYSICAL_ROOT_HELPER_CONTRACT_V01,
+              status: "error",
+            }),
+            stderr: "",
+            exit_code: 1,
+          };
+        },
+      },
+    }),
+    isWindowsError("windows_physical_identity_reparse_target_unsupported"),
   );
 
   writeFileSync(helperPath, "modified-test-double\n", "utf8");
@@ -519,6 +622,9 @@ try {
     "GetVolumeInformationByHandleW",
     "CloseHandle",
     "FILE_ID_INFO",
+    "ClassifyPathComponents",
+    "kMaximumPathComponents",
+    "reparse_ancestor_unsupported",
   ]) {
     assert(nativeBytes.includes(required), `missing native owner: ${required}`);
   }
@@ -549,6 +655,9 @@ try {
     windows_10_22h2_admitted: true,
     pre_windows_10_22h2_refused: true,
     missing_and_modified_component_refused: true,
+    component_replacement_before_execution_refused: true,
+    physical_package_root_escape_refused_before_execution: true,
+    unsupported_reparse_ancestor_contract_refused: true,
     native_unsupported_code_preserved: true,
     timeout_process_cleaned: timeoutProcessCleaned,
     package_root_bounded_integrity_contract: true,
@@ -585,6 +694,14 @@ async function runRealWindowsFilesystemProofV01(): Promise<Record<string, unknow
   let reparseLoopRefusal: string | null = null;
 
   try {
+    const repositoryIdentity = await inspect(process.cwd());
+    assert.equal(repositoryIdentity.filesystem_family, "NTFS");
+    const helperDirectoryIdentity = await inspect(
+      path.join(process.cwd(), "native", "windows-x64"),
+    );
+    assert.equal(helperDirectoryIdentity.filesystem_family, "NTFS");
+    const proofRootIdentity = await inspect(proofRoot);
+    assert.equal(proofRootIdentity.filesystem_family, "NTFS");
     const stableRoot = path.join(proofRoot, "stable");
     mkdirSync(path.join(stableRoot, "nested"), { recursive: true });
     const stable = await inspect(stableRoot);
@@ -664,6 +781,9 @@ async function runRealWindowsFilesystemProofV01(): Promise<Record<string, unknow
     return {
       real_windows_filesystem_proof: true,
       real_windows_host_release: os.release(),
+      repository_ancestor_reparse_policy_verified: true,
+      disposable_root_ancestor_reparse_policy_verified: true,
+      helper_directory_ancestor_reparse_policy_verified: true,
       restart_identity_stable: true,
       drive_case_identity_stable: true,
       dot_dot_identity_stable: true,

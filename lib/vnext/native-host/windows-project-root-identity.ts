@@ -49,6 +49,22 @@ interface WindowsPhysicalRootHelperManifestV01 {
   helper_sha256: string;
 }
 
+interface WindowsPhysicalRootComponentSnapshotV01 {
+  logical_path: string;
+  physical_path: string;
+  device: bigint;
+  inode: bigint;
+  size: bigint;
+  modified_ns: bigint;
+  changed_ns: bigint;
+  sha256: string;
+}
+
+interface WindowsPhysicalRootManifestReadV01 {
+  manifest: WindowsPhysicalRootHelperManifestV01;
+  component: WindowsPhysicalRootComponentSnapshotV01;
+}
+
 export interface WindowsPhysicalRootHelperProcessV01 {
   run(input: {
     helper_path: string;
@@ -153,12 +169,22 @@ export async function inspectWindowsPhysicalRootIdentityV01(
   );
   const normalizedInput = validateWindowsRootInputV01(canonicalRoot);
   const runtimeRoot = resolveRuntimeRootV01(options.runtime_root ?? process.cwd());
-  const manifest = readWindowsHelperManifestV01(runtimeRoot);
-  const helperPath = resolveVerifiedHelperPathV01(runtimeRoot, manifest);
+  const runtimeRootSnapshot = captureRuntimeRootSnapshotV01(runtimeRoot);
+  const manifestRead = readWindowsHelperManifestV01(runtimeRoot);
+  const helper = resolveVerifiedHelperPathV01(
+    runtimeRoot,
+    manifestRead.manifest,
+  );
+  // Yield once so same-process replacement attempts between admission and
+  // execution are covered by the final identity/integrity revalidation too.
+  await Promise.resolve();
+  assertRuntimeRootSnapshotUnchangedV01(runtimeRoot, runtimeRootSnapshot);
+  assertComponentSnapshotUnchangedV01(runtimeRoot, manifestRead.component);
+  assertComponentSnapshotUnchangedV01(runtimeRoot, helper);
   const output = await (
     options.helper_process ?? SYSTEM_WINDOWS_PHYSICAL_ROOT_HELPER_PROCESS_V01
   ).run({
-    helper_path: helperPath,
+    helper_path: helper.physical_path,
     canonical_root: normalizedInput,
     runtime_root: runtimeRoot,
   });
@@ -300,6 +326,12 @@ function parseWindowsPhysicalRootHelperErrorV01(raw: string): string | null {
       "windows_physical_identity_file_identity_unavailable",
     reparse_classification_unavailable:
       "windows_physical_identity_reparse_classification_unavailable",
+    reparse_ancestor_unavailable:
+      "windows_physical_identity_reparse_classification_unavailable",
+    reparse_ancestor_unsupported:
+      "windows_physical_identity_reparse_target_unsupported",
+    reparse_ancestor_ambiguous:
+      "windows_physical_identity_reparse_target_ambiguous",
     filesystem_classification_unavailable:
       "windows_physical_identity_filesystem_classification_unavailable",
     filesystem_unsupported:
@@ -394,7 +426,7 @@ function resolveRuntimeRootV01(candidate: string): string {
     if (!stats.isDirectory() || stats.isSymbolicLink()) {
       throw new Error("runtime root is not a regular directory");
     }
-    return realpathSync(candidate);
+    return realpathSync.native(candidate);
   } catch {
     throw new WindowsProjectRootIdentityErrorV01(
       "windows_physical_identity_runtime_root_invalid",
@@ -404,23 +436,15 @@ function resolveRuntimeRootV01(candidate: string): string {
 
 function readWindowsHelperManifestV01(
   runtimeRoot: string,
-): WindowsPhysicalRootHelperManifestV01 {
-  const manifestPath = resolveInsideRuntimeRootV01(
+): WindowsPhysicalRootManifestReadV01 {
+  const component = resolvePhysicallyContainedComponentV01(
     runtimeRoot,
     WINDOWS_PHYSICAL_ROOT_HELPER_MANIFEST_RELATIVE_PATH_V01,
+    { maximum_size: BigInt(MAX_HELPER_MANIFEST_BYTES) },
   );
   let value: unknown;
   try {
-    const stats = lstatSync(manifestPath);
-    if (
-      !stats.isFile() ||
-      stats.isSymbolicLink() ||
-      stats.size < 1 ||
-      stats.size > MAX_HELPER_MANIFEST_BYTES
-    ) {
-      throw new Error("manifest is not bounded regular file");
-    }
-    value = JSON.parse(readFileSync(manifestPath, "utf8"));
+    value = JSON.parse(readFileSync(component.physical_path, "utf8"));
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code === "ENOENT"
       ? "windows_physical_identity_component_missing"
@@ -458,33 +482,168 @@ function readWindowsHelperManifestV01(
       "windows_physical_identity_manifest_invalid",
     );
   }
-  return value as unknown as WindowsPhysicalRootHelperManifestV01;
+  return {
+    manifest: value as unknown as WindowsPhysicalRootHelperManifestV01,
+    component,
+  };
 }
 
 function resolveVerifiedHelperPathV01(
   runtimeRoot: string,
   manifest: WindowsPhysicalRootHelperManifestV01,
-): string {
-  const helperPath = resolveInsideRuntimeRootV01(runtimeRoot, manifest.helper_file);
+): WindowsPhysicalRootComponentSnapshotV01 {
   try {
-    const stats = lstatSync(helperPath);
-    if (!stats.isFile() || stats.isSymbolicLink() || stats.size < 1) {
-      throw new Error("helper is not a regular file");
-    }
-    const bytes = readFileSync(helperPath);
-    const digest = createHash("sha256").update(bytes).digest("hex");
-    if (digest !== manifest.helper_sha256) {
+    const component = resolvePhysicallyContainedComponentV01(
+      runtimeRoot,
+      manifest.helper_file,
+    );
+    if (component.sha256 !== manifest.helper_sha256) {
       throw new WindowsProjectRootIdentityErrorV01(
         "windows_physical_identity_component_integrity_invalid",
       );
     }
-    return helperPath;
+    return component;
   } catch (error) {
     if (error instanceof WindowsProjectRootIdentityErrorV01) throw error;
     const code = (error as NodeJS.ErrnoException)?.code === "ENOENT"
       ? "windows_physical_identity_component_missing"
       : "windows_physical_identity_component_invalid";
     throw new WindowsProjectRootIdentityErrorV01(code);
+  }
+}
+
+function resolvePhysicallyContainedComponentV01(
+  runtimeRoot: string,
+  relativePath: string,
+  { maximum_size = null }: { maximum_size?: bigint | null } = {},
+): WindowsPhysicalRootComponentSnapshotV01 {
+  const logicalPath = resolveInsideRuntimeRootV01(runtimeRoot, relativePath);
+  try {
+    const logicalStats = lstatSync(logicalPath, { bigint: true });
+    if (
+      !logicalStats.isFile() ||
+      logicalStats.isSymbolicLink() ||
+      logicalStats.size < BigInt(1) ||
+      (maximum_size !== null && logicalStats.size > maximum_size)
+    ) {
+      throw new Error("component is not a bounded regular file");
+    }
+    const physicalPath = realpathSync.native(logicalPath);
+    assertPhysicalPathInsideRuntimeRootV01(runtimeRoot, physicalPath);
+    const physicalStats = lstatSync(physicalPath, { bigint: true });
+    if (
+      !physicalStats.isFile() ||
+      physicalStats.isSymbolicLink() ||
+      physicalStats.size < BigInt(1) ||
+      (maximum_size !== null && physicalStats.size > maximum_size)
+    ) {
+      throw new Error("physical component is not a bounded regular file");
+    }
+    const bytes = readFileSync(physicalPath);
+    return {
+      logical_path: logicalPath,
+      physical_path: physicalPath,
+      device: physicalStats.dev,
+      inode: physicalStats.ino,
+      size: physicalStats.size,
+      modified_ns: physicalStats.mtimeNs,
+      changed_ns: physicalStats.ctimeNs,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+  } catch (error) {
+    if (error instanceof WindowsProjectRootIdentityErrorV01) throw error;
+    const code = (error as NodeJS.ErrnoException)?.code === "ENOENT"
+      ? "windows_physical_identity_component_missing"
+      : "windows_physical_identity_component_invalid";
+    throw new WindowsProjectRootIdentityErrorV01(code);
+  }
+}
+
+function assertPhysicalPathInsideRuntimeRootV01(
+  runtimeRoot: string,
+  physicalPath: string,
+): void {
+  const relative = path.relative(runtimeRoot, physicalPath);
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new WindowsProjectRootIdentityErrorV01(
+      "windows_physical_identity_component_physical_escape",
+    );
+  }
+}
+
+function captureRuntimeRootSnapshotV01(runtimeRoot: string): {
+  device: bigint;
+  inode: bigint;
+  modified_ns: bigint;
+  changed_ns: bigint;
+} {
+  const stats = lstatSync(runtimeRoot, { bigint: true });
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw new WindowsProjectRootIdentityErrorV01(
+      "windows_physical_identity_runtime_root_invalid",
+    );
+  }
+  return {
+    device: stats.dev,
+    inode: stats.ino,
+    modified_ns: stats.mtimeNs,
+    changed_ns: stats.ctimeNs,
+  };
+}
+
+function assertRuntimeRootSnapshotUnchangedV01(
+  runtimeRoot: string,
+  expected: ReturnType<typeof captureRuntimeRootSnapshotV01>,
+): void {
+  const current = captureRuntimeRootSnapshotV01(runtimeRoot);
+  if (
+    current.device !== expected.device ||
+    current.inode !== expected.inode ||
+    current.modified_ns !== expected.modified_ns ||
+    current.changed_ns !== expected.changed_ns
+  ) {
+    throw new WindowsProjectRootIdentityErrorV01(
+      "windows_physical_identity_runtime_root_changed",
+    );
+  }
+}
+
+function assertComponentSnapshotUnchangedV01(
+  runtimeRoot: string,
+  expected: WindowsPhysicalRootComponentSnapshotV01,
+): void {
+  try {
+    const physicalPath = realpathSync.native(expected.logical_path);
+    assertPhysicalPathInsideRuntimeRootV01(runtimeRoot, physicalPath);
+    const stats = lstatSync(physicalPath, { bigint: true });
+    const digest = createHash("sha256")
+      .update(readFileSync(physicalPath))
+      .digest("hex");
+    if (
+      physicalPath !== expected.physical_path ||
+      !stats.isFile() ||
+      stats.isSymbolicLink() ||
+      stats.dev !== expected.device ||
+      stats.ino !== expected.inode ||
+      stats.size !== expected.size ||
+      stats.mtimeNs !== expected.modified_ns ||
+      stats.ctimeNs !== expected.changed_ns ||
+      digest !== expected.sha256
+    ) {
+      throw new WindowsProjectRootIdentityErrorV01(
+        "windows_physical_identity_component_changed",
+      );
+    }
+  } catch (error) {
+    if (error instanceof WindowsProjectRootIdentityErrorV01) throw error;
+    throw new WindowsProjectRootIdentityErrorV01(
+      "windows_physical_identity_component_changed",
+    );
   }
 }
 

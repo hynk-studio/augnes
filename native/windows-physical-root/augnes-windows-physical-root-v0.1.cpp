@@ -26,6 +26,7 @@ namespace {
 
 constexpr wchar_t kContract[] = L"augnes.windows_physical_root_helper.v0.1";
 constexpr std::size_t kMaximumPathCharacters = 32768;
+constexpr std::size_t kMaximumPathComponents = 1024;
 
 class Handle final {
  public:
@@ -146,9 +147,10 @@ enum class RequestedPathClassification {
   kSupported,
   kUnavailable,
   kUnsupported,
+  kAmbiguous,
 };
 
-RequestedPathClassification ClassifyRequestedPath(const std::wstring& path) {
+RequestedPathClassification ClassifyPathComponent(const std::wstring& path) {
   const DWORD attributes = GetFileAttributesW(path.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     return RequestedPathClassification::kUnavailable;
@@ -176,6 +178,46 @@ RequestedPathClassification ClassifyRequestedPath(const std::wstring& path) {
       : RequestedPathClassification::kUnsupported;
 }
 
+RequestedPathClassification ClassifyPathComponents(const std::wstring& path) {
+  if (
+      path.size() < 7 || !StartsWith(path, L"\\\\?\\") || path[5] != L':' ||
+      path[6] != L'\\') {
+    return RequestedPathClassification::kAmbiguous;
+  }
+  std::wstring current(path.substr(0, 7));
+  RequestedPathClassification classification = ClassifyPathComponent(current);
+  if (classification != RequestedPathClassification::kSupported) {
+    return classification;
+  }
+  std::size_t component_count = 0;
+  std::size_t component_start = 7;
+  while (component_start < path.size()) {
+    const std::size_t component_end = path.find(L'\\', component_start);
+    const std::size_t component_length =
+        (component_end == std::wstring::npos ? path.size() : component_end) -
+        component_start;
+    if (component_length == 0) {
+      component_start = component_end == std::wstring::npos
+          ? path.size()
+          : component_end + 1;
+      continue;
+    }
+    if (++component_count > kMaximumPathComponents) {
+      return RequestedPathClassification::kAmbiguous;
+    }
+    if (current.back() != L'\\') current.push_back(L'\\');
+    current.append(path, component_start, component_length);
+    classification = ClassifyPathComponent(current);
+    if (classification != RequestedPathClassification::kSupported) {
+      return classification;
+    }
+    component_start = component_end == std::wstring::npos
+        ? path.size()
+        : component_end + 1;
+  }
+  return RequestedPathClassification::kSupported;
+}
+
 }  // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
@@ -194,12 +236,15 @@ int wmain(int argc, wchar_t* argv[]) {
     return Fail("network_path_unsupported");
   }
   const RequestedPathClassification requested_path_classification =
-      ClassifyRequestedPath(long_path);
+      ClassifyPathComponents(long_path);
   if (requested_path_classification == RequestedPathClassification::kUnavailable) {
-    return Fail("directory_open_failed");
+    return Fail("reparse_ancestor_unavailable");
   }
   if (requested_path_classification == RequestedPathClassification::kUnsupported) {
-    return Fail("reparse_target_unsupported");
+    return Fail("reparse_ancestor_unsupported");
+  }
+  if (requested_path_classification == RequestedPathClassification::kAmbiguous) {
+    return Fail("reparse_ancestor_ambiguous");
   }
 
   Handle directory(CreateFileW(
@@ -228,6 +273,17 @@ int wmain(int argc, wchar_t* argv[]) {
       final_target.size() < 7 || !StartsWith(final_target, L"\\\\?\\") ||
       final_target[5] != L':' || final_target[6] != L'\\') {
     return Fail("final_target_ambiguous");
+  }
+  const RequestedPathClassification final_target_classification =
+      ClassifyPathComponents(final_target);
+  if (final_target_classification == RequestedPathClassification::kUnavailable) {
+    return Fail("reparse_ancestor_unavailable");
+  }
+  if (final_target_classification == RequestedPathClassification::kUnsupported) {
+    return Fail("reparse_ancestor_unsupported");
+  }
+  if (final_target_classification == RequestedPathClassification::kAmbiguous) {
+    return Fail("reparse_ancestor_ambiguous");
   }
 
   FILE_ID_INFO file_id{};
