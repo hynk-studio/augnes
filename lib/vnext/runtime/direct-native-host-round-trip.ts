@@ -2046,6 +2046,10 @@ function resumeManagedLiveRunInsideTransactionV01(
       metadata: {
         ...input.run.metadata,
         control_revision: controlRevision,
+        controller_generation:
+          (typeof input.run.metadata.controller_generation === "number"
+            ? input.run.metadata.controller_generation
+            : 0) + 1,
         reconciliation_required: false,
         terminal_receipt_persisted: false,
       },

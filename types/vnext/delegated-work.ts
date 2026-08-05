@@ -3,6 +3,7 @@ import type {
   NativeHostApprovalOperationV01,
   NativeHostRunModeV01,
 } from "./native-host-adapter";
+import type { RepositoryRunResumeEligibilityV01 } from "./repository-run-resume";
 
 export const DELEGATED_WORK_PROJECTION_VERSION_V01 =
   "delegated_work_projection.v0.1" as const;
@@ -71,6 +72,7 @@ export type DelegatedWorkNextActionKindV01 =
   | "start_codex_work"
   | "review_requested_access"
   | "resume_codex_work"
+  | "review_resume_status"
   | "view_progress"
   | "review_result"
   | "return_to_blank_state"
@@ -156,6 +158,7 @@ export interface DelegatedWorkProjectionV01 {
   gap_notes: string[];
   next_action: DelegatedWorkNextActionV01;
   pending_approval: DelegatedWorkPendingApprovalV01 | null;
+  resume_eligibility: RepositoryRunResumeEligibilityV01 | null;
   result: null | {
     receipt_ref: string;
     outcome: string | null;

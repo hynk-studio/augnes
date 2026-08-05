@@ -1757,6 +1757,21 @@ export function buildSupervisorChildValues({
         environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
           ? "1"
           : null,
+      AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD === "1"
+          ? "1"
+          : null,
+      AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
+          ? ["safe", "incomplete", "approval"].includes(
+              environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO,
+            )
+            ? environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO
+            : null
+          : null,
     };
   }
 

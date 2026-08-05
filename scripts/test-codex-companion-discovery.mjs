@@ -255,6 +255,7 @@ function unregisteredProjectionV01() {
     generated_at: "2026-08-04T00:00:00.000Z",
     repository_resolution: { status: "project_not_registered", project_key: null, display_name: null, message },
     continuity: null,
+    resume_eligibility: null,
     current_situation: message,
     next_meaningful_action: { label: "Open this repository in Augnes first", reason: message, executes: false },
     browser_deep_link: null,

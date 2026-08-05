@@ -2,6 +2,7 @@ import type {
   CodexCurrentContinuityAuthorityBoundaryV01,
   CodexCurrentContinuityV01,
 } from "@/types/vnext/codex-current-continuity";
+import type { RepositoryRunResumeEligibilityV01 } from "@/types/vnext/repository-run-resume";
 
 export const CODEX_REPOSITORY_CONTINUITY_VERSION_V01 =
   "codex_repository_continuity.v0.1" as const;
@@ -26,6 +27,7 @@ export interface CodexRepositoryContinuityV01 {
     message: string;
   };
   continuity: CodexCurrentContinuityV01 | null;
+  resume_eligibility: RepositoryRunResumeEligibilityV01 | null;
   current_situation: string;
   next_meaningful_action: {
     label: string;

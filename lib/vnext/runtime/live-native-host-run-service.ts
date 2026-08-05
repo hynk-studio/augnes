@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 
 import {
   appendAutonomyRunLedgerEvent,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readRepositoryExecutionAttachmentV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import { admitRepositoryRunResumeCheckpointV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
 import {
   admitPreparedNativeHostRunClaimInsideTransactionV01,
   admitPersistedHostTaskContextPacketV01,
@@ -158,6 +160,8 @@ export interface LiveNativeHostRunServiceOptionsV01 {
   stop_settle_timeout_ms?: number;
   schedule_timeout?: NativeHostTimeoutSchedulerV01;
   test_only_allow_unauthenticated_interactive?: boolean;
+  runtime_instance_fingerprint?: string;
+  runtime_generation_fingerprint?: string;
 }
 
 export class LiveNativeHostRunServiceErrorV01 extends Error {
@@ -173,10 +177,43 @@ export class LiveNativeHostRunServiceV01 {
     LiveNativeHostRunServiceOptionsV01["open_database"]
   >;
   private readonly now: () => string;
+  private readonly runtimeInstanceFingerprint: string;
+  private readonly runtimeGenerationFingerprint: string;
 
   constructor(private readonly options: LiveNativeHostRunServiceOptionsV01 = {}) {
     this.openDatabase = options.open_database ?? openVNextLocalOperatorDatabaseV01;
     this.now = options.now ?? (() => new Date().toISOString());
+    this.runtimeInstanceFingerprint = options.runtime_instance_fingerprint ??
+      createProtocolSha256V01(`live-native-host-runtime:${randomUUID()}`);
+    this.runtimeGenerationFingerprint = options.runtime_generation_fingerprint ??
+      createProtocolSha256V01(`live-native-host-generation:${randomUUID()}`);
+  }
+
+  readRepositoryControllerObservationV01(
+    config: VNextLocalOperatorPilotConfigV01,
+    runId: string,
+  ): {
+    owned: boolean;
+    controller_generation: number | null;
+    runtime_instance_fingerprint: string | null;
+    runtime_generation_fingerprint: string | null;
+  } {
+    const controller = this.controllers.get(projectKeyV01(config));
+    const owned = Boolean(
+      controller &&
+        !controller.completionSettled &&
+        controller.runId === runId,
+    );
+    return {
+      owned,
+      controller_generation: owned ? controller!.controllerGeneration : null,
+      runtime_instance_fingerprint: owned
+        ? this.runtimeInstanceFingerprint
+        : null,
+      runtime_generation_fingerprint: owned
+        ? this.runtimeGenerationFingerprint
+        : null,
+    };
   }
 
   readCapabilityContractV01(): {
@@ -186,6 +223,8 @@ export class LiveNativeHostRunServiceV01 {
     stop_settle_timeout_ms: number;
     execution_profile: NativeHostAdapterV01["execution_profile"];
     provider_egress: NativeHostAdapterV01["provider_egress"];
+    provider_resume_binding_version: "native_host_resume_binding.v0.1";
+    resumable_after_detach: boolean;
   } {
     const adapter = this.currentAdapterContract();
     return {
@@ -196,6 +235,11 @@ export class LiveNativeHostRunServiceV01 {
         this.options.stop_settle_timeout_ms ?? DEFAULT_STOP_SETTLE_TIMEOUT_MS,
       execution_profile: adapter.execution_profile,
       provider_egress: adapter.provider_egress,
+      provider_resume_binding_version:
+        adapter.resume_capability?.binding_version ??
+        "native_host_resume_binding.v0.1",
+      resumable_after_detach:
+        adapter.resume_capability?.resumable_after_detach === true,
     };
   }
 
@@ -548,6 +592,17 @@ export class LiveNativeHostRunServiceV01 {
       };
     }
     return projection;
+  }
+
+  /**
+   * Read the latest durable managed run without performing the legacy
+   * disconnect-to-paused reconciliation write used by read().
+   */
+  readLatestProjectionOnlyV01(
+    config: VNextLocalOperatorPilotConfigV01,
+  ): LiveNativeHostRunProjectionV01 {
+    const run = this.readLatestManagedRun(config);
+    return run ? this.readProjectionOnlyV01(config, run) : idleProjectionV01();
   }
 
   /**
@@ -945,6 +1000,8 @@ export class LiveNativeHostRunServiceV01 {
       },
       resume_binding: binding,
       resume_existing: true,
+      controller_generation:
+        numberMetadataV01(run.metadata.controller_generation) + 1,
       before_adapter_invoke: undefined,
     });
   }
@@ -969,6 +1026,7 @@ export class LiveNativeHostRunServiceV01 {
     };
     resume_binding: NativeHostResumeBindingV01 | null;
     resume_existing: boolean;
+    controller_generation?: number;
     pre_admitted_run_claim?: {
       claim: PreparedNativeHostRunClaimV01;
       session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
@@ -984,6 +1042,10 @@ export class LiveNativeHostRunServiceV01 {
       db,
       now: this.now,
       delegate,
+      controller_generation: input.controller_generation ?? 1,
+      runtime_instance_fingerprint: this.runtimeInstanceFingerprint,
+      runtime_generation_fingerprint: this.runtimeGenerationFingerprint,
+      read_capability: () => this.readCapabilityContractV01(),
     });
     const key = projectKeyV01(input.config);
     this.controllers.set(key, controller);
@@ -1333,6 +1395,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       db: Database.Database;
       now: () => string;
       delegate: NativeHostAdapterV01;
+      controller_generation: number;
+      runtime_instance_fingerprint: string;
+      runtime_generation_fingerprint: string;
+      read_capability: () => ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>;
     },
   ) {
     this.adapter = {
@@ -1340,6 +1406,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       capability_version: input.delegate.capability_version,
       execution_profile: input.delegate.execution_profile,
       provider_egress: input.delegate.provider_egress,
+      resume_capability: input.delegate.resume_capability,
       invoke: (request, control) => {
         if (!this.request) this.request = request;
         else if (canonicalizeProtocolValueV01(this.request) !== canonicalizeProtocolValueV01(request)) {
@@ -1368,6 +1435,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
 
   get runId(): string | null {
     return this.request?.run_id ?? null;
+  }
+
+  get controllerGeneration(): number {
+    return this.input.controller_generation;
   }
 
   matchesStart(
@@ -1555,9 +1626,21 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
     const request = this.requireRequestV01(event.run_id);
     validateLifecycleEventV01(request, event);
     const db = this.input.db;
+    let checkpointAdmission: Parameters<
+      typeof admitRepositoryRunResumeCheckpointV01
+    >[1] | null = null;
     db.exec("BEGIN IMMEDIATE");
     try {
       const run = requireBoundRunV01(db, request);
+      const storedControllerGeneration = numberMetadataV01(
+        run.metadata.controller_generation,
+      );
+      if (
+        storedControllerGeneration > 0 &&
+        storedControllerGeneration !== this.input.controller_generation
+      ) {
+        refuseV01("live_host_controller_generation_conflict", 409);
+      }
       const hostBindingConflict = hostRefBindingConflictV01(
         run,
         event.host_refs,
@@ -1658,6 +1741,13 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
         event.event_kind === "work_checkpoint"
           ? checkpointMetadataV01(event.bounded_metadata)
           : null;
+      if (
+        request.mode === "repository_attachment" &&
+        checkpointMetadata &&
+        checkpointMetadata.operation_ref === null
+      ) {
+        refuseV01("live_host_repository_checkpoint_operation_missing", 422);
+      }
       const capabilityMetadata =
         event.event_kind === "capability_confirmed"
           ? {
@@ -1678,6 +1768,11 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             ...hostBindings,
             ...capabilityMetadata,
             control_revision: revision,
+            controller_generation: this.input.controller_generation,
+            runtime_instance_fingerprint:
+              this.input.runtime_instance_fingerprint,
+            runtime_generation_fingerprint:
+              this.input.runtime_generation_fingerprint,
             host_event_fingerprints: Object.fromEntries(fingerprintEntries),
             reconciliation_required: nextStatus === "paused",
             public_reason:
@@ -1694,6 +1789,10 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
         { db },
       );
       const step = run.steps[0];
+      const stepRevision = step
+        ? numberMetadataV01(step.output.control_revision) +
+          (checkpointMetadata ? 1 : 0)
+        : 0;
       if (step) {
         updateAutonomyRunStepLedgerFields(
           step.step_id,
@@ -1703,6 +1802,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
             output: {
               ...step.output,
               latest_lifecycle_event: event.event_kind,
+              control_revision: stepRevision,
               raw_protocol_persisted: false,
             },
           },
@@ -1712,6 +1812,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       appendAutonomyRunLedgerEvent(
         buildAutonomyRunEventRecord({
           run_id: run.run_id,
+          step_id: step?.step_id,
           event_type:
             nextStatus === "paused"
               ? "run_reconciliation_required"
@@ -1727,6 +1828,15 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
               ? { checkpoint: checkpointMetadata }
               : {}),
             control_revision: revision,
+            ...(checkpointMetadata
+              ? {
+                  controller_generation: this.input.controller_generation,
+                  runtime_instance_fingerprint:
+                    this.input.runtime_instance_fingerprint,
+                  runtime_generation_fingerprint:
+                    this.input.runtime_generation_fingerprint,
+                }
+              : {}),
             raw_protocol_persisted: false,
           },
           created_at: event.observed_at,
@@ -1734,9 +1844,61 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
         { db },
       );
       db.exec("COMMIT");
+      if (
+        request.mode === "repository_attachment" &&
+        checkpointMetadata?.operation_ref &&
+        (
+          (checkpointMetadata.phase === "declared" &&
+            checkpointMetadata.certainty === "not_started") ||
+          (checkpointMetadata.phase === "completed" &&
+            ["completed", "failed", "cancelled"].includes(
+              checkpointMetadata.certainty,
+            ))
+        )
+      ) {
+        checkpointAdmission = {
+          config: this.input.config,
+          run_id: run.run_id,
+          lifecycle_event_id: event.event_id,
+          controller_generation: this.input.controller_generation,
+          runtime_instance_fingerprint:
+            this.input.runtime_instance_fingerprint,
+          runtime_generation_fingerprint:
+            this.input.runtime_generation_fingerprint,
+          expected_run_control_revision: revision,
+          expected_step_control_revision: stepRevision,
+          operation_ref: checkpointMetadata.operation_ref,
+          operation_class: checkpointMetadata.kind,
+          checkpoint_phase: checkpointMetadata.phase === "declared"
+            ? "declared_pre_start"
+            : "post_operation",
+          operation_certainty: checkpointMetadata.certainty as
+            | "not_started"
+            | "completed"
+            | "failed"
+            | "cancelled",
+          observed_at: event.observed_at,
+        };
+      }
     } catch (error) {
       if (db.inTransaction) db.exec("ROLLBACK");
       throw error;
+    }
+    if (checkpointAdmission) {
+      try {
+        await admitRepositoryRunResumeCheckpointV01(
+          db,
+          checkpointAdmission,
+          {
+            now: this.input.now,
+            read_capability: this.input.read_capability,
+          },
+        );
+      } catch {
+        // The lifecycle event and terminal result path remain authoritative.
+        // Eligibility will fail closed because no matching safe checkpoint (or
+        // a later effect high-water mark) can be proven.
+      }
     }
   }
 
@@ -2119,35 +2281,65 @@ function checkpointMetadataV01(
   metadata: NativeHostLifecycleEventV01["bounded_metadata"],
 ): {
   kind: "command_execution" | "file_change";
-  phase: "started" | "completed";
+  phase: "declared" | "started" | "completed";
   status: "active" | "completed" | "failed" | "blocked" | "unknown";
+  operation_ref: string | null;
+  certainty: "not_started" | "started" | "completed" | "failed" | "cancelled" | "waiting_for_approval";
   change_count: number | null;
 } {
   const keys = Object.keys(metadata).sort();
-  const expected = [
+  const legacy = [
     "change_count",
     "checkpoint_kind",
     "phase",
     "status",
   ];
+  const exact = [
+    "certainty",
+    "change_count",
+    "checkpoint_kind",
+    "operation_ref",
+    "phase",
+    "status",
+  ];
   if (
-    keys.length !== expected.length ||
-    keys.some((key, index) => key !== expected[index])
+    !(
+      keys.length === legacy.length &&
+      keys.every((key, index) => key === legacy[index])
+    ) &&
+    !(
+      keys.length === exact.length &&
+      keys.every((key, index) => key === exact[index])
+    )
   ) {
     refuseV01("live_host_checkpoint_invalid", 422);
   }
   const kind = stringMetadataV01(metadata.checkpoint_kind);
   const phase = stringMetadataV01(metadata.phase);
   const status = stringMetadataV01(metadata.status);
+  const operationRef = stringMetadataV01(metadata.operation_ref);
+  const certainty = stringMetadataV01(metadata.certainty) ??
+    (phase === "started"
+      ? "started"
+      : status === "completed"
+        ? "completed"
+        : status === "failed"
+          ? "failed"
+          : status === "blocked"
+            ? "cancelled"
+            : "started");
   const count = metadata.change_count;
   if (
     !["command_execution", "file_change"].includes(kind ?? "") ||
-    !["started", "completed"].includes(phase ?? "") ||
+    !["declared", "started", "completed"].includes(phase ?? "") ||
     !["active", "completed", "failed", "blocked", "unknown"].includes(
       status ?? "",
     ) ||
-    (phase === "started" && status !== "active") ||
+    (phase === "declared" && (status !== "active" || certainty !== "not_started")) ||
+    (phase === "started" && (status !== "active" || certainty !== "started")) ||
     (phase === "completed" && status === "active") ||
+    !["not_started", "started", "completed", "failed", "cancelled", "waiting_for_approval"].includes(certainty) ||
+    (operationRef !== null && !/^sha256:[a-f0-9]{64}$/.test(operationRef)) ||
     (count !== null &&
       (!Number.isSafeInteger(count) || Number(count) < 0 || Number(count) > 1_000))
   ) {
@@ -2155,13 +2347,21 @@ function checkpointMetadataV01(
   }
   return {
     kind: kind as "command_execution" | "file_change",
-    phase: phase as "started" | "completed",
+    phase: phase as "declared" | "started" | "completed",
     status: status as
       | "active"
       | "completed"
       | "failed"
       | "blocked"
       | "unknown",
+    operation_ref: operationRef,
+    certainty: certainty as
+      | "not_started"
+      | "started"
+      | "completed"
+      | "failed"
+      | "cancelled"
+      | "waiting_for_approval",
     change_count: count === null ? null : Number(count),
   };
 }

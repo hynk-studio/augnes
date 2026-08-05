@@ -357,6 +357,14 @@ export interface NativeHostAdapterV01 {
   readonly capability_version: string;
   readonly execution_profile: NativeHostExecutionProfileV01;
   readonly provider_egress: NativeHostProviderEgressV01;
+  /**
+   * Private capability declaration only. CDX2B4A reads this flag but never
+   * invokes resume. Adapters that omit it are deliberately unsupported.
+   */
+  readonly resume_capability?: {
+    binding_version: "native_host_resume_binding.v0.1";
+    resumable_after_detach: boolean;
+  };
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,

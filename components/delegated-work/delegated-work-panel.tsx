@@ -220,6 +220,13 @@ export function DelegatedWorkPanel({
         </a>
       ) : null}
 
+      {projection?.resume_eligibility ? (
+        <div data-delegated-work-resume-eligibility={projection.resume_eligibility.status}>
+          <strong>{projection.resume_eligibility.next_action.label}</strong>
+          <p>{projection.resume_eligibility.summary}</p>
+        </div>
+      ) : null}
+
       {error ? (
         <p className={styles.error} role="alert">
           {delegatedWorkErrorCopyV01(error)}
@@ -294,7 +301,11 @@ function PrimaryDelegatedAction({
       </a>
     );
   }
-  if (projection.stage === "resume_required" && projection.run_ref) {
+  if (
+    projection.stage === "resume_required" &&
+    projection.run_ref &&
+    projection.mode !== "repository_attachment"
+  ) {
     return (
       <button
         type="button"
@@ -315,6 +326,21 @@ function PrimaryDelegatedAction({
         {busy ? "Resuming Codex work…" : "Resume Codex work"}
       </button>
     );
+  }
+  if (
+    projection.stage === "resume_required" &&
+    projection.mode === "repository_attachment"
+  ) {
+    return projection.exact_detail_href ? (
+      <a
+        className={styles.button}
+        href={projection.exact_detail_href}
+        data-ai-workplane-primary-action="review-resume-status"
+        data-augnes-primary-action="review-resume-status"
+      >
+        Review resume status
+      </a>
+    ) : null;
   }
   if (projection.stage === "result_ready" && projection.result) {
     return (

@@ -7,6 +7,8 @@ import type {
   RepositoryExecutionAttachmentStaleReasonV01,
   RepositoryExecutionAttachmentV01,
 } from "@/types/vnext/repository-execution";
+import type { RepositoryRunResumeCheckpointV01 } from "@/types/vnext/repository-run-resume";
+import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 
 export const VNEXT_REPOSITORY_EXECUTION_STORE_VERSION_V01 =
   "vnext_repository_execution_store.v0.1" as const;
@@ -101,6 +103,83 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
     ON vnext_repository_execution_attachments(consumed_run_id)
     WHERE consumed_run_id IS NOT NULL;
 
+  CREATE TABLE IF NOT EXISTS vnext_repository_run_resume_checkpoints (
+    checkpoint_fingerprint TEXT PRIMARY KEY CHECK (
+      length(checkpoint_fingerprint) = 71 AND substr(checkpoint_fingerprint, 1, 7) = 'sha256:'
+    ),
+    checkpoint_version TEXT NOT NULL CHECK (
+      checkpoint_version = 'repository_run_resume_checkpoint.v0.1'
+    ),
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    invocation_origin TEXT NOT NULL CHECK (invocation_origin = 'repository_attachment'),
+    attachment_id TEXT NOT NULL,
+    attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+    node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71),
+    execution_envelope_version TEXT NOT NULL CHECK (
+      execution_envelope_version = 'repository_execution_envelope.v0.1'
+    ),
+    execution_envelope_fingerprint TEXT NOT NULL CHECK (length(execution_envelope_fingerprint) = 71),
+    adapter_version TEXT NOT NULL CHECK (length(adapter_version) BETWEEN 1 AND 160),
+    capability_version TEXT NOT NULL CHECK (length(capability_version) BETWEEN 1 AND 160),
+    provider_resume_binding_version TEXT NOT NULL CHECK (
+      provider_resume_binding_version = 'native_host_resume_binding.v0.1'
+    ),
+    provider_thread_ref_json TEXT NOT NULL CHECK (
+      json_valid(provider_thread_ref_json) AND json_type(provider_thread_ref_json) = 'object'
+    ),
+    last_turn_ref_json TEXT NOT NULL CHECK (
+      json_valid(last_turn_ref_json) AND json_type(last_turn_ref_json) = 'object'
+    ),
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    run_control_revision INTEGER NOT NULL CHECK (run_control_revision >= 0),
+    step_id TEXT NOT NULL CHECK (length(trim(step_id)) > 0),
+    step_control_revision INTEGER NOT NULL CHECK (step_control_revision >= 0),
+    event_high_water_mark INTEGER NOT NULL CHECK (event_high_water_mark >= 0),
+    step_high_water_mark INTEGER NOT NULL CHECK (step_high_water_mark >= 0),
+    effect_ledger_high_water_mark INTEGER NOT NULL CHECK (effect_ledger_high_water_mark >= 0),
+    operation_ref TEXT NOT NULL CHECK (
+      length(operation_ref) = 71 AND substr(operation_ref, 1, 7) = 'sha256:'
+    ),
+    operation_class TEXT NOT NULL CHECK (operation_class IN ('command_execution', 'file_change')),
+    checkpoint_phase TEXT NOT NULL CHECK (checkpoint_phase IN ('declared_pre_start', 'post_operation')),
+    operation_certainty TEXT NOT NULL CHECK (operation_certainty IN (
+      'not_started', 'started', 'completed', 'failed', 'cancelled', 'waiting_for_approval'
+    )),
+    approval_ref TEXT,
+    approval_state TEXT CHECK (approval_state IS NULL OR approval_state IN ('pending', 'decided', 'expired')),
+    root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71),
+    physical_root_baseline_fingerprint TEXT NOT NULL CHECK (length(physical_root_baseline_fingerprint) = 71),
+    worktree_observation_fingerprint TEXT NOT NULL CHECK (length(worktree_observation_fingerprint) = 71),
+    observed_at TEXT NOT NULL CHECK (length(trim(observed_at)) > 0),
+    CHECK (
+      (approval_ref IS NULL AND approval_state IS NULL)
+      OR (approval_ref IS NOT NULL AND approval_state IS NOT NULL)
+    ),
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+    FOREIGN KEY (attachment_id)
+      REFERENCES vnext_repository_execution_attachments(attachment_id)
+      ON UPDATE RESTRICT ON DELETE CASCADE
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_operation
+    ON vnext_repository_run_resume_checkpoints(
+      run_id, operation_ref, checkpoint_phase
+    );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_current
+    ON vnext_repository_run_resume_checkpoints(
+      workspace_id, project_id, run_id,
+      effect_ledger_high_water_mark DESC, event_high_water_mark DESC,
+      checkpoint_fingerprint
+    );
+
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL,
@@ -183,6 +262,9 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
     ["index", "idx_vnext_repository_execution_attachments_project"],
     ["index", "idx_vnext_repository_execution_one_prepared"],
     ["index", "idx_vnext_repository_execution_consumed_run"],
+    ["table", "vnext_repository_run_resume_checkpoints"],
+    ["index", "idx_vnext_repository_resume_checkpoint_operation"],
+    ["index", "idx_vnext_repository_resume_checkpoint_current"],
     ["index", "idx_vnext_repository_root_rebind_receipts_project"],
     ["table", "vnext_repository_execution_decision_requests"],
     ["index", "idx_vnext_repository_execution_decisions_project"],
@@ -407,6 +489,160 @@ export function pruneRepositoryExecutionDecisionsInsideTransactionV01(
   ).run(input.workspace_id, input.project_id, input.retain).changes;
 }
 
+interface RepositoryRunResumeCheckpointRowV01 extends Omit<
+  RepositoryRunResumeCheckpointV01,
+  "provider_thread_ref" | "last_turn_ref"
+> {
+  provider_thread_ref_json: string;
+  last_turn_ref_json: string;
+}
+
+export function readRepositoryRunResumeCheckpointV01(
+  db: Database.Database,
+  checkpointFingerprint: string,
+): RepositoryRunResumeCheckpointV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_run_resume_checkpoints
+      WHERE checkpoint_fingerprint = ?`,
+  ).get(checkpointFingerprint) as RepositoryRunResumeCheckpointRowV01 | undefined;
+  return row ? parseRepositoryRunResumeCheckpointV01(row) : null;
+}
+
+export function listRepositoryRunResumeCheckpointsV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; run_id: string },
+): RepositoryRunResumeCheckpointV01[] {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const rows = db.prepare(
+    `SELECT * FROM vnext_repository_run_resume_checkpoints
+      WHERE workspace_id = ? AND project_id = ? AND run_id = ?
+      ORDER BY effect_ledger_high_water_mark ASC,
+               event_high_water_mark ASC,
+               checkpoint_fingerprint ASC`,
+  ).all(
+    input.workspace_id,
+    input.project_id,
+    input.run_id,
+  ) as RepositoryRunResumeCheckpointRowV01[];
+  return rows.map(parseRepositoryRunResumeCheckpointV01);
+}
+
+export function listAllRepositoryRunResumeCheckpointsForRecoveryV01(
+  db: Database.Database,
+): RepositoryRunResumeCheckpointV01[] {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const rows = db.prepare(
+    `SELECT * FROM vnext_repository_run_resume_checkpoints
+      ORDER BY run_id, effect_ledger_high_water_mark,
+               event_high_water_mark, checkpoint_fingerprint`,
+  ).all() as RepositoryRunResumeCheckpointRowV01[];
+  return rows.map(parseRepositoryRunResumeCheckpointV01);
+}
+
+export function insertRepositoryRunResumeCheckpointInsideTransactionV01(
+  db: Database.Database,
+  checkpoint: RepositoryRunResumeCheckpointV01,
+): "inserted" | "exact_replay" {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("repository_run_resume_checkpoint_transaction_required");
+  }
+  const existing = readRepositoryRunResumeCheckpointV01(
+    db,
+    checkpoint.checkpoint_fingerprint,
+  );
+  if (existing) {
+    if (
+      canonicalizeProtocolValueV01(existing) ===
+      canonicalizeProtocolValueV01(checkpoint)
+    ) {
+      return "exact_replay";
+    }
+    throw new Error("repository_run_resume_checkpoint_fingerprint_conflict");
+  }
+  const operationConflict = db.prepare(
+    `SELECT checkpoint_fingerprint
+       FROM vnext_repository_run_resume_checkpoints
+      WHERE run_id = ? AND operation_ref = ? AND checkpoint_phase = ?`,
+  ).get(
+    checkpoint.run_id,
+    checkpoint.operation_ref,
+    checkpoint.checkpoint_phase,
+  ) as { checkpoint_fingerprint: string } | undefined;
+  if (operationConflict) {
+    throw new Error("repository_run_resume_checkpoint_operation_conflict");
+  }
+  db.prepare(
+    `INSERT INTO vnext_repository_run_resume_checkpoints (
+      checkpoint_fingerprint, checkpoint_version, workspace_id, project_id,
+      run_id, invocation_origin, attachment_id,
+      attachment_binding_fingerprint, node_scope_fingerprint,
+      execution_envelope_version, execution_envelope_fingerprint,
+      adapter_version, capability_version, provider_resume_binding_version,
+      provider_thread_ref_json, last_turn_ref_json, controller_generation,
+      runtime_instance_fingerprint, runtime_generation_fingerprint,
+      run_control_revision, step_id, step_control_revision,
+      event_high_water_mark, step_high_water_mark,
+      effect_ledger_high_water_mark, operation_ref, operation_class,
+      checkpoint_phase, operation_certainty, approval_ref, approval_state,
+      root_binding_fingerprint, physical_root_baseline_fingerprint,
+      worktree_observation_fingerprint, observed_at
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )`,
+  ).run(
+    checkpoint.checkpoint_fingerprint,
+    checkpoint.checkpoint_version,
+    checkpoint.workspace_id,
+    checkpoint.project_id,
+    checkpoint.run_id,
+    checkpoint.invocation_origin,
+    checkpoint.attachment_id,
+    checkpoint.attachment_binding_fingerprint,
+    checkpoint.node_scope_fingerprint,
+    checkpoint.execution_envelope_version,
+    checkpoint.execution_envelope_fingerprint,
+    checkpoint.adapter_version,
+    checkpoint.capability_version,
+    checkpoint.provider_resume_binding_version,
+    JSON.stringify(checkpoint.provider_thread_ref),
+    JSON.stringify(checkpoint.last_turn_ref),
+    checkpoint.controller_generation,
+    checkpoint.runtime_instance_fingerprint,
+    checkpoint.runtime_generation_fingerprint,
+    checkpoint.run_control_revision,
+    checkpoint.step_id,
+    checkpoint.step_control_revision,
+    checkpoint.event_high_water_mark,
+    checkpoint.step_high_water_mark,
+    checkpoint.effect_ledger_high_water_mark,
+    checkpoint.operation_ref,
+    checkpoint.operation_class,
+    checkpoint.checkpoint_phase,
+    checkpoint.operation_certainty,
+    checkpoint.approval_ref,
+    checkpoint.approval_state,
+    checkpoint.root_binding_fingerprint,
+    checkpoint.physical_root_baseline_fingerprint,
+    checkpoint.worktree_observation_fingerprint,
+    checkpoint.observed_at,
+  );
+  return "inserted";
+}
+
+export function countRepositoryRunResumeCheckpointsV01(
+  db: Database.Database,
+  runId: string,
+): number {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  return Number((db.prepare(
+    `SELECT COUNT(*) AS count FROM vnext_repository_run_resume_checkpoints
+      WHERE run_id = ?`,
+  ).get(runId) as { count: number }).count);
+}
+
 interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy"> {
   freshness_policy_json: string;
 }
@@ -579,5 +815,24 @@ function parseAttachment(row: AttachmentRowV01): RepositoryExecutionAttachmentV0
   return {
     ...rest,
     freshness_policy: JSON.parse(freshness_policy_json) as RepositoryExecutionAttachmentV01["freshness_policy"],
+  };
+}
+
+function parseRepositoryRunResumeCheckpointV01(
+  row: RepositoryRunResumeCheckpointRowV01,
+): RepositoryRunResumeCheckpointV01 {
+  const {
+    provider_thread_ref_json,
+    last_turn_ref_json,
+    ...rest
+  } = row;
+  return {
+    ...rest,
+    provider_thread_ref: JSON.parse(
+      provider_thread_ref_json,
+    ) as RepositoryRunResumeCheckpointV01["provider_thread_ref"],
+    last_turn_ref: JSON.parse(
+      last_turn_ref_json,
+    ) as RepositoryRunResumeCheckpointV01["last_turn_ref"],
   };
 }

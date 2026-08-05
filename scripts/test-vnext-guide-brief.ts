@@ -155,6 +155,7 @@ function waitingDelegatedWork(): NonNullable<BlankStateSourceV01["delegated_work
       executes: false,
     },
     pending_approval: null,
+    resume_eligibility: null,
     result: null,
     exact_detail_href: null,
     start_eligible: false,

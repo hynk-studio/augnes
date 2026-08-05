@@ -37,7 +37,14 @@ import {
   validateVNextPersistedSemanticStateV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
-import { assertVNextRepositoryExecutionStoreSchemaV01 } from "../lib/vnext/persistence/repository-execution-store";
+import {
+  assertVNextRepositoryExecutionStoreSchemaV01,
+  listAllRepositoryRunResumeCheckpointsForRecoveryV01,
+} from "../lib/vnext/persistence/repository-execution-store";
+import {
+  validateRepositoryRunResumeCheckpointRelationsV01,
+  validateRepositoryRunResumeCheckpointV01,
+} from "../lib/vnext/repository-execution/repository-run-resume";
 import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   readClaimEvidenceRelationV01,
@@ -1350,6 +1357,7 @@ export function validateRecoveryCanonicalDatabaseV01(
     const repositoryExecutionTables = [
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",
+      "vnext_repository_run_resume_checkpoints",
       "vnext_repository_root_rebind_receipts",
       "vnext_repository_execution_decision_requests",
     ];
@@ -1362,6 +1370,13 @@ export function validateRecoveryCanonicalDatabaseV01(
       // table in the new store is present, however, the complete current
       // schema must validate; partial stores are never accepted.
       assertVNextRepositoryExecutionStoreSchemaV01(db);
+      if (
+        listAllRepositoryRunResumeCheckpointsForRecoveryV01(db).some(
+          (checkpoint) =>
+            !validateRepositoryRunResumeCheckpointV01(checkpoint) ||
+            !validateRepositoryRunResumeCheckpointRelationsV01(db, checkpoint),
+        )
+      ) refuseV01();
     }
     const records = readCanonicalRecordsV01(db);
     const byIdentity = new Map<string, ParsedCanonicalRecordV01>();

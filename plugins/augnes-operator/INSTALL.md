@@ -81,7 +81,12 @@ capability, and execution envelope before the first worker invocation. Exact
 replay returns the same run and launches nothing twice. Cancellation is bound
 to the exact attachment/run and creates no semantic decision. Use
 `augnes_resume_repository` for current status, result, receipt, and review
-continuity.
+continuity. For attachment-backed runs it also returns the one canonical
+read-only resume-eligibility projection and last confirmed operation summary.
+`resume_ready` means a later explicit same-run resume could be safe; it does
+not resume, launch, call a provider, or create a controller. Pending approval
+remains `approval_pending`, and uncertain effects remain
+`reconciliation_required`.
 
 The start decision permits bounded reversible local work inside the exact
 repository root. It does not grant arbitrary command network access,

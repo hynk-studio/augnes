@@ -19,6 +19,7 @@ import {
   DELEGATED_WORK_PROJECTION_VERSION_V01,
 } from "@/types/vnext/delegated-work";
 import type { LiveNativeHostRunProjectionV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
+import type { RepositoryRunResumeEligibilityV01 } from "@/types/vnext/repository-run-resume";
 
 export interface BuildDelegatedWorkProjectionInputV01 {
   workspace_id: string;
@@ -31,6 +32,7 @@ export interface BuildDelegatedWorkProjectionInputV01 {
   start_eligible: boolean;
   start_blocker: string | null;
   source_status?: DelegatedWorkProjectionV01["source_status"];
+  resume_eligibility?: RepositoryRunResumeEligibilityV01 | null;
 }
 
 const AUTHORITY_V01 = {
@@ -106,6 +108,7 @@ export function buildUnavailableDelegatedWorkProjectionV01(input: {
     gap_notes: [situation],
     next_action: nextActionV01("none"),
     pending_approval: null,
+    resume_eligibility: null,
     result: null,
     exact_detail_href: null,
     start_eligible: false,
@@ -172,6 +175,7 @@ export function buildDelegatedWorkProjectionV01(
             ? nextActionV01("start_codex_work")
             : nextActionV01("none"),
       pending_approval: null,
+      resume_eligibility: input.resume_eligibility ?? null,
       result: null,
       exact_detail_href: null,
       start_eligible: input.start_eligible,
@@ -186,7 +190,11 @@ export function buildDelegatedWorkProjectionV01(
     run.metadata.terminal_receipt_persisted === true &&
     input.live_run.receipt != null &&
     input.live_run.run_ref === run.run_id;
-  const stage = stageV01(input.live_run, trustedResult);
+  const stage = stageV01(
+    input.live_run,
+    trustedResult,
+    input.resume_eligibility ?? null,
+  );
   const mapped = input.events
     .map((event) => timelineItemV01(event))
     .filter((item): item is DelegatedWorkTimelineItemV01 => item != null);
@@ -226,7 +234,12 @@ export function buildDelegatedWorkProjectionV01(
       .reverse()
       .find((item) => CHECKPOINT_KINDS.has(item.kind))?.summary ?? null;
   const pending = input.live_run.pending_approval;
-  const stageCopy = stageCopyV01(stage, input.live_run, trustedResult);
+  const stageCopy = stageCopyV01(
+    stage,
+    input.live_run,
+    trustedResult,
+    input.resume_eligibility ?? null,
+  );
   const result = trustedResult && input.live_run.receipt
     ? {
         receipt_ref: input.live_run.receipt.receipt_ref,
@@ -291,7 +304,11 @@ export function buildDelegatedWorkProjectionV01(
         ? ["Some current runtime ownership information is unavailable."]
         : []),
     ],
-    next_action: nextActionForStageV01(stage, result?.review_href ?? null),
+    next_action: nextActionForStageV01(
+      stage,
+      result?.review_href ?? null,
+      input.live_run.mode,
+    ),
     pending_approval: pending
       ? {
           approval_ref: pending.approval_ref,
@@ -309,6 +326,7 @@ export function buildDelegatedWorkProjectionV01(
           decision_submitted: pending.decision_submitted,
         }
       : null,
+    resume_eligibility: input.resume_eligibility ?? null,
     result,
     exact_detail_href: createSharedInspectorHrefV01({
       target_kind: "automation_run",
@@ -325,8 +343,17 @@ export function buildDelegatedWorkProjectionV01(
 function stageV01(
   live: LiveNativeHostRunProjectionV01,
   trustedResult: boolean,
+  eligibility: RepositoryRunResumeEligibilityV01 | null,
 ): DelegatedWorkStageV01 {
   if (trustedResult) return "result_ready";
+  if (eligibility?.status === "active_owned") return "working";
+  if (eligibility?.status === "approval_pending") return "waiting_for_approval";
+  if (
+    eligibility &&
+    ["resume_ready", "reconciliation_required", "stale", "unsupported", "unavailable"].includes(
+      eligibility.status,
+    )
+  ) return "resume_required";
   if (live.reconciliation_required || live.status === "paused") {
     return "resume_required";
   }
@@ -660,6 +687,7 @@ function stageCopyV01(
   stage: DelegatedWorkStageV01,
   live: LiveNativeHostRunProjectionV01,
   trustedResult: boolean,
+  eligibility: RepositoryRunResumeEligibilityV01 | null,
 ): { label: string; situation: string } {
   switch (stage) {
     case "preparing":
@@ -687,7 +715,8 @@ function stageCopyV01(
     case "resume_required":
       return {
         label: "Interrupted",
-        situation: "The local runtime lost ownership of this work. Resume is explicit.",
+        situation: eligibility?.summary ??
+          "The local runtime lost ownership of this work. Resume is explicit.",
       };
     case "result_ready":
       return {
@@ -732,12 +761,17 @@ function stageCopyV01(
 function nextActionForStageV01(
   stage: DelegatedWorkStageV01,
   resultHref: string | null,
+  mode: LiveNativeHostRunProjectionV01["mode"],
 ): DelegatedWorkNextActionV01 {
   switch (stage) {
     case "waiting_for_approval":
       return nextActionV01("review_requested_access");
     case "resume_required":
-      return nextActionV01("resume_codex_work");
+      return nextActionV01(
+        mode === "repository_attachment"
+          ? "review_resume_status"
+          : "resume_codex_work",
+      );
     case "result_ready":
       return {
         kind: "review_result",
@@ -777,6 +811,7 @@ function nextActionV01(
       href: "/workbench/semantic-review#delegated-work-approval",
     },
     resume_codex_work: { label: "Resume Codex work", href: null },
+    review_resume_status: { label: "Review resume status", href: null },
     view_progress: {
       label: "View progress",
       href: "/workbench/semantic-review#delegated-work",

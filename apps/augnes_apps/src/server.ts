@@ -257,6 +257,7 @@ function buildRepositoryCompanionError(error: unknown) {
       message,
     },
     continuity: null,
+    resume_eligibility: null,
     current_situation: "Exact repository continuity is unavailable because the live supervised Companion could not be verified.",
     next_meaningful_action: {
       label: "Start or restore the local Augnes Companion",
@@ -2076,7 +2077,7 @@ export function createMcpAppServer(
       {
         title: "Resume this repository with Augnes",
         description:
-          "Use for requests such as 'Resume this repository with Augnes', 'What was I working on here?', or 'Show the current Augnes project state'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review continuity.",
+          "Use for requests such as 'Resume this repository with Augnes', 'Can this run resume safely?', 'What was the last confirmed operation?', or 'Is an approval pending?'. Resolves one supplied local physical repository root through the live supervised Augnes Companion and returns exact read-only project/work/run/result/review and attachment-backed resume-eligibility continuity. It never starts or resumes work.",
         inputSchema: { repositoryRoot: z.string().min(1) },
         annotations: localRouteReadAnnotations,
         _meta: modelOnlyToolMeta,

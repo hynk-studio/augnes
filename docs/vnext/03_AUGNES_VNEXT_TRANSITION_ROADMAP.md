@@ -320,15 +320,12 @@ separate filesystem proof. Windows physical identity and managed delegation
 remain unsupported and fail closed. Broad CDX2B2B rollout requires either a
 verified Windows adapter or an explicitly macOS-only product boundary.
 
-## Current
-
-### CDX2B2B exact attachment-backed managed delegation
+### CDX2B2B exact attachment-backed managed delegation — Completed
 
 [Issue #118](https://github.com/hynk-studio/augnes-perspective-lab/issues/118)
-defines CDX2B2B. The Draft PR titled **CDX2B2B — Start one managed Codex run
-from an exact repository attachment** on branch
-`codex/cdx2b2b-managed-repository-delegation` is its current implementation and
-outcome record.
+and [PR #119](https://github.com/hynk-studio/augnes-perspective-lab/pull/119)
+define the completed CDX2B2B slice. It merged as
+`d610032de5f74bd078ac8b280df6564bc6e058a6`.
 
 CDX2B2B adds one Browser-confirmed start decision bound to one prepared
 attachment and deterministic execution envelope. One immediate transaction
@@ -365,15 +362,42 @@ non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
 no start decision consumption, attachment consumption, run, controller,
 provider call, command, or project mutation.
 
+## Current
+
+### CDX2B4A exact resume eligibility and durable checkpoints
+
+[Issue #121](https://github.com/hynk-studio/augnes-perspective-lab/issues/121)
+and its Draft PR titled **CDX2B4A — Establish exact attachment-backed resume
+eligibility** define the current slice. CDX2B4A adds one private, node-local
+`repository_run_resume_checkpoint.v0.1` owner and one read-only
+`repository_run_resume_eligibility.v0.1` projection. A consumed attachment
+remains the immutable run-start snapshot; the checkpoint instead binds the
+latest durably confirmed operation boundary to a fresh post-operation physical
+root and bounded worktree observation. Repository changes legitimately made by
+the admitted worker are compared with that checkpoint, not the original
+attachment.
+
+Checkpoint admission is exact-replay idempotent and fail-closed under run,
+step, operation, controller-generation, event/effect high-water, attachment,
+or envelope drift. An unclosed operation, missing post-effect observation,
+failed checkpoint write, conflicting candidate, or historical checkpointless
+run becomes reconciliation-required. One existing unresolved approval remains
+approval-pending. The eligibility read creates no controller, run, attachment,
+grant, decision, provider call, command, result, proposal, semantic record, or
+project-file change. Browser active selection is not binding material.
+
+CDX2B4A does not resume an attachment-backed run. The existing live-service
+refusal remains authoritative.
+
 ## Next separately authorized work
 
-The phase doctrine remains: establish one strong repository, project,
-current-work, and execution attachment; make one explicit start decision; then
-permit broad local reversible autonomy only inside that exact attachment and
-run. Current-session attachment, automatic resume after controller loss,
-Windows/Linux product rollout, remote nodes, long-horizon continuation,
-policy-triggered continuous control, and multi-agent orchestration remain
-later and separate.
+CDX2B4B is the next separately authorized slice: consume one exact
+`resume_ready` projection into one explicit exact same-run resume without a
+second attachment or managed run. Current-session attachment, automatic resume
+after controller loss or Companion startup, Linux product rollout, remote
+nodes, long-horizon continuation, policy-triggered continuous control, and
+multi-agent orchestration remain later and separate. Windows Issue #120 stays
+separate and unchanged.
 
 ## Pending C9
 

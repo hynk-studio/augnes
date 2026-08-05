@@ -164,6 +164,14 @@ RR1 is documentation authority reconciliation defined by
 [issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
 C9 remains pending separate explicit authorization.
 
+Attachment-backed managed runs now retain one private exact safe-operation
+checkpoint history and expose one bounded read-only resume-eligibility status
+through repository continuity, Browser, Apps MCP, and the Augnes Operator.
+This distinguishes the immutable consumed start attachment from the latest
+confirmed post-operation repository state. It does not implement repository
+resume; ambiguous effects require reconciliation and pending approvals remain
+separate.
+
 ## Canonical verification
 
 GitHub is used for source control, pull requests, review, and history. This

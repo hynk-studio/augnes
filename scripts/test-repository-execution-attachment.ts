@@ -478,6 +478,7 @@ async function main(): Promise<void> {
     assert.equal(portableText.includes("filesystem_volume_identity"), false);
     assert.equal(portableText.includes("filesystem_object_identity"), false);
     assert.equal(portableText.includes("repository_execution_attachment.v0.1"), false);
+    assert.equal(portableText.includes("repository_run_resume_checkpoint.v0.1"), false);
     assert.equal(
       portable.package.manifest.exclusions.includes(
         "machine_local_physical_root_baselines_and_execution_attachments",
@@ -487,6 +488,12 @@ async function main(): Promise<void> {
     assert.equal(
       portable.package.manifest.exclusions.includes(
         "machine_local_repository_execution_decision_requests_and_grants",
+      ),
+      true,
+    );
+    assert.equal(
+      portable.package.manifest.exclusions.includes(
+        "machine_local_repository_run_resume_checkpoints_and_provider_bindings",
       ),
       true,
     );

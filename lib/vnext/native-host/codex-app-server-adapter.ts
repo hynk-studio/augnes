@@ -131,6 +131,10 @@ export function createCodexAppServerAdapterV01(
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
     execution_profile: "native_host_managed_model",
     provider_egress: "native_host_managed",
+    resume_capability: {
+      binding_version: "native_host_resume_binding.v0.1",
+      resumable_after_detach: true,
+    },
     invoke(request, control) {
       return new CodexAppServerInvocationV01(request, control, options).public;
     },
@@ -1088,6 +1092,15 @@ class CodexAppServerInvocationV01 {
           ? "file_change"
           : null;
     if (!checkpointKind) return;
+    const itemId = requiredOpaqueIdV01(item.id, "codex_item_id_invalid");
+    const operationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        operation_identity_version: "native_host_operation_identity.v0.1",
+        run_id: this.request.run_id,
+        item_id: itemId,
+        operation_class: checkpointKind,
+      }),
+    );
     const status =
       !completed
         ? "active"
@@ -1115,6 +1128,16 @@ class CodexAppServerInvocationV01 {
           checkpoint_kind: checkpointKind,
           phase: completed ? "completed" : "started",
           status,
+          operation_ref: operationRef,
+          certainty: !completed
+            ? "started"
+            : status === "completed"
+              ? "completed"
+              : status === "failed"
+                ? "failed"
+                : status === "blocked"
+                  ? "cancelled"
+                  : "started",
           change_count: changeCount,
         },
       });
