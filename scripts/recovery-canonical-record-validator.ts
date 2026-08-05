@@ -39,8 +39,13 @@ import {
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
   assertVNextRepositoryExecutionStoreSchemaV01,
+  listAllRepositoryManagedResumeAttemptsForRecoveryV01,
   listAllRepositoryRunResumeCheckpointsForRecoveryV01,
 } from "../lib/vnext/persistence/repository-execution-store";
+import {
+  validateRepositoryManagedResumeAttemptRelationsV01,
+  validateRepositoryManagedResumeAttemptV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
 import {
   validateRepositoryRunResumeCheckpointRelationsV01,
   validateRepositoryRunResumeCheckpointV01,
@@ -1358,6 +1363,7 @@ export function validateRecoveryCanonicalDatabaseV01(
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",
       "vnext_repository_run_resume_checkpoints",
+      "vnext_repository_managed_resume_attempts",
       "vnext_repository_root_rebind_receipts",
       "vnext_repository_execution_decision_requests",
     ];
@@ -1375,6 +1381,13 @@ export function validateRecoveryCanonicalDatabaseV01(
           (checkpoint) =>
             !validateRepositoryRunResumeCheckpointV01(checkpoint) ||
             !validateRepositoryRunResumeCheckpointRelationsV01(db, checkpoint),
+        )
+      ) refuseV01();
+      if (
+        listAllRepositoryManagedResumeAttemptsForRecoveryV01(db).some(
+          (attempt) =>
+            !validateRepositoryManagedResumeAttemptV01(attempt) ||
+            !validateRepositoryManagedResumeAttemptRelationsV01(db, attempt),
         )
       ) refuseV01();
     }

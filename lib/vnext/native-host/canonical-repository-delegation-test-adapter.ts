@@ -17,6 +17,8 @@ export const CANONICAL_REPOSITORY_DELEGATION_TEST_CAPABILITY_VERSION_V01 =
   "canonical_repository_delegation_test_capability.v0.1" as const;
 export const CANONICAL_REPOSITORY_DELEGATION_TEST_FILE_V01 =
   "cdx2b2b-runtime-proof.txt" as const;
+export const CANONICAL_REPOSITORY_RESUME_TEST_FILE_V01 =
+  "cdx2b4b-runtime-proof.txt" as const;
 
 /**
  * Exact, source-runtime-only proof adapter. It is unreachable unless the
@@ -61,6 +63,12 @@ export function createCanonicalRepositoryDelegationTestAdapterV01(
       ) {
         throw new Error("canonical_repository_delegation_test_request_invalid");
       }
+      const resuming = Boolean(
+        control.resume_binding && request.repository_resume_context,
+      );
+      if (Boolean(control.resume_binding) !== Boolean(request.repository_resume_context)) {
+        throw new Error("canonical_repository_resume_binding_invalid");
+      }
       const canonicalRoot = realpathSync(request.root_scope.canonical_root);
       const canonicalTemporaryRoot = realpathSync(temporaryRoot);
       if (
@@ -76,17 +84,22 @@ export function createCanonicalRepositoryDelegationTestAdapterV01(
       ) {
         throw new Error("canonical_repository_delegation_test_untracked_conflict");
       }
+      const targetName = resuming
+        ? CANONICAL_REPOSITORY_RESUME_TEST_FILE_V01
+        : CANONICAL_REPOSITORY_DELEGATION_TEST_FILE_V01;
       const target = path.join(
         canonicalRoot,
-        CANONICAL_REPOSITORY_DELEGATION_TEST_FILE_V01,
+        targetName,
       );
       if (existsSync(target)) {
         throw new Error("canonical_repository_delegation_test_target_exists");
       }
-      const content = "CDX2B2B managed repository delegation runtime proof\n";
+      const content = resuming
+        ? "CDX2B4B explicit same-run resume runtime proof\n"
+        : "CDX2B2B managed repository delegation runtime proof\n";
       const invocation = delegate.invoke(request, control);
       const result = (async () => {
-        const refs = canonicalResumeRefsV01(request);
+        const refs = canonicalResumeRefsV01(request, control);
         await reportCanonicalLifecycleV01(request, control, refs, {
           event_kind: "thread_bound",
           bounded_metadata: { source: "canonical_repository_test_adapter" },
@@ -186,7 +199,7 @@ export function createCanonicalRepositoryDelegationTestAdapterV01(
           process.execPath,
           [
             "--eval",
-            `const fs=require("node:fs");const value=fs.readFileSync(${JSON.stringify(CANONICAL_REPOSITORY_DELEGATION_TEST_FILE_V01)},"utf8");if(value!==${JSON.stringify(content)})process.exit(1);`,
+            `const fs=require("node:fs");const value=fs.readFileSync(${JSON.stringify(targetName)},"utf8");if(value!==${JSON.stringify(content)})process.exit(1);`,
           ],
           {
             cwd: canonicalRoot,
@@ -217,7 +230,7 @@ export function createCanonicalRepositoryDelegationTestAdapterV01(
         changed_files: [
           {
             repository_relative_path:
-              CANONICAL_REPOSITORY_DELEGATION_TEST_FILE_V01,
+              targetName,
             change_kind: "added" as const,
             before_hash: null,
             after_hash: `sha256:${createHash("sha256").update(content).digest("hex")}`,
@@ -277,6 +290,8 @@ export function createCanonicalRepositoryDelegationTestAdapterV01(
             project_file_changes: 1,
             project_commands: 1,
             provider_egress: false,
+            provider_thread_resume_count: resuming ? 1 : 0,
+            provider_thread_start_count: resuming ? 0 : 1,
           },
         },
         };
@@ -295,11 +310,20 @@ function canonicalOperationRefV01(
   operationClass: "file_change" | "command_execution",
 ): string {
   return `sha256:${createHash("sha256")
-    .update(`${request.run_id}:${operationClass}:canonical.v0.1`)
+    .update(`${request.run_id}:${operationClass}:${request.repository_resume_context?.attempt_fingerprint ?? "initial"}:canonical.v0.1`)
     .digest("hex")}`;
 }
 
-function canonicalResumeRefsV01(request: NativeHostRequestV01): ExternalRefV01[] {
+function canonicalResumeRefsV01(
+  request: NativeHostRequestV01,
+  control: Parameters<NativeHostAdapterV01["invoke"]>[1],
+): ExternalRefV01[] {
+  if (control.resume_binding) {
+    return [
+      control.resume_binding.host_thread_ref,
+      control.resume_binding.host_turn_ref,
+    ];
+  }
   return [
     canonicalExternalRefV01("host_thread", `canonical-thread:${request.run_id}`),
     canonicalExternalRefV01("host_turn", `canonical-turn:${request.run_id}`),

@@ -298,6 +298,8 @@ export function BlankStateClient({
       setRenameMessage(infoMessage(
         decision.action === "start_repository_managed_delegation"
           ? "Start confirmed. The exact prepared attachment can be consumed into one managed run."
+          : decision.action === "resume_repository_managed_delegation"
+            ? "Resume confirmed. Augnes can consume this one-time grant for the exact same run."
           : "Decision confirmed. Augnes can finish the exact requested repository change.",
       ));
     } catch (error) {
@@ -1894,12 +1896,16 @@ function ProjectIdentityManagement({
           <h3>
             {entry.repository_execution_decision.action === "start_repository_managed_delegation"
               ? "Start this exact repository work"
+              : entry.repository_execution_decision.action === "resume_repository_managed_delegation"
+                ? "Resume this exact managed run"
               : "Confirm this identity change"}
           </h3>
           <p>{entry.repository_execution_decision.ordinary_text}</p>
           <p className="blank-state-meta">
             {entry.repository_execution_decision.action === "start_repository_managed_delegation"
               ? "This confirmation is separate from the assistant request and authorizes one exact managed run. It does not approve later external effects or accept the result."
+              : entry.repository_execution_decision.action === "resume_repository_managed_delegation"
+                ? "This one-time confirmation authorizes only the same run at its exact safe checkpoint. It is not operation approval and does not accept the result."
               : "This confirmation is separate from the assistant request and grants no execution authority."}
           </p>
           {entry.repository_execution_decision.status === "pending" ? (
@@ -1914,12 +1920,16 @@ function ProjectIdentityManagement({
                 ? "Confirming…"
                 : entry.repository_execution_decision.action === "start_repository_managed_delegation"
                   ? "Start one managed run"
+                  : entry.repository_execution_decision.action === "resume_repository_managed_delegation"
+                    ? "Resume managed run"
                   : "Confirm repository decision"}
             </button>
           ) : (
             <p role="status">
               {entry.repository_execution_decision.action === "start_repository_managed_delegation"
                 ? "Confirmed. The exact prepared attachment can start once."
+                : entry.repository_execution_decision.action === "resume_repository_managed_delegation"
+                  ? "Confirmed. The exact same run can resume once."
                 : "Confirmed. Augnes can finish this exact requested change."}
             </p>
           )}

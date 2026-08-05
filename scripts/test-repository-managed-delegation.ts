@@ -33,6 +33,7 @@ import {
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
   insertRepositoryRunResumeCheckpointInsideTransactionV01,
+  listRepositoryManagedResumeAttemptsV01,
   listRepositoryRunResumeCheckpointsV01,
   readRepositoryExecutionAttachmentV01,
 } from "../lib/vnext/persistence/repository-execution-store";
@@ -48,6 +49,10 @@ import {
   RepositoryManagedDelegationErrorV01,
   startRepositoryManagedDelegationV01,
 } from "../lib/vnext/repository-execution/repository-managed-delegation";
+import {
+  prepareRepositoryManagedResumeV01,
+  resumeRepositoryManagedDelegationV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
 import { inspectRepositoryWorktreeV01 } from "../lib/vnext/repository-execution/worktree-observation";
 import { classifyRepositoryEnvelopeCommandV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
@@ -232,6 +237,11 @@ async function main(): Promise<void> {
       projectA.workspace_id,
       projectB.project_id,
     );
+    await assertRepositoryManagedResumeV01(db, projectA.workspace_id);
+    await assertRepositoryManagedResumeCrashBoundariesV01(
+      db,
+      projectA.workspace_id,
+    );
 
     await waitForTerminalV01(db, result.run_id);
     const terminal = readAutonomyRunLedgerRecord(result.run_id, { db });
@@ -301,6 +311,10 @@ async function main(): Promise<void> {
       resume_eligibility_browser_selection_independent: true,
       resume_eligibility_zero_effect_read: true,
       repository_attachment_resume_still_refused: true,
+      explicit_same_run_resume: true,
+      resume_attempt_crash_boundary: true,
+      resumed_cancellation_boundaries: true,
+      provider_thread_resume_once_and_start_zero: true,
       windows_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
       non_git_status: "unsupported_no_run",
@@ -419,6 +433,12 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       platform: "darwin",
     });
     assert.equal(active.status, "active_owned");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      service,
+      { now: () => "2026-08-04T02:00:20.100Z", platform: "darwin" },
+    )).status, "active_owned");
     const mismatchedController = await readRepositoryRunResumeEligibilityV01(db, {
       config,
       generated_at: "2026-08-04T02:00:20.500Z",
@@ -751,6 +771,20 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
     assert.equal((await readRestarted()).status, "stale");
     rmSync(driftPath);
     assert.equal((await readRestarted()).status, "resume_ready");
+    const resumePreparation = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:21.900Z", platform: "darwin" },
+    );
+    assert.equal(resumePreparation.status, "decision_required");
+    assert.equal(resumePreparation.authority.worker_started, false);
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:21.950Z", platform: "linux" },
+    )).status, "unsupported");
 
     const unsupported = await readRepositoryRunResumeEligibilityV01(db, {
       config,
@@ -1377,6 +1411,12 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       },
     }, { db });
     assert.equal((await readRestarted()).status, "approval_pending");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:22.700Z", platform: "darwin" },
+    )).status, "approval_pending");
     const pendingApprovalRun = readAutonomyRunLedgerRecord(started.run_id, { db })!;
     updateAutonomyRunLedgerFields(started.run_id, {
       metadata: {
@@ -1396,6 +1436,12 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       finished_at: "2026-08-04T02:00:23.000Z",
     }, { db });
     assert.equal((await readRestarted()).status, "terminal");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:23.100Z", platform: "darwin" },
+    )).status, "terminal");
     updateAutonomyRunLedgerFields(started.run_id, {
       status: "running",
       finished_at: null,
@@ -1432,6 +1478,12 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
     });
     appendAutonomyRunLedgerEvent(incompleteEvent, { db });
     assert.equal((await readRestarted()).status, "reconciliation_required");
+    assert.equal((await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      restarted,
+      { now: () => "2026-08-04T02:00:23.600Z", platform: "darwin" },
+    )).status, "reconciliation_required");
     db.prepare("DELETE FROM autonomy_run_events WHERE event_id = ?").run(
       incompleteEvent.event_id,
     );
@@ -1460,6 +1512,517 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
   } finally {
     delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
     await service.shutdown();
+  }
+}
+
+async function assertRepositoryManagedResumeV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  const fixture = await createPreparedFixtureV01(
+    db,
+    "explicit-resume-repository",
+    "Explicit Resume Repository",
+    "2026-08-04T04:00:00.000Z",
+  );
+  process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+  const originalService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () =>
+      createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+    runtime_instance_fingerprint: `sha256:${"c".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"d".repeat(64)}`,
+  });
+  let resumeInvocations = 0;
+  let startInvocations = 0;
+  const resumedService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => {
+      const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+        process.env,
+      );
+      return {
+        ...adapter,
+        invoke(request, control) {
+          if (control.resume_binding) resumeInvocations += 1;
+          else startInvocations += 1;
+          return adapter.invoke(request, control);
+        },
+      };
+    },
+    runtime_instance_fingerprint: `sha256:${"e".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"f".repeat(64)}`,
+  });
+  const config = operatorConfig(workspaceId, fixture.project_id);
+  try {
+    const startRequest = await requestAndGrantV01(
+      db,
+      originalService,
+      fixture,
+      "2026-08-04T04:00:10.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      db,
+      startInputV01(fixture, startRequest),
+      originalService,
+      { now: () => "2026-08-04T04:00:12.000Z", platform: "darwin" },
+    );
+    await waitForCheckpointCountV01(db, started.run_id, 4);
+    const before = readAutonomyRunLedgerRecord(started.run_id, { db })!;
+    const beforeGeneration = Number(before.metadata.controller_generation);
+    const preparation = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      resumedService,
+      { now: () => "2026-08-04T04:00:20.000Z", platform: "darwin" },
+    );
+    assert.equal(preparation.status, "decision_required", JSON.stringify(preparation));
+    assert(preparation.decision_request);
+    assert(preparation.expected_state_fingerprint);
+    assert.equal(preparation.expected_controller_generation, beforeGeneration + 1);
+    assert.equal(preparation.authority.worker_started, false);
+    const preparationReplay = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      resumedService,
+      { now: () => "2026-08-04T04:00:20.500Z", platform: "darwin" },
+    );
+    assert.equal(preparationReplay.status, "decision_required");
+    assert.equal(
+      preparationReplay.decision_request?.request_fingerprint,
+      preparation.decision_request.request_fingerprint,
+    );
+    assert.equal(
+      preparationReplay.expected_state_fingerprint,
+      preparation.expected_state_fingerprint,
+    );
+    assert.equal(
+      countWhere(
+        db,
+        "vnext_repository_managed_resume_attempts",
+        `run_id = '${started.run_id}'`,
+      ),
+      0,
+    );
+    const granted = grantDecisionV01(
+      db,
+      preparation.decision_request,
+      "2026-08-04T04:00:21.000Z",
+    );
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    const resumeInput = {
+      config,
+      run_id: started.run_id,
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      expected_state_fingerprint: preparation.expected_state_fingerprint,
+      expected_controller_generation: preparation.expected_controller_generation!,
+      expected_run_control_revision: preparation.expected_run_control_revision!,
+      decision_request_fingerprint: granted.request_fingerprint,
+      decision_grant_fingerprint: granted.grant_fingerprint!,
+    };
+    for (const platform of ["win32", "linux"] as const) {
+      const unsupportedResume = await resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        {
+          now: () => "2026-08-04T04:00:21.250Z",
+          platform,
+        },
+      );
+      assert.equal(unsupportedResume.status, "blocked");
+      assert.equal(unsupportedResume.authority.decision_grant_consumed, false);
+      assert.equal(unsupportedResume.authority.worker_started, false);
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(resumeInvocations, 0);
+      assert.equal(startInvocations, 0);
+    }
+    for (const staleInput of [
+      { ...resumeInput, attachment_id: `attachment:${"0".repeat(24)}` },
+      { ...resumeInput, expected_attachment_binding_fingerprint: `sha256:${"0".repeat(64)}` },
+      { ...resumeInput, expected_state_fingerprint: `sha256:${"1".repeat(64)}` },
+      { ...resumeInput, expected_controller_generation: resumeInput.expected_controller_generation + 1 },
+      { ...resumeInput, expected_run_control_revision: resumeInput.expected_run_control_revision + 1 },
+      { ...resumeInput, decision_request_fingerprint: `sha256:${"2".repeat(64)}` },
+      { ...resumeInput, decision_grant_fingerprint: `sha256:${"3".repeat(64)}` },
+    ]) {
+      await assert.rejects(
+        resumeRepositoryManagedDelegationV01(db, staleInput, resumedService, {
+          now: () => "2026-08-04T04:00:21.500Z",
+          platform: "darwin",
+        }),
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_execution_decision_requests",
+          `request_fingerprint = '${granted.request_fingerprint}' AND status = 'granted'`,
+        ),
+        1,
+      );
+    }
+    const rollbackHooks = [
+      { after_attempt_insert_inside_transaction: () => { throw new Error("resume_rollback_attempt"); } },
+      { after_run_update_inside_transaction: () => { throw new Error("resume_rollback_run"); } },
+      { after_step_update_inside_transaction: () => { throw new Error("resume_rollback_step"); } },
+      { after_event_append_inside_transaction: () => { throw new Error("resume_rollback_event"); } },
+      { after_decision_consume_inside_transaction: () => { throw new Error("resume_rollback_decision"); } },
+    ];
+    for (const hook of rollbackHooks) {
+      await assert.rejects(
+        resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          {
+            now: () => "2026-08-04T04:00:22.000Z",
+            platform: "darwin",
+            ...hook,
+          },
+        ),
+      );
+      assert.equal(
+        countWhere(
+          db,
+          "vnext_repository_managed_resume_attempts",
+          `run_id = '${started.run_id}'`,
+        ),
+        0,
+      );
+      assert.equal(
+        Number(readAutonomyRunLedgerRecord(started.run_id, { db })!.metadata.controller_generation),
+        beforeGeneration,
+      );
+    }
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    const [resumed, concurrentReplay] = await Promise.all([
+      resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
+      ),
+      resumeRepositoryManagedDelegationV01(
+        db,
+        resumeInput,
+        resumedService,
+        { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
+      ),
+    ]);
+    assert.equal(resumed.status, "accepted", JSON.stringify(resumed));
+    assert.equal(resumed.run_id, started.run_id);
+    assert.equal(resumed.attachment_id, fixture.attachment_id);
+    assert.equal(resumed.controller_generation, beforeGeneration + 1);
+    assert.equal(resumed.authority.worker_started, true);
+    assert.equal(concurrentReplay.status, "exact_replay");
+    assert.equal(concurrentReplay.authority.worker_started, false);
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    await waitForCheckpointCountV01(db, started.run_id, 8);
+    await waitForTerminalV01(db, started.run_id);
+    const attempts = listRepositoryManagedResumeAttemptsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.equal(attempts.length, 1);
+    assert.equal(attempts[0]?.resumed_controller_generation, beforeGeneration + 1);
+    assert.equal(attempts[0]?.attempt_state, "settled");
+    const checkpoints = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: workspaceId,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    });
+    assert.equal(checkpoints.at(-1)?.controller_generation, beforeGeneration + 1);
+    assert.equal(
+      readFileSync(path.join(fixture.root, "cdx2b4b-runtime-proof.txt"), "utf8"),
+      "CDX2B4B explicit same-run resume runtime proof\n",
+    );
+    const replay = await resumeRepositoryManagedDelegationV01(
+      db,
+      resumeInput,
+      resumedService,
+      { now: () => "2026-08-04T04:00:23.000Z", platform: "darwin" },
+    );
+    assert.equal(replay.status, "exact_replay");
+    assert.equal(replay.authority.worker_started, false);
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    await assert.rejects(
+      resumeRepositoryManagedDelegationV01(
+        db,
+        {
+          ...resumeInput,
+          expected_run_control_revision:
+            resumeInput.expected_run_control_revision + 1,
+        },
+        resumedService,
+        { now: () => "2026-08-04T04:00:23.500Z", platform: "darwin" },
+      ),
+    );
+    assert.equal(resumeInvocations, 1);
+    assert.equal(startInvocations, 0);
+    assert.equal(countWhere(db, "autonomy_runs", `run_id = '${started.run_id}'`), 1);
+    assert.equal(
+      countWhere(
+        db,
+        "vnext_repository_execution_attachments",
+        `attachment_id = '${fixture.attachment_id}'`,
+      ),
+      1,
+    );
+  } finally {
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    await resumedService.shutdown();
+    await originalService.shutdown();
+  }
+}
+
+async function assertRepositoryManagedResumeCrashBoundariesV01(
+  db: Database.Database,
+  workspaceId: string,
+): Promise<void> {
+  for (const scenario of [
+    "before_marker",
+    "after_marker",
+    "cancel_before_marker",
+    "cancel_during_execution",
+  ] as const) {
+    const baseMs = scenario === "before_marker"
+      ? Date.parse("2026-08-04T05:00:00.000Z")
+      : scenario === "after_marker"
+        ? Date.parse("2026-08-04T06:00:00.000Z")
+        : scenario === "cancel_before_marker"
+          ? Date.parse("2026-08-04T07:00:00.000Z")
+          : Date.parse("2026-08-04T08:00:00.000Z");
+    const at = (offset: number) => new Date(baseMs + offset).toISOString();
+    const fixture = await createPreparedFixtureV01(
+      db,
+      `resume-crash-${scenario}`,
+      `Resume Crash ${scenario}`,
+      at(0),
+    );
+    process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+    const originalService = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () =>
+        createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+      runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"2".repeat(64)}`,
+    });
+    let resumeCalls = 0;
+    const resumedService = new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () => {
+        const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+          process.env,
+        );
+        return {
+          ...adapter,
+          invoke(request, control) {
+            if (control.resume_binding) resumeCalls += 1;
+            return adapter.invoke(request, control);
+          },
+        };
+      },
+      runtime_instance_fingerprint: `sha256:${"3".repeat(64)}`,
+      runtime_generation_fingerprint: `sha256:${"4".repeat(64)}`,
+    });
+    const config = operatorConfig(workspaceId, fixture.project_id);
+    try {
+      const startRequest = await requestAndGrantV01(
+        db,
+        originalService,
+        fixture,
+        at(10_000),
+      );
+      const started = await startRepositoryManagedDelegationV01(
+        db,
+        startInputV01(fixture, startRequest),
+        originalService,
+        { now: () => at(12_000), platform: "darwin" },
+      );
+      await waitForCheckpointCountV01(db, started.run_id, 4);
+      const preparation = await prepareRepositoryManagedResumeV01(
+        db,
+        { config },
+        resumedService,
+        { now: () => at(20_000), platform: "darwin" },
+      );
+      assert.equal(preparation.status, "decision_required");
+      assert(preparation.decision_request && preparation.expected_state_fingerprint);
+      const grant = grantDecisionV01(db, preparation.decision_request, at(21_000));
+      const resumeInput = {
+        config,
+        run_id: started.run_id,
+        attachment_id: fixture.attachment_id,
+        expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+        expected_state_fingerprint: preparation.expected_state_fingerprint,
+        expected_controller_generation: preparation.expected_controller_generation!,
+        expected_run_control_revision: preparation.expected_run_control_revision!,
+        decision_request_fingerprint: grant.request_fingerprint,
+        decision_grant_fingerprint: grant.grant_fingerprint!,
+      };
+      if (scenario === "before_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        await assert.rejects(
+          resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_admission_commit: () => {
+                throw new Error("simulated_crash_before_invocation_marker");
+              },
+            },
+          ),
+        );
+        assert.equal(resumeCalls, 0);
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.attempt_state,
+          "admitted_not_invoked",
+        );
+        const replay = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(23_000), platform: "darwin" },
+        );
+        assert.equal(replay.status, "accepted");
+        assert.equal(replay.authority.worker_started, true);
+        assert.equal(resumeCalls, 1);
+        await waitForCheckpointCountV01(db, started.run_id, 8);
+        await waitForTerminalV01(db, started.run_id);
+      } else if (scenario === "after_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        await assert.rejects(
+          resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_invocation_marker: () => {
+                throw new Error("simulated_crash_after_invocation_marker");
+              },
+            },
+          ),
+        );
+        assert.equal(resumeCalls, 0);
+        const replay = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(23_000), platform: "darwin" },
+        );
+        assert.equal(replay.status, "reconciliation_required");
+        assert.equal(replay.authority.worker_started, false);
+        assert.equal(resumeCalls, 0);
+      } else if (scenario === "cancel_before_marker") {
+        delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+        await assert.rejects(
+          resumeRepositoryManagedDelegationV01(
+            db,
+            resumeInput,
+            resumedService,
+            {
+              now: () => at(22_000),
+              platform: "darwin",
+              after_admission_commit: () => {
+                throw new Error("cancel_before_invocation_marker");
+              },
+            },
+          ),
+        );
+        const admitted = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(admitted);
+        const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(admitted.metadata.control_revision),
+        }, resumedService);
+        assert.equal(cancelled.status, "cancelled");
+        assert.equal(resumeCalls, 0);
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.final_outcome,
+          "cancelled",
+        );
+        const replay = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(23_000), platform: "darwin" },
+        );
+        assert.equal(replay.status, "exact_replay");
+        assert.equal(replay.authority.worker_started, false);
+      } else {
+        const resumed = await resumeRepositoryManagedDelegationV01(
+          db,
+          resumeInput,
+          resumedService,
+          { now: () => at(22_000), platform: "darwin" },
+        );
+        assert.equal(resumed.status, "accepted");
+        assert.equal(resumeCalls, 1);
+        await waitForCheckpointCountV01(db, started.run_id, 8);
+        const running = readAutonomyRunLedgerRecord(started.run_id, { db });
+        assert(running);
+        const cancelled = await cancelRepositoryManagedDelegationV01(db, {
+          config,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          run_id: started.run_id,
+          control_revision: Number(running.metadata.control_revision),
+        }, resumedService);
+        assert.equal(cancelled.status, "cancel_requested");
+        await waitForTerminalV01(db, started.run_id);
+        assert.equal(
+          readAutonomyRunLedgerRecord(started.run_id, { db })?.status,
+          "cancelled",
+        );
+        assert.equal(
+          listRepositoryManagedResumeAttemptsV01(db, {
+            workspace_id: workspaceId,
+            project_id: fixture.project_id,
+            run_id: started.run_id,
+          })[0]?.final_outcome,
+          "cancelled",
+        );
+      }
+    } finally {
+      delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+      await resumedService.shutdown();
+      await originalService.shutdown();
+    }
   }
 }
 
@@ -1532,6 +2095,13 @@ function assertRepositoryExecutionMigrationV01(): void {
     ).pluck().get());
     assert(attachmentSql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL"));
     assert(decisionSql.includes("start_repository_managed_delegation"));
+    assert(decisionSql.includes("resume_repository_managed_delegation"));
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_managed_resume_attempts'",
+    ).get());
+    assert(legacy.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_vnext_repository_managed_resume_attempts_run'",
+    ).get());
     assert(legacy.prepare(
       "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_vnext_repository_execution_consumed_run'",
     ).get());

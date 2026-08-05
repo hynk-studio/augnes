@@ -24,7 +24,12 @@ import {
   readActiveProjectSelectionV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
-import { readRepositoryExecutionAttachmentV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import {
+  readRepositoryManagedResumeAttemptV01,
+  readRepositoryExecutionAttachmentV01,
+  readRepositoryRunResumeCheckpointV01,
+  transitionRepositoryManagedResumeAttemptInsideTransactionV01,
+} from "@/lib/vnext/persistence/repository-execution-store";
 import { admitRepositoryRunResumeCheckpointV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
 import {
   admitPreparedNativeHostRunClaimInsideTransactionV01,
@@ -32,6 +37,7 @@ import {
   DirectNativeHostRoundTripErrorV01,
   prepareNativeHostRunClaimInsideTransactionV01,
   runDirectNativeHostRoundTripV01,
+  type DirectNativeHostRoundTripDependenciesV01,
   type NativeHostTimeoutSchedulerV01,
   type PersistedHostPacketAdmissionV01,
   type PreparedNativeHostRunClaimV01,
@@ -67,10 +73,12 @@ import {
   type NativeHostLifecycleSinkV01,
   type NativeHostRequestV01,
   type NativeHostRepositoryDelegationContextV01,
+  type NativeHostRepositoryResumeContextV01,
   type NativeHostResumeBindingV01,
   type NativeHostRunModeV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { RepositoryManagedResumeAttemptV01 } from "@/types/vnext/repository-managed-resume";
 import { validateBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/bounded-automation-cycle";
 import { readBoundedAutomationCapabilityGrantV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
 
@@ -243,6 +251,18 @@ export class LiveNativeHostRunServiceV01 {
     };
   }
 
+  readRepositoryResumeRuntimeClaimV01(): {
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
+    capability: ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>;
+  } {
+    return {
+      runtime_instance_fingerprint: this.runtimeInstanceFingerprint,
+      runtime_generation_fingerprint: this.runtimeGenerationFingerprint,
+      capability: this.readCapabilityContractV01(),
+    };
+  }
+
   async preparePolicyTriggeredRunClaimInsideTransactionV01(
     db: Database.Database,
     input: {
@@ -365,6 +385,49 @@ export class LiveNativeHostRunServiceV01 {
         claim: input.claim,
         session_admission: null,
       },
+      before_adapter_invoke: input.before_adapter_invoke,
+    });
+  }
+
+  async launchAdmittedRepositoryResumeV01(input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    repository_delegation_context: NativeHostRepositoryDelegationContextV01;
+    repository_resume_context: NativeHostRepositoryResumeContextV01;
+    resume_binding: NativeHostResumeBindingV01;
+    claim: NonNullable<
+      DirectNativeHostRoundTripDependenciesV01["pre_admitted_repository_resume_claim"]
+    >;
+    before_adapter_invoke: (request: NativeHostRequestV01) => Promise<void>;
+  }): Promise<LiveNativeHostStartResultV01> {
+    const key = projectKeyV01(input.config);
+    const active = this.controllers.get(key);
+    if (active && !active.completionSettled) {
+      if (
+        active.runId !== input.claim.run_id ||
+        active.mode !== "repository_attachment" ||
+        active.controllerGeneration !== input.claim.resumed_controller_generation
+      ) {
+        refuseV01("live_host_repository_resume_controller_conflict", 409);
+      }
+      return {
+        status: "exact_replay",
+        projection: this.readExactRepositoryDelegationProjectionV01(
+          input.config,
+          input.claim.run_id,
+        ),
+        session_admission: null,
+      };
+    }
+    return this.launch({
+      config: input.config,
+      mode: "repository_attachment",
+      automation_context: null,
+      repository_delegation_context: input.repository_delegation_context,
+      repository_resume_context: input.repository_resume_context,
+      resume_binding: input.resume_binding,
+      resume_existing: true,
+      controller_generation: input.claim.resumed_controller_generation,
+      pre_admitted_repository_resume_claim: input.claim,
       before_adapter_invoke: input.before_adapter_invoke,
     });
   }
@@ -857,6 +920,12 @@ export class LiveNativeHostRunServiceV01 {
         input,
         run,
       );
+      const resumeAttemptFingerprint = stringMetadataV01(
+        run.metadata.repository_resume_attempt_fingerprint,
+      );
+      const resumeAttempt = resumeAttemptFingerprint
+        ? readRepositoryManagedResumeAttemptV01(db, resumeAttemptFingerprint)
+        : null;
       if (isTerminalRunnerStatus(run.status)) {
         outcome = "exact_replay";
       } else if (run.status === "cancelling") {
@@ -897,6 +966,74 @@ export class LiveNativeHostRunServiceV01 {
           payload: { worker_invoked: false, semantic_approval_created: false },
           created_at: observedAt,
         }), { db });
+        outcome = "cancelled";
+      } else if (
+        run.status === "starting" &&
+        resumeAttempt &&
+        resumeAttempt.run_id === run.run_id &&
+        resumeAttempt.attempt_state === "admitted_not_invoked"
+      ) {
+        if (numberMetadataV01(run.metadata.control_revision) !== input.control_revision) {
+          refuseV01("live_host_control_revision_conflict", 409);
+        }
+        const checkpoint = readRepositoryRunResumeCheckpointV01(
+          db,
+          resumeAttempt.checkpoint_fingerprint,
+        );
+        const step = checkpoint
+          ? run.steps.find(
+              (candidate) => candidate.step_id === checkpoint.step_id,
+            )
+          : null;
+        if (!step || step.status !== "running") {
+          refuseV01("live_host_repository_resume_cancel_claim_invalid", 409);
+        }
+        const observedAt = this.now();
+        if (!transitionRepositoryManagedResumeAttemptInsideTransactionV01(db, {
+          attempt_fingerprint: resumeAttempt.attempt_fingerprint,
+          from: ["admitted_not_invoked"],
+          to: "settled",
+          updated_at: observedAt,
+          settled_at: observedAt,
+          final_outcome: "cancelled",
+        })) {
+          refuseV01("live_host_repository_resume_cancel_claim_drift", 409);
+        }
+        updateAutonomyRunStepLedgerFields(step.step_id, {
+          status: "cancelled",
+          finished_at: observedAt,
+          updated_at: observedAt,
+          error_message: null,
+        }, { db });
+        updateAutonomyRunLedgerFields(run.run_id, {
+          status: "cancelled",
+          finished_at: observedAt,
+          updated_at: observedAt,
+          stop_reason: "cancelled_before_provider_resume",
+          metadata: {
+            ...run.metadata,
+            control_revision: input.control_revision + 1,
+            cancellation_requested: true,
+            worker_invoked: false,
+            provider_resume_invocation_started: false,
+            semantic_approval_created: false,
+          },
+        }, { db });
+        appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({
+          run_id: run.run_id,
+          step_id: step.step_id,
+          event_type: "run_cancelled",
+          status: "cancelled",
+          message:
+            "The exact resumed run was cancelled before provider resume invocation.",
+          payload: {
+            worker_invoked: false,
+            provider_resume_invoked: false,
+            semantic_approval_created: false,
+          },
+          created_at: observedAt,
+        }), { db });
+        interrupt = activeController;
         outcome = "cancelled";
       } else if (run.status === "paused") {
         outcome = "reconciliation_required";
@@ -1019,6 +1156,7 @@ export class LiveNativeHostRunServiceV01 {
     mode: NativeHostRunModeV01;
     automation_context?: NativeHostAutomationContextV01 | null;
     repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
+    repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
     operator_mutation?: {
       credential: VNextLocalOperatorSessionCredentialV01;
       clock?: VNextLocalRuntimeClockV01;
@@ -1031,6 +1169,9 @@ export class LiveNativeHostRunServiceV01 {
       claim: PreparedNativeHostRunClaimV01;
       session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
     };
+    pre_admitted_repository_resume_claim?: NonNullable<
+      DirectNativeHostRoundTripDependenciesV01["pre_admitted_repository_resume_claim"]
+    >;
     before_adapter_invoke: ((request: NativeHostRequestV01) => Promise<void>) | undefined;
   }): Promise<LiveNativeHostStartResultV01> {
     const db = this.openDatabase(input.config);
@@ -1046,6 +1187,10 @@ export class LiveNativeHostRunServiceV01 {
       runtime_instance_fingerprint: this.runtimeInstanceFingerprint,
       runtime_generation_fingerprint: this.runtimeGenerationFingerprint,
       read_capability: () => this.readCapabilityContractV01(),
+      claimed_run_id:
+        input.pre_admitted_repository_resume_claim?.run_id ??
+        input.pre_admitted_run_claim?.claim.run_id ??
+        null,
     });
     const key = projectKeyV01(input.config);
     this.controllers.set(key, controller);
@@ -1056,6 +1201,7 @@ export class LiveNativeHostRunServiceV01 {
         mode: input.mode,
         automation_context: input.automation_context ?? null,
         repository_delegation_context: input.repository_delegation_context,
+        repository_resume_context: input.repository_resume_context ?? null,
         operator_mutation: input.operator_mutation,
       },
       {
@@ -1073,16 +1219,58 @@ export class LiveNativeHostRunServiceV01 {
         live_host_egress_authorized:
           input.mode === "interactive" || input.mode === "repository_attachment",
         pre_admitted_run_claim: input.pre_admitted_run_claim,
+        pre_admitted_repository_resume_claim:
+          input.pre_admitted_repository_resume_claim,
+        repository_resume_context: input.repository_resume_context ?? null,
         before_adapter_invoke: input.before_adapter_invoke,
+        on_adapter_invocation_started: input.pre_admitted_repository_resume_claim
+          ? () => {
+              transitionResumeAttemptV01(db, {
+                attempt_fingerprint:
+                  input.pre_admitted_repository_resume_claim!.attempt_fingerprint,
+                from: ["provider_resume_invocation_started"],
+                to: "controller_owned",
+                observed_at: this.now(),
+              });
+            }
+          : undefined,
         on_invocation_admitted: ({ request, session_admission }) =>
           controller.admit(request, session_admission),
       },
     )
       .then((result) => {
         controller.complete(result.run_id);
+        if (input.pre_admitted_repository_resume_claim) {
+          transitionResumeAttemptV01(db, {
+            attempt_fingerprint:
+              input.pre_admitted_repository_resume_claim.attempt_fingerprint,
+            from: ["controller_owned", "provider_resume_invocation_started"],
+            to: "settled",
+            observed_at: this.now(),
+            final_outcome: resumeAttemptOutcomeV01(result.host_result?.outcome),
+          });
+        }
       })
       .catch((error: unknown) => {
         controller.fail(error);
+        if (input.pre_admitted_repository_resume_claim) {
+          try {
+            transitionResumeAttemptV01(db, {
+              attempt_fingerprint:
+                input.pre_admitted_repository_resume_claim.attempt_fingerprint,
+              from: [
+                "admitted_not_invoked",
+                "provider_resume_invocation_started",
+                "controller_owned",
+              ],
+              to: "reconciliation_required",
+              observed_at: this.now(),
+            });
+          } catch {
+            // Durable run reconciliation remains fail-closed when attempt
+            // settlement itself cannot be recorded.
+          }
+        }
       })
       .finally(() => {
         controller.completionSettled = true;
@@ -1399,6 +1587,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       runtime_instance_fingerprint: string;
       runtime_generation_fingerprint: string;
       read_capability: () => ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>;
+      claimed_run_id: string | null;
     },
   ) {
     this.adapter = {
@@ -1434,7 +1623,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
   }
 
   get runId(): string | null {
-    return this.request?.run_id ?? null;
+    return this.request?.run_id ?? this.input.claimed_run_id;
   }
 
   get controllerGeneration(): number {
@@ -2098,6 +2287,51 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
     }
     return this.request;
   }
+}
+
+function transitionResumeAttemptV01(
+  db: Database.Database,
+  input: {
+    attempt_fingerprint: string;
+    from: RepositoryManagedResumeAttemptV01["attempt_state"][];
+    to: RepositoryManagedResumeAttemptV01["attempt_state"];
+    observed_at: string;
+    final_outcome?: RepositoryManagedResumeAttemptV01["final_outcome"];
+  },
+): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    transitionRepositoryManagedResumeAttemptInsideTransactionV01(db, {
+      attempt_fingerprint: input.attempt_fingerprint,
+      from: input.from,
+      to: input.to,
+      updated_at: input.observed_at,
+      ...(input.to === "settled" ? { settled_at: input.observed_at } : {}),
+      ...(Object.hasOwn(input, "final_outcome")
+        ? { final_outcome: input.final_outcome ?? null }
+        : {}),
+    });
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function resumeAttemptOutcomeV01(
+  outcome:
+    | "completed"
+    | "blocked"
+    | "failed"
+    | "cancelled"
+    | "timed_out"
+    | "unavailable"
+    | null
+    | undefined,
+): RepositoryManagedResumeAttemptV01["final_outcome"] {
+  return outcome === "blocked" || outcome === "unavailable"
+    ? "failed"
+    : outcome ?? null;
 }
 
 declare global {

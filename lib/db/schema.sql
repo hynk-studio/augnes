@@ -4173,6 +4173,39 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_operati
 CREATE INDEX IF NOT EXISTS idx_vnext_repository_resume_checkpoint_current
   ON vnext_repository_run_resume_checkpoints(workspace_id, project_id, run_id, effect_ledger_high_water_mark DESC, event_high_water_mark DESC, checkpoint_fingerprint);
 
+CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_attempts (
+  attempt_fingerprint TEXT PRIMARY KEY CHECK (length(attempt_fingerprint) = 71 AND substr(attempt_fingerprint, 1, 7) = 'sha256:'),
+  attempt_version TEXT NOT NULL CHECK (attempt_version = 'repository_managed_resume_attempt.v0.1'),
+  workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+  attachment_id TEXT NOT NULL,
+  attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+  checkpoint_fingerprint TEXT NOT NULL,
+  checkpoint_version TEXT NOT NULL CHECK (checkpoint_version = 'repository_run_resume_checkpoint.v0.1'),
+  prior_controller_generation INTEGER NOT NULL CHECK (prior_controller_generation >= 1),
+  resumed_controller_generation INTEGER NOT NULL CHECK (resumed_controller_generation = prior_controller_generation + 1),
+  decision_request_fingerprint TEXT NOT NULL CHECK (length(decision_request_fingerprint) = 71),
+  decision_grant_fingerprint TEXT NOT NULL CHECK (length(decision_grant_fingerprint) = 71),
+  expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+  admitted_run_control_revision INTEGER NOT NULL CHECK (admitted_run_control_revision >= 1),
+  admitted_step_control_revision INTEGER NOT NULL CHECK (admitted_step_control_revision >= 1),
+  runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+  runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+  attempt_state TEXT NOT NULL CHECK (attempt_state IN ('admitted_not_invoked', 'provider_resume_invocation_started', 'controller_owned', 'settled', 'reconciliation_required')),
+  final_outcome TEXT CHECK (final_outcome IS NULL OR final_outcome IN ('completed', 'failed', 'cancelled', 'timed_out')),
+  admitted_at TEXT NOT NULL CHECK (length(trim(admitted_at)) > 0),
+  provider_invocation_started_at TEXT, settled_at TEXT,
+  updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+  UNIQUE (run_id, checkpoint_fingerprint),
+  UNIQUE (decision_request_fingerprint),
+  FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+  FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+  FOREIGN KEY (attachment_id) REFERENCES vnext_repository_execution_attachments(attachment_id) ON UPDATE RESTRICT ON DELETE CASCADE,
+  FOREIGN KEY (checkpoint_fingerprint) REFERENCES vnext_repository_run_resume_checkpoints(checkpoint_fingerprint) ON UPDATE RESTRICT ON DELETE CASCADE,
+  FOREIGN KEY (decision_request_fingerprint) REFERENCES vnext_repository_execution_decision_requests(request_fingerprint) ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_vnext_repository_managed_resume_attempts_run
+  ON vnext_repository_managed_resume_attempts(workspace_id, project_id, run_id, admitted_at DESC, attempt_fingerprint);
+
 CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
   request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
   workspace_id TEXT NOT NULL,
@@ -4199,7 +4232,8 @@ CREATE TABLE IF NOT EXISTS vnext_repository_execution_decision_requests (
   ),
   action TEXT NOT NULL CHECK (action IN (
     'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment',
-    'start_repository_managed_delegation'
+    'start_repository_managed_delegation',
+    'resume_repository_managed_delegation'
   )),
   workspace_id TEXT NOT NULL,
   project_id TEXT NOT NULL,

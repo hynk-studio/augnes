@@ -164,13 +164,17 @@ RR1 is documentation authority reconciliation defined by
 [issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
 C9 remains pending separate explicit authorization.
 
-Attachment-backed managed runs now retain one private exact safe-operation
+Attachment-backed managed runs retain one private exact safe-operation
 checkpoint history and expose one bounded read-only resume-eligibility status
 through repository continuity, Browser, Apps MCP, and the Augnes Operator.
 This distinguishes the immutable consumed start attachment from the latest
-confirmed post-operation repository state. It does not implement repository
-resume; ambiguous effects require reconciliation and pending approvals remain
-separate.
+confirmed post-operation repository state. Exact `resume_ready` material may
+now create one expiring Browser-only Resume decision and one atomic same-run,
+same-attachment, same-thread attempt. The provider path uses `thread/resume`,
+not `thread/start`; ambiguous effects require reconciliation and pending
+operation approval remains separate. Resume completion does not create a
+ReviewDecision, Transition, accepted state, or work closure, and Companion
+startup never resumes automatically.
 
 ## Canonical verification
 

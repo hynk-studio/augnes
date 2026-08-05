@@ -287,9 +287,51 @@ append a generic uncertain-effect event over its preserved operation boundary.
 It leaves the run for the canonical eligibility read, which can still return
 reconciliation-required, approval-pending, stale, unsupported, or unavailable.
 
-No attachment-backed resume exists in CDX2B4A. `thread/resume`, worker launch,
-controller creation, automatic restart resume, and explicit same-run resume are
-reserved for CDX2B4B.
+CDX2B4A eligibility grants no execution authority by itself. CDX2B4B adds the
+separate explicit boundary below; the generic historical live-service API
+continues to refuse repository-attachment resume.
+
+## CDX2B4B explicit same-run resume boundary
+
+`repository_managed_resume_preparation.v0.1` creates one 15-minute exact
+Browser decision request only from `resume_ready`. The Browser's existing
+HttpOnly session, request-bound challenge, rotating nonce, and one-time grant
+remain canonical. Apps MCP and the Operator can request the decision and later
+submit the exact grant, but cannot issue or confirm it or access Browser
+decision-session material. Approval-pending, active, terminal, ambiguous,
+stale, unsupported, and blocked states create no Resume grant or attempt.
+
+The private additive `repository_managed_resume_attempt.v0.1` history is needed
+to represent repeated lifetime resumes and the provider invocation crash
+boundary without overwriting runs, events, or checkpoints. One immediate
+transaction consumes the exact grant; compares run, attachment, checkpoint,
+high-water marks, revisions, packet/current work, root/baseline/worktree,
+envelope, adapter/capability, private provider binding, approvals, conflicts,
+and controller ownership; inserts one deterministic attempt; and advances one
+controller generation. It never inserts a second run or attachment and never
+reconstructs authority from Browser selection.
+
+The post-commit gate rechecks physical root, bounded worktree,
+adapter/capability, exact controller absence, then canonical database state.
+The attempt records `provider_resume_invocation_started` before the adapter
+call. Exact replay before that marker may launch the same attempt once. Once
+the marker exists, loss of the controller/result is reconciliation-required
+and cannot invoke the provider again. The exact stored
+`NativeHostResumeBindingV01` reaches `thread/resume`; `thread/start` is not used.
+New lifecycle events and checkpoints bind the resumed generation, while the
+original consumed attachment and all prior checkpoints remain immutable.
+
+Cancellation before the invocation marker settles the same attempt with zero
+provider calls. After invocation it signals only the exact resumed controller
+and stays independent of current packet, root, baseline, worktree, or Browser
+selection. The existing result, RunReceipt, and proposal owners settle the same
+run idempotently. Resume decision is not operation approval, and run completion
+is not ReviewDecision, Transition, accepted state, or work closure.
+
+Backup/restore retains local attempt history. Portable project export excludes
+attempt, checkpoint, decision, provider, and controller identity, so another
+node cannot import resume-ready or resume-admitted authority. Product support
+remains verified local macOS only; startup never automatically resumes.
 
 Managed repository delegation is product-supported only on a verified local
 macOS filesystem. Linux remains non-product without a separate real

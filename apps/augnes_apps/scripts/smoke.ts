@@ -175,6 +175,16 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             workspaceId: 'workspace:smoke', projectId: 'project:smoke', attachmentId: 'sha256:attachment',
             expectedAttachmentBindingFingerprint: 'sha256:binding', runId: 'host-run:smoke', controlRevision: 1,
           },
+          augnes_request_repository_resume: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke',
+          },
+          augnes_resume_repository_delegation: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', runId: 'host-run:smoke',
+            attachmentId: 'sha256:attachment', expectedAttachmentBindingFingerprint: 'sha256:binding',
+            expectedStateFingerprint: 'sha256:expected-state', expectedControllerGeneration: 2,
+            expectedRunControlRevision: 1, decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
           augnes_get_guide_brief: {},
@@ -697,7 +707,7 @@ async function main() {
   const envBridgeSnapshot = JSON.parse(envBridgeToolProfiles.stdout);
   assert.deepEqual(
     envBridgeSnapshot.toolNames,
-    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 11), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(11)],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 13), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(13)],
     "AUGNES_ENABLE_AGENT_BRIDGE=true should expose bridge tools in addition to the public tools"
   );
 
@@ -720,7 +730,7 @@ async function main() {
   assert.equal(bridgeSnapshot.widgetUri, WIDGET_URI, "bridge child snapshot should use the versioned widget URI");
   assert.deepEqual(
     bridgeSnapshot.toolNames,
-    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 11), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(11)],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 13), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(13)],
     "bridge-enabled snapshot should expose public tools plus the explicit Augnes bridge tools"
   );
   for (const toolName of AUGNES_BRIDGE_TOOL_NAMES) {

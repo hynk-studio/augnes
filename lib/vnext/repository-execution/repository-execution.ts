@@ -596,7 +596,10 @@ function decisionOrdinaryTextV01(action: RepositoryExecutionDecisionActionV01): 
   if (action === "revoke_attachment") {
     return "Revoke this prepared repository attachment?";
   }
-  return "Start one managed Codex run for this exact repository work?";
+  if (action === "start_repository_managed_delegation") {
+    return "Start one managed Codex run for this exact repository work?";
+  }
+  return "Resume this exact managed run from its last confirmed operation?";
 }
 
 function adoptionDecisionExpectedStateV01(input: {

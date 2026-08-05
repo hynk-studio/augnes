@@ -51,6 +51,12 @@ the current Augnes project state.”
     status and last confirmed operation without invoking resume. Treat
     `approval_pending` as approval review and `reconciliation_required` as an
     uncertain operation boundary; never translate either into resume-ready.
+    For exact `resume_ready`, call `augnes_request_repository_resume`, ask the
+    user to confirm the exact Resume card in Browser, and only then call
+    `augnes_resume_repository_delegation` with the returned exact grant. Never
+    request, infer, or reproduce Browser decision-session, cookie, challenge,
+    or nonce material. Exact replay must preserve the same run and report
+    `worker_started=false`.
     Use `augnes_cancel_repository_delegation` only with the exact attachment,
     run, binding, and control revision. Cancellation is risk-reducing and needs
     no second Browser decision. It remains available when current packet, work,

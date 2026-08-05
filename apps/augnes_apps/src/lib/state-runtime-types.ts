@@ -1899,7 +1899,7 @@ const ProjectExecutionAdmissionSchema = z.object({
 const RepositoryExecutionDecisionRequestSchema = z.object({
   decision_request_version: z.literal("repository_execution_decision_request.v0.1"),
   request_fingerprint: z.string(),
-  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment", "start_repository_managed_delegation"]),
+  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment", "start_repository_managed_delegation", "resume_repository_managed_delegation"]),
   workspace_id: z.string(),
   project_id: z.string(),
   expected_state_fingerprint: z.string(),
@@ -1979,6 +1979,26 @@ const RepositoryManagedDelegationAuthoritySchema = z.object({
   work_closed: z.literal(false),
 }).strict();
 
+const RepositoryManagedResumeAuthoritySchema = z.object({
+  decision_request_created: z.boolean(),
+  decision_grant_consumed: z.boolean(),
+  resume_attempt_created: z.boolean(),
+  controller_generation_created: z.boolean(),
+  worker_started: z.boolean(),
+  provider_resume_may_occur: z.boolean(),
+  provider_thread_start_allowed: z.literal(false),
+  new_run_or_attachment_allowed: z.literal(false),
+  arbitrary_network_access_granted: z.literal(false),
+  github_authority_granted: z.literal(false),
+  release_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  approval_decided: z.literal(false),
+  review_decision_created: z.literal(false),
+  transition_created: z.literal(false),
+  accepted_state_mutated: z.literal(false),
+  work_closed: z.literal(false),
+}).strict();
+
 const RepositoryExecutionEnvelopeSchema = z.object({
   envelope_version: z.literal("repository_execution_envelope.v0.1"),
   platform: z.literal("darwin"),
@@ -2032,6 +2052,31 @@ export const RepositoryExecutionResultSchema = z.union([
   PhysicalRootMutationProjectionSchema,
   RepositoryRootRebindPreviewSchema,
   RepositoryAttachmentRevocationPreviewSchema,
+  z.object({
+    preparation_version: z.literal("repository_managed_resume_preparation.v0.1"),
+    status: z.enum(["decision_required", "active_owned", "approval_pending", "terminal", "reconciliation_required", "stale", "unsupported", "blocked"]),
+    ordinary_text: z.string(),
+    project: z.object({ project_id: z.string(), display_name: z.string().nullable() }).strict().nullable(),
+    run_id: z.string().nullable(),
+    attachment_id: z.string().nullable(),
+    attachment_binding_fingerprint: z.string().nullable(),
+    expected_controller_generation: z.number().int().positive().nullable(),
+    expected_run_control_revision: z.number().int().nonnegative().nullable(),
+    expected_state_fingerprint: z.string().nullable(),
+    decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+    expires_at: z.string().datetime().nullable(),
+    authority: RepositoryManagedResumeAuthoritySchema,
+  }).strict(),
+  z.object({
+    resume_version: z.literal("repository_managed_resume.v0.1"),
+    status: z.enum(["accepted", "exact_replay", "active_owned", "approval_pending", "blocked", "reconciliation_required"]),
+    ordinary_text: z.string(),
+    run_id: z.string(),
+    attachment_id: z.string(),
+    controller_generation: z.number().int().positive(),
+    projection: LiveRepositoryRunProjectionSchema,
+    authority: RepositoryManagedResumeAuthoritySchema,
+  }).strict(),
   z.object({
     status: z.literal("validated"),
     attachment: RepositoryExecutionAttachmentSchema.nullable(),

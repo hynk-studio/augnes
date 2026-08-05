@@ -329,16 +329,17 @@ function PrimaryDelegatedAction({
   }
   if (
     projection.stage === "resume_required" &&
-    projection.mode === "repository_attachment"
+    projection.mode === "repository_attachment" &&
+    projection.resume_eligibility?.status === "resume_ready"
   ) {
     return projection.exact_detail_href ? (
       <a
         className={styles.button}
         href={projection.exact_detail_href}
-        data-ai-workplane-primary-action="review-resume-status"
-        data-augnes-primary-action="review-resume-status"
+        data-ai-workplane-primary-action="resume-managed-run"
+        data-augnes-primary-action="resume-managed-run"
       >
-        Review resume status
+        Resume managed run
       </a>
     ) : null;
   }

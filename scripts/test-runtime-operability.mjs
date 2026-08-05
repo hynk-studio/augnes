@@ -36,6 +36,10 @@ import {
   pickAndInspectLocalProjectV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { readDefaultWorkspaceIdentityV01 } from "../lib/vnext/persistence/project-identity-registry";
+import {
+  listRepositoryManagedResumeAttemptsV01,
+  listRepositoryRunResumeCheckpointsV01,
+} from "../lib/vnext/persistence/repository-execution-store";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
@@ -226,7 +230,13 @@ try {
     repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
     true,
   );
-  assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, false);
+  assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
+  assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
+  assert.equal(repositoryResumeMcpEvidence?.same_run, true);
+  assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
+  assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
+  assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
+  assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
   assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
   assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
@@ -886,6 +896,8 @@ async function testRepositoryResumeEligibilityRestart() {
       assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
       return {
         runId: started.structuredContent.run_id,
+        attachmentId: attachment.attachment_id,
+        attachmentBinding: attachment.binding_fingerprint,
         projectSnapshot: snapshotDirectoryContentV01(repositories.repositoryA),
       };
     },
@@ -905,6 +917,11 @@ async function testRepositoryResumeEligibilityRestart() {
   const firstExit = await waitForManagedExit(managed, 20_000);
   assert.notEqual(firstExit.code, 0);
   await assertStoppedScenario(scenario, ready, firstProcessTree);
+
+  // The first process inherited the deterministic hold. The fresh Companion
+  // gets no automatic-resume policy and may continue only after the exact
+  // Browser-confirmed MCP request below.
+  delete environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
 
   const restarted = startManagedSupervisor(
     environment,
@@ -929,7 +946,7 @@ async function testRepositoryResumeEligibilityRestart() {
   const afterRestart = await withLiveCompanionProxyV01({
     environment,
     manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
-    run: async ({ callRepository }) => {
+    run: async ({ callRepository, callExecution }) => {
       const exactRead = await assertReadOnlyRepositoryCallV01({
         repositoryRoot: repositories.repositoryA,
         callRepository,
@@ -981,7 +998,105 @@ async function testRepositoryResumeEligibilityRestart() {
         afterBEligibility.last_confirmed_operation,
         eligibility.last_confirmed_operation,
       );
-      return { eligibility, afterBEligibility, staleRead };
+      const requestedResume = await callExecution(
+        "augnes_request_repository_resume",
+        {
+          workspaceId: registeredRuntimeWorkspaceId,
+          projectId: registeredRuntimeResumeProjectAId,
+        },
+      );
+      assert.equal(requestedResume.structuredContent.status, "decision_required");
+      assert.equal(requestedResume.structuredContent.authority.worker_started, false);
+      assert.equal(
+        JSON.stringify(requestedResume).includes("challenge_fingerprint"),
+        false,
+      );
+      const resumeGrant = await confirmRepositoryDecisionThroughBrowserV01({
+        effectiveUrl: restartedReady.effective_url,
+        workspaceId: registeredRuntimeWorkspaceId,
+        projectId: registeredRuntimeResumeProjectAId,
+        requestFingerprint:
+          requestedResume.structuredContent.decision_request.request_fingerprint,
+      });
+      const resumed = await callExecution(
+        "augnes_resume_repository_delegation",
+        {
+          workspaceId: registeredRuntimeWorkspaceId,
+          projectId: registeredRuntimeResumeProjectAId,
+          runId: beforeRestart.runId,
+          attachmentId: beforeRestart.attachmentId,
+          expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
+          expectedStateFingerprint:
+            requestedResume.structuredContent.expected_state_fingerprint,
+          expectedControllerGeneration:
+            requestedResume.structuredContent.expected_controller_generation,
+          expectedRunControlRevision:
+            requestedResume.structuredContent.expected_run_control_revision,
+          decisionRequestFingerprint: resumeGrant.request_fingerprint,
+          decisionGrantFingerprint: resumeGrant.grant_fingerprint,
+        },
+      );
+      assert.equal(resumed.structuredContent.status, "accepted");
+      assert.equal(resumed.structuredContent.run_id, beforeRestart.runId);
+      assert.equal(resumed.structuredContent.attachment_id, beforeRestart.attachmentId);
+      assert.equal(resumed.structuredContent.authority.worker_started, true);
+      const replay = await callExecution(
+        "augnes_resume_repository_delegation",
+        {
+          workspaceId: registeredRuntimeWorkspaceId,
+          projectId: registeredRuntimeResumeProjectAId,
+          runId: beforeRestart.runId,
+          attachmentId: beforeRestart.attachmentId,
+          expectedAttachmentBindingFingerprint: beforeRestart.attachmentBinding,
+          expectedStateFingerprint:
+            requestedResume.structuredContent.expected_state_fingerprint,
+          expectedControllerGeneration:
+            requestedResume.structuredContent.expected_controller_generation,
+          expectedRunControlRevision:
+            requestedResume.structuredContent.expected_run_control_revision,
+          decisionRequestFingerprint: resumeGrant.request_fingerprint,
+          decisionGrantFingerprint: resumeGrant.grant_fingerprint,
+        },
+      );
+      assert.equal(replay.structuredContent.status, "exact_replay");
+      assert.equal(replay.structuredContent.authority.worker_started, false);
+      const terminal = await waitForFixtureManagedRunV01(beforeRestart.runId);
+      assert.equal(terminal.status, "completed");
+      const verificationDb = openFixtureDatabaseV01();
+      try {
+        const attempts = listRepositoryManagedResumeAttemptsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        const checkpoints = listRepositoryRunResumeCheckpointsV01(verificationDb, {
+          workspace_id: registeredRuntimeWorkspaceId,
+          project_id: registeredRuntimeResumeProjectAId,
+          run_id: beforeRestart.runId,
+        });
+        assert.equal(attempts.length, 1);
+        assert.equal(attempts[0].attempt_state, "settled");
+        assert.equal(
+          attempts[0].resumed_controller_generation,
+          attempts[0].prior_controller_generation + 1,
+        );
+        assert.equal(
+          checkpoints.at(-1)?.controller_generation,
+          attempts[0].resumed_controller_generation,
+        );
+        return {
+          eligibility,
+          afterBEligibility,
+          staleRead,
+          resumed,
+          replay,
+          terminal,
+          attempt: attempts[0],
+          checkpointCount: checkpoints.length,
+        };
+      } finally {
+        verificationDb.close();
+      }
     },
   });
 
@@ -1008,7 +1123,18 @@ async function testRepositoryResumeEligibilityRestart() {
     stale_after_repository_a_drift:
       afterRestart.staleRead.structuredContent.resume_eligibility.status ===
       "stale",
-    worker_relaunched: false,
+    worker_relaunched: afterRestart.resumed.structuredContent.authority.worker_started,
+    exact_replay_worker_started:
+      afterRestart.replay.structuredContent.authority.worker_started,
+    same_run: afterRestart.resumed.structuredContent.run_id === beforeRestart.runId,
+    same_attachment:
+      afterRestart.resumed.structuredContent.attachment_id ===
+      beforeRestart.attachmentId,
+    generation_incremented_once:
+      afterRestart.attempt.resumed_controller_generation ===
+      afterRestart.attempt.prior_controller_generation + 1,
+    resumed_checkpoint: afterRestart.checkpointCount === 8,
+    terminal_result: afterRestart.terminal.status === "completed",
   };
 }
 

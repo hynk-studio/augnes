@@ -163,6 +163,15 @@ capability, compatibility, or deferred work rather than default product UI.
   owners. It never resumes a repository run. Ambiguous effect or missing
   post-effect state requires reconciliation; pending approval stays the next
   action. Browser active selection is not binding material.
+- CDX2B4B may turn only exact `resume_ready` material into one expiring
+  Browser-only Resume decision and one atomic same-run attempt. Eligibility is
+  not authority, Resume decision is not operation approval, and the consumed
+  Start grant is never reused. The same run, attachment, execution envelope,
+  checkpoint, and provider thread are preserved while controller generation
+  advances exactly once. A durable provider-invocation-start marker precedes
+  `thread/resume`; once present, controller/result loss is reconciliation and
+  never a second provider call. Generic historical interactive/policy resume
+  keeps its existing owner. Companion startup never resumes automatically.
 - For a fresh Codex request to resume, continue, or inspect the current local
   repository, use the Augnes Operator `augnes_resume_repository` tool. It must
   resolve one verified live supervised Companion and one registered physical
