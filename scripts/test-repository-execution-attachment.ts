@@ -479,6 +479,7 @@ async function main(): Promise<void> {
     assert.equal(portableText.includes("filesystem_object_identity"), false);
     assert.equal(portableText.includes("repository_execution_attachment.v0.1"), false);
     assert.equal(portableText.includes("repository_run_resume_checkpoint.v0.1"), false);
+    assert.equal(portableText.includes("repository_managed_resume_attempt.v0.1"), false);
     assert.equal(
       portable.package.manifest.exclusions.includes(
         "machine_local_physical_root_baselines_and_execution_attachments",
@@ -494,6 +495,12 @@ async function main(): Promise<void> {
     assert.equal(
       portable.package.manifest.exclusions.includes(
         "machine_local_repository_run_resume_checkpoints_and_provider_bindings",
+      ),
+      true,
+    );
+    assert.equal(
+      portable.package.manifest.exclusions.includes(
+        "machine_local_repository_resume_attempts_and_controller_identity",
       ),
       true,
     );
@@ -588,6 +595,22 @@ async function main(): Promise<void> {
       assert.equal(
         count(restored, "vnext_repository_execution_decision_requests"),
         count(db, "vnext_repository_execution_decision_requests"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_attempts"),
+        count(db, "vnext_repository_managed_resume_attempts"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_runtime_claims"),
+        count(db, "vnext_repository_managed_resume_runtime_claims"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_runtime_claim_history"),
+        count(db, "vnext_repository_managed_resume_runtime_claim_history"),
+      );
+      assert.equal(
+        count(restored, "vnext_repository_managed_resume_cancellations"),
+        count(db, "vnext_repository_managed_resume_cancellations"),
       );
       assert.equal(validateRecoveryCanonicalDatabaseV01(restored).status, "valid");
     } finally {
@@ -1099,11 +1122,19 @@ function assertSchemaParityV01(): void {
   const names = [
     "vnext_physical_root_baselines",
     "vnext_repository_execution_attachments",
+    "vnext_repository_run_resume_checkpoints",
+    "vnext_repository_managed_resume_attempts",
+    "vnext_repository_managed_resume_runtime_claims",
+    "vnext_repository_managed_resume_runtime_claim_history",
+    "vnext_repository_managed_resume_cancellations",
     "vnext_repository_root_rebind_receipts",
     "vnext_repository_execution_decision_requests",
     "idx_vnext_physical_root_baselines_project",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
+    "idx_vnext_repository_resume_checkpoint_operation",
+    "idx_vnext_repository_resume_checkpoint_current",
+    "idx_vnext_repository_managed_resume_attempts_run",
     "idx_vnext_repository_root_rebind_receipts_project",
     "idx_vnext_repository_execution_decisions_project",
     "idx_vnext_repository_execution_one_open_decision",

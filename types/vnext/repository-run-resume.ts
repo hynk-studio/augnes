@@ -131,7 +131,7 @@ export interface RepositoryRunResumeEligibilityV01 {
       | "view_progress"
       | "review_result"
       | "review_approval"
-      | "explicit_resume_not_yet_available"
+      | "request_explicit_resume"
       | "review_uncertain_operation"
       | "restore_checkpoint_state"
       | "restore_resume_support"

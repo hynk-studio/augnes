@@ -8,6 +8,11 @@ import type {
   RepositoryExecutionAttachmentV01,
 } from "@/types/vnext/repository-execution";
 import type { RepositoryRunResumeCheckpointV01 } from "@/types/vnext/repository-run-resume";
+import type {
+  RepositoryManagedResumeAttemptV01,
+  RepositoryManagedResumeCancellationV01,
+  RepositoryManagedResumeRuntimeClaimV01,
+} from "@/types/vnext/repository-managed-resume";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 
 export const VNEXT_REPOSITORY_EXECUTION_STORE_VERSION_V01 =
@@ -180,6 +185,103 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
       checkpoint_fingerprint
     );
 
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_attempts (
+    attempt_fingerprint TEXT PRIMARY KEY CHECK (
+      length(attempt_fingerprint) = 71 AND substr(attempt_fingerprint, 1, 7) = 'sha256:'
+    ),
+    attempt_version TEXT NOT NULL CHECK (
+      attempt_version = 'repository_managed_resume_attempt.v0.1'
+    ),
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    attachment_id TEXT NOT NULL,
+    attachment_binding_fingerprint TEXT NOT NULL CHECK (length(attachment_binding_fingerprint) = 71),
+    checkpoint_fingerprint TEXT NOT NULL,
+    checkpoint_version TEXT NOT NULL CHECK (checkpoint_version = 'repository_run_resume_checkpoint.v0.1'),
+    prior_controller_generation INTEGER NOT NULL CHECK (prior_controller_generation >= 1),
+    resumed_controller_generation INTEGER NOT NULL CHECK (
+      resumed_controller_generation = prior_controller_generation + 1
+    ),
+    decision_request_fingerprint TEXT NOT NULL CHECK (length(decision_request_fingerprint) = 71),
+    decision_grant_fingerprint TEXT NOT NULL CHECK (length(decision_grant_fingerprint) = 71),
+    expected_state_fingerprint TEXT NOT NULL CHECK (length(expected_state_fingerprint) = 71),
+    admitted_run_control_revision INTEGER NOT NULL CHECK (admitted_run_control_revision >= 1),
+    admitted_step_control_revision INTEGER NOT NULL CHECK (admitted_step_control_revision >= 1),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    attempt_state TEXT NOT NULL CHECK (attempt_state IN (
+      'admitted_not_invoked', 'provider_resume_invocation_started',
+      'controller_owned', 'settled', 'reconciliation_required'
+    )),
+    final_outcome TEXT CHECK (final_outcome IS NULL OR final_outcome IN (
+      'completed', 'failed', 'cancelled', 'timed_out'
+    )),
+    admitted_at TEXT NOT NULL CHECK (length(trim(admitted_at)) > 0),
+    provider_invocation_started_at TEXT,
+    settled_at TEXT,
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    UNIQUE (run_id, checkpoint_fingerprint),
+    UNIQUE (decision_request_fingerprint),
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+    FOREIGN KEY (attachment_id)
+      REFERENCES vnext_repository_execution_attachments(attachment_id)
+      ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (checkpoint_fingerprint)
+      REFERENCES vnext_repository_run_resume_checkpoints(checkpoint_fingerprint)
+      ON UPDATE RESTRICT ON DELETE CASCADE,
+    FOREIGN KEY (decision_request_fingerprint)
+      REFERENCES vnext_repository_execution_decision_requests(request_fingerprint)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_repository_managed_resume_attempts_run
+    ON vnext_repository_managed_resume_attempts(
+      workspace_id, project_id, run_id, admitted_at DESC, attempt_fingerprint
+    );
+
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claims (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_lifecycle TEXT NOT NULL CHECK (claim_lifecycle IN ('claimed', 'invocation_started', 'released', 'cancelled')),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_runtime_claim_history (
+    attempt_fingerprint TEXT NOT NULL,
+    claim_revision INTEGER NOT NULL CHECK (claim_revision BETWEEN 1 AND 16),
+    claim_version TEXT NOT NULL CHECK (claim_version = 'repository_managed_resume_runtime_claim.v0.1'),
+    runtime_instance_fingerprint TEXT NOT NULL CHECK (length(runtime_instance_fingerprint) = 71),
+    runtime_generation_fingerprint TEXT NOT NULL CHECK (length(runtime_generation_fingerprint) = 71),
+    claimed_at TEXT NOT NULL CHECK (length(trim(claimed_at)) > 0),
+    PRIMARY KEY (attempt_fingerprint, claim_revision),
+    UNIQUE (attempt_fingerprint, runtime_instance_fingerprint, runtime_generation_fingerprint),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS vnext_repository_managed_resume_cancellations (
+    attempt_fingerprint TEXT PRIMARY KEY,
+    cancellation_version TEXT NOT NULL CHECK (cancellation_version = 'repository_managed_resume_cancellation.v0.1'),
+    workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+    attachment_id TEXT NOT NULL,
+    controller_generation INTEGER NOT NULL CHECK (controller_generation >= 1),
+    cancellation_requested_at TEXT NOT NULL CHECK (length(trim(cancellation_requested_at)) > 0),
+    cancellation_control_revision INTEGER NOT NULL CHECK (cancellation_control_revision >= 1),
+    provider_stop_confirmed INTEGER NOT NULL CHECK (provider_stop_confirmed IN (0, 1)),
+    resume_reacquisition_forbidden INTEGER NOT NULL CHECK (resume_reacquisition_forbidden = 1),
+    cancellation_signal_sent INTEGER NOT NULL CHECK (cancellation_signal_sent IN (0, 1)),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    FOREIGN KEY (attempt_fingerprint) REFERENCES vnext_repository_managed_resume_attempts(attempt_fingerprint) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS vnext_repository_root_rebind_receipts (
     request_fingerprint TEXT PRIMARY KEY CHECK (length(request_fingerprint) = 71),
     workspace_id TEXT NOT NULL,
@@ -206,7 +308,8 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
     ),
     action TEXT NOT NULL CHECK (action IN (
       'adopt_legacy_baseline', 'rebind_root', 'revoke_attachment',
-      'start_repository_managed_delegation'
+      'start_repository_managed_delegation',
+      'resume_repository_managed_delegation'
     )),
     workspace_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
@@ -265,6 +368,11 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
     ["table", "vnext_repository_run_resume_checkpoints"],
     ["index", "idx_vnext_repository_resume_checkpoint_operation"],
     ["index", "idx_vnext_repository_resume_checkpoint_current"],
+    ["table", "vnext_repository_managed_resume_attempts"],
+    ["index", "idx_vnext_repository_managed_resume_attempts_run"],
+    ["table", "vnext_repository_managed_resume_runtime_claims"],
+    ["table", "vnext_repository_managed_resume_runtime_claim_history"],
+    ["table", "vnext_repository_managed_resume_cancellations"],
     ["index", "idx_vnext_repository_root_rebind_receipts_project"],
     ["table", "vnext_repository_execution_decision_requests"],
     ["index", "idx_vnext_repository_execution_decisions_project"],
@@ -641,6 +749,363 @@ export function countRepositoryRunResumeCheckpointsV01(
     `SELECT COUNT(*) AS count FROM vnext_repository_run_resume_checkpoints
       WHERE run_id = ?`,
   ).get(runId) as { count: number }).count);
+}
+
+type RepositoryManagedResumeAttemptRowV01 = RepositoryManagedResumeAttemptV01;
+
+export function readRepositoryManagedResumeAttemptV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+): RepositoryManagedResumeAttemptV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_attempts
+      WHERE attempt_fingerprint = ?`,
+  ).get(attemptFingerprint) as RepositoryManagedResumeAttemptRowV01 | undefined;
+  return row ? { ...row } : null;
+}
+
+export function readRepositoryManagedResumeAttemptForCheckpointV01(
+  db: Database.Database,
+  input: { run_id: string; checkpoint_fingerprint: string },
+): RepositoryManagedResumeAttemptV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_attempts
+      WHERE run_id = ? AND checkpoint_fingerprint = ?`,
+  ).get(input.run_id, input.checkpoint_fingerprint) as
+    | RepositoryManagedResumeAttemptRowV01
+    | undefined;
+  return row ? { ...row } : null;
+}
+
+export function readRepositoryManagedResumeAttemptForDecisionV01(
+  db: Database.Database,
+  decisionRequestFingerprint: string,
+): RepositoryManagedResumeAttemptV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_attempts
+      WHERE decision_request_fingerprint = ?`,
+  ).get(decisionRequestFingerprint) as
+    | RepositoryManagedResumeAttemptRowV01
+    | undefined;
+  return row ? { ...row } : null;
+}
+
+export function listRepositoryManagedResumeAttemptsV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; run_id: string },
+): RepositoryManagedResumeAttemptV01[] {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  return (db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_attempts
+      WHERE workspace_id = ? AND project_id = ? AND run_id = ?
+      ORDER BY admitted_at, attempt_fingerprint`,
+  ).all(input.workspace_id, input.project_id, input.run_id) as
+    RepositoryManagedResumeAttemptRowV01[]).map((row) => ({ ...row }));
+}
+
+export function listAllRepositoryManagedResumeAttemptsForRecoveryV01(
+  db: Database.Database,
+): RepositoryManagedResumeAttemptV01[] {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  return (db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_attempts
+      ORDER BY workspace_id, project_id, run_id, admitted_at, attempt_fingerprint`,
+  ).all() as RepositoryManagedResumeAttemptRowV01[]).map((row) => ({ ...row }));
+}
+
+export function insertRepositoryManagedResumeAttemptInsideTransactionV01(
+  db: Database.Database,
+  attempt: RepositoryManagedResumeAttemptV01,
+): "inserted" | "exact_replay" {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("repository_managed_resume_attempt_transaction_required");
+  }
+  const existing = readRepositoryManagedResumeAttemptV01(
+    db,
+    attempt.attempt_fingerprint,
+  );
+  if (existing) {
+    if (canonicalizeProtocolValueV01(existing) === canonicalizeProtocolValueV01(attempt)) {
+      return "exact_replay";
+    }
+    throw new Error("repository_managed_resume_attempt_fingerprint_conflict");
+  }
+  const conflict = readRepositoryManagedResumeAttemptForCheckpointV01(db, {
+    run_id: attempt.run_id,
+    checkpoint_fingerprint: attempt.checkpoint_fingerprint,
+  });
+  if (conflict) {
+    throw new Error("repository_managed_resume_checkpoint_attempt_conflict");
+  }
+  db.prepare(
+    `INSERT INTO vnext_repository_managed_resume_attempts (
+      attempt_fingerprint, attempt_version, workspace_id, project_id, run_id,
+      attachment_id, attachment_binding_fingerprint, checkpoint_fingerprint,
+      checkpoint_version, prior_controller_generation,
+      resumed_controller_generation, decision_request_fingerprint,
+      decision_grant_fingerprint, expected_state_fingerprint,
+      admitted_run_control_revision, admitted_step_control_revision,
+      runtime_instance_fingerprint, runtime_generation_fingerprint,
+      attempt_state, final_outcome, admitted_at,
+      provider_invocation_started_at, settled_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    attempt.attempt_fingerprint,
+    attempt.attempt_version,
+    attempt.workspace_id,
+    attempt.project_id,
+    attempt.run_id,
+    attempt.attachment_id,
+    attempt.attachment_binding_fingerprint,
+    attempt.checkpoint_fingerprint,
+    attempt.checkpoint_version,
+    attempt.prior_controller_generation,
+    attempt.resumed_controller_generation,
+    attempt.decision_request_fingerprint,
+    attempt.decision_grant_fingerprint,
+    attempt.expected_state_fingerprint,
+    attempt.admitted_run_control_revision,
+    attempt.admitted_step_control_revision,
+    attempt.runtime_instance_fingerprint,
+    attempt.runtime_generation_fingerprint,
+    attempt.attempt_state,
+    attempt.final_outcome,
+    attempt.admitted_at,
+    attempt.provider_invocation_started_at,
+    attempt.settled_at,
+    attempt.updated_at,
+  );
+  return "inserted";
+}
+
+export function transitionRepositoryManagedResumeAttemptInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    attempt_fingerprint: string;
+    from: RepositoryManagedResumeAttemptV01["attempt_state"][];
+    to: RepositoryManagedResumeAttemptV01["attempt_state"];
+    updated_at: string;
+    provider_invocation_started_at?: string | null;
+    settled_at?: string | null;
+    final_outcome?: RepositoryManagedResumeAttemptV01["final_outcome"];
+  },
+): boolean {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("repository_managed_resume_attempt_transaction_required");
+  }
+  const assignments = ["attempt_state = ?", "updated_at = ?"];
+  const values: unknown[] = [input.to, input.updated_at];
+  if (Object.hasOwn(input, "provider_invocation_started_at")) {
+    assignments.push("provider_invocation_started_at = ?");
+    values.push(input.provider_invocation_started_at ?? null);
+  }
+  if (Object.hasOwn(input, "settled_at")) {
+    assignments.push("settled_at = ?");
+    values.push(input.settled_at ?? null);
+  }
+  if (Object.hasOwn(input, "final_outcome")) {
+    assignments.push("final_outcome = ?");
+    values.push(input.final_outcome ?? null);
+  }
+  const placeholders = input.from.map(() => "?").join(", ");
+  const result = db.prepare(
+    `UPDATE vnext_repository_managed_resume_attempts
+        SET ${assignments.join(", ")}
+      WHERE attempt_fingerprint = ? AND attempt_state IN (${placeholders})`,
+  ).run(...values, input.attempt_fingerprint, ...input.from);
+  return result.changes === 1;
+}
+
+export function readRepositoryManagedResumeRuntimeClaimV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+): RepositoryManagedResumeRuntimeClaimV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_runtime_claims
+      WHERE attempt_fingerprint = ?`,
+  ).get(attemptFingerprint) as RepositoryManagedResumeRuntimeClaimV01 | undefined;
+  return row ? { ...row } : null;
+}
+
+export function insertRepositoryManagedResumeRuntimeClaimInsideTransactionV01(
+  db: Database.Database,
+  claim: RepositoryManagedResumeRuntimeClaimV01,
+): void {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_claim_transaction_required");
+  db.prepare(
+    `INSERT INTO vnext_repository_managed_resume_runtime_claims (
+      attempt_fingerprint, claim_version, runtime_instance_fingerprint,
+      runtime_generation_fingerprint, claim_revision, claim_lifecycle,
+      claimed_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    claim.attempt_fingerprint, claim.claim_version,
+    claim.runtime_instance_fingerprint, claim.runtime_generation_fingerprint,
+    claim.claim_revision, claim.claim_lifecycle, claim.claimed_at, claim.updated_at,
+  );
+  db.prepare(
+    `INSERT INTO vnext_repository_managed_resume_runtime_claim_history (
+      attempt_fingerprint, claim_revision, claim_version,
+      runtime_instance_fingerprint, runtime_generation_fingerprint, claimed_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    claim.attempt_fingerprint, claim.claim_revision, claim.claim_version,
+    claim.runtime_instance_fingerprint, claim.runtime_generation_fingerprint,
+    claim.claimed_at,
+  );
+}
+
+export function transferRepositoryManagedResumeRuntimeClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    attempt_fingerprint: string;
+    expected_claim_revision: number;
+    expected_runtime_instance_fingerprint: string;
+    expected_runtime_generation_fingerprint: string;
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
+    claimed_at: string;
+  },
+): RepositoryManagedResumeRuntimeClaimV01 | null {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_claim_transaction_required");
+  if (input.expected_claim_revision >= 16) return null;
+  const priorCandidate = db.prepare(
+    `SELECT 1 FROM vnext_repository_managed_resume_runtime_claim_history
+      WHERE attempt_fingerprint = ? AND runtime_instance_fingerprint = ?
+        AND runtime_generation_fingerprint = ?`,
+  ).get(
+    input.attempt_fingerprint,
+    input.runtime_instance_fingerprint,
+    input.runtime_generation_fingerprint,
+  );
+  if (priorCandidate) return null;
+  const result = db.prepare(
+    `UPDATE vnext_repository_managed_resume_runtime_claims
+        SET runtime_instance_fingerprint = ?, runtime_generation_fingerprint = ?,
+            claim_revision = claim_revision + 1, claim_lifecycle = 'claimed',
+            claimed_at = ?, updated_at = ?
+      WHERE attempt_fingerprint = ? AND claim_revision = ?
+        AND runtime_instance_fingerprint = ? AND runtime_generation_fingerprint = ?
+        AND claim_lifecycle = 'claimed'`,
+  ).run(
+    input.runtime_instance_fingerprint, input.runtime_generation_fingerprint,
+    input.claimed_at, input.claimed_at, input.attempt_fingerprint,
+    input.expected_claim_revision, input.expected_runtime_instance_fingerprint,
+    input.expected_runtime_generation_fingerprint,
+  );
+  if (result.changes !== 1) return null;
+  const transferred = readRepositoryManagedResumeRuntimeClaimV01(
+    db,
+    input.attempt_fingerprint,
+  );
+  if (!transferred) return null;
+  db.prepare(
+    `INSERT INTO vnext_repository_managed_resume_runtime_claim_history (
+      attempt_fingerprint, claim_revision, claim_version,
+      runtime_instance_fingerprint, runtime_generation_fingerprint, claimed_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    transferred.attempt_fingerprint, transferred.claim_revision,
+    transferred.claim_version, transferred.runtime_instance_fingerprint,
+    transferred.runtime_generation_fingerprint, transferred.claimed_at,
+  );
+  return transferred;
+}
+
+export function transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    attempt_fingerprint: string;
+    claim_revision: number;
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
+    from: RepositoryManagedResumeRuntimeClaimV01["claim_lifecycle"];
+    to: RepositoryManagedResumeRuntimeClaimV01["claim_lifecycle"];
+    updated_at: string;
+  },
+): boolean {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_claim_transaction_required");
+  const result = db.prepare(
+    `UPDATE vnext_repository_managed_resume_runtime_claims
+        SET claim_lifecycle = ?, updated_at = ?
+      WHERE attempt_fingerprint = ? AND claim_revision = ?
+        AND runtime_instance_fingerprint = ? AND runtime_generation_fingerprint = ?
+        AND claim_lifecycle = ?`,
+  ).run(
+    input.to, input.updated_at, input.attempt_fingerprint, input.claim_revision,
+    input.runtime_instance_fingerprint, input.runtime_generation_fingerprint,
+    input.from,
+  );
+  return result.changes === 1;
+}
+
+export function readRepositoryManagedResumeCancellationV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+): RepositoryManagedResumeCancellationV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_repository_managed_resume_cancellations
+      WHERE attempt_fingerprint = ?`,
+  ).get(attemptFingerprint) as RepositoryManagedResumeCancellationV01 | undefined;
+  return row ? { ...row } : null;
+}
+
+export function insertRepositoryManagedResumeCancellationInsideTransactionV01(
+  db: Database.Database,
+  cancellation: RepositoryManagedResumeCancellationV01,
+): "inserted" | "exact_replay" {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_cancellation_transaction_required");
+  const existing = readRepositoryManagedResumeCancellationV01(db, cancellation.attempt_fingerprint);
+  if (existing) return "exact_replay";
+  db.prepare(
+    `INSERT INTO vnext_repository_managed_resume_cancellations (
+      attempt_fingerprint, cancellation_version, workspace_id, project_id,
+      run_id, attachment_id, controller_generation, cancellation_requested_at,
+      cancellation_control_revision, provider_stop_confirmed,
+      resume_reacquisition_forbidden, cancellation_signal_sent, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    cancellation.attempt_fingerprint, cancellation.cancellation_version,
+    cancellation.workspace_id, cancellation.project_id, cancellation.run_id,
+    cancellation.attachment_id, cancellation.controller_generation,
+    cancellation.cancellation_requested_at, cancellation.cancellation_control_revision,
+    cancellation.provider_stop_confirmed, cancellation.resume_reacquisition_forbidden,
+    cancellation.cancellation_signal_sent, cancellation.updated_at,
+  );
+  return "inserted";
+}
+
+export function markRepositoryManagedResumeCancellationSignalInsideTransactionV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+  updatedAt: string,
+): boolean {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_cancellation_transaction_required");
+  return db.prepare(
+    `UPDATE vnext_repository_managed_resume_cancellations
+        SET cancellation_signal_sent = 1, updated_at = ?
+      WHERE attempt_fingerprint = ? AND cancellation_signal_sent = 0`,
+  ).run(updatedAt, attemptFingerprint).changes === 1;
+}
+
+export function markRepositoryManagedResumeCancellationStopConfirmedInsideTransactionV01(
+  db: Database.Database,
+  attemptFingerprint: string,
+  updatedAt: string,
+): boolean {
+  if (!db.inTransaction) throw new Error("repository_managed_resume_cancellation_transaction_required");
+  return db.prepare(
+    `UPDATE vnext_repository_managed_resume_cancellations
+        SET provider_stop_confirmed = 1, updated_at = ?
+      WHERE attempt_fingerprint = ? AND provider_stop_confirmed = 0`,
+  ).run(updatedAt, attemptFingerprint).changes === 1;
 }
 
 interface AttachmentRowV01 extends Omit<RepositoryExecutionAttachmentV01, "freshness_policy"> {

@@ -84,9 +84,14 @@ to the exact attachment/run and creates no semantic decision. Use
 continuity. For attachment-backed runs it also returns the one canonical
 read-only resume-eligibility projection and last confirmed operation summary.
 `resume_ready` means a later explicit same-run resume could be safe; it does
-not resume, launch, call a provider, or create a controller. Pending approval
-remains `approval_pending`, and uncertain effects remain
-`reconciliation_required`.
+not itself resume, launch, call a provider, or create a controller. To continue,
+call `augnes_request_repository_resume`, have the user confirm the exact Resume
+card in Browser, then submit the returned grant with
+`augnes_resume_repository_delegation`. The MCP proxy cannot issue or confirm
+that grant. The request preserves the same run, consumed attachment, execution
+envelope, and provider thread; it uses `thread/resume`, never `thread/start`.
+Exact replay starts no second controller. Pending approval remains
+`approval_pending`, and uncertain effects remain `reconciliation_required`.
 
 The start decision permits bounded reversible local work inside the exact
 repository root. It does not grant arbitrary command network access,
@@ -112,7 +117,8 @@ and the existing local supervised Companion.
 
 Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, current-session workers,
-automatic resume after controller loss, continuous/multi-agent automation,
+automatic resume after controller loss or Companion startup,
+continuous/multi-agent automation,
 Linux product filesystem/runtime proof, Windows physical identity/delegation,
 or broad Windows packaging. PR #117 is filesystem-verified on macOS; Linux has
 adapter contract coverage only. CDX2B2B v0.1 is explicitly macOS-only. A Codex

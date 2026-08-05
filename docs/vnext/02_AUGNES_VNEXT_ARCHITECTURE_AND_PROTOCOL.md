@@ -640,6 +640,53 @@ CDX2B4A never calls `thread/resume`, creates a controller generation, or changes
 the existing attachment-backed resume refusal. Historical interactive and
 policy-triggered resume remain on their existing owner.
 
+CDX2B4B adds `repository_managed_resume_preparation.v0.1` and one Browser-only
+`resume_repository_managed_delegation` decision. Resume eligibility is not
+Resume authority: only exact `resume_ready` material produces a request, and
+the Start grant cannot be reused. Resume decision is not operation approval.
+MCP may request the decision and submit its already issued exact grant, but it
+cannot bootstrap the HttpOnly decision session or obtain/issue the Browser
+challenge, nonce, cookie, or grant.
+
+`repository_managed_resume_attempt.v0.1` is private machine-local history. One
+immediate transaction consumes the exact grant, rechecks the selected run,
+consumed attachment, latest checkpoint/high-water marks, packet/current work,
+root/baseline, bounded worktree, execution envelope, adapter/capability,
+provider binding, approval absence, and controller absence; preserves the run,
+attachment, envelope, and provider thread; and advances the controller
+generation exactly once. Same run does not mean new run.
+
+The immutable attempt is distinct from the mutable
+`repository_managed_resume_runtime_claim.v0.1`. A verified replacement
+Companion runtime may transfer that claim with one immediate exact CAS only
+while the attempt is `admitted_not_invoked`, the invocation marker is absent,
+and every admission relation still matches. Transfer changes only the claim
+revision and supervised runtime binding; it cannot consume the decision again
+or create another attempt, run, attachment, controller generation, event
+lifecycle, or provider thread. A stale claimant fails closed, and a surviving
+invocation marker forbids transfer.
+
+After commit, the launch gate observes physical root, bounded worktree,
+adapter/capability, controller absence, then canonical database state. It
+durably changes the attempt from `admitted_not_invoked` to
+`provider_resume_invocation_started` before adapter delivery. A crash before
+that marker can replay the same admitted attempt and launch once. A surviving
+marker without controller/result is conservatively reconciliation-required
+and cannot call the provider again. `thread/resume` is not `thread/start`.
+Later operations use the resumed generation and the existing checkpoint owner;
+old-generation lifecycle events fail closed.
+
+Cancellation remains risk-reducing and attachment/run bound. It may cancel an
+admitted-not-invoked attempt atomically with zero provider calls or signal only
+the exact resumed controller after invocation. When the controller is lost or
+provider stop cannot be confirmed,
+`repository_managed_resume_cancellation.v0.1` records the exact intent and
+forbids later claim reacquisition without pretending that the provider stopped.
+Result normalization,
+RunReceipt, and at-most-one proposal remain shared owners. Run completion is
+not semantic acceptance. Historical interactive and policy-triggered resume
+retain their existing identity and active-selection compatibility contract.
+
 ---
 
 ### 5.2 RunReceipt

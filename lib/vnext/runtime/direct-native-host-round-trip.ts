@@ -106,6 +106,7 @@ import {
   type NativeHostLifecycleSinkV01,
   type NativeHostRequestV01,
   type NativeHostRepositoryDelegationContextV01,
+  type NativeHostRepositoryResumeContextV01,
   type NativeHostResultV01,
   type NativeHostResumeBindingV01,
   type NativeHostRootScopeV01,
@@ -259,8 +260,26 @@ export interface DirectNativeHostRoundTripDependenciesV01 {
     claim: PreparedNativeHostRunClaimV01;
     session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
   };
+  pre_admitted_repository_resume_claim?: {
+    run_id: string;
+    packet_id: string;
+    packet_fingerprint: string;
+    attachment_id: string;
+    attachment_binding_fingerprint: string;
+    execution_envelope_fingerprint: string;
+    checkpoint_step_id: string;
+    resumed_controller_generation: number;
+    admitted_run_control_revision: number;
+    admitted_step_control_revision: number;
+    attempt_fingerprint: string;
+    runtime_claim_revision: number;
+    runtime_instance_fingerprint: string;
+    runtime_generation_fingerprint: string;
+  };
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
+  repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
   before_adapter_invoke?: (request: NativeHostRequestV01) => Promise<void>;
+  on_adapter_invocation_started?: (request: NativeHostRequestV01) => void;
   proposal_admission?: RunAssessmentProposalAdmissionDependenciesV01;
   on_invocation_admitted?: (input: {
     request: NativeHostRequestV01;
@@ -596,6 +615,7 @@ export async function runDirectNativeHostRoundTripV01(
     mode: NativeHostRunModeV01;
     automation_context?: NativeHostAutomationContextV01 | null;
     repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
+    repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
     operator_mutation?: {
       credential: VNextLocalOperatorSessionCredentialV01;
       clock?: VNextLocalRuntimeClockV01;
@@ -646,9 +666,12 @@ export async function runDirectNativeHostRoundTripV01(
   }
   const managedLive = dependencies.lifecycle_mode === "managed_live";
   const preAdmitted = dependencies.pre_admitted_run_claim ?? null;
+  const preAdmittedResume =
+    dependencies.pre_admitted_repository_resume_claim ?? null;
   if (
     input.mode === "repository_attachment" &&
-    (!managedLive || !preAdmitted || !dependencies.before_adapter_invoke)
+    (!managedLive || (!preAdmitted && !preAdmittedResume) ||
+      !dependencies.before_adapter_invoke)
   ) {
     refuse("direct_host_repository_start_owner_required", 403);
   }
@@ -680,7 +703,22 @@ export async function runDirectNativeHostRoundTripV01(
       refuse("direct_host_repository_delegation_context_invalid", 422);
     }
   }
-  if (preAdmitted && input.operator_mutation) {
+  if (
+    Boolean(input.repository_resume_context) !== Boolean(preAdmittedResume) ||
+    (input.repository_resume_context &&
+      (input.repository_resume_context.context_version !==
+          "native_host_repository_resume_context.v0.1" ||
+        [
+          input.repository_resume_context.attempt_fingerprint,
+          input.repository_resume_context.checkpoint_fingerprint,
+          input.repository_resume_context.expected_state_fingerprint,
+        ].some((value) => !/^sha256:[a-f0-9]{64}$/u.test(value)) ||
+        input.repository_resume_context.resumed_controller_generation !==
+          input.repository_resume_context.prior_controller_generation + 1))
+  ) {
+    refuse("direct_host_repository_resume_context_invalid", 422);
+  }
+  if ((preAdmitted || preAdmittedResume) && input.operator_mutation) {
     refuse("direct_host_pre_admitted_mutation_conflict", 409);
   }
   if (managedLive && adapter.provider_egress === "native_host_managed") {
@@ -706,10 +744,15 @@ export async function runDirectNativeHostRoundTripV01(
         packet_id: preAdmitted.claim.packet_id,
         packet_fingerprint: preAdmitted.claim.packet_fingerprint,
       }
-    : (dependencies.resolve_packet_selection ?? resolveLatestPacketSelection)(db, {
-        config: input.config,
-        evaluated_at: prevalidatedAt,
-      });
+    : preAdmittedResume
+      ? {
+          packet_id: preAdmittedResume.packet_id,
+          packet_fingerprint: preAdmittedResume.packet_fingerprint,
+        }
+      : (dependencies.resolve_packet_selection ?? resolveLatestPacketSelection)(db, {
+          config: input.config,
+          evaluated_at: prevalidatedAt,
+        });
   const admitted = await admitPersistedHostTaskContextPacketV01(db, {
     config: input.config,
     ...selection,
@@ -770,6 +813,20 @@ export async function runDirectNativeHostRoundTripV01(
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
   }
+  if (
+    preAdmittedResume &&
+    (preAdmittedResume.run_id !== identity.run_id ||
+      preAdmittedResume.attachment_id !==
+        input.repository_delegation_context?.attachment_id ||
+      preAdmittedResume.attachment_binding_fingerprint !==
+        input.repository_delegation_context?.attachment_binding_fingerprint ||
+      preAdmittedResume.execution_envelope_fingerprint !==
+        input.repository_delegation_context?.execution_envelope_fingerprint ||
+      preAdmittedResume.attempt_fingerprint !==
+        input.repository_resume_context?.attempt_fingerprint)
+  ) {
+    refuse("direct_host_pre_admitted_repository_resume_conflict", 409);
+  }
   if (db.inTransaction) refuse("direct_host_nested_transaction", 409);
   let sessionAdmission: VNextLocalOperatorSessionMutationAdmissionV01 | null =
     preAdmitted?.session_admission ?? null;
@@ -820,7 +877,13 @@ export async function runDirectNativeHostRoundTripV01(
     }
     const existingRun = readAutonomyRunLedgerRecord(identity.run_id, { db });
     if (existingRun) {
-      if (preAdmitted) {
+      if (preAdmittedResume) {
+        assertPreAdmittedRepositoryResumeMatchesV01(
+          existingRun,
+          preAdmittedResume,
+        );
+        db.exec("COMMIT");
+      } else if (preAdmitted) {
         assertPreparedRunClaimMatchesV01(existingRun, preAdmitted.claim);
         startPreparedRunInsideTransactionV01(db, {
           run: existingRun,
@@ -855,7 +918,9 @@ export async function runDirectNativeHostRoundTripV01(
         refuse("direct_host_run_conflict", 409);
       }
     } else {
-      if (preAdmitted) refuse("direct_host_pre_admitted_run_claim_missing", 409);
+      if (preAdmitted || preAdmittedResume) {
+        refuse("direct_host_pre_admitted_run_claim_missing", 409);
+      }
       createRunLedgerRecord(db, {
         input,
         admission: admitted,
@@ -877,6 +942,7 @@ export async function runDirectNativeHostRoundTripV01(
     mode: input.mode,
     automation_context: input.automation_context ?? null,
     repository_delegation_context: input.repository_delegation_context ?? null,
+    repository_resume_context: input.repository_resume_context ?? null,
     admission: admitted,
     request_id: identity.request_id,
     run_id: identity.run_id,
@@ -925,6 +991,7 @@ export async function runDirectNativeHostRoundTripV01(
         now,
         on_invocation_started: () => {
           adapterInvocationStarted = true;
+          dependencies.on_adapter_invocation_started?.(request);
         },
       }),
     );
@@ -1532,6 +1599,7 @@ function buildNativeHostRequest(input: {
   mode: NativeHostRunModeV01;
   automation_context: NativeHostAutomationContextV01 | null;
   repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
+  repository_resume_context: NativeHostRepositoryResumeContextV01 | null;
   admission: PersistedHostPacketAdmissionV01;
   request_id: string;
   run_id: string;
@@ -1641,6 +1709,9 @@ function buildNativeHostRequest(input: {
       input.automation_context?.capability_grant_ref ?? null,
     automation_context: input.automation_context,
     repository_delegation_context: input.repository_delegation_context,
+    ...(input.repository_resume_context
+      ? { repository_resume_context: input.repository_resume_context }
+      : {}),
     policy: {
       filesystem: "selected_project_root_only",
       network:
@@ -1917,6 +1988,42 @@ function assertPreparedRunClaimMatchesV01(
     run.created_at !== claim.claimed_at
   ) {
     refuse("direct_host_pre_admitted_run_claim_conflict", 409);
+  }
+}
+
+function assertPreAdmittedRepositoryResumeMatchesV01(
+  run: AutonomyRunRecord,
+  claim: NonNullable<
+    DirectNativeHostRoundTripDependenciesV01["pre_admitted_repository_resume_claim"]
+  >,
+): void {
+  const step = run.steps.find(
+    (candidate) => candidate.step_id === claim.checkpoint_step_id,
+  );
+  if (
+    run.run_id !== claim.run_id ||
+    run.status !== "starting" ||
+    run.metadata.packet_id !== claim.packet_id ||
+    run.metadata.packet_fingerprint !== claim.packet_fingerprint ||
+    run.metadata.repository_attachment_id !== claim.attachment_id ||
+    run.metadata.repository_attachment_binding_fingerprint !==
+      claim.attachment_binding_fingerprint ||
+    run.metadata.repository_execution_envelope_fingerprint !==
+      claim.execution_envelope_fingerprint ||
+    run.metadata.repository_resume_attempt_fingerprint !==
+      claim.attempt_fingerprint ||
+    run.metadata.repository_resume_runtime_claim_revision !==
+      claim.runtime_claim_revision ||
+    run.metadata.runtime_instance_fingerprint !==
+      claim.runtime_instance_fingerprint ||
+    run.metadata.runtime_generation_fingerprint !==
+      claim.runtime_generation_fingerprint ||
+    run.metadata.controller_generation !== claim.resumed_controller_generation ||
+    run.metadata.control_revision !== claim.admitted_run_control_revision ||
+    !step ||
+    step.output.control_revision !== claim.admitted_step_control_revision
+  ) {
+    refuse("direct_host_pre_admitted_repository_resume_conflict", 409);
   }
 }
 

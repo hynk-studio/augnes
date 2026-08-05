@@ -120,7 +120,7 @@ export async function admitRepositoryRunResumeCheckpointV01(
 ): Promise<{ status: "inserted" | "exact_replay"; checkpoint: RepositoryRunResumeCheckpointV01 }> {
   assertAdmissionInputV01(input);
   const preRun = requireRepositoryRunV01(db, input.config, input.run_id);
-  const preAttachment = requireConsumedAttachmentV01(db, preRun);
+  const preAttachment = requireConsumedRepositoryRunAttachmentV01(db, preRun);
   const registration = readCanonicalProjectWithRootV01(db, input.config);
   if (!registration) refuse("repository_resume_checkpoint_project_unavailable", 404);
   const rootBindingFingerprint = fingerprintProjectRootBindingV01(
@@ -165,7 +165,7 @@ export async function admitRepositoryRunResumeCheckpointV01(
   let status!: "inserted" | "exact_replay";
   try {
     const run = requireRepositoryRunV01(db, input.config, input.run_id);
-    const attachment = requireConsumedAttachmentV01(db, run);
+    const attachment = requireConsumedRepositoryRunAttachmentV01(db, run);
     const controllerGeneration = exactNonNegativeIntegerV01(
       run.metadata.controller_generation,
     );
@@ -314,7 +314,7 @@ export async function admitRepositoryRunResumeCheckpointV01(
     checkpoint.checkpoint_fingerprint,
   );
   const finalRun = requireRepositoryRunV01(db, input.config, input.run_id);
-  const finalAttachment = requireConsumedAttachmentV01(db, finalRun);
+  const finalAttachment = requireConsumedRepositoryRunAttachmentV01(db, finalRun);
   const finalStep = finalRun.steps.find(
     (candidate) => candidate.step_id === checkpoint.step_id,
   );
@@ -435,7 +435,7 @@ export async function readRepositoryRunResumeEligibilityV01(
         gap: "run_lifecycle_ambiguous",
       });
     }
-    const attachment = requireConsumedAttachmentV01(db, run);
+    const attachment = requireConsumedRepositoryRunAttachmentV01(db, run);
     let checkpoints: RepositoryRunResumeCheckpointV01[];
     try {
       checkpoints = listRepositoryRunResumeCheckpointsV01(db, {
@@ -693,7 +693,7 @@ export async function readRepositoryRunResumeEligibilityV01(
     }
     return projectionV01(generatedAt, "resume_ready", {
       summary:
-        "This disconnected run has one exact safe checkpoint; explicit resume is a later phase.",
+        "This disconnected run has one exact safe checkpoint and can request explicit resume.",
       checkpoint: latest,
     });
   } catch (error) {
@@ -721,7 +721,7 @@ function projectionV01(
     active_owned: ["view_progress", "View progress", "The current controller remains authoritative."],
     terminal: ["review_result", "Review result", "Terminal runs are reviewed instead of resumed."],
     approval_pending: ["review_approval", "Review approval", "The existing exact approval gate remains authoritative."],
-    resume_ready: ["explicit_resume_not_yet_available", "Review safe checkpoint", "CDX2B4A is read-only; explicit same-run resume is not implemented."],
+    resume_ready: ["request_explicit_resume", "Resume managed run", "An exact Browser-confirmed same-run resume may now be requested."],
     reconciliation_required: ["review_uncertain_operation", "Review uncertain operation", "Reconcile the exact operation boundary before any future resume."],
     stale: ["restore_checkpoint_state", "Restore checkpoint state", "Restore exact checkpoint bindings before considering resume."],
     unsupported: ["restore_resume_support", "Restore resume support", "A compatible exact provider resume binding is required."],
@@ -781,7 +781,10 @@ function requireRepositoryRunV01(
   return run;
 }
 
-function requireConsumedAttachmentV01(db: Database.Database, run: AutonomyRunRecord) {
+export function requireConsumedRepositoryRunAttachmentV01(
+  db: Database.Database,
+  run: AutonomyRunRecord,
+) {
   const attachmentId = requiredStringV01(
     run.metadata.repository_attachment_id,
     "repository_resume_checkpoint_attachment_missing",
@@ -1172,7 +1175,7 @@ function isPausedOrDisconnectedV01(run: AutonomyRunRecord): boolean {
     run.metadata.controller_disconnected === true;
 }
 
-function selectCanonicalRepositoryAttachmentRunV01(
+export function selectCanonicalRepositoryAttachmentRunV01(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
 ): AutonomyRunRecord | null {
@@ -1190,7 +1193,7 @@ function selectCanonicalRepositoryAttachmentRunV01(
   }
   const candidates = rows.map(({ run_id: runId }) => {
     const run = requireRepositoryRunV01(db, config, runId);
-    requireConsumedAttachmentV01(db, run);
+    requireConsumedRepositoryRunAttachmentV01(db, run);
     return run;
   });
   const nonterminal = candidates.filter(

@@ -374,7 +374,7 @@ const repositoryInterrupted = projection(
     },
     pending_approval: null,
     next_action: {
-      kind: "explicit_resume_not_yet_available",
+      kind: "request_explicit_resume",
       label: "Review safe checkpoint",
       reason: "CDX2B4A is read-only; explicit same-run resume is not implemented.",
       executes: false,

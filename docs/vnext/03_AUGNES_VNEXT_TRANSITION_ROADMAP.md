@@ -362,13 +362,12 @@ non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
 no start decision consumption, attachment consumption, run, controller,
 provider call, command, or project mutation.
 
-## Current
-
-### CDX2B4A exact resume eligibility and durable checkpoints
+### CDX2B4A exact resume eligibility and durable checkpoints — Completed
 
 [Issue #121](https://github.com/hynk-studio/augnes-perspective-lab/issues/121)
-and its Draft PR titled **CDX2B4A — Establish exact attachment-backed resume
-eligibility** define the current slice. CDX2B4A adds one private, node-local
+and [PR #122](https://github.com/hynk-studio/augnes-perspective-lab/pull/122)
+define the completed CDX2B4A slice. It merged as
+`169b1f99a6ab2cdc09cafbdbfda15b71b973585f`. CDX2B4A adds one private, node-local
 `repository_run_resume_checkpoint.v0.1` owner and one read-only
 `repository_run_resume_eligibility.v0.1` projection. A consumed attachment
 remains the immutable run-start snapshot; the checkpoint instead binds the
@@ -386,18 +385,40 @@ approval-pending. The eligibility read creates no controller, run, attachment,
 grant, decision, provider call, command, result, proposal, semantic record, or
 project-file change. Browser active selection is not binding material.
 
-CDX2B4A does not resume an attachment-backed run. The existing live-service
-refusal remains authoritative.
+CDX2B4A itself did not resume an attachment-backed run; its generic
+live-service refusal remains covered as the compatibility path.
+
+## Current
+
+### CDX2B4B explicit exact same-run resume
+
+[Issue #123](https://github.com/hynk-studio/augnes-perspective-lab/issues/123)
+and its Draft PR titled **CDX2B4B — Explicitly resume one exact
+attachment-backed managed run** define the current slice. Only canonical
+`resume_ready` material can create one expiring Browser-only Resume decision.
+The Start grant is not reusable. One immediate transaction consumes the exact
+Resume grant, claims one deterministic attempt, preserves the run, attachment,
+envelope, packet/current work, and provider thread, advances the controller
+generation exactly once, and appends bounded same-run admission events.
+
+The post-commit launch gate rechecks physical root, bounded worktree,
+adapter/capability, controller ownership, and canonical database state. A
+durable `provider_resume_invocation_started` marker precedes the adapter call.
+A crash before that marker may replay the same admitted attempt once; a marker
+without a surviving controller/result is reconciliation-required and never
+calls the provider again. The resumed path uses `thread/resume`, never
+`thread/start`, and continues checkpoint, cancellation, result, RunReceipt,
+and proposal owners under the next generation. Resume completion is not
+semantic acceptance.
 
 ## Next separately authorized work
 
-CDX2B4B is the next separately authorized slice: consume one exact
-`resume_ready` projection into one explicit exact same-run resume without a
-second attachment or managed run. Current-session attachment, automatic resume
-after controller loss or Companion startup, Linux product rollout, remote
-nodes, long-horizon continuation, policy-triggered continuous control, and
-multi-agent orchestration remain later and separate. Windows Issue #120 stays
-separate and unchanged.
+No automatic-resume policy is authorized by CDX2B4B. A bounded automatic-resume
+policy, if pursued, is a later separately authorized phase. Current-session
+attachment, automatic resume after controller loss or Companion startup,
+Linux product rollout, remote nodes, long-horizon continuation,
+policy-triggered continuous control, and multi-agent orchestration remain later
+and separate. Windows Issue #120 stays separate and unchanged.
 
 ## Pending C9
 
