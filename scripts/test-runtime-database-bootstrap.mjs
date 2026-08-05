@@ -401,16 +401,18 @@ function testPhysicalPathSafety() {
               LOCALAPPDATA: repositoryLink,
               APPDATA: path.join(outside, "appdata"),
             }
-          : {
-              HOME: outside,
-              XDG_DATA_HOME: path.join(outside, "xdg-data"),
-              XDG_CONFIG_HOME: path.join(outside, "xdg-config"),
-              XDG_STATE_HOME: repositoryLink,
-            },
+          : process.platform === "darwin"
+            ? { HOME: repositoryLink }
+            : {
+                HOME: outside,
+                XDG_DATA_HOME: path.join(outside, "xdg-data"),
+                XDG_CONFIG_HOME: path.join(outside, "xdg-config"),
+                XDG_STATE_HOME: repositoryLink,
+              },
         repositoryRoot: fakeRepository,
         repositoryFingerprint: "b".repeat(64),
       }),
-    process.platform === "win32"
+    process.platform === "win32" || process.platform === "darwin"
       ? "data_path_must_be_outside_repository"
       : "backup_path_must_be_outside_repository",
     [repositoryLink, fakeRepository],
