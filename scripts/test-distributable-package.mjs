@@ -669,6 +669,7 @@ function validatePackageContents(root) {
     "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
     "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
     "0bbd52cf5430bce8102865ea347b15aa90341e60d822b2000282080018698d8a",
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
   ]);
   assert(Array.isArray(manifest.files) && manifest.files.length > 0);
 

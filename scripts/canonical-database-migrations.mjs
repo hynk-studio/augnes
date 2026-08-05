@@ -108,6 +108,11 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // Runtime claims, their stale-claim history, and cancellation intent stay
     // private machine-local history; partial stores remain unsupported.
     "6ba9e92e9632a88373805fa6c123d24b5fbd3e311052a76be953815e8e98190f",
+    // Exact integrated CDX2B3A + CDX2B4B structural contract with only the
+    // migration ledger and package identity guard removed. Windows baseline
+    // identity and private resume history are both complete; arbitrary
+    // partial combinations remain unsupported.
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",
