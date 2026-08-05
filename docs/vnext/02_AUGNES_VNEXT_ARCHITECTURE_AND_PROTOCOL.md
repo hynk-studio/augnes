@@ -570,14 +570,15 @@ node scope binds installation identity, platform, x64 architecture, and the
 physical-identity contract version. Machine-local POSIX or Windows identifiers
 never become canonical project identity or portable truth.
 
-The Windows candidate obtains final target, volume serial, and file ID from one
+The Windows owner obtains final target, volume serial, and file ID from one
 opened directory target handle through a narrow reviewed Win32 helper, then
-admits only Windows 11 x64 local fixed NTFS. It has no shell, network, runtime
-download, elevation, or path-only fallback. The current macOS development run
-cannot supply deciding Windows evidence, so the ordinary repository-execution
-owner remains fail-closed on Windows even though its parser, schema, and
-attachment contracts have platform-neutral coverage. Windows package support
-is not claimed.
+admits Windows 10 Pro 22H2 build 19045 or newer and Windows 11 build 22000 or
+newer on x64 local fixed NTFS. It has no shell, network, runtime download,
+elevation, or path-only fallback. The source-runtime owner is verified on
+Windows 10 Pro 22H2 build 19045.6456; Windows 11 and packaged Windows remain
+unverified. Unsupported platforms and package modes remain fail-closed even
+though the parser, schema, and attachment contracts have platform-neutral
+coverage. Windows package support is not claimed.
 
 CDX2B2B adds `repository_execution_envelope.v0.1` and the explicit
 `repository_attachment` NativeHost run mode. One Browser-confirmed start grant

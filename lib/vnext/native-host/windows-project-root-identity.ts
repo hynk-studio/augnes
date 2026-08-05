@@ -22,7 +22,7 @@ export const WINDOWS_PHYSICAL_ROOT_HELPER_RELATIVE_PATH_V01 =
   "native/windows-x64/augnes-windows-physical-root-v0.1.exe" as const;
 export const WINDOWS_PHYSICAL_ROOT_HELPER_MANIFEST_RELATIVE_PATH_V01 =
   "native/windows-x64/augnes-windows-physical-root-v0.1.json" as const;
-export const WINDOWS_PHYSICAL_ROOT_MINIMUM_BUILD_V01 = 22_000 as const;
+export const WINDOWS_PHYSICAL_ROOT_MINIMUM_BUILD_V01 = 19_045 as const;
 
 const MAX_INPUT_PATH_BYTES = 32_768 * 4;
 const MAX_HELPER_OUTPUT_BYTES = 16 * 1024;
@@ -322,7 +322,7 @@ function assertSupportedWindowsVersionV01(value: string): void {
     build < WINDOWS_PHYSICAL_ROOT_MINIMUM_BUILD_V01
   ) {
     throw new WindowsProjectRootIdentityErrorV01(
-      "windows_physical_identity_windows_11_unsupported",
+      "windows_physical_identity_windows_version_unsupported",
     );
   }
 }

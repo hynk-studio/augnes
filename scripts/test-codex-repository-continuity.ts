@@ -146,7 +146,7 @@ async function assertRepositoryResolutionMatrixV01(): Promise<void> {
     assert.equal(resolved.project_id, exact.project.project_id);
 
     const aliasRoot = path.join(ROOT, "exact-alias");
-    symlinkSync(exactRoot, aliasRoot, "dir");
+    createDirectoryAliasV01(exactRoot, aliasRoot);
     const alias = await resolveCodexRepositoryProjectV01(db, {
       repository_root: aliasRoot,
     });
@@ -166,8 +166,8 @@ async function assertRepositoryResolutionMatrixV01(): Promise<void> {
     const shared = projectRootV01("shared");
     const sharedAliasA = path.join(ROOT, "shared-a");
     const sharedAliasB = path.join(ROOT, "shared-b");
-    symlinkSync(shared, sharedAliasA, "dir");
-    symlinkSync(shared, sharedAliasB, "dir");
+    createDirectoryAliasV01(shared, sharedAliasA);
+    createDirectoryAliasV01(shared, sharedAliasB);
     registerV01(db, workspace.workspace_id, sharedAliasA, "Shared A", "10000000-0000-4000-8000-000000000002");
     registerV01(db, workspace.workspace_id, sharedAliasB, "Shared B", "10000000-0000-4000-8000-000000000003");
     assert.equal((await resolveCodexRepositoryProjectV01(db, {
@@ -180,6 +180,10 @@ async function assertRepositoryResolutionMatrixV01(): Promise<void> {
   } finally {
     db.close();
   }
+}
+
+function createDirectoryAliasV01(target: string, alias: string): void {
+  symlinkSync(target, alias, process.platform === "win32" ? "junction" : "dir");
 }
 
 async function assertSamePathReplacementLimitationV01(): Promise<void> {

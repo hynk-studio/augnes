@@ -209,7 +209,7 @@ assertOrdered(blankState, [
   'data-continuities-filter="shown-items"',
   'data-blank-state-continuity-list="v0.1"',
   "<ContinuitiesTemporalContext view={temporalContext} />",
-  "<GuideBriefConversation\n            guide={guide}",
+  "<GuideBriefConversation",
   "<ManagementSafety",
 ]);
 const temporalContext = read(
@@ -253,7 +253,9 @@ assert.equal(
   "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
 );
 assert.equal(
-  createHash("sha256").update(interLicense).digest("hex"),
+  createHash("sha256")
+    .update(interLicense.replaceAll("\r\n", "\n"))
+    .digest("hex"),
   "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
 );
 assert.deepEqual(

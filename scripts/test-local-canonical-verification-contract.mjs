@@ -430,7 +430,10 @@ for (const command of [
 }
 
 for (const fragment of [
-  `AUTHORIZED_REPOSITORY_ROOT = "/Users/hynk/code/augnes-temp"`,
+  `WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =`,
+  `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
+  `process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""`,
+  `"/Users/hynk/code/augnes-temp"`,
   `AUTHORIZED_REPOSITORY_ID =`,
   `"hynk-studio/augnes-perspective-lab"`,
   `AUTHORIZED_ORIGIN_URL =`,
@@ -950,11 +953,11 @@ for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
-  ["scripts/test-recovery-canonical-record-validator.ts", "180_000"],
-  ["scripts/test-recovery-backup.mjs", "75_000"],
-  ["scripts/test-runtime-database-bootstrap.mjs", "120_000"],
+  ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],
+  ["scripts/test-recovery-backup.mjs", "330_000"],
+  ["scripts/test-runtime-database-bootstrap.mjs", "390_000"],
   ["scripts/test-runtime-operability.mjs", "120_000"],
-  ["scripts/test-runtime-reconciliation.mjs", "480_000"],
+  ["scripts/test-runtime-reconciliation.mjs", "720_000"],
   ["scripts/test-distributable-package.mjs", "480_000"],
   ["scripts/browser-validate-continuity-v1.mjs", "480_000"],
   ["scripts/browser-validate-cross-boundary-golden-v1.mjs", "360_000"],

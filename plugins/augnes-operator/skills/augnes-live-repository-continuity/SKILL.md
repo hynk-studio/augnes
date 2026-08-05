@@ -42,9 +42,10 @@ the current Augnes project state.”
    On Windows, preserve `identity_unsupported`, `identity_ambiguous`, missing-
    component, or proof-required results exactly. Never fall back to a path,
    Git remote, simulated `win32`, or raw volume/file identifiers. Windows
-   attachment readiness requires the product's verified Windows 11 x64 local
-   NTFS owner; the current CDX2B3A candidate remains fail-closed until its real
-   Windows evidence is completed.
+   source-runtime attachment readiness requires Windows 10 Pro 22H2 build
+   19045 or newer or Windows 11 build 22000 or newer on x64 local fixed NTFS.
+   Windows 10 build 19045.6456 is verified; Windows 11 and packaged Windows are
+   unverified and must remain truthfully distinguished.
 9. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never

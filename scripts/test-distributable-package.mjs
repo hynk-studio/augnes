@@ -108,6 +108,30 @@ const PACKAGE_PLATFORM = detectDistributablePlatform();
 const PACKAGE_PLATFORM_LABEL = formatDistributablePlatformLabel(
   PACKAGE_PLATFORM,
 );
+const packageSupported = DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(
+  process.platform,
+);
+if (!packageSupported) {
+  console.log(
+    JSON.stringify(
+      {
+        test: "distributable-package-and-packaged-runtime",
+        status: "unsupported",
+        package_supported: false,
+        platform: process.platform,
+        skip_reason: "package_build_runtime_unsupported",
+        source_runtime_support_affected: false,
+        owned_processes_after: 0,
+        owned_ports_after: 0,
+        package_test_roots_after: 0,
+        build_temp_roots_after: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 const artifactName =
   `augnes-${APPLICATION_VERSION}-${PACKAGE_PLATFORM_LABEL}.tar.gz`;
 const canonicalTemporaryRoot = canonicalRootFromEnvironment();
@@ -173,10 +197,6 @@ if (
 }
 
 try {
-  assert(
-    DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(process.platform),
-    `distributable package test is unsupported on ${process.platform}`,
-  );
   assertContractRejectsForbiddenPayloads();
   const packageStartedAt = Date.now();
   const packageResult = await runCapturedProcess({

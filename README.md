@@ -71,11 +71,12 @@ exact attachment only after one Browser confirmation, then permits bounded
 reversible local repository work within its deterministic envelope. Later
 operation approval and semantic result review remain separate. The
 managed-delegation product boundary is verified local macOS only. Linux has no
-separate product filesystem/runtime proof. CDX2B3A contains a reviewed
-Windows 11 x64 local-NTFS identity candidate, but Windows attachment admission
-remains fail-closed until real Windows filesystem and source-runtime proof is
-completed; packaged Windows support is also unproven. Windows managed Start
-remains unavailable and belongs to a separate CDX2B3B phase.
+separate product filesystem/runtime proof. CDX2B3A source-runtime attachment
+admission is verified on Windows 10 Pro 22H2 build 19045.6456 x64 local fixed
+NTFS. The implementation also admits Windows 11 build 22000 or newer, but no
+actual Windows 11 run has verified that lane. The existing package builder
+still refuses Windows, so packaged Windows admission remains unavailable.
+Windows managed Start remains unavailable and belongs to CDX2B3B.
 
 Cancellation remains available from the immutable consumed attachment/run
 binding even when current packet, work, root, baseline, worktree, or Browser

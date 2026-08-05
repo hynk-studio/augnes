@@ -142,7 +142,7 @@ assert.match(decision, /rationaleBoundDecision/);
 assert.match(decision, /decisionControlRef\.current\?\.focus\(\)/);
 const prepareDecisionBody =
   decision.match(
-    /prepareApplying:\s*\(requestedDecision\) => \{([\s\S]*?)\n\s*\},\n\s*getCurrentFocusCapability/,
+    /prepareApplying:\s*\(requestedDecision\) => \{([\s\S]*?)\r?\n\s*\},\r?\n\s*getCurrentFocusCapability/,
   )?.[1] ?? "";
 assert.ok(prepareDecisionBody.length > 0);
 assert.doesNotMatch(prepareDecisionBody, /onSubmit|submitDecision|fetch/);

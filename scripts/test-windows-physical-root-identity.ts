@@ -5,7 +5,10 @@ import {
   mkdirSync,
   mkdtempSync,
   realpathSync,
+  renameSync,
+  rmdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -135,10 +138,10 @@ try {
     inspectWindowsPhysicalRootIdentityV01("C:\\repo", {
       platform: "win32",
       architecture: "x64",
-      windows_version: "10.0.19045",
+      windows_version: "10.0.19044",
       runtime_root: temporaryRoot,
     }),
-    isWindowsError("windows_physical_identity_windows_11_unsupported"),
+    isWindowsError("windows_physical_identity_windows_version_unsupported"),
   );
   await assert.rejects(
     inspectWindowsPhysicalRootIdentityV01("\\\\server\\repo", {
@@ -180,7 +183,7 @@ try {
     helper_file: WINDOWS_PHYSICAL_ROOT_HELPER_RELATIVE_PATH_V01,
     helper_sha256: helperSha256,
     identity_version: WINDOWS_PHYSICAL_ROOT_IDENTITY_VERSION_V01,
-    minimum_windows_build: 22000,
+    minimum_windows_build: 19045,
     platform: "win32",
   }, null, 2)}\n`, "utf8");
 
@@ -286,7 +289,7 @@ try {
       helper_file: WINDOWS_PHYSICAL_ROOT_HELPER_RELATIVE_PATH_V01,
       helper_sha256: timeoutSha256,
       identity_version: WINDOWS_PHYSICAL_ROOT_IDENTITY_VERSION_V01,
-      minimum_windows_build: 22000,
+      minimum_windows_build: 19045,
       platform: "win32",
     }, null, 2)}\n`, "utf8");
     await assert.rejects(
@@ -329,7 +332,6 @@ try {
       platform: "win32",
       architecture: "x64",
       windows_version: "10.0.26100",
-      allow_unverified_windows_identity_for_contract_test: true,
       node_scope_root: "C:\\AugnesData",
       windows_physical_identity: async (root) => windowsIdentityFor(root),
       now: () => "2026-08-05T00:00:00.000Z",
@@ -366,7 +368,6 @@ try {
       platform: "win32",
       architecture: "x64",
       windows_version: "10.0.26100",
-      allow_unverified_windows_identity_for_contract_test: true,
       node_scope_root: "C:\\AugnesData",
       windows_physical_identity: async (root) => ({
         ...windowsIdentityFor(root),
@@ -531,6 +532,13 @@ try {
     assert(!forbidden.test(nativeBytes), `forbidden native mechanism: ${forbidden}`);
   }
 
+  const realWindowsFilesystemProof = process.platform === "win32"
+    ? await runRealWindowsFilesystemProofV01()
+    : {
+        real_windows_filesystem_proof: false,
+        real_windows_filesystem_skipped_reason: "non_windows_host",
+      };
+
   console.log(JSON.stringify({
     status: "pass",
     contract: WINDOWS_PHYSICAL_ROOT_IDENTITY_VERSION_V01,
@@ -538,7 +546,8 @@ try {
     unicode_and_long_path_contract: true,
     fixed_ntfs_only: true,
     unc_wsl_and_wrong_architecture_refused: true,
-    windows_10_refused: true,
+    windows_10_22h2_admitted: true,
+    pre_windows_10_22h2_refused: true,
     missing_and_modified_component_refused: true,
     native_unsupported_code_preserved: true,
     timeout_process_cleaned: timeoutProcessCleaned,
@@ -547,7 +556,7 @@ try {
     windows_baseline_serialization: true,
     node_scope_binds_platform_architecture_and_contract: true,
     native_directory_handle_api_review: true,
-    deciding_windows_filesystem_proof: false,
+    ...realWindowsFilesystemProof,
   }));
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true });
@@ -558,6 +567,121 @@ void main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
+
+async function runRealWindowsFilesystemProofV01(): Promise<Record<string, unknown>> {
+  const proofRoot = mkdtempSync(path.join(os.tmpdir(), "augnes-windows-identity-real-"));
+  const normalizedTemporaryRoot = path.resolve(os.tmpdir());
+  if (!path.resolve(proofRoot).startsWith(`${normalizedTemporaryRoot}${path.sep}`)) {
+    throw new Error("windows_physical_identity_real_proof_root_invalid");
+  }
+  const inspect = (candidate: string) => inspectWindowsPhysicalRootIdentityV01(candidate, {
+    runtime_root: process.cwd(),
+  });
+  const sameIdentity = (
+    left: NativeHostWindowsPhysicalRootIdentityV01,
+    right: NativeHostWindowsPhysicalRootIdentityV01,
+  ) => assert.deepEqual(right, left);
+  let directorySymlink: "verified" | "privilege_unavailable" = "privilege_unavailable";
+  let reparseLoopRefusal: string | null = null;
+
+  try {
+    const stableRoot = path.join(proofRoot, "stable");
+    mkdirSync(path.join(stableRoot, "nested"), { recursive: true });
+    const stable = await inspect(stableRoot);
+    sameIdentity(stable, await inspect(stableRoot));
+    sameIdentity(stable, await inspect(`${stableRoot[0].toLowerCase()}${stableRoot.slice(1)}`));
+    sameIdentity(stable, await inspect(path.join(stableRoot, ".", "nested", "..")));
+
+    const unicodeRoot = path.join(proofRoot, "연구-저장소");
+    mkdirSync(unicodeRoot);
+    const unicode = await inspect(unicodeRoot);
+    assert.equal(unicode.filesystem_family, "NTFS");
+
+    let longRoot = path.join(proofRoot, "long-path");
+    mkdirSync(longRoot);
+    while (longRoot.length < 320) {
+      longRoot = path.join(longRoot, "segment-0123456789abcdef");
+      mkdirSync(longRoot);
+    }
+    const longIdentity = await inspect(longRoot);
+    assert.equal(longIdentity.filesystem_family, "NTFS");
+
+    const junctionRoot = path.join(proofRoot, "junction-alias");
+    symlinkSync(stableRoot, junctionRoot, "junction");
+    sameIdentity(stable, await inspect(junctionRoot));
+
+    const symlinkRoot = path.join(proofRoot, "symlink-alias");
+    try {
+      symlinkSync(stableRoot, symlinkRoot, "dir");
+      sameIdentity(stable, await inspect(symlinkRoot));
+      directorySymlink = "verified";
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EPERM" && code !== "EACCES") throw error;
+    }
+
+    const loopA = path.join(proofRoot, "loop-a");
+    const loopB = path.join(proofRoot, "loop-b");
+    symlinkSync(loopB, loopA, "junction");
+    symlinkSync(loopA, loopB, "junction");
+    try {
+      await inspect(loopA);
+      assert.fail("reparse loop unexpectedly produced an exact identity");
+    } catch (error) {
+      assert(error instanceof WindowsProjectRootIdentityErrorV01);
+      reparseLoopRefusal = error.code;
+      assert([
+        "windows_physical_identity_directory_unavailable",
+        "windows_physical_identity_reparse_target_ambiguous",
+      ].includes(error.code));
+    }
+
+    const replacementRoot = path.join(proofRoot, "replacement");
+    mkdirSync(replacementRoot);
+    const beforeReplacement = await inspect(replacementRoot);
+    rmdirSync(replacementRoot);
+    mkdirSync(replacementRoot);
+    const afterReplacement = await inspect(replacementRoot);
+    assert.notEqual(afterReplacement.file_id, beforeReplacement.file_id);
+    assert.equal(
+      afterReplacement.canonical_final_path_fingerprint,
+      beforeReplacement.canonical_final_path_fingerprint,
+    );
+
+    const movedFrom = path.join(proofRoot, "move-from");
+    const movedTo = path.join(proofRoot, "move-to");
+    mkdirSync(movedFrom);
+    const beforeMove = await inspect(movedFrom);
+    renameSync(movedFrom, movedTo);
+    const afterMove = await inspect(movedTo);
+    assert.equal(afterMove.volume_serial_identity, beforeMove.volume_serial_identity);
+    assert.equal(afterMove.file_id, beforeMove.file_id);
+    assert.notEqual(
+      afterMove.canonical_final_path_fingerprint,
+      beforeMove.canonical_final_path_fingerprint,
+    );
+
+    return {
+      real_windows_filesystem_proof: true,
+      real_windows_host_release: os.release(),
+      restart_identity_stable: true,
+      drive_case_identity_stable: true,
+      dot_dot_identity_stable: true,
+      unicode_path_verified: true,
+      long_path_verified: true,
+      junction_alias_verified: true,
+      directory_symlink: directorySymlink,
+      reparse_loop_refused: reparseLoopRefusal,
+      same_path_replacement_detected: true,
+      delete_recreate_detected: true,
+      rename_requires_rebind: true,
+      cross_volume_move_verified: false,
+      cross_volume_move_skipped_reason: "no_second_local_fixed_ntfs_volume_provisioned",
+    };
+  } finally {
+    rmSync(proofRoot, { recursive: true, force: true });
+  }
+}
 
 function helperResponse(finalTargetPath: string) {
   return {

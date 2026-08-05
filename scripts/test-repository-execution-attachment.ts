@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     assert.equal(count(db, "vnext_physical_root_baselines"), 2);
 
     const rootAlias = path.join(ROOT, "repository-a-alias");
-    symlinkSync(rootA, rootAlias, "dir");
+    symlinkSync(rootA, rootAlias, process.platform === "win32" ? "junction" : "dir");
     const [canonicalObservation, aliasObservation] = await Promise.all([
       inspectPhysicalRootForExecutionV01(db, rootA),
       inspectPhysicalRootForExecutionV01(db, rootAlias),
@@ -121,12 +121,15 @@ async function main(): Promise<void> {
 
     const windowsOnboardingRoot = createRepository("windows-onboarding-root");
     const windowsOnboardingAlias = path.join(ROOT, "windows-onboarding-alias");
-    symlinkSync(windowsOnboardingRoot, windowsOnboardingAlias, "dir");
+    symlinkSync(
+      windowsOnboardingRoot,
+      windowsOnboardingAlias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
     const windowsOnboardingDependencies = {
       platform: "win32" as const,
       architecture: "x64" as const,
       windows_version: "10.0.26100",
-      allow_unverified_windows_identity_for_contract_test: true,
       node_scope_root: "C:\\AugnesData",
       windows_physical_identity: async (root: string) => ({
         identity_version: "physical_root_identity.windows.v0.1" as const,
@@ -673,21 +676,19 @@ async function main(): Promise<void> {
     } finally {
       restored.close();
     }
-    const unsupported = await readProjectExecutionAdmissionV01(db, {
-      workspace_id: workspaceId,
-      project_id: projectA.project_id,
-    }, { platform: "win32", now: () => "2026-08-04T00:00:17.000Z" });
-    assert.equal(unsupported.reason, "identity_unsupported");
-    const productionWindowsObservation = await inspectPhysicalRootForExecutionV01(
-      db,
-      rootA,
-      { platform: "win32", now: () => "2026-08-04T00:00:17.001Z" },
-    );
-    assert.equal(productionWindowsObservation.status, "identity_unsupported");
-    assert.equal(
-      productionWindowsObservation.reason,
-      "windows_physical_identity_real_filesystem_proof_required",
-    );
+    if (process.platform === "win32") {
+      const windowsAdmission = await readProjectExecutionAdmissionV01(db, {
+        workspace_id: workspaceId,
+        project_id: projectA.project_id,
+      }, { now: () => "2026-08-04T00:00:17.000Z" });
+      assert.equal(windowsAdmission.reason, "ready");
+      const productionWindowsObservation = await inspectPhysicalRootForExecutionV01(
+        db,
+        rootA,
+        { now: () => "2026-08-04T00:00:17.001Z" },
+      );
+      assert.equal(productionWindowsObservation.status, "exact");
+    }
     const windowsIdentity = (root: string) => ({
       identity_version: "physical_root_identity.windows.v0.1" as const,
       canonical_final_path_fingerprint: createProtocolSha256V01(
@@ -704,7 +705,6 @@ async function main(): Promise<void> {
       platform: "win32" as const,
       architecture: "x64" as const,
       windows_version: "10.0.26100",
-      allow_unverified_windows_identity_for_contract_test: true,
       node_scope_root: "C:\\AugnesData",
       windows_physical_identity: async (root: string) => windowsIdentity(root),
     };
@@ -1232,9 +1232,9 @@ async function main(): Promise<void> {
       backup_restore_retains_local_metadata: true,
       recovery_validator_accepts_exact_metadata: true,
       portable_export_excludes_machine_local_metadata: true,
-      windows_verified: false,
-      windows_status: "identity_unsupported",
-      windows_product_admission_enabled: false,
+      windows_verified: process.platform === "win32",
+      windows_status: process.platform === "win32" ? "ready" : "not_run_non_windows",
+      windows_product_admission_enabled: process.platform === "win32",
       windows_contract_test_attachment_prepared: true,
       windows_contract_same_path_replacement_blocked: true,
       windows_contract_onboarding_atomic: true,

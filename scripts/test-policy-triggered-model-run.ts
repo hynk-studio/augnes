@@ -1372,11 +1372,11 @@ async function lifecycleMappingCases(
     grant_id: "grant:lifecycle-transport-timeout",
     execution_mode: "live",
   });
-  transportTimeoutInput.timeout_ms = 20;
-  transportTimeoutInput.run_budget.max_timeout_ms = 20;
+  transportTimeoutInput.timeout_ms = 250;
+  transportTimeoutInput.run_budget.max_timeout_ms = 250;
   grants.set(
     transportTimeoutInput.grant_id,
-    grantFor(transportTimeoutInput, { max_timeout_ms: 20 }),
+    grantFor(transportTimeoutInput, { max_timeout_ms: 250 }),
   );
   const transportTimeout = await assertPolicyError(
     () =>

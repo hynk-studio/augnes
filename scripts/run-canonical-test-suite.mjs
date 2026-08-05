@@ -218,7 +218,9 @@ const suites = {
     {
       label: "exact read-only Codex current continuity contract",
       ...rootNode("scripts/test-vnext-codex-current-continuity.ts"),
-      timeoutMs: 30_000,
+      // The complete twelve-database continuity matrix measured 68.26s on the
+      // verified Windows 10 NTFS lane. Keep a bounded 90s owner timeout.
+      timeoutMs: 90_000,
     },
     {
       label: "exact repository-scoped Codex continuity contract",
@@ -238,7 +240,10 @@ const suites = {
     {
       label: "managed repository delegation contract",
       ...rootNode("scripts/test-repository-managed-delegation.ts"),
-      timeoutMs: 60_000,
+      // The full race, cancellation, replay, and lifecycle matrix measured
+      // 124.7s on the verified Windows 10 NTFS lane. Keep a bounded 180s owner
+      // timeout without retries.
+      timeoutMs: 180_000,
     },
     {
       label: "live Companion discovery and dynamic bridge-port contract",
@@ -291,8 +296,8 @@ const suites = {
         "project Verify lifecycle, exact Transition, reconciliation, and lineage",
       ...rootNode("scripts/test-vnext-project-verify-lifecycle.ts"),
       // Current-head exact lifecycle, rollback, bounded-read, source-chain, and
-      // restore coverage measured 43.55s locally; bound it with a 60s margin.
-      timeoutMs: 60_000,
+      // restore coverage measured 71.2s on the exact Windows source lane.
+      timeoutMs: 90_000,
     },
     {
       id: "project-verify-production-lifecycle",
@@ -351,7 +356,9 @@ const suites = {
       label:
         "policy-triggered Planner grant, Model Gateway, and RunReceipt lifecycle",
       ...rootNode("scripts/test-policy-triggered-model-run.ts"),
-      timeoutMs: 30_000,
+      // Exact Windows source-lane lifecycle measured 30.1s after transport
+      // admission; keep a bounded 45s owner rather than racing the measurement.
+      timeoutMs: 45_000,
     },
     {
       id: "project-home",
@@ -486,8 +493,8 @@ const suites = {
         "portable project contract, atomic round trip, reader fidelity, and authority isolation",
       ...rootNode("scripts/test-portable-project-continuity.ts"),
       // Production-equivalent fixture, validation, round trip, replay, and
-      // adversarial cases measured 13.41s locally.
-      timeoutMs: 45_000,
+      // adversarial cases measured 65.6s on the exact Windows source lane.
+      timeoutMs: 90_000,
     },
   ],
   authority: [
@@ -587,10 +594,9 @@ const suites = {
       label: "production canonical record recovery validation",
       ...rootNode("scripts/test-recovery-canonical-record-validator.ts"),
       // The production 30-record backup/restore fixture, real product readers,
-      // and adversarial mutations measured 83.72s locally after the recovery
-      // privacy boundary. Comparable canonical process children have measured
-      // up to 1.87x local duration in CI, so retain a bounded 180s limit.
-      timeoutMs: 180_000,
+      // and adversarial mutations measured 236.1s on the exact Windows source
+      // lane, so retain a bounded 300s owner.
+      timeoutMs: 300_000,
     },
     {
       id: "recovery-backup",
@@ -599,10 +605,9 @@ const suites = {
       label: "versioned recovery backup and atomic restore contract",
       ...rootNode("scripts/test-recovery-backup.mjs"),
       // The complete backup, hard-crash ownership, adoption, and restore matrix
-      // measured 37.62s locally. Comparable canonical process children have
-      // measured up to 1.87x locally observed duration in CI, so retain a
-      // bounded 75s child limit without retrying.
-      timeoutMs: 75_000,
+      // measured 253.7s on the exact Windows source lane, so retain a bounded
+      // 330s child owner without retrying.
+      timeoutMs: 330_000,
     },
     {
       id: "runtime-database-bootstrap",
@@ -611,7 +616,9 @@ const suites = {
       label:
         "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
-      timeoutMs: 120_000,
+      // Real first/current/old starts plus recovery and rollback measured
+      // 327.8s on the exact Windows source lane.
+      timeoutMs: 390_000,
     },
     {
       id: "runtime-supervisor",
@@ -640,11 +647,10 @@ const suites = {
       ],
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
-      // The complete update/restore journal, legacy-v3, active-WAL, and crash
-      // reconciliation matrix measured 234.45s locally. Existing canonical CI
-      // process suites have measured up to 1.87x local duration, so keep a
-      // bounded 480s child limit with a small scheduling margin.
-      timeoutMs: 480_000,
+      // The complete update/restore journal, legacy-v3, and available crash
+      // reconciliation matrix measured 614.1s on the exact Windows source
+      // lane, so keep a bounded 720s child owner without retrying.
+      timeoutMs: 720_000,
     },
     {
       id: "distributable-package",

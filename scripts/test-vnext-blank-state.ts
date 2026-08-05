@@ -1115,7 +1115,7 @@ async function main() {
     local_root: {
       local_root_ref_version: "local_project_root_ref.v0.1",
       ref_kind: "local_project_root",
-      path_flavor: "posix",
+      path_flavor: process.platform === "win32" ? "win32" : "posix",
       normalized_path: projectARoot,
     },
     display_name: "Project A",
@@ -1128,7 +1128,7 @@ async function main() {
     local_root: {
       local_root_ref_version: "local_project_root_ref.v0.1",
       ref_kind: "local_project_root",
-      path_flavor: "posix",
+      path_flavor: process.platform === "win32" ? "win32" : "posix",
       normalized_path: projectBRoot,
     },
     display_name: "Project B",

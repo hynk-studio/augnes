@@ -1340,11 +1340,14 @@ function requiredProtocolFingerprint(value: unknown): string | null {
 }
 
 function normalizeExplicitDatabasePath(value: string): string | null {
+  const windowsDriveAbsolute =
+    process.platform === "win32" &&
+    /^[A-Za-z]:[\\/]/.test(value);
   if (
     value !== value.trim() ||
     value.includes("\0") ||
     !path.isAbsolute(value) ||
-    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) ||
+    (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) && !windowsDriveAbsolute) ||
     (!value.endsWith(".db") && !value.endsWith(".sqlite"))
   ) {
     return null;

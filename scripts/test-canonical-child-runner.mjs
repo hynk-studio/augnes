@@ -183,7 +183,11 @@ try {
     timeoutMs: 400,
   });
   assert.equal(direct.timed_out, true);
-  assert.equal(readFileSync(directState, "utf8"), "sigterm_received\n");
+  if (process.platform === "win32") {
+    assert.equal(existsSync(directState), false);
+  } else {
+    assert.equal(readFileSync(directState, "utf8"), "sigterm_received\n");
+  }
   observedPids.add(direct.pid);
   await assertProcessGone(direct.pid);
 
@@ -420,7 +424,8 @@ console.log(
       nonzero_failure_normalized: true,
       hanging_direct_child_terminated: true,
       hanging_process_tree_terminated: true,
-      sigterm_escalation_verified: true,
+      sigterm_escalation_verified: process.platform !== "win32",
+      windows_forced_tree_termination_verified: process.platform === "win32",
       privacy_safe_diagnostics: true,
       concurrent_groups_bounded_and_deterministic: true,
       concurrent_failure_timeout_and_cleanup_fail_closed: true,

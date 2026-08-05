@@ -102,9 +102,6 @@ export interface RepositoryExecutionDependenciesV01 {
     root: string,
   ) => Promise<NativeHostWindowsPhysicalRootIdentityV01>;
   windows_identity_runtime_root?: string;
-  /** Contract-test seam only; production callers must remain fail-closed until
-   * the deciding Windows 11 x64 NTFS evidence is completed. */
-  allow_unverified_windows_identity_for_contract_test?: boolean;
   filesystem_type?: (root: string) => Promise<number | bigint>;
   node_scope_root?: string;
   inspect_worktree?: typeof inspectRepositoryWorktreeV01;
@@ -162,15 +159,6 @@ export async function inspectPhysicalRootForExecutionV01(
   const observedAt = (dependencies.now ?? (() => new Date().toISOString()))();
   const platform = dependencies.platform ?? process.platform;
   if (platform === "win32") {
-    if (!dependencies.allow_unverified_windows_identity_for_contract_test) {
-      return {
-        status: "identity_unsupported",
-        platform,
-        node_scope_fingerprint: null,
-        reason: "windows_physical_identity_real_filesystem_proof_required",
-        observed_at: observedAt,
-      };
-    }
     const architecture = dependencies.architecture ?? process.arch;
     if (architecture !== "x64") {
       return {

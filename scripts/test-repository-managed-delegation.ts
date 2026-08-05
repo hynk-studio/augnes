@@ -1599,13 +1599,17 @@ async function createPreparedFixtureV01(
   const picked = await pickAndInspectLocalProjectV01({
     open_database: openDatabaseV01,
     now: () => now,
+    repository_execution_dependencies: { platform: "darwin" },
   });
   assert.equal(picked.status, "selected");
   const onboarded = await confirmLocalProjectOnboardingV01(db, {
     selection_token: picked.selection_token,
     inspection_fingerprint: picked.inspection.inspection_fingerprint,
     display_name: displayName,
-  }, { now: () => now });
+  }, {
+    now: () => now,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
   const project = onboarded.project;
   selectProjectV01(db, project.workspace_id, project.project_id);
   const work = defineWorkV01(
@@ -1617,7 +1621,10 @@ async function createPreparedFixtureV01(
   const prepared = await prepareRepositoryExecutionV01(db, {
     workspace_id: project.workspace_id,
     project_id: project.project_id,
-  }, { now: () => new Date(Date.parse(now) + 2_000).toISOString() });
+  }, {
+    now: () => new Date(Date.parse(now) + 2_000).toISOString(),
+    platform: "darwin",
+  });
   assert.equal(prepared.status, "prepared");
   assert(prepared.attachment);
   return {

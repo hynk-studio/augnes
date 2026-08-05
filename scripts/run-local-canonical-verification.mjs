@@ -878,11 +878,18 @@ function browserPhaseDefinition(id, { baseSha, headSha }) {
 }
 
 function npmPhase(id, label, args, timeoutMs, cwdScope = "root") {
+  const windowsNpmCli = path.join(
+    path.dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
   return phaseDefinition({
     id,
     label,
-    command: process.platform === "win32" ? "npm.cmd" : "npm",
-    args,
+    command: process.platform === "win32" ? process.execPath : "npm",
+    args: process.platform === "win32" ? [windowsNpmCli, ...args] : args,
     display: `npm ${args.join(" ")}`,
     timeoutMs,
     cwdScope,

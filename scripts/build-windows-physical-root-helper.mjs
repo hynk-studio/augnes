@@ -78,7 +78,7 @@ try {
     helper_file: "native/windows-x64/augnes-windows-physical-root-v0.1.exe",
     helper_sha256: helperSha256,
     identity_version: "physical_root_identity.windows.v0.1",
-    minimum_windows_build: 22000,
+    minimum_windows_build: 19045,
     platform: "win32",
   };
   writeFileSync(temporaryManifest, `${JSON.stringify(manifest, null, 2)}\n`, {

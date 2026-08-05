@@ -32,15 +32,20 @@ not create or consume a managed run,
 Start Codex/NativeHost, run project commands, write project files, call a
 provider or GitHub, or create external effects.
 
-CDX2B3A adds a platform-discriminated Windows identity candidate beneath these
-same tools; it does not add another MCP surface. Windows 11 x64 local fixed
-NTFS is the only intended Windows target. Windows ARM64, Windows 10,
+CDX2B3A adds a platform-discriminated Windows identity owner beneath these
+same tools; it does not add another MCP surface. Windows 10 Pro 22H2 build
+19045 or newer and Windows 11 build 22000 or newer on x64 local fixed NTFS are
+the intended Windows targets. Windows versions below build 19045, ARM64,
 ReFS/Dev Drive, FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and
 unclassified reparse roots fail closed, and there is no path-only fallback.
-The current macOS implementation run cannot provide deciding Windows
-filesystem or source-runtime evidence, so ordinary Windows attachment
-preparation remains unavailable. No MCP result exposes the native component
-path, volume serial, file ID, or canonical private path.
+The source-runtime path is verified on Windows 10 Pro 22H2 build 19045.6456;
+Windows 11 and packaged Windows remain unverified. The package builder's
+`package_build_runtime_unsupported` result preserves fail-closed packaged
+admission. No simulated or another-platform run can provide deciding Windows
+filesystem or source-runtime evidence. Ordinary source-runtime Windows
+attachment preparation is available only on the verified supported lane;
+packaged Windows preparation remains unavailable. No MCP result exposes the
+native component path, volume serial, file ID, or canonical private path.
 
 ## Current local product path
 
