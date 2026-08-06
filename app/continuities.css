@@ -738,6 +738,51 @@
 }
 
 .product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery-summary {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery-summary
+  > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery-summary
+  :is(dt, dd) {
+  min-width: 0;
+  margin: 0;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery-summary
+  dt {
+  color: var(--continuities-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
+  .project-recovery-review {
+  min-width: 0;
+  max-width: 760px;
+}
+
+.product-shell[data-primary-product-zone="blank-state"]
   .project-onboarding-copy
   #local-project-onboarding-support,
 .product-shell[data-primary-product-zone="blank-state"]

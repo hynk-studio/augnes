@@ -42,6 +42,7 @@ import {
 import {
   confirmLocalProjectOnboardingV01,
   listRecentProjectsV01,
+  pickAndInspectLocalProjectRecoveryV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
   rebindLocalProjectRootFromSelectionV01,
@@ -255,6 +256,22 @@ async function inspectSelection(folder: string, inspectedAt: string) {
     open_database: openDatabase,
     now: () => inspectedAt,
     create_token: () => `selection:${path.basename(folder)}:${inspectedAt}`,
+    process: pickerProcess(),
+  });
+  assert.equal(selection.status, "selected");
+  return selection;
+}
+
+async function inspectRecoverySelection(
+  folder: string,
+  inspectedAt: string,
+  scope: Parameters<typeof pickAndInspectLocalProjectRecoveryV01>[0],
+) {
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = folder;
+  const selection = await pickAndInspectLocalProjectRecoveryV01(scope, {
+    open_database: openDatabase,
+    now: () => inspectedAt,
+    create_token: () => `recovery-selection:${path.basename(folder)}:${inspectedAt}`,
     process: pickerProcess(),
   });
   assert.equal(selection.status, "selected");
@@ -1762,14 +1779,30 @@ async function main() {
     assert.equal(missingHome.project_summary.root_availability, "missing");
     assert.equal(missingHome.accepted_state.items[0]?.summary, acceptedMarker);
     assert.equal(missingHome.next_moves[0]?.move_id, "recover_root");
-    const recoverySelection = await inspectSelection(
-      recoveredProjectARoot,
-      "2026-07-15T09:04:00.000Z",
-    );
-    assert.equal(recoverySelection.status, "selected");
     const recoveryExpected = (await listRecentProjectsV01(db)).find(
       (entry) => entry.project.project_id === confirmedA.project.project_id,
     )!;
+    const activeRecoveryExpected = readActiveProjectSelectionV01(
+      db,
+      workspace.workspace_id,
+    );
+    const recoverySelection = await inspectRecoverySelection(
+      recoveredProjectARoot,
+      "2026-07-15T09:04:00.000Z",
+      {
+        project_id: confirmedA.project.project_id,
+        expected_old_root_binding_fingerprint:
+          recoveryExpected.root_binding_fingerprint,
+        expected_old_baseline_fingerprint:
+          recoveryExpected.physical_root_baseline_fingerprint,
+        expected_active_project_id:
+          activeRecoveryExpected?.project_id ?? null,
+        expected_active_selection_revision:
+          activeRecoveryExpected?.selection_revision ?? null,
+      },
+    );
+    assert.equal(recoverySelection.status, "selected");
+    assert.equal(recoverySelection.recovery_action, "rebind");
     const rebound = await rebindWithBrowserDecisionV01(
       db,
       {

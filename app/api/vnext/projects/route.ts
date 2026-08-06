@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
 import {
-  abandonPreparedLocalProjectSelectionV01,
+  abandonPreparedLocalProjectOnboardingSelectionV01,
+  abandonPreparedLocalProjectRecoverySelectionV01,
   ProjectOnboardingErrorV01,
   confirmLocalProjectOnboardingV01,
+  declareAndInspectLocalProjectRecoveryV01,
   declareAndInspectLocalProjectV01,
   listRecentProjectsV01,
+  openRecoveredLocalProjectFromSelectionV01,
   openRecentProjectV01,
+  pickAndInspectLocalProjectRecoveryV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
   readPreparedLocalProjectSelectionBindingV01,
@@ -84,6 +88,9 @@ export async function POST(request: Request) {
       const binding = readPreparedLocalProjectSelectionBindingV01(
         picker.selection_token,
       );
+      if (binding.selection_purpose !== "connect_new_project") {
+        throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+      }
       const session = issueLocalProjectOnboardingSessionV01({
         selection_token: picker.selection_token,
         inspection_fingerprint: picker.inspection.inspection_fingerprint,
@@ -101,9 +108,28 @@ export async function POST(request: Request) {
         }),
       );
     }
+    if (body.action === "choose_recovery_folder") {
+      return json({
+        ok: true,
+        picker: await pickAndInspectLocalProjectRecoveryV01(
+          requiredRecoveryScope(body),
+          { signal: request.signal },
+        ),
+      });
+    }
+    if (body.action === "declare_recovery_path") {
+      const declaration = parseLocalProjectPathDeclarationV01(body.path);
+      return json({
+        ok: true,
+        picker: await declareAndInspectLocalProjectRecoveryV01(
+          declaration.absolute_path,
+          requiredRecoveryScope(body),
+        ),
+      });
+    }
     if (body.action === "abandon_selection") {
       const selectionToken = requiredString(body.selection_token);
-      abandonPreparedLocalProjectSelectionV01(selectionToken);
+      abandonPreparedLocalProjectOnboardingSelectionV01(selectionToken);
       let credential = null;
       try {
         credential = readLocalProjectOnboardingCredentialFromRequestV01(
@@ -111,6 +137,13 @@ export async function POST(request: Request) {
         );
       } catch {}
       abandonLocalProjectOnboardingSessionV01(credential, selectionToken);
+      return json({ ok: true, abandoned: true });
+    }
+    if (body.action === "abandon_recovery_selection") {
+      abandonPreparedLocalProjectRecoverySelectionV01(
+        requiredString(body.selection_token),
+        requiredString(body.project_id),
+      );
       return json({ ok: true, abandoned: true });
     }
     db = openDatabase();
@@ -134,6 +167,7 @@ export async function POST(request: Request) {
       );
       if (
         binding.selection_origin !== "declared_path" ||
+        binding.selection_purpose !== "connect_new_project" ||
         binding.inspection_fingerprint !== inspectionFingerprint
       ) {
         throw new ProjectOnboardingErrorV01(
@@ -204,6 +238,23 @@ export async function POST(request: Request) {
         expected_project_id: requiredNullableString(body, "expected_project_id"),
         expected_revision: requiredNullableRevision(body, "expected_revision"),
       }) });
+    }
+    if (body.action === "open_recovery_selection") {
+      return json({
+        ok: true,
+        result: await openRecoveredLocalProjectFromSelectionV01(db, {
+          project_id: requiredString(body.project_id),
+          selection_token: requiredString(body.selection_token),
+          inspection_fingerprint: requiredString(body.inspection_fingerprint),
+          expected_old_root_binding_fingerprint: requiredString(
+            body.expected_old_root_binding_fingerprint,
+          ),
+          expected_old_baseline_fingerprint: requiredNullableString(
+            body,
+            "expected_old_baseline_fingerprint",
+          ),
+        }),
+      });
     }
     if (body.action === "remove") {
       return json({ ok: true, result: removeProjectFromRecentV01(db, {
@@ -413,6 +464,28 @@ function requiredNullableRevision(record: Record<string, unknown>, key: string):
 function requiredRevision(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
+}
+function requiredRecoveryScope(
+  body: Record<string, unknown>,
+) {
+  return {
+    project_id: requiredString(body.project_id),
+    expected_old_root_binding_fingerprint: requiredString(
+      body.expected_old_root_binding_fingerprint,
+    ),
+    expected_old_baseline_fingerprint: requiredNullableString(
+      body,
+      "expected_old_baseline_fingerprint",
+    ),
+    expected_active_project_id: requiredNullableString(
+      body,
+      "expected_active_project_id",
+    ),
+    expected_active_selection_revision: requiredNullableRevision(
+      body,
+      "expected_active_selection_revision",
+    ),
+  };
 }
 function assertBrowserUserConfirmationV01(request: Request): void {
   if (

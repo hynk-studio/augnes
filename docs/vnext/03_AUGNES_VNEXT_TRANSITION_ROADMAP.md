@@ -394,26 +394,36 @@ and helper physical targets to the canonical package root and revalidates them
 immediately before invocation. No native binary is committed, no Windows
 package support is claimed, and neither Windows Start nor Resume is enabled.
 
-## Current
-
-### LPX1 reliable exact local-project connection
+### LPX1 reliable exact local-project connection — Completed
 
 [Issue #126](https://github.com/hynk-studio/augnes-perspective-lab/issues/126)
-defines LPX1. Its authorized implementation branch is
-`codex/lpx1-reliable-local-project-connection`, and its Draft PR title is
-**LPX1 — Add a verified folder-path fallback for local project connection**.
-While that Draft PR is open, LPX1 is Current. It preserves **Choose a folder**
-as the primary path and adds a visible **Enter the folder path instead** route.
-Both sources keep their origin, converge on one exact review, and reuse the
-canonical onboarding transaction after one Browser-only pre-project
-confirmation. Connecting does not run Codex or change project files.
+and [PR #127](https://github.com/hynk-studio/augnes-perspective-lab/pull/127)
+define the completed LPX1 slice, merged as
+`c0f83f8c541258c460cdc11c0f399971bca115d6`. It preserves **Choose a folder**
+as the primary connection path and adds a visible **Enter the folder path
+instead** route. Both sources keep their origin, converge on one exact review,
+and reuse the canonical onboarding transaction after one Browser-only
+pre-project confirmation. Connecting does not run Codex or change project
+files.
+
+## Current
+
+### LPX2 verified local-project recovery parity
+
+[Issue #128](https://github.com/hynk-studio/augnes-perspective-lab/issues/128)
+defines LPX2. Its authorized implementation branch is
+`codex/lpx2-local-project-recovery-parity`, and its authorized Draft PR title is
+**LPX2 — Add verified folder-path recovery parity**. While that Draft PR is
+open, LPX2 is Current. An existing project whose saved folder is unavailable
+can use the native picker or the verified declared-path experience to inspect
+one exact replacement. One **Use this folder** activation reuses the existing
+project-scoped root-rebind decision and atomic rebind transaction; it preserves
+the project identity and stored history and creates no second recovery or
+approval authority.
 
 ## Next separately authorized work
 
-LPX2 local-project recovery parity is Next and remains separately unauthorized.
-It must preserve the same declared-path, physical-identity, privacy, and
-confirmation boundaries for recovery without beginning implementation from
-LPX1. CUX8R follows LPX2 and is also separately unauthorized.
+CUX8R follows LPX2 and is Next but remains separately unauthorized.
 
 CDX2B3B is the separately authorized future Windows managed-delegation runtime
 enablement phase. It may begin only after CDX2B3A has deciding Windows identity,

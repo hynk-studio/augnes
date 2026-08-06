@@ -52,6 +52,7 @@ import type {
 } from "@/types/vnext/blank-state";
 import type {
   LocalFolderPickerOutcomeV01,
+  LocalProjectRecoverySelectionOutcomeV01,
   ProjectOnboardingErrorCodeV01,
   RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
@@ -59,7 +60,14 @@ import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type { ManagementSafetyViewV01 } from "@/types/vnext/management-safety";
 import { PROJECT_DISPLAY_NAME_MAX_LENGTH_V01 } from "@/types/vnext/project-identity";
 
-type SelectedFolder = Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>;
+type ProjectRecoveryStateV01 = {
+  entry: RecentProjectEntryV01;
+  mode: "picker" | "path";
+  picker: LocalProjectRecoverySelectionOutcomeV01 | null;
+  picker_pending: boolean;
+  declared_path: string;
+  message: ProjectFolderSelectionMessageV01 | null;
+};
 
 function infoMessage(text: string): ProjectFolderSelectionMessageV01 {
   return { tone: "info", text };
@@ -67,6 +75,65 @@ function infoMessage(text: string): ProjectFolderSelectionMessageV01 {
 
 function errorMessage(text: string): ProjectFolderSelectionMessageV01 {
   return { tone: "error", text };
+}
+
+function recoverySelectionErrorMessageV01(
+  error: unknown,
+): ProjectFolderSelectionMessageV01 {
+  const code = error instanceof Error
+    ? error.message
+    : "project_management_unavailable";
+  return errorMessage(
+    code === "path_declaration_empty"
+      ? "Enter an absolute folder path."
+      : code === "path_declaration_relative"
+        ? "Enter the full absolute path to the folder."
+        : code === "path_declaration_url"
+          ? "Enter a local folder path, not a URL."
+          : code === "path_declaration_too_large"
+            ? "That folder path is too long to review."
+            : code === "path_declaration_control_character"
+              ? "That folder path contains unsupported characters."
+              : code === "path_declaration_unsupported"
+                ? "That kind of local path is not supported here."
+                : code === "selection_missing"
+                  ? "That folder could not be found. Check the path and try again."
+                  : code === "selection_inaccessible"
+                    ? "Augnes cannot read that folder. Check its permissions and try again."
+                    : code === "selection_not_directory"
+                      ? "That path points to a file, not a folder."
+                      : code === "physical_identity_unsupported"
+                        ? "That folder is on an unsupported filesystem or location."
+                        : code === "physical_identity_ambiguous"
+                          ? "Augnes cannot determine one exact local folder for that path."
+                          : code === "physical_identity_unavailable"
+                            ? "Augnes could not verify that folder at this time. Try again."
+                            : code === "active_selection_conflict"
+                              ? "The current project changed. Refresh before locating this folder again."
+                              : code === "project_scope_conflict"
+                                ? "That folder is already connected to another project, or this saved project changed. Nothing was changed."
+                                : code === "inspection_stale"
+                                  ? "The saved project or selected folder changed. Review the folder again."
+                                  : "That folder could not be reviewed. Check it and try again.",
+  );
+}
+
+function recoveryConfirmationErrorMessageV01(
+  error: unknown,
+): ProjectFolderSelectionMessageV01 {
+  const code = error instanceof Error
+    ? error.message
+    : "project_management_unavailable";
+  return errorMessage(
+    code === "active_selection_conflict"
+      ? "The current project changed. Refresh before reviewing the folder again."
+      : code.startsWith("operator_")
+        ? "Confirm this folder change from the authenticated local Augnes Browser."
+        : code === "project_scope_conflict" ||
+            code === "project_root_rebind_conflict"
+          ? "That folder belongs to another project, or the saved project changed. Nothing was changed."
+          : "The folder or saved project changed during confirmation. Nothing was changed; review the folder again.",
+  );
 }
 
 function projectMutationErrorCode(error: unknown):
@@ -102,10 +169,7 @@ export function BlankStateClient({
   const [message, setMessage] =
     useState<ProjectFolderSelectionMessageV01 | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const [pendingRebind, setPendingRebind] = useState<{
-    entry: RecentProjectEntryV01;
-    chosen: SelectedFolder;
-  } | null>(null);
+  const [recovery, setRecovery] = useState<ProjectRecoveryStateV01 | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<RecentProjectEntryV01 | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [renameMessage, setRenameMessage] =
@@ -477,63 +541,213 @@ export function BlankStateClient({
     }
   }
 
-  async function locate(entry: RecentProjectEntryV01) {
-    setBusy(true);
+  function locate(entry: RecentProjectEntryV01) {
+    pickerAttemptRef.current += 1;
+    pickerAbortRef.current?.abort();
+    pickerAbortRef.current = null;
+    if (picker?.status === "selected") {
+      void mutate({
+        action: "abandon_selection",
+        selection_token: picker.selection_token,
+      }).catch(() => undefined);
+    }
+    setPicker(null);
+    setPickerPending(false);
     setMessage(null);
+    setDialogError(null);
+    setRecovery({
+      entry,
+      mode: "picker",
+      picker: null,
+      picker_pending: false,
+      declared_path: "",
+      message: null,
+    });
+  }
+
+  function recoveryScope(entry: RecentProjectEntryV01) {
+    return {
+      project_id: entry.project.project_id,
+      expected_old_root_binding_fingerprint:
+        entry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        entry.physical_root_baseline_fingerprint,
+      expected_active_project_id: entry.active_project_id,
+      expected_active_selection_revision:
+        entry.active_selection_revision,
+    };
+  }
+
+  async function chooseRecoveryFolder() {
+    if (!recovery) return;
+    pickerAbortRef.current?.abort();
+    const attempt = ++pickerAttemptRef.current;
+    const controller = new AbortController();
+    pickerAbortRef.current = controller;
+    const entry = recovery.entry;
+    setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+      ? { ...current, mode: "picker", picker: null, picker_pending: true, message: null }
+      : current);
     try {
-      const chosen = (await mutate({ action: "choose_folder" })).picker as LocalFolderPickerOutcomeV01;
-      if (chosen.status !== "selected") {
-        setMessage(projectFolderPickerMessageV01(chosen));
-        return;
-      }
-      setDialogError(null);
-      setPendingRebind({ entry, chosen });
+      const value = await mutate({
+        action: "choose_recovery_folder",
+        ...recoveryScope(entry),
+      }, controller.signal);
+      if (attempt !== pickerAttemptRef.current || controller.signal.aborted) return;
+      const chosen = value.picker as
+        | LocalProjectRecoverySelectionOutcomeV01
+        | Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>;
+      setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+        ? {
+            ...current,
+            picker: chosen.status === "selected" ? chosen : null,
+            picker_pending: false,
+            message: projectFolderPickerMessageV01(chosen),
+          }
+        : current);
     } catch (error) {
-      setMessage(
-        projectFolderSelectionErrorMessageV01(
-          projectMutationErrorCode(error),
-        ),
-      );
+      if (attempt !== pickerAttemptRef.current || controller.signal.aborted) return;
+      setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+        ? {
+            ...current,
+            picker: null,
+            picker_pending: false,
+            message: recoverySelectionErrorMessageV01(error),
+          }
+        : current);
+    } finally {
+      if (attempt === pickerAttemptRef.current) {
+        pickerAbortRef.current = null;
+        setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+          ? { ...current, picker_pending: false }
+          : current);
+      }
+    }
+  }
+
+  function changeRecoveryMode(mode: "picker" | "path") {
+    pickerAttemptRef.current += 1;
+    pickerAbortRef.current?.abort();
+    pickerAbortRef.current = null;
+    setRecovery((current) => current
+      ? {
+          ...current,
+          mode,
+          picker: null,
+          picker_pending: false,
+          message: mode === "path"
+            ? infoMessage("Enter the folder path from the computer running Augnes.")
+            : null,
+        }
+      : current);
+  }
+
+  async function reviewRecoveryDeclaredPath() {
+    if (!recovery) return;
+    const entry = recovery.entry;
+    setBusy(true);
+    setRecovery((current) => current ? { ...current, message: null } : current);
+    try {
+      const value = await mutate({
+        action: "declare_recovery_path",
+        path: recovery.declared_path,
+        ...recoveryScope(entry),
+      });
+      setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+        ? {
+            ...current,
+            picker: value.picker as LocalProjectRecoverySelectionOutcomeV01,
+            message: null,
+          }
+        : current);
+    } catch (error) {
+      setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+        ? { ...current, picker: null, message: recoverySelectionErrorMessageV01(error) }
+        : current);
     } finally {
       setBusy(false);
     }
   }
 
-  async function confirmRebind() {
-    if (!pendingRebind) return;
-    const { entry, chosen } = pendingRebind;
+  function abandonRecoverySelection(
+    current: ProjectRecoveryStateV01,
+  ) {
+    if (!current.picker) return;
+    void mutate({
+      action: "abandon_recovery_selection",
+      project_id: current.entry.project.project_id,
+      selection_token: current.picker.selection_token,
+    }).catch(() => undefined);
+  }
+
+  function cancelRecoveryReview() {
+    if (!recovery) return;
+    abandonRecoverySelection(recovery);
+    setRecovery({
+      ...recovery,
+      mode: recovery.picker?.selection_origin === "declared_path"
+        ? "path"
+        : "picker",
+      picker: null,
+      message: null,
+    });
+  }
+
+  function cancelRecovery() {
+    if (!recovery) return;
+    const projectId = recovery.entry.project.project_id;
+    pickerAttemptRef.current += 1;
+    pickerAbortRef.current?.abort();
+    pickerAbortRef.current = null;
+    abandonRecoverySelection(recovery);
+    setRecovery(null);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>(
+        `[data-project-locate=${JSON.stringify(projectId)}]`,
+      )?.focus();
+    });
+  }
+
+  async function confirmRecovery() {
+    if (!recovery?.picker) return;
+    const { entry, picker: chosen } = recovery;
     setBusy(true);
-    setMessage(null);
-    setDialogError(null);
+    setRecovery((current) => current ? { ...current, message: null } : current);
     try {
-      const prepared = await mutate({
-        action: "prepare_repository_execution_rebind_confirmation",
+      const common = {
         project_id: entry.project.project_id,
         selection_token: chosen.selection_token,
         inspection_fingerprint: chosen.inspection.inspection_fingerprint,
         expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
         expected_old_baseline_fingerprint:
           entry.physical_root_baseline_fingerprint,
-      });
-      const value = await mutate({
-        action: "confirm_rebind",
-        project_id: entry.project.project_id,
-        selection_token: chosen.selection_token,
-        inspection_fingerprint: chosen.inspection.inspection_fingerprint,
-        expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
-        expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint,
-        decision_request_fingerprint:
-          prepared.decision_request_fingerprint,
-        challenge_fingerprint:
-          prepared.confirmation.challenge_fingerprint,
-      });
+      };
+      const value = chosen.recovery_action === "open_project"
+        ? await mutate({ action: "open_recovery_selection", ...common })
+        : await (async () => {
+            const prepared = await mutate({
+              action: "prepare_repository_execution_rebind_confirmation",
+              ...common,
+            });
+            return mutate({
+              action: "confirm_rebind",
+              ...common,
+              decision_request_fingerprint:
+                prepared.decision_request_fingerprint,
+              challenge_fingerprint:
+                prepared.confirmation.challenge_fingerprint,
+            });
+          })();
       window.location.assign(value.result.destination);
     } catch (error) {
-      setDialogError(error instanceof Error && error.message === "active_selection_conflict"
-        ? "The current project changed. Refresh before retrying this folder change."
-        : error instanceof Error && error.message.startsWith("operator_")
-          ? "Confirm this folder change from an authenticated local review session."
-        : "The replacement folder conflicts with another project or changed during confirmation. Nothing was changed; you can retry or cancel.");
+      setRecovery((current) => current && current.entry.project.project_id === entry.project.project_id
+        ? {
+            ...current,
+            mode: chosen.selection_origin === "declared_path" ? "path" : "picker",
+            picker: null,
+            message: recoveryConfirmationErrorMessageV01(error),
+          }
+        : current);
     } finally {
       setBusy(false);
     }
@@ -650,7 +864,23 @@ export function BlankStateClient({
           : [],
     };
   }, [busy, guide, view.primary_action]);
-  const projectManagement = (
+  const projectManagement = recovery ? (
+    <ProjectRecovery
+      recovery={recovery}
+      busy={busy}
+      onChoose={() => void chooseRecoveryFolder()}
+      onEnterPath={() => changeRecoveryMode("path")}
+      onCancelPicker={() => changeRecoveryMode("picker")}
+      onReturnToPicker={() => changeRecoveryMode("picker")}
+      onDeclaredPathChange={(value) => setRecovery((current) => current
+        ? { ...current, declared_path: value }
+        : current)}
+      onReviewDeclaredPath={() => void reviewRecoveryDeclaredPath()}
+      onConfirm={() => void confirmRecovery()}
+      onCancelReview={cancelRecoveryReview}
+      onCancel={cancelRecovery}
+    />
+  ) : (
     <ProjectManagement
       presentationMode={presentationMode}
       projectManagementEmphasized={view.project_management_emphasized}
@@ -845,7 +1075,7 @@ export function BlankStateClient({
                       </div>
                     </details>
                   ) : null}
-                  {!activeContinuities && view.primary_action ? (
+                  {!activeContinuities && view.primary_action && !recovery ? (
                     <div className="continuities-focused-actions">
                       <PrimaryAction
                         action={view.primary_action}
@@ -872,7 +1102,7 @@ export function BlankStateClient({
               ) : null}
             </section>
 
-            {projectSelection ? projectManagement : null}
+            {recovery || projectSelection ? projectManagement : null}
 
             {activeContinuities ? (
               <>
@@ -1133,27 +1363,6 @@ export function BlankStateClient({
         ) : null}
       </main>
 
-      <ConfirmationDialog
-        open={pendingRebind !== null}
-        title={`Move ${pendingRebind?.entry.project.display_name ?? "this project"}?`}
-        description="Use the selected folder for this project. Existing repository bindings will not change, and the project will become current."
-        confirmLabel="Use this folder"
-        busy={busy}
-        error={dialogError}
-        onCancel={() => {
-          setDialogError(null);
-          setPendingRebind(null);
-        }}
-        onConfirm={confirmRebind}
-      >
-        {pendingRebind ? (
-          <dl>
-            <div><dt>Previous folder</dt><dd>{pendingRebind.entry.local_root.normalized_path}</dd></div>
-            <div><dt>Selected folder</dt><dd>{pendingRebind.chosen.inspection.local_root.normalized_path}</dd></div>
-            <div><dt>Repository found</dt><dd>{pendingRebind.chosen.inspection.repository_display ?? "None"}</dd></div>
-          </dl>
-        ) : null}
-      </ConfirmationDialog>
       <ConfirmationDialog
         open={pendingRemoval !== null}
         title={`Remove ${pendingRemoval?.project.display_name ?? "this project"} from recents?`}
@@ -1608,6 +1817,11 @@ function PrimaryAction({
       className="blank-state-primary-action"
       aria-label={busy ? "Working…" : action.label}
       data-blank-state-primary-action={action.kind}
+      data-project-locate={
+        action.kind === "locate_folder"
+          ? recentEntry?.project.project_id
+          : undefined
+      }
       data-augnes-primary-action={action.kind}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
       onClick={callback}
@@ -1633,6 +1847,296 @@ function PrimaryAction({
         </>
       )}
     </button>
+  );
+}
+
+function ProjectRecovery({
+  recovery,
+  busy,
+  onChoose,
+  onEnterPath,
+  onCancelPicker,
+  onReturnToPicker,
+  onDeclaredPathChange,
+  onReviewDeclaredPath,
+  onConfirm,
+  onCancelReview,
+  onCancel,
+}: {
+  recovery: ProjectRecoveryStateV01;
+  busy: boolean;
+  onChoose: () => void;
+  onEnterPath: () => void;
+  onCancelPicker: () => void;
+  onReturnToPicker: () => void;
+  onDeclaredPathChange: (value: string) => void;
+  onReviewDeclaredPath: () => void;
+  onConfirm: () => void;
+  onCancelReview: () => void;
+  onCancel: () => void;
+}) {
+  const chooseButtonRef = useRef<HTMLButtonElement>(null);
+  const pathInputRef = useRef<HTMLInputElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedToken = recovery.picker?.selection_token ?? null;
+  useEffect(() => {
+    window.requestAnimationFrame(() => {
+      if (selectedToken) confirmButtonRef.current?.focus();
+      else if (recovery.mode === "path") pathInputRef.current?.focus();
+      else chooseButtonRef.current?.focus();
+    });
+  }, [recovery.mode, selectedToken]);
+  const selected = recovery.picker;
+  return (
+    <section
+      id="project-recovery"
+      className="blank-state-project-management blank-state-project-management--focused project-recovery"
+      aria-labelledby="project-recovery-title"
+      aria-busy={busy || recovery.picker_pending}
+      data-project-recovery="verified-folder-selection.v0.1"
+      data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
+      data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        if (selected) onCancelReview();
+        else if (recovery.picker_pending) onCancelPicker();
+        else if (recovery.mode === "path") onReturnToPicker();
+        else onCancel();
+      }}
+    >
+      <div className="blank-state-region-heading">
+        <div>
+          <p className="blank-state-region-label">Local project recovery</p>
+          <h2 id="project-recovery-title">
+            Locate folder for {recovery.entry.project.display_name ?? "this project"}
+          </h2>
+        </div>
+      </div>
+      {!selected ? (
+        <div className="project-onboarding-copy">
+          <dl className="project-recovery-summary">
+            <div>
+              <dt>Saved project</dt>
+              <dd>{recovery.entry.project.display_name ?? "Unnamed project"}</dd>
+            </div>
+            <div>
+              <dt>Previous folder</dt>
+              <dd className="project-inspection-path">
+                {recovery.entry.local_root.normalized_path}
+              </dd>
+            </div>
+          </dl>
+          <p>
+            The project record and its stored history remain in Augnes. Nothing
+            changes until you confirm a reviewed folder.
+          </p>
+          <p>
+            Choose a folder on the computer running Augnes. The folder is not
+            uploaded.
+          </p>
+          {recovery.mode === "picker" ? (
+            <div className="project-onboarding-entry-actions">
+              <button
+                ref={chooseButtonRef}
+                type="button"
+                className="blank-state-primary-action project-onboarding-action"
+                data-blank-state-primary-action="choose_recovery_folder"
+                data-augnes-primary-action="choose_recovery_folder"
+                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+                onClick={onChoose}
+                disabled={busy || recovery.picker_pending}
+              >
+                {recovery.picker_pending
+                  ? "Waiting for folder picker…"
+                  : "Choose a folder"}
+              </button>
+              <button
+                type="button"
+                className="blank-state-secondary-button"
+                onClick={onEnterPath}
+                disabled={busy}
+              >
+                Enter the folder path instead
+              </button>
+              {recovery.picker_pending ? (
+                <button
+                  type="button"
+                  className="blank-state-tertiary-button"
+                  onClick={onCancelPicker}
+                >
+                  Cancel attempt
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="blank-state-tertiary-button"
+                onClick={onCancel}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <form
+              className="project-path-entry"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onReviewDeclaredPath();
+              }}
+            >
+              <label htmlFor="local-project-recovery-path">
+                <span>Folder path</span>
+                <input
+                  ref={pathInputRef}
+                  id="local-project-recovery-path"
+                  name="local-project-recovery-path"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={recovery.declared_path}
+                  onChange={(event) => onDeclaredPathChange(event.target.value)}
+                  disabled={busy}
+                  aria-describedby="local-project-recovery-path-help"
+                />
+              </label>
+              <p id="local-project-recovery-path-help">
+                Enter the full path as it appears on the computer running
+                Augnes. The folder is not uploaded.
+              </p>
+              <div className="project-actions">
+                <button
+                  type="submit"
+                  className="blank-state-primary-action"
+                  data-blank-state-primary-action="review_recovery_folder_path"
+                  data-augnes-primary-action="review_recovery_folder_path"
+                  disabled={busy}
+                >
+                  {busy ? "Reviewing…" : "Review folder"}
+                </button>
+                <button
+                  type="button"
+                  className="blank-state-secondary-button"
+                  onClick={onReturnToPicker}
+                  disabled={busy}
+                >
+                  Choose a folder instead
+                </button>
+                <button
+                  type="button"
+                  className="blank-state-tertiary-button"
+                  onClick={onCancel}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
+      {recovery.message ? (
+        <p
+          className="project-selector-message"
+          role={recovery.message.tone === "error" ? "alert" : "status"}
+          data-project-message-tone={recovery.message.tone}
+        >
+          {recovery.message.text}
+        </p>
+      ) : null}
+      {selected ? (
+        <div className="project-inspection project-recovery-review" aria-live="polite">
+          <p className="blank-state-region-label">Recovery review</p>
+          <h3>{recovery.entry.project.display_name ?? "Unnamed project"}</h3>
+          <dl>
+            <div>
+              <dt>Previous folder</dt>
+              <dd className="project-inspection-path">
+                {recovery.entry.local_root.normalized_path}
+              </dd>
+            </div>
+            <div>
+              <dt>Selected folder</dt>
+              <dd className="project-inspection-path">
+                {selected.inspection.local_root.normalized_path}
+              </dd>
+            </div>
+            <div>
+              <dt>Type</dt>
+              <dd>
+                {selected.inspection.folder_kind === "git_repository"
+                  ? "Git repository"
+                  : "Plain folder"}
+              </dd>
+            </div>
+            <div>
+              <dt>Repository</dt>
+              <dd>
+                {selected.inspection.repository_display ??
+                  (selected.inspection.folder_kind === "git_repository"
+                    ? "No remote configured"
+                    : "Not a repository")}
+              </dd>
+            </div>
+            <div>
+              <dt>Already connected</dt>
+              <dd>
+                {selected.inspection.existing_project?.project_id ===
+                recovery.entry.project.project_id
+                  ? "This saved project"
+                  : "No"}
+              </dd>
+            </div>
+            <div>
+              <dt>Folder binding</dt>
+              <dd>
+                {selected.recovery_action === "open_project"
+                  ? "The saved folder stays unchanged."
+                  : "The saved folder will change to the selected folder."}
+              </dd>
+            </div>
+            <div>
+              <dt>Stored continuity</dt>
+              <dd>The project name and stored history remain unchanged.</dd>
+            </div>
+          </dl>
+          <p>
+            {selected.recovery_action === "open_project"
+              ? "This folder resolves to the project’s exact current folder. Opening it keeps the saved folder and baseline unchanged."
+              : "Augnes will use this folder for the existing project. The project’s stored history remains attached to it."}
+          </p>
+          <p className="project-selector-safety">
+            This step does not run Codex or change project files.
+          </p>
+          <div className="project-actions">
+            <button
+              ref={confirmButtonRef}
+              type="button"
+              className="blank-state-primary-action"
+              data-blank-state-primary-action="confirm_recovery_folder"
+              data-augnes-primary-action="confirm_recovery_folder"
+              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+              onClick={onConfirm}
+              disabled={busy}
+            >
+              {busy
+                ? "Working…"
+                : selected.recovery_action === "open_project"
+                  ? "Open project"
+                  : "Use this folder"}
+            </button>
+            <button
+              type="button"
+              className="blank-state-tertiary-button"
+              onClick={onCancelReview}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -2007,7 +2511,15 @@ function ProjectManagement({
                       {entry.is_active ? "Open" : "Make current and open"}
                     </button>
                   ) : (
-                    <button type="button" className="blank-state-secondary-button" onClick={() => onLocate(entry)} disabled={busy}>Locate folder</button>
+                    <button
+                      type="button"
+                      className="blank-state-secondary-button"
+                      data-project-locate={entry.project.project_id}
+                      onClick={() => onLocate(entry)}
+                      disabled={busy}
+                    >
+                      Locate folder
+                    </button>
                   )}
                   <button type="button" className="blank-state-tertiary-button" onClick={() => onRemove(entry)} disabled={busy}>Remove from recents</button>
                 </div>

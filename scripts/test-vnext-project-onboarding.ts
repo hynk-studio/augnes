@@ -15,11 +15,15 @@ import {
 import {
   chooseLocalProjectFolderV01,
   abandonPreparedLocalProjectSelectionV01,
+  abandonPreparedLocalProjectRecoverySelectionV01,
   confirmLocalProjectOnboardingV01,
+  declareAndInspectLocalProjectRecoveryV01,
   declareAndInspectLocalProjectV01,
   inspectLocalProjectRootV01,
   listRecentProjectsV01,
+  openRecoveredLocalProjectFromSelectionV01,
   openRecentProjectV01,
+  pickAndInspectLocalProjectRecoveryV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
   readProjectDestinationV01,
@@ -48,6 +52,7 @@ import { VNEXT_PROJECT_LIFECYCLE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence
 import {
   authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
   fingerprintProjectRootBindingV01,
+  grantRepositoryExecutionDecisionFromBrowserSessionV01,
   type RepositoryExecutionDependenciesV01,
 } from "../lib/vnext/repository-execution/repository-execution";
 import {
@@ -124,6 +129,17 @@ function activeSnapshot(entries: Awaited<ReturnType<typeof listRecentProjectsV01
   return {
     expected_project_id: entry?.active_project_id ?? null,
     expected_revision: entry?.active_selection_revision ?? null,
+  };
+}
+
+function recoveryScopeV01(entry: Awaited<ReturnType<typeof listRecentProjectsV01>>[number]) {
+  return {
+    project_id: entry.project.project_id,
+    expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      entry.physical_root_baseline_fingerprint,
+    expected_active_project_id: entry.active_project_id,
+    expected_active_selection_revision: entry.active_selection_revision,
   };
 }
 
@@ -1447,18 +1463,306 @@ try {
   assert.equal(JSON.stringify(await readProjectDestinationV01(db, confirmedB.project.project_id)).includes("changed/repo"), false);
   writeFileSync(path.join(folderB, ".git", "config"), `[remote "origin"]\n  url = https://example.test/shared/repo.git\n`);
 
-  const occupiedRecovery = await selection(folderB, "2026-07-15T00:02:30.000Z");
-  assert.equal(occupiedRecovery.status, "selected");
+  const currentRootRecoveryEntry = (await listRecentProjectsV01(db)).find(
+    (entry) => entry.project.project_id === confirmedA.project.project_id,
+  )!;
+  const rebindDecisionCountBeforeCurrentOpen = (db.prepare(
+    "SELECT COUNT(*) AS count FROM vnext_repository_execution_decision_requests WHERE action = 'rebind_root'",
+  ).get() as { count: number }).count;
+  const currentRootRecovery = await declareAndInspectLocalProjectRecoveryV01(
+    folderA,
+    recoveryScopeV01(currentRootRecoveryEntry),
+    { open_database: open, now: () => "2026-07-15T00:02:20.000Z" },
+  );
+  assert.equal(currentRootRecovery.selection_origin, "declared_path");
+  assert.equal(currentRootRecovery.recovery_action, "open_project");
+  assert.deepEqual(
+    {
+      purpose: readPreparedLocalProjectSelectionBindingV01(
+        currentRootRecovery.selection_token,
+      ).selection_purpose,
+      project_id: readPreparedLocalProjectSelectionBindingV01(
+        currentRootRecovery.selection_token,
+      ).recovery_project_id,
+    },
+    {
+      purpose: "recover_existing_project",
+      project_id: confirmedA.project.project_id,
+    },
+  );
+  await assert.rejects(
+    confirmLocalProjectOnboardingV01(db, {
+      selection_token: currentRootRecovery.selection_token,
+      inspection_fingerprint:
+        currentRootRecovery.inspection.inspection_fingerprint,
+      selection_origin: "declared_path",
+    }),
+    /project_scope_conflict/,
+    "a recovery candidate must not enter new-project onboarding",
+  );
+  await assert.rejects(
+    openRecoveredLocalProjectFromSelectionV01(db, {
+      project_id: confirmedB.project.project_id,
+      selection_token: currentRootRecovery.selection_token,
+      inspection_fingerprint:
+        currentRootRecovery.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        currentRootRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        currentRootRecoveryEntry.physical_root_baseline_fingerprint,
+    }),
+    /project_scope_conflict/,
+    "a recovery candidate for project A must not open project B",
+  );
+  const currentRootOpened = await openRecoveredLocalProjectFromSelectionV01(
+    db,
+    {
+      project_id: confirmedA.project.project_id,
+      selection_token: currentRootRecovery.selection_token,
+      inspection_fingerprint:
+        currentRootRecovery.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        currentRootRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        currentRootRecoveryEntry.physical_root_baseline_fingerprint,
+    },
+    { now: () => "2026-07-15T00:02:21.000Z" },
+  );
+  assert.equal(currentRootOpened.project.project_id, confirmedA.project.project_id);
+  assert.equal(
+    (db.prepare(
+      "SELECT COUNT(*) AS count FROM vnext_repository_execution_decision_requests WHERE action = 'rebind_root'",
+    ).get() as { count: number }).count,
+    rebindDecisionCountBeforeCurrentOpen,
+    "opening the exact current root must not create a rebind decision",
+  );
+  assert.equal(
+    (await readProjectDestinationV01(db, confirmedA.project.project_id))
+      ?.root_binding.local_root.normalized_path,
+    folderA,
+  );
+  let restoreActive = activeSnapshot(await listRecentProjectsV01(db));
+  await openRecentProjectV01(db, {
+    project_id: confirmedB.project.project_id,
+    ...restoreActive,
+    now: "2026-07-15T00:02:22.000Z",
+  });
+
+  if (process.platform !== "win32") {
+    const recoveryAlias = path.join(root, "Project A recovery alias");
+    symlinkSync(folderA, recoveryAlias, "dir");
+    const aliasEntry = (await listRecentProjectsV01(db)).find(
+      (entry) => entry.project.project_id === confirmedA.project.project_id,
+    )!;
+    const aliasRecovery = await declareAndInspectLocalProjectRecoveryV01(
+      recoveryAlias,
+      recoveryScopeV01(aliasEntry),
+      { open_database: open, now: () => "2026-07-15T00:02:23.000Z" },
+    );
+    assert.equal(aliasRecovery.recovery_action, "open_project");
+    await openRecoveredLocalProjectFromSelectionV01(db, {
+      project_id: confirmedA.project.project_id,
+      selection_token: aliasRecovery.selection_token,
+      inspection_fingerprint: aliasRecovery.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint: aliasEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        aliasEntry.physical_root_baseline_fingerprint,
+    });
+    assert.equal(
+      (await readProjectDestinationV01(db, confirmedA.project.project_id))
+        ?.root_binding.local_root.normalized_path,
+      folderA,
+      "a recovery alias must open without rewriting the canonical root",
+    );
+    restoreActive = activeSnapshot(await listRecentProjectsV01(db));
+    await openRecentProjectV01(db, {
+      project_id: confirmedB.project.project_id,
+      ...restoreActive,
+      now: "2026-07-15T00:02:24.000Z",
+    });
+  }
+
+  const purposeConnectCandidate = await declareAndInspectLocalProjectV01(
+    plainEditedFolder,
+    { open_database: open, now: () => "2026-07-15T00:02:25.000Z" },
+  );
+  const purposeTarget = (await listRecentProjectsV01(db)).find(
+    (entry) => entry.project.project_id === confirmedA.project.project_id,
+  )!;
+  const recoveryPreparationStateBeforeNonExact = JSON.stringify({
+    projects: db.prepare("SELECT * FROM vnext_project_identities ORDER BY workspace_id, project_id").all(),
+    roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY workspace_id, project_id").all(),
+    baselines: db.prepare("SELECT * FROM vnext_physical_root_baselines ORDER BY workspace_id, project_id, node_scope_fingerprint").all(),
+    recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
+    active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+    decisions: db.prepare("SELECT * FROM vnext_repository_execution_decision_requests ORDER BY workspace_id, project_id, requested_at").all(),
+  });
+  for (const refusal of [
+    {
+      code: "physical_identity_unsupported",
+      dependencies: { platform: "freebsd" } satisfies RepositoryExecutionDependenciesV01,
+    },
+    {
+      code: "physical_identity_ambiguous",
+      dependencies: {
+        platform: "darwin",
+        physical_identity_filesystem: {
+          async realpath(pathname: string) { return pathname; },
+          async stat() { return { dev: 0, ino: 0, isDirectory: () => true }; },
+        },
+      } satisfies RepositoryExecutionDependenciesV01,
+    },
+    {
+      code: "physical_identity_unavailable",
+      dependencies: {
+        platform: "darwin",
+        physical_identity_filesystem: {
+          async realpath() { throw new Error("identity unavailable"); },
+          async stat() { throw new Error("identity unavailable"); },
+        },
+      } satisfies RepositoryExecutionDependenciesV01,
+    },
+  ] as const) {
+    let recoveryTokenCreated = false;
+    await assert.rejects(
+      declareAndInspectLocalProjectRecoveryV01(
+        folderA,
+        recoveryScopeV01(purposeTarget),
+        {
+          open_database: open,
+          create_token: () => {
+            recoveryTokenCreated = true;
+            return `forbidden-recovery-${refusal.code}`;
+          },
+          repository_execution_dependencies: refusal.dependencies,
+        },
+      ),
+      new RegExp(refusal.code, "u"),
+    );
+    assert.equal(
+      recoveryTokenCreated,
+      false,
+      `${refusal.code} must refuse before recovery candidate allocation`,
+    );
+    assert.throws(
+      () => readPreparedLocalProjectSelectionBindingV01(
+        `forbidden-recovery-${refusal.code}`,
+      ),
+      /inspection_stale/,
+    );
+    assert.equal(
+      JSON.stringify({
+        projects: db.prepare("SELECT * FROM vnext_project_identities ORDER BY workspace_id, project_id").all(),
+        roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY workspace_id, project_id").all(),
+        baselines: db.prepare("SELECT * FROM vnext_physical_root_baselines ORDER BY workspace_id, project_id, node_scope_fingerprint").all(),
+        recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
+        active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+        decisions: db.prepare("SELECT * FROM vnext_repository_execution_decision_requests ORDER BY workspace_id, project_id, requested_at").all(),
+      }),
+      recoveryPreparationStateBeforeNonExact,
+      `${refusal.code} recovery preparation must leave canonical state unchanged`,
+    );
+  }
+  await assert.rejects(
+    previewLocalProjectRootRebindFromSelectionV01(db, {
+      project_id: confirmedA.project.project_id,
+      selection_token: purposeConnectCandidate.selection_token,
+      inspection_fingerprint:
+        purposeConnectCandidate.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint: purposeTarget.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        purposeTarget.physical_root_baseline_fingerprint,
+    }),
+    /project_scope_conflict/,
+    "a new-project candidate must not enter rebind preview",
+  );
+  await assert.rejects(
+    rebindLocalProjectRootFromSelectionV01(db, {
+      project_id: confirmedA.project.project_id,
+      selection_token: purposeConnectCandidate.selection_token,
+      inspection_fingerprint:
+        purposeConnectCandidate.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint: purposeTarget.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        purposeTarget.physical_root_baseline_fingerprint,
+      decision_request_fingerprint: `sha256:${"0".repeat(64)}`,
+    }),
+    /project_scope_conflict/,
+    "a new-project candidate must not enter rebind commit",
+  );
+  abandonPreparedLocalProjectSelectionV01(
+    purposeConnectCandidate.selection_token,
+  );
+
+  const abandonedRecovery = await declareAndInspectLocalProjectRecoveryV01(
+    folderA,
+    recoveryScopeV01(purposeTarget),
+    { open_database: open, now: () => "2026-07-15T00:02:26.000Z" },
+  );
+  assert.equal(
+    abandonPreparedLocalProjectRecoverySelectionV01(
+      abandonedRecovery.selection_token,
+      confirmedA.project.project_id,
+    ),
+    true,
+  );
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      abandonedRecovery.selection_token,
+    ),
+    /inspection_stale/,
+  );
+  const expiredRecovery = await declareAndInspectLocalProjectRecoveryV01(
+    folderA,
+    recoveryScopeV01(purposeTarget),
+    {
+      open_database: open,
+      now: () => "2026-07-15T00:02:27.000Z",
+      now_ms: () => 0,
+    },
+  );
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      expiredRecovery.selection_token,
+      { now_ms: () => 10 * 60 * 1000 + 1 },
+    ),
+    /inspection_stale/,
+  );
+
+  const recoveryRouteResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "declare_recovery_path",
+      path: folderA,
+      ...recoveryScopeV01(purposeTarget),
+    }),
+  ));
+  assert.equal(recoveryRouteResponse.status, 200);
+  assert.equal(recoveryRouteResponse.headers.get("set-cookie"), null);
+  const recoveryRoutePayload = await recoveryRouteResponse.json() as {
+    picker: Awaited<ReturnType<typeof declareAndInspectLocalProjectRecoveryV01>>;
+  };
+  assert.equal(recoveryRoutePayload.picker.recovery_action, "open_project");
+  const recoveryRouteAbandon = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "abandon_recovery_selection",
+    project_id: confirmedA.project.project_id,
+    selection_token: recoveryRoutePayload.picker.selection_token,
+  })));
+  assert.equal(recoveryRouteAbandon.status, 200);
+
   const occupiedExpected = (await listRecentProjectsV01(db)).find(
     (entry) => entry.project.project_id === confirmedA.project.project_id,
   )!;
-  await assert.rejects(rebindWithBrowserDecisionV01(db, {
-    project_id: confirmedA.project.project_id,
-    selection_token: occupiedRecovery.selection_token,
-    inspection_fingerprint: occupiedRecovery.inspection.inspection_fingerprint,
-    expected_old_root_binding_fingerprint: occupiedExpected.root_binding_fingerprint,
-    expected_old_baseline_fingerprint: occupiedExpected.physical_root_baseline_fingerprint,
-  }), /project_root_rebind_conflict/);
+  await assert.rejects(
+    declareAndInspectLocalProjectRecoveryV01(
+      folderB,
+      recoveryScopeV01(occupiedExpected),
+      {
+        open_database: open,
+        now: () => "2026-07-15T00:02:30.000Z",
+      },
+    ),
+    /project_scope_conflict/,
+  );
   assert.equal((await readProjectDestinationV01(db, confirmedB.project.project_id))?.root_binding.local_root.normalized_path, folderB);
 
   await assert.rejects(openRecentProjectV01(db, {
@@ -1533,8 +1837,31 @@ try {
   writeFileSync(path.join(folderA2, "replacement-marker.txt"), "replacement folder remains unchanged");
   const oldFolderConfigBeforeRecovery = readFileSync(path.join(`${folderA}.missing`, ".git", "config"), "utf8");
   const replacementContentsBeforeRecovery = readdirSync(folderA2).sort();
-  const staleRecovery = await selection(folderA2, "2026-07-15T00:04:20.000Z");
-  assert.equal(staleRecovery.status, "selected");
+  const staleDestination = await readProjectDestinationV01(
+    db,
+    confirmedA.project.project_id,
+  );
+  assert(staleDestination);
+  const staleBaseline = db.prepare(
+    `SELECT baseline_fingerprint FROM vnext_physical_root_baselines
+      WHERE workspace_id = ? AND project_id = ?`,
+  ).get(
+    confirmedA.project.workspace_id,
+    confirmedA.project.project_id,
+  ) as { baseline_fingerprint: string };
+  const staleRecovery = await declareAndInspectLocalProjectRecoveryV01(
+    folderA2,
+    {
+      project_id: confirmedA.project.project_id,
+      expected_old_root_binding_fingerprint:
+        fingerprintProjectRootBindingV01(staleDestination.root_binding),
+      expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
+      expected_active_project_id: null,
+      expected_active_selection_revision: null,
+    },
+    { open_database: open, now: () => "2026-07-15T00:04:20.000Z" },
+  );
+  assert.equal(staleRecovery.recovery_action, "rebind");
   const nullOnboarding = await selection(nullConflictFolder, "2026-07-15T00:04:20.000Z");
   assert.equal(nullOnboarding.status, "selected");
   await openRecentProjectV01(db, {
@@ -1567,18 +1894,6 @@ try {
     recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
     active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
   });
-  const staleDestination = await readProjectDestinationV01(
-    db,
-    confirmedA.project.project_id,
-  );
-  assert(staleDestination);
-  const staleBaseline = db.prepare(
-    `SELECT baseline_fingerprint FROM vnext_physical_root_baselines
-      WHERE workspace_id = ? AND project_id = ?`,
-  ).get(
-    confirmedA.project.workspace_id,
-    confirmedA.project.project_id,
-  ) as { baseline_fingerprint: string };
   await assert.rejects(rebindWithBrowserDecisionV01(db, {
     project_id: confirmedA.project.project_id,
     selection_token: staleRecovery.selection_token,
@@ -1598,9 +1913,34 @@ try {
   assert.deepEqual(readdirSync(folderA2).sort(), replacementContentsBeforeRecovery);
   assert.equal((await listRecentProjectsV01(db)).find((entry) => entry.is_active)?.project.project_id, confirmedB.project.project_id);
 
-  const recovery = await selection(folderA2, "2026-07-15T00:05:00.000Z");
+  const recoveryActive = activeSnapshot(await listRecentProjectsV01(db));
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = folderA2;
+  const recovery = await pickAndInspectLocalProjectRecoveryV01(
+    {
+      project_id: confirmedA.project.project_id,
+      expected_old_root_binding_fingerprint:
+        fingerprintProjectRootBindingV01(staleDestination.root_binding),
+      expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
+      expected_active_project_id: recoveryActive.expected_project_id,
+      expected_active_selection_revision: recoveryActive.expected_revision,
+    },
+    { open_database: open, now: () => "2026-07-15T00:05:00.000Z" },
+  );
   assert.equal(recovery.status, "selected");
-  const rebound = await rebindWithBrowserDecisionV01(db, {
+  assert.equal(recovery.recovery_action, "rebind");
+  const recoveryCrossCandidate = await declareAndInspectLocalProjectRecoveryV01(
+    folderA2,
+    {
+      project_id: confirmedA.project.project_id,
+      expected_old_root_binding_fingerprint:
+        fingerprintProjectRootBindingV01(staleDestination.root_binding),
+      expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
+      expected_active_project_id: recoveryActive.expected_project_id,
+      expected_active_selection_revision: recoveryActive.expected_revision,
+    },
+    { open_database: open, now: () => "2026-07-15T00:05:00.000Z" },
+  );
+  const recoveryInput = {
     project_id: confirmedA.project.project_id,
     selection_token: recovery.selection_token,
     inspection_fingerprint: recovery.inspection.inspection_fingerprint,
@@ -1608,7 +1948,175 @@ try {
       staleDestination.root_binding,
     ),
     expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
-  }, { now: () => "2026-07-15T00:05:00.000Z" });
+  };
+  const crossInput = {
+    ...recoveryInput,
+    selection_token: recoveryCrossCandidate.selection_token,
+    inspection_fingerprint:
+      recoveryCrossCandidate.inspection.inspection_fingerprint,
+  };
+  const recoveryPreview = await previewLocalProjectRootRebindFromSelectionV01(
+    db,
+    recoveryInput,
+    { now: () => "2026-07-15T00:05:00.000Z" },
+  );
+  const crossPreview = await previewLocalProjectRootRebindFromSelectionV01(
+    db,
+    crossInput,
+    { now: () => "2026-07-15T00:05:00.000Z" },
+  );
+  assert.notEqual(
+    recoveryPreview.decision_request?.request_fingerprint,
+    crossPreview.decision_request?.request_fingerprint,
+    "two exact recovery candidates must bind distinct rebind requests",
+  );
+  const crossBootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+    config: {
+      enabled: true,
+      workspace_id: recoveryPreview.workspace_id,
+      project_id: recoveryPreview.project_id,
+      operator_id: "operator:cross-recovery-candidate",
+      database_path: dbPath,
+    },
+    clock: { now: () => "2026-07-15T00:04:58.000Z" },
+  });
+  const recoveryCrossDecisionSession = consumeVNextLocalOperatorBootstrapV01(db, {
+    config: {
+      enabled: true,
+      workspace_id: recoveryPreview.workspace_id,
+      project_id: recoveryPreview.project_id,
+      operator_id: "operator:cross-recovery-candidate",
+      database_path: dbPath,
+    },
+    bootstrap_token: crossBootstrap.bootstrap_token,
+    clock: { now: () => "2026-07-15T00:04:59.000Z" },
+  }).repository_decision_session;
+  const recoveryChallenge = issueVNextRepositoryDecisionChallengeV01(db, {
+    workspace_id: recoveryPreview.workspace_id,
+    project_id: recoveryPreview.project_id,
+    request_fingerprint:
+      recoveryPreview.decision_request!.request_fingerprint,
+    credential: recoveryCrossDecisionSession.credential,
+    clock: { now: () => "2026-07-15T00:05:00.000Z" },
+  });
+  let crossCandidateAuthorizationReached = false;
+  await assert.rejects(
+    rebindLocalProjectRootFromSelectionV01(
+      db,
+      {
+        ...crossInput,
+        decision_request_fingerprint:
+          recoveryPreview.decision_request!.request_fingerprint,
+      },
+      {
+        now: () => "2026-07-15T00:05:00.000Z",
+        authorize_decision_inside_transaction: () => {
+          crossCandidateAuthorizationReached = true;
+          const authorized =
+            authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+              db,
+              {
+                workspace_id: recoveryPreview.workspace_id,
+                project_id: recoveryPreview.project_id,
+                request_fingerprint:
+                  recoveryPreview.decision_request!.request_fingerprint,
+                challenge_fingerprint:
+                  recoveryChallenge.challenge_fingerprint,
+                credential: recoveryCrossDecisionSession.credential,
+              },
+            );
+          return {
+            grant_fingerprint: authorized.decision.grant_fingerprint!,
+          };
+        },
+      },
+    ),
+    /inspection_stale/,
+  );
+  assert.equal(crossCandidateAuthorizationReached, false);
+  assert.equal(
+    abandonPreparedLocalProjectRecoverySelectionV01(
+      recovery.selection_token,
+      confirmedA.project.project_id,
+    ),
+    true,
+  );
+  const freshRecoveryCandidate =
+    await declareAndInspectLocalProjectRecoveryV01(
+      folderA2,
+      {
+        project_id: confirmedA.project.project_id,
+        expected_old_root_binding_fingerprint:
+          fingerprintProjectRootBindingV01(staleDestination.root_binding),
+        expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
+        expected_active_project_id: recoveryActive.expected_project_id,
+        expected_active_selection_revision: recoveryActive.expected_revision,
+      },
+      { open_database: open, now: () => "2026-07-15T00:05:00.000Z" },
+    );
+  const freshRecoveryInput = {
+    ...recoveryInput,
+    selection_token: freshRecoveryCandidate.selection_token,
+    inspection_fingerprint:
+      freshRecoveryCandidate.inspection.inspection_fingerprint,
+  };
+  const freshRecoveryPreview =
+    await previewLocalProjectRootRebindFromSelectionV01(
+      db,
+      freshRecoveryInput,
+      { now: () => "2026-07-15T00:05:00.000Z" },
+    );
+  const freshRecoveryChallenge = issueVNextRepositoryDecisionChallengeV01(db, {
+    workspace_id: freshRecoveryPreview.workspace_id,
+    project_id: freshRecoveryPreview.project_id,
+    request_fingerprint:
+      freshRecoveryPreview.decision_request!.request_fingerprint,
+    credential: recoveryCrossDecisionSession.credential,
+    clock: { now: () => "2026-07-15T00:05:00.000Z" },
+  });
+  const grantedRecoveryDecision =
+    grantRepositoryExecutionDecisionFromBrowserSessionV01(db, {
+      workspace_id: freshRecoveryPreview.workspace_id,
+      project_id: freshRecoveryPreview.project_id,
+      request_fingerprint:
+        freshRecoveryPreview.decision_request!.request_fingerprint,
+      challenge_fingerprint: freshRecoveryChallenge.challenge_fingerprint,
+      credential: recoveryCrossDecisionSession.credential,
+    }, { now: () => "2026-07-15T00:05:00.000Z" });
+  assert(grantedRecoveryDecision.decision.grant_fingerprint);
+  const concurrentRebinds = await Promise.allSettled([
+    rebindLocalProjectRootFromSelectionV01(db, {
+      ...freshRecoveryInput,
+      decision_request_fingerprint:
+        freshRecoveryPreview.decision_request!.request_fingerprint,
+    }, {
+      now: () => "2026-07-15T00:05:00.000Z",
+      decision_grant_fingerprint:
+        grantedRecoveryDecision.decision.grant_fingerprint,
+    }),
+    rebindLocalProjectRootFromSelectionV01(db, {
+      ...freshRecoveryInput,
+      decision_request_fingerprint:
+        freshRecoveryPreview.decision_request!.request_fingerprint,
+    }, {
+      now: () => "2026-07-15T00:05:00.000Z",
+      decision_grant_fingerprint:
+        grantedRecoveryDecision.decision.grant_fingerprint,
+    }),
+  ]);
+  const successfulRebinds = concurrentRebinds.filter(
+    (result) => result.status === "fulfilled",
+  );
+  assert.equal(
+    successfulRebinds.length,
+    1,
+    concurrentRebinds.map((result) => result.status === "rejected"
+      ? String(result.reason)
+      : "fulfilled").join(" | "),
+  );
+  const rebound = (successfulRebinds[0] as PromiseFulfilledResult<
+    Awaited<ReturnType<typeof rebindLocalProjectRootFromSelectionV01>>
+  >).value;
   assert.equal(rebound.project.project_id, confirmedA.project.project_id);
   assert.equal(rebound.project.display_name, renamedProjectName);
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA2);
@@ -1755,7 +2263,7 @@ try {
   assert.deepEqual(artifactSql(runtimeSchema), artifactSql(canonicalSchema));
   runtimeSchema.close(); migrationSchema.close(); canonicalSchema.close();
 
-  console.log(JSON.stringify({ status: "pass", declared_path_parser_bounded_and_literal: true, declared_path_platform_boundaries: true, prepared_selection_origins_distinct: true, non_exact_preparation_refused_before_candidate_or_session: true, shared_picker_and_declared_path_exact_identity_gate: true, pre_project_browser_cookie_and_challenge: true, stale_abandonment_response_cannot_clear_newer_session: true, ordinary_repeated_and_cross_mode_cancel: true, failed_abandonment_transport_zero_authority: true, old_nonce_and_cross_candidate_replay_refused: true, concurrent_confirmation_executions: 1, exact_successful_transport_replay: true, failed_confirmation_requires_fresh_material: true, process_local_candidate_loss_refused: true, declared_path_zero_mutation_before_confirmation: true, physical_alias_preserves_canonical_root: true, picker_abort_listener_residue: 0, picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
+  console.log(JSON.stringify({ status: "pass", declared_path_parser_bounded_and_literal: true, declared_path_platform_boundaries: true, prepared_selection_origins_distinct: true, non_exact_preparation_refused_before_candidate_or_session: true, shared_picker_and_declared_path_exact_identity_gate: true, pre_project_browser_cookie_and_challenge: true, stale_abandonment_response_cannot_clear_newer_session: true, ordinary_repeated_and_cross_mode_cancel: true, failed_abandonment_transport_zero_authority: true, old_nonce_and_cross_candidate_replay_refused: true, concurrent_confirmation_executions: 1, exact_successful_transport_replay: true, failed_confirmation_requires_fresh_material: true, process_local_candidate_loss_refused: true, declared_path_zero_mutation_before_confirmation: true, physical_alias_preserves_canonical_root: true, recovery_candidate_purpose_is_server_bound: true, onboarding_candidate_rebind_refused: true, recovery_candidate_onboarding_refused: true, recovery_cross_project_refused: true, recovery_non_exact_preparation_refused_before_candidate: true, recovery_inspection_issued_decision_sessions: 0, recovery_current_root_opened_without_rebind: true, recovery_alias_preserved_canonical_root: true, recovery_native_and_declared_origins: true, recovery_cross_candidate_decision_refused: true, concurrent_rebind_executions: 1, picker_abort_listener_residue: 0, picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
 } finally {
   process.env = originalEnvironment;
   rmSync(root, { recursive: true, force: true });

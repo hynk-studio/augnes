@@ -266,6 +266,16 @@ baseline 또는 active-selection mutation을 만들지 않는다. 실패, expiry
 process loss는 fresh inspection과 confirmation material을 요구한다. Candidate, credential,
 nonce, private fingerprint와 raw path는 portable export나 public protocol output이 아니다.
 
+Unavailable local root recovery는 같은 picker/declared-path parser와 process-local prepared
+selection owner를 재사용하되 candidate purpose를 exact target project와 old root/baseline,
+active-selection expected state에 server-side로 bind한다. New-project candidate는 rebind
+preview/commit에 사용할 수 없고 recovery candidate는 onboarding confirmation에 사용할 수
+없다. Recovery inspection은 pre-project onboarding decision을 만들지 않는다. Consequential
+**Use this folder** activation은 기존 project-scoped `rebind_root` Browser decision과 atomic
+root/baseline rebind transaction만 사용하며 prepared attachment staleness와 durable
+run/result/semantic history 보존도 그 기존 owner를 따른다. Exact current root 또는 그 물리
+alias는 root/baseline을 rewrite하지 않고 active-selection CAS로 기존 project만 연다.
+
 ---
 
 ## 3. Actor, Capability and Coverage Model

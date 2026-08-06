@@ -31,6 +31,13 @@ export type LocalFolderPickerOutcomeV01 =
   | { status: "unavailable"; reason: "unsupported_platform" | "picker_not_installed" }
   | { status: "error"; error_code: "picker_timeout" | "picker_failed" };
 
+export type LocalProjectRecoverySelectionOutcomeV01 = Extract<
+  LocalFolderPickerOutcomeV01,
+  { status: "selected" }
+> & {
+  recovery_action: "open_project" | "rebind";
+};
+
 export type ProjectRootAvailabilityV01 =
   | "available"
   | "missing"

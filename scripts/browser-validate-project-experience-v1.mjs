@@ -81,11 +81,8 @@ const onboardingFolder = path.join(
 const onboardingFolderB = path.join(tempRoot, "Project Experience Beta");
 const onboardingFolderBRecovered = path.join(
   tempRoot,
-  "Project Experience Beta recovered",
-);
-const onboardingFolderBMissing = path.join(
-  tempRoot,
-  "Project Experience Beta moved",
+  "Project Experience Beta recovery with a deliberately long moved path",
+  "옮겨진 기존 프로젝트 폴더",
 );
 const folderPickerSequencePath = path.join(
   tempRoot,
@@ -180,6 +177,16 @@ const result = {
   guide_brief_blank_state_v0_2: false,
   project_home_coordination_visible: false,
   project_recovery_context_passive: false,
+  project_recovery_entry_parity: false,
+  project_recovery_pending_path_switch: false,
+  project_recovery_cancel_and_retry: false,
+  project_recovery_declared_path_retained: false,
+  project_recovery_non_exact_refused: false,
+  project_recovery_native_and_declared_review: false,
+  project_recovery_responsive_review: false,
+  project_recovery_no_mutation_before_confirmation: false,
+  project_recovery_same_project_rebind: false,
+  project_recovery_public_copy: false,
   minimum_project_home_empty_state: false,
   minimum_project_home_expired_context_withheld: false,
   minimum_project_home_refresh_read_only: false,
@@ -448,7 +455,6 @@ async function main() {
     disposableHome,
     onboardingFolder,
     onboardingFolderB,
-    onboardingFolderBRecovered,
     processTempRoot,
   ]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -460,6 +466,11 @@ async function main() {
   writeFileSync(
     path.join(onboardingFolder, ".git", "config"),
     "[core]\n  bare = false\n",
+    { encoding: "utf8", mode: 0o600 },
+  );
+  writeFileSync(
+    path.join(onboardingFolderB, "existing-project-content.txt"),
+    "LPX2 recovery must not change this project file.\n",
     { encoding: "utf8", mode: 0o600 },
   );
   writeFolderPickerSequence([
@@ -1370,11 +1381,23 @@ async function main() {
 
     const activateBeta = await openProjectInBrowser(projectBetaId);
     assert.equal(activateBeta.status, 200);
-    renameSync(onboardingFolderB, onboardingFolderBMissing);
+    mkdirSync(path.dirname(onboardingFolderBRecovered), {
+      recursive: true,
+      mode: 0o700,
+    });
+    renameSync(onboardingFolderB, onboardingFolderBRecovered);
     renameSync(folderPickerSequencePath, `${folderPickerSequencePath}.consumed`);
     writeFolderPickerSequence([
       {
-        id: "project-beta-recovery",
+        id: "project-beta-recovery-cancel-pending",
+        outcome: "pending_until_abort",
+      },
+      {
+        id: "project-beta-recovery-switch-pending",
+        outcome: "pending_until_abort",
+      },
+      {
+        id: "project-beta-recovery-native",
         outcome: "selected",
         absolute_path: onboardingFolderBRecovered,
       },
@@ -1418,20 +1441,230 @@ async function main() {
     });
     result.project_recovery_context_passive = true;
     completeDetailedField("project_recovery_context_passive");
+    const recoveryStateBeforeInspection = projectRecoveryDatabaseState(
+      fixture.writable_database_path,
+      projectBetaId,
+    );
+    assert.equal(recoveryStateBeforeInspection.recent_count, 2);
+    assert.equal(
+      recoveryStateBeforeInspection.root.normalized_root,
+      onboardingFolderB,
+    );
     await waitForRequestQuiet();
     await clickSelectorByMouse(
       '[data-blank-state-primary-action="locate_folder"]',
     );
     await waitForCondition(
-      `document.querySelector('[role="dialog"]') !== null && document.querySelector('[role="dialog"]')?.textContent.includes('Project Experience Beta recovered') === true`,
-      "project root rebind confirmation",
+      `document.querySelector('[data-project-recovery="verified-folder-selection.v0.1"]') !== null && document.body.textContent.includes('Locate folder for Project Experience Beta') && document.body.textContent.includes(${JSON.stringify(onboardingFolderB)}) && Array.from(document.querySelectorAll('#project-recovery button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
+      "project recovery entry",
     );
-    await clickButtonByTextByMouse("Use this folder", '[role="dialog"]');
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const recovery = document.querySelector('#project-recovery');
+        const text = recovery?.innerText ?? '';
+        return recovery?.querySelectorAll('[data-augnes-primary-action]').length === 1 &&
+          text.includes('The project record and its stored history remain in Augnes.') &&
+          text.includes('Nothing changes until you confirm a reviewed folder.') &&
+          text.includes('computer running Augnes') &&
+          text.includes('The folder is not uploaded.') &&
+          !/(candidate purpose|fingerprint|physical id|node scope|CAS|nonce|credential|database)/i.test(text);
+      })()`),
+      true,
+    );
+    result.project_recovery_entry_parity = true;
+    completeDetailedField("project_recovery_entry_parity");
+    result.project_recovery_public_copy = true;
+    completeDetailedField("project_recovery_public_copy");
+
+    const recoveryFailedRequestOffset = failedRequests.length;
+    await clickSelector('[data-blank-state-primary-action="choose_recovery_folder"]');
     await waitForCondition(
-      `location.pathname === ${JSON.stringify(projectBetaDestination)} && document.querySelector('[role="dialog"]') === null && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
+      `document.querySelector('[data-blank-state-primary-action="choose_recovery_folder"]')?.textContent?.includes('Waiting for folder picker') === true && Array.from(document.querySelectorAll('#project-recovery button')).some((button) => button.textContent?.trim() === 'Cancel attempt')`,
+      "recovery picker pending cancel",
+    );
+    await waitForFolderPickerSequenceIndex(1);
+    await clickButtonByText("Cancel attempt", "#project-recovery");
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-primary-action="choose_recovery_folder"]:not(:disabled)') !== null`,
+      "recovery picker attempt cancelled",
+    );
+    await clickSelector('[data-blank-state-primary-action="choose_recovery_folder"]');
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-primary-action="choose_recovery_folder"]')?.textContent?.includes('Waiting for folder picker') === true`,
+      "second recovery picker pending",
+    );
+    await waitForFolderPickerSequenceIndex(2);
+    await clickButtonByText("Enter the folder path instead", "#project-recovery");
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-recovery-path"]') === document.activeElement`,
+      "recovery pending picker switches to path entry",
+    );
+    result.project_recovery_pending_path_switch = true;
+    completeDetailedField("project_recovery_pending_path_switch");
+
+    await waitForRequestQuiet();
+    assert.deepEqual(
+      failedRequests.slice(recoveryFailedRequestOffset).map((entry) => ({
+        path: entry.path,
+        error_text: entry.error_text,
+      })),
+      [
+        { path: "/api/vnext/projects", error_text: "net::ERR_ABORTED" },
+        { path: "/api/vnext/projects", error_text: "net::ERR_ABORTED" },
+      ],
+      "exactly the two user-abandoned recovery picker requests may abort",
+    );
+    await clickButtonByText("Choose a folder instead", "#project-recovery");
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-primary-action="choose_recovery_folder"]:not(:disabled)') !== null`,
+      "recovery picker mode restored",
+    );
+    const nativeRecoveryRequestOffset = requests.length;
+    await clickSelector('[data-blank-state-primary-action="choose_recovery_folder"]');
+    const nativeRecoveryResponse = await waitForObservedResponse(
+      "/api/vnext/projects",
+      "POST",
+      nativeRecoveryRequestOffset,
+    );
+    const nativeRecoveryBody = JSON.parse((await cdp.send(
+      "Network.getResponseBody",
+      { requestId: nativeRecoveryResponse.request_id },
+    )).body);
+    assert.equal(
+      nativeRecoveryResponse.status,
+      200,
+      `native_recovery_failed:${publicToken(nativeRecoveryBody.error_code ?? "unknown")}`,
+    );
+    assert.equal(nativeRecoveryBody.picker?.status, "selected");
+    await waitForCondition(
+      `document.querySelector('.project-recovery-review')?.textContent?.includes(${JSON.stringify(onboardingFolderBRecovered)}) === true && Array.from(document.querySelectorAll('.project-recovery-review button')).some((button) => button.textContent?.trim() === 'Use this folder')`,
+      "native recovery review",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const review = document.querySelector('.project-recovery-review');
+        const text = review?.innerText ?? '';
+        return review?.querySelectorAll('[data-augnes-primary-action]').length === 1 &&
+          text.includes('Project Experience Beta') &&
+          text.includes(${JSON.stringify(onboardingFolderB)}) &&
+          text.includes(${JSON.stringify(onboardingFolderBRecovered)}) &&
+          text.includes('Plain folder') &&
+          text.includes('Not a repository') &&
+          text.includes('The saved folder will change to the selected folder.') &&
+          text.includes('The project name and stored history remain unchanged.') &&
+          text.includes('This step does not run Codex or change project files.') &&
+          !/(candidate purpose|fingerprint|physical id|node scope|CAS|nonce|credential|database)/i.test(text);
+      })()`),
+      true,
+    );
+    await validateProjectRecoveryViewports();
+    result.project_recovery_responsive_review = true;
+    completeDetailedField("project_recovery_responsive_review");
+    await clickButtonByText("Cancel", ".project-recovery-review");
+    await waitForCondition(
+      `document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state-primary-action="choose_recovery_folder"]:not(:disabled)') !== null`,
+      "native recovery review cancelled",
+    );
+    await clickButtonByText("Enter the folder path instead", "#project-recovery");
+    const invalidRecoveryPath = path.join(tempRoot, "missing recovery folder");
+    await setFormControlValue(
+      'input[name="local-project-recovery-path"]',
+      invalidRecoveryPath,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_recovery_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-recovery-path"]')?.value === ${JSON.stringify(invalidRecoveryPath)} && document.body.textContent.includes('That folder could not be found. Check the path and try again.') && document.querySelector('.project-recovery-review') === null`,
+      "invalid recovery path retained",
+    );
+    result.project_recovery_declared_path_retained = true;
+    completeDetailedField("project_recovery_declared_path_retained");
+    await setFormControlValue('input[name="local-project-recovery-path"]', "/dev");
+    await clickSelector('[data-blank-state-primary-action="review_recovery_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-recovery-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state-primary-action="confirm_recovery_folder"]') === null`,
+      "non-exact recovery path refused before review",
+    );
+    result.project_recovery_non_exact_refused = true;
+    completeDetailedField("project_recovery_non_exact_refused");
+    await setFormControlValue(
+      'input[name="local-project-recovery-path"]',
+      onboardingFolderBRecovered,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_recovery_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('.project-recovery-review')?.textContent?.includes(${JSON.stringify(onboardingFolderBRecovered)}) === true && Array.from(document.querySelectorAll('.project-recovery-review button')).some((button) => button.textContent?.trim() === 'Use this folder')`,
+      "declared recovery review",
+    );
+    await clickButtonByText("Cancel", ".project-recovery-review");
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-recovery-path"]') === document.activeElement && document.querySelector('input[name="local-project-recovery-path"]')?.value === ${JSON.stringify(onboardingFolderBRecovered)}`,
+      "recovery review cancel preserves declared path and focus",
+    );
+    await clickSelector('[data-blank-state-primary-action="review_recovery_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('.project-recovery-review')?.textContent?.includes(${JSON.stringify(onboardingFolderBRecovered)}) === true && Array.from(document.querySelectorAll('.project-recovery-review button')).some((button) => button.textContent?.trim() === 'Use this folder')`,
+      "recovery review immediate retry",
+    );
+    await waitForRequestQuiet();
+    assert.deepEqual(
+      projectRecoveryDatabaseState(
+        fixture.writable_database_path,
+        projectBetaId,
+      ),
+      recoveryStateBeforeInspection,
+      "recovery inspection, cancellation, and review must not mutate canonical state",
+    );
+    result.project_recovery_cancel_and_retry = true;
+    completeDetailedField("project_recovery_cancel_and_retry");
+    result.project_recovery_native_and_declared_review = true;
+    completeDetailedField("project_recovery_native_and_declared_review");
+    result.project_recovery_no_mutation_before_confirmation = true;
+    completeDetailedField("project_recovery_no_mutation_before_confirmation");
+
+    await clickButtonByTextByMouse("Use this folder", ".project-recovery-review");
+    await waitForCondition(
+      `location.pathname === ${JSON.stringify(projectBetaDestination)} && document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
       "project root rebound",
     );
     await waitForRequestQuiet();
+    const recoveryStateAfterConfirmation = projectRecoveryDatabaseState(
+      fixture.writable_database_path,
+      projectBetaId,
+    );
+    assert.equal(
+      recoveryStateAfterConfirmation.project_count,
+      recoveryStateBeforeInspection.project_count,
+      "recovery must not create another canonical project",
+    );
+    assert.equal(
+      recoveryStateAfterConfirmation.recent_count,
+      recoveryStateBeforeInspection.recent_count,
+      "recovery must not create another recent project",
+    );
+    assert.equal(recoveryStateAfterConfirmation.project.project_id, projectBetaId);
+    assert.equal(
+      recoveryStateAfterConfirmation.project.display_name,
+      recoveryStateBeforeInspection.project.display_name,
+    );
+    assert.equal(
+      recoveryStateAfterConfirmation.root.normalized_root,
+      onboardingFolderBRecovered,
+    );
+    assert.equal(recoveryStateAfterConfirmation.baselines.length, 1);
+    assert.equal(
+      recoveryStateAfterConfirmation.baselines[0].baseline_fingerprint ===
+        recoveryStateBeforeInspection.baselines[0].baseline_fingerprint,
+      false,
+    );
+    assert.equal(
+      readFileSync(
+        path.join(onboardingFolderBRecovered, "existing-project-content.txt"),
+        "utf8",
+      ),
+      "LPX2 recovery must not change this project file.\n",
+    );
+    result.project_recovery_same_project_rebind = true;
+    completeDetailedField("project_recovery_same_project_rebind");
 
     const activateAlpha = await openProjectInBrowser(projectAlphaId);
     assert.equal(activateAlpha.status, 200);
@@ -1501,6 +1734,7 @@ async function main() {
         ?.project.project_id,
       projectAlphaId,
     );
+    record("verified_folder_path_recovery_preserves_project_continuity");
     record("minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch");
   });
 
@@ -1606,7 +1840,7 @@ async function main() {
     result.product_shell_responsive_results =
       productShellResponsiveResults;
     completeDetailedField("product_shell_responsive_results");
-    assert.equal(viewportResults.length, 26);
+    assert.equal(viewportResults.length, 30);
     result.viewport_results = viewportResults;
     completeDetailedField("viewport_results");
     assert.deepEqual(viewportWarnings, []);
@@ -1730,6 +1964,12 @@ async function main() {
       serverLog.includes(onboardingFolder),
       false,
       "the declared local path must not enter ordinary runtime logs",
+    );
+    assert.equal(
+      serverLog.includes(onboardingFolderB) ||
+        serverLog.includes(onboardingFolderBRecovered),
+      false,
+      "recovery paths must not enter ordinary runtime logs",
     );
     detailedFieldCompletionOwner.assertExact();
     assert.deepEqual(
@@ -2281,6 +2521,22 @@ function writeFolderPickerSequence(entries) {
   );
 }
 
+async function waitForFolderPickerSequenceIndex(expectedIndex) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < DEFAULT_TIMEOUT_MS) {
+    try {
+      const sequence = JSON.parse(
+        readFileSync(folderPickerSequencePath, "utf8"),
+      );
+      if (sequence.next_index === expectedIndex) return;
+    } catch {
+      // The server owns the bounded atomic claim while the file is absent.
+    }
+    await delay(100);
+  }
+  throw new Error(`folder_picker_sequence_claim_timeout:${expectedIndex}`);
+}
+
 async function navigate(url) {
   navigationCount += 1;
   const navigationStartedAt = Date.now();
@@ -2623,6 +2879,60 @@ async function validateDeclaredPathReviewViewports() {
       long_path_visible: true,
       public_copy_only: true,
     });
+  }
+  await setViewport(1440, 1000);
+}
+
+async function validateProjectRecoveryViewports() {
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 1280, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await setViewport(width, height);
+    await waitForCondition(
+      `document.querySelector('.project-recovery-review') !== null && window.innerWidth === ${width}`,
+      "project recovery responsive review",
+    );
+    const metrics = await evaluateJson(`(() => {
+      const management = document.querySelector('#project-recovery');
+      const review = management?.querySelector('.project-recovery-review');
+      const paths = Array.from(review?.querySelectorAll('.project-inspection-path') ?? []);
+      const controls = Array.from(review?.querySelectorAll('button, input') ?? []);
+      const text = review?.textContent ?? '';
+      const rect = review?.getBoundingClientRect();
+      return {
+        surface: 'project_recovery_review',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        document_horizontal_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        management_horizontal_overflow: (management?.scrollWidth ?? 0) > (management?.clientWidth ?? 0) + 1,
+        inside_viewport: Boolean(rect) && rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        bounded_paths: paths.length === 2 && paths.every((entry) => (entry.scrollWidth ?? 0) <= (review?.scrollWidth ?? 0)),
+        controls_minimum_size: controls.every((control) => {
+          const controlRect = control.getBoundingClientRect();
+          return controlRect.width >= 44 && controlRect.height >= 44;
+        }),
+        primary_action_count: review?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        exact_paths_visible: text.includes(${JSON.stringify(onboardingFolderB)}) && text.includes(${JSON.stringify(onboardingFolderBRecovered)}),
+        public_copy_only: !/(candidate purpose|fingerprint|physical id|node scope|CAS|nonce|credential|database)/i.test(text),
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      surface: "project_recovery_review",
+      width,
+      height,
+      document_horizontal_overflow: false,
+      management_horizontal_overflow: false,
+      inside_viewport: true,
+      bounded_paths: true,
+      controls_minimum_size: true,
+      primary_action_count: 1,
+      exact_paths_visible: true,
+      public_copy_only: true,
+    });
+    viewportResults.push(metrics);
   }
   await setViewport(1440, 1000);
 }
@@ -3161,6 +3471,52 @@ function databaseSnapshot(databasePath) {
   }
 }
 
+function projectRecoveryDatabaseState(databasePath, projectId) {
+  const database = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const project = database.prepare(
+      "SELECT * FROM vnext_project_identities WHERE project_id = ?",
+    ).get(projectId);
+    const root = database.prepare(
+      "SELECT * FROM vnext_project_root_bindings WHERE project_id = ?",
+    ).get(projectId);
+    assert(project, "recovery_project_identity_missing");
+    assert(root, "recovery_project_root_missing");
+    return {
+      project_count: database.prepare(
+        "SELECT COUNT(*) AS count FROM vnext_project_identities",
+      ).get().count,
+      recent_count: database.prepare(
+        "SELECT COUNT(*) AS count FROM vnext_recent_projects",
+      ).get().count,
+      project,
+      root,
+      baselines: database.prepare(
+        `SELECT * FROM vnext_physical_root_baselines
+         WHERE project_id = ? ORDER BY node_scope_fingerprint`,
+      ).all(projectId),
+      attachments: database.prepare(
+        `SELECT attachment_id, lifecycle, consumed_run_id
+         FROM vnext_repository_execution_attachments
+         WHERE project_id = ? ORDER BY attachment_id`,
+      ).all(projectId),
+      active: database.prepare(
+        "SELECT * FROM vnext_active_project_selections",
+      ).all(),
+      decisions: database.prepare(
+        `SELECT action, status, expected_state_fingerprint
+         FROM vnext_repository_execution_decision_requests
+         WHERE project_id = ? ORDER BY requested_at, request_fingerprint`,
+      ).all(projectId),
+    };
+  } finally {
+    database.close();
+  }
+}
+
 function semanticAuthorityCounts(databasePath) {
   const database = new Database(databasePath, {
     readonly: true,
@@ -3267,7 +3623,10 @@ function expectedStatusResponseIdentity(response) {
 
 function expectedFailedRequest(entry) {
   if (
-    entry.phase === "project_onboarding_and_naming" &&
+    [
+      "project_onboarding_and_naming",
+      "project_home_lifecycle_presentation",
+    ].includes(entry.phase) &&
     entry.path === "/api/vnext/projects" &&
     entry.error_text === "net::ERR_ABORTED"
   ) {
