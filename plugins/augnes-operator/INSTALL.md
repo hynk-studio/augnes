@@ -18,6 +18,14 @@
    npm run augnes
    ```
 
+   After connecting the exact local project in the Browser, work-definition
+   and Browser decision surfaces in a source checkout use the existing local
+   review session owner. From another terminal in this repository, run
+   `npm run augnes -- access`; it restarts the one supervised runtime and
+   prints one expiring token for the visible Browser unlock form. The token is
+   local review access, not execution or semantic authority. Do not place it
+   in project files, prompts, issue comments, or verification evidence.
+
 3. From Codex in a registered local repository, ask:
 
    ```text

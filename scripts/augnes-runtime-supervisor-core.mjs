@@ -225,9 +225,113 @@ export async function runRuntimeSupervisorCli(
   if (options.command === "stop") {
     return runStopCommand({ paths, repositoryFingerprint });
   }
+  if (options.command === "access") {
+    return runLocalReviewAccessCommand({
+      environment,
+      options,
+      paths,
+      repositoryFingerprint,
+      runtimeDistribution,
+      dependencies,
+    });
+  }
   return runStartCommand({
     environment,
     options,
+    paths,
+    repositoryFingerprint,
+    runtimeDistribution,
+    dependencies,
+  });
+}
+
+async function runLocalReviewAccessCommand({
+  environment,
+  options,
+  paths,
+  repositoryFingerprint,
+  runtimeDistribution,
+  dependencies,
+}) {
+  if (runtimeDistribution.mode !== "source") {
+    emitResult({
+      command: "access",
+      result: "refused",
+      state: "unavailable",
+      reason: "local_review_access_source_runtime_required",
+    });
+    return 2;
+  }
+  const stopResult = await runStopCommand({ paths, repositoryFingerprint });
+  if (stopResult !== 0) return stopResult;
+
+  const issuerPath = path.join(
+    repositoryRoot,
+    "scripts",
+    "issue-vnext-local-review-access.ts",
+  );
+  const issued = spawnSync(
+    process.execPath,
+    ["--import", "tsx", issuerPath],
+    {
+      cwd: repositoryRoot,
+      env: {
+        ...environment,
+        AUGNES_DB_PATH: paths.local.database_path,
+      },
+      encoding: "utf8",
+      maxBuffer: 64 * 1024,
+    },
+  );
+  let access;
+  try {
+    access = JSON.parse(issued.stdout.trim());
+  } catch {
+    access = null;
+  }
+  if (
+    issued.status !== 0 ||
+    access?.ok !== true ||
+    !validDiagnosticString(access.workspace_id) ||
+    !validDiagnosticString(access.project_id) ||
+    !validDiagnosticString(access.operator_id) ||
+    !validDiagnosticString(access.bootstrap_token) ||
+    !validDiagnosticString(access.expires_at)
+  ) {
+    let failure;
+    try {
+      failure = JSON.parse(issued.stderr.trim());
+    } catch {
+      failure = null;
+    }
+    emitResult({
+      command: "access",
+      result: "failed",
+      state: "stopped",
+      reason: validDiagnosticString(failure?.error_code)
+        ? failure.error_code
+        : "local_review_access_unavailable",
+    });
+    return 2;
+  }
+
+  emitResult({
+    command: "access",
+    result: "issued",
+    state: "restarting",
+    one_time_local_review_token: access.bootstrap_token,
+    expires_at: access.expires_at,
+    next_action: "paste_the_token_into_the_visible_augnes_browser",
+  });
+  return runStartCommand({
+    environment: {
+      ...environment,
+      AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+      AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: access.workspace_id,
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: access.project_id,
+      AUGNES_VNEXT_OPERATOR_ID: access.operator_id,
+    },
+    options: { ...options, command: "start" },
     paths,
     repositoryFingerprint,
     runtimeDistribution,
@@ -4621,7 +4725,7 @@ function respondJson(response, statusCode, value) {
 function parseCli(argv, environment) {
   const args = [...argv];
   let command = "start";
-  if (["start", "status", "stop", "diagnostics"].includes(args[0])) {
+  if (["start", "status", "stop", "diagnostics", "access"].includes(args[0])) {
     command = args.shift();
   } else if (args[0] && !args[0].startsWith("-")) {
     throw new PublicRuntimeError("unknown_subcommand");
@@ -4641,7 +4745,9 @@ function parseCli(argv, environment) {
 
   while (args.length > 0) {
     const argument = args.shift();
-    if (command !== "start") throw new PublicRuntimeError("unexpected_arguments");
+    if (!["start", "access"].includes(command)) {
+      throw new PublicRuntimeError("unexpected_arguments");
+    }
     if (["--port", "--ui-port", "-p"].includes(argument)) {
       uiPreferredPort = parsePreferredPort(args.shift(), null, "ui_port_invalid");
       continue;
