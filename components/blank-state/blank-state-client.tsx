@@ -127,8 +127,14 @@ function recoveryConfirmationErrorMessageV01(
   return errorMessage(
     code === "active_selection_conflict"
       ? "The current project changed. Refresh before reviewing the folder again."
+      : code === "operator_session_expired" ||
+          code === "operator_action_nonce_expired"
+        ? "Local confirmation access expired. Review the folder again."
+      : code === "operator_session_scope_mismatch" ||
+          code === "operator_decision_challenge_invalid"
+        ? "The recovery request changed. Review the folder again."
       : code.startsWith("operator_")
-        ? "Confirm this folder change from the authenticated local Augnes Browser."
+        ? "Augnes could not establish local confirmation access. Nothing was changed; review the folder again."
         : code === "project_scope_conflict" ||
             code === "project_root_rebind_conflict"
           ? "That folder belongs to another project, or the saved project changed. Nothing was changed."

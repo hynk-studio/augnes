@@ -56,9 +56,12 @@ import {
   type RepositoryExecutionDependenciesV01,
 } from "../lib/vnext/repository-execution/repository-execution";
 import {
+  clearVNextRecoveryRepositoryDecisionProcessScopesV01,
   consumeVNextLocalOperatorBootstrapV01,
   issueVNextLocalOperatorBootstrapV01,
   issueVNextRepositoryDecisionChallengeV01,
+  readVNextRecoveryRepositoryDecisionCredentialFromRequestV01,
+  serializeVNextRepositoryDecisionSessionCookieV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import { POST as projectRoutePost } from "../app/api/vnext/projects/route";
 
@@ -67,6 +70,8 @@ const dbPath = path.join(root, "onboarding.db");
 const folderA = path.join(root, "Project A ü");
 const folderB = path.join(root, "Project B");
 const folderA2 = path.join(root, "Project A moved");
+const folderA3 = path.join(root, "Project A moved again");
+const folderA4 = path.join(root, "Project A moved with general session");
 const folderNoRemote = path.join(root, "Git without remote");
 const worktreeFolder = path.join(root, "Git worktree fixture");
 const worktreeGitDir = path.join(root, "worktree metadata");
@@ -2122,9 +2127,353 @@ try {
   assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA2);
   assert.equal((await listRecentProjectsV01(db)).find((entry) => entry.project.project_id === confirmedA.project.project_id)?.is_active, true);
 
-  const replaySelection = await selection(folderA2, "2026-07-15T00:05:10.000Z");
+  renameSync(folderA2, folderA3);
+  const routeRecoveryEntry = (await listRecentProjectsV01(db)).find(
+    (entry) => entry.project.project_id === confirmedA.project.project_id,
+  )!;
+  const routeRecoveryStateBefore = JSON.stringify({
+    projects: db.prepare("SELECT * FROM vnext_project_identities ORDER BY project_id").all(),
+    roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY project_id").all(),
+    baselines: db.prepare("SELECT * FROM vnext_physical_root_baselines ORDER BY project_id").all(),
+    recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY project_id").all(),
+    active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+  });
+  const declareRouteRecovery = async () => {
+    const response = await projectRoutePost(routeRequest(JSON.stringify({
+      action: "declare_recovery_path",
+      path: folderA3,
+      ...recoveryScopeV01(routeRecoveryEntry),
+    })));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("set-cookie"), null);
+    return (await response.json() as {
+      picker: Extract<
+        Awaited<ReturnType<typeof declareAndInspectLocalProjectRecoveryV01>>,
+        { status: "selected" }
+      >;
+    }).picker;
+  };
+  const prepareRouteRecovery = async (
+    picker: Awaited<ReturnType<typeof declareRouteRecovery>>,
+  ) => {
+    const response = await projectRoutePost(routeRequest(JSON.stringify({
+      action: "prepare_repository_execution_rebind_confirmation",
+      project_id: confirmedA.project.project_id,
+      selection_token: picker.selection_token,
+      inspection_fingerprint: picker.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        routeRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        routeRecoveryEntry.physical_root_baseline_fingerprint,
+    }), browserConfirmationHeaders));
+    assert.equal(response.status, 200);
+    const cookie = response.headers.get("set-cookie");
+    if (!cookie) throw new Error("recovery confirmation cookie missing");
+    assert(cookie.startsWith("augnes_vnext_recovery_decision_"));
+    assert(cookie.includes("HttpOnly"));
+    assert(cookie.includes("SameSite=Strict"));
+    assert.equal(
+      cookie.includes("augnes_vnext_repository_decision_session_v01"),
+      false,
+    );
+    const text = await response.text();
+    assert.equal(/vnext_(?:bootstrap|session)_v01|action_nonce|session_secret/.test(text), false);
+    return {
+      cookie: cookie.split(";")[0],
+      payload: JSON.parse(text) as {
+        decision_request_fingerprint: string;
+        confirmation: { challenge_fingerprint: string };
+      },
+    };
+  };
+
+  const processLostCandidate = await declareRouteRecovery();
+  const processLostPrepared = await prepareRouteRecovery(processLostCandidate);
+  clearVNextRecoveryRepositoryDecisionProcessScopesV01();
+  const processLostConfirmation = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "confirm_rebind",
+      project_id: confirmedA.project.project_id,
+      selection_token: processLostCandidate.selection_token,
+      inspection_fingerprint:
+        processLostCandidate.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        routeRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        routeRecoveryEntry.physical_root_baseline_fingerprint,
+      decision_request_fingerprint:
+        processLostPrepared.payload.decision_request_fingerprint,
+      challenge_fingerprint:
+        processLostPrepared.payload.confirmation.challenge_fingerprint,
+    }),
+    { ...browserConfirmationHeaders, cookie: processLostPrepared.cookie },
+  ));
+  assert.equal(processLostConfirmation.status, 401);
+  assert.equal(JSON.stringify({
+    projects: db.prepare("SELECT * FROM vnext_project_identities ORDER BY project_id").all(),
+    roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY project_id").all(),
+    baselines: db.prepare("SELECT * FROM vnext_physical_root_baselines ORDER BY project_id").all(),
+    recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY project_id").all(),
+    active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
+  }), routeRecoveryStateBefore);
+  const abandonProcessLostCandidate = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "abandon_recovery_selection",
+      project_id: confirmedA.project.project_id,
+      selection_token: processLostCandidate.selection_token,
+    }),
+  ));
+  assert.equal(abandonProcessLostCandidate.status, 200);
+
+  const freshRouteRecoveryCandidate = await declareRouteRecovery();
+  const freshRoutePrepared = await prepareRouteRecovery(
+    freshRouteRecoveryCandidate,
+  );
+  const freshRouteBinding = readPreparedLocalProjectSelectionBindingV01(
+    freshRouteRecoveryCandidate.selection_token,
+  );
+  const freshRecoveryCredential =
+    readVNextRecoveryRepositoryDecisionCredentialFromRequestV01(
+      routeRequest(undefined, { cookie: freshRoutePrepared.cookie }),
+      freshRouteBinding.selection_binding_fingerprint,
+    );
+  assert.throws(
+    () => issueVNextRepositoryDecisionChallengeV01(db, {
+      workspace_id: freshRouteBinding.expected_workspace_id!,
+      project_id: freshRouteBinding.recovery_project_id!,
+      request_fingerprint: `sha256:${"a".repeat(64)}`,
+      credential: freshRecoveryCredential,
+    }),
+    /operator_session_scope_mismatch/,
+    "recovery access must not authorize another request or action for the same project",
+  );
+  assert.throws(
+    () => issueVNextRepositoryDecisionChallengeV01(db, {
+      workspace_id: freshRouteBinding.expected_workspace_id!,
+      project_id: confirmedB.project.project_id,
+      request_fingerprint:
+        freshRoutePrepared.payload.decision_request_fingerprint,
+      credential: freshRecoveryCredential,
+    }),
+    /operator_session_scope_mismatch/,
+    "recovery access must not authorize another project",
+  );
+  const genericDecisionAttempt = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "prepare_repository_execution_decision_confirmation",
+      workspace_id: freshRouteBinding.expected_workspace_id,
+      project_id: freshRouteBinding.recovery_project_id,
+      request_fingerprint:
+        freshRoutePrepared.payload.decision_request_fingerprint,
+    }),
+    { ...browserConfirmationHeaders, cookie: freshRoutePrepared.cookie },
+  ));
+  assert.equal(
+    genericDecisionAttempt.status,
+    401,
+    "a recovery cookie must not enter the generic repository-decision route",
+  );
+  await projectRoutePost(routeRequest(JSON.stringify({
+    action: "abandon_recovery_selection",
+    project_id: confirmedA.project.project_id,
+    selection_token: freshRouteRecoveryCandidate.selection_token,
+  })));
+  const forgedRouteRecoveryCandidate = await declareRouteRecovery();
+  const forgedRoutePrepared = await prepareRouteRecovery(
+    forgedRouteRecoveryCandidate,
+  );
+  assert.notEqual(
+    forgedRoutePrepared.cookie.split("=", 1)[0],
+    freshRoutePrepared.cookie.split("=", 1)[0],
+    "each recovery candidate must own a distinct cookie generation",
+  );
+  assert.equal(
+    (db.prepare(
+      `SELECT COUNT(*) AS count FROM vnext_local_operator_sessions
+        WHERE operator_id = 'operator:local-project-recovery'
+          AND revoked_at IS NULL`,
+    ).get() as { count: number }).count,
+    1,
+    "a new issuance must prune process-lost recovery authority",
+  );
+  const forgedRouteRecoveryBody = JSON.stringify({
+    action: "confirm_rebind",
+    project_id: confirmedA.project.project_id,
+    selection_token: forgedRouteRecoveryCandidate.selection_token,
+    inspection_fingerprint:
+      forgedRouteRecoveryCandidate.inspection.inspection_fingerprint,
+    expected_old_root_binding_fingerprint:
+      routeRecoveryEntry.root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      routeRecoveryEntry.physical_root_baseline_fingerprint,
+    decision_request_fingerprint:
+      forgedRoutePrepared.payload.decision_request_fingerprint,
+    challenge_fingerprint:
+      forgedRoutePrepared.payload.confirmation.challenge_fingerprint,
+  });
+  const forgedFreshRecovery = await projectRoutePost(routeRequest(
+    forgedRouteRecoveryBody,
+    browserConfirmationHeaders,
+  ));
+  assert.equal(forgedFreshRecovery.status, 401);
+  assert.equal(
+    (db.prepare(
+      `SELECT COUNT(*) AS count FROM vnext_local_operator_sessions
+        WHERE operator_id = 'operator:local-project-recovery'
+          AND revoked_at IS NULL`,
+    ).get() as { count: number }).count,
+    0,
+    "a failed terminal confirmation must revoke its exact recovery access",
+  );
+  await projectRoutePost(routeRequest(JSON.stringify({
+    action: "abandon_recovery_selection",
+    project_id: confirmedA.project.project_id,
+    selection_token: forgedRouteRecoveryCandidate.selection_token,
+  })));
+  const positiveRouteRecoveryCandidate = await declareRouteRecovery();
+  const positiveRoutePrepared = await prepareRouteRecovery(
+    positiveRouteRecoveryCandidate,
+  );
+  assert.notEqual(
+    positiveRoutePrepared.cookie.split("=", 1)[0],
+    forgedRoutePrepared.cookie.split("=", 1)[0],
+    "a retry after failed confirmation must own fresh candidate authority",
+  );
+  const exactRouteRecoveryBody = JSON.stringify({
+    action: "confirm_rebind",
+    project_id: confirmedA.project.project_id,
+    selection_token: positiveRouteRecoveryCandidate.selection_token,
+    inspection_fingerprint:
+      positiveRouteRecoveryCandidate.inspection.inspection_fingerprint,
+    expected_old_root_binding_fingerprint:
+      routeRecoveryEntry.root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      routeRecoveryEntry.physical_root_baseline_fingerprint,
+    decision_request_fingerprint:
+      positiveRoutePrepared.payload.decision_request_fingerprint,
+    challenge_fingerprint:
+      positiveRoutePrepared.payload.confirmation.challenge_fingerprint,
+  });
+  const freshRouteConfirmed = await projectRoutePost(routeRequest(
+    exactRouteRecoveryBody,
+    {
+      ...browserConfirmationHeaders,
+      cookie: `${positiveRoutePrepared.cookie}; ${forgedRoutePrepared.cookie}`,
+    },
+  ));
+  assert.equal(freshRouteConfirmed.status, 200);
+  assert.equal(freshRouteConfirmed.headers.get("set-cookie"), null);
+  const freshRouteResult = await freshRouteConfirmed.json() as {
+    result: { project: { project_id: string; display_name: string } };
+  };
+  assert.equal(freshRouteResult.result.project.project_id, confirmedA.project.project_id);
+  assert.equal(freshRouteResult.result.project.display_name, renamedProjectName);
+  const recoveryReplay = await projectRoutePost(routeRequest(
+    exactRouteRecoveryBody,
+    { ...browserConfirmationHeaders, cookie: positiveRoutePrepared.cookie },
+  ));
+  assert.notEqual(recoveryReplay.status, 200);
+  assert.equal(
+    (db.prepare(
+      `SELECT COUNT(*) AS count FROM vnext_local_operator_sessions
+        WHERE operator_id = 'operator:local-project-recovery'
+          AND revoked_at IS NULL`,
+    ).get() as { count: number }).count,
+    0,
+  );
+  assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA3);
+  assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count, 2);
+  assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_recent_projects").get() as { count: number }).count, 2);
+  assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_physical_root_baselines WHERE project_id = ?").get(confirmedA.project.project_id) as { count: number }).count, 1);
+
+  renameSync(folderA3, folderA4);
+  const generalSessionRecoveryEntry = (await listRecentProjectsV01(db)).find(
+    (entry) => entry.project.project_id === confirmedA.project.project_id,
+  )!;
+  const generalSessionRecoveryResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "declare_recovery_path",
+      path: folderA4,
+      ...recoveryScopeV01(generalSessionRecoveryEntry),
+    }),
+  ));
+  assert.equal(generalSessionRecoveryResponse.status, 200);
+  const generalSessionRecoveryCandidate = (await generalSessionRecoveryResponse.json() as {
+    picker: Extract<
+      Awaited<ReturnType<typeof declareAndInspectLocalProjectRecoveryV01>>,
+      { status: "selected" }
+    >;
+  }).picker;
+  const generalRecoveryConfig = {
+    enabled: true as const,
+    workspace_id: confirmedA.project.workspace_id,
+    project_id: confirmedA.project.project_id,
+    operator_id: "operator:general-recovery-regression",
+    database_path: dbPath,
+  };
+  const generalRecoveryBootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+    config: generalRecoveryConfig,
+  });
+  const generalRecoverySession = consumeVNextLocalOperatorBootstrapV01(db, {
+    config: generalRecoveryConfig,
+    bootstrap_token: generalRecoveryBootstrap.bootstrap_token,
+  }).repository_decision_session;
+  const generalRecoveryCookie =
+    serializeVNextRepositoryDecisionSessionCookieV01({
+      value: generalRecoverySession.cookie_value,
+      expires_at: generalRecoverySession.cookie_expires_at,
+      max_age_seconds: generalRecoverySession.cookie_max_age_seconds,
+      secure: false,
+    }).split(";")[0];
+  const generalRecoveryPrepareResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "prepare_repository_execution_rebind_confirmation",
+      project_id: confirmedA.project.project_id,
+      selection_token: generalSessionRecoveryCandidate.selection_token,
+      inspection_fingerprint:
+        generalSessionRecoveryCandidate.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        generalSessionRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        generalSessionRecoveryEntry.physical_root_baseline_fingerprint,
+    }),
+    { ...browserConfirmationHeaders, cookie: generalRecoveryCookie },
+  ));
+  assert.equal(generalRecoveryPrepareResponse.status, 200);
+  assert.equal(generalRecoveryPrepareResponse.headers.get("set-cookie"), null);
+  const generalRecoveryPrepared = await generalRecoveryPrepareResponse.json() as {
+    decision_request_fingerprint: string;
+    confirmation: { challenge_fingerprint: string };
+  };
+  const generalRecoveryConfirmResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "confirm_rebind",
+      project_id: confirmedA.project.project_id,
+      selection_token: generalSessionRecoveryCandidate.selection_token,
+      inspection_fingerprint:
+        generalSessionRecoveryCandidate.inspection.inspection_fingerprint,
+      expected_old_root_binding_fingerprint:
+        generalSessionRecoveryEntry.root_binding_fingerprint,
+      expected_old_baseline_fingerprint:
+        generalSessionRecoveryEntry.physical_root_baseline_fingerprint,
+      decision_request_fingerprint:
+        generalRecoveryPrepared.decision_request_fingerprint,
+      challenge_fingerprint:
+        generalRecoveryPrepared.confirmation.challenge_fingerprint,
+    }),
+    { ...browserConfirmationHeaders, cookie: generalRecoveryCookie },
+  ));
+  assert.equal(generalRecoveryConfirmResponse.status, 200);
+  assert(
+    generalRecoveryConfirmResponse.headers.get("set-cookie")?.startsWith(
+      "augnes_vnext_repository_decision_session_v01=",
+    ),
+  );
+  assert.equal((await readProjectDestinationV01(db, confirmedA.project.project_id))?.root_binding.local_root.normalized_path, folderA4);
+
+  const replaySelection = await selection(folderA4, "2026-07-15T00:05:10.000Z");
   assert.equal(replaySelection.status, "selected");
-  assert.equal(replaySelection.inspection.display_name, "Project A moved");
+  assert.equal(replaySelection.inspection.display_name, "Project A moved with general session");
   assert.equal(replaySelection.inspection.existing_project?.display_name, renamedProjectName);
   const replay = await confirmLocalProjectOnboardingV01(db, {
     selection_token: replaySelection.selection_token,

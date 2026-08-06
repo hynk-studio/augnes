@@ -182,6 +182,10 @@ const result = {
   project_recovery_cancel_and_retry: false,
   project_recovery_declared_path_retained: false,
   project_recovery_non_exact_refused: false,
+  project_recovery_fresh_session_established: false,
+  project_recovery_no_plaintext_bootstrap_exposed: false,
+  project_recovery_request_scoped_authority_only: false,
+  project_recovery_fresh_rebind_completed: false,
   project_recovery_native_and_declared_review: false,
   project_recovery_responsive_review: false,
   project_recovery_no_mutation_before_confirmation: false,
@@ -1407,11 +1411,15 @@ async function main() {
       manifest,
       projectBetaId,
     );
-    await navigate(`${appOrigin}/workbench/semantic-review`);
-    await authenticateCurrentPage(
-      fixture.writable_database_path,
-      manifest,
-      projectBetaId,
+    const recoveryCookiesBefore = await cdp.send("Network.getAllCookies");
+    assert.equal(
+      recoveryCookiesBefore.cookies.some((cookie) =>
+        cookie.name === "augnes_vnext_operator_session_v01" ||
+        cookie.name === "augnes_vnext_repository_decision_session_v01" ||
+        cookie.name.startsWith("augnes_vnext_recovery_decision_")
+      ),
+      false,
+      "fresh recovery must begin without operator or decision cookies",
     );
     await navigate(`${appOrigin}${projectBetaDestination}`);
     await waitForCondition(
@@ -1621,12 +1629,67 @@ async function main() {
     result.project_recovery_no_mutation_before_confirmation = true;
     completeDetailedField("project_recovery_no_mutation_before_confirmation");
 
+    const freshRecoveryRequestOffset = requests.length;
     await clickButtonByTextByMouse("Use this folder", ".project-recovery-review");
     await waitForCondition(
       `location.pathname === ${JSON.stringify(projectBetaDestination)} && document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"]') !== null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
       "project root rebound",
     );
     await waitForRequestQuiet();
+    const freshRecoveryRequests = requests.filter((entry, index) =>
+      index >= freshRecoveryRequestOffset &&
+      entry.path === "/api/vnext/projects" &&
+      entry.method === "POST"
+    );
+    assert.equal(freshRecoveryRequests.length, 2);
+    for (const recoveryRequest of freshRecoveryRequests) {
+      const response = responses.find(
+        (entry) => entry.request_id === recoveryRequest.request_id,
+      );
+      assert.equal(response?.status, 200);
+    }
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const publicText = document.documentElement.innerHTML;
+        return !/vnext_(?:bootstrap|session)_v01|session_secret|action_nonce|cookie_value/iu.test(publicText) &&
+          !document.cookie.includes('augnes_vnext_recovery_decision_');
+      })()`),
+      true,
+    );
+    const recoveryCookiesAfter = await cdp.send("Network.getAllCookies");
+    const recoveryScopedCookies = recoveryCookiesAfter.cookies.filter(
+      (cookie) => cookie.name.startsWith("augnes_vnext_recovery_decision_"),
+    );
+    assert.equal(recoveryScopedCookies.length, 1);
+    assert.equal(recoveryScopedCookies[0].httpOnly, true);
+    assert.equal(recoveryScopedCookies[0].sameSite, "Strict");
+    assert.equal(
+      recoveryCookiesAfter.cookies.some((cookie) =>
+        cookie.name === "augnes_vnext_operator_session_v01" ||
+        cookie.name === "augnes_vnext_repository_decision_session_v01"
+      ),
+      false,
+    );
+    const recoverySessionDatabase = new Database(
+      fixture.writable_database_path,
+      { readonly: true, fileMustExist: true },
+    );
+    try {
+      const recoverySessionRows = recoverySessionDatabase.prepare(
+        `SELECT operator_id, revoked_at FROM vnext_local_operator_sessions
+          WHERE project_id = ? AND operator_id = 'operator:local-project-recovery'`,
+      ).all(projectBetaId);
+      assert.equal(recoverySessionRows.length, 1);
+      assert.equal(typeof recoverySessionRows[0].revoked_at, "string");
+    } finally {
+      recoverySessionDatabase.close();
+    }
+    result.project_recovery_fresh_session_established = true;
+    completeDetailedField("project_recovery_fresh_session_established");
+    result.project_recovery_no_plaintext_bootstrap_exposed = true;
+    completeDetailedField("project_recovery_no_plaintext_bootstrap_exposed");
+    result.project_recovery_request_scoped_authority_only = true;
+    completeDetailedField("project_recovery_request_scoped_authority_only");
     const recoveryStateAfterConfirmation = projectRecoveryDatabaseState(
       fixture.writable_database_path,
       projectBetaId,
@@ -1665,6 +1728,8 @@ async function main() {
     );
     result.project_recovery_same_project_rebind = true;
     completeDetailedField("project_recovery_same_project_rebind");
+    result.project_recovery_fresh_rebind_completed = true;
+    completeDetailedField("project_recovery_fresh_rebind_completed");
 
     const activateAlpha = await openProjectInBrowser(projectAlphaId);
     assert.equal(activateAlpha.status, 200);

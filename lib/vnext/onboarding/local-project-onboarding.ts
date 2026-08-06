@@ -863,6 +863,14 @@ export function readPreparedLocalProjectSelectionBindingV01(
       record.selection_purpose.kind === "recover_existing_project"
         ? record.selection_purpose.recovery_action
         : null,
+    expected_old_root_binding_fingerprint:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.expected_old_root_binding_fingerprint
+        : null,
+    expected_old_baseline_fingerprint:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.expected_old_baseline_fingerprint
+        : null,
     selection_binding_fingerprint: record.selection_binding_fingerprint,
     normalized_path_fingerprint: record.normalized_path_fingerprint,
     inspection_fingerprint: record.inspection_fingerprint,

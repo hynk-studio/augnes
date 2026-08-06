@@ -36,10 +36,16 @@ import { ProjectLifecycleErrorV01 } from "@/lib/vnext/persistence/project-lifecy
 import { ProjectIdentityRegistryErrorV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   VNextLocalOperatorSessionErrorV01,
+  abandonVNextRecoveryRepositoryDecisionSessionV01,
   assertVNextLocalOperatorRequestBoundaryV01,
+  isVNextRecoveryRepositoryDecisionCredentialV01,
+  issueVNextRecoveryRepositoryDecisionSessionV01,
   issueVNextRepositoryDecisionChallengeV01,
+  readVNextRecoveryRepositoryDecisionCredentialFromRequestV01,
   readVNextRepositoryDecisionCredentialFromRequestV01,
+  serializeVNextRecoveryRepositoryDecisionSessionCookieV01,
   serializeVNextRepositoryDecisionSessionCookieV01,
+  type VNextLocalOperatorSessionCredentialV01,
   type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import {
@@ -140,10 +146,35 @@ export async function POST(request: Request) {
       return json({ ok: true, abandoned: true });
     }
     if (body.action === "abandon_recovery_selection") {
-      abandonPreparedLocalProjectRecoverySelectionV01(
-        requiredString(body.selection_token),
-        requiredString(body.project_id),
-      );
+      const selectionToken = requiredString(body.selection_token);
+      const projectId = requiredString(body.project_id);
+      try {
+        const binding = readPreparedLocalProjectSelectionBindingV01(
+          selectionToken,
+        );
+        if (
+          binding.selection_purpose !== "recover_existing_project" ||
+          binding.recovery_project_id !== projectId
+        ) {
+          throw new ProjectOnboardingErrorV01(
+            "project_scope_conflict",
+            409,
+          );
+        }
+        db = openDatabase();
+        abandonVNextRecoveryRepositoryDecisionSessionV01(
+          db,
+          binding.selection_binding_fingerprint,
+        );
+      } catch (error) {
+        if (
+          !(error instanceof ProjectOnboardingErrorV01) ||
+          error.code !== "inspection_stale"
+        ) {
+          throw error;
+        }
+      }
+      abandonPreparedLocalProjectRecoverySelectionV01(selectionToken, projectId);
       return json({ ok: true, abandoned: true });
     }
     db = openDatabase();
@@ -265,72 +296,152 @@ export async function POST(request: Request) {
     }
     if (body.action === "prepare_repository_execution_rebind_confirmation") {
       assertBrowserUserConfirmationV01(request);
-      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
-        request,
-      );
+      const selectionToken = requiredString(body.selection_token);
       const preview = await previewLocalProjectRootRebindFromSelectionV01(db, {
         project_id: requiredString(body.project_id),
-        selection_token: requiredString(body.selection_token),
+        selection_token: selectionToken,
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
         expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
         expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+      });
+      const binding = readExactRecoveryRebindBindingV01(
+        selectionToken,
+        preview.project_id,
+      );
+      const generalConfirmation = tryIssueGeneralRepositoryDecisionChallengeV01(
+        db,
+        request,
+        preview.workspace_id,
+        preview.project_id,
+        preview.decision_request!.request_fingerprint,
+      );
+      if (generalConfirmation) {
+        return json({
+          ok: true,
+          decision_request_fingerprint:
+            preview.decision_request!.request_fingerprint,
+          confirmation: generalConfirmation,
+        });
+      }
+      const recoverySession =
+        issueVNextRecoveryRepositoryDecisionSessionV01(db, {
+          scope: {
+            workspace_id: preview.workspace_id,
+            project_id: preview.project_id,
+            action: "rebind_root",
+            selection_binding_fingerprint:
+              binding.selection_binding_fingerprint,
+            decision_request_fingerprint:
+              preview.decision_request!.request_fingerprint,
+            expected_old_root_binding_fingerprint:
+              binding.expected_old_root_binding_fingerprint,
+            expected_old_baseline_fingerprint:
+              binding.expected_old_baseline_fingerprint,
+            expected_new_physical_observation_fingerprint:
+              binding.physical_root_observation_fingerprint,
+            expected_active_project_id:
+              binding.expected_active_project_id,
+            expected_active_selection_revision:
+              binding.expected_active_selection_revision,
+            candidate_expires_at: binding.expires_at,
+          },
+        });
+      const confirmation = issueVNextRepositoryDecisionChallengeV01(db, {
+        request_fingerprint: preview.decision_request!.request_fingerprint,
+        workspace_id: preview.workspace_id,
+        project_id: preview.project_id,
+        credential: recoverySession.admission.credential,
       });
       return json({
         ok: true,
         decision_request_fingerprint:
           preview.decision_request!.request_fingerprint,
-        confirmation: issueVNextRepositoryDecisionChallengeV01(db, {
-          request_fingerprint: preview.decision_request!.request_fingerprint,
-          workspace_id: preview.workspace_id,
-          project_id: preview.project_id,
-          credential,
-        }),
-      });
+        confirmation,
+      }, 200, serializeVNextRecoveryRepositoryDecisionSessionCookieV01({
+        selection_binding_fingerprint:
+          binding.selection_binding_fingerprint,
+        value: recoverySession.admission.cookie_value,
+        expires_at: recoverySession.admission.cookie_expires_at,
+        max_age_seconds: recoverySession.admission.cookie_max_age_seconds,
+        secure: new URL(request.url).protocol === "https:",
+      }));
     }
     if (body.action === "confirm_rebind") {
       assertBrowserUserConfirmationV01(request);
-      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
-        request,
+      const selectionToken = requiredString(body.selection_token);
+      const binding = readExactRecoveryRebindBindingV01(
+        selectionToken,
+        requiredString(body.project_id),
       );
+      const decisionRequestFingerprint = requiredString(
+        body.decision_request_fingerprint,
+      );
+      const challengeFingerprint = requiredString(
+        body.challenge_fingerprint,
+      );
+      let credential: VNextLocalOperatorSessionCredentialV01;
+      try {
+        credential = readMatchingRepositoryDecisionCredentialV01(
+          db,
+          request,
+          binding,
+          decisionRequestFingerprint,
+          challengeFingerprint,
+        );
+      } catch (error) {
+        abandonVNextRecoveryRepositoryDecisionSessionV01(
+          db,
+          binding.selection_binding_fingerprint,
+        );
+        throw error;
+      }
+      const recoveryScopedCredential =
+        isVNextRecoveryRepositoryDecisionCredentialV01(credential);
       const sessionHolder: {
         current: VNextLocalOperatorSessionMutationAdmissionV01 | null;
       } = { current: null };
-      const result = await rebindLocalProjectRootFromSelectionV01(db, {
-        project_id: requiredString(body.project_id),
-        selection_token: requiredString(body.selection_token),
-        inspection_fingerprint: requiredString(body.inspection_fingerprint),
-        expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
-        expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
-        decision_request_fingerprint: requiredString(
-          body.decision_request_fingerprint,
-        ),
-      }, {
-        authorize_decision_inside_transaction: (decision) => {
-          const authorized =
-            authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
-              db!,
-              {
-                request_fingerprint: decision.request_fingerprint,
-                workspace_id: decision.workspace_id,
-                project_id: decision.project_id,
-                challenge_fingerprint: requiredString(
-                  body.challenge_fingerprint,
-                ),
-                credential,
-              },
-            );
-          sessionHolder.current = authorized.session_admission;
-          if (!authorized.decision.grant_fingerprint) {
-            throw new RepositoryExecutionErrorV01(
-              "repository_execution_decision_not_granted",
-              409,
-            );
-          }
-          return {
-            grant_fingerprint: authorized.decision.grant_fingerprint,
-          };
-        },
-      });
+      let result;
+      try {
+        result = await rebindLocalProjectRootFromSelectionV01(db, {
+          project_id: binding.recovery_project_id,
+          selection_token: selectionToken,
+          inspection_fingerprint: requiredString(body.inspection_fingerprint),
+          expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
+          expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+          decision_request_fingerprint: decisionRequestFingerprint,
+        }, {
+          authorize_decision_inside_transaction: (decision) => {
+            const authorized =
+              authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+                db!,
+                {
+                  request_fingerprint: decision.request_fingerprint,
+                  workspace_id: decision.workspace_id,
+                  project_id: decision.project_id,
+                  challenge_fingerprint: challengeFingerprint,
+                  credential,
+                },
+              );
+            sessionHolder.current = authorized.session_admission;
+            if (!authorized.decision.grant_fingerprint) {
+              throw new RepositoryExecutionErrorV01(
+                "repository_execution_decision_not_granted",
+                409,
+              );
+            }
+            return {
+              grant_fingerprint: authorized.decision.grant_fingerprint,
+            };
+          },
+        });
+      } finally {
+        if (recoveryScopedCredential) {
+          abandonVNextRecoveryRepositoryDecisionSessionV01(
+            db,
+            binding.selection_binding_fingerprint,
+          );
+        }
+      }
       const sessionAdmission = sessionHolder.current;
       if (!sessionAdmission) {
         throw new RepositoryExecutionErrorV01(
@@ -338,16 +449,18 @@ export async function POST(request: Request) {
           409,
         );
       }
-      return json(
-        { ok: true, result },
-        200,
-        serializeVNextRepositoryDecisionSessionCookieV01({
-          value: sessionAdmission.cookie_value,
-          expires_at: sessionAdmission.cookie_expires_at,
-          max_age_seconds: sessionAdmission.cookie_max_age_seconds,
-          secure: new URL(request.url).protocol === "https:",
-        }),
-      );
+      return recoveryScopedCredential
+        ? json({ ok: true, result })
+        : json(
+            { ok: true, result },
+            200,
+            serializeVNextRepositoryDecisionSessionCookieV01({
+              value: sessionAdmission.cookie_value,
+              expires_at: sessionAdmission.cookie_expires_at,
+              max_age_seconds: sessionAdmission.cookie_max_age_seconds,
+              secure: new URL(request.url).protocol === "https:",
+            }),
+          );
     }
     if (body.action === "prepare_repository_execution_decision_confirmation") {
       assertBrowserUserConfirmationV01(request);
@@ -486,6 +599,90 @@ function requiredRecoveryScope(
       "expected_active_selection_revision",
     ),
   };
+}
+function readExactRecoveryRebindBindingV01(
+  selectionToken: string,
+  projectId: string,
+) {
+  const binding = readPreparedLocalProjectSelectionBindingV01(selectionToken);
+  if (
+    binding.selection_purpose !== "recover_existing_project" ||
+    binding.recovery_action !== "rebind" ||
+    binding.recovery_project_id !== projectId ||
+    !binding.expected_workspace_id ||
+    !binding.expected_old_root_binding_fingerprint ||
+    !binding.expected_old_baseline_fingerprint ||
+    !binding.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  return {
+    ...binding,
+    expected_workspace_id: binding.expected_workspace_id,
+    recovery_project_id: binding.recovery_project_id,
+    expected_old_root_binding_fingerprint:
+      binding.expected_old_root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      binding.expected_old_baseline_fingerprint,
+    physical_root_observation_fingerprint:
+      binding.physical_root_observation_fingerprint,
+  };
+}
+function tryIssueGeneralRepositoryDecisionChallengeV01(
+  db: NonNullable<ReturnType<typeof openDatabase>>,
+  request: Request,
+  workspaceId: string,
+  projectId: string,
+  requestFingerprint: string,
+) {
+  try {
+    return issueVNextRepositoryDecisionChallengeV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      request_fingerprint: requestFingerprint,
+      credential: readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      ),
+    });
+  } catch (error) {
+    if (error instanceof VNextLocalOperatorSessionErrorV01) return null;
+    throw error;
+  }
+}
+function readMatchingRepositoryDecisionCredentialV01(
+  db: NonNullable<ReturnType<typeof openDatabase>>,
+  request: Request,
+  binding: ReturnType<typeof readExactRecoveryRebindBindingV01>,
+  requestFingerprint: string,
+  challengeFingerprint: string,
+): VNextLocalOperatorSessionCredentialV01 {
+  const readers = [
+    () => readVNextRepositoryDecisionCredentialFromRequestV01(request),
+    () => readVNextRecoveryRepositoryDecisionCredentialFromRequestV01(
+      request,
+      binding.selection_binding_fingerprint,
+    ),
+  ];
+  for (const readCredential of readers) {
+    try {
+      const credential = readCredential();
+      const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
+        workspace_id: binding.expected_workspace_id,
+        project_id: binding.recovery_project_id,
+        request_fingerprint: requestFingerprint,
+        credential,
+      });
+      if (challenge.challenge_fingerprint === challengeFingerprint) {
+        return credential;
+      }
+    } catch (error) {
+      if (!(error instanceof VNextLocalOperatorSessionErrorV01)) throw error;
+    }
+  }
+  throw new VNextLocalOperatorSessionErrorV01(
+    "operator_session_cookie_missing",
+    401,
+  );
 }
 function assertBrowserUserConfirmationV01(request: Request): void {
   if (
