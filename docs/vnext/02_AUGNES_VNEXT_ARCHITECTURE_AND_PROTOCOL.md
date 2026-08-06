@@ -249,6 +249,23 @@ import의 초기 label로 사용하지만, 이미 존재하는 project의 packag
 identity와 project-scoped record/integrity 검증을 exact하게 유지하면서 local mutable
 label 차이만 conflict 또는 overwrite로 취급하지 않는다.
 
+Native folder picker와 사용자가 직접 선언한 absolute local path는 서로 다른 selection
+origin을 유지한 채 하나의 process-local prepared selection owner와 하나의 canonical
+onboarding transaction으로 수렴한다. 선언 문자열은 shell, provider, model, MCP 또는
+외부 서비스에 전달하지 않으며 expansion이나 command 해석을 하지 않는다. Canonical
+path normalizer와 physical-root identity owner가 inspection 및 confirmation 시점마다 실제
+지원 여부와 동일 물리 객체를 다시 판정한다. Pending selection은 project truth가 아니며
+process restart 후 다시 review해야 한다.
+
+Project 생성 전 declared-path confirmation은 project-scoped repository execution decision이
+아닌 `local_project_onboarding_decision.v0.1` 경계가 소유한다. 이 경계는 loopback
+same-origin Browser, HttpOnly 및 SameSite=Strict cookie, server-side credential hash,
+candidate/display-name/expected-selection bound one-time challenge를 함께 요구한다. 성공한
+동일 transport replay는 process-local committed result를 반환하고 두 번째 project,
+baseline 또는 active-selection mutation을 만들지 않는다. 실패, expiry, abandonment 또는
+process loss는 fresh inspection과 confirmation material을 요구한다. Candidate, credential,
+nonce, private fingerprint와 raw path는 portable export나 public protocol output이 아니다.
+
 ---
 
 ## 3. Actor, Capability and Coverage Model

@@ -121,12 +121,15 @@ assert.match(blankState, /presentationMode === "project_choice"/u);
 assert.match(blankState, /Open a local project folder/u);
 assert.match(
   blankState,
-  /Select an existing folder on this computer\. Augnes links it as the[\s\S]*local project root; this step does not upload the folder\./u,
+  /Select an existing folder on the computer running Augnes\. Augnes[\s\S]*links it as the local project root; this step does not upload the[\s\S]*folder\./u,
 );
 assert.match(blankState, /Use a regular folder or a Git repository\./u);
 assert.match(blankState, /Choose a folder/u);
-assert.match(blankState, /Add project/u);
-assert.match(blankState, /Reopen project/u);
+assert.match(blankState, /Enter the folder path instead/u);
+assert.match(blankState, /Review folder/u);
+assert.match(blankState, /Connect project/u);
+assert.match(blankState, /Open project/u);
+assert.match(blankState, /does not run Codex or change any files/u);
 assert.match(blankState, /Project identity/u);
 assert.match(blankState, /does not rename the local folder/u);
 assert.match(blankState, /data-project-name-save="true"/u);

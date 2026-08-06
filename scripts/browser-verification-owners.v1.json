@@ -44,19 +44,29 @@
         {
           "id": "project_onboarding_and_naming",
           "fields": [
+            "declared_path_existing_project_reopen",
+            "declared_path_invalid_retained",
+            "declared_path_keyboard_focus",
+            "declared_path_non_exact_refused_retained",
+            "declared_path_public_copy",
+            "declared_path_responsive_review",
+            "declared_path_shared_review",
             "folder_onboarding_destination",
             "folder_onboarding_restart_reopen",
             "folder_onboarding_stale_active_conflict",
             "folder_picker_cancelled_usable",
+            "picker_pending_path_switch",
             "project_context_keyboard_activation",
             "project_context_opens_settings",
             "project_context_repeat_activation",
             "project_name_invalid_blocked",
             "project_name_long_korean_propagated",
             "project_name_onboarding_prefill_and_edit",
-            "project_name_stale_conflict_visible"
+            "project_name_stale_conflict_visible",
+            "stale_abandonment_new_session_preserved"
           ],
           "markers": [
+            "declared_path_fallback_review_connect_and_existing_reopen",
             "folder_onboarding_confirmation_refresh_restart_and_reopen"
           ]
         },
@@ -125,6 +135,13 @@
       "value_contracts": {
         "boolean_true": [
           "ai_workplane_project_context_opens_settings",
+          "declared_path_existing_project_reopen",
+          "declared_path_invalid_retained",
+          "declared_path_keyboard_focus",
+          "declared_path_non_exact_refused_retained",
+          "declared_path_public_copy",
+          "declared_path_responsive_review",
+          "declared_path_shared_review",
           "delegated_work_narrow_viewport_no_overflow",
           "first_work_browser_viewports",
           "folder_onboarding_restart_reopen",
@@ -142,6 +159,7 @@
           "minimum_project_home_project_isolation",
           "minimum_project_home_refresh_read_only",
           "minimum_project_home_unknown_project_safe_not_found",
+          "picker_pending_path_switch",
           "project_context_emphasized_owner",
           "project_context_keyboard_activation",
           "project_context_opens_settings",
@@ -155,6 +173,7 @@
           "proposal_review_narrow_viewport_no_overflow",
           "retired_routes_non_mutating",
           "shared_inspector_narrow_viewport_no_overflow",
+          "stale_abandonment_new_session_preserved",
           "workbench_compatibility_redirect",
           "workbench_result_narrow_viewport_no_overflow"
         ],

@@ -95,6 +95,10 @@ export function BlankStateClient({
   const [recent, setRecent] = useState(source.recent_projects);
   const [picker, setPicker] = useState<LocalFolderPickerOutcomeV01 | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pickerPending, setPickerPending] = useState(false);
+  const [onboardingMode, setOnboardingMode] =
+    useState<"picker" | "path">("picker");
+  const [declaredPath, setDeclaredPath] = useState("");
   const [message, setMessage] =
     useState<ProjectFolderSelectionMessageV01 | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -115,6 +119,8 @@ export function BlankStateClient({
   const guideLauncherRef = useRef<HTMLButtonElement>(null);
   const projectSettingsRef = useRef<HTMLDetailsElement>(null);
   const projectIdentityRef = useRef<HTMLElement>(null);
+  const pickerAttemptRef = useRef(0);
+  const pickerAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => setRecent(source.recent_projects), [source.recent_projects]);
@@ -163,11 +169,12 @@ export function BlankStateClient({
     }
   }, [guideOpen]);
 
-  async function mutate(body: Record<string, unknown>) {
+  async function mutate(body: Record<string, unknown>, signal?: AbortSignal) {
     const response = await fetch("/api/vnext/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
     const value = await response.json();
     if (!response.ok || !value.ok) {
@@ -177,19 +184,79 @@ export function BlankStateClient({
   }
 
   async function choose() {
-    setBusy(true);
+    pickerAbortRef.current?.abort();
+    const attempt = ++pickerAttemptRef.current;
+    const controller = new AbortController();
+    pickerAbortRef.current = controller;
+    setOnboardingMode("picker");
+    setPickerPending(true);
     setMessage(null);
     setRenameMessage(null);
     try {
-      const value = await mutate({ action: "choose_folder" });
+      const value = await mutate({ action: "choose_folder" }, controller.signal);
+      if (attempt !== pickerAttemptRef.current || controller.signal.aborted) return;
       setPicker(value.picker);
       setMessage(projectFolderPickerMessageV01(value.picker));
     } catch (error) {
+      if (attempt !== pickerAttemptRef.current || controller.signal.aborted) return;
       setMessage(
         projectFolderSelectionErrorMessageV01(
           projectMutationErrorCode(error),
         ),
       );
+    } finally {
+      if (attempt === pickerAttemptRef.current) {
+        pickerAbortRef.current = null;
+        setPickerPending(false);
+      }
+    }
+  }
+
+  function cancelPickerAttempt(nextMode: "picker" | "path") {
+    pickerAttemptRef.current += 1;
+    pickerAbortRef.current?.abort();
+    pickerAbortRef.current = null;
+    setPickerPending(false);
+    setOnboardingMode(nextMode);
+    setMessage(nextMode === "path"
+      ? infoMessage("Enter the folder path from the computer running Augnes.")
+      : infoMessage("The folder picker was cancelled. Nothing changed."));
+  }
+
+  async function reviewDeclaredPath() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const value = await mutate({ action: "declare_path", path: declaredPath });
+      setPicker(value.picker);
+      setMessage(projectFolderPickerMessageV01(value.picker));
+    } catch (error) {
+      const code = projectMutationErrorCode(error);
+      setMessage(errorMessage(
+        code === "path_declaration_empty"
+          ? "Enter an absolute folder path."
+          : code === "path_declaration_relative"
+            ? "Enter the full absolute path to the folder."
+            : code === "path_declaration_url"
+              ? "Enter a local folder path, not a URL."
+              : code === "path_declaration_too_large"
+                ? "That folder path is too long to review."
+                : code === "path_declaration_control_character"
+                  ? "That folder path contains unsupported characters."
+                  : code === "selection_missing"
+                    ? "That folder could not be found. Check the path and try again."
+                    : code === "selection_inaccessible"
+                      ? "Augnes cannot read that folder. Check its permissions and try again."
+                      : code === "selection_not_directory"
+                        ? "That path points to a file, not a folder."
+                        : code === "physical_identity_unsupported"
+                          ? "That folder is on an unsupported filesystem or location."
+                          : code === "physical_identity_ambiguous"
+                            ? "Augnes cannot determine one exact local folder for that path."
+                            : code === "physical_identity_unavailable"
+                              ? "Augnes could not verify that folder at this time. Try again."
+                          : "That folder could not be reviewed. Check the path and try again.",
+      ));
     } finally {
       setBusy(false);
     }
@@ -199,12 +266,25 @@ export function BlankStateClient({
     if (!picker || picker.status !== "selected") return;
     setBusy(true);
     try {
-      const value = await mutate({
-        action: "confirm",
+      const common = {
         selection_token: picker.selection_token,
         inspection_fingerprint: picker.inspection.inspection_fingerprint,
         display_name: displayName,
-      });
+      };
+      const value = picker.selection_origin === "declared_path"
+        ? await (async () => {
+            const prepared = await mutate({
+              action: "prepare_onboarding_confirmation",
+              ...common,
+            });
+            return mutate({
+              action: "confirm_declared_path",
+              ...common,
+              challenge_fingerprint:
+                prepared.confirmation.challenge_fingerprint,
+            });
+          })()
+        : await mutate({ action: "confirm", ...common });
       window.location.assign(value.result.destination);
     } catch (error) {
       setMessage(error instanceof Error && error.message === "active_selection_conflict"
@@ -216,6 +296,18 @@ export function BlankStateClient({
     } finally {
       setBusy(false);
     }
+  }
+
+  function cancelInspection() {
+    if (picker?.status === "selected") {
+      void mutate({
+        action: "abandon_selection",
+        selection_token: picker.selection_token,
+      }).catch(() => undefined);
+    }
+    setPicker(null);
+    setMessage(null);
+    setOnboardingMode("picker");
   }
 
   async function renameProject(displayName: string) {
@@ -561,12 +653,25 @@ export function BlankStateClient({
   const projectManagement = (
     <ProjectManagement
       presentationMode={presentationMode}
+      projectManagementEmphasized={view.project_management_emphasized}
       recent={recent}
       picker={picker}
       busy={busy}
+      pickerPending={pickerPending}
+      onboardingMode={onboardingMode}
+      declaredPath={declaredPath}
       message={message}
       primaryAction={view.primary_action}
       onChoose={() => void choose()}
+      onEnterPath={() => cancelPickerAttempt("path")}
+      onCancelPicker={() => cancelPickerAttempt("picker")}
+      onReturnToPicker={() => {
+        setPicker(null);
+        setMessage(null);
+        setOnboardingMode("picker");
+      }}
+      onDeclaredPathChange={setDeclaredPath}
+      onReviewDeclaredPath={() => void reviewDeclaredPath()}
       onConfirm={(displayName) => void confirm(displayName)}
       onOpen={(entry) => void open(entry)}
       onLocate={(entry) => void locate(entry)}
@@ -575,7 +680,7 @@ export function BlankStateClient({
         setDialogError(null);
         setPendingRemoval(entry);
       }}
-      onCancelInspection={() => setPicker(null)}
+      onCancelInspection={cancelInspection}
     />
   );
   const activeProjectEntry = recent.find((entry) => entry.is_active) ?? null;
@@ -1533,12 +1638,21 @@ function PrimaryAction({
 
 function ProjectManagement({
   presentationMode,
+  projectManagementEmphasized,
   recent,
   picker,
   busy,
+  pickerPending,
+  onboardingMode,
+  declaredPath,
   message,
   primaryAction,
   onChoose,
+  onEnterPath,
+  onCancelPicker,
+  onReturnToPicker,
+  onDeclaredPathChange,
+  onReviewDeclaredPath,
   onConfirm,
   onOpen,
   onLocate,
@@ -1546,12 +1660,21 @@ function ProjectManagement({
   onCancelInspection,
 }: {
   presentationMode: BlankStatePresentationModeV01;
+  projectManagementEmphasized: boolean;
   recent: RecentProjectEntryV01[];
   picker: LocalFolderPickerOutcomeV01 | null;
   busy: boolean;
+  pickerPending: boolean;
+  onboardingMode: "picker" | "path";
+  declaredPath: string;
   message: ProjectFolderSelectionMessageV01 | null;
   primaryAction: BlankStatePrimaryActionV01 | null;
   onChoose: () => void;
+  onEnterPath: () => void;
+  onCancelPicker: () => void;
+  onReturnToPicker: () => void;
+  onDeclaredPathChange: (value: string) => void;
+  onReviewDeclaredPath: () => void;
   onConfirm: (displayName: string) => void;
   onOpen: (entry: RecentProjectEntryV01) => void;
   onLocate: (entry: RecentProjectEntryV01) => void;
@@ -1560,21 +1683,45 @@ function ProjectManagement({
 }) {
   const onboarding = presentationMode === "local_project_onboarding";
   const choosingProject = presentationMode === "project_choice";
+  const connectionEntryAvailable =
+    onboarding || choosingProject || projectManagementEmphasized;
   const selectedFolder = picker?.status === "selected";
   const selectedToken = picker?.status === "selected"
     ? picker.selection_token
     : null;
   const [projectName, setProjectName] = useState("");
+  const chooseButtonRef = useRef<HTMLButtonElement>(null);
+  const pathInputRef = useRef<HTMLInputElement>(null);
+  const previousModeRef = useRef(onboardingMode);
+  const previousSelectedTokenRef = useRef<string | null>(selectedToken);
   useEffect(() => {
     if (!picker || picker.status !== "selected") {
-      setProjectName("");
       return;
     }
-    setProjectName(
-      picker.inspection.existing_project?.display_name ??
-        picker.inspection.display_name,
+    setProjectName((current) =>
+      picker.selection_origin === "declared_path" && current.trim()
+        ? current
+        : picker.inspection.existing_project?.display_name ??
+          picker.inspection.display_name,
     );
   }, [picker, selectedToken]);
+  useEffect(() => {
+    if (previousModeRef.current === onboardingMode) return;
+    previousModeRef.current = onboardingMode;
+    window.requestAnimationFrame(() => {
+      if (onboardingMode === "path") pathInputRef.current?.focus();
+      else chooseButtonRef.current?.focus();
+    });
+  }, [onboardingMode]);
+  useEffect(() => {
+    const previous = previousSelectedTokenRef.current;
+    previousSelectedTokenRef.current = selectedToken;
+    if (!previous || selectedToken) return;
+    window.requestAnimationFrame(() => {
+      if (onboardingMode === "path") pathInputRef.current?.focus();
+      else chooseButtonRef.current?.focus();
+    });
+  }, [onboardingMode, selectedToken]);
   const normalizedProjectName = projectName.trim();
   const projectNameError = !normalizedProjectName
     ? "Enter a project name."
@@ -1590,7 +1737,18 @@ function ProjectManagement({
           : "blank-state-project-management"
       }
       aria-labelledby="project-management-title"
-      aria-busy={busy}
+      aria-busy={busy || pickerPending}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        const target = event.target as HTMLElement;
+        if (!target.closest(".project-onboarding-copy, .project-inspection")) {
+          return;
+        }
+        event.preventDefault();
+        if (selectedFolder) onCancelInspection();
+        else if (pickerPending) onCancelPicker();
+        else if (onboardingMode === "path") onReturnToPicker();
+      }}
       data-project-selection-presentation={presentationMode}
       data-augnes-surface-role={SEMANTIC_SURFACE_ROLE.management}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
@@ -1608,17 +1766,18 @@ function ProjectManagement({
                 : "Choose or manage a local project"}
           </h2>
         </div>
-        {!onboarding && primaryAction?.kind !== "choose_folder" ? (
+        {!connectionEntryAvailable && primaryAction?.kind !== "choose_folder" ? (
           <button type="button" className="blank-state-secondary-button" onClick={onChoose} disabled={busy}>
             Choose another folder
           </button>
         ) : null}
       </div>
-      {onboarding ? (
+      {connectionEntryAvailable && !selectedFolder ? (
         <div className="project-onboarding-copy">
           <p id="local-project-onboarding-description">
-            Select an existing folder on this computer. Augnes links it as the
-            local project root; this step does not upload the folder.
+            Select an existing folder on the computer running Augnes. Augnes
+            links it as the local project root; this step does not upload the
+            folder.
           </p>
           <p id="local-project-onboarding-support">
             Use a regular folder or a Git repository.
@@ -1626,24 +1785,93 @@ function ProjectManagement({
           <p id="local-project-onboarding-cancellation">
             Cancelling the folder picker leaves the workspace unchanged.
           </p>
-          {!selectedFolder ? (
-            <button
-              type="button"
-              className="blank-state-primary-action project-onboarding-action"
-              aria-label={busy ? "Working…" : "Choose a folder"}
-              aria-describedby={[
-                "local-project-onboarding-description",
-                "local-project-onboarding-support",
-                "local-project-onboarding-cancellation",
-              ].join(" ")}
-              data-blank-state-primary-action="choose_folder"
-              data-augnes-primary-action="choose_folder"
-              data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
-              onClick={onChoose}
-              disabled={busy}
+          {onboardingMode === "picker" ? (
+            <div className="project-onboarding-entry-actions">
+              <button
+                ref={chooseButtonRef}
+                type="button"
+                className="blank-state-primary-action project-onboarding-action"
+                aria-label={pickerPending ? "Waiting for folder picker…" : "Choose a folder"}
+                aria-describedby={[
+                  "local-project-onboarding-description",
+                  "local-project-onboarding-support",
+                  "local-project-onboarding-cancellation",
+                ].join(" ")}
+                data-blank-state-primary-action="choose_folder"
+                data-augnes-primary-action="choose_folder"
+                data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
+                onClick={onChoose}
+                disabled={busy || pickerPending}
+              >
+                {pickerPending ? "Waiting for folder picker…" : "Choose a folder"}
+              </button>
+              <button
+                type="button"
+                className="blank-state-secondary-button"
+                onClick={onEnterPath}
+                disabled={busy}
+              >
+                Enter the folder path instead
+              </button>
+              {pickerPending ? (
+                <button
+                  type="button"
+                  className="blank-state-tertiary-button"
+                  onClick={onCancelPicker}
+                >
+                  Cancel attempt
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {onboardingMode === "path" ? (
+            <form
+              className="project-path-entry"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onReviewDeclaredPath();
+              }}
             >
-              {busy ? "Working…" : "Choose a folder"}
-            </button>
+              <label htmlFor="local-project-declared-path">
+                <span>Folder path</span>
+                <input
+                  ref={pathInputRef}
+                  id="local-project-declared-path"
+                  name="local-project-declared-path"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={declaredPath}
+                  onChange={(event) =>
+                    onDeclaredPathChange(event.target.value)}
+                  disabled={busy}
+                  aria-describedby="local-project-path-help"
+                />
+              </label>
+              <p id="local-project-path-help">
+                Enter the full path as it appears on the computer running
+                Augnes. The folder is not uploaded.
+              </p>
+              <div className="project-actions">
+                <button
+                  type="submit"
+                  className="blank-state-primary-action"
+                  data-blank-state-primary-action="review_folder_path"
+                  data-augnes-primary-action="review_folder_path"
+                  disabled={busy}
+                >
+                  {busy ? "Reviewing…" : "Review folder"}
+                </button>
+                <button
+                  type="button"
+                  className="blank-state-secondary-button"
+                  onClick={onReturnToPicker}
+                  disabled={busy}
+                >
+                  Choose a folder instead
+                </button>
+              </div>
+            </form>
           ) : null}
         </div>
       ) : null}
@@ -1658,7 +1886,7 @@ function ProjectManagement({
       ) : null}
       {selectedFolder ? (
         <div className="project-inspection" aria-live="polite">
-          <p className="blank-state-region-label">Folder found</p>
+          <p className="blank-state-region-label">Folder review</p>
           <h3>
             {picker.inspection.existing_project?.display_name ??
               picker.inspection.display_name}
@@ -1694,17 +1922,20 @@ function ProjectManagement({
             </p>
           ) : null}
           <dl>
-            <div><dt>Local folder</dt><dd>{picker.inspection.local_root.normalized_path}</dd></div>
+            <div><dt>Local folder</dt><dd className="project-inspection-path">{picker.inspection.local_root.normalized_path}</dd></div>
             <div><dt>Type</dt><dd>{picker.inspection.folder_kind === "git_repository" ? "Git repository" : "Plain folder"}</dd></div>
             <div><dt>Repository</dt><dd>{picker.inspection.repository_display ?? (picker.inspection.folder_kind === "git_repository" ? "No remote configured" : "Not a repository")}</dd></div>
           </dl>
           {picker.inspection.already_added ? (
-            <p className="project-selector-notice">This folder is already added. Reopening keeps its saved project name.</p>
+            <p className="project-selector-notice">This folder is already connected. Opening it keeps its saved project name and path.</p>
           ) : null}
           <p>
             {picker.inspection.already_added
-              ? "Reopening makes this the current local project."
-              : "Adding makes this the current local project."}
+              ? "Opening makes this the current local project and shows its Continuities."
+              : "Connecting makes this the current local project and opens Continuities."}
+          </p>
+          <p className="project-selector-safety">
+            Connecting this folder does not run Codex or change any files.
           </p>
           <div className="project-actions">
             <button
@@ -1719,8 +1950,8 @@ function ProjectManagement({
               {busy
                 ? "Working…"
                 : picker.inspection.already_added
-                  ? "Reopen project"
-                  : "Add project"}
+                  ? "Open project"
+                  : "Connect project"}
             </button>
             <button type="button" className="blank-state-tertiary-button" onClick={onCancelInspection} disabled={busy}>Cancel</button>
           </div>

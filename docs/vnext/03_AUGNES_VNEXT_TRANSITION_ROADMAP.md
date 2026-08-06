@@ -364,16 +364,17 @@ non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
 no start decision consumption, attachment consumption, run, controller,
 provider call, command, or project mutation.
 
-## Current
+## Integrated completed lifecycle
 
-### CDX2B3A verified Windows physical-root identity and attachment admission
+### CDX2B3A verified Windows physical-root identity and attachment admission — Completed
 
 [Issue #120](https://github.com/hynk-studio/augnes-perspective-lab/issues/120)
 defines CDX2B3A. Its authorized implementation branch is
 `codex/cdx2b3a-windows-repository-identity`, and its authorized Draft PR title
 is **CDX2B3A — Establish verified Windows repository identity**.
-[Draft PR #125](https://github.com/hynk-studio/augnes-perspective-lab/pull/125)
-is its implementation and outcome record. The source-runtime completion gate
+[PR #125](https://github.com/hynk-studio/augnes-perspective-lab/pull/125)
+is its implementation and outcome record, merged as
+`400bb0041317241a1ca50fe39aead64b42756605`. The source-runtime completion gate
 has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint `374a582b`
 and exact Windows 11 Home 25H2 build 26200.8875 proof at the pre-integration
 checkpoint `567c9bbb`, both x64 local fixed NTFS through the official MCP
@@ -393,18 +394,38 @@ and helper physical targets to the canonical package root and revalidates them
 immediately before invocation. No native binary is committed, no Windows
 package support is claimed, and neither Windows Start nor Resume is enabled.
 
+## Current
+
+### LPX1 reliable exact local-project connection
+
+[Issue #126](https://github.com/hynk-studio/augnes-perspective-lab/issues/126)
+defines LPX1. Its authorized implementation branch is
+`codex/lpx1-reliable-local-project-connection`, and its Draft PR title is
+**LPX1 — Add a verified folder-path fallback for local project connection**.
+While that Draft PR is open, LPX1 is Current. It preserves **Choose a folder**
+as the primary path and adds a visible **Enter the folder path instead** route.
+Both sources keep their origin, converge on one exact review, and reuse the
+canonical onboarding transaction after one Browser-only pre-project
+confirmation. Connecting does not run Codex or change project files.
+
 ## Next separately authorized work
+
+LPX2 local-project recovery parity is Next and remains separately unauthorized.
+It must preserve the same declared-path, physical-identity, privacy, and
+confirmation boundaries for recovery without beginning implementation from
+LPX1. CUX8R follows LPX2 and is also separately unauthorized.
 
 CDX2B3B is the separately authorized future Windows managed-delegation runtime
 enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
 attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
 change the CDX2B2B Windows Start or CDX2B4B Windows Resume gates.
 
-Current-session attachment, automatic resume after controller loss, Linux
-product rollout, remote nodes, long-horizon continuation, policy-triggered
-continuous control, and multi-agent orchestration remain later and separate.
+PC6, C9, current-session attachment, automatic Resume after controller loss or
+Companion startup, Linux product rollout, remote nodes, long-horizon control,
+continuous policy execution, and multi-agent orchestration remain later and
+separate.
 
-## Integrated completed lifecycle
+## Integrated resume lifecycle
 
 ### CDX2B4A exact resume eligibility and durable checkpoints — Completed
 
@@ -460,8 +481,9 @@ No automatic-resume policy is authorized by CDX2B4B. A bounded automatic-resume
 policy, if pursued, is a later separately authorized phase. Current-session
 attachment, automatic resume after controller loss or Companion startup,
 Linux product rollout, remote nodes, long-horizon continuation,
-policy-triggered continuous control, and multi-agent orchestration remain later
-and separate. Windows enablement remains separately authorized under CDX2B3B.
+continuous policy execution, and multi-agent orchestration remain later and
+separate. PC6 and C9 remain separate. Windows enablement remains separately
+authorized under CDX2B3B.
 
 ## Pending C9
 
