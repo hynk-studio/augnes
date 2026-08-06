@@ -47,6 +47,7 @@
             "declared_path_existing_project_reopen",
             "declared_path_invalid_retained",
             "declared_path_keyboard_focus",
+            "declared_path_non_exact_refused_retained",
             "declared_path_public_copy",
             "declared_path_responsive_review",
             "declared_path_shared_review",
@@ -61,7 +62,8 @@
             "project_name_invalid_blocked",
             "project_name_long_korean_propagated",
             "project_name_onboarding_prefill_and_edit",
-            "project_name_stale_conflict_visible"
+            "project_name_stale_conflict_visible",
+            "stale_abandonment_new_session_preserved"
           ],
           "markers": [
             "declared_path_fallback_review_connect_and_existing_reopen",
@@ -136,6 +138,7 @@
           "declared_path_existing_project_reopen",
           "declared_path_invalid_retained",
           "declared_path_keyboard_focus",
+          "declared_path_non_exact_refused_retained",
           "declared_path_public_copy",
           "declared_path_responsive_review",
           "declared_path_shared_review",
@@ -170,6 +173,7 @@
           "proposal_review_narrow_viewport_no_overflow",
           "retired_routes_non_mutating",
           "shared_inspector_narrow_viewport_no_overflow",
+          "stale_abandonment_new_session_preserved",
           "workbench_compatibility_redirect",
           "workbench_result_narrow_viewport_no_overflow"
         ],

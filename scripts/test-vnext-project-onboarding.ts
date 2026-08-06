@@ -32,6 +32,7 @@ import {
   type LocalProjectMetadataFileReaderV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
 import {
+  abandonLocalProjectOnboardingSessionV01,
   confirmLocalProjectOnboardingFromBrowserSessionV01,
   issueLocalProjectOnboardingChallengeV01,
   issueLocalProjectOnboardingSessionV01,
@@ -47,6 +48,7 @@ import { VNEXT_PROJECT_LIFECYCLE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence
 import {
   authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
   fingerprintProjectRootBindingV01,
+  type RepositoryExecutionDependenciesV01,
 } from "../lib/vnext/repository-execution/repository-execution";
 import {
   consumeVNextLocalOperatorBootstrapV01,
@@ -70,11 +72,17 @@ const plainDefaultFolder = path.join(root, "Plain default project");
 const plainEditedFolder = path.join(root, "Plain edited folder");
 const invalidNameFolder = path.join(root, "Invalid name folder");
 const declaredUnicodeFolder = path.join(root, "선언 경로 Project ü");
+const abandonmentRaceFolderA = path.join(root, "Abandonment race A");
+const abandonmentRaceFolderB = path.join(root, "Abandonment race B");
+const ordinaryCancelFolder = path.join(root, "Ordinary cancel");
+const failedAbandonmentFolder = path.join(root, "Failed abandonment transport");
 mkdirSync(folderA); mkdirSync(folderB); mkdirSync(folderA2); mkdirSync(folderNoRemote);
 mkdirSync(worktreeFolder); mkdirSync(worktreeGitDir); mkdirSync(disappearingFolder);
 mkdirSync(staleFolder); mkdirSync(nullConflictFolder);
 mkdirSync(plainDefaultFolder); mkdirSync(plainEditedFolder); mkdirSync(invalidNameFolder);
-mkdirSync(declaredUnicodeFolder);
+mkdirSync(declaredUnicodeFolder); mkdirSync(abandonmentRaceFolderA);
+mkdirSync(abandonmentRaceFolderB); mkdirSync(ordinaryCancelFolder);
+mkdirSync(failedAbandonmentFolder);
 const originalEnvironment = { ...process.env };
 const MAX_GIT_METADATA_BYTES = 64 * 1024;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
@@ -342,6 +350,71 @@ try {
       credential: crossChallenge.credential,
     }, executeDecision),
     /onboarding_confirmation_conflict/,
+  );
+  const abandonmentBindingA = {
+    ...decisionBinding,
+    selection_token: "abandonment-candidate-a",
+  };
+  const abandonmentBindingB = {
+    ...decisionBinding,
+    selection_token: "abandonment-candidate-b",
+  };
+  const abandonmentSessionA = issueLocalProjectOnboardingSessionV01(
+    abandonmentBindingA,
+    {
+      create_session_id: () => "abandonment-session-a",
+      create_secret: (() => {
+        const values = ["abandonment-credential-a", "abandonment-nonce-a"];
+        return () => values.shift()!;
+      })(),
+    },
+  );
+  const abandonmentSessionB = issueLocalProjectOnboardingSessionV01(
+    abandonmentBindingB,
+    {
+      create_session_id: () => "abandonment-session-b",
+      create_secret: (() => {
+        const values = ["abandonment-credential-b", "abandonment-nonce-b"];
+        return () => values.shift()!;
+      })(),
+    },
+  );
+  assert.equal(
+    abandonLocalProjectOnboardingSessionV01(
+      abandonmentSessionB.credential,
+      abandonmentBindingA.selection_token,
+    ),
+    false,
+    "an older candidate token must not invalidate a newer credential",
+  );
+  const abandonmentChallengeB = issueLocalProjectOnboardingChallengeV01({
+    ...abandonmentBindingB,
+    display_name: "Abandonment candidate B",
+    credential: abandonmentSessionB.credential,
+  }, {
+    create_secret: (() => {
+      const values = ["abandonment-challenge-b", "abandonment-next-nonce-b"];
+      return () => values.shift()!;
+    })(),
+  });
+  assert.equal(
+    abandonLocalProjectOnboardingSessionV01(
+      abandonmentSessionA.credential,
+      abandonmentBindingA.selection_token,
+    ),
+    true,
+  );
+  assert.throws(() => issueLocalProjectOnboardingChallengeV01({
+    ...abandonmentBindingA,
+    display_name: "Abandonment candidate A",
+    credential: abandonmentSessionA.credential,
+  }), /onboarding_confirmation_invalid/);
+  assert.equal(
+    abandonLocalProjectOnboardingSessionV01(
+      abandonmentChallengeB.credential,
+      abandonmentBindingB.selection_token,
+    ),
+    true,
   );
   const failingSecrets = ["credential-c", "nonce-e", "challenge-c", "nonce-f"];
   const failingSession = issueLocalProjectOnboardingSessionV01({
@@ -638,6 +711,130 @@ try {
   process.env.AUGNES_CANONICAL_TEMP_ROOT = root;
   const open = () => { const db = new Database(dbPath); db.pragma("foreign_keys = ON"); applyCanonicalDatabaseMigrations(db); return db; };
   process.env.AUGNES_DB_PATH = dbPath;
+  const nonExactDbPath = path.join(root, "non-exact-preparation.db");
+  const openNonExact = () => {
+    const database = new Database(nonExactDbPath);
+    database.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(database);
+    return database;
+  };
+  async function assertNonExactPreparationRefused(
+    errorCode: "physical_identity_unsupported" | "physical_identity_ambiguous" | "physical_identity_unavailable",
+    token: string,
+    dependencies: RepositoryExecutionDependenciesV01,
+  ) {
+    await assert.rejects(
+      declareAndInspectLocalProjectV01(plainDefaultFolder, {
+        open_database: openNonExact,
+        create_token: () => token,
+        repository_execution_dependencies: dependencies,
+      }),
+      new RegExp(errorCode, "u"),
+    );
+    assert.throws(
+      () => readPreparedLocalProjectSelectionBindingV01(token),
+      /inspection_stale/,
+      `${errorCode} must not allocate a prepared selection`,
+    );
+    const refusalDb = openNonExact();
+    for (const table of [
+      "vnext_workspace_identities",
+      "vnext_project_identities",
+      "vnext_project_root_bindings",
+      "vnext_physical_root_baselines",
+      "vnext_recent_projects",
+      "vnext_active_project_selections",
+    ]) {
+      assert.equal(
+        (refusalDb.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count,
+        0,
+        `${errorCode} must not mutate ${table}`,
+      );
+    }
+    refusalDb.close();
+  }
+  await assertNonExactPreparationRefused(
+    "physical_identity_unsupported",
+    "unsupported-preparation-token",
+    { platform: "freebsd" },
+  );
+  await assertNonExactPreparationRefused(
+    "physical_identity_ambiguous",
+    "ambiguous-preparation-token",
+    {
+      platform: "darwin",
+      physical_identity_filesystem: {
+        async realpath(pathname) { return pathname; },
+        async stat() {
+          return { dev: 0, ino: 0, isDirectory: () => true };
+        },
+      },
+    },
+  );
+  await assertNonExactPreparationRefused(
+    "physical_identity_unavailable",
+    "unavailable-preparation-token",
+    {
+      platform: "darwin",
+      physical_identity_filesystem: {
+        async realpath() { throw new Error("identity unavailable"); },
+        async stat() { throw new Error("identity unavailable"); },
+      },
+    },
+  );
+  assert.equal(
+    projectFolderSelectionErrorMessageV01("physical_identity_unsupported").text,
+    "That folder is on an unsupported filesystem or location.",
+  );
+  assert.equal(
+    projectFolderSelectionErrorMessageV01("physical_identity_ambiguous").text,
+    "Augnes cannot determine one exact local folder for that path.",
+  );
+  assert.equal(
+    projectFolderSelectionErrorMessageV01("physical_identity_unavailable").text,
+    "Augnes could not verify that folder at this time. Try again.",
+  );
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = plainDefaultFolder;
+  await assert.rejects(
+    pickAndInspectLocalProjectV01({
+      open_database: openNonExact,
+      create_token: () => "native-picker-unsupported-token",
+      repository_execution_dependencies: { platform: "freebsd" },
+    }),
+    /physical_identity_unsupported/,
+  );
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      "native-picker-unsupported-token",
+    ),
+    /inspection_stale/,
+    "the native picker shares the exact-identity preparation invariant",
+  );
+  const exactWindowsSelection = await declareAndInspectLocalProjectV01(
+    plainDefaultFolder,
+    {
+      open_database: openNonExact,
+      create_token: () => "exact-windows-preparation-token",
+      repository_execution_dependencies: {
+        platform: "win32",
+        architecture: "x64",
+        windows_physical_identity: async (pathname) => ({
+          identity_version: "physical_root_identity.windows.v0.1",
+          canonical_final_path_fingerprint: `sha256:${(
+            pathname === plainDefaultFolder ? "a" : "b"
+          ).repeat(64)}`,
+          volume_serial_identity: "0000000000000001",
+          file_id: pathname === plainDefaultFolder
+            ? "00000000000000000000000000000001"
+            : "00000000000000000000000000000002",
+          filesystem_family: "NTFS",
+          drive_type: "fixed",
+        }),
+      },
+    },
+  );
+  assert.equal(exactWindowsSelection.inspection.physical_identity_status, "exact");
+  abandonPreparedLocalProjectSelectionV01(exactWindowsSelection.selection_token);
   const declaredOriginCandidate = await declareAndInspectLocalProjectV01(
     plainDefaultFolder,
     { open_database: open, create_token: () => "declared-origin-candidate" },
@@ -831,6 +1028,233 @@ try {
   assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_physical_root_baselines").get() as { count: number }).count, 1);
   assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_active_project_selections").get() as { count: number }).count, 1);
   declaredDbAfterConfirmation.close();
+
+  const abandonmentRaceDbPath = path.join(root, "abandonment-race.db");
+  process.env.AUGNES_DB_PATH = abandonmentRaceDbPath;
+  const ordinaryCancelResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "declare_path",
+    path: ordinaryCancelFolder,
+  })));
+  assert.equal(ordinaryCancelResponse.status, 200);
+  const ordinaryCancelCookie = ordinaryCancelResponse.headers.get("set-cookie")?.split(";")[0];
+  assert(ordinaryCancelCookie);
+  const ordinaryCancelPayload = await ordinaryCancelResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof declareAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  const ordinaryAbandonBody = JSON.stringify({
+    action: "abandon_selection",
+    selection_token: ordinaryCancelPayload.picker.selection_token,
+  });
+  const ordinaryAbandonResponse = await projectRoutePost(routeRequest(
+    ordinaryAbandonBody,
+    { cookie: ordinaryCancelCookie },
+  ));
+  assert.equal(ordinaryAbandonResponse.status, 200);
+  assert.equal(ordinaryAbandonResponse.headers.get("set-cookie"), null);
+  const repeatedAbandonResponse = await projectRoutePost(routeRequest(
+    ordinaryAbandonBody,
+    { cookie: ordinaryCancelCookie },
+  ));
+  assert.equal(repeatedAbandonResponse.status, 200);
+  assert.equal(repeatedAbandonResponse.headers.get("set-cookie"), null);
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      ordinaryCancelPayload.picker.selection_token,
+    ),
+    /inspection_stale/,
+  );
+  assert.throws(() => issueLocalProjectOnboardingChallengeV01({
+    selection_token: ordinaryCancelPayload.picker.selection_token,
+    inspection_fingerprint:
+      ordinaryCancelPayload.picker.inspection.inspection_fingerprint,
+    expected_active_project_id: null,
+    expected_active_selection_revision: null,
+    display_name: "Ordinary cancel",
+    credential: readLocalProjectOnboardingCredentialFromRequestV01(
+      routeRequest(undefined, { cookie: ordinaryCancelCookie }),
+    ),
+  }), /onboarding_confirmation_invalid/);
+
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = abandonmentRaceFolderA;
+  const pickerAfterCancelResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({ action: "choose_folder" }),
+  ));
+  assert.equal(pickerAfterCancelResponse.status, 200);
+  const pickerAfterCancelPayload = await pickerAfterCancelResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof pickAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  assert.equal(pickerAfterCancelPayload.picker.selection_origin, "native_picker");
+  const pickerAfterCancelAbandonResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "abandon_selection",
+      selection_token: pickerAfterCancelPayload.picker.selection_token,
+    }),
+  ));
+  assert.equal(pickerAfterCancelAbandonResponse.status, 200);
+  assert.equal(pickerAfterCancelAbandonResponse.headers.get("set-cookie"), null);
+
+  const abandonmentAResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "declare_path",
+    path: abandonmentRaceFolderA,
+  })));
+  assert.equal(abandonmentAResponse.status, 200);
+  const abandonmentACookie = abandonmentAResponse.headers.get("set-cookie")?.split(";")[0];
+  assert(abandonmentACookie);
+  const abandonmentAPayload = await abandonmentAResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof declareAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  const abandonmentBodyBytes = new TextEncoder().encode(JSON.stringify({
+    action: "abandon_selection",
+    selection_token: abandonmentAPayload.picker.selection_token,
+  }));
+  let releaseAbandonmentResponse!: () => void;
+  let abandonmentRequestBodyClosed = false;
+  const delayedAbandonmentBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      releaseAbandonmentResponse = () => {
+        controller.enqueue(abandonmentBodyBytes);
+        controller.close();
+        abandonmentRequestBodyClosed = true;
+      };
+    },
+  });
+  const delayedAbandonmentResponsePromise = projectRoutePost(routeRequest(
+    delayedAbandonmentBody,
+    { cookie: abandonmentACookie },
+  ));
+  const abandonmentBResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "declare_path",
+    path: abandonmentRaceFolderB,
+  })));
+  assert.equal(abandonmentBResponse.status, 200);
+  const abandonmentBCookie = abandonmentBResponse.headers.get("set-cookie")?.split(";")[0];
+  assert(abandonmentBCookie);
+  const abandonmentBPayload = await abandonmentBResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof declareAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  releaseAbandonmentResponse();
+  const delayedAbandonmentResponse = await delayedAbandonmentResponsePromise;
+  assert.equal(delayedAbandonmentResponse.status, 200);
+  assert.equal(abandonmentRequestBodyClosed, true);
+  const staleAbandonmentSetCookie = delayedAbandonmentResponse.headers.get("set-cookie");
+  const currentOnboardingCookie = staleAbandonmentSetCookie
+    ? staleAbandonmentSetCookie.split(";")[0]
+    : abandonmentBCookie;
+  assert.equal(staleAbandonmentSetCookie, null);
+  assert.equal(
+    currentOnboardingCookie,
+    abandonmentBCookie,
+    "a delayed abandonment response must not overwrite the newer cookie",
+  );
+  assert.throws(() => issueLocalProjectOnboardingChallengeV01({
+    selection_token: abandonmentAPayload.picker.selection_token,
+    inspection_fingerprint:
+      abandonmentAPayload.picker.inspection.inspection_fingerprint,
+    expected_active_project_id: null,
+    expected_active_selection_revision: null,
+    display_name: "Abandonment race A",
+    credential: readLocalProjectOnboardingCredentialFromRequestV01(
+      routeRequest(undefined, { cookie: abandonmentACookie }),
+    ),
+  }), /onboarding_confirmation_invalid/);
+  const abandonmentBConfirmationRequest = {
+    selection_token: abandonmentBPayload.picker.selection_token,
+    inspection_fingerprint:
+      abandonmentBPayload.picker.inspection.inspection_fingerprint,
+    display_name: "Abandonment race B",
+  };
+  const preparedAbandonmentBResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "prepare_onboarding_confirmation",
+      ...abandonmentBConfirmationRequest,
+    }),
+    { ...browserConfirmationHeaders, cookie: currentOnboardingCookie },
+  ));
+  assert.equal(preparedAbandonmentBResponse.status, 200);
+  const preparedAbandonmentBCookie = preparedAbandonmentBResponse.headers
+    .get("set-cookie")?.split(";")[0];
+  assert(preparedAbandonmentBCookie);
+  const preparedAbandonmentBPayload = await preparedAbandonmentBResponse.json() as {
+    confirmation: { challenge_fingerprint: string };
+  };
+  const confirmedAbandonmentBResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "confirm_declared_path",
+      ...abandonmentBConfirmationRequest,
+      challenge_fingerprint:
+        preparedAbandonmentBPayload.confirmation.challenge_fingerprint,
+    }),
+    { ...browserConfirmationHeaders, cookie: preparedAbandonmentBCookie },
+  ));
+  assert.equal(confirmedAbandonmentBResponse.status, 200);
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      abandonmentAPayload.picker.selection_token,
+    ),
+    /inspection_stale/,
+  );
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      abandonmentBPayload.picker.selection_token,
+    ),
+    /inspection_stale/,
+  );
+  const abandonmentRaceDb = new Database(abandonmentRaceDbPath);
+  for (const [table, expected] of [
+    ["vnext_workspace_identities", 1],
+    ["vnext_project_identities", 1],
+    ["vnext_project_root_bindings", 1],
+    ["vnext_physical_root_baselines", 1],
+    ["vnext_recent_projects", 1],
+    ["vnext_active_project_selections", 1],
+  ] as const) {
+    assert.equal(
+      (abandonmentRaceDb.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count,
+      expected,
+      `abandonment race must leave exactly ${expected} row in ${table}`,
+    );
+  }
+  abandonmentRaceDb.close();
+
+  const failedAbandonmentResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "declare_path",
+    path: failedAbandonmentFolder,
+  })));
+  assert.equal(failedAbandonmentResponse.status, 200);
+  const failedAbandonmentCookie = failedAbandonmentResponse.headers.get("set-cookie")?.split(";")[0];
+  assert(failedAbandonmentCookie);
+  const failedAbandonmentPayload = await failedAbandonmentResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof declareAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  const failedTransportRequest = routeRequest(
+    new ReadableStream<Uint8Array>({
+      start(controller) { controller.error(new Error("abandonment transport failed")); },
+    }),
+    { cookie: failedAbandonmentCookie },
+  );
+  const failedTransportResponse = await projectRoutePost(failedTransportRequest);
+  assert.notEqual(failedTransportResponse.status, 200);
+  const afterFailedTransportDb = new Database(abandonmentRaceDbPath);
+  assert.equal(
+    (afterFailedTransportDb.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count,
+    1,
+    "a failed abandonment transport must not create or confirm a project",
+  );
+  afterFailedTransportDb.close();
+  const cleanupFailedAbandonmentResponse = await projectRoutePost(routeRequest(
+    JSON.stringify({
+      action: "abandon_selection",
+      selection_token: failedAbandonmentPayload.picker.selection_token,
+    }),
+    { cookie: failedAbandonmentCookie },
+  ));
+  assert.equal(cleanupFailedAbandonmentResponse.status, 200);
+  assert.throws(
+    () => readPreparedLocalProjectSelectionBindingV01(
+      failedAbandonmentPayload.picker.selection_token,
+    ),
+    /inspection_stale/,
+  );
 
   process.env.AUGNES_DB_PATH = dbPath;
   process.env.AUGNES_TEST_FOLDER_PICKER_PATH = substantiallyOversizedRoot;
@@ -1331,7 +1755,7 @@ try {
   assert.deepEqual(artifactSql(runtimeSchema), artifactSql(canonicalSchema));
   runtimeSchema.close(); migrationSchema.close(); canonicalSchema.close();
 
-  console.log(JSON.stringify({ status: "pass", declared_path_parser_bounded_and_literal: true, declared_path_platform_boundaries: true, prepared_selection_origins_distinct: true, pre_project_browser_cookie_and_challenge: true, old_nonce_and_cross_candidate_replay_refused: true, concurrent_confirmation_executions: 1, exact_successful_transport_replay: true, failed_confirmation_requires_fresh_material: true, process_local_candidate_loss_refused: true, declared_path_zero_mutation_before_confirmation: true, physical_alias_preserves_canonical_root: true, picker_abort_listener_residue: 0, picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
+  console.log(JSON.stringify({ status: "pass", declared_path_parser_bounded_and_literal: true, declared_path_platform_boundaries: true, prepared_selection_origins_distinct: true, non_exact_preparation_refused_before_candidate_or_session: true, shared_picker_and_declared_path_exact_identity_gate: true, pre_project_browser_cookie_and_challenge: true, stale_abandonment_response_cannot_clear_newer_session: true, ordinary_repeated_and_cross_mode_cancel: true, failed_abandonment_transport_zero_authority: true, old_nonce_and_cross_candidate_replay_refused: true, concurrent_confirmation_executions: 1, exact_successful_transport_replay: true, failed_confirmation_requires_fresh_material: true, process_local_candidate_loss_refused: true, declared_path_zero_mutation_before_confirmation: true, physical_alias_preserves_canonical_root: true, picker_abort_listener_residue: 0, picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
 } finally {
   process.env = originalEnvironment;
   rmSync(root, { recursive: true, force: true });

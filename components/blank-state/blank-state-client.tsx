@@ -251,6 +251,10 @@ export function BlankStateClient({
                         ? "That path points to a file, not a folder."
                         : code === "physical_identity_unsupported"
                           ? "That folder is on an unsupported filesystem or location."
+                          : code === "physical_identity_ambiguous"
+                            ? "Augnes cannot determine one exact local folder for that path."
+                            : code === "physical_identity_unavailable"
+                              ? "Augnes could not verify that folder at this time. Try again."
                           : "That folder could not be reviewed. Check the path and try again.",
       ));
     } finally {

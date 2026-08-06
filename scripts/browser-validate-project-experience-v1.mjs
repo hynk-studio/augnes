@@ -160,6 +160,7 @@ const result = {
   folder_picker_cancelled_usable: false,
   picker_pending_path_switch: false,
   declared_path_invalid_retained: false,
+  declared_path_non_exact_refused_retained: false,
   declared_path_shared_review: false,
   declared_path_keyboard_focus: false,
   declared_path_responsive_review: false,
@@ -171,6 +172,7 @@ const result = {
   project_name_onboarding_prefill_and_edit: false,
   project_name_invalid_blocked: false,
   project_name_stale_conflict_visible: false,
+  stale_abandonment_new_session_preserved: false,
   project_name_long_korean_propagated: false,
   project_context_opens_settings: false,
   folder_onboarding_restart_reopen: false,
@@ -600,6 +602,43 @@ async function main() {
     );
     result.declared_path_invalid_retained = true;
     completeDetailedField("declared_path_invalid_retained");
+    const nonExactRequestOffset = requests.length;
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      "/dev",
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    const nonExactResponse = await waitForObservedResponse(
+      "/api/vnext/projects",
+      "POST",
+      nonExactRequestOffset,
+    );
+    assert.equal(nonExactResponse.status, 422);
+    const nonExactResponseBody = JSON.parse((await cdp.send(
+      "Network.getResponseBody",
+      { requestId: nonExactResponse.request_id },
+    )).body);
+    assert.equal(nonExactResponseBody.error_code, "physical_identity_ambiguous");
+    assert.equal(
+      /(fingerprint|node scope|physical id|cookie|nonce|credential)/iu.test(
+        JSON.stringify(nonExactResponseBody),
+      ),
+      false,
+    );
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-declared-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-inspection') === null && document.querySelector('[data-blank-state-primary-action="confirm_folder"]') === null`,
+      "non-exact declared path remains editable without review",
+    );
+    const nonExactCookies = await cdp.send("Network.getAllCookies");
+    assert.equal(
+      nonExactCookies.cookies.some(
+        (cookie) => cookie.name === "augnes_local_project_onboarding_v01",
+      ),
+      false,
+      "non-exact preparation must not issue an onboarding session cookie",
+    );
+    result.declared_path_non_exact_refused_retained = true;
+    completeDetailedField("declared_path_non_exact_refused_retained");
     await setFormControlValue(
       'input[name="local-project-declared-path"]',
       onboardingFolder,
@@ -641,6 +680,70 @@ async function main() {
     await validateDeclaredPathReviewViewports();
     result.declared_path_responsive_review = true;
     completeDetailedField("declared_path_responsive_review");
+    const retainedNameAfterCancel = "Retained through immediate cancel";
+    await setFormControlValue(
+      'input[name="project-display-name"]',
+      retainedNameAfterCancel,
+    );
+    await clickButtonByText("Cancel", ".project-inspection");
+    await waitForCondition(
+      `document.querySelector('.project-inspection') === null && Array.from(document.querySelectorAll('#project-management button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
+      "cancelled review returns to connection entry",
+    );
+    await clickButtonByText("Enter the folder path instead", "#project-management");
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-declared-path"]') === document.activeElement && document.querySelector('input[name="local-project-declared-path"]')?.value === ${JSON.stringify(onboardingFolder)}`,
+      "cancelled review preserves declared path",
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="project-display-name"]')?.value === ${JSON.stringify(retainedNameAfterCancel)}`,
+      "new review survives prior abandonment response",
+    );
+    await waitForRequestQuiet();
+    const cancelRaceCookies = await cdp.send("Network.getAllCookies");
+    const currentOnboardingCookie = cancelRaceCookies.cookies.find(
+      (cookie) =>
+        cookie.name === "augnes_local_project_onboarding_v01" &&
+        cookie.path === "/api/vnext/projects" &&
+        cookie.httpOnly === true &&
+        cookie.sameSite === "Strict",
+    );
+    assert(
+      currentOnboardingCookie,
+      "the newer onboarding session must remain after the prior abandonment settles",
+    );
+    assert.equal(
+      serverLog.includes(currentOnboardingCookie.value),
+      false,
+      "onboarding credentials must remain absent from ordinary logs",
+    );
+    result.stale_abandonment_new_session_preserved = true;
+    completeDetailedField("stale_abandonment_new_session_preserved");
+    await clickButtonByText("Cancel", ".project-inspection");
+    await waitForCondition(
+      `document.querySelector('.project-inspection') === null && Array.from(document.querySelectorAll('#project-management button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
+      "second cancelled review returns to connection entry",
+    );
+    await clickButtonByText("Enter the folder path instead", "#project-management");
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      "/dev",
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-declared-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-inspection') === null`,
+      "non-exact retry retains path after named review",
+    );
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      onboardingFolder,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="project-display-name"]')?.value === ${JSON.stringify(retainedNameAfterCancel)}`,
+      "non-exact refusal preserves the entered project name",
+    );
     await setFormControlValue('input[name="project-display-name"]', "");
     await waitForCondition(
       `document.querySelector('[data-blank-state-primary-action="confirm_folder"]')?.disabled === true && document.body.textContent.includes('Enter a project name.')`,

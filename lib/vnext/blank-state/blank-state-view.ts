@@ -96,6 +96,21 @@ export function projectFolderSelectionErrorMessageV01(
         tone: "error",
         text: "Augnes could not inspect the selected folder. Nothing was changed; try again or choose another folder.",
       };
+    case "physical_identity_unsupported":
+      return {
+        tone: "error",
+        text: "That folder is on an unsupported filesystem or location.",
+      };
+    case "physical_identity_ambiguous":
+      return {
+        tone: "error",
+        text: "Augnes cannot determine one exact local folder for that path.",
+      };
+    case "physical_identity_unavailable":
+      return {
+        tone: "error",
+        text: "Augnes could not verify that folder at this time. Try again.",
+      };
     case "selection_invalid":
     case "selection_tampered":
       return {

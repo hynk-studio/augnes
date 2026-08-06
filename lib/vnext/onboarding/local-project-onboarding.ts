@@ -555,6 +555,7 @@ async function prepareLocalProjectSelectionV01(
       db,
       ...(workspace ? { workspace_id: workspace.workspace_id } : {}),
     });
+    assertExactPreparedPhysicalIdentityV01(inspection);
     const active = workspace
       ? readActiveProjectSelectionV01(db, workspace.workspace_id)
       : null;
@@ -587,6 +588,20 @@ async function prepareLocalProjectSelectionV01(
       inspection,
     };
   } finally { db.close(); }
+}
+
+function assertExactPreparedPhysicalIdentityV01(
+  inspection: LocalProjectInspectionV01,
+): void {
+  if (inspection.physical_identity_status === "exact") return;
+  throw new ProjectOnboardingErrorV01(
+    inspection.physical_identity_status === "identity_unsupported"
+      ? "physical_identity_unsupported"
+      : inspection.physical_identity_status === "identity_ambiguous"
+        ? "physical_identity_ambiguous"
+        : "physical_identity_unavailable",
+    422,
+  );
 }
 
 export function readPreparedLocalProjectSelectionBindingV01(

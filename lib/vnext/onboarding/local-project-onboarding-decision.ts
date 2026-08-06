@@ -31,6 +31,7 @@ type ConfirmationTransportBindingV01 = {
 type DecisionSessionV01 = {
   credential_hash: string;
   nonce_hash: string;
+  selection_token_hash: string;
   candidate_binding_fingerprint: string;
   confirmation_binding_fingerprint: string | null;
   expires_at_ms: number;
@@ -64,6 +65,7 @@ export function issueLocalProjectOnboardingSessionV01(
   sessions.set(hash(sessionId), {
     credential_hash: hash(credential),
     nonce_hash: hash(nonce),
+    selection_token_hash: hash(binding.selection_token),
     candidate_binding_fingerprint: fingerprintCandidateBinding(binding),
     confirmation_binding_fingerprint: null,
     expires_at_ms: nowMs + DECISION_TTL_MS,
@@ -173,8 +175,20 @@ export async function confirmLocalProjectOnboardingFromBrowserSessionV01(
 
 export function abandonLocalProjectOnboardingSessionV01(
   credential: LocalProjectOnboardingCredentialV01 | null,
-): void {
-  if (credential) sessions.delete(hash(credential.session_id));
+  selectionToken: string,
+): boolean {
+  if (!credential) return false;
+  const sessionKey = hash(credential.session_id);
+  const session = sessions.get(sessionKey);
+  if (
+    !session ||
+    session.credential_hash !== hash(credential.credential) ||
+    session.nonce_hash !== hash(credential.nonce) ||
+    session.selection_token_hash !== hash(selectionToken)
+  ) {
+    return false;
+  }
+  return sessions.delete(sessionKey);
 }
 
 export function readLocalProjectOnboardingCredentialFromRequestV01(
@@ -230,17 +244,6 @@ export function serializeLocalProjectOnboardingCookieV01(input: {
     "SameSite=Strict",
     `Max-Age=${maxAge}`,
     ...(input.secure ? ["Secure"] : []),
-  ].join("; ");
-}
-
-export function clearLocalProjectOnboardingCookieV01(secure: boolean): string {
-  return [
-    `${COOKIE_NAME}=`,
-    "Path=/api/vnext/projects",
-    "HttpOnly",
-    "SameSite=Strict",
-    "Max-Age=0",
-    ...(secure ? ["Secure"] : []),
   ].join("; ");
 }
 

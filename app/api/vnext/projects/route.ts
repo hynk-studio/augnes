@@ -18,7 +18,6 @@ import {
 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import {
   abandonLocalProjectOnboardingSessionV01,
-  clearLocalProjectOnboardingCookieV01,
   confirmLocalProjectOnboardingFromBrowserSessionV01,
   issueLocalProjectOnboardingChallengeV01,
   issueLocalProjectOnboardingSessionV01,
@@ -111,14 +110,8 @@ export async function POST(request: Request) {
           request,
         );
       } catch {}
-      abandonLocalProjectOnboardingSessionV01(credential);
-      return json(
-        { ok: true, abandoned: true },
-        200,
-        clearLocalProjectOnboardingCookieV01(
-          new URL(request.url).protocol === "https:",
-        ),
-      );
+      abandonLocalProjectOnboardingSessionV01(credential, selectionToken);
+      return json({ ok: true, abandoned: true });
     }
     db = openDatabase();
     if (body.action === "confirm") {
