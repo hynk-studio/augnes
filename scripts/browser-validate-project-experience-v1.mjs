@@ -72,7 +72,12 @@ const chromeProfileDir = path.join(tempRoot, "chrome-profile");
 const downloadDirectory = path.join(tempRoot, "downloads");
 const runtimeStateDirectory = path.join(tempRoot, "runtime-state");
 const disposableHome = path.join(tempRoot, "home");
-const onboardingFolder = path.join(tempRoot, "Project Experience Alpha");
+const onboardingFolder = path.join(
+  tempRoot,
+  "Project Experience Alpha with a deliberately long local folder name",
+  "이어지는 작업과 공백을 보존하는 폴더",
+  "Exact local repository",
+);
 const onboardingFolderB = path.join(tempRoot, "Project Experience Beta");
 const onboardingFolderBRecovered = path.join(
   tempRoot,
@@ -153,6 +158,13 @@ const result = {
   completed_detailed_field_fingerprint: null,
   semantic_markers: [],
   folder_picker_cancelled_usable: false,
+  picker_pending_path_switch: false,
+  declared_path_invalid_retained: false,
+  declared_path_shared_review: false,
+  declared_path_keyboard_focus: false,
+  declared_path_responsive_review: false,
+  declared_path_existing_project_reopen: false,
+  declared_path_public_copy: false,
   folder_onboarding_destination: null,
   project_context_repeat_activation: false,
   project_context_keyboard_activation: false,
@@ -439,12 +451,20 @@ async function main() {
   ]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
   }
+  mkdirSync(path.join(onboardingFolder, ".git"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  writeFileSync(
+    path.join(onboardingFolder, ".git", "config"),
+    "[core]\n  bare = false\n",
+    { encoding: "utf8", mode: 0o600 },
+  );
   writeFolderPickerSequence([
     { id: "cancelled-selection", outcome: "cancelled" },
     {
-      id: "project-alpha",
-      outcome: "selected",
-      absolute_path: onboardingFolder,
+      id: "pending-selection",
+      outcome: "pending_until_abort",
     },
     {
       id: "project-beta",
@@ -556,15 +576,71 @@ async function main() {
 
     await clickSelector('[data-blank-state-primary-action="choose_folder"]');
     await waitForCondition(
-      `document.querySelector('input[name="project-display-name"]')?.value === 'Project Experience Alpha'`,
-      "project name prefill",
+      `document.querySelector('[data-blank-state-primary-action="choose_folder"]')?.textContent?.includes('Waiting for folder picker') === true && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
+      "pending picker exposes path fallback",
+    );
+    await clickButtonByText("Enter the folder path instead");
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-declared-path"]') === document.activeElement`,
+      "path entry focus after pending picker abandonment",
+    );
+    result.picker_pending_path_switch = true;
+    completeDetailedField("picker_pending_path_switch");
+    result.declared_path_keyboard_focus = true;
+    completeDetailedField("declared_path_keyboard_focus");
+    const invalidDeclaredPath = path.join(tempRoot, "Folder that does not exist");
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      invalidDeclaredPath,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="local-project-declared-path"]')?.value === ${JSON.stringify(invalidDeclaredPath)} && document.body.textContent.includes('That folder could not be found. Check the path and try again.')`,
+      "invalid declared path remains editable",
+    );
+    result.declared_path_invalid_retained = true;
+    completeDetailedField("declared_path_invalid_retained");
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      onboardingFolder,
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const input = document.querySelector('input[name="local-project-declared-path"]');
+        if (!(input instanceof HTMLInputElement)) return false;
+        input.focus();
+        return document.activeElement === input;
+      })()`),
+      true,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `document.querySelector('input[name="project-display-name"]')?.value === 'Exact local repository'`,
+      "declared path shared review",
     );
     assert.equal(
       await evaluateBoolean(
-        `document.body.textContent.includes('The Augnes project name does not rename the local folder.') && document.body.textContent.includes(${JSON.stringify(onboardingFolder)})`,
+        `(() => {
+          const review = document.querySelector('.project-inspection');
+          const text = review?.textContent ?? '';
+          return text.includes('The Augnes project name does not rename the local folder.') &&
+            text.includes(${JSON.stringify(onboardingFolder)}) &&
+            text.includes('Git repository') &&
+            text.includes('No remote configured') &&
+            text.includes('Connecting this folder does not run Codex or change any files.') &&
+            review?.querySelectorAll('[data-augnes-primary-action]').length === 1 &&
+            !/(nonce|fingerprint|physical identity|database|CAS|token)/i.test(text);
+        })()`,
       ),
       true,
     );
+    result.declared_path_shared_review = true;
+    completeDetailedField("declared_path_shared_review");
+    result.declared_path_public_copy = true;
+    completeDetailedField("declared_path_public_copy");
+    await validateDeclaredPathReviewViewports();
+    result.declared_path_responsive_review = true;
+    completeDetailedField("declared_path_responsive_review");
     await setFormControlValue('input[name="project-display-name"]', "");
     await waitForCondition(
       `document.querySelector('[data-blank-state-primary-action="confirm_folder"]')?.disabled === true && document.body.textContent.includes('Enter a project name.')`,
@@ -739,6 +815,41 @@ async function main() {
       history.replaceState(null, '', location.pathname);
       return true;
     })()`);
+    await navigate(`${appOrigin}/projects`);
+    await waitForCondition(
+      `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
+      "existing project connection controls",
+    );
+    await clickButtonByText("Enter the folder path instead", "#project-management");
+    await setFormControlValue(
+      'input[name="local-project-declared-path"]',
+      onboardingFolder,
+    );
+    await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
+    await waitForCondition(
+      `Array.from(document.querySelectorAll('#project-management button')).some((button) => button.textContent?.trim() === 'Open project') && document.querySelector('#project-management')?.textContent?.includes('already connected') === true`,
+      "existing declared project review",
+    );
+    const beforeDeclaredReopen = await readRecentProjectsInBrowser();
+    assert.equal(beforeDeclaredReopen.recent_projects.length, 1);
+    await clickButtonByText("Open project", "#project-management");
+    await waitForCondition(
+      `location.hash === '' && (location.pathname.startsWith('/projects/project%3A') || location.pathname.startsWith('/projects/project:')) && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('details[data-blank-state-project-settings-recovery="true"]')?.open === false && document.querySelector('[data-project-context-label="Current project"]')?.textContent?.includes('Project Experience Alpha') === true`,
+      "existing declared project reopened",
+    );
+    const afterDeclaredReopen = await readRecentProjectsInBrowser();
+    assert.equal(afterDeclaredReopen.recent_projects.length, 1);
+    assert.equal(
+      afterDeclaredReopen.recent_projects[0].project.project_id,
+      projectAlphaId,
+    );
+    assert.equal(
+      afterDeclaredReopen.recent_projects[0].local_root.normalized_path,
+      onboardingFolder,
+      "an existing alias-free project must retain its canonical root",
+    );
+    result.declared_path_existing_project_reopen = true;
+    completeDetailedField("declared_path_existing_project_reopen");
     result.project_name_onboarding_prefill_and_edit = true;
     completeDetailedField("project_name_onboarding_prefill_and_edit");
 
@@ -842,6 +953,7 @@ async function main() {
     });
     await validateProductShellResponsive("/projects/[projectId]");
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
+    record("declared_path_fallback_review_connect_and_existing_reopen");
   });
 
   await runPhase("project_shell_and_locked_entry", async () => {
@@ -1039,7 +1151,7 @@ async function main() {
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
       "project management surface",
     );
-    await clickButtonByText("Choose another folder");
+    await clickSelector('[data-blank-state-primary-action="choose_folder"]');
     await waitForCondition(
       `document.querySelector('input[name="project-display-name"]')?.value === 'Project Experience Beta'`,
       "second project inspection",
@@ -1511,6 +1623,11 @@ async function main() {
     assert.deepEqual(unexpectedConsoleErrors, []);
     assert.deepEqual(unexpectedFailedRequests, []);
     assert.deepEqual(externalRequests, []);
+    assert.equal(
+      serverLog.includes(onboardingFolder),
+      false,
+      "the declared local path must not enter ordinary runtime logs",
+    );
     detailedFieldCompletionOwner.assertExact();
     assert.deepEqual(
       new Set(semanticMarkers),
@@ -2357,6 +2474,56 @@ async function validateFirstWorkComposerViewports() {
   await setViewport(1440, 1000);
 }
 
+async function validateDeclaredPathReviewViewports() {
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 1280, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await setViewport(width, height);
+    await waitForCondition(
+      `document.querySelector('.project-inspection') !== null && window.innerWidth === ${width}`,
+      "declared path responsive review",
+    );
+    const metrics = await evaluateJson(`(() => {
+      const management = document.querySelector('#project-management');
+      const review = management?.querySelector('.project-inspection');
+      const pathValue = review?.querySelector('.project-inspection-path');
+      const controls = Array.from(review?.querySelectorAll('button, input') ?? []);
+      const text = review?.textContent ?? '';
+      const inside = (element) => {
+        const rect = element?.getBoundingClientRect();
+        return Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1);
+      };
+      return {
+        document_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        management_overflow: (management?.scrollWidth ?? 0) > (management?.clientWidth ?? 0) + 1,
+        review_inside_viewport: inside(review),
+        path_inside_review: Boolean(pathValue) && (pathValue.scrollWidth ?? 0) <= (review?.scrollWidth ?? 0),
+        controls_minimum_size: controls.every((control) => {
+          const rect = control.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44;
+        }),
+        primary_action_count: review?.querySelectorAll('[data-augnes-primary-action]').length ?? -1,
+        long_path_visible: text.includes(${JSON.stringify(onboardingFolder)}),
+        public_copy_only: !/(nonce|fingerprint|physical identity|database|CAS|token)/i.test(text),
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      document_overflow: false,
+      management_overflow: false,
+      review_inside_viewport: true,
+      path_inside_review: true,
+      controls_minimum_size: true,
+      primary_action_count: 1,
+      long_path_visible: true,
+      public_copy_only: true,
+    });
+  }
+  await setViewport(1440, 1000);
+}
+
 async function validateProjectHomeViewports(state) {
   for (const { width, height } of [
     { width: 390, height: 844 },
@@ -2996,6 +3163,13 @@ function expectedStatusResponseIdentity(response) {
 }
 
 function expectedFailedRequest(entry) {
+  if (
+    entry.phase === "project_onboarding_and_naming" &&
+    entry.path === "/api/vnext/projects" &&
+    entry.error_text === "net::ERR_ABORTED"
+  ) {
+    return true;
+  }
   if (
     entry.path === "/_next/webpack-hmr" &&
     ["net::ERR_ABORTED", "net::ERR_CONNECTION_REFUSED"].includes(

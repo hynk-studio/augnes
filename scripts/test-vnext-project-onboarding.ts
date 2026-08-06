@@ -14,13 +14,16 @@ import {
 } from "../lib/vnext/blank-state/blank-state-view";
 import {
   chooseLocalProjectFolderV01,
+  abandonPreparedLocalProjectSelectionV01,
   confirmLocalProjectOnboardingV01,
+  declareAndInspectLocalProjectV01,
   inspectLocalProjectRootV01,
   listRecentProjectsV01,
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
   readProjectDestinationV01,
+  readPreparedLocalProjectSelectionBindingV01,
   readRootAvailabilityV01,
   rebindLocalProjectRootFromSelectionV01,
   renameActiveProjectDisplayNameV01,
@@ -28,6 +31,17 @@ import {
   sanitizeRepositoryRemoteV01,
   type LocalProjectMetadataFileReaderV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
+import {
+  confirmLocalProjectOnboardingFromBrowserSessionV01,
+  issueLocalProjectOnboardingChallengeV01,
+  issueLocalProjectOnboardingSessionV01,
+  readLocalProjectOnboardingCredentialFromRequestV01,
+  serializeLocalProjectOnboardingCookieV01,
+} from "../lib/vnext/onboarding/local-project-onboarding-decision";
+import {
+  LOCAL_PROJECT_DECLARED_PATH_MAX_BYTES_V01,
+  parseLocalProjectPathDeclarationV01,
+} from "../lib/vnext/onboarding/local-project-path-declaration";
 import { getOrCreateDefaultWorkspaceIdentityV01, VNEXT_PROJECT_IDENTITY_REGISTRY_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-identity-registry";
 import { VNEXT_PROJECT_LIFECYCLE_SCHEMA_SQL_V01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
@@ -55,10 +69,12 @@ const nullConflictFolder = path.join(root, "Null conflict project D");
 const plainDefaultFolder = path.join(root, "Plain default project");
 const plainEditedFolder = path.join(root, "Plain edited folder");
 const invalidNameFolder = path.join(root, "Invalid name folder");
+const declaredUnicodeFolder = path.join(root, "선언 경로 Project ü");
 mkdirSync(folderA); mkdirSync(folderB); mkdirSync(folderA2); mkdirSync(folderNoRemote);
 mkdirSync(worktreeFolder); mkdirSync(worktreeGitDir); mkdirSync(disappearingFolder);
 mkdirSync(staleFolder); mkdirSync(nullConflictFolder);
 mkdirSync(plainDefaultFolder); mkdirSync(plainEditedFolder); mkdirSync(invalidNameFolder);
+mkdirSync(declaredUnicodeFolder);
 const originalEnvironment = { ...process.env };
 const MAX_GIT_METADATA_BYTES = 64 * 1024;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
@@ -176,6 +192,193 @@ async function rebindWithBrowserDecisionV01(
 
 async function main() {
 try {
+  assert.deepEqual(
+    parseLocalProjectPathDeclarationV01(declaredUnicodeFolder, {
+      platform: "darwin",
+    }),
+    {
+      declaration_version: "local_project_path_declaration.v0.1",
+      absolute_path: declaredUnicodeFolder,
+      path_flavor: "posix",
+    },
+  );
+  const literalShellPath = "/tmp/$HOME/$(touch should-not-run)-[glob]*";
+  assert.equal(
+    parseLocalProjectPathDeclarationV01(literalShellPath, {
+      platform: "darwin",
+    }).absolute_path,
+    literalShellPath,
+  );
+  assert.throws(() => parseLocalProjectPathDeclarationV01("", { platform: "darwin" }), /path_declaration_empty/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("   ", { platform: "darwin" }), /path_declaration_relative/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("relative/project", { platform: "darwin" }), /path_declaration_relative/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("~/project", { platform: "darwin" }), /path_declaration_relative/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("$HOME/project", { platform: "darwin" }), /path_declaration_relative/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("https://example.test/project", { platform: "darwin" }), /path_declaration_url/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("file:///tmp/project", { platform: "darwin" }), /path_declaration_url/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("/tmp/project\0name", { platform: "darwin" }), /path_declaration_control_character/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("/tmp/project\u007fname", { platform: "darwin" }), /path_declaration_control_character/);
+  const exactDeclaredPathLimit = `/${"경".repeat(Math.floor((LOCAL_PROJECT_DECLARED_PATH_MAX_BYTES_V01 - 1) / 3))}${"x".repeat((LOCAL_PROJECT_DECLARED_PATH_MAX_BYTES_V01 - 1) % 3)}`;
+  assert.equal(Buffer.byteLength(exactDeclaredPathLimit), LOCAL_PROJECT_DECLARED_PATH_MAX_BYTES_V01);
+  assert.equal(parseLocalProjectPathDeclarationV01(exactDeclaredPathLimit, { platform: "darwin" }).absolute_path, exactDeclaredPathLimit);
+  assert.throws(() => parseLocalProjectPathDeclarationV01(`${exactDeclaredPathLimit}x`, { platform: "darwin" }), /path_declaration_too_large/);
+  assert.equal(
+    parseLocalProjectPathDeclarationV01("C:\\Users\\Augnes Project\\이어짐", { platform: "win32" }).path_flavor,
+    "windows",
+  );
+  assert.equal(
+    parseLocalProjectPathDeclarationV01("\\\\?\\C:\\Users\\Augnes\\Long path", { platform: "win32" }).absolute_path,
+    "\\\\?\\C:\\Users\\Augnes\\Long path",
+  );
+  assert.throws(() => parseLocalProjectPathDeclarationV01("\\\\server\\share\\project", { platform: "win32" }), /path_declaration_unsupported/);
+  assert.throws(() => parseLocalProjectPathDeclarationV01("/tmp/project", { platform: "linux" }), /path_declaration_unsupported/);
+
+  const decisionBinding = {
+    selection_token: "declared-candidate-a",
+    inspection_fingerprint: `sha256:${"1".repeat(64)}`,
+    expected_active_project_id: null,
+    expected_active_selection_revision: null,
+  };
+  const secretValues = ["credential-a", "nonce-a", "challenge-a", "nonce-b"];
+  const issuedSession = issueLocalProjectOnboardingSessionV01(
+    decisionBinding,
+    { create_session_id: () => "session-a", create_secret: () => secretValues.shift()! },
+  );
+  const initialCookie = serializeLocalProjectOnboardingCookieV01({
+    credential: issuedSession.credential,
+    expires_at: issuedSession.expires_at,
+    secure: false,
+  });
+  assert.match(initialCookie, /HttpOnly/u);
+  assert.match(initialCookie, /SameSite=Strict/u);
+  const parsedCredential = readLocalProjectOnboardingCredentialFromRequestV01(
+    new Request("http://127.0.0.1/api/vnext/projects", {
+      headers: { cookie: initialCookie.split(";")[0] },
+    }),
+  );
+  assert.deepEqual(parsedCredential, issuedSession.credential);
+  const challenged = issueLocalProjectOnboardingChallengeV01({
+    ...decisionBinding,
+    display_name: "이어지는 프로젝트",
+    credential: issuedSession.credential,
+  }, { create_secret: () => secretValues.shift()! });
+  assert.throws(() => issueLocalProjectOnboardingChallengeV01({
+    ...decisionBinding,
+    display_name: "이어지는 프로젝트",
+    credential: issuedSession.credential,
+  }), /onboarding_confirmation_invalid|onboarding_confirmation_conflict/);
+  const decisionResult = {
+    status: "created" as const,
+    project: {
+      project_identity_version: "project_identity.v0.1" as const,
+      identity_kind: "canonical" as const,
+      identity_source: "canonical_registry" as const,
+      workspace_id: "workspace:decision-test",
+      project_id: "project:decision-test",
+      display_name: "이어지는 프로젝트",
+      created_at: "2026-08-06T00:00:00.000Z",
+    },
+    destination: "/projects/project%3Adecision-test",
+  };
+  let releaseDecision!: (value: typeof decisionResult) => void;
+  let decisionExecutions = 0;
+  const executeDecision = () => {
+    decisionExecutions += 1;
+    return new Promise<typeof decisionResult>((resolve) => {
+      releaseDecision = resolve;
+    });
+  };
+  const confirmationInput = {
+    selection_token: decisionBinding.selection_token,
+    inspection_fingerprint: decisionBinding.inspection_fingerprint,
+    display_name: "이어지는 프로젝트",
+    challenge_fingerprint: challenged.confirmation.challenge_fingerprint,
+    credential: challenged.credential,
+  };
+  const concurrentA = confirmLocalProjectOnboardingFromBrowserSessionV01(
+    confirmationInput,
+    executeDecision,
+  );
+  const concurrentB = confirmLocalProjectOnboardingFromBrowserSessionV01(
+    confirmationInput,
+    executeDecision,
+  );
+  assert.equal(decisionExecutions, 1);
+  releaseDecision(decisionResult);
+  assert.deepEqual(await concurrentA, decisionResult);
+  assert.deepEqual(await concurrentB, decisionResult);
+  assert.deepEqual(
+    await confirmLocalProjectOnboardingFromBrowserSessionV01(
+      confirmationInput,
+      executeDecision,
+    ),
+    decisionResult,
+  );
+  assert.equal(decisionExecutions, 1, "exact successful replay must not execute onboarding twice");
+  await assert.rejects(
+    confirmLocalProjectOnboardingFromBrowserSessionV01(
+      { ...confirmationInput, display_name: "changed after challenge" },
+      executeDecision,
+    ),
+    /onboarding_confirmation_conflict/,
+  );
+  const crossSecrets = ["credential-b", "nonce-c", "challenge-b", "nonce-d"];
+  const crossSession = issueLocalProjectOnboardingSessionV01({
+    ...decisionBinding,
+    selection_token: "declared-candidate-b",
+  }, {
+    create_session_id: () => "session-b",
+    create_secret: () => crossSecrets.shift()!,
+  });
+  const crossChallenge = issueLocalProjectOnboardingChallengeV01({
+    ...decisionBinding,
+    selection_token: "declared-candidate-b",
+    display_name: "Second project",
+    credential: crossSession.credential,
+  }, { create_secret: () => crossSecrets.shift()! });
+  await assert.rejects(
+    confirmLocalProjectOnboardingFromBrowserSessionV01({
+      ...confirmationInput,
+      credential: crossChallenge.credential,
+    }, executeDecision),
+    /onboarding_confirmation_conflict/,
+  );
+  const failingSecrets = ["credential-c", "nonce-e", "challenge-c", "nonce-f"];
+  const failingSession = issueLocalProjectOnboardingSessionV01({
+    ...decisionBinding,
+    selection_token: "declared-candidate-c",
+  }, {
+    create_session_id: () => "session-c",
+    create_secret: () => failingSecrets.shift()!,
+  });
+  const failingChallenge = issueLocalProjectOnboardingChallengeV01({
+    ...decisionBinding,
+    selection_token: "declared-candidate-c",
+    display_name: "Invalid project",
+    credential: failingSession.credential,
+  }, { create_secret: () => failingSecrets.shift()! });
+  const failingInput = {
+    selection_token: "declared-candidate-c",
+    inspection_fingerprint: decisionBinding.inspection_fingerprint,
+    display_name: "Invalid project",
+    challenge_fingerprint: failingChallenge.confirmation.challenge_fingerprint,
+    credential: failingChallenge.credential,
+  };
+  await assert.rejects(
+    confirmLocalProjectOnboardingFromBrowserSessionV01(
+      failingInput,
+      async () => { throw new Error("validation_failed"); },
+    ),
+    /validation_failed/,
+  );
+  await assert.rejects(
+    confirmLocalProjectOnboardingFromBrowserSessionV01(
+      failingInput,
+      async () => decisionResult,
+    ),
+    /onboarding_confirmation_invalid/,
+  );
+
   const commands: Array<{ command: string; args: readonly string[] }> = [];
   const selected = await chooseLocalProjectFolderV01({ platform: "darwin", process: {
     async run(command, args) { commands.push({ command, args }); return { stdout: `${folderA}\n` }; },
@@ -207,11 +410,19 @@ try {
       { id: "cancel", outcome: "cancelled" },
       { id: "first", outcome: "selected", absolute_path: folderA },
       { id: "second", outcome: "selected", absolute_path: folderB },
+      { id: "pending", outcome: "pending_until_abort" },
     ],
   }));
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "cancelled" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "selected", absolute_path: folderA });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "selected", absolute_path: folderB });
+  const canonicalPendingAbort = new AbortController();
+  canonicalPendingAbort.abort();
+  assert.deepEqual(await chooseLocalProjectFolderV01({
+    platform: "freebsd",
+    environment: pickerSequenceEnvironment,
+    signal: canonicalPendingAbort.signal,
+  }), { status: "cancelled" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "freebsd", environment: pickerSequenceEnvironment }), { status: "error", error_code: "picker_failed" });
   assert.equal((await chooseLocalProjectFolderV01({ platform: "freebsd", environment: { NODE_ENV: "production", AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH: pickerSequencePath } })).status, "unavailable", "the sequence seam must be inaccessible outside canonical mode");
   writeFileSync(pickerSequencePath, "{malformed");
@@ -236,10 +447,33 @@ try {
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = new Error("timeout") as Error & { code: string }; error.code = "ETIMEDOUT"; throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("killed"), { code: null, killed: true, signal: "SIGKILL" }); throw error; } } }), { status: "error", error_code: "picker_timeout" });
   assert.deepEqual(await chooseLocalProjectFolderV01({ platform: "darwin", process: { async run() { const error = Object.assign(new Error("bounded"), { code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" }); throw error; } } }), { status: "error", error_code: "picker_failed" });
+  const pickerAbortController = new AbortController();
+  let pickerAbortListeners = 0;
+  const abortedPicker = chooseLocalProjectFolderV01({
+    platform: "darwin",
+    signal: pickerAbortController.signal,
+    process: {
+      async run(_command, _args, _timeout, signal) {
+        return new Promise<{ stdout: string }>((_resolve, reject) => {
+          const onAbort = () => {
+            signal?.removeEventListener("abort", onAbort);
+            pickerAbortListeners -= 1;
+            reject(Object.assign(new Error("aborted"), { code: "ABORT_ERR" }));
+          };
+          pickerAbortListeners += 1;
+          signal?.addEventListener("abort", onAbort, { once: true });
+        });
+      },
+    },
+  });
+  pickerAbortController.abort();
+  assert.deepEqual(await abortedPicker, { status: "cancelled" });
+  assert.equal(pickerAbortListeners, 0, "picker abort listeners must be removed");
   assert.equal(
     projectFolderPickerMessageV01({
       status: "selected",
       selection_token: "selection-token",
+      selection_origin: "native_picker",
       inspection: {
         inspection_version: "local_project_inspection.v0.1",
         display_name: "Plain project",
@@ -404,6 +638,39 @@ try {
   process.env.AUGNES_CANONICAL_TEMP_ROOT = root;
   const open = () => { const db = new Database(dbPath); db.pragma("foreign_keys = ON"); applyCanonicalDatabaseMigrations(db); return db; };
   process.env.AUGNES_DB_PATH = dbPath;
+  const declaredOriginCandidate = await declareAndInspectLocalProjectV01(
+    plainDefaultFolder,
+    { open_database: open, create_token: () => "declared-origin-candidate" },
+  );
+  assert.equal(declaredOriginCandidate.selection_origin, "declared_path");
+  let originMismatchDb = open();
+  await assert.rejects(confirmLocalProjectOnboardingV01(originMismatchDb, {
+    selection_token: declaredOriginCandidate.selection_token,
+    inspection_fingerprint:
+      declaredOriginCandidate.inspection.inspection_fingerprint,
+  }), /selection_origin_mismatch/);
+  assert.equal((originMismatchDb.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count, 0);
+  originMismatchDb.close();
+  const expiredDeclaredCandidate = await declareAndInspectLocalProjectV01(
+    plainDefaultFolder,
+    {
+      open_database: open,
+      now_ms: () => 1_000,
+      create_token: () => "expired-declared-candidate",
+    },
+  );
+  assert.throws(() => readPreparedLocalProjectSelectionBindingV01(
+    expiredDeclaredCandidate.selection_token,
+    { now_ms: () => 1_000 + 10 * 60 * 1000 + 1 },
+  ), /inspection_stale/);
+  const lostDeclaredCandidate = await declareAndInspectLocalProjectV01(
+    plainDefaultFolder,
+    { open_database: open, create_token: () => "lost-declared-candidate" },
+  );
+  abandonPreparedLocalProjectSelectionV01(lostDeclaredCandidate.selection_token);
+  assert.throws(() => readPreparedLocalProjectSelectionBindingV01(
+    lostDeclaredCandidate.selection_token,
+  ), /inspection_stale/);
   let db = open();
   assert.deepEqual(await listRecentProjectsV01(db), []);
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_workspace_identities").get() as { count: number }).count, 0, "passive recent reads must not create a workspace");
@@ -466,6 +733,106 @@ try {
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_recent_projects").get() as { count: number }).count, 0);
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_active_project_selections").get() as { count: number }).count, 0);
   db.close();
+
+  const declaredRouteDbPath = path.join(root, "declared-route.db");
+  process.env.AUGNES_DB_PATH = declaredRouteDbPath;
+  const declaredResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "declare_path",
+    path: declaredUnicodeFolder,
+  })));
+  assert.equal(declaredResponse.status, 200);
+  const declaredCookie = declaredResponse.headers.get("set-cookie");
+  assert(declaredCookie?.includes("HttpOnly"));
+  assert(declaredCookie?.includes("SameSite=Strict"));
+  if (!declaredCookie) throw new Error("declared onboarding cookie missing");
+  const declaredCookieValue = declaredCookie.split(";")[0];
+  const declaredPayload = await declaredResponse.json() as {
+    picker: Extract<Awaited<ReturnType<typeof declareAndInspectLocalProjectV01>>, { status: "selected" }>;
+  };
+  assert.equal(declaredPayload.picker.selection_origin, "declared_path");
+  assert.equal(
+    declaredPayload.picker.inspection.local_root.normalized_path,
+    declaredUnicodeFolder,
+  );
+  const declaredDbBeforeConfirmation = new Database(declaredRouteDbPath);
+  assert.equal((declaredDbBeforeConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count, 0);
+  assert.equal((declaredDbBeforeConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_project_root_bindings").get() as { count: number }).count, 0);
+  assert.equal((declaredDbBeforeConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_physical_root_baselines").get() as { count: number }).count, 0);
+  declaredDbBeforeConfirmation.close();
+  const declaredConfirmationRequest = {
+    selection_token: declaredPayload.picker.selection_token,
+    inspection_fingerprint:
+      declaredPayload.picker.inspection.inspection_fingerprint,
+    display_name: "선언 경로 Project",
+  };
+  const browserConfirmationHeaders = {
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+  };
+  const forgedPrepare = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "prepare_onboarding_confirmation",
+    ...declaredConfirmationRequest,
+  }), browserConfirmationHeaders));
+  assert.equal(forgedPrepare.status, 403, "same-origin-shaped requests without the exact cookie must fail");
+  const preparedDeclaredResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "prepare_onboarding_confirmation",
+    ...declaredConfirmationRequest,
+  }), {
+    ...browserConfirmationHeaders,
+    cookie: declaredCookieValue,
+  }));
+  assert.equal(preparedDeclaredResponse.status, 200);
+  const rotatedDeclaredCookie = preparedDeclaredResponse.headers.get("set-cookie")?.split(";")[0];
+  assert(rotatedDeclaredCookie);
+  assert.notEqual(rotatedDeclaredCookie, declaredCookieValue, "the confirmation nonce must rotate");
+  const preparedDeclaredPayload = await preparedDeclaredResponse.json() as {
+    confirmation: { challenge_fingerprint: string };
+  };
+  const exactDeclaredConfirmationBody = JSON.stringify({
+    action: "confirm_declared_path",
+    ...declaredConfirmationRequest,
+    challenge_fingerprint:
+      preparedDeclaredPayload.confirmation.challenge_fingerprint,
+  });
+  const oldNonceResponse = await projectRoutePost(routeRequest(
+    exactDeclaredConfirmationBody,
+    { ...browserConfirmationHeaders, cookie: declaredCookieValue },
+  ));
+  assert.equal(oldNonceResponse.status, 403);
+  const changedNameResponse = await projectRoutePost(routeRequest(JSON.stringify({
+    action: "confirm_declared_path",
+    ...declaredConfirmationRequest,
+    display_name: "changed after challenge",
+    challenge_fingerprint:
+      preparedDeclaredPayload.confirmation.challenge_fingerprint,
+  }), { ...browserConfirmationHeaders, cookie: rotatedDeclaredCookie }));
+  assert.equal(changedNameResponse.status, 409);
+  const confirmedDeclaredResponse = await projectRoutePost(routeRequest(
+    exactDeclaredConfirmationBody,
+    { ...browserConfirmationHeaders, cookie: rotatedDeclaredCookie },
+  ));
+  assert.equal(confirmedDeclaredResponse.status, 200);
+  const confirmedDeclaredPayload = await confirmedDeclaredResponse.json() as {
+    result: { project: { project_id: string }; destination: string };
+  };
+  const replayedDeclaredResponse = await projectRoutePost(routeRequest(
+    exactDeclaredConfirmationBody,
+    { ...browserConfirmationHeaders, cookie: rotatedDeclaredCookie },
+  ));
+  assert.equal(replayedDeclaredResponse.status, 200);
+  assert.deepEqual(await replayedDeclaredResponse.json(), {
+    ok: true,
+    result: confirmedDeclaredPayload.result,
+  });
+  const declaredDbAfterConfirmation = new Database(declaredRouteDbPath);
+  assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_project_identities").get() as { count: number }).count, 1);
+  assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_project_root_bindings").get() as { count: number }).count, 1);
+  assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_physical_root_baselines").get() as { count: number }).count, 1);
+  assert.equal((declaredDbAfterConfirmation.prepare("SELECT COUNT(*) AS count FROM vnext_active_project_selections").get() as { count: number }).count, 1);
+  declaredDbAfterConfirmation.close();
+
+  process.env.AUGNES_DB_PATH = dbPath;
   process.env.AUGNES_TEST_FOLDER_PICKER_PATH = substantiallyOversizedRoot;
   await assert.rejects(pickAndInspectLocalProjectV01({ open_database: open }), /inspection_failed/);
   db = open();
@@ -579,6 +946,32 @@ try {
   assert.equal(cleanReplay.project.project_id, confirmedA.project.project_id);
   assert.equal(cleanReplay.project.display_name, "Git project A");
   assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_project_external_ref_bindings").get() as { count: number }).count, 1, "sanitized and clean remotes must replay one binding");
+  if (process.platform !== "win32") {
+    const folderAAlias = path.join(root, "Project A physical alias");
+    symlinkSync(folderA, folderAAlias, "dir");
+    const aliasSelection = await declareAndInspectLocalProjectV01(
+      folderAAlias,
+      { open_database: open, now: () => "2026-07-15T00:01:20.000Z" },
+    );
+    assert.equal(aliasSelection.inspection.already_added, true);
+    assert.equal(
+      aliasSelection.inspection.existing_project?.project_id,
+      confirmedA.project.project_id,
+    );
+    const aliasReplay = await confirmLocalProjectOnboardingV01(db, {
+      selection_token: aliasSelection.selection_token,
+      inspection_fingerprint:
+        aliasSelection.inspection.inspection_fingerprint,
+      selection_origin: "declared_path",
+    }, { now: () => "2026-07-15T00:01:20.000Z" });
+    assert.equal(aliasReplay.project.project_id, confirmedA.project.project_id);
+    assert.equal(
+      (await readProjectDestinationV01(db, confirmedA.project.project_id))
+        ?.root_binding.local_root.normalized_path,
+      folderA,
+      "a physical alias must not rewrite the canonical root",
+    );
+  }
   db.close();
 
   db = open();
@@ -938,7 +1331,7 @@ try {
   assert.deepEqual(artifactSql(runtimeSchema), artifactSql(canonicalSchema));
   runtimeSchema.close(); migrationSchema.close(); canonicalSchema.close();
 
-  console.log(JSON.stringify({ status: "pass", picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
+  console.log(JSON.stringify({ status: "pass", declared_path_parser_bounded_and_literal: true, declared_path_platform_boundaries: true, prepared_selection_origins_distinct: true, pre_project_browser_cookie_and_challenge: true, old_nonce_and_cross_candidate_replay_refused: true, concurrent_confirmation_executions: 1, exact_successful_transport_replay: true, failed_confirmation_requires_fresh_material: true, process_local_candidate_loss_refused: true, declared_path_zero_mutation_before_confirmation: true, physical_alias_preserves_canonical_root: true, picker_abort_listener_residue: 0, picker_adapter: true, picker_platform_boundaries: true, picker_output_and_timeout_bounded: true, picker_sequence_file_symlink_refusal_verified: pickerSequenceFileSymlinkRefusalVerified, picker_sequence_file_symlink_refusal_skip_reason: pickerSequenceFileSymlinkRefusalVerified ? null : "windows_symlink_privilege_unavailable", test_only_cancel_injection_guarded: true, origin_guard: true, plain_and_git_inspection: true, plain_default_name: true, plain_edited_name: true, git_edited_name: true, invalid_name_rollback: true, explicit_active_project_rename: true, stale_name_conflict: true, inactive_project_rename_refused: true, existing_root_preserves_saved_name: true, root_rebind_preserves_name: true, folder_basename_does_not_rename: true, recent_and_current_reads_return_renamed_name: true, inaccessible_and_not_directory_states: true, git_no_remote_and_worktree_metadata: true, bounded_git_metadata_limit_and_detection_byte: true, bounded_chunked_request_limit_and_cancellation: true, inspection_identity_rows_written: 0, passive_reads_identity_rows_written: 0, credential_material_in_returned_and_persisted_values: 0, exact_root_replay: true, same_repository_independence: true, conflicting_repository_confirmation_rolled_back: true, stale_onboarding_rolled_back: true, null_to_project_conflict_rolled_back: true, aba_conflict_refused: true, stale_rebind_rolled_back: true, partial_rows_after_cas_conflicts: 0, recent_active_restart: true, removal_preserves_data: true, moved_root_recovery: true, occupied_root_rebind_refusal: true, stale_tamper_and_disappearing_root_refusal: true, migration_idempotent: true, migration_schema_parity: true, bytes_read_beyond_limit_plus_detection_byte: 0, network_calls: 0, git_processes: 0 }, null, 2));
 } finally {
   process.env = originalEnvironment;
   rmSync(root, { recursive: true, force: true });

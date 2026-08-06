@@ -2,17 +2,33 @@ import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
 import {
+  abandonPreparedLocalProjectSelectionV01,
   ProjectOnboardingErrorV01,
   confirmLocalProjectOnboardingV01,
+  declareAndInspectLocalProjectV01,
   listRecentProjectsV01,
   openRecentProjectV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
+  readPreparedLocalProjectSelectionBindingV01,
   readProjectDestinationV01,
   renameActiveProjectDisplayNameV01,
   rebindLocalProjectRootFromSelectionV01,
   removeProjectFromRecentV01,
 } from "@/lib/vnext/onboarding/local-project-onboarding";
+import {
+  abandonLocalProjectOnboardingSessionV01,
+  clearLocalProjectOnboardingCookieV01,
+  confirmLocalProjectOnboardingFromBrowserSessionV01,
+  issueLocalProjectOnboardingChallengeV01,
+  issueLocalProjectOnboardingSessionV01,
+  readLocalProjectOnboardingCredentialFromRequestV01,
+  serializeLocalProjectOnboardingCookieV01,
+} from "@/lib/vnext/onboarding/local-project-onboarding-decision";
+import {
+  LocalProjectPathDeclarationErrorV01,
+  parseLocalProjectPathDeclarationV01,
+} from "@/lib/vnext/onboarding/local-project-path-declaration";
 import { ProjectLifecycleErrorV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { ProjectIdentityRegistryErrorV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
@@ -56,7 +72,53 @@ export async function POST(request: Request) {
     assertVNextLocalOperatorRequestBoundaryV01(request, { mutating: true });
     const body = await readBoundedBody(request);
     if (body.action === "choose_folder") {
-      return json({ ok: true, picker: await pickAndInspectLocalProjectV01() });
+      return json({
+        ok: true,
+        picker: await pickAndInspectLocalProjectV01({ signal: request.signal }),
+      });
+    }
+    if (body.action === "declare_path") {
+      const declaration = parseLocalProjectPathDeclarationV01(body.path);
+      const picker = await declareAndInspectLocalProjectV01(
+        declaration.absolute_path,
+      );
+      const binding = readPreparedLocalProjectSelectionBindingV01(
+        picker.selection_token,
+      );
+      const session = issueLocalProjectOnboardingSessionV01({
+        selection_token: picker.selection_token,
+        inspection_fingerprint: picker.inspection.inspection_fingerprint,
+        expected_active_project_id: binding.expected_active_project_id,
+        expected_active_selection_revision:
+          binding.expected_active_selection_revision,
+      });
+      return json(
+        { ok: true, picker },
+        200,
+        serializeLocalProjectOnboardingCookieV01({
+          credential: session.credential,
+          expires_at: session.expires_at,
+          secure: new URL(request.url).protocol === "https:",
+        }),
+      );
+    }
+    if (body.action === "abandon_selection") {
+      const selectionToken = requiredString(body.selection_token);
+      abandonPreparedLocalProjectSelectionV01(selectionToken);
+      let credential = null;
+      try {
+        credential = readLocalProjectOnboardingCredentialFromRequestV01(
+          request,
+        );
+      } catch {}
+      abandonLocalProjectOnboardingSessionV01(credential);
+      return json(
+        { ok: true, abandoned: true },
+        200,
+        clearLocalProjectOnboardingCookieV01(
+          new URL(request.url).protocol === "https:",
+        ),
+      );
     }
     db = openDatabase();
     if (body.action === "confirm") {
@@ -64,7 +126,75 @@ export async function POST(request: Request) {
         selection_token: requiredString(body.selection_token),
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
         display_name: requiredText(body.display_name),
+        selection_origin: "native_picker",
       }) });
+    }
+    if (body.action === "prepare_onboarding_confirmation") {
+      assertBrowserUserConfirmationV01(request);
+      const selectionToken = requiredString(body.selection_token);
+      const inspectionFingerprint = requiredString(
+        body.inspection_fingerprint,
+      );
+      const displayName = requiredText(body.display_name);
+      const binding = readPreparedLocalProjectSelectionBindingV01(
+        selectionToken,
+      );
+      if (
+        binding.selection_origin !== "declared_path" ||
+        binding.inspection_fingerprint !== inspectionFingerprint
+      ) {
+        throw new ProjectOnboardingErrorV01(
+          "selection_origin_mismatch",
+          409,
+        );
+      }
+      const issued = issueLocalProjectOnboardingChallengeV01({
+        selection_token: selectionToken,
+        inspection_fingerprint: inspectionFingerprint,
+        display_name: displayName,
+        expected_active_project_id: binding.expected_active_project_id,
+        expected_active_selection_revision:
+          binding.expected_active_selection_revision,
+        credential:
+          readLocalProjectOnboardingCredentialFromRequestV01(request),
+      });
+      return json(
+        { ok: true, confirmation: issued.confirmation },
+        200,
+        serializeLocalProjectOnboardingCookieV01({
+          credential: issued.credential,
+          expires_at: issued.confirmation.expires_at,
+          secure: new URL(request.url).protocol === "https:",
+        }),
+      );
+    }
+    if (body.action === "confirm_declared_path") {
+      assertBrowserUserConfirmationV01(request);
+      const selectionToken = requiredString(body.selection_token);
+      const inspectionFingerprint = requiredString(
+        body.inspection_fingerprint,
+      );
+      const displayName = requiredText(body.display_name);
+      const result =
+        await confirmLocalProjectOnboardingFromBrowserSessionV01(
+          {
+            selection_token: selectionToken,
+            inspection_fingerprint: inspectionFingerprint,
+            display_name: displayName,
+            challenge_fingerprint: requiredString(
+              body.challenge_fingerprint,
+            ),
+            credential:
+              readLocalProjectOnboardingCredentialFromRequestV01(request),
+          },
+          () => confirmLocalProjectOnboardingV01(db!, {
+            selection_token: selectionToken,
+            inspection_fingerprint: inspectionFingerprint,
+            display_name: displayName,
+            selection_origin: "declared_path",
+          }),
+        );
+      return json({ ok: true, result });
     }
     if (body.action === "rename") {
       return json({ ok: true, result: renameActiveProjectDisplayNameV01(db, {
@@ -302,6 +432,7 @@ function assertBrowserUserConfirmationV01(request: Request): void {
 }
 function routeError(error: unknown) {
   if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status);
+  if (error instanceof LocalProjectPathDeclarationErrorV01) return json({ ok: false, error_code: error.code }, error.status);
   if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404);
   if (error instanceof ProjectIdentityRegistryErrorV01) {
     const status = error.code.includes("conflict")

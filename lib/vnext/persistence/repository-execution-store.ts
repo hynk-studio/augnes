@@ -535,6 +535,33 @@ export function readPhysicalRootBaselineByIdentityV01(
   return row ? parsePhysicalRootBaselineV01(row) : null;
 }
 
+export function listPhysicalRootBaselinesByIdentityV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    node_scope_fingerprint: string;
+    identity_version: PhysicalRootBaselineV01["identity_version"];
+    filesystem_volume_identity: string;
+    filesystem_object_identity: string;
+  },
+): PhysicalRootBaselineV01[] {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const rows = db.prepare(
+    `SELECT * FROM vnext_physical_root_baselines
+      WHERE workspace_id = ? AND node_scope_fingerprint = ?
+        AND identity_version = ? AND filesystem_volume_identity = ?
+        AND filesystem_object_identity = ?
+      ORDER BY project_id`,
+  ).all(
+    input.workspace_id,
+    input.node_scope_fingerprint,
+    input.identity_version,
+    input.filesystem_volume_identity,
+    input.filesystem_object_identity,
+  ) as PhysicalRootBaselineRowV01[];
+  return rows.map(parsePhysicalRootBaselineV01);
+}
+
 export function insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
   db: Database.Database,
   baseline: PhysicalRootBaselineV01,

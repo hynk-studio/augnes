@@ -35,10 +35,15 @@ Augnes prepares its application-owned local database, starts the supervised UI
 and bridge, waits for both to become ready, and prints the loopback UI URL.
 Normal startup does not reset or seed operator data.
 
-Open the URL, choose a project folder, inspect it, and confirm it. This
-fresh-checkout path demonstrates installation, project onboarding, Blank State,
-and supervised local runtime behavior. It does not fabricate the review history
-needed for a complete continuity walkthrough.
+Open the URL and connect a local project. The primary path uses **Choose a
+folder**. If the native picker is unavailable, remains invisible, is cancelled,
+or does not return, **Enter the folder path instead** accepts one exact absolute
+path from the computer running Augnes. Both paths converge on the same review
+and explicit **Connect project** action. The folder is not uploaded, and
+connecting it does not run Codex or change project files. This fresh-checkout
+path demonstrates installation, project onboarding, Blank State, and supervised
+local runtime behavior. It does not fabricate the review history needed for a
+complete continuity walkthrough.
 
 For source-blind local Codex resumption, install the repo-local
 `plugins/augnes-operator` plugin once with `codex plugin marketplace add .`

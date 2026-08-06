@@ -11,9 +11,22 @@ export const RECENT_PROJECT_ENTRY_VERSION_V01 =
   "recent_project_entry.v0.1" as const;
 export const ACTIVE_PROJECT_SELECTION_VERSION_V01 =
   "active_project_selection.v0.1" as const;
+export const LOCAL_PROJECT_PATH_DECLARATION_VERSION_V01 =
+  "local_project_path_declaration.v0.1" as const;
+export const LOCAL_PROJECT_ONBOARDING_DECISION_VERSION_V01 =
+  "local_project_onboarding_decision.v0.1" as const;
+
+export type LocalProjectSelectionOriginV01 =
+  | "native_picker"
+  | "declared_path";
 
 export type LocalFolderPickerOutcomeV01 =
-  | { status: "selected"; selection_token: string; inspection: LocalProjectInspectionV01 }
+  | {
+      status: "selected";
+      selection_token: string;
+      selection_origin: LocalProjectSelectionOriginV01;
+      inspection: LocalProjectInspectionV01;
+    }
   | { status: "cancelled" }
   | { status: "unavailable"; reason: "unsupported_platform" | "picker_not_installed" }
   | { status: "error"; error_code: "picker_timeout" | "picker_failed" };
@@ -75,6 +88,18 @@ export interface ProjectOnboardingConfirmationV01 {
   destination: string;
 }
 
+export interface LocalProjectPathDeclarationV01 {
+  declaration_version: typeof LOCAL_PROJECT_PATH_DECLARATION_VERSION_V01;
+  absolute_path: string;
+  path_flavor: "posix" | "windows";
+}
+
+export interface LocalProjectOnboardingChallengeV01 {
+  decision_version: typeof LOCAL_PROJECT_ONBOARDING_DECISION_VERSION_V01;
+  challenge_fingerprint: string;
+  expires_at: string;
+}
+
 export interface ProjectRootRebindResultV01 {
   status: "rebound";
   project: ProjectIdentityV01;
@@ -84,6 +109,17 @@ export interface ProjectRootRebindResultV01 {
 
 export type ProjectOnboardingErrorCodeV01 =
   | "selection_invalid"
+  | "selection_origin_mismatch"
+  | "path_declaration_empty"
+  | "path_declaration_too_large"
+  | "path_declaration_control_character"
+  | "path_declaration_relative"
+  | "path_declaration_url"
+  | "path_declaration_unsupported"
+  | "onboarding_confirmation_required"
+  | "onboarding_confirmation_invalid"
+  | "onboarding_confirmation_expired"
+  | "onboarding_confirmation_conflict"
   | "selection_missing"
   | "selection_inaccessible"
   | "selection_not_directory"

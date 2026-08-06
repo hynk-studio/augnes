@@ -10,9 +10,9 @@ import {
 } from "./project-experience-result-contract-v1.mjs";
 
 const contract = loadProjectExperienceResultContractV1();
-assert.equal(contract.field_ids.length, 40);
-assert.equal(contract.marker_ids.length, 5);
-assert.equal(Object.keys(contract.value_contract_by_field).length, 40);
+assert.equal(contract.field_ids.length, 47);
+assert.equal(contract.marker_ids.length, 6);
+assert.equal(Object.keys(contract.value_contract_by_field).length, 47);
 
 const completionOwner = completedOwner();
 const successResult = buildValidResult(completionOwner);
