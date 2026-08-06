@@ -15,7 +15,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-export const AUTHORIZED_REPOSITORY_ROOT = "/Users/hynk/code/augnes-temp";
+export const WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =
+  "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT";
+export const AUTHORIZED_REPOSITORY_ROOT = process.platform === "win32"
+  ? process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""
+  : "/Users/hynk/code/augnes-temp";
 export const AUTHORIZED_REPOSITORY_ID =
   "hynk-studio/augnes-perspective-lab";
 export const AUTHORIZED_ORIGIN_URL =
@@ -28,6 +32,14 @@ export const FULL_MINIMUM_DISK_BYTES = 15 * 1024 ** 3;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const BROWSER_CANDIDATES = Object.freeze([
+  {
+    path: "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    name: "Microsoft Edge",
+  },
+  {
+    path: "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    name: "Microsoft Edge",
+  },
   {
     path: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     name: "Google Chrome",
@@ -123,7 +135,9 @@ export function collectHostEnvironment(repositoryRoot) {
     /^v/u,
     "",
   );
-  const npmVersion = runVersionCommand("npm", ["--version"]);
+  const npmVersion = process.platform === "win32"
+    ? runVersionCommand(process.execPath, [windowsNpmCliPath(), "--version"])
+    : runVersionCommand("npm", ["--version"]);
   const productVersion =
     process.platform === "darwin"
       ? runVersionCommand("sw_vers", ["-productVersion"])
@@ -188,12 +202,12 @@ export function assertDecidingEnvironment({
   nodePolicy,
   diskMinimumBytes,
 }) {
-  if (
-    host.operating_system !== "macOS" ||
-    host.architecture !== "arm64"
-  ) {
+  const supportedPlatform =
+    (host.operating_system === "macOS" && host.architecture === "arm64") ||
+    (host.operating_system === "win32" && host.architecture === "x64");
+  if (!supportedPlatform) {
     const error = new Error(
-      "deciding local canonical execution requires macOS arm64",
+      "deciding local canonical execution requires macOS arm64 or Windows x64",
     );
     error.code = "unsupported_deciding_platform";
     throw error;
@@ -206,6 +220,13 @@ export function assertDecidingEnvironment({
       `deciding local canonical execution requires Node ${CANONICAL_NODE_VERSION}`,
     );
     error.code = "canonical_node_mismatch";
+    throw error;
+  }
+  if (host.npm_version !== "11.16.0") {
+    const error = new Error(
+      "deciding local canonical execution requires npm 11.16.0",
+    );
+    error.code = "canonical_npm_mismatch";
     throw error;
   }
   if (host.logical_cpu_count < 2) {
@@ -356,6 +377,16 @@ function runVersionCommand(command, args) {
     throw error;
   }
   return result.stdout.trim();
+}
+
+function windowsNpmCliPath() {
+  return path.join(
+    path.dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
 }
 
 function parseNodeVersion(version) {

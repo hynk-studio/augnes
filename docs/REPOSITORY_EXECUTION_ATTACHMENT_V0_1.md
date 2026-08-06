@@ -8,6 +8,15 @@ one admitted managed run after one independent Browser start decision. Together
 they answer: can one worker start from the exact project, root, work, bounded
 repository state, adapter, and execution envelope the user established?
 
+CDX2B3A evolves the physical-root contract for Windows without authorizing
+Windows Start or Resume. Source-runtime attachment admission has exact Windows
+10 Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. Packaged Windows remains unsupported.
+
 The product doctrine is:
 
 > strongly identify the repository, project, and current work once; create one
@@ -34,22 +43,54 @@ identity and never authorizes adoption or rebind.
 ## Physical-root baseline
 
 The canonical database stores one current baseline per workspace, project, and
-local node scope. The baseline binds the root-binding fingerprint to the
-existing NativeHost physical-root observation: canonical realpath fingerprint,
-filesystem volume/device identity, filesystem object identity, observation
-time, provenance, and a deterministic baseline fingerprint.
+local node scope. The baseline binds the root-binding fingerprint to one
+versioned platform physical-root observation, observation time, provenance,
+and deterministic fingerprint. Historical POSIX rows retain
+`native_host_physical_root_identity.v0.1`, canonical-realpath fingerprint,
+device, and inode serialization. Windows uses the separate
+`physical_root_identity.windows.v0.1` member: canonical-final-target-path
+fingerprint, volume serial identity, file ID, and supported filesystem family.
+Windows values are not relabelled as POSIX device/inode values.
 
 On macOS and Linux, the current adapter contract uses `realpath`, directory
 `stat` device, and inode identity. Known network filesystem types fail as
 `identity_unsupported`; known virtual filesystem types with ambiguous object
-stability fail as `identity_ambiguous`. Windows returns
-`identity_unsupported` until a stable volume/file-ID adapter is implemented and
-verified on an actual Windows filesystem. PR #117 has actual filesystem proof
-on macOS. Linux has adapter-contract coverage but no separate Linux filesystem
-proof. No Windows verification is claimed, and Windows managed delegation
-remains unavailable. CDX2B2B v0.1 therefore adopts an explicit macOS-only
-product boundary; a wider rollout requires separate Linux proof and a verified
-Windows adapter.
+stability fail as `identity_ambiguous`. PR #117 has actual filesystem proof on
+macOS. Linux has adapter-contract coverage but no separate Linux filesystem
+proof.
+
+The CDX2B3A Windows owner is limited to Windows 10 Pro 22H2 build 19045 or
+newer or Windows 11 build 22000 or newer, x64, a local fixed NTFS volume, and a
+normal Git worktree. One narrow reviewed
+Win32 helper source opens the directory with `CreateFileW`, resolves its final
+target with `GetFinalPathNameByHandleW`, and reads volume/file identity with
+`GetFileInformationByHandleEx` from that same target handle. It validates
+supported symlink/junction tags separately, classifies NTFS and fixed-drive
+status, walks every requested-path ancestor component, accepts only intended
+symlink/junction reparse tags, and refuses cloud, projected, unknown,
+unavailable, or ambiguous reparse state. It accepts Unicode and extended-length
+paths, closes handles through one RAII owner, and returns bounded versioned JSON. The Node owner uses
+`execFile` with `shell: false`, a minimal environment, bounded output and
+timeout, physically package-root-bounded resolution, immediate pre-invocation
+revalidation, and a reviewed manifest SHA-256.
+It exposes no command interface or runtime download.
+
+Windows versions below build 19045, ARM64, ReFS/Dev Drive, FAT/exFAT,
+removable, UNC/SMB, mapped/network/NAS, WSL, volume-GUID, virtual/projected, and unclassified
+reparse targets remain explicitly unsupported or ambiguous. There is no
+path-only fallback. Exact deciding source proof used Windows 10 Pro 22H2 build
+19045.6456 at checkpoint `374a582b766a10616667633eb911d3df2d49b85e` and
+Windows 11 Home 25H2 build 26200.8875 at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, with Visual
+Studio Build Tools 2022 17.14.37, MSVC 19.44.35228, Windows SDK 10.0.26100.0,
+Node 24.18.0, and npm 11.16.0. Restart, case and dot-segment normalization,
+Unicode, long paths, junction aliases, reparse-loop refusal, replacement,
+delete/recreate, rename, rebind, attachment, source-runtime MCP, and recovery
+boundaries passed. Directory-symlink privilege and a second local fixed NTFS
+volume were unavailable on the Windows 11 node, so those cases are not claimed
+there. The package builder returned `package_build_runtime_unsupported`, so
+packaged Windows admission remains disabled. Windows managed Start and Resume
+remain blocked independently by CDX2B2B and CDX2B4B.
 
 New canonical onboarding observes and creates the project, root binding, and
 baseline in the same confirmation flow. Project/root/baseline writes commit
@@ -107,14 +148,40 @@ Backup/restore retain consumed attachment/run lineage and decision receipts.
 Recovery may project a restored nonterminal run as disconnected/paused, but it
 does not reconstruct a controller or automatically launch another worker.
 
+The CDX2B3A additive migration rebuilds only the physical-baseline table to add
+the discriminated Windows columns and a node-scope/object uniqueness guard. It
+copies historical POSIX rows without reinterpreting their fields and preserves
+their baseline fingerprints. Fresh and migrated databases converge on the same
+schema. The exact merged CDX2B2B schema and its bounded ledgerless recovery
+form are enumerated migration inputs; arbitrary partial schemas still fail
+closed. Backup, restore, recovery, project deletion, and rebind retain the same
+canonical owners.
+
 Physical identity and decision grants are machine-local, not portable project
 truth. Portable export explicitly excludes physical baselines, attachments,
 decision requests/grants, and rebind receipts. Import preserves canonical
 workspace/project identity and creates the
 destination root binding through the existing importer, but the destination
 node has no trusted baseline. It requires one node-local adoption before
-execution preparation. Device/inode or future Windows File IDs are never
-compared across node scopes.
+execution preparation. Device/inode, Windows volume serials, and Windows File
+IDs are never compared across node scopes. Restoring or importing on another
+node therefore cannot treat the source machine's identity as valid.
+
+## Windows source and package boundary
+
+The reviewed native source lives at
+`native/windows-physical-root/augnes-windows-physical-root-v0.1.cpp`. The
+developer build owner creates one x64 executable and integrity manifest at the
+deterministic ignored `native/windows-x64` source-runtime location. Runtime
+compilation, download, shell invocation, elevation, and manual end-user
+compiler installation are not part of the contract.
+
+The existing distributable package owner supports macOS and Linux only and
+does not yet build or stage a Windows native artifact. Non-Windows packages do
+not include or execute this component. Missing, modified, wrong-version, or
+wrong-architecture components fail closed. A Windows source build and package
+claim require separate real Windows production and execution evidence; no
+opaque executable is committed to substitute for that proof.
 
 ## Project-scoped execution admission
 

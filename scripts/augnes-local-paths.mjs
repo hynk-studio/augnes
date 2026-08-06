@@ -33,7 +33,7 @@ export function resolveAugnesLocalPaths({
   validatePhysicalPaths = true,
 } = {}) {
   if (!repositoryRoot) throw new PublicLocalPathError("repository_path_invalid");
-  const pathApi = platform === "win32" ? path.win32 : path;
+  const pathApi = platform === "win32" ? path.win32 : path.posix;
   const home = resolveHomeDirectory({
     environment,
     platform,

@@ -63,6 +63,11 @@ const artifactRoot = path.join(repositoryRoot, LOCAL_ARTIFACT_DIRECTORY);
 const receiptRoot = path.join(artifactRoot, "receipts");
 const logRoot = path.join(artifactRoot, "logs");
 const generatedNextRoot = path.join(repositoryRoot, ".next");
+const generatedWindowsHelperRoot = path.join(
+  repositoryRoot,
+  "native",
+  "windows-x64",
+);
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-change-planner.mjs",
   "scripts/canonical-child-runner.mjs",
@@ -89,6 +94,7 @@ export const QUICK_PHASE_IDS = Object.freeze([
 export const FULL_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
   "unit",
@@ -105,6 +111,7 @@ export const FULL_PHASE_IDS = Object.freeze([
 export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "build",
   "unit",
   "authority",
@@ -381,6 +388,12 @@ export async function executeLocalCanonicalVerification({
     removed_before_execution: false,
     removed_after_execution: false,
   };
+  const windowsHelperState = {
+    required: process.platform === "win32" && process.arch === "x64",
+    present_before: existsSync(generatedWindowsHelperRoot),
+    removed_before_execution: false,
+    removed_after_execution: false,
+  };
   let executionFailure = preflightIssues.length > 0;
   let cleanupComplete = true;
   let cleanupReason = null;
@@ -395,6 +408,17 @@ export async function executeLocalCanonicalVerification({
           "[local-canonical] cleanup generated=.next action=removed_before_execution",
         );
       }
+      if (
+        plan.selected_plan === "full-canonical" &&
+        windowsHelperState.required &&
+        windowsHelperState.present_before
+      ) {
+        rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
+        windowsHelperState.removed_before_execution = true;
+        console.log(
+          "[local-canonical] cleanup generated=native/windows-x64 action=removed_before_execution",
+        );
+      }
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
         execute: (phase) =>
@@ -402,6 +426,7 @@ export async function executeLocalCanonicalVerification({
             phase,
             mode,
             runLogRoot,
+            browserExecutablePath: hostResult.browserExecutablePath,
           }),
         onStart: (phase) => {
           console.log(
@@ -449,6 +474,19 @@ export async function executeLocalCanonicalVerification({
         cleanupReason = safeErrorCode(error);
       }
     }
+    if (
+      plan.selected_plan === "full-canonical" &&
+      windowsHelperState.required &&
+      existsSync(generatedWindowsHelperRoot)
+    ) {
+      try {
+        rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
+        windowsHelperState.removed_after_execution = true;
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+    }
     try {
       enforceArtifactRetention({
         receiptMaximum: RECEIPT_RETENTION - 1,
@@ -466,7 +504,7 @@ export async function executeLocalCanonicalVerification({
       ? "unknown"
       : "0";
     console.log(
-      `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${existsSync(generatedNextRoot)}`,
+      `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${existsSync(generatedNextRoot)} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
     );
   }
 
@@ -631,6 +669,10 @@ export async function executeLocalCanonicalVerification({
         ...nextState,
         present_after: existsSync(generatedNextRoot),
       },
+      generated_windows_helper: {
+        ...windowsHelperState,
+        present_after: existsSync(generatedWindowsHelperRoot),
+      },
       artifact_retention: {
         receipt_files: RECEIPT_RETENTION,
         log_run_directories: LOG_RUN_RETENTION,
@@ -642,7 +684,7 @@ export async function executeLocalCanonicalVerification({
       exit_status: passing ? 0 : 1,
       reason_codes: [...new Set(reasonCodes.filter(Boolean))].sort(),
       limitations: [
-        "one local execution on one shared Mac",
+        `one local execution on one shared ${host.operating_system === "win32" ? "Windows" : "Mac"} host`,
         "content integrity is not independent cryptographic attestation",
         "no hosted reproduction or external status-check identity",
         "download-cache reuse does not make cached or installed dependencies authoritative",
@@ -798,6 +840,16 @@ function fullPhases({ baseSha, headSha, browserPhaseIds }) {
       600_000,
       "nested-app",
     ),
+    ...(process.platform === "win32"
+      ? [
+          npmPhase(
+            "native-windows-identity",
+            "fresh Windows physical-root helper build",
+            ["run", "build:native:windows-identity"],
+            120_000,
+          ),
+        ]
+      : []),
     npmPhase("typecheck", "TypeScript typecheck", ["run", "typecheck"], 300_000),
     npmPhase("build", "isolated production build", ["run", "build"], 600_000),
     npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000),
@@ -878,11 +930,18 @@ function browserPhaseDefinition(id, { baseSha, headSha }) {
 }
 
 function npmPhase(id, label, args, timeoutMs, cwdScope = "root") {
+  const windowsNpmCli = path.join(
+    path.dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
   return phaseDefinition({
     id,
     label,
-    command: process.platform === "win32" ? "npm.cmd" : "npm",
-    args,
+    command: process.platform === "win32" ? process.execPath : "npm",
+    args: process.platform === "win32" ? [windowsNpmCli, ...args] : args,
     display: `npm ${args.join(" ")}`,
     timeoutMs,
     cwdScope,
@@ -916,7 +975,12 @@ function phaseDefinition({
   };
 }
 
-async function executePhase({ phase, mode, runLogRoot }) {
+async function executePhase({
+  phase,
+  mode,
+  runLogRoot,
+  browserExecutablePath = null,
+}) {
   const startedMs = Date.now();
   const startedAt = new Date(startedMs).toISOString();
   const logRelativePath = path.posix.join(
@@ -935,7 +999,9 @@ async function executePhase({ phase, mode, runLogRoot }) {
       command: phase.command,
       args: phase.args,
       cwd: phase.cwdScope === "nested-app" ? nestedAppRoot : repositoryRoot,
-      env: buildLocalPhaseEnvironment(),
+      env: buildLocalPhaseEnvironment(process.env, {
+        browserExecutablePath: phase.browser ? browserExecutablePath : null,
+      }),
       timeoutMs: phase.timeoutMs,
       stdout: capture.stdout,
       stderr: capture.stderr,
@@ -1091,7 +1157,10 @@ function collectLockFingerprints() {
   };
 }
 
-function buildLocalPhaseEnvironment(ambientEnvironment = process.env) {
+function buildLocalPhaseEnvironment(
+  ambientEnvironment = process.env,
+  { browserExecutablePath = null } = {},
+) {
   const environment = {};
   for (const key of [
     ...CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
@@ -1101,6 +1170,9 @@ function buildLocalPhaseEnvironment(ambientEnvironment = process.env) {
     if (typeof value === "string" && value.length > 0) {
       environment[key] = value;
     }
+  }
+  if (browserExecutablePath) {
+    environment.AUGNES_BROWSER_EXECUTABLE_PATH = browserExecutablePath;
   }
   return environment;
 }

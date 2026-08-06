@@ -32,6 +32,25 @@ not create or consume a managed run,
 Start Codex/NativeHost, run project commands, write project files, call a
 provider or GitHub, or create external effects.
 
+CDX2B3A adds a platform-discriminated Windows identity owner beneath these
+same tools; it does not add another MCP surface. Windows 10 Pro 22H2 build
+19045 or newer and Windows 11 build 22000 or newer on x64 local fixed NTFS are
+the intended Windows targets. Windows versions below build 19045, ARM64,
+ReFS/Dev Drive, FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and
+unclassified reparse roots fail closed, and there is no path-only fallback.
+The source-runtime path has exact Windows 10 Pro 22H2 build 19045.6456 proof at
+checkpoint `374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home
+25H2 build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. Packaged Windows remains unsupported. The package builder's
+`package_build_runtime_unsupported` result preserves fail-closed packaged
+admission. No simulated or another-platform run can provide deciding Windows
+filesystem or source-runtime evidence. Ordinary source-runtime Windows
+attachment preparation is available only on the verified supported lane;
+packaged Windows preparation remains unavailable. No MCP result exposes the
+native component path, volume serial, file ID, or canonical private path.
+
 ## Current local product path
 
 The supported CDX2B1 path is:
@@ -151,8 +170,10 @@ GitHub, merge, release, deployment, retry, replay, scheduler, or background
 authority.
 
 This is local Codex against a local checkout. Remote Codex, ChatGPT/mobile
-filesystem access, current-session continuous control, managed delegation,
-remote nodes, and broader cross-platform package support remain later work.
+filesystem access, current-session continuous control, remote nodes, and
+broader cross-platform package support remain later work. CDX2B2B managed
+delegation and CDX2B4B Resume are macOS-only; CDX2B3A does not enable Windows
+Start or Resume.
 
 ## Verification
 

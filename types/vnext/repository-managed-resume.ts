@@ -173,6 +173,6 @@ export interface RepositoryManagedResumeResultV01 {
   run_id: string;
   attachment_id: string;
   controller_generation: number;
-  projection: LiveNativeHostRunProjectionV01;
+  projection: LiveNativeHostRunProjectionV01 | null;
   authority: RepositoryManagedResumeAuthorityV01;
 }

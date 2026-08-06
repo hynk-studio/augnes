@@ -320,11 +320,13 @@ separate filesystem proof. Windows physical identity and managed delegation
 remain unsupported and fail closed. Broad CDX2B2B rollout requires either a
 verified Windows adapter or an explicitly macOS-only product boundary.
 
-### CDX2B2B exact attachment-backed managed delegation — Completed
+## CDX2B2B completed lifecycle
+
+### CDX2B2B exact attachment-backed managed delegation
 
 [Issue #118](https://github.com/hynk-studio/augnes-perspective-lab/issues/118)
-and [PR #119](https://github.com/hynk-studio/augnes-perspective-lab/pull/119)
-define the completed CDX2B2B slice. It merged as
+defined CDX2B2B. [PR #119](https://github.com/hynk-studio/augnes-perspective-lab/pull/119)
+is its completed implementation and outcome record, merged at
 `d610032de5f74bd078ac8b280df6564bc6e058a6`.
 
 CDX2B2B adds one Browser-confirmed start decision bound to one prepared
@@ -362,6 +364,48 @@ non-Git, network, virtual, unsupported, unavailable, and ambiguous roots create
 no start decision consumption, attachment consumption, run, controller,
 provider call, command, or project mutation.
 
+## Current
+
+### CDX2B3A verified Windows physical-root identity and attachment admission
+
+[Issue #120](https://github.com/hynk-studio/augnes-perspective-lab/issues/120)
+defines CDX2B3A. Its authorized implementation branch is
+`codex/cdx2b3a-windows-repository-identity`, and its authorized Draft PR title
+is **CDX2B3A — Establish verified Windows repository identity**.
+[Draft PR #125](https://github.com/hynk-studio/augnes-perspective-lab/pull/125)
+is its implementation and outcome record. The source-runtime completion gate
+has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint `374a582b`
+and exact Windows 11 Home 25H2 build 26200.8875 proof at the pre-integration
+checkpoint `567c9bbb`, both x64 local fixed NTFS through the official MCP
+client, live Companion, strict route, and canonical attachment owner. The
+integrated head is not claimed as Windows 10 exact-head verified without a
+rerun on that host. The existing package lane returns
+`package_build_runtime_unsupported` on Windows, so packaged Windows admission
+remains disabled without weakening source-runtime attachment support.
+
+The source-runtime slice introduces a versioned Windows final-target,
+volume-serial, and file-ID contract plus a reviewed narrow Win32 directory-
+handle helper source and additive persistence contracts. The helper inspects
+every requested-path ancestor reparse component, permits only intended symlink
+and junction traversal, and fails closed for cloud, projected, unknown,
+unavailable, or ambiguous reparse state. The package loader confines manifest
+and helper physical targets to the canonical package root and revalidates them
+immediately before invocation. No native binary is committed, no Windows
+package support is claimed, and neither Windows Start nor Resume is enabled.
+
+## Next separately authorized work
+
+CDX2B3B is the separately authorized future Windows managed-delegation runtime
+enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
+attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
+change the CDX2B2B Windows Start or CDX2B4B Windows Resume gates.
+
+Current-session attachment, automatic resume after controller loss, Linux
+product rollout, remote nodes, long-horizon continuation, policy-triggered
+continuous control, and multi-agent orchestration remain later and separate.
+
+## Integrated completed lifecycle
+
 ### CDX2B4A exact resume eligibility and durable checkpoints — Completed
 
 [Issue #121](https://github.com/hynk-studio/augnes-perspective-lab/issues/121)
@@ -388,13 +432,12 @@ project-file change. Browser active selection is not binding material.
 CDX2B4A itself did not resume an attachment-backed run; its generic
 live-service refusal remains covered as the compatibility path.
 
-## Current
-
-### CDX2B4B explicit exact same-run resume
+### CDX2B4B explicit exact same-run resume — Completed
 
 [Issue #123](https://github.com/hynk-studio/augnes-perspective-lab/issues/123)
-and its Draft PR titled **CDX2B4B — Explicitly resume one exact
-attachment-backed managed run** define the current slice. Only canonical
+and [PR #124](https://github.com/hynk-studio/augnes-perspective-lab/pull/124)
+define the completed slice, merged at
+`0f8d21339cb15ed7a11798ddf00af43e6adb50c3`. Only canonical
 `resume_ready` material can create one expiring Browser-only Resume decision.
 The Start grant is not reusable. One immediate transaction consumes the exact
 Resume grant, claims one deterministic attempt, preserves the run, attachment,
@@ -418,7 +461,7 @@ policy, if pursued, is a later separately authorized phase. Current-session
 attachment, automatic resume after controller loss or Companion startup,
 Linux product rollout, remote nodes, long-horizon continuation,
 policy-triggered continuous control, and multi-agent orchestration remain later
-and separate. Windows Issue #120 stays separate and unchanged.
+and separate. Windows enablement remains separately authorized under CDX2B3B.
 
 ## Pending C9
 

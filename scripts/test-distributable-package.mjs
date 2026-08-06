@@ -108,6 +108,30 @@ const PACKAGE_PLATFORM = detectDistributablePlatform();
 const PACKAGE_PLATFORM_LABEL = formatDistributablePlatformLabel(
   PACKAGE_PLATFORM,
 );
+const packageSupported = DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(
+  process.platform,
+);
+if (!packageSupported) {
+  console.log(
+    JSON.stringify(
+      {
+        test: "distributable-package-and-packaged-runtime",
+        status: "unsupported",
+        package_supported: false,
+        platform: process.platform,
+        skip_reason: "package_build_runtime_unsupported",
+        source_runtime_support_affected: false,
+        owned_processes_after: 0,
+        owned_ports_after: 0,
+        package_test_roots_after: 0,
+        build_temp_roots_after: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 const artifactName =
   `augnes-${APPLICATION_VERSION}-${PACKAGE_PLATFORM_LABEL}.tar.gz`;
 const canonicalTemporaryRoot = canonicalRootFromEnvironment();
@@ -173,10 +197,6 @@ if (
 }
 
 try {
-  assert(
-    DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(process.platform),
-    `distributable package test is unsupported on ${process.platform}`,
-  );
   assertContractRejectsForbiddenPayloads();
   const packageStartedAt = Date.now();
   const packageResult = await runCapturedProcess({
@@ -646,7 +666,10 @@ function validatePackageContents(root) {
     "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
     "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
     "cdc300623c2a79fadba08eb452d34aeb3a009ae15c4e45737e5edc7e004bdd53",
+    "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
+    "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
     "0bbd52cf5430bce8102865ea347b15aa90341e60d822b2000282080018698d8a",
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
   ]);
   assert(Array.isArray(manifest.files) && manifest.files.length > 0);
 

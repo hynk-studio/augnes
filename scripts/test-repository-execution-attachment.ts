@@ -58,6 +58,7 @@ import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-i
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import { inspectRepositoryWorktreeV01 } from "../lib/vnext/repository-execution/worktree-observation";
 import { exportActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
+import { createProtocolSha256V01 } from "../lib/vnext/protocol-primitives";
 import {
   authenticateVNextLocalOperatorSessionV01,
   consumeVNextLocalOperatorBootstrapV01,
@@ -103,7 +104,7 @@ async function main(): Promise<void> {
     assert.equal(count(db, "vnext_physical_root_baselines"), 2);
 
     const rootAlias = path.join(ROOT, "repository-a-alias");
-    symlinkSync(rootA, rootAlias, "dir");
+    symlinkSync(rootA, rootAlias, process.platform === "win32" ? "junction" : "dir");
     const [canonicalObservation, aliasObservation] = await Promise.all([
       inspectPhysicalRootForExecutionV01(db, rootA),
       inspectPhysicalRootForExecutionV01(db, rootAlias),
@@ -116,6 +117,92 @@ async function main(): Promise<void> {
         ? canonicalObservation.observation_fingerprint
         : null,
       "a symlink alias must observe the same physical root identity",
+    );
+
+    const windowsOnboardingRoot = createRepository("windows-onboarding-root");
+    const windowsOnboardingAlias = path.join(ROOT, "windows-onboarding-alias");
+    symlinkSync(
+      windowsOnboardingRoot,
+      windowsOnboardingAlias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const windowsOnboardingDependencies = {
+      platform: "win32" as const,
+      architecture: "x64" as const,
+      windows_version: "10.0.26100",
+      node_scope_root: "C:\\AugnesData",
+      windows_physical_identity: async (root: string) => ({
+        identity_version: "physical_root_identity.windows.v0.1" as const,
+        canonical_final_path_fingerprint: createProtocolSha256V01(
+          root === "C:\\AugnesData" ? "C:\\AugnesData" : "C:\\WindowsOnboarding",
+        ),
+        volume_serial_identity: "8899aabbccddeeff",
+        file_id: root === "C:\\AugnesData"
+          ? "1234567890abcdef1234567890abcdef"
+          : "abcdef1234567890abcdef1234567890",
+        filesystem_family: "NTFS" as const,
+        drive_type: "fixed" as const,
+      }),
+    };
+    const baselineCountBeforeWindowsOnboarding = count(
+      db,
+      "vnext_physical_root_baselines",
+    );
+    process.env.AUGNES_TEST_FOLDER_PICKER_PATH = windowsOnboardingRoot;
+    const windowsPicked = await pickAndInspectLocalProjectV01({
+      open_database: openDatabaseV01,
+      now: () => "2026-08-04T00:00:01.200Z",
+      repository_execution_dependencies: windowsOnboardingDependencies,
+    });
+    assert.equal(windowsPicked.status, "selected");
+    const windowsOnboarded = await confirmLocalProjectOnboardingV01(db, {
+      selection_token: windowsPicked.selection_token,
+      inspection_fingerprint: windowsPicked.inspection.inspection_fingerprint,
+      display_name: "Windows Onboarding Contract",
+    }, {
+      now: () => "2026-08-04T00:00:01.200Z",
+      repository_execution_dependencies: windowsOnboardingDependencies,
+    });
+    assert.equal(windowsOnboarded.status, "created");
+    assert.equal(
+      count(db, "vnext_physical_root_baselines"),
+      baselineCountBeforeWindowsOnboarding + 1,
+    );
+    process.env.AUGNES_TEST_FOLDER_PICKER_PATH = windowsOnboardingAlias;
+    const windowsAliasPicked = await pickAndInspectLocalProjectV01({
+      open_database: openDatabaseV01,
+      now: () => "2026-08-04T00:00:01.300Z",
+      repository_execution_dependencies: windowsOnboardingDependencies,
+    });
+    assert.equal(windowsAliasPicked.status, "selected");
+    assert.equal(windowsAliasPicked.inspection.already_added, true);
+    assert.equal(
+      windowsAliasPicked.inspection.existing_project?.project_id,
+      windowsOnboarded.project.project_id,
+    );
+    const windowsAliasOnboarded = await confirmLocalProjectOnboardingV01(db, {
+      selection_token: windowsAliasPicked.selection_token,
+      inspection_fingerprint: windowsAliasPicked.inspection.inspection_fingerprint,
+    }, {
+      now: () => "2026-08-04T00:00:01.300Z",
+      repository_execution_dependencies: windowsOnboardingDependencies,
+    });
+    assert.equal(windowsAliasOnboarded.status, "already_added");
+    assert.equal(
+      windowsAliasOnboarded.project.project_id,
+      windowsOnboarded.project.project_id,
+    );
+    assert.equal(
+      count(db, "vnext_physical_root_baselines"),
+      baselineCountBeforeWindowsOnboarding + 1,
+    );
+    assert.equal(
+      readCanonicalProjectWithRootV01(db, {
+        workspace_id: workspaceId,
+        project_id: windowsOnboarded.project.project_id,
+      })?.root_binding.local_root.normalized_path,
+      windowsOnboardingRoot,
+      "an alias must not rewrite the canonical root binding",
     );
 
     selectProjectV01(db, workspaceId, projectA.project_id);
@@ -376,6 +463,9 @@ async function main(): Promise<void> {
       "filesystem_volume_identity",
       "filesystem_object_identity",
       "canonical_realpath_fingerprint",
+      "canonical_final_path_fingerprint",
+      "volume_serial_identity",
+      "file_id",
       "root_binding_fingerprint",
       "node_scope_fingerprint",
       legacyRoot,
@@ -616,11 +706,90 @@ async function main(): Promise<void> {
     } finally {
       restored.close();
     }
-    const unsupported = await readProjectExecutionAdmissionV01(db, {
+    if (process.platform === "win32") {
+      const windowsAdmission = await readProjectExecutionAdmissionV01(db, {
+        workspace_id: workspaceId,
+        project_id: projectA.project_id,
+      }, { now: () => "2026-08-04T00:00:17.000Z" });
+      assert.equal(windowsAdmission.reason, "ready");
+      const productionWindowsObservation = await inspectPhysicalRootForExecutionV01(
+        db,
+        rootA,
+        { now: () => "2026-08-04T00:00:17.001Z" },
+      );
+      assert.equal(productionWindowsObservation.status, "exact");
+    }
+    const windowsIdentity = (root: string) => ({
+      identity_version: "physical_root_identity.windows.v0.1" as const,
+      canonical_final_path_fingerprint: createProtocolSha256V01(
+        root === "C:\\AugnesData" ? "C:\\AugnesData" : "C:\\RepositoryA",
+      ),
+      volume_serial_identity: "0011223344556677",
+      file_id: root === "C:\\AugnesData"
+        ? "11112222333344445555666677778888"
+        : "00112233445566778899aabbccddeeff",
+      filesystem_family: "NTFS" as const,
+      drive_type: "fixed" as const,
+    });
+    const windowsDependencies = {
+      platform: "win32" as const,
+      architecture: "x64" as const,
+      windows_version: "10.0.26100",
+      node_scope_root: "C:\\AugnesData",
+      windows_physical_identity: async (root: string) => windowsIdentity(root),
+    };
+    const windowsPhysical = await inspectPhysicalRootForExecutionV01(
+      db,
+      rootA,
+      { ...windowsDependencies, now: () => "2026-08-04T00:00:17.010Z" },
+    );
+    assert.equal(windowsPhysical.status, "exact");
+    assert.equal(windowsPhysical.platform, "win32");
+    if (windowsPhysical.status !== "exact" || windowsPhysical.platform !== "win32") {
+      throw new Error("windows contract observation did not narrow");
+    }
+    const registrationA = readCanonicalProjectWithRootV01(db, {
       workspace_id: workspaceId,
       project_id: projectA.project_id,
-    }, { platform: "win32", now: () => "2026-08-04T00:00:17.000Z" });
-    assert.equal(unsupported.reason, "identity_unsupported");
+    });
+    assert(registrationA);
+    db.transaction(() => {
+      const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
+        db,
+        buildPhysicalRootBaselineV01({
+          workspace_id: workspaceId,
+          project_id: projectA.project_id,
+          root_binding: registrationA.root_binding,
+          observation: windowsPhysical,
+          provenance: "explicit_legacy_adoption",
+        }),
+      );
+      assert.equal(insertion.status, "inserted");
+    }).immediate();
+    const windowsPrepared = await prepareRepositoryExecutionV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectA.project_id,
+    }, { ...windowsDependencies, now: () => "2026-08-04T00:00:17.020Z" });
+    assert.equal(windowsPrepared.status, "prepared");
+    assert.equal(windowsPrepared.attachment?.consumed_run_id, null);
+    assert.equal(windowsPrepared.authority.managed_run_created, false);
+    const windowsReplacement = await validateRepositoryExecutionAttachmentV01(
+      db,
+      windowsPrepared.attachment!.attachment_id,
+      {
+        ...windowsDependencies,
+        windows_physical_identity: async (root: string) => root === "C:\\AugnesData"
+          ? windowsIdentity(root)
+          : {
+              ...windowsIdentity(root),
+              file_id: "ffeeddccbbaa99887766554433221100",
+            },
+        now: () => "2026-08-04T00:00:17.030Z",
+      },
+    );
+    assert.equal(windowsReplacement?.lifecycle, "stale");
+    assert.equal(windowsReplacement?.stale_reason, "physical_root_mismatch");
+    assert.equal(count(db, "autonomy_runs"), 0);
     const crossNode = await readProjectExecutionAdmissionV01(db, {
       workspace_id: workspaceId,
       project_id: projectA.project_id,
@@ -1093,8 +1262,13 @@ async function main(): Promise<void> {
       backup_restore_retains_local_metadata: true,
       recovery_validator_accepts_exact_metadata: true,
       portable_export_excludes_machine_local_metadata: true,
-      windows_verified: false,
-      windows_status: "identity_unsupported",
+      windows_verified: process.platform === "win32",
+      windows_status: process.platform === "win32" ? "ready" : "not_run_non_windows",
+      windows_product_admission_enabled: process.platform === "win32",
+      windows_contract_test_attachment_prepared: true,
+      windows_contract_same_path_replacement_blocked: true,
+      windows_contract_onboarding_atomic: true,
+      windows_contract_alias_reuses_project_without_root_rewrite: true,
       cross_node_status: "baseline_adoption_required",
       ambiguous_identity_refused: true,
       network_filesystem_identity_refused: true,

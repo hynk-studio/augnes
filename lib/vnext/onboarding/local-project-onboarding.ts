@@ -39,6 +39,7 @@ import {
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
+  readPhysicalRootBaselineByIdentityV01,
 } from "@/lib/vnext/persistence/repository-execution-store";
 import { readPhysicalRootBaselineV01 } from "@/lib/vnext/persistence/repository-execution-store";
 import {
@@ -62,6 +63,7 @@ import {
   type ProjectRootAvailabilityV01,
   type RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
+import type { PhysicalRootObservationV01 } from "@/types/vnext/repository-execution";
 
 const execFileAsync = promisify(execFile);
 const MAX_PICKER_OUTPUT = 16 * 1024;
@@ -311,12 +313,43 @@ function isPathInsideOrEqual(root: string, candidate: string): boolean {
   return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
 }
 
+function readCanonicalProjectForWindowsObservationV01(
+  db: Database.Database,
+  workspaceId: string,
+  observation: Extract<
+    PhysicalRootObservationV01,
+    { status: "exact"; platform: "win32" }
+  >,
+) {
+  const baseline = readPhysicalRootBaselineByIdentityV01(db, {
+    workspace_id: workspaceId,
+    node_scope_fingerprint: observation.node_scope_fingerprint,
+    identity_version: observation.identity.identity_version,
+    filesystem_volume_identity: observation.identity.volume_serial_identity,
+    filesystem_object_identity: observation.identity.file_id,
+  });
+  if (!baseline) return null;
+  const registration = readCanonicalProjectWithRootV01(db, {
+    workspace_id: workspaceId,
+    project_id: baseline.project_id,
+  });
+  if (
+    !registration ||
+    fingerprintProjectRootBindingV01(registration.root_binding) !==
+      baseline.root_binding_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 422);
+  }
+  return registration;
+}
+
 export async function inspectLocalProjectRootV01(absolutePath: string, options: {
   now?: () => string;
   db?: Database.Database;
   workspace_id?: string;
   filesystem?: Partial<typeof SYSTEM_LOCAL_PROJECT_FILESYSTEM>;
   metadata_reader?: LocalProjectMetadataFileReaderV01;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 } = {}): Promise<LocalProjectInspectionV01> {
   if (!path.isAbsolute(absolutePath)) throw new ProjectOnboardingErrorV01("selection_invalid");
   const localRoot = normalizeLocalProjectRootRefV01(absolutePath, { base_path: path.parse(absolutePath).root });
@@ -335,6 +368,7 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   const inspectedAt = (options.now ?? (() => new Date().toISOString()))();
   const physical = options.db
     ? await inspectPhysicalRootForExecutionV01(options.db, localRoot.normalized_path, {
+        ...options.repository_execution_dependencies,
         now: () => inspectedAt,
       })
     : null;
@@ -356,12 +390,30 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     physical_root_observation_fingerprint:
       physical?.status === "exact" ? physical.observation_fingerprint : null,
   });
-  const existingRegistration = options.db && options.workspace_id
+  const lexicalRegistration = options.db && options.workspace_id
     ? findCanonicalProjectByLocalRootV01(options.db, {
       workspace_id: options.workspace_id,
       local_root: localRoot,
     })
     : null;
+  const physicalRegistration =
+    options.db && options.workspace_id && physical?.status === "exact" &&
+      physical.platform === "win32"
+      ? readCanonicalProjectForWindowsObservationV01(
+          options.db,
+          options.workspace_id,
+          physical,
+        )
+      : null;
+  if (
+    lexicalRegistration &&
+    physicalRegistration &&
+    lexicalRegistration.project.project_id !==
+      physicalRegistration.project.project_id
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 409);
+  }
+  const existingRegistration = lexicalRegistration ?? physicalRegistration;
   return {
     inspection_version: LOCAL_PROJECT_INSPECTION_VERSION_V01,
     display_name: displayName,
@@ -395,6 +447,7 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
   now_ms?: () => number;
   create_token?: () => string;
   metadata_reader?: LocalProjectMetadataFileReaderV01;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 } = {}): Promise<LocalFolderPickerOutcomeV01> {
   const picked = await chooseLocalProjectFolderV01(options);
   if (picked.status !== "selected") return picked;
@@ -404,6 +457,8 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
     const inspection = await inspectLocalProjectRootV01(picked.absolute_path, {
       now: options.now,
       metadata_reader: options.metadata_reader,
+      repository_execution_dependencies:
+        options.repository_execution_dependencies,
       db,
       ...(workspace ? { workspace_id: workspace.workspace_id } : {}),
     });
@@ -438,12 +493,15 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   now_ms?: () => number;
   create_uuid?: () => string;
   before_baseline_insert_inside_transaction?: () => void;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 } = {}): Promise<ProjectOnboardingConfirmationV01> {
   const record = consumeSelection(input.selection_token, options.now_ms);
   if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
   const existingWorkspace = readDefaultWorkspaceIdentityV01(db);
   const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
     now: options.now,
+    repository_execution_dependencies:
+      options.repository_execution_dependencies,
     db,
     ...(existingWorkspace
       ? { workspace_id: existingWorkspace.workspace_id }
@@ -463,7 +521,7 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   const physical = await inspectPhysicalRootForExecutionV01(
     db,
     inspection.local_root.normalized_path,
-    { now: options.now },
+    { ...options.repository_execution_dependencies, now: options.now },
   );
   if (
     physical.status !== "exact" ||
@@ -485,11 +543,32 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
     ensureVNextProjectLifecycleSchemaV01(db);
-    const registration = getOrCreateCanonicalProjectForLocalRootV01(db, {
+    const physicalRegistration = physical.platform === "win32"
+      ? readCanonicalProjectForWindowsObservationV01(
+          db,
+          workspace.workspace_id,
+          physical,
+        )
+      : null;
+    const lexicalRegistration = findCanonicalProjectByLocalRootV01(db, {
       workspace_id: workspace.workspace_id,
       local_root: inspection.local_root,
-      ...(displayName === undefined ? {} : { display_name: displayName }),
-    }, { now: options.now, create_uuid: options.create_uuid });
+    });
+    if (
+      lexicalRegistration &&
+      physicalRegistration &&
+      lexicalRegistration.project.project_id !==
+        physicalRegistration.project.project_id
+    ) {
+      throw new ProjectOnboardingErrorV01("inspection_failed", 409);
+    }
+    const registration = physicalRegistration
+      ? { status: "exact_replay" as const, ...physicalRegistration }
+      : getOrCreateCanonicalProjectForLocalRootV01(db, {
+          workspace_id: workspace.workspace_id,
+          local_root: inspection.local_root,
+          ...(displayName === undefined ? {} : { display_name: displayName }),
+        }, { now: options.now, create_uuid: options.create_uuid });
     if (registration.status === "inserted") {
       options.before_baseline_insert_inside_transaction?.();
       const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(

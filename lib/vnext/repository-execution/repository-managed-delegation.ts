@@ -697,6 +697,12 @@ function physicalMatchesBaselineV01(
   observation: Extract<PhysicalRootObservationV01, { status: "exact" }>,
   baseline: PhysicalRootBaselineV01,
 ): boolean {
+  if (
+    observation.platform !== "darwin" ||
+    baseline.identity_version !== "native_host_physical_root_identity.v0.1"
+  ) {
+    return false;
+  }
   return (
     observation.node_scope_fingerprint === baseline.node_scope_fingerprint &&
     observation.identity.identity_version === baseline.identity_version &&

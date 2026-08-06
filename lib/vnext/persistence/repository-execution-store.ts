@@ -29,9 +29,21 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
     root_binding_fingerprint TEXT NOT NULL CHECK (
       length(root_binding_fingerprint) = 71 AND substr(root_binding_fingerprint, 1, 7) = 'sha256:'
     ),
-    identity_version TEXT NOT NULL CHECK (identity_version = 'native_host_physical_root_identity.v0.1'),
-    canonical_realpath_fingerprint TEXT NOT NULL CHECK (
-      length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:'
+    identity_version TEXT NOT NULL CHECK (identity_version IN (
+      'native_host_physical_root_identity.v0.1',
+      'physical_root_identity.windows.v0.1'
+    )),
+    identity_platform TEXT CHECK (identity_platform IS NULL OR identity_platform = 'win32'),
+    canonical_realpath_fingerprint TEXT CHECK (
+      canonical_realpath_fingerprint IS NULL OR
+      (length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:')
+    ),
+    canonical_final_path_fingerprint TEXT CHECK (
+      canonical_final_path_fingerprint IS NULL OR
+      (length(canonical_final_path_fingerprint) = 71 AND substr(canonical_final_path_fingerprint, 1, 7) = 'sha256:')
+    ),
+    supported_filesystem_family TEXT CHECK (
+      supported_filesystem_family IS NULL OR supported_filesystem_family = 'NTFS'
     ),
     filesystem_volume_identity TEXT NOT NULL CHECK (length(filesystem_volume_identity) > 0),
     filesystem_object_identity TEXT NOT NULL CHECK (length(filesystem_object_identity) > 0),
@@ -44,6 +56,19 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
     baseline_fingerprint TEXT NOT NULL UNIQUE CHECK (
       length(baseline_fingerprint) = 71 AND substr(baseline_fingerprint, 1, 7) = 'sha256:'
     ),
+    CHECK (
+      (identity_version = 'native_host_physical_root_identity.v0.1'
+        AND identity_platform IS NULL
+        AND canonical_realpath_fingerprint IS NOT NULL
+        AND canonical_final_path_fingerprint IS NULL
+        AND supported_filesystem_family IS NULL)
+      OR
+      (identity_version = 'physical_root_identity.windows.v0.1'
+        AND identity_platform = 'win32'
+        AND canonical_realpath_fingerprint IS NULL
+        AND canonical_final_path_fingerprint IS NOT NULL
+        AND supported_filesystem_family = 'NTFS')
+    ),
     PRIMARY KEY (workspace_id, project_id, node_scope_fingerprint),
     FOREIGN KEY (workspace_id, project_id)
       REFERENCES vnext_project_identities(workspace_id, project_id)
@@ -52,6 +77,12 @@ export const VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01 = `
 
   CREATE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_project
     ON vnext_physical_root_baselines(workspace_id, project_id, observed_at);
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_object
+    ON vnext_physical_root_baselines(
+      workspace_id, node_scope_fingerprint, identity_version,
+      filesystem_volume_identity, filesystem_object_identity
+    ) WHERE identity_version = 'physical_root_identity.windows.v0.1';
 
   CREATE TABLE IF NOT EXISTS vnext_repository_execution_attachments (
     attachment_id TEXT PRIMARY KEY CHECK (
@@ -362,6 +393,7 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
     ["table", "vnext_repository_execution_attachments"],
     ["table", "vnext_repository_root_rebind_receipts"],
     ["index", "idx_vnext_physical_root_baselines_project"],
+    ["index", "idx_vnext_physical_root_baselines_object"],
     ["index", "idx_vnext_repository_execution_attachments_project"],
     ["index", "idx_vnext_repository_execution_one_prepared"],
     ["index", "idx_vnext_repository_execution_consumed_run"],
@@ -389,6 +421,78 @@ export function assertVNextRepositoryExecutionStoreSchemaV01(
   }
 }
 
+interface PhysicalRootBaselineRowV01 {
+  baseline_version: string;
+  workspace_id: string;
+  project_id: string;
+  node_scope_fingerprint: string;
+  root_binding_fingerprint: string;
+  identity_version: string;
+  identity_platform: string | null;
+  canonical_realpath_fingerprint: string | null;
+  canonical_final_path_fingerprint: string | null;
+  supported_filesystem_family: string | null;
+  filesystem_volume_identity: string;
+  filesystem_object_identity: string;
+  observed_at: string;
+  provenance: PhysicalRootBaselineV01["provenance"];
+  baseline_fingerprint: string;
+}
+
+function parsePhysicalRootBaselineV01(
+  row: PhysicalRootBaselineRowV01,
+): PhysicalRootBaselineV01 {
+  const common = {
+    baseline_version: row.baseline_version,
+    workspace_id: row.workspace_id,
+    project_id: row.project_id,
+    node_scope_fingerprint: row.node_scope_fingerprint,
+    root_binding_fingerprint: row.root_binding_fingerprint,
+    filesystem_volume_identity: row.filesystem_volume_identity,
+    filesystem_object_identity: row.filesystem_object_identity,
+    observed_at: row.observed_at,
+    provenance: row.provenance,
+    baseline_fingerprint: row.baseline_fingerprint,
+  };
+  if (
+    row.baseline_version !== "physical_root_baseline.v0.1" ||
+    !row.identity_version
+  ) {
+    throw new Error("physical_root_baseline_corrupt");
+  }
+  if (
+    row.identity_version === "native_host_physical_root_identity.v0.1" &&
+    row.identity_platform === null &&
+    typeof row.canonical_realpath_fingerprint === "string" &&
+    row.canonical_final_path_fingerprint === null &&
+    row.supported_filesystem_family === null
+  ) {
+    return {
+      ...common,
+      baseline_version: "physical_root_baseline.v0.1",
+      identity_version: row.identity_version,
+      canonical_realpath_fingerprint: row.canonical_realpath_fingerprint,
+    };
+  }
+  if (
+    row.identity_version === "physical_root_identity.windows.v0.1" &&
+    row.identity_platform === "win32" &&
+    row.canonical_realpath_fingerprint === null &&
+    typeof row.canonical_final_path_fingerprint === "string" &&
+    row.supported_filesystem_family === "NTFS"
+  ) {
+    return {
+      ...common,
+      baseline_version: "physical_root_baseline.v0.1",
+      identity_version: row.identity_version,
+      identity_platform: "win32",
+      canonical_final_path_fingerprint: row.canonical_final_path_fingerprint,
+      supported_filesystem_family: "NTFS",
+    };
+  }
+  throw new Error("physical_root_baseline_corrupt");
+}
+
 export function readPhysicalRootBaselineV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string; node_scope_fingerprint: string },
@@ -401,8 +505,34 @@ export function readPhysicalRootBaselineV01(
     input.workspace_id,
     input.project_id,
     input.node_scope_fingerprint,
-  ) as PhysicalRootBaselineV01 | undefined;
-  return row ? { ...row } : null;
+  ) as PhysicalRootBaselineRowV01 | undefined;
+  return row ? parsePhysicalRootBaselineV01(row) : null;
+}
+
+export function readPhysicalRootBaselineByIdentityV01(
+  db: Database.Database,
+  input: {
+    workspace_id: string;
+    node_scope_fingerprint: string;
+    identity_version: PhysicalRootBaselineV01["identity_version"];
+    filesystem_volume_identity: string;
+    filesystem_object_identity: string;
+  },
+): PhysicalRootBaselineV01 | null {
+  assertVNextRepositoryExecutionStoreSchemaV01(db);
+  const row = db.prepare(
+    `SELECT * FROM vnext_physical_root_baselines
+      WHERE workspace_id = ? AND node_scope_fingerprint = ?
+        AND identity_version = ? AND filesystem_volume_identity = ?
+        AND filesystem_object_identity = ?`,
+  ).get(
+    input.workspace_id,
+    input.node_scope_fingerprint,
+    input.identity_version,
+    input.filesystem_volume_identity,
+    input.filesystem_object_identity,
+  ) as PhysicalRootBaselineRowV01 | undefined;
+  return row ? parsePhysicalRootBaselineV01(row) : null;
 }
 
 export function insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
@@ -419,10 +549,12 @@ export function insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
   db.prepare(
     `INSERT INTO vnext_physical_root_baselines (
       workspace_id, project_id, node_scope_fingerprint, baseline_version,
-      root_binding_fingerprint, identity_version, canonical_realpath_fingerprint,
+      root_binding_fingerprint, identity_version, identity_platform,
+      canonical_realpath_fingerprint, canonical_final_path_fingerprint,
+      supported_filesystem_family,
       filesystem_volume_identity, filesystem_object_identity, observed_at,
       provenance, baseline_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     baseline.workspace_id,
     baseline.project_id,
@@ -430,7 +562,18 @@ export function insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
     baseline.baseline_version,
     baseline.root_binding_fingerprint,
     baseline.identity_version,
-    baseline.canonical_realpath_fingerprint,
+    baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? baseline.identity_platform
+      : null,
+    baseline.identity_version === "native_host_physical_root_identity.v0.1"
+      ? baseline.canonical_realpath_fingerprint
+      : null,
+    baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? baseline.canonical_final_path_fingerprint
+      : null,
+    baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? baseline.supported_filesystem_family
+      : null,
     baseline.filesystem_volume_identity,
     baseline.filesystem_object_identity,
     baseline.observed_at,
@@ -459,16 +602,28 @@ export function replacePhysicalRootBaselineExpectedInsideTransactionV01(
   const result = db.prepare(
     `UPDATE vnext_physical_root_baselines SET
       baseline_version = ?, root_binding_fingerprint = ?, identity_version = ?,
-      canonical_realpath_fingerprint = ?, filesystem_volume_identity = ?,
-      filesystem_object_identity = ?, observed_at = ?, provenance = ?,
-      baseline_fingerprint = ?
+      identity_platform = ?, canonical_realpath_fingerprint = ?,
+      canonical_final_path_fingerprint = ?, supported_filesystem_family = ?,
+      filesystem_volume_identity = ?, filesystem_object_identity = ?,
+      observed_at = ?, provenance = ?, baseline_fingerprint = ?
      WHERE workspace_id = ? AND project_id = ? AND node_scope_fingerprint = ?
        AND baseline_fingerprint = ?`,
   ).run(
     input.baseline.baseline_version,
     input.baseline.root_binding_fingerprint,
     input.baseline.identity_version,
-    input.baseline.canonical_realpath_fingerprint,
+    input.baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? input.baseline.identity_platform
+      : null,
+    input.baseline.identity_version === "native_host_physical_root_identity.v0.1"
+      ? input.baseline.canonical_realpath_fingerprint
+      : null,
+    input.baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? input.baseline.canonical_final_path_fingerprint
+      : null,
+    input.baseline.identity_version === "physical_root_identity.windows.v0.1"
+      ? input.baseline.supported_filesystem_family
+      : null,
     input.baseline.filesystem_volume_identity,
     input.baseline.filesystem_object_identity,
     input.baseline.observed_at,

@@ -69,7 +69,12 @@ const applicationVersion = JSON.parse(
   readFileSync(path.join(repositoryRoot, "package.json"), "utf8"),
 ).version;
 const supervisorScript = path.join(repositoryRoot, "scripts", "augnes-runtime-supervisor.mjs");
-const temporaryRoot = mkdtempSync(path.join(tmpdir(), "augnes-database-bootstrap-"));
+const temporaryRoot = mkdtempSync(
+  path.join(
+    tmpdir(),
+    process.platform === "win32" ? "ag-db-" : "augnes-database-bootstrap-",
+  ),
+);
 const repositoryDatabasePath = path.join(repositoryRoot, "data", "augnes.db");
 const credentialSentinel = "db-bootstrap-provider-sentinel-must-not-escape";
 const modelSentinel = "db-bootstrap-model-sentinel-must-not-escape";
@@ -389,17 +394,27 @@ function testPhysicalPathSafety() {
   assertPublicPathFailure(
     () =>
       resolveAugnesLocalPaths({
-        platform: "linux",
-        environment: {
-          HOME: outside,
-          XDG_DATA_HOME: path.join(outside, "xdg-data"),
-          XDG_CONFIG_HOME: path.join(outside, "xdg-config"),
-          XDG_STATE_HOME: repositoryLink,
-        },
+        platform: process.platform,
+        environment: process.platform === "win32"
+          ? {
+              USERPROFILE: outside,
+              LOCALAPPDATA: repositoryLink,
+              APPDATA: path.join(outside, "appdata"),
+            }
+          : process.platform === "darwin"
+            ? { HOME: repositoryLink }
+            : {
+                HOME: outside,
+                XDG_DATA_HOME: path.join(outside, "xdg-data"),
+                XDG_CONFIG_HOME: path.join(outside, "xdg-config"),
+                XDG_STATE_HOME: repositoryLink,
+              },
         repositoryRoot: fakeRepository,
         repositoryFingerprint: "b".repeat(64),
       }),
-    "backup_path_must_be_outside_repository",
+    process.platform === "win32" || process.platform === "darwin"
+      ? "data_path_must_be_outside_repository"
+      : "backup_path_must_be_outside_repository",
     [repositoryLink, fakeRepository],
   );
 
@@ -1737,7 +1752,10 @@ async function assertRealReplacementRollback({ name, hookName, observe }) {
 }
 
 async function testSupervisorMigrationFailure() {
-  const root = path.join(temporaryRoot, "supervisor-migration-failure");
+  const root = path.join(
+    temporaryRoot,
+    process.platform === "win32" ? "smf" : "supervisor-migration-failure",
+  );
   mkdirSync(root, { recursive: true });
   const ports = await findPreferredPorts();
   const environment = disposableSupervisorEnvironment(root, {
@@ -1883,7 +1901,10 @@ async function assertSupervisorBootstrapFailure({
   setup,
   dependencies,
 }) {
-  const root = path.join(temporaryRoot, `supervisor-${name}`);
+  const scenarioDirectory = process.platform === "win32"
+    ? `sf-${createHash("sha256").update(name).digest("hex").slice(0, 8)}`
+    : `supervisor-${name}`;
+  const root = path.join(temporaryRoot, scenarioDirectory);
   mkdirSync(root, { recursive: true });
   const ports = await findPreferredPorts();
   const proxy = await createProxySentinel();
@@ -1901,13 +1922,24 @@ async function assertSupervisorBootstrapFailure({
     const originalBefore = snapshotDatabaseFamily(paths.database_path);
     const childProcessesBefore = listRuntimeChildProcesses();
     const output = [];
+    let bootstrapFailureCodes = [];
     const originalConsoleLog = console.log;
     console.log = (...values) => output.push(values.join(" "));
     let exitCode;
     try {
       exitCode = await runRuntimeSupervisorCli(["start"], environment, {
-        prepareRuntimeDatabase: (options) =>
-          prepareRuntimeDatabase({ ...options, dependencies }),
+        prepareRuntimeDatabase: async (options) => {
+          try {
+            return await prepareRuntimeDatabase({ ...options, dependencies });
+          } catch (error) {
+            bootstrapFailureCodes = [
+              error?.code,
+              error?.cause?.code,
+              error?.cause?.cause?.code,
+            ].filter(Boolean);
+            throw error;
+          }
+        },
       });
     } finally {
       console.log = originalConsoleLog;
@@ -1915,7 +1947,11 @@ async function assertSupervisorBootstrapFailure({
     assert.equal(exitCode, 1);
     const events = output.map(parseJsonLine).filter(Boolean);
     const failure = events.find((event) => event.result === "failed");
-    assert.equal(failure.reason, expectedReason);
+    assert.equal(
+      failure.reason,
+      expectedReason,
+      `${name}:${bootstrapFailureCodes.join(">") || "no_internal_code"}`,
+    );
     assert.equal(failure.database_state, "failed");
     assert.equal(failure.recovery_backup_created, expectedBackupCount > 0);
     assert.equal(events.some((event) => (event.children ?? []).length > 0), false);
@@ -2012,13 +2048,27 @@ async function assertInjectedFailure({
 }
 
 async function startSupervisor(environment, label, surface = "direct") {
-  const command = surface === "canonical"
-    ? process.platform === "win32"
-      ? "npm.cmd"
-      : "npm"
+  const windowsCanonicalSurface =
+    surface === "canonical" && process.platform === "win32";
+  const command = surface === "canonical" && !windowsCanonicalSurface
+    ? "npm"
     : process.execPath;
   const args = surface === "canonical"
-    ? ["run", "augnes", "--", "start"]
+    ? windowsCanonicalSurface
+      ? [
+          path.join(
+            path.dirname(process.execPath),
+            "node_modules",
+            "npm",
+            "bin",
+            "npm-cli.js",
+          ),
+          "run",
+          "augnes",
+          "--",
+          "start",
+        ]
+      : ["run", "augnes", "--", "start"]
     : [supervisorScript, "start"];
   const child = spawn(command, args, {
     cwd: repositoryRoot,

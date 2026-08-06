@@ -381,16 +381,20 @@ function repositoryExecutionAuthorityV01(value) {
 function rejectPrivatePhysicalMaterialV01(value) {
   const forbidden = new Set([
     "canonical_realpath_fingerprint",
+    "canonical_final_path_fingerprint",
     "credential",
     "database_path",
     "device",
     "filesystem_object_identity",
     "filesystem_volume_identity",
+    "file_id",
+    "helper_path",
     "inode",
     "local_root",
     "normalized_path",
     "password",
     "secret",
+    "volume_serial_identity",
   ]);
   const visit = (candidate) => {
     if (Array.isArray(candidate)) {

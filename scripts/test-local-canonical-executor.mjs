@@ -228,6 +228,7 @@ assert.deepEqual(
 for (const required of [
   "dependencies-root",
   "dependencies-nested",
+  ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
   "unit",
@@ -242,6 +243,16 @@ for (const required of [
   "e2e-golden",
 ]) {
   assert.equal(FULL_PHASE_IDS.includes(required), true, required);
+}
+if (process.platform === "win32") {
+  assert(
+    fullPlan.findIndex((phase) => phase.id === "native-windows-identity") <
+      fullPlan.findIndex((phase) => phase.id === "unit"),
+  );
+  assert.equal(
+    fullPlan.find((phase) => phase.id === "native-windows-identity")?.display,
+    "npm run build:native:windows-identity",
+  );
 }
 assert(
   fullPlan.findIndex((phase) => phase.id === "e2e-project-experience") <
@@ -292,7 +303,13 @@ const stoppedAfterFailure = await runPhasesSequentially({
 });
 assert.deepEqual(
   stoppedAfterFailure.map((result) => result.id),
-  ["dependencies-root", "dependencies-nested", "typecheck", "build"],
+  [
+    "dependencies-root",
+    "dependencies-nested",
+    ...(process.platform === "win32" ? ["native-windows-identity"] : []),
+    "typecheck",
+    "build",
+  ],
 );
 
 assert.equal(CANONICAL_NODE_VERSION, "24.18.0");

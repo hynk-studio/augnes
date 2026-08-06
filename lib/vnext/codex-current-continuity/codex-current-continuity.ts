@@ -99,6 +99,7 @@ export interface CodexCurrentContinuityLiveObservationV01 {
 export interface CodexCurrentContinuityDependenciesV01 {
   open_database: () => Database.Database;
   now: () => string;
+  managed_start_available: () => boolean;
   read_root_availability: (root: string) => Promise<ProjectRootAvailabilityV01>;
   read_operator_config: () => VNextLocalOperatorPilotConfigV01 | null;
   read_live_projection: (
@@ -277,6 +278,15 @@ export async function readCodexCurrentContinuityV01(
       "Existing managed work must settle before another run starts.";
     work.snapshot_state.start_eligible = false;
     work.snapshot_state.start_blocker_code = "managed_execution_present";
+  }
+  const managedStartAvailable =
+    dependencies.managed_start_available?.() ?? process.platform !== "win32";
+  if (!managedStartAvailable && work.public.start_eligible) {
+    work.public.start_eligible = false;
+    work.public.start_blocker =
+      "Managed Start is unavailable on this platform.";
+    work.snapshot_state.start_eligible = false;
+    work.snapshot_state.start_blocker_code = "managed_start_unavailable";
   }
   const review = readReviewContinuityV01(db, configuredOperator, resultDetail, result.currentness);
 

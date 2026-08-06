@@ -41,8 +41,13 @@ import {
   inspectNativeHostPhysicalRootIdentityV01,
   type ProjectRootIdentityFilesystemV01,
 } from "@/lib/vnext/native-host/project-root-identity";
+import {
+  inspectWindowsPhysicalRootIdentityV01,
+  WindowsProjectRootIdentityErrorV01,
+} from "@/lib/vnext/native-host/windows-project-root-identity";
 import { inspectRepositoryWorktreeV01 } from "@/lib/vnext/repository-execution/worktree-observation";
 import type { LocalProjectRootRefV01, ProjectLocalRootBindingV01 } from "@/types/vnext/project-identity";
+import type { NativeHostWindowsPhysicalRootIdentityV01 } from "@/types/vnext/native-host-adapter";
 import {
   PHYSICAL_ROOT_BASELINE_VERSION_V01,
   PROJECT_EXECUTION_ADMISSION_VERSION_V01,
@@ -90,7 +95,13 @@ export class RepositoryExecutionErrorV01 extends Error {
 export interface RepositoryExecutionDependenciesV01 {
   now?: () => string;
   platform?: NodeJS.Platform;
+  architecture?: NodeJS.Architecture;
+  windows_version?: string;
   physical_identity_filesystem?: ProjectRootIdentityFilesystemV01;
+  windows_physical_identity?: (
+    root: string,
+  ) => Promise<NativeHostWindowsPhysicalRootIdentityV01>;
+  windows_identity_runtime_root?: string;
   filesystem_type?: (root: string) => Promise<number | bigint>;
   node_scope_root?: string;
   inspect_worktree?: typeof inspectRepositoryWorktreeV01;
@@ -147,14 +158,82 @@ export async function inspectPhysicalRootForExecutionV01(
 ): Promise<PhysicalRootObservationV01> {
   const observedAt = (dependencies.now ?? (() => new Date().toISOString()))();
   const platform = dependencies.platform ?? process.platform;
+  if (platform === "win32") {
+    const architecture = dependencies.architecture ?? process.arch;
+    if (architecture !== "x64") {
+      return {
+        status: "identity_unsupported",
+        platform,
+        node_scope_fingerprint: null,
+        reason: "windows_x64_identity_required",
+        observed_at: observedAt,
+      };
+    }
+    try {
+      const nodeScopeRoot = dependencies.node_scope_root ?? databaseScopeRoot(db);
+      const observeWindows = dependencies.windows_physical_identity ??
+        ((root: string) => inspectWindowsPhysicalRootIdentityV01(root, {
+          platform,
+          architecture,
+          windows_version: dependencies.windows_version,
+          runtime_root: dependencies.windows_identity_runtime_root,
+        }));
+      const [nodeIdentity, identity] = await Promise.all([
+        observeWindows(nodeScopeRoot),
+        observeWindows(canonicalRoot),
+      ]);
+      if (!isStableWindowsFilesystemIdentity(nodeIdentity) ||
+          !isStableWindowsFilesystemIdentity(identity)) {
+        return {
+          status: "identity_ambiguous",
+          platform,
+          node_scope_fingerprint: null,
+          reason: "windows_filesystem_identity_fields_ambiguous",
+          observed_at: observedAt,
+        };
+      }
+      const nodeScopeFingerprint = createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          scope_version: "augnes_local_node_scope.v0.2",
+          platform,
+          architecture,
+          physical_identity_contract_version: nodeIdentity.identity_version,
+          installation_identity: nodeIdentity,
+        }),
+      );
+      const observationMaterial = {
+        platform,
+        architecture,
+        node_scope_fingerprint: nodeScopeFingerprint,
+        identity,
+      } as const;
+      return {
+        status: "exact",
+        ...observationMaterial,
+        observation_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(observationMaterial),
+        ),
+        observed_at: observedAt,
+      };
+    } catch (error) {
+      const reason = error instanceof WindowsProjectRootIdentityErrorV01
+        ? error.code
+        : "windows_physical_identity_unavailable";
+      return {
+        status: classifyWindowsIdentityFailureV01(reason),
+        platform,
+        node_scope_fingerprint: null,
+        reason,
+        observed_at: observedAt,
+      };
+    }
+  }
   if (platform !== "darwin" && platform !== "linux") {
     return {
       status: "identity_unsupported",
       platform,
       node_scope_fingerprint: null,
-      reason: platform === "win32"
-        ? "stable_windows_file_identity_not_verified"
-        : "platform_identity_adapter_unavailable",
+      reason: "platform_identity_adapter_unavailable",
       observed_at: observedAt,
     };
   }
@@ -241,6 +320,32 @@ export function buildPhysicalRootBaselineV01(input: {
   observation: Extract<PhysicalRootObservationV01, { status: "exact" }>;
   provenance: PhysicalRootBaselineV01["provenance"];
 }): PhysicalRootBaselineV01 {
+  if (input.observation.platform === "win32") {
+    const material = {
+      baseline_version: PHYSICAL_ROOT_BASELINE_VERSION_V01,
+      workspace_id: input.workspace_id,
+      project_id: input.project_id,
+      node_scope_fingerprint: input.observation.node_scope_fingerprint,
+      root_binding_fingerprint: fingerprintProjectRootBindingV01(input.root_binding),
+      identity_version: input.observation.identity.identity_version,
+      identity_platform: "win32" as const,
+      canonical_final_path_fingerprint:
+        input.observation.identity.canonical_final_path_fingerprint,
+      filesystem_volume_identity:
+        input.observation.identity.volume_serial_identity,
+      filesystem_object_identity: input.observation.identity.file_id,
+      supported_filesystem_family:
+        input.observation.identity.filesystem_family,
+      observed_at: input.observation.observed_at,
+      provenance: input.provenance,
+    };
+    return {
+      ...material,
+      baseline_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(material),
+      ),
+    };
+  }
   const material = {
     baseline_version: PHYSICAL_ROOT_BASELINE_VERSION_V01,
     workspace_id: input.workspace_id,
@@ -1654,12 +1759,28 @@ function blockedAdmission(
   };
 }
 
-function baselineMatchesObservation(
+export function baselineMatchesObservation(
   baseline: PhysicalRootBaselineV01,
   observation: Extract<PhysicalRootObservationV01, { status: "exact" }>,
 ): boolean {
-  return baseline.node_scope_fingerprint === observation.node_scope_fingerprint &&
-    baseline.canonical_realpath_fingerprint === observation.identity.canonical_realpath_fingerprint &&
+  if (baseline.node_scope_fingerprint !== observation.node_scope_fingerprint ||
+      baseline.identity_version !== observation.identity.identity_version) {
+    return false;
+  }
+  if (observation.platform === "win32") {
+    return baseline.identity_version === "physical_root_identity.windows.v0.1" &&
+      baseline.identity_platform === "win32" &&
+      baseline.canonical_final_path_fingerprint ===
+        observation.identity.canonical_final_path_fingerprint &&
+      baseline.filesystem_volume_identity ===
+        observation.identity.volume_serial_identity &&
+      baseline.filesystem_object_identity === observation.identity.file_id &&
+      baseline.supported_filesystem_family ===
+        observation.identity.filesystem_family;
+  }
+  return baseline.identity_version === "native_host_physical_root_identity.v0.1" &&
+    baseline.canonical_realpath_fingerprint ===
+      observation.identity.canonical_realpath_fingerprint &&
     baseline.filesystem_volume_identity === observation.identity.device &&
     baseline.filesystem_object_identity === observation.identity.inode;
 }
@@ -1777,6 +1898,27 @@ function ordinaryBlockedText(
 
 function isStableFilesystemIdentity(device: string, inode: string): boolean {
   return /^\d+$/u.test(device) && /^\d+$/u.test(inode) && device !== "0" && inode !== "0";
+}
+
+function isStableWindowsFilesystemIdentity(
+  identity: NativeHostWindowsPhysicalRootIdentityV01,
+): boolean {
+  return identity.identity_version === "physical_root_identity.windows.v0.1" &&
+    /^sha256:[a-f0-9]{64}$/u.test(identity.canonical_final_path_fingerprint) &&
+    /^[a-f0-9]{16}$/u.test(identity.volume_serial_identity) &&
+    identity.volume_serial_identity !== "0000000000000000" &&
+    /^[a-f0-9]{32}$/u.test(identity.file_id) &&
+    identity.file_id !== "00000000000000000000000000000000" &&
+    identity.filesystem_family === "NTFS" &&
+    identity.drive_type === "fixed";
+}
+
+function classifyWindowsIdentityFailureV01(
+  reason: string,
+): "identity_unavailable" | "identity_unsupported" | "identity_ambiguous" {
+  if (/unsupported/u.test(reason)) return "identity_unsupported";
+  if (/ambiguous/u.test(reason)) return "identity_ambiguous";
+  return "identity_unavailable";
 }
 
 function databaseScopeRoot(db: Database.Database): string {

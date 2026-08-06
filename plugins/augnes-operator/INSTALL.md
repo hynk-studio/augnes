@@ -119,9 +119,14 @@ Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, current-session workers,
 automatic resume after controller loss or Companion startup,
 continuous/multi-agent automation,
-Linux product filesystem/runtime proof, Windows physical identity/delegation,
-or broad Windows packaging. PR #117 is filesystem-verified on macOS; Linux has
-adapter contract coverage only. CDX2B2B v0.1 is explicitly macOS-only. A Codex
+Linux product filesystem/runtime proof, Windows managed delegation, or Windows
+packaging. PR #117 is filesystem-verified on macOS; Linux has adapter contract
+coverage only. CDX2B3A source-runtime attachment admission has exact Windows 10
+proof at checkpoint `374a582b` and exact Windows 11 proof at pre-integration
+checkpoint `567c9bbb`, both on x64 local fixed NTFS. The integrated head is not
+claimed as Windows 10 exact-head verified without a rerun there. The current
+package builder refuses Windows, so packaged Windows preparation remains
+fail-closed. CDX2B2B Start and CDX2B4B Resume remain explicitly macOS-only. A Codex
 build without plugin `mcpServers` support
 must be upgraded or use an explicitly configured direct test connection; the
 product docs do not pretend that limitation is solved.
@@ -129,9 +134,9 @@ product docs do not pretend that limitation is solved.
 CDX2B2A's node-local baseline detects same-path directory replacement, and its
 separate admission/attachment remain bound to repository A when Browser selects
 B. The unchanged CDX2A projection still reports A inactive and closes its own
-Start eligibility. Windows remains fail-closed until a stable verified adapter
-exists; broad CDX2B2B rollout therefore needs that adapter or an explicit
-macOS-only product boundary.
+Start eligibility. The Windows candidate never turns a path-only or mocked
+observation into readiness and does not expose volume serials or file IDs.
+Windows managed Start remains a separate CDX2B3B phase.
 
 ## Security and authority
 
@@ -152,12 +157,16 @@ create semantic approval/Decision/Transition, accept state, or close work.
 ```bash
 npm run test:codex-companion-discovery
 npm run test:codex-repository-continuity
+npm run test:windows-physical-root-identity
 npm run test:repository-managed-delegation
 npm run test:operability:supervisor
 npm --prefix apps/augnes_apps run typecheck
 ```
 
-`test:codex-companion-discovery` is a synthetic discovery/contract harness.
+`test:windows-physical-root-identity` is platform-neutral parser, native-source,
+failure, migration, and privacy coverage; it explicitly is not deciding
+Windows filesystem evidence. `test:codex-companion-discovery` is a synthetic
+discovery/contract harness.
 `test:operability:supervisor` is the real source-runtime test: it starts the
 actual supervised UI/Core and bridge, invokes the actual stdio proxy with the
 official MCP stdio client, registers disposable repositories through canonical

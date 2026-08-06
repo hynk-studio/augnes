@@ -37,6 +37,7 @@ import {
   transitionRepositoryManagedResumeRuntimeClaimInsideTransactionV01,
 } from "@/lib/vnext/persistence/repository-execution-store";
 import { admitRepositoryRunResumeCheckpointV01 } from "@/lib/vnext/repository-execution/repository-run-resume";
+import type { RepositoryExecutionDependenciesV01 } from "@/lib/vnext/repository-execution/repository-execution";
 import {
   admitPreparedNativeHostRunClaimInsideTransactionV01,
   admitPersistedHostTaskContextPacketV01,
@@ -177,6 +178,7 @@ export interface LiveNativeHostRunServiceOptionsV01 {
   test_only_allow_unauthenticated_interactive?: boolean;
   runtime_instance_fingerprint?: string;
   runtime_generation_fingerprint?: string;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 }
 
 export class LiveNativeHostRunServiceErrorV01 extends Error {
@@ -1405,6 +1407,8 @@ export class LiveNativeHostRunServiceV01 {
       repository_delegation_context: input.repository_delegation_context,
       repository_resume_context: input.repository_resume_context ?? null,
       read_capability: () => this.readCapabilityContractV01(),
+      repository_execution_dependencies:
+        this.options.repository_execution_dependencies,
       claimed_run_id:
         input.pre_admitted_repository_resume_claim?.run_id ??
         input.pre_admitted_run_claim?.claim.run_id ??
@@ -1811,6 +1815,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
       repository_delegation_context: NativeHostRepositoryDelegationContextV01 | null;
       repository_resume_context: NativeHostRepositoryResumeContextV01 | null;
       read_capability: () => ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>;
+      repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
       claimed_run_id: string | null;
     },
   ) {
@@ -2327,6 +2332,7 @@ class LiveRunControllerV01 implements NativeHostLifecycleSinkV01 {
           db,
           checkpointAdmission,
           {
+            ...this.input.repository_execution_dependencies,
             now: this.input.now,
             read_capability: this.input.read_capability,
           },

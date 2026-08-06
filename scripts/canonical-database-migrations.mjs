@@ -88,6 +88,12 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // identity guard removed by the bounded recovery fixture. The start/run
     // migration remains one-way and arbitrary partial schemas still refuse.
     "d28eb1500f9cd646cb3979d6a499745cb79e4448c7ba36d7990090594e26a7c3",
+    // Exact merged CDX2B2B schema. CDX2B3A rebuilds only the physical-root
+    // baseline constraint/columns and preserves every valid prior row.
+    "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
+    // Exact CDX2B3A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture.
+    "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
     // Exact CDX2B4A structural contract with the migration ledger and package
     // identity guard removed by the bounded recovery fixture. The checkpoint
     // table remains machine-local run history; only this complete ledgerless
@@ -102,6 +108,11 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // Runtime claims, their stale-claim history, and cancellation intent stay
     // private machine-local history; partial stores remain unsupported.
     "6ba9e92e9632a88373805fa6c123d24b5fbd3e311052a76be953815e8e98190f",
+    // Exact integrated CDX2B3A + CDX2B4B structural contract with only the
+    // migration ledger and package identity guard removed. Windows baseline
+    // identity and private resume history are both complete; arbitrary
+    // partial combinations remain unsupported.
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

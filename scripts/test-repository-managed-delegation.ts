@@ -356,6 +356,7 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
       createCanonicalRepositoryDelegationTestAdapterV01(process.env),
     runtime_instance_fingerprint: runtimeInstance,
     runtime_generation_fingerprint: runtimeGeneration,
+    repository_execution_dependencies: { platform: "darwin" },
   });
   try {
     const request = await requestAndGrantV01(
@@ -467,6 +468,7 @@ async function assertRepositoryResumeCheckpointEligibilityV01(
         createCanonicalRepositoryDelegationTestAdapterV01(process.env),
       runtime_instance_fingerprint: `sha256:${"a".repeat(64)}`,
       runtime_generation_fingerprint: `sha256:${"b".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
     });
     const zeroEffectBefore = {
       runs: count(db, "autonomy_runs"),
@@ -1539,6 +1541,7 @@ async function assertRepositoryManagedResumeV01(
       createCanonicalRepositoryDelegationTestAdapterV01(process.env),
     runtime_instance_fingerprint: `sha256:${"c".repeat(64)}`,
     runtime_generation_fingerprint: `sha256:${"d".repeat(64)}`,
+    repository_execution_dependencies: { platform: "darwin" },
   });
   let resumeInvocations = 0;
   let startInvocations = 0;
@@ -1559,6 +1562,7 @@ async function assertRepositoryManagedResumeV01(
     },
     runtime_instance_fingerprint: `sha256:${"e".repeat(64)}`,
     runtime_generation_fingerprint: `sha256:${"f".repeat(64)}`,
+    repository_execution_dependencies: { platform: "darwin" },
   });
   const config = operatorConfig(workspaceId, fixture.project_id);
   try {
@@ -1718,7 +1722,7 @@ async function assertRepositoryManagedResumeV01(
       );
     }
     delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
-    const [resumed, concurrentReplay] = await Promise.all([
+    const concurrentResults = await Promise.all([
       resumeRepositoryManagedDelegationV01(
         db,
         resumeInput,
@@ -1732,6 +1736,12 @@ async function assertRepositoryManagedResumeV01(
         { now: () => "2026-08-04T04:00:22.000Z", platform: "darwin" },
       ),
     ]);
+    const resumed = concurrentResults.find((candidate) => candidate.status === "accepted");
+    const concurrentReplay = concurrentResults.find(
+      (candidate) => candidate.status === "exact_replay",
+    );
+    assert(resumed, JSON.stringify(concurrentResults));
+    assert(concurrentReplay, JSON.stringify(concurrentResults));
     assert.equal(resumed.status, "accepted", JSON.stringify(resumed));
     assert.equal(resumed.run_id, started.run_id);
     assert.equal(resumed.attachment_id, fixture.attachment_id);
@@ -1832,6 +1842,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
         createCanonicalRepositoryDelegationTestAdapterV01(process.env),
       runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
       runtime_generation_fingerprint: `sha256:${"2".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
     });
     let resumeCalls = 0;
     let resumeCancellationSignals = 0;
@@ -1858,6 +1869,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
       },
       runtime_instance_fingerprint: `sha256:${"3".repeat(64)}`,
       runtime_generation_fingerprint: `sha256:${"4".repeat(64)}`,
+      repository_execution_dependencies: { platform: "darwin" },
     });
     const config = operatorConfig(workspaceId, fixture.project_id);
     try {
@@ -1945,6 +1957,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
             },
             runtime_instance_fingerprint: instance,
             runtime_generation_fingerprint: generation,
+            repository_execution_dependencies: { platform: "darwin" },
           });
         const assertAttemptBoundFailure = (
           result: Awaited<ReturnType<typeof resumeRepositoryManagedDelegationV01>>,
@@ -2044,6 +2057,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
           },
           runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
           runtime_generation_fingerprint: `sha256:${"0".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
         });
         assertAttemptBoundFailure(
           await resumeRepositoryManagedDelegationV01(
@@ -2159,6 +2173,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
           },
           runtime_instance_fingerprint: `sha256:${"9".repeat(64)}`,
           runtime_generation_fingerprint: `sha256:${"a".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
         });
         const replay = await resumeRepositoryManagedDelegationV01(
           db,
@@ -2268,6 +2283,7 @@ async function assertRepositoryManagedResumeCrashBoundariesV01(
             createCanonicalRepositoryDelegationTestAdapterV01(process.env),
           runtime_instance_fingerprint: `sha256:${"d".repeat(64)}`,
           runtime_generation_fingerprint: `sha256:${"e".repeat(64)}`,
+          repository_execution_dependencies: { platform: "darwin" },
         });
         const cancellationInput = {
           config,
@@ -3615,6 +3631,7 @@ async function assertPlatformAndNonGitRefusalV01(
     "2026-08-04T01:05:00.000Z",
   );
   const before = count(db, "autonomy_runs");
+  const decisionsBefore = count(db, "vnext_repository_execution_decision_requests");
   for (const platform of ["win32", "linux"] as const) {
     const result = await prepareRepositoryManagedDelegationV01(db, {
       workspace_id: workspaceId,
@@ -3626,8 +3643,34 @@ async function assertPlatformAndNonGitRefusalV01(
     });
     assert.equal(result.status, "blocked");
     assert.equal(result.decision_request, null);
+    if (platform === "win32") {
+      await assert.rejects(
+        startRepositoryManagedDelegationV01(db, {
+          config: operatorConfig(workspaceId, fixture.project_id),
+          workspace_id: workspaceId,
+          project_id: fixture.project_id,
+          attachment_id: fixture.attachment_id,
+          expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+          expected_execution_envelope_fingerprint: `sha256:${"0".repeat(64)}`,
+          decision_request_fingerprint: `sha256:${"1".repeat(64)}`,
+          decision_grant_fingerprint: `sha256:${"2".repeat(64)}`,
+        }, service, {
+          now: () => "2026-08-04T01:05:10.500Z",
+          platform,
+        }),
+        (error: unknown) =>
+          error instanceof RepositoryManagedDelegationErrorV01 &&
+          error.code === "repository_managed_delegation_platform_unsupported",
+      );
+      assert.equal(
+        readRepositoryExecutionAttachmentV01(db, fixture.attachment_id)
+          ?.lifecycle,
+        "prepared",
+      );
+    }
   }
   assert.equal(count(db, "autonomy_runs"), before);
+  assert.equal(count(db, "vnext_repository_execution_decision_requests"), decisionsBefore);
 
   const plainRoot = path.join(ROOT, "plain-folder");
   mkdirSync(plainRoot);
@@ -3704,13 +3747,17 @@ async function createPreparedFixtureV01(
   const picked = await pickAndInspectLocalProjectV01({
     open_database: openDatabaseV01,
     now: () => now,
+    repository_execution_dependencies: { platform: "darwin" },
   });
   assert.equal(picked.status, "selected");
   const onboarded = await confirmLocalProjectOnboardingV01(db, {
     selection_token: picked.selection_token,
     inspection_fingerprint: picked.inspection.inspection_fingerprint,
     display_name: displayName,
-  }, { now: () => now });
+  }, {
+    now: () => now,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
   const project = onboarded.project;
   selectProjectV01(db, project.workspace_id, project.project_id);
   const work = defineWorkV01(
@@ -3722,7 +3769,10 @@ async function createPreparedFixtureV01(
   const prepared = await prepareRepositoryExecutionV01(db, {
     workspace_id: project.workspace_id,
     project_id: project.project_id,
-  }, { now: () => new Date(Date.parse(now) + 2_000).toISOString() });
+  }, {
+    now: () => new Date(Date.parse(now) + 2_000).toISOString(),
+    platform: "darwin",
+  });
   assert.equal(prepared.status, "prepared");
   assert(prepared.attachment);
   return {

@@ -2074,7 +2074,7 @@ export const RepositoryExecutionResultSchema = z.union([
     run_id: z.string(),
     attachment_id: z.string(),
     controller_generation: z.number().int().positive(),
-    projection: LiveRepositoryRunProjectionSchema,
+    projection: LiveRepositoryRunProjectionSchema.nullable(),
     authority: RepositoryManagedResumeAuthoritySchema,
   }).strict(),
   z.object({

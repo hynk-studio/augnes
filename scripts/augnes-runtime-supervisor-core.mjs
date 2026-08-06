@@ -3764,8 +3764,19 @@ async function stopOwnedChild(record) {
     return;
   }
 
+  if (process.platform === "win32") {
+    // Windows console children do not have a dependable graceful-signal
+    // equivalent. Use the bounded owned-tree forced stop directly so two
+    // sequential children cannot exceed the public Stop command deadline.
+    await signalOwnedProcessTree(record, "SIGKILL");
+    if (await waitForProcessTreeExit(record, FORCED_CHILD_STOP_MS)) return;
+    throw new PublicRuntimeError("owned_child_stop_timeout");
+  }
+
   await signalOwnedProcessTree(record, "SIGTERM");
-  if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) return;
+  if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) {
+    return;
+  }
 
   await signalOwnedProcessTree(record, "SIGKILL");
   if (await waitForProcessTreeExit(record, FORCED_CHILD_STOP_MS)) return;

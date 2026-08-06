@@ -39,6 +39,17 @@ the current Augnes project state.”
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact
    attachment.
+   On Windows, preserve `identity_unsupported`, `identity_ambiguous`, missing-
+   component, or proof-required results exactly. Never fall back to a path,
+   Git remote, simulated `win32`, or raw volume/file identifiers. Windows
+   source-runtime attachment readiness requires Windows 10 Pro 22H2 build
+   19045 or newer or Windows 11 build 22000 or newer on x64 local fixed NTFS.
+   Exact proof exists for Windows 10 Pro 22H2 build 19045.6456 at checkpoint
+   `374a582b766a10616667633eb911d3df2d49b85e` and Windows 11 Home 25H2 build
+   26200.8875 at pre-integration checkpoint
+   `567c9bbbad5d35e6803ad740adfac1b881983912`. A later integrated head is not
+   Windows 10 exact-head verified without a fresh run there; packaged Windows
+   remains unsupported and must remain truthfully distinguished.
 9. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never
@@ -73,7 +84,9 @@ exclude Browser selection and reject same-path filesystem-object replacement.
 Continuity is read-only. CDX2B2A tools write only node-local baseline,
 attachment, rebind-receipt, and lifecycle metadata. A Browser-confirmed CDX2B2B
 Start may consume one attachment, create one run, and permit bounded reversible
-local work only inside the exact macOS Git root. It never grants arbitrary
+local work only inside the exact macOS Git root. A Windows prepared attachment,
+if a later verified CDX2B3A owner makes one available, still must not be offered
+for Start in this phase; CDX2B3B is separate. Start never grants arbitrary
 network commands, downloads, push/GitHub, injected Browser/Companion/provider/
 database/runtime/OS credentials, outside-root secret material, external publication,
 semantic approval, ReviewDecision, Transition, accepted state, work closure,

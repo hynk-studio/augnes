@@ -4608,18 +4608,25 @@ export const vNextRepositoryExecutionStoreSchemaSqlV01 = `
     node_scope_fingerprint TEXT NOT NULL CHECK (length(node_scope_fingerprint) = 71 AND substr(node_scope_fingerprint, 1, 7) = 'sha256:'),
     baseline_version TEXT NOT NULL CHECK (baseline_version = 'physical_root_baseline.v0.1'),
     root_binding_fingerprint TEXT NOT NULL CHECK (length(root_binding_fingerprint) = 71 AND substr(root_binding_fingerprint, 1, 7) = 'sha256:'),
-    identity_version TEXT NOT NULL CHECK (identity_version = 'native_host_physical_root_identity.v0.1'),
-    canonical_realpath_fingerprint TEXT NOT NULL CHECK (length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:'),
+    identity_version TEXT NOT NULL CHECK (identity_version IN ('native_host_physical_root_identity.v0.1', 'physical_root_identity.windows.v0.1')),
+    identity_platform TEXT CHECK (identity_platform IS NULL OR identity_platform = 'win32'),
+    canonical_realpath_fingerprint TEXT CHECK (canonical_realpath_fingerprint IS NULL OR (length(canonical_realpath_fingerprint) = 71 AND substr(canonical_realpath_fingerprint, 1, 7) = 'sha256:')),
+    canonical_final_path_fingerprint TEXT CHECK (canonical_final_path_fingerprint IS NULL OR (length(canonical_final_path_fingerprint) = 71 AND substr(canonical_final_path_fingerprint, 1, 7) = 'sha256:')),
+    supported_filesystem_family TEXT CHECK (supported_filesystem_family IS NULL OR supported_filesystem_family = 'NTFS'),
     filesystem_volume_identity TEXT NOT NULL CHECK (length(filesystem_volume_identity) > 0),
     filesystem_object_identity TEXT NOT NULL CHECK (length(filesystem_object_identity) > 0),
     observed_at TEXT NOT NULL CHECK (length(trim(observed_at)) > 0),
     provenance TEXT NOT NULL CHECK (provenance IN ('canonical_new_project_onboarding', 'explicit_legacy_adoption', 'explicit_root_rebind')),
     baseline_fingerprint TEXT NOT NULL UNIQUE CHECK (length(baseline_fingerprint) = 71 AND substr(baseline_fingerprint, 1, 7) = 'sha256:'),
+    CHECK ((identity_version = 'native_host_physical_root_identity.v0.1' AND identity_platform IS NULL AND canonical_realpath_fingerprint IS NOT NULL AND canonical_final_path_fingerprint IS NULL AND supported_filesystem_family IS NULL) OR (identity_version = 'physical_root_identity.windows.v0.1' AND identity_platform = 'win32' AND canonical_realpath_fingerprint IS NULL AND canonical_final_path_fingerprint IS NOT NULL AND supported_filesystem_family = 'NTFS')),
     PRIMARY KEY (workspace_id, project_id, node_scope_fingerprint),
     FOREIGN KEY (workspace_id, project_id) REFERENCES vnext_project_identities(workspace_id, project_id) ON UPDATE RESTRICT ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_project
     ON vnext_physical_root_baselines(workspace_id, project_id, observed_at);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_physical_root_baselines_object
+    ON vnext_physical_root_baselines(workspace_id, node_scope_fingerprint, identity_version, filesystem_volume_identity, filesystem_object_identity)
+    WHERE identity_version = 'physical_root_identity.windows.v0.1';
   CREATE TABLE IF NOT EXISTS vnext_repository_execution_attachments (
     attachment_id TEXT PRIMARY KEY CHECK (length(attachment_id) = 71 AND substr(attachment_id, 1, 7) = 'sha256:'),
     attachment_version TEXT NOT NULL CHECK (attachment_version = 'repository_execution_attachment.v0.1'),
@@ -4809,6 +4816,7 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
   ];
   const indexNames = [
     "idx_vnext_physical_root_baselines_project",
+    "idx_vnext_physical_root_baselines_object",
     "idx_vnext_repository_execution_attachments_project",
     "idx_vnext_repository_execution_one_prepared",
     "idx_vnext_repository_execution_consumed_run",
@@ -4826,17 +4834,23 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
   const attachmentSql = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_execution_attachments'",
   ).pluck().get();
+  const baselineSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_physical_root_baselines'",
+  ).pluck().get();
   const decisionSql = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_repository_execution_decision_requests'",
   ).pluck().get();
   const attachmentUpgradeRequired =
     typeof attachmentSql === "string" &&
     !attachmentSql.includes("lifecycle = 'consumed' AND consumed_run_id IS NOT NULL");
+  const baselineUpgradeRequired =
+    typeof baselineSql === "string" &&
+    !baselineSql.includes("physical_root_identity.windows.v0.1");
   const decisionUpgradeRequired =
     typeof decisionSql === "string" &&
     (!decisionSql.includes("start_repository_managed_delegation") ||
       !decisionSql.includes("resume_repository_managed_delegation"));
-  if (attachmentUpgradeRequired || decisionUpgradeRequired) {
+  if (baselineUpgradeRequired || attachmentUpgradeRequired || decisionUpgradeRequired) {
     if (
       attachmentUpgradeRequired &&
       db.prepare(
@@ -4847,6 +4861,16 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
     }
     db.exec("BEGIN IMMEDIATE");
     try {
+      if (baselineUpgradeRequired) {
+        db.exec(
+          "ALTER TABLE vnext_physical_root_baselines RENAME TO vnext_physical_root_baselines_cdx2b3a",
+        );
+        // SQLite keeps index names when their table is renamed. Release the
+        // canonical names before creating the replacement table so its
+        // indexes cannot be skipped and then disappear with the old table.
+        db.exec("DROP INDEX IF EXISTS idx_vnext_physical_root_baselines_project");
+        db.exec("DROP INDEX IF EXISTS idx_vnext_physical_root_baselines_object");
+      }
       if (attachmentUpgradeRequired) {
         db.exec(
           "ALTER TABLE vnext_repository_execution_attachments RENAME TO vnext_repository_execution_attachments_cdx2b2a",
@@ -4858,6 +4882,23 @@ export function migrateVNextRepositoryExecutionStoreV01(db) {
         );
       }
       db.exec(vNextRepositoryExecutionStoreSchemaSqlV01);
+      if (baselineUpgradeRequired) {
+        db.exec(`INSERT INTO vnext_physical_root_baselines (
+          workspace_id, project_id, node_scope_fingerprint, baseline_version,
+          root_binding_fingerprint, identity_version, identity_platform,
+          canonical_realpath_fingerprint, canonical_final_path_fingerprint,
+          supported_filesystem_family, filesystem_volume_identity,
+          filesystem_object_identity, observed_at, provenance,
+          baseline_fingerprint
+        ) SELECT
+          workspace_id, project_id, node_scope_fingerprint, baseline_version,
+          root_binding_fingerprint, identity_version, NULL,
+          canonical_realpath_fingerprint, NULL, NULL,
+          filesystem_volume_identity, filesystem_object_identity, observed_at,
+          provenance, baseline_fingerprint
+        FROM vnext_physical_root_baselines_cdx2b3a`);
+        db.exec("DROP TABLE vnext_physical_root_baselines_cdx2b3a");
+      }
       if (attachmentUpgradeRequired) {
         db.exec(`INSERT INTO vnext_repository_execution_attachments (
           attachment_id, attachment_version, workspace_id, project_id,

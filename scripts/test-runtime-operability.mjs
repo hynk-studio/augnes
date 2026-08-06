@@ -150,6 +150,8 @@ let mcpBehaviorVerified = false;
 let registeredRepositoryMcpEvidence = null;
 let repositoryResumeMcpEvidence = null;
 let legacyRootRequestCount = 0;
+let parentSignalCleanupVerified = false;
+let parentSignalCleanupSkipReason = null;
 
 mkdirSync(homeRoot, { recursive: true });
 mkdirSync(tempRoot, { recursive: true });
@@ -194,8 +196,10 @@ try {
   assert(Number.isInteger(unrelatedProcess.pid));
 
   await testReadyDuplicateStatusAndStop();
-  await testRepositoryResumeEligibilityRestart();
-  await testRepositoryResumeAmbiguityAndApproval();
+  if (process.platform !== "win32") {
+    await testRepositoryResumeEligibilityRestart();
+    await testRepositoryResumeAmbiguityAndApproval();
+  }
   await testPoisonedEnvironmentRestart(proxyPort);
   await testParentSignalCleanup();
   await testRequiredChildFailure();
@@ -220,26 +224,40 @@ try {
     registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
     true,
   );
-  assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
-  assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
-  assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
-  assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
-  assert.equal(repositoryResumeMcpEvidence?.selection_independent, true);
-  assert.equal(repositoryResumeMcpEvidence?.zero_effect_read, true);
-  assert.equal(
-    repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
-    true,
-  );
-  assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
-  assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
-  assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
-  assert.equal(repositoryResumeMcpEvidence?.same_run, true);
-  assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
-  assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
-  assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
-  assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
-  assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
-  assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
+  if (process.platform === "win32") {
+    assert.equal(registeredRepositoryMcpEvidence?.windows_start_refused, true);
+    assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, false);
+    assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, null);
+    assert.equal(registeredRepositoryMcpEvidence?.proposal_status, null);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_request_refused, true);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_refused, true);
+    assert.equal(repositoryResumeMcpEvidence?.windows_resume_zero_effects, true);
+    assert.equal(
+      registeredRepositoryMcpEvidence?.restart_attachment_validation,
+      true,
+    );
+  } else {
+    assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
+    assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
+    assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
+    assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
+    assert.equal(repositoryResumeMcpEvidence?.selection_independent, true);
+    assert.equal(repositoryResumeMcpEvidence?.zero_effect_read, true);
+    assert.equal(
+      repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
+      true,
+    );
+    assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
+    assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
+    assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
+    assert.equal(repositoryResumeMcpEvidence?.same_run, true);
+    assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
+    assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
+    assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
+    assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
+    assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
+    assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
+  }
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
   assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
@@ -271,8 +289,13 @@ try {
     selected_ports: selectedPorts,
     ready_state_verified: true,
     duplicate_launch_reused: true,
-    graceful_stop: true,
-    parent_signal_cleanup: true,
+    graceful_stop: process.platform !== "win32",
+    graceful_stop_skip_reason: process.platform === "win32"
+      ? "windows_console_graceful_signal_unavailable"
+      : null,
+    windows_forced_owned_tree_stop: process.platform === "win32",
+    parent_signal_cleanup: parentSignalCleanupVerified,
+    parent_signal_cleanup_skip_reason: parentSignalCleanupSkipReason,
     required_child_failure_observed: true,
     unverified_pid_never_signaled: true,
     environment_isolation_verified: true,
@@ -317,6 +340,16 @@ try {
       registeredRepositoryMcpEvidence?.browser_process_required ?? null,
     start_or_execution_created:
       registeredRepositoryMcpEvidence?.start_or_execution_created ?? null,
+    windows_start_refused:
+      registeredRepositoryMcpEvidence?.windows_start_refused ?? false,
+    windows_resume_request_refused:
+      repositoryResumeMcpEvidence?.windows_resume_request_refused ?? false,
+    windows_resume_refused:
+      repositoryResumeMcpEvidence?.windows_resume_refused ?? false,
+    windows_resume_zero_effects:
+      repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
+    restart_attachment_validation:
+      registeredRepositoryMcpEvidence?.restart_attachment_validation ?? false,
     official_stdio_mcp_client: true,
     repository_resume_eligibility_runtime_proof:
       repositoryResumeMcpEvidence?.resume_ready === true,
@@ -362,6 +395,9 @@ try {
         ready_state_verified: summary.ready_state_verified,
         duplicate_launch_reused: summary.duplicate_launch_reused,
         graceful_stop: summary.graceful_stop,
+        graceful_stop_skip_reason: summary.graceful_stop_skip_reason,
+        windows_forced_owned_tree_stop:
+          summary.windows_forced_owned_tree_stop,
         parent_signal_cleanup: summary.parent_signal_cleanup,
         required_child_failure_observed: summary.required_child_failure_observed,
         unverified_pid_never_signaled: summary.unverified_pid_never_signaled,
@@ -759,9 +795,82 @@ async function testReadyDuplicateStatusAndStop() {
     "graceful stop must preserve the disposable database",
   );
 
+  if (process.platform === "win32") {
+    await assertWindowsAttachmentAfterRuntimeRestartV01({
+      environment,
+      scenario,
+      repositories: registeredRepositories,
+    });
+  }
+
   if (uiBlocker.server) await closeServer(uiBlocker.server);
   if (bridgeBlocker.server) await closeServer(bridgeBlocker.server);
   removeScenarioLogs(scenario);
+}
+
+async function assertWindowsAttachmentAfterRuntimeRestartV01({
+  environment,
+  scenario,
+  repositories,
+}) {
+  assert(registeredRepositoryMcpEvidence?.prepared_attachment_id);
+  assert(registeredRepositoryMcpEvidence?.prepared_attachment_binding);
+  const projectTreeBeforeRestart = snapshotDirectoryContentV01(
+    repositories.repositoryA,
+  );
+  const managed = startManagedSupervisor(
+    environment,
+    scenario,
+    "ready-stop-windows-restart",
+    "canonical",
+  );
+  const ready = await waitForJsonEvent(
+    managed,
+    (event) => event.command === "start" && event.result === "ready",
+  );
+  assertReadyResult(ready);
+  selectedPorts.push({
+    scenario: `${scenario.name}-restart`,
+    ui: ready.ui_port,
+    bridge: ready.bridge_port,
+  });
+  rememberOwnedPids(ready);
+  const validated = await withLiveCompanionProxyV01({
+    environment,
+    manifestPath: path.join(scenario.stateDirectory, "runtime.json"),
+    run: async ({ callExecution }) => callExecution(
+      "augnes_validate_repository_execution_attachment",
+      { attachmentId: registeredRepositoryMcpEvidence.prepared_attachment_id },
+    ),
+  });
+  assert.notEqual(validated.isError, true);
+  assert.equal(validated.structuredContent.status, "validated");
+  assert.equal(validated.structuredContent.attachment.lifecycle, "prepared");
+  assert.equal(
+    validated.structuredContent.attachment.binding_fingerprint,
+    registeredRepositoryMcpEvidence.prepared_attachment_binding,
+  );
+  assert.deepEqual(
+    snapshotDirectoryContentV01(repositories.repositoryA),
+    projectTreeBeforeRestart,
+    "runtime restart and validation must not mutate repository A",
+  );
+  registeredRepositoryMcpEvidence.restart_attachment_validation = true;
+
+  const ownedProcessTree = processTreePids(ready);
+  for (const pid of ownedProcessTree) observedOwnedPids.add(pid);
+  const stop = await runCli(
+    ["stop"],
+    environment,
+    scenario,
+    "ready-stop-windows-restart-stop",
+    "canonical",
+  );
+  assert.equal(stop.code, 0, stop.output);
+  assert.equal(lastJsonResult(stop.stdout).state, "stopped");
+  const supervisorExit = await waitForManagedExit(managed, 20_000);
+  assert.equal(supervisorExit.code, 0, managed.output());
+  await assertStoppedScenario(scenario, ready, ownedProcessTree);
 }
 
 async function testRepositoryResumeEligibilityRestart() {
@@ -1506,6 +1615,11 @@ async function testPoisonedEnvironmentRestart(proxyPort) {
 }
 
 async function testParentSignalCleanup() {
+  if (process.platform === "win32") {
+    parentSignalCleanupSkipReason =
+      "Windows Node processes do not receive a catchable POSIX SIGTERM from child.kill; verified control-channel stop covers Windows cleanup.";
+    return;
+  }
   const scenario = createScenario("parent-signal");
   const environment = scenarioEnvironment(scenario, {
     uiPort: await findPreferredPort(),
@@ -1528,6 +1642,7 @@ async function testParentSignalCleanup() {
   assert.equal(exit.code, 0, managed.output());
   await assertStoppedScenario(scenario, ready, processTree);
   assert.match(managed.output(), /signal_sigterm/, "signal cleanup result must be observable");
+  parentSignalCleanupVerified = true;
   removeScenarioLogs(scenario);
 }
 
@@ -1818,12 +1933,31 @@ async function runCli(args, environment, scenario, label, surface = "direct") {
 }
 
 function buildInvocation(surface, args) {
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const npmInvocation = process.platform === "win32"
+    ? {
+        command: process.execPath,
+        args: [
+          path.join(
+            path.dirname(process.execPath),
+            "node_modules",
+            "npm",
+            "bin",
+            "npm-cli.js",
+          ),
+        ],
+      }
+    : { command: "npm", args: [] };
   if (surface === "canonical") {
-    return { command: npmCommand, args: ["run", "augnes", "--", ...args] };
+    return {
+      command: npmInvocation.command,
+      args: [...npmInvocation.args, "run", "augnes", "--", ...args],
+    };
   }
   if (surface === "dev") {
-    return { command: npmCommand, args: ["run", "dev", "--", ...args] };
+    return {
+      command: npmInvocation.command,
+      args: [...npmInvocation.args, "run", "dev", "--", ...args],
+    };
   }
   return { command: process.execPath, args: [supervisorScript, ...args] };
 }
@@ -2076,8 +2210,13 @@ async function assertRegisteredRepositoryPositivePathV01({
   assert.equal(initialContinuity.project.status, "active_project");
   assert.equal(initialContinuity.project.active, true);
   assert.equal(initialContinuity.current_work.currentness, "fresh");
-  assert.equal(initialContinuity.current_work.start_eligible, true);
-  assert.equal(initialContinuity.next_action.kind, "start_current_work");
+  if (process.platform === "win32") {
+    assert.equal(initialContinuity.current_work.start_eligible, false);
+    assert.notEqual(initialContinuity.next_action.kind, "start_current_work");
+  } else {
+    assert.equal(initialContinuity.current_work.start_eligible, true);
+    assert.equal(initialContinuity.next_action.kind, "start_current_work");
+  }
   assert.equal(initialContinuity.managed_execution.stage, "no_run");
 
   const projectTreeBeforePreparation = snapshotDirectoryContentV01(
@@ -2218,6 +2357,13 @@ async function assertRegisteredRepositoryPositivePathV01({
   assert(revisedAttachment?.attachment_id);
 
   selectFixtureProjectV01(registeredB.project.project_id);
+  const projectTreeBeforeStartRequest = snapshotDirectoryContentV01(
+    repositories.repositoryA,
+  );
+  const startStateBefore = readFixtureStartStateV01(
+    registeredA.project.project_id,
+    revisedAttachment.attachment_id,
+  );
   const startRequest = await callExecution(
     "augnes_request_repository_delegation",
     {
@@ -2227,80 +2373,180 @@ async function assertRegisteredRepositoryPositivePathV01({
     },
   );
   assert.notEqual(startRequest.isError, true);
-  assert.equal(startRequest.structuredContent.status, "decision_required");
-  assert(startRequest.structuredContent.decision_request?.request_fingerprint);
-  assert(startRequest.structuredContent.execution_envelope?.envelope_fingerprint);
   assert.equal(startRequest.structuredContent.authority.managed_run_created, false);
-  const grantedStart = await confirmRepositoryDecisionThroughBrowserV01({
-    effectiveUrl,
-    workspaceId: registeredA.workspace.workspace_id,
-    projectId: registeredA.project.project_id,
-    requestFingerprint:
-      startRequest.structuredContent.decision_request.request_fingerprint,
-  });
-  assert.equal(grantedStart.action, "start_repository_managed_delegation");
-  assert.equal(grantedStart.status, "granted");
-  const startArguments = {
-    workspaceId: registeredA.workspace.workspace_id,
-    projectId: registeredA.project.project_id,
-    attachmentId: revisedAttachment.attachment_id,
-    expectedAttachmentBindingFingerprint: revisedAttachment.binding_fingerprint,
-    expectedExecutionEnvelopeFingerprint:
-      startRequest.structuredContent.execution_envelope.envelope_fingerprint,
-    decisionRequestFingerprint: grantedStart.request_fingerprint,
-    decisionGrantFingerprint: grantedStart.grant_fingerprint,
-  };
-  const started = await callExecution(
-    "augnes_start_repository_delegation",
-    startArguments,
-  );
-  assert.notEqual(started.isError, true);
-  assert.equal(started.structuredContent.status, "accepted");
-  assert.equal(started.structuredContent.authority.attachment_consumed, true);
-  assert.equal(started.structuredContent.authority.managed_run_created, true);
-  assert.equal(started.structuredContent.authority.semantic_authority_granted, false);
-  assert.equal(started.structuredContent.authority.provider_egress_may_occur, false);
-  assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
-  writeFileSync(
-    path.join(repositories.repositoryB, "b-change-during-a-run.txt"),
-    "repository B changed while A was managed\n",
-    "utf8",
-  );
-  const terminalRun = await waitForFixtureManagedRunV01(
-    started.structuredContent.run_id,
-  );
-  assert.equal(terminalRun.status, "completed");
-  assert.equal(terminalRun.metadata.repository_attachment_id, revisedAttachment.attachment_id);
-  assert.equal(typeof terminalRun.metadata.run_receipt_id, "string");
-  assert.equal(terminalRun.metadata.run_assessment_proposal_status, "available");
-  assert.equal(
-    readFileSync(
-      path.join(repositories.repositoryA, "cdx2b2b-runtime-proof.txt"),
+  let managedRunId = null;
+  let managedRunStatus = null;
+  let runReceiptId = null;
+  let proposalStatus = null;
+  let startOrExecutionCreated = false;
+  let windowsStartRefused = false;
+  if (process.platform === "win32") {
+    assert.equal(startRequest.structuredContent.status, "blocked");
+    assert.equal(startRequest.structuredContent.decision_request, null);
+    assert.equal(startRequest.structuredContent.execution_envelope, null);
+    assert.equal(startRequest.structuredContent.attachment_id, null);
+    assert.equal(startRequest.structuredContent.project, null);
+    assert.equal(
+      Object.values(startRequest.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
+    assert.deepEqual(
+      readFixtureStartStateV01(
+        registeredA.project.project_id,
+        revisedAttachment.attachment_id,
+      ),
+      startStateBefore,
+      "Windows preflight refusal must not create a decision, consume an attachment, or create a run",
+    );
+    assert.deepEqual(
+      snapshotDirectoryContentV01(repositories.repositoryA),
+      projectTreeBeforeStartRequest,
+      "Windows preflight refusal must not mutate repository A",
+    );
+    const resumeStateBefore = readFixtureWindowsAdmissionStateV01(
+      registeredA.project.project_id,
+      revisedAttachment.attachment_id,
+    );
+    const resumeRequest = await callExecution(
+      "augnes_request_repository_resume",
+      {
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+      },
+    );
+    assert.equal(resumeRequest.structuredContent.status, "unsupported");
+    assert.equal(resumeRequest.structuredContent.decision_request, null);
+    assert.equal(
+      Object.values(resumeRequest.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
+    const resumeResult = await callExecution(
+      "augnes_resume_repository_delegation",
+      {
+        workspaceId: registeredA.workspace.workspace_id,
+        projectId: registeredA.project.project_id,
+        runId: "run:windows-integrated-refusal",
+        attachmentId: revisedAttachment.attachment_id,
+        expectedAttachmentBindingFingerprint:
+          revisedAttachment.binding_fingerprint,
+        expectedStateFingerprint: `sha256:${"1".repeat(64)}`,
+        expectedControllerGeneration: 2,
+        expectedRunControlRevision: 0,
+        decisionRequestFingerprint: `sha256:${"2".repeat(64)}`,
+        decisionGrantFingerprint: `sha256:${"3".repeat(64)}`,
+      },
+    );
+    assert.equal(resumeResult.structuredContent.status, "blocked");
+    assert.equal(resumeResult.structuredContent.authority.worker_started, false);
+    assert.equal(
+      Object.values(resumeResult.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
+    assert.deepEqual(
+      readFixtureWindowsAdmissionStateV01(
+        registeredA.project.project_id,
+        revisedAttachment.attachment_id,
+      ),
+      resumeStateBefore,
+      "Windows Resume refusal must create no decision, attempt, run, or attachment change",
+    );
+    assert.deepEqual(
+      snapshotDirectoryContentV01(repositories.repositoryA),
+      projectTreeBeforeStartRequest,
+      "Windows Resume refusal must not mutate repository A",
+    );
+    repositoryResumeMcpEvidence = {
+      windows_resume_request_refused: true,
+      windows_resume_refused: true,
+      windows_resume_zero_effects: true,
+    };
+    windowsStartRefused = true;
+  } else {
+    assert.equal(startRequest.structuredContent.status, "decision_required");
+    assert(startRequest.structuredContent.decision_request?.request_fingerprint);
+    assert(startRequest.structuredContent.execution_envelope?.envelope_fingerprint);
+    const grantedStart = await confirmRepositoryDecisionThroughBrowserV01({
+      effectiveUrl,
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      requestFingerprint:
+        startRequest.structuredContent.decision_request.request_fingerprint,
+    });
+    assert.equal(grantedStart.action, "start_repository_managed_delegation");
+    assert.equal(grantedStart.status, "granted");
+    const startArguments = {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      attachmentId: revisedAttachment.attachment_id,
+      expectedAttachmentBindingFingerprint: revisedAttachment.binding_fingerprint,
+      expectedExecutionEnvelopeFingerprint:
+        startRequest.structuredContent.execution_envelope.envelope_fingerprint,
+      decisionRequestFingerprint: grantedStart.request_fingerprint,
+      decisionGrantFingerprint: grantedStart.grant_fingerprint,
+    };
+    const started = await callExecution(
+      "augnes_start_repository_delegation",
+      startArguments,
+    );
+    assert.notEqual(started.isError, true);
+    assert.equal(started.structuredContent.status, "accepted");
+    assert.equal(started.structuredContent.authority.attachment_consumed, true);
+    assert.equal(started.structuredContent.authority.managed_run_created, true);
+    assert.equal(started.structuredContent.authority.semantic_authority_granted, false);
+    assert.equal(started.structuredContent.authority.provider_egress_may_occur, false);
+    assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
+    writeFileSync(
+      path.join(repositories.repositoryB, "b-change-during-a-run.txt"),
+      "repository B changed while A was managed\n",
       "utf8",
-    ),
-    "CDX2B2B managed repository delegation runtime proof\n",
-  );
-  const runContinuity = await callRepository(repositories.repositoryA);
-  assert.notEqual(runContinuity.isError, true);
-  assert.equal(runContinuity.structuredContent.continuity.project.active, false);
-  assert.equal(
-    runContinuity.structuredContent.continuity.managed_execution.stage,
-    "terminal_result_ready",
-  );
-  assert.equal(
-    runContinuity.structuredContent.continuity.managed_execution.mode,
-    "repository_attachment",
-  );
-  assert.equal(
-    runContinuity.structuredContent.continuity.latest_result.state,
-    "result_present",
-  );
-  const exactStartReplay = await callExecution(
-    "augnes_start_repository_delegation",
-    startArguments,
-  );
-  assert.equal(exactStartReplay.structuredContent.status, "exact_replay");
-  assert.equal(exactStartReplay.structuredContent.run_id, started.structuredContent.run_id);
+    );
+    const terminalRun = await waitForFixtureManagedRunV01(
+      started.structuredContent.run_id,
+    );
+    assert.equal(terminalRun.status, "completed");
+    assert.equal(terminalRun.metadata.repository_attachment_id, revisedAttachment.attachment_id);
+    assert.equal(typeof terminalRun.metadata.run_receipt_id, "string");
+    assert.equal(terminalRun.metadata.run_assessment_proposal_status, "available");
+    assert.equal(
+      readFileSync(
+        path.join(repositories.repositoryA, "cdx2b2b-runtime-proof.txt"),
+        "utf8",
+      ),
+      "CDX2B2B managed repository delegation runtime proof\n",
+    );
+    const runContinuity = await callRepository(repositories.repositoryA);
+    assert.notEqual(runContinuity.isError, true);
+    assert.equal(runContinuity.structuredContent.continuity.project.active, false);
+    assert.equal(
+      runContinuity.structuredContent.continuity.managed_execution.stage,
+      "terminal_result_ready",
+    );
+    assert.equal(
+      runContinuity.structuredContent.continuity.managed_execution.mode,
+      "repository_attachment",
+    );
+    assert.equal(
+      runContinuity.structuredContent.continuity.latest_result.state,
+      "result_present",
+    );
+    const exactStartReplay = await callExecution(
+      "augnes_start_repository_delegation",
+      startArguments,
+    );
+    assert.equal(exactStartReplay.structuredContent.status, "exact_replay");
+    assert.equal(exactStartReplay.structuredContent.run_id, started.structuredContent.run_id);
+    managedRunId = started.structuredContent.run_id;
+    managedRunStatus = terminalRun.status;
+    runReceiptId = terminalRun.metadata.run_receipt_id;
+    proposalStatus = terminalRun.metadata.run_assessment_proposal_status;
+    startOrExecutionCreated = true;
+  }
 
   const replacementRepository = path.join(
     path.dirname(repositories.repositoryA),
@@ -2382,11 +2628,15 @@ async function assertRegisteredRepositoryPositivePathV01({
     revised_binding: revisedContinuity.snapshot.binding,
     selection_coupled_binding: selectionCoupledContinuity.snapshot.binding,
     repository_attachment_binding: initialAttachment.binding_fingerprint,
-    consumed_attachment_binding: revisedAttachment.binding_fingerprint,
-    managed_run_id: started.structuredContent.run_id,
-    managed_run_status: terminalRun.status,
-    run_receipt_id: terminalRun.metadata.run_receipt_id,
-    proposal_status: terminalRun.metadata.run_assessment_proposal_status,
+    consumed_attachment_binding: startOrExecutionCreated
+      ? revisedAttachment.binding_fingerprint
+      : null,
+    prepared_attachment_id: revisedAttachment.attachment_id,
+    prepared_attachment_binding: revisedAttachment.binding_fingerprint,
+    managed_run_id: managedRunId,
+    managed_run_status: managedRunStatus,
+    run_receipt_id: runReceiptId,
+    proposal_status: proposalStatus,
     attachment_stale_reason: staleValidation.structuredContent.attachment.stale_reason,
     same_path_replacement_blocked: true,
     revision_refresh: true,
@@ -2396,8 +2646,70 @@ async function assertRegisteredRepositoryPositivePathV01({
     read_project_file_mutations: 0,
     codex_only_database_copies: 0,
     browser_process_required: true,
-    start_or_execution_created: true,
+    start_or_execution_created: startOrExecutionCreated,
+    windows_start_refused: windowsStartRefused,
+    restart_attachment_validation: false,
   };
+}
+
+function readFixtureStartStateV01(projectId, attachmentId) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const attachment = db.prepare(
+      `SELECT lifecycle, consumed_run_id
+         FROM vnext_repository_execution_attachments
+        WHERE attachment_id = ?`,
+    ).get(attachmentId);
+    return {
+      decision_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_execution_decision_requests
+          WHERE project_id = ? AND action = 'start_repository_managed_delegation'`,
+      ).get(projectId).count,
+      managed_run_count: db.prepare(
+        "SELECT COUNT(*) AS count FROM autonomy_runs WHERE scope = ?",
+      ).get(projectId).count,
+      attachment_lifecycle: attachment?.lifecycle ?? null,
+      consumed_run_id: attachment?.consumed_run_id ?? null,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function readFixtureWindowsAdmissionStateV01(projectId, attachmentId) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const attachment = db.prepare(
+      `SELECT lifecycle, consumed_run_id
+         FROM vnext_repository_execution_attachments
+        WHERE attachment_id = ?`,
+    ).get(attachmentId);
+    return {
+      start_decision_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_execution_decision_requests
+          WHERE project_id = ? AND action = 'start_repository_managed_delegation'`,
+      ).get(projectId).count,
+      resume_decision_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_execution_decision_requests
+          WHERE project_id = ? AND action = 'resume_repository_managed_delegation'`,
+      ).get(projectId).count,
+      managed_run_count: db.prepare(
+        "SELECT COUNT(*) AS count FROM autonomy_runs WHERE scope = ?",
+      ).get(projectId).count,
+      resume_attempt_count: db.prepare(
+        `SELECT COUNT(*) AS count
+           FROM vnext_repository_managed_resume_attempts
+          WHERE project_id = ?`,
+      ).get(projectId).count,
+      attachment_lifecycle: attachment?.lifecycle ?? null,
+      consumed_run_id: attachment?.consumed_run_id ?? null,
+    };
+  } finally {
+    db.close();
+  }
 }
 
 async function confirmRepositoryDecisionThroughBrowserV01({

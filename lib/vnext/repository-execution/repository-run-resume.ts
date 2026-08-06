@@ -18,6 +18,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateExternalRefV01 } from "@/lib/vnext/task-context-packet";
 import {
+  baselineMatchesObservation,
   fingerprintProjectRootBindingV01,
   inspectPhysicalRootForExecutionV01,
   readExpectedDatabaseAdmissionStateV01,
@@ -150,11 +151,7 @@ export async function admitRepositoryRunResumeCheckpointV01(
     baseline.baseline_fingerprint !==
       preAttachment.physical_root_baseline_fingerprint ||
     baseline.root_binding_fingerprint !== rootBindingFingerprint ||
-    baseline.identity_version !== physical.identity.identity_version ||
-    baseline.canonical_realpath_fingerprint !==
-      physical.identity.canonical_realpath_fingerprint ||
-    baseline.filesystem_volume_identity !== physical.identity.device ||
-    baseline.filesystem_object_identity !== physical.identity.inode
+    !baselineMatchesObservation(baseline, physical)
   ) {
     refuse("repository_resume_checkpoint_physical_root_mismatch");
   }
@@ -651,11 +648,7 @@ export async function readRepositoryRunResumeEligibilityV01(
       !baseline ||
       baseline.baseline_fingerprint !==
         latest.physical_root_baseline_fingerprint ||
-      baseline.identity_version !== physical.identity.identity_version ||
-      baseline.canonical_realpath_fingerprint !==
-        physical.identity.canonical_realpath_fingerprint ||
-      baseline.filesystem_volume_identity !== physical.identity.device ||
-      baseline.filesystem_object_identity !== physical.identity.inode
+      !baselineMatchesObservation(baseline, physical)
     ) {
       return projectionV01(generatedAt, "stale", {
         summary: "The root binding or physical baseline changed after the checkpoint.",

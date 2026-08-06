@@ -30,6 +30,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   assertGrantedRepositoryExecutionDecisionInsideTransactionV01,
+  baselineMatchesObservation,
   consumeRepositoryExecutionDecisionInsideTransactionV01,
   createRepositoryExecutionDecisionRequestV01,
   fingerprintProjectRootBindingV01,
@@ -245,6 +246,7 @@ export async function resumeRepositoryManagedDelegationV01(
       "Explicit repository resume is supported only on verified local macOS filesystems.",
       input,
       service,
+      true,
     );
   }
   const now = strictNowV01(dependencies.now);
@@ -1612,7 +1614,18 @@ function nonMutatingResultV01(
     expected_controller_generation: number;
   },
   service: LiveNativeHostRunServiceV01,
+  allowMissingProjection = false,
 ): RepositoryManagedResumeResultV01 {
+  let projection: RepositoryManagedResumeResultV01["projection"];
+  try {
+    projection = service.readExactRepositoryDelegationProjectionV01(
+      input.config,
+      input.run_id,
+    );
+  } catch (error) {
+    if (!allowMissingProjection) throw error;
+    projection = null;
+  }
   return {
     resume_version: REPOSITORY_MANAGED_RESUME_VERSION_V01,
     status,
@@ -1620,10 +1633,7 @@ function nonMutatingResultV01(
     run_id: input.run_id,
     attachment_id: input.attachment_id,
     controller_generation: input.expected_controller_generation,
-    projection: service.readExactRepositoryDelegationProjectionV01(
-      input.config,
-      input.run_id,
-    ),
+    projection,
     authority: READ_AUTHORITY,
   };
 }
@@ -1982,14 +1992,7 @@ function physicalMatchesBaselineV01(
   >,
   baseline: NonNullable<ReturnType<typeof readPhysicalRootBaselineV01>>,
 ): boolean {
-  return (
-    observation.node_scope_fingerprint === baseline.node_scope_fingerprint &&
-    observation.identity.identity_version === baseline.identity_version &&
-    observation.identity.canonical_realpath_fingerprint ===
-      baseline.canonical_realpath_fingerprint &&
-    observation.identity.device === baseline.filesystem_volume_identity &&
-    observation.identity.inode === baseline.filesystem_object_identity
-  );
+  return baselineMatchesObservation(baseline, observation);
 }
 
 function optionalExternalRefV01(

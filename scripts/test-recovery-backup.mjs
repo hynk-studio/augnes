@@ -88,6 +88,8 @@ import {
 } from "./recovery-backup.mjs";
 
 const repositoryRoot = process.cwd();
+const posixModeRefusalVerified = process.platform !== "win32";
+const fileSymlinkRefusalVerified = process.platform !== "win32";
 const applicationScopeFingerprint = "a".repeat(64);
 const wrongApplicationScopeFingerprint = "b".repeat(64);
 const sourceApplication = Object.freeze({
@@ -476,6 +478,14 @@ try {
         manifest_identity_payload_hash_and_modes_verified: true,
         scope_inventory_and_selection_verified: true,
         tamper_and_unsafe_package_refusal_verified: true,
+        posix_mode_refusal_verified: posixModeRefusalVerified,
+        posix_mode_refusal_skip_reason: posixModeRefusalVerified
+          ? null
+          : "windows_posix_mode_unavailable",
+        file_symlink_refusal_verified: fileSymlinkRefusalVerified,
+        file_symlink_refusal_skip_reason: fileSymlinkRefusalVerified
+          ? null
+          : "windows_symlink_privilege_unavailable",
         old_schema_migration_verified: true,
         exact_data_ledger_and_replay_round_trip_verified: true,
         recovery_private_material_normalization_verified: true,
@@ -507,6 +517,8 @@ try {
         adopted_backup_root_raw_private_material_bytes: 0,
         legacy_recovery_adoption_retention_replay_verified: true,
         backup_operation_hard_crash_reconciliation_verified: true,
+        posix_sigkill_result_verified: process.platform !== "win32",
+        windows_forced_process_termination_verified: process.platform === "win32",
         backup_operation_live_owner_and_identity_race_refusal_verified: true,
         provider_or_external_requests: networkGuard.attempts.length,
         incomplete_backup_residue: 0,
@@ -748,7 +760,12 @@ async function testBackupOperationHardCrashReconciliation() {
     liveResult = await live.result;
   }
   assert.equal(liveResult.timed_out, false);
-  assert.equal(liveResult.signal, "SIGKILL");
+  if (process.platform === "win32") {
+    assert.notEqual(liveResult.exit_code, 0);
+    assert.equal(liveResult.signal, null);
+  } else {
+    assert.equal(liveResult.signal, "SIGKILL");
+  }
 
   const journalPath = path.join(directory, RECOVERY_BACKUP_OPERATION_FILE);
   assert.equal(existsSync(journalPath), true);
@@ -821,7 +838,12 @@ async function testBackupOperationHardCrashReconciliation() {
   await waitForPath(legacyReadyPath, legacy, 10_000);
   const legacyResult = await legacy.result;
   assert.equal(legacyResult.timed_out, false);
-  assert.equal(legacyResult.signal, "SIGKILL");
+  if (process.platform === "win32") {
+    assert.notEqual(legacyResult.exit_code, 0);
+    assert.equal(legacyResult.signal, null);
+  } else {
+    assert.equal(legacyResult.signal, "SIGKILL");
+  }
   assert.equal(
     readdirSync(legacyDirectory).some((entry) =>
       entry.startsWith(".augnes-recovery-incomplete-"),
@@ -870,7 +892,12 @@ async function testBackupOperationHardCrashReconciliation() {
   }, "published-safety-hard-crash");
   await waitForPath(safetyReadyPath, safety, 10_000);
   const safetyResult = await safety.result;
-  assert.equal(safetyResult.signal, "SIGKILL");
+  if (process.platform === "win32") {
+    assert.notEqual(safetyResult.exit_code, 0);
+    assert.equal(safetyResult.signal, null);
+  } else {
+    assert.equal(safetyResult.signal, "SIGKILL");
+  }
   const safetyReconciled = await reconcileRecoveryBackupOperation({
     backupDirectory: safetyDirectory,
     applicationScopeFingerprint,
@@ -2615,11 +2642,13 @@ async function testValidationRefusals(currentBackup) {
   rmSync(recomputedDeletedBytes, { recursive: true, force: true });
 
   const unsafePayloadMode = copyAttackFixture(currentBackup.backupPath, 13);
-  chmodSync(path.join(unsafePayloadMode, RECOVERY_DATABASE_PAYLOAD), 0o644);
-  await expectRecoveryError(
-    () => validateAttackFixture(unsafePayloadMode),
-    "restore_payload_invalid",
-  );
+  if (posixModeRefusalVerified) {
+    chmodSync(path.join(unsafePayloadMode, RECOVERY_DATABASE_PAYLOAD), 0o644);
+    await expectRecoveryError(
+      () => validateAttackFixture(unsafePayloadMode),
+      "restore_payload_invalid",
+    );
+  }
   rmSync(unsafePayloadMode, { recursive: true, force: true });
 
   const unexpectedFile = copyAttackFixture(currentBackup.backupPath, 14);
@@ -2648,7 +2677,11 @@ async function testValidationRefusals(currentBackup) {
   rmSync(portableMasquerade, { recursive: true, force: true });
 
   const symlinkRoot = attackFixturePath(16);
-  symlinkSync(currentBackup.backupPath, symlinkRoot, "dir");
+  symlinkSync(
+    currentBackup.backupPath,
+    symlinkRoot,
+    process.platform === "win32" ? "junction" : "dir",
+  );
   await expectRecoveryError(
     () => validateAttackFixture(symlinkRoot),
     "restore_validation_failed",
@@ -2660,12 +2693,14 @@ async function testValidationRefusals(currentBackup) {
     symlinkPayload,
     RECOVERY_DATABASE_PAYLOAD,
   );
-  rmSync(symlinkPayloadPath, { force: true });
-  symlinkSync(sourceDatabasePath, symlinkPayloadPath);
-  await expectRecoveryError(
-    () => validateAttackFixture(symlinkPayload),
-    "restore_payload_invalid",
-  );
+  if (fileSymlinkRefusalVerified) {
+    rmSync(symlinkPayloadPath, { force: true });
+    symlinkSync(sourceDatabasePath, symlinkPayloadPath);
+    await expectRecoveryError(
+      () => validateAttackFixture(symlinkPayload),
+      "restore_payload_invalid",
+    );
+  }
   rmSync(symlinkPayload, { recursive: true, force: true });
 
   const stateSwap = copyAttackFixture(currentBackup.backupPath, 18);
@@ -2680,7 +2715,11 @@ async function testValidationRefusals(currentBackup) {
         dependencies: {
           afterStateDirectoryOpened() {
             renameSync(stateSwapPath, heldStateSwapPath);
-            symlinkSync(heldStateSwapPath, stateSwapPath, "dir");
+            symlinkSync(
+              heldStateSwapPath,
+              stateSwapPath,
+              process.platform === "win32" ? "junction" : "dir",
+            );
           },
         },
       }),
@@ -2704,7 +2743,11 @@ async function testValidationRefusals(currentBackup) {
         dependencies: {
           beforePayloadCopy() {
             renameSync(stageStatePath, heldStageStatePath);
-            symlinkSync(heldStageStatePath, stageStatePath, "dir");
+            symlinkSync(
+              heldStageStatePath,
+              stageStatePath,
+              process.platform === "win32" ? "junction" : "dir",
+            );
           },
         },
       }),
@@ -3036,12 +3079,14 @@ function testOperationalResults() {
   unlinkSync(operationPath);
   renameSync(heldOperationPath, operationPath);
   renameSync(operationPath, heldOperationPath);
-  symlinkSync(heldOperationPath, operationPath);
-  assert.throws(
-    () => readRecoveryOperationResults(backupDirectory),
-    (error) => recoveryErrorMatches(error, "recovery_result_unavailable"),
-  );
-  unlinkSync(operationPath);
+  if (fileSymlinkRefusalVerified) {
+    symlinkSync(heldOperationPath, operationPath);
+    assert.throws(
+      () => readRecoveryOperationResults(backupDirectory),
+      (error) => recoveryErrorMatches(error, "recovery_result_unavailable"),
+    );
+    unlinkSync(operationPath);
+  }
   renameSync(heldOperationPath, operationPath);
 
   const deadWriterResidue = `${operationPath}.write-999999999-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`;

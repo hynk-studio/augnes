@@ -228,7 +228,10 @@ async function main(): Promise<void> {
 
     const continuity = readContinuityOperationalStatus({ databasePath });
     assert.equal(continuity.reconciliation?.reconciliation_events_created, 0);
-    assert.equal(statSync(path.join(root, CONTINUITY_OPERATION_FILE)).mode & 0o777, 0o600);
+    const posixOperationFileModeVerified = process.platform !== "win32";
+    if (posixOperationFileModeVerified) {
+      assert.equal(statSync(path.join(root, CONTINUITY_OPERATION_FILE)).mode & 0o777, 0o600);
+    }
     const report = buildRedactedSupportReport({
       recoveryStatus: {
         application: {
@@ -287,6 +290,10 @@ async function main(): Promise<void> {
       semantic_authority_created: false,
       external_action_created: false,
       public_safe_support_report_verified: true,
+      posix_operation_file_mode_verified: posixOperationFileModeVerified,
+      posix_operation_file_mode_skip_reason: posixOperationFileModeVerified
+        ? null
+        : "windows_posix_mode_unavailable",
       external_network_attempts: 0,
       residue_after_cleanup: 0,
     }, null, 2));

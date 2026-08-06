@@ -76,12 +76,17 @@ try {
   runPlanCase("unknown-path", "full-canonical", ({ write }) => {
     write("docs/unknown.payload", "unknown\n");
   });
-  runPlanCase("executable-mode-change", "full-canonical", ({ chmod }) => {
-    chmod("README.md", 0o755);
-  });
-  runPlanCase("symlink", "full-canonical", ({ symlink }) => {
-    symlink("README.md", "docs/readme-link.md");
-  });
+  if (process.platform === "win32") {
+    results.push("executable-mode-change:posix_mode_unavailable_on_windows_ntfs");
+    results.push("symlink:windows_symlink_privilege_unavailable");
+  } else {
+    runPlanCase("executable-mode-change", "full-canonical", ({ chmod }) => {
+      chmod("README.md", 0o755);
+    });
+    runPlanCase("symlink", "full-canonical", ({ symlink }) => {
+      symlink("README.md", "docs/readme-link.md");
+    });
+  }
 
   const malformedRepo = createRepository("malformed-sha");
   assert.throws(
