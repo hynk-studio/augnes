@@ -83,10 +83,30 @@
             "minimum_project_home_unknown_project_safe_not_found",
             "minimum_project_home_unknown_project_status",
             "project_home_coordination_visible",
-            "project_recovery_context_passive"
+            "project_recovery_cancel_and_retry",
+            "project_recovery_context_passive",
+            "project_recovery_declared_path_retained",
+            "project_recovery_entry_parity",
+        "project_recovery_fresh_rebind_completed",
+        "project_recovery_fresh_session_established",
+        "project_recovery_same_candidate_prepare_reordering_safe",
+        "project_recovery_terminal_cookie_cleared",
+        "project_recovery_retry_cookie_budget_bounded",
+        "project_recovery_final_after_retry_stress",
+        "project_recovery_general_decision_cookie_preserved",
+        "project_recovery_native_and_declared_review",
+            "project_recovery_no_mutation_before_confirmation",
+            "project_recovery_non_exact_refused",
+            "project_recovery_no_plaintext_bootstrap_exposed",
+            "project_recovery_pending_path_switch",
+            "project_recovery_public_copy",
+            "project_recovery_request_scoped_authority_only",
+            "project_recovery_responsive_review",
+            "project_recovery_same_project_rebind"
           ],
           "markers": [
-            "minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch"
+            "minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch",
+            "verified_folder_path_recovery_preserves_project_continuity"
           ]
         },
         {
@@ -169,7 +189,26 @@
           "project_name_long_korean_propagated",
           "project_name_onboarding_prefill_and_edit",
           "project_name_stale_conflict_visible",
+          "project_recovery_cancel_and_retry",
           "project_recovery_context_passive",
+          "project_recovery_declared_path_retained",
+          "project_recovery_entry_parity",
+      "project_recovery_fresh_rebind_completed",
+      "project_recovery_fresh_session_established",
+      "project_recovery_same_candidate_prepare_reordering_safe",
+      "project_recovery_terminal_cookie_cleared",
+      "project_recovery_retry_cookie_budget_bounded",
+      "project_recovery_final_after_retry_stress",
+      "project_recovery_general_decision_cookie_preserved",
+      "project_recovery_native_and_declared_review",
+          "project_recovery_no_mutation_before_confirmation",
+          "project_recovery_non_exact_refused",
+          "project_recovery_no_plaintext_bootstrap_exposed",
+          "project_recovery_pending_path_switch",
+          "project_recovery_public_copy",
+          "project_recovery_request_scoped_authority_only",
+          "project_recovery_responsive_review",
+          "project_recovery_same_project_rebind",
           "proposal_review_narrow_viewport_no_overflow",
           "retired_routes_non_mutating",
           "shared_inspector_narrow_viewport_no_overflow",
@@ -344,6 +383,26 @@
               },
               {
                 "surface": "project_home_viewed-inactive-project",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 390,
+                "height": 844
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 430,
+                "height": 932
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 1280,
+                "height": 900
+              },
+              {
+                "surface": "project_recovery_review",
                 "width": 1440,
                 "height": 1000
               },

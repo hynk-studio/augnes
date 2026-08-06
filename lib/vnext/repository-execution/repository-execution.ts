@@ -733,9 +733,12 @@ function rebindDecisionExpectedStateV01(input: {
   expected_old_root_binding_fingerprint: string;
   expected_old_baseline_fingerprint: string;
   expected_new_observation_fingerprint: string;
+  expected_selection_binding_fingerprint?: string;
 }): Record<string, unknown> {
   return {
-    expected_state_version: "repository_execution_rebind_expected_state.v0.1",
+    expected_state_version: input.expected_selection_binding_fingerprint
+      ? "repository_execution_recovery_rebind_expected_state.v0.1"
+      : "repository_execution_rebind_expected_state.v0.1",
     action: "rebind_root",
     workspace_id: input.workspace_id,
     project_id: input.project_id,
@@ -746,6 +749,12 @@ function rebindDecisionExpectedStateV01(input: {
       input.expected_old_baseline_fingerprint,
     expected_new_observation_fingerprint:
       input.expected_new_observation_fingerprint,
+    ...(input.expected_selection_binding_fingerprint
+      ? {
+          expected_selection_binding_fingerprint:
+            input.expected_selection_binding_fingerprint,
+        }
+      : {}),
   };
 }
 
@@ -1471,6 +1480,7 @@ export async function rebindRepositoryExecutionRootV01(
     expected_old_root_binding_fingerprint: string;
     expected_old_baseline_fingerprint: string;
     expected_new_observation_fingerprint: string;
+    expected_selection_binding_fingerprint?: string;
     decision_request_fingerprint: string;
     decision_grant_fingerprint?: string;
   },
@@ -1493,6 +1503,12 @@ export async function rebindRepositoryExecutionRootV01(
     expected_old_root_binding_fingerprint: input.expected_old_root_binding_fingerprint,
     expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
     expected_new_observation_fingerprint: input.expected_new_observation_fingerprint,
+    ...(input.expected_selection_binding_fingerprint
+      ? {
+          expected_selection_binding_fingerprint:
+            input.expected_selection_binding_fingerprint,
+        }
+      : {}),
   }));
   const now = (dependencies.now ?? (() => new Date().toISOString()))();
   const expectedStateFingerprint = createProtocolSha256V01(
@@ -1622,6 +1638,7 @@ export async function previewRepositoryExecutionRootRebindV01(
     workspace_id: string;
     project_id: string;
     new_local_root: LocalProjectRootRefV01;
+    expected_selection_binding_fingerprint?: string;
   },
   dependencies: RepositoryExecutionDependenciesV01 = {},
 ): Promise<{
@@ -1699,6 +1716,12 @@ export async function previewRepositoryExecutionRootRebindV01(
       fingerprintProjectRootBindingV01(current.root_binding),
     expected_old_baseline_fingerprint: baseline.baseline_fingerprint,
     expected_new_observation_fingerprint: physical.observation_fingerprint,
+    ...(input.expected_selection_binding_fingerprint
+      ? {
+          expected_selection_binding_fingerprint:
+            input.expected_selection_binding_fingerprint,
+        }
+      : {}),
   });
   return {
     preview_version: "repository_execution_root_rebind_preview.v0.1",

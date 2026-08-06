@@ -45,6 +45,16 @@ path demonstrates installation, project onboarding, Blank State, and supervised
 local runtime behavior. It does not fabricate the review history needed for a
 complete continuity walkthrough.
 
+If an existing project's saved folder later becomes unavailable, **Locate
+folder** opens the same verified folder-selection experience for that exact
+project. **Choose a folder** and **Enter the folder path instead** converge on
+one recovery review. **Use this folder** keeps the project name and stored
+history, then uses the existing Browser-confirmed project root-rebind authority
+to replace the local root and physical baseline atomically. Selecting the exact
+current folder or one of its physical aliases only opens the existing project
+and does not rewrite its saved root. Recovery does not run Codex or change
+project files.
+
 For source-blind local Codex resumption, install the repo-local
 `plugins/augnes-operator` plugin once with `codex plugin marketplace add .`
 then `codex plugin add augnes-operator@augnes-local`. With

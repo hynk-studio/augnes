@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
 import {
-  abandonPreparedLocalProjectSelectionV01,
+  abandonPreparedLocalProjectOnboardingSelectionV01,
+  abandonPreparedLocalProjectRecoverySelectionV01,
   ProjectOnboardingErrorV01,
   confirmLocalProjectOnboardingV01,
+  declareAndInspectLocalProjectRecoveryV01,
   declareAndInspectLocalProjectV01,
   listRecentProjectsV01,
+  openRecoveredLocalProjectFromSelectionV01,
   openRecentProjectV01,
+  pickAndInspectLocalProjectRecoveryV01,
   pickAndInspectLocalProjectV01,
   previewLocalProjectRootRebindFromSelectionV01,
   readPreparedLocalProjectSelectionBindingV01,
@@ -32,10 +36,18 @@ import { ProjectLifecycleErrorV01 } from "@/lib/vnext/persistence/project-lifecy
 import { ProjectIdentityRegistryErrorV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   VNextLocalOperatorSessionErrorV01,
+  abandonVNextRecoveryRepositoryDecisionSessionV01,
+  abandonVNextRecoveryRepositoryDecisionSessionBySelectionTokenV01,
   assertVNextLocalOperatorRequestBoundaryV01,
+  isVNextRecoveryRepositoryDecisionCredentialV01,
+  issueVNextRecoveryRepositoryDecisionSessionV01,
   issueVNextRepositoryDecisionChallengeV01,
+  readVNextRecoveryRepositoryDecisionCredentialFromRequestV01,
   readVNextRepositoryDecisionCredentialFromRequestV01,
+  serializeVNextRecoveryRepositoryDecisionSessionCookieClearV01,
+  serializeVNextRecoveryRepositoryDecisionSessionCookieV01,
   serializeVNextRepositoryDecisionSessionCookieV01,
+  type VNextLocalOperatorSessionCredentialV01,
   type VNextLocalOperatorSessionMutationAdmissionV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import {
@@ -67,6 +79,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   let db: ReturnType<typeof openDatabase> | null = null;
+  let recoveryCookieClearSelectionToken: string | null = null;
+  let recoveryCandidateProjectId: string | null = null;
+  const secureCookie = new URL(request.url).protocol === "https:";
   try {
     assertVNextLocalOperatorRequestBoundaryV01(request, { mutating: true });
     const body = await readBoundedBody(request);
@@ -84,6 +99,9 @@ export async function POST(request: Request) {
       const binding = readPreparedLocalProjectSelectionBindingV01(
         picker.selection_token,
       );
+      if (binding.selection_purpose !== "connect_new_project") {
+        throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+      }
       const session = issueLocalProjectOnboardingSessionV01({
         selection_token: picker.selection_token,
         inspection_fingerprint: picker.inspection.inspection_fingerprint,
@@ -101,9 +119,28 @@ export async function POST(request: Request) {
         }),
       );
     }
+    if (body.action === "choose_recovery_folder") {
+      return json({
+        ok: true,
+        picker: await pickAndInspectLocalProjectRecoveryV01(
+          requiredRecoveryScope(body),
+          { signal: request.signal },
+        ),
+      });
+    }
+    if (body.action === "declare_recovery_path") {
+      const declaration = parseLocalProjectPathDeclarationV01(body.path);
+      return json({
+        ok: true,
+        picker: await declareAndInspectLocalProjectRecoveryV01(
+          declaration.absolute_path,
+          requiredRecoveryScope(body),
+        ),
+      });
+    }
     if (body.action === "abandon_selection") {
       const selectionToken = requiredString(body.selection_token);
-      abandonPreparedLocalProjectSelectionV01(selectionToken);
+      abandonPreparedLocalProjectOnboardingSelectionV01(selectionToken);
       let credential = null;
       try {
         credential = readLocalProjectOnboardingCredentialFromRequestV01(
@@ -112,6 +149,53 @@ export async function POST(request: Request) {
       } catch {}
       abandonLocalProjectOnboardingSessionV01(credential, selectionToken);
       return json({ ok: true, abandoned: true });
+    }
+    if (body.action === "abandon_recovery_selection") {
+      const selectionToken = requiredString(body.selection_token);
+      recoveryCookieClearSelectionToken = selectionToken;
+      const projectId = requiredString(body.project_id);
+      recoveryCandidateProjectId = projectId;
+      db = openDatabase();
+      abandonVNextRecoveryRepositoryDecisionSessionBySelectionTokenV01(
+        db,
+        selectionToken,
+      );
+      try {
+        const binding = readPreparedLocalProjectSelectionBindingV01(
+          selectionToken,
+        );
+        if (
+          binding.selection_purpose !== "recover_existing_project" ||
+          binding.recovery_project_id !== projectId
+        ) {
+          throw new ProjectOnboardingErrorV01(
+            "project_scope_conflict",
+            409,
+          );
+        }
+        abandonVNextRecoveryRepositoryDecisionSessionV01(
+          db,
+          binding.selection_binding_fingerprint,
+        );
+      } catch (error) {
+        if (
+          !(error instanceof ProjectOnboardingErrorV01) ||
+          error.code !== "inspection_stale"
+        ) {
+          throw error;
+        }
+      }
+      abandonPreparedLocalProjectRecoverySelectionV01(selectionToken, projectId);
+      return json(
+        { ok: true, abandoned: true },
+        200,
+        recoveryCookieClearSelectionToken
+          ? serializeVNextRecoveryRepositoryDecisionSessionCookieClearV01({
+              selection_token: recoveryCookieClearSelectionToken,
+              secure: secureCookie,
+            })
+          : undefined,
+      );
     }
     db = openDatabase();
     if (body.action === "confirm") {
@@ -134,6 +218,7 @@ export async function POST(request: Request) {
       );
       if (
         binding.selection_origin !== "declared_path" ||
+        binding.selection_purpose !== "connect_new_project" ||
         binding.inspection_fingerprint !== inspectionFingerprint
       ) {
         throw new ProjectOnboardingErrorV01(
@@ -205,6 +290,23 @@ export async function POST(request: Request) {
         expected_revision: requiredNullableRevision(body, "expected_revision"),
       }) });
     }
+    if (body.action === "open_recovery_selection") {
+      return json({
+        ok: true,
+        result: await openRecoveredLocalProjectFromSelectionV01(db, {
+          project_id: requiredString(body.project_id),
+          selection_token: requiredString(body.selection_token),
+          inspection_fingerprint: requiredString(body.inspection_fingerprint),
+          expected_old_root_binding_fingerprint: requiredString(
+            body.expected_old_root_binding_fingerprint,
+          ),
+          expected_old_baseline_fingerprint: requiredNullableString(
+            body,
+            "expected_old_baseline_fingerprint",
+          ),
+        }),
+      });
+    }
     if (body.action === "remove") {
       return json({ ok: true, result: removeProjectFromRecentV01(db, {
         project_id: requiredString(body.project_id),
@@ -214,72 +316,157 @@ export async function POST(request: Request) {
     }
     if (body.action === "prepare_repository_execution_rebind_confirmation") {
       assertBrowserUserConfirmationV01(request);
-      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
-        request,
-      );
+      const selectionToken = requiredString(body.selection_token);
+      recoveryCookieClearSelectionToken = selectionToken;
+      recoveryCandidateProjectId = requiredString(body.project_id);
       const preview = await previewLocalProjectRootRebindFromSelectionV01(db, {
-        project_id: requiredString(body.project_id),
-        selection_token: requiredString(body.selection_token),
+        project_id: recoveryCandidateProjectId,
+        selection_token: selectionToken,
         inspection_fingerprint: requiredString(body.inspection_fingerprint),
         expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
         expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+      });
+      const binding = readExactRecoveryRebindBindingV01(
+        selectionToken,
+        preview.project_id,
+      );
+      const generalConfirmation = tryIssueGeneralRepositoryDecisionChallengeV01(
+        db,
+        request,
+        preview.workspace_id,
+        preview.project_id,
+        preview.decision_request!.request_fingerprint,
+      );
+      if (generalConfirmation) {
+        return json({
+          ok: true,
+          decision_request_fingerprint:
+            preview.decision_request!.request_fingerprint,
+          confirmation: generalConfirmation,
+        });
+      }
+      const recoverySession =
+        issueVNextRecoveryRepositoryDecisionSessionV01(db, {
+          selection_token: selectionToken,
+          scope: {
+            workspace_id: preview.workspace_id,
+            project_id: preview.project_id,
+            action: "rebind_root",
+            selection_binding_fingerprint:
+              binding.selection_binding_fingerprint,
+            decision_request_fingerprint:
+              preview.decision_request!.request_fingerprint,
+            expected_old_root_binding_fingerprint:
+              binding.expected_old_root_binding_fingerprint,
+            expected_old_baseline_fingerprint:
+              binding.expected_old_baseline_fingerprint,
+            expected_new_physical_observation_fingerprint:
+              binding.physical_root_observation_fingerprint,
+            expected_active_project_id:
+              binding.expected_active_project_id,
+            expected_active_selection_revision:
+              binding.expected_active_selection_revision,
+            candidate_expires_at: binding.expires_at,
+          },
+        });
+      const confirmation = issueVNextRepositoryDecisionChallengeV01(db, {
+        request_fingerprint: preview.decision_request!.request_fingerprint,
+        workspace_id: preview.workspace_id,
+        project_id: preview.project_id,
+        credential: recoverySession.admission.credential,
       });
       return json({
         ok: true,
         decision_request_fingerprint:
           preview.decision_request!.request_fingerprint,
-        confirmation: issueVNextRepositoryDecisionChallengeV01(db, {
-          request_fingerprint: preview.decision_request!.request_fingerprint,
-          workspace_id: preview.workspace_id,
-          project_id: preview.project_id,
-          credential,
-        }),
-      });
+        confirmation,
+      }, 200, serializeVNextRecoveryRepositoryDecisionSessionCookieV01({
+        selection_token: selectionToken,
+        value: recoverySession.admission.cookie_value,
+        expires_at: recoverySession.admission.cookie_expires_at,
+        max_age_seconds: recoverySession.admission.cookie_max_age_seconds,
+        secure: secureCookie,
+      }));
     }
     if (body.action === "confirm_rebind") {
       assertBrowserUserConfirmationV01(request);
-      const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
-        request,
+      const selectionToken = requiredString(body.selection_token);
+      recoveryCookieClearSelectionToken = selectionToken;
+      recoveryCandidateProjectId = requiredString(body.project_id);
+      const binding = readExactRecoveryRebindBindingV01(
+        selectionToken,
+        recoveryCandidateProjectId,
       );
+      const decisionRequestFingerprint = requiredString(
+        body.decision_request_fingerprint,
+      );
+      const challengeFingerprint = requiredString(
+        body.challenge_fingerprint,
+      );
+      let credential: VNextLocalOperatorSessionCredentialV01;
+      try {
+        credential = readMatchingRepositoryDecisionCredentialV01(
+          db,
+          request,
+          selectionToken,
+          binding,
+          decisionRequestFingerprint,
+          challengeFingerprint,
+        );
+      } catch (error) {
+        abandonVNextRecoveryRepositoryDecisionSessionV01(
+          db,
+          binding.selection_binding_fingerprint,
+        );
+        throw error;
+      }
+      const recoveryScopedCredential =
+        isVNextRecoveryRepositoryDecisionCredentialV01(credential);
       const sessionHolder: {
         current: VNextLocalOperatorSessionMutationAdmissionV01 | null;
       } = { current: null };
-      const result = await rebindLocalProjectRootFromSelectionV01(db, {
-        project_id: requiredString(body.project_id),
-        selection_token: requiredString(body.selection_token),
-        inspection_fingerprint: requiredString(body.inspection_fingerprint),
-        expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
-        expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
-        decision_request_fingerprint: requiredString(
-          body.decision_request_fingerprint,
-        ),
-      }, {
-        authorize_decision_inside_transaction: (decision) => {
-          const authorized =
-            authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
-              db!,
-              {
-                request_fingerprint: decision.request_fingerprint,
-                workspace_id: decision.workspace_id,
-                project_id: decision.project_id,
-                challenge_fingerprint: requiredString(
-                  body.challenge_fingerprint,
-                ),
-                credential,
-              },
-            );
-          sessionHolder.current = authorized.session_admission;
-          if (!authorized.decision.grant_fingerprint) {
-            throw new RepositoryExecutionErrorV01(
-              "repository_execution_decision_not_granted",
-              409,
-            );
-          }
-          return {
-            grant_fingerprint: authorized.decision.grant_fingerprint,
-          };
-        },
-      });
+      let result;
+      try {
+        result = await rebindLocalProjectRootFromSelectionV01(db, {
+          project_id: binding.recovery_project_id,
+          selection_token: selectionToken,
+          inspection_fingerprint: requiredString(body.inspection_fingerprint),
+          expected_old_root_binding_fingerprint: requiredString(body.expected_old_root_binding_fingerprint),
+          expected_old_baseline_fingerprint: requiredNullableString(body, "expected_old_baseline_fingerprint"),
+          decision_request_fingerprint: decisionRequestFingerprint,
+        }, {
+          authorize_decision_inside_transaction: (decision) => {
+            const authorized =
+              authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+                db!,
+                {
+                  request_fingerprint: decision.request_fingerprint,
+                  workspace_id: decision.workspace_id,
+                  project_id: decision.project_id,
+                  challenge_fingerprint: challengeFingerprint,
+                  credential,
+                },
+              );
+            sessionHolder.current = authorized.session_admission;
+            if (!authorized.decision.grant_fingerprint) {
+              throw new RepositoryExecutionErrorV01(
+                "repository_execution_decision_not_granted",
+                409,
+              );
+            }
+            return {
+              grant_fingerprint: authorized.decision.grant_fingerprint,
+            };
+          },
+        });
+      } finally {
+        if (recoveryScopedCredential) {
+          abandonVNextRecoveryRepositoryDecisionSessionV01(
+            db,
+            binding.selection_binding_fingerprint,
+          );
+        }
+      }
       const sessionAdmission = sessionHolder.current;
       if (!sessionAdmission) {
         throw new RepositoryExecutionErrorV01(
@@ -287,16 +474,25 @@ export async function POST(request: Request) {
           409,
         );
       }
-      return json(
-        { ok: true, result },
-        200,
-        serializeVNextRepositoryDecisionSessionCookieV01({
-          value: sessionAdmission.cookie_value,
-          expires_at: sessionAdmission.cookie_expires_at,
-          max_age_seconds: sessionAdmission.cookie_max_age_seconds,
-          secure: new URL(request.url).protocol === "https:",
-        }),
-      );
+      return recoveryScopedCredential
+        ? json(
+            { ok: true, result },
+            200,
+            serializeVNextRecoveryRepositoryDecisionSessionCookieClearV01({
+              selection_token: selectionToken,
+              secure: secureCookie,
+            }),
+          )
+        : json(
+            { ok: true, result },
+            200,
+            serializeVNextRepositoryDecisionSessionCookieV01({
+              value: sessionAdmission.cookie_value,
+              expires_at: sessionAdmission.cookie_expires_at,
+              max_age_seconds: sessionAdmission.cookie_max_age_seconds,
+              secure: new URL(request.url).protocol === "https:",
+            }),
+          );
     }
     if (body.action === "prepare_repository_execution_decision_confirmation") {
       assertBrowserUserConfirmationV01(request);
@@ -336,7 +532,31 @@ export async function POST(request: Request) {
       );
     }
     throw new ProjectOnboardingErrorV01("selection_invalid", 400);
-  } catch (error) { return routeError(error); }
+  } catch (error) {
+    if (recoveryCookieClearSelectionToken && db) {
+      try {
+        abandonVNextRecoveryRepositoryDecisionSessionBySelectionTokenV01(
+          db,
+          recoveryCookieClearSelectionToken,
+        );
+      } catch {}
+    }
+    if (recoveryCookieClearSelectionToken && recoveryCandidateProjectId) {
+      abandonPreparedLocalProjectRecoverySelectionV01(
+        recoveryCookieClearSelectionToken,
+        recoveryCandidateProjectId,
+      );
+    }
+    return routeError(
+      error,
+      recoveryCookieClearSelectionToken
+        ? serializeVNextRecoveryRepositoryDecisionSessionCookieClearV01({
+            selection_token: recoveryCookieClearSelectionToken,
+            secure: secureCookie,
+          })
+        : undefined,
+    );
+  }
   finally { db?.close(); }
 }
 
@@ -414,6 +634,113 @@ function requiredRevision(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
+function requiredRecoveryScope(
+  body: Record<string, unknown>,
+) {
+  return {
+    project_id: requiredString(body.project_id),
+    expected_old_root_binding_fingerprint: requiredString(
+      body.expected_old_root_binding_fingerprint,
+    ),
+    expected_old_baseline_fingerprint: requiredNullableString(
+      body,
+      "expected_old_baseline_fingerprint",
+    ),
+    expected_active_project_id: requiredNullableString(
+      body,
+      "expected_active_project_id",
+    ),
+    expected_active_selection_revision: requiredNullableRevision(
+      body,
+      "expected_active_selection_revision",
+    ),
+  };
+}
+function readExactRecoveryRebindBindingV01(
+  selectionToken: string,
+  projectId: string,
+) {
+  const binding = readPreparedLocalProjectSelectionBindingV01(selectionToken);
+  if (
+    binding.selection_purpose !== "recover_existing_project" ||
+    binding.recovery_action !== "rebind" ||
+    binding.recovery_project_id !== projectId ||
+    !binding.expected_workspace_id ||
+    !binding.expected_old_root_binding_fingerprint ||
+    !binding.expected_old_baseline_fingerprint ||
+    !binding.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  return {
+    ...binding,
+    expected_workspace_id: binding.expected_workspace_id,
+    recovery_project_id: binding.recovery_project_id,
+    expected_old_root_binding_fingerprint:
+      binding.expected_old_root_binding_fingerprint,
+    expected_old_baseline_fingerprint:
+      binding.expected_old_baseline_fingerprint,
+    physical_root_observation_fingerprint:
+      binding.physical_root_observation_fingerprint,
+  };
+}
+function tryIssueGeneralRepositoryDecisionChallengeV01(
+  db: NonNullable<ReturnType<typeof openDatabase>>,
+  request: Request,
+  workspaceId: string,
+  projectId: string,
+  requestFingerprint: string,
+) {
+  try {
+    return issueVNextRepositoryDecisionChallengeV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      request_fingerprint: requestFingerprint,
+      credential: readVNextRepositoryDecisionCredentialFromRequestV01(
+        request,
+      ),
+    });
+  } catch (error) {
+    if (error instanceof VNextLocalOperatorSessionErrorV01) return null;
+    throw error;
+  }
+}
+function readMatchingRepositoryDecisionCredentialV01(
+  db: NonNullable<ReturnType<typeof openDatabase>>,
+  request: Request,
+  selectionToken: string,
+  binding: ReturnType<typeof readExactRecoveryRebindBindingV01>,
+  requestFingerprint: string,
+  challengeFingerprint: string,
+): VNextLocalOperatorSessionCredentialV01 {
+  const readers = [
+    () => readVNextRepositoryDecisionCredentialFromRequestV01(request),
+    () => readVNextRecoveryRepositoryDecisionCredentialFromRequestV01(
+      request,
+      selectionToken,
+    ),
+  ];
+  for (const readCredential of readers) {
+    try {
+      const credential = readCredential();
+      const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
+        workspace_id: binding.expected_workspace_id,
+        project_id: binding.recovery_project_id,
+        request_fingerprint: requestFingerprint,
+        credential,
+      });
+      if (challenge.challenge_fingerprint === challengeFingerprint) {
+        return credential;
+      }
+    } catch (error) {
+      if (!(error instanceof VNextLocalOperatorSessionErrorV01)) throw error;
+    }
+  }
+  throw new VNextLocalOperatorSessionErrorV01(
+    "operator_session_cookie_missing",
+    401,
+  );
+}
 function assertBrowserUserConfirmationV01(request: Request): void {
   if (
     request.headers.get("sec-fetch-site") !== "same-origin" ||
@@ -423,21 +750,21 @@ function assertBrowserUserConfirmationV01(request: Request): void {
     throw new ProjectOnboardingErrorV01("selection_invalid", 403);
   }
 }
-function routeError(error: unknown) {
-  if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status);
-  if (error instanceof LocalProjectPathDeclarationErrorV01) return json({ ok: false, error_code: error.code }, error.status);
-  if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404);
+function routeError(error: unknown, setCookie?: string) {
+  if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
+  if (error instanceof LocalProjectPathDeclarationErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
+  if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404, setCookie);
   if (error instanceof ProjectIdentityRegistryErrorV01) {
     const status = error.code.includes("conflict")
       ? 409
       : error.code === "project_identity_scope_mismatch"
         ? 404
         : 400;
-    return json({ ok: false, error_code: error.code }, status);
+    return json({ ok: false, error_code: error.code }, status, setCookie);
   }
-  if (error instanceof VNextLocalOperatorSessionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
-  if (error instanceof RepositoryExecutionErrorV01) return json({ ok: false, error_code: error.code }, error.status);
-  return json({ ok: false, error_code: "onboarding_unavailable" }, 500);
+  if (error instanceof VNextLocalOperatorSessionErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
+  if (error instanceof RepositoryExecutionErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
+  return json({ ok: false, error_code: "onboarding_unavailable" }, 500, setCookie);
 }
 function json(body: unknown, status = 200, setCookie?: string) {
   const headers = new Headers(HEADERS);
