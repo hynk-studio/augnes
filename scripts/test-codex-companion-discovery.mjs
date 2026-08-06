@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +15,32 @@ import {
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
 const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
+const operatorPluginRoot = path.join(process.cwd(), "plugins", "augnes-operator");
+const operatorManifest = JSON.parse(readFileSync(
+  path.join(operatorPluginRoot, ".codex-plugin", "plugin.json"),
+  "utf8",
+));
+const operatorDefaultPrompt = operatorManifest.interface?.defaultPrompt;
+assert.equal(typeof operatorDefaultPrompt, "string");
+assert.ok(operatorDefaultPrompt.length <= 128);
+assert.match(operatorDefaultPrompt, /augnes_resume_repository/u);
+assert.match(operatorDefaultPrompt, /current repository root/u);
+assert.match(operatorDefaultPrompt, /before reading files or docs/u);
+
+const operatorHooks = JSON.parse(readFileSync(
+  path.join(operatorPluginRoot, "hooks", "hooks.json"),
+  "utf8",
+));
+const operatorHookCommands = Object.values(operatorHooks.hooks).flatMap((groups) =>
+  groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
+);
+assert.equal(operatorHookCommands.length, 4);
+for (const command of operatorHookCommands) {
+  assert.match(command, /^node "\$PLUGIN_ROOT\/hooks\/[a-z_]+\.mjs"$/u);
+  assert.equal(command.includes("git rev-parse"), false);
+  assert.equal(command.includes("/Users/"), false);
+}
+
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
 const generation = "runtime-generation-cdx2b1";
@@ -195,6 +221,8 @@ try {
     browser_decision_session_absent_from_mcp_inventory: true,
     browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
+    plugin_default_prompt_admitted_by_codex: true,
+    plugin_hooks_resolve_from_plugin_root: true,
     synthetic_discovery_harness: true,
   }, null, 2));
 } finally {

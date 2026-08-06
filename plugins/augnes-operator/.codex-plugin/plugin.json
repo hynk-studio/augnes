@@ -21,6 +21,6 @@
       "authority-audit",
       "live-repository-continuity"
     ],
-    "defaultPrompt": "Use augnes_resume_repository automatically when the user asks to resume, continue, or inspect the current local repository with Augnes. Keep all work bounded, read-only until separately authorized, evidence-aware, and aligned with Augnes authority boundaries."
+    "defaultPrompt": "For Augnes repository resume, call augnes_resume_repository with the current repository root before reading files or docs."
   }
 }
