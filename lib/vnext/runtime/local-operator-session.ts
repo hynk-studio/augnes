@@ -35,7 +35,7 @@ const RECOVERY_SESSION_ID_PREFIX =
 const BOOTSTRAP_TOKEN_PREFIX = "vnext_bootstrap_v01";
 const SESSION_COOKIE_PREFIX = "vnext_session_v01";
 const MAX_CREDENTIAL_CHARACTERS = 1024;
-const MAX_COOKIE_HEADER_CHARACTERS = 4096;
+export const VNEXT_LOCAL_OPERATOR_MAX_COOKIE_HEADER_CHARACTERS_V01 = 4096;
 const MAX_ID_CHARACTERS = 256;
 const RECOVERY_SESSION_TTL_MS_V01 = 5 * 60 * 1000;
 const MAX_PENDING_RECOVERY_SESSIONS_V01 = 64;
@@ -246,7 +246,9 @@ export interface VNextRecoveryRepositoryDecisionScopeV01 {
 interface ActiveRecoveryRepositoryDecisionScopeV01
   extends VNextRecoveryRepositoryDecisionScopeV01 {
   session_id: string;
+  selection_token: string;
   expires_at: string;
+  admission: VNextLocalOperatorSessionMutationAdmissionV01;
 }
 
 interface LocalOperatorSessionRowV01 {
@@ -525,6 +527,7 @@ export function consumeVNextLocalOperatorBootstrapV01(
 export function issueVNextRecoveryRepositoryDecisionSessionV01(
   db: Database.Database,
   input: {
+    selection_token: string;
     scope: VNextRecoveryRepositoryDecisionScopeV01;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
@@ -534,6 +537,10 @@ export function issueVNextRecoveryRepositoryDecisionSessionV01(
 } {
   assertVNextLocalOperatorSessionSchemaV01(db);
   assertRecoveryRepositoryDecisionScope(input.scope);
+  const selectionToken = requiredCanonicalId(input.selection_token);
+  if (!selectionToken) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
   const now = readVNextLocalRuntimeClockNowV01(
     input.clock,
     "recovery_repository_decision_session_issued_at",
@@ -554,6 +561,31 @@ export function issueVNextRecoveryRepositoryDecisionSessionV01(
     candidateExpiresAt,
   )).toISOString();
   pruneRecoveryRepositoryDecisionScopesV01(db, now);
+  const existing = [...activeRecoveryRepositoryDecisionScopes.values()].find(
+    (scope) =>
+      scope.selection_binding_fingerprint ===
+      input.scope.selection_binding_fingerprint,
+  );
+  if (existing) {
+    if (
+      existing.selection_token !== selectionToken ||
+      !recoveryRepositoryDecisionScopesEqualV01(existing, input.scope)
+    ) {
+      throw sessionError("operator_session_conflict", 409);
+    }
+    const row = requireSession(db, existing.session_id);
+    assertRepositoryDecisionSessionCanAuthenticate(
+      row,
+      input.scope.workspace_id,
+      input.scope.project_id,
+      input.scope.decision_request_fingerprint,
+      existing.admission.credential,
+      now,
+    );
+    return {
+      admission: existing.admission,
+    };
+  }
   if (
     activeRecoveryRepositoryDecisionScopes.size >=
     MAX_PENDING_RECOVERY_SESSIONS_V01
@@ -614,23 +646,26 @@ export function issueVNextRecoveryRepositoryDecisionSessionV01(
   } catch {
     throw sessionError("operator_session_conflict", 409);
   }
+  const admission = sessionAdmission(row, credential, now);
   activeRecoveryRepositoryDecisionScopes.set(sessionId, {
     ...input.scope,
     session_id: sessionId,
+    selection_token: selectionToken,
     expires_at: expiresAt,
+    admission,
   });
   return {
-    admission: sessionAdmission(row, credential, now),
+    admission,
   };
 }
 
 export function readVNextRecoveryRepositoryDecisionCredentialFromRequestV01(
   request: Request,
-  selectionBindingFingerprint: string,
+  selectionToken: string,
 ): VNextLocalOperatorSessionCredentialV01 {
   return readCredentialCookieV01(
     request,
-    recoveryRepositoryDecisionCookieNameV01(selectionBindingFingerprint),
+    recoveryRepositoryDecisionCookieNameV01(selectionToken),
   );
 }
 
@@ -647,6 +682,31 @@ export function abandonVNextRecoveryRepositoryDecisionSessionV01(
     if (scope.selection_binding_fingerprint !== selectionBindingFingerprint) {
       continue;
     }
+    activeRecoveryRepositoryDecisionScopes.delete(sessionId);
+    db.prepare(
+      `UPDATE vnext_local_operator_sessions
+         SET revoked_at = COALESCE(revoked_at, ?), updated_at = ?
+       WHERE session_id = ?`,
+    ).run(now, now, sessionId);
+  }
+}
+
+export function abandonVNextRecoveryRepositoryDecisionSessionBySelectionTokenV01(
+  db: Database.Database,
+  selectionToken: string,
+  clock?: VNextLocalRuntimeClockV01,
+): void {
+  const token = requiredCanonicalId(selectionToken);
+  if (!token) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
+  const now = readVNextLocalRuntimeClockNowV01(
+    clock,
+    "recovery_repository_decision_session_abandoned_at",
+  );
+  pruneRecoveryRepositoryDecisionScopesV01(db, now);
+  for (const [sessionId, scope] of activeRecoveryRepositoryDecisionScopes) {
+    if (scope.selection_token !== token) continue;
     activeRecoveryRepositoryDecisionScopes.delete(sessionId);
     db.prepare(
       `UPDATE vnext_local_operator_sessions
@@ -692,7 +752,10 @@ function readCredentialCookieV01(
   if (!cookieHeader) {
     throw sessionError("operator_session_cookie_missing", 401);
   }
-  if (cookieHeader.length > MAX_COOKIE_HEADER_CHARACTERS) {
+  if (
+    cookieHeader.length >
+    VNEXT_LOCAL_OPERATOR_MAX_COOKIE_HEADER_CHARACTERS_V01
+  ) {
     throw sessionError("operator_session_cookie_invalid", 401);
   }
   const values = cookieHeader
@@ -1089,7 +1152,7 @@ export function serializeVNextRepositoryDecisionSessionCookieV01(input: {
 }
 
 export function serializeVNextRecoveryRepositoryDecisionSessionCookieV01(input: {
-  selection_binding_fingerprint: string;
+  selection_token: string;
   value: string;
   expires_at: string;
   max_age_seconds: number;
@@ -1098,7 +1161,22 @@ export function serializeVNextRecoveryRepositoryDecisionSessionCookieV01(input: 
   return serializeSessionCookieV01({
     ...input,
     cookie_name: recoveryRepositoryDecisionCookieNameV01(
-      input.selection_binding_fingerprint,
+      input.selection_token,
+    ),
+    path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
+  });
+}
+
+export function serializeVNextRecoveryRepositoryDecisionSessionCookieClearV01(
+  input: {
+    selection_token: string;
+    secure: boolean;
+  },
+): string {
+  return serializeSessionCookieClearV01({
+    secure: input.secure,
+    cookie_name: recoveryRepositoryDecisionCookieNameV01(
+      input.selection_token,
     ),
     path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
   });
@@ -1561,13 +1639,17 @@ function requiredProtocolFingerprint(value: unknown): string | null {
 }
 
 function recoveryRepositoryDecisionCookieNameV01(
-  selectionBindingFingerprint: string,
+  selectionToken: string,
 ): string {
-  const fingerprint = requiredProtocolFingerprint(selectionBindingFingerprint);
-  if (!fingerprint) {
+  const token = requiredCanonicalId(selectionToken);
+  if (!token) {
     throw sessionError("operator_session_scope_mismatch", 403);
   }
-  return `${VNEXT_RECOVERY_REPOSITORY_DECISION_COOKIE_PREFIX_V01}${fingerprint.slice(7, 31)}`;
+  const suffix = createHash("sha256")
+    .update(`recovery-cookie\0${token}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `${VNEXT_RECOVERY_REPOSITORY_DECISION_COOKIE_PREFIX_V01}${suffix}`;
 }
 
 function assertRecoveryRepositoryDecisionScope(
@@ -1597,6 +1679,32 @@ function assertRecoveryRepositoryDecisionScope(
   ) {
     throw sessionError("operator_session_scope_mismatch", 403);
   }
+}
+
+function recoveryRepositoryDecisionScopesEqualV01(
+  active: ActiveRecoveryRepositoryDecisionScopeV01,
+  requested: VNextRecoveryRepositoryDecisionScopeV01,
+): boolean {
+  return (
+    active.workspace_id === requested.workspace_id &&
+    active.project_id === requested.project_id &&
+    active.action === requested.action &&
+    active.selection_binding_fingerprint ===
+      requested.selection_binding_fingerprint &&
+    active.decision_request_fingerprint ===
+      requested.decision_request_fingerprint &&
+    active.expected_old_root_binding_fingerprint ===
+      requested.expected_old_root_binding_fingerprint &&
+    active.expected_old_baseline_fingerprint ===
+      requested.expected_old_baseline_fingerprint &&
+    active.expected_new_physical_observation_fingerprint ===
+      requested.expected_new_physical_observation_fingerprint &&
+    active.expected_active_project_id ===
+      requested.expected_active_project_id &&
+    active.expected_active_selection_revision ===
+      requested.expected_active_selection_revision &&
+    active.candidate_expires_at === requested.candidate_expires_at
+  );
 }
 
 function pruneRecoveryRepositoryDecisionScopesV01(

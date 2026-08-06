@@ -186,6 +186,11 @@ const result = {
   project_recovery_no_plaintext_bootstrap_exposed: false,
   project_recovery_request_scoped_authority_only: false,
   project_recovery_fresh_rebind_completed: false,
+  project_recovery_same_candidate_prepare_reordering_safe: false,
+  project_recovery_terminal_cookie_cleared: false,
+  project_recovery_retry_cookie_budget_bounded: false,
+  project_recovery_final_after_retry_stress: false,
+  project_recovery_general_decision_cookie_preserved: false,
   project_recovery_native_and_declared_review: false,
   project_recovery_responsive_review: false,
   project_recovery_no_mutation_before_confirmation: false,
@@ -1430,6 +1435,174 @@ async function main() {
       `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && Array.from(document.querySelectorAll('[data-blank-state-primary-action="locate_folder"]')).some((button) => button.getBoundingClientRect().width > 0 && !button.disabled)`,
       "project recovery controls ready",
     );
+    const sameCandidateRecoveryProbe = await evaluateJson(`(async () => {
+      const recentResponse = await fetch('/api/vnext/projects', { cache: 'no-store' });
+      const recent = await recentResponse.json();
+      const entry = recent.recent_projects.find((candidate) =>
+        candidate.project.project_id === ${JSON.stringify(projectBetaId)}
+      );
+      const post = async (body) => {
+        const response = await fetch('/api/vnext/projects', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          cache: 'no-store'
+        });
+        return { status: response.status, body: await response.json() };
+      };
+      const declared = await post({
+        action: 'declare_recovery_path',
+        path: ${JSON.stringify(onboardingFolderBRecovered)},
+        project_id: entry.project.project_id,
+        expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+        expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint,
+        expected_active_project_id: entry.active_project_id,
+        expected_active_selection_revision: entry.active_selection_revision
+      });
+      const common = {
+        action: 'prepare_repository_execution_rebind_confirmation',
+        project_id: entry.project.project_id,
+        selection_token: declared.body.picker.selection_token,
+        inspection_fingerprint: declared.body.picker.inspection.inspection_fingerprint,
+        expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+        expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint
+      };
+      const [first, second] = await Promise.all([post(common), post(common)]);
+      window.__lpx2SameCandidateRecoveryProbe = {
+        project_id: entry.project.project_id,
+        selection_token: declared.body.picker.selection_token
+      };
+      return {
+        declared_status: declared.status,
+        first_status: first.status,
+        second_status: second.status,
+        same_request: first.body.decision_request_fingerprint === second.body.decision_request_fingerprint,
+        same_challenge: first.body.confirmation.challenge_fingerprint === second.body.confirmation.challenge_fingerprint,
+        private_response_material: /vnext_(?:bootstrap|session)_v01|session_secret|action_nonce|cookie_value/iu.test(JSON.stringify([first.body, second.body]))
+      };
+    })()`);
+    assert.deepEqual(sameCandidateRecoveryProbe, {
+      declared_status: 200,
+      first_status: 200,
+      second_status: 200,
+      same_request: true,
+      same_challenge: true,
+      private_response_material: false,
+    });
+    const sameCandidateCookies = await cdp.send("Network.getAllCookies");
+    const sameCandidateRecoveryCookies = sameCandidateCookies.cookies.filter(
+      (cookie) => cookie.name.startsWith("augnes_vnext_recovery_decision_"),
+    );
+    assert.equal(sameCandidateRecoveryCookies.length, 1);
+    assert.equal(sameCandidateRecoveryCookies[0].httpOnly, true);
+    assert.equal(sameCandidateRecoveryCookies[0].sameSite, "Strict");
+    const recoveryCookiePairCharacters =
+      sameCandidateRecoveryCookies[0].name.length +
+      sameCandidateRecoveryCookies[0].value.length + 1;
+    assert(recoveryCookiePairCharacters < 4096);
+    assert(recoveryCookiePairCharacters * 32 > 4096);
+    const sameCandidateSessionDatabase = new Database(
+      fixture.writable_database_path,
+      { readonly: true, fileMustExist: true },
+    );
+    try {
+      assert.equal(
+        sameCandidateSessionDatabase.prepare(
+          `SELECT COUNT(*) AS count FROM vnext_local_operator_sessions
+            WHERE project_id = ?
+              AND operator_id = 'operator:local-project-recovery'
+              AND revoked_at IS NULL`,
+        ).pluck().get(projectBetaId),
+        1,
+      );
+    } finally {
+      sameCandidateSessionDatabase.close();
+    }
+    result.project_recovery_same_candidate_prepare_reordering_safe = true;
+    completeDetailedField(
+      "project_recovery_same_candidate_prepare_reordering_safe",
+    );
+    const sameCandidateAbandoned = await evaluateJson(`(async () => {
+      const owned = window.__lpx2SameCandidateRecoveryProbe;
+      const response = await fetch('/api/vnext/projects', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'abandon_recovery_selection',
+          project_id: owned.project_id,
+          selection_token: owned.selection_token
+        }),
+        cache: 'no-store'
+      });
+      delete window.__lpx2SameCandidateRecoveryProbe;
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(sameCandidateAbandoned.status, 200);
+    const afterSameCandidateAbandon = await cdp.send("Network.getAllCookies");
+    assert.equal(
+      afterSameCandidateAbandon.cookies.some((cookie) =>
+        cookie.name.startsWith("augnes_vnext_recovery_decision_")
+      ),
+      false,
+    );
+    result.project_recovery_terminal_cookie_cleared = true;
+    completeDetailedField("project_recovery_terminal_cookie_cleared");
+    const retryStress = await evaluateJson(`(async () => {
+      const post = async (body) => {
+        const response = await fetch('/api/vnext/projects', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          cache: 'no-store'
+        });
+        return { status: response.status, body: await response.json() };
+      };
+      const statuses = [];
+      for (let index = 0; index < 32; index += 1) {
+        const recentResponse = await fetch('/api/vnext/projects', { cache: 'no-store' });
+        const recent = await recentResponse.json();
+        const entry = recent.recent_projects.find((candidate) =>
+          candidate.project.project_id === ${JSON.stringify(projectBetaId)}
+        );
+        const declared = await post({
+          action: 'declare_recovery_path',
+          path: ${JSON.stringify(onboardingFolderBRecovered)},
+          project_id: entry.project.project_id,
+          expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+          expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint,
+          expected_active_project_id: entry.active_project_id,
+          expected_active_selection_revision: entry.active_selection_revision
+        });
+        const prepared = await post({
+          action: 'prepare_repository_execution_rebind_confirmation',
+          project_id: entry.project.project_id,
+          selection_token: declared.body.picker.selection_token,
+          inspection_fingerprint: declared.body.picker.inspection.inspection_fingerprint,
+          expected_old_root_binding_fingerprint: entry.root_binding_fingerprint,
+          expected_old_baseline_fingerprint: entry.physical_root_baseline_fingerprint
+        });
+        const abandoned = await post({
+          action: 'abandon_recovery_selection',
+          project_id: entry.project.project_id,
+          selection_token: declared.body.picker.selection_token
+        });
+        statuses.push([declared.status, prepared.status, abandoned.status]);
+      }
+      return {
+        attempts: statuses.length,
+        all_ok: statuses.every((entry) => entry.every((status) => status === 200))
+      };
+    })()`);
+    assert.deepEqual(retryStress, { attempts: 32, all_ok: true });
+    const afterRetryStressCookies = await cdp.send("Network.getAllCookies");
+    assert.equal(
+      afterRetryStressCookies.cookies.some((cookie) =>
+        cookie.name.startsWith("augnes_vnext_recovery_decision_")
+      ),
+      false,
+    );
+    result.project_recovery_retry_cookie_budget_bounded = true;
+    completeDetailedField("project_recovery_retry_cookie_budget_bounded");
     const recoveryContext = await evaluateJson(`(() => {
       const context = document.querySelector('[data-project-context-label="Current project"]');
       return {
@@ -1660,9 +1833,7 @@ async function main() {
     const recoveryScopedCookies = recoveryCookiesAfter.cookies.filter(
       (cookie) => cookie.name.startsWith("augnes_vnext_recovery_decision_"),
     );
-    assert.equal(recoveryScopedCookies.length, 1);
-    assert.equal(recoveryScopedCookies[0].httpOnly, true);
-    assert.equal(recoveryScopedCookies[0].sameSite, "Strict");
+    assert.equal(recoveryScopedCookies.length, 0);
     assert.equal(
       recoveryCookiesAfter.cookies.some((cookie) =>
         cookie.name === "augnes_vnext_operator_session_v01" ||
@@ -1730,6 +1901,8 @@ async function main() {
     completeDetailedField("project_recovery_same_project_rebind");
     result.project_recovery_fresh_rebind_completed = true;
     completeDetailedField("project_recovery_fresh_rebind_completed");
+    result.project_recovery_final_after_retry_stress = true;
+    completeDetailedField("project_recovery_final_after_retry_stress");
 
     const activateAlpha = await openProjectInBrowser(projectAlphaId);
     assert.equal(activateAlpha.status, 200);
@@ -1833,6 +2006,54 @@ async function main() {
       fixture.writable_database_path,
       manifest,
       manifest.project_id,
+    );
+    const generalDecisionCookiesBeforeRecoveryClear = await cdp.send(
+      "Network.getAllCookies",
+    );
+    const generalDecisionCookieBeforeRecoveryClear =
+      generalDecisionCookiesBeforeRecoveryClear.cookies.find(
+        (cookie) =>
+          cookie.name ===
+            "augnes_vnext_repository_decision_session_v01" &&
+          cookie.path === "/api/vnext/projects",
+      );
+    assert(generalDecisionCookieBeforeRecoveryClear);
+    const staleRecoveryCookieClear = await browserFetchJson(
+      "/api/vnext/projects",
+      {
+        method: "POST",
+        explicitBody: {
+          action: "abandon_recovery_selection",
+          project_id: manifest.project_id,
+          selection_token: "browser-general-session-preservation-candidate",
+        },
+      },
+    );
+    assert.equal(staleRecoveryCookieClear.status, 200);
+    const generalDecisionCookiesAfterRecoveryClear = await cdp.send(
+      "Network.getAllCookies",
+    );
+    const generalDecisionCookieAfterRecoveryClear =
+      generalDecisionCookiesAfterRecoveryClear.cookies.find(
+        (cookie) =>
+          cookie.name ===
+            "augnes_vnext_repository_decision_session_v01" &&
+          cookie.path === "/api/vnext/projects",
+      );
+    assert(generalDecisionCookieAfterRecoveryClear);
+    assert.equal(
+      generalDecisionCookieAfterRecoveryClear.value,
+      generalDecisionCookieBeforeRecoveryClear.value,
+    );
+    assert.equal(
+      generalDecisionCookiesAfterRecoveryClear.cookies.some((cookie) =>
+        cookie.name.startsWith("augnes_vnext_recovery_decision_")
+      ),
+      false,
+    );
+    result.project_recovery_general_decision_cookie_preserved = true;
+    completeDetailedField(
+      "project_recovery_general_decision_cookie_preserved",
     );
     await waitForCondition(
       `document.querySelector('[data-delegated-work="delegated_work_projection.v0.1"]') !== null`,
