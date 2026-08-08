@@ -30,5 +30,22 @@ export function normalizedDependencyLock(lock) {
     );
   }
 
+  for (const [packagePath, packageRecord] of Object.entries(
+    normalized.packages ?? {},
+  )) {
+    if (
+      packagePath !== "" &&
+      packageRecord &&
+      typeof packageRecord === "object" &&
+      !Array.isArray(packageRecord)
+    ) {
+      // npm may add or remove this reachability classification when the same
+      // exact package is also reachable through a non-peer dependency. It is
+      // not a dependency edge, version, resolution, integrity, or peer
+      // requirement.
+      delete packageRecord.peer;
+    }
+  }
+
   return normalized;
 }

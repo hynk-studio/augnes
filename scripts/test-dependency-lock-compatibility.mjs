@@ -63,6 +63,9 @@ expectIncompatible(rootLock, (candidate) => {
 expectIncompatible(rootLock, (candidate) => {
   candidate.packages["node_modules/react"].engines = { node: ">=24" };
 });
+expectCompatible(rootLock, (candidate) => {
+  candidate.packages["node_modules/react"].peer = true;
+});
 expectIncompatible(rootLock, (candidate) => {
   delete candidate.packages["node_modules/react"];
 });
@@ -98,6 +101,7 @@ console.log(
       root_dependency_declarations_exact: true,
       transitive_package_entries_exact: true,
       resolved_and_integrity_material_exact: true,
+      transitive_peer_reachability_classification_ignored: true,
       deleted_package_entries_refused: true,
       nested_lock_compatibility_protected: true,
     },
