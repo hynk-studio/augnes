@@ -140,6 +140,11 @@ export function OperatorSessionPanel({
           Local review is disabled. This page loaded no protected project
           material.
         </p>
+        <p className={styles.copy}>
+          From the Augnes source checkout, run <code>npm run augnes -- access</code>
+          {" "}to restart the supervised runtime and issue one expiring local
+          review token for the current project.
+        </p>
       </section>
     );
   }

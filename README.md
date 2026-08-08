@@ -45,6 +45,20 @@ path demonstrates installation, project onboarding, Blank State, and supervised
 local runtime behavior. It does not fabricate the review history needed for a
 complete continuity walkthrough.
 
+To define or revise work for the connected project from a source checkout,
+open another terminal in this repository and run:
+
+```bash
+npm run augnes -- access
+```
+
+This normally stops the current supervised runtime, binds the existing local
+review session owner to the exact current project, restarts one supervised
+runtime, and prints one expiring token. Paste that token into the visible
+Browser unlock form. The token establishes local project review access only;
+it grants no execution, semantic, external-effect, or merge authority. Do not
+copy it into project files, prompts, issue comments, or verification evidence.
+
 If an existing project's saved folder later becomes unavailable, **Locate
 folder** opens the same verified folder-selection experience for that exact
 project. **Choose a folder** and **Enter the folder path instead** converge on

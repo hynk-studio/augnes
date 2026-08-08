@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +16,58 @@ import {
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
 const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
+const operatorPluginRoot = path.join(process.cwd(), "plugins", "augnes-operator");
+const operatorManifest = JSON.parse(readFileSync(
+  path.join(operatorPluginRoot, ".codex-plugin", "plugin.json"),
+  "utf8",
+));
+const operatorDefaultPrompt = operatorManifest.interface?.defaultPrompt;
+assert.equal(typeof operatorDefaultPrompt, "string");
+assert.ok(operatorDefaultPrompt.length <= 128);
+assert.match(operatorDefaultPrompt, /augnes_resume_repository/u);
+assert.match(operatorDefaultPrompt, /current repository root/u);
+assert.match(operatorDefaultPrompt, /before reading files or docs/u);
+
+const operatorHooks = JSON.parse(readFileSync(
+  path.join(operatorPluginRoot, "hooks", "hooks.json"),
+  "utf8",
+));
+const operatorHookCommands = Object.values(operatorHooks.hooks).flatMap((groups) =>
+  groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
+);
+assert.equal(operatorHookCommands.length, 4);
+for (const command of operatorHookCommands) {
+  assert.match(command, /^node "\$PLUGIN_ROOT\/hooks\/[a-z_]+\.mjs"$/u);
+  assert.equal(command.includes("git rev-parse"), false);
+  assert.equal(command.includes("/Users/"), false);
+}
+
+const repositoryResumeHook = spawnSync(
+  process.execPath,
+  [path.join(operatorPluginRoot, "hooks", "session_start.mjs")],
+  {
+    encoding: "utf8",
+    input: JSON.stringify({
+      hook_event_name: "SessionStart",
+      prompt: "Resume this repository with Augnes. Complete the currently defined work.",
+    }),
+  },
+);
+assert.equal(repositoryResumeHook.status, 0, repositoryResumeHook.stderr);
+const repositoryResumeHookOutput = JSON.parse(repositoryResumeHook.stdout);
+assert.equal(repositoryResumeHookOutput.hookSpecificOutput?.hookEventName, "SessionStart");
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository .* as the first tool action/u);
+assert.match(
+  repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
+  /augnes_resume_repository with repositoryRoot equal to the exact absolute current working directory/u,
+);
+assert.match(
+  repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
+  /augnes_prepare_repository_execution with repositoryRoot equal to that same exact absolute current working directory/u,
+);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /before reading repository files, docs, memory, or skills/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /stop without inspecting or changing repository files/u);
+
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
 const generation = "runtime-generation-cdx2b1";
@@ -24,12 +77,18 @@ let recoveryMode = false;
 let bridgeMode = "http";
 let bridgeRepository = repository;
 let continuityCalls = 0;
+let uiHealthAvailable = true;
+let uiHealthCalls = 0;
 
 const ui = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   response.setHeader("cache-control", "no-store");
   if (url.pathname === "/api/healthz") {
+    uiHealthCalls += 1;
+    if (!uiHealthAvailable) {
+      return response.writeHead(503).end(JSON.stringify({ error: "ui_health_temporarily_busy" }));
+    }
     return response.end(JSON.stringify({
       ok: true,
       service: "augnes-ui",
@@ -105,6 +164,8 @@ try {
   recoveryMode = true;
   assert.equal((await discoverVerifiedCompanionV01(environment)).status, "companion_unavailable");
   recoveryMode = false;
+  const strictDiscoveryHealthCalls = uiHealthCalls;
+  uiHealthAvailable = false;
 
   const client = new Client({ name: "augnes-companion-discovery", version: "0.1.0" });
   const transport = new StdioClientTransport({
@@ -149,6 +210,31 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    const deferredToolInventory = tools.tools.map(({ name, description }) => ({ name, description }));
+    for (const tool of tools.tools) {
+      const deferredDescription = deferredToolInventory.find(({ name }) => name === tool.name)?.description ?? "";
+      for (const requiredInput of tool.inputSchema?.required ?? []) {
+        assert.match(
+          deferredDescription,
+          new RegExp(`\\b${requiredInput}\\b`, "u"),
+          `schema-free deferred tool inventory must expose required input ${requiredInput} for ${tool.name}`,
+        );
+      }
+    }
+    assert.match(
+      byName.get("augnes_request_repository_delegation")?.description ?? "",
+      /call this tool again with the same workspace, project, and attachment/u,
+    );
+    assert.match(
+      byName.get("augnes_request_repository_delegation")?.description ?? "",
+      /does not create a second request/u,
+    );
+    const liveContinuitySkill = readFileSync(
+      path.join(operatorPluginRoot, "skills", "augnes-live-repository-continuity", "SKILL.md"),
+      "utf8",
+    );
+    assert.match(liveContinuitySkill, /replay of the existing request, not a second Start request/u);
+    assert.match(liveContinuitySkill, /Never guess a grant or reuse the request fingerprint as the grant/u);
     for (const name of [
       "augnes_prepare_repository_execution",
       "augnes_validate_repository_execution_attachment",
@@ -179,6 +265,11 @@ try {
     assert.equal(result.structuredContent?.companion?.status, "live");
     assert.equal(result.structuredContent?.repository_resolution?.status, "project_not_registered");
     assert.equal(result.structuredContent?.continuity, null);
+    assert.equal(
+      uiHealthCalls,
+      strictDiscoveryHealthCalls,
+      "read-only continuity should use its exact identity-bound route instead of a redundant UI health preflight",
+    );
   } finally {
     await client.close();
   }
@@ -195,6 +286,9 @@ try {
     browser_decision_session_absent_from_mcp_inventory: true,
     browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
+    readonly_route_owns_ui_identity_verification: true,
+    plugin_default_prompt_admitted_by_codex: true,
+    plugin_hooks_resolve_from_plugin_root: true,
     synthetic_discovery_harness: true,
   }, null, 2));
 } finally {

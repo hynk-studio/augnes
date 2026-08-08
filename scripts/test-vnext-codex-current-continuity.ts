@@ -74,6 +74,10 @@ import {
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
+  createRunReceiptFingerprintV01,
+  deriveRunReceiptIdV01,
+} from "../lib/vnext/run-receipt";
+import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
 } from "../lib/vnext/review-decision";
@@ -1613,6 +1617,9 @@ async function assertExactOwnerStatesV01(): Promise<void> {
       revised.packet,
       { timeline_anchor_at: "2026-08-03T00:00:10.000Z" },
     );
+    receipt.observations[0]!.summary = `${"a".repeat(511)} bounded tail`;
+    receipt.receipt_id = deriveRunReceiptIdV01(receipt);
+    receipt.integrity.fingerprint = createRunReceiptFingerprintV01(receipt);
     insertVNextCoreRecordV01(fixture.db, {
       record_kind: "run_receipt",
       record_id: receipt.receipt_id,
@@ -1661,6 +1668,8 @@ async function assertExactOwnerStatesV01(): Promise<void> {
     assert.equal(resultProjection.latest_result.state, "result_present");
     assert.equal(resultProjection.latest_result.currentness, "current");
     assert.equal(resultProjection.latest_result.artifacts.length > 0, true);
+    assert.equal(resultProjection.latest_result.artifacts[0]?.summary?.length, 511);
+    assert.equal(resultProjection.latest_result.artifacts[0]?.summary?.endsWith(" "), false);
     assert.equal(resultProjection.latest_result.checks.length > 0, true);
     assert.equal(resultProjection.review_continuity.state, "no_proposal");
     assert.equal(resultProjection.next_action.kind, "review_result");

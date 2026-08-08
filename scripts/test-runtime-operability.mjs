@@ -993,6 +993,8 @@ async function testRepositoryResumeEligibilityRestart() {
           activeRead.structuredContent?.resume_eligibility;
         if (
           eligibility?.status === "active_owned" &&
+          eligibility.last_confirmed_operation?.operation_class ===
+            "command_execution" &&
           eligibility.last_confirmed_operation?.certainty === "completed"
         ) break;
         await new Promise((resolve) => setImmediate(resolve));
@@ -1004,6 +1006,10 @@ async function testRepositoryResumeEligibilityRestart() {
       const activeEligibility =
         stableActiveRead.structuredContent.resume_eligibility;
       assert.equal(activeEligibility.status, "active_owned");
+      assert.equal(
+        activeEligibility.last_confirmed_operation?.operation_class,
+        "command_execution",
+      );
       assert.equal(activeEligibility.last_confirmed_operation?.certainty, "completed");
       assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
       return {

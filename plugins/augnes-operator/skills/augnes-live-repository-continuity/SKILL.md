@@ -54,9 +54,14 @@ the current Augnes project state.”
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never
    request, infer, or reproduce the Browser session, challenge, cookie, or
-   nonce. After confirmation, call `augnes_start_repository_delegation` with
-   the exact attachment, envelope, request, and grant binding returned by the
-   canonical flow. Exact replay must return the same run.
+   nonce. After confirmation, call `augnes_request_repository_delegation`
+   again with the same workspace, project, and attachment. This is an exact
+   replay of the existing request, not a second Start request, and returns the
+   Browser-issued grant binding without exposing Browser-session material.
+   Then call `augnes_start_repository_delegation` with the exact attachment,
+   envelope, request, and grant binding returned by that canonical replay.
+   Never guess a grant or reuse the request fingerprint as the grant.
+   Exact Start replay must return the same run.
 10. Use `augnes_resume_repository` for managed status/result/review continuity.
     For an attachment-backed run, report its canonical resume-eligibility
     status and last confirmed operation without invoking resume. Treat

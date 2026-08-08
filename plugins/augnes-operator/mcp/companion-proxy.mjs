@@ -27,9 +27,17 @@ const EXECUTION_ROUTE_MARKER = "repository-execution-attachment-v0.1";
 const PROXY_ACCESS_VERSION = "augnes-companion-proxy-access.v0.1";
 
 export async function discoverVerifiedCompanionV01(environment = process.env) {
+  return discoverCompanionV01(environment, verifyManifestV01);
+}
+
+async function selectCompanionForReadonlyRouteV01(environment = process.env) {
+  return discoverCompanionV01(environment, verifyManifestForReadonlyRouteV01);
+}
+
+async function discoverCompanionV01(environment, verifyCandidate) {
   const verified = [];
   for (const manifestPath of candidateManifestPathsV01(environment)) {
-    const companion = await verifyManifestV01(manifestPath);
+    const companion = await verifyCandidate(manifestPath);
     if (companion) verified.push(companion);
   }
   return verified.length === 1
@@ -77,6 +85,31 @@ export function candidateManifestPathsV01(environment = process.env) {
 }
 
 async function verifyManifestV01(manifestPath) {
+  const candidate = readManifestCandidateV01(manifestPath);
+  if (!candidate) return null;
+  const { companion, manifest } = candidate;
+
+  const [uiPublic, bridgePublic] = await Promise.all([
+    fetchJsonV01(`${manifest.effective_url}/api/healthz`),
+    fetchJsonV01(`http://127.0.0.1:${manifest.bridge_port}/healthz`),
+  ]);
+  return samePublicUiV01(uiPublic, manifest) && samePublicBridgeV01(bridgePublic, manifest)
+    ? companion
+    : null;
+}
+
+async function verifyManifestForReadonlyRouteV01(manifestPath) {
+  const candidate = readManifestCandidateV01(manifestPath);
+  if (!candidate) return null;
+  const bridgePublic = await fetchJsonV01(
+    `http://127.0.0.1:${candidate.manifest.bridge_port}/healthz`,
+  );
+  return samePublicBridgeV01(bridgePublic, candidate.manifest)
+    ? candidate.companion
+    : null;
+}
+
+function readManifestCandidateV01(manifestPath) {
   const manifest = readBoundedJsonV01(manifestPath);
   const access = readBoundedJsonV01(path.join(path.dirname(manifestPath), "companion-access.json"));
   if (!validManifestV01(manifest) || !validCompanionAccessV01(access, manifest) || !processAliveV01(manifest.supervisor_pid)) {
@@ -87,27 +120,20 @@ async function verifyManifestV01(manifestPath) {
   const bridge = children.get("bridge");
   if (!validChildV01(ui, manifest.ui_port) || !validChildV01(bridge, manifest.bridge_port)) return null;
 
-  const [uiPublic, bridgePublic] = await Promise.all([
-    fetchJsonV01(`${manifest.effective_url}/api/healthz`),
-    fetchJsonV01(`http://127.0.0.1:${manifest.bridge_port}/healthz`),
-  ]);
-  if (
-    !samePublicUiV01(uiPublic, manifest) ||
-    !samePublicBridgeV01(bridgePublic, manifest)
-  ) {
-    return null;
-  }
   return {
-    ui_url: manifest.effective_url,
-    proxy_token: access.proxy_token,
-    instance_id: manifest.instance_id,
-    generation_id: manifest.generation_id,
-    repository_fingerprint: manifest.repository_fingerprint,
-    binding: `sha256:${createHash("sha256").update(JSON.stringify({
-      instance: manifest.instance_id,
-      generation: manifest.generation_id,
-      repository: manifest.repository_fingerprint,
-    })).digest("hex")}`,
+    manifest,
+    companion: {
+      ui_url: manifest.effective_url,
+      proxy_token: access.proxy_token,
+      instance_id: manifest.instance_id,
+      generation_id: manifest.generation_id,
+      repository_fingerprint: manifest.repository_fingerprint,
+      binding: `sha256:${createHash("sha256").update(JSON.stringify({
+        instance: manifest.instance_id,
+        generation: manifest.generation_id,
+        repository: manifest.repository_fingerprint,
+      })).digest("hex")}`,
+    },
   };
 }
 
@@ -585,7 +611,7 @@ function repositoryToolResultV01(companion, projection) {
 }
 
 function toolDescriptionV01() {
-  return {
+  return exposeRequiredInputsInDescriptionV01({
     name: TOOL_NAME,
     title: "Resume this repository with Augnes",
     description: "Resolve the current local repository through the live supervised Augnes Companion and return exact read-only project/work/run/result/review continuity plus attachment-backed resume eligibility. This tool never starts or resumes work.",
@@ -596,7 +622,7 @@ function toolDescriptionV01() {
       properties: { repositoryRoot: { type: "string", minLength: 1 } },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  };
+  });
 }
 
 function repositoryExecutionToolDescriptionsV01() {
@@ -716,7 +742,7 @@ function repositoryExecutionToolDescriptionsV01() {
     {
       name: REQUEST_DELEGATION_TOOL_NAME,
       title: "Request one managed repository run",
-      description: "Create one exact Browser-confirmed start decision for a prepared repository attachment. This does not consume the attachment or start a worker.",
+      description: "Create one exact Browser-confirmed start decision for a prepared repository attachment. This does not consume the attachment or start a worker. After Browser confirmation, call this tool again with the same workspace, project, and attachment; exact replay returns the already-issued grant binding and does not create a second request.",
       inputSchema: {
         type: "object", additionalProperties: false,
         required: ["workspaceId", "projectId", "attachmentId"],
@@ -801,7 +827,15 @@ function repositoryExecutionToolDescriptionsV01() {
       },
       annotations: { ...mutationAnnotations, destructiveHint: true },
     },
-  ];
+  ].map(exposeRequiredInputsInDescriptionV01);
+}
+
+function exposeRequiredInputsInDescriptionV01(tool) {
+  const required = tool.inputSchema.required.join(", ");
+  return {
+    ...tool,
+    description: `${tool.description} Required input fields: ${required}.`,
+  };
 }
 
 function unavailableToolResultV01(reason) {
@@ -844,7 +878,9 @@ async function handleMessageV01(message) {
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
     }
-    const discovery = await discoverVerifiedCompanionV01();
+    const discovery = toolName === TOOL_NAME
+      ? await selectCompanionForReadonlyRouteV01()
+      : await discoverVerifiedCompanionV01();
     if (discovery.status !== "resolved") {
       const reason = discovery.status === "companion_ambiguous"
         ? "Multiple verified live Augnes Companions were found; no runtime was selected."

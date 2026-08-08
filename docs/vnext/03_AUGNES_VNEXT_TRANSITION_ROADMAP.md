@@ -406,24 +406,37 @@ and reuse the canonical onboarding transaction after one Browser-only
 pre-project confirmation. Connecting does not run Codex or change project
 files.
 
-## Current
-
-### LPX2 verified local-project recovery parity
+### LPX2 verified local-project recovery parity — Completed
 
 [Issue #128](https://github.com/hynk-studio/augnes-perspective-lab/issues/128)
-defines LPX2. Its authorized implementation branch is
-`codex/lpx2-local-project-recovery-parity`, and its authorized Draft PR title is
-**LPX2 — Add verified folder-path recovery parity**. While that Draft PR is
-open, LPX2 is Current. An existing project whose saved folder is unavailable
-can use the native picker or the verified declared-path experience to inspect
-one exact replacement. One **Use this folder** activation reuses the existing
-project-scoped root-rebind decision and atomic rebind transaction; it preserves
-the project identity and stored history and creates no second recovery or
-approval authority.
+and [PR #129](https://github.com/hynk-studio/augnes-perspective-lab/pull/129)
+define the completed LPX2 slice, merged as
+`dd76a7f126d14963fb96dc98b89f6aa3e8085ef8`. An existing project whose saved
+folder is unavailable can use the native picker or the verified declared-path
+experience to inspect one exact replacement. One **Use this folder** activation
+reuses the existing project-scoped root-rebind decision and atomic rebind
+transaction; it preserves the project identity and stored history and creates
+no second recovery or approval authority.
+
+## Current
+
+### CUX8R source-blind first-work activation loop
+
+[Issue #130](https://github.com/hynk-studio/augnes-perspective-lab/issues/130)
+defines CUX8R. While its authorized Draft outcome PR is open, CUX8R is Current.
+The activation work froze the baseline blocker and a distinct intermediate-head
+blocker before diagnosing each product-owned Companion availability failure.
+The bounded correction
+keeps exact read-only continuity available when the redundant public UI health
+preflight is temporarily busy; mutating Operator tools retain that strict
+preflight. A fresh real model-mediated replay at the corrected head completed
+one connected project, one revised first work, one Browser-confirmed Start, one
+managed run, one result, one RunReceipt, and one proposal ready for human
+review. It stopped before ReviewDecision, Transition, or work closure. No
+execution envelope, protocol, or semantic authority changed. CUX8R becomes
+Completed only when its outcome PR merges.
 
 ## Next separately authorized work
-
-CUX8R follows LPX2 and is Next but remains separately unauthorized.
 
 CDX2B3B is the separately authorized future Windows managed-delegation runtime
 enablement phase. It may begin only after CDX2B3A has deciding Windows identity,

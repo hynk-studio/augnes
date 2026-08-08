@@ -161,6 +161,26 @@ async function handle(message) {
       if (scenario === "crash_before_thread_id") {
         process.exit(17);
       }
+      if (
+        scenario === "thread_bound_notification_before_response" ||
+        scenario === "mismatched_thread_notification_before_response"
+      ) {
+        notify("mcpServer/startupStatus/updated", {
+          threadId:
+            scenario === "mismatched_thread_notification_before_response"
+              ? "wrong-thread"
+              : threadId,
+          server: "bounded-fixture",
+          status: "ready",
+        });
+      }
+      if (scenario === "status_only_notifications") {
+        notify("remoteControl/status/changed", { status: "disconnected" });
+        notify("mcpServer/startupStatus/updated", {
+          server: "bounded-fixture",
+          status: "ready",
+        });
+      }
       respond(message.id, threadResponse());
       if (scenario === "crash_after_thread_id") {
         setImmediate(() => process.exit(18));
@@ -206,7 +226,33 @@ async function handle(message) {
           threadId,
           status: { type: "active", activeFlags: [] },
         });
-        if (scenario === "success") completeSuccess();
+        if (scenario === "status_only_notifications") {
+          notify("hook/started", {
+            threadId,
+            turnId,
+            run: { status: "running" },
+          });
+          notify("hook/completed", {
+            threadId,
+            turnId,
+            run: { status: "completed" },
+          });
+          notify("thread/name/updated", {
+            threadId,
+            threadName: "Bounded fixture name",
+          });
+        }
+        if (scenario === "absolute_inside_root_file_change") {
+          emitObservedItems(path.join(root, "src", "live-result.ts"));
+          completeSuccess();
+        } else if (scenario === "absolute_outside_root_file_change") {
+          emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
+          completeSuccess();
+        } else if (
+          scenario === "success" ||
+          scenario === "thread_bound_notification_before_response" ||
+          scenario === "status_only_notifications"
+        ) completeSuccess();
         else if (scenario === "turn_failure") completeFailure();
         else if (scenario === "structured_result_invalid") completeInvalidStructuredResult();
         else if (scenario === "structured_result_oversized") completeOversizedStructuredResult();
@@ -258,8 +304,46 @@ async function handle(message) {
         else if (scenario === "thread_status_unsupported") {
           notify("thread/status/changed", {
             threadId,
+            status: { type: "notLoaded" },
+          });
+        }
+        else if (scenario === "thread_system_error_failure") {
+          notify("error", {
+            threadId,
+            turnId,
+            error: {
+              message: "bounded fake failure",
+              codexErrorInfo: "internalServerError",
+              additionalDetails: null,
+            },
+            willRetry: false,
+          });
+          notify("thread/status/changed", {
+            threadId,
             status: { type: "systemError" },
           });
+          completeFailure();
+        }
+        else if (scenario === "thread_system_error_retry") {
+          notify("error", {
+            threadId,
+            turnId,
+            error: {
+              message: "bounded fake retry",
+              codexErrorInfo: { responseStreamDisconnected: { httpStatusCode: null } },
+              additionalDetails: null,
+            },
+            willRetry: true,
+          });
+          notify("thread/status/changed", {
+            threadId,
+            status: { type: "systemError" },
+          });
+          notify("thread/status/changed", {
+            threadId,
+            status: { type: "active", activeFlags: [] },
+          });
+          completeSuccess();
         }
         else if (scenario === "conflicting_completion") completeConflictingSuccess();
         else if (scenario === "duplicate_event") {
@@ -480,7 +564,7 @@ function requestPermissionApproval(network) {
   });
 }
 
-function emitObservedItems() {
+function emitObservedItems(filePath = "src/live-result.ts") {
   const command = {
     type: "commandExecution",
     id: "fake-command-item",
@@ -499,7 +583,7 @@ function emitObservedItems() {
   const file = {
     type: "fileChange",
     id: "fake-file-item",
-    changes: [{ path: "src/live-result.ts", kind: "update", diff: "raw diff must never be persisted" }],
+    changes: [{ path: filePath, kind: "update", diff: "raw diff must never be persisted" }],
     status: "completed",
   };
   notify("item/completed", { item: file, threadId, turnId, completedAtMs: Date.now() });
@@ -814,6 +898,14 @@ function minimized(message) {
     summary.guide_non_authority_statement = typeof rendered === "string" && rendered.includes("It is not the execution contract and does not override the TaskContextPacket");
     summary.unresolved_judgment_remains_unresolved = typeof rendered === "string" && rendered.includes("Unresolved judgment remains unresolved");
     summary.suggestions_are_not_commands = typeof rendered === "string" && rendered.includes("suggestions are not commands");
+    summary.repository_validation_discovery_statement =
+      typeof rendered === "string" &&
+      rendered.includes(
+        "Run relevant repository-provided validation when present; do not replace it with an ad hoc substitute.",
+      ) &&
+      rendered.includes(
+        "An empty required_checks list does not waive this discovery step or authorize inventing a check.",
+      );
     summary.guide_grants_approval = typeof rendered === "string" && /"can_approve":true/u.test(rendered);
     summary.packet_fingerprint = packetFingerprint;
     summary.packet_payload_sha256 = packetText

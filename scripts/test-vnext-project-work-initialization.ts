@@ -83,6 +83,7 @@ import {
 import type { RevisePreExecutionProjectWorkRequestV01 } from "../types/vnext/project-work-revision";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-access";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-first-work-"));
 const T0 = "2026-08-01T00:00:00.000Z";
@@ -99,6 +100,7 @@ async function main(): Promise<void> {
     assertNormalizationAndCompilerV01();
     assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
+    assertLocalReviewAccessIssuanceV01();
     assertMutationAndReplayV01();
     assertRevisionMutationAndReplayV01();
     assertExactSuccessorReplayHistoryBoundaryV01();
@@ -136,6 +138,28 @@ async function main(): Promise<void> {
     }, null, 2));
   } finally {
     rmSync(ROOT, { recursive: true, force: true });
+  }
+}
+
+function assertLocalReviewAccessIssuanceV01(): void {
+  const fixture = createFixtureV01("local-review-access");
+  try {
+    const issued = issueVNextLocalReviewAccessV01(fixture.db, {
+      database_path: "/tmp/augnes-local-review-access.db",
+      clock: fixedClock(T0),
+    });
+    assert.equal(issued.config.workspace_id, fixture.workspace_id);
+    assert.equal(issued.config.project_id, fixture.project_id);
+    assert.equal(issued.config.operator_id, "operator:local-review");
+    const consumed = consumeVNextLocalOperatorBootstrapV01(fixture.db, {
+      config: issued.config,
+      bootstrap_token: issued.bootstrap.bootstrap_token,
+      clock: fixedClock(T1),
+    });
+    assert.equal(consumed.session.authenticated, true);
+    assert.equal(consumed.session.project_id, fixture.project_id);
+  } finally {
+    fixture.db.close();
   }
 }
 
