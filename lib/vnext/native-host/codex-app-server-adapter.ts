@@ -16,7 +16,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
+import {
+  RepositoryRelativePathErrorV01,
+  canonicalizeRepositoryRelativePathV01,
+} from "@/lib/vnext/repository-relative-path";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
@@ -240,11 +243,11 @@ class CodexAppServerInvocationV01 {
           closed,
         })),
       ]);
-      // JSONL dispatch deliberately avoids blocking the stdout reader. Let
-      // notification/server-request rejection handlers run before accepting a
-      // terminal message that may have been followed by conflicting material
-      // in the same chunk.
-      await Promise.resolve();
+      // JSONL dispatch deliberately avoids blocking the stdout reader. Settle
+      // every notification already admitted from the same stdout batch before
+      // accepting its terminal message, so an earlier path or identity failure
+      // cannot race a later turn/completed notification into a receipt.
+      await this.transport!.settleNotifications();
       if (this.transport!.failure) throw this.transport!.failure;
       if (terminalOrDisconnect.kind === "disconnect") {
         if (this.terminalObserved) {
@@ -1078,9 +1081,21 @@ class CodexAppServerInvocationV01 {
     if (item.type === "fileChange" && Array.isArray(item.changes)) {
       for (const change of item.changes.slice(0, this.request.policy.max_changed_files)) {
         if (!isObjectV01(change)) continue;
-        const relative = canonicalizeRepositoryRelativePathV01(
-          requiredStringV01(change.path, "codex_file_change_path_invalid"),
-        );
+        let relative: string;
+        try {
+          relative = repositoryRelativeFileChangePathV01(
+            this.request,
+            requiredStringV01(change.path, "codex_file_change_path_invalid"),
+          );
+        } catch (error) {
+          if (
+            error instanceof CodexProtocolErrorV01 &&
+            error.code === "codex_file_change_path_outside_root"
+          ) {
+            throw this.reconciliationError(error.code);
+          }
+          throw error;
+        }
         this.observedChangedFiles.push({
           repository_relative_path: relative,
           change_kind: changeKindV01(change.kind),
@@ -1612,6 +1627,7 @@ class CodexStdioJsonRpcTransportV01 {
   private readonly pending = new Map<string, PendingRpcV01>();
   private readonly recentResponses = new Map<string, string>();
   private readonly serverTasks = new Set<Promise<void>>();
+  private readonly notificationTasks = new Set<Promise<void>>();
   // This is a transport-task guard. The invocation's activeServerRequests map
   // remains authoritative for the longer approval lifecycle through the
   // matching serverRequest/resolved notification.
@@ -1728,6 +1744,12 @@ class CodexStdioJsonRpcTransportV01 {
     this.write({ method, params });
   }
 
+  async settleNotifications(): Promise<void> {
+    while (this.notificationTasks.size > 0) {
+      await Promise.allSettled([...this.notificationTasks]);
+    }
+  }
+
   shutdown(): Promise<boolean> {
     this.shutdownPromise ??= this.performShutdown();
     return this.shutdownPromise;
@@ -1828,7 +1850,11 @@ class CodexStdioJsonRpcTransportV01 {
     const task = handlers
       .onNotification(method, message.params)
       .catch((error) => this.fail(asErrorV01(error)))
-      .finally(() => this.serverTasks.delete(task));
+      .finally(() => {
+        this.notificationTasks.delete(task);
+        this.serverTasks.delete(task);
+      });
+    this.notificationTasks.add(task);
     this.serverTasks.add(task);
   }
 
@@ -1939,6 +1965,7 @@ class CodexStdioJsonRpcTransportV01 {
       this.pending.clear();
       this.recentResponses.clear();
       this.serverTasks.clear();
+      this.notificationTasks.clear();
       this.inFlightServerRequestHandlerCount = 0;
     }
   }
@@ -2545,6 +2572,30 @@ function relativeScopeForHostPathV01(
       : [canonicalizeRepositoryRelativePathV01(relative.replaceAll("\\", "/"))];
   }
   throw new CodexProtocolErrorV01("codex_approval_path_outside_root");
+}
+
+function repositoryRelativeFileChangePathV01(
+  request: NativeHostRequestV01,
+  candidate: string,
+): string {
+  try {
+    const relative = relativeScopeForHostPathV01(request, candidate);
+    if (relative.length !== 1) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_invalid");
+    }
+    return relative[0]!;
+  } catch (error) {
+    if (
+      error instanceof CodexProtocolErrorV01 &&
+      error.code === "codex_approval_path_outside_root"
+    ) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_outside_root");
+    }
+    if (error instanceof RepositoryRelativePathErrorV01) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_invalid");
+    }
+    throw error;
+  }
 }
 
 function physicalizePosixPathV01(candidate: string): string {

@@ -242,7 +242,13 @@ async function handle(message) {
             threadName: "Bounded fixture name",
           });
         }
-        if (
+        if (scenario === "absolute_inside_root_file_change") {
+          emitObservedItems(path.join(root, "src", "live-result.ts"));
+          completeSuccess();
+        } else if (scenario === "absolute_outside_root_file_change") {
+          emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
+          completeSuccess();
+        } else if (
           scenario === "success" ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
@@ -558,7 +564,7 @@ function requestPermissionApproval(network) {
   });
 }
 
-function emitObservedItems() {
+function emitObservedItems(filePath = "src/live-result.ts") {
   const command = {
     type: "commandExecution",
     id: "fake-command-item",
@@ -577,7 +583,7 @@ function emitObservedItems() {
   const file = {
     type: "fileChange",
     id: "fake-file-item",
-    changes: [{ path: "src/live-result.ts", kind: "update", diff: "raw diff must never be persisted" }],
+    changes: [{ path: filePath, kind: "update", diff: "raw diff must never be persisted" }],
     status: "completed",
   };
   notify("item/completed", { item: file, threadId, turnId, completedAtMs: Date.now() });

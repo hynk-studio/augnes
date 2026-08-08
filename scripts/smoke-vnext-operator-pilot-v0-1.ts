@@ -10253,6 +10253,8 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
     ["conflicting_duplicate_response", "failed", true],
     ["mismatched_response_id", "failed", true],
     ["thread_bound_notification_before_response", "completed", true],
+    ["absolute_inside_root_file_change", "completed", true],
+    ["absolute_outside_root_file_change", "paused", false],
     ["mismatched_thread_notification_before_response", "paused", false],
     ["mismatched_thread_approval", "paused", false],
     ["mismatched_turn_approval", "paused", false],
@@ -10325,6 +10327,12 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
               "codex_initialization_failed",
             );
           }
+          if (scenario === "absolute_outside_root_file_change") {
+            assert.equal(
+              projection.public_reason,
+              "codex_file_change_path_outside_root",
+            );
+          }
           assert.equal(
             countRunReceiptsV01(config),
             receiptsBefore + (expectsReceipt ? 1 : 0),
@@ -10333,6 +10341,30 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
             config,
             projection.run_ref!,
           );
+          if (scenario === "absolute_inside_root_file_change") {
+            const receiptDb = openVNextLocalOperatorDatabaseV01(config);
+            try {
+              const record = readVNextCoreRecordV01(receiptDb, {
+                record_kind: "run_receipt",
+                record_id: String(run.metadata.run_receipt_id),
+                workspace_id: config.workspace_id,
+                project_id: config.project_id,
+              });
+              assert(record);
+              const receipt = record.payload as RunReceiptV01;
+              assert.equal(
+                receipt.changed_artifacts.some(
+                  (artifact) =>
+                    artifact.artifact_ref.external_id ===
+                      "src/live-result.ts" &&
+                    artifact.basis === "attested",
+                ),
+                true,
+              );
+            } finally {
+              receiptDb.close();
+            }
+          }
           const durable = canonicalizeProtocolValueV01(run);
           assert.equal(durable.includes(operatorProjectRoot), false);
           assert.equal(durable.includes(input.packet.task.goal), false);
@@ -10405,6 +10437,8 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
   pass("live_codex_current_status_notifications_are_bounded_and_ignored");
   pass("live_codex_current_thread_name_notification_is_bounded_and_ignored");
   pass("live_codex_duplicate_lifecycle_event_is_idempotent");
+  pass("live_codex_absolute_inside_root_file_change_is_normalized");
+  reject("live_codex_absolute_outside_root_file_change_fails_closed");
 }
 
 function createFakeLiveCodexHarnessV01(input: {
