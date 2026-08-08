@@ -194,6 +194,17 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    const deferredToolInventory = tools.tools.map(({ name, description }) => ({ name, description }));
+    for (const tool of tools.tools) {
+      const deferredDescription = deferredToolInventory.find(({ name }) => name === tool.name)?.description ?? "";
+      for (const requiredInput of tool.inputSchema?.required ?? []) {
+        assert.match(
+          deferredDescription,
+          new RegExp(`\\b${requiredInput}\\b`, "u"),
+          `schema-free deferred tool inventory must expose required input ${requiredInput} for ${tool.name}`,
+        );
+      }
+    }
     assert.match(
       byName.get("augnes_request_repository_delegation")?.description ?? "",
       /call this tool again with the same workspace, project, and attachment/u,

@@ -585,7 +585,7 @@ function repositoryToolResultV01(companion, projection) {
 }
 
 function toolDescriptionV01() {
-  return {
+  return exposeRequiredInputsInDescriptionV01({
     name: TOOL_NAME,
     title: "Resume this repository with Augnes",
     description: "Resolve the current local repository through the live supervised Augnes Companion and return exact read-only project/work/run/result/review continuity plus attachment-backed resume eligibility. This tool never starts or resumes work.",
@@ -596,7 +596,7 @@ function toolDescriptionV01() {
       properties: { repositoryRoot: { type: "string", minLength: 1 } },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  };
+  });
 }
 
 function repositoryExecutionToolDescriptionsV01() {
@@ -801,7 +801,15 @@ function repositoryExecutionToolDescriptionsV01() {
       },
       annotations: { ...mutationAnnotations, destructiveHint: true },
     },
-  ];
+  ].map(exposeRequiredInputsInDescriptionV01);
+}
+
+function exposeRequiredInputsInDescriptionV01(tool) {
+  const required = tool.inputSchema.required.join(", ");
+  return {
+    ...tool,
+    description: `${tool.description} Required input fields: ${required}.`,
+  };
 }
 
 function unavailableToolResultV01(reason) {
