@@ -7,7 +7,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ProductShell } from "../components/product-shell";
-import { publicSafeCommandSummaryV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
+import {
+  CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
+  publicSafeCommandSummaryV01,
+} from "../lib/vnext/native-host/codex-app-server-adapter";
 import {
   MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
   buildProjectHomeRefreshProjectionKeyV01,
@@ -23,6 +26,38 @@ import {
 import { buildManagementSafetyViewV01 } from "../lib/vnext/management-safety/management-safety-view";
 
 const assertions: string[] = [];
+
+assertTypedStructuredOutputLiteralsV01(
+  CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
+);
+record("live_codex_structured_output_literals_declare_json_schema_types");
+
+function assertTypedStructuredOutputLiteralsV01(
+  value: unknown,
+  pathSegments: string[] = [],
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertTypedStructuredOutputLiteralsV01(item, [
+        ...pathSegments,
+        String(index),
+      ]),
+    );
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const schema = value as Record<string, unknown>;
+  if ("const" in schema || "enum" in schema) {
+    assert.equal(
+      typeof schema.type,
+      "string",
+      `${pathSegments.join(".") || "schema"} must declare a JSON Schema type`,
+    );
+  }
+  for (const [key, child] of Object.entries(schema)) {
+    assertTypedStructuredOutputLiteralsV01(child, [...pathSegments, key]);
+  }
+}
 
 for (const [command, secret] of [
   ["tool --client-secret super-secret-value", "super-secret-value"],
@@ -807,6 +842,7 @@ function requireRefreshKey(
 
 assert.equal(new Set(assertions).size, assertions.length);
 assert.deepEqual(assertions, [
+  "live_codex_structured_output_literals_declare_json_schema_types",
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
   "live_codex_public_command_summary_preserves_safe_relative_commands",
   "retired_native_host_transport_modules_and_routes_are_absent",

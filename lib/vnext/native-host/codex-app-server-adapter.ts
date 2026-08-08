@@ -2006,7 +2006,7 @@ class CodexRpcErrorV01 extends Error {
   }
 }
 
-const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
+export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -2023,7 +2023,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
     "proposed_next_steps",
   ],
   properties: {
-    result_version: { const: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 },
+    result_version: {
+      type: "string",
+      const: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
+    },
     summary: { type: "string", maxLength: 4096 },
     changed_files: {
       type: "array",
@@ -2040,6 +2043,7 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         properties: {
           repository_relative_path: { type: "string", minLength: 1, maxLength: 4096 },
           change_kind: {
+            type: "string",
             enum: ["added", "modified", "deleted", "renamed", "unknown"],
           },
           before_hash: {
@@ -2076,11 +2080,17 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
               "trust_class",
             ],
             properties: {
-              ref_version: { const: "external_ref.v0.1" },
+              ref_version: {
+                type: "string",
+                const: "external_ref.v0.1",
+              },
               ref_type: { type: "string", minLength: 1, maxLength: 512 },
               external_id: { type: "string", minLength: 1, maxLength: 4096 },
               observed_at: { type: "string", minLength: 1, maxLength: 64 },
-              trust_class: { const: "host_attestation" },
+              trust_class: {
+                type: "string",
+                const: "host_attestation",
+              },
             },
           },
           summary: { type: "string", minLength: 1, maxLength: 1024 },
@@ -2123,7 +2133,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
             anyOf: [{ type: "null" }, { type: "string", maxLength: 64 }],
           },
           exit_code: { anyOf: [{ type: "null" }, { type: "integer" }] },
-          status: { enum: ["completed", "failed", "blocked", "unknown"] },
+          status: {
+            type: "string",
+            enum: ["completed", "failed", "blocked", "unknown"],
+          },
         },
       },
     },
@@ -2137,7 +2150,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         properties: {
           check_id: { type: "string", minLength: 1, maxLength: 512 },
           required: { type: "boolean" },
-          status: { enum: ["passed", "failed", "blocked", "unknown"] },
+          status: {
+            type: "string",
+            enum: ["passed", "failed", "blocked", "unknown"],
+          },
           summary: { type: "string", minLength: 1, maxLength: 1024 },
         },
       },
