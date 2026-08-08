@@ -2251,6 +2251,7 @@ function renderPacketV01(request: NativeHostRequestV01): string {
     "## TaskContextPacket — exact bounded execution contract",
     "Augnes native-host task. Treat this exact TaskContextPacket as selected working context, not project truth.",
     "Stay inside the supplied cwd and sandbox. Ask through the host approval protocol when required.",
+    "Before editing, inspect the bounded repository enough to identify task-relevant repository instructions and existing local validation. Run relevant repository-provided validation when present; do not replace it with an ad hoc substitute. An empty required_checks list does not waive this discovery step or authorize inventing a check.",
     "Return only JSON matching the supplied output schema. Do not return a transcript, hidden reasoning, credentials, environment data, or raw command output.",
     `Request binding: ${request.request_id}`,
     `Packet fingerprint: ${request.packet.integrity.fingerprint}`,

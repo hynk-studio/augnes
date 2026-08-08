@@ -9107,6 +9107,10 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         assert.equal(turnStart.value.guide_non_authority_statement, true);
         assert.equal(turnStart.value.unresolved_judgment_remains_unresolved, true);
         assert.equal(turnStart.value.suggestions_are_not_commands, true);
+        assert.equal(
+          turnStart.value.repository_validation_discovery_statement,
+          true,
+        );
         assert.equal(turnStart.value.guide_grants_approval, false);
         assert.equal(
           turnStart.value.packet_fingerprint,
@@ -10212,6 +10216,10 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         );
         assert.equal(turnStart?.value.guide_brief_section, true);
         assert.equal(turnStart?.value.guide_brief_version_v0_2, true);
+        assert.equal(
+          turnStart?.value.repository_validation_discovery_statement,
+          true,
+        );
         assert.equal(turnStart?.value.guide_grants_approval, false);
         const resumedRun = readHostRunStateFromConfigV01(
           config,

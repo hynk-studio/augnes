@@ -898,6 +898,14 @@ function minimized(message) {
     summary.guide_non_authority_statement = typeof rendered === "string" && rendered.includes("It is not the execution contract and does not override the TaskContextPacket");
     summary.unresolved_judgment_remains_unresolved = typeof rendered === "string" && rendered.includes("Unresolved judgment remains unresolved");
     summary.suggestions_are_not_commands = typeof rendered === "string" && rendered.includes("suggestions are not commands");
+    summary.repository_validation_discovery_statement =
+      typeof rendered === "string" &&
+      rendered.includes(
+        "Run relevant repository-provided validation when present; do not replace it with an ad hoc substitute.",
+      ) &&
+      rendered.includes(
+        "An empty required_checks list does not waive this discovery step or authorize inventing a check.",
+      );
     summary.guide_grants_approval = typeof rendered === "string" && /"can_approve":true/u.test(rendered);
     summary.packet_fingerprint = packetFingerprint;
     summary.packet_payload_sha256 = packetText
