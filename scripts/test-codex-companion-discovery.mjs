@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -40,6 +41,24 @@ for (const command of operatorHookCommands) {
   assert.equal(command.includes("git rev-parse"), false);
   assert.equal(command.includes("/Users/"), false);
 }
+
+const repositoryResumeHook = spawnSync(
+  process.execPath,
+  [path.join(operatorPluginRoot, "hooks", "session_start.mjs")],
+  {
+    encoding: "utf8",
+    input: JSON.stringify({
+      hook_event_name: "SessionStart",
+      prompt: "Resume this repository with Augnes. Complete the currently defined work.",
+    }),
+  },
+);
+assert.equal(repositoryResumeHook.status, 0, repositoryResumeHook.stderr);
+const repositoryResumeHookOutput = JSON.parse(repositoryResumeHook.stdout);
+assert.equal(repositoryResumeHookOutput.hookSpecificOutput?.hookEventName, "SessionStart");
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository as the first tool action/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /before reading repository files, docs, memory, or skills/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /stop without inspecting or changing repository files/u);
 
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
