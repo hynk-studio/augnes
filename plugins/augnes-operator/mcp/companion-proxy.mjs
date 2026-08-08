@@ -716,7 +716,7 @@ function repositoryExecutionToolDescriptionsV01() {
     {
       name: REQUEST_DELEGATION_TOOL_NAME,
       title: "Request one managed repository run",
-      description: "Create one exact Browser-confirmed start decision for a prepared repository attachment. This does not consume the attachment or start a worker.",
+      description: "Create one exact Browser-confirmed start decision for a prepared repository attachment. This does not consume the attachment or start a worker. After Browser confirmation, call this tool again with the same workspace, project, and attachment; exact replay returns the already-issued grant binding and does not create a second request.",
       inputSchema: {
         type: "object", additionalProperties: false,
         required: ["workspaceId", "projectId", "attachmentId"],

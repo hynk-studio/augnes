@@ -194,6 +194,20 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    assert.match(
+      byName.get("augnes_request_repository_delegation")?.description ?? "",
+      /call this tool again with the same workspace, project, and attachment/u,
+    );
+    assert.match(
+      byName.get("augnes_request_repository_delegation")?.description ?? "",
+      /does not create a second request/u,
+    );
+    const liveContinuitySkill = readFileSync(
+      path.join(operatorPluginRoot, "skills", "augnes-live-repository-continuity", "SKILL.md"),
+      "utf8",
+    );
+    assert.match(liveContinuitySkill, /replay of the existing request, not a second Start request/u);
+    assert.match(liveContinuitySkill, /Never guess a grant or reuse the request fingerprint as the grant/u);
     for (const name of [
       "augnes_prepare_repository_execution",
       "augnes_validate_repository_execution_attachment",
