@@ -27,9 +27,17 @@ const EXECUTION_ROUTE_MARKER = "repository-execution-attachment-v0.1";
 const PROXY_ACCESS_VERSION = "augnes-companion-proxy-access.v0.1";
 
 export async function discoverVerifiedCompanionV01(environment = process.env) {
+  return discoverCompanionV01(environment, verifyManifestV01);
+}
+
+async function selectCompanionForReadonlyRouteV01(environment = process.env) {
+  return discoverCompanionV01(environment, verifyManifestForReadonlyRouteV01);
+}
+
+async function discoverCompanionV01(environment, verifyCandidate) {
   const verified = [];
   for (const manifestPath of candidateManifestPathsV01(environment)) {
-    const companion = await verifyManifestV01(manifestPath);
+    const companion = await verifyCandidate(manifestPath);
     if (companion) verified.push(companion);
   }
   return verified.length === 1
@@ -77,6 +85,31 @@ export function candidateManifestPathsV01(environment = process.env) {
 }
 
 async function verifyManifestV01(manifestPath) {
+  const candidate = readManifestCandidateV01(manifestPath);
+  if (!candidate) return null;
+  const { companion, manifest } = candidate;
+
+  const [uiPublic, bridgePublic] = await Promise.all([
+    fetchJsonV01(`${manifest.effective_url}/api/healthz`),
+    fetchJsonV01(`http://127.0.0.1:${manifest.bridge_port}/healthz`),
+  ]);
+  return samePublicUiV01(uiPublic, manifest) && samePublicBridgeV01(bridgePublic, manifest)
+    ? companion
+    : null;
+}
+
+async function verifyManifestForReadonlyRouteV01(manifestPath) {
+  const candidate = readManifestCandidateV01(manifestPath);
+  if (!candidate) return null;
+  const bridgePublic = await fetchJsonV01(
+    `http://127.0.0.1:${candidate.manifest.bridge_port}/healthz`,
+  );
+  return samePublicBridgeV01(bridgePublic, candidate.manifest)
+    ? candidate.companion
+    : null;
+}
+
+function readManifestCandidateV01(manifestPath) {
   const manifest = readBoundedJsonV01(manifestPath);
   const access = readBoundedJsonV01(path.join(path.dirname(manifestPath), "companion-access.json"));
   if (!validManifestV01(manifest) || !validCompanionAccessV01(access, manifest) || !processAliveV01(manifest.supervisor_pid)) {
@@ -87,27 +120,20 @@ async function verifyManifestV01(manifestPath) {
   const bridge = children.get("bridge");
   if (!validChildV01(ui, manifest.ui_port) || !validChildV01(bridge, manifest.bridge_port)) return null;
 
-  const [uiPublic, bridgePublic] = await Promise.all([
-    fetchJsonV01(`${manifest.effective_url}/api/healthz`),
-    fetchJsonV01(`http://127.0.0.1:${manifest.bridge_port}/healthz`),
-  ]);
-  if (
-    !samePublicUiV01(uiPublic, manifest) ||
-    !samePublicBridgeV01(bridgePublic, manifest)
-  ) {
-    return null;
-  }
   return {
-    ui_url: manifest.effective_url,
-    proxy_token: access.proxy_token,
-    instance_id: manifest.instance_id,
-    generation_id: manifest.generation_id,
-    repository_fingerprint: manifest.repository_fingerprint,
-    binding: `sha256:${createHash("sha256").update(JSON.stringify({
-      instance: manifest.instance_id,
-      generation: manifest.generation_id,
-      repository: manifest.repository_fingerprint,
-    })).digest("hex")}`,
+    manifest,
+    companion: {
+      ui_url: manifest.effective_url,
+      proxy_token: access.proxy_token,
+      instance_id: manifest.instance_id,
+      generation_id: manifest.generation_id,
+      repository_fingerprint: manifest.repository_fingerprint,
+      binding: `sha256:${createHash("sha256").update(JSON.stringify({
+        instance: manifest.instance_id,
+        generation: manifest.generation_id,
+        repository: manifest.repository_fingerprint,
+      })).digest("hex")}`,
+    },
   };
 }
 
@@ -852,7 +878,9 @@ async function handleMessageV01(message) {
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
     }
-    const discovery = await discoverVerifiedCompanionV01();
+    const discovery = toolName === TOOL_NAME
+      ? await selectCompanionForReadonlyRouteV01()
+      : await discoverVerifiedCompanionV01();
     if (discovery.status !== "resolved") {
       const reason = discovery.status === "companion_ambiguous"
         ? "Multiple verified live Augnes Companions were found; no runtime was selected."

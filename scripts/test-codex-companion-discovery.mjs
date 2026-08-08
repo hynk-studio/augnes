@@ -77,12 +77,18 @@ let recoveryMode = false;
 let bridgeMode = "http";
 let bridgeRepository = repository;
 let continuityCalls = 0;
+let uiHealthAvailable = true;
+let uiHealthCalls = 0;
 
 const ui = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   response.setHeader("cache-control", "no-store");
   if (url.pathname === "/api/healthz") {
+    uiHealthCalls += 1;
+    if (!uiHealthAvailable) {
+      return response.writeHead(503).end(JSON.stringify({ error: "ui_health_temporarily_busy" }));
+    }
     return response.end(JSON.stringify({
       ok: true,
       service: "augnes-ui",
@@ -158,6 +164,8 @@ try {
   recoveryMode = true;
   assert.equal((await discoverVerifiedCompanionV01(environment)).status, "companion_unavailable");
   recoveryMode = false;
+  const strictDiscoveryHealthCalls = uiHealthCalls;
+  uiHealthAvailable = false;
 
   const client = new Client({ name: "augnes-companion-discovery", version: "0.1.0" });
   const transport = new StdioClientTransport({
@@ -257,6 +265,11 @@ try {
     assert.equal(result.structuredContent?.companion?.status, "live");
     assert.equal(result.structuredContent?.repository_resolution?.status, "project_not_registered");
     assert.equal(result.structuredContent?.continuity, null);
+    assert.equal(
+      uiHealthCalls,
+      strictDiscoveryHealthCalls,
+      "read-only continuity should use its exact identity-bound route instead of a redundant UI health preflight",
+    );
   } finally {
     await client.close();
   }
@@ -273,6 +286,7 @@ try {
     browser_decision_session_absent_from_mcp_inventory: true,
     browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
+    readonly_route_owns_ui_identity_verification: true,
     plugin_default_prompt_admitted_by_codex: true,
     plugin_hooks_resolve_from_plugin_root: true,
     synthetic_discovery_harness: true,
