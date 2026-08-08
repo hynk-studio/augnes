@@ -56,7 +56,15 @@ const repositoryResumeHook = spawnSync(
 assert.equal(repositoryResumeHook.status, 0, repositoryResumeHook.stderr);
 const repositoryResumeHookOutput = JSON.parse(repositoryResumeHook.stdout);
 assert.equal(repositoryResumeHookOutput.hookSpecificOutput?.hookEventName, "SessionStart");
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository as the first tool action/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository .* as the first tool action/u);
+assert.match(
+  repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
+  /augnes_resume_repository with repositoryRoot equal to the exact absolute current working directory/u,
+);
+assert.match(
+  repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
+  /augnes_prepare_repository_execution with repositoryRoot equal to that same exact absolute current working directory/u,
+);
 assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /before reading repository files, docs, memory, or skills/u);
 assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /stop without inspecting or changing repository files/u);
 
