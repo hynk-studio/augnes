@@ -32,7 +32,7 @@
    Resume this repository with Augnes.
    ```
 
-These commands match the locally verified Codex CLI `0.143.0` plugin surface;
+These commands match the locally verified Codex CLI `0.147.0` plugin surface;
 that build uses `plugin add`, not a nonexistent `plugin install` command. The
 plugin install is the one explicit setup step. No fixed bridge URL or copied
 user-level MCP config is required. The plugin manifest points to `.mcp.json`,
@@ -49,15 +49,18 @@ single explicit test manifest), then verifies:
   `companion-access.json` channel record;
 - supervisor and child process liveness;
 - runtime contract, generation, instance, and repository/application identity;
-- public UI health outside recovery mode;
 - bridge `mode=http` and `live_core_status=ready`.
 
 Exactly one verified live Companion is required. Zero or multiple candidates,
 stale/foreign identity, recovery mode, mock mode, or a changed port/owner fails
-closed. For `augnes_resume_repository`, the proxy calls the strict UI/Core
-repository-continuity route directly, validates its runtime identity headers
-and exact response contract, and formats the MCP tool result. It does not act
-as a partial HTTP MCP client. The supported supervisor
+closed. Mutating Operator tools additionally require public UI health outside
+recovery mode before using their exact route. For the read-only
+`augnes_resume_repository` tool, the proxy instead calls the strict UI/Core
+repository-continuity route directly; that route owns UI identity and recovery
+validation. The proxy validates its runtime identity headers and exact response
+contract and formats the MCP tool result. It does not act as a partial HTTP MCP
+client or treat a temporarily busy redundant health preflight as continuity
+unavailability. The supported supervisor
 `AUGNES_RUNTIME_STATE_DIR` override is
 forwarded as a path hint and receives the same verification. The proxy is not a
 daemon, supervisor, database owner, or fallback data source.
