@@ -630,7 +630,10 @@ class CodexAppServerInvocationV01 {
         status.type,
         "codex_thread_status_invalid",
       );
-      const state = ["active", "idle"].includes(statusType)
+      // App Server may project systemError before the exact turn's terminal
+      // turn/completed notification. The turn remains the completion owner;
+      // interrupting here would discard its truthful failed or retried result.
+      const state = ["active", "idle", "systemError"].includes(statusType)
         ? "running"
         : "paused";
       await this.reportLifecycle({

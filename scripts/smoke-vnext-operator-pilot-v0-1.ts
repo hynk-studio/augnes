@@ -10257,6 +10257,8 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
     ["file_approval_unsafe", "paused", false],
     ["unknown_approval_method", "paused", false],
     ["thread_status_unsupported", "paused", false],
+    ["thread_system_error_failure", "failed", true],
+    ["thread_system_error_retry", "completed", true],
     ["conflicting_completion", "paused", false],
     ["crash_before_thread_id", "paused", false],
     ["crash_after_thread_id", "paused", false],

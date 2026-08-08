@@ -284,8 +284,46 @@ async function handle(message) {
         else if (scenario === "thread_status_unsupported") {
           notify("thread/status/changed", {
             threadId,
+            status: { type: "notLoaded" },
+          });
+        }
+        else if (scenario === "thread_system_error_failure") {
+          notify("error", {
+            threadId,
+            turnId,
+            error: {
+              message: "bounded fake failure",
+              codexErrorInfo: "internalServerError",
+              additionalDetails: null,
+            },
+            willRetry: false,
+          });
+          notify("thread/status/changed", {
+            threadId,
             status: { type: "systemError" },
           });
+          completeFailure();
+        }
+        else if (scenario === "thread_system_error_retry") {
+          notify("error", {
+            threadId,
+            turnId,
+            error: {
+              message: "bounded fake retry",
+              codexErrorInfo: { responseStreamDisconnected: { httpStatusCode: null } },
+              additionalDetails: null,
+            },
+            willRetry: true,
+          });
+          notify("thread/status/changed", {
+            threadId,
+            status: { type: "systemError" },
+          });
+          notify("thread/status/changed", {
+            threadId,
+            status: { type: "active", activeFlags: [] },
+          });
+          completeSuccess();
         }
         else if (scenario === "conflicting_completion") completeConflictingSuccess();
         else if (scenario === "duplicate_event") {
