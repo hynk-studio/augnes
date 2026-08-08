@@ -77,6 +77,8 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "model/rerouted",
   "model/safetyBuffering/updated",
   "model/verification",
+  "mcpServer/startupStatus/updated",
+  "remoteControl/status/changed",
   "thread/tokenUsage/updated",
   "turn/diff/updated",
   "turn/moderationMetadata",

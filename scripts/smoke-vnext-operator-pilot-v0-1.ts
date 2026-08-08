@@ -10265,6 +10265,7 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
     ["structured_result_unsafe_path", "failed", true],
     ["structured_result_private_path_text", "failed", true],
     ["structured_result_credential_text", "failed", true],
+    ["status_only_notifications", "completed", true],
     ["duplicate_event", "completed", true],
   ] as const;
 
@@ -10397,6 +10398,7 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
   );
   pass("live_codex_unconfirmed_interrupt_pauses_without_terminal_receipt");
   pass("live_codex_fake_app_server_external_calls_zero_and_processes_settled");
+  pass("live_codex_current_status_notifications_are_bounded_and_ignored");
   pass("live_codex_duplicate_lifecycle_event_is_idempotent");
 }
 

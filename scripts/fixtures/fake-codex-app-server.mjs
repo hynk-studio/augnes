@@ -161,6 +161,13 @@ async function handle(message) {
       if (scenario === "crash_before_thread_id") {
         process.exit(17);
       }
+      if (scenario === "status_only_notifications") {
+        notify("remoteControl/status/changed", { status: "disconnected" });
+        notify("mcpServer/startupStatus/updated", {
+          server: "bounded-fixture",
+          status: "ready",
+        });
+      }
       respond(message.id, threadResponse());
       if (scenario === "crash_after_thread_id") {
         setImmediate(() => process.exit(18));
@@ -206,7 +213,10 @@ async function handle(message) {
           threadId,
           status: { type: "active", activeFlags: [] },
         });
-        if (scenario === "success") completeSuccess();
+        if (
+          scenario === "success" ||
+          scenario === "status_only_notifications"
+        ) completeSuccess();
         else if (scenario === "turn_failure") completeFailure();
         else if (scenario === "structured_result_invalid") completeInvalidStructuredResult();
         else if (scenario === "structured_result_oversized") completeOversizedStructuredResult();
