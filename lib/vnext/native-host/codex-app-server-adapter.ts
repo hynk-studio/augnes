@@ -63,6 +63,8 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "deprecationNotice",
   "error",
   "guardianWarning",
+  "hook/completed",
+  "hook/started",
   "item/agentMessage/delta",
   "item/autoApprovalReview/completed",
   "item/autoApprovalReview/started",

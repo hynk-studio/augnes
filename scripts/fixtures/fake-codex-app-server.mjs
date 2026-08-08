@@ -213,6 +213,18 @@ async function handle(message) {
           threadId,
           status: { type: "active", activeFlags: [] },
         });
+        if (scenario === "status_only_notifications") {
+          notify("hook/started", {
+            threadId,
+            turnId,
+            run: { status: "running" },
+          });
+          notify("hook/completed", {
+            threadId,
+            turnId,
+            run: { status: "completed" },
+          });
+        }
         if (
           scenario === "success" ||
           scenario === "status_only_notifications"
