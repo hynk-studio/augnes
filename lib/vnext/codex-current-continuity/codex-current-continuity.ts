@@ -1437,7 +1437,7 @@ function boundedTextV01(
   if (typeof value !== "string") return null;
   const normalized = value.trim().replace(/\s+/gu, " ");
   if (!normalized) return null;
-  return [...normalized].slice(0, maximum).join("");
+  return [...normalized].slice(0, maximum).join("").trimEnd();
 }
 
 function stringValueV01(value: unknown): string | null {
