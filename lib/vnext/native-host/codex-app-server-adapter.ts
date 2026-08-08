@@ -477,11 +477,14 @@ class CodexAppServerInvocationV01 {
       thread.sessionId,
       "codex_session_id_invalid",
     );
-    if (
-      existing &&
-      (threadId !== this.threadId ||
-        (this.sessionId !== null && sessionId !== this.sessionId))
-    ) {
+    if (this.threadId !== null && threadId !== this.threadId) {
+      throw this.reconciliationError(
+        existing
+          ? "codex_thread_resume_identity_mismatch"
+          : "codex_thread_identity_mismatch",
+      );
+    }
+    if (existing && this.sessionId !== null && sessionId !== this.sessionId) {
       throw this.reconciliationError("codex_thread_resume_identity_mismatch");
     }
     this.threadId = threadId;
@@ -1475,6 +1478,21 @@ class CodexAppServerInvocationV01 {
 
   private assertThreadIdentity(value: unknown): void {
     const observed = requiredOpaqueIdV01(value, "codex_thread_id_invalid");
+    // App Server may emit a thread-bound notification in the same stdout
+    // chunk as thread/start's response. The response continuation cannot bind
+    // the new thread until the current JSONL dispatch returns, so bind the
+    // first observed ID only after the exact start request was sent. The
+    // response must still match this binding before turn/start can proceed.
+    if (!this.threadId && this.threadStartSent) {
+      this.threadId = observed;
+      this.threadRef = externalRefV01(
+        "host_thread",
+        observed,
+        this.now(),
+        "direct_local_observation",
+      );
+      return;
+    }
     if (!this.threadId || observed !== this.threadId) {
       throw this.reconciliationError("codex_thread_identity_mismatch");
     }

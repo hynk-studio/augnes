@@ -10252,6 +10252,8 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
     ["invalid_response_envelope", "failed", true],
     ["conflicting_duplicate_response", "failed", true],
     ["mismatched_response_id", "failed", true],
+    ["thread_bound_notification_before_response", "completed", true],
+    ["mismatched_thread_notification_before_response", "paused", false],
     ["mismatched_thread_approval", "paused", false],
     ["mismatched_turn_approval", "paused", false],
     ["file_approval_unsafe", "paused", false],

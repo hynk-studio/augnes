@@ -161,6 +161,19 @@ async function handle(message) {
       if (scenario === "crash_before_thread_id") {
         process.exit(17);
       }
+      if (
+        scenario === "thread_bound_notification_before_response" ||
+        scenario === "mismatched_thread_notification_before_response"
+      ) {
+        notify("mcpServer/startupStatus/updated", {
+          threadId:
+            scenario === "mismatched_thread_notification_before_response"
+              ? "wrong-thread"
+              : threadId,
+          server: "bounded-fixture",
+          status: "ready",
+        });
+      }
       if (scenario === "status_only_notifications") {
         notify("remoteControl/status/changed", { status: "disconnected" });
         notify("mcpServer/startupStatus/updated", {
@@ -231,6 +244,7 @@ async function handle(message) {
         }
         if (
           scenario === "success" ||
+          scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
         ) completeSuccess();
         else if (scenario === "turn_failure") completeFailure();
