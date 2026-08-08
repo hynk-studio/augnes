@@ -10399,6 +10399,7 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
   pass("live_codex_unconfirmed_interrupt_pauses_without_terminal_receipt");
   pass("live_codex_fake_app_server_external_calls_zero_and_processes_settled");
   pass("live_codex_current_status_notifications_are_bounded_and_ignored");
+  pass("live_codex_current_thread_name_notification_is_bounded_and_ignored");
   pass("live_codex_duplicate_lifecycle_event_is_idempotent");
 }
 

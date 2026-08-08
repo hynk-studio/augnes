@@ -81,6 +81,7 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "model/verification",
   "mcpServer/startupStatus/updated",
   "remoteControl/status/changed",
+  "thread/name/updated",
   "thread/tokenUsage/updated",
   "turn/diff/updated",
   "turn/moderationMetadata",

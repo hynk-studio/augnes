@@ -224,6 +224,10 @@ async function handle(message) {
             turnId,
             run: { status: "completed" },
           });
+          notify("thread/name/updated", {
+            threadId,
+            threadName: "Bounded fixture name",
+          });
         }
         if (
           scenario === "success" ||
