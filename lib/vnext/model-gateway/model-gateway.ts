@@ -1719,7 +1719,7 @@ function validatePurposeInput(
       const token = readOwn(candidateRecord, "candidate_token");
       if (
         typeof token !== "string" ||
-        !/^q_[a-f0-9]{32}$/u.test(token) ||
+        !/^c_[a-f0-9]{32}$/u.test(token) ||
         tokens.has(token) ||
         readOwn(candidateRecord, "currently_available") !== true ||
         !boundedProviderSafeTextV01(

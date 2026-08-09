@@ -226,6 +226,7 @@ export interface GuideBriefInteractionPlanV01 {
   owner: BrowserActionOwnerV01 | "pc4" | null;
   effect_class: BrowserActionEffectClassV01 | null;
   confirmation_policy: BrowserActionConfirmationPolicyV01 | null;
+  public_label: string | null;
   public_preview: string;
   single_use_required: true;
   authority: {
