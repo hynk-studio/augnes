@@ -23,11 +23,11 @@ import {
 } from "./test-harness-process-lifecycle.mjs";
 
 const DATABASE_BUILD_STEP_TIMEOUT_MS = 30_000;
-// The exact Windows source build exited naturally in 91.4s (28.5s compile,
-// 36.4s TypeScript) after prior Canonical contention reached type checking at
-// 132-135s. This bounded owner leaves measured cleanup/scheduler margin while
-// retaining the existing owned-process termination path.
-const NEXT_BUILD_STEP_TIMEOUT_MS = 180_000;
+// Exact Windows builds exited naturally in 91.4-142s; a later Full run
+// compiled, typechecked, and generated every page before the still-live child
+// crossed 180s during finalization. Keep bounded scheduler/finalization margin
+// while retaining the existing owned-process termination path.
+const NEXT_BUILD_STEP_TIMEOUT_MS = 300_000;
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryDirectory = mkdtempSync(
   path.join(tmpdir(), "augnes-production-build-"),

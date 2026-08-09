@@ -1001,7 +1001,7 @@ requireText(
 );
 requireText(
   isolatedBuild,
-  "const NEXT_BUILD_STEP_TIMEOUT_MS = 180_000",
+  "const NEXT_BUILD_STEP_TIMEOUT_MS = 300_000",
   "isolated Next build must retain its measured bounded Windows lifecycle owner",
 );
 
