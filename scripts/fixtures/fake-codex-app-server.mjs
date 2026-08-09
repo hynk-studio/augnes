@@ -595,11 +595,19 @@ function completeSuccess() {
   turnActive = false;
   persistState({ threadId, sessionId, turnId, status: "completed" });
   trace("terminal_state_emitted", {});
-  notify("turn/completed", {
-    threadId,
-    turn: turn("completed", [agentMessage(structuredResult())]),
-  });
-  notify("thread/status/changed", { threadId, status: { type: "idle" } });
+  sendMany([
+    {
+      method: "turn/completed",
+      params: {
+        threadId,
+        turn: turn("completed", [agentMessage(structuredResult())]),
+      },
+    },
+    {
+      method: "thread/status/changed",
+      params: { threadId, status: { type: "idle" } },
+    },
+  ]);
 }
 
 function completeConflictingSuccess() {
