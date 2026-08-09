@@ -26,6 +26,7 @@ import {
 import {
   buildGuideBriefConversationScopeKeyV01,
 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
+import { buildSelectedWorkGuideBriefCapabilitySetV01 } from "@/lib/vnext/guide-brief/guide-brief-pc5-capabilities";
 import {
   buildSelectedWorkRelationshipsV01,
 } from "@/lib/vnext/ai-workplane/selected-work-relationships";
@@ -848,6 +849,24 @@ function selectedWorkInteractionHostV01(input: {
     timeline,
     relationships,
   } = input;
+  const sharedCapabilitySet = buildSelectedWorkGuideBriefCapabilitySetV01({
+    guide,
+    read,
+    selected,
+    timeline,
+    relationships,
+    relationships_by_question: input.relationshipsByQuestion,
+    relationship_scope_key: input.relationshipScopeKey,
+    next_decision_candidate: input.nextDecisionCandidate,
+    applying_decision: input.applyingDecision,
+    decision_eligible: input.decisionEligible,
+    transition_preview_available: input.transitionPreviewAvailable,
+    decision_current_focus_capability:
+      input.decisionCurrentFocusCapability,
+    transition_current_focus_capability:
+      input.transitionCurrentFocusCapability,
+    owner_busy: input.ownerBusy,
+  });
   const selectedWorkScope = {
     workspace_id: read.proposal.workspace_id,
     project_id: read.proposal.project_id,
@@ -1318,7 +1337,20 @@ function selectedWorkInteractionHostV01(input: {
     );
   }
 
-  return { context, capabilities, adapters };
+  if (
+    JSON.stringify({ context, capabilities }) !==
+    JSON.stringify({
+      context: sharedCapabilitySet.context,
+      capabilities: sharedCapabilitySet.capabilities,
+    })
+  ) {
+    throw new Error("guidebrief_pc5_shared_capability_owner_mismatch");
+  }
+  return {
+    context: sharedCapabilitySet.context,
+    capabilities: sharedCapabilitySet.capabilities,
+    adapters,
+  };
 }
 
 function capabilityV01(input: {

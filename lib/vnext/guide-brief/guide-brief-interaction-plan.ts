@@ -957,6 +957,7 @@ function planV01(input: {
     effect_class: input.capability?.effect_class ?? null,
     confirmation_policy:
       input.capability?.confirmation_policy ?? null,
+    public_label: input.capability?.public_label ?? null,
     public_preview: publicTextV01(input.publicPreview),
   };
   const fingerprint = `guidebrief-interaction-plan:${hashV01(

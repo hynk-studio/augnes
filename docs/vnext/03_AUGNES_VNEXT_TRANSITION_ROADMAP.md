@@ -441,43 +441,67 @@ execution envelope, protocol, or semantic authority changed.
 and [PR #134](https://github.com/hynk-studio/augnes-perspective-lab/pull/134)
 define the completed first bounded slice of the
 [PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
-merged at `dc8a5c697a583c520580fcf188d808c2ecd7eb0c`. PC6A keeps the deterministic PC4
-and PC5 classifier first. Only one otherwise unresolved, eligible read-only
-Korean or English question about the exact active current work may use one
-bounded model call to select one ephemeral token for one currently available
-PC4 question. The token is untrusted and admitted only after exact local scope,
-selection-revision, mounted-host, source-material, and candidate-set checks.
-The final answer remains the existing deterministic PC4 answer.
+merged as `dc8a5c697a583c520580fcf188d808c2ecd7eb0c`. PC6A keeps the
+deterministic PC4 and PC5 classifier first. Only one otherwise unresolved,
+eligible read-only Korean or English question about the exact active current
+work may use one bounded model call to select one ephemeral token for one
+currently available PC4 question. The token is untrusted and admitted only
+after exact local scope, selection-revision, mounted-host, source-material, and
+candidate-set checks. The final answer remains the existing deterministic PC4
+answer.
 
 PC6A adds no model-authored answer, PC5 action interpretation, action proposal,
 Decision, Transition, project mutation, transcript, provider memory, or
-provider-specific product concept. PC6 remains incomplete after PC6A, and
-model-routed PC5 actions require separate explicit authorization.
+provider-specific product concept.
+
+### PC6B bounded model-assisted GuideBrief action interpretation — Completed
+
+[Issue #136](https://github.com/hynk-studio/augnes-perspective-lab/issues/136)
+and [PR #137](https://github.com/hynk-studio/augnes-perspective-lab/pull/137)
+define the completed second bounded slice of the
+[PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
+merged as `e06b68613c174dbfa1f410b7ad2eca4aefb512a1`. PC6B preserves
+deterministic PC4 questions, deterministic PC5 actions, and known refusals as
+zero-model paths. Only one otherwise unresolved Korean or English action
+paraphrase whose exact PC5 family is currently registered and safe to propose
+may share PC6A's one bounded candidate-token interpretation call.
+
+A model-selected PC5 token is untrusted. The server must recompose and rebind
+the exact current capability through existing owners before it returns an
+ephemeral action proposal compiled by the existing PC5 plan owner. Provider
+return and proposal display execute nothing. A separate fresh user activation
+must revalidate the exact current snapshot and single-use ledger before the
+existing PC5 adapter may run once. Decision preparation remains preparation,
+and Transition preview remains read-only preview. PC6B adds no capability,
+Decision, Transition application, Start, Resume, durable semantic proposal,
+transcript, provider memory, or execution authority.
+
+PC6A and PC6B do not complete parent PC6. Issue #87 remains open and its
+remaining bounded follow-up scope requires separate authorization.
 
 ## Current
 
 ### CDX2B3B verified Windows managed delegation
 
 [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
-defines CDX2B3B. While its implementation remains on the fresh local rebuild
-branch before any replacement PR lifecycle decision, CDX2B3B is Current. It
-enables the existing Browser-confirmed attachment-backed Start and explicit
-same-run Resume on the verified Windows 11 x64 source-runtime lane on local
-fixed NTFS. One shared platform capability decision is rechecked before
-admission, after commit, and immediately before provider invocation. The
-existing MCP, Operator, Companion, strict route, attachment, envelope, run,
-checkpoint, provider, cancellation, result, RunReceipt, proposal, and semantic
-review owners remain canonical. Windows 10 and packaged Windows remain
-unavailable; no Windows runner, automatic Resume, second run/attachment, or
-broader authority is added.
+defines the current CDX2B3B slice. It enables the existing Browser-confirmed
+attachment-backed Start and explicit same-run Resume on the verified Windows 11
+x64 source-runtime lane on local fixed NTFS. One shared platform capability
+decision is rechecked before admission, after commit, and immediately before
+provider invocation. The existing MCP, Operator, Companion, strict route,
+attachment, envelope, run, checkpoint, provider, cancellation, result,
+RunReceipt, proposal, and semantic review owners remain canonical. Windows 10
+managed execution remains unclaimed and packaged Windows remains unsupported;
+no Windows runner, automatic Resume, second run/attachment, or broader authority
+is added.
 
 ## Next separately authorized work
 
-The remaining PC6 slices, model-routed PC5 actions, C9, current-session
-attachment, automatic Resume after controller loss or Companion startup,
-Linux product rollout, remote nodes, long-horizon control, continuous policy
-execution, and multi-agent orchestration remain later, separately unauthorized,
-and separate.
+Any remaining PC6 parent criteria after the PC6B completion audit, C9,
+current-session attachment, automatic Resume after controller loss or Companion
+startup, Linux product rollout, remote nodes, long-horizon control, continuous
+policy execution, and multi-agent orchestration remain later, separately
+unauthorized, and separate.
 
 ## Integrated resume lifecycle
 
