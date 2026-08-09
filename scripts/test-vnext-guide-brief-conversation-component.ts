@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
+
+const PC5_INTERPRETATION_PATH =
+  "/api/vnext/operator/guide-brief/interpretation";
+
 const component = readFileSync(
   new URL(
     "../components/guide/guide-brief-conversation.tsx",
@@ -53,7 +58,13 @@ assert.match(component, /locally\s+configured\s+model provider/);
 assert.match(component, /No\s+conversation transcript is stored/);
 assert.match(
   component,
-  /fetch\(\s*"\/api\/augnes\/guide-brief\/interpretation"/,
+  /pc5InterpretationBinding\s*\?\s*"\/api\/vnext\/operator\/guide-brief\/interpretation"\s*:\s*"\/api\/augnes\/guide-brief\/interpretation"/,
+);
+assert.equal(
+  PC5_INTERPRETATION_PATH.startsWith(
+    `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01}/`,
+  ),
+  true,
 );
 assert.match(component, /cache:\s*"no-store"/);
 assert.match(component, /interpretationAbort\.current\?\.abort\(\)/);
@@ -61,7 +72,31 @@ assert.match(component, /interactionBusy/);
 assert.match(component, /validateGuideBriefInterpretationPublicResultV01/);
 assert.match(component, /guideBriefConversationCanonicalQuestionV01/);
 assert.match(component, /pc5_binding:/);
+assert.match(
+  component,
+  /projectGuideBriefInterpretationPc5BindingV01\(capabilitySnapshot\)/,
+);
+assert.match(
+  component,
+  /pc5InterpretationBinding\?\.capability_snapshot_fingerprint\s*\?\?\s*"conversation-only"/,
+);
+assert.doesNotMatch(
+  component,
+  /buildGuideBriefInterpretationCandidateSetFingerprintV01\([\s\S]{0,160}capabilitySnapshot\?\.fingerprint/,
+);
 assert.match(component, /candidate_kind === "action"/);
+assert.match(
+  component,
+  /action_plan\.scope_key === binding\.scope_key/,
+);
+assert.match(
+  component,
+  /action_plan\.capability_snapshot_fingerprint ===\s*binding\.capability_snapshot_fingerprint/,
+);
+assert.doesNotMatch(
+  component,
+  /action_plan\.scope_key !== scopeKey|action_plan\.capability_snapshot_fingerprint !==\s*capabilitySnapshot\.fingerprint/,
+);
 assert.match(component, /setActionProposalWasModelAssisted\(true\)/);
 assert.match(component, /data-guidebrief-model-action-activate="true"/);
 assert.match(component, /Model-assisted match · action proposal/);

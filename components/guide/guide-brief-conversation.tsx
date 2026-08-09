@@ -28,6 +28,7 @@ import {
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
   isGuideBriefModelInterpretationEligibleV01,
+  projectGuideBriefInterpretationPc5BindingV01,
   validateGuideBriefInterpretationPublicResultV01,
 } from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
@@ -137,13 +138,18 @@ export function GuideBriefConversation({
         : null,
     [interaction],
   );
+  const pc5InterpretationBinding = useMemo(
+    () => projectGuideBriefInterpretationPc5BindingV01(capabilitySnapshot),
+    [capabilitySnapshot],
+  );
   const candidateSetFingerprint = useMemo(
     () =>
       buildGuideBriefInterpretationCandidateSetFingerprintV01(
         availableIntents,
-        capabilitySnapshot?.fingerprint ?? "conversation-only",
+        pc5InterpretationBinding?.capability_snapshot_fingerprint ??
+          "conversation-only",
       ),
-    [availableIntents, capabilitySnapshot],
+    [availableIntents, pc5InterpretationBinding],
   );
   if (
     capabilitySnapshot &&
@@ -402,7 +408,9 @@ export function GuideBriefConversation({
     setInteractionBusy(true);
     try {
       const response = await fetch(
-        "/api/augnes/guide-brief/interpretation",
+        pc5InterpretationBinding
+          ? "/api/vnext/operator/guide-brief/interpretation"
+          : "/api/augnes/guide-brief/interpretation",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -419,25 +427,7 @@ export function GuideBriefConversation({
               supportPlan.scope.guide_source_fingerprint,
             candidate_set_fingerprint: candidateSetFingerprint,
             available_intents: availableIntents,
-            pc5_binding: capabilitySnapshot &&
-              capabilitySnapshot.context.proposal_id &&
-              capabilitySnapshot.context.proposal_fingerprint &&
-              capabilitySnapshot.context.candidate_id &&
-              capabilitySnapshot.context.candidate_fingerprint
-              ? {
-                  capability_snapshot_fingerprint:
-                    capabilitySnapshot.fingerprint,
-                  proposal_id: capabilitySnapshot.context.proposal_id,
-                  proposal_fingerprint:
-                    capabilitySnapshot.context.proposal_fingerprint,
-                  candidate_id: capabilitySnapshot.context.candidate_id,
-                  candidate_fingerprint:
-                    capabilitySnapshot.context.candidate_fingerprint,
-                  selected_relationship_question_key:
-                    capabilitySnapshot.context.pc3
-                      ?.selected_question_key ?? null,
-                }
-              : null,
+            pc5_binding: pc5InterpretationBinding,
             mounted_host_generation: mountedHostGeneration.current,
           }),
         },
@@ -472,10 +462,9 @@ export function GuideBriefConversation({
         result.status === "resolved" &&
         result.candidate_kind === "action" &&
         result.action_plan &&
-        capabilitySnapshot &&
-        result.action_plan.scope_key === scopeKey &&
+        result.action_plan.scope_key === binding.scope_key &&
         result.action_plan.capability_snapshot_fingerprint ===
-          capabilitySnapshot.fingerprint
+          binding.capability_snapshot_fingerprint
       ) {
         setAnswer(null);
         setAnswerWasModelAssisted(false);

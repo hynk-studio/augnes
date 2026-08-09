@@ -262,6 +262,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         patterns: [
           { urlPattern: "*/api/vnext/operator/semantic-transition*" },
           { urlPattern: "*/api/augnes/guide-brief/interpretation" },
+          {
+            urlPattern: "*/api/vnext/operator/guide-brief/interpretation",
+          },
         ],
       }),
     ]);
@@ -392,7 +395,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       } else if (payload.method === "Fetch.requestPaused") {
         const classified = classifyUrl(params.request?.url);
         if (
-          classified.path === "/api/augnes/guide-brief/interpretation"
+          [
+            "/api/augnes/guide-brief/interpretation",
+            "/api/vnext/operator/guide-brief/interpretation",
+          ].includes(classified.path)
         ) {
           if (
             pausedGuideBriefInterpretation !== null &&

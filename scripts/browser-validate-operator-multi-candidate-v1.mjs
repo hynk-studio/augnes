@@ -445,7 +445,10 @@ await runOperatorExecutionBrowserChildV1({
           .slice(exactNextRouteStart)
           .filter(
             (entry) =>
-              entry.path === "/api/augnes/guide-brief/interpretation",
+              [
+                "/api/augnes/guide-brief/interpretation",
+                "/api/vnext/operator/guide-brief/interpretation",
+              ].includes(entry.path),
           ).length,
         0,
       );
@@ -897,7 +900,8 @@ async function submitGuideBriefModelActionProposal(
     .slice(requestStart)
     .filter(
       (entry) =>
-        entry.path === "/api/augnes/guide-brief/interpretation" &&
+        entry.path ===
+          "/api/vnext/operator/guide-brief/interpretation" &&
         entry.method === "POST",
     );
   assert.equal(routeRequests.length, 1);

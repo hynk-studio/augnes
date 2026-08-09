@@ -98,7 +98,7 @@ assert.equal(
 );
 assert.match(
   conversation,
-  /fetch\(\s*"\/api\/augnes\/guide-brief\/interpretation",\s*\{[\s\S]{0,160}method:\s*"POST"/,
+  /fetch\(\s*pc5InterpretationBinding\s*\?\s*"\/api\/vnext\/operator\/guide-brief\/interpretation"\s*:\s*"\/api\/augnes\/guide-brief\/interpretation",\s*\{[\s\S]{0,160}method:\s*"POST"/,
 );
 assert.match(conversation, /candidate_kind === "action"/);
 assert.match(conversation, /setInteractionPlan\(result\.action_plan\)/);

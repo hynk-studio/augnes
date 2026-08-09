@@ -5,10 +5,12 @@ import {
 import {
   GUIDE_BRIEF_INTERPRETATION_LIMITS_V01,
   GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
+  type GuideBriefInterpretationPc5BindingV01,
   type GuideBriefInterpretationPublicResultV01,
 } from "@/types/vnext/guide-brief-interpretation";
 import type {
   BrowserActionCapabilityV01,
+  BrowserActionCapabilitySnapshotV01,
   GuideBriefInteractionRequestV01,
 } from "@/types/vnext/guide-brief-interaction";
 import { GUIDE_BRIEF_INTERACTION_PLAN_VERSION_V01 } from "@/types/vnext/guide-brief-interaction";
@@ -178,6 +180,34 @@ export function buildGuideBriefInterpretationCandidateSetFingerprintV01(
   return `guidebrief-candidates:${high.toString(16).padStart(8, "0")}${low
     .toString(16)
     .padStart(8, "0")}`;
+}
+
+/**
+ * Projects only the bounded Browser lookup hint that the server can rebind
+ * through the current selected-work owners. A capability snapshot without an
+ * exact proposal/candidate scope remains deterministic Browser material and
+ * must not alter the model candidate set.
+ */
+export function projectGuideBriefInterpretationPc5BindingV01(
+  snapshot: BrowserActionCapabilitySnapshotV01 | null,
+): GuideBriefInterpretationPc5BindingV01 | null {
+  if (
+    !snapshot?.context.proposal_id ||
+    !snapshot.context.proposal_fingerprint ||
+    !snapshot.context.candidate_id ||
+    !snapshot.context.candidate_fingerprint
+  ) {
+    return null;
+  }
+  return {
+    capability_snapshot_fingerprint: snapshot.fingerprint,
+    proposal_id: snapshot.context.proposal_id,
+    proposal_fingerprint: snapshot.context.proposal_fingerprint,
+    candidate_id: snapshot.context.candidate_id,
+    candidate_fingerprint: snapshot.context.candidate_fingerprint,
+    selected_relationship_question_key:
+      snapshot.context.pc3?.selected_question_key ?? null,
+  };
 }
 
 export function isGuideBriefModelInterpretationEligibleV01(input: {

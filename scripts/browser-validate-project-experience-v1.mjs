@@ -2836,6 +2836,11 @@ async function openCdpPage() {
                 urlPattern: "*/api/augnes/guide-brief/interpretation",
                 requestStage: "Request",
               },
+              {
+                urlPattern:
+                  "*/api/vnext/operator/guide-brief/interpretation",
+                requestStage: "Request",
+              },
             ],
           }),
         ]),
@@ -2860,7 +2865,10 @@ function attachCdpObservers() {
     } else if (payload.method === "Fetch.requestPaused") {
       const classified = classifyUrl(params.request?.url);
       if (
-        classified.path === "/api/augnes/guide-brief/interpretation"
+        [
+          "/api/augnes/guide-brief/interpretation",
+          "/api/vnext/operator/guide-brief/interpretation",
+        ].includes(classified.path)
       ) {
         pausedGuideBriefInterpretationRequests.push({
           request_id: params.requestId,
@@ -3608,11 +3616,7 @@ async function runRealProviderPc6bActionAcceptance(input) {
   const current = material.candidates.find(
     (entry) => entry.candidate_id === material.selected_candidate_id,
   );
-  const next = material.candidates.find(
-    (entry) => entry.candidate_id !== material.selected_candidate_id,
-  );
   assert(current);
-  assert(next);
 
   const deterministicRouteBefore = guideBriefInterpretationRouteCount();
   const deterministicProviderBefore = providerEgressStartedCount();
@@ -3627,8 +3631,17 @@ async function runRealProviderPc6bActionAcceptance(input) {
   );
   assert.equal(providerEgressStartedCount(), deterministicProviderBefore);
 
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const advanced = document.querySelector('details#selected-work-advanced');
+      if (!(advanced instanceof HTMLDetailsElement)) return false;
+      advanced.open = false;
+      return !advanced.open;
+    })()`),
+    true,
+  );
   const korean = await submitGuideBriefRealProviderActionProposal(
-    "다음 검토할 변경을 보여줘.",
+    "고급 검토 화면을 열어 줄 수 있어?",
     current.candidate_id,
   );
   assert.equal(
@@ -3641,33 +3654,34 @@ async function runRealProviderPc6bActionAcceptance(input) {
   assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
   await activateRealProviderGuideBriefAction();
   await waitForCondition(
-    `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(next.candidate_id)} && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
-    "real-provider Korean next-candidate activation",
+    `document.querySelector('details#selected-work-advanced[open]') !== null && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
+    "real-provider Korean advanced-review activation",
   );
   assert.deepEqual(databaseSnapshot(input.database_path), databaseBefore);
   assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
 
-  await setFormControlValue(
-    '[data-vnext-candidate-selector="v0.1"]',
-    current.candidate_id,
-  );
-  await waitForCondition(
-    `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(current.candidate_id)}`,
-    "restore real-provider current candidate",
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const advanced = document.querySelector('details#selected-work-advanced');
+      if (!(advanced instanceof HTMLDetailsElement)) return false;
+      advanced.open = false;
+      return !advanced.open;
+    })()`),
+    true,
   );
   const english = await submitGuideBriefRealProviderActionProposal(
-    "Could you show me the next change to review?",
+    "Could you open the advanced review?",
     current.candidate_id,
   );
   await activateRealProviderGuideBriefAction();
   await waitForCondition(
-    `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(next.candidate_id)} && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
-    "real-provider English next-candidate activation",
+    `document.querySelector('details#selected-work-advanced[open]') !== null && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
+    "real-provider English advanced-review activation",
   );
 
   const decision = await submitGuideBriefRealProviderActionProposal(
     "이 변경을 수락할 수 있게 준비해줘.",
-    next.candidate_id,
+    current.candidate_id,
   );
   assert.notEqual(
     await evaluateString(
@@ -3814,7 +3828,10 @@ async function submitGuideBriefRealProviderUtterance(utterance) {
 function guideBriefInterpretationRouteCount() {
   return requests.filter(
     (entry) =>
-      entry.path === "/api/augnes/guide-brief/interpretation" &&
+      [
+        "/api/augnes/guide-brief/interpretation",
+        "/api/vnext/operator/guide-brief/interpretation",
+      ].includes(entry.path) &&
       entry.method === "POST",
   ).length;
 }
@@ -3912,7 +3929,7 @@ async function submitGuideBriefDeterministicUtterance(utterance) {
   );
   await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
   await waitForCondition(
-    `document.querySelector('[data-guidebrief-conversation-answer]') !== null || document.querySelector('[data-guidebrief-interaction-plan]') !== null`,
+    `document.querySelector('[data-guidebrief-conversation-answer]') !== null || document.querySelector('[data-guidebrief-interaction-plan]') !== null || document.querySelector('[data-guidebrief-interaction-outcome]') !== null`,
     "deterministic GuideBrief utterance result",
   );
   assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
@@ -4867,7 +4884,12 @@ function expectedFailedRequest(entry) {
     project_shell_and_locked_entry: ["/workbench", "/workbench/semantic-review", "/workbench/inspector"],
     responsive_first_work_presentation: ["/workbench/semantic-review"],
     project_home_lifecycle_presentation: ["/", "/projects"],
-    rendered_state_responsive_matrix: ["/workbench/semantic-review", "/workbench/inspector", "/projects"],
+    rendered_state_responsive_matrix: [
+      "/workbench/semantic-review",
+      "/workbench/inspector",
+      "/api/vnext/operator/guide-brief/interpretation",
+      "/projects",
+    ],
   };
   return (phasePaths[entry.phase] ?? []).some(
     (expectedPath) =>

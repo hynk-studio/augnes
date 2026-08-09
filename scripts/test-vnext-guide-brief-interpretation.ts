@@ -2,12 +2,14 @@
 import assert from "node:assert/strict";
 
 import { POST as interpretationRoutePost } from "../app/api/augnes/guide-brief/interpretation/route";
+import { POST as operatorInterpretationRoutePost } from "../app/api/vnext/operator/guide-brief/interpretation/route";
 
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
   guideBriefActionInterpretationCandidateMeaningV01,
   guideBriefInterpretationCandidateMeaningV01,
   isGuideBriefModelInterpretationEligibleV01,
+  projectGuideBriefInterpretationPc5BindingV01,
   validateGuideBriefInterpretationPublicResultV01,
 } from "../lib/vnext/guide-brief/guide-brief-model-interpretation";
 import {
@@ -119,36 +121,44 @@ async function main() {
 }
 
 async function assertRouteLoopbackBoundary() {
-  const sameLoopbackAlias = await interpretationRoutePost(
-    new Request("http://localhost:3210/api/augnes/guide-brief/interpretation", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin: "http://127.0.0.1:3210",
-        "sec-fetch-site": "same-origin",
-      },
-      body: "{",
-    }),
-  );
-  assert.equal(sameLoopbackAlias.status, 400);
-  for (const origin of [
-    "http://127.0.0.1:3211",
-    "https://127.0.0.1:3210",
-    "https://example.com",
-    "http://localhost:3210,http://127.0.0.1:3210",
-  ]) {
-    const refused = await interpretationRoutePost(
-      new Request("http://localhost:3210/api/augnes/guide-brief/interpretation", {
+  for (const [routePost, path] of [
+    [interpretationRoutePost, "/api/augnes/guide-brief/interpretation"],
+    [
+      operatorInterpretationRoutePost,
+      "/api/vnext/operator/guide-brief/interpretation",
+    ],
+  ] as const) {
+    const sameLoopbackAlias = await routePost(
+      new Request(`http://localhost:3210${path}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          origin,
+          origin: "http://127.0.0.1:3210",
           "sec-fetch-site": "same-origin",
         },
         body: "{",
       }),
     );
-    assert.equal(refused.status, 403, origin);
+    assert.equal(sameLoopbackAlias.status, 400);
+    for (const origin of [
+      "http://127.0.0.1:3211",
+      "https://127.0.0.1:3210",
+      "https://example.com",
+      "http://localhost:3210,http://127.0.0.1:3210",
+    ]) {
+      const refused = await routePost(
+        new Request(`http://localhost:3210${path}`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin,
+            "sec-fetch-site": "same-origin",
+          },
+          body: "{",
+        }),
+      );
+      assert.equal(refused.status, 403, `${path}:${origin}`);
+    }
   }
 }
 
@@ -173,6 +183,69 @@ function assertCandidateContract() {
     ),
     /^guidebrief-candidates:[a-f0-9]{16}$/u,
   );
+  const selectedWork = pc5ServiceFixture();
+  assert.deepEqual(
+    projectGuideBriefInterpretationPc5BindingV01(selectedWork.snapshot),
+    selectedWork.request.pc5_binding,
+  );
+  const blankStateSnapshot = buildBrowserActionCapabilitySnapshotV01({
+    context: {
+      pc4_scope_key: SCOPE_KEY,
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      project_context: "current",
+      active_project_id: PROJECT_ID,
+      proposal_id: null,
+      proposal_fingerprint: null,
+      candidate_id: null,
+      candidate_fingerprint: null,
+      pc2: null,
+      pc3: null,
+      owner_state: {
+        busy: false,
+        decision_applying_kind: null,
+        decision_eligible: false,
+        transition_preview_available: false,
+      },
+    },
+    capabilities: [{
+      ...pc5Capability(
+        "surface.open_current_action",
+        "current_action",
+        SCOPE_KEY,
+      ),
+      target_scope: {
+        workspace_id: WORKSPACE_ID,
+        project_id: PROJECT_ID,
+        proposal_id: null,
+        proposal_fingerprint: null,
+        candidate_id: null,
+        candidate_fingerprint: null,
+      },
+    }],
+  });
+  assert.equal(
+    projectGuideBriefInterpretationPc5BindingV01(blankStateSnapshot),
+    null,
+  );
+  const blankStateRequest = validateGuideBriefInterpretationRequestV01({
+    request_version: GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01,
+    utterance: "지금 무슨 상황인지 평범한 말로 설명해 줄 수 있나요?",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    expected_active_selection_revision: 7,
+    pc4_scope_key: SCOPE_KEY,
+    guide_material_fingerprint: GUIDE_FINGERPRINT,
+    candidate_set_fingerprint:
+      buildGuideBriefInterpretationCandidateSetFingerprintV01(
+        GUIDE_BRIEF_CONVERSATION_INTENTS_V01,
+        "conversation-only",
+      ),
+    available_intents: [...GUIDE_BRIEF_CONVERSATION_INTENTS_V01],
+    pc5_binding: null,
+    mounted_host_generation: HOST_GENERATION,
+  });
+  assert.equal(blankStateRequest.pc5_binding, null);
 }
 
 function assertStrictCodec() {

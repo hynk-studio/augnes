@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import { loadOperatorExecutionOwnerContractV1 } from "./operator-execution-result-contract-v1.mjs";
 import { loadProjectExperienceResultContractV1 } from "./project-experience-result-contract-v1.mjs";
@@ -13,6 +14,40 @@ const manifest = JSON.parse(
   readFileSync(new URL("./browser-verification-owners.v1.json", import.meta.url), "utf8"),
 );
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+const projectExperienceSource = readFileSync(
+  path.join(root, "scripts/browser-validate-project-experience-v1.mjs"),
+  "utf8",
+);
+
+const deterministicCompletionExpression = projectExperienceSource.match(
+  /await waitForCondition\(\s*`([^`]+)`,\s*"deterministic GuideBrief utterance result",\s*\);/u,
+)?.[1];
+assert.equal(typeof deterministicCompletionExpression, "string");
+
+function deterministicCompletionWith(...presentSelectors) {
+  const present = new Set(presentSelectors);
+  return runInNewContext(deterministicCompletionExpression, {
+    document: {
+      querySelector(selector) {
+        return present.has(selector) ? {} : null;
+      },
+    },
+  });
+}
+
+assert.equal(
+  deterministicCompletionWith("[data-guidebrief-conversation-answer]"),
+  true,
+);
+assert.equal(
+  deterministicCompletionWith("[data-guidebrief-interaction-plan]"),
+  true,
+);
+assert.equal(
+  deterministicCompletionWith("[data-guidebrief-interaction-outcome]"),
+  true,
+);
+assert.equal(deterministicCompletionWith(), false);
 
 assert.equal(manifest.schema, "augnes.browser-verification-owners.v1");
 assert.equal(manifest.version, 1);
@@ -104,4 +139,5 @@ process.stdout.write(`${JSON.stringify({
   project_fields: project.field_ids.length,
   operator_fields: operator.field_ids.length,
   continuity_fields: 29,
+  deterministic_completion_states: 4,
 })}\n`);
