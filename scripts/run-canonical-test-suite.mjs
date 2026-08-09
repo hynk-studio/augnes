@@ -376,9 +376,10 @@ const suites = {
       label:
         "authenticated first-work initialization, packet lineage, and separate native-host start",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts"),
-      // Exact Windows Canonical integration now exits naturally at 19.419s;
-      // the prior contended run emitted pass and settled at 31.799s.
-      timeoutMs: 45_000,
+      // Exact Windows Canonical integration exits naturally at 19.419s in a
+      // focused suite and 39.887s under its concurrent operator workload.
+      // Retain a bounded observation margin.
+      timeoutMs: 90_000,
     },
     {
       id: "blank-state",
@@ -496,8 +497,9 @@ const suites = {
         "portable project contract, atomic round trip, reader fidelity, and authority isolation",
       ...rootNode("scripts/test-portable-project-continuity.ts"),
       // Production-equivalent fixture, validation, round trip, replay, and
-      // adversarial cases measured 65.6s on the exact Windows source lane.
-      timeoutMs: 90_000,
+      // adversarial cases exit naturally at 41.616s in a focused suite and
+      // 82.759s under concurrent operator load.
+      timeoutMs: 150_000,
     },
   ],
   authority: [
