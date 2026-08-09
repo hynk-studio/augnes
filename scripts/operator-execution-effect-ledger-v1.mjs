@@ -154,9 +154,7 @@ const PROFILE_CONTRACTS = Object.freeze({
       "approval_decided:waiting_for_approval": 2,
       "approval_requested:waiting_for_approval": 3,
       "host_event_observed:cancelling": 2,
-      "host_event_observed:running": 12,
       "host_event_observed:starting": 6,
-      "host_event_observed:waiting_for_approval": 2,
       "run_cancelled:cancelled": 1,
       "run_cancelling:cancelling": 1,
       "run_completed:completed": 3,
@@ -170,6 +168,7 @@ const PROFILE_CONTRACTS = Object.freeze({
       "step_completed:completed": 3,
       "step_started:running": 4,
     }),
+    host_event_observed_running_or_waiting_count: 14,
     approval_trace_event_kinds: NATIVE_APPROVAL_TRACE_EVENT_KINDS_V1,
     allowed_seam_keys: Object.freeze([
       "approval_trace_path",
@@ -850,11 +849,25 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     contract.event_type_counts,
     "operator_effect_native_event_type_counts_mismatch",
   );
+  const eventTypeStatusCounts = countBy(
+    events,
+    (entry) => `${entry.identity.event_type}:${entry.identity.status}`,
+  );
+  const observedRunningCount =
+    eventTypeStatusCounts["host_event_observed:running"] ?? 0;
+  const observedWaitingForApprovalCount =
+    eventTypeStatusCounts["host_event_observed:waiting_for_approval"] ?? 0;
+  assert.equal(observedRunningCount > 0, true);
+  assert.equal(observedWaitingForApprovalCount > 0, true);
+  assert.equal(
+    observedRunningCount + observedWaitingForApprovalCount,
+    contract.host_event_observed_running_or_waiting_count,
+    "operator_effect_native_active_host_event_count_mismatch",
+  );
+  delete eventTypeStatusCounts["host_event_observed:running"];
+  delete eventTypeStatusCounts["host_event_observed:waiting_for_approval"];
   assert.deepEqual(
-    countBy(
-      events,
-      (entry) => `${entry.identity.event_type}:${entry.identity.status}`,
-    ),
+    eventTypeStatusCounts,
     contract.event_type_status_counts,
     "operator_effect_native_event_status_counts_mismatch",
   );

@@ -99,16 +99,20 @@ insufficient. Ordinary exact preparation remains silent. Starting consumes one
 exact attachment only after one Browser confirmation, then permits bounded
 reversible local repository work within its deterministic envelope. Later
 operation approval and semantic result review remain separate. The
-managed-delegation product boundary is verified local macOS only. Linux has no
+managed-delegation product boundary covers verified local macOS and the
+verified Windows 11 x64 source-runtime lane on local fixed NTFS. Linux has no
 separate product filesystem/runtime proof. CDX2B3A source-runtime attachment
 admission has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint
 `374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
 build 26200.8875 proof at pre-integration checkpoint
 `567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
 integrated head is not Windows 10 exact-head verified without a fresh run
-there. The existing package builder still refuses Windows, so packaged Windows
-admission remains unavailable. Windows managed Start and Resume remain
-unavailable and belong to CDX2B3B.
+there, so Windows 10 managed Start and Resume remain unavailable. The existing
+package builder still refuses Windows, so packaged Windows admission, Start,
+and Resume remain unavailable. CDX2B3B enables Browser-confirmed Start and
+explicit same-run Resume only through the existing attachment, run, checkpoint,
+envelope, cancellation, result, and semantic-review owners; it adds no Windows
+runner and no automatic Resume.
 
 Cancellation remains available from the immutable consumed attachment/run
 binding even when current packet, work, root, baseline, worktree, or Browser

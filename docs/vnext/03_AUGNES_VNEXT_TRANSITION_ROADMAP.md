@@ -435,14 +435,13 @@ managed run, one result, one RunReceipt, and one proposal ready for human
 review. It stopped before ReviewDecision, Transition, or work closure. No
 execution envelope, protocol, or semantic authority changed.
 
-## Current
-
-### PC6A bounded model-assisted GuideBrief question interpretation
+### PC6A bounded model-assisted GuideBrief question interpretation — Completed
 
 [Issue #133](https://github.com/hynk-studio/augnes-perspective-lab/issues/133)
-is the current first bounded slice of the
+and [PR #134](https://github.com/hynk-studio/augnes-perspective-lab/pull/134)
+define the completed first bounded slice of the
 [PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
-while its authorized Draft PR remains open. PC6A keeps the deterministic PC4
+merged at `dc8a5c697a583c520580fcf188d808c2ecd7eb0c`. PC6A keeps the deterministic PC4
 and PC5 classifier first. Only one otherwise unresolved, eligible read-only
 Korean or English question about the exact active current work may use one
 bounded model call to select one ephemeral token for one currently available
@@ -455,14 +454,24 @@ Decision, Transition, project mutation, transcript, provider memory, or
 provider-specific product concept. PC6 remains incomplete after PC6A, and
 model-routed PC5 actions require separate explicit authorization.
 
-## Next separately authorized work
+## Current
 
-CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
-remains a separate open Windows managed-delegation runtime enablement lane and
-is not modified by PC6A. It may begin only after CDX2B3A has deciding Windows
-identity, attachment, source-runtime, and any claimed package evidence.
-CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
-gates.
+### CDX2B3B verified Windows managed delegation
+
+[Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
+defines CDX2B3B. While its implementation remains on the fresh local rebuild
+branch before any replacement PR lifecycle decision, CDX2B3B is Current. It
+enables the existing Browser-confirmed attachment-backed Start and explicit
+same-run Resume on the verified Windows 11 x64 source-runtime lane on local
+fixed NTFS. One shared platform capability decision is rechecked before
+admission, after commit, and immediately before provider invocation. The
+existing MCP, Operator, Companion, strict route, attachment, envelope, run,
+checkpoint, provider, cancellation, result, RunReceipt, proposal, and semantic
+review owners remain canonical. Windows 10 and packaged Windows remain
+unavailable; no Windows runner, automatic Resume, second run/attachment, or
+broader authority is added.
+
+## Next separately authorized work
 
 The remaining PC6 slices, model-routed PC5 actions, C9, current-session
 attachment, automatic Resume after controller loss or Companion startup,

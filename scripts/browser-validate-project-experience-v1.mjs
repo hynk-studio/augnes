@@ -87,6 +87,15 @@ const onboardingFolderBRecovered = path.join(
   "Project Experience Beta recovery with a deliberately long moved path",
   "옮겨진 기존 프로젝트 폴더",
 );
+const nonExactDeclaredPath = process.platform === "win32"
+  ? path.join(tempRoot, "not-an-exact-local-folder.txt")
+  : "/dev";
+const nonExactDeclaredErrorCode = process.platform === "win32"
+  ? "selection_not_directory"
+  : "physical_identity_ambiguous";
+const nonExactDeclaredPublicCopy = process.platform === "win32"
+  ? "That path points to a file, not a folder."
+  : "Augnes cannot determine one exact local folder for that path.";
 const folderPickerSequencePath = path.join(
   tempRoot,
   "project-experience-folder-picker-sequence.json",
@@ -525,6 +534,13 @@ async function main() {
     "LPX2 recovery must not change this project file.\n",
     { encoding: "utf8", mode: 0o600 },
   );
+  if (process.platform === "win32") {
+    writeFileSync(
+      nonExactDeclaredPath,
+      "This platform fixture is deliberately not a local folder.\n",
+      { encoding: "utf8", mode: 0o600 },
+    );
+  }
   writeFolderPickerSequence([
     { id: "cancelled-selection", outcome: "cancelled" },
     {
@@ -669,7 +685,7 @@ async function main() {
     const nonExactRequestOffset = requests.length;
     await setFormControlValue(
       'input[name="local-project-declared-path"]',
-      "/dev",
+      nonExactDeclaredPath,
     );
     await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
     const nonExactResponse = await waitForObservedResponse(
@@ -682,7 +698,7 @@ async function main() {
       "Network.getResponseBody",
       { requestId: nonExactResponse.request_id },
     )).body);
-    assert.equal(nonExactResponseBody.error_code, "physical_identity_ambiguous");
+    assert.equal(nonExactResponseBody.error_code, nonExactDeclaredErrorCode);
     assert.equal(
       /(fingerprint|node scope|physical id|cookie|nonce|credential)/iu.test(
         JSON.stringify(nonExactResponseBody),
@@ -690,7 +706,7 @@ async function main() {
       false,
     );
     await waitForCondition(
-      `document.querySelector('input[name="local-project-declared-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-inspection') === null && document.querySelector('[data-blank-state-primary-action="confirm_folder"]') === null`,
+      `document.querySelector('input[name="local-project-declared-path"]')?.value === ${JSON.stringify(nonExactDeclaredPath)} && document.body.textContent.includes(${JSON.stringify(nonExactDeclaredPublicCopy)}) && document.querySelector('.project-inspection') === null && document.querySelector('[data-blank-state-primary-action="confirm_folder"]') === null`,
       "non-exact declared path remains editable without review",
     );
     const nonExactCookies = await cdp.send("Network.getAllCookies");
@@ -792,11 +808,11 @@ async function main() {
     await clickButtonByText("Enter the folder path instead", "#project-management");
     await setFormControlValue(
       'input[name="local-project-declared-path"]',
-      "/dev",
+      nonExactDeclaredPath,
     );
     await clickSelector('[data-blank-state-primary-action="review_folder_path"]');
     await waitForCondition(
-      `document.querySelector('input[name="local-project-declared-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-inspection') === null`,
+      `document.querySelector('input[name="local-project-declared-path"]')?.value === ${JSON.stringify(nonExactDeclaredPath)} && document.body.textContent.includes(${JSON.stringify(nonExactDeclaredPublicCopy)}) && document.querySelector('.project-inspection') === null`,
       "non-exact retry retains path after named review",
     );
     await setFormControlValue(
@@ -2040,10 +2056,13 @@ async function main() {
     );
     result.project_recovery_declared_path_retained = true;
     completeDetailedField("project_recovery_declared_path_retained");
-    await setFormControlValue('input[name="local-project-recovery-path"]', "/dev");
+    await setFormControlValue(
+      'input[name="local-project-recovery-path"]',
+      nonExactDeclaredPath,
+    );
     await clickSelector('[data-blank-state-primary-action="review_recovery_folder_path"]');
     await waitForCondition(
-      `document.querySelector('input[name="local-project-recovery-path"]')?.value === '/dev' && document.body.textContent.includes('Augnes cannot determine one exact local folder for that path.') && document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state-primary-action="confirm_recovery_folder"]') === null`,
+      `document.querySelector('input[name="local-project-recovery-path"]')?.value === ${JSON.stringify(nonExactDeclaredPath)} && document.body.textContent.includes(${JSON.stringify(nonExactDeclaredPublicCopy)}) && document.querySelector('.project-recovery-review') === null && document.querySelector('[data-blank-state-primary-action="confirm_recovery_folder"]') === null`,
       "non-exact recovery path refused before review",
     );
     result.project_recovery_non_exact_refused = true;

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { statfs } from "node:fs/promises";
+import { release as operatingSystemRelease } from "node:os";
 
 import type Database from "better-sqlite3";
 
@@ -97,6 +98,7 @@ export interface RepositoryExecutionDependenciesV01 {
   platform?: NodeJS.Platform;
   architecture?: NodeJS.Architecture;
   windows_version?: string;
+  distribution_mode?: string;
   physical_identity_filesystem?: ProjectRootIdentityFilesystemV01;
   windows_physical_identity?: (
     root: string,
@@ -120,6 +122,80 @@ export interface RepositoryExecutionDependenciesV01 {
     expected_state_fingerprint: string;
     now: string;
   }) => { grant_fingerprint: string };
+}
+
+export type RepositoryManagedPlatformV01 = "darwin" | "win32";
+
+export type RepositoryManagedPlatformCapabilityV01 =
+  | {
+      status: "available";
+      platform: RepositoryManagedPlatformV01;
+    }
+  | {
+      status: "unavailable";
+      platform: NodeJS.Platform;
+      reason:
+        | "repository_managed_delegation_platform_unsupported"
+        | "repository_managed_delegation_windows_architecture_unsupported"
+        | "repository_managed_delegation_windows_version_unsupported"
+        | "repository_managed_delegation_windows_source_runtime_required";
+    };
+
+const WINDOWS_MANAGED_DELEGATION_MINIMUM_BUILD_V01 = 22_000;
+
+/**
+ * The single platform-level capability owner for attachment-backed managed
+ * Start and explicit same-run Resume. Project identity, worktree, database,
+ * and provider capability remain exact per-request gates layered on top.
+ */
+export function readRepositoryManagedPlatformCapabilityV01(
+  dependencies: Pick<
+    RepositoryExecutionDependenciesV01,
+    "platform" | "architecture" | "windows_version" | "distribution_mode"
+  > = {},
+): RepositoryManagedPlatformCapabilityV01 {
+  const platform = dependencies.platform ?? process.platform;
+  if (platform === "darwin") return { status: "available", platform };
+  if (platform !== "win32") {
+    return {
+      status: "unavailable",
+      platform,
+      reason: "repository_managed_delegation_platform_unsupported",
+    };
+  }
+  if ((dependencies.architecture ?? process.arch) !== "x64") {
+    return {
+      status: "unavailable",
+      platform,
+      reason: "repository_managed_delegation_windows_architecture_unsupported",
+    };
+  }
+  const distributionMode =
+    dependencies.distribution_mode ?? process.env.AUGNES_DISTRIBUTION_MODE;
+  if (distributionMode !== "source") {
+    return {
+      status: "unavailable",
+      platform,
+      reason: "repository_managed_delegation_windows_source_runtime_required",
+    };
+  }
+  const version = dependencies.windows_version ?? operatingSystemRelease();
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:\D.*)?$/u.exec(version);
+  const build = match ? Number(match[3]) : Number.NaN;
+  if (
+    !match ||
+    match[1] !== "10" ||
+    match[2] !== "0" ||
+    !Number.isSafeInteger(build) ||
+    build < WINDOWS_MANAGED_DELEGATION_MINIMUM_BUILD_V01
+  ) {
+    return {
+      status: "unavailable",
+      platform,
+      reason: "repository_managed_delegation_windows_version_unsupported",
+    };
+  }
+  return { status: "available", platform };
 }
 
 export function projectPhysicalRootMutationResultV01(

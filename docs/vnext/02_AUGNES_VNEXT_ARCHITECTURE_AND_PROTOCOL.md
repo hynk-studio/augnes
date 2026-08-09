@@ -625,7 +625,8 @@ attachment. Exact replay returns the same run and creates no duplicate
 controller or effect.
 
 The execution envelope pre-authorizes bounded reversible work inside the exact
-verified macOS Git root: reads, file creation/edit, tracked deletion, local
+verified macOS Git root or verified Windows 11 x64 source-runtime Git root on
+local fixed NTFS: reads, file creation/edit, tracked deletion, local
 repository checks/builds, Git inspection, and bounded local branch/commit work.
 Arbitrary command network, dependency downloads, push/GitHub, external posting,
 release/deploy/publish, injected Browser/Companion/provider/database/runtime
@@ -655,11 +656,14 @@ signal. Exact Start replay likewise uses the exact run projection for ordinary
 state text; `worker_started` records only a worker newly started by that
 specific request.
 
-The managed-Start product boundary remains a verified local macOS filesystem.
-Linux has no separate product filesystem/runtime proof in v0.1. Windows,
-non-Git, remote, network, virtual, unsupported, unavailable, and ambiguous
-roots create no start decision consumption, attachment consumption, or run.
-CDX2B3A does not change that gate; Windows Start and Resume belong to CDX2B3B.
+The managed-Start product boundary covers a verified local macOS filesystem
+and the verified Windows 11 x64 source-runtime lane on local fixed NTFS. Linux
+has no separate product filesystem/runtime proof in v0.1. Windows 10,
+packaged Windows, non-Git, remote, network, virtual, unsupported, unavailable,
+and ambiguous roots create no start decision consumption, attachment
+consumption, or run. CDX2B3B changes only the Windows platform admission gate;
+the attachment, envelope, run, explicit Resume, cancellation, result, and
+semantic authority owners remain unchanged.
 A durable nonterminal run without its exact live controller projects
 disconnected/paused and is never automatically resumed in this phase.
 
