@@ -981,6 +981,7 @@ for (const [pathName, timeout, occurrence] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "90_000"],
   ["scripts/test-operator-execution-browser-fixture-v1.ts", "90_000"],
+  ["scripts/test-r4-model-boundary.ts", "90_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
   ["scripts/test-recovery-canonical-record-validator.ts", "480_000"],
   ["scripts/test-recovery-backup.mjs", "330_000"],

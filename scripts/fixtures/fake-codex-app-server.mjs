@@ -607,14 +607,22 @@ function completeConflictingSuccess() {
   completed = true;
   const first = JSON.parse(structuredResult());
   const second = { ...first, summary: "Conflicting terminal material." };
-  notify("turn/completed", {
-    threadId,
-    turn: turn("completed", [agentMessage(JSON.stringify(first))]),
-  });
-  notify("turn/completed", {
-    threadId,
-    turn: turn("completed", [agentMessage(JSON.stringify(second))]),
-  });
+  sendMany([
+    {
+      method: "turn/completed",
+      params: {
+        threadId,
+        turn: turn("completed", [agentMessage(JSON.stringify(first))]),
+      },
+    },
+    {
+      method: "turn/completed",
+      params: {
+        threadId,
+        turn: turn("completed", [agentMessage(JSON.stringify(second))]),
+      },
+    },
+  ]);
 }
 
 function completeFailure() {
@@ -831,6 +839,11 @@ function serverRequest(id, method, params) {
 function send(message) {
   trace("sent", minimized(message));
   process.stdout.write(`${JSON.stringify(message)}\n`);
+}
+
+function sendMany(messages) {
+  for (const message of messages) trace("sent", minimized(message));
+  process.stdout.write(`${messages.map((message) => JSON.stringify(message)).join("\n")}\n`);
 }
 
 function trace(kind, value) {

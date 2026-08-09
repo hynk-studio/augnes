@@ -562,7 +562,9 @@ const suites = {
     {
       label: "R4 production model boundary and exit invariants",
       ...rootNode("scripts/test-r4-model-boundary.ts"),
-      timeoutMs: 30_000,
+      // The 1,469-file production scan measured 5.488s focused, while the
+      // exact Windows authority lane crossed 30s under filesystem contention.
+      timeoutMs: 90_000,
     },
     {
       label:
