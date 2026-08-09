@@ -435,40 +435,62 @@ managed run, one result, one RunReceipt, and one proposal ready for human
 review. It stopped before ReviewDecision, Transition, or work closure. No
 execution envelope, protocol, or semantic authority changed.
 
-## Current
-
-### PC6A bounded model-assisted GuideBrief question interpretation
+### PC6A bounded model-assisted GuideBrief question interpretation — Completed
 
 [Issue #133](https://github.com/hynk-studio/augnes-perspective-lab/issues/133)
-is the current first bounded slice of the
+and [PR #134](https://github.com/hynk-studio/augnes-perspective-lab/pull/134)
+define the completed first bounded slice of the
 [PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
-while its authorized Draft PR remains open. PC6A keeps the deterministic PC4
-and PC5 classifier first. Only one otherwise unresolved, eligible read-only
-Korean or English question about the exact active current work may use one
-bounded model call to select one ephemeral token for one currently available
-PC4 question. The token is untrusted and admitted only after exact local scope,
-selection-revision, mounted-host, source-material, and candidate-set checks.
-The final answer remains the existing deterministic PC4 answer.
+merged as `dc8a5c697a583c520580fcf188d808c2ecd7eb0c`. PC6A keeps the
+deterministic PC4 and PC5 classifier first. Only one otherwise unresolved,
+eligible read-only Korean or English question about the exact active current
+work may use one bounded model call to select one ephemeral token for one
+currently available PC4 question. The token is untrusted and admitted only
+after exact local scope, selection-revision, mounted-host, source-material, and
+candidate-set checks. The final answer remains the existing deterministic PC4
+answer.
 
 PC6A adds no model-authored answer, PC5 action interpretation, action proposal,
 Decision, Transition, project mutation, transcript, provider memory, or
-provider-specific product concept. PC6 remains incomplete after PC6A, and
-model-routed PC5 actions require separate explicit authorization.
+provider-specific product concept.
+
+## Current
+
+### PC6B bounded model-assisted GuideBrief action interpretation
+
+[Issue #136](https://github.com/hynk-studio/augnes-perspective-lab/issues/136)
+is the current second bounded slice of
+[PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87)
+while its authorized Draft PR remains open. PC6B preserves deterministic PC4
+questions, deterministic PC5 actions, and known refusals as zero-model paths.
+Only one otherwise unresolved Korean or English action paraphrase whose exact
+PC5 family is currently registered and safe to propose may share PC6A's one
+bounded candidate-token interpretation call.
+
+A model-selected PC5 token is untrusted. The server must recompose and rebind
+the exact current capability through existing owners before it returns an
+ephemeral action proposal compiled by the existing PC5 plan owner. Provider
+return and proposal display execute nothing. A separate fresh user activation
+must revalidate the exact current snapshot and single-use ledger before the
+existing PC5 adapter may run once. Decision preparation remains preparation,
+and Transition preview remains read-only preview. PC6B adds no capability,
+Decision, Transition application, Start, Resume, durable semantic proposal,
+transcript, provider memory, or execution authority.
 
 ## Next separately authorized work
 
 CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
 remains a separate open Windows managed-delegation runtime enablement lane and
-is not modified by PC6A. It may begin only after CDX2B3A has deciding Windows
+is not modified by PC6B. It may begin only after CDX2B3A has deciding Windows
 identity, attachment, source-runtime, and any claimed package evidence.
 CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
 gates.
 
-The remaining PC6 slices, model-routed PC5 actions, C9, current-session
-attachment, automatic Resume after controller loss or Companion startup,
-Linux product rollout, remote nodes, long-horizon control, continuous policy
-execution, and multi-agent orchestration remain later, separately unauthorized,
-and separate.
+Any remaining PC6 parent criteria after the PC6B completion audit, C9,
+current-session attachment, automatic Resume after controller loss or Companion
+startup, Linux product rollout, remote nodes, long-horizon control, continuous
+policy execution, and multi-agent orchestration remain later, separately
+unauthorized, and separate.
 
 ## Integrated resume lifecycle
 

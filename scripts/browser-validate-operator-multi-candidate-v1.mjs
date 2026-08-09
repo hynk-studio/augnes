@@ -4,11 +4,13 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
+import { createOpaqueGuideBriefInteractionTargetHandleV01 } from "../lib/vnext/guide-brief/guide-brief-interaction-plan.ts";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 const CHILD_ID = "operator-multi-candidate";
 const VALIDATION_SCOPE = "operator-multi-candidate";
+let modelActionPlanSequence = 0;
 assert(
   ["operator-multi-candidate"].includes(VALIDATION_SCOPE),
   "unsupported operator multi-candidate scope",
@@ -66,8 +68,47 @@ await runOperatorExecutionBrowserChildV1({
 
     await lifecycle.runPhase("multi_candidate_guidebrief_read_only", async () => {
       const before = authoritySnapshot(fixture.writable_database_path);
-      const requestStart = lifecycle.requests.length;
       await openGuideBriefConversationAndAnswerSuggestedQuestion(lifecycle);
+      const candidateAFingerprint = await readCandidateFingerprint(
+        lifecycle,
+        multi.target_proposal_id,
+        candidateA,
+      );
+      await submitGuideBriefModelActionProposal(
+        lifecycle,
+        "이 변경을 수락할 수 있게 준비해줘.",
+        {
+          action_key: "decision.prepare_applying",
+          route_key: "decision_accept",
+          disposition: "prepare_owner_handoff",
+          owner: "review_decision_form",
+          effect_class: "prepare",
+          confirmation_policy: "owner_preparation_only",
+          public_label: "Prepare an accept decision",
+          public_preview:
+            "Prepare the currently valid applying choice in the existing decision form. Nothing will be saved.",
+          current_candidate_id: candidateA,
+          current_candidate_fingerprint: candidateAFingerprint,
+        },
+      );
+      assert.deepEqual(authoritySnapshot(fixture.writable_database_path), before);
+      assert.equal(
+        await lifecycle.evaluateString(
+          `document.querySelector('[data-vnext-operator-decision-form="v0.1"] select')?.value ?? ''`,
+        ),
+        "defer",
+      );
+      await activateGuideBriefModelAction(lifecycle, true);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-vnext-operator-decision-form="v0.1"] select')?.value === 'accept' && document.querySelector('[data-guidebrief-interaction-outcome="handed_off"][data-guidebrief-interaction-durable-state-changed="false"]') !== null`,
+        "model-assisted GuideBrief Decision preparation activation",
+      );
+      assert.deepEqual(authoritySnapshot(fixture.writable_database_path), before);
+      await lifecycle.setFormControlValue(
+        '[data-vnext-operator-decision-form="v0.1"] select',
+        "defer",
+      );
+      const exactRequestStart = lifecycle.requests.length;
       await submitGuideBriefInteractionCommand(
         lifecycle,
         "Prepare an accept decision.",
@@ -85,7 +126,7 @@ await runOperatorExecutionBrowserChildV1({
         "GuideBrief decision preparation",
       );
       assert.deepEqual(authoritySnapshot(fixture.writable_database_path), before);
-      assert.equal(lifecycle.requests.slice(requestStart).length, 0);
+      assert.equal(lifecycle.requests.slice(exactRequestStart).length, 0);
       result.guide_brief_decision_preparation_zero_write = true;
       completeDetailedField("guide_brief_decision_preparation_zero_write");
       record("guidebrief_decision_preparation_has_zero_submit_and_zero_network");
@@ -232,19 +273,40 @@ await runOperatorExecutionBrowserChildV1({
 
     await lifecycle.runPhase("multi_candidate_transition_application", async () => {
       await openGuideBriefConversationAndAnswerSuggestedQuestion(lifecycle);
-      const previewStart = lifecycle.requests.length;
-      lifecycle.pauseNextSemanticTransitionRequest("preview");
-      assert.equal(
-        await lifecycle.evaluateBoolean(`(() => {
-          const conversation = document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]');
-          const button = Array.from(conversation?.querySelectorAll('[aria-label="Interactions supported by current owners"] button') ?? []).find((entry) => entry.textContent?.trim() === 'Show what would change before applying');
-          if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
-          button.click();
-          button.click();
-          return true;
-        })()`),
-        true,
+      const candidateAFingerprint = await readCandidateFingerprint(
+        lifecycle,
+        multi.target_proposal_id,
+        candidateA,
       );
+      const previewStart = lifecycle.requests.length;
+      await submitGuideBriefModelActionProposal(
+        lifecycle,
+        "적용 전에 뭐가 바뀌는지 보여줘.",
+        {
+          action_key: "transition.prepare_preview",
+          route_key: "transition_preview",
+          disposition: "execute_owner_read",
+          owner: "semantic_transition_actions",
+          effect_class: "read",
+          confirmation_policy: "read_only_owner_preview",
+          public_label: "Show what would change before applying",
+          public_preview:
+            "Ask the existing project-change owner for one read-only impact preview.",
+          current_candidate_id: candidateA,
+          current_candidate_fingerprint: candidateAFingerprint,
+        },
+      );
+      assert.equal(
+        lifecycle.requests
+          .slice(previewStart)
+          .filter(
+            (entry) =>
+              entry.path === "/api/vnext/operator/semantic-transition",
+          ).length,
+        0,
+      );
+      lifecycle.pauseNextSemanticTransitionRequest("preview");
+      await activateGuideBriefModelAction(lifecycle, true);
       await lifecycle.waitForPausedSemanticTransitionRequest("preview");
       await lifecycle.waitForCondition(
         `document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')?.getAttribute('data-guidebrief-interaction-in-flight') === 'true'`,
@@ -254,6 +316,10 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.waitForCondition(
         `document.querySelector('[data-vnext-transition-step="preview"][data-vnext-transition-step-status="prepared"]') !== null`,
         "GuideBrief prepared preview",
+      );
+      await lifecycle.waitForCondition(
+        `Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0)?.getAttribute('data-guidebrief-interaction-in-flight') === 'false'`,
+        "GuideBrief preview execution ledger settled",
       );
       const previewRequests = lifecycle.requests
         .slice(previewStart)
@@ -368,10 +434,105 @@ await runOperatorExecutionBrowserChildV1({
         "candidate selection owner focus",
       );
       record("guidebrief_candidate_selection_current_action_focus_only");
+      const exactNextRouteStart = lifecycle.requests.length;
       await submitGuideBriefInteractionCommand(lifecycle, "Show the next change.");
       await lifecycle.waitForCondition(
         `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && document.querySelectorAll('[data-selected-work-timeline-current="true"]').length === 1`,
-        "next candidate owner reuse",
+        "deterministic next candidate owner reuse",
+      );
+      assert.equal(
+        lifecycle.requests
+          .slice(exactNextRouteStart)
+          .filter(
+            (entry) =>
+              entry.path === "/api/augnes/guide-brief/interpretation",
+          ).length,
+        0,
+      );
+      await selectCandidate(lifecycle, candidateA);
+      const candidateAFingerprint = await readCandidateFingerprint(
+        lifecycle,
+        multi.target_proposal_id,
+        candidateA,
+      );
+      const candidateBFingerprint = await readCandidateFingerprint(
+        lifecycle,
+        multi.target_proposal_id,
+        candidateB,
+      );
+      const modelNextAuthorityBefore = authoritySnapshot(
+        fixture.writable_database_path,
+      );
+      const nextAction = {
+        action_key: "selected_work.select_next_candidate",
+        route_key: "next_candidate",
+        disposition: "execute_ui_action",
+        owner: "selected_candidate_surface",
+        effect_class: "ui_selection",
+        confirmation_policy: "immediate_current_scope",
+        public_label: "Show the next change",
+        public_preview: "Select the exact next unresolved change.",
+        current_candidate_id: candidateA,
+        current_candidate_fingerprint: candidateAFingerprint,
+        target_candidate_id: candidateB,
+        target_candidate_fingerprint: candidateBFingerprint,
+      };
+      await submitGuideBriefModelActionProposal(
+        lifecycle,
+        "Could you show me the next change to review?",
+        nextAction,
+      );
+      assert.equal(
+        await lifecycle.evaluateString(
+          `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value ?? ''`,
+        ),
+        candidateA,
+      );
+      assert.deepEqual(
+        authoritySnapshot(fixture.writable_database_path),
+        modelNextAuthorityBefore,
+      );
+      await validateGuideBriefActionProposalViewports(lifecycle);
+      await activateGuideBriefModelAction(lifecycle, true);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0)?.getAttribute('data-guidebrief-interaction-in-flight') === 'false'`,
+        "English model-assisted next-candidate activation",
+      );
+      assert.deepEqual(
+        authoritySnapshot(fixture.writable_database_path),
+        modelNextAuthorityBefore,
+      );
+
+      await selectCandidate(lifecycle, candidateA);
+      await submitGuideBriefModelActionProposal(
+        lifecycle,
+        "다음 검토할 변경을 보여줘.",
+        nextAction,
+      );
+      await selectCandidate(lifecycle, candidateB);
+      await lifecycle.waitForCondition(
+        `(() => { const conversation = Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0); return conversation?.querySelector('[data-guidebrief-model-action-activate="true"]') === null; })()`,
+        "stale model-assisted action proposal invalidated",
+      );
+      assert.deepEqual(
+        authoritySnapshot(fixture.writable_database_path),
+        modelNextAuthorityBefore,
+      );
+
+      await selectCandidate(lifecycle, candidateA);
+      await submitGuideBriefModelActionProposal(
+        lifecycle,
+        "다음 검토할 변경을 보여줘.",
+        nextAction,
+      );
+      await activateGuideBriefModelAction(lifecycle, true);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(candidateB)} && Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0)?.getAttribute('data-guidebrief-interaction-in-flight') === 'false'`,
+        "Korean model-assisted next-candidate activation",
+      );
+      assert.deepEqual(
+        authoritySnapshot(fixture.writable_database_path),
+        modelNextAuthorityBefore,
       );
       result.guide_brief_next_candidate_owner_reused = true;
       completeDetailedField("guide_brief_next_candidate_owner_reused");
@@ -522,6 +683,7 @@ async function clickTransitionAction(lifecycle, action) {
       return true;
     })()`),
     true,
+    `transition action ${action} was not available for activation`,
   );
 }
 
@@ -534,6 +696,7 @@ async function reviewTransitionCheckbox(lifecycle, step) {
       return checkbox.checked;
     })()`),
     true,
+    `transition review checkbox ${step} was not available or did not remain checked`,
   );
 }
 
@@ -546,6 +709,7 @@ async function assertMutationControlsLocked(lifecycle) {
       return selector !== null && controls.length > 0 && controls.every((control) => control.disabled === true);
     })()`),
     true,
+    "transition mutation controls did not remain locked while the owner request was in flight",
   );
 }
 
@@ -621,21 +785,211 @@ async function ensureGuideBriefVisible(lifecycle) {
 
 async function submitGuideBriefInteractionCommand(lifecycle, command) {
   await ensureGuideBriefVisible(lifecycle);
+  const inputIndex = await lifecycle.evaluateJson(`(() => {
+    const inputs = Array.from(document.querySelectorAll('input[name="guidebrief-question"]'));
+    return inputs.findIndex((input) => input.closest('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')?.getBoundingClientRect().width > 0);
+  })()`);
+  assert.notEqual(
+    inputIndex,
+    -1,
+    `GuideBrief command input was not available: ${command}`,
+  );
+  await lifecycle.setFormControlValue(
+    'input[name="guidebrief-question"]',
+    command,
+    inputIndex,
+  );
+  await lifecycle.waitForCondition(
+    `(() => { const conversation = Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0); const input = conversation?.querySelector('input[name="guidebrief-question"]'); const submit = conversation?.querySelector('form button[type="submit"]'); return input instanceof HTMLInputElement && input.value === ${JSON.stringify(command)} && submit instanceof HTMLButtonElement && !submit.disabled; })()`,
+    "GuideBrief command ready for submission",
+  );
   assert.equal(
     await lifecycle.evaluateBoolean(`(() => {
-      const conversation = document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]');
-      const input = conversation?.querySelector('input[name="guidebrief-question"]');
+      const conversation = Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0);
       const submit = conversation?.querySelector('form button[type="submit"]');
-      if (!(input instanceof HTMLInputElement) || !(submit instanceof HTMLButtonElement)) return false;
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      setter?.call(input, ${JSON.stringify(command)});
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      if (submit.disabled) return false;
+      if (!(submit instanceof HTMLButtonElement) || submit.disabled) return false;
       submit.click();
       return true;
     })()`),
     true,
+    `GuideBrief command was not available for submission: ${command}`,
   );
+}
+
+async function submitGuideBriefModelActionProposal(
+  lifecycle,
+  utterance,
+  action,
+) {
+  const requestStart = lifecycle.requests.length;
+  lifecycle.pauseNextGuideBriefInterpretationRequest();
+  await submitGuideBriefInteractionCommand(lifecycle, utterance);
+  const paused =
+    await lifecycle.waitForPausedGuideBriefInterpretationRequest();
+  const body = JSON.parse(paused.post_data ?? "null");
+  assert.equal(body.request_version, "guidebrief_interpretation_request.v0.2");
+  assert.equal(body.utterance, utterance);
+  assert.equal(typeof body.pc4_scope_key, "string");
+  assert.equal(typeof body.pc5_binding?.capability_snapshot_fingerprint, "string");
+  assert.equal(body.pc5_binding?.candidate_id, action.current_candidate_id);
+  assert.equal(
+    body.pc5_binding?.candidate_fingerprint,
+    action.current_candidate_fingerprint,
+  );
+  const targetCandidateId =
+    action.target_candidate_id ?? body.pc5_binding.candidate_id;
+  const targetCandidateFingerprint =
+    action.target_candidate_fingerprint ??
+    body.pc5_binding.candidate_fingerprint;
+  const targetHandle = createOpaqueGuideBriefInteractionTargetHandleV01([
+    body.pc4_scope_key,
+    action.action_key,
+    action.route_key,
+    targetCandidateId,
+    targetCandidateFingerprint,
+  ]);
+  modelActionPlanSequence += 1;
+  await lifecycle.fulfillPausedGuideBriefInterpretationRequest({
+    result_version: "guidebrief_interpretation_result.v0.2",
+    status: "resolved",
+    candidate_kind: "action",
+    intent: null,
+    action_plan: {
+      plan_version: "guidebrief_interaction_plan.v0.1",
+      request_id: `browser-model-action:${modelActionPlanSequence}`,
+      plan_id: `guidebrief-plan:browser-model-action-${modelActionPlanSequence}`,
+      plan_fingerprint:
+        `guidebrief-plan-fingerprint:browser-model-action-${modelActionPlanSequence}`,
+      scope_key: body.pc4_scope_key,
+      capability_snapshot_fingerprint:
+        body.pc5_binding.capability_snapshot_fingerprint,
+      status: "resolved",
+      disposition: action.disposition,
+      action_key: action.action_key,
+      target_handle: targetHandle,
+      owner: action.owner,
+      effect_class: action.effect_class,
+      confirmation_policy: action.confirmation_policy,
+      public_label: action.public_label,
+      public_preview: action.public_preview,
+      single_use_required: true,
+      authority: {
+        projection_only: true,
+        durable: false,
+        makes_decision: false,
+        authorizes_transition: false,
+        applies_transition: false,
+        executes_semantic_mutation: false,
+        performs_external_action: false,
+        calls_provider: false,
+      },
+    },
+    model_assisted: true,
+    no_answer_prose_returned: true,
+    no_action_executed: true,
+    durable_state_changed: false,
+  });
+  await lifecycle.waitForCondition(
+    `(() => { const conversation = Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0); return conversation?.querySelector('[data-guidebrief-interaction-plan="resolved"][data-guidebrief-interaction-model-assisted="true"] [data-guidebrief-model-action-activate="true"]') !== null && conversation?.querySelector('[data-guidebrief-interaction-outcome]') === null; })()`,
+    "GuideBrief model-assisted action proposal",
+  );
+  const routeRequests = lifecycle.requests
+    .slice(requestStart)
+    .filter(
+      (entry) =>
+        entry.path === "/api/augnes/guide-brief/interpretation" &&
+        entry.method === "POST",
+    );
+  assert.equal(routeRequests.length, 1);
+  return { request: body, target_handle: targetHandle };
+}
+
+async function activateGuideBriefModelAction(lifecycle, doubleClick = false) {
+  assert.equal(
+    await lifecycle.evaluateBoolean(`(() => {
+      const conversation = Array.from(document.querySelectorAll('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]')).find((entry) => entry.getBoundingClientRect().width > 0);
+      const button = conversation?.querySelector('[data-guidebrief-model-action-activate="true"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      if (${JSON.stringify(doubleClick)}) button.click();
+      return true;
+    })()`),
+    true,
+  );
+}
+
+async function readCandidateFingerprint(lifecycle, proposalId, candidateId) {
+  const result = await lifecycle.evaluateJson(`(async () => {
+    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(proposalId)} }), { cache: 'no-store', credentials: 'same-origin' });
+    const body = await response.json();
+    const candidate = body.proposal?.candidates?.find((entry) => entry.candidate?.candidate_id === ${JSON.stringify(candidateId)});
+    return {
+      status: response.status,
+      fingerprint: candidate?.candidate_fingerprint ?? null,
+    };
+  })()`);
+  assert.equal(result.status, 200);
+  assert.match(result.fingerprint, /^sha256:[a-f0-9]{64}$/u);
+  return result.fingerprint;
+}
+
+async function validateGuideBriefActionProposalViewports(lifecycle) {
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 1280, height: 900 },
+    { width: 1440, height: 1000 },
+  ]) {
+    await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await lifecycle.waitForCondition(
+      `window.innerWidth === ${width} && document.querySelector('[data-guidebrief-model-action-activate="true"]') !== null`,
+      "responsive GuideBrief action proposal",
+    );
+    const layout = await lifecycle.evaluateJson(`(() => {
+      const conversation = document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"]');
+      const proposal = conversation?.querySelector('[data-guidebrief-interaction-model-assisted="true"]');
+      const button = proposal?.querySelector('[data-guidebrief-model-action-activate="true"]');
+      const text = conversation?.innerText ?? '';
+      const rect = proposal?.getBoundingClientRect();
+      const buttonRect = button?.getBoundingClientRect();
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        document_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        conversation_overflow: (conversation?.scrollWidth ?? 0) > (conversation?.clientWidth ?? 0) + 1,
+        proposal_inside_viewport: Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1),
+        activation_minimum_size: Boolean(buttonRect && buttonRect.width >= 44 && buttonRect.height >= 44),
+        activation_count: proposal?.querySelectorAll('[data-guidebrief-model-action-activate="true"]').length ?? -1,
+        duplicate_primary_action_absent: proposal?.querySelectorAll('[data-augnes-primary-action]').length === 0,
+        private_material_absent:
+          !/c_[a-f0-9]{32}/iu.test(text) &&
+          !/(selected_work\.|decision\.|transition\.|guidebrief-target:|sha256:|OPENAI|GPT-|model_gateway|candidate_token)/iu.test(text) &&
+          !text.includes('/Users/'),
+      };
+    })()`);
+    assert.deepEqual(layout, {
+      width,
+      height,
+      document_overflow: false,
+      conversation_overflow: false,
+      proposal_inside_viewport: true,
+      activation_minimum_size: true,
+      activation_count: 1,
+      duplicate_primary_action_absent: true,
+      private_material_absent: true,
+    });
+  }
+  await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 }
 
 function authoritySnapshot(databasePath) {

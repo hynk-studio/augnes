@@ -107,7 +107,7 @@
           ],
           "markers": [
             "minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch",
-            "guidebrief_model_interpretation_remains_deterministic_answer_only",
+            "guidebrief_model_interpretation_preserves_deterministic_ownership",
             "verified_folder_path_recovery_preserves_project_continuity"
           ]
         },

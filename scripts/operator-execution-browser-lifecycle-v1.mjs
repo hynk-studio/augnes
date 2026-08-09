@@ -94,6 +94,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let quietCount = 0;
   let failedRequestDeliverySequence = 0;
   let pausedSemanticTransition = null;
+  let pausedGuideBriefInterpretation = null;
   let activeRuntimeProjectId = project_id;
 
   const requestForId = (requestId) => {
@@ -260,6 +261,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       cdp.send("Fetch.enable", {
         patterns: [
           { urlPattern: "*/api/vnext/operator/semantic-transition*" },
+          { urlPattern: "*/api/augnes/guide-brief/interpretation" },
         ],
       }),
     ]);
@@ -388,6 +390,24 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         failedRequestDeliveriesById.set(requestId, deliveries);
         failedRequests.push(failure);
       } else if (payload.method === "Fetch.requestPaused") {
+        const classified = classifyUrl(params.request?.url);
+        if (
+          classified.path === "/api/augnes/guide-brief/interpretation"
+        ) {
+          if (
+            pausedGuideBriefInterpretation !== null &&
+            pausedGuideBriefInterpretation.request_id === null
+          ) {
+            pausedGuideBriefInterpretation.request_id = params.requestId;
+            pausedGuideBriefInterpretation.post_data =
+              params.request?.postData ?? null;
+          } else {
+            void cdp.send("Fetch.continueRequest", {
+              requestId: params.requestId,
+            });
+          }
+          return;
+        }
         const action = semanticTransitionAction(params.request);
         if (
           pausedSemanticTransition?.action === action &&
@@ -653,6 +673,44 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     await cdp.send("Fetch.continueRequest", { requestId });
   };
 
+  const pauseNextGuideBriefInterpretationRequest = () => {
+    assert.equal(pausedGuideBriefInterpretation, null);
+    pausedGuideBriefInterpretation = {
+      request_id: null,
+      post_data: null,
+    };
+  };
+
+  const waitForPausedGuideBriefInterpretationRequest = async () => {
+    await waitForHostCondition(
+      () => typeof pausedGuideBriefInterpretation?.request_id === "string",
+      "paused GuideBrief interpretation",
+    );
+    return {
+      request_id: pausedGuideBriefInterpretation.request_id,
+      post_data: pausedGuideBriefInterpretation.post_data,
+    };
+  };
+
+  const fulfillPausedGuideBriefInterpretationRequest = async (body) => {
+    assert.equal(typeof pausedGuideBriefInterpretation?.request_id, "string");
+    const requestId = pausedGuideBriefInterpretation.request_id;
+    pausedGuideBriefInterpretation = null;
+    await cdp.send("Fetch.fulfillRequest", {
+      requestId,
+      responseCode: 200,
+      responseHeaders: [
+        { name: "content-type", value: "application/json" },
+        { name: "cache-control", value: "no-store" },
+        {
+          name: "x-augnes-guidebrief-interpretation",
+          value: "bounded-v0.2",
+        },
+      ],
+      body: Buffer.from(JSON.stringify(body), "utf8").toString("base64"),
+    });
+  };
+
   const terminateRuntime = async () => {
     if (!runtimeProcess) return;
     const started = Date.now();
@@ -792,6 +850,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     pauseNextSemanticTransitionRequest,
     waitForPausedSemanticTransitionRequest,
     releasePausedSemanticTransitionRequest,
+    pauseNextGuideBriefInterpretationRequest,
+    waitForPausedGuideBriefInterpretationRequest,
+    fulfillPausedGuideBriefInterpretationRequest,
     restartRuntime,
     restartRuntimePreservingBrowserSession,
     terminateRuntime,
