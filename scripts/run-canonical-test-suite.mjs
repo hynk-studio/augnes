@@ -628,8 +628,10 @@ const suites = {
         "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
       // Real first/current/old starts plus recovery and rollback measured
-      // 327.8s on the exact Windows source lane.
-      timeoutMs: 390_000,
+      // 327.8s on the original Windows lane and 410.5s at this exact head;
+      // Full reaped the same still-live owner at 398.4s. Keep a bounded margin
+      // for the complete canonical load without retrying the child.
+      timeoutMs: 540_000,
     },
     {
       id: "runtime-supervisor",
