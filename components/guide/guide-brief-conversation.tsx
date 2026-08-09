@@ -28,6 +28,7 @@ import {
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
   isGuideBriefModelInterpretationEligibleV01,
+  projectGuideBriefInterpretationPc5BindingV01,
   validateGuideBriefInterpretationPublicResultV01,
 } from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
@@ -127,13 +128,6 @@ export function GuideBriefConversation({
     () => listAvailableGuideBriefConversationIntentsV01(sourceInput),
     [sourceInput],
   );
-  const candidateSetFingerprint = useMemo(
-    () =>
-      buildGuideBriefInterpretationCandidateSetFingerprintV01(
-        availableIntents,
-      ),
-    [availableIntents],
-  );
   const capabilitySnapshot = useMemo(
     () =>
       interaction
@@ -143,6 +137,19 @@ export function GuideBriefConversation({
           })
         : null,
     [interaction],
+  );
+  const pc5InterpretationBinding = useMemo(
+    () => projectGuideBriefInterpretationPc5BindingV01(capabilitySnapshot),
+    [capabilitySnapshot],
+  );
+  const candidateSetFingerprint = useMemo(
+    () =>
+      buildGuideBriefInterpretationCandidateSetFingerprintV01(
+        availableIntents,
+        pc5InterpretationBinding?.capability_snapshot_fingerprint ??
+          "conversation-only",
+      ),
+    [availableIntents, pc5InterpretationBinding],
   );
   if (
     capabilitySnapshot &&
@@ -165,6 +172,8 @@ export function GuideBriefConversation({
   const [interpretationStatus, setInterpretationStatus] =
     useState<GuideBriefInterpretationPublicStatusV01 | null>(null);
   const [answerWasModelAssisted, setAnswerWasModelAssisted] =
+    useState(false);
+  const [actionProposalWasModelAssisted, setActionProposalWasModelAssisted] =
     useState(false);
   const [hydrated, setHydrated] = useState(false);
   const requestSequence = useRef(0);
@@ -212,6 +221,7 @@ export function GuideBriefConversation({
     setQuestion("");
     setAnswer(null);
     setAnswerWasModelAssisted(false);
+    setActionProposalWasModelAssisted(false);
     setInterpretationStatus(null);
     setInteractionBusy(false);
     setContext(createGuideBriefConversationContextV01(scopeKey));
@@ -219,6 +229,7 @@ export function GuideBriefConversation({
   useEffect(() => {
     setInteractionPlan(null);
     setInteractionOutcome(null);
+    setActionProposalWasModelAssisted(false);
   }, [interactionIdentity]);
 
   const visibleAnswer = selectVisibleGuideBriefConversationAnswerV01(
@@ -261,6 +272,7 @@ export function GuideBriefConversation({
     setInteractionOutcome(null);
     setInterpretationStatus(null);
     setAnswerWasModelAssisted(false);
+    setActionProposalWasModelAssisted(false);
     setAnswer(plan);
     setContext(
       appendGuideBriefConversationTurnV01(currentContext, plan),
@@ -307,6 +319,7 @@ export function GuideBriefConversation({
         project_id: guide.identity.project_id,
         active_selection_revision: guide.identity.active_selection_revision,
         available_intents: availableIntents,
+        available_actions: capabilitySnapshot?.capabilities ?? [],
       })
     ) {
       await interpretQuestionV01({
@@ -326,9 +339,17 @@ export function GuideBriefConversation({
     });
     setAnswer(null);
     setAnswerWasModelAssisted(false);
+    setActionProposalWasModelAssisted(false);
     setInteractionOutcome(null);
     setInteractionPlan(plan);
     if (plan.status !== "resolved") return;
+    await executeInteractionPlanV01(plan);
+  }
+
+  async function executeInteractionPlanV01(
+    plan: GuideBriefInteractionPlanV01,
+  ) {
+    if (!interaction || !capabilitySnapshot) return;
     setInteractionBusy(true);
     try {
       const outcome = await executeGuideBriefInteractionPlanV01({
@@ -342,10 +363,25 @@ export function GuideBriefConversation({
         setInteractionOutcome(outcome);
       }
     } finally {
-      if (mountedHost.current) {
+      if (
+        mountedHost.current &&
+        executionLedger.current.in_flight_plan_id === null
+      ) {
         setInteractionBusy(false);
       }
     }
+  }
+
+  async function activateModelAssistedActionV01() {
+    if (
+      !actionProposalWasModelAssisted ||
+      !visibleInteractionPlan ||
+      visibleInteractionPlan.status !== "resolved" ||
+      visibleInteractionOutcome
+    ) {
+      return;
+    }
+    await executeInteractionPlanV01(visibleInteractionPlan);
   }
 
   async function interpretQuestionV01(input: {
@@ -365,13 +401,16 @@ export function GuideBriefConversation({
     interpretationAbort.current = controller;
     setAnswer(null);
     setAnswerWasModelAssisted(false);
+    setActionProposalWasModelAssisted(false);
     setInteractionPlan(null);
     setInteractionOutcome(null);
     setInterpretationStatus("unavailable");
     setInteractionBusy(true);
     try {
       const response = await fetch(
-        "/api/augnes/guide-brief/interpretation",
+        pc5InterpretationBinding
+          ? "/api/vnext/operator/guide-brief/interpretation"
+          : "/api/augnes/guide-brief/interpretation",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -388,6 +427,7 @@ export function GuideBriefConversation({
               supportPlan.scope.guide_source_fingerprint,
             candidate_set_fingerprint: candidateSetFingerprint,
             available_intents: availableIntents,
+            pc5_binding: pc5InterpretationBinding,
             mounted_host_generation: mountedHostGeneration.current,
           }),
         },
@@ -418,6 +458,19 @@ export function GuideBriefConversation({
         setContext(
           appendGuideBriefConversationTurnV01(input.currentContext, plan),
         );
+      } else if (
+        result.status === "resolved" &&
+        result.candidate_kind === "action" &&
+        result.action_plan &&
+        result.action_plan.scope_key === binding.scope_key &&
+        result.action_plan.capability_snapshot_fingerprint ===
+          binding.capability_snapshot_fingerprint
+      ) {
+        setAnswer(null);
+        setAnswerWasModelAssisted(false);
+        setInteractionOutcome(null);
+        setInteractionPlan(result.action_plan);
+        setActionProposalWasModelAssisted(true);
       }
     } catch {
       if (
@@ -452,10 +505,11 @@ export function GuideBriefConversation({
         Ask one bounded question or request one currently supported Browser
         interaction. Explanations and interactions use the same exact
         current-work projections and existing action owners. If wording is not
-        recognized, one read-only question may be sent to your locally
-        configured model provider only to match an available question. No
-        conversation transcript is stored, and the answer still comes from
-        current Augnes sources.
+        recognized, one bounded request may be sent to your locally configured
+        model provider only to match an available question or registered
+        interaction. No conversation transcript is stored. Answers still come
+        from current Augnes sources, and a matched interaction requires a
+        separate activation before its existing owner is invoked.
       </p>
       <form className={styles.form} onSubmit={submit}>
         <label htmlFor={`guidebrief-question-${surface}`}>
@@ -546,13 +600,22 @@ export function GuideBriefConversation({
           modelAssisted={answerWasModelAssisted}
         />
       ) : null}
-      {!visibleAnswer && interpretationStatus && !interactionBusy ? (
+      {!visibleAnswer &&
+      !visibleInteractionPlan &&
+      !visibleInteractionOutcome &&
+      interpretationStatus &&
+      !interactionBusy ? (
         <InterpretationOutcome status={interpretationStatus} />
       ) : null}
       {!visibleAnswer && visibleInteractionOutcome ? (
         <InteractionOutcome outcome={visibleInteractionOutcome} />
       ) : !visibleAnswer && visibleInteractionPlan ? (
-        <InteractionPlan plan={visibleInteractionPlan} />
+        <InteractionPlan
+          plan={visibleInteractionPlan}
+          modelAssisted={actionProposalWasModelAssisted}
+          busy={interactionBusy}
+          onActivate={() => void activateModelAssistedActionV01()}
+        />
       ) : null}
 
       <p className={styles.boundary}>
@@ -583,6 +646,8 @@ export function GuideBriefConversation({
       data-guidebrief-interpretation={
         answerWasModelAssisted
           ? "resolved"
+          : actionProposalWasModelAssisted
+            ? "resolved-action-proposal"
           : interactionBusy && interpretationStatus === "unavailable"
             ? "pending"
             : interpretationStatus ?? "idle"
@@ -608,18 +673,28 @@ export function GuideBriefConversation({
 
 function InteractionPlan({
   plan,
+  modelAssisted,
+  busy,
+  onActivate,
 }: {
   plan: GuideBriefInteractionPlanV01;
+  modelAssisted: boolean;
+  busy: boolean;
+  onActivate: () => void;
 }) {
   return (
     <article
       className={styles.answer}
       aria-live="polite"
       data-guidebrief-interaction-plan={plan.status}
+      data-guidebrief-interaction-model-assisted={String(modelAssisted)}
+      data-guidebrief-interaction-adapter-called="false"
     >
       <div className={styles.answerHeader}>
         <span>
-          {plan.status === "ambiguous"
+          {modelAssisted && plan.status === "resolved"
+            ? "Model-assisted match · action proposal"
+            : plan.status === "ambiguous"
             ? "Choose one action"
             : plan.status === "blocked" ||
                 plan.status === "unavailable"
@@ -630,8 +705,21 @@ function InteractionPlan({
                   ? "Unsupported request"
                   : "Current interaction"}
         </span>
-        <strong>{plan.public_preview}</strong>
+        <strong>{plan.public_label ?? plan.public_preview}</strong>
       </div>
+      {plan.public_label ? (
+        <p className={styles.completeness}>{plan.public_preview}</p>
+      ) : null}
+      {modelAssisted && plan.status === "resolved" ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onActivate}
+          data-guidebrief-model-action-activate="true"
+        >
+          {plan.public_label}
+        </button>
+      ) : null}
     </article>
   );
 }

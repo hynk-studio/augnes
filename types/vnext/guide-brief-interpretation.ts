@@ -1,12 +1,14 @@
 import type { GuideBriefConversationIntentV01 } from "./guide-brief-conversation";
+import type { GuideBriefInteractionPlanV01 } from "./guide-brief-interaction";
+import type { SelectedWorkRelationshipQuestionKeyV01 } from "./selected-work-relationships";
 
 export const GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01 =
-  "guidebrief_interpretation_request.v0.1" as const;
+  "guidebrief_interpretation_request.v0.2" as const;
 export const GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01 =
-  "guidebrief_interpretation_result.v0.1" as const;
+  "guidebrief_interpretation_result.v0.2" as const;
 
 export const GUIDE_BRIEF_INTERPRETATION_LIMITS_V01 = {
-  candidates: 11,
+  candidates: 24,
   returned_candidate_tokens: 2,
   max_input_bytes: 16_384,
   max_output_tokens: 256,
@@ -52,7 +54,20 @@ export interface GuideBriefInterpretationRequestV01 {
   guide_material_fingerprint: string;
   candidate_set_fingerprint: string;
   available_intents: GuideBriefConversationIntentV01[];
+  pc5_binding: GuideBriefInterpretationPc5BindingV01 | null;
   mounted_host_generation: string;
+}
+
+/** Browser-selected scope is a non-authoritative lookup hint only. */
+export interface GuideBriefInterpretationPc5BindingV01 {
+  capability_snapshot_fingerprint: string;
+  proposal_id: string;
+  proposal_fingerprint: string;
+  candidate_id: string;
+  candidate_fingerprint: string;
+  selected_relationship_question_key:
+    | SelectedWorkRelationshipQuestionKeyV01
+    | null;
 }
 
 export type GuideBriefInterpretationPublicStatusV01 =
@@ -68,8 +83,11 @@ export type GuideBriefInterpretationPublicStatusV01 =
 export interface GuideBriefInterpretationPublicResultV01 {
   result_version: typeof GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01;
   status: GuideBriefInterpretationPublicStatusV01;
+  candidate_kind: "question" | "action" | null;
   intent: GuideBriefConversationIntentV01 | null;
+  action_plan: GuideBriefInteractionPlanV01 | null;
   model_assisted: boolean;
   no_answer_prose_returned: true;
+  no_action_executed: true;
   durable_state_changed: false;
 }

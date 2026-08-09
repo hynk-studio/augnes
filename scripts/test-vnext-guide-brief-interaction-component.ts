@@ -20,6 +20,15 @@ const blankState = read("components/blank-state/blank-state-client.tsx");
 const owner = read(
   "lib/vnext/guide-brief/guide-brief-interaction-plan.ts",
 );
+const sharedCapabilities = read(
+  "lib/vnext/guide-brief/guide-brief-pc5-capabilities.ts",
+);
+const serverCapabilitySource = read(
+  "lib/vnext/guide-brief/guide-brief-pc5-capability-source.ts",
+);
+const interpretationService = read(
+  "lib/vnext/guide-brief/guide-brief-interpretation-service.ts",
+);
 const types = read("types/vnext/guide-brief-interaction.ts");
 
 assert.match(conversation, /buildBrowserActionCapabilitySnapshotV01/);
@@ -44,6 +53,11 @@ assert.match(
   conversation,
   /executionLedger\.current\.in_flight_plan_id !== null/,
   "submission must synchronously honor the mounted-host in-flight lock",
+);
+assert.match(
+  conversation,
+  /executionLedger\.current\.in_flight_plan_id === null[\s\S]{0,120}setInteractionBusy\(false\)/,
+  "a blocked duplicate activation must not clear the first owner's busy state",
 );
 assert.match(conversation, /data-guidebrief-interaction-in-flight/);
 assert.match(
@@ -80,11 +94,24 @@ assert.doesNotMatch(
 assert.equal(
   conversation.match(/fetch\s*\(/g)?.length,
   1,
-  "PC6A permits only the one bounded same-origin interpretation request",
+  "PC6 permits only the one bounded same-origin interpretation request",
 );
 assert.match(
   conversation,
-  /fetch\(\s*"\/api\/augnes\/guide-brief\/interpretation",\s*\{[\s\S]{0,160}method:\s*"POST"/,
+  /fetch\(\s*pc5InterpretationBinding\s*\?\s*"\/api\/vnext\/operator\/guide-brief\/interpretation"\s*:\s*"\/api\/augnes\/guide-brief\/interpretation",\s*\{[\s\S]{0,160}method:\s*"POST"/,
+);
+assert.match(conversation, /candidate_kind === "action"/);
+assert.match(conversation, /setInteractionPlan\(result\.action_plan\)/);
+assert.match(conversation, /setActionProposalWasModelAssisted\(true\)/);
+assert.match(conversation, /data-guidebrief-model-action-activate="true"/);
+assert.match(
+  conversation,
+  /activateModelAssistedActionV01[\s\S]{0,420}executeInteractionPlanV01\(visibleInteractionPlan\)/,
+);
+assert.doesNotMatch(
+  conversation,
+  /result\.action_plan[\s\S]{0,160}executeGuideBriefInteractionPlanV01/,
+  "provider resolution must render a proposal rather than invoke an owner",
 );
 
 assert.match(blankState, /surface\.open_current_action/);
@@ -143,6 +170,32 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(detail, /querySelector|querySelectorAll|document\./);
 assert.doesNotMatch(detail, /\bfetch\s*\(/);
+assert.match(detail, /buildSelectedWorkGuideBriefCapabilitySetV01/);
+assert.match(detail, /guidebrief_pc5_shared_capability_owner_mismatch/);
+
+assert.match(sharedCapabilities, /single descriptor composition owner/);
+assert.match(sharedCapabilities, /selected_work\.select_next_candidate/);
+assert.match(sharedCapabilities, /relationship\.select_question/);
+assert.match(sharedCapabilities, /surface\.open_current_action/);
+assert.match(sharedCapabilities, /panel\.open_advanced_review/);
+assert.match(sharedCapabilities, /inspector\.open_selected_work/);
+assert.match(sharedCapabilities, /decision\.prepare_applying/);
+assert.match(sharedCapabilities, /transition\.prepare_preview/);
+assert.doesNotMatch(
+  sharedCapabilities,
+  /\bfetch\s*\(|invoke\s*:\s*|useState|useEffect|openDatabase/,
+);
+assert.match(serverCapabilitySource, /authenticateVNextLocalOperatorSessionV01/);
+assert.match(serverCapabilitySource, /readVNextOperatorPilotSemanticReviewV01/);
+assert.match(serverCapabilitySource, /buildSelectedWorkGuideBriefCapabilitySetV01/);
+assert.match(serverCapabilitySource, /snapshot\.fingerprint !==[\s\S]{0,100}capability_snapshot_fingerprint/);
+assert.doesNotMatch(serverCapabilitySource, /client.*authority|hmac/i);
+assert.match(interpretationService, /exactReboundCapabilityV01/);
+assert.match(interpretationService, /compileGuideBriefInteractionPlanV01/);
+assert.doesNotMatch(
+  interpretationService,
+  /executeGuideBriefInteractionPlanV01|\.invoke\(\)\s*;/,
+);
 
 assert.match(decision, /ReviewDecisionPreparationHandleV01/);
 assert.match(decision, /requestedDecision !== applyingDecision/);

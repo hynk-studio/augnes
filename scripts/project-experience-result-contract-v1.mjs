@@ -174,11 +174,11 @@ export function assertProjectExperienceFinalSuccessV1({
     assert.equal(result.provider_or_external_network_call, true);
     assert.equal(
       result.guide_brief_real_provider_acceptance?.provider_egress_started,
-      2,
+      5,
     );
     assert.equal(
       result.guide_brief_real_provider_acceptance?.provider_egress_completed,
-      2,
+      5,
     );
   } else {
     assert.equal(result.validation_mode, "canonical_no_provider");

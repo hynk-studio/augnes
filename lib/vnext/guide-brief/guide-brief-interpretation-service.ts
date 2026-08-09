@@ -1,13 +1,22 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { openDatabase } from "@/lib/db";
-import { buildGuideBriefConversationGuideFingerprintV01 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
+import {
+  buildGuideBriefConversationGuideFingerprintV01,
+  buildGuideBriefConversationScopeKeyV01,
+  listAvailableGuideBriefConversationIntentsV01,
+} from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
+  guideBriefActionInterpretationCandidateMeaningV01,
   guideBriefInterpretationCandidateMeaningV01,
   isGuideBriefModelInterpretationEligibleV01,
 } from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
-import { buildGuideBriefInteractionRequestV01 } from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
+import {
+  buildGuideBriefInteractionRequestV01,
+  compileGuideBriefInteractionPlanV01,
+} from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
+import type { CurrentGuideBriefPc5CapabilityBindingV01 } from "@/lib/vnext/guide-brief/guide-brief-pc5-capability-source";
 import { loadProjectGuideBriefV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 import {
   invokeGuideBriefInterpretationModelGatewayV01,
@@ -29,8 +38,13 @@ import {
   GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01,
   GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
   type GuideBriefInterpretationPublicResultV01,
+  type GuideBriefInterpretationPc5BindingV01,
   type GuideBriefInterpretationRequestV01,
 } from "@/types/vnext/guide-brief-interpretation";
+import type {
+  BrowserActionCapabilityV01,
+  GuideBriefInteractionPlanV01,
+} from "@/types/vnext/guide-brief-interaction";
 
 const CANONICAL_WORKSPACE =
   /^workspace:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -39,6 +53,9 @@ const CANONICAL_PROJECT =
 const SCOPE_KEY = /^guidebrief-conversation-scope:[a-f0-9]{16}$/u;
 const GUIDE_MATERIAL_FINGERPRINT = /^derived:[a-f0-9]{16}$/u;
 const CANDIDATE_FINGERPRINT = /^guidebrief-candidates:[a-f0-9]{16}$/u;
+const CAPABILITY_SNAPSHOT_FINGERPRINT =
+  /^guidebrief-capability-snapshot:[a-f0-9]{16}$/u;
+const SHA256_FINGERPRINT = /^sha256:[a-f0-9]{64}$/u;
 const HOST_GENERATION = /^guidebrief-host:[a-f0-9-]{36}$/u;
 
 export interface GuideBriefInterpretationServiceDependenciesV01
@@ -50,6 +67,15 @@ export interface GuideBriefInterpretationServiceDependenciesV01
     workspaceId: string,
   ) => { project_id: string; selection_revision: number } | null;
   fingerprint_guide?: typeof buildGuideBriefConversationGuideFingerprintV01;
+  load_pc5_binding?: (input: {
+    guide: Awaited<ReturnType<typeof loadProjectGuideBriefV02>>["guide"];
+    workspace_id: string;
+    project_id: string;
+    binding: GuideBriefInterpretationPc5BindingV01;
+  }) =>
+    | CurrentGuideBriefPc5CapabilityBindingV01
+    | null
+    | Promise<CurrentGuideBriefPc5CapabilityBindingV01 | null>;
 }
 
 export async function interpretGuideBriefQuestionV01(
@@ -71,11 +97,44 @@ export async function interpretGuideBriefQuestionV01(
     return publicResultV01("stale");
   }
   const before = beforeBinding.bundle;
+  const pc5Before = request.pc5_binding
+    ? await dependencies.load_pc5_binding?.({
+        guide: before.guide,
+        workspace_id: request.workspace_id,
+        project_id: request.project_id,
+        binding: request.pc5_binding,
+      }) ?? null
+    : null;
+  if (request.pc5_binding && !pc5Before) {
+    return publicResultV01("stale");
+  }
+  const exactAvailableIntents = exactAvailableIntentsV01(
+    before.guide,
+    pc5Before,
+  );
+  const capabilitySnapshotFingerprint =
+    pc5Before?.snapshot.fingerprint ?? "conversation-only";
+  if (
+    (pc5Before?.snapshot.scope_key ??
+      buildGuideBriefConversationScopeKeyV01({
+        guide: before.guide,
+        question: "",
+        conversation_context: null,
+      })) !== request.pc4_scope_key ||
+    JSON.stringify(exactAvailableIntents) !==
+      JSON.stringify(request.available_intents) ||
+    buildGuideBriefInterpretationCandidateSetFingerprintV01(
+      exactAvailableIntents,
+      capabilitySnapshotFingerprint,
+    ) !== request.candidate_set_fingerprint
+  ) {
+    return publicResultV01("stale");
+  }
   const deterministicRequest = buildGuideBriefInteractionRequestV01({
     request_id: "guidebrief-interpretation:server-admission",
     raw_utterance: request.utterance,
     scope_key: request.pc4_scope_key,
-    capability_snapshot_fingerprint: "conversation-only",
+    capability_snapshot_fingerprint: capabilitySnapshotFingerprint,
     previous_turn_anchor: null,
     conversation_context: null,
   });
@@ -87,24 +146,41 @@ export async function interpretGuideBriefQuestionV01(
       project_id: before.guide.identity.project_id,
       active_selection_revision:
         before.guide.identity.active_selection_revision,
-      available_intents: request.available_intents,
+      available_intents: exactAvailableIntents,
+      available_actions: pc5Before?.snapshot.capabilities ?? [],
     })
   ) {
     return publicResultV01("unsupported");
   }
 
-  const tokenToIntent = new Map<string, GuideBriefConversationIntentV01>();
-  const candidates = request.available_intents.map((intent) => {
-    const token = `q_${
+  const tokenBindings = new Map<string, InterpretationCandidateBindingV01>();
+  const candidates = [
+    ...exactAvailableIntents.map((intent) => ({
+      binding: { kind: "question" as const, intent },
+      meaning: guideBriefInterpretationCandidateMeaningV01(intent),
+    })),
+    ...(pc5Before?.snapshot.capabilities ?? [])
+      .filter(
+        (capability) =>
+          capability.availability === "available" &&
+          capability.may_propose,
+      )
+      .map((capability) => ({
+        binding: { kind: "action" as const, capability },
+        meaning:
+          guideBriefActionInterpretationCandidateMeaningV01(capability),
+      })),
+  ].map(({ binding, meaning }) => {
+    const token = `c_${
       dependencies.token_bytes?.() ?? randomBytes(16).toString("hex")
     }`;
-    if (!/^q_[a-f0-9]{32}$/u.test(token) || tokenToIntent.has(token)) {
+    if (!/^c_[a-f0-9]{32}$/u.test(token) || tokenBindings.has(token)) {
       throw new Error("guidebrief_interpretation_token_generation_invalid");
     }
-    tokenToIntent.set(token, intent);
+    tokenBindings.set(token, binding);
     return {
       candidate_token: token,
-      ...guideBriefInterpretationCandidateMeaningV01(intent),
+      ...meaning,
       currently_available: true as const,
     };
   });
@@ -121,7 +197,7 @@ export async function interpretGuideBriefQuestionV01(
         project_id: request.project_id,
         purpose: GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
         data_classification: "private",
-        provenance_refs: ["guidebrief:current-work-question"],
+        provenance_refs: ["guidebrief:current-work-candidate"],
         privacy: { provider_egress: "allow", retention_class: "none" },
         budget: {
           max_input_bytes:
@@ -162,6 +238,26 @@ export async function interpretGuideBriefQuestionV01(
     if (!exactActiveBindingV01(after.guide, request, fingerprintGuide)) {
       return publicResultV01("stale");
     }
+    const pc5After = request.pc5_binding
+      ? await dependencies.load_pc5_binding?.({
+          guide: after.guide,
+          workspace_id: request.workspace_id,
+          project_id: request.project_id,
+          binding: request.pc5_binding,
+        }) ?? null
+      : null;
+    if (
+      Boolean(request.pc5_binding) !== Boolean(pc5After) ||
+      pc5After?.snapshot.fingerprint !== pc5Before?.snapshot.fingerprint
+    ) {
+      return publicResultV01("stale");
+    }
+    if (
+      JSON.stringify(exactAvailableIntentsV01(after.guide, pc5After)) !==
+      JSON.stringify(exactAvailableIntents)
+    ) {
+      return publicResultV01("stale");
+    }
     if (result.interpreter !== "openai") {
       return publicResultV01("unavailable");
     }
@@ -179,10 +275,40 @@ export async function interpretGuideBriefQuestionV01(
     if (output.candidate_tokens.length !== 1) {
       return publicResultV01("invalid");
     }
-    const intent = tokenToIntent.get(output.candidate_tokens[0]!) ?? null;
-    return intent
-      ? publicResultV01("resolved", intent)
-      : publicResultV01("invalid");
+    const binding = tokenBindings.get(output.candidate_tokens[0]!) ?? null;
+    if (!binding) return publicResultV01("invalid");
+    if (binding.kind === "question") {
+      return exactAvailableIntents.includes(binding.intent)
+        ? publicResultV01("resolved", {
+            candidate_kind: "question",
+            intent: binding.intent,
+          })
+        : publicResultV01("stale");
+    }
+    if (!pc5After) return publicResultV01("stale");
+    const rebound = exactReboundCapabilityV01(
+      binding.capability,
+      pc5After.snapshot.capabilities,
+    );
+    if (!rebound) return publicResultV01("stale");
+    const actionRequest = {
+      ...deterministicRequest,
+      request_id: `guidebrief-model-action:${randomUUID()}`,
+      classification: "action" as const,
+      pc4_intent: null,
+      candidate_route_keys: [rebound.route_key],
+      capability_snapshot_fingerprint: pc5After.snapshot.fingerprint,
+    };
+    const plan = compileGuideBriefInteractionPlanV01({
+      request: actionRequest,
+      snapshot: pc5After.snapshot,
+    });
+    return plan.status === "resolved"
+      ? publicResultV01("resolved", {
+          candidate_kind: "action",
+          action_plan: plan,
+        })
+      : publicResultV01("stale");
   } catch (error) {
     if (error instanceof ModelGatewayInvocationErrorV01) {
       if (error.code === "model_gateway_timeout") {
@@ -240,6 +366,7 @@ export function validateGuideBriefInterpretationRequestV01(
     "guide_material_fingerprint",
     "mounted_host_generation",
     "pc4_scope_key",
+    "pc5_binding",
     "project_id",
     "request_version",
     "utterance",
@@ -249,6 +376,7 @@ export function validateGuideBriefInterpretationRequestV01(
     throw new Error("guidebrief_interpretation_request_invalid");
   }
   const intents = input.available_intents;
+  const pc5Binding = validatePc5BindingV01(input.pc5_binding);
   if (
     input.request_version !== GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01 ||
     typeof input.utterance !== "string" ||
@@ -286,12 +414,61 @@ export function validateGuideBriefInterpretationRequestV01(
   );
   if (
     JSON.stringify(orderedIntents) !== JSON.stringify(intents) ||
-    buildGuideBriefInterpretationCandidateSetFingerprintV01(orderedIntents) !==
+    buildGuideBriefInterpretationCandidateSetFingerprintV01(
+      orderedIntents,
+      pc5Binding?.capability_snapshot_fingerprint ?? "conversation-only",
+    ) !==
       input.candidate_set_fingerprint
   ) {
     throw new Error("guidebrief_interpretation_request_invalid");
   }
   return input as unknown as GuideBriefInterpretationRequestV01;
+}
+
+function validatePc5BindingV01(
+  input: unknown,
+): GuideBriefInterpretationPc5BindingV01 | null {
+  if (input === null) return null;
+  if (!isRecord(input)) {
+    throw new Error("guidebrief_interpretation_request_invalid");
+  }
+  const keys = [
+    "candidate_fingerprint",
+    "candidate_id",
+    "capability_snapshot_fingerprint",
+    "proposal_fingerprint",
+    "proposal_id",
+    "selected_relationship_question_key",
+  ].sort();
+  const relationshipKeys = new Set([
+    "support_and_source",
+    "candidate_and_decision",
+    "blocker_and_conflict",
+    "decision_and_project_change",
+    "project_change_and_later_outcome",
+  ]);
+  if (
+    JSON.stringify(Object.keys(input).sort()) !== JSON.stringify(keys) ||
+    typeof input.capability_snapshot_fingerprint !== "string" ||
+    !CAPABILITY_SNAPSHOT_FINGERPRINT.test(
+      input.capability_snapshot_fingerprint,
+    ) ||
+    typeof input.proposal_id !== "string" ||
+    input.proposal_id.trim().length === 0 ||
+    input.proposal_id.length > 512 ||
+    typeof input.candidate_id !== "string" ||
+    input.candidate_id.trim().length === 0 ||
+    input.candidate_id.length > 512 ||
+    typeof input.proposal_fingerprint !== "string" ||
+    !SHA256_FINGERPRINT.test(input.proposal_fingerprint) ||
+    typeof input.candidate_fingerprint !== "string" ||
+    !SHA256_FINGERPRINT.test(input.candidate_fingerprint) ||
+    (input.selected_relationship_question_key !== null &&
+      !relationshipKeys.has(String(input.selected_relationship_question_key)))
+  ) {
+    throw new Error("guidebrief_interpretation_request_invalid");
+  }
+  return input as unknown as GuideBriefInterpretationPc5BindingV01;
 }
 
 function exactActiveBindingV01(
@@ -321,16 +498,80 @@ function readCurrentActiveSelectionV01(workspaceId: string) {
 
 function publicResultV01(
   status: GuideBriefInterpretationPublicResultV01["status"],
-  intent: GuideBriefConversationIntentV01 | null = null,
+  resolved: {
+    candidate_kind: "question" | "action";
+    intent?: GuideBriefConversationIntentV01;
+    action_plan?: GuideBriefInteractionPlanV01;
+  } | null = null,
 ): GuideBriefInterpretationPublicResultV01 {
   return {
     result_version: GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
     status,
-    intent,
+    candidate_kind: status === "resolved"
+      ? resolved?.candidate_kind ?? null
+      : null,
+    intent:
+      status === "resolved" && resolved?.candidate_kind === "question"
+        ? resolved.intent ?? null
+        : null,
+    action_plan:
+      status === "resolved" && resolved?.candidate_kind === "action"
+        ? resolved.action_plan ?? null
+        : null,
     model_assisted: status === "resolved",
     no_answer_prose_returned: true,
+    no_action_executed: true,
     durable_state_changed: false,
   };
+}
+
+type InterpretationCandidateBindingV01 =
+  | {
+      kind: "question";
+      intent: GuideBriefConversationIntentV01;
+    }
+  | {
+      kind: "action";
+      capability: BrowserActionCapabilityV01;
+    };
+
+function exactAvailableIntentsV01(
+  guide: Awaited<ReturnType<typeof loadProjectGuideBriefV02>>["guide"],
+  pc5: CurrentGuideBriefPc5CapabilityBindingV01 | null,
+): GuideBriefConversationIntentV01[] {
+  return listAvailableGuideBriefConversationIntentsV01(
+    pc5
+      ? {
+          guide,
+          guide_source_fingerprint: null,
+          selected_work_scope: pc5.selected_work_scope,
+          timeline: pc5.timeline,
+          relationships: pc5.relationships_by_question,
+          selected_relationship_question_key:
+            pc5.selected_relationship_question_key,
+        }
+      : { guide },
+  );
+}
+
+function exactReboundCapabilityV01(
+  issued: BrowserActionCapabilityV01,
+  current: readonly BrowserActionCapabilityV01[],
+): BrowserActionCapabilityV01 | null {
+  const matches = current.filter(
+    (capability) =>
+      capability.action_key === issued.action_key &&
+      capability.target_handle === issued.target_handle,
+  );
+  if (
+    matches.length !== 1 ||
+    JSON.stringify(matches[0]) !== JSON.stringify(issued) ||
+    matches[0]!.availability !== "available" ||
+    !matches[0]!.may_propose
+  ) {
+    return null;
+  }
+  return matches[0]!;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { interpretGuideBriefQuestionV01 } from "@/lib/vnext/guide-brief/guide-brief-interpretation-service";
+import { loadCurrentGuideBriefPc5CapabilityBindingV01 } from "@/lib/vnext/guide-brief/guide-brief-pc5-capability-source";
 import {
   GUIDE_BRIEF_INTERPRETATION_LIMITS_V01,
   GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const HEADERS = {
   "cache-control": "no-store",
-  "x-augnes-guidebrief-interpretation": "bounded-v0.1",
+  "x-augnes-guidebrief-interpretation": "bounded-v0.2",
 } as const;
 
 export async function POST(request: Request) {
@@ -39,7 +40,13 @@ export async function POST(request: Request) {
   }
   try {
     return NextResponse.json(
-      await interpretGuideBriefQuestionV01(body, request.signal),
+      await interpretGuideBriefQuestionV01(body, request.signal, {
+        load_pc5_binding: (input) =>
+          loadCurrentGuideBriefPc5CapabilityBindingV01({
+            request,
+            ...input,
+          }),
+      }),
       { status: 200, headers: HEADERS },
     );
   } catch {
@@ -73,9 +80,12 @@ function routeErrorV01(status: number) {
     {
       result_version: GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
       status: "unavailable",
+      candidate_kind: null,
       intent: null,
+      action_plan: null,
       model_assisted: false,
       no_answer_prose_returned: true,
+      no_action_executed: true,
       durable_state_changed: false,
     },
     { status, headers: HEADERS },

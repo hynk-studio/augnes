@@ -1157,7 +1157,7 @@ async function main() {
         });
       result.guide_brief_model_interpretation_browser = true;
       completeDetailedField("guide_brief_model_interpretation_browser");
-      record("guidebrief_model_interpretation_remains_deterministic_answer_only");
+      record("guidebrief_model_interpretation_preserves_deterministic_ownership");
       return;
     }
 
@@ -1305,7 +1305,7 @@ async function main() {
           submit_count: conversation?.querySelectorAll('button[type="submit"]').length ?? 0,
           private_material_absent:
             !/project:[0-9a-f-]{36}/iu.test(text) &&
-            !/q_[a-f0-9]{32}/iu.test(text) &&
+            !/c_[a-f0-9]{32}/iu.test(text) &&
             !text.includes('/Users/') &&
             !['sha256:', 'OPENAI', 'GPT-', 'model_gateway', 'candidate_token']
               .some((marker) => text.includes(marker)),
@@ -1357,7 +1357,7 @@ async function main() {
     );
     result.guide_brief_model_interpretation_browser = true;
     completeDetailedField("guide_brief_model_interpretation_browser");
-    record("guidebrief_model_interpretation_remains_deterministic_answer_only");
+    record("guidebrief_model_interpretation_preserves_deterministic_ownership");
   });
 
   await runPhase("project_shell_and_locked_entry", async () => {
@@ -2276,6 +2276,9 @@ async function main() {
         manifest.rendered_state_inputs.proposal_list_supplements.length,
     });
     semanticAuthorityBaseline = afterRenderedStateAdmission;
+    if (REAL_PROVIDER_ACCEPTANCE) {
+      runtimeProviderCredentialEnabled = true;
+    }
     startRuntime(
       fixture.writable_database_path,
       manifest,
@@ -2362,6 +2365,29 @@ async function main() {
       `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
       "proposal-review presentation fixture",
     );
+    if (REAL_PROVIDER_ACCEPTANCE) {
+      const pc6bAcceptance =
+        await runRealProviderPc6bActionAcceptance({
+          database_path: fixture.writable_database_path,
+          proposal_id:
+            manifest.rendered_state_inputs.proposal_review.proposal_id,
+        });
+      const pc6aAcceptance = result.guide_brief_real_provider_acceptance;
+      result.guide_brief_real_provider_acceptance = {
+        ...pc6aAcceptance,
+        ...pc6bAcceptance,
+        provider_egress_started:
+          pc6aAcceptance.provider_egress_started +
+          pc6bAcceptance.korean_action_provider_calls +
+          pc6bAcceptance.english_action_provider_calls +
+          pc6bAcceptance.consequential_action_provider_calls,
+        provider_egress_completed:
+          pc6aAcceptance.provider_egress_completed +
+          pc6bAcceptance.korean_action_provider_calls +
+          pc6bAcceptance.english_action_provider_calls +
+          pc6bAcceptance.consequential_action_provider_calls,
+      };
+    }
     await validateProposalViewports();
     result.proposal_review_narrow_viewport_no_overflow = true;
     completeDetailedField("proposal_review_narrow_viewport_no_overflow");
@@ -2590,8 +2616,8 @@ async function main() {
         korean_interpretation_provider_calls: 1,
         english_interpretation_loopback_calls: 1,
         english_interpretation_provider_calls: 1,
-        provider_egress_started: 2,
-        provider_egress_completed: 2,
+        provider_egress_started: 5,
+        provider_egress_completed: 5,
         provider_unavailable_loopback_calls: 1,
         provider_unavailable_provider_calls: 0,
         deterministic_answer_ownership: true,
@@ -2599,6 +2625,22 @@ async function main() {
         semantic_authority_changed: false,
         durable_database_changed: false,
         transcript_persisted: false,
+        deterministic_pc5_loopback_calls: 0,
+        deterministic_pc5_provider_calls: 0,
+        korean_action_loopback_calls: 1,
+        korean_action_provider_calls: 1,
+        korean_action_adapter_calls_before_activation: 0,
+        korean_action_adapter_calls_after_activation: 1,
+        english_action_loopback_calls: 1,
+        english_action_provider_calls: 1,
+        english_action_adapter_calls_before_activation: 0,
+        english_action_adapter_calls_after_activation: 1,
+        consequential_action_loopback_calls: 1,
+        consequential_action_provider_calls: 1,
+        consequential_action_adapter_calls_before_activation: 0,
+        consequential_action_adapter_calls_after_activation: 1,
+        review_decisions_created: 0,
+        transitions_created_or_applied: 0,
       });
     }
     result.provider_or_external_network_call = REAL_PROVIDER_ACCEPTANCE;
@@ -2794,6 +2836,11 @@ async function openCdpPage() {
                 urlPattern: "*/api/augnes/guide-brief/interpretation",
                 requestStage: "Request",
               },
+              {
+                urlPattern:
+                  "*/api/vnext/operator/guide-brief/interpretation",
+                requestStage: "Request",
+              },
             ],
           }),
         ]),
@@ -2818,7 +2865,10 @@ function attachCdpObservers() {
     } else if (payload.method === "Fetch.requestPaused") {
       const classified = classifyUrl(params.request?.url);
       if (
-        classified.path === "/api/augnes/guide-brief/interpretation"
+        [
+          "/api/augnes/guide-brief/interpretation",
+          "/api/vnext/operator/guide-brief/interpretation",
+        ].includes(classified.path)
       ) {
         pausedGuideBriefInterpretationRequests.push({
           request_id: params.requestId,
@@ -3120,6 +3170,9 @@ function runtimeEnvironment(databasePath, manifest, projectId) {
       providerEgressObserverImportPath;
     if (runtimeProviderCredentialEnabled) {
       environment.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      if (typeof process.env.OPENAI_MODEL === "string") {
+        environment.OPENAI_MODEL = process.env.OPENAI_MODEL;
+      }
     }
   }
   return environment;
@@ -3332,6 +3385,9 @@ async function setFormControlValue(selector, value) {
     if (!setter) return false;
     setter.call(control, ${JSON.stringify(value)});
     control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+    if (!(control instanceof HTMLSelectElement)) {
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     return true;
   })()`);
   assert.equal(changed, true, `form_control_missing:${selector}`);
@@ -3374,7 +3430,7 @@ async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
       const paused = pausedGuideBriefInterpretationRequests[offset];
       const body = JSON.parse(paused.post_data ?? "null");
       assert.equal(body.utterance, utterance);
-      assert.equal(body.request_version, "guidebrief_interpretation_request.v0.1");
+      assert.equal(body.request_version, "guidebrief_interpretation_request.v0.2");
       assert.equal(Array.isArray(body.available_intents), true);
       assert.equal(body.available_intents.length > 0, true);
       assert.equal(
@@ -3387,7 +3443,26 @@ async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
     }
     await delay(25);
   }
-  throw new Error("guidebrief_interpretation_request_timeout");
+  const diagnostic = await evaluateJson(`(() => {
+    const conversation = document.querySelector('[data-guidebrief-conversation]');
+    const input = conversation?.querySelector('input[name="guidebrief-question"]');
+    const submit = conversation?.querySelector('button[type="submit"]');
+    return {
+      interpretation: conversation?.getAttribute('data-guidebrief-interpretation') ?? null,
+      input_value: input instanceof HTMLInputElement ? input.value : null,
+      submit_text: submit?.textContent?.trim() ?? null,
+      submit_disabled: submit instanceof HTMLButtonElement ? submit.disabled : null,
+    };
+  })()`);
+  throw new Error(
+    `guidebrief_interpretation_request_timeout:${JSON.stringify({
+      utterance,
+      paused_offset: offset,
+      paused_count: pausedGuideBriefInterpretationRequests.length,
+      route_count: guideBriefInterpretationRouteCount(),
+      diagnostic,
+    })}`,
+  );
 }
 
 async function runRealProviderGuideBriefAcceptance(input) {
@@ -3444,7 +3519,7 @@ async function runRealProviderGuideBriefAcceptance(input) {
   const publicText = await evaluateString(
     `document.querySelector('[data-guidebrief-conversation]')?.innerText ?? ''`,
   );
-  assert.equal(/q_[a-f0-9]{32}/iu.test(publicText), false);
+  assert.equal(/c_[a-f0-9]{32}/iu.test(publicText), false);
   assert.equal(
     ["OPENAI", "GPT-", "model_gateway", "candidate_token", "/Users/"]
       .some((marker) => publicText.includes(marker)),
@@ -3516,6 +3591,197 @@ async function runRealProviderGuideBriefAcceptance(input) {
   };
 }
 
+async function runRealProviderPc6bActionAcceptance(input) {
+  assert.equal(
+    latestProviderRuntimeStatus(providerEgressObservations()),
+    "runtime_ready",
+  );
+  const databaseBefore = databaseSnapshot(input.database_path);
+  const semanticBefore = semanticAuthorityCounts(input.database_path);
+  const material = await evaluateJson(`(async () => {
+    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(input.proposal_id)} }), { cache: 'no-store', credentials: 'same-origin' });
+    const body = await response.json();
+    const selector = document.querySelector('[data-vnext-candidate-selector="v0.1"]');
+    return {
+      status: response.status,
+      selected_candidate_id: selector instanceof HTMLSelectElement ? selector.value : null,
+      candidates: (body.proposal?.candidates ?? []).map((entry) => ({
+        candidate_id: entry.candidate?.candidate_id ?? null,
+        candidate_fingerprint: entry.candidate_fingerprint ?? null,
+      })),
+    };
+  })()`);
+  assert.equal(material.status, 200);
+  assert.equal(material.candidates.length, 2);
+  const current = material.candidates.find(
+    (entry) => entry.candidate_id === material.selected_candidate_id,
+  );
+  assert(current);
+
+  const deterministicRouteBefore = guideBriefInterpretationRouteCount();
+  const deterministicProviderBefore = providerEgressStartedCount();
+  await submitGuideBriefDeterministicUtterance("Open advanced review.");
+  await waitForCondition(
+    `document.querySelector('details#selected-work-advanced[open]') !== null`,
+    "real-provider deterministic PC5 action",
+  );
+  assert.equal(
+    guideBriefInterpretationRouteCount(),
+    deterministicRouteBefore,
+  );
+  assert.equal(providerEgressStartedCount(), deterministicProviderBefore);
+
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const advanced = document.querySelector('details#selected-work-advanced');
+      if (!(advanced instanceof HTMLDetailsElement)) return false;
+      advanced.open = false;
+      return !advanced.open;
+    })()`),
+    true,
+  );
+  const korean = await submitGuideBriefRealProviderActionProposal(
+    "고급 검토 화면을 열어 줄 수 있어?",
+    current.candidate_id,
+  );
+  assert.equal(
+    await evaluateString(
+      `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value ?? ''`,
+    ),
+    current.candidate_id,
+  );
+  assert.deepEqual(databaseSnapshot(input.database_path), databaseBefore);
+  assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
+  await activateRealProviderGuideBriefAction();
+  await waitForCondition(
+    `document.querySelector('details#selected-work-advanced[open]') !== null && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
+    "real-provider Korean advanced-review activation",
+  );
+  assert.deepEqual(databaseSnapshot(input.database_path), databaseBefore);
+  assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
+
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const advanced = document.querySelector('details#selected-work-advanced');
+      if (!(advanced instanceof HTMLDetailsElement)) return false;
+      advanced.open = false;
+      return !advanced.open;
+    })()`),
+    true,
+  );
+  const english = await submitGuideBriefRealProviderActionProposal(
+    "Could you open the advanced review?",
+    current.candidate_id,
+  );
+  await activateRealProviderGuideBriefAction();
+  await waitForCondition(
+    `document.querySelector('details#selected-work-advanced[open]') !== null && document.querySelector('[data-guidebrief-interaction-outcome="completed"]') !== null`,
+    "real-provider English advanced-review activation",
+  );
+
+  const decision = await submitGuideBriefRealProviderActionProposal(
+    "이 변경을 수락할 수 있게 준비해줘.",
+    current.candidate_id,
+  );
+  assert.notEqual(
+    await evaluateString(
+      `document.querySelector('[data-vnext-operator-decision-form="v0.1"] select')?.value ?? ''`,
+    ),
+    "accept",
+  );
+  assert.deepEqual(databaseSnapshot(input.database_path), databaseBefore);
+  assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
+  await activateRealProviderGuideBriefAction();
+  await waitForCondition(
+    `document.querySelector('[data-vnext-operator-decision-form="v0.1"] select')?.value === 'accept' && document.querySelector('[data-guidebrief-interaction-outcome="handed_off"]') !== null`,
+    "real-provider Decision preparation activation",
+  );
+  assert.deepEqual(databaseSnapshot(input.database_path), databaseBefore);
+  assert.deepEqual(semanticAuthorityCounts(input.database_path), semanticBefore);
+
+  const publicText = await evaluateString(
+    `document.querySelector('[data-guidebrief-conversation]')?.innerText ?? ''`,
+  );
+  assert.equal(
+    /c_[a-f0-9]{32}|guidebrief-target:|selected_work\.|decision\.|transition\.|sha256:|OPENAI|GPT-|model_gateway|candidate_token|\/Users\//iu.test(
+      publicText,
+    ),
+    false,
+  );
+  return {
+    deterministic_pc5_loopback_calls: 0,
+    deterministic_pc5_provider_calls: 0,
+    korean_action_loopback_calls: korean.route_calls,
+    korean_action_provider_calls: korean.provider_calls,
+    korean_action_adapter_calls_before_activation: 0,
+    korean_action_adapter_calls_after_activation: 1,
+    english_action_loopback_calls: english.route_calls,
+    english_action_provider_calls: english.provider_calls,
+    english_action_adapter_calls_before_activation: 0,
+    english_action_adapter_calls_after_activation: 1,
+    consequential_action_loopback_calls: decision.route_calls,
+    consequential_action_provider_calls: decision.provider_calls,
+    consequential_action_adapter_calls_before_activation: 0,
+    consequential_action_adapter_calls_after_activation: 1,
+    review_decisions_created: 0,
+    transitions_created_or_applied: 0,
+    durable_database_changed: false,
+  };
+}
+
+async function submitGuideBriefRealProviderActionProposal(
+  utterance,
+  expectedCandidateId,
+) {
+  const routeOffset = guideBriefInterpretationRouteCount();
+  const providerStartOffset = providerEgressStartedCount();
+  const providerCompleteOffset = providerEgressCompletedCount();
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-interaction-plan="resolved"][data-guidebrief-interaction-model-assisted="true"] [data-guidebrief-model-action-activate="true"]') !== null || document.querySelector('[data-guidebrief-interpretation-outcome]') !== null`,
+    "real-provider GuideBrief action proposal",
+  );
+  const outcome = await evaluateString(
+    `document.querySelector('[data-guidebrief-interpretation-outcome]')?.getAttribute('data-guidebrief-interpretation-outcome') ?? ''`,
+  );
+  if (outcome) {
+    throw new Error(`real_provider_action_interpretation_${outcome}`);
+  }
+  assert.equal(
+    await evaluateString(
+      `document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value ?? ''`,
+    ),
+    expectedCandidateId,
+  );
+  assert.equal(guideBriefInterpretationRouteCount() - routeOffset, 1);
+  assert.equal(providerEgressStartedCount() - providerStartOffset, 1);
+  assert.equal(providerEgressCompletedCount() - providerCompleteOffset, 1);
+  assert.equal(
+    await evaluateString(
+      `document.querySelector('[data-guidebrief-interaction-model-assisted="true"]')?.getAttribute('data-guidebrief-interaction-adapter-called') ?? ''`,
+    ),
+    "false",
+  );
+  return { route_calls: 1, provider_calls: 1 };
+}
+
+async function activateRealProviderGuideBriefAction() {
+  assert.equal(
+    await evaluateBoolean(`(() => {
+      const button = document.querySelector('[data-guidebrief-model-action-activate="true"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      button.click();
+      return true;
+    })()`),
+    true,
+  );
+}
+
 async function submitGuideBriefRealProviderUtterance(utterance) {
   const routeOffset = guideBriefInterpretationRouteCount();
   const requestOffset = requests.length;
@@ -3562,7 +3828,10 @@ async function submitGuideBriefRealProviderUtterance(utterance) {
 function guideBriefInterpretationRouteCount() {
   return requests.filter(
     (entry) =>
-      entry.path === "/api/augnes/guide-brief/interpretation" &&
+      [
+        "/api/augnes/guide-brief/interpretation",
+        "/api/vnext/operator/guide-brief/interpretation",
+      ].includes(entry.path) &&
       entry.method === "POST",
   ).length;
 }
@@ -3632,16 +3901,19 @@ async function fulfillGuideBriefInterpretation(paused, status, intent = null) {
       { name: "cache-control", value: "no-store" },
       {
         name: "x-augnes-guidebrief-interpretation",
-        value: "bounded-v0.1",
+        value: "bounded-v0.2",
       },
     ],
     body: Buffer.from(
       JSON.stringify({
-        result_version: "guidebrief_interpretation_result.v0.1",
+        result_version: "guidebrief_interpretation_result.v0.2",
         status,
+        candidate_kind: status === "resolved" ? "question" : null,
         intent,
+        action_plan: null,
         model_assisted: status === "resolved",
         no_answer_prose_returned: true,
+        no_action_executed: true,
         durable_state_changed: false,
       }),
       "utf8",
@@ -3657,7 +3929,7 @@ async function submitGuideBriefDeterministicUtterance(utterance) {
   );
   await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
   await waitForCondition(
-    `document.querySelector('[data-guidebrief-conversation-answer]') !== null || document.querySelector('[data-guidebrief-interaction-plan]') !== null`,
+    `document.querySelector('[data-guidebrief-conversation-answer]') !== null || document.querySelector('[data-guidebrief-interaction-plan]') !== null || document.querySelector('[data-guidebrief-interaction-outcome]') !== null`,
     "deterministic GuideBrief utterance result",
   );
   assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
@@ -3673,12 +3945,12 @@ async function submitGuideBriefActionRequestWithoutInterpretation(utterance) {
   );
   await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
   await waitForCondition(
-    `document.querySelector('[data-guidebrief-interaction-plan="unsupported"] strong')?.textContent?.trim() === 'That request is outside the bounded current-work interaction family.'`,
+    `document.querySelector('[data-guidebrief-interaction-plan="unsupported"] strong')?.textContent?.trim() === 'That request is outside the bounded current-work interaction family.' || document.querySelector('[data-guidebrief-conversation-answer="unavailable"][data-guidebrief-conversation-intent="unsupported"]') !== null`,
     "polite action request remains deterministic unsupported",
   );
   await waitForRequestQuiet();
   const publicState = await evaluateJson(`(() => ({
-    unsupported: document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null,
+    unsupported: document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null || document.querySelector('[data-guidebrief-conversation-answer="unavailable"][data-guidebrief-conversation-intent="unsupported"]') !== null,
     model_assisted_answer: document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null,
     interaction_outcome_created: document.querySelector('[data-guidebrief-interaction-outcome]') !== null
   }))()`);
@@ -4612,7 +4884,12 @@ function expectedFailedRequest(entry) {
     project_shell_and_locked_entry: ["/workbench", "/workbench/semantic-review", "/workbench/inspector"],
     responsive_first_work_presentation: ["/workbench/semantic-review"],
     project_home_lifecycle_presentation: ["/", "/projects"],
-    rendered_state_responsive_matrix: ["/workbench/semantic-review", "/workbench/inspector", "/projects"],
+    rendered_state_responsive_matrix: [
+      "/workbench/semantic-review",
+      "/workbench/inspector",
+      "/api/vnext/operator/guide-brief/interpretation",
+      "/projects",
+    ],
   };
   return (phasePaths[entry.phase] ?? []).some(
     (expectedPath) =>
