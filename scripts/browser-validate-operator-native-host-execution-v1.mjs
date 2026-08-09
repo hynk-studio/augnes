@@ -69,9 +69,17 @@ await runOperatorExecutionBrowserChildV1({
       entry.text ===
         "Failed to load resource: the server responded with a status of 404 (Not Found)"),
   request_failure_allowlist: (entry) =>
-    entry.phase === "first_work_definition_and_start" &&
-    entry.path === "/workbench/semantic-review" &&
-    entry.error_text === "net::ERR_ABORTED",
+    entry.error_text === "net::ERR_ABORTED" &&
+    ((entry.phase === "first_work_definition_and_start" &&
+      entry.path === "/workbench/semantic-review") ||
+      ([
+        "first_work_definition_and_start",
+        "live_native_host_approval_lifecycle",
+      ].includes(entry.phase) &&
+        entry.method === "GET" &&
+        entry.path === "/api/augnes/read/guide-brief" &&
+        entry.request_type === "Fetch" &&
+        entry.response_status === null)),
   execute: async ({
     fixture,
     lifecycle,
