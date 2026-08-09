@@ -603,9 +603,9 @@ const suites = {
       label: "production canonical record recovery validation",
       ...rootNode("scripts/test-recovery-canonical-record-validator.ts"),
       // The production 30-record backup/restore fixture, real product readers,
-      // and adversarial mutations measured 236.1s on the exact Windows source
-      // lane, so retain a bounded 300s owner.
-      timeoutMs: 300_000,
+      // and adversarial mutations measured 276.631s focused, while clean Full
+      // crossed 300s under host contention. Retain a bounded 480s owner.
+      timeoutMs: 480_000,
     },
     {
       id: "recovery-backup",
