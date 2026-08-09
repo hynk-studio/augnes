@@ -28,6 +28,7 @@ import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/ob
 import { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/temporal-codec";
 import { STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
+import { GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01 } from "@/lib/vnext/model-gateway/openai/guide-brief-interpretation-codec";
 import {
   MODEL_GATEWAY_PURPOSES_V01,
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
@@ -36,6 +37,7 @@ import {
   MODEL_INVOCATION_RECEIPT_VERSION_V02,
   ModelGatewayAdapterFailureV01,
   ModelGatewayInvocationErrorV01,
+  GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -49,6 +51,8 @@ import {
   type ModelGatewayFailureCodeV01,
   type ModelGatewayPolicyAuthorizationV01,
   type ModelGatewayPurposeV01,
+  type GuideBriefInterpretationModelGatewayResultV01,
+  type GuideBriefInterpretationModelInvocationEnvelopeV01,
   type ModelInvocationEnvelopeV01,
   type ModelInvocationReceiptV02,
   type ObserveModelGatewayResultV01,
@@ -83,6 +87,10 @@ export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_ID_V01 =
   "deterministic.strategic-unavailable" as const;
 export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01 =
   "deterministic_strategic_unavailable.v0.1" as const;
+export const DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_ID_V01 =
+  "deterministic.guidebrief-interpretation-unavailable" as const;
+export const DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_VERSION_V01 =
+  "deterministic_guidebrief_interpretation_unavailable.v0.1" as const;
 
 export interface ModelGatewayLocalCapabilityDiagnosticV01 {
   status:
@@ -167,6 +175,9 @@ export interface TemporalModelGatewayDependenciesV01
 export interface StrategicAdvantageTransferModelGatewayDependenciesV01
   extends SharedModelGatewayDependenciesV01 {}
 
+export interface GuideBriefInterpretationModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
+
 type DeterministicOutputV01 =
   | {
       purpose: typeof OBSERVE_MODEL_GATEWAY_PURPOSE_V01;
@@ -179,6 +190,14 @@ type DeterministicOutputV01 =
   | {
       purpose: typeof TEMPORAL_MODEL_GATEWAY_PURPOSE_V01;
       preview: TemporalInterpretationPreview;
+    }
+  | {
+      purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01;
+      output: {
+        coverage: "none";
+        classification: "unsupported";
+        candidate_tokens: [];
+      };
     };
 
 interface InternalModelGatewayDependenciesV01
@@ -315,6 +334,43 @@ export async function invokeStrategicAdvantageTransferModelGatewayV01(
   }
   return {
     generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeGuideBriefInterpretationModelGatewayV01(
+  input: unknown,
+  dependencies: GuideBriefInterpretationModelGatewayDependenciesV01 = {},
+): Promise<GuideBriefInterpretationModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute(purposeInput) {
+      if (
+        purposeInput.input_kind !==
+        GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+      ) {
+        throw new Error("purpose_mismatch");
+      }
+      return {
+        purpose: GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+        output: {
+          coverage: "none",
+          classification: "unsupported",
+          candidate_tokens: [],
+        },
+      };
+    },
+  });
+  if (
+    result.output.purpose !==
+    GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    interpreter: result.execution === "live" ? "openai" : "unavailable",
     output: result.output.output,
     model_invocation_receipt: result.model_invocation_receipt,
   };
@@ -550,6 +606,19 @@ export function validateStrategicAdvantageTransferModelInvocationEnvelopeV01(
   return envelope;
 }
 
+export function validateGuideBriefInterpretationModelInvocationEnvelopeV01(
+  input: unknown,
+): GuideBriefInterpretationModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    invalid();
+  }
+  return envelope;
+}
+
 export function validateModelInvocationEnvelopeV01(
   input: unknown,
 ): ModelInvocationEnvelopeV01 {
@@ -622,7 +691,13 @@ export function validateModelInvocationEnvelopeV01(
       provenance_refs: validateProvenance(readOwn(record, "provenance_refs")),
       privacy: validatePrivacy(readOwn(record, "privacy"), executionMode),
       budget: validateBudget(readOwn(record, "budget"), executionMode, purpose),
-      timeout_ms: requireInteger(readOwn(record, "timeout_ms"), 1, MAX_TIMEOUT_MS),
+      timeout_ms: requireInteger(
+        readOwn(record, "timeout_ms"),
+        1,
+        purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+          ? 8_000
+          : MAX_TIMEOUT_MS,
+      ),
       cancellation: validateCancellation(readOwn(record, "cancellation")),
       execution_mode: executionMode,
       policy: validatePolicy(readOwn(record, "policy")),
@@ -638,6 +713,29 @@ export function validateModelInvocationEnvelopeV01(
     }
     if (purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
       const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return { ...common, purpose, input: purposeInput };
+    }
+    if (
+      purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        !["public_safe", "private"].includes(dataClassification) ||
+        common.budget.max_input_bytes !==
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !== 256 ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !== 8_000
+      ) {
+        invalid();
+      }
+      const purposeInput = validatePurposeInput(
+        rawPurposeInput,
+        purpose,
+        projectId,
+      );
       validatePurposeInputSafety(purpose, purposeInput);
       return { ...common, purpose, input: purposeInput };
     }
@@ -1350,6 +1448,14 @@ function deterministicImplementation(
         DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01,
     };
   }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    return {
+      implementation_id:
+        DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_ID_V01,
+      implementation_version:
+        DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_VERSION_V01,
+    };
+  }
   return {
     implementation_id: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_ID_V01,
     implementation_version: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_VERSION_V01,
@@ -1396,7 +1502,9 @@ function validateBudget(
   const maxOutputTokens = requireInteger(
     readOwn(record, "max_output_tokens"),
     1,
-    MAX_OUTPUT_TOKENS,
+    purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+      ? 256
+      : MAX_OUTPUT_TOKENS,
   );
   const maxProviderCalls = readOwn(record, "max_provider_calls");
   if (maxProviderCalls !== (mode === "live" ? 1 : 0)) invalid();
@@ -1426,6 +1534,9 @@ function maximumInputBytesForPurpose(purpose: ModelGatewayPurposeV01) {
   }
   if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
     return STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes;
+  }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    return GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
   }
   return TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes;
 }
@@ -1532,6 +1643,11 @@ function validatePurposeInput(
 ): StrategicAdvantageTransferModelInvocationEnvelopeV01["input"];
 function validatePurposeInput(
   value: unknown,
+  purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): GuideBriefInterpretationModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
   purpose: ModelGatewayPurposeV01,
   projectId: string,
 ): ModelInvocationEnvelopeV01["input"] {
@@ -1572,6 +1688,59 @@ function validatePurposeInput(
       input_kind: purpose,
       message,
       brief: brief as PlannerModelInvocationEnvelopeV01["input"]["brief"],
+    };
+  }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    requireExactKeys(record, ["input_kind", "utterance", "candidates"]);
+    if (readOwn(record, "input_kind") !== purpose) invalid();
+    const utterance = readOwn(record, "utterance");
+    const candidates = readOwn(record, "candidates");
+    if (
+      typeof utterance !== "string" ||
+      utterance.trim().length === 0 ||
+      Buffer.byteLength(utterance, "utf8") >
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.utteranceBytes ||
+      !Array.isArray(candidates) ||
+      candidates.length < 1 ||
+      candidates.length >
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateItems
+    ) {
+      invalid();
+    }
+    const tokens = new Set<string>();
+    for (const candidate of candidates) {
+      const candidateRecord = requirePlainRecord(candidate);
+      requireExactKeys(candidateRecord, [
+        "candidate_token",
+        "public_meaning",
+        "semantic_description",
+        "currently_available",
+      ]);
+      const token = readOwn(candidateRecord, "candidate_token");
+      if (
+        typeof token !== "string" ||
+        !/^q_[a-f0-9]{32}$/u.test(token) ||
+        tokens.has(token) ||
+        readOwn(candidateRecord, "currently_available") !== true ||
+        !boundedProviderSafeTextV01(
+          readOwn(candidateRecord, "public_meaning"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        ) ||
+        !boundedProviderSafeTextV01(
+          readOwn(candidateRecord, "semantic_description"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        )
+      ) {
+        invalid();
+      }
+      tokens.add(token);
+    }
+    if (!boundedGuideBriefUtteranceV01(utterance)) invalid();
+    return {
+      input_kind: purpose,
+      utterance,
+      candidates:
+        candidates as GuideBriefInterpretationModelInvocationEnvelopeV01["input"]["candidates"],
     };
   }
   if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
@@ -1663,6 +1832,27 @@ function validatePurposeInputSafety(
   });
   const serialized = serializeModelEgressJson(purpose, cloned, 196_608);
   assertModelEgressTextIsSafe(purpose, serialized);
+}
+
+function boundedProviderSafeTextV01(
+  value: unknown,
+  maximumBytes: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    Buffer.byteLength(value, "utf8") <= maximumBytes &&
+    boundedGuideBriefUtteranceV01(value)
+  );
+}
+
+function boundedGuideBriefUtteranceV01(value: string): boolean {
+  return ![
+    /(?:https?:\/\/|file:\/\/|\/Users\/|\/home\/|[A-Za-z]:\\)/u,
+    /\b(?:workspace|project|candidate|proposal|request|receipt|run|work):[A-Za-z0-9:._-]+\b/u,
+    /\b(?:sha256:)?[a-f0-9]{64}\b/iu,
+    /\b(?:endpoint|route|selector|cookie|nonce|fingerprint|source[_ -]?ref|api[_ -]?key|authorization)\b/iu,
+  ].some((pattern) => pattern.test(value));
 }
 
 function validateProjectScopedStateInput(state: StateEntry[], projectId: string) {

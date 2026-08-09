@@ -50,6 +50,11 @@ export function buildProjectGuideBriefV02(
     : recentTargetNameV02(source);
   const workspaceId = projection?.workspace_id ?? null;
   const projectId = projection?.project_id ?? source.requested_project_id ?? source.active_project_id;
+  const activeSelectionRevision = source.recent_projects.find(
+    (entry) =>
+      entry.is_active &&
+      entry.project.project_id === source.active_project_id,
+  )?.active_selection_revision ?? null;
 
   const refs = buildSourceRefsV02(source, decision, projectName);
   const observed = buildObservedV02(source, decision, refs);
@@ -165,6 +170,7 @@ export function buildProjectGuideBriefV02(
       project_display_name: projectName,
       project_context: projectContext,
       active_project_id: source.active_project_id,
+      active_selection_revision: activeSelectionRevision,
       root_resolution: rootResolutionV02(source),
     },
     source_status: sourceStatus,

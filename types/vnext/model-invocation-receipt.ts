@@ -50,7 +50,8 @@ export type ModelInvocationReceiptPurposeV02 =
   | "observe_delta_compile"
   | "planner_plan"
   | "temporal_interpretation"
-  | "strategic_advantage_transfer";
+  | "strategic_advantage_transfer"
+  | "guidebrief_interpretation";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
