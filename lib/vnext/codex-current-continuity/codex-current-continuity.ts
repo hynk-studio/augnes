@@ -19,6 +19,7 @@ import {
   externalRefUsesRepositoryRelativePathV01,
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
+import { readRepositoryManagedPlatformCapabilityV01 } from "@/lib/vnext/repository-execution/repository-execution";
 import {
   LIVE_NATIVE_HOST_RUN_SERVICE_VERSION_V01,
   getLiveNativeHostRunServiceV01,
@@ -280,7 +281,8 @@ export async function readCodexCurrentContinuityV01(
     work.snapshot_state.start_blocker_code = "managed_execution_present";
   }
   const managedStartAvailable =
-    dependencies.managed_start_available?.() ?? process.platform !== "win32";
+    dependencies.managed_start_available?.() ??
+    readRepositoryManagedPlatformCapabilityV01().status === "available";
   if (!managedStartAvailable && work.public.start_eligible) {
     work.public.start_eligible = false;
     work.public.start_blocker =

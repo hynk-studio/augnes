@@ -7,6 +7,7 @@ const LOOPBACK_HOST = "127.0.0.1";
 const OWNERSHIP_PATH = "/v1/ownership";
 const OWNERSHIP_HEADER = "x-augnes-local-owner";
 const REQUEST_TIMEOUT_MS = 1_000;
+const PROCESS_IDENTITY_COMMAND_TIMEOUT_MS = 5_000;
 const MAX_RESPONSE_BYTES = 16 * 1024;
 
 export async function startPrivateProcessOwnershipProbe({
@@ -201,7 +202,11 @@ function readWindowsProcessIdentity(pid) {
       "-Command",
       `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
     ],
-    { encoding: "utf8", timeout: 1_500, windowsHide: true },
+    {
+      encoding: "utf8",
+      timeout: PROCESS_IDENTITY_COMMAND_TIMEOUT_MS,
+      windowsHide: true,
+    },
   );
   const creationTicks = result.status === 0 ? result.stdout.trim() : "";
   if (/^\d+$/.test(creationTicks)) {

@@ -15,10 +15,12 @@ import {
 } from "@/lib/vnext/persistence/repository-execution-store";
 import {
   assertGrantedRepositoryExecutionDecisionInsideTransactionV01,
+  baselineMatchesObservation,
   consumeRepositoryExecutionDecisionInsideTransactionV01,
   createRepositoryExecutionDecisionRequestV01,
   fingerprintProjectRootBindingV01,
   inspectPhysicalRootForExecutionV01,
+  readRepositoryManagedPlatformCapabilityV01,
   readExpectedDatabaseAdmissionStateV01,
   RepositoryExecutionErrorV01,
   type RepositoryExecutionDependenciesV01,
@@ -434,8 +436,11 @@ async function observeStartMaterialV01(
       authority: PREPARATION_AUTHORITY,
     },
   });
-  if ((dependencies.platform ?? process.platform) !== "darwin") {
-    return blocked("repository_managed_delegation_platform_unsupported", 422);
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
+    return blocked(platformCapability.reason, 422);
   }
   const attachment = readRepositoryExecutionAttachmentV01(db, input.attachment_id);
   if (
@@ -457,14 +462,17 @@ async function observeStartMaterialV01(
     registration.root_binding.local_root.normalized_path,
     dependencies,
   );
-  if (physical.status !== "exact" || physical.platform !== "darwin") {
+  if (
+    physical.status !== "exact" ||
+    physical.platform !== platformCapability.platform
+  ) {
     return blocked(`repository_delegation_${physical.status}`);
   }
   const baseline = readPhysicalRootBaselineV01(db, {
     ...input,
     node_scope_fingerprint: physical.node_scope_fingerprint,
   });
-  if (!baseline || !physicalMatchesBaselineV01(physical, baseline)) {
+  if (!baseline || !baselineMatchesObservation(baseline, physical)) {
     return blocked("repository_delegation_physical_root_mismatch");
   }
   const inspectWorktree = dependencies.inspect_worktree ?? inspectRepositoryWorktreeV01;
@@ -508,7 +516,11 @@ async function observeStartMaterialV01(
   ) {
     return blocked("repository_delegation_attachment_stale");
   }
-  const envelope = buildExecutionEnvelopeV01(capability, protectedPaths.paths_fingerprint);
+  const envelope = buildExecutionEnvelopeV01(
+    platformCapability.platform,
+    capability,
+    protectedPaths.paths_fingerprint,
+  );
   return {
     status: "exact",
     attachment,
@@ -529,11 +541,25 @@ async function assertLaunchGateV01(
   service: LiveNativeHostRunServiceV01,
   dependencies: RepositoryManagedDelegationDependenciesV01,
 ): Promise<void> {
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (
+    platformCapability.status !== "available" ||
+    platformCapability.platform !== expected.envelope.platform
+  ) {
+    throw new RepositoryManagedDelegationErrorV01(
+      platformCapability.status === "available"
+        ? "repository_managed_delegation_platform_changed"
+        : platformCapability.reason,
+    );
+  }
   const root = expected.registration.root_binding.local_root.normalized_path;
   const physical = await inspectPhysicalRootForExecutionV01(db, root, dependencies);
   if (
     physical.status !== "exact" ||
-    !physicalMatchesBaselineV01(physical, expected.baseline)
+    physical.platform !== platformCapability.platform ||
+    !baselineMatchesObservation(expected.baseline, physical)
   ) {
     throw new RepositoryManagedDelegationErrorV01("repository_delegation_physical_root_changed");
   }
@@ -544,7 +570,11 @@ async function assertLaunchGateV01(
     dependencies.inspect_protected_untracked_paths ?? inspectProtectedUntrackedPathsV01
   )(root);
   const capability = service.readCapabilityContractV01();
-  const envelope = buildExecutionEnvelopeV01(capability, protectedPaths.paths_fingerprint);
+  const envelope = buildExecutionEnvelopeV01(
+    platformCapability.platform,
+    capability,
+    protectedPaths.paths_fingerprint,
+  );
   const databaseState = readExpectedDatabaseAdmissionStateV01(db, {
     workspace_id: expected.attachment.workspace_id,
     project_id: expected.attachment.project_id,
@@ -587,12 +617,13 @@ async function assertLaunchGateV01(
 }
 
 function buildExecutionEnvelopeV01(
+  platform: RepositoryExecutionEnvelopeV01["platform"],
   capability: ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>,
   protectedUntrackedPathsFingerprint: string,
 ): RepositoryExecutionEnvelopeV01 {
   const material = {
     envelope_version: REPOSITORY_EXECUTION_ENVELOPE_VERSION_V01,
-    platform: "darwin" as const,
+    platform,
     run_mode: "repository_attachment" as const,
     filesystem_scope: "exact_repository_root" as const,
     network_scope: "provider_egress_only" as const,
@@ -691,26 +722,6 @@ function buildNativeHostContextV01(
     protected_untracked_paths_fingerprint: protectedPaths.paths_fingerprint,
     protected_untracked_paths: protectedPaths.paths,
   };
-}
-
-function physicalMatchesBaselineV01(
-  observation: Extract<PhysicalRootObservationV01, { status: "exact" }>,
-  baseline: PhysicalRootBaselineV01,
-): boolean {
-  if (
-    observation.platform !== "darwin" ||
-    baseline.identity_version !== "native_host_physical_root_identity.v0.1"
-  ) {
-    return false;
-  }
-  return (
-    observation.node_scope_fingerprint === baseline.node_scope_fingerprint &&
-    observation.identity.identity_version === baseline.identity_version &&
-    observation.identity.canonical_realpath_fingerprint ===
-      baseline.canonical_realpath_fingerprint &&
-    observation.identity.device === baseline.filesystem_volume_identity &&
-    observation.identity.inode === baseline.filesystem_object_identity
-  );
 }
 
 function exactConsumedReplayV01(
@@ -902,7 +913,16 @@ function errorCodeV01(error: unknown, fallback: string): string {
 
 function ordinaryBlockedTextV01(reason: string): string {
   if (reason === "repository_managed_delegation_platform_unsupported") {
-    return "Managed repository delegation is currently available only on a verified local macOS filesystem.";
+    return "Managed repository delegation is unavailable on this platform.";
+  }
+  if (reason === "repository_managed_delegation_windows_source_runtime_required") {
+    return "Managed repository delegation on Windows requires the verified local source runtime; Windows packaged runtime support is not available.";
+  }
+  if (
+    reason === "repository_managed_delegation_windows_architecture_unsupported" ||
+    reason === "repository_managed_delegation_windows_version_unsupported"
+  ) {
+    return "Managed repository delegation requires a verified Windows 11 x64 source runtime.";
   }
   if (reason === "repository_managed_delegation_non_git_unsupported") {
     return "This folder remains available for continuity, but managed repository delegation requires an exact Git worktree.";

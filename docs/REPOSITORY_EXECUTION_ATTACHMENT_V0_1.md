@@ -8,14 +8,17 @@ one admitted managed run after one independent Browser start decision. Together
 they answer: can one worker start from the exact project, root, work, bounded
 repository state, adapter, and execution envelope the user established?
 
-CDX2B3A evolves the physical-root contract for Windows without authorizing
-Windows Start or Resume. Source-runtime attachment admission has exact Windows
+CDX2B3A evolves the physical-root contract for Windows. CDX2B3B reuses that
+owner to authorize managed Start and explicit same-run Resume only for the
+verified Windows 11 x64 source-runtime lane. Source-runtime attachment
+admission has exact Windows
 10 Pro 22H2 build 19045.6456 proof at checkpoint
 `374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
 build 26200.8875 proof at pre-integration checkpoint
 `567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
 integrated head is not Windows 10 exact-head verified without a fresh run
-there. Packaged Windows remains unsupported.
+there, so Windows 10 managed Start and Resume remain unavailable. Packaged
+Windows remains unsupported.
 
 The product doctrine is:
 
@@ -89,8 +92,10 @@ delete/recreate, rename, rebind, attachment, source-runtime MCP, and recovery
 boundaries passed. Directory-symlink privilege and a second local fixed NTFS
 volume were unavailable on the Windows 11 node, so those cases are not claimed
 there. The package builder returned `package_build_runtime_unsupported`, so
-packaged Windows admission remains disabled. Windows managed Start and Resume
-remain blocked independently by CDX2B2B and CDX2B4B.
+packaged Windows admission, managed Start, and explicit Resume remain disabled.
+Windows 11 x64 source-runtime managed Start and explicit same-run Resume are
+enabled only after the same exact physical identity, attachment, worktree,
+database, envelope, provider capability, checkpoint, and controller gates pass.
 
 New canonical onboarding observes and creates the project, root binding, and
 baseline in the same confirmation flow. Project/root/baseline writes commit
@@ -259,8 +264,9 @@ ordering, views, and unrelated project changes do not alter it.
 
 ## Attachment-backed managed delegation
 
-`repository_execution_envelope.v0.1` binds the macOS platform boundary,
-attachment-backed run mode, exact-root filesystem scope, adapter/capability
+`repository_execution_envelope.v0.1` binds the admitted `darwin` or `win32`
+platform boundary, attachment-backed run mode, exact-root filesystem scope,
+adapter/capability
 versions, timeout and settle bounds, result budgets, protected-untracked-path
 fingerprint, and allowed/forbidden operation categories. The start expected
 state additionally binds every attachment input, the current database-state
@@ -398,12 +404,13 @@ is not ReviewDecision, Transition, accepted state, or work closure.
 Backup/restore retains local attempt history. Portable project export excludes
 attempt, checkpoint, decision, provider, and controller identity, so another
 node cannot import resume-ready or resume-admitted authority. Product support
-remains verified local macOS only; startup never automatically resumes.
+covers verified local macOS and verified Windows 11 x64 source runtime on local
+fixed NTFS; startup never automatically resumes.
 
-Managed repository delegation is product-supported only on a verified local
-macOS filesystem. Linux remains non-product without a separate real
-filesystem/runtime proof. Windows, non-Git, network, virtual, unsupported,
-unavailable, and ambiguous roots fail before decision consumption,
+Managed repository delegation is product-supported on a verified local macOS
+filesystem and on the verified Windows 11 x64 source runtime on local fixed
+NTFS. Windows 10, packaged Windows, Linux, non-Git, network, virtual,
+unsupported, unavailable, and ambiguous roots fail before decision consumption,
 attachment consumption, run creation, controller/provider invocation, command,
 or project mutation.
 

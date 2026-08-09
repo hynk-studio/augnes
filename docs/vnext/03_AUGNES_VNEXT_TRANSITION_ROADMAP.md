@@ -392,7 +392,8 @@ and junction traversal, and fails closed for cloud, projected, unknown,
 unavailable, or ambiguous reparse state. The package loader confines manifest
 and helper physical targets to the canonical package root and revalidates them
 immediately before invocation. No native binary is committed, no Windows
-package support is claimed, and neither Windows Start nor Resume is enabled.
+package support is claimed, and that completed phase did not enable Windows
+Start or Resume.
 
 ### LPX1 reliable exact local-project connection — Completed
 
@@ -418,12 +419,12 @@ reuses the existing project-scoped root-rebind decision and atomic rebind
 transaction; it preserves the project identity and stored history and creates
 no second recovery or approval authority.
 
-## Current
-
-### CUX8R source-blind first-work activation loop
+### CUX8R source-blind first-work activation loop — Completed
 
 [Issue #130](https://github.com/hynk-studio/augnes-perspective-lab/issues/130)
-defines CUX8R. While its authorized Draft outcome PR is open, CUX8R is Current.
+and [PR #131](https://github.com/hynk-studio/augnes-perspective-lab/pull/131)
+define CUX8R, merged as
+`50c94b30d28a207e2046bb7140e3859c79a21e66`.
 The activation work froze the baseline blocker and a distinct intermediate-head
 blocker before diagnosing each product-owned Companion availability failure.
 The bounded correction
@@ -433,15 +434,25 @@ preflight. A fresh real model-mediated replay at the corrected head completed
 one connected project, one revised first work, one Browser-confirmed Start, one
 managed run, one result, one RunReceipt, and one proposal ready for human
 review. It stopped before ReviewDecision, Transition, or work closure. No
-execution envelope, protocol, or semantic authority changed. CUX8R becomes
-Completed only when its outcome PR merges.
+execution envelope, protocol, or semantic authority changed.
+
+## Current
+
+### CDX2B3B verified Windows managed delegation
+
+[Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
+defines CDX2B3B. While its authorized Draft outcome PR is open, CDX2B3B is
+Current. It enables the existing Browser-confirmed attachment-backed Start and
+explicit same-run Resume on the verified Windows 11 x64 source-runtime lane on
+local fixed NTFS. One shared platform capability decision is rechecked before
+admission, after commit, and immediately before provider invocation. The
+existing MCP, Operator, Companion, strict route, attachment, envelope, run,
+checkpoint, provider, cancellation, result, RunReceipt, proposal, and semantic
+review owners remain canonical. Windows 10 and packaged Windows remain
+unavailable without separate exact-head evidence; no Windows runner, automatic
+Resume, second run/attachment, or broader authority is added.
 
 ## Next separately authorized work
-
-CDX2B3B is the separately authorized future Windows managed-delegation runtime
-enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
-attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
-change the CDX2B2B Windows Start or CDX2B4B Windows Resume gates.
 
 PC6, C9, current-session attachment, automatic Resume after controller loss or
 Companion startup, Linux product rollout, remote nodes, long-horizon control,
@@ -505,8 +516,8 @@ policy, if pursued, is a later separately authorized phase. Current-session
 attachment, automatic resume after controller loss or Companion startup,
 Linux product rollout, remote nodes, long-horizon continuation,
 continuous policy execution, and multi-agent orchestration remain later and
-separate. PC6 and C9 remain separate. Windows enablement remains separately
-authorized under CDX2B3B.
+separate. PC6 and C9 remain separate. Windows enablement remains bounded to
+CDX2B3B.
 
 ## Pending C9
 

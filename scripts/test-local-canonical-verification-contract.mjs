@@ -975,7 +975,7 @@ for (const [pathName, timeout] of [
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],
   ["scripts/test-recovery-backup.mjs", "330_000"],
   ["scripts/test-runtime-database-bootstrap.mjs", "390_000"],
-  ["scripts/test-runtime-operability.mjs", "120_000"],
+  ["scripts/test-runtime-operability.mjs", "240_000"],
   ["scripts/test-runtime-reconciliation.mjs", "720_000"],
   ["scripts/test-distributable-package.mjs", "480_000"],
   ["scripts/browser-validate-continuity-v1.mjs", "480_000"],

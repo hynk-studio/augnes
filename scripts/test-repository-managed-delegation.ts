@@ -122,6 +122,17 @@ async function main(): Promise<void> {
     now: () => "2026-08-04T01:00:20.000Z",
   });
   try {
+    if (process.env.AUGNES_CDX2B3B_WINDOWS_ONLY === "1") {
+      await assertWindowsManagedDelegationV01(db);
+      console.log(JSON.stringify({
+        status: "pass",
+        contract: "cdx2b3b_windows_managed_delegation.v0.1",
+        windows_11_x64_source_start_and_resume: true,
+        windows_packaged_runtime_status: "unsupported_no_run",
+        windows_10_status: "unsupported_no_run",
+      }, null, 2));
+      return;
+    }
     const projectA = await createPreparedFixtureV01(
       db,
       "repository-a",
@@ -234,6 +245,7 @@ async function main(): Promise<void> {
     assertExecutionEnvelopeAuthorityV01();
     assertSecretBoundaryDocumentationV01();
     await assertPlatformAndNonGitRefusalV01(db, service, projectA.workspace_id);
+    await assertWindowsManagedDelegationV01(db);
     await assertRepositoryResumeCheckpointEligibilityV01(
       db,
       projectA.workspace_id,
@@ -322,7 +334,9 @@ async function main(): Promise<void> {
       cross_runtime_transfer_failures_structured: true,
       consumed_resume_decision_mismatch_structured: true,
       provider_thread_resume_once_and_start_zero: true,
-      windows_status: "unsupported_no_run",
+      windows_11_x64_source_start_and_resume: true,
+      windows_packaged_runtime_status: "unsupported_no_run",
+      windows_10_status: "unsupported_no_run",
       linux_status: "non_product_no_run",
       non_git_status: "unsupported_no_run",
       run_receipt_recorded: true,
@@ -3660,7 +3674,8 @@ async function assertPlatformAndNonGitRefusalV01(
         }),
         (error: unknown) =>
           error instanceof RepositoryManagedDelegationErrorV01 &&
-          error.code === "repository_managed_delegation_platform_unsupported",
+          error.code ===
+            "repository_managed_delegation_windows_source_runtime_required",
       );
       assert.equal(
         readRepositoryExecutionAttachmentV01(db, fixture.attachment_id)
@@ -3695,6 +3710,207 @@ async function assertPlatformAndNonGitRefusalV01(
   assert.equal(preparation.status, "blocked");
   assert.equal(preparation.reason, "non_git_execution_unsupported");
   assert.equal(count(db, "autonomy_runs"), before);
+}
+
+async function assertWindowsManagedDelegationV01(
+  db: Database.Database,
+): Promise<void> {
+  const fixture = await createWindowsPreparedFixtureV01(
+    db,
+    "windows-managed-repository",
+    "Windows Managed Repository",
+    "2026-08-04T09:00:00.000Z",
+  );
+  const sourceDependencies = fixture.windows_dependencies;
+  const decisionsBefore = count(
+    db,
+    "vnext_repository_execution_decision_requests",
+  );
+  for (const unavailableDependencies of [
+    { ...sourceDependencies, distribution_mode: "packaged" },
+    { ...sourceDependencies, windows_version: "10.0.19045" },
+    { ...sourceDependencies, architecture: "arm64" as const },
+  ]) {
+    const blocked = await prepareRepositoryManagedDelegationV01(db, {
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      attachment_id: fixture.attachment_id,
+    }, new LiveNativeHostRunServiceV01({
+      open_database: () => openDatabaseV01(),
+      adapter_factory: () =>
+        createCanonicalRepositoryDelegationTestAdapterV01(process.env),
+      repository_execution_dependencies: unavailableDependencies,
+    }), unavailableDependencies);
+    assert.equal(blocked.status, "blocked");
+    assert.equal(blocked.decision_request, null);
+  }
+  assert.equal(
+    count(db, "vnext_repository_execution_decision_requests"),
+    decisionsBefore,
+  );
+
+  process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD = "1";
+  let startInvocations = 0;
+  let resumeInvocations = 0;
+  const originalService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => {
+      const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+        process.env,
+      );
+      return {
+        ...adapter,
+        invoke(request, control) {
+          if (control.resume_binding) resumeInvocations += 1;
+          else startInvocations += 1;
+          return adapter.invoke(request, control);
+        },
+      };
+    },
+    runtime_instance_fingerprint: `sha256:${"1".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"2".repeat(64)}`,
+    repository_execution_dependencies: sourceDependencies,
+  });
+  const resumedService = new LiveNativeHostRunServiceV01({
+    open_database: () => openDatabaseV01(),
+    adapter_factory: () => {
+      const adapter = createCanonicalRepositoryDelegationTestAdapterV01(
+        process.env,
+      );
+      return {
+        ...adapter,
+        invoke(request, control) {
+          if (control.resume_binding) resumeInvocations += 1;
+          else startInvocations += 1;
+          return adapter.invoke(request, control);
+        },
+      };
+    },
+    runtime_instance_fingerprint: `sha256:${"3".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"4".repeat(64)}`,
+    repository_execution_dependencies: sourceDependencies,
+  });
+  const config = operatorConfig(fixture.workspace_id, fixture.project_id);
+  try {
+    const preparation = await prepareRepositoryManagedDelegationV01(db, {
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      attachment_id: fixture.attachment_id,
+    }, originalService, {
+      ...sourceDependencies,
+      now: () => "2026-08-04T09:00:10.000Z",
+    });
+    assert.equal(preparation.status, "decision_required");
+    assert.equal(preparation.execution_envelope?.platform, "win32");
+    assert(preparation.decision_request && preparation.execution_envelope);
+    const grant = grantDecisionV01(
+      db,
+      preparation.decision_request,
+      "2026-08-04T09:00:11.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(db, {
+      config,
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      expected_execution_envelope_fingerprint:
+        preparation.execution_envelope.envelope_fingerprint,
+      decision_request_fingerprint: grant.request_fingerprint,
+      decision_grant_fingerprint: grant.grant_fingerprint!,
+    }, originalService, {
+      ...sourceDependencies,
+      now: () => "2026-08-04T09:00:12.000Z",
+    });
+    assert.equal(started.status, "accepted", JSON.stringify(started));
+    assert.equal(startInvocations, 1);
+    await waitForWindowsManagedCheckpointCountV01(db, started.run_id, 4);
+
+    const resumePreparation = await prepareRepositoryManagedResumeV01(
+      db,
+      { config },
+      resumedService,
+      {
+        ...sourceDependencies,
+        now: () => "2026-08-04T09:00:20.000Z",
+      },
+    );
+    assert.equal(
+      resumePreparation.status,
+      "decision_required",
+      JSON.stringify(resumePreparation),
+    );
+    assert(
+      resumePreparation.decision_request &&
+      resumePreparation.expected_state_fingerprint,
+    );
+    const expectedState = JSON.parse(
+      (db.prepare(
+        `SELECT expected_state_json
+           FROM vnext_repository_execution_decision_requests
+          WHERE request_fingerprint = ?`,
+      ).pluck().get(
+        resumePreparation.decision_request.request_fingerprint,
+      ) as string),
+    ) as { platform?: unknown };
+    assert.equal(expectedState.platform, "win32");
+    const resumeGrant = grantDecisionV01(
+      db,
+      resumePreparation.decision_request,
+      "2026-08-04T09:00:21.000Z",
+    );
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    const resumeInput = {
+      config,
+      run_id: started.run_id,
+      attachment_id: fixture.attachment_id,
+      expected_attachment_binding_fingerprint: fixture.binding_fingerprint,
+      expected_state_fingerprint:
+        resumePreparation.expected_state_fingerprint,
+      expected_controller_generation:
+        resumePreparation.expected_controller_generation!,
+      expected_run_control_revision:
+        resumePreparation.expected_run_control_revision!,
+      decision_request_fingerprint: resumeGrant.request_fingerprint,
+      decision_grant_fingerprint: resumeGrant.grant_fingerprint!,
+    };
+    const resumed = await resumeRepositoryManagedDelegationV01(
+      db,
+      resumeInput,
+      resumedService,
+      {
+        ...sourceDependencies,
+        now: () => "2026-08-04T09:00:22.000Z",
+      },
+    );
+    assert.equal(resumed.status, "accepted", JSON.stringify(resumed));
+    assert.equal(resumed.run_id, started.run_id);
+    assert.equal(resumed.attachment_id, fixture.attachment_id);
+    assert.equal(startInvocations, 1);
+    assert.equal(resumeInvocations, 1);
+    await waitForWindowsManagedResumeSettlementV01(db, started.run_id);
+    const replay = await resumeRepositoryManagedDelegationV01(
+      db,
+      resumeInput,
+      resumedService,
+      {
+        ...sourceDependencies,
+        now: () => "2026-08-04T09:00:23.000Z",
+      },
+    );
+    assert.equal(replay.status, "exact_replay");
+    assert.equal(replay.authority.worker_started, false);
+    assert.equal(startInvocations, 1);
+    assert.equal(resumeInvocations, 1);
+    assert.equal(
+      countWhere(db, "autonomy_runs", `run_id = '${started.run_id}'`),
+      1,
+    );
+  } finally {
+    delete process.env.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD;
+    await resumedService.shutdown();
+    await originalService.shutdown();
+  }
 }
 
 type PreparedFixtureV01 = Awaited<ReturnType<typeof createPreparedFixtureV01>>;
@@ -3782,6 +3998,76 @@ async function createPreparedFixtureV01(
     attachment_id: prepared.attachment.attachment_id,
     binding_fingerprint: prepared.attachment.binding_fingerprint,
     work,
+  };
+}
+
+async function createWindowsPreparedFixtureV01(
+  db: Database.Database,
+  name: string,
+  displayName: string,
+  now: string,
+) {
+  const root = createRepositoryV01(name);
+  const nodeScopeRoot = "C:\\AugnesData";
+  const windowsDependencies = {
+    platform: "win32" as const,
+    architecture: "x64" as const,
+    windows_version: "10.0.26100",
+    distribution_mode: "source",
+    node_scope_root: nodeScopeRoot,
+    windows_physical_identity: async (candidate: string) => ({
+      identity_version: "physical_root_identity.windows.v0.1" as const,
+      canonical_final_path_fingerprint: createProtocolSha256V01(
+        candidate === nodeScopeRoot ? nodeScopeRoot : root,
+      ),
+      volume_serial_identity: "8899aabbccddeeff",
+      file_id: candidate === nodeScopeRoot
+        ? "1234567890abcdef1234567890abcdef"
+        : "abcdef1234567890abcdef1234567890",
+      filesystem_family: "NTFS" as const,
+      drive_type: "fixed" as const,
+    }),
+  };
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = root;
+  const picked = await pickAndInspectLocalProjectV01({
+    open_database: openDatabaseV01,
+    now: () => now,
+    repository_execution_dependencies: windowsDependencies,
+  });
+  assert.equal(picked.status, "selected");
+  const onboarded = await confirmLocalProjectOnboardingV01(db, {
+    selection_token: picked.selection_token,
+    inspection_fingerprint: picked.inspection.inspection_fingerprint,
+    display_name: displayName,
+  }, {
+    now: () => now,
+    repository_execution_dependencies: windowsDependencies,
+  });
+  const project = onboarded.project;
+  selectProjectV01(db, project.workspace_id, project.project_id);
+  const work = defineWorkV01(
+    db,
+    project.project_id,
+    `${displayName} exact work`,
+    new Date(Date.parse(now) + 1_000).toISOString(),
+  );
+  const prepared = await prepareRepositoryExecutionV01(db, {
+    workspace_id: project.workspace_id,
+    project_id: project.project_id,
+  }, {
+    ...windowsDependencies,
+    now: () => new Date(Date.parse(now) + 2_000).toISOString(),
+  });
+  assert.equal(prepared.status, "prepared", JSON.stringify(prepared));
+  assert(prepared.attachment);
+  return {
+    root,
+    workspace_id: project.workspace_id,
+    project_id: project.project_id,
+    attachment_id: prepared.attachment.attachment_id,
+    binding_fingerprint: prepared.attachment.binding_fingerprint,
+    work,
+    windows_dependencies: windowsDependencies,
   };
 }
 
@@ -3965,6 +4251,40 @@ async function waitForTerminalV01(db: Database.Database, runId: string): Promise
   assert.fail("managed repository run did not settle within the bounded test loop");
 }
 
+async function waitForWindowsManagedResumeSettlementV01(
+  db: Database.Database,
+  runId: string,
+): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const run = readAutonomyRunLedgerRecord(runId, { db });
+    if (
+      run &&
+      ["completed", "failed", "blocked", "cancelled", "timed_out"].includes(
+        run.status,
+      )
+    ) {
+      assert.equal(
+        listRepositoryRunResumeCheckpointsV01(db, {
+          workspace_id: String(run.metadata.workspace_id),
+          project_id: run.scope,
+          run_id: runId,
+        }).length,
+        8,
+        JSON.stringify({ status: run.status, metadata: run.metadata }),
+      );
+      return;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+  const run = readAutonomyRunLedgerRecord(runId, { db });
+  assert.fail(JSON.stringify({
+    reason: "windows_managed_resume_did_not_settle",
+    status: run?.status ?? null,
+    metadata: run?.metadata ?? null,
+  }));
+}
+
 async function waitForCheckpointCountV01(
   db: Database.Database,
   runId: string,
@@ -3980,6 +4300,35 @@ async function waitForCheckpointCountV01(
     ) return;
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
+}
+
+async function waitForWindowsManagedCheckpointCountV01(
+  db: Database.Database,
+  runId: string,
+  expectedCount: number,
+): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const actualCount = countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${runId}'`,
+    );
+    if (actualCount >= expectedCount) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+  const run = readAutonomyRunLedgerRecord(runId, { db });
+  assert.fail(JSON.stringify({
+    reason: "repository_resume_checkpoint_count_not_reached",
+    expected_count: expectedCount,
+    actual_count: countWhere(
+      db,
+      "vnext_repository_run_resume_checkpoints",
+      `run_id = '${runId}'`,
+    ),
+    status: run?.status ?? null,
+    metadata: run?.metadata ?? null,
+  }));
 }
 
 function count(db: Database.Database, table: string): number {
