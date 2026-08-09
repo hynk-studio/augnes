@@ -1262,6 +1262,20 @@ async function main() {
       pausedGuideBriefInterpretationRequests.length,
       routeCallsBeforeActions,
     );
+    for (const actionRequest of [
+      "Could you please show the next change?",
+      "지금 이 변경을 적용해 줄 수 있어?",
+    ]) {
+      const actionResult =
+        await submitGuideBriefActionRequestWithoutInterpretation(actionRequest);
+      assert.deepEqual(actionResult, {
+        loopback_calls: 0,
+        provider_calls: 0,
+        unsupported: true,
+        model_assisted_answer: false,
+        interaction_outcome_created: false,
+      });
+    }
 
     await submitGuideBriefDeterministicUtterance("What is happening now?");
     for (const { width, height } of [
@@ -2568,6 +2582,10 @@ async function main() {
       assert.deepEqual(result.guide_brief_real_provider_acceptance, {
         deterministic_question_loopback_calls: 0,
         deterministic_question_provider_calls: 0,
+        action_request_loopback_calls: 0,
+        action_request_provider_calls: 0,
+        action_request_unsupported: true,
+        action_request_model_assisted_answer: false,
         korean_interpretation_loopback_calls: 1,
         korean_interpretation_provider_calls: 1,
         english_interpretation_loopback_calls: 1,
@@ -3385,6 +3403,18 @@ async function runRealProviderGuideBriefAcceptance(input) {
   assert.equal(guideBriefInterpretationRouteCount(), routeCallsBefore);
   assert.equal(providerEgressStartedCount(), providerStartedCount(providerBefore));
 
+  const actionRequest =
+    await submitGuideBriefActionRequestWithoutInterpretation(
+      "Could you please show the next change?",
+    );
+  assert.deepEqual(actionRequest, {
+    loopback_calls: 0,
+    provider_calls: 0,
+    unsupported: true,
+    model_assisted_answer: false,
+    interaction_outcome_created: false,
+  });
+
   const korean = await submitGuideBriefRealProviderUtterance(
     "지금 무슨 상황인지 평범한 말로 설명해 줄 수 있나요?",
   );
@@ -3462,6 +3492,11 @@ async function runRealProviderGuideBriefAcceptance(input) {
   return {
     deterministic_question_loopback_calls: 0,
     deterministic_question_provider_calls: 0,
+    action_request_loopback_calls: actionRequest.loopback_calls,
+    action_request_provider_calls: actionRequest.provider_calls,
+    action_request_unsupported: actionRequest.unsupported,
+    action_request_model_assisted_answer:
+      actionRequest.model_assisted_answer,
     korean_interpretation_loopback_calls: korean.route_calls,
     korean_interpretation_provider_calls: 1,
     english_interpretation_loopback_calls: english.route_calls,
@@ -3626,6 +3661,35 @@ async function submitGuideBriefDeterministicUtterance(utterance) {
     "deterministic GuideBrief utterance result",
   );
   assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
+}
+
+async function submitGuideBriefActionRequestWithoutInterpretation(utterance) {
+  const routeBefore = guideBriefInterpretationRouteCount();
+  const pausedBefore = pausedGuideBriefInterpretationRequests.length;
+  const providerBefore = providerEgressStartedCount();
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-interaction-plan="unsupported"] strong')?.textContent?.trim() === 'That request is outside the bounded current-work interaction family.'`,
+    "polite action request remains deterministic unsupported",
+  );
+  await waitForRequestQuiet();
+  const publicState = await evaluateJson(`(() => ({
+    unsupported: document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null,
+    model_assisted_answer: document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null,
+    interaction_outcome_created: document.querySelector('[data-guidebrief-interaction-outcome]') !== null
+  }))()`);
+  assert.equal(guideBriefInterpretationRouteCount(), routeBefore);
+  assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
+  assert.equal(providerEgressStartedCount(), providerBefore);
+  return {
+    loopback_calls: guideBriefInterpretationRouteCount() - routeBefore,
+    provider_calls: providerEgressStartedCount() - providerBefore,
+    ...publicState,
+  };
 }
 
 async function readRecentProjectsInBrowser() {

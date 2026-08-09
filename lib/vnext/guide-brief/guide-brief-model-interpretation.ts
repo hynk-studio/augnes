@@ -17,11 +17,36 @@ const QUESTION_CUES = [
   /(?:무엇|뭐|어디|왜|어떻게|어떤|언제|누가|현재|지금|상황|위치|근거|증거|출처|연결|관계|검토|확인|주의|불확실|충돌|결정|변경|결과|다음|진행)/u,
 ] as const;
 
+const ENGLISH_ACTION = String.raw`(?:open|take|select|choose|click|prepare|accept|reject|supersede|replace|retract|remove|apply|confirm|save|start|resume|run|execute|navigate|switch|activate|create|submit|merge|deploy|release|publish)`;
+const ENGLISH_ACTION_GERUND = String.raw`(?:opening|taking|selecting|choosing|clicking|preparing|accepting|rejecting|superseding|replacing|retracting|removing|applying|confirming|saving|starting|resuming|running|executing|navigating|switching|activating|creating|submitting|merging|deploying|releasing|publishing)`;
+const ENGLISH_SHOW_ACTION_TARGET = String.raw`(?:the\s+)?(?:next\s+(?:change|candidate|unresolved\s+change)|source\s+connection|blocker|decision\s+connection|project\s+change\s+connection|later\s+outcome|current\s+action|advanced\s+review|exact\s+(?:details|source)|impact|what\s+i\s+should\s+do\s+next|what\s+would\s+change\s+before\s+applying)`;
+const ENGLISH_ACTION_REQUEST = String.raw`(?:${ENGLISH_ACTION}\b|show\s+${ENGLISH_SHOW_ACTION_TARGET}\b)`;
+const ENGLISH_ACTION_REQUEST_GERUND = String.raw`(?:${ENGLISH_ACTION_GERUND}\b|showing\s+${ENGLISH_SHOW_ACTION_TARGET}\b)`;
+const KOREAN_ACTION_REQUEST_ENDING = String.raw`(?:줘|주세요|주십시오|줄래(?:요)?|줄\s*수\s*(?:있어(?:요)?|있나요|있습니까)|주시겠어요|주실래요|주시겠습니까)`;
+const KOREAN_ACTION_REQUEST = new RegExp(
+  String.raw`(?:보여|열어|선택해|골라|클릭해|준비해|수락해|거절해|대체해|철회해|삭제해|적용해|확정해|저장해|시작해|재개해|실행해|이동해|전환해|활성화해|생성해|제출해|병합해|배포해|게시해)(?:\s*${KOREAN_ACTION_REQUEST_ENDING})?(?:요)?\s*$`,
+  "u",
+);
+
 const ACTION_SHAPED = [
-  /^(?:please\s+)?(?:open|show|take|select|choose|click|prepare|accept|reject|supersede|replace|retract|remove|apply|confirm|save|start|resume|run|execute|navigate|switch|activate|create|submit|merge|deploy|release|publish)\b/u,
-  /^(?:(?:can|could|would|will)\s+you\s+|please\s+)(?:open|show|take|select|choose|click|prepare|accept|reject|supersede|replace|retract|remove|apply|confirm|save|start|resume|run|execute|navigate|switch|activate|create|submit|merge|deploy|release|publish)\b/u,
-  /(?:해\s*줘|해주세요|해라|열어|보여|선택해|골라|클릭해|준비해|수락해|거절해|대체해|철회해|삭제해|적용해|확정해|저장해|시작해|재개해|실행해|이동해|전환해|활성화해|생성해|제출해|병합해|배포해|게시해)(?:요)?[?!.\s]*$/u,
-  /(?:열기|보기|선택|클릭|준비|수락|거절|대체|철회|삭제|적용|확정|저장|시작|재개|실행|이동|전환|활성화|생성|제출|병합|배포|게시)(?:해)?\s*(?:줘|주세요|주십시오)[?!.\s]*$/u,
+  new RegExp(String.raw`^(?:please\s+)?${ENGLISH_ACTION_REQUEST}`, "u"),
+  new RegExp(
+    String.raw`^(?:can|could|would|will)\s+you(?:\s+please)?\s+${ENGLISH_ACTION_REQUEST}`,
+    "u",
+  ),
+  new RegExp(
+    String.raw`^please\s+(?:can|could|would|will)\s+you\s+${ENGLISH_ACTION_REQUEST}`,
+    "u",
+  ),
+  new RegExp(
+    String.raw`^would\s+you\s+mind\s+${ENGLISH_ACTION_REQUEST_GERUND}`,
+    "u",
+  ),
+  new RegExp(
+    String.raw`^i(?:\s+d|\s+would)\s+like\s+you\s+to\s+${ENGLISH_ACTION_REQUEST}`,
+    "u",
+  ),
+  KOREAN_ACTION_REQUEST,
   /\b(?:decision|transition|start|resume|project|url|api|button|selector|command)\b.*\b(?:create|prepare|apply|confirm|execute|run|open|click|switch)\b/u,
 ] as const;
 
