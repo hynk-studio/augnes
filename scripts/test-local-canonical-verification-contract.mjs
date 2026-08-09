@@ -971,12 +971,16 @@ requireText(
   `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
   "canonical child Windows repository-root authorization is not forwarded",
 );
-for (const [pathName, timeout] of [
+for (const [pathName, timeout, occurrence] of [
+  ["scripts/test-repository-managed-delegation.ts", "300_000"],
+  ["scripts/test-local-project-verification-adapter.ts", "60_000", 0],
+  ["scripts/test-local-project-verification-adapter.ts", "120_000", 1],
   ["scripts/test-vnext-project-verify-lifecycle.ts", "120_000"],
   ["scripts/test-vnext-project-work-initialization.ts", "90_000"],
   ["scripts/test-portable-project-continuity.ts", "150_000"],
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
-  ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
+  ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "90_000"],
+  ["scripts/test-operator-execution-browser-fixture-v1.ts", "90_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],
   ["scripts/test-recovery-backup.mjs", "330_000"],
@@ -987,7 +991,7 @@ for (const [pathName, timeout] of [
   ["scripts/browser-validate-continuity-v1.mjs", "480_000"],
   ["scripts/browser-validate-cross-boundary-golden-v1.mjs", "360_000"],
 ]) {
-  assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
+  assertCanonicalChildTimeout(canonicalSuite, pathName, timeout, occurrence);
 }
 requireText(
   canonicalEnvironment,
@@ -1257,9 +1261,12 @@ function listFiles(relativeDirectory) {
   return files.sort();
 }
 
-function assertCanonicalChildTimeout(source, pathName, timeout) {
-  const invocation = `\"${pathName}\")`;
-  const invocationIndex = source.indexOf(invocation);
+function assertCanonicalChildTimeout(source, pathName, timeout, occurrence = 0) {
+  const invocation = `\"${pathName}\"`;
+  let invocationIndex = -1;
+  for (let index = 0; index <= occurrence; index += 1) {
+    invocationIndex = source.indexOf(invocation, invocationIndex + 1);
+  }
   assert.notEqual(invocationIndex, -1, `missing canonical child: ${pathName}`);
   const suiteBlockStart = source.lastIndexOf("\n    {", invocationIndex);
   const declaredBlockStart = source.lastIndexOf(" = {", invocationIndex);

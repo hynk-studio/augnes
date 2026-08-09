@@ -134,8 +134,9 @@ const suites = {
     {
       label: "operator browser fixture builder contract",
       ...rootNode("scripts/test-vnext-operator-browser-fixture-v0-1.ts"),
-      // The complete success and fail-closed contract measured 18.9s locally.
-      timeoutMs: 45_000,
+      // The complete success and fail-closed contract measured 47.887s on the
+      // exact Windows 11 x64 source lane and settled at 51.492s in the suite.
+      timeoutMs: 90_000,
     },
     {
       label: "project experience immutable Browser fixture contract",
@@ -155,7 +156,9 @@ const suites = {
     {
       label: "operator execution immutable Browser fixture profiles",
       ...rootNode("scripts/test-operator-execution-browser-fixture-v1.ts"),
-      timeoutMs: 30_000,
+      // All three immutable profiles measured 35.649s focused and settled at
+      // 37.821s in the exact Windows 11 x64 source unit lane.
+      timeoutMs: 90_000,
     },
     {
       label: "operator execution keyed result effect and finalization contract",
@@ -241,9 +244,9 @@ const suites = {
       label: "managed repository delegation contract",
       ...rootNode("scripts/test-repository-managed-delegation.ts"),
       // The full race, cancellation, replay, and lifecycle matrix measured
-      // 124.7s on the verified Windows 10 NTFS lane. Keep a bounded 180s owner
-      // timeout without retries.
-      timeoutMs: 180_000,
+      // 209.640s on the exact Windows 11 x64 source lane. Keep a bounded 300s
+      // owner timeout without retries.
+      timeoutMs: 300_000,
     },
     {
       label: "live Companion discovery and dynamic bridge-port contract",
@@ -258,8 +261,9 @@ const suites = {
     {
       label: "bounded local project-root verification adapter",
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
-      // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
-      timeoutMs: 30_000,
+      // Reduced incremental-bound, root-drift, and terminal-residue coverage
+      // settled naturally at 33.147s in the exact Windows 11 x64 unit lane.
+      timeoutMs: 60_000,
     },
     {
       label: "browser E2E timing and lifecycle contracts",
@@ -311,8 +315,8 @@ const suites = {
         "--sr3-lifecycle",
       ),
       // The complete real-adapter SR-1 -> SR-2 -> SR-3 lifecycle proof measured
-      // 50.63s before call-local validation deduplication; bound it at 75s.
-      timeoutMs: 75_000,
+      // 71.164s in the exact Windows 11 x64 integration lane.
+      timeoutMs: 120_000,
     },
     {
       id: "project-verify-operator-adapter",
