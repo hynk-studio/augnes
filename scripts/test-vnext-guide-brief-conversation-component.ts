@@ -99,6 +99,10 @@ assert.doesNotMatch(
 );
 assert.match(component, /setActionProposalWasModelAssisted\(true\)/);
 assert.match(component, /data-guidebrief-model-action-activate="true"/);
+assert.match(
+  component,
+  /!visibleAnswer\s*&&\s*!visibleInteractionPlan\s*&&\s*!visibleInteractionOutcome\s*&&\s*interpretationStatus\s*&&\s*!interactionBusy/,
+);
 assert.match(component, /Model-assisted match · action proposal/);
 assert.match(component, /await executeInteractionPlanV01\(visibleInteractionPlan\)/);
 assert.match(

@@ -600,7 +600,11 @@ export function GuideBriefConversation({
           modelAssisted={answerWasModelAssisted}
         />
       ) : null}
-      {!visibleAnswer && interpretationStatus && !interactionBusy ? (
+      {!visibleAnswer &&
+      !visibleInteractionPlan &&
+      !visibleInteractionOutcome &&
+      interpretationStatus &&
+      !interactionBusy ? (
         <InterpretationOutcome status={interpretationStatus} />
       ) : null}
       {!visibleAnswer && visibleInteractionOutcome ? (
