@@ -75,7 +75,16 @@ assert.match(conversation, /Ask or act/);
 assert.doesNotMatch(conversation, /data-augnes-primary-action/);
 assert.doesNotMatch(
   conversation,
-  /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bfetch\s*\(/,
+  /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b/,
+);
+assert.equal(
+  conversation.match(/fetch\s*\(/g)?.length,
+  1,
+  "PC6A permits only the one bounded same-origin interpretation request",
+);
+assert.match(
+  conversation,
+  /fetch\(\s*"\/api\/augnes\/guide-brief\/interpretation",\s*\{[\s\S]{0,160}method:\s*"POST"/,
 );
 
 assert.match(blankState, /surface\.open_current_action/);

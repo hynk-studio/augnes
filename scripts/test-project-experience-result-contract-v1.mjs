@@ -10,9 +10,9 @@ import {
 } from "./project-experience-result-contract-v1.mjs";
 
 const contract = loadProjectExperienceResultContractV1();
-assert.equal(contract.field_ids.length, 68);
-assert.equal(contract.marker_ids.length, 7);
-assert.equal(Object.keys(contract.value_contract_by_field).length, 68);
+assert.equal(contract.field_ids.length, 69);
+assert.equal(contract.marker_ids.length, 8);
+assert.equal(Object.keys(contract.value_contract_by_field).length, 69);
 
 const completionOwner = completedOwner();
 const successResult = buildValidResult(completionOwner);
@@ -21,6 +21,23 @@ assert.doesNotThrow(() =>
     result: successResult,
     contract,
     completion_owner: completionOwner,
+    functional_execution_succeeded: true,
+  }),
+);
+
+const realProviderOwner = completedOwner();
+const realProviderResult = buildValidResult(realProviderOwner);
+realProviderResult.validation_mode = "real_provider_acceptance";
+realProviderResult.provider_or_external_network_call = true;
+realProviderResult.guide_brief_real_provider_acceptance = {
+  provider_egress_started: 2,
+  provider_egress_completed: 2,
+};
+assert.doesNotThrow(() =>
+  assertProjectExperienceFinalSuccessV1({
+    result: realProviderResult,
+    contract,
+    completion_owner: realProviderOwner,
     functional_execution_succeeded: true,
   }),
 );
@@ -145,7 +162,9 @@ function buildValidResult(owner) {
     unexpected_request_failure_count: 0,
     credential_private_material_boundary: true,
     default_database_isolated: true,
+    validation_mode: "canonical_no_provider",
     provider_or_external_network_call: false,
+    guide_brief_real_provider_acceptance: null,
     semantic_proposal_created: false,
     review_decision_created: false,
     transition_created: false,

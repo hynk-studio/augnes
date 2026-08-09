@@ -188,6 +188,12 @@ const suites = {
     },
     {
       label:
+        "GuideBrief bounded model-assisted question interpretation contract",
+      ...rootNode("scripts/test-vnext-guide-brief-interpretation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
         "GuideBrief bounded Browser interaction registry, plan, and execution contract",
       ...rootNode("scripts/test-vnext-guide-brief-interaction.ts"),
       timeoutMs: 30_000,

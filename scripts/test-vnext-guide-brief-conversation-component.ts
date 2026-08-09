@@ -49,12 +49,28 @@ assert.match(component, /data-guidebrief-conversation-hydrated=\{String\(hydrate
 assert.match(component, /data-guidebrief-conversation-presentation=\{presentation\}/);
 assert.match(component, /setContext\(createGuideBriefConversationContextV01\(scopeKey\)\)/);
 assert.match(component, /Guidance and bounded Browser handoffs only\./);
+assert.match(component, /locally\s+configured model provider/);
+assert.match(component, /No\s+conversation transcript is stored/);
+assert.match(
+  component,
+  /fetch\(\s*"\/api\/augnes\/guide-brief\/interpretation"/,
+);
+assert.match(component, /cache:\s*"no-store"/);
+assert.match(component, /interpretationAbort\.current\?\.abort\(\)/);
+assert.match(component, /interactionBusy/);
+assert.match(component, /validateGuideBriefInterpretationPublicResultV01/);
+assert.match(component, /guideBriefConversationCanonicalQuestionV01/);
 assert.match(
   component,
   /data-augnes-visual-priority=\{SEMANTIC_VISUAL_PRIORITY\.supporting\}/,
 );
 assert.doesNotMatch(component, /localStorage|sessionStorage|indexedDB/);
-assert.doesNotMatch(component, /\bfetch\s*\(|provider|model call/i);
+assert.equal((component.match(/\bfetch\s*\(/gu) ?? []).length, 1);
+assert.doesNotMatch(
+  component,
+  /api\.openai\.com|OPENAI_API_KEY|Authorization|responses\.create|provider\s*\(/i,
+);
+assert.doesNotMatch(component, /provider[_ -]authored.*direct_answer/i);
 assert.doesNotMatch(component, /data-augnes-primary-action/);
 
 assert.match(css, /min-height:\s*44px/);

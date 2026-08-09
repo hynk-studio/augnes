@@ -170,7 +170,21 @@ export function assertProjectExperienceFinalSuccessV1({
   assert.equal(result.unexpected_request_failure_count, 0);
   assert.equal(result.credential_private_material_boundary, true);
   assert.equal(result.default_database_isolated, true);
-  assert.equal(result.provider_or_external_network_call, false);
+  if (result.validation_mode === "real_provider_acceptance") {
+    assert.equal(result.provider_or_external_network_call, true);
+    assert.equal(
+      result.guide_brief_real_provider_acceptance?.provider_egress_started,
+      2,
+    );
+    assert.equal(
+      result.guide_brief_real_provider_acceptance?.provider_egress_completed,
+      2,
+    );
+  } else {
+    assert.equal(result.validation_mode, "canonical_no_provider");
+    assert.equal(result.provider_or_external_network_call, false);
+    assert.equal(result.guide_brief_real_provider_acceptance, null);
+  }
   assert.equal(result.semantic_proposal_created, false);
   assert.equal(result.review_decision_created, false);
   assert.equal(result.transition_created, false);

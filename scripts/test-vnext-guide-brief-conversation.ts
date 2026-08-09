@@ -278,6 +278,7 @@ function guide(overrides: {
       active_project_id: overrides.active_project_id === undefined
         ? PROJECT_A
         : overrides.active_project_id,
+      active_selection_revision: 7,
       root_resolution: "available",
     },
     source_status: overrides.source_status ?? "live_current_project",

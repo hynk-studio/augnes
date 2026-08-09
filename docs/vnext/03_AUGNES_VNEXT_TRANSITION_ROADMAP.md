@@ -418,12 +418,12 @@ reuses the existing project-scoped root-rebind decision and atomic rebind
 transaction; it preserves the project identity and stored history and creates
 no second recovery or approval authority.
 
-## Current
-
-### CUX8R source-blind first-work activation loop
+### CUX8R source-blind first-work activation loop — Completed
 
 [Issue #130](https://github.com/hynk-studio/augnes-perspective-lab/issues/130)
-defines CUX8R. While its authorized Draft outcome PR is open, CUX8R is Current.
+and [PR #131](https://github.com/hynk-studio/augnes-perspective-lab/pull/131)
+define the completed CUX8R slice, merged as
+`50c94b30d28a207e2046bb7140e3859c79a21e66`.
 The activation work froze the baseline blocker and a distinct intermediate-head
 blocker before diagnosing each product-owned Companion availability failure.
 The bounded correction
@@ -433,20 +433,42 @@ preflight. A fresh real model-mediated replay at the corrected head completed
 one connected project, one revised first work, one Browser-confirmed Start, one
 managed run, one result, one RunReceipt, and one proposal ready for human
 review. It stopped before ReviewDecision, Transition, or work closure. No
-execution envelope, protocol, or semantic authority changed. CUX8R becomes
-Completed only when its outcome PR merges.
+execution envelope, protocol, or semantic authority changed.
+
+## Current
+
+### PC6A bounded model-assisted GuideBrief question interpretation
+
+[Issue #133](https://github.com/hynk-studio/augnes-perspective-lab/issues/133)
+is the current first bounded slice of the
+[PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
+while its authorized Draft PR remains open. PC6A keeps the deterministic PC4
+and PC5 classifier first. Only one otherwise unresolved, eligible read-only
+Korean or English question about the exact active current work may use one
+bounded model call to select one ephemeral token for one currently available
+PC4 question. The token is untrusted and admitted only after exact local scope,
+selection-revision, mounted-host, source-material, and candidate-set checks.
+The final answer remains the existing deterministic PC4 answer.
+
+PC6A adds no model-authored answer, PC5 action interpretation, action proposal,
+Decision, Transition, project mutation, transcript, provider memory, or
+provider-specific product concept. PC6 remains incomplete after PC6A, and
+model-routed PC5 actions require separate explicit authorization.
 
 ## Next separately authorized work
 
-CDX2B3B is the separately authorized future Windows managed-delegation runtime
-enablement phase. It may begin only after CDX2B3A has deciding Windows identity,
-attachment, source-runtime, and any claimed package evidence. CDX2B3A does not
-change the CDX2B2B Windows Start or CDX2B4B Windows Resume gates.
+CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
+remains a separate open Windows managed-delegation runtime enablement lane and
+is not modified by PC6A. It may begin only after CDX2B3A has deciding Windows
+identity, attachment, source-runtime, and any claimed package evidence.
+CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
+gates.
 
-PC6, C9, current-session attachment, automatic Resume after controller loss or
-Companion startup, Linux product rollout, remote nodes, long-horizon control,
-continuous policy execution, and multi-agent orchestration remain later and
-separate.
+The remaining PC6 slices, model-routed PC5 actions, C9, current-session
+attachment, automatic Resume after controller loss or Companion startup,
+Linux product rollout, remote nodes, long-horizon control, continuous policy
+execution, and multi-agent orchestration remain later, separately unauthorized,
+and separate.
 
 ## Integrated resume lifecycle
 
