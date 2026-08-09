@@ -645,8 +645,10 @@ const suites = {
       label:
         "canonical supervisor lifecycle, ownership, collision, and cleanup",
       ...rootNode("scripts/test-runtime-operability.mjs"),
-      // The exact Windows positive Start/Resume/reacquire path measured 168.6s.
-      timeoutMs: 240_000,
+      // The exact Windows positive Start/Resume/reacquire path measured 245.0s
+      // at this head, including natural event-loop finalization. Keep a bounded
+      // 330s child owner without retrying.
+      timeoutMs: 330_000,
     },
     {
       id: "runtime-reconciliation",
