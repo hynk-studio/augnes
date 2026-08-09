@@ -62,6 +62,7 @@ import { createCanonicalRepositoryDelegationTestAdapterV01 } from "../lib/vnext/
 import {
   admitRepositoryRunResumeCheckpointV01,
   readRepositoryRunResumeEligibilityV01,
+  RepositoryRunResumeErrorV01,
 } from "../lib/vnext/repository-execution/repository-run-resume";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -128,8 +129,13 @@ async function main(): Promise<void> {
         status: "pass",
         contract: "cdx2b3b_windows_managed_delegation.v0.1",
         windows_11_x64_source_start_and_resume: true,
+        windows_11_x64_source_resume_eligibility: "resume_ready",
         windows_packaged_runtime_status: "unsupported_no_run",
         windows_10_status: "unsupported_no_run",
+        windows_arm64_resume_status: "unsupported_no_effect",
+        linux_resume_status: "unsupported_no_effect",
+        unsupported_resume_reads_zero_effects: true,
+        unsupported_checkpoint_admission_refused: true,
       }, null, 2));
       return;
     }
@@ -3825,6 +3831,158 @@ async function assertWindowsManagedDelegationV01(
     assert.equal(started.status, "accepted", JSON.stringify(started));
     assert.equal(startInvocations, 1);
     await waitForWindowsManagedCheckpointCountV01(db, started.run_id, 4);
+
+    const readWindowsEligibilityV01 = (
+      dependencies: Parameters<
+        typeof readRepositoryRunResumeEligibilityV01
+      >[2],
+    ) => readRepositoryRunResumeEligibilityV01(db, {
+      config,
+      generated_at: "2026-08-04T09:00:19.000Z",
+    }, {
+      ...dependencies,
+      read_controller: (exactConfig, runId) =>
+        resumedService.readRepositoryControllerObservationV01(
+          exactConfig,
+          runId,
+        ),
+      read_capability: () => resumedService.readCapabilityContractV01(),
+    });
+    const sourceReady = await readWindowsEligibilityV01(sourceDependencies);
+    assert.equal(sourceReady.status, "resume_ready", JSON.stringify(sourceReady));
+
+    const exactCheckpoint = listRepositoryRunResumeCheckpointsV01(db, {
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      run_id: started.run_id,
+    }).at(-1)!;
+    const exactLifecyclePayload = JSON.parse(db.prepare(
+      `SELECT payload_json
+         FROM autonomy_run_events
+        WHERE run_id = ? AND rowid = ?`,
+    ).pluck().get(
+      started.run_id,
+      exactCheckpoint.effect_ledger_high_water_mark,
+    ) as string) as { event_id: string };
+    let unsupportedPhysicalInspections = 0;
+    const packagedDependencies = {
+      ...sourceDependencies,
+      distribution_mode: "packaged",
+      windows_physical_identity: async (candidate: string) => {
+        unsupportedPhysicalInspections += 1;
+        return sourceDependencies.windows_physical_identity(candidate);
+      },
+    };
+    const beforeUnsupportedReads = {
+      total_changes: db.prepare("SELECT total_changes()").pluck().get(),
+      run: readAutonomyRunLedgerRecord(started.run_id, { db }),
+      checkpoints: listRepositoryRunResumeCheckpointsV01(db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        run_id: started.run_id,
+      }),
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      attempts: count(db, "vnext_repository_managed_resume_attempts"),
+      runtime_claims: count(db, "vnext_repository_managed_resume_runtime_claims"),
+      projects: count(db, "vnext_project_identities"),
+      records: count(db, "vnext_core_records"),
+      repository_status: execFileSync(
+        "git",
+        ["-C", fixture.root, "status", "--porcelain=v1"],
+        { encoding: "utf8" },
+      ),
+      start_invocations: startInvocations,
+      resume_invocations: resumeInvocations,
+    };
+    const unsupportedCases = [
+      {
+        dependencies: packagedDependencies,
+        gap: "repository_managed_delegation_windows_source_runtime_required",
+      },
+      {
+        dependencies: { ...sourceDependencies, windows_version: "10.0.19045" },
+        gap: "repository_managed_delegation_windows_version_unsupported",
+      },
+      {
+        dependencies: { ...sourceDependencies, architecture: "arm64" as const },
+        gap: "repository_managed_delegation_windows_architecture_unsupported",
+      },
+      {
+        dependencies: { ...sourceDependencies, platform: "linux" as const },
+        gap: "repository_managed_delegation_platform_unsupported",
+      },
+      {
+        dependencies: { ...sourceDependencies, platform: "darwin" as const },
+        gap: "repository_resume_execution_platform_mismatch",
+      },
+    ];
+    for (const candidate of unsupportedCases) {
+      const eligibility = await readWindowsEligibilityV01(
+        candidate.dependencies,
+      );
+      assert.equal(eligibility.status, "unsupported", JSON.stringify(eligibility));
+      assert.deepEqual(eligibility.gaps, [candidate.gap]);
+      assert.equal(
+        Object.values(eligibility.authority).every((allowed) => !allowed),
+        true,
+      );
+    }
+    await assert.rejects(
+      admitRepositoryRunResumeCheckpointV01(db, {
+        config,
+        run_id: started.run_id,
+        lifecycle_event_id: exactLifecyclePayload.event_id,
+        controller_generation: exactCheckpoint.controller_generation,
+        runtime_instance_fingerprint:
+          exactCheckpoint.runtime_instance_fingerprint,
+        runtime_generation_fingerprint:
+          exactCheckpoint.runtime_generation_fingerprint,
+        expected_run_control_revision: exactCheckpoint.run_control_revision,
+        expected_step_control_revision: exactCheckpoint.step_control_revision,
+        operation_ref: exactCheckpoint.operation_ref,
+        operation_class: exactCheckpoint.operation_class,
+        checkpoint_phase: exactCheckpoint.checkpoint_phase,
+        operation_certainty: exactCheckpoint.operation_certainty as
+          | "not_started"
+          | "completed"
+          | "failed"
+          | "cancelled",
+        observed_at: exactCheckpoint.observed_at,
+      }, {
+        ...packagedDependencies,
+        read_capability: () => resumedService.readCapabilityContractV01(),
+      }),
+      (error: unknown) =>
+        error instanceof RepositoryRunResumeErrorV01 &&
+        error.code ===
+          "repository_managed_delegation_windows_source_runtime_required",
+    );
+    assert.equal(unsupportedPhysicalInspections, 0);
+    assert.deepEqual({
+      total_changes: db.prepare("SELECT total_changes()").pluck().get(),
+      run: readAutonomyRunLedgerRecord(started.run_id, { db }),
+      checkpoints: listRepositoryRunResumeCheckpointsV01(db, {
+        workspace_id: fixture.workspace_id,
+        project_id: fixture.project_id,
+        run_id: started.run_id,
+      }),
+      runs: count(db, "autonomy_runs"),
+      attachments: count(db, "vnext_repository_execution_attachments"),
+      decisions: count(db, "vnext_repository_execution_decision_requests"),
+      attempts: count(db, "vnext_repository_managed_resume_attempts"),
+      runtime_claims: count(db, "vnext_repository_managed_resume_runtime_claims"),
+      projects: count(db, "vnext_project_identities"),
+      records: count(db, "vnext_core_records"),
+      repository_status: execFileSync(
+        "git",
+        ["-C", fixture.root, "status", "--porcelain=v1"],
+        { encoding: "utf8" },
+      ),
+      start_invocations: startInvocations,
+      resume_invocations: resumeInvocations,
+    }, beforeUnsupportedReads);
 
     const resumePreparation = await prepareRepositoryManagedResumeV01(
       db,

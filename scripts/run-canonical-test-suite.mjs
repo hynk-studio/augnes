@@ -295,9 +295,10 @@ const suites = {
       label:
         "project Verify lifecycle, exact Transition, reconciliation, and lineage",
       ...rootNode("scripts/test-vnext-project-verify-lifecycle.ts"),
-      // Current-head exact lifecycle, rollback, bounded-read, source-chain, and
-      // restore coverage measured 71.2s on the exact Windows source lane.
-      timeoutMs: 90_000,
+      // Exact Windows Canonical integration now exits naturally at 48.518s;
+      // the prior contended run emitted pass and settled at 92.025s. Keep one
+      // platform-neutral bounded margin for cleanup and scheduler contention.
+      timeoutMs: 120_000,
     },
     {
       id: "project-verify-production-lifecycle",
@@ -375,7 +376,9 @@ const suites = {
       label:
         "authenticated first-work initialization, packet lineage, and separate native-host start",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts"),
-      timeoutMs: 30_000,
+      // Exact Windows Canonical integration now exits naturally at 19.419s;
+      // the prior contended run emitted pass and settled at 31.799s.
+      timeoutMs: 45_000,
     },
     {
       id: "blank-state",

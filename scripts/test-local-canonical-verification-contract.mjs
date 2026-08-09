@@ -36,6 +36,9 @@ const canonicalRunner = readRepositoryFile(
 const canonicalEnvironment = readRepositoryFile(
   "scripts/canonical-test-environment.mjs",
 );
+const isolatedBuild = readRepositoryFile(
+  "scripts/build-with-isolated-db.mjs",
+);
 const canonicalRunnerContract = readRepositoryFile(
   "scripts/test-canonical-child-runner.mjs",
 );
@@ -969,6 +972,8 @@ requireText(
   "canonical child Windows repository-root authorization is not forwarded",
 );
 for (const [pathName, timeout] of [
+  ["scripts/test-vnext-project-verify-lifecycle.ts", "120_000"],
+  ["scripts/test-vnext-project-work-initialization.ts", "45_000"],
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
@@ -983,6 +988,16 @@ for (const [pathName, timeout] of [
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
 }
+requireText(
+  canonicalEnvironment,
+  '"ProgramData"',
+  "canonical child must forward the standard Windows toolchain catalog location",
+);
+requireText(
+  isolatedBuild,
+  "const NEXT_BUILD_STEP_TIMEOUT_MS = 180_000",
+  "isolated Next build must retain its measured bounded Windows lifecycle owner",
+);
 
 for (const fragment of [
   `DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = 300_000`,

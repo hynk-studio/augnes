@@ -30,11 +30,13 @@ import {
   inspectRepositoryWorktreeV01,
   type ProtectedUntrackedPathsV01,
 } from "@/lib/vnext/repository-execution/worktree-observation";
+import {
+  buildRepositoryExecutionEnvelopeV01,
+} from "@/lib/vnext/repository-execution/repository-execution-envelope";
 import type { LiveNativeHostRunServiceV01 } from "@/lib/vnext/runtime/live-native-host-run-service";
 import type { NativeHostRepositoryDelegationContextV01 } from "@/types/vnext/native-host-adapter";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import {
-  REPOSITORY_EXECUTION_ENVELOPE_VERSION_V01,
   REPOSITORY_MANAGED_DELEGATION_START_VERSION_V01,
   type RepositoryExecutionEnvelopeV01,
   type RepositoryManagedDelegationAuthorityV01,
@@ -51,10 +53,6 @@ import type {
 } from "@/types/vnext/repository-execution";
 
 const START_DECISION_MAX_AGE_MS = 15 * 60 * 1_000;
-const MAX_CHANGED_FILES = 128;
-const MAX_ARTIFACTS = 128;
-const MAX_COMMANDS = 128;
-const MAX_CHECKS = 128;
 
 export class RepositoryManagedDelegationErrorV01 extends Error {
   constructor(readonly code: string, readonly status = 409) {
@@ -516,7 +514,7 @@ async function observeStartMaterialV01(
   ) {
     return blocked("repository_delegation_attachment_stale");
   }
-  const envelope = buildExecutionEnvelopeV01(
+  const envelope = buildRepositoryExecutionEnvelopeV01(
     platformCapability.platform,
     capability,
     protectedPaths.paths_fingerprint,
@@ -570,7 +568,7 @@ async function assertLaunchGateV01(
     dependencies.inspect_protected_untracked_paths ?? inspectProtectedUntrackedPathsV01
   )(root);
   const capability = service.readCapabilityContractV01();
-  const envelope = buildExecutionEnvelopeV01(
+  const envelope = buildRepositoryExecutionEnvelopeV01(
     platformCapability.platform,
     capability,
     protectedPaths.paths_fingerprint,
@@ -614,60 +612,6 @@ async function assertLaunchGateV01(
   ) {
     throw new RepositoryManagedDelegationErrorV01("repository_delegation_launch_gate_changed");
   }
-}
-
-function buildExecutionEnvelopeV01(
-  platform: RepositoryExecutionEnvelopeV01["platform"],
-  capability: ReturnType<LiveNativeHostRunServiceV01["readCapabilityContractV01"]>,
-  protectedUntrackedPathsFingerprint: string,
-): RepositoryExecutionEnvelopeV01 {
-  const material = {
-    envelope_version: REPOSITORY_EXECUTION_ENVELOPE_VERSION_V01,
-    platform,
-    run_mode: "repository_attachment" as const,
-    filesystem_scope: "exact_repository_root" as const,
-    network_scope: "provider_egress_only" as const,
-    provider_egress: capability.provider_egress,
-    timeout_ms: capability.timeout_ms,
-    stop_settle_timeout_ms: capability.stop_settle_timeout_ms,
-    budgets: {
-      max_changed_files: MAX_CHANGED_FILES,
-      max_artifacts: MAX_ARTIFACTS,
-      max_commands: MAX_COMMANDS,
-      max_checks: MAX_CHECKS,
-      max_correction_attempts: 1 as const,
-    },
-    allowed_operation_categories: [
-      "repository_file_read",
-      "repository_file_change_inside_exact_root",
-      "bounded_local_repository_command",
-      "test_typecheck_lint_format_build",
-      "local_git_inspection_branch_and_commit",
-      "bounded_correction_attempt",
-    ],
-    forbidden_operation_categories: [
-      "filesystem_outside_exact_repository_root",
-      "arbitrary_project_command_network_access",
-      "dependency_download_or_installation",
-      "git_push_or_remote_branch_creation",
-      "github_api_pull_request_merge_or_settings",
-      "release_deployment_publication_or_external_posting",
-      "ambient_browser_companion_provider_database_runtime_or_os_credential_access",
-      "outside_root_secret_material_access",
-      "destructive_preexisting_untracked_data_mutation",
-      "semantic_approval_decision_transition_or_work_closure",
-      "another_attachment_run_project_or_automation_cycle",
-    ],
-    protected_untracked_paths_fingerprint: protectedUntrackedPathsFingerprint,
-    adapter_version: capability.adapter_version,
-    capability_version: capability.capability_version,
-  };
-  return {
-    ...material,
-    envelope_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(material),
-    ),
-  };
 }
 
 function buildExpectedStateV01(

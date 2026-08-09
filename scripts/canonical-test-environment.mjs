@@ -13,6 +13,10 @@ export const CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "WINDIR",
   "COMSPEC",
   "PATHEXT",
+  // vswhere reads its installed-instance catalog beneath this standard,
+  // non-secret Windows location. Developer-shell INCLUDE/LIB/PATH additions
+  // remain excluded and the helper constructs those values from discovered SDKs.
+  "ProgramData",
   "LANG",
   "LANGUAGE",
   "LC_ALL",
