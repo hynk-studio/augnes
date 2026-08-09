@@ -644,6 +644,7 @@ async function main() {
       `document.querySelector('[data-blank-state-primary-action="choose_folder"]')?.textContent?.includes('Waiting for folder picker') === true && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
       "pending picker exposes path fallback",
     );
+    await waitForFolderPickerSequenceIndex(2);
     await clickButtonByText("Enter the folder path instead");
     await waitForCondition(
       `document.querySelector('input[name="local-project-declared-path"]') === document.activeElement`,
