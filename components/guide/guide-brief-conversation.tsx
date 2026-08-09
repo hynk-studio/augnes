@@ -20,9 +20,16 @@ import {
   buildGuideBriefConversationPlanV01,
   buildGuideBriefConversationScopeKeyV01,
   createGuideBriefConversationContextV01,
+  guideBriefConversationCanonicalQuestionV01,
+  listAvailableGuideBriefConversationIntentsV01,
   scopeGuideBriefConversationContextV01,
   selectVisibleGuideBriefConversationAnswerV01,
 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
+import {
+  buildGuideBriefInterpretationCandidateSetFingerprintV01,
+  isGuideBriefModelInterpretationEligibleV01,
+  validateGuideBriefInterpretationPublicResultV01,
+} from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import {
   GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01,
@@ -32,6 +39,10 @@ import {
   type GuideBriefConversationPlanV01,
 } from "@/types/vnext/guide-brief-conversation";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
+import {
+  GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01,
+  type GuideBriefInterpretationPublicStatusV01,
+} from "@/types/vnext/guide-brief-interpretation";
 import type {
   BrowserActionCapabilityV01,
   GuideBriefInteractionAdapterV01,
@@ -112,6 +123,17 @@ export function GuideBriefConversation({
       }),
     [sourceInput],
   );
+  const availableIntents = useMemo(
+    () => listAvailableGuideBriefConversationIntentsV01(sourceInput),
+    [sourceInput],
+  );
+  const candidateSetFingerprint = useMemo(
+    () =>
+      buildGuideBriefInterpretationCandidateSetFingerprintV01(
+        availableIntents,
+      ),
+    [availableIntents],
+  );
   const capabilitySnapshot = useMemo(
     () =>
       interaction
@@ -140,9 +162,17 @@ export function GuideBriefConversation({
   const [interactionOutcome, setInteractionOutcome] =
     useState<GuideBriefInteractionOutcomeV01 | null>(null);
   const [interactionBusy, setInteractionBusy] = useState(false);
+  const [interpretationStatus, setInterpretationStatus] =
+    useState<GuideBriefInterpretationPublicStatusV01 | null>(null);
+  const [answerWasModelAssisted, setAnswerWasModelAssisted] =
+    useState(false);
   const [hydrated, setHydrated] = useState(false);
   const requestSequence = useRef(0);
   const mountedHost = useRef(false);
+  const interpretationAbort = useRef<AbortController | null>(null);
+  const mountedHostGeneration = useRef(
+    `guidebrief-host:${crypto.randomUUID()}`,
+  );
   const executionLedger = useRef(
     createGuideBriefInteractionExecutionLedgerV01(),
   );
@@ -150,11 +180,17 @@ export function GuideBriefConversation({
     scope_key: scopeKey,
     capability_snapshot_fingerprint:
       capabilitySnapshot?.fingerprint ?? "conversation-only",
+    candidate_set_fingerprint: candidateSetFingerprint,
+    active_selection_revision: guide.identity.active_selection_revision,
+    mounted_host_generation: mountedHostGeneration.current,
   });
   currentBinding.current = {
     scope_key: scopeKey,
     capability_snapshot_fingerprint:
       capabilitySnapshot?.fingerprint ?? "conversation-only",
+    candidate_set_fingerprint: candidateSetFingerprint,
+    active_selection_revision: guide.identity.active_selection_revision,
+    mounted_host_generation: mountedHostGeneration.current,
   };
   const interactionIdentity = `${scopeKey}\u0000${
     capabilitySnapshot?.fingerprint ?? "conversation-only"
@@ -165,13 +201,21 @@ export function GuideBriefConversation({
     setHydrated(true);
     return () => {
       mountedHost.current = false;
+      interpretationAbort.current?.abort();
+      interpretationAbort.current = null;
     };
   }, []);
   useEffect(() => {
+    requestSequence.current += 1;
+    interpretationAbort.current?.abort();
+    interpretationAbort.current = null;
     setQuestion("");
     setAnswer(null);
+    setAnswerWasModelAssisted(false);
+    setInterpretationStatus(null);
+    setInteractionBusy(false);
     setContext(createGuideBriefConversationContextV01(scopeKey));
-  }, [scopeKey]);
+  }, [candidateSetFingerprint, scopeKey]);
   useEffect(() => {
     setInteractionPlan(null);
     setInteractionOutcome(null);
@@ -215,6 +259,8 @@ export function GuideBriefConversation({
     setQuestion(trimmed);
     setInteractionPlan(null);
     setInteractionOutcome(null);
+    setInterpretationStatus(null);
+    setAnswerWasModelAssisted(false);
     setAnswer(plan);
     setContext(
       appendGuideBriefConversationTurnV01(currentContext, plan),
@@ -226,37 +272,60 @@ export function GuideBriefConversation({
     if (
       !trimmed ||
       interactionBusy ||
+      interpretationAbort.current !== null ||
       executionLedger.current.in_flight_plan_id !== null
     ) {
+      return;
+    }
+    requestSequence.current += 1;
+    const requestId = requestSequence.current;
+    const currentContext = scopeGuideBriefConversationContextV01(
+      context,
+      scopeKey,
+    );
+    const request = buildGuideBriefInteractionRequestV01({
+      request_id: `local-request-${requestId}`,
+      raw_utterance: trimmed,
+      scope_key: scopeKey,
+      capability_snapshot_fingerprint:
+        capabilitySnapshot?.fingerprint ?? "conversation-only",
+      previous_turn_anchor: visibleAnswer?.answer_anchor ?? null,
+      conversation_context: currentContext,
+    });
+    setQuestion(trimmed);
+    setInterpretationStatus(null);
+    if (request.classification === "question") {
+      ask(trimmed);
+      return;
+    }
+    if (
+      request.classification === "unsupported" &&
+      isGuideBriefModelInterpretationEligibleV01({
+        request,
+        project_context: guide.identity.project_context,
+        active_project_id: guide.identity.active_project_id,
+        project_id: guide.identity.project_id,
+        active_selection_revision: guide.identity.active_selection_revision,
+        available_intents: availableIntents,
+      })
+    ) {
+      await interpretQuestionV01({
+        requestId,
+        utterance: trimmed,
+        currentContext,
+      });
       return;
     }
     if (!interaction || !capabilitySnapshot) {
       ask(trimmed);
       return;
     }
-    requestSequence.current += 1;
-    const currentContext = scopeGuideBriefConversationContextV01(
-      context,
-      scopeKey,
-    );
-    const request = buildGuideBriefInteractionRequestV01({
-      request_id: `local-request-${requestSequence.current}`,
-      raw_utterance: trimmed,
-      scope_key: scopeKey,
-      capability_snapshot_fingerprint: capabilitySnapshot.fingerprint,
-      previous_turn_anchor: visibleAnswer?.answer_anchor ?? null,
-      conversation_context: currentContext,
-    });
     const plan = compileGuideBriefInteractionPlanV01({
       request,
       snapshot: capabilitySnapshot,
     });
-    setQuestion(trimmed);
-    if (plan.disposition === "answer_only") {
-      ask(trimmed);
-      return;
-    }
     setAnswer(null);
+    setAnswerWasModelAssisted(false);
     setInteractionOutcome(null);
     setInteractionPlan(plan);
     if (plan.status !== "resolved") return;
@@ -279,6 +348,99 @@ export function GuideBriefConversation({
     }
   }
 
+  async function interpretQuestionV01(input: {
+    requestId: number;
+    utterance: string;
+    currentContext: GuideBriefConversationContextV01;
+  }) {
+    const workspaceId = guide.identity.workspace_id;
+    const projectId = guide.identity.project_id;
+    const selectionRevision = guide.identity.active_selection_revision;
+    if (!workspaceId || !projectId || selectionRevision === null) {
+      setInterpretationStatus("unavailable");
+      return;
+    }
+    const binding = { ...currentBinding.current };
+    const controller = new AbortController();
+    interpretationAbort.current = controller;
+    setAnswer(null);
+    setAnswerWasModelAssisted(false);
+    setInteractionPlan(null);
+    setInteractionOutcome(null);
+    setInterpretationStatus("unavailable");
+    setInteractionBusy(true);
+    try {
+      const response = await fetch(
+        "/api/augnes/guide-brief/interpretation",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          cache: "no-store",
+          signal: controller.signal,
+          body: JSON.stringify({
+            request_version: GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01,
+            utterance: input.utterance,
+            workspace_id: workspaceId,
+            project_id: projectId,
+            expected_active_selection_revision: selectionRevision,
+            pc4_scope_key: scopeKey,
+            guide_material_fingerprint:
+              supportPlan.scope.guide_source_fingerprint,
+            candidate_set_fingerprint: candidateSetFingerprint,
+            available_intents: availableIntents,
+            mounted_host_generation: mountedHostGeneration.current,
+          }),
+        },
+      );
+      const result = validateGuideBriefInterpretationPublicResultV01(
+        await response.json(),
+      );
+      if (
+        !mountedHost.current ||
+        input.requestId !== requestSequence.current ||
+        !sameInterpretationBindingV01(binding, currentBinding.current)
+      ) {
+        return;
+      }
+      setInterpretationStatus(result.status);
+      if (result.status === "resolved" && result.intent) {
+        const plan = buildGuideBriefConversationPlanV01({
+          ...sourceInput,
+          question: guideBriefConversationCanonicalQuestionV01(result.intent),
+          conversation_context: input.currentContext,
+        });
+        if (plan.routing.intent !== result.intent) {
+          setInterpretationStatus("invalid");
+          return;
+        }
+        setAnswer(plan);
+        setAnswerWasModelAssisted(true);
+        setContext(
+          appendGuideBriefConversationTurnV01(input.currentContext, plan),
+        );
+      }
+    } catch {
+      if (
+        !controller.signal.aborted &&
+        mountedHost.current &&
+        input.requestId === requestSequence.current &&
+        sameInterpretationBindingV01(binding, currentBinding.current)
+      ) {
+        setInterpretationStatus("unavailable");
+      }
+    } finally {
+      if (interpretationAbort.current === controller) {
+        interpretationAbort.current = null;
+      }
+      if (
+        mountedHost.current &&
+        input.requestId === requestSequence.current
+      ) {
+        setInteractionBusy(false);
+      }
+    }
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void submitUtterance(question);
@@ -289,7 +451,11 @@ export function GuideBriefConversation({
       <p className={styles.intro}>
         Ask one bounded question or request one currently supported Browser
         interaction. Explanations and interactions use the same exact
-        current-work projections and existing action owners.
+        current-work projections and existing action owners. If wording is not
+        recognized, one read-only question may be sent to your locally
+        configured model provider only to match an available question. No
+        conversation transcript is stored, and the answer still comes from
+        current Augnes sources.
       </p>
       <form className={styles.form} onSubmit={submit}>
         <label htmlFor={`guidebrief-question-${surface}`}>
@@ -310,7 +476,11 @@ export function GuideBriefConversation({
             type="submit"
             disabled={!question.trim() || interactionBusy}
           >
-            {interactionBusy ? "Working…" : "Ask or act"}
+            {interactionBusy
+              ? interpretationStatus === "unavailable"
+                ? "Interpreting…"
+                : "Working…"
+              : "Ask or act"}
           </button>
         </div>
       </form>
@@ -371,7 +541,13 @@ export function GuideBriefConversation({
       ) : null}
 
       {visibleAnswer ? (
-        <ConversationAnswer plan={visibleAnswer} />
+        <ConversationAnswer
+          plan={visibleAnswer}
+          modelAssisted={answerWasModelAssisted}
+        />
+      ) : null}
+      {!visibleAnswer && interpretationStatus && !interactionBusy ? (
+        <InterpretationOutcome status={interpretationStatus} />
       ) : null}
       {!visibleAnswer && visibleInteractionOutcome ? (
         <InteractionOutcome outcome={visibleInteractionOutcome} />
@@ -404,6 +580,13 @@ export function GuideBriefConversation({
         capabilitySnapshot ? "bounded-browser-v0.1" : "unavailable"
       }
       data-guidebrief-interaction-in-flight={String(interactionBusy)}
+      data-guidebrief-interpretation={
+        answerWasModelAssisted
+          ? "resolved"
+          : interactionBusy && interpretationStatus === "unavailable"
+            ? "pending"
+            : interpretationStatus ?? "idle"
+      }
       data-guidebrief-conversation-hydrated={String(hydrated)}
       data-guidebrief-conversation-presentation={presentation}
       data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.supporting}
@@ -492,8 +675,10 @@ function InteractionOutcome({
 
 function ConversationAnswer({
   plan,
+  modelAssisted,
 }: {
   plan: GuideBriefConversationPlanV01;
+  modelAssisted: boolean;
 }) {
   const sections: Array<{
     key: keyof GuideBriefConversationPlanV01["sections"];
@@ -519,10 +704,13 @@ function ConversationAnswer({
       data-guidebrief-conversation-context-reset={String(
         plan.context_reset,
       )}
+      data-guidebrief-answer-model-assisted={String(modelAssisted)}
     >
       <div className={styles.answerHeader}>
         <span>
-          {plan.availability === "available"
+          {modelAssisted
+            ? "Model-assisted match · current answer"
+            : plan.availability === "available"
             ? "Current answer"
             : plan.availability === "partial"
               ? "Partial answer"
@@ -562,5 +750,63 @@ function ConversationAnswer({
         </p>
       ) : null}
     </article>
+  );
+}
+
+function InterpretationOutcome({
+  status,
+}: {
+  status: GuideBriefInterpretationPublicStatusV01;
+}) {
+  const copy =
+    status === "stale"
+      ? "Current work changed while interpreting. Ask again from the refreshed view."
+      : status === "unsupported"
+        ? "That wording does not map to one supported current-work question. Choose an available question below."
+        : status === "ambiguous"
+          ? "That could not be matched to one current question. Choose one available question below."
+          : status === "timed_out"
+            ? "Interpretation timed out. The available deterministic questions remain usable."
+            : status === "invalid"
+              ? "The interpretation response was not usable. No answer or action was taken."
+              : "Interpretation is unavailable. The available deterministic questions remain usable.";
+  return (
+    <article
+      className={styles.answer}
+      aria-live="polite"
+      data-guidebrief-interpretation-outcome={status}
+      data-guidebrief-interaction-durable-state-changed="false"
+    >
+      <div className={styles.answerHeader}>
+        <span>Interpretation unavailable</span>
+        <strong>{copy}</strong>
+      </div>
+    </article>
+  );
+}
+
+function sameInterpretationBindingV01(
+  left: {
+    scope_key: string;
+    capability_snapshot_fingerprint: string;
+    candidate_set_fingerprint: string;
+    active_selection_revision: number | null;
+    mounted_host_generation: string;
+  },
+  right: {
+    scope_key: string;
+    capability_snapshot_fingerprint: string;
+    candidate_set_fingerprint: string;
+    active_selection_revision: number | null;
+    mounted_host_generation: string;
+  },
+) {
+  return (
+    left.scope_key === right.scope_key &&
+    left.capability_snapshot_fingerprint ===
+      right.capability_snapshot_fingerprint &&
+    left.candidate_set_fingerprint === right.candidate_set_fingerprint &&
+    left.active_selection_revision === right.active_selection_revision &&
+    left.mounted_host_generation === right.mounted_host_generation
   );
 }

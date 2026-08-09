@@ -8,6 +8,7 @@ import {
   GUIDE_BRIEF_CONVERSATION_MAX_SUGGESTIONS_V01,
   GUIDE_BRIEF_CONVERSATION_MAX_TURNS_V01,
   GUIDE_BRIEF_CONVERSATION_PLAN_VERSION_V01,
+  GUIDE_BRIEF_CONVERSATION_INTENTS_V01,
   type GuideBriefConversationAnswerAnchorV01,
   type GuideBriefConversationAvailabilityV01,
   type GuideBriefConversationContextV01,
@@ -29,17 +30,7 @@ import type {
 const MAX_PUBLIC_TEXT = 360;
 
 const INTENT_ORDER: GuideBriefConversationIntentV01[] = [
-  "current_situation",
-  "meaningful_change",
-  "human_attention_reason",
-  "source_and_support",
-  "relationship_explanation",
-  "uncertainty_and_conflict",
-  "decision_and_authority",
-  "transition_status",
-  "later_outcome",
-  "next_meaningful_action",
-  "capability_boundary",
+  ...GUIDE_BRIEF_CONVERSATION_INTENTS_V01,
 ];
 
 const SUGGESTED_QUESTIONS: Record<
@@ -58,6 +49,29 @@ const SUGGESTED_QUESTIONS: Record<
   next_meaningful_action: "What should I do next?",
   capability_boundary: "What can Augnes do here?",
 };
+
+export function guideBriefConversationCanonicalQuestionV01(
+  intent: GuideBriefConversationIntentV01,
+): string {
+  return SUGGESTED_QUESTIONS[intent];
+}
+
+export function listAvailableGuideBriefConversationIntentsV01(
+  input: Omit<
+    GuideBriefConversationPlanInputV01,
+    "question" | "conversation_context"
+  >,
+): GuideBriefConversationIntentV01[] {
+  const boundedInput: GuideBriefConversationPlanInputV01 = {
+    ...input,
+    question: "",
+    conversation_context: null,
+  };
+  assertGuideBriefConversationInputBindingsV01(boundedInput);
+  return INTENT_ORDER.filter((intent) =>
+    intentAvailableV01(boundedInput, intent),
+  );
+}
 
 const AUTHORITY = {
   projection_only: true,
@@ -359,7 +373,7 @@ export function buildGuideBriefConversationPlanV01(
   assertGuideBriefConversationInputBindingsV01(input);
   assertGuideBriefConversationBoundsV01(input);
   const scopeKey = buildValidatedGuideBriefConversationScopeKeyV01(input);
-  const guideSourceFingerprint = guideProjectionMaterialFingerprintV01(
+  const guideSourceFingerprint = buildGuideBriefConversationGuideFingerprintV01(
     input.guide,
   );
   const guideUpstreamSourceFingerprint =
@@ -1644,7 +1658,7 @@ function conversationMaterialIdentityV01(
   };
 }
 
-function guideProjectionMaterialFingerprintV01(
+export function buildGuideBriefConversationGuideFingerprintV01(
   guide: ProjectGuideBriefV02,
 ): string {
   return `derived:${hashV01(

@@ -74,6 +74,7 @@
           "id": "project_home_lifecycle_presentation",
           "fields": [
             "guide_brief_blank_state_v0_2",
+            "guide_brief_model_interpretation_browser",
             "minimum_project_home_empty_state",
             "minimum_project_home_expired_context_withheld",
             "minimum_project_home_explicit_activation",
@@ -106,6 +107,7 @@
           ],
           "markers": [
             "minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch",
+            "guidebrief_model_interpretation_remains_deterministic_answer_only",
             "verified_folder_path_recovery_preserves_project_continuity"
           ]
         },
@@ -169,6 +171,7 @@
           "folder_picker_cancelled_usable",
           "guide_brief_ai_workplane_v0_2",
           "guide_brief_blank_state_v0_2",
+          "guide_brief_model_interpretation_browser",
           "guide_brief_cross_surface_consistency",
           "management_safety_keyboard_navigation",
           "minimum_project_home_empty_state",

@@ -3,6 +3,7 @@ export const MODEL_EGRESS_PURPOSES = [
   "planner_plan",
   "temporal_interpretation",
   "strategic_advantage_transfer",
+  "guidebrief_interpretation",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];

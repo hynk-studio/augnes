@@ -7,6 +7,7 @@ import {
 } from "@/lib/model-egress/bounded-model-payload";
 import {
   ModelGatewayAdapterFailureV01,
+  GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -18,6 +19,13 @@ import {
   type ModelGatewayNormalizedUsageV01,
   type ModelGatewayPurposeV01,
 } from "@/lib/vnext/model-gateway/contracts";
+import {
+  buildGuideBriefInterpretationSystemPromptV01,
+  guideBriefInterpretationResponseSchemaV01,
+  parseGuideBriefInterpretationOutputV01,
+  projectGuideBriefInterpretationModelMaterialV01,
+  GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01,
+} from "@/lib/vnext/model-gateway/openai/guide-brief-interpretation-codec";
 import {
   buildObserveSystemPrompt,
   OBSERVE_MODEL_EGRESS_LIMITS,
@@ -65,6 +73,10 @@ export const OPENAI_RESPONSES_STRATEGIC_ADAPTER_ID_V01 =
   "openai_responses.strategic_advantage_transfer" as const;
 export const OPENAI_RESPONSES_STRATEGIC_ADAPTER_VERSION_V01 =
   "openai_responses_strategic_advantage_transfer_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_ID_V01 =
+  "openai_responses.guidebrief_interpretation" as const;
+export const OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_VERSION_V01 =
+  "openai_responses_guidebrief_interpretation_adapter.v0.1" as const;
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
@@ -279,6 +291,37 @@ type PurposeCodec = {
 };
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
+  if (
+    input.input_kind ===
+    GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const material = projectGuideBriefInterpretationModelMaterialV01(input);
+    const suppliedTokens = material.candidates.map(
+      (candidate) => candidate.candidate_token,
+    );
+    return {
+      dynamic_material: material,
+      dynamic_bytes:
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.dynamicBytes,
+      final_request_bytes:
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+      response_bytes:
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.responseBytes,
+      system_prompt: buildGuideBriefInterpretationSystemPromptV01(),
+      schema_name: "guidebrief_interpretation",
+      schema: guideBriefInterpretationResponseSchemaV01(suppliedTokens),
+      parse(outputText, usage) {
+        return {
+          purpose: GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseGuideBriefInterpretationOutputV01(
+            outputText,
+            suppliedTokens,
+          ),
+          usage,
+        };
+      },
+    };
+  }
   if (input.input_kind === OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
     return {
       dynamic_material: projectObserveModelMaterial(input),
@@ -367,6 +410,16 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
 function describeOpenAIImplementation(
   purpose: ModelGatewayPurposeV01,
 ): ModelAdapterImplementationV01 {
+  if (
+    purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_VERSION_V01,
+    };
+  }
   if (purpose === OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
     return {
       implementation_id: OPENAI_RESPONSES_OBSERVE_ADAPTER_ID_V01,

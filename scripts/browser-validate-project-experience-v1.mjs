@@ -16,6 +16,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   openVNextLocalOperatorDatabaseV01,
@@ -48,6 +49,8 @@ const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 const VALIDATION_VERSION = "project_experience_browser_validation.v1";
 const VALIDATION_SCOPE = "project-experience";
+const REAL_PROVIDER_ACCEPTANCE =
+  process.env.AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE === "1";
 assert(
   ["project-experience"].includes(VALIDATION_SCOPE),
   "unsupported project experience Browser scope",
@@ -88,6 +91,14 @@ const folderPickerSequencePath = path.join(
   tempRoot,
   "project-experience-folder-picker-sequence.json",
 );
+const providerEgressObservationPath = path.join(
+  tempRoot,
+  "provider-egress-observations.jsonl",
+);
+const providerEgressObserverImportPath = path.join(
+  tempRoot,
+  "provider-egress-observer-import.mjs",
+);
 const appRepo = path.resolve(process.cwd());
 const runtimeSupervisor = path.join(
   appRepo,
@@ -124,12 +135,14 @@ let requestQuietCount = 0;
 let waitCount = 0;
 let runtimeStartCount = 0;
 let runtimeShutdownCount = 0;
+let runtimeProviderCredentialEnabled = REAL_PROVIDER_ACCEPTANCE;
 const requests = [];
 const responses = [];
 const consoleErrors = [];
 const pageErrors = [];
 const failedRequests = [];
 const externalRequests = [];
+const pausedGuideBriefInterpretationRequests = [];
 const semanticMarkers = [];
 const viewportResults = [];
 const viewportWarnings = [];
@@ -144,6 +157,9 @@ const detailedFieldCompletionOwner =
 const result = {
   ok: false,
   validation_version: VALIDATION_VERSION,
+  validation_mode: REAL_PROVIDER_ACCEPTANCE
+    ? "real_provider_acceptance"
+    : "canonical_no_provider",
   owner: "project_experience",
   fixture_version: null,
   fixture_fingerprint: null,
@@ -175,6 +191,8 @@ const result = {
   folder_onboarding_restart_reopen: false,
   folder_onboarding_stale_active_conflict: false,
   guide_brief_blank_state_v0_2: false,
+  guide_brief_model_interpretation_browser: false,
+  guide_brief_real_provider_acceptance: null,
   project_home_coordination_visible: false,
   project_recovery_context_passive: false,
   project_recovery_entry_parity: false,
@@ -455,6 +473,14 @@ try {
 
 async function main() {
   timing.milestone("project experience harness started");
+  if (REAL_PROVIDER_ACCEPTANCE) {
+    assert.equal(
+      typeof process.env.OPENAI_API_KEY === "string" &&
+        process.env.OPENAI_API_KEY.trim().length > 0,
+      true,
+      "guidebrief_real_provider_credential_missing",
+    );
+  }
   assert.equal(path.isAbsolute(appRepo), true);
   assert.equal(existsSync(path.join(appRepo, "package.json")), true);
   for (const directory of [
@@ -467,6 +493,23 @@ async function main() {
     processTempRoot,
   ]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
+  }
+  if (REAL_PROVIDER_ACCEPTANCE) {
+    writeFileSync(
+      providerEgressObserverImportPath,
+      [
+        `import { appendFileSync } from "node:fs";`,
+        `process.env.AUGNES_PROVIDER_EGRESS_OBSERVATION_PATH = ${JSON.stringify(providerEgressObservationPath)};`,
+        `if (process.env.AUGNES_RUNTIME_CHILD_ROLE === "ui") appendFileSync(process.env.AUGNES_PROVIDER_EGRESS_OBSERVATION_PATH, JSON.stringify({ observation_version: "provider_egress_observation.v0.1", purpose: "guidebrief_interpretation", status: process.env.OPENAI_API_KEY ? "runtime_ready" : "runtime_unavailable", response_status: null }) + "\\n", { encoding: "utf8", mode: 0o600 });`,
+        `await import(${JSON.stringify(
+          pathToFileURL(
+            path.join(appRepo, "scripts", "provider-egress-observer.mjs"),
+          ).href,
+        )});`,
+        "",
+      ].join("\n"),
+      { encoding: "utf8", flag: "wx", mode: 0o600 },
+    );
   }
   mkdirSync(path.join(onboardingFolder, ".git"), {
     recursive: true,
@@ -601,6 +644,7 @@ async function main() {
       `document.querySelector('[data-blank-state-primary-action="choose_folder"]')?.textContent?.includes('Waiting for folder picker') === true && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Enter the folder path instead')`,
       "pending picker exposes path fallback",
     );
+    await waitForFolderPickerSequenceIndex(2);
     await clickButtonByText("Enter the folder path instead");
     await waitForCondition(
       `document.querySelector('input[name="local-project-declared-path"]') === document.activeElement`,
@@ -1077,6 +1121,243 @@ async function main() {
     await validateProductShellResponsive("/projects/[projectId]");
     record("folder_onboarding_confirmation_refresh_restart_and_reopen");
     record("declared_path_fallback_review_connect_and_existing_reopen");
+  });
+
+  await runPhase("guidebrief_model_interpretation", async () => {
+    await navigate(`${appOrigin}${projectAlphaDestination}`);
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"][data-guidebrief-conversation-hydrated="true"]') !== null`,
+      "mounted GuideBrief conversation",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const conversation = document.querySelector('[data-guidebrief-conversation]');
+        if (!(conversation instanceof HTMLElement)) return false;
+        const details = conversation.querySelector('details');
+        if (details instanceof HTMLDetailsElement) details.open = true;
+        return details instanceof HTMLDetailsElement ||
+          conversation.getAttribute('data-guidebrief-conversation-presentation') === 'embedded';
+      })()`),
+      true,
+    );
+    const databaseBefore = databaseSnapshot(fixture.writable_database_path);
+    const semanticBefore = semanticAuthorityCounts(
+      fixture.writable_database_path,
+    );
+
+    if (REAL_PROVIDER_ACCEPTANCE) {
+      result.guide_brief_real_provider_acceptance =
+        await runRealProviderGuideBriefAcceptance({
+          database_path: fixture.writable_database_path,
+          manifest,
+          project_id: manifest.project_id,
+          project_destination: projectAlphaDestination,
+          database_before: databaseBefore,
+          semantic_before: semanticBefore,
+        });
+      result.guide_brief_model_interpretation_browser = true;
+      completeDetailedField("guide_brief_model_interpretation_browser");
+      record("guidebrief_model_interpretation_remains_deterministic_answer_only");
+      return;
+    }
+
+    await submitGuideBriefDeterministicUtterance("What is happening now?");
+    const deterministicAnswer = await evaluateString(
+      `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+    );
+    assert.equal(deterministicAnswer.length > 0, true);
+    assert.equal(
+      await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer]')?.getAttribute('data-guidebrief-answer-model-assisted') ?? ''`,
+      ),
+      "false",
+    );
+
+    const korean = await submitGuideBriefUtteranceForPausedInterpretation(
+      "현재 작업의 흐름을 평범하게 설명해 줄 수 있나요?",
+    );
+    const pausedBeforeDoubleSubmit =
+      pausedGuideBriefInterpretationRequests.length;
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-guidebrief-conversation] form');
+        if (!(form instanceof HTMLFormElement)) return false;
+        form.requestSubmit();
+        return true;
+      })()`),
+      true,
+    );
+    await delay(50);
+    assert.equal(
+      pausedGuideBriefInterpretationRequests.length,
+      pausedBeforeDoubleSubmit,
+    );
+    await fulfillGuideBriefInterpretation(
+      korean,
+      "resolved",
+      "current_situation",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null`,
+      "Korean model-assisted question match",
+    );
+    assert.equal(
+      await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+      ),
+      deterministicAnswer,
+    );
+
+    const english = await submitGuideBriefUtteranceForPausedInterpretation(
+      "Could you explain the present position of this current work in ordinary terms?",
+    );
+    await fulfillGuideBriefInterpretation(
+      english,
+      "resolved",
+      "current_situation",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null`,
+      "English model-assisted question match",
+    );
+    assert.equal(
+      await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+      ),
+      deterministicAnswer,
+    );
+
+    for (const [utterance, status] of [
+      ["현재 위치를 다른 말로 설명해 줄 수 있나요?", "unavailable"],
+      ["Could you restate the current position more plainly?", "timed_out"],
+      ["지금 상황을 다른 표현으로 알려줄 수 있나요?", "invalid"],
+    ]) {
+      const paused = await submitGuideBriefUtteranceForPausedInterpretation(
+        utterance,
+      );
+      await fulfillGuideBriefInterpretation(paused, status);
+      await waitForCondition(
+        `document.querySelector('[data-guidebrief-interpretation-outcome="${status}"]') !== null`,
+        `GuideBrief ${status} fallback`,
+      );
+      assert.equal(
+        await evaluateBoolean(
+          `document.querySelector('[data-guidebrief-conversation-answer]') === null && document.querySelector('[data-guidebrief-conversation] [aria-label="Questions supported by current sources"]') !== null`,
+        ),
+        true,
+      );
+    }
+
+    const routeCallsBeforeActions =
+      pausedGuideBriefInterpretationRequests.length;
+    await submitGuideBriefDeterministicUtterance("prepare an accept decision");
+    assert.equal(
+      pausedGuideBriefInterpretationRequests.length,
+      routeCallsBeforeActions,
+    );
+    await submitGuideBriefDeterministicUtterance(
+      "What is happening now and prepare an accept decision",
+    );
+    assert.equal(
+      pausedGuideBriefInterpretationRequests.length,
+      routeCallsBeforeActions,
+    );
+    for (const actionRequest of [
+      "Could you please show the next change?",
+      "지금 이 변경을 적용해 줄 수 있어?",
+    ]) {
+      const actionResult =
+        await submitGuideBriefActionRequestWithoutInterpretation(actionRequest);
+      assert.deepEqual(actionResult, {
+        loopback_calls: 0,
+        provider_calls: 0,
+        unsupported: true,
+        model_assisted_answer: false,
+        interaction_outcome_created: false,
+      });
+    }
+
+    await submitGuideBriefDeterministicUtterance("What is happening now?");
+    for (const { width, height } of [
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+      { width: 1280, height: 900 },
+      { width: 1440, height: 1000 },
+    ]) {
+      await setViewport(width, height);
+      const layout = await evaluateJson(`(() => {
+        const conversation = document.querySelector('[data-guidebrief-conversation]');
+        const form = conversation?.querySelector('form');
+        const controls = Array.from(form?.querySelectorAll('input, button') ?? []);
+        const overlap = controls.length === 2 && (() => {
+          const left = controls[0].getBoundingClientRect();
+          const right = controls[1].getBoundingClientRect();
+          return Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1 &&
+            Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1;
+        })();
+        const text = conversation?.innerText ?? '';
+        return {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          document_overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          conversation_overflow: (conversation?.scrollWidth ?? 0) > (conversation?.clientWidth ?? 0) + 1,
+          control_overlap: Boolean(overlap),
+          submit_count: conversation?.querySelectorAll('button[type="submit"]').length ?? 0,
+          private_material_absent:
+            !/project:[0-9a-f-]{36}/iu.test(text) &&
+            !/q_[a-f0-9]{32}/iu.test(text) &&
+            !text.includes('/Users/') &&
+            !['sha256:', 'OPENAI', 'GPT-', 'model_gateway', 'candidate_token']
+              .some((marker) => text.includes(marker)),
+          transcript_copy_visible: text.includes('No conversation transcript is stored')
+        };
+      })()`);
+      assert.deepEqual(layout, {
+        width,
+        height,
+        document_overflow: false,
+        conversation_overflow: false,
+        control_overlap: false,
+        submit_count: 1,
+        private_material_absent: true,
+        transcript_copy_visible: true,
+      });
+    }
+
+    const late = await submitGuideBriefUtteranceForPausedInterpretation(
+      "현재 작업 위치를 조금 다르게 설명해 줄래?",
+    );
+    await cdp.send("Page.navigate", {
+      url: `${appOrigin}/workbench`,
+    });
+    await waitForCondition(
+      `location.pathname === '/workbench/semantic-review'`,
+      "GuideBrief interpretation host unmounted",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') === null`,
+      ),
+      true,
+    );
+    assert.equal(
+      pausedGuideBriefInterpretationRequests.some(
+        (entry) => entry.request_id === late.request_id,
+      ),
+      true,
+    );
+    await navigate(`${appOrigin}${projectAlphaDestination}`);
+    assert.deepEqual(
+      databaseSnapshot(fixture.writable_database_path),
+      databaseBefore,
+    );
+    assert.deepEqual(
+      semanticAuthorityCounts(fixture.writable_database_path),
+      semanticBefore,
+    );
+    result.guide_brief_model_interpretation_browser = true;
+    completeDetailedField("guide_brief_model_interpretation_browser");
+    record("guidebrief_model_interpretation_remains_deterministic_answer_only");
   });
 
   await runPhase("project_shell_and_locked_entry", async () => {
@@ -2297,7 +2578,30 @@ async function main() {
       !/(vnext_bootstrap_v01\.|OPENAI_API_KEY|GITHUB_TOKEN|sk-|ghp_)/iu.test(
         serverLog,
       );
-    result.provider_or_external_network_call = false;
+    if (REAL_PROVIDER_ACCEPTANCE) {
+      assert.deepEqual(result.guide_brief_real_provider_acceptance, {
+        deterministic_question_loopback_calls: 0,
+        deterministic_question_provider_calls: 0,
+        action_request_loopback_calls: 0,
+        action_request_provider_calls: 0,
+        action_request_unsupported: true,
+        action_request_model_assisted_answer: false,
+        korean_interpretation_loopback_calls: 1,
+        korean_interpretation_provider_calls: 1,
+        english_interpretation_loopback_calls: 1,
+        english_interpretation_provider_calls: 1,
+        provider_egress_started: 2,
+        provider_egress_completed: 2,
+        provider_unavailable_loopback_calls: 1,
+        provider_unavailable_provider_calls: 0,
+        deterministic_answer_ownership: true,
+        provider_answer_prose_used: false,
+        semantic_authority_changed: false,
+        durable_database_changed: false,
+        transcript_persisted: false,
+      });
+    }
+    result.provider_or_external_network_call = REAL_PROVIDER_ACCEPTANCE;
     result.semantic_proposal_created = false;
     result.review_decision_created = false;
     result.transition_created = false;
@@ -2481,6 +2785,18 @@ async function openCdpPage() {
     cdp.send("Page.enable"),
     cdp.send("Runtime.enable"),
     cdp.send("Network.enable"),
+    ...(REAL_PROVIDER_ACCEPTANCE
+      ? []
+      : [
+          cdp.send("Fetch.enable", {
+            patterns: [
+              {
+                urlPattern: "*/api/augnes/guide-brief/interpretation",
+                requestStage: "Request",
+              },
+            ],
+          }),
+        ]),
   ]);
 }
 
@@ -2499,6 +2815,20 @@ function attachCdpObservers() {
       };
       requests.push(request);
       if (classified.external) externalRequests.push(request);
+    } else if (payload.method === "Fetch.requestPaused") {
+      const classified = classifyUrl(params.request?.url);
+      if (
+        classified.path === "/api/augnes/guide-brief/interpretation"
+      ) {
+        pausedGuideBriefInterpretationRequests.push({
+          request_id: params.requestId,
+          post_data: params.request?.postData ?? null,
+        });
+      } else {
+        void cdp.send("Fetch.continueRequest", {
+          requestId: params.requestId,
+        });
+      }
     } else if (payload.method === "Network.responseReceived") {
       lastObserverActivityAt = Date.now();
       const classified = classifyUrl(params.response?.url);
@@ -2767,7 +3097,7 @@ async function waitForObservedResponse(pathname, method, requestOffset) {
 }
 
 function runtimeEnvironment(databasePath, manifest, projectId) {
-  return {
+  const environment = {
     ...minimalProcessEnvironment(),
     HOME: disposableHome,
     USERPROFILE: disposableHome,
@@ -2785,6 +3115,14 @@ function runtimeEnvironment(databasePath, manifest, projectId) {
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: projectId,
     AUGNES_VNEXT_OPERATOR_ID: manifest.operator_id,
   };
+  if (REAL_PROVIDER_ACCEPTANCE) {
+    environment.AUGNES_CANONICAL_TEST_NODE_IMPORT =
+      providerEgressObserverImportPath;
+    if (runtimeProviderCredentialEnabled) {
+      environment.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    }
+  }
+  return environment;
 }
 
 function minimalProcessEnvironment() {
@@ -3021,6 +3359,337 @@ async function browserFetchJson(pathname, options = {}) {
     return { status: response.status, body: await response.json() };
   })()`);
   return value;
+}
+
+async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
+  const offset = pausedGuideBriefInterpretationRequests.length;
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  const started = Date.now();
+  while (Date.now() - started < DEFAULT_TIMEOUT_MS) {
+    if (pausedGuideBriefInterpretationRequests.length > offset) {
+      const paused = pausedGuideBriefInterpretationRequests[offset];
+      const body = JSON.parse(paused.post_data ?? "null");
+      assert.equal(body.utterance, utterance);
+      assert.equal(body.request_version, "guidebrief_interpretation_request.v0.1");
+      assert.equal(Array.isArray(body.available_intents), true);
+      assert.equal(body.available_intents.length > 0, true);
+      assert.equal(
+        await evaluateBoolean(
+          `document.querySelector('[data-guidebrief-conversation] button[type="submit"]')?.disabled === true && document.querySelector('[data-guidebrief-conversation]')?.getAttribute('data-guidebrief-interpretation') === 'pending'`,
+        ),
+        true,
+      );
+      return paused;
+    }
+    await delay(25);
+  }
+  throw new Error("guidebrief_interpretation_request_timeout");
+}
+
+async function runRealProviderGuideBriefAcceptance(input) {
+  const providerBefore = providerEgressObservations();
+  assert.equal(latestProviderRuntimeStatus(providerBefore), "runtime_ready");
+  const routeCallsBefore = guideBriefInterpretationRouteCount();
+
+  await submitGuideBriefDeterministicUtterance("What is happening now?");
+  const deterministicAnswer = await evaluateString(
+    `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+  );
+  assert.equal(deterministicAnswer.length > 0, true);
+  assert.equal(guideBriefInterpretationRouteCount(), routeCallsBefore);
+  assert.equal(providerEgressStartedCount(), providerStartedCount(providerBefore));
+
+  const actionRequest =
+    await submitGuideBriefActionRequestWithoutInterpretation(
+      "Could you please show the next change?",
+    );
+  assert.deepEqual(actionRequest, {
+    loopback_calls: 0,
+    provider_calls: 0,
+    unsupported: true,
+    model_assisted_answer: false,
+    interaction_outcome_created: false,
+  });
+
+  const korean = await submitGuideBriefRealProviderUtterance(
+    "지금 무슨 상황인지 평범한 말로 설명해 줄 수 있나요?",
+  );
+  assert.equal(korean.answer, deterministicAnswer);
+  assert.equal(korean.model_assisted, true);
+  assert.equal(korean.route_calls, 1);
+  assert.equal(
+    providerEgressStartedCount(),
+    providerStartedCount(providerBefore) + 1,
+  );
+
+  const english = await submitGuideBriefRealProviderUtterance(
+    "Could you explain what is happening currently in ordinary terms?",
+  );
+  assert.equal(english.answer, deterministicAnswer);
+  assert.equal(english.model_assisted, true);
+  assert.equal(english.route_calls, 1);
+  assert.equal(
+    providerEgressStartedCount(),
+    providerStartedCount(providerBefore) + 2,
+  );
+  assert.equal(
+    providerEgressCompletedCount(),
+    providerCompletedCount(providerBefore) + 2,
+  );
+
+  const publicText = await evaluateString(
+    `document.querySelector('[data-guidebrief-conversation]')?.innerText ?? ''`,
+  );
+  assert.equal(/q_[a-f0-9]{32}/iu.test(publicText), false);
+  assert.equal(
+    ["OPENAI", "GPT-", "model_gateway", "candidate_token", "/Users/"]
+      .some((marker) => publicText.includes(marker)),
+    false,
+  );
+
+  const providerCallsBeforeUnavailable = providerEgressStartedCount();
+  runtimeProviderCredentialEnabled = false;
+  await restartRuntime(input.database_path, input.manifest, input.project_id);
+  await navigate(`${appOrigin}${input.project_destination}`);
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-conversation="guidebrief_conversation_plan.v0.1"][data-guidebrief-conversation-hydrated="true"]') !== null`,
+    "GuideBrief after provider-unavailable restart",
+  );
+  assert.equal(
+    latestProviderRuntimeStatus(providerEgressObservations()),
+    "runtime_unavailable",
+  );
+  const routeOffset = guideBriefInterpretationRouteCount();
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    "현재 작업의 위치를 다른 말로 알려줄 수 있나요?",
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-interpretation-outcome="unavailable"]') !== null`,
+    "real-provider unavailable deterministic fallback",
+  );
+  assert.equal(guideBriefInterpretationRouteCount(), routeOffset + 1);
+  assert.equal(providerEgressStartedCount(), providerCallsBeforeUnavailable);
+  await submitGuideBriefDeterministicUtterance("What is happening now?");
+  assert.equal(
+    await evaluateString(
+      `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+    ),
+    deterministicAnswer,
+  );
+
+  assert.deepEqual(databaseSnapshot(input.database_path), input.database_before);
+  assert.deepEqual(
+    semanticAuthorityCounts(input.database_path),
+    input.semantic_before,
+  );
+  const providerAfter = providerEgressObservations();
+  return {
+    deterministic_question_loopback_calls: 0,
+    deterministic_question_provider_calls: 0,
+    action_request_loopback_calls: actionRequest.loopback_calls,
+    action_request_provider_calls: actionRequest.provider_calls,
+    action_request_unsupported: actionRequest.unsupported,
+    action_request_model_assisted_answer:
+      actionRequest.model_assisted_answer,
+    korean_interpretation_loopback_calls: korean.route_calls,
+    korean_interpretation_provider_calls: 1,
+    english_interpretation_loopback_calls: english.route_calls,
+    english_interpretation_provider_calls: 1,
+    provider_egress_started:
+      providerStartedCount(providerAfter) - providerStartedCount(providerBefore),
+    provider_egress_completed:
+      providerCompletedCount(providerAfter) -
+      providerCompletedCount(providerBefore),
+    provider_unavailable_loopback_calls: 1,
+    provider_unavailable_provider_calls: 0,
+    deterministic_answer_ownership: true,
+    provider_answer_prose_used: false,
+    semantic_authority_changed: false,
+    durable_database_changed: false,
+    transcript_persisted: false,
+  };
+}
+
+async function submitGuideBriefRealProviderUtterance(utterance) {
+  const routeOffset = guideBriefInterpretationRouteCount();
+  const requestOffset = requests.length;
+  const providerOffset = providerEgressStartedCount();
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null || document.querySelector('[data-guidebrief-interpretation-outcome]') !== null`,
+    "real-provider GuideBrief interpretation result",
+  );
+  const outcome = await evaluateString(
+    `document.querySelector('[data-guidebrief-interpretation-outcome]')?.getAttribute('data-guidebrief-interpretation-outcome') ?? ''`,
+  );
+  if (outcome) {
+    const routeRequest = requests
+      .slice(requestOffset)
+      .find(
+        (entry) =>
+          entry.path === "/api/augnes/guide-brief/interpretation" &&
+          entry.method === "POST",
+      );
+    const routeResponse = routeRequest
+      ? responses.find((entry) => entry.request_id === routeRequest.request_id)
+      : null;
+    throw new Error(
+      `real_provider_interpretation_${outcome}:loopback_${routeResponse?.status ?? "unknown"}:provider_starts_${providerEgressStartedCount() - providerOffset}`,
+    );
+  }
+  return {
+    answer: await evaluateString(
+      `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+    ),
+    model_assisted:
+      (await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer]')?.getAttribute('data-guidebrief-answer-model-assisted') ?? ''`,
+      )) === "true",
+    route_calls: guideBriefInterpretationRouteCount() - routeOffset,
+  };
+}
+
+function guideBriefInterpretationRouteCount() {
+  return requests.filter(
+    (entry) =>
+      entry.path === "/api/augnes/guide-brief/interpretation" &&
+      entry.method === "POST",
+  ).length;
+}
+
+function providerEgressObservations() {
+  if (!existsSync(providerEgressObservationPath)) return [];
+  const text = readFileSync(providerEgressObservationPath, "utf8").trim();
+  if (!text) return [];
+  return text.split("\n").map((line) => {
+    const entry = JSON.parse(line);
+    assert.deepEqual(Object.keys(entry).sort(), [
+      "observation_version",
+      "purpose",
+      "response_status",
+      "status",
+    ]);
+    assert.equal(
+      entry.observation_version,
+      "provider_egress_observation.v0.1",
+    );
+    assert.equal(entry.purpose, "guidebrief_interpretation");
+    assert.equal(
+      [
+        "started",
+        "completed",
+        "cancelled",
+        "failed",
+        "runtime_ready",
+        "runtime_unavailable",
+      ].includes(entry.status),
+      true,
+    );
+    return entry;
+  });
+}
+
+function latestProviderRuntimeStatus(observations) {
+  return observations
+    .filter((entry) =>
+      ["runtime_ready", "runtime_unavailable"].includes(entry.status),
+    )
+    .at(-1)?.status ?? null;
+}
+
+function providerStartedCount(observations) {
+  return observations.filter((entry) => entry.status === "started").length;
+}
+
+function providerCompletedCount(observations) {
+  return observations.filter((entry) => entry.status === "completed").length;
+}
+
+function providerEgressStartedCount() {
+  return providerStartedCount(providerEgressObservations());
+}
+
+function providerEgressCompletedCount() {
+  return providerCompletedCount(providerEgressObservations());
+}
+
+async function fulfillGuideBriefInterpretation(paused, status, intent = null) {
+  await cdp.send("Fetch.fulfillRequest", {
+    requestId: paused.request_id,
+    responseCode: 200,
+    responseHeaders: [
+      { name: "content-type", value: "application/json" },
+      { name: "cache-control", value: "no-store" },
+      {
+        name: "x-augnes-guidebrief-interpretation",
+        value: "bounded-v0.1",
+      },
+    ],
+    body: Buffer.from(
+      JSON.stringify({
+        result_version: "guidebrief_interpretation_result.v0.1",
+        status,
+        intent,
+        model_assisted: status === "resolved",
+        no_answer_prose_returned: true,
+        durable_state_changed: false,
+      }),
+      "utf8",
+    ).toString("base64"),
+  });
+}
+
+async function submitGuideBriefDeterministicUtterance(utterance) {
+  const pausedBefore = pausedGuideBriefInterpretationRequests.length;
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-conversation-answer]') !== null || document.querySelector('[data-guidebrief-interaction-plan]') !== null`,
+    "deterministic GuideBrief utterance result",
+  );
+  assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
+}
+
+async function submitGuideBriefActionRequestWithoutInterpretation(utterance) {
+  const routeBefore = guideBriefInterpretationRouteCount();
+  const pausedBefore = pausedGuideBriefInterpretationRequests.length;
+  const providerBefore = providerEgressStartedCount();
+  await setFormControlValue(
+    'input[name="guidebrief-question"]',
+    utterance,
+  );
+  await clickButtonByText("Ask or act", '[data-guidebrief-conversation]');
+  await waitForCondition(
+    `document.querySelector('[data-guidebrief-interaction-plan="unsupported"] strong')?.textContent?.trim() === 'That request is outside the bounded current-work interaction family.'`,
+    "polite action request remains deterministic unsupported",
+  );
+  await waitForRequestQuiet();
+  const publicState = await evaluateJson(`(() => ({
+    unsupported: document.querySelector('[data-guidebrief-interaction-plan="unsupported"]') !== null,
+    model_assisted_answer: document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"]') !== null,
+    interaction_outcome_created: document.querySelector('[data-guidebrief-interaction-outcome]') !== null
+  }))()`);
+  assert.equal(guideBriefInterpretationRouteCount(), routeBefore);
+  assert.equal(pausedGuideBriefInterpretationRequests.length, pausedBefore);
+  assert.equal(providerEgressStartedCount(), providerBefore);
+  return {
+    loopback_calls: guideBriefInterpretationRouteCount() - routeBefore,
+    provider_calls: providerEgressStartedCount() - providerBefore,
+    ...publicState,
+  };
 }
 
 async function readRecentProjectsInBrowser() {
@@ -3935,6 +4604,11 @@ function expectedFailedRequest(entry) {
   }
   const phasePaths = {
     project_onboarding_and_naming: ["/", "/projects"],
+    guidebrief_model_interpretation: [
+      "/workbench",
+      "/workbench/semantic-review",
+      "/api/augnes/guide-brief/interpretation",
+    ],
     project_shell_and_locked_entry: ["/workbench", "/workbench/semantic-review", "/workbench/inspector"],
     responsive_first_work_presentation: ["/workbench/semantic-review"],
     project_home_lifecycle_presentation: ["/", "/projects"],

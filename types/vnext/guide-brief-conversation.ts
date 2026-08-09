@@ -57,18 +57,22 @@ export const GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01 = {
 export type GuideBriefConversationContractErrorCodeV01 =
   (typeof GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01)[keyof typeof GUIDE_BRIEF_CONVERSATION_CONTRACT_ERROR_V01];
 
+export const GUIDE_BRIEF_CONVERSATION_INTENTS_V01 = [
+  "current_situation",
+  "meaningful_change",
+  "human_attention_reason",
+  "source_and_support",
+  "relationship_explanation",
+  "uncertainty_and_conflict",
+  "decision_and_authority",
+  "transition_status",
+  "later_outcome",
+  "next_meaningful_action",
+  "capability_boundary",
+] as const;
+
 export type GuideBriefConversationIntentV01 =
-  | "current_situation"
-  | "meaningful_change"
-  | "human_attention_reason"
-  | "source_and_support"
-  | "relationship_explanation"
-  | "uncertainty_and_conflict"
-  | "decision_and_authority"
-  | "transition_status"
-  | "later_outcome"
-  | "next_meaningful_action"
-  | "capability_boundary";
+  (typeof GUIDE_BRIEF_CONVERSATION_INTENTS_V01)[number];
 
 export type GuideBriefConversationRoutingStatusV01 =
   | "supported"
