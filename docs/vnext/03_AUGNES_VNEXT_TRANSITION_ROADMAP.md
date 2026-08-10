@@ -477,14 +477,14 @@ and Transition preview remains read-only preview. PC6B adds no capability,
 Decision, Transition application, Start, Resume, durable semantic proposal,
 transcript, provider memory, or execution authority.
 
-## Current
-
-### PC6C bounded GuideBrief reference interpretation
+### PC6C bounded GuideBrief reference interpretation — Completed
 
 [Issue #138](https://github.com/hynk-studio/augnes-perspective-lab/issues/138)
-and [Draft PR #139](https://github.com/hynk-studio/augnes-perspective-lab/pull/139)
-define the current residual PC6 slice. PC6C preserves deterministic PC4/PC5
-questions, actions, bounded follow-ups, and known refusals as zero-model paths.
+and [PR #139](https://github.com/hynk-studio/augnes-perspective-lab/pull/139)
+define the completed residual PC6 slice, merged as
+`a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6C preserves deterministic
+PC4/PC5 questions, actions, bounded follow-ups, and known refusals as zero-model
+paths.
 One otherwise-unresolved Korean or English omission/reference utterance may use
 at most one bounded previous successful PC4 answer anchor from the exact current
 ephemeral conversation context.
@@ -498,23 +498,36 @@ untrusted current candidate token; PC4 still composes the deterministic answer,
 and PC5 still compiles a deterministic proposal requiring fresh activation.
 PC6C creates no Decision, Transition application, Start, Resume, durable
 conversation/provider memory, project mutation, GitHub effect, external effect,
-or authority expansion. Parent PC6 Issue #87 remains open until PC6C merges and
-an independent merged-head audit proves every parent completion criterion.
+or authority expansion.
+
+PC6A, PC6B, and PC6C are merged. The independent post-PC6C merged-head audit
+found every completion criterion in parent
+[Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87)
+satisfied. PC6 is completed at main merge
+`a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6 implementation and merged-head
+completion criteria are complete; parent Issue #87 may be closed after this
+roadmap reconciliation merges and main is read back.
+
+## Current
+
+No product phase is selected as Current. Closing PC6 does not by itself select
+the next product phase; every Next and Later lane remains separately
+authorized.
 
 ## Next separately authorized work
 
 CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
 remains a separate open Windows managed-delegation runtime enablement lane and
-is not modified by PC6C. It may begin only after CDX2B3A has deciding Windows
-identity, attachment, source-runtime, and any claimed package evidence.
+is not modified by this PC6 closeout. It may begin only after CDX2B3A has
+deciding Windows identity, attachment, source-runtime, and any claimed package
+evidence.
 CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
 gates.
 
-PC6 parent closure remains gated on PC6C merge and the independent merged-head
-audit. C9, current-session attachment, automatic Resume after controller loss
-or Companion startup, Linux product rollout, remote nodes, long-horizon
-control, continuous policy execution, and multi-agent orchestration remain
-later, separately unauthorized, and separate.
+C9, current-session attachment, automatic Resume after controller loss or
+Companion startup, Linux product rollout, remote nodes, long-horizon control,
+continuous policy execution, and multi-agent orchestration remain later,
+separately unauthorized, and separate.
 
 ## Integrated resume lifecycle
 
