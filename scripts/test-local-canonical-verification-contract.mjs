@@ -30,6 +30,9 @@ const reductionScope = readRepositoryFile(
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
 );
+const runtimeOperabilityOwnership = readRepositoryFile(
+  "scripts/runtime-operability-ownership.mjs",
+);
 const canonicalRunner = readRepositoryFile(
   "scripts/canonical-child-runner.mjs",
 );
@@ -911,27 +914,53 @@ const operabilityChildren = [
   ["recovery-validator", "operability-recovery-validator"],
   ["recovery-backup", "operability-recovery-storage"],
   ["runtime-database-bootstrap", "operability-recovery-storage"],
-  ["runtime-supervisor", "operability-supervisor"],
+  ["runtime-supervisor-lifecycle", "operability-supervisor"],
+  ["runtime-supervisor-resume", "operability-supervisor"],
   ["runtime-reconciliation", "operability-runtime-reconciliation"],
   ["distributable-package", "operability-package"],
 ];
+const operabilityOwnershipSource = `${canonicalSuite}\n${runtimeOperabilityOwnership}`;
 for (const [childId, shardName] of operabilityChildren) {
   assert.equal(
-    countOccurrences(canonicalSuite, `id: "${childId}"`),
+    countOccurrences(operabilityOwnershipSource, `id: "${childId}"`),
     1,
     `operability child must have exactly one owner: ${childId}`,
   );
   requireText(
-    canonicalSuite,
+    operabilityOwnershipSource,
     `shard: "${shardName}"`,
     `operability child shard is missing: ${childId}`,
   );
 }
 assert.equal(
-  countOccurrences(canonicalSuite, `"nested-app-runtime"`),
-  4,
+  countOccurrences(operabilityOwnershipSource, `"nested-app-runtime"`),
+  5,
   "nested application runtime ownership must remain explicit",
 );
+for (const fragment of [
+  `buildRuntimeOperabilityCanonicalSteps(rootNode)`,
+  `...buildRuntimeOperabilityCanonicalSteps(rootNode)`,
+]) {
+  requireText(
+    canonicalSuite,
+    fragment,
+    `runtime operability aggregate ownership is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `selector: "lifecycle"`,
+  `timeoutMs: 90_000`,
+  `selector: "resume"`,
+  `timeoutMs: 105_000`,
+  `requireNaturalExit: true`,
+  `RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS = 120_000`,
+]) {
+  requireText(
+    runtimeOperabilityOwnership,
+    fragment,
+    `runtime operability ownership bound is missing: ${fragment}`,
+  );
+}
 
 for (const variable of [
   "HOME",
@@ -975,7 +1004,6 @@ for (const [pathName, timeout] of [
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],
   ["scripts/test-recovery-backup.mjs", "330_000"],
   ["scripts/test-runtime-database-bootstrap.mjs", "390_000"],
-  ["scripts/test-runtime-operability.mjs", "120_000"],
   ["scripts/test-runtime-reconciliation.mjs", "720_000"],
   ["scripts/test-distributable-package.mjs", "480_000"],
   ["scripts/browser-validate-continuity-v1.mjs", "480_000"],
