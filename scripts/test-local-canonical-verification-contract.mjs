@@ -11,7 +11,10 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
+import {
+  buildRuntimeOperabilityCanonicalSteps,
+  createRuntimeOperabilityContext,
+} from "./runtime-operability-ownership.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -943,9 +946,31 @@ const linuxSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
   ownershipRootNode,
   "linux",
 );
-const windowsSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+const supportedWindowsSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
   ownershipRootNode,
-  "win32",
+  createRuntimeOperabilityContext({
+    platform: "win32",
+    architecture: "x64",
+    windows_version: "10.0.26200",
+    distribution_mode: "source",
+    windows_physical_identity: {
+      status: "exact_fixed_ntfs",
+      reason: null,
+    },
+  }),
+);
+const unsupportedWindowsSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  createRuntimeOperabilityContext({
+    platform: "win32",
+    architecture: "x64",
+    windows_version: "10.0.19045",
+    distribution_mode: "source",
+    windows_physical_identity: {
+      status: "exact_fixed_ntfs",
+      reason: null,
+    },
+  }),
 );
 assert.deepEqual(
   darwinSupervisorSteps.map((step) => step.id),
@@ -958,12 +983,21 @@ assert.deepEqual(
   "Linux operability must include the existing non-Windows owner set",
 );
 assert.deepEqual(
-  windowsSupervisorSteps.map((step) => step.id),
+  supportedWindowsSupervisorSteps.map((step) => step.id),
+  ["runtime-supervisor-lifecycle", "runtime-supervisor-resume"],
+  "supported Windows 11 source fixed-NTFS operability must include positive Resume",
+);
+assert.deepEqual(
+  unsupportedWindowsSupervisorSteps.map((step) => step.id),
   ["runtime-supervisor-lifecycle"],
-  "Windows operability must not launch a nominal positive Resume owner",
+  "unsupported Windows operability must retain lifecycle refusal without positive Resume",
 );
 assert.equal(
-  [...darwinSupervisorSteps, ...windowsSupervisorSteps].every((step) =>
+  [
+    ...darwinSupervisorSteps,
+    ...supportedWindowsSupervisorSteps,
+    ...unsupportedWindowsSupervisorSteps,
+  ].every((step) =>
     step.requirements.includes("nested-app-runtime"),
   ),
   true,
@@ -997,6 +1031,8 @@ for (const fragment of [
 for (const variable of [
   "HOME",
   "USERPROFILE",
+  "LOCALAPPDATA",
+  "APPDATA",
   "TMPDIR",
   "TMP",
   "TEMP",
@@ -1008,6 +1044,16 @@ for (const variable of [
     canonicalEnvironment,
     `environment.${variable}`,
     `canonical child resource isolation is missing: ${variable}`,
+  );
+}
+for (const directoryFragment of [
+  `path.join(resourceRoot, "home", "AppData", "Local")`,
+  `path.join(resourceRoot, "home", "AppData", "Roaming")`,
+]) {
+  requireText(
+    canonicalSuite,
+    directoryFragment,
+    `canonical Windows browser profile root is not pre-created: ${directoryFragment}`,
   );
 }
 for (const fragment of [
@@ -1257,10 +1303,15 @@ console.log(
       operability_children_declared: operabilityChildren.map(
         ([childId]) => childId,
       ),
-      runtime_supervisor_children_by_platform: {
+      runtime_supervisor_children_by_context: {
         darwin: darwinSupervisorSteps.map((step) => step.id),
         linux: linuxSupervisorSteps.map((step) => step.id),
-        win32: windowsSupervisorSteps.map((step) => step.id),
+        windows_11_source_fixed_ntfs: supportedWindowsSupervisorSteps.map(
+          (step) => step.id,
+        ),
+        windows_10_source_fixed_ntfs: unsupportedWindowsSupervisorSteps.map(
+          (step) => step.id,
+        ),
       },
       child_resource_isolation_required: true,
       zero_network_guard_required: true,

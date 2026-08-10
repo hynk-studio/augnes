@@ -111,6 +111,8 @@ try {
     LIB: sentinelRoot,
     VSINSTALLDIR: sentinelRoot,
     ProgramData: path.join(sentinelRoot, "program-data-location"),
+    LOCALAPPDATA: path.join(sentinelRoot, "ambient-local-app-data"),
+    APPDATA: path.join(sentinelRoot, "ambient-roaming-app-data"),
     NODE_ENV: "production",
   });
 
@@ -151,6 +153,8 @@ const result = {
   canonical_temp_root: process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null,
   runtime_state_dir: process.env.AUGNES_RUNTIME_STATE_DIR ?? null,
   home: process.env.HOME ?? null,
+  local_app_data: process.env.LOCALAPPDATA ?? null,
+  roaming_app_data: process.env.APPDATA ?? null,
   tmpdir: process.env.TMPDIR ?? null,
   browser_executable_path: process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? null,
   windows_repository_root: process.env.AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT ?? null,
@@ -179,6 +183,8 @@ process.stdout.write(JSON.stringify(result));`,
     probeResult.canonical_temp_root,
     probeResult.runtime_state_dir,
     probeResult.home,
+    probeResult.local_app_data,
+    probeResult.roaming_app_data,
     probeResult.tmpdir,
   ]) {
     assert.equal(

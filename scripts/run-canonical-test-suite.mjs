@@ -757,6 +757,8 @@ try {
     ownedResourceRoots.push(resourceRoot);
     for (const directory of [
       path.join(resourceRoot, "home"),
+      path.join(resourceRoot, "home", "AppData", "Local"),
+      path.join(resourceRoot, "home", "AppData", "Roaming"),
       path.join(resourceRoot, "runtime-state"),
     ]) {
       mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -896,6 +898,8 @@ try {
               child_resource_isolation: [
                 "HOME",
                 "USERPROFILE",
+                "LOCALAPPDATA",
+                "APPDATA",
                 "TMPDIR",
                 "TMP",
                 "TEMP",

@@ -60,9 +60,11 @@ const CANONICAL_STEP_PATH_KEYS = new Set([
 ]);
 
 const CANONICAL_CHILD_OWNED_ENVIRONMENT_KEYS = new Set([
+  "APPDATA",
   "AUGNES_CANONICAL_TEMP_ROOT",
   "AUGNES_DB_PATH",
   "AUGNES_RUNTIME_STATE_DIR",
+  "LOCALAPPDATA",
 ]);
 
 export function buildCanonicalChildEnvironment({
@@ -103,6 +105,8 @@ export function buildCanonicalChildEnvironment({
   const processTempRoot = resourceRoot;
   environment.HOME = homeRoot;
   environment.USERPROFILE = homeRoot;
+  environment.LOCALAPPDATA = path.join(homeRoot, "AppData", "Local");
+  environment.APPDATA = path.join(homeRoot, "AppData", "Roaming");
   environment.TMPDIR = processTempRoot;
   environment.TMP = processTempRoot;
   environment.TEMP = processTempRoot;
