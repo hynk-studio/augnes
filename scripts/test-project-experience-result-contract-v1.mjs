@@ -30,8 +30,8 @@ const realProviderResult = buildValidResult(realProviderOwner);
 realProviderResult.validation_mode = "real_provider_acceptance";
 realProviderResult.provider_or_external_network_call = true;
 realProviderResult.guide_brief_real_provider_acceptance = {
-  provider_egress_started: 5,
-  provider_egress_completed: 5,
+  provider_egress_started: 7,
+  provider_egress_completed: 7,
 };
 assert.doesNotThrow(() =>
   assertProjectExperienceFinalSuccessV1({

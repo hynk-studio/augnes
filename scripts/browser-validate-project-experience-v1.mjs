@@ -1224,6 +1224,68 @@ async function main() {
       deterministicAnswer,
     );
 
+    const deterministicFollowUpRequests =
+      pausedGuideBriefInterpretationRequests.length;
+    await submitGuideBriefDeterministicUtterance("why");
+    assert.equal(
+      pausedGuideBriefInterpretationRequests.length,
+      deterministicFollowUpRequests,
+    );
+
+    await submitGuideBriefDeterministicUtterance("Why does this need me?");
+    const priorAttentionAnswer = await evaluateString(
+      `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+    );
+    const koreanReference =
+      await submitGuideBriefUtteranceForPausedInterpretation(
+        "그건 왜 내 확인이 필요한 거야?",
+      );
+    assertPausedGuideBriefReferenceAnchor(
+      koreanReference,
+      "human_attention_reason",
+      priorAttentionAnswer,
+    );
+    await fulfillGuideBriefInterpretation(
+      koreanReference,
+      "resolved",
+      "human_attention_reason",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"][data-guidebrief-conversation-intent="human_attention_reason"]') !== null`,
+      "Korean bounded prior-answer reference match",
+    );
+    assert.equal(
+      await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+      ),
+      priorAttentionAnswer,
+    );
+
+    const englishReference =
+      await submitGuideBriefUtteranceForPausedInterpretation(
+        "Why is that still waiting for my review?",
+      );
+    assertPausedGuideBriefReferenceAnchor(
+      englishReference,
+      "human_attention_reason",
+      priorAttentionAnswer,
+    );
+    await fulfillGuideBriefInterpretation(
+      englishReference,
+      "resolved",
+      "human_attention_reason",
+    );
+    await waitForCondition(
+      `document.querySelector('[data-guidebrief-conversation-answer][data-guidebrief-answer-model-assisted="true"][data-guidebrief-conversation-intent="human_attention_reason"]') !== null`,
+      "English bounded prior-answer reference match",
+    );
+    assert.equal(
+      await evaluateString(
+        `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+      ),
+      priorAttentionAnswer,
+    );
+
     const english = await submitGuideBriefUtteranceForPausedInterpretation(
       "Could you explain the present position of this current work in ordinary terms?",
     );
@@ -1340,8 +1402,14 @@ async function main() {
       });
     }
 
+    await submitGuideBriefDeterministicUtterance("Why does this need me?");
     const late = await submitGuideBriefUtteranceForPausedInterpretation(
-      "현재 작업 위치를 조금 다르게 설명해 줄래?",
+      "그건 왜 아직 검토가 필요한 거야?",
+    );
+    assertPausedGuideBriefReferenceAnchor(
+      late,
+      "human_attention_reason",
+      priorAttentionAnswer,
     );
     await cdp.send("Page.navigate", {
       url: `${appOrigin}/workbench`,
@@ -2627,6 +2695,8 @@ async function main() {
       assert.deepEqual(result.guide_brief_real_provider_acceptance, {
         deterministic_question_loopback_calls: 0,
         deterministic_question_provider_calls: 0,
+        deterministic_follow_up_loopback_calls: 0,
+        deterministic_follow_up_provider_calls: 0,
         action_request_loopback_calls: 0,
         action_request_provider_calls: 0,
         action_request_unsupported: true,
@@ -2635,12 +2705,18 @@ async function main() {
         korean_interpretation_provider_calls: 1,
         english_interpretation_loopback_calls: 1,
         english_interpretation_provider_calls: 1,
-        provider_egress_started: 5,
-        provider_egress_completed: 5,
+        korean_reference_loopback_calls: 1,
+        korean_reference_provider_calls: 1,
+        english_reference_loopback_calls: 1,
+        english_reference_provider_calls: 1,
+        provider_egress_started: 7,
+        provider_egress_completed: 7,
         provider_unavailable_loopback_calls: 1,
         provider_unavailable_provider_calls: 0,
         deterministic_answer_ownership: true,
         provider_answer_prose_used: false,
+        provider_reference_anchor_count: 2,
+        provider_reference_anchor_public_shape: true,
         semantic_authority_changed: false,
         durable_database_changed: false,
         transcript_persisted: false,
@@ -3449,7 +3525,13 @@ async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
       const paused = pausedGuideBriefInterpretationRequests[offset];
       const body = JSON.parse(paused.post_data ?? "null");
       assert.equal(body.utterance, utterance);
-      assert.equal(body.request_version, "guidebrief_interpretation_request.v0.2");
+      assert.equal(body.request_version, "guidebrief_interpretation_request.v0.3");
+      assert.equal(
+        body.previous_answer_anchor_claim === null ||
+          body.previous_answer_anchor_claim?.claim_version ===
+            "guidebrief_interpretation_anchor_claim.v0.1",
+        true,
+      );
       assert.equal(Array.isArray(body.available_intents), true);
       assert.equal(body.available_intents.length > 0, true);
       assert.equal(
@@ -3484,6 +3566,33 @@ async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
   );
 }
 
+function assertPausedGuideBriefReferenceAnchor(
+  paused,
+  expectedIntent,
+  priorAnswerProse,
+) {
+  const body = JSON.parse(paused.post_data ?? "null");
+  const claim = body?.previous_answer_anchor_claim;
+  assert.deepEqual(Object.keys(claim ?? {}).sort(), [
+    "claim_version",
+    "intent",
+    "mounted_host_generation",
+    "scope_key",
+    "subjects",
+  ]);
+  assert.equal(
+    claim.claim_version,
+    "guidebrief_interpretation_anchor_claim.v0.1",
+  );
+  assert.equal(claim.intent, expectedIntent);
+  assert.equal(claim.subjects.length, 1);
+  assert.equal(claim.scope_key, body.pc4_scope_key);
+  assert.equal(claim.mounted_host_generation, body.mounted_host_generation);
+  const serialized = JSON.stringify(claim);
+  assert.equal(serialized.includes(body.utterance), false);
+  assert.equal(serialized.includes(priorAnswerProse), false);
+}
+
 async function runRealProviderGuideBriefAcceptance(input) {
   const providerBefore = providerEgressObservations();
   assert.equal(latestProviderRuntimeStatus(providerBefore), "runtime_ready");
@@ -3496,6 +3605,46 @@ async function runRealProviderGuideBriefAcceptance(input) {
   assert.equal(deterministicAnswer.length > 0, true);
   assert.equal(guideBriefInterpretationRouteCount(), routeCallsBefore);
   assert.equal(providerEgressStartedCount(), providerStartedCount(providerBefore));
+
+  const deterministicFollowUpRouteBefore = guideBriefInterpretationRouteCount();
+  const deterministicFollowUpProviderBefore = providerEgressStartedCount();
+  await submitGuideBriefDeterministicUtterance("why");
+  assert.equal(guideBriefInterpretationRouteCount(), deterministicFollowUpRouteBefore);
+  assert.equal(providerEgressStartedCount(), deterministicFollowUpProviderBefore);
+  assert.equal(
+    await evaluateString(
+      `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+    ),
+    deterministicAnswer,
+  );
+
+  await submitGuideBriefDeterministicUtterance("Why does this need me?");
+  const priorAttentionAnswer = await evaluateString(
+    `document.querySelector('[data-guidebrief-conversation-answer] strong')?.textContent?.trim() ?? ''`,
+  );
+  assert.equal(priorAttentionAnswer.length > 0, true);
+  const referenceAnchorsBefore = providerReferenceAnchorStartedCount();
+  const koreanReference = await submitGuideBriefRealProviderUtterance(
+    "그건 왜 내 확인이 필요한 거야?",
+  );
+  assert.equal(koreanReference.answer, priorAttentionAnswer);
+  assert.equal(koreanReference.model_assisted, true);
+  assert.equal(koreanReference.route_calls, 1);
+  assert.equal(
+    providerReferenceAnchorStartedCount(),
+    referenceAnchorsBefore + 1,
+  );
+
+  const englishReference = await submitGuideBriefRealProviderUtterance(
+    "Why is that still waiting for my review?",
+  );
+  assert.equal(englishReference.answer, priorAttentionAnswer);
+  assert.equal(englishReference.model_assisted, true);
+  assert.equal(englishReference.route_calls, 1);
+  assert.equal(
+    providerReferenceAnchorStartedCount(),
+    referenceAnchorsBefore + 2,
+  );
 
   const actionRequest =
     await submitGuideBriefActionRequestWithoutInterpretation(
@@ -3517,7 +3666,7 @@ async function runRealProviderGuideBriefAcceptance(input) {
   assert.equal(korean.route_calls, 1);
   assert.equal(
     providerEgressStartedCount(),
-    providerStartedCount(providerBefore) + 1,
+    providerStartedCount(providerBefore) + 3,
   );
 
   const english = await submitGuideBriefRealProviderUtterance(
@@ -3528,11 +3677,11 @@ async function runRealProviderGuideBriefAcceptance(input) {
   assert.equal(english.route_calls, 1);
   assert.equal(
     providerEgressStartedCount(),
-    providerStartedCount(providerBefore) + 2,
+    providerStartedCount(providerBefore) + 4,
   );
   assert.equal(
     providerEgressCompletedCount(),
-    providerCompletedCount(providerBefore) + 2,
+    providerCompletedCount(providerBefore) + 4,
   );
 
   const publicText = await evaluateString(
@@ -3586,6 +3735,8 @@ async function runRealProviderGuideBriefAcceptance(input) {
   return {
     deterministic_question_loopback_calls: 0,
     deterministic_question_provider_calls: 0,
+    deterministic_follow_up_loopback_calls: 0,
+    deterministic_follow_up_provider_calls: 0,
     action_request_loopback_calls: actionRequest.loopback_calls,
     action_request_provider_calls: actionRequest.provider_calls,
     action_request_unsupported: actionRequest.unsupported,
@@ -3595,6 +3746,10 @@ async function runRealProviderGuideBriefAcceptance(input) {
     korean_interpretation_provider_calls: 1,
     english_interpretation_loopback_calls: english.route_calls,
     english_interpretation_provider_calls: 1,
+    korean_reference_loopback_calls: koreanReference.route_calls,
+    korean_reference_provider_calls: 1,
+    english_reference_loopback_calls: englishReference.route_calls,
+    english_reference_provider_calls: 1,
     provider_egress_started:
       providerStartedCount(providerAfter) - providerStartedCount(providerBefore),
     provider_egress_completed:
@@ -3604,6 +3759,15 @@ async function runRealProviderGuideBriefAcceptance(input) {
     provider_unavailable_provider_calls: 0,
     deterministic_answer_ownership: true,
     provider_answer_prose_used: false,
+    provider_reference_anchor_count: 2,
+    provider_reference_anchor_public_shape: providerAfter
+      .filter((entry) => entry.status === "started" && entry.reference_anchor_count === 1)
+      .every((entry) =>
+        entry.guidebrief_dynamic_exact_keys === true &&
+        entry.reference_anchor_public_shape === true &&
+        entry.reference_anchor_internal_identity_absent === true &&
+        entry.request_store_false === true
+      ),
     semantic_authority_changed: false,
     durable_database_changed: false,
     transcript_persisted: false,
@@ -3861,12 +4025,25 @@ function providerEgressObservations() {
   if (!text) return [];
   return text.split("\n").map((line) => {
     const entry = JSON.parse(line);
-    assert.deepEqual(Object.keys(entry).sort(), [
+    const baseKeys = [
       "observation_version",
       "purpose",
       "response_status",
       "status",
-    ]);
+    ];
+    for (const key of baseKeys) assert.equal(Object.hasOwn(entry, key), true);
+    if (entry.status === "started") {
+      assert.deepEqual(Object.keys(entry).sort(), [
+        ...baseKeys,
+        "guidebrief_dynamic_exact_keys",
+        "reference_anchor_count",
+        "reference_anchor_internal_identity_absent",
+        "reference_anchor_public_shape",
+        "request_store_false",
+      ].sort());
+    } else {
+      assert.deepEqual(Object.keys(entry).sort(), baseKeys.sort());
+    }
     assert.equal(
       entry.observation_version,
       "provider_egress_observation.v0.1",
@@ -3907,6 +4084,13 @@ function providerEgressStartedCount() {
   return providerStartedCount(providerEgressObservations());
 }
 
+function providerReferenceAnchorStartedCount() {
+  return providerEgressObservations().filter(
+    (entry) =>
+      entry.status === "started" && entry.reference_anchor_count === 1,
+  ).length;
+}
+
 function providerEgressCompletedCount() {
   return providerCompletedCount(providerEgressObservations());
 }
@@ -3920,7 +4104,7 @@ async function fulfillGuideBriefInterpretation(paused, status, intent = null) {
       { name: "cache-control", value: "no-store" },
       {
         name: "x-augnes-guidebrief-interpretation",
-        value: "bounded-v0.2",
+        value: "bounded-v0.3",
       },
     ],
     body: Buffer.from(

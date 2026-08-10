@@ -15,6 +15,7 @@ import {
   buildCanonicalChildEnvironment,
   findForbiddenAmbientKeysForwarded,
 } from "./canonical-test-environment.mjs";
+import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -524,6 +525,11 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label: "runtime operability ownership and fail-closed split contract",
+      ...rootNode("scripts/test-runtime-operability-ownership.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "local Canonical verification and lifecycle guardrails",
       ...rootNode(
         "scripts/test-local-canonical-verification-contract.mjs",
@@ -626,23 +632,7 @@ const suites = {
       // 327.8s on the exact Windows source lane.
       timeoutMs: 390_000,
     },
-    {
-      id: "runtime-supervisor",
-      shard: "operability-supervisor",
-      requirements: [
-        "process-owning",
-        "listener-port-owning",
-        "filesystem",
-        "nested-app-runtime",
-      ],
-      label:
-        "canonical supervisor lifecycle, ownership, collision, and cleanup",
-      ...rootNode("scripts/test-runtime-operability.mjs"),
-      // The reviewed Windows positive Start/Resume/reacquire path measured
-      // 245.0s including natural event-loop finalization. Keep a bounded 330s
-      // child owner without retrying.
-      timeoutMs: 330_000,
-    },
+    ...buildRuntimeOperabilityCanonicalSteps(rootNode),
     {
       id: "runtime-reconciliation",
       shard: "operability-runtime-reconciliation",

@@ -27,7 +27,9 @@ import {
 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
+  guideBriefInterpretationRequiresPriorAnchorV01,
   isGuideBriefModelInterpretationEligibleV01,
+  projectGuideBriefInterpretationAnchorClaimV01,
   projectGuideBriefInterpretationPc5BindingV01,
   validateGuideBriefInterpretationPublicResultV01,
 } from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
@@ -185,6 +187,12 @@ export function GuideBriefConversation({
   const executionLedger = useRef(
     createGuideBriefInteractionExecutionLedgerV01(),
   );
+  const currentPriorAnswerAnchorClaim =
+    projectGuideBriefInterpretationAnchorClaimV01({
+      context,
+      scope_key: scopeKey,
+      mounted_host_generation: mountedHostGeneration.current,
+    });
   const currentBinding = useRef({
     scope_key: scopeKey,
     capability_snapshot_fingerprint:
@@ -192,6 +200,9 @@ export function GuideBriefConversation({
     candidate_set_fingerprint: candidateSetFingerprint,
     active_selection_revision: guide.identity.active_selection_revision,
     mounted_host_generation: mountedHostGeneration.current,
+    previous_answer_anchor_claim_identity: JSON.stringify(
+      currentPriorAnswerAnchorClaim,
+    ),
   });
   currentBinding.current = {
     scope_key: scopeKey,
@@ -200,6 +211,9 @@ export function GuideBriefConversation({
     candidate_set_fingerprint: candidateSetFingerprint,
     active_selection_revision: guide.identity.active_selection_revision,
     mounted_host_generation: mountedHostGeneration.current,
+    previous_answer_anchor_claim_identity: JSON.stringify(
+      currentPriorAnswerAnchorClaim,
+    ),
   };
   const interactionIdentity = `${scopeKey}\u0000${
     capabilitySnapshot?.fingerprint ?? "conversation-only"
@@ -301,9 +315,20 @@ export function GuideBriefConversation({
       scope_key: scopeKey,
       capability_snapshot_fingerprint:
         capabilitySnapshot?.fingerprint ?? "conversation-only",
-      previous_turn_anchor: visibleAnswer?.answer_anchor ?? null,
+      previous_turn_anchor:
+        currentContext.turns.at(-1)?.answer_anchor ?? null,
       conversation_context: currentContext,
     });
+    const previousAnswerAnchorClaim =
+      guideBriefInterpretationRequiresPriorAnchorV01(
+        request.normalized_utterance,
+      )
+        ? projectGuideBriefInterpretationAnchorClaimV01({
+            context: currentContext,
+            scope_key: scopeKey,
+            mounted_host_generation: mountedHostGeneration.current,
+          })
+        : null;
     setQuestion(trimmed);
     setInterpretationStatus(null);
     if (request.classification === "question") {
@@ -326,6 +351,7 @@ export function GuideBriefConversation({
         requestId,
         utterance: trimmed,
         currentContext,
+        previousAnswerAnchorClaim,
       });
       return;
     }
@@ -388,6 +414,9 @@ export function GuideBriefConversation({
     requestId: number;
     utterance: string;
     currentContext: GuideBriefConversationContextV01;
+    previousAnswerAnchorClaim: ReturnType<
+      typeof projectGuideBriefInterpretationAnchorClaimV01
+    >;
   }) {
     const workspaceId = guide.identity.workspace_id;
     const projectId = guide.identity.project_id;
@@ -429,6 +458,8 @@ export function GuideBriefConversation({
             available_intents: availableIntents,
             pc5_binding: pc5InterpretationBinding,
             mounted_host_generation: mountedHostGeneration.current,
+            previous_answer_anchor_claim:
+              input.previousAnswerAnchorClaim,
           }),
         },
       );
@@ -880,6 +911,7 @@ function sameInterpretationBindingV01(
     candidate_set_fingerprint: string;
     active_selection_revision: number | null;
     mounted_host_generation: string;
+    previous_answer_anchor_claim_identity: string;
   },
   right: {
     scope_key: string;
@@ -887,6 +919,7 @@ function sameInterpretationBindingV01(
     candidate_set_fingerprint: string;
     active_selection_revision: number | null;
     mounted_host_generation: string;
+    previous_answer_anchor_claim_identity: string;
   },
 ) {
   return (
@@ -895,6 +928,8 @@ function sameInterpretationBindingV01(
       right.capability_snapshot_fingerprint &&
     left.candidate_set_fingerprint === right.candidate_set_fingerprint &&
     left.active_selection_revision === right.active_selection_revision &&
-    left.mounted_host_generation === right.mounted_host_generation
+    left.mounted_host_generation === right.mounted_host_generation &&
+    left.previous_answer_anchor_claim_identity ===
+      right.previous_answer_anchor_claim_identity
   );
 }

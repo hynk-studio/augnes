@@ -11,6 +11,8 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
+
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -29,6 +31,9 @@ const reductionScope = readRepositoryFile(
 );
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
+);
+const runtimeOperabilityOwnership = readRepositoryFile(
+  "scripts/runtime-operability-ownership.mjs",
 );
 const canonicalRunner = readRepositoryFile(
   "scripts/canonical-child-runner.mjs",
@@ -911,27 +916,83 @@ const operabilityChildren = [
   ["recovery-validator", "operability-recovery-validator"],
   ["recovery-backup", "operability-recovery-storage"],
   ["runtime-database-bootstrap", "operability-recovery-storage"],
-  ["runtime-supervisor", "operability-supervisor"],
+  ["runtime-supervisor-lifecycle", "operability-supervisor"],
+  ["runtime-supervisor-resume", "operability-supervisor"],
   ["runtime-reconciliation", "operability-runtime-reconciliation"],
   ["distributable-package", "operability-package"],
 ];
+const operabilityOwnershipSource = `${canonicalSuite}\n${runtimeOperabilityOwnership}`;
 for (const [childId, shardName] of operabilityChildren) {
   assert.equal(
-    countOccurrences(canonicalSuite, `id: "${childId}"`),
+    countOccurrences(operabilityOwnershipSource, `id: "${childId}"`),
     1,
     `operability child must have exactly one owner: ${childId}`,
   );
   requireText(
-    canonicalSuite,
+    operabilityOwnershipSource,
     `shard: "${shardName}"`,
     `operability child shard is missing: ${childId}`,
   );
 }
-assert.equal(
-  countOccurrences(canonicalSuite, `"nested-app-runtime"`),
-  4,
-  "nested application runtime ownership must remain explicit",
+const ownershipRootNode = (...args) => ({ args });
+const darwinSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "darwin",
 );
+const linuxSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "linux",
+);
+const windowsSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "win32",
+);
+assert.deepEqual(
+  darwinSupervisorSteps.map((step) => step.id),
+  ["runtime-supervisor-lifecycle", "runtime-supervisor-resume"],
+  "Darwin operability must include lifecycle and positive Resume owners",
+);
+assert.deepEqual(
+  linuxSupervisorSteps.map((step) => step.id),
+  darwinSupervisorSteps.map((step) => step.id),
+  "Linux operability must include the existing non-Windows owner set",
+);
+assert.deepEqual(
+  windowsSupervisorSteps.map((step) => step.id),
+  ["runtime-supervisor-lifecycle"],
+  "Windows operability must not launch a nominal positive Resume owner",
+);
+assert.equal(
+  [...darwinSupervisorSteps, ...windowsSupervisorSteps].every((step) =>
+    step.requirements.includes("nested-app-runtime"),
+  ),
+  true,
+  "every platform-applicable supervisor owner must declare nested runtime ownership",
+);
+for (const fragment of [
+  `buildRuntimeOperabilityCanonicalSteps(rootNode)`,
+  `...buildRuntimeOperabilityCanonicalSteps(rootNode)`,
+]) {
+  requireText(
+    canonicalSuite,
+    fragment,
+    `runtime operability aggregate ownership is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `selector: "lifecycle"`,
+  `timeoutMs: 90_000`,
+  `selector: "resume"`,
+  `timeoutMs: 105_000`,
+  `requireNaturalExit: true`,
+  `RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS = 120_000`,
+]) {
+  requireText(
+    runtimeOperabilityOwnership,
+    fragment,
+    `runtime operability ownership bound is missing: ${fragment}`,
+  );
+}
 
 for (const variable of [
   "HOME",
@@ -975,7 +1036,6 @@ for (const [pathName, timeout] of [
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],
   ["scripts/test-recovery-backup.mjs", "330_000"],
   ["scripts/test-runtime-database-bootstrap.mjs", "390_000"],
-  ["scripts/test-runtime-operability.mjs", "330_000"],
   ["scripts/test-runtime-reconciliation.mjs", "720_000"],
   ["scripts/test-distributable-package.mjs", "480_000"],
   ["scripts/browser-validate-continuity-v1.mjs", "480_000"],
@@ -1194,9 +1254,14 @@ console.log(
       integration_concurrency_bound: 2,
       browser_lanes_must_run_sequentially_on_shared_host: true,
       integration_children_uniquely_owned: integrationChildren,
-      operability_children_uniquely_owned: operabilityChildren.map(
+      operability_children_declared: operabilityChildren.map(
         ([childId]) => childId,
       ),
+      runtime_supervisor_children_by_platform: {
+        darwin: darwinSupervisorSteps.map((step) => step.id),
+        linux: linuxSupervisorSteps.map((step) => step.id),
+        win32: windowsSupervisorSteps.map((step) => step.id),
+      },
       child_resource_isolation_required: true,
       zero_network_guard_required: true,
       package_history_required: true,

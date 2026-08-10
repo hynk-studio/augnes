@@ -458,13 +458,14 @@ provider-specific product concept.
 
 [Issue #136](https://github.com/hynk-studio/augnes-perspective-lab/issues/136)
 and [PR #137](https://github.com/hynk-studio/augnes-perspective-lab/pull/137)
-define the completed second bounded slice of the
+define the completed second bounded slice of
 [PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
 merged as `e06b68613c174dbfa1f410b7ad2eca4aefb512a1`. PC6B preserves
 deterministic PC4 questions, deterministic PC5 actions, and known refusals as
-zero-model paths. Only one otherwise unresolved Korean or English action
-paraphrase whose exact PC5 family is currently registered and safe to propose
-may share PC6A's one bounded candidate-token interpretation call.
+zero-model paths.
+Only one otherwise unresolved Korean or English action paraphrase whose exact
+PC5 family is currently registered and safe to propose may share PC6A's one
+bounded candidate-token interpretation call.
 
 A model-selected PC5 token is untrusted. The server must recompose and rebind
 the exact current capability through existing owners before it returns an
@@ -476,8 +477,35 @@ and Transition preview remains read-only preview. PC6B adds no capability,
 Decision, Transition application, Start, Resume, durable semantic proposal,
 transcript, provider memory, or execution authority.
 
-PC6A and PC6B do not complete parent PC6. Issue #87 remains open and its
-remaining bounded follow-up scope requires separate authorization.
+### PC6C bounded GuideBrief reference interpretation — Completed
+
+[Issue #138](https://github.com/hynk-studio/augnes-perspective-lab/issues/138)
+and [PR #139](https://github.com/hynk-studio/augnes-perspective-lab/pull/139)
+define the completed residual PC6 slice, merged as
+`a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6C preserves deterministic
+PC4/PC5 questions, actions, bounded follow-ups, and known refusals as zero-model
+paths.
+One otherwise-unresolved Korean or English omission/reference utterance may use
+at most one bounded previous successful PC4 answer anchor from the exact current
+ephemeral conversation context.
+
+The server independently reconstructs and revalidates that anchor against the
+current project, selection, scope, source material, candidate set, capability
+snapshot, and mounted host. Provider egress receives only a bounded public
+subject marker, never a transcript, previous raw utterance, previous answer
+prose, internal identity, or authority material. Provider output remains one
+untrusted current candidate token; PC4 still composes the deterministic answer,
+and PC5 still compiles a deterministic proposal requiring fresh activation.
+PC6C creates no Decision, Transition application, Start, Resume, durable
+conversation/provider memory, project mutation, GitHub effect, external effect,
+or authority expansion.
+
+PC6A, PC6B, and PC6C are merged. The independent post-PC6C merged-head audit
+found every completion criterion in parent
+[Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87)
+satisfied. PC6 is completed at main merge
+`a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6 implementation and merged-head
+completion criteria are complete, and parent Issue #87 is closed.
 
 ## Current
 
@@ -497,11 +525,10 @@ is added.
 
 ## Next separately authorized work
 
-Any remaining PC6 parent criteria after the PC6B completion audit, C9,
-current-session attachment, automatic Resume after controller loss or Companion
-startup, Linux product rollout, remote nodes, long-horizon control, continuous
-policy execution, and multi-agent orchestration remain later, separately
-unauthorized, and separate.
+C9, current-session attachment, automatic Resume after controller loss or
+Companion startup, Linux product rollout, remote nodes, long-horizon control,
+continuous policy execution, and multi-agent orchestration remain later,
+separately unauthorized, and separate.
 
 ## Integrated resume lifecycle
 

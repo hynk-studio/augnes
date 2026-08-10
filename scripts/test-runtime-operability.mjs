@@ -92,8 +92,12 @@ import {
   trackServerConnections,
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
+import { runtimeOperabilityOwnerForSelector } from "./runtime-operability-ownership.mjs";
 
 const repoRoot = process.cwd();
+const runtimeOperabilityOwner = runtimeOperabilityOwnerForSelector(process.argv[2]);
+const runsLifecycleOwner = runtimeOperabilityOwner.selector === "lifecycle";
+const runsResumeOwner = runtimeOperabilityOwner.selector === "resume";
 const applicationVersion = JSON.parse(
   readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 ).version;
@@ -167,84 +171,108 @@ let cleanupError = null;
 
 try {
   initializeDisposableDatabase(databasePath);
-  assertRuntimeDistributionContract();
-  assertRuntimeUpdateDecisionContract();
-  await assertRecoveryControlDecisionContract();
-  await assertConcurrentRecoveryRequestRefusal();
-  assertRuntimeEnvironmentIsolation();
-  await testRuntimeStatePathSafety();
+  if (runsLifecycleOwner) {
+    assertRuntimeDistributionContract();
+    assertRuntimeUpdateDecisionContract();
+    await assertRecoveryControlDecisionContract();
+    await assertConcurrentRecoveryRequestRefusal();
+    assertRuntimeEnvironmentIsolation();
+    await testRuntimeStatePathSafety();
 
-  proxyServer = trackServerConnections(createHttpServer((_request, response) => {
-    proxyRequestCount += 1;
-    response.writeHead(502, { "content-type": "text/plain" });
-    response.end("runtime test proxy sentinel");
-  }));
-  const proxyPort = await listenHttpServer(proxyServer);
+    proxyServer = trackServerConnections(createHttpServer((_request, response) => {
+      proxyRequestCount += 1;
+      response.writeHead(502, { "content-type": "text/plain" });
+      response.end("runtime test proxy sentinel");
+    }));
+    const proxyPort = await listenHttpServer(proxyServer);
 
-  unrelatedProcess = spawn(
-    process.execPath,
-    ["--eval", "setInterval(() => {}, 1000)"],
-    {
-      detached: process.platform !== "win32",
-      stdio: "ignore",
-      windowsHide: true,
-    },
-  );
-  registerOwnedChild(auxiliaryProcesses, unrelatedProcess, {
-    label: "unrelated process sentinel",
-  });
-  assert(Number.isInteger(unrelatedProcess.pid));
+    unrelatedProcess = spawn(
+      process.execPath,
+      ["--eval", "setInterval(() => {}, 1000)"],
+      {
+        detached: process.platform !== "win32",
+        stdio: "ignore",
+        windowsHide: true,
+      },
+    );
+    registerOwnedChild(auxiliaryProcesses, unrelatedProcess, {
+      label: "unrelated process sentinel",
+    });
+    assert(Number.isInteger(unrelatedProcess.pid));
 
-  await testReadyDuplicateStatusAndStop();
-  await testRepositoryResumeEligibilityRestart();
-  await testRepositoryResumeAmbiguityAndApproval();
-  await testPoisonedEnvironmentRestart(proxyPort);
-  await testParentSignalCleanup();
-  await testRequiredChildFailure();
-  await testUnverifiedOwnershipRefusal();
+    await testReadyDuplicateStatusAndStop();
+    await testPoisonedEnvironmentRestart(proxyPort);
+    await testParentSignalCleanup();
+    await testRequiredChildFailure();
+    await testUnverifiedOwnershipRefusal();
 
-  assert.equal(mcpBehaviorVerified, true, "real public and StateRuntime MCP tools must be verified");
-  assert.equal(
-    registeredRepositoryMcpEvidence?.verified,
-    true,
-    "the real registered-repository MCP positive path must be verified",
-  );
-  assert.equal(
-    registeredRepositoryMcpEvidence?.selection_independent_attachment,
-    true,
-    "Browser selection must not change the exact repository attachment",
-  );
-  assert.equal(
-    registeredRepositoryMcpEvidence?.attachment_stale_reason,
-    "packet_changed",
-  );
-  assert.equal(
-    registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
-    true,
-  );
-  assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
-  assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
-  assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
-  assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
-  assert.equal(repositoryResumeMcpEvidence?.selection_independent, true);
-  assert.equal(repositoryResumeMcpEvidence?.zero_effect_read, true);
-  assert.equal(
-    repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
-    true,
-  );
-  assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
-  assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
-  assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
-  assert.equal(repositoryResumeMcpEvidence?.same_run, true);
-  assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
-  assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
-  assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
-  assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
-  assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
-  assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
+    assert.equal(mcpBehaviorVerified, true, "real public and StateRuntime MCP tools must be verified");
+    assert.equal(
+      registeredRepositoryMcpEvidence?.verified,
+      true,
+      "the real registered-repository MCP positive path must be verified",
+    );
+    assert.equal(
+      registeredRepositoryMcpEvidence?.selection_independent_attachment,
+      true,
+      "Browser selection must not change the exact repository attachment",
+    );
+    assert.equal(
+      registeredRepositoryMcpEvidence?.attachment_stale_reason,
+      "packet_changed",
+    );
+    assert.equal(
+      registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
+      true,
+    );
+    if (
+      runtimeOperabilityOwner.applicability_context.windows_managed_execution
+        .status === "unavailable"
+    ) {
+      assert.equal(registeredRepositoryMcpEvidence?.windows_start_refused, true);
+      assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, false);
+      assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, null);
+      assert.equal(registeredRepositoryMcpEvidence?.proposal_status, null);
+      assert.equal(repositoryResumeMcpEvidence?.windows_resume_request_refused, true);
+      assert.equal(repositoryResumeMcpEvidence?.windows_resume_refused, true);
+      assert.equal(repositoryResumeMcpEvidence?.windows_resume_zero_effects, true);
+      assert.equal(
+        registeredRepositoryMcpEvidence?.restart_attachment_validation,
+        true,
+      );
+    } else {
+      assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
+      assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
+      assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
+    }
+    assert.equal(
+      isProcessAlive(unrelatedProcess.pid),
+      true,
+      "unrelated PID sentinel must remain alive",
+    );
+  } else if (runsResumeOwner) {
+    await testRepositoryResumeEligibilityRestart();
+    await testRepositoryResumeAmbiguityAndApproval();
+    assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
+    assert.equal(repositoryResumeMcpEvidence?.selection_independent, true);
+    assert.equal(repositoryResumeMcpEvidence?.zero_effect_read, true);
+    assert.equal(
+      repositoryResumeMcpEvidence?.stale_after_repository_a_drift,
+      true,
+    );
+    assert.equal(repositoryResumeMcpEvidence?.worker_relaunched, true);
+    assert.equal(repositoryResumeMcpEvidence?.process_replacement_pre_marker, true);
+    assert.equal(repositoryResumeMcpEvidence?.exact_replay_worker_started, false);
+    assert.equal(repositoryResumeMcpEvidence?.same_run, true);
+    assert.equal(repositoryResumeMcpEvidence?.same_attachment, true);
+    assert.equal(repositoryResumeMcpEvidence?.generation_incremented_once, true);
+    assert.equal(repositoryResumeMcpEvidence?.resumed_checkpoint, true);
+    assert.equal(repositoryResumeMcpEvidence?.terminal_result, true);
+    assert.equal(repositoryResumeMcpEvidence?.ambiguous_operation, true);
+    assert.equal(repositoryResumeMcpEvidence?.approval_pending, true);
+  }
   assert.equal(legacyRootRequestCount, 0, "legacy proposed routes must not reach the root runtime");
   assert.equal(proxyRequestCount, 0, "supervised startup must not make provider/proxy requests");
-  assert.equal(isProcessAlive(unrelatedProcess.pid), true, "unrelated PID sentinel must remain alive");
   assert.deepEqual(
     snapshotDatabaseFamily(repositoryDatabasePath),
     repositoryDatabaseBefore,
@@ -263,33 +291,49 @@ try {
   );
 
   const summary = {
-    test: "canonical-runtime-supervisor-operability",
+    test: `canonical-runtime-supervisor-${runtimeOperabilityOwner.selector}-operability`,
     status: "pass",
-    canonical_commands: ["start", "status", "stop"],
+    owner_id: runtimeOperabilityOwner.id,
+    execution_platform: process.platform,
+    owner_platforms: runtimeOperabilityOwner.platforms,
+    owner_applicability: runtimeOperabilityOwner.applicability,
+    windows_managed_execution_status:
+      runtimeOperabilityOwner.applicability_context.windows_managed_execution
+        .status,
+    windows_managed_execution_reason:
+      runtimeOperabilityOwner.applicability_context.windows_managed_execution
+        .reason,
+    owner_timeout_ms: runtimeOperabilityOwner.timeoutMs,
+    owned_responsibilities: runtimeOperabilityOwner.responsibilities,
+    canonical_commands: runsLifecycleOwner
+      ? ["start", "status", "stop"]
+      : ["start", "stop"],
     real_processes: ["next-ui", "http-mcp-bridge"],
     loopback_only: true,
     preferred_ui_port: DEFAULT_UI_PORT,
     preferred_bridge_port: DEFAULT_BRIDGE_PORT,
     selected_ports: selectedPorts,
-    ready_state_verified: true,
-    duplicate_launch_reused: true,
+    ready_state_verified: runsLifecycleOwner || runsResumeOwner,
+    duplicate_launch_reused: runsLifecycleOwner,
     graceful_stop: process.platform !== "win32",
-    graceful_stop_skip_reason: process.platform === "win32"
-      ? "windows_console_graceful_signal_unavailable"
-      : null,
-    windows_forced_owned_tree_stop: process.platform === "win32",
+    graceful_stop_skip_reason:
+      process.platform === "win32"
+        ? "windows_console_graceful_signal_unavailable"
+        : null,
+    windows_forced_owned_tree_stop:
+      runsLifecycleOwner && process.platform === "win32",
     parent_signal_cleanup: parentSignalCleanupVerified,
     parent_signal_cleanup_skip_reason: parentSignalCleanupSkipReason,
-    required_child_failure_observed: true,
-    unverified_pid_never_signaled: true,
-    environment_isolation_verified: true,
-    update_decision_contract_verified: true,
-    update_source_provenance_verified: true,
-    semver_prerelease_precedence_verified: true,
-    recovery_inventory_status_verified: true,
-    recovery_response_close_shutdown_verified: true,
-    concurrent_recovery_request_refusal_verified: true,
-    reviewed_ui_provider_environment_verified: true,
+    required_child_failure_observed: runsLifecycleOwner,
+    unverified_pid_never_signaled: runsLifecycleOwner,
+    environment_isolation_verified: runsLifecycleOwner,
+    update_decision_contract_verified: runsLifecycleOwner,
+    update_source_provenance_verified: runsLifecycleOwner,
+    semver_prerelease_precedence_verified: runsLifecycleOwner,
+    recovery_inventory_status_verified: runsLifecycleOwner,
+    recovery_response_close_shutdown_verified: runsLifecycleOwner,
+    concurrent_recovery_request_refusal_verified: runsLifecycleOwner,
+    reviewed_ui_provider_environment_verified: runsLifecycleOwner,
     bridge_core_mode: "http",
     live_repository_mcp_tool_verified: mcpBehaviorVerified,
     registered_repository_positive_path: registeredRepositoryMcpEvidence?.verified === true,
@@ -342,7 +386,7 @@ try {
       repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
     restart_attachment_validation:
       registeredRepositoryMcpEvidence?.restart_attachment_validation ?? false,
-    official_stdio_mcp_client: true,
+    official_stdio_mcp_client: runsLifecycleOwner || runsResumeOwner,
     repository_resume_eligibility_runtime_proof:
       repositoryResumeMcpEvidence?.resume_ready === true,
     repository_resume_selection_independent:
@@ -359,11 +403,12 @@ try {
       repositoryResumeMcpEvidence?.ambiguous_operation === true,
     repository_resume_approval_pending:
       repositoryResumeMcpEvidence?.approval_pending === true,
-    private_companion_bridge_refusals_verified: true,
-    narrow_companion_proxy_credential: true,
+    private_companion_bridge_refusals_verified:
+      runsLifecycleOwner || runsResumeOwner,
+    narrow_companion_proxy_credential: runsLifecycleOwner || runsResumeOwner,
     mock_contribution: false,
     legacy_root_requests_observed: legacyRootRequestCount,
-    runtime_state_physical_path_verified: true,
+    runtime_state_physical_path_verified: runsLifecycleOwner,
     path_fixture_skip_reason: pathFixtureSkipReason,
     provider_credentials_required: false,
     provider_or_proxy_requests: proxyRequestCount,
@@ -381,6 +426,16 @@ try {
       JSON.stringify({
         test: summary.test,
         status: summary.status,
+        owner_id: summary.owner_id,
+        execution_platform: summary.execution_platform,
+        owner_platforms: summary.owner_platforms,
+        owner_applicability: summary.owner_applicability,
+        windows_managed_execution_status:
+          summary.windows_managed_execution_status,
+        windows_managed_execution_reason:
+          summary.windows_managed_execution_reason,
+        owner_timeout_ms: summary.owner_timeout_ms,
+        owned_responsibilities: summary.owned_responsibilities,
         canonical_commands: summary.canonical_commands,
         real_processes: summary.real_processes,
         loopback_only: summary.loopback_only,
@@ -835,7 +890,9 @@ async function testRepositoryResumeEligibilityRestart() {
       const registeredA = await registerRepositoryThroughOnboardingV01({
         repositoryRoot: repositories.repositoryA,
         displayName: "CDX2B4A Resume Repository A",
-        createUuids: [registeredRuntimeResumeProjectAId.slice("project:".length)],
+        createUuids: onboardingIdentityUuidsV01(
+          registeredRuntimeResumeProjectAId,
+        ),
         clock,
       });
       assert.equal(registeredA.workspace.workspace_id, registeredRuntimeWorkspaceId);
@@ -1328,7 +1385,7 @@ async function testRepositoryResumeAmbiguityAndApproval() {
         const registered = await registerRepositoryThroughOnboardingV01({
           repositoryRoot: repositories.repositoryA,
           displayName: `CDX2B4A ${adapterScenario} repository`,
-          createUuids: [projectId.slice("project:".length)],
+          createUuids: onboardingIdentityUuidsV01(projectId),
           clock,
         });
         defineFixtureWorkV01({
@@ -2610,6 +2667,21 @@ async function registerRepositoryThroughOnboardingV01({
     const selection = readActiveProjectSelectionV01(db, workspace.workspace_id);
     assert.equal(selection?.project_id, confirmed.project.project_id);
     return { workspace, project: confirmed.project, selection };
+  } finally {
+    db.close();
+  }
+}
+
+function onboardingIdentityUuidsV01(projectId) {
+  const db = openFixtureDatabaseV01();
+  try {
+    const workspace = readDefaultWorkspaceIdentityV01(db);
+    return [
+      ...(workspace
+        ? []
+        : [registeredRuntimeWorkspaceId.slice("workspace:".length)]),
+      projectId.slice("project:".length),
+    ];
   } finally {
     db.close();
   }
