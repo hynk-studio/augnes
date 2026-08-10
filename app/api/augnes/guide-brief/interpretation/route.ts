@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const HEADERS = {
   "cache-control": "no-store",
-  "x-augnes-guidebrief-interpretation": "bounded-v0.2",
+  "x-augnes-guidebrief-interpretation": "bounded-v0.3",
 } as const;
 
 export async function POST(request: Request) {

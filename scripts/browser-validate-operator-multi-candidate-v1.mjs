@@ -830,7 +830,8 @@ async function submitGuideBriefModelActionProposal(
   const paused =
     await lifecycle.waitForPausedGuideBriefInterpretationRequest();
   const body = JSON.parse(paused.post_data ?? "null");
-  assert.equal(body.request_version, "guidebrief_interpretation_request.v0.2");
+  assert.equal(body.request_version, "guidebrief_interpretation_request.v0.3");
+  assert.equal(body.previous_answer_anchor_claim, null);
   assert.equal(body.utterance, utterance);
   assert.equal(typeof body.pc4_scope_key, "string");
   assert.equal(typeof body.pc5_binding?.capability_snapshot_fingerprint, "string");

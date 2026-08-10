@@ -454,15 +454,15 @@ PC6A adds no model-authored answer, PC5 action interpretation, action proposal,
 Decision, Transition, project mutation, transcript, provider memory, or
 provider-specific product concept.
 
-## Current
-
-### PC6B bounded model-assisted GuideBrief action interpretation
+### PC6B bounded model-assisted GuideBrief action interpretation — Completed
 
 [Issue #136](https://github.com/hynk-studio/augnes-perspective-lab/issues/136)
-is the current second bounded slice of
-[PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87)
-while its authorized Draft PR remains open. PC6B preserves deterministic PC4
-questions, deterministic PC5 actions, and known refusals as zero-model paths.
+and [PR #137](https://github.com/hynk-studio/augnes-perspective-lab/pull/137)
+define the completed second bounded slice of
+[PC6 parent specification, Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87),
+merged as `e06b68613c174dbfa1f410b7ad2eca4aefb512a1`. PC6B preserves
+deterministic PC4 questions, deterministic PC5 actions, and known refusals as
+zero-model paths.
 Only one otherwise unresolved Korean or English action paraphrase whose exact
 PC5 family is currently registered and safe to propose may share PC6A's one
 bounded candidate-token interpretation call.
@@ -477,20 +477,44 @@ and Transition preview remains read-only preview. PC6B adds no capability,
 Decision, Transition application, Start, Resume, durable semantic proposal,
 transcript, provider memory, or execution authority.
 
+## Current
+
+### PC6C bounded GuideBrief reference interpretation
+
+[Issue #138](https://github.com/hynk-studio/augnes-perspective-lab/issues/138)
+and [Draft PR #139](https://github.com/hynk-studio/augnes-perspective-lab/pull/139)
+define the current residual PC6 slice. PC6C preserves deterministic PC4/PC5
+questions, actions, bounded follow-ups, and known refusals as zero-model paths.
+One otherwise-unresolved Korean or English omission/reference utterance may use
+at most one bounded previous successful PC4 answer anchor from the exact current
+ephemeral conversation context.
+
+The server independently reconstructs and revalidates that anchor against the
+current project, selection, scope, source material, candidate set, capability
+snapshot, and mounted host. Provider egress receives only a bounded public
+subject marker, never a transcript, previous raw utterance, previous answer
+prose, internal identity, or authority material. Provider output remains one
+untrusted current candidate token; PC4 still composes the deterministic answer,
+and PC5 still compiles a deterministic proposal requiring fresh activation.
+PC6C creates no Decision, Transition application, Start, Resume, durable
+conversation/provider memory, project mutation, GitHub effect, external effect,
+or authority expansion. Parent PC6 Issue #87 remains open until PC6C merges and
+an independent merged-head audit proves every parent completion criterion.
+
 ## Next separately authorized work
 
 CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
 remains a separate open Windows managed-delegation runtime enablement lane and
-is not modified by PC6B. It may begin only after CDX2B3A has deciding Windows
+is not modified by PC6C. It may begin only after CDX2B3A has deciding Windows
 identity, attachment, source-runtime, and any claimed package evidence.
 CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
 gates.
 
-Any remaining PC6 parent criteria after the PC6B completion audit, C9,
-current-session attachment, automatic Resume after controller loss or Companion
-startup, Linux product rollout, remote nodes, long-horizon control, continuous
-policy execution, and multi-agent orchestration remain later, separately
-unauthorized, and separate.
+PC6 parent closure remains gated on PC6C merge and the independent merged-head
+audit. C9, current-session attachment, automatic Resume after controller loss
+or Companion startup, Linux product rollout, remote nodes, long-horizon
+control, continuous policy execution, and multi-agent orchestration remain
+later, separately unauthorized, and separate.
 
 ## Integrated resume lifecycle
 

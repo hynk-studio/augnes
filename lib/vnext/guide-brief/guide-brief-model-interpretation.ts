@@ -3,11 +3,14 @@ import {
   type GuideBriefConversationIntentV01,
 } from "@/types/vnext/guide-brief-conversation";
 import {
+  GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01,
   GUIDE_BRIEF_INTERPRETATION_LIMITS_V01,
   GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
   type GuideBriefInterpretationPc5BindingV01,
+  type GuideBriefInterpretationAnchorClaimV01,
   type GuideBriefInterpretationPublicResultV01,
 } from "@/types/vnext/guide-brief-interpretation";
+import type { GuideBriefConversationContextV01 } from "@/types/vnext/guide-brief-conversation";
 import type {
   BrowserActionCapabilityV01,
   BrowserActionCapabilitySnapshotV01,
@@ -21,6 +24,13 @@ const QUESTION_CUES = [
   /^(?:what|where|why|how|which|when|who|is|are|do|does|can|could|would|should)\b/u,
   /\b(?:now|current|currently|evidence|support|source|connected|connection|relationship|review|attention|uncertain|conflict|decision|change|outcome|next|happening|position)\b/u,
   /(?:무엇|뭐|어디|왜|어떻게|어떤|언제|누가|현재|지금|상황|위치|근거|증거|출처|연결|관계|검토|확인|주의|불확실|충돌|결정|변경|결과|다음|진행)/u,
+  /^(?:was|has|did)\b.*\b(?:applied|changed)\b/u,
+  /(?:적용된|적용됐|반영된|반영됐)/u,
+] as const;
+
+const PRIOR_REFERENCE_REQUIRED = [
+  /^(?:and\s+)?(?:why\s+is\s+that|what\s+about\s+that|and\s+the\s+(?:evidence|source)|was\s+that\s+applied)/u,
+  /^(?:그건|그게|그거는|그\s+근거는|그\s+출처는|그건\s+적용된|그게\s+적용된)/u,
 ] as const;
 
 const ENGLISH_PC5_ACTION = String.raw`(?:open|take|select|choose|prepare|show|review|focus)`;
@@ -154,6 +164,44 @@ export function guideBriefInterpretationCandidateMeaningV01(
   intent: GuideBriefConversationIntentV01,
 ) {
   return PUBLIC_MEANINGS[intent];
+}
+
+export function guideBriefInterpretationPriorAnswerMeaningV01(
+  intent: GuideBriefConversationIntentV01,
+) {
+  return PUBLIC_MEANINGS[intent].semantic_description;
+}
+
+export function projectGuideBriefInterpretationAnchorClaimV01(input: {
+  context: GuideBriefConversationContextV01;
+  scope_key: string;
+  mounted_host_generation: string;
+}): GuideBriefInterpretationAnchorClaimV01 | null {
+  if (input.context.scope_key !== input.scope_key) return null;
+  const turn = input.context.turns.at(-1) ?? null;
+  if (
+    !turn ||
+    turn.answer_anchor.scope_key !== input.scope_key ||
+    turn.answer_anchor.intent !== turn.intent ||
+    turn.answer_anchor.subjects.length !== 1
+  ) {
+    return null;
+  }
+  return {
+    claim_version: GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01,
+    scope_key: turn.answer_anchor.scope_key,
+    intent: turn.answer_anchor.intent,
+    subjects: [...turn.answer_anchor.subjects],
+    mounted_host_generation: input.mounted_host_generation,
+  };
+}
+
+export function guideBriefInterpretationRequiresPriorAnchorV01(
+  normalizedUtterance: string,
+): boolean {
+  return PRIOR_REFERENCE_REQUIRED.some((pattern) =>
+    pattern.test(normalizedUtterance)
+  );
 }
 
 export function guideBriefActionInterpretationCandidateMeaningV01(
