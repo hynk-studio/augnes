@@ -186,6 +186,7 @@ let cleanupError = null;
 try {
   initializeDisposableDatabase(databasePath);
   if (runsLifecycleOwner) {
+    assertManagedExecutionRefusalResultContractV01();
     assertRuntimeDistributionContract();
     assertRuntimeUpdateDecisionContract();
     await assertRecoveryControlDecisionContract();
@@ -2297,6 +2298,11 @@ async function assertRegisteredRepositoryUnsupportedWindowsPathV01({
       decisionGrantFingerprint: `sha256:${"3".repeat(64)}`,
     },
   );
+  assert.notEqual(
+    start.isError,
+    true,
+    `unsupported managed Start must return a valid product refusal, not an MCP/internal error: ${JSON.stringify(start)}`,
+  );
   assertRefusedManagedExecutionResultV01(start);
   const resumeRequest = await callExecution(
     "augnes_request_repository_resume",
@@ -2307,22 +2313,52 @@ async function assertRegisteredRepositoryUnsupportedWindowsPathV01({
   );
   assert.notEqual(resumeRequest.isError, true);
   assertRefusedManagedExecutionResultV01(resumeRequest);
-  const resume = await callExecution(
-    "augnes_resume_repository_delegation",
-    {
+  const resumeProjection = resumeRequest.structuredContent;
+  const resumeDecision = resumeProjection?.decision_request;
+  const resumeMutationInput =
+    typeof resumeProjection?.run_id === "string" &&
+    typeof resumeProjection?.attachment_id === "string" &&
+    typeof resumeProjection?.attachment_binding_fingerprint === "string" &&
+    typeof resumeProjection?.expected_state_fingerprint === "string" &&
+    Number.isSafeInteger(resumeProjection?.expected_controller_generation) &&
+    resumeProjection.expected_controller_generation >= 2 &&
+    Number.isSafeInteger(resumeProjection?.expected_run_control_revision) &&
+    typeof resumeDecision?.request_fingerprint === "string" &&
+    typeof resumeDecision?.grant_fingerprint === "string"
+      ? {
       workspaceId: registeredA.workspace.workspace_id,
       projectId: registeredA.project.project_id,
-      runId: `host-run:${"4".repeat(24)}`,
-      attachmentId,
-      expectedAttachmentBindingFingerprint: attachmentBindingFingerprint,
-      expectedStateFingerprint: `sha256:${"5".repeat(64)}`,
-      expectedControllerGeneration: 1,
-      expectedRunControlRevision: 0,
-      decisionRequestFingerprint: `sha256:${"6".repeat(64)}`,
-      decisionGrantFingerprint: `sha256:${"7".repeat(64)}`,
-    },
-  );
-  assertRefusedManagedExecutionResultV01(resume);
+      runId: resumeProjection.run_id,
+      attachmentId: resumeProjection.attachment_id,
+      expectedAttachmentBindingFingerprint:
+        resumeProjection.attachment_binding_fingerprint,
+      expectedStateFingerprint: resumeProjection.expected_state_fingerprint,
+      expectedControllerGeneration: resumeProjection.expected_controller_generation,
+      expectedRunControlRevision: resumeProjection.expected_run_control_revision,
+      decisionRequestFingerprint: resumeDecision.request_fingerprint,
+      decisionGrantFingerprint: resumeDecision.grant_fingerprint,
+    }
+      : null;
+  let resumeMutationApplicable = false;
+  if (resumeMutationInput) {
+    resumeMutationApplicable = true;
+    const resume = await callExecution(
+      "augnes_resume_repository_delegation",
+      resumeMutationInput,
+    );
+    assert.notEqual(
+      resume.isError,
+      true,
+      `unsupported managed Resume must return a valid product refusal, not an MCP/internal error: ${JSON.stringify(resume)}`,
+    );
+    assertRefusedManagedExecutionResultV01(resume);
+  } else {
+    assert.equal(
+      resumeDecision?.grant_fingerprint ?? null,
+      null,
+      "unsupported Resume must not fabricate mutation authority when no exact grant exists",
+    );
+  }
 
   const effectsAfter = snapshotUnsupportedWindowsEffectsV01();
   assert.deepEqual(
@@ -2377,6 +2413,7 @@ async function assertRegisteredRepositoryUnsupportedWindowsPathV01({
     repositoryResume: {
       windows_resume_request_refused: true,
       windows_resume_refused: true,
+      resume_mutation_applicable: resumeMutationApplicable,
       windows_resume_zero_effects: true,
       resume_attempt_created: false,
       resume_runtime_claim_created: false,
@@ -2411,7 +2448,11 @@ function snapshotUnsupportedWindowsEffectsV01() {
 }
 
 function assertRefusedManagedExecutionResultV01(result) {
-  if (result.isError === true) return;
+  assert.notEqual(
+    result.isError,
+    true,
+    `unsupported managed execution must return a valid product refusal, not an MCP/internal error: ${JSON.stringify(result)}`,
+  );
   assert(
     ["blocked", "unsupported", "stale", "reconciliation_required"].includes(
       result.structuredContent?.status,
@@ -2426,6 +2467,27 @@ function assertRefusedManagedExecutionResultV01(result) {
       true,
     );
   }
+}
+
+function assertManagedExecutionRefusalResultContractV01() {
+  assert.throws(
+    () => assertRefusedManagedExecutionResultV01({ isError: true }),
+    /valid product refusal, not an MCP\/internal error/,
+    "an MCP/internal failure must not satisfy unsupported managed-execution refusal evidence",
+  );
+  assert.doesNotThrow(() =>
+    assertRefusedManagedExecutionResultV01({
+      isError: false,
+      structuredContent: {
+        status: "blocked",
+        authority: {
+          execution_authorized: false,
+          semantic_authority: false,
+          external_effect_authorized: false,
+        },
+      },
+    }),
+  );
 }
 
 async function assertRegisteredRepositoryPositivePathV01({
