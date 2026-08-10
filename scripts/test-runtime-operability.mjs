@@ -247,7 +247,7 @@ try {
       true,
       "unrelated PID sentinel must remain alive",
     );
-  } else if (runsResumeOwner && process.platform !== "win32") {
+  } else if (runsResumeOwner) {
     await testRepositoryResumeEligibilityRestart();
     await testRepositoryResumeAmbiguityAndApproval();
     assert.equal(repositoryResumeMcpEvidence?.resume_ready, true);
@@ -291,6 +291,8 @@ try {
     test: `canonical-runtime-supervisor-${runtimeOperabilityOwner.selector}-operability`,
     status: "pass",
     owner_id: runtimeOperabilityOwner.id,
+    execution_platform: process.platform,
+    owner_platforms: runtimeOperabilityOwner.platforms,
     owner_timeout_ms: runtimeOperabilityOwner.timeoutMs,
     owned_responsibilities: runtimeOperabilityOwner.responsibilities,
     canonical_commands: runsLifecycleOwner
@@ -301,14 +303,13 @@ try {
     preferred_ui_port: DEFAULT_UI_PORT,
     preferred_bridge_port: DEFAULT_BRIDGE_PORT,
     selected_ports: selectedPorts,
-    ready_state_verified: runsLifecycleOwner || process.platform !== "win32",
+    ready_state_verified: runsLifecycleOwner || runsResumeOwner,
     duplicate_launch_reused: runsLifecycleOwner,
     graceful_stop: process.platform !== "win32",
-    graceful_stop_skip_reason: process.platform === "win32"
-      ? runsResumeOwner
-        ? "windows_resume_runtime_scenarios_not_previously_owned"
-        : "windows_console_graceful_signal_unavailable"
-      : null,
+    graceful_stop_skip_reason:
+      process.platform === "win32"
+        ? "windows_console_graceful_signal_unavailable"
+        : null,
     windows_forced_owned_tree_stop:
       runsLifecycleOwner && process.platform === "win32",
     parent_signal_cleanup: parentSignalCleanupVerified,
@@ -367,8 +368,7 @@ try {
       repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
     restart_attachment_validation:
       registeredRepositoryMcpEvidence?.restart_attachment_validation ?? false,
-    official_stdio_mcp_client:
-      runsLifecycleOwner || process.platform !== "win32",
+    official_stdio_mcp_client: runsLifecycleOwner || runsResumeOwner,
     repository_resume_eligibility_runtime_proof:
       repositoryResumeMcpEvidence?.resume_ready === true,
     repository_resume_selection_independent:
@@ -386,9 +386,8 @@ try {
     repository_resume_approval_pending:
       repositoryResumeMcpEvidence?.approval_pending === true,
     private_companion_bridge_refusals_verified:
-      runsLifecycleOwner || process.platform !== "win32",
-    narrow_companion_proxy_credential:
-      runsLifecycleOwner || process.platform !== "win32",
+      runsLifecycleOwner || runsResumeOwner,
+    narrow_companion_proxy_credential: runsLifecycleOwner || runsResumeOwner,
     mock_contribution: false,
     legacy_root_requests_observed: legacyRootRequestCount,
     runtime_state_physical_path_verified: runsLifecycleOwner,
@@ -410,6 +409,8 @@ try {
         test: summary.test,
         status: summary.status,
         owner_id: summary.owner_id,
+        execution_platform: summary.execution_platform,
+        owner_platforms: summary.owner_platforms,
         owner_timeout_ms: summary.owner_timeout_ms,
         owned_responsibilities: summary.owned_responsibilities,
         canonical_commands: summary.canonical_commands,

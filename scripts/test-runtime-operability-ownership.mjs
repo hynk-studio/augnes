@@ -6,50 +6,137 @@ import path from "node:path";
 
 import { canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import {
+  RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES,
   RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS,
   RUNTIME_OPERABILITY_OWNERS,
-  RUNTIME_OPERABILITY_REQUIRED_RESPONSIBILITIES,
-  RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES,
+  RUNTIME_OPERABILITY_RESPONSIBILITY_CONTRACTS,
   buildRuntimeOperabilityCanonicalSteps,
+  runtimeOperabilityOwnerForSelector,
   validateRuntimeOperabilityOwnership,
 } from "./runtime-operability-ownership.mjs";
 
-assert.equal(validateRuntimeOperabilityOwnership(RUNTIME_OPERABILITY_OWNERS), true);
-
-const steps = buildRuntimeOperabilityCanonicalSteps((...args) => ({
+const rootNode = (...args) => ({
   command: process.execPath,
   args,
   cwd: process.cwd(),
-}));
+});
+const ownerIds = (owners) => owners.map((owner) => owner.id);
+const lifecycleOwner = RUNTIME_OPERABILITY_OWNERS.find(
+  (owner) => owner.selector === "lifecycle",
+);
+const resumeOwner = RUNTIME_OPERABILITY_OWNERS.find(
+  (owner) => owner.selector === "resume",
+);
+assert(lifecycleOwner);
+assert(resumeOwner);
+
+const darwinOwnership = validateRuntimeOperabilityOwnership(
+  RUNTIME_OPERABILITY_OWNERS,
+  "darwin",
+);
+const linuxOwnership = validateRuntimeOperabilityOwnership(
+  RUNTIME_OPERABILITY_OWNERS,
+  "linux",
+);
+const windowsOwnership = validateRuntimeOperabilityOwnership(
+  RUNTIME_OPERABILITY_OWNERS,
+  "win32",
+);
+assert.deepEqual(ownerIds(darwinOwnership.applicableOwners), [
+  "runtime-supervisor-lifecycle",
+  "runtime-supervisor-resume",
+]);
 assert.deepEqual(
-  steps.map((step) => step.id),
-  RUNTIME_OPERABILITY_OWNERS.map((owner) => owner.id),
+  ownerIds(linuxOwnership.applicableOwners),
+  ownerIds(darwinOwnership.applicableOwners),
+);
+assert.deepEqual(ownerIds(windowsOwnership.applicableOwners), [
+  "runtime-supervisor-lifecycle",
+]);
+
+const darwinSteps = buildRuntimeOperabilityCanonicalSteps(rootNode, "darwin");
+const windowsSteps = buildRuntimeOperabilityCanonicalSteps(rootNode, "win32");
+assert.deepEqual(
+  darwinSteps.map((step) => step.id),
+  ownerIds(darwinOwnership.applicableOwners),
 );
 assert.deepEqual(
-  steps.map((step) => step.args),
-  RUNTIME_OPERABILITY_OWNERS.map((owner) => [
-    "scripts/test-runtime-operability.mjs",
-    owner.selector,
-  ]),
+  windowsSteps.map((step) => step.id),
+  ownerIds(windowsOwnership.applicableOwners),
 );
-assert.equal(steps.every((step) => step.shard === "operability-supervisor"), true);
-assert.equal(steps.every((step) => step.requireNaturalExit === true), true);
-assert.equal(
-  steps.every(
-    (step) =>
-      Number.isInteger(step.timeoutMs) &&
+assert.deepEqual(
+  darwinSteps.map((step) => step.args),
+  [
+    ["scripts/test-runtime-operability.mjs", "lifecycle"],
+    ["scripts/test-runtime-operability.mjs", "resume"],
+  ],
+);
+assert.deepEqual(windowsSteps.map((step) => step.args), [
+  ["scripts/test-runtime-operability.mjs", "lifecycle"],
+]);
+assert.deepEqual(
+  darwinSteps.map((step) => [step.id, step.timeoutMs]),
+  [
+    ["runtime-supervisor-lifecycle", 90_000],
+    ["runtime-supervisor-resume", 105_000],
+  ],
+);
+for (const step of [...darwinSteps, ...windowsSteps]) {
+  assert.equal(step.shard, "operability-supervisor");
+  assert.equal(step.requireNaturalExit, true);
+  assert(
+    Number.isInteger(step.timeoutMs) &&
       step.timeoutMs > 0 &&
       step.timeoutMs <= RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS,
-  ),
-  true,
+  );
+  assert(step.requirements.includes("process-owning"));
+  assert(step.requirements.includes("listener-port-owning"));
+  assert(step.requirements.includes("nested-app-runtime"));
+}
+assert.throws(
+  () => runtimeOperabilityOwnerForSelector("resume", "win32"),
+  { code: "runtime_operability_owner_inapplicable" },
+);
+
+const nonWindowsResponsibilityIds =
+  RUNTIME_OPERABILITY_RESPONSIBILITY_CONTRACTS.filter(
+    (contract) => !contract.platforms.includes("win32"),
+  ).map((contract) => contract.id);
+assert.deepEqual(nonWindowsResponsibilityIds, [
+  "resume-eligibility-after-required-child-crash-and-restart",
+  "resume-read-selection-independence-and-worktree-drift",
+  "browser-confirmed-same-run-resume-and-pre-marker-reacquisition",
+  "resume-exact-replay-generation-checkpoint-and-terminal-result",
+  "ambiguous-operation-reconciliation",
+  "pending-approval-preservation",
+]);
+for (const responsibilityId of nonWindowsResponsibilityIds) {
+  assert(windowsOwnership.nonApplicableResponsibilityIds.includes(responsibilityId));
+  assert.equal(
+    windowsOwnership.responsibilityOwnershipCounts[responsibilityId],
+    0,
+    `Windows must not falsely count non-applicable proof: ${responsibilityId}`,
+  );
+}
+for (const responsibilityId of RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES) {
+  assert.equal(
+    darwinOwnership.responsibilityOwnershipCounts[responsibilityId],
+    darwinOwnership.applicableOwners.length,
+  );
+  assert.equal(
+    windowsOwnership.responsibilityOwnershipCounts[responsibilityId],
+    windowsOwnership.applicableOwners.length,
+  );
+}
+
+const ownershipSource = readFileSync(
+  path.join(process.cwd(), "scripts", "runtime-operability-ownership.mjs"),
+  "utf8",
 );
 assert.equal(
-  steps.every((step) => step.requirements.includes("process-owning")),
-  true,
-);
-assert.equal(
-  steps.every((step) => step.requirements.includes("listener-port-owning")),
-  true,
+  ownershipSource.includes("RUNTIME_OPERABILITY_REPEATED_INVARIANTS"),
+  false,
+  "repeated invariants must not retain a decorative second vocabulary",
 );
 
 const canonicalSuite = readFileSync(
@@ -63,7 +150,7 @@ const localCanonicalExecutor = readFileSync(
 assert.equal(
   canonicalSuite.includes("...buildRuntimeOperabilityCanonicalSteps(rootNode)"),
   true,
-  "aggregate operability must include every permanent runtime owner",
+  "aggregate operability must select every platform-applicable runtime owner",
 );
 assert.equal(
   localCanonicalExecutor.includes('["run", "test:operability"]'),
@@ -71,49 +158,102 @@ assert.equal(
   "Local Canonical must retain the complete aggregate operability phase",
 );
 
-const responsibilityCounts = new Map();
-for (const owner of RUNTIME_OPERABILITY_OWNERS) {
-  for (const responsibility of owner.responsibilities) {
-    responsibilityCounts.set(
-      responsibility,
-      (responsibilityCounts.get(responsibility) ?? 0) + 1,
-    );
-  }
-}
-for (const responsibility of RUNTIME_OPERABILITY_REQUIRED_RESPONSIBILITIES) {
-  const expectedCount =
-    RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES.includes(
-      responsibility,
-    )
-      ? RUNTIME_OPERABILITY_OWNERS.length
-      : 1;
-  assert.equal(
-    responsibilityCounts.get(responsibility),
-    expectedCount,
-    `responsibility ownership count is invalid: ${responsibility}`,
-  );
-}
-
 assert.throws(
-  () => validateRuntimeOperabilityOwnership(RUNTIME_OPERABILITY_OWNERS.slice(0, 1)),
+  () => validateRuntimeOperabilityOwnership([lifecycleOwner], "darwin"),
   { code: "runtime_operability_owner_missing" },
 );
 assert.throws(
-  () => validateRuntimeOperabilityOwnership([
-    RUNTIME_OPERABILITY_OWNERS[0],
-    RUNTIME_OPERABILITY_OWNERS[0],
-  ]),
+  () => validateRuntimeOperabilityOwnership([resumeOwner], "win32"),
+  { code: "runtime_operability_owner_missing" },
+);
+assert.throws(
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [lifecycleOwner, lifecycleOwner, resumeOwner],
+      "darwin",
+    ),
   { code: "runtime_operability_owner_duplicate" },
 );
 assert.throws(
-  () => validateRuntimeOperabilityOwnership([
-    {
-      ...RUNTIME_OPERABILITY_OWNERS[0],
-      timeoutMs: RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS + 1,
-    },
-    RUNTIME_OPERABILITY_OWNERS[1],
-  ]),
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [
+        lifecycleOwner,
+        {
+          ...resumeOwner,
+          responsibilities: [
+            ...resumeOwner.responsibilities,
+            "source-ui-core-and-bridge-readiness",
+          ],
+        },
+      ],
+      "darwin",
+    ),
+  { code: "runtime_operability_responsibility_duplicate" },
+);
+assert.throws(
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [
+        {
+          ...lifecycleOwner,
+          responsibilities: [
+            ...lifecycleOwner.responsibilities,
+            nonWindowsResponsibilityIds[0],
+          ],
+        },
+        resumeOwner,
+      ],
+      "win32",
+    ),
+  { code: "runtime_operability_responsibility_inapplicable" },
+);
+assert.throws(
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [
+        lifecycleOwner,
+        {
+          ...resumeOwner,
+          responsibilities: resumeOwner.responsibilities.filter(
+            (responsibilityId) =>
+              responsibilityId !==
+              RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES[0],
+          ),
+        },
+      ],
+      "darwin",
+    ),
+  { code: "runtime_operability_repeated_invariant_incomplete" },
+);
+assert.throws(
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [
+        {
+          ...lifecycleOwner,
+          timeoutMs: RUNTIME_OPERABILITY_MAX_CHILD_TIMEOUT_MS + 1,
+        },
+        resumeOwner,
+      ],
+      "darwin",
+    ),
   { code: "runtime_operability_timeout_invalid" },
+);
+assert.throws(
+  () =>
+    validateRuntimeOperabilityOwnership(
+      [
+        lifecycleOwner,
+        { ...resumeOwner, requireNaturalExit: false },
+      ],
+      "darwin",
+    ),
+  { code: "runtime_operability_natural_exit_not_required" },
+);
+assert.throws(
+  () => validateRuntimeOperabilityOwnership(RUNTIME_OPERABILITY_OWNERS, "aix"),
+  { code: "runtime_operability_platform_unsupported" },
 );
 
 const acceptedLifecycle = {
@@ -154,17 +294,24 @@ for (const owner of RUNTIME_OPERABILITY_OWNERS) {
   }
 }
 
-console.log(JSON.stringify({
-  test: "runtime-operability-ownership",
-  status: "pass",
-  owners: RUNTIME_OPERABILITY_OWNERS.map((owner) => ({
-    id: owner.id,
-    selector: owner.selector,
-    timeout_ms: owner.timeoutMs,
-    measured_responsibility_ms: owner.measuredResponsibilityMs,
-    responsibility_count: owner.responsibilities.length,
-  })),
-  required_responsibility_count:
-    RUNTIME_OPERABILITY_REQUIRED_RESPONSIBILITIES.length,
-  missing_failed_timed_out_and_cleanup_incomplete_fail_closed: true,
-}));
+console.log(
+  JSON.stringify({
+    test: "runtime-operability-ownership",
+    status: "pass",
+    owners_by_platform: {
+      darwin: ownerIds(darwinOwnership.applicableOwners),
+      linux: ownerIds(linuxOwnership.applicableOwners),
+      win32: ownerIds(windowsOwnership.applicableOwners),
+    },
+    responsibility_count_by_platform: {
+      darwin: darwinOwnership.applicableResponsibilityIds.length,
+      linux: linuxOwnership.applicableResponsibilityIds.length,
+      win32: windowsOwnership.applicableResponsibilityIds.length,
+    },
+    windows_non_applicable_responsibilities: nonWindowsResponsibilityIds,
+    repeated_responsibility_count:
+      RUNTIME_OPERABILITY_INTENTIONALLY_REPEATED_RESPONSIBILITIES.length,
+    finite_bounds_and_natural_exit_unchanged: true,
+    missing_failed_timed_out_and_cleanup_incomplete_fail_closed: true,
+  }),
+);

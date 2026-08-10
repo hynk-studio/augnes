@@ -11,6 +11,8 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
+
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -932,10 +934,40 @@ for (const [childId, shardName] of operabilityChildren) {
     `operability child shard is missing: ${childId}`,
   );
 }
+const ownershipRootNode = (...args) => ({ args });
+const darwinSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "darwin",
+);
+const linuxSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "linux",
+);
+const windowsSupervisorSteps = buildRuntimeOperabilityCanonicalSteps(
+  ownershipRootNode,
+  "win32",
+);
+assert.deepEqual(
+  darwinSupervisorSteps.map((step) => step.id),
+  ["runtime-supervisor-lifecycle", "runtime-supervisor-resume"],
+  "Darwin operability must include lifecycle and positive Resume owners",
+);
+assert.deepEqual(
+  linuxSupervisorSteps.map((step) => step.id),
+  darwinSupervisorSteps.map((step) => step.id),
+  "Linux operability must include the existing non-Windows owner set",
+);
+assert.deepEqual(
+  windowsSupervisorSteps.map((step) => step.id),
+  ["runtime-supervisor-lifecycle"],
+  "Windows operability must not launch a nominal positive Resume owner",
+);
 assert.equal(
-  countOccurrences(operabilityOwnershipSource, `"nested-app-runtime"`),
-  5,
-  "nested application runtime ownership must remain explicit",
+  [...darwinSupervisorSteps, ...windowsSupervisorSteps].every((step) =>
+    step.requirements.includes("nested-app-runtime"),
+  ),
+  true,
+  "every platform-applicable supervisor owner must declare nested runtime ownership",
 );
 for (const fragment of [
   `buildRuntimeOperabilityCanonicalSteps(rootNode)`,
@@ -1222,9 +1254,14 @@ console.log(
       integration_concurrency_bound: 2,
       browser_lanes_must_run_sequentially_on_shared_host: true,
       integration_children_uniquely_owned: integrationChildren,
-      operability_children_uniquely_owned: operabilityChildren.map(
+      operability_children_declared: operabilityChildren.map(
         ([childId]) => childId,
       ),
+      runtime_supervisor_children_by_platform: {
+        darwin: darwinSupervisorSteps.map((step) => step.id),
+        linux: linuxSupervisorSteps.map((step) => step.id),
+        win32: windowsSupervisorSteps.map((step) => step.id),
+      },
       child_resource_isolation_required: true,
       zero_network_guard_required: true,
       package_history_required: true,
