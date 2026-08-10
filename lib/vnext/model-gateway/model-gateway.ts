@@ -1691,10 +1691,16 @@ function validatePurposeInput(
     };
   }
   if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
-    requireExactKeys(record, ["input_kind", "utterance", "candidates"]);
+    requireExactKeys(record, [
+      "input_kind",
+      "utterance",
+      "candidates",
+      "previous_answer_anchor",
+    ]);
     if (readOwn(record, "input_kind") !== purpose) invalid();
     const utterance = readOwn(record, "utterance");
     const candidates = readOwn(record, "candidates");
+    const previousAnswerAnchor = readOwn(record, "previous_answer_anchor");
     if (
       typeof utterance !== "string" ||
       utterance.trim().length === 0 ||
@@ -1735,12 +1741,28 @@ function validatePurposeInput(
       }
       tokens.add(token);
     }
+    if (previousAnswerAnchor !== null) {
+      const anchor = requirePlainRecord(previousAnswerAnchor);
+      requireExactKeys(anchor, ["anchor_kind", "public_subject"]);
+      if (
+        readOwn(anchor, "anchor_kind") !==
+          "immediately_previous_successful_guidebrief_answer" ||
+        !boundedProviderSafeTextV01(
+          readOwn(anchor, "public_subject"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        )
+      ) {
+        invalid();
+      }
+    }
     if (!boundedGuideBriefUtteranceV01(utterance)) invalid();
     return {
       input_kind: purpose,
       utterance,
       candidates:
         candidates as GuideBriefInterpretationModelInvocationEnvelopeV01["input"]["candidates"],
+      previous_answer_anchor:
+        previousAnswerAnchor as GuideBriefInterpretationModelInvocationEnvelopeV01["input"]["previous_answer_anchor"],
     };
   }
   if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {

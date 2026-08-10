@@ -2,14 +2,18 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { openDatabase } from "@/lib/db";
 import {
+  buildGuideBriefConversationPlanV01,
   buildGuideBriefConversationGuideFingerprintV01,
   buildGuideBriefConversationScopeKeyV01,
+  guideBriefConversationCanonicalQuestionV01,
   listAvailableGuideBriefConversationIntentsV01,
 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import {
   buildGuideBriefInterpretationCandidateSetFingerprintV01,
   guideBriefActionInterpretationCandidateMeaningV01,
   guideBriefInterpretationCandidateMeaningV01,
+  guideBriefInterpretationPriorAnswerMeaningV01,
+  guideBriefInterpretationRequiresPriorAnchorV01,
   isGuideBriefModelInterpretationEligibleV01,
 } from "@/lib/vnext/guide-brief/guide-brief-model-interpretation";
 import {
@@ -31,13 +35,16 @@ import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-l
 import {
   GUIDE_BRIEF_CONVERSATION_INTENTS_V01,
   GUIDE_BRIEF_CONVERSATION_MAX_QUESTION_LENGTH_V01,
+  type GuideBriefConversationPlanInputV01,
   type GuideBriefConversationIntentV01,
 } from "@/types/vnext/guide-brief-conversation";
 import {
   GUIDE_BRIEF_INTERPRETATION_LIMITS_V01,
+  GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01,
   GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01,
   GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01,
   type GuideBriefInterpretationPublicResultV01,
+  type GuideBriefInterpretationProviderAnchorV01,
   type GuideBriefInterpretationPc5BindingV01,
   type GuideBriefInterpretationRequestV01,
 } from "@/types/vnext/guide-brief-interpretation";
@@ -130,6 +137,17 @@ export async function interpretGuideBriefQuestionV01(
   ) {
     return publicResultV01("stale");
   }
+  const previousAnswerAnchor = rebuildPriorAnswerAnchorV01({
+    request,
+    guide: before.guide,
+    pc5: pc5Before,
+  });
+  if (
+    request.previous_answer_anchor_claim !== null &&
+    previousAnswerAnchor === null
+  ) {
+    return publicResultV01("stale");
+  }
   const deterministicRequest = buildGuideBriefInteractionRequestV01({
     request_id: "guidebrief-interpretation:server-admission",
     raw_utterance: request.utterance,
@@ -149,6 +167,13 @@ export async function interpretGuideBriefQuestionV01(
       available_intents: exactAvailableIntents,
       available_actions: pc5Before?.snapshot.capabilities ?? [],
     })
+  ) {
+    return publicResultV01("unsupported");
+  }
+  if (
+    guideBriefInterpretationRequiresPriorAnchorV01(
+      deterministicRequest.normalized_utterance,
+    ) && previousAnswerAnchor === null
   ) {
     return publicResultV01("unsupported");
   }
@@ -219,6 +244,7 @@ export async function interpretGuideBriefQuestionV01(
           input_kind: GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
           utterance: request.utterance,
           candidates,
+          previous_answer_anchor: previousAnswerAnchor,
         },
       },
       dependencies,
@@ -249,6 +275,17 @@ export async function interpretGuideBriefQuestionV01(
     if (
       Boolean(request.pc5_binding) !== Boolean(pc5After) ||
       pc5After?.snapshot.fingerprint !== pc5Before?.snapshot.fingerprint
+    ) {
+      return publicResultV01("stale");
+    }
+    const previousAnswerAnchorAfter = rebuildPriorAnswerAnchorV01({
+      request,
+      guide: after.guide,
+      pc5: pc5After,
+    });
+    if (
+      JSON.stringify(previousAnswerAnchorAfter) !==
+        JSON.stringify(previousAnswerAnchor)
     ) {
       return publicResultV01("stale");
     }
@@ -367,6 +404,7 @@ export function validateGuideBriefInterpretationRequestV01(
     "mounted_host_generation",
     "pc4_scope_key",
     "pc5_binding",
+    "previous_answer_anchor_claim",
     "project_id",
     "request_version",
     "utterance",
@@ -377,6 +415,9 @@ export function validateGuideBriefInterpretationRequestV01(
   }
   const intents = input.available_intents;
   const pc5Binding = validatePc5BindingV01(input.pc5_binding);
+  const previousAnswerAnchorClaim = validatePreviousAnswerAnchorClaimV01(
+    input.previous_answer_anchor_claim,
+  );
   if (
     input.request_version !== GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01 ||
     typeof input.utterance !== "string" ||
@@ -396,6 +437,10 @@ export function validateGuideBriefInterpretationRequestV01(
     !CANDIDATE_FINGERPRINT.test(input.candidate_set_fingerprint) ||
     typeof input.mounted_host_generation !== "string" ||
     !HOST_GENERATION.test(input.mounted_host_generation) ||
+    (previousAnswerAnchorClaim !== null &&
+      (previousAnswerAnchorClaim.mounted_host_generation !==
+        input.mounted_host_generation ||
+        previousAnswerAnchorClaim.scope_key !== input.pc4_scope_key)) ||
     !Array.isArray(intents) ||
     intents.length < 1 ||
     intents.length > GUIDE_BRIEF_INTERPRETATION_LIMITS_V01.candidates ||
@@ -423,6 +468,49 @@ export function validateGuideBriefInterpretationRequestV01(
     throw new Error("guidebrief_interpretation_request_invalid");
   }
   return input as unknown as GuideBriefInterpretationRequestV01;
+}
+
+function validatePreviousAnswerAnchorClaimV01(
+  input: unknown,
+): GuideBriefInterpretationRequestV01["previous_answer_anchor_claim"] {
+  if (input === null) return null;
+  if (!isRecord(input)) {
+    throw new Error("guidebrief_interpretation_request_invalid");
+  }
+  const keys = [
+    "claim_version",
+    "intent",
+    "mounted_host_generation",
+    "scope_key",
+    "subjects",
+  ].sort();
+  const subjects = new Set([
+    "project",
+    "selected_work",
+    "decision",
+    "transition",
+    "relationship",
+    "later_outcome",
+    "capability",
+  ]);
+  if (
+    JSON.stringify(Object.keys(input).sort()) !== JSON.stringify(keys) ||
+    input.claim_version !==
+      GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01 ||
+    typeof input.scope_key !== "string" ||
+    !SCOPE_KEY.test(input.scope_key) ||
+    !GUIDE_BRIEF_CONVERSATION_INTENTS_V01.includes(
+      input.intent as GuideBriefConversationIntentV01,
+    ) ||
+    !Array.isArray(input.subjects) ||
+    input.subjects.length !== 1 ||
+    !subjects.has(String(input.subjects[0])) ||
+    typeof input.mounted_host_generation !== "string" ||
+    !HOST_GENERATION.test(input.mounted_host_generation)
+  ) {
+    throw new Error("guidebrief_interpretation_request_invalid");
+  }
+  return input as unknown as GuideBriefInterpretationRequestV01["previous_answer_anchor_claim"];
 }
 
 function validatePc5BindingV01(
@@ -552,6 +640,59 @@ function exactAvailableIntentsV01(
         }
       : { guide },
   );
+}
+
+function exactConversationInputV01(
+  guide: Awaited<ReturnType<typeof loadProjectGuideBriefV02>>["guide"],
+  pc5: CurrentGuideBriefPc5CapabilityBindingV01 | null,
+): Omit<GuideBriefConversationPlanInputV01, "question" | "conversation_context"> {
+  return pc5
+    ? {
+        guide,
+        guide_source_fingerprint: null,
+        selected_work_scope: pc5.selected_work_scope,
+        timeline: pc5.timeline,
+        relationships: pc5.relationships_by_question,
+        selected_relationship_question_key:
+          pc5.selected_relationship_question_key,
+      }
+    : { guide };
+}
+
+function rebuildPriorAnswerAnchorV01(input: {
+  request: GuideBriefInterpretationRequestV01;
+  guide: Awaited<ReturnType<typeof loadProjectGuideBriefV02>>["guide"];
+  pc5: CurrentGuideBriefPc5CapabilityBindingV01 | null;
+}): GuideBriefInterpretationProviderAnchorV01 | null {
+  const claim = input.request.previous_answer_anchor_claim;
+  if (claim === null) return null;
+  const plan = buildGuideBriefConversationPlanV01({
+    ...exactConversationInputV01(input.guide, input.pc5),
+    question: guideBriefConversationCanonicalQuestionV01(claim.intent),
+    conversation_context: null,
+  });
+  if (
+    plan.routing.status !== "supported" ||
+    plan.routing.intent !== claim.intent ||
+    plan.availability === "unavailable" ||
+    plan.availability === "ambiguous" ||
+    plan.scope.scope_key !== input.request.pc4_scope_key ||
+    plan.answer_anchor === null ||
+    JSON.stringify(plan.answer_anchor) !==
+      JSON.stringify({
+        scope_key: claim.scope_key,
+        intent: claim.intent,
+        subjects: claim.subjects,
+      })
+  ) {
+    return null;
+  }
+  return {
+    anchor_kind: "immediately_previous_successful_guidebrief_answer",
+    public_subject: guideBriefInterpretationPriorAnswerMeaningV01(
+      claim.intent,
+    ),
+  };
 }
 
 function exactReboundCapabilityV01(

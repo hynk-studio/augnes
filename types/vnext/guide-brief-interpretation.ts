@@ -1,11 +1,16 @@
-import type { GuideBriefConversationIntentV01 } from "./guide-brief-conversation";
+import type {
+  GuideBriefConversationAnswerAnchorV01,
+  GuideBriefConversationIntentV01,
+} from "./guide-brief-conversation";
 import type { GuideBriefInteractionPlanV01 } from "./guide-brief-interaction";
 import type { SelectedWorkRelationshipQuestionKeyV01 } from "./selected-work-relationships";
 
 export const GUIDE_BRIEF_INTERPRETATION_REQUEST_VERSION_V01 =
-  "guidebrief_interpretation_request.v0.2" as const;
+  "guidebrief_interpretation_request.v0.3" as const;
 export const GUIDE_BRIEF_INTERPRETATION_RESULT_VERSION_V01 =
   "guidebrief_interpretation_result.v0.2" as const;
+export const GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01 =
+  "guidebrief_interpretation_anchor_claim.v0.1" as const;
 
 export const GUIDE_BRIEF_INTERPRETATION_LIMITS_V01 = {
   candidates: 24,
@@ -32,10 +37,24 @@ export interface GuideBriefInterpretationProviderCandidateV01 {
   currently_available: true;
 }
 
+/** Browser-local claim only. The server must rebuild it from current owners. */
+export interface GuideBriefInterpretationAnchorClaimV01
+  extends GuideBriefConversationAnswerAnchorV01 {
+  claim_version: typeof GUIDE_BRIEF_INTERPRETATION_ANCHOR_CLAIM_VERSION_V01;
+  mounted_host_generation: string;
+}
+
+/** Provider-facing public context. It contains no PC4 or Core identity. */
+export interface GuideBriefInterpretationProviderAnchorV01 {
+  anchor_kind: "immediately_previous_successful_guidebrief_answer";
+  public_subject: string;
+}
+
 export interface GuideBriefInterpretationModelInputV01 {
   input_kind: "guidebrief_interpretation";
   utterance: string;
   candidates: GuideBriefInterpretationProviderCandidateV01[];
+  previous_answer_anchor: GuideBriefInterpretationProviderAnchorV01 | null;
 }
 
 export interface GuideBriefInterpretationModelOutputV01 {
@@ -56,6 +75,7 @@ export interface GuideBriefInterpretationRequestV01 {
   available_intents: GuideBriefConversationIntentV01[];
   pc5_binding: GuideBriefInterpretationPc5BindingV01 | null;
   mounted_host_generation: string;
+  previous_answer_anchor_claim: GuideBriefInterpretationAnchorClaimV01 | null;
 }
 
 /** Browser-selected scope is a non-authoritative lookup hint only. */

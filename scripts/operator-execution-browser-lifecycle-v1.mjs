@@ -710,7 +710,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         { name: "cache-control", value: "no-store" },
         {
           name: "x-augnes-guidebrief-interpretation",
-          value: "bounded-v0.2",
+          value: "bounded-v0.3",
         },
       ],
       body: Buffer.from(JSON.stringify(body), "utf8").toString("base64"),

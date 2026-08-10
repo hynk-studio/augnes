@@ -103,6 +103,8 @@ assert.match(
 assert.match(conversation, /candidate_kind === "action"/);
 assert.match(conversation, /setInteractionPlan\(result\.action_plan\)/);
 assert.match(conversation, /setActionProposalWasModelAssisted\(true\)/);
+assert.match(conversation, /projectGuideBriefInterpretationAnchorClaimV01/);
+assert.match(conversation, /previous_answer_anchor_claim:/);
 assert.match(conversation, /data-guidebrief-model-action-activate="true"/);
 assert.match(
   conversation,

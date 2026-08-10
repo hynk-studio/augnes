@@ -71,6 +71,9 @@ assert.match(component, /interpretationAbort\.current\?\.abort\(\)/);
 assert.match(component, /interactionBusy/);
 assert.match(component, /validateGuideBriefInterpretationPublicResultV01/);
 assert.match(component, /guideBriefConversationCanonicalQuestionV01/);
+assert.match(component, /projectGuideBriefInterpretationAnchorClaimV01/);
+assert.match(component, /previous_answer_anchor_claim:/);
+assert.match(component, /previous_answer_anchor_claim_identity/);
 assert.match(component, /pc5_binding:/);
 assert.match(
   component,
