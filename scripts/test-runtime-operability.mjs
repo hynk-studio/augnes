@@ -35,12 +35,21 @@ import {
   confirmLocalProjectOnboardingV01,
   pickAndInspectLocalProjectV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
-import { readDefaultWorkspaceIdentityV01 } from "../lib/vnext/persistence/project-identity-registry";
+import {
+  getOrCreateCanonicalProjectForLocalRootV01,
+  getOrCreateDefaultWorkspaceIdentityV01,
+  normalizeLocalProjectRootRefV01,
+  readDefaultWorkspaceIdentityV01,
+} from "../lib/vnext/persistence/project-identity-registry";
 import {
   listRepositoryManagedResumeAttemptsV01,
   listRepositoryRunResumeCheckpointsV01,
 } from "../lib/vnext/persistence/repository-execution-store";
-import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import {
+  readActiveProjectSelectionV01,
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry";
 import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -92,7 +101,12 @@ import {
   trackServerConnections,
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
-import { runtimeOperabilityOwnerForSelector } from "./runtime-operability-ownership.mjs";
+import {
+  RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES,
+  executeRuntimeOperabilityLifecycleStrategy,
+  runtimeOperabilityOwnerForSelector,
+  validateRuntimeOperabilityLifecycleEvidence,
+} from "./runtime-operability-ownership.mjs";
 
 const repoRoot = process.cwd();
 const runtimeOperabilityOwner = runtimeOperabilityOwnerForSelector(process.argv[2]);
@@ -210,41 +224,20 @@ try {
     assert.equal(
       registeredRepositoryMcpEvidence?.verified,
       true,
-      "the real registered-repository MCP positive path must be verified",
+      "the selected real registered-repository MCP lifecycle must be verified",
     );
+    assert.equal(registeredRepositoryMcpEvidence?.continuity_verified, true);
     assert.equal(
-      registeredRepositoryMcpEvidence?.selection_independent_attachment,
-      true,
-      "Browser selection must not change the exact repository attachment",
-    );
-    assert.equal(
-      registeredRepositoryMcpEvidence?.attachment_stale_reason,
-      "packet_changed",
-    );
-    assert.equal(
-      registeredRepositoryMcpEvidence?.same_path_replacement_blocked,
+      registeredRepositoryMcpEvidence?.selection_independent_continuity,
       true,
     );
-    if (
-      runtimeOperabilityOwner.applicability_context.windows_managed_execution
-        .status === "unavailable"
-    ) {
-      assert.equal(registeredRepositoryMcpEvidence?.windows_start_refused, true);
-      assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, false);
-      assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, null);
-      assert.equal(registeredRepositoryMcpEvidence?.proposal_status, null);
-      assert.equal(repositoryResumeMcpEvidence?.windows_resume_request_refused, true);
-      assert.equal(repositoryResumeMcpEvidence?.windows_resume_refused, true);
-      assert.equal(repositoryResumeMcpEvidence?.windows_resume_zero_effects, true);
-      assert.equal(
-        registeredRepositoryMcpEvidence?.restart_attachment_validation,
-        true,
-      );
-    } else {
-      assert.equal(registeredRepositoryMcpEvidence?.start_or_execution_created, true);
-      assert.equal(registeredRepositoryMcpEvidence?.managed_run_status, "completed");
-      assert.equal(registeredRepositoryMcpEvidence?.proposal_status, "available");
-    }
+    validateRuntimeOperabilityLifecycleEvidence(
+      {
+        registered_repository: registeredRepositoryMcpEvidence,
+        repository_resume: repositoryResumeMcpEvidence,
+      },
+      runtimeOperabilityOwner.applicability_context,
+    );
     assert.equal(
       isProcessAlive(unrelatedProcess.pid),
       true,
@@ -336,7 +329,10 @@ try {
     reviewed_ui_provider_environment_verified: runsLifecycleOwner,
     bridge_core_mode: "http",
     live_repository_mcp_tool_verified: mcpBehaviorVerified,
-    registered_repository_positive_path: registeredRepositoryMcpEvidence?.verified === true,
+    registered_repository_lifecycle_verified:
+      registeredRepositoryMcpEvidence?.verified === true,
+    registered_repository_lifecycle_strategy:
+      registeredRepositoryMcpEvidence?.lifecycle_strategy ?? null,
     registered_repository_status: registeredRepositoryMcpEvidence?.repository_status ?? null,
     initial_binding: registeredRepositoryMcpEvidence?.initial_binding ?? null,
     revised_binding: registeredRepositoryMcpEvidence?.revised_binding ?? null,
@@ -384,8 +380,6 @@ try {
       repositoryResumeMcpEvidence?.windows_resume_refused ?? false,
     windows_resume_zero_effects:
       repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
-    restart_attachment_validation:
-      registeredRepositoryMcpEvidence?.restart_attachment_validation ?? false,
     official_stdio_mcp_client: runsLifecycleOwner || runsResumeOwner,
     repository_resume_eligibility_runtime_proof:
       repositoryResumeMcpEvidence?.resume_ready === true,
@@ -465,8 +459,10 @@ try {
         bridge_core_mode: summary.bridge_core_mode,
         live_repository_mcp_tool_verified:
           summary.live_repository_mcp_tool_verified,
-        registered_repository_positive_path:
-          summary.registered_repository_positive_path,
+        registered_repository_lifecycle_verified:
+          summary.registered_repository_lifecycle_verified,
+        registered_repository_lifecycle_strategy:
+          summary.registered_repository_lifecycle_strategy,
         registered_repository_status: summary.registered_repository_status,
         browser_revision_refresh_verified:
           summary.browser_revision_refresh_verified,
@@ -2075,21 +2071,48 @@ async function assertSupervisedMcpAdapterSplit({
         callRepository,
         verifyProjectFiles: false,
       });
-      const positivePath = await assertRegisteredRepositoryPositivePathV01({
-        repositories: registeredRepositories,
-        callRepository,
-        callExecution,
-        effectiveUrl: ready.effective_url,
-      });
-      return { tools, call: unregistered, positivePath };
+      const lifecycleExecution =
+        await executeRuntimeOperabilityLifecycleStrategy({
+          context: runtimeOperabilityOwner.applicability_context,
+          run_positive: async () => ({
+            registered_repository:
+              await assertRegisteredRepositoryPositivePathV01({
+                repositories: registeredRepositories,
+                callRepository,
+                callExecution,
+                effectiveUrl: ready.effective_url,
+              }),
+            repository_resume: null,
+          }),
+          run_refusal: async () => {
+            const refusal =
+              await assertRegisteredRepositoryUnsupportedWindowsPathV01({
+                repositories: registeredRepositories,
+                callRepository,
+                callExecution,
+              });
+            return {
+              registered_repository: refusal.registeredRepository,
+              repository_resume: refusal.repositoryResume,
+            };
+          },
+        });
+      const lifecyclePath = {
+        registeredRepository:
+          lifecycleExecution.evidence.registered_repository,
+        repositoryResume: lifecycleExecution.evidence.repository_resume,
+      };
+      return { tools, call: unregistered, lifecyclePath };
     },
   });
   assert.equal(sourceBlindResult.tools.some((tool) => tool.name === "augnes_resume_repository"), true);
   assert.notEqual(sourceBlindResult.call.isError, true);
   assert.equal(sourceBlindResult.call.structuredContent?.companion?.status, "live");
   assert.equal(sourceBlindResult.call.structuredContent?.repository_resolution?.status, "project_not_registered");
-  assert.equal(sourceBlindResult.positivePath.verified, true);
-  registeredRepositoryMcpEvidence = sourceBlindResult.positivePath;
+  assert.equal(sourceBlindResult.lifecyclePath.registeredRepository.verified, true);
+  registeredRepositoryMcpEvidence =
+    sourceBlindResult.lifecyclePath.registeredRepository;
+  repositoryResumeMcpEvidence = sourceBlindResult.lifecyclePath.repositoryResume;
 
   const mcpPublicOutput = JSON.stringify({ sourceBlindResult });
   assertPublicSafe(mcpPublicOutput, "real MCP tool results");
@@ -2141,6 +2164,267 @@ async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
     if (transport.pid) {
       await waitForPidsExit([transport.pid], 10_000);
     }
+  }
+}
+
+async function assertRegisteredRepositoryUnsupportedWindowsPathV01({
+  repositories,
+  callRepository,
+  callExecution,
+}) {
+  const applicability = runtimeOperabilityOwner.applicability_context;
+  assert.equal(applicability.platform, "win32");
+  assert.equal(applicability.windows_managed_execution.status, "unavailable");
+  const clock = advancingClockV01();
+  const registeredA = await registerRepositoryForUnsupportedWindowsV01({
+    repositoryRoot: repositories.repositoryA,
+    displayName: "CDX2B3B Unsupported Windows Repository A",
+    createUuids: [
+      registeredRuntimeWorkspaceId.slice("workspace:".length),
+      registeredRuntimeProjectAId.slice("project:".length),
+    ],
+    clock,
+  });
+  const definition = {
+    goal: "Prove unsupported Windows managed execution refuses authority.",
+    success_criteria: [
+      "Continuity remains readable through the live Companion.",
+      "Start and Resume create no authority or execution effects.",
+    ],
+    non_goals: ["Do not execute repository work."],
+  };
+  defineFixtureWorkV01({
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    definition,
+    clock,
+  });
+  const initialRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: initialRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition,
+  });
+  const prepared = await callExecution(
+    "augnes_prepare_repository_execution",
+    { repositoryRoot: repositories.repositoryA },
+  );
+  assert.notEqual(prepared.isError, true);
+  assert(
+    ["prepared", "blocked"].includes(prepared.structuredContent.status),
+  );
+  const attachment = prepared.structuredContent.attachment ?? null;
+  const attachmentId =
+    attachment?.attachment_id ?? `sha256:${"8".repeat(64)}`;
+  const attachmentBindingFingerprint =
+    attachment?.binding_fingerprint ?? `sha256:${"9".repeat(64)}`;
+  const attachmentPreparationRefused =
+    prepared.structuredContent.status === "blocked";
+  if (attachmentPreparationRefused) {
+    assertRefusedManagedExecutionResultV01(prepared);
+  } else {
+    assert(attachment?.attachment_id);
+  }
+
+  const registeredB = await registerRepositoryForUnsupportedWindowsV01({
+    repositoryRoot: repositories.repositoryB,
+    displayName: "CDX2B3B Unsupported Windows Repository B",
+    createUuids: [registeredRuntimeProjectBId.slice("project:".length)],
+    clock,
+  });
+  assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id);
+  const selectionIndependentRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assertExactRegisteredRepositoryResultV01({
+    result: selectionIndependentRead,
+    workspaceId: registeredA.workspace.workspace_id,
+    projectId: registeredA.project.project_id,
+    displayName: registeredA.project.display_name,
+    definition,
+  });
+  assert.equal(
+    selectionIndependentRead.structuredContent.continuity.project.active,
+    false,
+  );
+
+  if (
+    attachment &&
+    applicability.windows_managed_execution.reason?.startsWith(
+      "windows_physical_identity_",
+    )
+  ) {
+    const originalRoot = `${repositories.repositoryA}-supported-original`;
+    renameSync(repositories.repositoryA, originalRoot);
+    mkdirSync(repositories.repositoryA, { recursive: true });
+    writeFileSync(
+      path.join(repositories.repositoryA, "fixture.txt"),
+      "CDX2B3B unsupported replacement identity fixture\n",
+    );
+    initializeGitFixtureV01(repositories.repositoryA);
+  }
+
+  const projectFilesBefore = snapshotDirectoryContentV01(
+    repositories.repositoryA,
+  );
+  const effectsBefore = snapshotUnsupportedWindowsEffectsV01();
+  const providerRequestsBefore = proxyRequestCount;
+  const startRequest = await callExecution(
+    "augnes_request_repository_delegation",
+    {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      attachmentId,
+    },
+  );
+  assert.notEqual(startRequest.isError, true);
+  assertRefusedManagedExecutionResultV01(startRequest);
+  const start = await callExecution(
+    "augnes_start_repository_delegation",
+    {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      attachmentId,
+      expectedAttachmentBindingFingerprint: attachmentBindingFingerprint,
+      expectedExecutionEnvelopeFingerprint: `sha256:${"1".repeat(64)}`,
+      decisionRequestFingerprint: `sha256:${"2".repeat(64)}`,
+      decisionGrantFingerprint: `sha256:${"3".repeat(64)}`,
+    },
+  );
+  assertRefusedManagedExecutionResultV01(start);
+  const resumeRequest = await callExecution(
+    "augnes_request_repository_resume",
+    {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+    },
+  );
+  assert.notEqual(resumeRequest.isError, true);
+  assertRefusedManagedExecutionResultV01(resumeRequest);
+  const resume = await callExecution(
+    "augnes_resume_repository_delegation",
+    {
+      workspaceId: registeredA.workspace.workspace_id,
+      projectId: registeredA.project.project_id,
+      runId: `host-run:${"4".repeat(24)}`,
+      attachmentId,
+      expectedAttachmentBindingFingerprint: attachmentBindingFingerprint,
+      expectedStateFingerprint: `sha256:${"5".repeat(64)}`,
+      expectedControllerGeneration: 1,
+      expectedRunControlRevision: 0,
+      decisionRequestFingerprint: `sha256:${"6".repeat(64)}`,
+      decisionGrantFingerprint: `sha256:${"7".repeat(64)}`,
+    },
+  );
+  assertRefusedManagedExecutionResultV01(resume);
+
+  const effectsAfter = snapshotUnsupportedWindowsEffectsV01();
+  assert.deepEqual(
+    effectsAfter,
+    effectsBefore,
+    "unsupported Windows Start and Resume must create zero durable effects",
+  );
+  assert.deepEqual(
+    snapshotDirectoryContentV01(repositories.repositoryA),
+    projectFilesBefore,
+    "unsupported Windows Start and Resume must not mutate project files",
+  );
+  assert.equal(proxyRequestCount, providerRequestsBefore);
+
+  return {
+    registeredRepository: {
+      verified: true,
+      lifecycle_strategy:
+        RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.UNSUPPORTED_WINDOWS_REFUSAL,
+      responsibility_id:
+        "unsupported-windows-managed-start-and-resume-zero-effect-refusal",
+      repository_status:
+        selectionIndependentRead.structuredContent.repository_resolution.status,
+      registration_mode: registeredA.registration_mode,
+      continuity_verified: true,
+      selection_independent_continuity: true,
+      current_work_start_eligible:
+        initialRead.structuredContent.continuity.current_work.start_eligible,
+      selection_independent_attachment: false,
+      attachment_stale_reason: null,
+      same_path_replacement_blocked: false,
+      managed_run_id: null,
+      managed_run_status: null,
+      proposal_status: null,
+      read_database_mutations: 0,
+      read_project_file_mutations: 0,
+      codex_only_database_copies: 0,
+      browser_process_required: false,
+      windows_start_refused: true,
+      start_preparation_or_request_refused:
+        attachmentPreparationRefused ||
+        ["blocked", "unsupported", "stale"].includes(
+          startRequest.structuredContent.status,
+        ),
+      start_or_execution_created: false,
+      start_decision_grant_created: false,
+      attachment_consumed: false,
+      worker_or_provider_invocation: false,
+      project_files_unchanged: true,
+      refusal_reason: applicability.windows_managed_execution.reason,
+    },
+    repositoryResume: {
+      windows_resume_request_refused: true,
+      windows_resume_refused: true,
+      windows_resume_zero_effects: true,
+      resume_attempt_created: false,
+      resume_runtime_claim_created: false,
+      semantic_effect_created: false,
+      external_effect_created: false,
+    },
+  };
+}
+
+function snapshotUnsupportedWindowsEffectsV01() {
+  const db = openFixtureDatabaseV01();
+  try {
+    const count = (table) =>
+      db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
+    return {
+      decision_requests: count("vnext_repository_execution_decision_requests"),
+      attachments_consumed: db.prepare(
+        "SELECT COUNT(*) AS count FROM vnext_repository_execution_attachments WHERE lifecycle = 'consumed'",
+      ).get().count,
+      managed_runs: count("autonomy_runs"),
+      resume_attempts: count("vnext_repository_managed_resume_attempts"),
+      resume_runtime_claims: count(
+        "vnext_repository_managed_resume_runtime_claims",
+      ),
+      proposals: count("state_delta_proposals"),
+      transitions: count("state_transitions"),
+      core_records: count("vnext_core_records"),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function assertRefusedManagedExecutionResultV01(result) {
+  if (result.isError === true) return;
+  assert(
+    ["blocked", "unsupported", "stale", "reconciliation_required"].includes(
+      result.structuredContent?.status,
+    ),
+    `expected managed execution refusal, received ${JSON.stringify(result)}`,
+  );
+  if (result.structuredContent?.authority) {
+    assert.equal(
+      Object.values(result.structuredContent.authority).every(
+        (value) => value === false,
+      ),
+      true,
+    );
   }
 }
 
@@ -2505,6 +2789,12 @@ async function assertRegisteredRepositoryPositivePathV01({
 
   return {
     verified: true,
+    lifecycle_strategy:
+      RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.MANAGED_EXECUTION_POSITIVE,
+    responsibility_id:
+      "managed-start-exact-replay-result-receipt-and-proposal",
+    continuity_verified: true,
+    selection_independent_continuity: true,
     repository_status:
       revisedRead.structuredContent.repository_resolution.status,
     initial_binding: initialContinuity.snapshot.binding,
@@ -2531,7 +2821,6 @@ async function assertRegisteredRepositoryPositivePathV01({
     browser_process_required: true,
     start_or_execution_created: startOrExecutionCreated,
     windows_start_refused: false,
-    restart_attachment_validation: false,
   };
 }
 
@@ -2667,6 +2956,60 @@ async function registerRepositoryThroughOnboardingV01({
     const selection = readActiveProjectSelectionV01(db, workspace.workspace_id);
     assert.equal(selection?.project_id, confirmed.project.project_id);
     return { workspace, project: confirmed.project, selection };
+  } finally {
+    db.close();
+  }
+}
+
+async function registerRepositoryForUnsupportedWindowsV01(input) {
+  try {
+    const registration = await registerRepositoryThroughOnboardingV01(input);
+    return { ...registration, registration_mode: "live_onboarding" };
+  } catch (error) {
+    if (error?.code !== "physical_identity_unavailable") throw error;
+  }
+
+  const uuidQueue = [...input.createUuids];
+  const db = openFixtureDatabaseV01();
+  try {
+    const dependencies = {
+      now: input.clock.now,
+      create_uuid: () => {
+        const next = uuidQueue.shift();
+        assert(next, "persisted registration requested an unexpected identity");
+        return next;
+      },
+    };
+    const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, dependencies);
+    const registration = getOrCreateCanonicalProjectForLocalRootV01(db, {
+      workspace_id: workspace.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(input.repositoryRoot, {
+        base_path: input.repositoryRoot,
+      }),
+      display_name: input.displayName,
+    }, dependencies);
+    assert.equal(registration.status, "inserted");
+    assert.equal(uuidQueue.length, 0);
+    const now = input.clock.now();
+    touchRecentProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: registration.project.project_id,
+      now,
+    });
+    const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    const selection = selectActiveProjectV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: registration.project.project_id,
+      expected_project_id: active?.project_id ?? null,
+      expected_revision: active?.selection_revision ?? null,
+      now,
+    });
+    return {
+      workspace,
+      project: registration.project,
+      selection,
+      registration_mode: "persisted_existing_registration",
+    };
   } finally {
     db.close();
   }

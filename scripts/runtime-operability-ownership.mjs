@@ -36,6 +36,11 @@ const repositoryRoot = path.resolve(
   "..",
 );
 
+export const RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES = Object.freeze({
+  MANAGED_EXECUTION_POSITIVE: "managed_execution_positive",
+  UNSUPPORTED_WINDOWS_REFUSAL: "unsupported_windows_refusal",
+});
+
 export const RUNTIME_OPERABILITY_RESPONSIBILITY_CONTRACTS = Object.freeze([
   responsibility(
     "runtime-distribution-update-recovery-environment-and-path-contracts",
@@ -56,15 +61,19 @@ export const RUNTIME_OPERABILITY_RESPONSIBILITY_CONTRACTS = Object.freeze([
   ),
   responsibility(
     "repository-onboarding-registration-and-physical-root-identity",
-    ALL_CANONICAL_CONTEXTS,
+    MANAGED_EXECUTION_SUPPORTED_CONTEXTS,
   ),
   responsibility(
     "initial-work-definition-and-pre-execution-revision",
     ALL_CANONICAL_CONTEXTS,
   ),
   responsibility(
-    "repository-continuity-browser-selection-and-attachment-binding",
+    "repository-continuity-and-browser-selection-independence",
     ALL_CANONICAL_CONTEXTS,
+  ),
+  responsibility(
+    "repository-attachment-binding-and-stale-refusal",
+    MANAGED_EXECUTION_SUPPORTED_CONTEXTS,
   ),
   responsibility(
     "managed-start-exact-replay-result-receipt-and-proposal",
@@ -74,7 +83,10 @@ export const RUNTIME_OPERABILITY_RESPONSIBILITY_CONTRACTS = Object.freeze([
     "unsupported-windows-managed-start-and-resume-zero-effect-refusal",
     UNSUPPORTED_WINDOWS_CONTEXTS,
   ),
-  responsibility("same-path-physical-replacement-refusal", ALL_CANONICAL_CONTEXTS),
+  responsibility(
+    "same-path-physical-replacement-refusal",
+    MANAGED_EXECUTION_SUPPORTED_CONTEXTS,
+  ),
   responsibility("poisoned-environment-restart", ALL_CANONICAL_CONTEXTS),
   responsibility("parent-signal-cleanup", ALL_CANONICAL_CONTEXTS),
   responsibility("required-child-failure", ALL_CANONICAL_CONTEXTS),
@@ -162,7 +174,8 @@ export const RUNTIME_OPERABILITY_OWNERS = Object.freeze([
       "companion-discovery-identity-and-public-privacy",
       "repository-onboarding-registration-and-physical-root-identity",
       "initial-work-definition-and-pre-execution-revision",
-      "repository-continuity-browser-selection-and-attachment-binding",
+      "repository-continuity-and-browser-selection-independence",
+      "repository-attachment-binding-and-stale-refusal",
       "managed-start-exact-replay-result-receipt-and-proposal",
       "unsupported-windows-managed-start-and-resume-zero-effect-refusal",
       "same-path-physical-replacement-refusal",
@@ -349,6 +362,102 @@ export function runtimeOperabilityOwnerForSelector(
   return owner;
 }
 
+export function runtimeOperabilityLifecycleStrategy(
+  context = readCurrentRuntimeOperabilityContext(),
+) {
+  const normalizedContext = createRuntimeOperabilityContext(context);
+  if (
+    normalizedContext.platform === "win32" &&
+    normalizedContext.windows_managed_execution.status === "unavailable"
+  ) {
+    return Object.freeze({
+      id: RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.UNSUPPORTED_WINDOWS_REFUSAL,
+      responsibility_id:
+        "unsupported-windows-managed-start-and-resume-zero-effect-refusal",
+      context: normalizedContext,
+    });
+  }
+  return Object.freeze({
+    id: RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.MANAGED_EXECUTION_POSITIVE,
+    responsibility_id:
+      "managed-start-exact-replay-result-receipt-and-proposal",
+    context: normalizedContext,
+  });
+}
+
+export function validateRuntimeOperabilityLifecycleEvidence(
+  evidence,
+  context = readCurrentRuntimeOperabilityContext(),
+) {
+  const strategy = runtimeOperabilityLifecycleStrategy(context);
+  const registered = evidence?.registered_repository;
+  const resume = evidence?.repository_resume;
+  if (
+    registered?.verified !== true ||
+    registered?.lifecycle_strategy !== strategy.id ||
+    registered?.responsibility_id !== strategy.responsibility_id ||
+    registered?.continuity_verified !== true ||
+    registered?.selection_independent_continuity !== true
+  ) {
+    throw ownershipError("runtime_operability_lifecycle_evidence_incomplete");
+  }
+  if (
+    strategy.id ===
+    RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.MANAGED_EXECUTION_POSITIVE
+  ) {
+    if (
+      registered.start_or_execution_created !== true ||
+      registered.selection_independent_attachment !== true ||
+      registered.attachment_stale_reason !== "packet_changed" ||
+      registered.same_path_replacement_blocked !== true ||
+      registered.managed_run_status !== "completed" ||
+      registered.proposal_status !== "available"
+    ) {
+      throw ownershipError("runtime_operability_positive_evidence_incomplete");
+    }
+  } else if (
+    !["live_onboarding", "persisted_existing_registration"].includes(
+      registered.registration_mode,
+    ) ||
+    registered.windows_start_refused !== true ||
+    registered.start_preparation_or_request_refused !== true ||
+    registered.start_or_execution_created !== false ||
+    registered.start_decision_grant_created !== false ||
+    registered.attachment_consumed !== false ||
+    registered.worker_or_provider_invocation !== false ||
+    registered.project_files_unchanged !== true ||
+    resume?.windows_resume_request_refused !== true ||
+    resume?.windows_resume_refused !== true ||
+    resume?.windows_resume_zero_effects !== true ||
+    resume?.resume_attempt_created !== false ||
+    resume?.resume_runtime_claim_created !== false ||
+    resume?.semantic_effect_created !== false ||
+    resume?.external_effect_created !== false
+  ) {
+    throw ownershipError("runtime_operability_refusal_evidence_incomplete");
+  }
+  return strategy;
+}
+
+export async function executeRuntimeOperabilityLifecycleStrategy({
+  context = readCurrentRuntimeOperabilityContext(),
+  run_positive,
+  run_refusal,
+}) {
+  const strategy = runtimeOperabilityLifecycleStrategy(context);
+  const execute =
+    strategy.id ===
+    RUNTIME_OPERABILITY_LIFECYCLE_STRATEGIES.MANAGED_EXECUTION_POSITIVE
+      ? run_positive
+      : run_refusal;
+  if (typeof execute !== "function") {
+    throw ownershipError("runtime_operability_lifecycle_executor_missing");
+  }
+  const evidence = await execute(strategy);
+  validateRuntimeOperabilityLifecycleEvidence(evidence, strategy.context);
+  return Object.freeze({ strategy, evidence });
+}
+
 export function buildRuntimeOperabilityCanonicalSteps(
   rootNode,
   context = readCurrentRuntimeOperabilityContext(),
@@ -371,7 +480,7 @@ export function buildRuntimeOperabilityCanonicalSteps(
 export function readCurrentRuntimeOperabilityContext() {
   const platform = process.platform;
   const architecture = process.arch;
-  const distributionMode = detectDistributionMode();
+  const distributionMode = detectRuntimeOperabilityDistributionMode();
   const windowsVersion = platform === "win32" ? operatingSystemRelease() : null;
   const windowsPhysicalIdentity =
     platform === "win32"
@@ -419,10 +528,12 @@ export function createRuntimeOperabilityContext(input = {}) {
   });
 }
 
-function detectDistributionMode() {
-  return process.env.AUGNES_DISTRIBUTION_MODE === "packaged"
-    ? "packaged"
-    : "source";
+export function detectRuntimeOperabilityDistributionMode(
+  environment = process.env,
+) {
+  return environment.AUGNES_DISTRIBUTION_MODE === undefined
+    ? "source"
+    : environment.AUGNES_DISTRIBUTION_MODE;
 }
 
 function observeCurrentWindowsPhysicalIdentity() {
