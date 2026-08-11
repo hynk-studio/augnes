@@ -63,6 +63,7 @@ const sourcePaths = [
   "lib/vnext/context-use-review.ts",
   "lib/vnext/context-use-attribution-projection.ts",
   "lib/vnext/context-shadow-navigation.ts",
+  "lib/vnext/continuity-dynamics.ts",
   "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
