@@ -79,6 +79,8 @@
     "test:strategy-composition-case": "node --import tsx scripts/test-strategy-composition-case.ts",
     "test:strategy-composition-comparison": "node --import tsx scripts/test-strategy-composition-comparison.ts",
     "strategy-composition-comparison:report": "node --import tsx scripts/strategy-composition-comparison-report.ts",
+    "test:governed-actor-lab": "node --import tsx scripts/test-governed-actor-lab.ts",
+    "governed-actor-lab:pilot": "node --import tsx scripts/governed-actor-lab-pilot.ts",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",

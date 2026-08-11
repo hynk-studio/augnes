@@ -44,6 +44,7 @@ import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protoco
 import { runStrategicAdvantageTransferConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategic-advantage-transfer";
 import { runStrategyCompositionCaseConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-case";
 import { runStrategyCompositionComparisonConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-comparison";
+import { runGovernedActorLabConformanceV01 } from "@/scripts/vnext-protocol-conformance/governed-actor-lab";
 import { runBoundedAutomationCycleConformanceV01 } from "@/scripts/vnext-protocol-conformance/bounded-automation-cycle";
 import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol-conformance/project-verify-material";
 
@@ -68,6 +69,7 @@ const sourcePaths = [
   "lib/vnext/continuity-dynamics.ts",
   "lib/vnext/strategy-composition-case.ts",
   "lib/vnext/strategy-composition-comparison.ts",
+  "lib/vnext/governed-actor-lab.ts",
   "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
@@ -604,6 +606,7 @@ try {
     runStrategyCompositionCaseConformanceV01();
   const strategyCompositionComparisonSummary =
     runStrategyCompositionComparisonConformanceV01();
+  const governedActorLabSummary = runGovernedActorLabConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -677,6 +680,7 @@ try {
         context_use_attribution_projection: contextUseAttributionSummary,
         strategy_composition_case: strategyCompositionCaseSummary,
         strategy_composition_comparison: strategyCompositionComparisonSummary,
+        governed_actor_lab: governedActorLabSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:
