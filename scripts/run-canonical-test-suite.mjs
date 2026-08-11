@@ -132,6 +132,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "read-only Continuity Dynamics Observer contract",
+      ...rootNode("scripts/test-continuity-dynamics.ts"),
+      timeoutMs: 45_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
