@@ -76,6 +76,7 @@
     "context-shadow-navigation:report": "node --import tsx scripts/context-shadow-navigation-report.ts",
     "test:continuity-dynamics": "node --import tsx scripts/test-continuity-dynamics.ts",
     "continuity-dynamics:report": "node --import tsx scripts/continuity-dynamics-report.ts",
+    "test:strategy-composition-case": "node --import tsx scripts/test-strategy-composition-case.ts",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",
