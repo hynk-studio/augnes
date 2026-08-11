@@ -3653,17 +3653,29 @@ async function assertPlatformAndNonGitRefusalV01(
   const before = count(db, "autonomy_runs");
   const decisionsBefore = count(db, "vnext_repository_execution_decision_requests");
   for (const platform of ["win32", "linux"] as const) {
+    const platformDependencies = platform === "win32"
+      ? {
+          platform,
+          architecture: "x64" as const,
+          windows_version: "10.0.26100",
+          distribution_mode: "packaged" as const,
+        }
+      : { platform };
     const result = await prepareRepositoryManagedDelegationV01(db, {
       workspace_id: workspaceId,
       project_id: fixture.project_id,
       attachment_id: fixture.attachment_id,
     }, service, {
       now: () => "2026-08-04T01:05:10.000Z",
-      platform,
+      ...platformDependencies,
     });
     assert.equal(result.status, "blocked");
     assert.equal(result.decision_request, null);
     if (platform === "win32") {
+      assert.equal(
+        result.ordinary_text,
+        "Managed repository delegation on Windows requires the verified local source runtime; Windows packaged runtime support is not available.",
+      );
       await assert.rejects(
         startRepositoryManagedDelegationV01(db, {
           config: operatorConfig(workspaceId, fixture.project_id),
@@ -3676,7 +3688,7 @@ async function assertPlatformAndNonGitRefusalV01(
           decision_grant_fingerprint: `sha256:${"2".repeat(64)}`,
         }, service, {
           now: () => "2026-08-04T01:05:10.500Z",
-          platform,
+          ...platformDependencies,
         }),
         (error: unknown) =>
           error instanceof RepositoryManagedDelegationErrorV01 &&
