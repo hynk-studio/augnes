@@ -26,9 +26,12 @@ model이다.
 ```
 
 이 세 track은 candidate, gap, source, counterexample, review와 outcome이라는 공통
-규율을 사용한다. Perspective Arena의 persistent actors, evolutionary competition과
-automatic population selection은 이 프로그램의 후반 연구 가설이지 승인된 단기
-제품 작업이 아니다.
+규율을 사용한다. Perspective Arena의 persistent actors와 evolutionary population의
+제품화, automatic promotion과 automatic population selection은 후반 연구 가설이지
+승인된 단기 제품 작업이 아니다. 다만 ACGC의 shared attribution/evaluation foundation이
+확립된 뒤에는 별도 승인된 local/offline Lab에서 persistent actor와 bounded evolution을
+검증할 수 있다. 그 Lab 결과는 Personal Perspective, TaskContext 또는 제품 authority를
+자동 획득하지 않는다.
 
 현재 Augnes의 기본 제품은 project-centered provider-neutral temporal substrate로
 유지된다. Personal Perspective 연구는 이를 대체하거나 mainline R6 closed loop의 우선순위를
@@ -62,15 +65,18 @@ active vNext 문서에 다시 명시된 범위에서만 현재 연구 방향이 
 수정하여 채택:
 
 - Arena-specific gap을 만들지 않고 공통 Perspective Gap Management를 사용
-- 독립 actor population보다 bounded structured review부터 검증
+- bounded structured review와 shared attribution/evaluation foundation을 actor 연구의 공통 기반으로 사용
 - fitness보다 사용자 판단과 downstream outcome을 우선
+- shared foundation 이후 separately authorized local/offline Lab에서는 persistent actor와 bounded evolution을 검증할 수 있음
 
-보류:
+제품화/자동 승격은 보류:
 
-- persistent Perspective Actors
-- mutation, branching와 merging
-- real-time competition과 resource bidding
+- persistent Perspective Actor의 default product adoption
+- whole-actor product identity와 durable product actor memory
+- automatic TaskContext injection
+- real-time competition과 resource bidding의 product behavior
 - automatic fitness-based promotion 또는 population selection
+- hidden cross-project actors
 
 ---
 
@@ -401,27 +407,40 @@ truth가 아니다.
 - 단일 강한 review 대비 structural diversity와 compute-adjusted gain 비교
 - useful minority view가 다음 check나 decision을 실제로 바꾸는지 추적
 
-### 7.2 Arena hypotheses deferred
+### 7.2 Arena Lab and productization boundary
 
-다음은 repeated outcome evidence 이후에만 검토한다.
+ACGC의 shared attribution/evaluation foundation이 merge된 뒤에는 별도 승인된
+local/offline Lab에서 다음을 bounded experiment로 검증할 수 있다.
 
 ```text
-persistent Perspective Actors
-long-lived actor identity and memory
-evolutionary fitness
-mutation, branching and merging
+persistent Perspective Actor snapshots
+actor-private memory lineage
+bounded mutation and branching
+compute-matched competition and selection
+short evolutionary generations
+```
+
+그러나 다음 productization과 automatic promotion 가설은 repeated outcome evidence와
+별도 architecture/product authorization 이전까지 계속 deferred다.
+
+```text
+whole-actor default product adoption
+product actor identity and memory
 real-time competition
 resource bidding
 automatic population selection
 automatic actor promotion
-long-running evolutionary competition
+automatic TaskContext injection
+long-running unattended evolutionary competition
 hidden cross-project actors
 ```
 
-Arena output은 Personal Perspective candidate나 gap을 제안할 수 있지만 3.1과 4.4의
-경계를 따른다. Arena output, model inference, semantic assessment와 relation assertion은
-durable Personal Perspective를 직접 변경하거나 task context에 silently inject할 수
-없으며, durable promotion과 derived task-context selection은 서로 다른 path다.
+Lab selection은 `ReviewDecision`이 아니며 actor-private memory는 Personal Perspective,
+Project Perspective 또는 reviewed product memory가 아니다. Lab output은 Personal
+Perspective candidate나 gap을 제안할 수 있지만 3.1과 4.4의 경계를 따른다. Lab output,
+model inference, semantic assessment와 relation assertion은 durable Personal Perspective를
+직접 변경하거나 task context에 silently inject할 수 없으며, durable promotion과 derived
+task-context selection은 서로 다른 path다.
 
 ---
 
@@ -434,12 +453,14 @@ durable Personal Perspective를 직접 변경하거나 task context에 silently 
 4. bounded relevance and context-selection experiment
 5. Personal Vault persistence architecture decision
 6. structured multi-perspective review trials
-7. lineage/evolutionary research after repeated outcome evidence
+7. separately authorized actor/evolution Lab after shared ACGC attribution/evaluation foundation
+8. productization only after repeated outcome evidence and separate authorization
 ```
 
-offline Lab work는 R6와 병렬로 진행할 수 있다. 그러나 Core integration, durable
-Personal Perspective transition과 task-context injection은 다음이 검증되기 전에는
-진행하지 않는다.
+ACGC shared foundation 이후의 separately authorized local/offline Actor Lab은 product
+R&D와 병렬로 진행할 수 있다. 그러나 Personal Perspective productization, automatic
+promotion, durable Personal Perspective transition과 task-context injection은 다음이
+검증되기 전에는 진행하지 않는다.
 
 ```text
 actual authorized transition
