@@ -30,6 +30,9 @@ import {
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import { openDatabase } from "../lib/db";
 import {
+  buildPersonalPerspectiveShadowProjectionV01,
+} from "../lib/vnext/context-shadow-navigation";
+import {
   PersonalPerspectiveContextSelectionErrorV01,
   buildConservativeProjectAutomationPolicyV01,
   createPersonalPerspectiveScopeLineageRefV01,
@@ -1120,6 +1123,61 @@ async function main() {
       1,
     );
     assert.equal(compiled.personal_perspective_selection.excluded_count, 0);
+    const compiledPacketBeforeShadow = canonicalizeProtocolValueV01(
+      compiled.later_packet,
+    );
+    const compiledPacketFingerprintBeforeShadow =
+      compiled.later_packet.integrity.fingerprint;
+    const rowsBeforeShadow = mutationSideEffectCounts(db);
+    const packetsBeforeShadow = storedTaskContextPacketPayloads(
+      db,
+      workspace.workspace_id,
+      projectA.project.project_id,
+    );
+    const shadowEvaluation = buildPersonalPerspectiveShadowProjectionV01({
+      workspace_id: workspace.workspace_id,
+      project_id: projectA.project.project_id,
+      scope: readPersonalPerspectiveEffectiveScopeV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: projectA.project.project_id,
+      }),
+      candidates: [candidateA],
+      baseline_task_context_packet: {
+        packet_version: compiled.later_packet.packet_version,
+        packet_id: compiled.later_packet.packet_id,
+        packet_fingerprint: compiled.later_packet.integrity.fingerprint,
+      },
+      max_shadow_selected: 1,
+    });
+    assert.deepEqual(
+      shadowEvaluation.baseline.selection,
+      compiled.personal_perspective_selection,
+    );
+    assert.equal(shadowEvaluation.shadow.selected.length, 1);
+    assert.equal(shadowEvaluation.comparison.shadow_only.length, 0);
+    assert.equal(
+      canonicalizeProtocolValueV01(compiled.later_packet),
+      compiledPacketBeforeShadow,
+    );
+    assert.equal(
+      compiled.later_packet.integrity.fingerprint,
+      compiledPacketFingerprintBeforeShadow,
+    );
+    assert.deepEqual(mutationSideEffectCounts(db), rowsBeforeShadow);
+    assert.deepEqual(
+      storedTaskContextPacketPayloads(
+        db,
+        workspace.workspace_id,
+        projectA.project.project_id,
+      ),
+      packetsBeforeShadow,
+    );
+    assert.equal(
+      JSON.stringify(compiled.later_packet).includes(
+        shadowEvaluation.projection_version,
+      ),
+      false,
+    );
     assert.equal(
       compiled.later_packet.selected_context.filter(
         (entry) =>
@@ -1755,6 +1813,9 @@ async function main() {
             beforeRestart.automation.policy_summary.profile,
           admission_enabled_without_grant: "grant_required",
           compiler_personal_perspective_selected: 1,
+          shadow_evaluation_packet_mutations: 0,
+          shadow_evaluation_core_record_writes: 0,
+          shadow_evaluation_schema_changes: 0,
           not_configured_candidate_markers: 0,
           excluded_candidate_markers: 0,
           contaminated_candidate_scope_rejections:

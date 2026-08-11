@@ -62,6 +62,7 @@ const sourcePaths = [
   "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/context-use-review.ts",
   "lib/vnext/context-use-attribution-projection.ts",
+  "lib/vnext/context-shadow-navigation.ts",
   "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",

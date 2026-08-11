@@ -72,6 +72,8 @@
     "test:c8-semantic-visual": "node --import tsx scripts/test-c8-semantic-visual-contract.mjs",
     "test:context-use-attribution": "node --import tsx scripts/test-context-use-attribution-read-model.ts",
     "context-use-attribution:report": "node --import tsx scripts/context-use-attribution-report.ts",
+    "test:context-shadow-navigation": "node --import tsx scripts/test-context-shadow-navigation.ts",
+    "context-shadow-navigation:report": "node --import tsx scripts/context-shadow-navigation-report.ts",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",
