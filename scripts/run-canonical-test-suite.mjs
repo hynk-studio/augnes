@@ -122,6 +122,11 @@ const suites = {
       ...rootNode("scripts/vnext-protocol-conformance.ts"),
     },
     {
+      label: "context-use attribution persisted read-model contract",
+      ...rootNode("scripts/test-context-use-attribution-read-model.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
