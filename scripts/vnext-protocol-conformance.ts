@@ -30,6 +30,7 @@ import {
 } from "@/lib/vnext/task-context-packet";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { runContextUseAttributionConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-attribution-projection";
 import { runContextUseReviewConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-review";
 import { runCriterionAssessmentConformanceV01 } from "@/scripts/vnext-protocol-conformance/criterion-assessment";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
@@ -60,6 +61,9 @@ const sourcePaths = [
   "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/context-use-review.ts",
+  "lib/vnext/context-use-attribution-projection.ts",
+  "lib/vnext/context-shadow-navigation.ts",
+  "lib/vnext/continuity-dynamics.ts",
   "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
@@ -590,6 +594,8 @@ try {
   const stateTransitionReceiptSummary =
     runStateTransitionReceiptConformanceV01();
   const contextUseReviewSummary = runContextUseReviewConformanceV01();
+  const contextUseAttributionSummary =
+    runContextUseAttributionConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -660,6 +666,7 @@ try {
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,
         context_use_review: contextUseReviewSummary,
+        context_use_attribution_projection: contextUseAttributionSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:
