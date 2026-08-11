@@ -127,6 +127,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "Personal Perspective bounded shadow-navigation contract",
+      ...rootNode("scripts/test-context-shadow-navigation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
