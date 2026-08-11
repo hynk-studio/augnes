@@ -24,6 +24,7 @@ import {
   STRATEGY_COMPOSITION_OUTCOME_DIMENSIONS_V01,
   STRATEGY_COMPOSITION_OUTCOME_OBSERVATION_VERSION_V01,
   type StrategyCompositionAblationAssociationV01,
+  type StrategyCompositionBudgetComplianceV01,
   type StrategyCompositionBudgetEnvelopeV01,
   type StrategyCompositionBudgetReferenceV01,
   type StrategyCompositionComparisonAuthoritySummaryV01,
@@ -240,18 +241,255 @@ export function assertValidStrategyCompositionComparisonV01(input: unknown): ass
   assertExactKeysV01(input, comparisonRootKeys, "$");
   if (input.comparison_version !== STRATEGY_COMPOSITION_COMPARISON_VERSION_V01 || input.comparison_kind !== "derived_rebuildable_offline_research_comparison") failV01("strategy_comparison_contract_invalid");
   const value = input as unknown as StrategyCompositionComparisonV01;
-  requiredIdV01(value.workspace_id, "$.workspace_id");
-  requiredIdV01(value.project_id, "$.project_id");
+  const workspaceId = requiredIdV01(value.workspace_id, "$.workspace_id");
+  const projectId = requiredIdV01(value.project_id, "$.project_id");
   requiredIdV01(value.comparison_family_key, "$.comparison_family_key");
-  if (!Array.isArray(value.variant_summaries) || value.variant_summaries.length !== 4 || value.variant_summaries.some((item, index) => item.variant_kind !== STRATEGY_COMPOSITION_COMPARISON_VARIANTS_V01[index])) failV01("strategy_comparison_four_variants_required", "$.variant_summaries");
-  if (!Array.isArray(value.outcome_observations) || value.outcome_observations.length !== 4) failV01("strategy_comparison_four_observations_required", "$.outcome_observations");
-  if (!Array.isArray(value.pairwise_comparisons) || value.pairwise_comparisons.length !== 4) failV01("strategy_comparison_pairwise_set_invalid", "$.pairwise_comparisons");
+  const summaries = assertSerializedVariantSummariesV01(value.variant_summaries, workspaceId, projectId);
+  assertCanonicalEqualV01(value.structural_parity, createStructuralParityFromSummariesV01(summaries), "strategy_comparison_structural_parity_invalid");
+  const evaluationBinding = assertSerializedEvaluationBindingV01(value.evaluation_binding, workspaceId, projectId, summaries[3]!.case_ref);
+  const budget = assertSerializedBudgetV01(value.equal_budget);
+  const observations = assertSerializedObservationsV01(value.outcome_observations, summaries, evaluationBinding, budget, workspaceId, projectId);
+  assertCanonicalEqualV01(value.pairwise_comparisons, createPairwiseComparisonsV01(observations, summaries), "strategy_comparison_pairwise_projection_invalid");
+  assertCanonicalEqualV01(value.non_dominance, createNonDominanceV01(observations), "strategy_comparison_non_dominance_invalid");
+  assertSerializedAblationAssociationV01(value.ablation_association, evaluationBinding.parent_development_case, workspaceId, projectId);
+  assertSerializedNegativeTransferV01(value.negative_transfer, workspaceId, projectId);
+  const missingDimensions = uniqueSortedV01(observations.flatMap((item) => item.missing_dimensions));
+  assertCanonicalEqualV01(value.completeness, {
+    status: missingDimensions.length === 0 ? "complete" : "partial",
+    missing_dimensions: missingDimensions,
+    stochastic_aggregation: "unsupported_v0.1",
+  }, "strategy_comparison_completeness_invalid");
+  assertCanonicalEqualV01(value.limitations, uniqueTextV01(value.limitations, "$.limitations"), "strategy_comparison_limitations_invalid");
   assertAllFalseAuthorityV01(value.authority_summary);
   if (canonicalizeProtocolValueV01(value.material_boundary) !== canonicalizeProtocolValueV01(createMaterialBoundaryV01())) failV01("strategy_comparison_material_boundary_invalid", "$.material_boundary");
+  assertExactKeysV01(value.integrity, ["algorithm", "canonicalization", "fingerprint_scope", "fingerprint"], "$.integrity");
+  if (value.integrity.algorithm !== "sha256" || value.integrity.canonicalization !== STRATEGY_COMPOSITION_COMPARISON_CANONICALIZATION_V01 || value.integrity.fingerprint_scope !== "object_without_integrity_fingerprint") failV01("strategy_comparison_integrity_invalid", "$.integrity");
   if (!SHA256_PATTERN.test(value.integrity?.fingerprint ?? "") || value.integrity.fingerprint !== fingerprintV01(value)) failV01("strategy_comparison_fingerprint_mismatch", "$.integrity.fingerprint");
   if (value.comparison_id !== `strategy-composition-comparison:${hashSuffixV01(value, "comparison_id")}`) failV01("strategy_comparison_id_mismatch", "$.comparison_id");
-  if (value.non_dominance.global_winner_created !== false || value.non_dominance.ordinal_ranking_created !== false || value.non_dominance.product_promotion_created !== false) failV01("strategy_comparison_ranking_or_promotion_forbidden", "$.non_dominance");
-  for (const pair of value.pairwise_comparisons) if (pair.pairwise_better_is_global_winner !== false) failV01("strategy_comparison_global_winner_forbidden", "$.pairwise_comparisons");
+}
+
+function assertSerializedVariantSummariesV01(
+  input: unknown,
+  workspaceId: string,
+  projectId: string,
+): StrategyCompositionVariantSummaryV01[] {
+  if (!Array.isArray(input) || input.length !== 4) failV01("strategy_comparison_four_variants_required", "$.variant_summaries");
+  const summaries = input as StrategyCompositionVariantSummaryV01[];
+  const seenCases = new Set<string>();
+  const seenCaseIds = new Set<string>();
+  for (const [index, summary] of summaries.entries()) {
+    if (!isProtocolRecordV01(summary)) failV01("strategy_comparison_variant_summary_invalid", `$.variant_summaries[${index}]`);
+    assertExactKeysV01(summary, ["variant_kind", "case_ref", "case_role", "baseline_case_ref", "component_count", "role_binding_count", "relation_count", "component_set_fingerprint", "source_set_fingerprint", "construction_material_fingerprint", "role_binding_fingerprint", "relation_fingerprint", "structurally_valid"], `$.variant_summaries[${index}]`);
+    const expectedVariant = STRATEGY_COMPOSITION_COMPARISON_VARIANTS_V01[index];
+    if (summary.variant_kind !== expectedVariant) failV01("strategy_comparison_four_variants_required", `$.variant_summaries[${index}].variant_kind`);
+    assertCaseReferenceV01(summary.case_ref, workspaceId, projectId, `$.variant_summaries[${index}].case_ref`);
+    const identity = canonicalizeProtocolValueV01(summary.case_ref);
+    if (seenCases.has(identity) || seenCaseIds.has(summary.case_ref.case_id)) failV01("strategy_comparison_variant_case_ref_duplicate", `$.variant_summaries[${index}].case_ref`);
+    seenCases.add(identity);
+    seenCaseIds.add(summary.case_ref.case_id);
+    boundedIntegerV01(summary.component_count, `$.variant_summaries[${index}].component_count`, MAX_COUNT);
+    boundedIntegerV01(summary.role_binding_count, `$.variant_summaries[${index}].role_binding_count`, MAX_COUNT);
+    boundedIntegerV01(summary.relation_count, `$.variant_summaries[${index}].relation_count`, MAX_COUNT);
+    for (const [field, fingerprint] of [
+      ["component_set_fingerprint", summary.component_set_fingerprint],
+      ["source_set_fingerprint", summary.source_set_fingerprint],
+      ["construction_material_fingerprint", summary.construction_material_fingerprint],
+      ["role_binding_fingerprint", summary.role_binding_fingerprint],
+      ["relation_fingerprint", summary.relation_fingerprint],
+    ] as const) requiredFingerprintV01(fingerprint, `$.variant_summaries[${index}].${field}`);
+    if (summary.structurally_valid !== true) failV01("strategy_comparison_variant_structure_invalid", `$.variant_summaries[${index}].structurally_valid`);
+    if (index === 0) {
+      if (summary.case_role !== "baseline" || summary.baseline_case_ref !== null) failV01("strategy_comparison_monolithic_case_role_invalid", `$.variant_summaries[${index}]`);
+    } else {
+      if (summary.case_role !== "development") failV01(`strategy_comparison_${expectedVariant}_case_role_invalid`, `$.variant_summaries[${index}].case_role`);
+      assertCaseReferenceV01(summary.baseline_case_ref, workspaceId, projectId, `$.variant_summaries[${index}].baseline_case_ref`);
+    }
+  }
+  createStructuralParityFromSummariesV01(summaries);
+  return summaries;
+}
+
+function createStructuralParityFromSummariesV01(
+  summaries: StrategyCompositionVariantSummaryV01[],
+): StrategyCompositionComparisonV01["structural_parity"] {
+  const [monolithic, unbound, bound, ordered] = summaries as [StrategyCompositionVariantSummaryV01, StrategyCompositionVariantSummaryV01, StrategyCompositionVariantSummaryV01, StrategyCompositionVariantSummaryV01];
+  if (monolithic.component_count !== 1 || monolithic.role_binding_count !== 0 || monolithic.relation_count !== 0) failV01("strategy_comparison_monolithic_structure_invalid", "$.variant_summaries[0]");
+  if (unbound.role_binding_count !== 0 || unbound.relation_count !== 0) failV01("strategy_comparison_unbound_structure_invalid", "$.variant_summaries[1]");
+  if (bound.role_binding_count === 0 || bound.relation_count !== 0) failV01("strategy_comparison_bound_structure_invalid", "$.variant_summaries[2]");
+  if (ordered.role_binding_count === 0 || ordered.relation_count === 0) failV01("strategy_comparison_ordered_structure_invalid", "$.variant_summaries[3]");
+  const componentized = [unbound, bound, ordered];
+  if (componentized.some((item) => item.component_count !== unbound.component_count || item.component_set_fingerprint !== unbound.component_set_fingerprint)) failV01("strategy_comparison_component_content_mismatch", "$.variant_summaries");
+  if (componentized.some((item) => item.source_set_fingerprint !== unbound.source_set_fingerprint)) failV01("strategy_comparison_source_provenance_mismatch", "$.variant_summaries");
+  if (componentized.some((item) => item.construction_material_fingerprint !== unbound.construction_material_fingerprint)) failV01("strategy_comparison_construction_material_mismatch", "$.variant_summaries");
+  if (bound.role_binding_count !== ordered.role_binding_count || bound.role_binding_fingerprint !== ordered.role_binding_fingerprint) failV01("strategy_comparison_binding_mismatch", "$.variant_summaries");
+  const emptyFingerprint = createProtocolSha256V01(canonicalizeProtocolValueV01([]));
+  if (monolithic.role_binding_fingerprint !== emptyFingerprint || unbound.role_binding_fingerprint !== emptyFingerprint || monolithic.relation_fingerprint !== emptyFingerprint || unbound.relation_fingerprint !== emptyFingerprint || bound.relation_fingerprint !== emptyFingerprint) failV01("strategy_comparison_structural_fingerprint_invalid", "$.variant_summaries");
+  if (summaries.some((item) => item.case_ref.task_family_key !== monolithic.case_ref.task_family_key)) failV01("strategy_comparison_monolithic_task_family_mismatch", "$.variant_summaries");
+  if (summaries.some((item) => item.case_ref.construction_cutoff !== monolithic.case_ref.construction_cutoff)) failV01("strategy_comparison_monolithic_cutoff_mismatch", "$.variant_summaries");
+  for (const item of componentized) if (canonicalizeProtocolValueV01(item.baseline_case_ref) !== canonicalizeProtocolValueV01(monolithic.case_ref)) failV01("strategy_comparison_baseline_binding_mismatch", "$.variant_summaries");
+  return {
+    source_cases_validated_by_builder: true,
+    serialized_validation_scope: "projection_internal_consistency_only",
+    monolithic_baseline_role_valid: true,
+    componentized_development_roles_valid: true,
+    four_variant_task_family_equal: true,
+    four_variant_construction_cutoff_equal: true,
+    componentized_baseline_binding_equal: true,
+    componentized_baseline_is_monolithic: true,
+    componentized_components_equal: true,
+    componentized_sources_equal: true,
+    componentized_construction_material_equal: true,
+    bound_and_ordered_role_bindings_equal: true,
+    intended_binding_and_order_deltas_only: true,
+    common_component_set_fingerprint: unbound.component_set_fingerprint,
+    common_source_set_fingerprint: unbound.source_set_fingerprint,
+    common_construction_material_fingerprint: unbound.construction_material_fingerprint,
+  };
+}
+
+function assertSerializedEvaluationBindingV01(
+  input: unknown,
+  workspaceId: string,
+  projectId: string,
+  orderedCaseRef: StrategyCompositionCaseReferenceV01,
+): StrategyCompositionComparisonV01["evaluation_binding"] {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_evaluation_binding_invalid", "$.evaluation_binding");
+  assertExactKeysV01(input, ["evaluation_case", "parent_development_case", "holdout_case", "frozen_cutoff", "observation_cutoff", "same_holdout_for_all_variants", "holdout_outcome_not_used_for_construction"], "$.evaluation_binding");
+  assertEvaluationCaseReferenceV01(input.evaluation_case, "$.evaluation_binding.evaluation_case");
+  assertCaseReferenceV01(input.parent_development_case, workspaceId, projectId, "$.evaluation_binding.parent_development_case");
+  assertCaseReferenceV01(input.holdout_case, workspaceId, projectId, "$.evaluation_binding.holdout_case");
+  assertCanonicalEqualV01(input.parent_development_case, orderedCaseRef, "strategy_comparison_holdout_parent_must_be_ordered");
+  const frozen = requiredTimestampV01(input.frozen_cutoff, "$.evaluation_binding.frozen_cutoff");
+  const observation = requiredTimestampV01(input.observation_cutoff, "$.evaluation_binding.observation_cutoff");
+  if (timestampMsV01(observation) <= timestampMsV01(frozen)) failV01("strategy_comparison_observation_cutoff_not_after_holdout", "$.evaluation_binding.observation_cutoff");
+  if (input.same_holdout_for_all_variants !== true || input.holdout_outcome_not_used_for_construction !== true) failV01("strategy_comparison_holdout_binding_invalid", "$.evaluation_binding");
+  return input as unknown as StrategyCompositionComparisonV01["evaluation_binding"];
+}
+
+function assertSerializedBudgetV01(input: unknown): StrategyCompositionBudgetEnvelopeV01 {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_budget_invalid", "$.equal_budget");
+  assertExactKeysV01(input, ["budget_version", "budget_id", "budget_kind", "budget_key", "provider_call_limit", "tool_call_limit", "step_limit", "token_limit", "cost_limit_microunits", "latency_limit_ms", "equal_for_all_variants", "cost_adjusted_comparison_supported", "integrity"], "$.equal_budget");
+  const rebuilt = buildStrategyCompositionBudgetV01({
+    budget_key: input.budget_key as string,
+    provider_call_limit: input.provider_call_limit as number,
+    tool_call_limit: input.tool_call_limit as number,
+    step_limit: input.step_limit as number,
+    token_limit: input.token_limit as number,
+    cost_limit_microunits: input.cost_limit_microunits as number,
+    latency_limit_ms: input.latency_limit_ms as number,
+  });
+  assertCanonicalEqualV01(input, rebuilt, "strategy_comparison_budget_projection_invalid");
+  return input as unknown as StrategyCompositionBudgetEnvelopeV01;
+}
+
+function assertSerializedObservationsV01(
+  input: unknown,
+  summaries: StrategyCompositionVariantSummaryV01[],
+  evaluationBinding: StrategyCompositionComparisonV01["evaluation_binding"],
+  budget: StrategyCompositionBudgetEnvelopeV01,
+  workspaceId: string,
+  projectId: string,
+): StrategyCompositionOutcomeObservationV01[] {
+  if (!Array.isArray(input) || input.length !== 4) failV01("strategy_comparison_four_observations_required", "$.outcome_observations");
+  const budgetRef = { budget_id: budget.budget_id, budget_fingerprint: budget.integrity.fingerprint };
+  const observations = input as StrategyCompositionOutcomeObservationV01[];
+  for (const [index, observation] of observations.entries()) {
+    if (!isProtocolRecordV01(observation)) failV01("strategy_comparison_observation_invalid", `$.outcome_observations[${index}]`);
+    assertExactKeysV01(observation, ["observation_version", "subject_kind", "case_ref", "evaluation_case", "holdout_case", "budget", "source", "observation_mode", "outcome", "budget_compliance", "completeness", "missing_dimensions", "outcome_is_evaluation_truth", "observed_advantage_is_verified_general_benefit", "limitations"], `$.outcome_observations[${index}]`);
+    const variant = STRATEGY_COMPOSITION_COMPARISON_VARIANTS_V01[index];
+    if (observation.observation_version !== STRATEGY_COMPOSITION_OUTCOME_OBSERVATION_VERSION_V01 || observation.observation_mode !== "deterministic_exact_fixture" || observation.subject_kind !== variant) failV01("strategy_comparison_observation_subject_mismatch", `$.outcome_observations[${index}]`);
+    assertCanonicalEqualV01(observation.case_ref, summaries[index]!.case_ref, "strategy_comparison_observation_case_mismatch");
+    assertCanonicalEqualV01(observation.evaluation_case, evaluationBinding.evaluation_case, "strategy_comparison_evaluation_identity_mismatch");
+    assertCanonicalEqualV01(observation.holdout_case, evaluationBinding.holdout_case, "strategy_comparison_holdout_identity_mismatch");
+    assertCanonicalEqualV01(observation.budget, budgetRef, "strategy_comparison_budget_mismatch");
+    assertOutcomeSourceV01(observation.source, workspaceId, projectId, evaluationBinding.frozen_cutoff, evaluationBinding.observation_cutoff, `$.outcome_observations[${index}].source`);
+    const normalizedOutcome = normalizeOutcomeV01(observation.outcome);
+    assertCanonicalEqualV01(observation.outcome, normalizedOutcome, "strategy_comparison_outcome_projection_invalid");
+    const missing = deriveMissingDimensionsV01(normalizedOutcome);
+    assertCanonicalEqualV01(observation.missing_dimensions, missing, "strategy_comparison_observation_completeness_invalid");
+    if (observation.completeness !== (missing.length === 0 ? "complete" : "partial")) failV01("strategy_comparison_observation_completeness_invalid", `$.outcome_observations[${index}].completeness`);
+    assertCanonicalEqualV01(observation.budget_compliance, deriveBudgetComplianceV01(normalizedOutcome, budget), "strategy_comparison_budget_compliance_invalid");
+    if (observation.outcome_is_evaluation_truth !== false || observation.observed_advantage_is_verified_general_benefit !== false) failV01("strategy_comparison_observation_authority_invalid", `$.outcome_observations[${index}]`);
+    assertCanonicalEqualV01(observation.limitations, uniqueTextV01(observation.limitations, `$.outcome_observations[${index}].limitations`), "strategy_comparison_observation_limitations_invalid");
+  }
+  return observations;
+}
+
+function assertCaseReferenceV01(input: unknown, workspaceId: string, projectId: string, path: string): asserts input is StrategyCompositionCaseReferenceV01 {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_case_ref_invalid", path);
+  assertExactKeysV01(input, ["workspace_id", "project_id", "case_id", "case_fingerprint", "case_key", "task_family_key", "construction_cutoff"], path);
+  if (requiredIdV01(input.workspace_id, `${path}.workspace_id`) !== workspaceId || requiredIdV01(input.project_id, `${path}.project_id`) !== projectId) failV01("strategy_comparison_cross_project_case", path);
+  requiredIdV01(input.case_id, `${path}.case_id`);
+  requiredFingerprintV01(input.case_fingerprint, `${path}.case_fingerprint`);
+  requiredIdV01(input.case_key, `${path}.case_key`);
+  requiredIdV01(input.task_family_key, `${path}.task_family_key`);
+  requiredTimestampV01(input.construction_cutoff, `${path}.construction_cutoff`);
+}
+
+function assertEvaluationCaseReferenceV01(input: unknown, path: string): asserts input is StrategyCompositionEvaluationCaseReferenceV01 {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_evaluation_case_invalid", path);
+  assertExactKeysV01(input, ["evaluation_case_id", "evaluation_case_fingerprint", "task_family_key"], path);
+  requiredIdV01(input.evaluation_case_id, `${path}.evaluation_case_id`);
+  requiredFingerprintV01(input.evaluation_case_fingerprint, `${path}.evaluation_case_fingerprint`);
+  requiredIdV01(input.task_family_key, `${path}.task_family_key`);
+}
+
+function assertOutcomeSourceV01(input: unknown, workspaceId: string, projectId: string, frozenCutoff: string, observationCutoff: string, path: string): void {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_outcome_source_invalid", path);
+  assertExactKeysV01(input, ["source_ref_id", "source_kind", "source_use", "workspace_id", "project_id", "source_id", "source_fingerprint", "observed_at", "available_at", "epistemic_status"], path);
+  requiredIdV01(input.source_ref_id, `${path}.source_ref_id`);
+  requiredIdV01(input.source_id, `${path}.source_id`);
+  requiredFingerprintV01(input.source_fingerprint, `${path}.source_fingerprint`);
+  if (input.workspace_id !== workspaceId || input.project_id !== projectId) failV01("strategy_comparison_cross_project_source", path);
+  if (input.source_kind !== "evaluation_outcome" || input.source_use !== "evaluation_outcome") failV01("strategy_comparison_outcome_source_invalid", path);
+  if (!(["observed", "attested", "derived", "unknown"] as unknown[]).includes(input.epistemic_status)) failV01("strategy_comparison_outcome_source_invalid", `${path}.epistemic_status`);
+  const observedAt = requiredTimestampV01(input.observed_at, `${path}.observed_at`);
+  const availableAt = requiredTimestampV01(input.available_at, `${path}.available_at`);
+  if (timestampMsV01(observedAt) > timestampMsV01(availableAt)) failV01("strategy_comparison_outcome_source_temporal_invalid", path);
+  if (timestampMsV01(availableAt) <= timestampMsV01(frozenCutoff) || timestampMsV01(availableAt) > timestampMsV01(observationCutoff)) failV01("strategy_comparison_outcome_source_temporal_invalid", path);
+}
+
+function assertSerializedAblationAssociationV01(input: unknown, orderedCaseRef: StrategyCompositionCaseReferenceV01, workspaceId: string, projectId: string): void {
+  if (input === null) return;
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_ablation_projection_invalid", "$.ablation_association");
+  assertExactKeysV01(input, ["parent_case_ref", "ablation_case_ref", "target", "same_evaluation_case", "same_holdout_case", "same_budget", "dimension_deltas", "association_kind", "causal_contribution_claimed", "general_causal_contribution_claimed", "limitations"], "$.ablation_association");
+  assertCaseReferenceV01(input.parent_case_ref, workspaceId, projectId, "$.ablation_association.parent_case_ref");
+  assertCaseReferenceV01(input.ablation_case_ref, workspaceId, projectId, "$.ablation_association.ablation_case_ref");
+  assertCanonicalEqualV01(input.parent_case_ref, orderedCaseRef, "strategy_comparison_ablation_parent_invalid");
+  if (input.same_evaluation_case !== true || input.same_holdout_case !== true || input.same_budget !== true || input.association_kind !== "bounded_ablation_intervention_association" || input.causal_contribution_claimed !== false || input.general_causal_contribution_claimed !== false) failV01("strategy_comparison_ablation_authority_invalid", "$.ablation_association");
+  assertAblationTargetV01(input.target, "$.ablation_association.target");
+  assertSerializedDimensionDeltasV01(input.dimension_deltas, "$.ablation_association.dimension_deltas");
+  assertCanonicalEqualV01(input.limitations, uniqueTextV01(input.limitations as unknown[], "$.ablation_association.limitations"), "strategy_comparison_ablation_projection_invalid");
+}
+
+function assertSerializedNegativeTransferV01(input: unknown, workspaceId: string, projectId: string): void {
+  if (input === null) return;
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_negative_transfer_projection_invalid", "$.negative_transfer");
+  assertExactKeysV01(input, ["case_ref", "origin_task_family_key", "target_task_family_key", "transfer_hypothesis_source_ref_ids", "adverse_association_source_ref_ids", "adverse_association_supplied", "signal", "causal_negative_contribution_claimed", "general_harm_claimed", "component_blacklist_created", "promotion_or_depromotion_created", "limitations"], "$.negative_transfer");
+  assertCaseReferenceV01(input.case_ref, workspaceId, projectId, "$.negative_transfer.case_ref");
+  requiredIdV01(input.origin_task_family_key, "$.negative_transfer.origin_task_family_key");
+  requiredIdV01(input.target_task_family_key, "$.negative_transfer.target_task_family_key");
+  assertCanonicalEqualV01(input.transfer_hypothesis_source_ref_ids, uniqueTextV01(input.transfer_hypothesis_source_ref_ids as unknown[], "$.negative_transfer.transfer_hypothesis_source_ref_ids"), "strategy_comparison_negative_transfer_projection_invalid");
+  assertCanonicalEqualV01(input.adverse_association_source_ref_ids, uniqueTextV01(input.adverse_association_source_ref_ids as unknown[], "$.negative_transfer.adverse_association_source_ref_ids"), "strategy_comparison_negative_transfer_projection_invalid");
+  if (typeof input.adverse_association_supplied !== "boolean" || input.signal !== "local_negative_transfer_candidate" || input.causal_negative_contribution_claimed !== false || input.general_harm_claimed !== false || input.component_blacklist_created !== false || input.promotion_or_depromotion_created !== false) failV01("strategy_comparison_negative_transfer_authority_invalid", "$.negative_transfer");
+  assertCanonicalEqualV01(input.limitations, uniqueTextV01(input.limitations as unknown[], "$.negative_transfer.limitations"), "strategy_comparison_negative_transfer_projection_invalid");
+}
+
+function assertAblationTargetV01(input: unknown, path: string): void {
+  if (!isProtocolRecordV01(input)) failV01("strategy_comparison_ablation_target_invalid", path);
+  if (input.target_kind === "component") {
+    assertExactKeysV01(input, ["target_kind", "component_id"], path);
+    requiredIdV01(input.component_id, `${path}.component_id`);
+  } else if (input.target_kind === "role_binding") {
+    assertExactKeysV01(input, ["target_kind", "role", "component_id"], path);
+    requiredIdV01(input.role, `${path}.role`);
+    requiredIdV01(input.component_id, `${path}.component_id`);
+  } else if (input.target_kind === "relation") {
+    assertExactKeysV01(input, ["target_kind", "relation_kind", "subject_component_id", "object_component_id"], path);
+    if (input.relation_kind !== "must_precede" && input.relation_kind !== "depends_on") failV01("strategy_comparison_ablation_target_invalid", path);
+    requiredIdV01(input.subject_component_id, `${path}.subject_component_id`);
+    requiredIdV01(input.object_component_id, `${path}.object_component_id`);
+  } else failV01("strategy_comparison_ablation_target_invalid", path);
 }
 
 function assertBuilderInputV01(input: unknown): asserts input is BuildStrategyCompositionComparisonInputV01 {
@@ -278,6 +516,21 @@ function normalizeAndValidateCasesV01(input: BuildStrategyCompositionComparisonI
   if (result.unbound.role_bindings.length !== 0 || result.unbound.relations.length !== 0) failV01("strategy_comparison_unbound_structure_invalid", "$.cases.unbound");
   if (result.bound.role_bindings.length === 0 || result.bound.relations.length !== 0) failV01("strategy_comparison_bound_structure_invalid", "$.cases.bound");
   if (result.ordered.role_bindings.length === 0 || result.ordered.relations.length === 0) failV01("strategy_comparison_ordered_structure_invalid", "$.cases.ordered");
+  if (result.monolithic.evaluation_design.case_role !== "baseline") failV01("strategy_comparison_monolithic_case_role_invalid", "$.cases.monolithic.evaluation_design.case_role");
+  for (const variant of ["unbound", "bound", "ordered"] as const) {
+    if (result[variant].evaluation_design.case_role !== "development") failV01(`strategy_comparison_${variant}_case_role_invalid`, `$.cases.${variant}.evaluation_design.case_role`);
+  }
+  const componentized = [result.unbound, result.bound, result.ordered];
+  if (componentized.some((item) => item.case_binding.task_family_key !== result.unbound.case_binding.task_family_key || item.case_binding.construction_cutoff !== result.unbound.case_binding.construction_cutoff)) failV01("strategy_comparison_construction_material_mismatch", "$.cases");
+  if (result.unbound.case_binding.task_family_key !== result.monolithic.case_binding.task_family_key) failV01("strategy_comparison_monolithic_task_family_mismatch", "$.cases.monolithic.case_binding.task_family_key");
+  if (result.unbound.case_binding.construction_cutoff !== result.monolithic.case_binding.construction_cutoff) failV01("strategy_comparison_monolithic_cutoff_mismatch", "$.cases.monolithic.case_binding.construction_cutoff");
+  const monolithicRef = createStrategyCompositionCaseReferenceV01(result.monolithic);
+  for (const [index, value] of componentized.entries()) {
+    const design = value.evaluation_design;
+    if (design.case_role !== "development" || canonicalizeProtocolValueV01(design.baseline_case) !== canonicalizeProtocolValueV01(monolithicRef)) {
+      failV01("strategy_comparison_baseline_binding_mismatch", `$.cases.${STRATEGY_COMPOSITION_COMPARISON_VARIANTS_V01[index + 1]}.evaluation_design.baseline_case`);
+    }
+  }
   return result;
 }
 
@@ -292,6 +545,8 @@ function createVariantSummariesV01(cases: BuildStrategyCompositionComparisonInpu
     return {
       variant_kind: variant,
       case_ref: createStrategyCompositionCaseReferenceV01(value),
+      case_role: value.evaluation_design.case_role as "baseline" | "development",
+      baseline_case_ref: value.evaluation_design.case_role === "baseline" ? null : value.evaluation_design.baseline_case,
       component_count: value.components.length,
       role_binding_count: value.role_bindings.length,
       relation_count: value.relations.length,
@@ -327,6 +582,14 @@ function assertAndCreateStructuralParityV01(cases: BuildStrategyCompositionCompa
   if (componentized.some((item) => item.construction_material_fingerprint !== constructionFp)) failV01("strategy_comparison_construction_material_mismatch", "$.cases");
   if (canonicalizeProtocolValueV01(cases.bound.role_bindings) !== canonicalizeProtocolValueV01(cases.ordered.role_bindings)) failV01("strategy_comparison_binding_mismatch", "$.cases");
   return {
+    source_cases_validated_by_builder: true,
+    serialized_validation_scope: "projection_internal_consistency_only",
+    monolithic_baseline_role_valid: true,
+    componentized_development_roles_valid: true,
+    four_variant_task_family_equal: true,
+    four_variant_construction_cutoff_equal: true,
+    componentized_baseline_binding_equal: true,
+    componentized_baseline_is_monolithic: true,
     componentized_components_equal: true,
     componentized_sources_equal: true,
     componentized_construction_material_equal: true,
@@ -374,6 +637,7 @@ function normalizeObservationV01(input: BuildStrategyCompositionOutcomeObservati
   if (!holdout.evaluation_design || holdout.evaluation_design.case_role !== "holdout" || !holdout.evaluation_design.evaluation_outcome_source_ref_ids.includes(source.source_ref_id)) failV01("strategy_comparison_outcome_source_not_holdout_bound");
   if (timestampMsV01(source.available_at) <= timestampMsV01(frozenCutoff) || timestampMsV01(source.available_at) > timestampMsV01(observationCutoff)) failV01("strategy_comparison_outcome_source_temporal_invalid");
   const outcome = normalizeOutcomeV01(input.outcome);
+  const budgetCompliance = deriveBudgetComplianceV01(outcome, budget);
   const missing = deriveMissingDimensionsV01(outcome);
   return {
     observation_version: STRATEGY_COMPOSITION_OUTCOME_OBSERVATION_VERSION_V01,
@@ -385,11 +649,39 @@ function normalizeObservationV01(input: BuildStrategyCompositionOutcomeObservati
     source,
     observation_mode: "deterministic_exact_fixture",
     outcome,
+    budget_compliance: budgetCompliance,
     completeness: missing.length === 0 ? "complete" : "partial",
     missing_dimensions: missing,
     outcome_is_evaluation_truth: false,
     observed_advantage_is_verified_general_benefit: false,
     limitations: uniqueTextV01(input.limitations, "$.observations[].limitations"),
+  };
+}
+
+function deriveBudgetComplianceV01(
+  outcome: StrategyCompositionOutcomeVectorV01,
+  budget: StrategyCompositionBudgetEnvelopeV01,
+): StrategyCompositionBudgetComplianceV01 {
+  const checks = [
+    ["provider_call_count", outcome.cost_operability.provider_call_count, budget.provider_call_limit],
+    ["tool_call_count", outcome.cost_operability.tool_call_count, budget.tool_call_limit],
+    ["token_count", outcome.cost_operability.token_count, budget.token_limit],
+    ["cost_microunits", outcome.cost_operability.cost_microunits, budget.cost_limit_microunits],
+    ["latency_ms", outcome.cost_operability.latency_ms, budget.latency_limit_ms],
+  ] as const;
+  const statuses = {} as Pick<StrategyCompositionBudgetComplianceV01,
+    "provider_call_count" | "tool_call_count" | "token_count" | "cost_microunits" | "latency_ms">;
+  for (const [field, observed, ceiling] of checks) {
+    if (observed !== null && observed > ceiling) {
+      failV01("strategy_comparison_budget_envelope_exceeded", `$.outcome.cost_operability.${field}`);
+    }
+    statuses[field] = observed === null ? "unobserved" : "within_ceiling";
+  }
+  return {
+    ...statuses,
+    step_count: "unobserved",
+    all_observed_resource_dimensions_within_ceiling: true,
+    equal_budget_is_equal_capability: false,
   };
 }
 
@@ -460,6 +752,14 @@ function dimensionValueV01(outcome: StrategyCompositionOutcomeVectorV01, dimensi
 function compareDimensionV01(left: StrategyCompositionOutcomeVectorV01, right: StrategyCompositionOutcomeVectorV01, dimension: StrategyCompositionOutcomeDimensionV01): StrategyCompositionDimensionDeltaV01 {
   const leftValue = dimensionValueV01(left, dimension);
   const rightValue = dimensionValueV01(right, dimension);
+  return compareDimensionValuesV01(leftValue, rightValue, dimension);
+}
+
+function compareDimensionValuesV01(
+  leftValue: number | boolean | string | null,
+  rightValue: number | boolean | string | null,
+  dimension: StrategyCompositionOutcomeDimensionV01,
+): StrategyCompositionDimensionDeltaV01 {
   const direction = dimensionDirections[dimension];
   if (leftValue === null || rightValue === null || leftValue === "unknown" || rightValue === "unknown") {
     return { dimension, relation: "unknown", preferred_direction: direction, left_value: leftValue, right_value: rightValue, exact_delta: null, exact_basis: "One or both exact observations are unavailable." };
@@ -479,6 +779,25 @@ function compareDimensionV01(left: StrategyCompositionOutcomeVectorV01, right: S
     exact_delta: typeof leftValue === "number" && typeof rightValue === "number" ? leftValue - rightValue : null,
     exact_basis: direction === "required_false" ? "An exact hard-gate failure is non-compensable." : "Compared on this explicit observed dimension only.",
   };
+}
+
+function assertSerializedDimensionDeltasV01(input: unknown, path: string): void {
+  if (!Array.isArray(input) || input.length !== STRATEGY_COMPOSITION_OUTCOME_DIMENSIONS_V01.length) failV01("strategy_comparison_dimension_delta_set_invalid", path);
+  for (const [index, delta] of input.entries()) {
+    if (!isProtocolRecordV01(delta)) failV01("strategy_comparison_dimension_delta_invalid", `${path}[${index}]`);
+    assertExactKeysV01(delta, ["dimension", "relation", "preferred_direction", "left_value", "right_value", "exact_delta", "exact_basis"], `${path}[${index}]`);
+    const dimension = STRATEGY_COMPOSITION_OUTCOME_DIMENSIONS_V01[index];
+    if (delta.dimension !== dimension) failV01("strategy_comparison_dimension_delta_set_invalid", `${path}[${index}].dimension`);
+    const left = serializedDimensionValueV01(delta.left_value, `${path}[${index}].left_value`);
+    const right = serializedDimensionValueV01(delta.right_value, `${path}[${index}].right_value`);
+    assertCanonicalEqualV01(delta, compareDimensionValuesV01(left, right, dimension), "strategy_comparison_dimension_delta_invalid");
+  }
+}
+
+function serializedDimensionValueV01(input: unknown, path: string): number | boolean | string | null {
+  if (input === null || typeof input === "boolean" || typeof input === "string") return input;
+  if (typeof input === "number" && Number.isSafeInteger(input) && input >= 0 && input <= MAX_COUNT) return input;
+  failV01("strategy_comparison_dimension_value_invalid", path);
 }
 
 const pairDefinitions = [
@@ -501,11 +820,11 @@ function createPairwiseComparisonsV01(observations: StrategyCompositionOutcomeOb
     if (gate.relation === "better") { summary = "left_better_hard_gate"; hardGate = true; }
     else if (gate.relation === "worse") { summary = "right_better_hard_gate"; hardGate = true; }
     else if (deltas.some((item) => item.relation === "not_comparable")) summary = "not_comparable";
+    else if (deltas.some((item) => item.relation === "unknown")) summary = "unknown";
     else {
       const better = deltas.some((item) => item.relation === "better");
       const worse = deltas.some((item) => item.relation === "worse");
-      const unknown = deltas.some((item) => item.relation === "unknown");
-      summary = better && worse ? "tradeoff" : better ? "left_better" : worse ? "right_better" : unknown ? "unknown" : "equal";
+      summary = better && worse ? "tradeoff" : better ? "left_better" : worse ? "right_better" : "equal";
     }
     return {
       pair_id: `strategy-composition-pair:${question}`,
@@ -521,7 +840,7 @@ function createPairwiseComparisonsV01(observations: StrategyCompositionOutcomeOb
       summary_relation: summary,
       hard_gate_non_compensation_applied: hardGate,
       pairwise_better_is_global_winner: false,
-      limitations: ["Pairwise direction is dimension-bound and creates no global winner."],
+      limitations: ["Pairwise direction is dimension-bound; unknown material dimensions make the pair summary unknown, and no result creates a global winner."],
     };
   });
 }

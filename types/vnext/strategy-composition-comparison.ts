@@ -121,6 +121,7 @@ export interface StrategyCompositionOutcomeObservationV01 {
   source: StrategyCompositionSourceBindingV01;
   observation_mode: "deterministic_exact_fixture";
   outcome: StrategyCompositionOutcomeVectorV01;
+  budget_compliance: StrategyCompositionBudgetComplianceV01;
   completeness: "complete" | "partial";
   missing_dimensions: StrategyCompositionOutcomeDimensionV01[];
   outcome_is_evaluation_truth: false;
@@ -128,9 +129,22 @@ export interface StrategyCompositionOutcomeObservationV01 {
   limitations: string[];
 }
 
+export interface StrategyCompositionBudgetComplianceV01 {
+  provider_call_count: "within_ceiling" | "unobserved";
+  tool_call_count: "within_ceiling" | "unobserved";
+  step_count: "unobserved";
+  token_count: "within_ceiling" | "unobserved";
+  cost_microunits: "within_ceiling" | "unobserved";
+  latency_ms: "within_ceiling" | "unobserved";
+  all_observed_resource_dimensions_within_ceiling: true;
+  equal_budget_is_equal_capability: false;
+}
+
 export interface StrategyCompositionVariantSummaryV01 {
   variant_kind: StrategyCompositionComparisonVariantV01;
   case_ref: StrategyCompositionCaseReferenceV01;
+  case_role: "baseline" | "development";
+  baseline_case_ref: StrategyCompositionCaseReferenceV01 | null;
   component_count: number;
   role_binding_count: number;
   relation_count: number;
@@ -295,6 +309,14 @@ export interface StrategyCompositionComparisonV01 {
   comparison_family_key: string;
   variant_summaries: StrategyCompositionVariantSummaryV01[];
   structural_parity: {
+    source_cases_validated_by_builder: true;
+    serialized_validation_scope: "projection_internal_consistency_only";
+    monolithic_baseline_role_valid: true;
+    componentized_development_roles_valid: true;
+    four_variant_task_family_equal: true;
+    four_variant_construction_cutoff_equal: true;
+    componentized_baseline_binding_equal: true;
+    componentized_baseline_is_monolithic: true;
     componentized_components_equal: true;
     componentized_sources_equal: true;
     componentized_construction_material_equal: true;
