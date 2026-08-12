@@ -24,6 +24,13 @@ const MAX_CONTINUITY_RESPONSE_BYTES = 256 * 1024;
 const REQUEST_TIMEOUT_MS = 2_000;
 const ROUTE_MARKER = "codex-repository-continuity-v0.1";
 const EXECUTION_ROUTE_MARKER = "repository-execution-attachment-v0.1";
+const TYPED_START_REFUSAL_STATUS_V01 = new Map([
+  ["repository_managed_delegation_platform_unsupported", 422],
+  ["repository_managed_delegation_windows_architecture_unsupported", 422],
+  ["repository_managed_delegation_windows_version_unsupported", 422],
+  ["repository_managed_delegation_windows_source_runtime_required", 422],
+  ["repository_delegation_attachment_not_prepared", 409],
+]);
 const PROXY_ACCESS_VERSION = "augnes-companion-proxy-access.v0.1";
 
 export async function discoverVerifiedCompanionV01(environment = process.env) {
@@ -261,7 +268,6 @@ async function callRepositoryExecutionV01(companion, body) {
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new Error(`live_companion_execution_route_status_${response.status}`);
   if (
     response.headers.get("x-augnes-repository-execution") !== EXECUTION_ROUTE_MARKER ||
     response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
@@ -272,7 +278,68 @@ async function callRepositoryExecutionV01(companion, body) {
   if (Buffer.byteLength(text, "utf8") > MAX_CONTINUITY_RESPONSE_BYTES) {
     throw new Error("live_companion_execution_route_response_too_large");
   }
-  return parseRepositoryExecutionResponseV01(JSON.parse(text), body.action);
+  const parsed = JSON.parse(text);
+  return response.ok
+    ? parseRepositoryExecutionResponseV01(parsed, body.action)
+    : parseRepositoryExecutionRefusalResponseV01(
+        parsed,
+        body.action,
+        response.status,
+      );
+}
+
+export function parseRepositoryExecutionRefusalResponseV01(
+  value,
+  action,
+  httpStatus,
+) {
+  if (
+    action !== "start" ||
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !exactKeysV01(value, ["authority", "error", "response_version"]) ||
+    value.response_version !== "repository_execution_route_response.v0.1" ||
+    !value.error ||
+    typeof value.error !== "object" ||
+    Array.isArray(value.error) ||
+    !exactKeysV01(value.error, ["code", "status"]) ||
+    typeof value.error.code !== "string" ||
+    !Number.isInteger(value.error.status) ||
+    value.error.status !== httpStatus
+  ) invalidExecutionContractV01();
+  rejectPrivatePhysicalMaterialV01(value);
+  const expectedStatus = TYPED_START_REFUSAL_STATUS_V01.get(value.error.code);
+  if (expectedStatus === undefined || expectedStatus !== httpStatus) {
+    invalidExecutionContractV01();
+  }
+  const authorityKeys = [
+    "execution_authority_granted",
+    "execution_started",
+    "managed_run_created",
+    "project_commands_executed",
+    "project_files_written",
+    "provider_called",
+    "semantic_authority_granted",
+  ];
+  if (
+    !value.authority ||
+    typeof value.authority !== "object" ||
+    Array.isArray(value.authority) ||
+    !exactKeysV01(value.authority, authorityKeys)
+  ) invalidExecutionContractV01();
+  for (const key of authorityKeys) {
+    if (value.authority[key] !== false) invalidExecutionContractV01();
+  }
+  return {
+    refusal_version: "repository_execution_proxy_refusal.v0.1",
+    status: "blocked",
+    action,
+    reason: value.error.code,
+    ordinary_text:
+      "Augnes refused this repository execution request before any execution effect.",
+    authority: { ...value.authority },
+  };
 }
 
 function parseRepositoryExecutionResponseV01(value, action) {

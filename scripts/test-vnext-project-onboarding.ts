@@ -84,6 +84,7 @@ const plainDefaultFolder = path.join(root, "Plain default project");
 const plainEditedFolder = path.join(root, "Plain edited folder");
 const invalidNameFolder = path.join(root, "Invalid name folder");
 const declaredUnicodeFolder = path.join(root, "선언 경로 Project ü");
+const declaredDarwinUnicodePath = "/tmp/선언 경로 Project ü";
 const abandonmentRaceFolderA = path.join(root, "Abandonment race A");
 const abandonmentRaceFolderB = path.join(root, "Abandonment race B");
 const ordinaryCancelFolder = path.join(root, "Ordinary cancel");
@@ -224,12 +225,12 @@ async function rebindWithBrowserDecisionV01(
 async function main() {
 try {
   assert.deepEqual(
-    parseLocalProjectPathDeclarationV01(declaredUnicodeFolder, {
+    parseLocalProjectPathDeclarationV01(declaredDarwinUnicodePath, {
       platform: "darwin",
     }),
     {
       declaration_version: "local_project_path_declaration.v0.1",
-      absolute_path: declaredUnicodeFolder,
+      absolute_path: declaredDarwinUnicodePath,
       path_flavor: "posix",
     },
   );

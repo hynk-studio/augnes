@@ -77,6 +77,8 @@ let recoveryMode = false;
 let bridgeMode = "http";
 let bridgeRepository = repository;
 let continuityCalls = 0;
+let executionCalls = 0;
+let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
 
@@ -112,6 +114,27 @@ const ui = createServer(async (request, response) => {
     response.setHeader("x-augnes-runtime-generation", generation);
     response.setHeader("x-augnes-runtime-repository", repository);
     return response.end(JSON.stringify(unregisteredProjectionV01()));
+  }
+  if (url.pathname === "/api/augnes/repository-execution" && request.method === "POST") {
+    executionCalls += 1;
+    if (
+      request.headers["x-augnes-companion-proxy"] !== proxyToken ||
+      request.headers["x-augnes-repository-execution"] !==
+        "repository-execution-attachment-v0.1"
+    ) {
+      return response.writeHead(403).end(JSON.stringify({
+        response_version: "repository_execution_route_response.v0.1",
+        error: { code: "companion_channel_refused", status: 403 },
+        authority: routeRefusalAuthorityV01(),
+      }));
+    }
+    assert(executionScenario, "execution response scenario must be selected");
+    for (const [name, value] of Object.entries(executionScenario.headers)) {
+      response.setHeader(name, value);
+    }
+    return response
+      .writeHead(executionScenario.status)
+      .end(executionScenario.body);
   }
   response.writeHead(404).end("{}");
 });
@@ -164,9 +187,6 @@ try {
   recoveryMode = true;
   assert.equal((await discoverVerifiedCompanionV01(environment)).status, "companion_unavailable");
   recoveryMode = false;
-  const strictDiscoveryHealthCalls = uiHealthCalls;
-  uiHealthAvailable = false;
-
   const client = new Client({ name: "augnes-companion-discovery", version: "0.1.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -257,6 +277,10 @@ try {
       assert.equal(byName.get(name)?.annotations?.readOnlyHint, false);
       assert.equal(byName.get(name)?.annotations?.destructiveHint, true);
     }
+    uiHealthAvailable = true;
+    await assertRepositoryExecutionProxyRefusalContractV01(client);
+    const strictDiscoveryHealthCalls = uiHealthCalls;
+    uiHealthAvailable = false;
     const result = await client.callTool({
       name: "augnes_resume_repository",
       arguments: { repositoryRoot: process.cwd() },
@@ -274,6 +298,7 @@ try {
     await client.close();
   }
   assert.equal(continuityCalls, 1);
+  assert(executionCalls >= 12);
 
   console.log(JSON.stringify({
     status: "pass",
@@ -286,6 +311,8 @@ try {
     browser_decision_session_absent_from_mcp_inventory: true,
     browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
+    identity_bound_typed_execution_refusal: true,
+    malformed_and_infrastructure_execution_failures_remain_mcp_errors: true,
     readonly_route_owns_ui_identity_verification: true,
     plugin_default_prompt_admitted_by_codex: true,
     plugin_hooks_resolve_from_plugin_root: true,
@@ -294,6 +321,198 @@ try {
 } finally {
   await Promise.all([close(ui), close(bridge)]);
   rmSync(root, { recursive: true, force: true });
+}
+
+async function assertRepositoryExecutionProxyRefusalContractV01(client) {
+  const callStart = () => client.callTool({
+    name: "augnes_start_repository_delegation",
+    arguments: {
+      workspaceId: "workspace:typed-refusal",
+      projectId: "project:typed-refusal",
+      attachmentId: `sha256:${"1".repeat(64)}`,
+      expectedAttachmentBindingFingerprint: `sha256:${"2".repeat(64)}`,
+      expectedExecutionEnvelopeFingerprint: `sha256:${"3".repeat(64)}`,
+      decisionRequestFingerprint: `sha256:${"4".repeat(64)}`,
+      decisionGrantFingerprint: `sha256:${"5".repeat(64)}`,
+    },
+  });
+  const assertMcpError = async (scenario) => {
+    executionScenario = scenario;
+    const result = await callStart();
+    assert.equal(result.isError, true);
+    assert.equal(result.structuredContent?.companion?.status, "unavailable");
+  };
+
+  executionScenario = typedStartRefusalScenarioV01();
+  const refusal = await callStart();
+  assert.notEqual(refusal.isError, true);
+  assert.equal(refusal.structuredContent?.companion?.status, "live");
+  assert.equal(
+    refusal.structuredContent?.refusal_version,
+    "repository_execution_proxy_refusal.v0.1",
+  );
+  assert.equal(refusal.structuredContent?.status, "blocked");
+  assert.equal(refusal.structuredContent?.action, "start");
+  assert.equal(
+    refusal.structuredContent?.reason,
+    "repository_managed_delegation_windows_source_runtime_required",
+  );
+  assert.equal(
+    Object.values(refusal.structuredContent?.authority ?? {}).every(
+      (value) => value === false,
+    ),
+    true,
+  );
+
+  await assertMcpError(typedStartRefusalScenarioV01({
+    omitHeaders: ["x-augnes-runtime-instance"],
+  }));
+  await assertMcpError(typedStartRefusalScenarioV01({
+    headerOverrides: { "x-augnes-runtime-instance": "wrong-instance" },
+  }));
+  await assertMcpError(typedStartRefusalScenarioV01({
+    headerOverrides: { "x-augnes-runtime-generation": "wrong-generation" },
+  }));
+  await assertMcpError(typedStartRefusalScenarioV01({
+    headerOverrides: { "x-augnes-runtime-repository": "f".repeat(64) },
+  }));
+  await assertMcpError(typedStartRefusalScenarioV01({
+    omitHeaders: ["x-augnes-repository-execution"],
+  }));
+  await assertMcpError(typedStartRefusalScenarioV01({
+    code: "repository_managed_delegation_unknown_refusal",
+  }));
+  await assertMcpError({
+    status: 422,
+    headers: exactExecutionHeadersV01(),
+    body: JSON.stringify({
+      response_version: "repository_execution_route_response.v0.1",
+      error: {
+        code: "repository_managed_delegation_windows_source_runtime_required",
+        status: 422,
+      },
+    }),
+  });
+  await assertMcpError(typedStartRefusalScenarioV01({ bodyStatus: 409 }));
+  await assertMcpError({
+    status: 403,
+    headers: {},
+    body: JSON.stringify({
+      response_version: "repository_execution_route_response.v0.1",
+      error: { code: "companion_channel_refused", status: 403 },
+      authority: routeRefusalAuthorityV01(),
+    }),
+  });
+  await assertMcpError({
+    status: 503,
+    headers: {},
+    body: JSON.stringify({
+      response_version: "repository_execution_route_response.v0.1",
+      error: { code: "companion_unavailable", status: 503 },
+      authority: routeRefusalAuthorityV01(),
+    }),
+  });
+  await assertMcpError({
+    status: 500,
+    headers: exactExecutionHeadersV01(),
+    body: JSON.stringify({
+      response_version: "repository_execution_route_response.v0.1",
+      error: { code: "repository_execution_unavailable", status: 500 },
+      authority: routeRefusalAuthorityV01(),
+    }),
+  });
+  await assertMcpError({
+    status: 422,
+    headers: exactExecutionHeadersV01(),
+    body: "{",
+  });
+  await assertMcpError({
+    status: 422,
+    headers: exactExecutionHeadersV01(),
+    body: "x".repeat(256 * 1024 + 1),
+  });
+
+  executionScenario = {
+    status: 200,
+    headers: exactExecutionHeadersV01(),
+    body: JSON.stringify({
+      preparation_version: "repository_execution_preparation.v0.1",
+      status: "prepared",
+      ordinary_text: "Repository execution attachment prepared.",
+      project: null,
+      admission: null,
+      attachment: null,
+      decision_request: null,
+      reason: null,
+      authority: repositoryExecutionAuthorityV01(),
+    }),
+  };
+  const success = await client.callTool({
+    name: "augnes_prepare_repository_execution",
+    arguments: { repositoryRoot: process.cwd() },
+  });
+  assert.notEqual(success.isError, true);
+  assert.equal(success.structuredContent?.companion?.status, "live");
+  assert.equal(success.structuredContent?.status, "prepared");
+  assert.equal(success.structuredContent?.refusal_version, undefined);
+}
+
+function typedStartRefusalScenarioV01({
+  code = "repository_managed_delegation_windows_source_runtime_required",
+  bodyStatus = 422,
+  headerOverrides = {},
+  omitHeaders = [],
+} = {}) {
+  return {
+    status: 422,
+    headers: exactExecutionHeadersV01(headerOverrides, omitHeaders),
+    body: JSON.stringify({
+      response_version: "repository_execution_route_response.v0.1",
+      error: { code, status: bodyStatus },
+      authority: routeRefusalAuthorityV01(),
+    }),
+  };
+}
+
+function exactExecutionHeadersV01(overrides = {}, omitted = []) {
+  const headers = {
+    "content-type": "application/json",
+    "x-augnes-repository-execution":
+      "repository-execution-attachment-v0.1",
+    "x-augnes-runtime-instance": instance,
+    "x-augnes-runtime-generation": generation,
+    "x-augnes-runtime-repository": repository,
+    ...overrides,
+  };
+  for (const name of omitted) delete headers[name];
+  return headers;
+}
+
+function routeRefusalAuthorityV01() {
+  return {
+    project_files_written: false,
+    project_commands_executed: false,
+    managed_run_created: false,
+    execution_started: false,
+    provider_called: false,
+    semantic_authority_granted: false,
+    execution_authority_granted: false,
+  };
+}
+
+function repositoryExecutionAuthorityV01() {
+  return {
+    branch_or_commit_created: false,
+    execution_authority_granted: false,
+    execution_started: false,
+    external_effect_authority_granted: false,
+    github_called: false,
+    managed_run_created: false,
+    project_commands_executed: false,
+    project_files_written: false,
+    provider_called: false,
+    semantic_authority_granted: false,
+  };
 }
 
 function writeRuntimeFiles(manifestPath) {

@@ -40,6 +40,13 @@ export const dynamic = "force-dynamic";
 const ROUTE_MARKER = "repository-execution-attachment-v0.1";
 const COMPANION_PROXY_HEADER = "x-augnes-companion-proxy";
 const MAX_REQUEST_BYTES = 32 * 1024;
+const TYPED_START_REFUSAL_STATUS_V01 = new Map<string, number>([
+  ["repository_managed_delegation_platform_unsupported", 422],
+  ["repository_managed_delegation_windows_architecture_unsupported", 422],
+  ["repository_managed_delegation_windows_version_unsupported", 422],
+  ["repository_managed_delegation_windows_source_runtime_required", 422],
+  ["repository_delegation_attachment_not_prepared", 409],
+]);
 
 export async function POST(request: Request) {
   if (!localRequestV01(request)) return routeError("local_access_refused", 403);
@@ -74,6 +81,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    const typedRefusal = repositoryExecutionTypedRefusalResponseV01(
+      body.action,
+      error,
+    );
+    if (typedRefusal) return typedRefusal;
     if (
       error instanceof RepositoryExecutionErrorV01 ||
       error instanceof RepositoryManagedDelegationErrorV01 ||
@@ -86,6 +98,20 @@ export async function POST(request: Request) {
   } finally {
     db.close();
   }
+}
+
+export function repositoryExecutionTypedRefusalResponseV01(
+  action: unknown,
+  error: unknown,
+): Response | null {
+  if (
+    action !== "start" ||
+    !(error instanceof RepositoryManagedDelegationErrorV01) ||
+    !liveCompanionIdentityV01()
+  ) return null;
+  const expectedStatus = TYPED_START_REFUSAL_STATUS_V01.get(error.code);
+  if (expectedStatus === undefined || error.status !== expectedStatus) return null;
+  return routeError(error.code, error.status, { runtime_identity: true });
 }
 
 async function dispatchV01(db: ReturnType<typeof openDatabase>, body: Record<string, unknown>) {
@@ -363,7 +389,11 @@ function runtimeIdentityHeadersV01(): Record<string, string> {
   };
 }
 
-function routeError(code: string, status: number) {
+function routeError(
+  code: string,
+  status: number,
+  options: { runtime_identity?: boolean } = {},
+) {
   return NextResponse.json({
     response_version: "repository_execution_route_response.v0.1",
     error: { code, status },
@@ -376,7 +406,14 @@ function routeError(code: string, status: number) {
       semantic_authority_granted: false,
       execution_authority_granted: false,
     },
-  }, { status, headers: { "cache-control": "no-store", "x-augnes-repository-execution": ROUTE_MARKER } });
+  }, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-augnes-repository-execution": ROUTE_MARKER,
+      ...(options.runtime_identity ? runtimeIdentityHeadersV01() : {}),
+    },
+  });
 }
 
 function constantTimeEqualV01(left: string | null, right: string | undefined): boolean {

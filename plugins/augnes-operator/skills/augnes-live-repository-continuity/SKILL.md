@@ -89,9 +89,11 @@ exclude Browser selection and reject same-path filesystem-object replacement.
 Continuity is read-only. CDX2B2A tools write only node-local baseline,
 attachment, rebind-receipt, and lifecycle metadata. A Browser-confirmed CDX2B2B
 Start may consume one attachment, create one run, and permit bounded reversible
-local work only inside the exact macOS Git root. A Windows prepared attachment,
-if a later verified CDX2B3A owner makes one available, still must not be offered
-for Start in this phase; CDX2B3B is separate. Start never grants arbitrary
+local work only inside the exact verified macOS Git root or the verified
+Windows 11 x64 source-runtime Git root on local fixed NTFS. Windows 10 and
+packaged Windows remain unavailable. Explicit Resume must bind the same run,
+attachment, thread, checkpoint, and next controller generation; never offer
+automatic Resume or a second run. Start never grants arbitrary
 network commands, downloads, push/GitHub, injected Browser/Companion/provider/
 database/runtime/OS credentials, outside-root secret material, external publication,
 semantic approval, ReviewDecision, Transition, accepted state, work closure,

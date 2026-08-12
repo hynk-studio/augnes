@@ -22,8 +22,14 @@ import {
   fingerprintProjectRootBindingV01,
   inspectPhysicalRootForExecutionV01,
   readExpectedDatabaseAdmissionStateV01,
+  readRepositoryManagedPlatformCapabilityV01,
   type RepositoryExecutionDependenciesV01,
+  type RepositoryManagedPlatformV01,
 } from "@/lib/vnext/repository-execution/repository-execution";
+import {
+  buildRepositoryExecutionEnvelopeV01,
+  type RepositoryExecutionEnvelopeCapabilityV01,
+} from "@/lib/vnext/repository-execution/repository-execution-envelope";
 import { inspectRepositoryWorktreeV01 } from "@/lib/vnext/repository-execution/worktree-observation";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
@@ -46,9 +52,8 @@ export interface RepositoryRunControllerObservationV01 {
   runtime_generation_fingerprint: string | null;
 }
 
-export interface RepositoryRunResumeCapabilityV01 {
-  adapter_version: string;
-  capability_version: string;
+export interface RepositoryRunResumeCapabilityV01
+  extends RepositoryExecutionEnvelopeCapabilityV01 {
   provider_resume_binding_version: "native_host_resume_binding.v0.1";
   resumable_after_detach: boolean;
 }
@@ -120,7 +125,21 @@ export async function admitRepositoryRunResumeCheckpointV01(
   dependencies: RepositoryRunResumeDependenciesV01 = {},
 ): Promise<{ status: "inserted" | "exact_replay"; checkpoint: RepositoryRunResumeCheckpointV01 }> {
   assertAdmissionInputV01(input);
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
+    refuse(platformCapability.reason, 422);
+  }
   const preRun = requireRepositoryRunV01(db, input.config, input.run_id);
+  const capability = dependencies.read_capability?.();
+  if (
+    !capability ||
+    readDurableExecutionEnvelopePlatformV01(preRun, capability) !==
+      platformCapability.platform
+  ) {
+    refuse("repository_resume_checkpoint_execution_platform_mismatch");
+  }
   const preAttachment = requireConsumedRepositoryRunAttachmentV01(db, preRun);
   const registration = readCanonicalProjectWithRootV01(db, input.config);
   if (!registration) refuse("repository_resume_checkpoint_project_unavailable", 404);
@@ -240,7 +259,6 @@ export async function admitRepositoryRunResumeCheckpointV01(
     const thread = externalRefV01(run.metadata.host_thread_ref, "host_thread");
     const turn = externalRefV01(run.metadata.host_turn_ref, "host_turn");
     if (!thread || !turn) refuse("repository_resume_checkpoint_provider_binding_missing");
-    const capability = dependencies.read_capability?.();
     const providerBindingVersion =
       capability?.provider_resume_binding_version ??
       NATIVE_HOST_RESUME_BINDING_VERSION_V01;
@@ -432,6 +450,15 @@ export async function readRepositoryRunResumeEligibilityV01(
         gap: "run_lifecycle_ambiguous",
       });
     }
+    const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+      dependencies,
+    );
+    if (platformCapability.status !== "available") {
+      return projectionV01(generatedAt, "unsupported", {
+        summary: "Managed repository resume is unavailable on this runtime.",
+        gap: platformCapability.reason,
+      });
+    }
     const attachment = requireConsumedRepositoryRunAttachmentV01(db, run);
     let checkpoints: RepositoryRunResumeCheckpointV01[];
     try {
@@ -615,6 +642,22 @@ export async function readRepositoryRunResumeEligibilityV01(
         gap: "execution_capability_drift",
       });
     }
+    const durablePlatform = readDurableExecutionEnvelopePlatformV01(
+      run,
+      capability,
+    );
+    if (!durablePlatform) {
+      return projectionV01(generatedAt, "stale", {
+        summary: "The durable execution envelope no longer matches this capability.",
+        gap: "execution_capability_drift",
+      });
+    }
+    if (durablePlatform !== platformCapability.platform) {
+      return projectionV01(generatedAt, "unsupported", {
+        summary: "This run is bound to a different managed execution platform.",
+        gap: "repository_resume_execution_platform_mismatch",
+      });
+    }
     const registration = readCanonicalProjectWithRootV01(db, input.config);
     if (!registration) {
       return projectionV01(generatedAt, "unavailable", {
@@ -698,6 +741,28 @@ export async function readRepositoryRunResumeEligibilityV01(
       gap: code,
     });
   }
+}
+
+function readDurableExecutionEnvelopePlatformV01(
+  run: AutonomyRunRecord,
+  capability: RepositoryExecutionEnvelopeCapabilityV01,
+): RepositoryManagedPlatformV01 | null {
+  const envelopeFingerprint = run.metadata
+    .repository_execution_envelope_fingerprint;
+  const protectedPathsFingerprint = run.metadata
+    .repository_protected_untracked_paths_fingerprint;
+  if (
+    !isFingerprintV01(envelopeFingerprint) ||
+    !isFingerprintV01(protectedPathsFingerprint)
+  ) return null;
+  const matches = (["darwin", "win32"] as const).filter((platform) =>
+    buildRepositoryExecutionEnvelopeV01(
+      platform,
+      capability,
+      protectedPathsFingerprint,
+    ).envelope_fingerprint === envelopeFingerprint
+  );
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 function projectionV01(

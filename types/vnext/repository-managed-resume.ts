@@ -110,7 +110,7 @@ export interface RepositoryManagedResumeExpectedStateV01 {
   checkpoint_worktree_fingerprint: string;
   runtime_instance_fingerprint: string;
   runtime_generation_fingerprint: string;
-  platform: "darwin";
+  platform: "darwin" | "win32";
   resume_mode: "explicit_same_run";
   requested_at: string;
   expires_at: string;

@@ -130,14 +130,15 @@ Not claimed: automatic plugin installation, remote Codex filesystem access,
 ChatGPT/mobile repository attachment, remote nodes, current-session workers,
 automatic resume after controller loss or Companion startup,
 continuous/multi-agent automation,
-Linux product filesystem/runtime proof, Windows managed delegation, or Windows
+Linux product filesystem/runtime proof, Windows 10 managed delegation, or Windows
 packaging. PR #117 is filesystem-verified on macOS; Linux has adapter contract
 coverage only. CDX2B3A source-runtime attachment admission has exact Windows 10
 proof at checkpoint `374a582b` and exact Windows 11 proof at pre-integration
 checkpoint `567c9bbb`, both on x64 local fixed NTFS. The integrated head is not
 claimed as Windows 10 exact-head verified without a rerun there. The current
 package builder refuses Windows, so packaged Windows preparation remains
-fail-closed. CDX2B2B Start and CDX2B4B Resume remain explicitly macOS-only. A Codex
+fail-closed. CDX2B3B enables CDX2B2B Start and CDX2B4B explicit same-run Resume
+on the verified Windows 11 x64 source-runtime lane only. A Codex
 build without plugin `mcpServers` support
 must be upgraded or use an explicitly configured direct test connection; the
 product docs do not pretend that limitation is solved.
@@ -147,7 +148,7 @@ separate admission/attachment remain bound to repository A when Browser selects
 B. The unchanged CDX2A projection still reports A inactive and closes its own
 Start eligibility. The Windows candidate never turns a path-only or mocked
 observation into readiness and does not expose volume serials or file IDs.
-Windows managed Start remains a separate CDX2B3B phase.
+Windows 10 and packaged Windows managed Start remain unavailable.
 
 ## Security and authority
 

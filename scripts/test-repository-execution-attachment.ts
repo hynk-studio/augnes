@@ -17,6 +17,10 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import {
+  POST as repositoryExecutionRoutePost,
+  repositoryExecutionTypedRefusalResponseV01,
+} from "../app/api/augnes/repository-execution/route";
 import { POST as projectRoutePost } from "../app/api/vnext/projects/route";
 
 import {
@@ -35,6 +39,12 @@ import {
   insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
   VNEXT_REPOSITORY_EXECUTION_STORE_SCHEMA_SQL_V01,
 } from "../lib/vnext/persistence/repository-execution-store";
+import {
+  RepositoryManagedDelegationErrorV01,
+} from "../lib/vnext/repository-execution/repository-managed-delegation";
+import {
+  RepositoryManagedResumeErrorV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
@@ -85,6 +95,7 @@ async function main(): Promise<void> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
   process.env.AUGNES_DB_PATH = DATABASE_PATH;
+  await assertRepositoryExecutionTypedRefusalRouteV01();
   assertSchemaParityV01();
   const rootA = createRepository("repository-a");
   const rootB = createRepository("repository-b");
@@ -1289,6 +1300,159 @@ async function main(): Promise<void> {
     }, null, 2));
   } finally {
     if (db.open) db.close();
+  }
+}
+
+async function assertRepositoryExecutionTypedRefusalRouteV01(): Promise<void> {
+  const keys = [
+    "AUGNES_COMPANION_PROXY_TOKEN",
+    "AUGNES_RECOVERY_MODE",
+    "AUGNES_RUNTIME_CHILD_ROLE",
+    "AUGNES_RUNTIME_GENERATION_ID",
+    "AUGNES_RUNTIME_INSTANCE_ID",
+    "AUGNES_RUNTIME_REPOSITORY_FINGERPRINT",
+  ] as const;
+  const before = new Map(keys.map((key) => [key, process.env[key]]));
+  const instance = "runtime-instance-route-refusal";
+  const generation = "runtime-generation-route-refusal";
+  const repository = "d".repeat(64);
+  const token = "t".repeat(64);
+  try {
+    process.env.AUGNES_COMPANION_PROXY_TOKEN = token;
+    process.env.AUGNES_RECOVERY_MODE = "0";
+    process.env.AUGNES_RUNTIME_CHILD_ROLE = "ui";
+    process.env.AUGNES_RUNTIME_GENERATION_ID = generation;
+    process.env.AUGNES_RUNTIME_INSTANCE_ID = instance;
+    process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT = repository;
+
+    const typed = repositoryExecutionTypedRefusalResponseV01(
+      "start",
+      new RepositoryManagedDelegationErrorV01(
+        "repository_managed_delegation_windows_source_runtime_required",
+        422,
+      ),
+    );
+    assert(typed);
+    assert.equal(typed.status, 422);
+    assert.equal(
+      typed.headers.get("x-augnes-repository-execution"),
+      "repository-execution-attachment-v0.1",
+    );
+    assert.equal(typed.headers.get("x-augnes-runtime-instance"), instance);
+    assert.equal(typed.headers.get("x-augnes-runtime-generation"), generation);
+    assert.equal(typed.headers.get("x-augnes-runtime-repository"), repository);
+    const body = await typed.json() as {
+      response_version: string;
+      error: { code: string; status: number };
+      authority: Record<string, boolean>;
+    };
+    assert.equal(body.response_version, "repository_execution_route_response.v0.1");
+    assert.deepEqual(body.error, {
+      code: "repository_managed_delegation_windows_source_runtime_required",
+      status: 422,
+    });
+    assert.equal(
+      Object.values(body.authority).every((value) => value === false),
+      true,
+    );
+
+    assert.equal(
+      repositoryExecutionTypedRefusalResponseV01(
+        "start",
+        new RepositoryManagedDelegationErrorV01(
+          "repository_managed_delegation_unknown_refusal",
+          422,
+        ),
+      ),
+      null,
+    );
+    assert.equal(
+      repositoryExecutionTypedRefusalResponseV01(
+        "start",
+        new RepositoryManagedDelegationErrorV01(
+          "repository_managed_delegation_windows_source_runtime_required",
+          409,
+        ),
+      ),
+      null,
+    );
+    assert.equal(
+      repositoryExecutionTypedRefusalResponseV01(
+        "resume_run",
+        new RepositoryManagedResumeErrorV01(
+          "repository_managed_resume_expected_state_mismatch",
+        ),
+      ),
+      null,
+    );
+    assert.equal(
+      repositoryExecutionTypedRefusalResponseV01("start", new Error("internal")),
+      null,
+    );
+
+    process.env.AUGNES_RECOVERY_MODE = "1";
+    assert.equal(
+      repositoryExecutionTypedRefusalResponseV01(
+        "start",
+        new RepositoryManagedDelegationErrorV01(
+          "repository_managed_delegation_windows_source_runtime_required",
+          422,
+        ),
+      ),
+      null,
+    );
+
+    const routeHeaders = {
+      "content-type": "application/json",
+      "x-augnes-repository-execution":
+        "repository-execution-attachment-v0.1",
+      "x-augnes-companion-proxy": token,
+    };
+    const assertNoRuntimeIdentity = (response: Response) => {
+      assert.equal(response.headers.get("x-augnes-runtime-instance"), null);
+      assert.equal(response.headers.get("x-augnes-runtime-generation"), null);
+      assert.equal(response.headers.get("x-augnes-runtime-repository"), null);
+    };
+    const nonLocal = await repositoryExecutionRoutePost(new Request(
+      "https://example.test/api/augnes/repository-execution",
+      { method: "POST", headers: routeHeaders, body: "{}" },
+    ));
+    assert.equal(nonLocal.status, 403);
+    assertNoRuntimeIdentity(nonLocal);
+
+    process.env.AUGNES_RECOVERY_MODE = "0";
+    const wrongChannel = await repositoryExecutionRoutePost(new Request(
+      "http://127.0.0.1/api/augnes/repository-execution",
+      {
+        method: "POST",
+        headers: { ...routeHeaders, "x-augnes-companion-proxy": "wrong" },
+        body: "{}",
+      },
+    ));
+    assert.equal(wrongChannel.status, 403);
+    assertNoRuntimeIdentity(wrongChannel);
+
+    process.env.AUGNES_RECOVERY_MODE = "1";
+    const unavailable = await repositoryExecutionRoutePost(new Request(
+      "http://127.0.0.1/api/augnes/repository-execution",
+      { method: "POST", headers: routeHeaders, body: "{}" },
+    ));
+    assert.equal(unavailable.status, 503);
+    assertNoRuntimeIdentity(unavailable);
+
+    process.env.AUGNES_RECOVERY_MODE = "0";
+    const invalidJson = await repositoryExecutionRoutePost(new Request(
+      "http://127.0.0.1/api/augnes/repository-execution",
+      { method: "POST", headers: routeHeaders, body: "{" },
+    ));
+    assert.equal(invalidJson.status, 400);
+    assertNoRuntimeIdentity(invalidJson);
+  } finally {
+    for (const key of keys) {
+      const value = before.get(key);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 }
 
