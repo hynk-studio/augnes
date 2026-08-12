@@ -5,15 +5,18 @@ import {
   governedActorLabHoldoutFixture,
   governedActorLabManifestFixture,
   governedActorLabManifestInputFixture,
-  governedActorLabStrategyRecipeRefsFixture,
 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import {
   admitGovernedActorLabMemoryCandidateV01,
+  buildGovernedActorLabCuratedKnowledgeInputV01,
   buildGovernedActorLabGenerationZeroV01,
   buildGovernedActorLabManifestV01,
   buildGovernedActorLabPopulationTransitionV01,
   canonicalizeGovernedActorLabValueV01,
   classifyGovernedActorLabItemCausalContributionV01,
+  deriveGovernedActorLabBaselineArmHardGateV01,
+  deriveGovernedActorLabBaselineComputeAccountingV01,
+  deriveGovernedActorLabBaselineNonDominanceV01,
   evaluateGovernedActorLabHiddenHoldoutV01,
   readGovernedActorLabPrivateMemoryV01,
   retrieveGovernedActorLabPrivateMemoryV01,
@@ -26,6 +29,7 @@ import {
 } from "@/lib/vnext/governed-actor-lab";
 import type {
   GovernedActorLabAuthoritySummaryV01,
+  GovernedActorLabBaselineObservationV01,
   GovernedActorLabMemoryCandidateV01,
   GovernedActorLabMemoryItemV01,
   GovernedActorLabPilotResultV01,
@@ -71,6 +75,11 @@ export interface GovernedActorLabConformanceSummaryV01 {
   branch_memory_inheritance_checked: true;
   exact_promotion_evidence_refs_checked: true;
   serialized_pilot_consistency_checked: true;
+  initial_population_identity_binding_checked: true;
+  curated_knowledge_execution_path_checked: true;
+  actor_and_arm_hard_gate_separation_checked: true;
+  serialized_report_projection_recomputation_checked: true;
+  exact_observed_compute_accounting_checked: true;
 }
 
 export function runGovernedActorLabConformanceV01(): GovernedActorLabConformanceSummaryV01 {
@@ -94,10 +103,54 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
   assert.equal(manifest.tool_manifest.provider_or_model_gateway_allowed, false);
   assert.equal(manifest.tool_manifest.mutation_may_expand_scope, false);
   assertAuthorityAllFalse(manifest.authority_summary);
+  assert.equal(
+    manifest.population.initial_population.actors.length,
+    manifest.population.generation_zero_size,
+  );
+  assert.deepEqual(
+    manifest.population.initial_population.actors.map((actor) => actor.lab_actor_id),
+    manifest.population.generation_zero_actor_ids,
+  );
+  assert.equal(manifest.population.initial_population.provider_or_model_identity_bound, false);
+  assert.equal(manifest.population.initial_population.product_actor_identity_created, false);
+
+  const reorderedRecipeInput = clone(governedActorLabManifestInputFixture);
+  reorderedRecipeInput.strategy_recipe_refs.reverse();
+  assert.deepEqual(
+    buildGovernedActorLabManifestV01(reorderedRecipeInput),
+    manifest,
+    "set-like recipe reference order must not change experiment identity",
+  );
+  const changedRecipeInput = clone(governedActorLabManifestInputFixture);
+  changedRecipeInput.strategy_recipe_refs[0]!.case_fingerprint = `sha256:${"4".repeat(64)}`;
+  const changedRecipeManifest = buildGovernedActorLabManifestV01(changedRecipeInput);
+  assert.notEqual(changedRecipeManifest.experiment_id, manifest.experiment_id);
+  assert.notEqual(changedRecipeManifest.integrity.fingerprint, manifest.integrity.fingerprint);
+
+  const roleBindingTamper = clone(manifest);
+  roleBindingTamper.population.initial_population.actors[0]!.profile.role_bindings = [
+    "planning",
+  ];
+  roleBindingTamper.population.initial_population = resealIntegrity(
+    roleBindingTamper.population.initial_population,
+  );
+  assertBlocked(
+    validateGovernedActorLabManifestV01(resealIntegrity(roleBindingTamper)),
+    "actor_lab_initial_population_id_mismatch",
+  );
+  const profileTamper = clone(manifest);
+  profileTamper.population.initial_population.actors[0]!.profile.procedural_operator_policy =
+    "scope_sentinel";
+  profileTamper.population.initial_population = resealIntegrity(
+    profileTamper.population.initial_population,
+  );
+  assertBlocked(
+    validateGovernedActorLabManifestV01(resealIntegrity(profileTamper)),
+    "actor_lab_initial_population_id_mismatch",
+  );
 
   const generationZero = buildGovernedActorLabGenerationZeroV01(
     manifest,
-    governedActorLabStrategyRecipeRefsFixture,
   );
   assert.equal(generationZero.actors.length, 4);
   assert.equal(generationZero.memories.length, 4);
@@ -112,6 +165,14 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
   assert.equal(
     new Set(generationZero.memories.map((memory) => memory.memory_snapshot_id)).size,
     4,
+  );
+  assert.deepEqual(
+    generationZero.actors.map((actor) => ({
+      lab_actor_id: actor.lab_actor_id,
+      profile: actor.profile,
+    })),
+    manifest.population.initial_population.actors,
+    "no generation-zero construction material may exist outside experiment identity",
   );
   assert.throws(
     () =>
@@ -775,7 +836,6 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
 
   const pilotInput = {
     manifest,
-    strategy_recipe_refs: governedActorLabStrategyRecipeRefsFixture,
     development_sources: governedActorLabDevelopmentSourcesFixture,
     hidden_holdout: governedActorLabHoldoutFixture,
   } as const;
@@ -886,10 +946,164 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
     baselineByArm.get("disposable_curated_knowledge")!.execution.curated_input_refs.length,
     3,
   );
-  assert.equal(baselineByArm.get("disposable_curated_knowledge")!.persistent_memory, false);
+  const curatedBaseline = baselineByArm.get("disposable_curated_knowledge")!;
+  const nonpersistentBaseline = baselineByArm.get(
+    "nonpersistent_compute_matched_ensemble",
+  )!;
+  assert.equal(curatedBaseline.persistent_memory, false);
+  assert.equal(curatedBaseline.mutation_enabled, false);
+  assert.ok(curatedBaseline.execution.curated_input);
+  assert.equal(
+    curatedBaseline.execution.curated_input.persistent_actor_private_memory,
+    false,
+  );
+  assert.equal(curatedBaseline.execution.curated_input.mutation_or_evolution, false);
+  assert.equal(
+    curatedBaseline.execution.curated_input.hidden_holdout_material_included,
+    false,
+  );
+  assert.deepEqual(
+    curatedBaseline.execution.curated_input.items.map((item) => item.source_ref),
+    governedActorLabDevelopmentSourcesFixture,
+  );
+  assert.notDeepEqual(
+    curatedBaseline.execution.episode_evaluation_refs,
+    nonpersistentBaseline.execution.episode_evaluation_refs,
+    "the curated representation must bind and change the executed evaluation path",
+  );
+  assert.notEqual(
+    curatedBaseline.outcome.verification.support_validated_claims,
+    nonpersistentBaseline.outcome.verification.support_validated_claims,
+    "curated policy selection must affect deterministic solve observations",
+  );
+  assert.deepEqual(
+    new Set(
+      curatedBaseline.execution.actor_hard_gate_observations.map(
+        (observation) => observation.lab_actor_id,
+      ),
+    ),
+    new Set(["actor:a", "actor:b", "actor:c"]),
+  );
+  const rebuiltCuratedInput = buildGovernedActorLabCuratedKnowledgeInputV01(
+    manifest,
+    governedActorLabDevelopmentSourcesFixture,
+  );
+  assert.deepEqual(rebuiltCuratedInput, curatedBaseline.execution.curated_input);
+
+  assert.ok(
+    nonpersistentBaseline.execution.arm_hard_gate.actor_hard_gate_failure_count > 0,
+  );
+  assert.ok(
+    nonpersistentBaseline.execution.arm_hard_gate.population_selection_exclusion_count > 0,
+  );
+  assert.equal(
+    nonpersistentBaseline.execution.arm_hard_gate.arm_level_hard_gate_failure,
+    false,
+    "a correctly excluded actor failure must not become an arm failure",
+  );
+  const allFailedObservations = clone(
+    nonpersistentBaseline.execution.actor_hard_gate_observations,
+  ).map((observation) => ({
+    ...observation,
+    hard_gate_failure: true as const,
+    hard_gate_failure_codes: ["synthetic_actor_gate"],
+    population_selection_excluded: true,
+  }));
+  const noValidPopulation = deriveGovernedActorLabBaselineArmHardGateV01(
+    allFailedObservations,
+    nonpersistentBaseline.execution.compute_accounting,
+  );
+  assert.equal(noValidPopulation.arm_level_hard_gate_failure, true);
+  assert.equal(noValidPopulation.arm_completed, false);
+  assert.ok(
+    noValidPopulation.arm_level_hard_gate_failure_codes.includes("no_valid_population"),
+  );
+  const mismatchedComputeObservations = clone(
+    nonpersistentBaseline.execution.actor_hard_gate_observations,
+  );
+  const firstObservedCompute = mismatchedComputeObservations[0]!.observed_compute;
+  assert.notEqual(firstObservedCompute.tool_reads, null);
+  firstObservedCompute.tool_reads = firstObservedCompute.tool_reads! - 1;
+  const mismatchedCompute = deriveGovernedActorLabBaselineComputeAccountingV01(
+    mismatchedComputeObservations,
+    manifest.compute_budget,
+  );
+  const budgetMismatchGate = deriveGovernedActorLabBaselineArmHardGateV01(
+    nonpersistentBaseline.execution.actor_hard_gate_observations,
+    mismatchedCompute,
+  );
+  assert.equal(budgetMismatchGate.arm_level_hard_gate_failure, true);
+  assert.equal(budgetMismatchGate.arm_completed, true);
+  assert.ok(
+    budgetMismatchGate.arm_level_hard_gate_failure_codes.includes("exact_budget_mismatch"),
+  );
+
+  const hardGateProjectionInput = clone(pilot.report.baselines);
+  const hardGateArm = hardGateProjectionInput.find(
+    (baseline) => baseline.arm === "nonpersistent_compute_matched_ensemble",
+  )!;
+  hardGateArm.execution.arm_hard_gate.arm_level_hard_gate_failure = true;
+  hardGateArm.execution.arm_hard_gate.arm_level_hard_gate_failure_codes = [
+    "capability_or_authority_violation",
+  ];
+  hardGateArm.outcome.verification.hard_gate_failure = true;
+  hardGateArm.outcome.verification.hard_gate_failure_codes = [
+    "capability_or_authority_violation",
+  ];
+  hardGateArm.complete = true;
+  hardGateArm.comparable = true;
+  hardGateArm.comparison_status = "comparable";
+  hardGateArm.non_comparable_reasons = [];
+  const hardGateProjection = deriveGovernedActorLabBaselineNonDominanceV01(
+    hardGateProjectionInput,
+  );
+  const hardGateDominatedRelations = hardGateProjection.dominated_relations.filter(
+    (relation) => relation.dominated_arm === hardGateArm.arm,
+  );
+  assert.ok(hardGateDominatedRelations.length > 0);
+  assert.ok(
+    hardGateDominatedRelations.every(
+      (relation) => relation.basis === "hard_gate_non_compensation",
+    ),
+    "arm hard-gate dominance must never be labeled ordinary Pareto dominance",
+  );
+  const incompleteProjectionInput = clone(pilot.report.baselines);
+  incompleteProjectionInput[0]!.comparable = false;
+  incompleteProjectionInput[0]!.comparison_status = "non_comparable";
+  incompleteProjectionInput[0]!.non_comparable_reasons = ["synthetic_missingness"];
+  const incompleteProjection = deriveGovernedActorLabBaselineNonDominanceV01(
+    incompleteProjectionInput,
+  );
+  assert.equal(incompleteProjection.status, "undetermined");
+  assert.deepEqual(incompleteProjection.non_dominated_arms, []);
+  assert.equal(incompleteProjection.incomplete_evidence_preserved, true);
+
+  assert.ok(
+    pilot.report.baselines.every(
+      (baseline) =>
+        baseline.execution.compute_accounting.accounting_basis ===
+          "sum_of_executed_actor_observations" &&
+        baseline.execution.compute_accounting.tool_reads ===
+          manifest.compute_budget.tool_read_limit &&
+        baseline.execution.compute_accounting.deterministic_steps ===
+          manifest.compute_budget.step_limit &&
+        baseline.execution.compute_accounting.provider_calls === 0 &&
+        baseline.execution.compute_accounting.network_calls === 0 &&
+        baseline.execution.compute_accounting.tokens === 0 &&
+        baseline.execution.compute_accounting.cost_microunits === 0 &&
+        baseline.execution.compute_accounting.external_effects === 0 &&
+        baseline.exact_budget_match &&
+        baseline.comparable,
+    ),
+  );
   assert.equal(pilot.report.non_dominance.global_winner_created, false);
   assert.equal(pilot.report.non_dominance.ordinal_ranking_created, false);
-  assert.ok(pilot.report.non_dominance.non_dominated_arms.length >= 1);
+  assert.deepEqual(pilot.report.non_dominance.non_dominated_arms, [
+    "single_strong_actor",
+    "disposable_curated_knowledge",
+  ]);
+  assert.equal(pilot.report.persistence_benefit_candidate.status, "inconclusive");
+  assert.equal(pilot.report.evolution_benefit_candidate.status, "mixed");
   assert.equal(pilot.report.signals.diversity_collapse, false);
   assert.equal(pilot.report.signals.quarantined_items_retrieved, 0);
   assert.equal(pilot.report.mechanics_proof_only, true);
@@ -994,6 +1208,119 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
     validateGovernedActorLabReportV01(reportBudgetTamper),
     "actor_lab_report_baseline_budget_mismatch",
   );
+  const derivedProjectionTamperCases: Array<{
+    code: string;
+    mutate: (report: GovernedActorLabPilotResultV01["report"]) => void;
+  }> = [
+    {
+      code: "actor_lab_report_non_dominance_projection_invalid",
+      mutate: (report) => {
+        report.non_dominance.non_dominated_arms = ["single_strong_actor"];
+      },
+    },
+    {
+      code: "actor_lab_report_non_dominance_projection_invalid",
+      mutate: (report) => {
+        report.non_dominance.dominated_relations.pop();
+      },
+    },
+    {
+      code: "actor_lab_report_non_dominance_projection_invalid",
+      mutate: (report) => {
+        report.non_dominance.dominated_relations[0]!.basis =
+          "hard_gate_non_compensation";
+      },
+    },
+    {
+      code: "actor_lab_report_non_dominance_projection_invalid",
+      mutate: (report) => {
+        report.non_dominance.tradeoff_pairs.pop();
+      },
+    },
+    {
+      code: "actor_lab_report_non_dominance_projection_invalid",
+      mutate: (report) => {
+        report.non_dominance.status = "undetermined";
+      },
+    },
+    {
+      code: "actor_lab_report_persistence_projection_invalid",
+      mutate: (report) => {
+        report.persistence_benefit_candidate.status = "mixed";
+      },
+    },
+    {
+      code: "actor_lab_report_evolution_projection_invalid",
+      mutate: (report) => {
+        report.evolution_benefit_candidate.status = "inconclusive";
+      },
+    },
+  ];
+  for (const tamperCase of derivedProjectionTamperCases) {
+    const tampered = clone(pilot.report);
+    tamperCase.mutate(tampered);
+    assertBlocked(
+      validateGovernedActorLabReportV01(resealIntegrity(tampered)),
+      tamperCase.code,
+    );
+  }
+
+  const armHardGateTamper = clone(pilot.report);
+  const armHardGateBaseline = armHardGateTamper.baselines.find(
+    (baseline) => baseline.arm === "nonpersistent_compute_matched_ensemble",
+  )!;
+  armHardGateBaseline.execution.arm_hard_gate.arm_level_hard_gate_failure = true;
+  armHardGateBaseline.execution.arm_hard_gate.arm_level_hard_gate_failure_codes = [
+    "capability_or_authority_violation",
+  ];
+  armHardGateBaseline.outcome.verification.hard_gate_failure = true;
+  armHardGateBaseline.outcome.verification.hard_gate_failure_codes = [
+    "capability_or_authority_violation",
+  ];
+  const armHardGateIndex = armHardGateTamper.baselines.findIndex(
+    (baseline) => baseline.arm === armHardGateBaseline.arm,
+  );
+  armHardGateTamper.baselines[armHardGateIndex] = resealBaselineObservation(
+    armHardGateBaseline,
+  );
+  assertBlocked(
+    validateGovernedActorLabReportV01(resealIntegrity(armHardGateTamper)),
+    "actor_lab_report_baseline_budget_mismatch",
+  );
+  const armHardGateBasisTamper = clone(pilot.report);
+  const armHardGateBasisBaseline = armHardGateBasisTamper.baselines.find(
+    (baseline) => baseline.arm === "nonpersistent_compute_matched_ensemble",
+  )!;
+  armHardGateBasisBaseline.execution.arm_hard_gate.basis =
+    "tampered_basis" as typeof armHardGateBasisBaseline.execution.arm_hard_gate.basis;
+  const armHardGateBasisIndex = armHardGateBasisTamper.baselines.findIndex(
+    (baseline) => baseline.arm === armHardGateBasisBaseline.arm,
+  );
+  armHardGateBasisTamper.baselines[armHardGateBasisIndex] = resealBaselineObservation(
+    armHardGateBasisBaseline,
+  );
+  assertBlocked(
+    validateGovernedActorLabReportV01(resealIntegrity(armHardGateBasisTamper)),
+    "actor_lab_report_baseline_budget_mismatch",
+  );
+  const observedComputeTamper = clone(pilot.report);
+  const observedComputeBaseline = observedComputeTamper.baselines.find(
+    (baseline) => baseline.arm === "nonpersistent_compute_matched_ensemble",
+  )!;
+  const observedComputeEntry =
+    observedComputeBaseline.execution.actor_hard_gate_observations[0]!.observed_compute;
+  assert.notEqual(observedComputeEntry.tool_reads, null);
+  observedComputeEntry.tool_reads = observedComputeEntry.tool_reads! - 1;
+  const observedComputeIndex = observedComputeTamper.baselines.findIndex(
+    (baseline) => baseline.arm === observedComputeBaseline.arm,
+  );
+  observedComputeTamper.baselines[observedComputeIndex] = resealBaselineObservation(
+    observedComputeBaseline,
+  );
+  assertBlocked(
+    validateGovernedActorLabReportV01(resealIntegrity(observedComputeTamper)),
+    "actor_lab_report_baseline_budget_mismatch",
+  );
   const reportPromotionTamper = clone(pilot.report);
   reportPromotionTamper.promotion_candidates[0]!.creates_episode_delta_proposal = true as false;
   assertBlocked(
@@ -1052,8 +1379,9 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
   return {
     suite: "governed-actor-lab-v0.1",
     status: "passed",
-    positive_fixture_count: 45,
-    negative_fixture_count: invalidManifestCases.length + 47,
+    positive_fixture_count: 60,
+    negative_fixture_count:
+      invalidManifestCases.length + 47 + derivedProjectionTamperCases.length + 5,
     experiment_id: manifest.experiment_id,
     experiment_fingerprint: manifest.integrity.fingerprint,
     report_id: pilot.report.report_id,
@@ -1087,6 +1415,11 @@ export function runGovernedActorLabConformanceV01(): GovernedActorLabConformance
     branch_memory_inheritance_checked: true,
     exact_promotion_evidence_refs_checked: true,
     serialized_pilot_consistency_checked: true,
+    initial_population_identity_binding_checked: true,
+    curated_knowledge_execution_path_checked: true,
+    actor_and_arm_hard_gate_separation_checked: true,
+    serialized_report_projection_recomputation_checked: true,
+    exact_observed_compute_accounting_checked: true,
   };
 }
 
@@ -1148,6 +1481,18 @@ function resealMemoryItem(
     canonicalizeGovernedActorLabValueV01(item),
   );
   return item;
+}
+
+function resealBaselineObservation(
+  input: GovernedActorLabBaselineObservationV01,
+): GovernedActorLabBaselineObservationV01 {
+  const value = clone(input);
+  value.observation_id = "actor-lab-baseline-observation:pending";
+  value.integrity.fingerprint = pendingFingerprint;
+  value.observation_id = `actor-lab-baseline-observation:${createProtocolSha256V01(
+    canonicalizeGovernedActorLabValueV01(value),
+  ).slice("sha256:".length)}`;
+  return resealIntegrity(value);
 }
 
 function resealIntegrity<T extends { integrity: { fingerprint: string } }>(

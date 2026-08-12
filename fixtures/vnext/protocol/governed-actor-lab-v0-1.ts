@@ -7,7 +7,10 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import { createStrategyCompositionCaseReferenceV01 } from "@/lib/vnext/strategy-composition-case";
-import { strategyCompositionOrderedCaseFixture } from "@/fixtures/vnext/protocol/strategy-composition-comparison-v0-1";
+import {
+  strategyCompositionBoundCaseFixture,
+  strategyCompositionOrderedCaseFixture,
+} from "@/fixtures/vnext/protocol/strategy-composition-comparison-v0-1";
 import type {
   GovernedActorLabHoldoutFixtureV01,
   GovernedActorLabSyntheticSourceV01,
@@ -77,6 +80,7 @@ export const governedActorLabHoldoutFixture = deepFreeze({
 } satisfies GovernedActorLabHoldoutFixtureV01);
 
 export const governedActorLabStrategyRecipeRefsFixture = deepFreeze([
+  createStrategyCompositionCaseReferenceV01(strategyCompositionBoundCaseFixture),
   createStrategyCompositionCaseReferenceV01(strategyCompositionOrderedCaseFixture),
 ]);
 

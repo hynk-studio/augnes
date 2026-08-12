@@ -182,6 +182,7 @@ export interface GovernedActorLabExperimentManifestV01 {
     generation_zero_size: typeof GOVERNED_ACTOR_LAB_GENERATION_ZERO_SIZE_V01;
     final_generation: typeof GOVERNED_ACTOR_LAB_FINAL_GENERATION_V01;
     generation_zero_actor_ids: string[];
+    initial_population: GovernedActorLabInitialPopulationSpecificationV01;
     whole_actor_mutation_enabled: false;
     actor_identity_scope: "experiment_local";
   };
@@ -253,6 +254,18 @@ export interface GovernedActorLabActorProfileV01 {
     | "synthesize_then_abstain";
   role_bindings: StrategyCompositionRoleV01[];
   strategy_recipe_refs: StrategyCompositionCaseReferenceV01[];
+}
+
+export interface GovernedActorLabInitialPopulationSpecificationV01 {
+  specification_version: "governed_actor_lab_initial_population.v0.1";
+  specification_id: string;
+  actors: Array<{
+    lab_actor_id: string;
+    profile: GovernedActorLabActorProfileV01;
+  }>;
+  provider_or_model_identity_bound: false;
+  product_actor_identity_created: false;
+  integrity: GovernedActorLabIntegrityV01;
 }
 
 export interface GovernedActorLabMutationReferenceV01 {
@@ -588,6 +601,72 @@ export interface GovernedActorLabHoldoutFixtureV01 {
   };
 }
 
+export interface GovernedActorLabCuratedKnowledgeInputV01 {
+  curated_input_version: "governed_actor_lab_curated_knowledge.v0.1";
+  curated_input_id: string;
+  construction: "deterministic_pre_cutoff_source_compilation";
+  items: Array<{
+    source_ref: GovernedActorLabSyntheticSourceV01;
+    procedural_operator_policy: GovernedActorLabActorProfileV01["procedural_operator_policy"];
+    evidence_retrieval_policy: GovernedActorLabActorProfileV01["evidence_retrieval_policy"];
+  }>;
+  persistent_actor_private_memory: false;
+  mutation_or_evolution: false;
+  hidden_holdout_material_included: false;
+  provider_or_model_material_included: false;
+  integrity: GovernedActorLabIntegrityV01;
+}
+
+export interface GovernedActorLabBaselineActorHardGateObservationV01 {
+  episode_evaluation_ref: GovernedActorLabEvaluationReferenceV01;
+  observation_index: number;
+  lab_actor_id: string;
+  complete: boolean;
+  hard_gate_failure: boolean | null;
+  hard_gate_failure_codes: string[];
+  population_selection_excluded: boolean;
+  observed_compute: {
+    provider_calls: 0;
+    network_calls: 0;
+    tool_reads: number | null;
+    deterministic_steps: number | null;
+    tokens: 0;
+    cost_microunits: 0;
+    external_effects: 0;
+  };
+}
+
+export type GovernedActorLabArmHardGateCodeV01 =
+  | "no_valid_population"
+  | "required_evaluation_incomplete"
+  | "exact_budget_mismatch"
+  | "holdout_leakage"
+  | "capability_or_authority_violation"
+  | "forbidden_product_provider_network_effect";
+
+export interface GovernedActorLabBaselineArmHardGateV01 {
+  arm_completed: boolean;
+  arm_level_hard_gate_failure: boolean;
+  arm_level_hard_gate_failure_codes: GovernedActorLabArmHardGateCodeV01[];
+  actor_hard_gate_failure_count: number;
+  population_selection_exclusion_count: number;
+  valid_actor_observation_count: number;
+  basis: "derived_from_serialized_actor_and_compute_observations";
+}
+
+export interface GovernedActorLabBaselineComputeAccountingV01 {
+  accounting_basis: "sum_of_executed_actor_observations";
+  all_required_dimensions_observed: boolean;
+  provider_calls: 0;
+  network_calls: 0;
+  tool_reads: number;
+  deterministic_steps: number;
+  tokens: 0;
+  cost_microunits: 0;
+  external_effects: 0;
+  exact_budget_match: boolean;
+}
+
 export interface GovernedActorLabBaselineObservationV01 {
   baseline_version: "governed_actor_lab_baseline_observation.v0.1";
   observation_id: string;
@@ -608,7 +687,10 @@ export interface GovernedActorLabBaselineObservationV01 {
   budget_fingerprint: string;
   deterministic_seed: string;
   arm_seed: string;
-  exact_budget_match: true;
+  exact_budget_match: boolean;
+  comparable: boolean;
+  comparison_status: "comparable" | "non_comparable";
+  non_comparable_reasons: string[];
   persistent_memory: boolean;
   mutation_enabled: boolean;
   curated_knowledge: boolean;
@@ -619,8 +701,12 @@ export interface GovernedActorLabBaselineObservationV01 {
     memory_persistence_setting: "none" | "private_cross_episode";
     mutation_setting: "none" | "g0_to_g1_to_g2";
     curated_input_refs: GovernedActorLabSyntheticSourceV01[];
+    curated_input: GovernedActorLabCuratedKnowledgeInputV01 | null;
     single_actor_repetitions: number;
     episode_evaluation_refs: GovernedActorLabEvaluationReferenceV01[];
+    actor_hard_gate_observations: GovernedActorLabBaselineActorHardGateObservationV01[];
+    arm_hard_gate: GovernedActorLabBaselineArmHardGateV01;
+    compute_accounting: GovernedActorLabBaselineComputeAccountingV01;
     transition_refs: Array<{
       transition_id: string;
       transition_fingerprint: string;

@@ -15,7 +15,6 @@ import {
   governedActorLabDevelopmentSourcesFixture,
   governedActorLabHoldoutFixture,
   governedActorLabManifestFixture,
-  governedActorLabStrategyRecipeRefsFixture,
 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import {
   resolveGovernedActorLabArtifactPathV01,
@@ -36,7 +35,6 @@ writeFileSync(path.join(repositoryRoot, ".gitignore"), ".augnes-lab/\n", "utf8")
 try {
   const pilot = runGovernedActorLabPilotV01({
     manifest: governedActorLabManifestFixture,
-    strategy_recipe_refs: governedActorLabStrategyRecipeRefsFixture,
     development_sources: governedActorLabDevelopmentSourcesFixture,
     hidden_holdout: governedActorLabHoldoutFixture,
   });

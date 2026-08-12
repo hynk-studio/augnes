@@ -4,7 +4,6 @@ import {
   governedActorLabDevelopmentSourcesFixture,
   governedActorLabHoldoutFixture,
   governedActorLabManifestFixture,
-  governedActorLabStrategyRecipeRefsFixture,
 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import { writeGovernedActorLabPilotArtifactsV01 } from "@/lib/vnext/governed-actor-lab-artifact-store";
 import { runGovernedActorLabPilotV01 } from "@/lib/vnext/governed-actor-lab";
@@ -12,7 +11,6 @@ import { runGovernedActorLabPilotV01 } from "@/lib/vnext/governed-actor-lab";
 const options = parseArgumentsV01(process.argv.slice(2));
 const result = runGovernedActorLabPilotV01({
   manifest: governedActorLabManifestFixture,
-  strategy_recipe_refs: governedActorLabStrategyRecipeRefsFixture,
   development_sources: governedActorLabDevelopmentSourcesFixture,
   hidden_holdout: governedActorLabHoldoutFixture,
 });
@@ -52,8 +50,25 @@ process.stdout.write(
         support_validated_claims: baseline.outcome.verification.support_validated_claims,
         harmful_transfer_candidates: baseline.outcome.harm.harmful_transfer_candidates,
         review_operations: baseline.outcome.burden.review_operations,
+        support_status: "supported_executed",
+        actor_hard_gate_failure_count:
+          baseline.execution.arm_hard_gate.actor_hard_gate_failure_count,
+        population_selection_exclusion_count:
+          baseline.execution.arm_hard_gate.population_selection_exclusion_count,
+        arm_completed: baseline.execution.arm_hard_gate.arm_completed,
+        arm_level_hard_gate_failure:
+          baseline.execution.arm_hard_gate.arm_level_hard_gate_failure,
+        arm_level_hard_gate_failure_codes:
+          baseline.execution.arm_hard_gate.arm_level_hard_gate_failure_codes,
+        comparable: baseline.comparable,
+        observed_compute: baseline.execution.compute_accounting,
+        curated_input_id: baseline.execution.curated_input?.curated_input_id ?? null,
       })),
       non_dominated_arms: result.report.non_dominance.non_dominated_arms,
+      dominated_relations: result.report.non_dominance.dominated_relations,
+      tradeoff_pairs: result.report.non_dominance.tradeoff_pairs,
+      persistence_benefit_candidate: result.report.persistence_benefit_candidate,
+      evolution_benefit_candidate: result.report.evolution_benefit_candidate,
       promotion_candidates: result.report.promotion_candidates.length,
       product_effects: result.report.product_effects,
       mechanics_substrate_proof_only: result.report.mechanics_proof_only,
