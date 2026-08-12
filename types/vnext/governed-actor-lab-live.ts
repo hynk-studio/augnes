@@ -30,6 +30,44 @@ export const GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01 =
   "governed_actor_lab_live_attempt.v0.1" as const;
 export const GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01 =
   "governed_actor_lab_live_checkpoint.v0.1" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01 =
+  "governed_actor_lab_live_authorization.v0.1" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01 =
+  "84df543e53ae64f42245e97bd445577e53148c1f" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_COHORT_ID_V01 =
+  "live-cohort:6bd6bc3c1805d1cb3696376a22185e3a" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_TERMINAL_REASON_V01 =
+  "actor_lab_no_selection_evidence" as const;
+
+export type GovernedActorLabLiveAuthorizationLineageV01 =
+  | {
+      authorization_version: typeof GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01;
+      authorization_kind: "initial_authorized_cohort";
+      authorized_source_head: string;
+      historical_source_head: null;
+      historical_cohort_id: null;
+      historical_result: null;
+      historical_terminal_reason: null;
+      replacement_source_head: null;
+      authorized_replacement_count: 0;
+      retry_of_historical_cohort: false;
+      historical_artifacts_rewritten: false;
+      further_cohort_authorized: false;
+    }
+  | {
+      authorization_version: typeof GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01;
+      authorization_kind: "authorized_replacement_after_historical_incomplete";
+      authorized_source_head: string;
+      historical_source_head: typeof GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01;
+      historical_cohort_id: typeof GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_COHORT_ID_V01;
+      historical_result: "incomplete";
+      historical_terminal_reason: typeof GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_TERMINAL_REASON_V01;
+      replacement_source_head: string;
+      authorized_replacement_count: 1;
+      retry_of_historical_cohort: false;
+      historical_artifacts_rewritten: false;
+      further_cohort_authorized: false;
+    };
 
 export const GOVERNED_ACTOR_LAB_LIVE_PHASES_V01 = [
   "blind_solve",
@@ -307,6 +345,7 @@ export interface GovernedActorLabLiveCohortManifestV01 {
   cohort_id: string;
   cohort_count: 1;
   source_repository_head_sha: string;
+  authorization_lineage: GovernedActorLabLiveAuthorizationLineageV01;
   c1_experiment_ref: {
     experiment_id: string;
     experiment_fingerprint: string;
@@ -382,7 +421,7 @@ export interface GovernedActorLabLiveArmTerminalV01 {
   terminal_version: "governed_actor_lab_live_arm_terminal.v0.1";
   terminal_id: string;
   arm: GovernedActorLabBaselineArmV01;
-  terminal_generation: 0 | 1;
+  terminal_generation: 0 | 1 | 2;
   terminal_reason: GovernedActorLabLiveArmTerminalReasonV01;
   selection_evaluation_ref: {
     evaluation_id: string;
@@ -543,16 +582,11 @@ export interface GovernedActorLabLiveArmResultV01 {
   arm_completion_status: "complete" | "terminal" | "incomplete";
   arm_level_hard_gate: {
     failed: boolean;
-    codes: Array<
-      | "no_valid_population"
-      | "required_arm_evaluation_incomplete"
-      | "route_model_inconsistency"
-      | "call_budget_violation"
-      | "holdout_leakage"
-      | "forbidden_authority_effect"
-      | "cohort_internal_error"
-      | "insufficient_required_observations"
-    >;
+    codes: Array<"holdout_selection_disqualifying_output">;
+    basis: Array<{
+      code: "holdout_selection_disqualifying_output";
+      evaluation_fingerprints: string[];
+    }>;
   };
   holdout: {
     passed: number;
@@ -647,8 +681,9 @@ export interface GovernedActorLabLiveTerminalAttemptV01 {
   persisted_checkpoint_count: number;
   missing_call_slots: number;
   provider_attempt_count_unknown: boolean;
+  authorization_lineage: GovernedActorLabLiveAuthorizationLineageV01;
   retry_authorized: false;
-  second_cohort_authorized: false;
+  further_cohort_authorized: false;
   integrity: GovernedActorLabIntegrityV01;
 }
 
@@ -671,6 +706,7 @@ export interface GovernedActorLabLiveReportV01 {
     cohort_fingerprint: string;
   };
   source_repository_head_sha: string;
+  authorization_lineage: GovernedActorLabLiveAuthorizationLineageV01;
   route: GovernedActorLabLiveRouteV01;
   casebook_ref: {
     casebook_id: string;
@@ -751,6 +787,7 @@ export interface GovernedActorLabLiveIncompleteReportV01 {
     cohort_fingerprint: string;
   };
   source_repository_head_sha: string;
+  authorization_lineage: GovernedActorLabLiveAuthorizationLineageV01;
   route: GovernedActorLabLiveRouteV01;
   accounting: GovernedActorLabLiveAggregateAccountingV01;
   arms: GovernedActorLabLiveIncompleteArmV01[];

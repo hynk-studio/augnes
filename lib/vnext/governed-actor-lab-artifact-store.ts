@@ -269,13 +269,15 @@ export function beginGovernedActorLabLiveCohortAttemptV01(input: {
     source_repository_head_sha:
       input.result_identity.manifest.source_repository_head_sha,
     call_plan_fingerprint: input.result_identity.call_plan.integrity.fingerprint,
-    authorized_cohort_count: 1,
+    authorization_lineage: structuredClone(
+      input.result_identity.manifest.authorization_lineage,
+    ),
     attempt_status: "started",
     route_identity_fingerprint:
       input.result_identity.manifest.route.integrity_fingerprint,
     holdout_content_included: false,
     retry_authorized: false,
-    second_cohort_authorized: false,
+    further_cohort_authorized: false,
   };
   const text = canonicalizeGovernedActorLabValueV01(attempt);
   atomicWriteV01(prepared.run_root, ["cohort-attempt.json"], text);

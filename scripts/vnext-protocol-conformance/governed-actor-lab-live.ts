@@ -54,6 +54,11 @@ export function runGovernedActorLabLiveConformanceV01() {
   assert.ok(liveSource.includes("referenced_memory_tokens"));
   assert.ok(liveSource.includes("not_attempted_arm_terminal"));
   assert.ok(liveSource.includes("on_binding_finalized"));
+  assert.ok(typesSource.includes("authorized_replacement_after_historical_incomplete"));
+  assert.ok(typesSource.includes("holdout_selection_disqualifying_output"));
+  assert.ok(liveSource.includes("hard_gate_non_compensation"));
+  assert.ok(runnerSource.includes("--confirm-authorized-cohort"));
+  assert.ok(runnerSource.includes("live_cohort_first_cohort_confirmation_retired"));
   assert.ok(!runnerSource.includes(["", "Users", "hynk", "code", "augnes-temp"].join("/")));
   assert.ok(typesSource.includes("raw_prompt_persisted: false"));
   assert.ok(typesSource.includes("raw_response_persisted: false"));

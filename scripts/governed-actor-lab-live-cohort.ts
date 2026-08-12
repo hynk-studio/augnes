@@ -9,6 +9,7 @@ import {
 } from "@/lib/vnext/governed-actor-lab-artifact-store";
 import {
   buildGovernedActorLabLiveCohortManifestV01,
+  createGovernedActorLabLiveReplacementAuthorizationV01,
   runGovernedActorLabLiveCohortV01,
 } from "@/lib/vnext/governed-actor-lab-live";
 import { canonicalizeGovernedActorLabValueV01 } from "@/lib/vnext/governed-actor-lab";
@@ -57,6 +58,7 @@ async function main() {
   const casebook = structuredClone(governedActorLabLiveCasebookFixture);
   const prepared = buildGovernedActorLabLiveCohortManifestV01({
     source_repository_head_sha: options.sourceHead,
+    authorization_lineage: options.authorizationLineage,
     c1_manifest: c1Manifest,
     casebook,
     route,
@@ -93,6 +95,7 @@ async function main() {
     const result = await runGovernedActorLabLiveCohortV01(
       {
         source_repository_head_sha: options.sourceHead,
+        authorization_lineage: options.authorizationLineage,
         c1_manifest: c1Manifest,
         casebook,
         route,
@@ -194,20 +197,70 @@ function parseArgumentsV01(args: string[]) {
   let runLabel: string | null = null;
   let repositoryRoot: string | null = null;
   let confirmed = false;
+  let authorizationKind: string | null = null;
+  let historicalSourceHead: string | null = null;
+  let historicalCohortId: string | null = null;
+  let historicalResult: string | null = null;
+  let historicalTerminalReason: string | null = null;
+  let authorizedReplacementCount: number | null = null;
+  let retryOfHistoricalCohort: boolean | null = null;
+  let historicalArtifactsRewritten: boolean | null = null;
+  let furtherCohortAuthorized: boolean | null = null;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--source-head") sourceHead = args[++index] ?? null;
     else if (value === "--run-label") runLabel = args[++index] ?? null;
     else if (value === "--repository-root") repositoryRoot = args[++index] ?? null;
-    else if (value === "--confirm-first-cohort") confirmed = true;
+    else if (value === "--confirm-authorized-cohort") confirmed = true;
+    else if (value === "--authorization-kind") authorizationKind = args[++index] ?? null;
+    else if (value === "--historical-source-head") historicalSourceHead = args[++index] ?? null;
+    else if (value === "--historical-cohort-id") historicalCohortId = args[++index] ?? null;
+    else if (value === "--historical-result") historicalResult = args[++index] ?? null;
+    else if (value === "--historical-terminal-reason") {
+      historicalTerminalReason = args[++index] ?? null;
+    } else if (value === "--authorized-replacement-count") {
+      authorizedReplacementCount = Number(args[++index] ?? Number.NaN);
+    } else if (value === "--retry-of-historical-cohort") {
+      retryOfHistoricalCohort = parseFalseBooleanV01(args[++index]);
+    } else if (value === "--historical-artifacts-rewritten") {
+      historicalArtifactsRewritten = parseFalseBooleanV01(args[++index]);
+    } else if (value === "--further-cohort-authorized") {
+      furtherCohortAuthorized = parseFalseBooleanV01(args[++index]);
+    } else if (value === "--confirm-first-cohort") {
+      failV01("live_cohort_first_cohort_confirmation_retired");
+    }
     else failV01("live_cohort_argument_invalid");
   }
-  if (!sourceHead || !confirmed) failV01("live_cohort_explicit_confirmation_required");
-  const label = runLabel ?? `first-cohort-${sourceHead.slice(0, 12)}`;
+  if (!sourceHead || !confirmed || !authorizationKind) {
+    failV01("live_cohort_explicit_authorization_required");
+  }
+  if (authorizationKind === "initial_authorized_cohort") {
+    failV01("live_cohort_initial_authorization_already_consumed");
+  }
+  if (authorizationKind !== "authorized_replacement_after_historical_incomplete") {
+    failV01("live_cohort_authorization_kind_invalid");
+  }
+  const authorizationLineage = createGovernedActorLabLiveReplacementAuthorizationV01({
+    replacement_source_head: sourceHead,
+    historical_source_head: historicalSourceHead ?? "",
+    historical_cohort_id: historicalCohortId ?? "",
+    historical_result: historicalResult ?? "",
+    historical_terminal_reason: historicalTerminalReason ?? "",
+    authorized_replacement_count: authorizedReplacementCount ?? Number.NaN,
+    retry_of_historical_cohort: retryOfHistoricalCohort ?? true,
+    historical_artifacts_rewritten: historicalArtifactsRewritten ?? true,
+    further_cohort_authorized: furtherCohortAuthorized ?? true,
+  });
+  const label = runLabel ?? `replacement-cohort-${sourceHead.slice(0, 12)}`;
   if (!/^[A-Za-z0-9._-]{1,200}$/u.test(label) || label === "." || label === "..") {
     failV01("live_cohort_run_label_invalid");
   }
-  return { sourceHead, runLabel: label, repositoryRoot };
+  return { sourceHead, runLabel: label, repositoryRoot, authorizationLineage };
+}
+
+function parseFalseBooleanV01(value: string | undefined): false {
+  if (value !== "false") failV01("live_cohort_authorization_boolean_invalid");
+  return false;
 }
 
 function gitV01(repositoryRoot: string, args: string[]): string {

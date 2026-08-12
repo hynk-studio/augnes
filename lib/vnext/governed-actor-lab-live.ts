@@ -42,15 +42,20 @@ import {
 } from "@/types/vnext/governed-actor-lab";
 import {
   GOVERNED_ACTOR_LAB_LIVE_AGGREGATE_VERSION_V01,
+  GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_CALL_PLAN_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_CODEC_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_COHORT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_CODES_V01,
+  GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_COHORT_ID_V01,
+  GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01,
+  GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_TERMINAL_REASON_V01,
   GOVERNED_ACTOR_LAB_LIVE_INCOMPLETE_REPORT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_REPORT_VERSION_V01,
   type GovernedActorLabLiveAggregateAccountingV01,
+  type GovernedActorLabLiveAuthorizationLineageV01,
   type GovernedActorLabLiveArmTerminalV01,
   type GovernedActorLabLiveArmResultV01,
   type GovernedActorLabLiveAuthorityBoundaryV01,
@@ -95,6 +100,7 @@ export class GovernedActorLabLiveErrorV01 extends Error {
 
 export interface BuildGovernedActorLabLiveCohortInputV01 {
   source_repository_head_sha: string;
+  authorization_lineage: GovernedActorLabLiveAuthorizationLineageV01;
   c1_manifest: GovernedActorLabExperimentManifestV01;
   casebook: GovernedActorLabLiveCasebookV01;
   route: GovernedActorLabLiveRouteV01;
@@ -181,6 +187,101 @@ export function createGovernedActorLabLiveAuthorityBoundaryV01(): GovernedActorL
     semantic_authority: false,
     merge_authority: false,
   };
+}
+
+export function createGovernedActorLabLiveInitialAuthorizationV01(
+  sourceHead: string,
+): GovernedActorLabLiveAuthorizationLineageV01 {
+  return validateGovernedActorLabLiveAuthorizationLineageV01(
+    {
+      authorization_version: GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01,
+      authorization_kind: "initial_authorized_cohort",
+      authorized_source_head: sourceHead,
+      historical_source_head: null,
+      historical_cohort_id: null,
+      historical_result: null,
+      historical_terminal_reason: null,
+      replacement_source_head: null,
+      authorized_replacement_count: 0,
+      retry_of_historical_cohort: false,
+      historical_artifacts_rewritten: false,
+      further_cohort_authorized: false,
+    },
+    sourceHead,
+  );
+}
+
+export function createGovernedActorLabLiveReplacementAuthorizationV01(input: {
+  replacement_source_head: string;
+  historical_source_head: string;
+  historical_cohort_id: string;
+  historical_result: string;
+  historical_terminal_reason: string;
+  authorized_replacement_count: number;
+  retry_of_historical_cohort: boolean;
+  historical_artifacts_rewritten: boolean;
+  further_cohort_authorized: boolean;
+}): GovernedActorLabLiveAuthorizationLineageV01 {
+  return validateGovernedActorLabLiveAuthorizationLineageV01(
+    {
+      authorization_version: GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01,
+      authorization_kind: "authorized_replacement_after_historical_incomplete",
+      authorized_source_head: input.replacement_source_head,
+      historical_source_head: input.historical_source_head,
+      historical_cohort_id: input.historical_cohort_id,
+      historical_result: input.historical_result,
+      historical_terminal_reason: input.historical_terminal_reason,
+      replacement_source_head: input.replacement_source_head,
+      authorized_replacement_count: input.authorized_replacement_count,
+      retry_of_historical_cohort: input.retry_of_historical_cohort,
+      historical_artifacts_rewritten: input.historical_artifacts_rewritten,
+      further_cohort_authorized: input.further_cohort_authorized,
+    } as GovernedActorLabLiveAuthorizationLineageV01,
+    input.replacement_source_head,
+  );
+}
+
+export function validateGovernedActorLabLiveAuthorizationLineageV01(
+  input: unknown,
+  expectedSourceHead: string,
+): GovernedActorLabLiveAuthorizationLineageV01 {
+  if (!isRecordV01(input) || !GIT_SHA.test(expectedSourceHead)) {
+    failV01("governed_actor_lab_live_authorization_invalid");
+  }
+  const authorization = input as unknown as GovernedActorLabLiveAuthorizationLineageV01;
+  const commonValid =
+    authorization.authorization_version ===
+      GOVERNED_ACTOR_LAB_LIVE_AUTHORIZATION_VERSION_V01 &&
+    authorization.authorized_source_head === expectedSourceHead &&
+    authorization.retry_of_historical_cohort === false &&
+    authorization.historical_artifacts_rewritten === false &&
+    authorization.further_cohort_authorized === false;
+  const initialValid =
+    authorization.authorization_kind === "initial_authorized_cohort" &&
+    expectedSourceHead === GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01 &&
+    authorization.historical_source_head === null &&
+    authorization.historical_cohort_id === null &&
+    authorization.historical_result === null &&
+    authorization.historical_terminal_reason === null &&
+    authorization.replacement_source_head === null &&
+    authorization.authorized_replacement_count === 0;
+  const replacementValid =
+    authorization.authorization_kind ===
+      "authorized_replacement_after_historical_incomplete" &&
+    expectedSourceHead !== GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01 &&
+    authorization.historical_source_head ===
+      GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_SOURCE_HEAD_V01 &&
+    authorization.historical_cohort_id ===
+      GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_COHORT_ID_V01 &&
+    authorization.historical_result === "incomplete" &&
+    authorization.historical_terminal_reason ===
+      GOVERNED_ACTOR_LAB_LIVE_HISTORICAL_TERMINAL_REASON_V01 &&
+    authorization.replacement_source_head === expectedSourceHead &&
+    authorization.authorized_replacement_count === 1;
+  if (!commonValid || (!initialValid && !replacementValid)) {
+    failV01("governed_actor_lab_live_authorization_invalid");
+  }
+  return structuredClone(authorization);
 }
 
 export function buildGovernedActorLabLiveCallPlanV01(
@@ -273,6 +374,10 @@ export function buildGovernedActorLabLiveCohortManifestV01(
   if (!GIT_SHA.test(input.source_repository_head_sha)) {
     failV01("governed_actor_lab_live_source_head_invalid");
   }
+  const authorizationLineage = validateGovernedActorLabLiveAuthorizationLineageV01(
+    input.authorization_lineage,
+    input.source_repository_head_sha,
+  );
   assertCasebookV01(input.casebook);
   assertRouteV01(input.route);
   if (
@@ -287,6 +392,7 @@ export function buildGovernedActorLabLiveCohortManifestV01(
   );
   const cohortBasis = {
     source_repository_head_sha: input.source_repository_head_sha,
+    authorization_lineage: authorizationLineage,
     c1_experiment_id: input.c1_manifest.experiment_id,
     c1_experiment_fingerprint: input.c1_manifest.integrity.fingerprint,
     casebook_fingerprint: input.casebook.integrity.fingerprint,
@@ -301,6 +407,7 @@ export function buildGovernedActorLabLiveCohortManifestV01(
     cohort_id: cohortId,
     cohort_count: 1 as const,
     source_repository_head_sha: input.source_repository_head_sha,
+    authorization_lineage: authorizationLineage,
     c1_experiment_ref: {
       experiment_id: input.c1_manifest.experiment_id,
       experiment_fingerprint: input.c1_manifest.integrity.fingerprint,
@@ -714,6 +821,25 @@ export async function runGovernedActorLabLiveCohortV01(
           state.actors = rebased.actors;
           state.memories = rebased.memories;
         }
+      } else if (
+        episodeEvaluations.length === SLOTS.length &&
+        episodeEvaluations.every(
+          (evaluation) => evaluation.hard_gate_failure === true,
+        )
+      ) {
+        const evaluationRef = frozenSelectionEvaluationV01(
+          arm,
+          episode,
+          actorsBySlot,
+          episodeEvaluations,
+        );
+        state.terminal = buildArmTerminalV01({
+          state,
+          generation: 2,
+          evaluation: evaluationRef,
+          episodeEvaluations,
+          actorsBySlot,
+        });
       }
       const checkpoint = buildCheckpointV01({
         manifest,
@@ -938,6 +1064,7 @@ function finalizeExecutionResultV01(input: {
       cohort_fingerprint: input.manifest.integrity.fingerprint,
     },
     source_repository_head_sha: input.manifest.source_repository_head_sha,
+    authorization_lineage: structuredClone(input.manifest.authorization_lineage),
     route: structuredClone(input.manifest.route),
     casebook_ref: {
       casebook_id: input.casebook.casebook_id,
@@ -1009,8 +1136,9 @@ function buildTerminalAttemptV01(input: {
     provider_attempt_count_unknown: input.bindings.some(
       (binding) => binding.provider_attempt_status === "unknown_receipt_unavailable",
     ),
+    authorization_lineage: structuredClone(input.manifest.authorization_lineage),
     retry_authorized: false as const,
-    second_cohort_authorized: false as const,
+    further_cohort_authorized: false as const,
   });
 }
 
@@ -1110,6 +1238,7 @@ function buildIncompleteReportV01(input: {
       cohort_fingerprint: input.manifest.integrity.fingerprint,
     },
     source_repository_head_sha: input.manifest.source_repository_head_sha,
+    authorization_lineage: structuredClone(input.manifest.authorization_lineage),
     route: structuredClone(input.manifest.route),
     accounting,
     arms,
@@ -1286,9 +1415,31 @@ export function validateGovernedActorLabLiveCohortResultV01(
     result.call_plan.planned_calls !== 140 ||
     result.call_plan.entries.length !== 140 ||
     result.invocation_bindings.length !== 140 ||
+    result.checkpoints.length !== 15 ||
+    result.terminal_attempt.cohort_id !== result.manifest.cohort_id ||
     result.terminal_attempt.status !== "complete" ||
+    result.terminal_attempt.terminal_reason !== "complete_exact_call_plan" ||
     result.terminal_attempt.persisted_invocation_prefix !== 140 ||
+    result.terminal_attempt.persisted_checkpoint_count !== result.checkpoints.length ||
+    result.terminal_attempt.missing_call_slots !== 0 ||
+    result.terminal_attempt.provider_attempt_count_unknown !== false ||
+    result.terminal_attempt.retry_authorized !== false ||
+    result.terminal_attempt.further_cohort_authorized !== false ||
     result.report.completion_status !== "complete" ||
+    result.report.cohort_ref.cohort_id !== result.manifest.cohort_id ||
+    result.report.cohort_ref.cohort_fingerprint !==
+      result.manifest.integrity.fingerprint ||
+    result.report.source_repository_head_sha !==
+      result.manifest.source_repository_head_sha ||
+    canonicalizeProtocolValueV01(result.report.route) !==
+      canonicalizeProtocolValueV01(result.manifest.route) ||
+    result.report.casebook_ref.casebook_id !== result.manifest.casebook_ref.casebook_id ||
+    result.report.casebook_ref.casebook_fingerprint !==
+      result.manifest.casebook_ref.casebook_fingerprint ||
+    result.report.casebook_ref.hidden_holdout_id !==
+      result.manifest.hidden_holdout_ref.holdout_id ||
+    result.report.casebook_ref.hidden_holdout_fingerprint !==
+      result.manifest.hidden_holdout_ref.holdout_fingerprint ||
     result.report.stochastic_repeatability !== "unmeasured_single_cohort" ||
     result.report.product_promotion_created !== false ||
     result.report.global_winner_created !== false ||
@@ -1297,6 +1448,18 @@ export function validateGovernedActorLabLiveCohortResultV01(
     result.report.authority_boundary.merge_authority !== false
   ) {
     failV01("governed_actor_lab_live_result_invalid");
+  }
+  validateGovernedActorLabLiveAuthorizationLineageV01(
+    result.manifest.authorization_lineage,
+    result.manifest.source_repository_head_sha,
+  );
+  if (
+    canonicalizeProtocolValueV01(result.manifest.authorization_lineage) !==
+      canonicalizeProtocolValueV01(result.terminal_attempt.authorization_lineage) ||
+    canonicalizeProtocolValueV01(result.manifest.authorization_lineage) !==
+      canonicalizeProtocolValueV01(result.report.authorization_lineage)
+  ) {
+    failV01("governed_actor_lab_live_authorization_lineage_invalid");
   }
   assertSealedV01(result.manifest);
   assertSealedV01(result.call_plan);
@@ -1351,6 +1514,15 @@ export function validateGovernedActorLabLiveCohortResultV01(
   ) {
     failV01("governed_actor_lab_live_accounting_invalid");
   }
+  if (
+    result.report.accounting.attempted_provider_calls !== 140 ||
+    result.report.accounting.completed_live_calls !== 140 ||
+    result.report.accounting.missing_call_slots !== 0 ||
+    result.report.accounting.attempted_provider_calls_unknown_slots !== 0 ||
+    result.report.accounting.provider_model_consistent !== true
+  ) {
+    failV01("governed_actor_lab_live_complete_observations_invalid");
+  }
   validateCompleteArmProjectionsV01(result);
   if (
     canonicalizeProtocolValueV01(buildComparisonsV01(result.report.arms)) !==
@@ -1392,6 +1564,8 @@ function validateCompleteArmProjectionsV01(
       (sum, transition) => sum + transition.hard_gate_excluded_actor_ids.length,
       0,
     );
+    arm.evaluations.forEach(validateSerializedEvaluationV01);
+    const expectedArmHardGate = deriveArmLevelHardGateV01(arm.evaluations);
     if (
       bindings.length !== 28 ||
       holdoutBindings.length !== 4 ||
@@ -1399,8 +1573,8 @@ function validateCompleteArmProjectionsV01(
       arm.evaluations.length !== 16 ||
       arm.terminal !== null ||
       arm.arm_completion_status !== "complete" ||
-      arm.arm_level_hard_gate.failed ||
-      arm.arm_level_hard_gate.codes.length !== 0 ||
+      canonicalizeProtocolValueV01(arm.arm_level_hard_gate) !==
+        canonicalizeProtocolValueV01(expectedArmHardGate) ||
       !arm.comparable ||
       !arm.comparison_eligible ||
       canonicalizeProtocolValueV01(arm.invocation_binding_refs) !==
@@ -1447,7 +1621,6 @@ function validateCompleteArmProjectionsV01(
     ) {
       failV01("governed_actor_lab_live_arm_projection_invalid");
     }
-    arm.evaluations.forEach(validateSerializedEvaluationV01);
   }
 }
 
@@ -1514,6 +1687,31 @@ export function validateGovernedActorLabLiveIncompleteResultV01(
   ) {
     failV01("governed_actor_lab_live_incomplete_result_invalid");
   }
+  validateGovernedActorLabLiveAuthorizationLineageV01(
+    result.manifest.authorization_lineage,
+    result.manifest.source_repository_head_sha,
+  );
+  if (
+    canonicalizeProtocolValueV01(result.manifest.authorization_lineage) !==
+      canonicalizeProtocolValueV01(result.terminal_attempt.authorization_lineage) ||
+    canonicalizeProtocolValueV01(result.manifest.authorization_lineage) !==
+      canonicalizeProtocolValueV01(result.report.authorization_lineage) ||
+    result.terminal_attempt.cohort_id !== result.manifest.cohort_id ||
+    result.terminal_attempt.retry_authorized !== false ||
+    result.terminal_attempt.further_cohort_authorized !== false ||
+    result.terminal_attempt.provider_attempt_count_unknown !==
+      result.invocation_bindings.some(
+        (binding) =>
+          binding.provider_attempt_status === "unknown_receipt_unavailable",
+      ) ||
+    !terminalAttemptDispositionMatchesV01(
+      result.terminal_attempt,
+      result.invocation_bindings,
+      result.arm_terminals,
+    )
+  ) {
+    failV01("governed_actor_lab_live_terminal_attempt_invalid");
+  }
   assertSealedV01(result.manifest);
   assertSealedV01(result.call_plan);
   assertSealedV01(result.report);
@@ -1564,7 +1762,23 @@ function validateManifestPlanBindingV01(
   manifest: GovernedActorLabLiveCohortManifestV01,
   callPlan: GovernedActorLabLiveCallPlanV01,
 ): void {
+  validateGovernedActorLabLiveAuthorizationLineageV01(
+    manifest.authorization_lineage,
+    manifest.source_repository_head_sha,
+  );
+  const expectedCohortId = `live-cohort:${createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      source_repository_head_sha: manifest.source_repository_head_sha,
+      authorization_lineage: manifest.authorization_lineage,
+      c1_experiment_id: manifest.c1_experiment_ref.experiment_id,
+      c1_experiment_fingerprint: manifest.c1_experiment_ref.experiment_fingerprint,
+      casebook_fingerprint: manifest.casebook_ref.casebook_fingerprint,
+      route_fingerprint: manifest.route.integrity_fingerprint,
+      call_plan_fingerprint: callPlan.integrity.fingerprint,
+    }),
+  ).slice("sha256:".length, "sha256:".length + 32)}`;
   if (
+    manifest.cohort_id !== expectedCohortId ||
     manifest.call_plan_ref.call_plan_fingerprint !== callPlan.integrity.fingerprint ||
     manifest.call_plan_ref.planned_calls !== callPlan.planned_calls ||
     callPlan.entries.length !== 140 ||
@@ -1573,6 +1787,55 @@ function validateManifestPlanBindingV01(
   ) {
     failV01("governed_actor_lab_live_manifest_plan_invalid");
   }
+}
+
+function terminalAttemptDispositionMatchesV01(
+  attempt: GovernedActorLabLiveTerminalAttemptV01,
+  bindings: GovernedActorLabLiveInvocationBindingV01[],
+  terminals: GovernedActorLabLiveArmTerminalV01[],
+): boolean {
+  let expectedStatus: GovernedActorLabLiveTerminalAttemptV01["status"];
+  let expectedReason: string;
+  if (
+    bindings.some(
+      (binding) =>
+        binding.provider_attempt_status === "unknown_receipt_unavailable",
+    )
+  ) {
+    expectedStatus = "cohort_internal_error";
+    expectedReason = "cohort_internal_error_receipt_unavailable";
+  } else if (
+    bindings.some(
+      (binding) =>
+        binding.invocation_status ===
+          "cohort_internal_error_receipt_unavailable" &&
+        binding.provider_attempt_status === "known_not_attempted_local",
+    )
+  ) {
+    expectedStatus = "cohort_internal_error";
+    expectedReason = "cohort_internal_error_before_gateway_entry";
+  } else if (
+    bindings.some((binding) => binding.invocation_status === "cancelled")
+  ) {
+    expectedStatus = "cancelled";
+    expectedReason = "cohort_cancelled";
+  } else if (terminals.length > 0) {
+    expectedStatus = "truthful_incomplete";
+    expectedReason = "arm_terminal_no_valid_population";
+  } else if (attempt.status === "cohort_internal_error") {
+    expectedStatus = "cohort_internal_error";
+    expectedReason = "cohort_internal_error";
+  } else if (attempt.status === "blocked_pre_egress") {
+    expectedStatus = "blocked_pre_egress";
+    expectedReason = "blocked_pre_egress";
+  } else if (bindings.length < 140) {
+    expectedStatus = "truthful_incomplete";
+    expectedReason = "journal_prefix_reconstructed_after_interruption";
+  } else {
+    expectedStatus = "truthful_incomplete";
+    expectedReason = "required_live_observations_incomplete";
+  }
+  return attempt.status === expectedStatus && attempt.terminal_reason === expectedReason;
 }
 
 function validateCheckpointPrefixV01(
@@ -2213,7 +2476,7 @@ function registerExplicitReferencesV01(
 
 function buildArmTerminalV01(input: {
   state: ArmRuntimeStateV01;
-  generation: 0 | 1;
+  generation: 0 | 1 | 2;
   evaluation: ReturnType<typeof frozenSelectionEvaluationV01>;
   episodeEvaluations: GovernedActorLabLiveEvaluationV01[];
   actorsBySlot: Map<string, GovernedActorLabActorSnapshotV01>;
@@ -2868,35 +3131,29 @@ function buildArmResultV01(
   const missingness = uniqueStringsV01(
     state.evaluations.flatMap((evaluation) => evaluation.missingness),
   );
-  const hardFailures = state.evaluations.filter((evaluation) => evaluation.hard_gate_failure === true);
-  const armGateCodes: GovernedActorLabLiveArmResultV01["arm_level_hard_gate"]["codes"] = [];
-  if (state.terminal) armGateCodes.push("no_valid_population");
-  if (missingness.includes("route_changed")) armGateCodes.push("route_model_inconsistency");
-  if (missingness.includes("cohort_internal_error_receipt_unavailable")) {
-    armGateCodes.push("cohort_internal_error");
-  }
-  if (holdout.length !== 4 || holdout.some((evaluation) => evaluation.status === "unknown")) {
-    armGateCodes.push("required_arm_evaluation_incomplete");
-  }
-  if (holdout.some((evaluation) => evaluation.hard_gate_failure === true)) {
-    armGateCodes.push("required_arm_evaluation_incomplete");
-  }
-  for (const generation of [0, 1, 2] as const) {
-    const generationEvaluations = state.evaluations.filter(
-      (evaluation) => evaluation.generation === generation,
-    );
-    if (
-      generationEvaluations.length > 0 &&
-      generationEvaluations.every(
-        (evaluation) =>
-          evaluation.status === "unknown" || evaluation.hard_gate_failure === true,
-      )
-    ) {
-      armGateCodes.push("insufficient_required_observations");
-    }
-  }
-  const canonicalArmGateCodes = uniqueStringsV01(armGateCodes) as typeof armGateCodes;
-  const comparable = canonicalArmGateCodes.length === 0 && missingness.length === 0;
+  const armHardGate = deriveArmLevelHardGateV01(state.evaluations);
+  const observationsComplete =
+    state.terminal === null &&
+    state.invocationBindingRefs.length === 28 &&
+    state.evaluations.length === 16 &&
+    holdout.length === 4 &&
+    state.evaluations.every((evaluation) => evaluation.status !== "unknown") &&
+    missingness.length === 0;
+  const comparable = observationsComplete;
+  const incompleteReasons = uniqueStringsV01([
+    ...missingness,
+    ...(state.terminal ? [state.terminal.terminal_reason] : []),
+    ...(state.invocationBindingRefs.length !== 28
+      ? ["required_call_slots_incomplete"]
+      : []),
+    ...(state.evaluations.length !== 16
+      ? ["required_arm_evaluation_incomplete"]
+      : []),
+    ...(holdout.length !== 4 ? ["holdout_count_incomplete"] : []),
+    ...(state.evaluations.some((evaluation) => evaluation.status === "unknown")
+      ? ["insufficient_required_observations"]
+      : []),
+  ]);
   const finalProfiles = new Set(
     state.actors.map((actor) => canonicalizeProtocolValueV01(actor.profile)),
   );
@@ -2930,12 +3187,13 @@ function buildArmResultV01(
     ).length,
     arm_completion_status: state.terminal
       ? "terminal"
-      : state.invocationBindingRefs.length === 28 && holdout.length === 4
+      : observationsComplete
         ? "complete"
         : "incomplete",
     arm_level_hard_gate: {
-      failed: canonicalArmGateCodes.length > 0,
-      codes: canonicalArmGateCodes,
+      failed: armHardGate.codes.length > 0,
+      codes: armHardGate.codes,
+      basis: armHardGate.basis,
     },
     holdout: {
       passed: holdout.filter((evaluation) => evaluation.status === "pass").length,
@@ -2991,11 +3249,30 @@ function buildArmResultV01(
     },
     comparable,
     comparison_eligible: comparable,
-    non_comparable_reasons: comparable ? [] : uniqueStringsV01([
-      ...missingness,
-      ...(holdout.length !== 4 ? ["holdout_count_incomplete"] : []),
-      ...canonicalArmGateCodes,
-    ]),
+    non_comparable_reasons: comparable ? [] : incompleteReasons,
+  };
+}
+
+function deriveArmLevelHardGateV01(
+  evaluations: GovernedActorLabLiveEvaluationV01[],
+): GovernedActorLabLiveArmResultV01["arm_level_hard_gate"] {
+  const holdout = evaluations.filter(
+    (evaluation) => evaluation.generation === "holdout",
+  );
+  const hardGateEvaluationFingerprints = holdout
+    .filter((evaluation) => evaluation.hard_gate_failure === true)
+    .map((evaluation) => evaluation.evaluation_fingerprint)
+    .sort(compareProtocolCodeUnitsV01);
+  if (hardGateEvaluationFingerprints.length === 0) {
+    return { failed: false, codes: [], basis: [] };
+  }
+  return {
+    failed: true,
+    codes: ["holdout_selection_disqualifying_output"],
+    basis: [{
+      code: "holdout_selection_disqualifying_output",
+      evaluation_fingerprints: hardGateEvaluationFingerprints,
+    }],
   };
 }
 
@@ -3040,6 +3317,28 @@ function compareArmsV01(
       global_winner_created: false,
     };
   }
+  const leftHardGated = left.arm_level_hard_gate.failed;
+  const rightHardGated = right.arm_level_hard_gate.failed;
+  if (leftHardGated !== rightHardGated) {
+    return {
+      comparison,
+      left_arm: left.arm,
+      right_arm: right.arm,
+      status: leftHardGated ? "right_better" : "left_better",
+      basis: ["hard_gate_non_compensation"],
+      global_winner_created: false,
+    };
+  }
+  if (leftHardGated && rightHardGated) {
+    return {
+      comparison,
+      left_arm: left.arm,
+      right_arm: right.arm,
+      status: "undetermined",
+      basis: ["both_arms_have_noncompensable_hard_gates"],
+      global_winner_created: false,
+    };
+  }
   const dimensions = comparisonDimensionsV01;
   const leftValues = dimensions(left);
   const rightValues = dimensions(right);
@@ -3075,21 +3374,44 @@ function deriveNonDominanceV01(arms: GovernedActorLabLiveArmResultV01[]) {
     return {
       status: "undetermined" as const,
       non_dominated_arms: [] as GovernedActorLabBaselineArmV01[],
-      tradeoffs: ["Provider missingness or hard-gate failure prevents complete five-arm comparison."],
+      tradeoffs: ["Incomplete evidence prevents complete five-arm comparison."],
       pairwise_better_is_global_winner: false as const,
     };
   }
   const dominated = new Set<GovernedActorLabBaselineArmV01>();
   const tradeoffs: string[] = [];
-  for (const left of arms) {
-    for (const right of arms) {
-      if (left.arm === right.arm) continue;
-      const relation = compareArmsV01("five-arm", left, right).status;
-      if (relation === "right_better") dominated.add(left.arm);
-      if (relation === "tradeoff" && left.arm < right.arm) {
+  const unresolved: Array<[GovernedActorLabBaselineArmV01, GovernedActorLabBaselineArmV01]> = [];
+  for (let leftIndex = 0; leftIndex < arms.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < arms.length; rightIndex += 1) {
+      const left = arms[leftIndex]!;
+      const right = arms[rightIndex]!;
+      const comparison = compareArmsV01("five-arm", left, right);
+      if (comparison.status === "left_better") dominated.add(right.arm);
+      if (comparison.status === "right_better") dominated.add(left.arm);
+      if (comparison.status === "tradeoff") {
         tradeoffs.push(`${left.arm} vs ${right.arm}`);
       }
+      if (comparison.status === "undetermined") {
+        unresolved.push([left.arm, right.arm]);
+      }
     }
+  }
+  const consequentialUnresolved = unresolved.filter(
+    ([left, right]) => !dominated.has(left) || !dominated.has(right),
+  );
+  if (consequentialUnresolved.length > 0) {
+    return {
+      status: "undetermined" as const,
+      non_dominated_arms: [] as GovernedActorLabBaselineArmV01[],
+      tradeoffs: uniqueStringsV01([
+        ...tradeoffs,
+        ...consequentialUnresolved.map(
+          ([left, right]) =>
+            `${left} vs ${right}: both_arms_have_noncompensable_hard_gates`,
+        ),
+      ]),
+      pairwise_better_is_global_winner: false as const,
+    };
   }
   return {
     status: "determined" as const,

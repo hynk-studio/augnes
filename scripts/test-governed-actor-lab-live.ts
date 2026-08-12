@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   mkdtempSync,
   mkdirSync,
@@ -28,6 +29,8 @@ import {
 import {
   buildGovernedActorLabLiveIncompleteResultFromJournalV01,
   buildGovernedActorLabLiveCohortManifestV01,
+  createGovernedActorLabLiveInitialAuthorizationV01,
+  createGovernedActorLabLiveReplacementAuthorizationV01,
   evaluateGovernedActorLabLiveOutputV01,
   runGovernedActorLabLiveCohortV01,
   validateGovernedActorLabLiveCohortResultV01,
@@ -89,6 +92,26 @@ const projectRoot = path.join(root, "registered-project");
 const credentialSentinel = "test-credential-never-persist";
 let focusedInvocationCounter = 0;
 
+function replacementAuthorizationV01(
+  sourceHead: string,
+  overrides: Partial<Parameters<
+    typeof createGovernedActorLabLiveReplacementAuthorizationV01
+  >[0]> = {},
+) {
+  return createGovernedActorLabLiveReplacementAuthorizationV01({
+    replacement_source_head: sourceHead,
+    historical_source_head: "84df543e53ae64f42245e97bd445577e53148c1f",
+    historical_cohort_id: "live-cohort:6bd6bc3c1805d1cb3696376a22185e3a",
+    historical_result: "incomplete",
+    historical_terminal_reason: "actor_lab_no_selection_evidence",
+    authorized_replacement_count: 1,
+    retry_of_historical_cohort: false,
+    historical_artifacts_rewritten: false,
+    further_cohort_authorized: false,
+    ...overrides,
+  });
+}
+
 void main().catch((error) => {
   console.error("governed_actor_lab_live_test_failed");
   console.error(error instanceof Error ? error.message : String(error));
@@ -131,6 +154,7 @@ async function main() {
   const sourceHead = "a".repeat(40);
   const built = buildGovernedActorLabLiveCohortManifestV01({
     source_repository_head_sha: sourceHead,
+    authorization_lineage: replacementAuthorizationV01(sourceHead),
     c1_manifest: c1Manifest,
     casebook,
     route,
@@ -188,6 +212,7 @@ async function main() {
   const result = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: sourceHead,
+      authorization_lineage: replacementAuthorizationV01(sourceHead),
       c1_manifest: c1Manifest,
       casebook,
       route,
@@ -381,6 +406,22 @@ async function main() {
     admission,
     casesById,
   });
+  const adverseResult = await runCompleteAdverseEvidenceCasesV01({
+    sourceHead,
+    c1Manifest,
+    casebook,
+    route,
+    admission,
+    casesById,
+  });
+  runReplacementAuthorizationCasesV01({
+    sourceHead,
+    c1Manifest,
+    casebook,
+    route,
+    built,
+  });
+  runRunnerAuthorizationCliCasesV01(sourceHead);
   await runUnknownInternalErrorCasesV01({
     sourceHead,
     c1Manifest,
@@ -393,6 +434,7 @@ async function main() {
   runJournalCrashAndTamperCasesV01({
     result,
     terminalResult,
+    adverseResult,
   });
   runSourcePurityCasesV01(artifactText);
 
@@ -400,6 +442,7 @@ async function main() {
     status: "governed_actor_lab_live_non_live_tests_passed",
     planned_calls: 140,
     successful_mock_cohort_calls: successfulMockCalls,
+    complete_adverse_mock_cohort_calls: 420,
     additional_fake_transport_calls: capturedRequests.length - successfulMockCalls,
     max_parallel_provider_calls: maximumConcurrent,
     artifact_count: artifactSummary.artifact_count,
@@ -609,6 +652,7 @@ async function runIncompleteCohortCaseV01(input: {
   const result = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01(input.sourceHead),
       c1_manifest: input.c1Manifest,
       casebook: structuredClone(input.casebook),
       route: input.route,
@@ -664,6 +708,7 @@ async function runRouteDriftCohortCaseV01(input: {
   const result = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01(input.sourceHead),
       c1_manifest: input.c1Manifest,
       casebook: structuredClone(input.casebook),
       route: input.route,
@@ -1040,6 +1085,288 @@ async function runSelectionAndArmTerminalCasesV01(input: {
   return evolutionaryTerminal.result;
 }
 
+async function runCompleteAdverseEvidenceCasesV01(input: {
+  sourceHead: string;
+  c1Manifest: ReturnType<typeof createGovernedActorLabManifestV01>;
+  casebook: typeof governedActorLabLiveCasebookFixture;
+  route: NonNullable<Awaited<ReturnType<typeof prepareGovernedActorLabModelGatewayRouteV01>>>;
+  admission: ReturnType<typeof registerProjectV01>;
+  casesById: Map<string, GovernedActorLabLiveCaseV01>;
+}) {
+  const ordinary = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        modelInput.invocation_context.arm ===
+          "persistent_population_no_evolution" &&
+        modelInput.phase === "holdout_blind" &&
+        modelInput.invocation_context.actor_slot === "slot-0"
+      ) {
+        output.result_token = liveCase.actor_visible.allowed_result_tokens.find(
+          (token) => token !== liveCase.evaluator_only.expected_result_token,
+        )!;
+      }
+      return output;
+    },
+  );
+  if (ordinary.result.result_kind !== "complete") {
+    assert.fail("a fully observed ordinary holdout failure must remain complete");
+  }
+  const ordinaryArm = ordinary.result.report.arms.find(
+    (arm) => arm.arm === "persistent_population_no_evolution",
+  )!;
+  assert.equal(ordinaryArm.holdout.failed, 1);
+  assert.equal(ordinaryArm.arm_level_hard_gate.failed, false);
+  assert.equal(ordinaryArm.comparison_eligible, true);
+  const ordinaryComparison = ordinary.result.report.comparisons[0];
+  assert.ok(ordinaryComparison);
+  assert.ok(ordinaryComparison.basis.includes("holdout_passes"));
+  assert.ok(!ordinaryComparison.basis.includes("hard_gate_non_compensation"));
+
+  const harmful = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        modelInput.invocation_context.arm ===
+          "persistent_population_no_evolution" &&
+        modelInput.phase === "holdout_blind" &&
+        liveCase.evaluator_only.harmful_transfer_trap
+      ) {
+        addForbiddenClaimV01(output, liveCase);
+      }
+      return output;
+    },
+  );
+  if (harmful.result.result_kind !== "complete") {
+    assert.fail("fully observed harmful holdout evidence must remain complete");
+  }
+  const harmfulArm = harmful.result.report.arms.find(
+    (arm) => arm.arm === "persistent_population_no_evolution",
+  )!;
+  assert.equal(harmfulArm.arm_completion_status, "complete");
+  assert.equal(harmfulArm.arm_level_hard_gate.failed, true);
+  assert.deepEqual(harmfulArm.arm_level_hard_gate.codes, [
+    "holdout_selection_disqualifying_output",
+  ]);
+  assert.equal(harmfulArm.arm_level_hard_gate.basis.length, 1);
+  assert.equal(
+    harmfulArm.arm_level_hard_gate.basis[0]?.evaluation_fingerprints.length,
+    2,
+  );
+  assert.equal(harmfulArm.comparison_eligible, true);
+  const harmfulComparison = harmful.result.report.comparisons[0];
+  assert.equal(harmfulComparison?.status, "right_better");
+  assert.deepEqual(harmfulComparison?.basis, ["hard_gate_non_compensation"]);
+  assert.equal(
+    harmful.result.report.non_dominance.non_dominated_arms.includes(
+      "persistent_population_no_evolution",
+    ),
+    false,
+  );
+
+  const bothHardGated = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        [
+          "persistent_population_no_evolution",
+          "nonpersistent_compute_matched_ensemble",
+        ].includes(modelInput.invocation_context.arm) &&
+        modelInput.phase === "holdout_blind" &&
+        liveCase.evaluator_only.harmful_transfer_trap
+      ) {
+        addForbiddenClaimV01(output, liveCase);
+      }
+      return output;
+    },
+  );
+  if (bothHardGated.result.result_kind !== "complete") {
+    assert.fail("complete adverse evidence for two arms must remain complete");
+  }
+  const bothComparison = bothHardGated.result.report.comparisons[0];
+  assert.equal(bothComparison?.status, "undetermined");
+  assert.deepEqual(bothComparison?.basis, [
+    "both_arms_have_noncompensable_hard_gates",
+  ]);
+  assert.equal(bothHardGated.calls, 140);
+
+  assert.equal(ordinary.calls, 140);
+  assert.equal(harmful.calls, 140);
+  return harmful.result;
+}
+
+function runReplacementAuthorizationCasesV01(input: {
+  sourceHead: string;
+  c1Manifest: ReturnType<typeof createGovernedActorLabManifestV01>;
+  casebook: typeof governedActorLabLiveCasebookFixture;
+  route: NonNullable<Awaited<ReturnType<typeof prepareGovernedActorLabModelGatewayRouteV01>>>;
+  built: ReturnType<typeof buildGovernedActorLabLiveCohortManifestV01>;
+}): void {
+  const historicalInitial = buildGovernedActorLabLiveCohortManifestV01({
+    source_repository_head_sha:
+      "84df543e53ae64f42245e97bd445577e53148c1f",
+    authorization_lineage: createGovernedActorLabLiveInitialAuthorizationV01(
+      "84df543e53ae64f42245e97bd445577e53148c1f",
+    ),
+    c1_manifest: input.c1Manifest,
+    casebook: structuredClone(input.casebook),
+    route: input.route,
+  });
+  assert.equal(
+    historicalInitial.manifest.authorization_lineage.authorization_kind,
+    "initial_authorized_cohort",
+  );
+  assert.notEqual(
+    historicalInitial.manifest.cohort_id,
+    input.built.manifest.cohort_id,
+  );
+  assert.throws(
+    () => createGovernedActorLabLiveInitialAuthorizationV01(input.sourceHead),
+    /governed_actor_lab_live_authorization_invalid/u,
+  );
+  assert.throws(
+    () => replacementAuthorizationV01(
+      "84df543e53ae64f42245e97bd445577e53148c1f",
+    ),
+    /governed_actor_lab_live_authorization_invalid/u,
+  );
+  assert.equal(
+    input.built.manifest.authorization_lineage.authorization_kind,
+    "authorized_replacement_after_historical_incomplete",
+  );
+  assert.equal(input.built.manifest.authorization_lineage.authorized_replacement_count, 1);
+  assert.equal(input.built.manifest.authorization_lineage.retry_of_historical_cohort, false);
+  assert.equal(input.built.manifest.authorization_lineage.historical_artifacts_rewritten, false);
+  assert.equal(input.built.manifest.authorization_lineage.further_cohort_authorized, false);
+
+  for (const overrides of [
+    { historical_source_head: "f".repeat(40) },
+    { historical_cohort_id: "live-cohort:wrong" },
+    { historical_result: "complete" },
+    { historical_terminal_reason: "wrong_reason" },
+    { authorized_replacement_count: 2 },
+    { retry_of_historical_cohort: true },
+    { historical_artifacts_rewritten: true },
+    { further_cohort_authorized: true },
+  ]) {
+    assert.throws(
+      () => replacementAuthorizationV01(input.sourceHead, overrides),
+      /governed_actor_lab_live_authorization_invalid/u,
+    );
+  }
+  assert.throws(
+    () => buildGovernedActorLabLiveCohortManifestV01({
+      source_repository_head_sha: input.sourceHead,
+      authorization_lineage: undefined as never,
+      c1_manifest: input.c1Manifest,
+      casebook: structuredClone(input.casebook),
+      route: input.route,
+    }),
+    /governed_actor_lab_live_authorization_invalid/u,
+  );
+  assert.throws(
+    () => buildGovernedActorLabLiveCohortManifestV01({
+      source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01("b".repeat(40)),
+      c1_manifest: input.c1Manifest,
+      casebook: structuredClone(input.casebook),
+      route: input.route,
+    }),
+    /governed_actor_lab_live_authorization_invalid/u,
+  );
+  const nextSourceHead = "b".repeat(40);
+  const next = buildGovernedActorLabLiveCohortManifestV01({
+    source_repository_head_sha: nextSourceHead,
+    authorization_lineage: replacementAuthorizationV01(nextSourceHead),
+    c1_manifest: input.c1Manifest,
+    casebook: structuredClone(input.casebook),
+    route: input.route,
+  });
+  assert.notEqual(next.manifest.cohort_id, input.built.manifest.cohort_id);
+  assert.notEqual(
+    next.manifest.integrity.fingerprint,
+    input.built.manifest.integrity.fingerprint,
+  );
+}
+
+function runRunnerAuthorizationCliCasesV01(sourceHead: string): void {
+  const cli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
+  const run = (args: string[]) => spawnSync(
+    process.execPath,
+    [cli, "scripts/governed-actor-lab-live-cohort.ts", ...args],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "",
+        OPENAI_MODEL: "",
+      },
+    },
+  );
+  const retired = run([
+    "--source-head",
+    sourceHead,
+    "--confirm-first-cohort",
+  ]);
+  assert.notEqual(retired.status, 0);
+  assert.match(retired.stderr, /live_cohort_first_cohort_confirmation_retired/u);
+  const implicitInitial = run([
+    "--source-head",
+    sourceHead,
+    "--confirm-authorized-cohort",
+    "--authorization-kind",
+    "initial_authorized_cohort",
+  ]);
+  assert.notEqual(implicitInitial.status, 0);
+  assert.match(
+    implicitInitial.stderr,
+    /live_cohort_initial_authorization_already_consumed/u,
+  );
+  const missingLineage = run([
+    "--source-head",
+    sourceHead,
+    "--confirm-authorized-cohort",
+    "--authorization-kind",
+    "authorized_replacement_after_historical_incomplete",
+  ]);
+  assert.notEqual(missingLineage.status, 0);
+  assert.match(missingLineage.stderr, /governed_actor_lab_live_authorization_invalid/u);
+  const validReplacementPreparation = run([
+    "--source-head",
+    sourceHead,
+    "--confirm-authorized-cohort",
+    "--authorization-kind",
+    "authorized_replacement_after_historical_incomplete",
+    "--historical-source-head",
+    "84df543e53ae64f42245e97bd445577e53148c1f",
+    "--historical-cohort-id",
+    "live-cohort:6bd6bc3c1805d1cb3696376a22185e3a",
+    "--historical-result",
+    "incomplete",
+    "--historical-terminal-reason",
+    "actor_lab_no_selection_evidence",
+    "--authorized-replacement-count",
+    "1",
+    "--retry-of-historical-cohort",
+    "false",
+    "--historical-artifacts-rewritten",
+    "false",
+    "--further-cohort-authorized",
+    "false",
+  ]);
+  assert.notEqual(validReplacementPreparation.status, 0);
+  assert.match(
+    validReplacementPreparation.stderr,
+    /live_cohort_source_head_mismatch/u,
+    "valid replacement lineage must pass parsing and stop before provider preparation on source mismatch",
+  );
+  assert.doesNotMatch(
+    validReplacementPreparation.stderr,
+    /authorization_invalid/u,
+  );
+}
+
 async function runTransformedMockCohortV01(
   input: {
     sourceHead: string;
@@ -1062,6 +1389,7 @@ async function runTransformedMockCohortV01(
   const result = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01(input.sourceHead),
       c1_manifest: input.c1Manifest,
       casebook: structuredClone(input.casebook),
       route: input.route,
@@ -1091,6 +1419,7 @@ async function runUnknownInternalErrorCasesV01(input: {
   const unknown = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01(input.sourceHead),
       c1_manifest: input.c1Manifest,
       casebook: structuredClone(input.casebook),
       route: input.route,
@@ -1124,6 +1453,7 @@ async function runUnknownInternalErrorCasesV01(input: {
   const beforeEntry = await runGovernedActorLabLiveCohortV01(
     {
       source_repository_head_sha: input.sourceHead,
+      authorization_lineage: replacementAuthorizationV01(input.sourceHead),
       c1_manifest: input.c1Manifest,
       casebook: structuredClone(input.casebook),
       route: input.route,
@@ -1154,6 +1484,7 @@ async function runUnknownInternalErrorCasesV01(input: {
     const result = await runGovernedActorLabLiveCohortV01(
       {
         source_repository_head_sha: input.sourceHead,
+        authorization_lineage: replacementAuthorizationV01(input.sourceHead),
         c1_manifest: input.c1Manifest,
         casebook: structuredClone(input.casebook),
         route: input.route,
@@ -1194,6 +1525,7 @@ async function runUnknownInternalErrorCasesV01(input: {
 function runJournalCrashAndTamperCasesV01(input: {
   result: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "complete" }>;
   terminalResult: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "truthful_incomplete" }>;
+  adverseResult: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "complete" }>;
 }): void {
   const crashJournal = beginGovernedActorLabLiveCohortAttemptV01({
     repository_root: repositoryRoot,
@@ -1316,6 +1648,74 @@ function runJournalCrashAndTamperCasesV01(input: {
     /governed_actor_lab_live_comparison_derivation_invalid/u,
   );
 
+  for (const mutate of [
+    (result: typeof input.adverseResult) => {
+      const arm = result.report.arms.find(
+        (candidate) => candidate.arm === "persistent_population_no_evolution",
+      )!;
+      arm.arm_level_hard_gate.failed = false;
+    },
+    (result: typeof input.adverseResult) => {
+      const arm = result.report.arms.find(
+        (candidate) => candidate.arm === "persistent_population_no_evolution",
+      )!;
+      arm.arm_level_hard_gate.codes = [];
+    },
+    (result: typeof input.adverseResult) => {
+      const arm = result.report.arms.find(
+        (candidate) => candidate.arm === "persistent_population_no_evolution",
+      )!;
+      arm.arm_level_hard_gate.basis = [];
+    },
+    (result: typeof input.adverseResult) => {
+      result.report.comparisons[0]!.basis = ["holdout_passes"];
+    },
+    (result: typeof input.adverseResult) => {
+      result.report.comparisons[0]!.status = "left_better";
+    },
+  ]) {
+    const tampered = structuredClone(input.adverseResult);
+    mutate(tampered);
+    tampered.report = resealIntegrityV01(tampered.report);
+    assert.throws(() => validateGovernedActorLabLiveCohortResultV01(tampered));
+  }
+
+  for (const mutate of [
+    (attempt: typeof input.result.terminal_attempt) => {
+      attempt.status = "truthful_incomplete";
+    },
+    (attempt: typeof input.result.terminal_attempt) => {
+      attempt.terminal_reason = "required_live_observations_incomplete";
+    },
+    (attempt: typeof input.result.terminal_attempt) => {
+      attempt.persisted_invocation_prefix = 139;
+    },
+    (attempt: typeof input.result.terminal_attempt) => {
+      attempt.missing_call_slots = 1;
+    },
+  ]) {
+    const tampered = structuredClone(input.result);
+    mutate(tampered.terminal_attempt);
+    tampered.terminal_attempt = resealIntegrityV01(tampered.terminal_attempt);
+    assert.throws(
+      () => validateGovernedActorLabLiveCohortResultV01(tampered),
+      /governed_actor_lab_live_result_invalid/u,
+    );
+  }
+
+  const authorizationTamper = structuredClone(input.result);
+  authorizationTamper.terminal_attempt.authorization_lineage = {
+    ...authorizationTamper.terminal_attempt.authorization_lineage,
+    authorized_source_head: "c".repeat(40),
+  };
+  authorizationTamper.terminal_attempt = resealIntegrityV01(
+    authorizationTamper.terminal_attempt,
+  );
+  assert.throws(
+    () => validateGovernedActorLabLiveCohortResultV01(authorizationTamper),
+    /governed_actor_lab_live_authorization_lineage_invalid/u,
+  );
+
   const dispositionTamper = structuredClone(input.terminalResult);
   const terminalBindingIndex = dispositionTamper.invocation_bindings.findIndex(
     (binding) => binding.invocation_status === "not_attempted_arm_terminal",
@@ -1346,6 +1746,28 @@ function runJournalCrashAndTamperCasesV01(input: {
   assert.throws(() =>
     validateGovernedActorLabLiveIncompleteResultV01(incompleteDominanceTamper),
   );
+
+  for (const mutate of [
+    (attempt: typeof input.terminalResult.terminal_attempt) => {
+      attempt.status = "complete";
+    },
+    (attempt: typeof input.terminalResult.terminal_attempt) => {
+      attempt.terminal_reason = "required_live_observations_incomplete";
+    },
+    (attempt: typeof input.terminalResult.terminal_attempt) => {
+      attempt.persisted_invocation_prefix -= 1;
+    },
+    (attempt: typeof input.terminalResult.terminal_attempt) => {
+      attempt.cohort_id = `live-cohort:${"0".repeat(32)}`;
+    },
+  ]) {
+    const tampered = structuredClone(input.terminalResult);
+    mutate(tampered.terminal_attempt);
+    tampered.terminal_attempt = resealIntegrityV01(tampered.terminal_attempt);
+    assert.throws(() =>
+      validateGovernedActorLabLiveIncompleteResultV01(tampered),
+    );
+  }
 }
 
 function runSourcePurityCasesV01(artifactText: string): void {
