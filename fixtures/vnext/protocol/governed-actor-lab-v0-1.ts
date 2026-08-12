@@ -107,8 +107,8 @@ export const governedActorLabManifestInputFixture = deepFreeze({
   deterministic_seed: "seed:acgc3c1:governed-actor-lab-v0-1",
   strategy_recipe_refs: [...governedActorLabStrategyRecipeRefsFixture],
   compute: {
-    tool_read_limit: 4,
-    step_limit: 16,
+    tool_read_limit: 12,
+    step_limit: 48,
   },
 } satisfies BuildGovernedActorLabManifestInputV01);
 

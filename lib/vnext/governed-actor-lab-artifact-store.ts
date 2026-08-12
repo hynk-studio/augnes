@@ -16,6 +16,7 @@ import path from "node:path";
 import {
   canonicalizeGovernedActorLabValueV01,
   createGovernedActorLabProductEffectLedgerV01,
+  assertValidGovernedActorLabPilotResultV01,
 } from "@/lib/vnext/governed-actor-lab";
 import { createProtocolSha256V01 } from "@/lib/vnext/protocol-primitives";
 import {
@@ -79,6 +80,7 @@ export function writeGovernedActorLabPilotArtifactsV01(input: {
   run_label: string;
   result: GovernedActorLabPilotResultV01;
 }): GovernedActorLabArtifactWriteSummaryV01 {
+  assertValidGovernedActorLabPilotResultV01(input.result);
   if (!SAFE_SEGMENT_PATTERN.test(input.run_label) || input.run_label === "." || input.run_label === "..") {
     failV01("actor_lab_run_label_invalid");
   }
@@ -99,7 +101,7 @@ export function writeGovernedActorLabPilotArtifactsV01(input: {
   writeArtifactV01(runRoot, ["manifest.json"], input.result.manifest, artifacts);
   for (const generation of input.result.generations) {
     const generationSegment = `generation-${generation.generation}`;
-    for (const actor of generation.actors) {
+    for (const actor of generation.actors_at_episode_start) {
       writeArtifactV01(
         runRoot,
         [generationSegment, "actors", `${safeIdentifierSegmentV01(actor.lab_actor_id)}.json`],
@@ -107,10 +109,18 @@ export function writeGovernedActorLabPilotArtifactsV01(input: {
         artifacts,
       );
     }
-    for (const memory of generation.memories) {
+    for (const memory of generation.memories_at_episode_start) {
       writeArtifactV01(
         runRoot,
-        [generationSegment, "memory", `${safeIdentifierSegmentV01(memory.lab_actor_id)}.json`],
+        [generationSegment, "memory-at-episode-start", `${safeIdentifierSegmentV01(memory.lab_actor_id)}.json`],
+        memory,
+        artifacts,
+      );
+    }
+    for (const memory of generation.post_episode_memories) {
+      writeArtifactV01(
+        runRoot,
+        [generationSegment, "post-episode-memory", `${safeIdentifierSegmentV01(memory.lab_actor_id)}.json`],
         memory,
         artifacts,
       );

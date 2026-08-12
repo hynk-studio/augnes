@@ -29,7 +29,11 @@ import {
   type GovernedActorLabExperimentManifestV01,
   type GovernedActorLabGenerationV01,
   type GovernedActorLabHoldoutFixtureV01,
+  type GovernedActorLabEvaluationReferenceV01,
+  type GovernedActorLabHarmObservationReferenceV01,
   type GovernedActorLabIntegrityV01,
+  type GovernedActorLabInterventionEvaluationReferenceV01,
+  type GovernedActorLabInterventionEvaluationV01,
   type GovernedActorLabItemTraceV01,
   type GovernedActorLabMaterialBoundaryV01,
   type GovernedActorLabMemoryAdmissionV01,
@@ -57,6 +61,8 @@ const SHA256_PATTERN = /^sha256:[a-f0-9]{64}$/u;
 const ABSOLUTE_PATH_PATTERN = /(?:^|\s)(?:\/(?:Users|home|var|tmp|private|etc)\/|[A-Za-z]:\\)/u;
 const SECRET_PATTERN = /(?:sk-[A-Za-z0-9_-]{16,}|api[_-]?key\s*[:=]|bearer\s+[A-Za-z0-9._-]{16,})/iu;
 const DIRECTIVE_PATTERN = /(?:ignore\s+(?:all\s+)?previous|system\s+prompt|developer\s+message|execute\s+(?:shell|command)|curl\s+https?:|reveal\s+(?:secret|credential)|hidden\s+holdout)/iu;
+const HIDDEN_HOLDOUT_PATTERN = /(?:hidden[-_\s]?holdout|holdout[-_\s]?(?:case|answer|material|fixture)|held[-_\s]?out[-_\s]?(?:case|answer|material))/iu;
+const GLOBAL_GENERALIZATION_PATTERN = /(?:apply\s+(?:this|it)\s+to\s+(?:all|every)\s+(?:task|case|project)|globally\s+applicable|universal(?:ly)?\s+applicable)/iu;
 const PENDING_FINGERPRINT = `sha256:${"0".repeat(64)}`;
 const MAX_TEXT = 1600;
 
@@ -344,17 +350,29 @@ export function retrieveGovernedActorLabPrivateMemoryV01(
     experiment_id: string;
     lab_actor_id: string;
     task_family_key: string;
+    allowed_source_refs: GovernedActorLabSyntheticSourceV01[];
   },
 ): GovernedActorLabMemoryItemV01[] {
   const memory = readGovernedActorLabPrivateMemoryV01(snapshot, request);
   requiredIdV01(request.task_family_key, "$.task_family_key");
-  const retrieved = memory.items.filter((item) => {
-    if (item.status !== "current") return false;
-    if (item.quarantine_reasons.length > 0) return false;
-    if (item.directive_shaped_material || item.hidden_holdout_material) return false;
-    if (item.support_status !== "support_validated") return false;
-    return item.task_family_key === request.task_family_key;
-  });
+  request.allowed_source_refs.forEach((source, index) =>
+    validateSyntheticSourceV01(source, `$.allowed_source_refs[${index}]`),
+  );
+  const retrieved: GovernedActorLabMemoryItemV01[] = [];
+  for (const [index, item] of memory.items.entries()) {
+    if (item.task_family_key !== request.task_family_key) continue;
+    const reasons = memoryItemMaterialReasonsV01(item, request.allowed_source_refs);
+    if (reasons.length > 0) {
+      failV01(
+        "actor_lab_memory_retrieval_item_refused",
+        `$.items[${index}]:${reasons.join(",")}`,
+      );
+    }
+    if (item.status !== "current") continue;
+    if (item.quarantine_reasons.length > 0) continue;
+    if (item.support_status !== "support_validated") continue;
+    retrieved.push(item);
+  }
   return structuredClone(retrieved.sort((left, right) =>
     compareProtocolCodeUnitsV01(left.memory_item_id, right.memory_item_id),
   ));
@@ -363,7 +381,10 @@ export function retrieveGovernedActorLabPrivateMemoryV01(
 export function admitGovernedActorLabMemoryCandidateV01(
   snapshotInput: GovernedActorLabPrivateMemorySnapshotV01,
   candidateInput: GovernedActorLabMemoryCandidateV01,
-  options: { evaluation_frozen: boolean },
+  options: {
+    evaluation_frozen: boolean;
+    intervention_evaluations?: GovernedActorLabInterventionEvaluationV01[];
+  },
 ): { admission: GovernedActorLabMemoryAdmissionV01; snapshot: GovernedActorLabPrivateMemorySnapshotV01 } {
   const snapshot = structuredClone(snapshotInput);
   const candidate = structuredClone(candidateInput);
@@ -384,7 +405,15 @@ export function admitGovernedActorLabMemoryCandidateV01(
     item.bounded_content === candidate.bounded_content,
   );
   const poisonReasons = memoryPoisonReasonsV01(candidate);
-  const permission = memoryPermissionV01(candidate, poisonReasons);
+  const interventionEvidenceValid = validateCandidateInterventionEvidenceV01(
+    candidate,
+    options.intervention_evaluations ?? [],
+  );
+  const permission = memoryPermissionV01(
+    candidate,
+    poisonReasons,
+    interventionEvidenceValid,
+  );
   let operation: GovernedActorLabMemoryOperationV01 = candidate.requested_operation;
   let createdMemoryItemId: string | null = null;
   const affectedMemoryItemIds: string[] = [];
@@ -476,6 +505,12 @@ export function runGovernedActorLabEpisodeV01(input: {
     actors: actors.map(actorRefV01),
   };
   const episodeId = deriveSimpleIdV01("actor-lab-episode", episodeBasis);
+  const evaluatorFingerprint = input.manifest.evaluator.fingerprint;
+  const evaluationId = deriveSimpleIdV01("actor-lab-evaluation", {
+    ...episodeBasis,
+    evaluator_fingerprint: evaluatorFingerprint,
+  });
+  const interventionEvaluations: GovernedActorLabInterventionEvaluationV01[] = [];
   for (const [index, actor] of actors.entries()) {
     const memory = memoryByActor.get(actor.lab_actor_id);
     if (!memory) failV01("actor_lab_actor_memory_missing", `$.actors[${index}]`);
@@ -486,9 +521,26 @@ export function runGovernedActorLabEpisodeV01(input: {
       experiment_id: input.manifest.experiment_id,
       lab_actor_id: actor.lab_actor_id,
       task_family_key: input.case_source.task_family_key,
+      allowed_source_refs: input.manifest.tool_manifest.allowed_source_refs,
     });
     const peer = actors[(index + 1) % actors.length]!;
-    const traces = buildItemTracesV01(actor, memory, retrieved);
+    const actorInterventions = buildInterventionEvaluationsV01({
+      manifest: input.manifest,
+      actor,
+      retrieved,
+      caseSource: input.case_source,
+      episodeId,
+      evaluationId,
+    });
+    interventionEvaluations.push(...actorInterventions);
+    const traces = buildItemTracesV01(
+      actor,
+      memory,
+      retrieved,
+      actorInterventions,
+      episodeId,
+      input.case_source,
+    );
     actorEpisodes.push({
       lab_actor_id: actor.lab_actor_id,
       frozen_actor_snapshot: actorRefV01(actor),
@@ -522,8 +574,17 @@ export function runGovernedActorLabEpisodeV01(input: {
       complete: true,
     });
   }
-  const evaluatorFingerprint = input.manifest.evaluator.fingerprint;
-  const evaluationId = deriveSimpleIdV01("actor-lab-evaluation", { episodeId, evaluatorFingerprint, actorOutcomes });
+  interventionEvaluations.sort((left, right) =>
+    compareProtocolCodeUnitsV01(left.intervention_id, right.intervention_id),
+  );
+  const evaluationFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      evaluation_id: evaluationId,
+      evaluator_fingerprint: evaluatorFingerprint,
+      actor_outcomes: actorOutcomes,
+      intervention_evaluations: interventionEvaluations,
+    }),
+  );
   let nextMemories = structuredClone(input.memories);
   const admissions: GovernedActorLabMemoryAdmissionV01[] = [];
   const actorsWithCurrentMemory = actors
@@ -545,8 +606,16 @@ export function runGovernedActorLabEpisodeV01(input: {
       source: input.case_source,
       actorIndex: index,
       existingMemoryIndex: actorsWithCurrentMemory.indexOf(actor.lab_actor_id),
+      interventionEvaluations,
     });
-    const admitted = admitGovernedActorLabMemoryCandidateV01(nextMemories[currentIndex]!, candidate, { evaluation_frozen: true });
+    const admitted = admitGovernedActorLabMemoryCandidateV01(
+      nextMemories[currentIndex]!,
+      candidate,
+      {
+        evaluation_frozen: true,
+        intervention_evaluations: interventionEvaluations,
+      },
+    );
     nextMemories[currentIndex] = admitted.snapshot;
     admissions.push(admitted.admission);
   }
@@ -563,10 +632,12 @@ export function runGovernedActorLabEpisodeV01(input: {
     actor_episodes: actorEpisodes,
     evaluation: {
       evaluation_id: evaluationId,
+      evaluation_fingerprint: evaluationFingerprint,
       evaluator_fingerprint: evaluatorFingerprint,
       frozen: true,
       frozen_before_memory_admission: true,
       actor_outcomes: actorOutcomes,
+      intervention_evaluations: interventionEvaluations,
     },
     memory_admissions: admissions,
     product_effects: createGovernedActorLabProductEffectLedgerV01(),
@@ -585,7 +656,13 @@ export function buildGovernedActorLabPopulationTransitionV01(input: {
 }): GovernedActorLabTransitionResultV01 {
   const fromGeneration = input.to_generation - 1 as 0 | 1;
   if (input.episode.generation !== fromGeneration) failV01("actor_lab_transition_episode_generation_mismatch");
-  validateGenerationPopulationV01(fromGeneration, input.actors, input.memories, input.manifest);
+  validateGenerationPopulationV01(
+    fromGeneration,
+    input.actors,
+    input.memories,
+    input.manifest,
+    false,
+  );
   const actorById = new Map(input.actors.map((actor) => [actor.lab_actor_id, actor]));
   const memoryById = new Map(input.memories.map((memory) => [memory.lab_actor_id, memory]));
   const complete = input.episode.evaluation.actor_outcomes.filter((entry) => entry.complete);
@@ -622,7 +699,7 @@ export function buildGovernedActorLabPopulationTransitionV01(input: {
       parent: memoryRefV01(parentMemory),
       items: keepIdentity
         ? parentMemory.items
-        : [],
+        : inheritAdmissibleMemoryItemsV01(parentMemory, actorId),
     });
     const shouldMutate = slot >= 2 || excluded.length > 0;
     const mutation = shouldMutate
@@ -657,6 +734,24 @@ export function buildGovernedActorLabPopulationTransitionV01(input: {
     ordinal_ranking_created: false,
     global_winner_created: false,
     product_promotion_created: false,
+    selection_evaluation_ref: evaluationRefV01(input.episode),
+    parent_post_episode_memory_refs: [...input.memories]
+      .sort(compareMemoriesV01)
+      .map((memory) => ({ lab_actor_id: memory.lab_actor_id, memory: memoryRefV01(memory) })),
+    child_start_memory_refs: childMemories.map((memory) => {
+      const child = childActors.find((actor) => actor.lab_actor_id === memory.lab_actor_id);
+      const parent = input.actors.find(
+        (actor) => actor.actor_snapshot_id === child?.parent_actor_ref?.actor_snapshot_id,
+      );
+      if (!child || !parent) failV01("actor_lab_transition_child_parent_lineage_invalid");
+      return {
+        lab_actor_id: memory.lab_actor_id,
+        parent_lab_actor_id: parent.lab_actor_id,
+        memory: memoryRefV01(memory),
+      };
+    }),
+    branch_memory_policy: "inherit_admissible_private_memory",
+    branch_memory_reset_intervention: false,
     mutations: mutations.sort((left, right) => compareProtocolCodeUnitsV01(left.mutation_id, right.mutation_id)),
     child_actor_refs: childActors.map(actorRefV01),
     integrity: pendingIntegrityV01(),
@@ -698,26 +793,37 @@ export function evaluateGovernedActorLabHiddenHoldoutV01(input: {
     assertAuthorityAllFalseV01(actor.authority_summary);
     assertIntegrityV01(actor, "$.holdout_actor.integrity");
   }
-  if (input.holdout.holdout_id !== input.manifest.hidden_holdout.holdout_id || input.holdout.holdout_fingerprint !== input.manifest.hidden_holdout.holdout_fingerprint) {
+  return evaluateHoldoutProfilesV01(
+    input.manifest,
+    input.actors.map((actor) => actor.profile),
+    input.holdout,
+  );
+}
+
+function evaluateHoldoutProfilesV01(
+  manifest: GovernedActorLabExperimentManifestV01,
+  profiles: GovernedActorLabActorProfileV01[],
+  holdout: GovernedActorLabHoldoutFixtureV01,
+): GovernedActorLabOutcomeVectorV01 {
+  if (holdout.holdout_id !== manifest.hidden_holdout.holdout_id || holdout.holdout_fingerprint !== manifest.hidden_holdout.holdout_fingerprint) {
     failV01("actor_lab_holdout_identity_mismatch");
   }
-  const computed = createProtocolSha256V01(canonicalizeProtocolValueV01(input.holdout.content));
-  if (computed !== input.holdout.holdout_fingerprint) {
+  const computed = createProtocolSha256V01(canonicalizeProtocolValueV01(holdout.content));
+  if (computed !== holdout.holdout_fingerprint) {
     failV01("actor_lab_holdout_fingerprint_mismatch");
   }
-  const actors = [...input.actors].sort(compareActorsV01);
   let passed = 0;
   let failed = 0;
   let harmful = 0;
-  for (const testCase of input.holdout.content.cases) {
-    const matched = actors.some((actor) => actor.profile.procedural_operator_policy === testCase.required_policy_signal);
+  for (const testCase of holdout.content.cases) {
+    const matched = profiles.some((profile) => profile.procedural_operator_policy === testCase.required_policy_signal);
     if (matched) passed += 1;
     else failed += 1;
-    if (testCase.harmful_transfer_trap && actors.every((actor) => actor.profile.evidence_retrieval_policy !== "falsifier_and_harm")) harmful += 1;
+    if (testCase.harmful_transfer_trap && profiles.every((profile) => profile.evidence_retrieval_policy !== "falsifier_and_harm")) harmful += 1;
   }
   return outcomeVectorV01({
     hardGate: false,
-    passedChecks: input.holdout.content.cases.length,
+    passedChecks: holdout.content.cases.length,
     supportedClaims: passed,
     unsupportedClaims: failed,
     holdoutPassed: passed,
@@ -736,70 +842,370 @@ export function evaluateGovernedActorLabHiddenHoldoutV01(input: {
     challenges: 0,
     syntheses: 0,
     reviews: 0,
-    toolReads: input.manifest.compute_budget.tool_read_limit,
-    steps: input.manifest.compute_budget.step_limit,
+    toolReads: manifest.compute_budget.tool_read_limit,
+    steps: manifest.compute_budget.step_limit,
   });
 }
 
 export function buildGovernedActorLabBaselineObservationsV01(
-  manifest: GovernedActorLabExperimentManifestV01,
+  input: {
+    manifest: GovernedActorLabExperimentManifestV01;
+    strategy_recipe_refs: StrategyCompositionCaseReferenceV01[];
+    development_sources: readonly [
+      GovernedActorLabSyntheticSourceV01,
+      GovernedActorLabSyntheticSourceV01,
+      GovernedActorLabSyntheticSourceV01,
+    ];
+    hidden_holdout: GovernedActorLabHoldoutFixtureV01;
+    evolutionary_episodes: GovernedActorLabEpisodeArtifactV01[];
+    evolutionary_transitions: GovernedActorLabPopulationTransitionV01[];
+    evolutionary_final_actors: GovernedActorLabActorSnapshotV01[];
+  },
 ): GovernedActorLabBaselineObservationV01[] {
-  const budget = manifest.compute_budget;
-  const specifications: Record<GovernedActorLabBaselineArmV01, {
-    persistent: boolean;
-    mutation: boolean;
-    curated: boolean;
-    passed: number;
-    support: number;
-    harm: number;
-    burden: number;
-    limitations: string[];
-  }> = {
-    single_strong_actor: { persistent: false, mutation: false, curated: false, passed: 2, support: 3, harm: 0, burden: 2, limitations: ["One deterministic policy repeated to consume the exact matched step budget."] },
-    nonpersistent_compute_matched_ensemble: { persistent: false, mutation: false, curated: false, passed: 3, support: 4, harm: 1, burden: 4, limitations: ["Disposable actors share no cross-episode memory."] },
-    persistent_population_no_evolution: { persistent: true, mutation: false, curated: false, passed: 3, support: 5, harm: 1, burden: 4, limitations: ["Profiles remain fixed while private memory persists."] },
-    persistent_evolutionary_population: { persistent: true, mutation: true, curated: false, passed: 4, support: 5, harm: 0, burden: 5, limitations: ["Mechanics fixture only; this is not empirical model-evolution benefit."] },
-    disposable_curated_knowledge: { persistent: false, mutation: false, curated: true, passed: 3, support: 4, harm: 0, burden: 2, limitations: ["Curated knowledge is exact source-bound deterministic material, not invented actor memory."] },
+  assertValidGovernedActorLabManifestV01(input.manifest);
+  const fixedNonpersistent = runFixedBaselinePopulationV01({
+    ...input,
+    persistent: false,
+    curated: false,
+  });
+  const fixedPersistent = runFixedBaselinePopulationV01({
+    ...input,
+    persistent: true,
+    curated: false,
+  });
+  const fixedCurated = runFixedBaselinePopulationV01({
+    ...input,
+    persistent: false,
+    curated: true,
+  });
+  const strong = runSingleStrongBaselineV01(input);
+  const evolutionary: GovernedActorLabBaselineExecutionV01 = {
+    episodes: input.evolutionary_episodes.map(baselineExecutedEpisodeV01),
+    finalActors: input.evolutionary_final_actors,
+    transitionRefs: input.evolutionary_transitions.map((transition) => ({
+      transition_id: transition.transition_id,
+      transition_fingerprint: transition.integrity.fingerprint,
+    })),
+    actorCount: 4,
+    memoryResetCount: 0,
+    singleActorRepetitions: 0,
+  };
+  const executions: Record<GovernedActorLabBaselineArmV01, GovernedActorLabBaselineExecutionV01> = {
+    single_strong_actor: strong,
+    nonpersistent_compute_matched_ensemble: fixedNonpersistent,
+    persistent_population_no_evolution: fixedPersistent,
+    persistent_evolutionary_population: evolutionary,
+    disposable_curated_knowledge: fixedCurated,
   };
   return GOVERNED_ACTOR_LAB_BASELINE_ARMS_V01.map((arm) => {
-    const spec = specifications[arm];
-    return {
+    const execution = executions[arm];
+    const persistent = arm === "persistent_population_no_evolution" || arm === "persistent_evolutionary_population";
+    const mutation = arm === "persistent_evolutionary_population";
+    const curated = arm === "disposable_curated_knowledge";
+    const armSeed = createProtocolSha256V01(canonicalizeProtocolValueV01({
+      deterministic_seed: input.manifest.deterministic_seed,
       arm,
-      budget_id: budget.budget_id,
-      budget_fingerprint: budget.integrity.fingerprint,
+    }));
+    const outcome = aggregateBaselineExecutionOutcomeV01(
+      input.manifest,
+      execution,
+      input.hidden_holdout,
+    );
+    const draft: GovernedActorLabBaselineObservationV01 = {
+      baseline_version: "governed_actor_lab_baseline_observation.v0.1",
+      observation_id: "actor-lab-baseline-observation:pending",
+      arm,
+      experiment_id: input.manifest.experiment_id,
+      manifest_ref: {
+        experiment_id: input.manifest.experiment_id,
+        experiment_fingerprint: input.manifest.integrity.fingerprint,
+      },
+      evaluator: structuredClone(input.manifest.evaluator),
+      actor_engine: structuredClone(input.manifest.actor_engine),
+      development_case_sequence: structuredClone([...input.development_sources]),
+      hidden_holdout_ref: {
+        holdout_id: input.hidden_holdout.holdout_id,
+        holdout_fingerprint: input.hidden_holdout.holdout_fingerprint,
+      },
+      budget_id: input.manifest.compute_budget.budget_id,
+      budget_fingerprint: input.manifest.compute_budget.integrity.fingerprint,
+      deterministic_seed: input.manifest.deterministic_seed,
+      arm_seed: armSeed,
       exact_budget_match: true,
-      persistent_memory: spec.persistent,
-      mutation_enabled: spec.mutation,
-      curated_knowledge: spec.curated,
-      outcome: outcomeVectorV01({
-        hardGate: false,
-        passedChecks: spec.passed,
-        supportedClaims: spec.support,
-        unsupportedClaims: 0,
-        holdoutPassed: spec.passed,
-        holdoutFailed: 4 - spec.passed,
-        eligible: spec.persistent ? 4 : 0,
-        retrieved: spec.persistent ? 3 : 0,
-        presented: spec.persistent ? 3 : 0,
-        cited: spec.persistent ? 2 : 0,
-        supportValidated: spec.persistent ? 2 : 0,
-        outcomeAssociated: spec.persistent ? 1 : 0,
-        causal: 0,
-        quarantined: 0,
-        harmful: spec.harm,
-        poisonRefusals: 1,
-        interference: 0,
-        challenges: spec.burden,
-        syntheses: spec.burden,
-        reviews: spec.burden,
-        toolReads: budget.tool_read_limit,
-        steps: budget.step_limit,
-      }),
+      persistent_memory: persistent,
+      mutation_enabled: mutation,
+      curated_knowledge: curated,
+      execution: {
+        episode_count: 3,
+        actor_count: execution.actorCount,
+        memory_reset_count: execution.memoryResetCount,
+        memory_persistence_setting: persistent ? "private_cross_episode" : "none",
+        mutation_setting: mutation ? "g0_to_g1_to_g2" : "none",
+        curated_input_refs: curated ? structuredClone([...input.development_sources]) : [],
+        single_actor_repetitions: execution.singleActorRepetitions,
+        episode_evaluation_refs: execution.episodes.map((episode) => episode.evaluationRef),
+        transition_refs: structuredClone(execution.transitionRefs),
+      },
+      outcome,
       complete: true,
       mechanics_only: true,
-      limitations: spec.limitations,
+      limitations: baselineLimitationsV01(arm),
+      integrity: pendingIntegrityV01(),
     };
+    const observationId = deriveIdV01(
+      "actor-lab-baseline-observation",
+      draft,
+      "observation_id",
+    );
+    return sealObjectV01({ ...draft, observation_id: observationId });
   });
+}
+
+interface GovernedActorLabBaselineExecutionV01 {
+  episodes: GovernedActorLabBaselineExecutedEpisodeV01[];
+  finalActors: GovernedActorLabActorSnapshotV01[];
+  transitionRefs: Array<{
+    transition_id: string;
+    transition_fingerprint: string;
+  }>;
+  actorCount: number;
+  memoryResetCount: number;
+  singleActorRepetitions: number;
+}
+
+interface GovernedActorLabBaselineExecutedEpisodeV01 {
+  evaluationRef: GovernedActorLabEvaluationReferenceV01;
+  actorOutcomes: GovernedActorLabEpisodeArtifactV01["evaluation"]["actor_outcomes"];
+  traces: GovernedActorLabItemTraceV01[];
+  challengeCount: number;
+  synthesisCount: number;
+  reviewOperations: number;
+}
+
+function runFixedBaselinePopulationV01(input: {
+  manifest: GovernedActorLabExperimentManifestV01;
+  strategy_recipe_refs: StrategyCompositionCaseReferenceV01[];
+  development_sources: readonly [
+    GovernedActorLabSyntheticSourceV01,
+    GovernedActorLabSyntheticSourceV01,
+    GovernedActorLabSyntheticSourceV01,
+  ];
+  persistent: boolean;
+  curated: boolean;
+}): GovernedActorLabBaselineExecutionV01 {
+  let state = buildGovernedActorLabGenerationZeroV01(
+    input.manifest,
+    input.strategy_recipe_refs,
+  );
+  const episodes: GovernedActorLabBaselineExecutedEpisodeV01[] = [];
+  for (const [index, source] of input.development_sources.entries()) {
+    const generation = index as GovernedActorLabGenerationV01;
+    const episode = runGovernedActorLabEpisodeV01({
+      manifest: input.manifest,
+      generation,
+      actors: state.actors,
+      memories: state.memories,
+      case_source: source,
+    });
+    episodes.push(baselineExecutedEpisodeV01(episode.episode));
+    if (index < input.development_sources.length - 1) {
+      state = rebaseFixedBaselinePopulationV01({
+        manifest: input.manifest,
+        actors: state.actors,
+        postEpisodeMemories: episode.memories,
+        toGeneration: (index + 1) as 1 | 2,
+        persistent: input.persistent,
+      });
+    }
+  }
+  return {
+    episodes,
+    finalActors: state.actors,
+    transitionRefs: [],
+    actorCount: 4,
+    memoryResetCount: input.persistent ? 0 : 8,
+    singleActorRepetitions: 0,
+  };
+}
+
+function runSingleStrongBaselineV01(input: {
+  manifest: GovernedActorLabExperimentManifestV01;
+  strategy_recipe_refs: StrategyCompositionCaseReferenceV01[];
+  development_sources: readonly [
+    GovernedActorLabSyntheticSourceV01,
+    GovernedActorLabSyntheticSourceV01,
+    GovernedActorLabSyntheticSourceV01,
+  ];
+}): GovernedActorLabBaselineExecutionV01 {
+  const initial = buildGovernedActorLabGenerationZeroV01(
+    input.manifest,
+    input.strategy_recipe_refs,
+  );
+  let actor = initial.actors[0]!;
+  const episodes: GovernedActorLabBaselineExecutedEpisodeV01[] = [];
+  const repetitionsPerCase =
+    input.manifest.compute_budget.tool_read_limit /
+    input.development_sources.length;
+  if (!Number.isInteger(repetitionsPerCase) || repetitionsPerCase <= 0) {
+    failV01("actor_lab_single_actor_budget_not_divisible");
+  }
+  for (const [index, source] of input.development_sources.entries()) {
+    const generation = index as GovernedActorLabGenerationV01;
+    const actorOutcomes = Array.from({ length: repetitionsPerCase }, (_, repetition) => ({
+      lab_actor_id: actor.lab_actor_id,
+      outcome: developmentOutcomeV01(actor, [], generation),
+      complete: true,
+      repetition,
+    })).map(({ repetition: _repetition, ...entry }) => entry);
+    const evaluationId = deriveSimpleIdV01("actor-lab-baseline-evaluation", {
+      arm: "single_strong_actor",
+      actor: actorRefV01(actor),
+      case_source: source,
+      evaluator: input.manifest.evaluator,
+      repetitions: repetitionsPerCase,
+    });
+    const evaluationFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({ evaluation_id: evaluationId, actorOutcomes }),
+    );
+    episodes.push({
+      evaluationRef: {
+        evaluation_id: evaluationId,
+        evaluation_fingerprint: evaluationFingerprint,
+      },
+      actorOutcomes,
+      traces: [],
+      challengeCount: repetitionsPerCase,
+      synthesisCount: repetitionsPerCase,
+      reviewOperations: repetitionsPerCase,
+    });
+    if (index < input.development_sources.length - 1) {
+      const nextMemory = buildMemorySnapshotV01({
+        experimentId: input.manifest.experiment_id,
+        actorId: actor.lab_actor_id,
+        generation: (index + 1) as 1 | 2,
+        parent: null,
+        items: [],
+      });
+      actor = buildActorSnapshotV01({
+        manifest: input.manifest,
+        actorId: actor.lab_actor_id,
+        generation: (index + 1) as 1 | 2,
+        parent: actorRefV01(actor),
+        profile: actor.profile,
+        memory: memoryRefV01(nextMemory),
+        mutations: [],
+      });
+    }
+  }
+  return {
+    episodes,
+    finalActors: [actor],
+    transitionRefs: [],
+    actorCount: 1,
+    memoryResetCount: 2,
+    singleActorRepetitions: input.manifest.compute_budget.tool_read_limit,
+  };
+}
+
+function rebaseFixedBaselinePopulationV01(input: {
+  manifest: GovernedActorLabExperimentManifestV01;
+  actors: GovernedActorLabActorSnapshotV01[];
+  postEpisodeMemories: GovernedActorLabPrivateMemorySnapshotV01[];
+  toGeneration: 1 | 2;
+  persistent: boolean;
+}): {
+  actors: GovernedActorLabActorSnapshotV01[];
+  memories: GovernedActorLabPrivateMemorySnapshotV01[];
+} {
+  const postByActor = new Map(
+    input.postEpisodeMemories.map((memory) => [memory.lab_actor_id, memory]),
+  );
+  const memories = [...input.actors].sort(compareActorsV01).map((actor) => {
+    const post = postByActor.get(actor.lab_actor_id);
+    if (!post) failV01("actor_lab_baseline_post_memory_missing");
+    return buildMemorySnapshotV01({
+      experimentId: input.manifest.experiment_id,
+      actorId: actor.lab_actor_id,
+      generation: input.toGeneration,
+      parent: input.persistent ? memoryRefV01(post) : null,
+      items: input.persistent ? post.items : [],
+    });
+  });
+  const actors = [...input.actors].sort(compareActorsV01).map((actor, index) =>
+    buildActorSnapshotV01({
+      manifest: input.manifest,
+      actorId: actor.lab_actor_id,
+      generation: input.toGeneration,
+      parent: actorRefV01(actor),
+      profile: actor.profile,
+      memory: memoryRefV01(memories[index]!),
+      mutations: [],
+    }),
+  );
+  return { actors, memories };
+}
+
+function aggregateBaselineExecutionOutcomeV01(
+  manifest: GovernedActorLabExperimentManifestV01,
+  execution: GovernedActorLabBaselineExecutionV01,
+  holdout: GovernedActorLabHoldoutFixtureV01,
+): GovernedActorLabOutcomeVectorV01 {
+  const actorOutcomes = execution.episodes.flatMap(
+    (episode) => episode.actorOutcomes,
+  );
+  const traces = execution.episodes.flatMap((episode) => episode.traces);
+  const holdoutOutcome = evaluateHoldoutProfilesV01(
+    manifest,
+    execution.finalActors.map((actor) => actor.profile),
+    holdout,
+  );
+  return outcomeVectorV01({
+    hardGate: actorOutcomes.some((entry) => entry.outcome.verification.hard_gate_failure === true),
+    hardGateCodes: uniqueStringsV01(actorOutcomes.flatMap((entry) => entry.outcome.verification.hard_gate_failure_codes)),
+    passedChecks: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.verification.required_checks_passed ?? 0), 0),
+    supportedClaims: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.verification.support_validated_claims ?? 0), 0),
+    unsupportedClaims: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.verification.unsupported_claims ?? 0), 0),
+    holdoutPassed: holdoutOutcome.holdout.cases_passed ?? 0,
+    holdoutFailed: holdoutOutcome.holdout.cases_failed ?? 0,
+    holdoutUnknown: holdoutOutcome.holdout.unknown ?? 0,
+    eligible: traces.filter((trace) => trace.eligible).length,
+    retrieved: traces.filter((trace) => trace.retrieved).length,
+    presented: traces.filter((trace) => trace.presented).length,
+    cited: traces.filter((trace) => trace.cited_or_referenced).length,
+    supportValidated: traces.filter((trace) => trace.support_validated).length,
+    outcomeAssociated: traces.filter((trace) => trace.outcome_associated).length,
+    causal: traces.filter((trace) => trace.causal_contribution === "matched_intervention_supported").length,
+    quarantined: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.memory.quarantined ?? 0), 0),
+    harmful: holdoutOutcome.harm.harmful_transfer_candidates ?? 0,
+    poisonRefusals: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.harm.poisoning_refusals ?? 0), 0),
+    interference: actorOutcomes.reduce((sum, entry) => sum + (entry.outcome.harm.stream_interference_candidates ?? 0), 0),
+    challenges: execution.episodes.reduce((sum, episode) => sum + episode.challengeCount, 0),
+    syntheses: execution.episodes.reduce((sum, episode) => sum + episode.synthesisCount, 0),
+    reviews: execution.episodes.reduce((sum, episode) => sum + episode.reviewOperations, 0),
+    toolReads: manifest.compute_budget.tool_read_limit,
+    steps: manifest.compute_budget.step_limit,
+  });
+}
+
+function baselineExecutedEpisodeV01(
+  episode: GovernedActorLabEpisodeArtifactV01,
+): GovernedActorLabBaselineExecutedEpisodeV01 {
+  return {
+    evaluationRef: evaluationRefV01(episode),
+    actorOutcomes: structuredClone(episode.evaluation.actor_outcomes),
+    traces: episode.actor_episodes.flatMap((actorEpisode) => structuredClone(actorEpisode.item_traces)),
+    challengeCount: episode.actor_episodes.length,
+    synthesisCount: episode.actor_episodes.length,
+    reviewOperations: episode.memory_admissions.length,
+  };
+}
+
+function baselineLimitationsV01(arm: GovernedActorLabBaselineArmV01): string[] {
+  if (arm === "single_strong_actor") return ["One fixed strongest profile is repeated through the exact deterministic compute envelope; replicas do not add policy diversity."];
+  if (arm === "nonpersistent_compute_matched_ensemble") return ["Actor-private memory is actually reset at both cross-episode boundaries."];
+  if (arm === "persistent_population_no_evolution") return ["Private memory persists while profiles and mutation refs remain fixed."];
+  if (arm === "persistent_evolutionary_population") return ["The exact pilot G0-to-G1-to-G2 mutation and selection path is reused; mechanics do not prove model-evolution benefit."];
+  return ["Frozen source-bound curated inputs are consumed without persistent actor memory."];
 }
 
 export function runGovernedActorLabPilotV01(input: {
@@ -854,7 +1260,15 @@ export function runGovernedActorLabPilotV01(input: {
     actors: transitionTwo.actors,
     holdout: input.hidden_holdout,
   });
-  const baselines = buildGovernedActorLabBaselineObservationsV01(input.manifest);
+  const baselines = buildGovernedActorLabBaselineObservationsV01({
+    manifest: input.manifest,
+    strategy_recipe_refs: input.strategy_recipe_refs,
+    development_sources: input.development_sources,
+    hidden_holdout: input.hidden_holdout,
+    evolutionary_episodes: [episodeZero.episode, episodeOne.episode, episodeTwo.episode],
+    evolutionary_transitions: [transitionOne.transition, transitionTwo.transition],
+    evolutionary_final_actors: transitionTwo.actors,
+  });
   const report = buildReportV01({
     manifest: input.manifest,
     generations: [generationZero.actors, transitionOne.actors, transitionTwo.actors],
@@ -866,9 +1280,24 @@ export function runGovernedActorLabPilotV01(input: {
   return {
     manifest: structuredClone(input.manifest),
     generations: [
-      { generation: 0, actors: generationZero.actors, memories: episodeZero.memories },
-      { generation: 1, actors: transitionOne.actors, memories: episodeOne.memories },
-      { generation: 2, actors: transitionTwo.actors, memories: episodeTwo.memories },
+      {
+        generation: 0,
+        actors_at_episode_start: generationZero.actors,
+        memories_at_episode_start: generationZero.memories,
+        post_episode_memories: episodeZero.memories,
+      },
+      {
+        generation: 1,
+        actors_at_episode_start: transitionOne.actors,
+        memories_at_episode_start: transitionOne.memories,
+        post_episode_memories: episodeOne.memories,
+      },
+      {
+        generation: 2,
+        actors_at_episode_start: transitionTwo.actors,
+        memories_at_episode_start: transitionTwo.memories,
+        post_episode_memories: episodeTwo.memories,
+      },
     ],
     episodes: [episodeZero.episode, episodeOne.episode, episodeTwo.episode],
     transitions: [transitionOne.transition, transitionTwo.transition],
@@ -891,6 +1320,23 @@ export function assertValidGovernedActorLabReportV01(
   input: unknown,
 ): asserts input is GovernedActorLabReportV01 {
   assertReportV01(input);
+}
+
+export function validateGovernedActorLabPilotResultV01(
+  input: unknown,
+): GovernedActorLabValidationResultV01 {
+  try {
+    assertPilotResultV01(input);
+    return { status: "valid", errors: [] };
+  } catch (error) {
+    return validationFailureV01(error);
+  }
+}
+
+export function assertValidGovernedActorLabPilotResultV01(
+  input: unknown,
+): asserts input is GovernedActorLabPilotResultV01 {
+  assertPilotResultV01(input);
 }
 
 function buildToolManifestV01(sources: GovernedActorLabSyntheticSourceV01[]): GovernedActorLabToolManifestV01 {
@@ -1034,6 +1480,7 @@ function buildMemoryItemV01(
     experiment_id: candidate.experiment_id,
     lab_actor_id: candidate.lab_actor_id,
     episode_id: candidate.episode_id,
+    origin_candidate_id: candidate.candidate_id,
     item_kind: candidate.item_kind,
     bounded_content: boundedTextV01(candidate.bounded_content, "$.candidate.bounded_content", 800),
     task_family_key: candidate.task_family_key,
@@ -1046,6 +1493,8 @@ function buildMemoryItemV01(
     supersedes_memory_item_id: supersedes,
     superseded_by_memory_item_id: null,
     retracts_memory_item_id: retracts,
+    inherited_from_memory_item_ref: null,
+    intervention_evaluation_ref: structuredClone(candidate.intervention_evaluation_ref),
     quarantine_reasons: [],
     directive_shaped_material: false,
     hidden_holdout_material: false,
@@ -1059,6 +1508,9 @@ function buildItemTracesV01(
   actor: GovernedActorLabActorSnapshotV01,
   memory: GovernedActorLabPrivateMemorySnapshotV01,
   retrieved: GovernedActorLabMemoryItemV01[],
+  interventions: GovernedActorLabInterventionEvaluationV01[],
+  episodeId: string,
+  caseSource: GovernedActorLabSyntheticSourceV01,
 ): GovernedActorLabItemTraceV01[] {
   const retrievedIds = new Set(retrieved.map((item) => item.memory_item_id));
   const citedId = retrieved[0]?.memory_item_id ?? null;
@@ -1068,6 +1520,12 @@ function buildItemTracesV01(
     const cited = wasRetrieved && item.memory_item_id === citedId;
     const supportValidated = cited && item.support_status === "support_validated";
     const outcomeAssociated = supportValidated && actor.profile.procedural_operator_policy === "verification_first";
+    const causal = classifyGovernedActorLabItemCausalContributionV01(item, interventions, {
+      experiment_id: actor.experiment_id,
+      episode_id: episodeId,
+      lab_actor_id: actor.lab_actor_id,
+      task_family_key: caseSource.task_family_key,
+    });
     return {
       memory_item_id: item.memory_item_id,
       eligible,
@@ -1076,15 +1534,158 @@ function buildItemTracesV01(
       cited_or_referenced: cited,
       support_validated: supportValidated,
       outcome_associated: outcomeAssociated,
-      causal_contribution: item.bounded_content.includes("matched intervention")
-        ? "matched_intervention_supported"
-        : "unknown_no_intervention",
+      causal_contribution: causal.status,
+      intervention_evaluation_ref: causal.intervention_evaluation_ref,
       source_refs: structuredClone(item.source_refs),
       limitations: outcomeAssociated
         ? ["Outcome association remains observational without an exact intervention relation."]
         : ["No item-specific outcome relation is available."],
     };
   });
+}
+
+export function classifyGovernedActorLabItemCausalContributionV01(
+  item: GovernedActorLabMemoryItemV01,
+  interventions: GovernedActorLabInterventionEvaluationV01[],
+  expected: {
+    experiment_id: string;
+    episode_id: string;
+    lab_actor_id: string;
+    task_family_key: string;
+  },
+): {
+  status: GovernedActorLabItemTraceV01["causal_contribution"];
+  intervention_evaluation_ref: GovernedActorLabInterventionEvaluationReferenceV01 | null;
+} {
+  const exact = interventions.find((relation) => {
+    try {
+      assertInterventionEvaluationV01(relation);
+    } catch {
+      return false;
+    }
+    return (
+      relation.experiment_id === expected.experiment_id &&
+      relation.episode_id === expected.episode_id &&
+      relation.lab_actor_id === expected.lab_actor_id &&
+      relation.task_family_key === expected.task_family_key &&
+      relation.memory_item_ref.memory_item_id === item.memory_item_id &&
+      relation.memory_item_ref.memory_item_fingerprint === item.memory_item_fingerprint &&
+      item.source_refs.some(
+        (source) =>
+          canonicalizeProtocolValueV01(source) ===
+          canonicalizeProtocolValueV01(relation.source_ref),
+      ) &&
+      relation.control.memory_item_present === false &&
+      relation.control.outcome_associated === false &&
+      relation.treatment.memory_item_present === true &&
+      relation.treatment.outcome_associated === true
+    );
+  });
+  return exact
+    ? {
+        status: "matched_intervention_supported",
+        intervention_evaluation_ref: interventionRefV01(exact),
+      }
+    : { status: "unknown_no_intervention", intervention_evaluation_ref: null };
+}
+
+function buildInterventionEvaluationsV01(input: {
+  manifest: GovernedActorLabExperimentManifestV01;
+  actor: GovernedActorLabActorSnapshotV01;
+  retrieved: GovernedActorLabMemoryItemV01[];
+  caseSource: GovernedActorLabSyntheticSourceV01;
+  episodeId: string;
+  evaluationId: string;
+}): GovernedActorLabInterventionEvaluationV01[] {
+  return input.retrieved.slice(0, 1).flatMap((item) => {
+    const exactSource = item.source_refs.find(
+      (source) =>
+        source.task_family_key === input.caseSource.task_family_key &&
+        input.manifest.tool_manifest.allowed_source_refs.some(
+          (allowed) => canonicalizeProtocolValueV01(allowed) === canonicalizeProtocolValueV01(source),
+        ),
+    );
+    const control = executeMemoryItemInterventionArmV01(
+      input.actor,
+      item,
+      input.caseSource,
+      false,
+    );
+    const treatment = executeMemoryItemInterventionArmV01(
+      input.actor,
+      item,
+      input.caseSource,
+      true,
+    );
+    if (
+      !exactSource ||
+      item.support_status !== "support_validated" ||
+      !treatment.outcome_associated
+    ) return [];
+    const draft: GovernedActorLabInterventionEvaluationV01 = {
+      intervention_id: "actor-lab-intervention-evaluation:pending",
+      experiment_id: input.manifest.experiment_id,
+      episode_id: input.episodeId,
+      evaluation_id: input.evaluationId,
+      lab_actor_id: input.actor.lab_actor_id,
+      memory_item_ref: memoryItemRefV01(item),
+      task_family_key: input.caseSource.task_family_key,
+      source_ref: structuredClone(exactSource),
+      intervention_kind: "memory_item_present_vs_absent",
+      control,
+      treatment,
+      same_actor: true,
+      same_case: true,
+      same_evaluator: true,
+      causal_scope: "exact_item_exact_episode_only",
+      general_causal_contribution_claimed: false,
+      integrity: pendingIntegrityV01(),
+    };
+    const interventionId = deriveIdV01(
+      "actor-lab-intervention-evaluation",
+      draft,
+      "intervention_id",
+    );
+    return [sealObjectV01({ ...draft, intervention_id: interventionId })];
+  });
+}
+
+function executeMemoryItemInterventionArmV01(
+  actor: GovernedActorLabActorSnapshotV01,
+  item: GovernedActorLabMemoryItemV01,
+  caseSource: GovernedActorLabSyntheticSourceV01,
+  memoryItemPresent: false,
+): GovernedActorLabInterventionEvaluationV01["control"];
+function executeMemoryItemInterventionArmV01(
+  actor: GovernedActorLabActorSnapshotV01,
+  item: GovernedActorLabMemoryItemV01,
+  caseSource: GovernedActorLabSyntheticSourceV01,
+  memoryItemPresent: true,
+): GovernedActorLabInterventionEvaluationV01["treatment"];
+function executeMemoryItemInterventionArmV01(
+  actor: GovernedActorLabActorSnapshotV01,
+  item: GovernedActorLabMemoryItemV01,
+  caseSource: GovernedActorLabSyntheticSourceV01,
+  memoryItemPresent: boolean,
+): GovernedActorLabInterventionEvaluationV01["control"] | GovernedActorLabInterventionEvaluationV01["treatment"] {
+  const supportValidated =
+    memoryItemPresent &&
+    item.support_status === "support_validated" &&
+    item.task_family_key === caseSource.task_family_key;
+  const outcomeAssociated =
+    supportValidated &&
+    actor.profile.procedural_operator_policy === "verification_first";
+  return memoryItemPresent
+    ? {
+        memory_item_present: true,
+        support_validated: supportValidated as true,
+        outcome_associated: outcomeAssociated as true,
+      }
+    : {
+        memory_item_present: false,
+        support_validated: false,
+        outcome_associated: false,
+      };
 }
 
 function buildClaimRefsV01(actor: GovernedActorLabActorSnapshotV01, episodeId: string): string[] {
@@ -1138,6 +1739,7 @@ function buildEpisodeMemoryCandidateV01(input: {
   source: GovernedActorLabSyntheticSourceV01;
   actorIndex: number;
   existingMemoryIndex: number;
+  interventionEvaluations: GovernedActorLabInterventionEvaluationV01[];
 }): GovernedActorLabMemoryCandidateV01 {
   const current = input.memory.items.find((item) => item.status === "current") ?? null;
   let operation: GovernedActorLabMemoryOperationV01 = "add";
@@ -1145,22 +1747,36 @@ function buildEpisodeMemoryCandidateV01(input: {
   let content = `Use ${input.actor.profile.procedural_operator_policy} within ${input.source.task_family_key}.`;
   let evidenceClass: ExternalRefTrustClassV01 = "direct_local_observation";
   let evidenceBasis: GovernedActorLabMemoryCandidateV01["evidence_basis"] = "source_verification";
+  let interventionEvaluationRef: GovernedActorLabInterventionEvaluationReferenceV01 | null = null;
   if (input.generation === 1) {
     operation = current === null
       ? "add"
       : input.existingMemoryIndex === 0
-        ? "revise"
+        ? "supersede"
         : input.existingMemoryIndex === 1
-          ? "supersede"
-          : input.existingMemoryIndex === 2
+          ? "revise"
+        : input.existingMemoryIndex === 2
             ? "retract"
-            : "no_change";
-    target = operation === "no_change" ? null : current?.memory_item_id ?? null;
-    content = operation === "no_change" && current
-      ? current.bounded_content
-      : `${operation} the bounded ${input.actor.profile.procedural_operator_policy} procedure after matched intervention.`;
+            : "add";
+    target = operation === "revise" || operation === "supersede" || operation === "retract"
+      ? current?.memory_item_id ?? null
+      : null;
+    content = `${operation} the bounded ${input.actor.profile.procedural_operator_policy} procedure using exact evaluation evidence.`;
     evidenceClass = input.actorIndex === 1 ? "verified_external_observation" : "direct_local_observation";
-    evidenceBasis = operation === "supersede" || operation === "retract" ? "matched_intervention" : "source_verification";
+    const exactIntervention = current === null
+      ? null
+      : input.interventionEvaluations.find(
+          (relation) =>
+            relation.lab_actor_id === input.actor.lab_actor_id &&
+            relation.memory_item_ref.memory_item_id === current.memory_item_id &&
+            relation.memory_item_ref.memory_item_fingerprint === current.memory_item_fingerprint,
+        ) ?? null;
+    if ((operation === "supersede" || operation === "retract") && exactIntervention) {
+      evidenceBasis = "matched_intervention";
+      interventionEvaluationRef = interventionRefV01(exactIntervention);
+    } else if (operation === "retract") {
+      evidenceBasis = "negative_verdict";
+    }
   } else if (input.generation === 2) {
     operation = "no_change";
     content = current?.bounded_content ?? content;
@@ -1173,6 +1789,15 @@ function buildEpisodeMemoryCandidateV01(input: {
     target,
     content,
   };
+  const interventionSourceRefs = interventionEvaluationRef === null
+    ? []
+    : input.interventionEvaluations
+        .filter(
+          (relation) =>
+            relation.intervention_id === interventionEvaluationRef.intervention_id &&
+            relation.integrity.fingerprint === interventionEvaluationRef.intervention_fingerprint,
+        )
+        .map((relation) => relation.source_ref);
   return {
     candidate_id: deriveSimpleIdV01("actor-lab-memory-candidate", basis),
     experiment_id: input.manifest.experiment_id,
@@ -1186,9 +1811,10 @@ function buildEpisodeMemoryCandidateV01(input: {
     applicability: `Exact synthetic family ${input.source.task_family_key} only.`,
     uncertainty: ["Deterministic fixture behavior does not establish model benefit."],
     limitations: ["Lab-only procedural memory; not product or Personal Perspective memory."],
-    source_refs: [input.source],
+    source_refs: uniqueByCanonicalV01([input.source, ...interventionSourceRefs]).sort(compareSourcesV01),
     evidence_class: evidenceClass,
     evidence_basis: evidenceBasis,
+    intervention_evaluation_ref: interventionEvaluationRef,
     support_status: "support_validated",
     directive_shaped_material: false,
     hidden_holdout_material: false,
@@ -1198,6 +1824,7 @@ function buildEpisodeMemoryCandidateV01(input: {
 function memoryPermissionV01(
   candidate: GovernedActorLabMemoryCandidateV01,
   poisonReasons: string[],
+  interventionEvidenceValid: boolean,
 ): GovernedActorLabMemoryAdmissionV01["permission"] {
   if (poisonReasons.length > 0) return "quarantined";
   if (candidate.support_status !== "support_validated") return candidate.support_status === "refused" ? "refused" : "candidate_unknown";
@@ -1206,14 +1833,53 @@ function memoryPermissionV01(
   if (!strongTrust) return candidate.evidence_class === "imported_unverified" ? "refused" : "candidate_unknown";
   if (
     candidate.requested_operation === "supersede" &&
-    candidate.evidence_basis !== "matched_intervention"
+    (candidate.evidence_basis !== "matched_intervention" ||
+      !interventionEvidenceValid)
   ) return "candidate_unknown";
   if (
     candidate.requested_operation === "retract" &&
     candidate.evidence_basis !== "matched_intervention" &&
     candidate.evidence_basis !== "negative_verdict"
   ) return "candidate_unknown";
+  if (
+    candidate.evidence_basis === "matched_intervention" &&
+    !interventionEvidenceValid
+  ) return "candidate_unknown";
   return "permitted";
+}
+
+function validateCandidateInterventionEvidenceV01(
+  candidate: GovernedActorLabMemoryCandidateV01,
+  interventions: GovernedActorLabInterventionEvaluationV01[],
+): boolean {
+  if (candidate.evidence_basis !== "matched_intervention") {
+    return candidate.intervention_evaluation_ref === null;
+  }
+  const reference = candidate.intervention_evaluation_ref;
+  if (reference === null || candidate.target_memory_item_id === null) return false;
+  const relation = interventions.find(
+    (entry) =>
+      entry.intervention_id === reference.intervention_id &&
+      entry.integrity.fingerprint === reference.intervention_fingerprint,
+  );
+  if (!relation) return false;
+  try {
+    assertInterventionEvaluationV01(relation);
+  } catch {
+    return false;
+  }
+  return (
+    relation.experiment_id === candidate.experiment_id &&
+    relation.episode_id === candidate.episode_id &&
+    relation.lab_actor_id === candidate.lab_actor_id &&
+    relation.task_family_key === candidate.task_family_key &&
+    relation.memory_item_ref.memory_item_id === candidate.target_memory_item_id &&
+    candidate.source_refs.some(
+      (source) =>
+        canonicalizeProtocolValueV01(source) ===
+        canonicalizeProtocolValueV01(relation.source_ref),
+    )
+  );
 }
 
 function memoryPoisonReasonsV01(candidate: GovernedActorLabMemoryCandidateV01): string[] {
@@ -1234,6 +1900,97 @@ function memoryPoisonReasonsV01(candidate: GovernedActorLabMemoryCandidateV01): 
   }
   if (candidate.task_family_key.toLowerCase().includes("global")) reasons.push("unsupported_global_generalization");
   return uniqueStringsV01(reasons);
+}
+
+function memoryItemMaterialReasonsV01(
+  item: GovernedActorLabMemoryItemV01,
+  allowedSourceRefs?: GovernedActorLabSyntheticSourceV01[],
+): string[] {
+  const reasons: string[] = [];
+  const material = [
+    item.bounded_content,
+    item.applicability,
+    ...item.uncertainty,
+    ...item.limitations,
+  ].join("\n");
+  if (item.directive_shaped_material !== false || DIRECTIVE_PATTERN.test(material)) {
+    reasons.push("directive_shaped_material");
+  }
+  if (item.hidden_holdout_material !== false || HIDDEN_HOLDOUT_PATTERN.test(material)) {
+    reasons.push("hidden_holdout_material");
+  }
+  if (item.source_refs.some((source) => source.trust_class === "imported_unverified")) {
+    reasons.push("untrusted_source");
+  }
+  const sourceFingerprints = new Map<string, string>();
+  for (const source of item.source_refs) {
+    const prior = sourceFingerprints.get(source.source_id);
+    if (prior !== undefined && prior !== source.source_fingerprint) {
+      reasons.push("source_fingerprint_conflict");
+    }
+    sourceFingerprints.set(source.source_id, source.source_fingerprint);
+    if (source.task_family_key !== item.task_family_key) {
+      reasons.push("stream_interference");
+    }
+    if (
+      allowedSourceRefs !== undefined &&
+      !allowedSourceRefs.some(
+        (allowed) =>
+          canonicalizeProtocolValueV01(allowed) ===
+          canonicalizeProtocolValueV01(source),
+      )
+    ) {
+      reasons.push("source_outside_retrieval_policy");
+    }
+  }
+  if (
+    item.task_family_key.toLowerCase().includes("global") ||
+    GLOBAL_GENERALIZATION_PATTERN.test(material)
+  ) {
+    reasons.push("unsupported_global_generalization");
+  }
+  return uniqueStringsV01(reasons);
+}
+
+function inheritAdmissibleMemoryItemsV01(
+  parentMemory: GovernedActorLabPrivateMemorySnapshotV01,
+  childActorId: string,
+): GovernedActorLabMemoryItemV01[] {
+  return parentMemory.items
+    .filter(
+      (item) =>
+        item.status === "current" &&
+        item.support_status === "support_validated" &&
+        item.quarantine_reasons.length === 0 &&
+        memoryItemMaterialReasonsV01(item).length === 0,
+    )
+    .map((item) => {
+      const draft: GovernedActorLabMemoryItemV01 = {
+        ...structuredClone(item),
+        memory_item_id: "actor-lab-memory-item:pending",
+        memory_item_fingerprint: PENDING_FINGERPRINT,
+        lab_actor_id: childActorId,
+        status: "current",
+        supersedes_memory_item_id: null,
+        superseded_by_memory_item_id: null,
+        retracts_memory_item_id: null,
+        inherited_from_memory_item_ref: memoryItemRefV01(item),
+      };
+      const itemId = deriveIdV01(
+        "actor-lab-memory-item",
+        draft,
+        "memory_item_id",
+        "memory_item_fingerprint",
+      );
+      const withId = { ...draft, memory_item_id: itemId };
+      return {
+        ...withId,
+        memory_item_fingerprint: memoryItemFingerprintV01(withId),
+      };
+    })
+    .sort((left, right) =>
+      compareProtocolCodeUnitsV01(left.memory_item_id, right.memory_item_id),
+    );
 }
 
 function requiredCurrentTargetV01(
@@ -1357,19 +2114,63 @@ function buildReportV01(input: {
   const poisoningRefusals = input.episodes.reduce((sum, episode) => sum + episode.memory_admissions.filter((admission) => admission.permission === "quarantined" || admission.permission === "refused").length, 0);
   const harmful = input.baselines.reduce((sum, baseline) => sum + (baseline.outcome.harm.harmful_transfer_candidates ?? 0), 0);
   const uniqueProfiles = new Set(input.generations.at(-1)!.map((actor) => canonicalizeProtocolValueV01(actor.profile)));
-  const promotions = input.transitions.flatMap((transition) => transition.mutations.slice(0, 1).map((mutation) => buildPromotionCandidateV01(input.manifest, transition, mutation)));
+  const harmRefs = input.baselines
+    .filter((baseline) => (baseline.outcome.harm.harmful_transfer_candidates ?? 0) > 0)
+    .map((baseline): GovernedActorLabHarmObservationReferenceV01 => ({
+      observation_id: baseline.observation_id,
+      observation_fingerprint: baseline.integrity.fingerprint,
+      observation_kind: "baseline_arm_harm",
+    }));
+  const promotions = input.transitions.flatMap((transition) =>
+    transition.mutations
+      .slice(0, 1)
+      .map((mutation) =>
+        buildPromotionCandidateV01(
+          input.manifest,
+          transition,
+          mutation,
+          harmRefs,
+        ),
+      ),
+  );
+  const holdoutEvaluationId = deriveSimpleIdV01("actor-lab-holdout-evaluation", {
+    holdout_id: input.manifest.hidden_holdout.holdout_id,
+    holdout_fingerprint: input.manifest.hidden_holdout.holdout_fingerprint,
+    evaluator_fingerprint: input.manifest.evaluator.fingerprint,
+    actor_refs: input.generations.at(-1)!.map(actorRefV01),
+    outcome: input.holdoutOutcome,
+  });
+  const holdoutEvaluationFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      evaluation_id: holdoutEvaluationId,
+      outcome: input.holdoutOutcome,
+    }),
+  );
   const draft: GovernedActorLabReportV01 = {
     report_version: GOVERNED_ACTOR_LAB_REPORT_VERSION_V01,
     report_id: "actor-lab-report:pending",
     report_kind: "deterministic_mechanics_and_substrate_proof",
     experiment_id: input.manifest.experiment_id,
+    manifest_ref: {
+      experiment_id: input.manifest.experiment_id,
+      experiment_fingerprint: input.manifest.integrity.fingerprint,
+    },
+    evaluator: structuredClone(input.manifest.evaluator),
+    actor_engine: structuredClone(input.manifest.actor_engine),
+    development_case_sequence: structuredClone(
+      input.manifest.tool_manifest.allowed_source_refs,
+    ),
+    compute_budget: structuredClone(input.manifest.compute_budget),
     generation_actor_refs: input.generations.map((actors, generation) => ({
       generation: generation as GovernedActorLabGenerationV01,
       actors: [...actors].sort(compareActorsV01).map(actorRefV01),
     })),
     episode_refs: input.episodes.map((episode) => ({ episode_id: episode.episode_id, episode_fingerprint: episode.integrity.fingerprint })),
+    episode_evaluation_refs: input.episodes.map(evaluationRefV01),
     population_transitions: structuredClone(input.transitions),
     hidden_holdout_evaluation: {
+      evaluation_id: holdoutEvaluationId,
+      evaluation_fingerprint: holdoutEvaluationFingerprint,
       holdout_id: input.manifest.hidden_holdout.holdout_id,
       holdout_fingerprint: input.manifest.hidden_holdout.holdout_fingerprint,
       actor_state_frozen_before_read: true,
@@ -1380,12 +2181,18 @@ function buildReportV01(input: {
     baselines: structuredClone(input.baselines),
     non_dominance: nonDominance,
     persistence_benefit_candidate: {
-      status: "mixed",
+      status: benefitCandidateStatusV01(
+        input.baselines.find((baseline) => baseline.arm === "persistent_population_no_evolution")!,
+        input.baselines.find((baseline) => baseline.arm === "nonpersistent_compute_matched_ensemble")!,
+      ),
       comparison_arms: ["nonpersistent_compute_matched_ensemble", "persistent_population_no_evolution"],
       verified_general_benefit: false,
     },
     evolution_benefit_candidate: {
-      status: "mixed",
+      status: benefitCandidateStatusV01(
+        input.baselines.find((baseline) => baseline.arm === "persistent_evolutionary_population")!,
+        input.baselines.find((baseline) => baseline.arm === "persistent_population_no_evolution")!,
+      ),
       comparison_arms: ["persistent_population_no_evolution", "persistent_evolutionary_population"],
       verified_general_benefit: false,
     },
@@ -1425,6 +2232,7 @@ function buildPromotionCandidateV01(
   manifest: GovernedActorLabExperimentManifestV01,
   transition: GovernedActorLabPopulationTransitionV01,
   mutation: GovernedActorLabMutationV01,
+  harmRefs: GovernedActorLabHarmObservationReferenceV01[],
 ): GovernedActorLabPromotionCandidateV01 {
   const draft: GovernedActorLabPromotionCandidateV01 = {
     promotion_version: GOVERNED_ACTOR_LAB_PROMOTION_VERSION_V01,
@@ -1434,8 +2242,8 @@ function buildPromotionCandidateV01(
     actor_lineage_refs: [mutation.parent_actor_snapshot],
     unit: mutation.unit,
     unit_ref: mutation.mutation_id,
-    supporting_evaluation_refs: transition.child_actor_refs.map((ref) => ref.actor_snapshot_id),
-    harm_and_negative_transfer_refs: ["actor-lab-report:local-harm-vector"],
+    supporting_evaluation_refs: [structuredClone(transition.selection_evaluation_ref)],
+    harm_and_negative_transfer_refs: structuredClone(harmRefs),
     limitations: ["Candidate-only Lab output; no product activation or acceptance."],
     unknowns: ["Later real-work usefulness is unknown."],
     target_scope: "exact synthetic actor-lab case family only",
@@ -1446,6 +2254,22 @@ function buildPromotionCandidateV01(
   };
   const candidateId = deriveIdV01("actor-lab-promotion-candidate", draft, "promotion_candidate_id");
   return sealObjectV01({ ...draft, promotion_candidate_id: candidateId });
+}
+
+function benefitCandidateStatusV01(
+  candidate: GovernedActorLabBaselineObservationV01,
+  comparator: GovernedActorLabBaselineObservationV01,
+): "supported_mechanics_candidate" | "mixed" | "inconclusive" {
+  if (dominatesOutcomeV01(candidate.outcome, comparator.outcome)) {
+    return "supported_mechanics_candidate";
+  }
+  if (
+    canonicalizeProtocolValueV01(candidate.outcome) ===
+    canonicalizeProtocolValueV01(comparator.outcome)
+  ) {
+    return "inconclusive";
+  }
+  return "mixed";
 }
 
 function baselineNonDominanceV01(
@@ -1600,12 +2424,48 @@ function outcomeVectorV01(input: {
 function assertManifestV01(input: unknown): asserts input is GovernedActorLabExperimentManifestV01 {
   if (!input || typeof input !== "object" || Array.isArray(input)) failV01("actor_lab_manifest_malformed");
   const value = input as GovernedActorLabExperimentManifestV01;
+  if (value.hidden_holdout?.content_in_manifest !== false || Object.hasOwn(value.hidden_holdout as object, "content")) failV01("actor_lab_holdout_content_leakage", "$.hidden_holdout");
+  assertExactKeysV01(value, [
+    "experiment_version", "experiment_id", "experiment_kind", "experiment_scope",
+    "hidden_holdout", "population", "evaluator", "actor_engine", "memory_policy",
+    "mutation_policy", "tool_manifest", "compute_budget", "deterministic_seed",
+    "lab_root", "artifact_scope", "authority_summary", "material_boundary", "integrity",
+  ], "$");
+  assertExactKeysV01(value.experiment_scope, [
+    "workspace_id", "project_id", "synthetic", "case_family_key",
+    "development_case_ids", "decision_time_cutoff",
+  ], "$.experiment_scope");
+  assertExactKeysV01(value.hidden_holdout, [
+    "holdout_id", "holdout_fingerprint", "content_in_manifest", "readable_phase",
+  ], "$.hidden_holdout");
+  assertExactKeysV01(value.population, [
+    "generation_zero_size", "final_generation", "generation_zero_actor_ids",
+    "whole_actor_mutation_enabled", "actor_identity_scope",
+  ], "$.population");
+  assertExactKeysV01(value.tool_manifest, [
+    "manifest_version", "manifest_id", "actor_operation", "allowed_source_refs",
+    "filesystem_scope", "write_scope", "shell_allowed", "git_or_github_allowed",
+    "product_database_allowed", "browser_or_companion_mutation_allowed",
+    "task_context_mutation_allowed", "network_allowed",
+    "provider_or_model_gateway_allowed", "credential_access_allowed",
+    "os_wide_read_allowed", "external_actuation_allowed", "mutation_may_expand_scope",
+    "integrity",
+  ], "$.tool_manifest");
+  assertExactKeysV01(value.compute_budget, [
+    "budget_version", "budget_id", "provider_call_limit", "network_call_limit",
+    "external_effect_limit", "tool_read_limit", "step_limit", "token_limit",
+    "cost_microunits_limit", "equal_for_all_baseline_arms",
+    "equal_budget_is_equal_capability", "integrity",
+  ], "$.compute_budget");
   if (value.experiment_version !== GOVERNED_ACTOR_LAB_EXPERIMENT_VERSION_V01 || value.experiment_kind !== "isolated_deterministic_offline_actor_lab") failV01("actor_lab_manifest_contract_invalid");
   if (value.lab_root !== GOVERNED_ACTOR_LAB_ROOT_V01) failV01("actor_lab_root_invalid", "$.lab_root");
   if (value.population.generation_zero_size !== 4 || value.population.final_generation !== 2 || value.population.generation_zero_actor_ids.length !== 4 || new Set(value.population.generation_zero_actor_ids).size !== 4) failV01("actor_lab_generation_zero_population_invalid", "$.population");
-  if (value.hidden_holdout.content_in_manifest !== false || Object.hasOwn(value.hidden_holdout as object, "content")) failV01("actor_lab_holdout_content_leakage", "$.hidden_holdout");
   if (value.compute_budget.provider_call_limit !== 0 || value.compute_budget.network_call_limit !== 0 || value.compute_budget.external_effect_limit !== 0 || value.compute_budget.token_limit !== 0 || value.compute_budget.cost_microunits_limit !== 0) failV01("actor_lab_budget_external_effect_invalid", "$.compute_budget");
   if (value.tool_manifest.network_allowed !== false || value.tool_manifest.provider_or_model_gateway_allowed !== false || value.tool_manifest.shell_allowed !== false || value.tool_manifest.git_or_github_allowed !== false || value.tool_manifest.product_database_allowed !== false || value.tool_manifest.mutation_may_expand_scope !== false) failV01("actor_lab_tool_manifest_authority_invalid", "$.tool_manifest");
+  value.tool_manifest.allowed_source_refs.forEach((source, index) => {
+    validateSyntheticSourceV01(source, `$.tool_manifest.allowed_source_refs[${index}]`);
+    if (source.task_family_key !== value.experiment_scope.case_family_key) failV01("actor_lab_source_family_mismatch", `$.tool_manifest.allowed_source_refs[${index}]`);
+  });
   assertAuthorityAllFalseV01(value.authority_summary);
   assertIntegrityV01(value, "$.integrity");
   assertIntegrityV01(value.tool_manifest, "$.tool_manifest.integrity");
@@ -1613,41 +2473,247 @@ function assertManifestV01(input: unknown): asserts input is GovernedActorLabExp
   scanForbiddenMaterialV01(value);
 }
 
+function assertPilotResultV01(input: unknown): asserts input is GovernedActorLabPilotResultV01 {
+  if (!input || typeof input !== "object" || Array.isArray(input)) failV01("actor_lab_pilot_result_malformed");
+  const value = input as GovernedActorLabPilotResultV01;
+  assertExactKeysV01(value, ["manifest", "generations", "episodes", "transitions", "report"], "$");
+  assertManifestV01(value.manifest);
+  if (value.generations.length !== 3 || value.episodes.length !== 3 || value.transitions.length !== 2) failV01("actor_lab_pilot_cardinality_invalid");
+  for (const [index, generation] of value.generations.entries()) {
+    if (generation.generation !== index) failV01("actor_lab_pilot_generation_order_invalid");
+    validateGenerationPopulationV01(
+      generation.generation,
+      generation.actors_at_episode_start,
+      generation.memories_at_episode_start,
+      value.manifest,
+    );
+    if (generation.post_episode_memories.length !== 4) failV01("actor_lab_post_episode_memory_cardinality_invalid");
+    for (const memory of generation.post_episode_memories) {
+      if (memory.generation !== generation.generation) failV01("actor_lab_post_episode_memory_generation_invalid");
+      assertMemorySnapshotV01(memory);
+      for (const item of memory.items) {
+        if (memoryItemMaterialReasonsV01(item).length > 0) failV01("actor_lab_post_episode_memory_material_invalid");
+      }
+    }
+    const episode = value.episodes[index]!;
+    if (episode.generation !== generation.generation || episode.experiment_id !== value.manifest.experiment_id) failV01("actor_lab_episode_scope_invalid");
+    assertIntegrityV01(episode, "$.episode.integrity");
+    const startActorRefs = new Set(generation.actors_at_episode_start.map((actor) => canonicalizeProtocolValueV01(actorRefV01(actor))));
+    const startMemoryRefs = new Set(generation.memories_at_episode_start.map((memory) => canonicalizeProtocolValueV01(memoryRefV01(memory))));
+    for (const actorEpisode of episode.actor_episodes) {
+      if (!startActorRefs.has(canonicalizeProtocolValueV01(actorEpisode.frozen_actor_snapshot))) failV01("actor_lab_episode_actor_start_ref_invalid");
+      if (!startMemoryRefs.has(canonicalizeProtocolValueV01(actorEpisode.frozen_memory_snapshot))) failV01("actor_lab_episode_memory_start_ref_invalid");
+    }
+    const postMemoryRefs = new Set(generation.post_episode_memories.map((memory) => canonicalizeProtocolValueV01(memoryRefV01(memory))));
+    if (episode.memory_admissions.some((admission) => !postMemoryRefs.has(canonicalizeProtocolValueV01(admission.resulting_memory_snapshot)))) failV01("actor_lab_episode_post_memory_ref_invalid");
+    for (const relation of episode.evaluation.intervention_evaluations) {
+      assertInterventionEvaluationV01(relation);
+      if (relation.experiment_id !== value.manifest.experiment_id || relation.episode_id !== episode.episode_id || relation.evaluation_id !== episode.evaluation.evaluation_id) failV01("actor_lab_intervention_relation_scope_mismatch");
+      const relationMemory = generation.memories_at_episode_start.find((memory) => memory.lab_actor_id === relation.lab_actor_id);
+      const relationItem = relationMemory?.items.find((item) => item.memory_item_id === relation.memory_item_ref.memory_item_id);
+      if (!relationItem || canonicalizeProtocolValueV01(memoryItemRefV01(relationItem)) !== canonicalizeProtocolValueV01(relation.memory_item_ref)) failV01("actor_lab_intervention_memory_item_ref_invalid");
+    }
+    const expectedEvaluationFingerprint = createProtocolSha256V01(canonicalizeProtocolValueV01({
+      evaluation_id: episode.evaluation.evaluation_id,
+      evaluator_fingerprint: episode.evaluation.evaluator_fingerprint,
+      actor_outcomes: episode.evaluation.actor_outcomes,
+      intervention_evaluations: episode.evaluation.intervention_evaluations,
+    }));
+    if (expectedEvaluationFingerprint !== episode.evaluation.evaluation_fingerprint) failV01("actor_lab_episode_evaluation_fingerprint_mismatch");
+  }
+  for (const [index, transition] of value.transitions.entries()) {
+    const prior = value.generations[index]!;
+    const next = value.generations[index + 1]!;
+    if (transition.from_generation !== index || transition.to_generation !== index + 1) failV01("actor_lab_transition_generation_invalid");
+    if (transition.branch_memory_policy !== "inherit_admissible_private_memory" || transition.branch_memory_reset_intervention !== false) failV01("actor_lab_transition_branch_memory_policy_invalid");
+    if (canonicalizeProtocolValueV01(transition.selection_evaluation_ref) !== canonicalizeProtocolValueV01(evaluationRefV01(value.episodes[index]!))) failV01("actor_lab_transition_evaluation_ref_invalid");
+    const priorPostRefs = new Set(prior.post_episode_memories.map((memory) => canonicalizeProtocolValueV01(memoryRefV01(memory))));
+    if (transition.parent_post_episode_memory_refs.length !== 4 || transition.parent_post_episode_memory_refs.some((entry) => !priorPostRefs.has(canonicalizeProtocolValueV01(entry.memory)))) failV01("actor_lab_transition_parent_memory_lineage_invalid");
+    const nextStartRefs = new Set(next.memories_at_episode_start.map((memory) => canonicalizeProtocolValueV01(memoryRefV01(memory))));
+    if (transition.child_start_memory_refs.length !== 4 || transition.child_start_memory_refs.some((entry) => !nextStartRefs.has(canonicalizeProtocolValueV01(entry.memory)))) failV01("actor_lab_transition_child_memory_lineage_invalid");
+    const priorActorBySnapshot = new Map(
+      prior.actors_at_episode_start.map((actor) => [actor.actor_snapshot_id, actor]),
+    );
+    for (const entry of transition.child_start_memory_refs) {
+      const child = next.actors_at_episode_start.find((actor) => actor.lab_actor_id === entry.lab_actor_id);
+      const parent = child?.parent_actor_ref === null || child?.parent_actor_ref === undefined
+        ? null
+        : priorActorBySnapshot.get(child.parent_actor_ref.actor_snapshot_id) ?? null;
+      if (!child || !parent || parent.lab_actor_id !== entry.parent_lab_actor_id) failV01("actor_lab_transition_child_parent_lineage_invalid");
+      const parentPost = prior.post_episode_memories.find((memory) => memory.lab_actor_id === parent.lab_actor_id);
+      const childStartMemory = next.memories_at_episode_start.find((memory) => memory.lab_actor_id === child.lab_actor_id);
+      if (!parentPost || !childStartMemory || canonicalizeProtocolValueV01(childStartMemory.parent_snapshot) !== canonicalizeProtocolValueV01(memoryRefV01(parentPost))) failV01("actor_lab_transition_parent_memory_lineage_invalid");
+      if (child.lab_actor_id !== parent.lab_actor_id) {
+        for (const item of childStartMemory.items) {
+          if (item.inherited_from_memory_item_ref === null || !parentPost.items.some((parentItem) => canonicalizeProtocolValueV01(memoryItemRefV01(parentItem)) === canonicalizeProtocolValueV01(item.inherited_from_memory_item_ref))) failV01("actor_lab_branch_memory_inheritance_invalid");
+        }
+      }
+    }
+    const nextActorRefs = new Set(next.actors_at_episode_start.map((actor) => canonicalizeProtocolValueV01(actorRefV01(actor))));
+    if (transition.child_actor_refs.length !== 4 || transition.child_actor_refs.some((ref) => !nextActorRefs.has(canonicalizeProtocolValueV01(ref)))) failV01("actor_lab_transition_child_actor_lineage_invalid");
+    for (const memory of next.memories_at_episode_start) {
+      if (memory.parent_snapshot === null || !priorPostRefs.has(canonicalizeProtocolValueV01(memory.parent_snapshot))) failV01("actor_lab_transition_parent_memory_lineage_invalid");
+    }
+    for (const mutation of transition.mutations) {
+      if (mutation.capability_scope_expanded !== false || mutation.tool_manifest_changed !== false || mutation.evaluator_changed !== false || mutation.holdout_changed !== false || mutation.mutation_budget_units !== 1) failV01("actor_lab_mutation_capability_ceiling_invalid");
+      assertIntegrityV01(mutation, "$.mutation.integrity");
+    }
+    assertIntegrityV01(transition, "$.transition.integrity");
+  }
+  const interventionRefs = new Set(
+    value.episodes.flatMap((episode) =>
+      episode.evaluation.intervention_evaluations.map((relation) =>
+        canonicalizeProtocolValueV01(interventionRefV01(relation)),
+      ),
+    ),
+  );
+  for (const memory of value.generations.flatMap((generation) => [
+    ...generation.memories_at_episode_start,
+    ...generation.post_episode_memories,
+  ])) {
+    for (const item of memory.items) {
+      if (item.intervention_evaluation_ref !== null && !interventionRefs.has(canonicalizeProtocolValueV01(item.intervention_evaluation_ref))) failV01("actor_lab_memory_intervention_ref_invalid");
+    }
+  }
+  assertReportV01(value.report);
+  if (value.report.experiment_id !== value.manifest.experiment_id || value.report.manifest_ref.experiment_fingerprint !== value.manifest.integrity.fingerprint || canonicalizeProtocolValueV01(value.report.compute_budget) !== canonicalizeProtocolValueV01(value.manifest.compute_budget)) failV01("actor_lab_report_manifest_binding_mismatch");
+  if (canonicalizeProtocolValueV01(value.report.population_transitions) !== canonicalizeProtocolValueV01(value.transitions)) failV01("actor_lab_report_transition_binding_mismatch");
+  const expectedEpisodeRefs = value.episodes.map((episode) => ({ episode_id: episode.episode_id, episode_fingerprint: episode.integrity.fingerprint }));
+  if (canonicalizeProtocolValueV01(value.report.episode_refs) !== canonicalizeProtocolValueV01(expectedEpisodeRefs)) failV01("actor_lab_report_episode_binding_mismatch");
+  if (canonicalizeProtocolValueV01(value.report.episode_evaluation_refs) !== canonicalizeProtocolValueV01(value.episodes.map(evaluationRefV01))) failV01("actor_lab_report_evaluation_binding_mismatch");
+  const expectedGenerationRefs = value.generations.map((generation) => ({
+    generation: generation.generation,
+    actors: [...generation.actors_at_episode_start].sort(compareActorsV01).map(actorRefV01),
+  }));
+  if (canonicalizeProtocolValueV01(value.report.generation_actor_refs) !== canonicalizeProtocolValueV01(expectedGenerationRefs)) failV01("actor_lab_report_generation_lineage_invalid");
+}
+
 function assertReportV01(input: unknown): asserts input is GovernedActorLabReportV01 {
   if (!input || typeof input !== "object" || Array.isArray(input)) failV01("actor_lab_report_malformed");
   const value = input as GovernedActorLabReportV01;
   if (value.report_version !== GOVERNED_ACTOR_LAB_REPORT_VERSION_V01 || value.report_kind !== "deterministic_mechanics_and_substrate_proof") failV01("actor_lab_report_contract_invalid");
+  requiredIdV01(value.manifest_ref.experiment_id, "$.manifest_ref.experiment_id");
+  requiredFingerprintV01(value.manifest_ref.experiment_fingerprint, "$.manifest_ref.experiment_fingerprint");
+  if (value.manifest_ref.experiment_id !== value.experiment_id) failV01("actor_lab_report_manifest_binding_mismatch");
+  validateVersionBindingV01(value.evaluator, "$.evaluator");
+  validateVersionBindingV01(value.actor_engine, "$.actor_engine");
+  assertIntegrityV01(value.compute_budget, "$.compute_budget.integrity");
   if (value.generation_actor_refs.length !== 3 || value.generation_actor_refs[0]?.generation !== 0 || value.generation_actor_refs[0].actors.length !== 4 || value.generation_actor_refs[2]?.generation !== 2) failV01("actor_lab_report_generation_lineage_invalid");
   if (value.baselines.map((baseline) => baseline.arm).join("|") !== GOVERNED_ACTOR_LAB_BASELINE_ARMS_V01.join("|")) failV01("actor_lab_report_baseline_arms_invalid");
   if (
     new Set(value.baselines.map((baseline) => baseline.budget_id)).size !== 1 ||
-    value.baselines.some(
-      (baseline) =>
-        baseline.exact_budget_match !== true ||
-        baseline.outcome.compute.provider_calls !== 0 ||
-        baseline.outcome.compute.network_calls !== 0 ||
-        baseline.outcome.compute.external_effects !== 0,
-    )
+    value.baselines.some((baseline) => {
+      if (baseline.baseline_version !== "governed_actor_lab_baseline_observation.v0.1") return true;
+      if (deriveIdV01("actor-lab-baseline-observation", baseline, "observation_id") !== baseline.observation_id) return true;
+      if (baseline.experiment_id !== value.experiment_id) return true;
+      if (canonicalizeProtocolValueV01(baseline.manifest_ref) !== canonicalizeProtocolValueV01(value.manifest_ref)) return true;
+      if (canonicalizeProtocolValueV01(baseline.evaluator) !== canonicalizeProtocolValueV01(value.evaluator)) return true;
+      if (canonicalizeProtocolValueV01(baseline.actor_engine) !== canonicalizeProtocolValueV01(value.actor_engine)) return true;
+      if (canonicalizeProtocolValueV01(baseline.development_case_sequence) !== canonicalizeProtocolValueV01(value.development_case_sequence)) return true;
+      if (canonicalizeProtocolValueV01(baseline.hidden_holdout_ref) !== canonicalizeProtocolValueV01({ holdout_id: value.hidden_holdout_evaluation.holdout_id, holdout_fingerprint: value.hidden_holdout_evaluation.holdout_fingerprint })) return true;
+      if (baseline.budget_id !== value.compute_budget.budget_id || baseline.budget_fingerprint !== value.compute_budget.integrity.fingerprint) return true;
+      if (baseline.arm_seed !== createProtocolSha256V01(canonicalizeProtocolValueV01({ deterministic_seed: baseline.deterministic_seed, arm: baseline.arm }))) return true;
+      if (baseline.execution.episode_count !== 3 || baseline.execution.episode_evaluation_refs.length !== 3) return true;
+      const persistent = baseline.arm === "persistent_population_no_evolution" || baseline.arm === "persistent_evolutionary_population";
+      const mutation = baseline.arm === "persistent_evolutionary_population";
+      const curated = baseline.arm === "disposable_curated_knowledge";
+      if (baseline.persistent_memory !== persistent || baseline.mutation_enabled !== mutation || baseline.curated_knowledge !== curated) return true;
+      if (baseline.execution.memory_persistence_setting !== (persistent ? "private_cross_episode" : "none")) return true;
+      if (baseline.execution.mutation_setting !== (mutation ? "g0_to_g1_to_g2" : "none")) return true;
+      if (mutation && baseline.execution.transition_refs.length !== 2) return true;
+      if (!mutation && baseline.execution.transition_refs.length !== 0) return true;
+      if (curated && canonicalizeProtocolValueV01(baseline.execution.curated_input_refs) !== canonicalizeProtocolValueV01(value.development_case_sequence)) return true;
+      if (!curated && baseline.execution.curated_input_refs.length !== 0) return true;
+      if (baseline.arm === "single_strong_actor" && (baseline.execution.actor_count !== 1 || baseline.execution.single_actor_repetitions !== value.compute_budget.tool_read_limit)) return true;
+      if (baseline.arm === "nonpersistent_compute_matched_ensemble" && baseline.execution.memory_reset_count <= 0) return true;
+      if (persistent && baseline.execution.memory_reset_count !== 0) return true;
+      if (baseline.outcome.compute.tool_reads !== value.compute_budget.tool_read_limit || baseline.outcome.compute.deterministic_steps !== value.compute_budget.step_limit) return true;
+      if (baseline.exact_budget_match !== true || baseline.outcome.compute.provider_calls !== 0 || baseline.outcome.compute.network_calls !== 0 || baseline.outcome.compute.external_effects !== 0) return true;
+      try { assertIntegrityV01(baseline, "$.baseline.integrity"); } catch { return true; }
+      return false;
+    })
   ) failV01("actor_lab_report_baseline_budget_mismatch");
   if (value.non_dominance.ordinal_ranking_created !== false || value.non_dominance.global_winner_created !== false) failV01("actor_lab_scalar_or_winner_forbidden");
   if (value.mechanics_proof_only !== true || value.empirical_llm_evolution_benefit_proven !== false) failV01("actor_lab_mechanics_claim_invalid");
   assertProductEffectsZeroV01(value.product_effects);
   assertAuthorityAllFalseV01(value.authority_summary);
+  const evaluationRefs = new Set(value.episode_evaluation_refs.map((ref) => canonicalizeProtocolValueV01(ref)));
+  const harmRefs = new Set<string>();
+  for (const baseline of value.baselines) {
+    if ((baseline.outcome.harm.harmful_transfer_candidates ?? 0) > 0) {
+      harmRefs.add(canonicalizeProtocolValueV01({
+        observation_id: baseline.observation_id,
+        observation_fingerprint: baseline.integrity.fingerprint,
+        observation_kind: "baseline_arm_harm",
+      }));
+    }
+  }
+  if ((value.hidden_holdout_evaluation.outcome.harm.harmful_transfer_candidates ?? 0) > 0) {
+    harmRefs.add(canonicalizeProtocolValueV01({
+      observation_id: value.hidden_holdout_evaluation.evaluation_id,
+      observation_fingerprint: value.hidden_holdout_evaluation.evaluation_fingerprint,
+      observation_kind: "hidden_holdout_harm",
+    }));
+  }
   for (const candidate of value.promotion_candidates) {
     if (candidate.whole_actor_profile !== false || candidate.creates_episode_delta_proposal !== false) failV01("actor_lab_promotion_firewall_invalid");
+    if (candidate.supporting_evaluation_refs.length === 0 || candidate.supporting_evaluation_refs.some((ref) => !evaluationRefs.has(canonicalizeProtocolValueV01(ref)))) failV01("actor_lab_promotion_evaluation_ref_invalid");
+    if (candidate.harm_and_negative_transfer_refs.some((ref) => !harmRefs.has(canonicalizeProtocolValueV01(ref)))) failV01("actor_lab_promotion_harm_ref_invalid");
     assertAuthorityAllFalseV01(candidate.authority_summary);
+    assertIntegrityV01(candidate, "$.promotion_candidate.integrity");
   }
   assertIntegrityV01(value, "$.integrity");
   scanForbiddenMaterialV01(value);
 }
 
 function assertMemorySnapshotV01(input: GovernedActorLabPrivateMemorySnapshotV01): void {
+  assertExactKeysV01(input, [
+    "memory_version", "memory_snapshot_id", "experiment_id", "lab_actor_id",
+    "generation", "parent_snapshot", "items", "item_count",
+    "consultation_required_before_write", "cross_actor_read_allowed",
+    "cross_experiment_read_allowed", "product_memory_accessed",
+    "authority_summary", "integrity",
+  ], "$.memory");
   if (input.memory_version !== GOVERNED_ACTOR_LAB_MEMORY_VERSION_V01) failV01("actor_lab_memory_version_invalid");
   if (input.item_count !== input.items.length || input.items.length > 16) failV01("actor_lab_memory_item_count_invalid");
   if (input.cross_actor_read_allowed !== false || input.cross_experiment_read_allowed !== false || input.product_memory_accessed !== false) failV01("actor_lab_memory_isolation_invalid");
-  for (const item of input.items) {
+  if (input.parent_snapshot !== null) {
+    requiredIdV01(input.parent_snapshot.memory_snapshot_id, "$.parent_snapshot.memory_snapshot_id");
+    requiredFingerprintV01(input.parent_snapshot.memory_snapshot_fingerprint, "$.parent_snapshot.memory_snapshot_fingerprint");
+  }
+  for (const [index, item] of input.items.entries()) {
+    assertExactKeysV01(item, [
+      "memory_item_id", "memory_item_fingerprint", "experiment_id", "lab_actor_id",
+      "episode_id", "origin_candidate_id", "item_kind", "bounded_content",
+      "task_family_key", "applicability", "uncertainty", "limitations",
+      "source_refs", "support_status", "status", "supersedes_memory_item_id",
+      "superseded_by_memory_item_id", "retracts_memory_item_id",
+      "inherited_from_memory_item_ref", "intervention_evaluation_ref",
+      "quarantine_reasons", "directive_shaped_material", "hidden_holdout_material",
+    ], `$.items[${index}]`);
+    requiredIdV01(item.memory_item_id, `$.items[${index}].memory_item_id`);
+    requiredIdV01(item.episode_id, `$.items[${index}].episode_id`);
+    requiredIdV01(item.origin_candidate_id, `$.items[${index}].origin_candidate_id`);
+    requiredIdV01(item.task_family_key, `$.items[${index}].task_family_key`);
+    boundedTextV01(item.bounded_content, `$.items[${index}].bounded_content`, 800);
+    boundedTextV01(item.applicability, `$.items[${index}].applicability`, 800);
+    if (item.item_kind !== "procedural_operator_memory" && item.item_kind !== "evidence_retrieval_memory") failV01("actor_lab_memory_item_kind_invalid", `$.items[${index}].item_kind`);
+    if (item.support_status !== "support_validated" && item.support_status !== "unknown" && item.support_status !== "refused") failV01("actor_lab_memory_item_support_status_invalid", `$.items[${index}].support_status`);
+    if (item.status !== "current" && item.status !== "superseded" && item.status !== "retracted" && item.status !== "quarantined") failV01("actor_lab_memory_item_status_invalid", `$.items[${index}].status`);
+    if (item.source_refs.length === 0 || item.source_refs.length > 8) failV01("actor_lab_memory_item_sources_invalid", `$.items[${index}].source_refs`);
+    item.source_refs.forEach((source, sourceIndex) =>
+      validateSyntheticSourceV01(source, `$.items[${index}].source_refs[${sourceIndex}]`),
+    );
     if (item.experiment_id !== input.experiment_id || item.lab_actor_id !== input.lab_actor_id) failV01("actor_lab_memory_item_scope_mismatch");
     if (memoryItemFingerprintV01(item) !== item.memory_item_fingerprint) failV01("actor_lab_memory_item_fingerprint_mismatch");
+    if (item.inherited_from_memory_item_ref !== null) {
+      requiredIdV01(item.inherited_from_memory_item_ref.memory_item_id, `$.items[${index}].inherited_from_memory_item_ref.memory_item_id`);
+      requiredFingerprintV01(item.inherited_from_memory_item_ref.memory_item_fingerprint, `$.items[${index}].inherited_from_memory_item_ref.memory_item_fingerprint`);
+    }
+    if (item.intervention_evaluation_ref !== null) {
+      requiredIdV01(item.intervention_evaluation_ref.intervention_id, `$.items[${index}].intervention_evaluation_ref.intervention_id`);
+      requiredFingerprintV01(item.intervention_evaluation_ref.intervention_fingerprint, `$.items[${index}].intervention_evaluation_ref.intervention_fingerprint`);
+    }
   }
   assertAuthorityAllFalseV01(input.authority_summary);
   assertIntegrityV01(input, "$.integrity");
@@ -1664,7 +2730,46 @@ function validateMemoryCandidateV01(candidate: GovernedActorLabMemoryCandidateV0
   candidate.source_refs.forEach((source, index) =>
     validateSyntheticSourceV01(source, `$.source_refs[${index}]`),
   );
+  if (candidate.intervention_evaluation_ref !== null) {
+    requiredIdV01(candidate.intervention_evaluation_ref.intervention_id, "$.intervention_evaluation_ref.intervention_id");
+    requiredFingerprintV01(candidate.intervention_evaluation_ref.intervention_fingerprint, "$.intervention_evaluation_ref.intervention_fingerprint");
+  }
   scanForbiddenMaterialV01({ ...candidate, directive_shaped_material: false, hidden_holdout_material: false });
+}
+
+function assertInterventionEvaluationV01(
+  input: GovernedActorLabInterventionEvaluationV01,
+): void {
+  assertExactKeysV01(input, [
+    "intervention_id", "experiment_id", "episode_id", "evaluation_id",
+    "lab_actor_id", "memory_item_ref", "task_family_key", "source_ref",
+    "intervention_kind", "control", "treatment", "same_actor", "same_case",
+    "same_evaluator", "causal_scope", "general_causal_contribution_claimed",
+    "integrity",
+  ], "$.intervention_evaluation");
+  requiredIdV01(input.intervention_id, "$.intervention_id");
+  requiredIdV01(input.experiment_id, "$.experiment_id");
+  requiredIdV01(input.episode_id, "$.episode_id");
+  requiredIdV01(input.evaluation_id, "$.evaluation_id");
+  requiredIdV01(input.lab_actor_id, "$.lab_actor_id");
+  requiredIdV01(input.memory_item_ref.memory_item_id, "$.memory_item_ref.memory_item_id");
+  requiredFingerprintV01(input.memory_item_ref.memory_item_fingerprint, "$.memory_item_ref.memory_item_fingerprint");
+  validateSyntheticSourceV01(input.source_ref, "$.source_ref");
+  if (
+    input.intervention_kind !== "memory_item_present_vs_absent" ||
+    input.control.memory_item_present !== false ||
+    input.control.support_validated !== false ||
+    input.control.outcome_associated !== false ||
+    input.treatment.memory_item_present !== true ||
+    input.treatment.support_validated !== true ||
+    input.treatment.outcome_associated !== true ||
+    input.same_actor !== true ||
+    input.same_case !== true ||
+    input.same_evaluator !== true ||
+    input.causal_scope !== "exact_item_exact_episode_only" ||
+    input.general_causal_contribution_claimed !== false
+  ) failV01("actor_lab_intervention_relation_invalid");
+  assertIntegrityV01(input, "$.intervention_evaluation.integrity");
 }
 
 function validateGenerationPopulationV01(
@@ -1672,14 +2777,18 @@ function validateGenerationPopulationV01(
   actors: GovernedActorLabActorSnapshotV01[],
   memories: GovernedActorLabPrivateMemorySnapshotV01[],
   manifest: GovernedActorLabExperimentManifestV01,
+  requireExactActorMemoryBinding = true,
 ): void {
   if (actors.length !== 4 || memories.length !== 4) failV01("actor_lab_population_size_invalid");
   if (new Set(actors.map((actor) => actor.lab_actor_id)).size !== 4) failV01("actor_lab_actor_identity_duplicate");
+  const memoryByActor = new Map(memories.map((memory) => [memory.lab_actor_id, memory]));
   for (const actor of actors) {
     if (actor.actor_version !== GOVERNED_ACTOR_LAB_ACTOR_VERSION_V01 || actor.generation !== generation || actor.experiment_id !== manifest.experiment_id) failV01("actor_lab_actor_scope_invalid");
     if (actor.tool_manifest_fingerprint !== manifest.tool_manifest.integrity.fingerprint || actor.capability_ceiling_fingerprint !== manifest.tool_manifest.integrity.fingerprint) failV01("actor_lab_capability_scope_expanded");
     assertAuthorityAllFalseV01(actor.authority_summary);
     assertIntegrityV01(actor, "$.actor.integrity");
+    const memory = memoryByActor.get(actor.lab_actor_id);
+    if (!memory || (requireExactActorMemoryBinding && canonicalizeProtocolValueV01(actor.private_memory) !== canonicalizeProtocolValueV01(memoryRefV01(memory)))) failV01("actor_lab_actor_memory_binding_mismatch");
   }
   for (const memory of memories) {
     if (memory.generation !== generation) failV01("actor_lab_memory_generation_invalid");
@@ -1749,12 +2858,39 @@ function memoryItemFingerprintV01(item: GovernedActorLabMemoryItemV01): string {
   return createProtocolSha256V01(canonicalizeProtocolValueV01(copy));
 }
 
+function memoryItemRefV01(
+  item: GovernedActorLabMemoryItemV01,
+): { memory_item_id: string; memory_item_fingerprint: string } {
+  return {
+    memory_item_id: item.memory_item_id,
+    memory_item_fingerprint: item.memory_item_fingerprint,
+  };
+}
+
 function actorRefV01(actor: GovernedActorLabActorSnapshotV01): GovernedActorLabActorSnapshotReferenceV01 {
   return { actor_snapshot_id: actor.actor_snapshot_id, actor_snapshot_fingerprint: actor.integrity.fingerprint };
 }
 
 function memoryRefV01(memory: GovernedActorLabPrivateMemorySnapshotV01): GovernedActorLabMemorySnapshotReferenceV01 {
   return { memory_snapshot_id: memory.memory_snapshot_id, memory_snapshot_fingerprint: memory.integrity.fingerprint };
+}
+
+function evaluationRefV01(
+  episode: GovernedActorLabEpisodeArtifactV01,
+): GovernedActorLabEvaluationReferenceV01 {
+  return {
+    evaluation_id: episode.evaluation.evaluation_id,
+    evaluation_fingerprint: episode.evaluation.evaluation_fingerprint,
+  };
+}
+
+function interventionRefV01(
+  intervention: GovernedActorLabInterventionEvaluationV01,
+): GovernedActorLabInterventionEvaluationReferenceV01 {
+  return {
+    intervention_id: intervention.intervention_id,
+    intervention_fingerprint: intervention.integrity.fingerprint,
+  };
 }
 
 function mutationRefV01(mutation: GovernedActorLabMutationV01): GovernedActorLabMutationReferenceV01 {
@@ -1812,6 +2948,18 @@ function uniqueByCanonicalV01<T>(values: T[]): T[] {
   const map = new Map<string, T>();
   for (const value of values) map.set(canonicalizeProtocolValueV01(value), structuredClone(value));
   return [...map.values()];
+}
+
+function assertExactKeysV01(
+  input: object,
+  expectedKeys: string[],
+  path: string,
+): void {
+  const actual = Object.keys(input).sort(compareProtocolCodeUnitsV01);
+  const expected = [...expectedKeys].sort(compareProtocolCodeUnitsV01);
+  if (canonicalizeProtocolValueV01(actual) !== canonicalizeProtocolValueV01(expected)) {
+    failV01("actor_lab_serialized_shape_invalid", path);
+  }
 }
 
 function scanForbiddenMaterialV01(value: unknown, path = "$"): void {

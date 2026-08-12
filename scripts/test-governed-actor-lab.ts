@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdirSync,
   mkdtempSync,
+  existsSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -59,6 +60,35 @@ try {
     readFileSync(path.join(first.run_root, "report.json"), "utf8"),
     readFileSync(path.join(replay.run_root, "report.json"), "utf8"),
   );
+  for (const generation of pilot.generations) {
+    const generationRoot = path.join(first.run_root, `generation-${generation.generation}`);
+    assert.ok(existsSync(path.join(generationRoot, "actors")));
+    assert.ok(existsSync(path.join(generationRoot, "memory-at-episode-start")));
+    assert.ok(existsSync(path.join(generationRoot, "post-episode-memory")));
+    const actor = generation.actors_at_episode_start[0]!;
+    const actorArtifact = JSON.parse(
+      readFileSync(
+        path.join(generationRoot, "actors", `${actor.lab_actor_id.replaceAll(":", "_")}.json`),
+        "utf8",
+      ),
+    ) as typeof actor;
+    const startMemory = generation.memories_at_episode_start.find(
+      (memory) => memory.lab_actor_id === actor.lab_actor_id,
+    )!;
+    assert.deepEqual(actorArtifact.private_memory, {
+      memory_snapshot_id: startMemory.memory_snapshot_id,
+      memory_snapshot_fingerprint: startMemory.integrity.fingerprint,
+    });
+    assert.ok(
+      existsSync(
+        path.join(
+          generationRoot,
+          "post-episode-memory",
+          `${actor.lab_actor_id.replaceAll(":", "_")}.json`,
+        ),
+      ),
+    );
+  }
   assert.equal(
     readFileSync(path.join(first.run_root, "product-zero-effect-ledger.json"), "utf8"),
     `${canonicalizeGovernedActorLabValueV01(pilot.report.product_effects)}\n`,

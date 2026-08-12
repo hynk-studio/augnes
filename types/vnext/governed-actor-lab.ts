@@ -204,6 +204,27 @@ export interface GovernedActorLabMemorySnapshotReferenceV01 {
   memory_snapshot_fingerprint: string;
 }
 
+export interface GovernedActorLabMemoryItemReferenceV01 {
+  memory_item_id: string;
+  memory_item_fingerprint: string;
+}
+
+export interface GovernedActorLabEvaluationReferenceV01 {
+  evaluation_id: string;
+  evaluation_fingerprint: string;
+}
+
+export interface GovernedActorLabInterventionEvaluationReferenceV01 {
+  intervention_id: string;
+  intervention_fingerprint: string;
+}
+
+export interface GovernedActorLabHarmObservationReferenceV01 {
+  observation_id: string;
+  observation_fingerprint: string;
+  observation_kind: "baseline_arm_harm" | "hidden_holdout_harm";
+}
+
 export interface GovernedActorLabActorSnapshotReferenceV01 {
   actor_snapshot_id: string;
   actor_snapshot_fingerprint: string;
@@ -264,6 +285,7 @@ export interface GovernedActorLabMemoryItemV01 {
   experiment_id: string;
   lab_actor_id: string;
   episode_id: string;
+  origin_candidate_id: string;
   item_kind: "procedural_operator_memory" | "evidence_retrieval_memory";
   bounded_content: string;
   task_family_key: string;
@@ -276,6 +298,8 @@ export interface GovernedActorLabMemoryItemV01 {
   supersedes_memory_item_id: string | null;
   superseded_by_memory_item_id: string | null;
   retracts_memory_item_id: string | null;
+  inherited_from_memory_item_ref: GovernedActorLabMemoryItemReferenceV01 | null;
+  intervention_evaluation_ref: GovernedActorLabInterventionEvaluationReferenceV01 | null;
   quarantine_reasons: string[];
   directive_shaped_material: false;
   hidden_holdout_material: false;
@@ -320,6 +344,7 @@ export interface GovernedActorLabMemoryCandidateV01 {
     | "matched_intervention"
     | "negative_verdict"
     | "unsupported";
+  intervention_evaluation_ref: GovernedActorLabInterventionEvaluationReferenceV01 | null;
   support_status: "support_validated" | "unknown" | "refused";
   directive_shaped_material: boolean;
   hidden_holdout_material: boolean;
@@ -358,6 +383,7 @@ export interface GovernedActorLabItemTraceV01 {
   causal_contribution:
     | "matched_intervention_supported"
     | "unknown_no_intervention";
+  intervention_evaluation_ref: GovernedActorLabInterventionEvaluationReferenceV01 | null;
   source_refs: GovernedActorLabSyntheticSourceV01[];
   limitations: string[];
 }
@@ -388,6 +414,34 @@ export interface GovernedActorLabActorEpisodeV01 {
     creates_product_transition: false;
   };
   item_traces: GovernedActorLabItemTraceV01[];
+}
+
+export interface GovernedActorLabInterventionEvaluationV01 {
+  intervention_id: string;
+  experiment_id: string;
+  episode_id: string;
+  evaluation_id: string;
+  lab_actor_id: string;
+  memory_item_ref: GovernedActorLabMemoryItemReferenceV01;
+  task_family_key: string;
+  source_ref: GovernedActorLabSyntheticSourceV01;
+  intervention_kind: "memory_item_present_vs_absent";
+  control: {
+    memory_item_present: false;
+    support_validated: false;
+    outcome_associated: false;
+  };
+  treatment: {
+    memory_item_present: true;
+    support_validated: true;
+    outcome_associated: true;
+  };
+  same_actor: true;
+  same_case: true;
+  same_evaluator: true;
+  causal_scope: "exact_item_exact_episode_only";
+  general_causal_contribution_claimed: false;
+  integrity: GovernedActorLabIntegrityV01;
 }
 
 export interface GovernedActorLabOutcomeVectorV01 {
@@ -457,6 +511,7 @@ export interface GovernedActorLabEpisodeArtifactV01 {
   actor_episodes: GovernedActorLabActorEpisodeV01[];
   evaluation: {
     evaluation_id: string;
+    evaluation_fingerprint: string;
     evaluator_fingerprint: string;
     frozen: true;
     frozen_before_memory_admission: true;
@@ -465,6 +520,7 @@ export interface GovernedActorLabEpisodeArtifactV01 {
       outcome: GovernedActorLabOutcomeVectorV01;
       complete: boolean;
     }>;
+    intervention_evaluations: GovernedActorLabInterventionEvaluationV01[];
   };
   memory_admissions: GovernedActorLabMemoryAdmissionV01[];
   product_effects: GovernedActorLabProductEffectLedgerV01;
@@ -502,6 +558,18 @@ export interface GovernedActorLabPopulationTransitionV01 {
   ordinal_ranking_created: false;
   global_winner_created: false;
   product_promotion_created: false;
+  selection_evaluation_ref: GovernedActorLabEvaluationReferenceV01;
+  parent_post_episode_memory_refs: Array<{
+    lab_actor_id: string;
+    memory: GovernedActorLabMemorySnapshotReferenceV01;
+  }>;
+  child_start_memory_refs: Array<{
+    lab_actor_id: string;
+    parent_lab_actor_id: string;
+    memory: GovernedActorLabMemorySnapshotReferenceV01;
+  }>;
+  branch_memory_policy: "inherit_admissible_private_memory";
+  branch_memory_reset_intervention: false;
   mutations: GovernedActorLabMutationV01[];
   child_actor_refs: GovernedActorLabActorSnapshotReferenceV01[];
   integrity: GovernedActorLabIntegrityV01;
@@ -521,17 +589,48 @@ export interface GovernedActorLabHoldoutFixtureV01 {
 }
 
 export interface GovernedActorLabBaselineObservationV01 {
+  baseline_version: "governed_actor_lab_baseline_observation.v0.1";
+  observation_id: string;
   arm: GovernedActorLabBaselineArmV01;
+  experiment_id: string;
+  manifest_ref: {
+    experiment_id: string;
+    experiment_fingerprint: string;
+  };
+  evaluator: GovernedActorLabVersionBindingV01;
+  actor_engine: GovernedActorLabVersionBindingV01;
+  development_case_sequence: GovernedActorLabSyntheticSourceV01[];
+  hidden_holdout_ref: {
+    holdout_id: string;
+    holdout_fingerprint: string;
+  };
   budget_id: string;
   budget_fingerprint: string;
+  deterministic_seed: string;
+  arm_seed: string;
   exact_budget_match: true;
   persistent_memory: boolean;
   mutation_enabled: boolean;
   curated_knowledge: boolean;
+  execution: {
+    episode_count: 3;
+    actor_count: number;
+    memory_reset_count: number;
+    memory_persistence_setting: "none" | "private_cross_episode";
+    mutation_setting: "none" | "g0_to_g1_to_g2";
+    curated_input_refs: GovernedActorLabSyntheticSourceV01[];
+    single_actor_repetitions: number;
+    episode_evaluation_refs: GovernedActorLabEvaluationReferenceV01[];
+    transition_refs: Array<{
+      transition_id: string;
+      transition_fingerprint: string;
+    }>;
+  };
   outcome: GovernedActorLabOutcomeVectorV01;
   complete: boolean;
   mechanics_only: true;
   limitations: string[];
+  integrity: GovernedActorLabIntegrityV01;
 }
 
 export interface GovernedActorLabPromotionCandidateV01 {
@@ -542,8 +641,8 @@ export interface GovernedActorLabPromotionCandidateV01 {
   actor_lineage_refs: GovernedActorLabActorSnapshotReferenceV01[];
   unit: GovernedActorLabPromotionUnitV01;
   unit_ref: string;
-  supporting_evaluation_refs: string[];
-  harm_and_negative_transfer_refs: string[];
+  supporting_evaluation_refs: GovernedActorLabEvaluationReferenceV01[];
+  harm_and_negative_transfer_refs: GovernedActorLabHarmObservationReferenceV01[];
   limitations: string[];
   unknowns: string[];
   target_scope: string;
@@ -574,6 +673,14 @@ export interface GovernedActorLabReportV01 {
   report_id: string;
   report_kind: "deterministic_mechanics_and_substrate_proof";
   experiment_id: string;
+  manifest_ref: {
+    experiment_id: string;
+    experiment_fingerprint: string;
+  };
+  evaluator: GovernedActorLabVersionBindingV01;
+  actor_engine: GovernedActorLabVersionBindingV01;
+  development_case_sequence: GovernedActorLabSyntheticSourceV01[];
+  compute_budget: GovernedActorLabBudgetEnvelopeV01;
   generation_actor_refs: Array<{
     generation: GovernedActorLabGenerationV01;
     actors: GovernedActorLabActorSnapshotReferenceV01[];
@@ -582,8 +689,11 @@ export interface GovernedActorLabReportV01 {
     episode_id: string;
     episode_fingerprint: string;
   }>;
+  episode_evaluation_refs: GovernedActorLabEvaluationReferenceV01[];
   population_transitions: GovernedActorLabPopulationTransitionV01[];
   hidden_holdout_evaluation: {
+    evaluation_id: string;
+    evaluation_fingerprint: string;
     holdout_id: string;
     holdout_fingerprint: string;
     actor_state_frozen_before_read: true;
@@ -647,8 +757,9 @@ export interface GovernedActorLabPilotResultV01 {
   manifest: GovernedActorLabExperimentManifestV01;
   generations: Array<{
     generation: GovernedActorLabGenerationV01;
-    actors: GovernedActorLabActorSnapshotV01[];
-    memories: GovernedActorLabPrivateMemorySnapshotV01[];
+    actors_at_episode_start: GovernedActorLabActorSnapshotV01[];
+    memories_at_episode_start: GovernedActorLabPrivateMemorySnapshotV01[];
+    post_episode_memories: GovernedActorLabPrivateMemorySnapshotV01[];
   }>;
   episodes: GovernedActorLabEpisodeArtifactV01[];
   transitions: GovernedActorLabPopulationTransitionV01[];

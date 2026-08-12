@@ -33,8 +33,11 @@ process.stdout.write(
       report_fingerprint: result.report.integrity.fingerprint,
       generations: result.generations.map((entry) => ({
         generation: entry.generation,
-        actor_ids: entry.actors.map((actor) => actor.lab_actor_id),
-        memory_snapshot_fingerprints: entry.memories.map(
+        actor_ids: entry.actors_at_episode_start.map((actor) => actor.lab_actor_id),
+        start_memory_snapshot_fingerprints: entry.memories_at_episode_start.map(
+          (memory) => memory.integrity.fingerprint,
+        ),
+        post_episode_memory_snapshot_fingerprints: entry.post_episode_memories.map(
           (memory) => memory.integrity.fingerprint,
         ),
       })),
@@ -42,6 +45,14 @@ process.stdout.write(
         episode.memory_admissions.map((admission) => admission.operation),
       ),
       baseline_arms: result.report.baselines.map((baseline) => baseline.arm),
+      baseline_observations: result.report.baselines.map((baseline) => ({
+        arm: baseline.arm,
+        observation_id: baseline.observation_id,
+        holdout: baseline.outcome.holdout,
+        support_validated_claims: baseline.outcome.verification.support_validated_claims,
+        harmful_transfer_candidates: baseline.outcome.harm.harmful_transfer_candidates,
+        review_operations: baseline.outcome.burden.review_operations,
+      })),
       non_dominated_arms: result.report.non_dominance.non_dominated_arms,
       promotion_candidates: result.report.promotion_candidates.length,
       product_effects: result.report.product_effects,
