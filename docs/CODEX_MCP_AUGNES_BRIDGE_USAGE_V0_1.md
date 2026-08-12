@@ -172,8 +172,11 @@ authority.
 This is local Codex against a local checkout. Remote Codex, ChatGPT/mobile
 filesystem access, current-session continuous control, remote nodes, and
 broader cross-platform package support remain later work. CDX2B2B managed
-delegation and CDX2B4B Resume are macOS-only; CDX2B3A does not enable Windows
-Start or Resume.
+delegation and CDX2B4B Resume also run through the verified Windows 11 x64
+source-runtime lane added by CDX2B3B. The existing Apps MCP, Operator,
+Companion, strict route, attachment, envelope, run, checkpoint, provider,
+cancellation, and result owners are unchanged. Windows 10 and packaged Windows
+Start/Resume remain unavailable, and Resume is never automatic.
 
 ## Verification
 

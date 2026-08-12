@@ -75,6 +75,9 @@ const poisonedKeys = [
   "AWS_SECRET_ACCESS_KEY",
   "AZURE_OPENAI_API_KEY",
   "GOOGLE_API_KEY",
+  "INCLUDE",
+  "LIB",
+  "VSINSTALLDIR",
 ];
 
 let summary;
@@ -104,6 +107,12 @@ try {
     AWS_SECRET_ACCESS_KEY: "poisoned-aws-credential",
     AZURE_OPENAI_API_KEY: "poisoned-azure-credential",
     GOOGLE_API_KEY: "poisoned-google-credential",
+    INCLUDE: sentinelRoot,
+    LIB: sentinelRoot,
+    VSINSTALLDIR: sentinelRoot,
+    ProgramData: path.join(sentinelRoot, "program-data-location"),
+    LOCALAPPDATA: path.join(sentinelRoot, "ambient-local-app-data"),
+    APPDATA: path.join(sentinelRoot, "ambient-roaming-app-data"),
     NODE_ENV: "production",
   });
 
@@ -144,9 +153,12 @@ const result = {
   canonical_temp_root: process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null,
   runtime_state_dir: process.env.AUGNES_RUNTIME_STATE_DIR ?? null,
   home: process.env.HOME ?? null,
+  local_app_data: process.env.LOCALAPPDATA ?? null,
+  roaming_app_data: process.env.APPDATA ?? null,
   tmpdir: process.env.TMPDIR ?? null,
   browser_executable_path: process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? null,
   windows_repository_root: process.env.AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT ?? null,
+  program_data: process.env.ProgramData ?? null,
   forbidden_keys_present: forbidden.filter((key) => Object.hasOwn(process.env, key)),
 };
 process.stdout.write(JSON.stringify(result));`,
@@ -171,6 +183,8 @@ process.stdout.write(JSON.stringify(result));`,
     probeResult.canonical_temp_root,
     probeResult.runtime_state_dir,
     probeResult.home,
+    probeResult.local_app_data,
+    probeResult.roaming_app_data,
     probeResult.tmpdir,
   ]) {
     assert.equal(
@@ -183,6 +197,10 @@ process.stdout.write(JSON.stringify(result));`,
   assert.equal(
     probeResult.windows_repository_root,
     authorizedWindowsRepositoryRoot,
+  );
+  assert.equal(
+    probeResult.program_data,
+    path.join(sentinelRoot, "program-data-location"),
   );
   assert.deepEqual(probeResult.forbidden_keys_present, []);
   assert.equal(existsSync(safeChildDatabasePath), false);
@@ -216,6 +234,7 @@ process.stdout.write(JSON.stringify(result));`,
     forbidden_probe_keys_present: probeResult.forbidden_keys_present.length,
     allowed_browser_executable_path_preserved: true,
     allowed_windows_repository_root_preserved: true,
+    standard_windows_program_data_location_preserved: true,
     explicit_step_database_inside_canonical_root: true,
     explicit_step_database_outside_canonical_root_refused: true,
     child_home_tmp_runtime_and_database_uniquely_owned: true,

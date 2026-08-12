@@ -2001,7 +2001,7 @@ const RepositoryManagedResumeAuthoritySchema = z.object({
 
 const RepositoryExecutionEnvelopeSchema = z.object({
   envelope_version: z.literal("repository_execution_envelope.v0.1"),
-  platform: z.literal("darwin"),
+  platform: z.enum(["darwin", "win32"]),
   run_mode: z.literal("repository_attachment"),
   filesystem_scope: z.literal("exact_repository_root"),
   network_scope: z.literal("provider_egress_only"),

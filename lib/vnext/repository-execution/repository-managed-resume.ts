@@ -36,6 +36,7 @@ import {
   fingerprintProjectRootBindingV01,
   inspectPhysicalRootForExecutionV01,
   readExpectedDatabaseAdmissionStateV01,
+  readRepositoryManagedPlatformCapabilityV01,
   type RepositoryExecutionDependenciesV01,
 } from "@/lib/vnext/repository-execution/repository-execution";
 import {
@@ -240,10 +241,13 @@ export async function resumeRepositoryManagedDelegationV01(
   dependencies: RepositoryManagedResumeDependenciesV01 = {},
 ): Promise<RepositoryManagedResumeResultV01> {
   assertResumeInputV01(input);
-  if ((dependencies.platform ?? process.platform) !== "darwin") {
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
     return nonMutatingResultV01(
       "blocked",
-      "Explicit repository resume is supported only on verified local macOS filesystems.",
+      ordinaryPlatformBlockedTextV01(platformCapability.reason),
       input,
       service,
       true,
@@ -967,10 +971,13 @@ async function observeResumeReadySourceV01(
   dependencies: RepositoryManagedResumeDependenciesV01,
   now: string,
 ): Promise<ResumeSourceV01 | { preparation: RepositoryManagedResumePreparationV01 }> {
-  if ((dependencies.platform ?? process.platform) !== "darwin") {
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
     return { preparation: blockedPreparationV01(
       "unsupported",
-      "Explicit repository resume is supported only on verified local macOS filesystems.",
+      ordinaryPlatformBlockedTextV01(platformCapability.reason),
     ) };
   }
   const eligibility = await readRepositoryRunResumeEligibilityV01(db, {
@@ -1064,7 +1071,7 @@ async function observeResumeReadySourceV01(
     checkpoint_worktree_fingerprint: checkpoint.worktree_observation_fingerprint,
     runtime_instance_fingerprint: runtime.runtime_instance_fingerprint,
     runtime_generation_fingerprint: runtime.runtime_generation_fingerprint,
-    platform: "darwin" as const,
+    platform: platformCapability.platform,
     resume_mode: "explicit_same_run" as const,
   };
   return {
@@ -1183,6 +1190,12 @@ async function requireAdmittedAttemptSourceV01(
   runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
   allowRuntimeTransfer = false,
 ): Promise<ResumeSourceV01> {
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
+    refuse(platformCapability.reason);
+  }
   const run = readAutonomyRunLedgerRecord(attempt.run_id, { db });
   if (!run) refuse("repository_managed_resume_run_missing");
   const attachment = requireConsumedRepositoryRunAttachmentV01(db, run);
@@ -1269,8 +1282,10 @@ async function requireAdmittedAttemptSourceV01(
       expected.provider_thread_binding_fingerprint ||
     createProtocolSha256V01(canonicalizeProtocolValueV01(turn)) !==
       expected.provider_turn_binding_fingerprint ||
+    expected.platform !== platformCapability.platform ||
     physical.status !== "exact" ||
-    !physicalMatchesBaselineV01(physical, baseline) ||
+    physical.platform !== platformCapability.platform ||
+    !baselineMatchesObservation(baseline, physical) ||
     worktree.status !== "exact" ||
     worktree.observation_fingerprint !== checkpoint.worktree_observation_fingerprint ||
     fingerprintProjectRootBindingV01(registration.root_binding) !==
@@ -1309,6 +1324,12 @@ async function assertImmediateInvocationGateAndMarkV01(
   dependencies: RepositoryManagedResumeDependenciesV01,
   runtimeClaim: RepositoryManagedResumeRuntimeClaimV01,
 ): Promise<void> {
+  const platformCapability = readRepositoryManagedPlatformCapabilityV01(
+    dependencies,
+  );
+  if (platformCapability.status !== "available") {
+    refuse(platformCapability.reason);
+  }
   const registration = readCanonicalProjectWithRootV01(db, config);
   if (!registration) refuse("repository_managed_resume_launch_gate_changed");
   const physical = await inspectPhysicalRootForExecutionV01(
@@ -1423,9 +1444,11 @@ async function assertImmediateInvocationGateAndMarkV01(
         expected.provider_thread_binding_fingerprint ||
       createProtocolSha256V01(canonicalizeProtocolValueV01(turn)) !==
         expected.provider_turn_binding_fingerprint ||
+      expected.platform !== platformCapability.platform ||
       !controllerExactlyOwnsAttemptV01(controller, attempt, runtimeClaim) ||
       physical.status !== "exact" ||
-      !physicalMatchesBaselineV01(physical, baseline) ||
+      physical.platform !== platformCapability.platform ||
+      !baselineMatchesObservation(baseline, physical) ||
       physical.node_scope_fingerprint !== attachment.node_scope_fingerprint ||
       worktree.status !== "exact" ||
       worktree.observation_fingerprint !== checkpoint.worktree_observation_fingerprint
@@ -1985,16 +2008,6 @@ function externalRefForFingerprintV01(
   }
 }
 
-function physicalMatchesBaselineV01(
-  observation: Extract<
-    Awaited<ReturnType<typeof inspectPhysicalRootForExecutionV01>>,
-    { status: "exact" }
-  >,
-  baseline: NonNullable<ReturnType<typeof readPhysicalRootBaselineV01>>,
-): boolean {
-  return baselineMatchesObservation(baseline, observation);
-}
-
 function optionalExternalRefV01(
   value: unknown,
   type: "host_connection" | "host_session",
@@ -2042,6 +2055,19 @@ function strictNowV01(now: (() => string) | undefined): string {
     refuse("repository_managed_resume_clock_invalid", 500);
   }
   return value;
+}
+
+function ordinaryPlatformBlockedTextV01(reason: string): string {
+  if (reason === "repository_managed_delegation_windows_source_runtime_required") {
+    return "Explicit repository resume on Windows requires the verified local source runtime; Windows packaged runtime support is not available.";
+  }
+  if (
+    reason === "repository_managed_delegation_windows_architecture_unsupported" ||
+    reason === "repository_managed_delegation_windows_version_unsupported"
+  ) {
+    return "Explicit repository resume requires a verified Windows 11 x64 source runtime.";
+  }
+  return "Explicit repository resume is unavailable on this platform.";
 }
 
 function normalizeErrorV01(error: unknown): Error {

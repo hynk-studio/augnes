@@ -436,13 +436,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     try {
       await Promise.all([waitForHttp(`${appOrigin}/`), openCdp()]);
     } catch (error) {
-      const diagnostic = runtimeDiagnostic?.diagnostic({
-        supervisorExitCode: runtimeProcess?.exitCode ?? null,
-        supervisorSignal: runtimeProcess?.signalCode ?? null,
-      });
-      throw new Error(
-        `${error instanceof Error ? error.message : "operator_runtime_start_failed"}:supervisor=${publicToken(diagnostic?.last_supervisor_result_code ?? "none")}:reason=${publicToken(diagnostic?.last_public_reason_code ?? "none")}:database=${publicToken(diagnostic?.database_state ?? "none")}:child_exit=${Number.isInteger(diagnostic?.child_exit_code) ? diagnostic.child_exit_code : "none"}`,
-      );
+      throw runtimeReadinessError(error);
     }
     await assertLoopbackListener(appPort, runtimeProcess);
     timing.milestone("operator child route ready");
@@ -644,7 +638,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     await cdp.send("Network.clearBrowserCookies");
     await terminateRuntime();
     startRuntime(activeProjectId);
-    await waitForHttp(`${appOrigin}/`);
+    await waitForRuntimeReady();
   };
 
   const restartRuntimePreservingBrowserSession = async (
@@ -653,7 +647,25 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     await navigate("about:blank");
     await terminateRuntime();
     startRuntime(activeProjectId);
-    await waitForHttp(`${appOrigin}/`);
+    await waitForRuntimeReady();
+  };
+
+  const waitForRuntimeReady = async () => {
+    try {
+      await waitForHttp(`${appOrigin}/`);
+    } catch (error) {
+      throw runtimeReadinessError(error);
+    }
+  };
+
+  const runtimeReadinessError = (error) => {
+    const diagnostic = runtimeDiagnostic?.diagnostic({
+      supervisorExitCode: runtimeProcess?.exitCode ?? null,
+      supervisorSignal: runtimeProcess?.signalCode ?? null,
+    });
+    return new Error(
+      `${error instanceof Error ? error.message : "operator_runtime_start_failed"}:supervisor=${publicToken(diagnostic?.last_supervisor_result_code ?? "none")}:reason=${publicToken(diagnostic?.last_public_reason_code ?? "none")}:database=${publicToken(diagnostic?.database_state ?? "none")}:child_exit=${Number.isInteger(diagnostic?.child_exit_code) ? diagnostic.child_exit_code : "none"}`,
+    );
   };
 
   const pauseNextSemanticTransitionRequest = (action) => {

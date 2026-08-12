@@ -505,24 +505,25 @@ found every completion criterion in parent
 [Issue #87](https://github.com/hynk-studio/augnes-perspective-lab/issues/87)
 satisfied. PC6 is completed at main merge
 `a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6 implementation and merged-head
-completion criteria are complete; parent Issue #87 may be closed after this
-roadmap reconciliation merges and main is read back.
+completion criteria are complete, and parent Issue #87 is closed.
 
 ## Current
 
-No product phase is selected as Current. Closing PC6 does not by itself select
-the next product phase; every Next and Later lane remains separately
-authorized.
+### CDX2B3B verified Windows managed delegation
+
+[Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
+defines the current CDX2B3B slice. It enables the existing Browser-confirmed
+attachment-backed Start and explicit same-run Resume on the verified Windows 11
+x64 source-runtime lane on local fixed NTFS. One shared platform capability
+decision is rechecked before admission, after commit, and immediately before
+provider invocation. The existing MCP, Operator, Companion, strict route,
+attachment, envelope, run, checkpoint, provider, cancellation, result,
+RunReceipt, proposal, and semantic review owners remain canonical. Windows 10
+managed execution remains unclaimed and packaged Windows remains unsupported;
+no Windows runner, automatic Resume, second run/attachment, or broader authority
+is added.
 
 ## Next separately authorized work
-
-CDX2B3B [Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
-remains a separate open Windows managed-delegation runtime enablement lane and
-is not modified by this PC6 closeout. It may begin only after CDX2B3A has
-deciding Windows identity, attachment, source-runtime, and any claimed package
-evidence.
-CDX2B3A does not change the CDX2B2B Windows Start or CDX2B4B Windows Resume
-gates.
 
 C9, current-session attachment, automatic Resume after controller loss or
 Companion startup, Linux product rollout, remote nodes, long-horizon control,

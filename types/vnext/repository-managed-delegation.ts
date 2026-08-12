@@ -8,7 +8,7 @@ export const REPOSITORY_MANAGED_DELEGATION_START_VERSION_V01 =
 
 export interface RepositoryExecutionEnvelopeV01 {
   envelope_version: typeof REPOSITORY_EXECUTION_ENVELOPE_VERSION_V01;
-  platform: "darwin";
+  platform: "darwin" | "win32";
   run_mode: "repository_attachment";
   filesystem_scope: "exact_repository_root";
   network_scope: "provider_egress_only";
