@@ -804,6 +804,53 @@ export function buildGovernedActorLabPopulationTransitionV01(input: {
   };
 }
 
+/**
+ * Applies the merged C1 G0-to-G1-to-G2 selection, diversity, mutation, and
+ * admissible-memory inheritance semantics to a separately frozen evaluator
+ * projection. The synthetic episode projection is internal and is never
+ * persisted as a C1 episode artifact.
+ */
+export function buildGovernedActorLabPopulationTransitionFromFrozenEvaluationV01(
+  input: {
+    manifest: GovernedActorLabExperimentManifestV01;
+    actors: GovernedActorLabActorSnapshotV01[];
+    memories: GovernedActorLabPrivateMemorySnapshotV01[];
+    from_generation: 0 | 1;
+    to_generation: 1 | 2;
+    evaluation: {
+      evaluation_id: string;
+      evaluation_fingerprint: string;
+      actor_outcomes: GovernedActorLabEpisodeArtifactV01["evaluation"]["actor_outcomes"];
+    };
+  },
+): GovernedActorLabTransitionResultV01 {
+  requiredIdV01(input.evaluation.evaluation_id, "$.evaluation.evaluation_id");
+  if (!SHA256_PATTERN.test(input.evaluation.evaluation_fingerprint)) {
+    failV01(
+      "actor_lab_evaluation_fingerprint_invalid",
+      "$.evaluation.evaluation_fingerprint",
+    );
+  }
+  if (input.to_generation !== input.from_generation + 1) {
+    failV01("actor_lab_transition_episode_generation_mismatch");
+  }
+  const selectionProjection = {
+    generation: input.from_generation,
+    evaluation: {
+      evaluation_id: input.evaluation.evaluation_id,
+      evaluation_fingerprint: input.evaluation.evaluation_fingerprint,
+      actor_outcomes: structuredClone(input.evaluation.actor_outcomes),
+    },
+  } as unknown as GovernedActorLabEpisodeArtifactV01;
+  return buildGovernedActorLabPopulationTransitionV01({
+    manifest: input.manifest,
+    actors: input.actors,
+    memories: input.memories,
+    episode: selectionProjection,
+    to_generation: input.to_generation,
+  });
+}
+
 export function evaluateGovernedActorLabHiddenHoldoutV01(input: {
   manifest: GovernedActorLabExperimentManifestV01;
   actors: GovernedActorLabActorSnapshotV01[];
@@ -1339,6 +1386,27 @@ function rebaseFixedBaselinePopulationV01(input: {
     }),
   );
   return { actors, memories };
+}
+
+/** Reuses the merged C1 fixed-population reset/persistence semantics. */
+export function rebaseGovernedActorLabFixedPopulationV01(input: {
+  manifest: GovernedActorLabExperimentManifestV01;
+  actors: GovernedActorLabActorSnapshotV01[];
+  post_episode_memories: GovernedActorLabPrivateMemorySnapshotV01[];
+  to_generation: 1 | 2;
+  persistent: boolean;
+}): {
+  actors: GovernedActorLabActorSnapshotV01[];
+  memories: GovernedActorLabPrivateMemorySnapshotV01[];
+} {
+  assertValidGovernedActorLabManifestV01(input.manifest);
+  return rebaseFixedBaselinePopulationV01({
+    manifest: input.manifest,
+    actors: input.actors,
+    postEpisodeMemories: input.post_episode_memories,
+    toGeneration: input.to_generation,
+    persistent: input.persistent,
+  });
 }
 
 function baselineActorHardGateObservationsV01(

@@ -198,7 +198,8 @@ export function validateModelInvocationReceiptV02(
       }
     }
     if (
-      receipt.purpose === "strategic_advantage_transfer" &&
+      (receipt.purpose === "strategic_advantage_transfer" ||
+        receipt.purpose === "governed_actor_lab") &&
       receipt.status === "completed" &&
       (typeof receipt.normalized_output_fingerprint !== "string" ||
         !/^sha256:[0-9a-f]{64}$/.test(

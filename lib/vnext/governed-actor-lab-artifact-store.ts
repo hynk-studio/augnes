@@ -23,6 +23,8 @@ import {
   GOVERNED_ACTOR_LAB_ROOT_V01,
   type GovernedActorLabPilotResultV01,
 } from "@/types/vnext/governed-actor-lab";
+import { validateGovernedActorLabLiveCohortResultV01 } from "@/lib/vnext/governed-actor-lab-live";
+import type { GovernedActorLabLiveCohortResultV01 } from "@/types/vnext/governed-actor-lab-live";
 
 const SAFE_SEGMENT_PATTERN = /^[A-Za-z0-9._-]{1,200}$/u;
 
@@ -33,6 +35,19 @@ export interface GovernedActorLabArtifactWriteSummaryV01 {
   artifact_count: number;
   artifact_index_fingerprint: string;
   product_effects: ReturnType<typeof createGovernedActorLabProductEffectLedgerV01>;
+}
+
+export interface GovernedActorLabLiveArtifactWriteSummaryV01 {
+  lab_root: string;
+  run_root: string;
+  relative_run_root: string;
+  artifact_count: number;
+  artifact_index_fingerprint: string;
+  report_fingerprint: string;
+  cohort_fingerprint: string;
+  product_database_writes: 0;
+  core_writes: 0;
+  tracked_repository_files_written: false;
 }
 
 export class GovernedActorLabArtifactStoreErrorV01 extends Error {
@@ -169,6 +184,216 @@ export function writeGovernedActorLabPilotArtifactsV01(input: {
     artifact_count: artifacts.length + 1,
     artifact_index_fingerprint: indexFingerprint,
     product_effects: createGovernedActorLabProductEffectLedgerV01(),
+  };
+}
+
+export function prepareGovernedActorLabLiveArtifactRunV01(input: {
+  repository_root: string;
+  cohort_id: string;
+  run_label: string;
+}): { lab_root: string; run_root: string; relative_run_root: string } {
+  if (
+    !SAFE_SEGMENT_PATTERN.test(input.run_label) ||
+    input.run_label === "." ||
+    input.run_label === ".."
+  ) failV01("actor_lab_run_label_invalid");
+  const labRoot = resolveGovernedActorLabRootV01(input.repository_root);
+  const liveRoot = resolveGovernedActorLabArtifactPathV01(labRoot, "live-cohorts");
+  ensureDirectoryChainWithoutSymlinksV01(labRoot, liveRoot);
+  const cohortRoot = resolveGovernedActorLabArtifactPathV01(
+    labRoot,
+    "live-cohorts",
+    safeIdentifierSegmentV01(input.cohort_id),
+  );
+  ensureDirectoryChainWithoutSymlinksV01(labRoot, cohortRoot);
+  const runRoot = resolveGovernedActorLabArtifactPathV01(
+    labRoot,
+    "live-cohorts",
+    safeIdentifierSegmentV01(input.cohort_id),
+    input.run_label,
+  );
+  if (existsSync(runRoot)) {
+    if (lstatSync(runRoot).isSymbolicLink()) failV01("actor_lab_run_root_symlink_refused");
+    if (!lstatSync(runRoot).isDirectory()) failV01("actor_lab_run_root_not_directory");
+    if (readdirSync(runRoot).length > 0) failV01("actor_lab_run_root_not_clean");
+  } else {
+    ensureDirectoryChainWithoutSymlinksV01(labRoot, runRoot);
+  }
+  return {
+    lab_root: labRoot,
+    run_root: runRoot,
+    relative_run_root: path.relative(realpathSync(input.repository_root), runRoot),
+  };
+}
+
+export function beginGovernedActorLabLiveCohortAttemptV01(input: {
+  repository_root: string;
+  run_label: string;
+  result_identity: Pick<GovernedActorLabLiveCohortResultV01, "manifest" | "call_plan">;
+}): { lab_root: string; run_root: string; relative_run_root: string; attempt_fingerprint: string } {
+  const prepared = prepareGovernedActorLabLiveArtifactRunV01({
+    repository_root: input.repository_root,
+    cohort_id: input.result_identity.manifest.cohort_id,
+    run_label: input.run_label,
+  });
+  const attempt = {
+    attempt_version: "governed_actor_lab_live_cohort_attempt.v0.1",
+    cohort_id: input.result_identity.manifest.cohort_id,
+    cohort_fingerprint: input.result_identity.manifest.integrity.fingerprint,
+    source_repository_head_sha:
+      input.result_identity.manifest.source_repository_head_sha,
+    call_plan_fingerprint: input.result_identity.call_plan.integrity.fingerprint,
+    authorized_cohort_count: 1,
+    attempt_status: "started",
+    holdout_content_included: false,
+    retry_or_second_cohort_authorized: false,
+  };
+  const text = canonicalizeGovernedActorLabValueV01(attempt);
+  atomicWriteV01(prepared.run_root, ["cohort-attempt.json"], text);
+  return {
+    ...prepared,
+    attempt_fingerprint: createProtocolSha256V01(text),
+  };
+}
+
+export function writeGovernedActorLabLiveCohortArtifactsV01(input: {
+  repository_root: string;
+  run_label: string;
+  result: GovernedActorLabLiveCohortResultV01;
+}): GovernedActorLabLiveArtifactWriteSummaryV01 {
+  const result = validateGovernedActorLabLiveCohortResultV01(input.result);
+  let prepared: { lab_root: string; run_root: string; relative_run_root: string };
+  let existingAttempt: { path: string; fingerprint: string } | null = null;
+  try {
+    prepared = prepareGovernedActorLabLiveArtifactRunV01({
+      repository_root: input.repository_root,
+      cohort_id: result.manifest.cohort_id,
+      run_label: input.run_label,
+    });
+  } catch (error) {
+    if (
+      !(error instanceof GovernedActorLabArtifactStoreErrorV01) ||
+      error.code !== "actor_lab_run_root_not_clean"
+    ) throw error;
+    prepared = resolveGovernedActorLabLiveRunV01({
+      repository_root: input.repository_root,
+      cohort_id: result.manifest.cohort_id,
+      run_label: input.run_label,
+    });
+    const entries = readdirSync(prepared.run_root);
+    if (entries.length !== 1 || entries[0] !== "cohort-attempt.json") {
+      failV01("actor_lab_run_root_not_clean");
+    }
+    const attemptText = readFileSync(
+      path.join(prepared.run_root, "cohort-attempt.json"),
+      "utf8",
+    ).trimEnd();
+    const attempt = JSON.parse(attemptText) as Record<string, unknown>;
+    if (
+      attempt.cohort_id !== result.manifest.cohort_id ||
+      attempt.cohort_fingerprint !== result.manifest.integrity.fingerprint ||
+      attempt.source_repository_head_sha !==
+        result.manifest.source_repository_head_sha ||
+      attempt.call_plan_fingerprint !== result.call_plan.integrity.fingerprint ||
+      attempt.authorized_cohort_count !== 1 ||
+      attempt.attempt_status !== "started" ||
+      attempt.holdout_content_included !== false ||
+      attempt.retry_or_second_cohort_authorized !== false
+    ) failV01("actor_lab_live_attempt_binding_invalid");
+    existingAttempt = {
+      path: "cohort-attempt.json",
+      fingerprint: createProtocolSha256V01(attemptText),
+    };
+  }
+  const artifacts: Array<{ path: string; fingerprint: string }> = [];
+  if (existingAttempt) artifacts.push(existingAttempt);
+  writeArtifactV01(prepared.run_root, ["cohort-manifest.json"], result.manifest, artifacts);
+  writeArtifactV01(prepared.run_root, ["call-plan.json"], result.call_plan, artifacts);
+  for (const binding of result.invocation_bindings) {
+    writeArtifactV01(
+      prepared.run_root,
+      ["invocations", `${String(binding.call_order).padStart(3, "0")}.json`],
+      binding,
+      artifacts,
+    );
+  }
+  writeArtifactV01(prepared.run_root, ["live-report.json"], result.report, artifacts);
+  const effectLedger = {
+    ledger_version: "governed_actor_lab_live_effect_ledger.v0.1",
+    cohort_id: result.manifest.cohort_id,
+    bounded_provider_egress_attempts:
+      result.report.accounting.attempted_provider_calls,
+    provider_egress_owner: "existing_model_gateway",
+    product_database_writes: 0,
+    core_writes: 0,
+    task_context_writes: 0,
+    proposal_writes: 0,
+    review_decision_writes: 0,
+    transition_writes: 0,
+    policy_activations: 0,
+    personal_perspective_mutations: 0,
+    git_or_github_runtime_mutations: 0,
+    any_other_external_effects: 0,
+  };
+  writeArtifactV01(
+    prepared.run_root,
+    ["bounded-effect-ledger.json"],
+    effectLedger,
+    artifacts,
+  );
+  const index = {
+    index_version: "governed_actor_lab_live_artifact_index.v0.1",
+    cohort_id: result.manifest.cohort_id,
+    cohort_fingerprint: result.manifest.integrity.fingerprint,
+    source_repository_head_sha: result.manifest.source_repository_head_sha,
+    run_label: input.run_label,
+    artifacts: [...artifacts].sort((left, right) => left.path.localeCompare(right.path, "en")),
+    raw_provider_request_persisted: false,
+    raw_http_response_persisted: false,
+    raw_provider_response_persisted: false,
+    hidden_reasoning_persisted: false,
+    credential_or_authorization_material_persisted: false,
+    absolute_paths_persisted: false,
+    tracked_repository_files_written: false,
+    writes_outside_lab_root: false,
+    product_database_writes: 0,
+    core_writes: 0,
+  };
+  const indexText = canonicalizeGovernedActorLabValueV01(index);
+  const indexFingerprint = createProtocolSha256V01(indexText);
+  atomicWriteV01(prepared.run_root, ["artifact-index.json"], indexText);
+  return {
+    ...prepared,
+    artifact_count: artifacts.length + 1,
+    artifact_index_fingerprint: indexFingerprint,
+    report_fingerprint: result.report.integrity.fingerprint,
+    cohort_fingerprint: result.manifest.integrity.fingerprint,
+    product_database_writes: 0,
+    core_writes: 0,
+    tracked_repository_files_written: false,
+  };
+}
+
+function resolveGovernedActorLabLiveRunV01(input: {
+  repository_root: string;
+  cohort_id: string;
+  run_label: string;
+}) {
+  const labRoot = resolveGovernedActorLabRootV01(input.repository_root);
+  const runRoot = resolveGovernedActorLabArtifactPathV01(
+    labRoot,
+    "live-cohorts",
+    safeIdentifierSegmentV01(input.cohort_id),
+    input.run_label,
+  );
+  if (!existsSync(runRoot) || !lstatSync(runRoot).isDirectory()) {
+    failV01("actor_lab_run_root_not_directory");
+  }
+  if (lstatSync(runRoot).isSymbolicLink()) failV01("actor_lab_run_root_symlink_refused");
+  return {
+    lab_root: labRoot,
+    run_root: runRoot,
+    relative_run_root: path.relative(realpathSync(input.repository_root), runRoot),
   };
 }
 

@@ -45,6 +45,7 @@ import { runStrategicAdvantageTransferConformanceV01 } from "@/scripts/vnext-pro
 import { runStrategyCompositionCaseConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-case";
 import { runStrategyCompositionComparisonConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-comparison";
 import { runGovernedActorLabConformanceV01 } from "@/scripts/vnext-protocol-conformance/governed-actor-lab";
+import { runGovernedActorLabLiveConformanceV01 } from "@/scripts/vnext-protocol-conformance/governed-actor-lab-live";
 import { runBoundedAutomationCycleConformanceV01 } from "@/scripts/vnext-protocol-conformance/bounded-automation-cycle";
 import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol-conformance/project-verify-material";
 
@@ -607,6 +608,8 @@ try {
   const strategyCompositionComparisonSummary =
     runStrategyCompositionComparisonConformanceV01();
   const governedActorLabSummary = runGovernedActorLabConformanceV01();
+  const governedActorLabLiveSummary =
+    runGovernedActorLabLiveConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -681,6 +684,7 @@ try {
         strategy_composition_case: strategyCompositionCaseSummary,
         strategy_composition_comparison: strategyCompositionComparisonSummary,
         governed_actor_lab: governedActorLabSummary,
+        governed_actor_lab_live: governedActorLabLiveSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:
