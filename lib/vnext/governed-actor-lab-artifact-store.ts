@@ -23,8 +23,19 @@ import {
   GOVERNED_ACTOR_LAB_ROOT_V01,
   type GovernedActorLabPilotResultV01,
 } from "@/types/vnext/governed-actor-lab";
-import { validateGovernedActorLabLiveCohortResultV01 } from "@/lib/vnext/governed-actor-lab-live";
-import type { GovernedActorLabLiveCohortResultV01 } from "@/types/vnext/governed-actor-lab-live";
+import {
+  validateGovernedActorLabLiveCheckpointV01,
+  validateGovernedActorLabLiveCohortResultV01,
+  validateGovernedActorLabLiveIncompleteResultV01,
+  validateGovernedActorLabLiveInvocationBindingV01,
+} from "@/lib/vnext/governed-actor-lab-live";
+import type {
+  GovernedActorLabLiveCallPlanV01,
+  GovernedActorLabLiveCheckpointV01,
+  GovernedActorLabLiveCohortManifestV01,
+  GovernedActorLabLiveExecutionResultV01,
+  GovernedActorLabLiveInvocationBindingV01,
+} from "@/types/vnext/governed-actor-lab-live";
 
 const SAFE_SEGMENT_PATTERN = /^[A-Za-z0-9._-]{1,200}$/u;
 
@@ -48,6 +59,18 @@ export interface GovernedActorLabLiveArtifactWriteSummaryV01 {
   product_database_writes: 0;
   core_writes: 0;
   tracked_repository_files_written: false;
+}
+
+export interface GovernedActorLabLiveAttemptJournalV01 {
+  lab_root: string;
+  run_root: string;
+  relative_run_root: string;
+  attempt_fingerprint: string;
+  append_binding(binding: GovernedActorLabLiveInvocationBindingV01): void;
+  append_checkpoint(checkpoint: GovernedActorLabLiveCheckpointV01): void;
+  finalize(
+    result: GovernedActorLabLiveExecutionResultV01,
+  ): GovernedActorLabLiveArtifactWriteSummaryV01;
 }
 
 export class GovernedActorLabArtifactStoreErrorV01 extends Error {
@@ -229,8 +252,11 @@ export function prepareGovernedActorLabLiveArtifactRunV01(input: {
 export function beginGovernedActorLabLiveCohortAttemptV01(input: {
   repository_root: string;
   run_label: string;
-  result_identity: Pick<GovernedActorLabLiveCohortResultV01, "manifest" | "call_plan">;
-}): { lab_root: string; run_root: string; relative_run_root: string; attempt_fingerprint: string } {
+  result_identity: {
+    manifest: GovernedActorLabLiveCohortManifestV01;
+    call_plan: GovernedActorLabLiveCallPlanV01;
+  };
+}): GovernedActorLabLiveAttemptJournalV01 {
   const prepared = prepareGovernedActorLabLiveArtifactRunV01({
     repository_root: input.repository_root,
     cohort_id: input.result_identity.manifest.cohort_id,
@@ -245,79 +271,139 @@ export function beginGovernedActorLabLiveCohortAttemptV01(input: {
     call_plan_fingerprint: input.result_identity.call_plan.integrity.fingerprint,
     authorized_cohort_count: 1,
     attempt_status: "started",
+    route_identity_fingerprint:
+      input.result_identity.manifest.route.integrity_fingerprint,
     holdout_content_included: false,
-    retry_or_second_cohort_authorized: false,
+    retry_authorized: false,
+    second_cohort_authorized: false,
   };
   const text = canonicalizeGovernedActorLabValueV01(attempt);
   atomicWriteV01(prepared.run_root, ["cohort-attempt.json"], text);
+  writeArtifactDirectV01(
+    prepared.run_root,
+    ["cohort-manifest.json"],
+    input.result_identity.manifest,
+  );
+  writeArtifactDirectV01(
+    prepared.run_root,
+    ["call-plan.json"],
+    input.result_identity.call_plan,
+  );
+  let nextCallOrder = 0;
+  let checkpointCount = 0;
+  const checkpointIds = new Set<string>();
   return {
     ...prepared,
     attempt_fingerprint: createProtocolSha256V01(text),
+    append_binding(bindingInput) {
+      const planned = input.result_identity.call_plan.entries[nextCallOrder];
+      if (!planned) failV01("actor_lab_live_journal_call_order_exceeded");
+      const binding = validateGovernedActorLabLiveInvocationBindingV01(
+        bindingInput,
+        planned,
+        input.result_identity.manifest.route,
+      );
+      if (binding.call_order !== nextCallOrder) {
+        failV01("actor_lab_live_journal_non_monotonic_call_order");
+      }
+      atomicWriteV01(
+        prepared.run_root,
+        ["invocations", `${String(nextCallOrder).padStart(3, "0")}.json`],
+        canonicalizeGovernedActorLabValueV01(binding),
+      );
+      nextCallOrder += 1;
+    },
+    append_checkpoint(checkpointInput) {
+      const checkpoint = validateGovernedActorLabLiveCheckpointV01(
+        checkpointInput,
+        nextCallOrder,
+      );
+      if (
+        checkpoint.journal_prefix_length !== nextCallOrder ||
+        checkpointIds.has(checkpoint.checkpoint_id)
+      ) {
+        failV01("actor_lab_live_checkpoint_prefix_invalid");
+      }
+      checkpointIds.add(checkpoint.checkpoint_id);
+      atomicWriteV01(
+        prepared.run_root,
+        [
+          "checkpoints",
+          `${String(checkpointCount).padStart(3, "0")}-${safeIdentifierSegmentV01(checkpoint.arm)}-g${checkpoint.generation}.json`,
+        ],
+        canonicalizeGovernedActorLabValueV01(checkpoint),
+      );
+      checkpointCount += 1;
+    },
+    finalize(resultInput) {
+      const result = resultInput.result_kind === "complete"
+        ? validateGovernedActorLabLiveCohortResultV01(resultInput)
+        : validateGovernedActorLabLiveIncompleteResultV01(resultInput);
+      if (
+        result.manifest.integrity.fingerprint !==
+          input.result_identity.manifest.integrity.fingerprint ||
+        result.call_plan.integrity.fingerprint !==
+          input.result_identity.call_plan.integrity.fingerprint ||
+        result.invocation_bindings.length !== nextCallOrder ||
+        result.checkpoints.length !== checkpointCount ||
+        result.terminal_attempt.persisted_invocation_prefix !== nextCallOrder ||
+        result.terminal_attempt.persisted_checkpoint_count !== checkpointCount
+      ) {
+        failV01("actor_lab_live_journal_finalize_prefix_invalid");
+      }
+      return finalizeGovernedActorLabLiveJournalV01({
+        prepared,
+        run_label: input.run_label,
+        result,
+      });
+    },
   };
 }
 
 export function writeGovernedActorLabLiveCohortArtifactsV01(input: {
   repository_root: string;
   run_label: string;
-  result: GovernedActorLabLiveCohortResultV01;
+  result: GovernedActorLabLiveExecutionResultV01;
 }): GovernedActorLabLiveArtifactWriteSummaryV01 {
-  const result = validateGovernedActorLabLiveCohortResultV01(input.result);
-  let prepared: { lab_root: string; run_root: string; relative_run_root: string };
-  let existingAttempt: { path: string; fingerprint: string } | null = null;
-  try {
-    prepared = prepareGovernedActorLabLiveArtifactRunV01({
-      repository_root: input.repository_root,
-      cohort_id: result.manifest.cohort_id,
-      run_label: input.run_label,
-    });
-  } catch (error) {
-    if (
-      !(error instanceof GovernedActorLabArtifactStoreErrorV01) ||
-      error.code !== "actor_lab_run_root_not_clean"
-    ) throw error;
-    prepared = resolveGovernedActorLabLiveRunV01({
-      repository_root: input.repository_root,
-      cohort_id: result.manifest.cohort_id,
-      run_label: input.run_label,
-    });
-    const entries = readdirSync(prepared.run_root);
-    if (entries.length !== 1 || entries[0] !== "cohort-attempt.json") {
-      failV01("actor_lab_run_root_not_clean");
+  const journal = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: input.repository_root,
+    run_label: input.run_label,
+    result_identity: input.result,
+  });
+  const checkpointsByPrefix = new Map<number, GovernedActorLabLiveCheckpointV01[]>();
+  for (const checkpoint of input.result.checkpoints) {
+    const entries = checkpointsByPrefix.get(checkpoint.journal_prefix_length) ?? [];
+    entries.push(checkpoint);
+    checkpointsByPrefix.set(checkpoint.journal_prefix_length, entries);
+  }
+  for (const binding of input.result.invocation_bindings) {
+    journal.append_binding(binding);
+    for (const checkpoint of checkpointsByPrefix.get(binding.call_order + 1) ?? []) {
+      journal.append_checkpoint(checkpoint);
     }
-    const attemptText = readFileSync(
-      path.join(prepared.run_root, "cohort-attempt.json"),
-      "utf8",
-    ).trimEnd();
-    const attempt = JSON.parse(attemptText) as Record<string, unknown>;
-    if (
-      attempt.cohort_id !== result.manifest.cohort_id ||
-      attempt.cohort_fingerprint !== result.manifest.integrity.fingerprint ||
-      attempt.source_repository_head_sha !==
-        result.manifest.source_repository_head_sha ||
-      attempt.call_plan_fingerprint !== result.call_plan.integrity.fingerprint ||
-      attempt.authorized_cohort_count !== 1 ||
-      attempt.attempt_status !== "started" ||
-      attempt.holdout_content_included !== false ||
-      attempt.retry_or_second_cohort_authorized !== false
-    ) failV01("actor_lab_live_attempt_binding_invalid");
-    existingAttempt = {
-      path: "cohort-attempt.json",
-      fingerprint: createProtocolSha256V01(attemptText),
-    };
   }
-  const artifacts: Array<{ path: string; fingerprint: string }> = [];
-  if (existingAttempt) artifacts.push(existingAttempt);
-  writeArtifactV01(prepared.run_root, ["cohort-manifest.json"], result.manifest, artifacts);
-  writeArtifactV01(prepared.run_root, ["call-plan.json"], result.call_plan, artifacts);
-  for (const binding of result.invocation_bindings) {
-    writeArtifactV01(
-      prepared.run_root,
-      ["invocations", `${String(binding.call_order).padStart(3, "0")}.json`],
-      binding,
-      artifacts,
-    );
-  }
-  writeArtifactV01(prepared.run_root, ["live-report.json"], result.report, artifacts);
+  return journal.finalize(input.result);
+}
+
+function finalizeGovernedActorLabLiveJournalV01(input: {
+  prepared: { lab_root: string; run_root: string; relative_run_root: string };
+  run_label: string;
+  result: GovernedActorLabLiveExecutionResultV01;
+}): GovernedActorLabLiveArtifactWriteSummaryV01 {
+  const { prepared, result } = input;
+  const artifacts = readExistingLiveArtifactIndexV01(prepared.run_root);
+  writeArtifactV01(
+    prepared.run_root,
+    ["terminal-attempt.json"],
+    result.terminal_attempt,
+    artifacts,
+  );
+  writeArtifactV01(
+    prepared.run_root,
+    [result.result_kind === "complete" ? "live-report.json" : "live-incomplete-report.json"],
+    result.report,
+    artifacts,
+  );
   const effectLedger = {
     ledger_version: "governed_actor_lab_live_effect_ledger.v0.1",
     cohort_id: result.manifest.cohort_id,
@@ -347,6 +433,7 @@ export function writeGovernedActorLabLiveCohortArtifactsV01(input: {
     cohort_fingerprint: result.manifest.integrity.fingerprint,
     source_repository_head_sha: result.manifest.source_repository_head_sha,
     run_label: input.run_label,
+    result_kind: result.result_kind,
     artifacts: [...artifacts].sort((left, right) => left.path.localeCompare(right.path, "en")),
     raw_provider_request_persisted: false,
     raw_http_response_persisted: false,
@@ -372,6 +459,37 @@ export function writeGovernedActorLabLiveCohortArtifactsV01(input: {
     core_writes: 0,
     tracked_repository_files_written: false,
   };
+}
+
+function readExistingLiveArtifactIndexV01(
+  runRoot: string,
+): Array<{ path: string; fingerprint: string }> {
+  const walk = (current: string): string[] =>
+    readdirSync(current).flatMap((entry) => {
+      const target = path.join(current, entry);
+      return lstatSync(target).isDirectory() ? walk(target) : [target];
+    });
+  return walk(runRoot)
+    .map((file) => {
+      const text = readFileSync(file, "utf8").trimEnd();
+      return {
+        path: path.relative(runRoot, file).split(path.sep).join("/"),
+        fingerprint: createProtocolSha256V01(text),
+      };
+    })
+    .sort((left, right) => left.path.localeCompare(right.path, "en"));
+}
+
+function writeArtifactDirectV01(
+  runRoot: string,
+  segments: string[],
+  value: unknown,
+): void {
+  atomicWriteV01(
+    runRoot,
+    segments,
+    canonicalizeGovernedActorLabValueV01(value),
+  );
 }
 
 function resolveGovernedActorLabLiveRunV01(input: {

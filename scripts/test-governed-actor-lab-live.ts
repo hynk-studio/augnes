@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   mkdtempSync,
   mkdirSync,
+  existsSync,
   readFileSync,
   readFileSync as readTextSync,
   readdirSync,
@@ -22,11 +23,15 @@ import {
   prepareGovernedActorLabLiveArtifactRunV01,
   resolveGovernedActorLabArtifactPathV01,
   writeGovernedActorLabLiveCohortArtifactsV01,
+  type GovernedActorLabLiveAttemptJournalV01,
 } from "@/lib/vnext/governed-actor-lab-artifact-store";
 import {
+  buildGovernedActorLabLiveIncompleteResultFromJournalV01,
   buildGovernedActorLabLiveCohortManifestV01,
+  evaluateGovernedActorLabLiveOutputV01,
   runGovernedActorLabLiveCohortV01,
   validateGovernedActorLabLiveCohortResultV01,
+  validateGovernedActorLabLiveIncompleteResultV01,
 } from "@/lib/vnext/governed-actor-lab-live";
 import {
   canonicalizeProtocolValueV01,
@@ -39,6 +44,7 @@ import {
 } from "@/lib/vnext/model-gateway/model-gateway";
 import {
   MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+  ModelGatewayInvocationErrorV01,
   isModelGatewayInvocationErrorV01,
   type GovernedActorLabModelInvocationEnvelopeV01,
   type ModelAdapterV01,
@@ -52,6 +58,7 @@ import {
   buildModelGatewayCostAuthorityV01,
   buildModelGatewayCostBudgetV01,
 } from "@/lib/vnext/model-gateway/cost-authority";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   parseGovernedActorLabOutputV01,
   validateGovernedActorLabModelInputV01,
@@ -67,9 +74,13 @@ import {
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import type {
   GovernedActorLabLiveCaseV01,
+  GovernedActorLabLiveExecutionResultV01,
+  GovernedActorLabLiveInvocationBindingV01,
   GovernedActorLabLiveModelInputV01,
   GovernedActorLabLiveModelOutputV01,
+  GovernedActorLabLivePeerArtifactV01,
 } from "@/types/vnext/governed-actor-lab-live";
+import type { ModelInvocationReceiptV02 } from "@/types/vnext/model-invocation-receipt";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-governed-actor-live-"));
 const repositoryRoot = path.join(root, "repository");
@@ -164,9 +175,15 @@ async function main() {
   });
   assert.equal(readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8"), ".augnes-lab/\n");
   assert.ok(preflight.relative_run_root.startsWith(".augnes-lab/perspective-evolution/live-cohorts/"));
+  const liveJournal = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: repositoryRoot,
+    run_label: "first-cohort",
+    result_identity: built,
+  });
 
   let maximumConcurrent = 0;
   let active = 0;
+  let gatewayStarts = 0;
   let firstEnvelope: GovernedActorLabModelInvocationEnvelopeV01 | null = null;
   const result = await runGovernedActorLabLiveCohortV01(
     {
@@ -178,6 +195,19 @@ async function main() {
     },
     {
       async invoke_gateway(envelope, dependencies) {
+        if (gatewayStarts > 0) {
+          assert.ok(
+            existsSync(
+              path.join(
+                liveJournal.run_root,
+                "invocations",
+                `${String(gatewayStarts - 1).padStart(3, "0")}.json`,
+              ),
+            ),
+            "the prior finalized binding must be durable before the next provider slot",
+          );
+        }
+        gatewayStarts += 1;
         firstEnvelope ??= envelope as GovernedActorLabModelInvocationEnvelopeV01;
         active += 1;
         maximumConcurrent = Math.max(maximumConcurrent, active);
@@ -192,10 +222,20 @@ async function main() {
         open_database: () => new Database(databasePath),
         read_root_availability: async () => "available",
       },
+      on_binding_finalized(binding) {
+        liveJournal.append_binding(binding);
+      },
+      on_checkpoint_finalized(checkpoint) {
+        liveJournal.append_checkpoint(checkpoint);
+      },
     },
   );
+  if (result.result_kind !== "complete") {
+    assert.fail("the successful 140-call mock lane must be complete");
+  }
   assert.equal(maximumConcurrent, 1);
   assert.equal(capturedRequests.length, 140);
+  const successfulMockCalls = capturedRequests.length;
   assert.equal(result.report.accounting.planned_calls, 140);
   assert.equal(result.report.accounting.attempted_provider_calls, 140);
   assert.equal(result.report.accounting.completed_live_calls, 140);
@@ -264,12 +304,8 @@ async function main() {
     }
   }
 
-  const artifactSummary = writeGovernedActorLabLiveCohortArtifactsV01({
-    repository_root: repositoryRoot,
-    run_label: "first-cohort",
-    result,
-  });
-  assert.equal(artifactSummary.artifact_count, 145);
+  const artifactSummary = liveJournal.finalize(result);
+  assert.ok(artifactSummary.artifact_count > 145);
   assert.equal(artifactSummary.product_database_writes, 0);
   assert.equal(artifactSummary.core_writes, 0);
   assert.equal(artifactSummary.tracked_repository_files_written, false);
@@ -300,12 +336,9 @@ async function main() {
     }),
     /actor_lab_run_root_not_clean/u,
   );
-  const markedSummary = writeGovernedActorLabLiveCohortArtifactsV01({
-    repository_root: repositoryRoot,
-    run_label: "single-attempt-marker",
-    result,
-  });
-  assert.equal(markedSummary.artifact_count, 146);
+  appendResultToJournalV01(markedAttempt, result);
+  const markedSummary = markedAttempt.finalize(result);
+  assert.equal(markedSummary.report_fingerprint, result.report.integrity.fingerprint);
   assert.throws(
     () => resolveGovernedActorLabArtifactPathV01(preflight.lab_root, "..", "escape"),
     /actor_lab_artifact_segment_invalid/u,
@@ -335,11 +368,39 @@ async function main() {
     admission,
     adapter,
   });
+  runEvaluationAndPeerContractCasesV01({
+    result,
+    casebook,
+    firstEnvelope,
+  });
+  const terminalResult = await runSelectionAndArmTerminalCasesV01({
+    sourceHead,
+    c1Manifest,
+    casebook,
+    route,
+    admission,
+    casesById,
+  });
+  await runUnknownInternalErrorCasesV01({
+    sourceHead,
+    c1Manifest,
+    casebook,
+    route,
+    admission,
+    adapter,
+    successfulReceipt: result.invocation_bindings[0]!.model_invocation_receipt!,
+  });
+  runJournalCrashAndTamperCasesV01({
+    result,
+    terminalResult,
+  });
+  runSourcePurityCasesV01(artifactText);
 
   console.log(JSON.stringify({
     status: "governed_actor_lab_live_non_live_tests_passed",
     planned_calls: 140,
-    mock_provider_calls: capturedRequests.length,
+    successful_mock_cohort_calls: successfulMockCalls,
+    additional_fake_transport_calls: capturedRequests.length - successfulMockCalls,
     max_parallel_provider_calls: maximumConcurrent,
     artifact_count: artifactSummary.artifact_count,
     report_fingerprint: artifactSummary.report_fingerprint,
@@ -433,6 +494,8 @@ async function runGatewayRefusalCasesV01(input: {
               accepted_peer_claim_tokens: [],
               rejected_peer_claim_tokens: [],
             },
+            referenced_memory_tokens: [],
+            referenced_curated_tokens: [],
             synthesis_token: input.envelope.input.actor_visible_case.allowed_result_tokens[0],
           }),
           usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 },
@@ -559,6 +622,9 @@ async function runIncompleteCohortCaseV01(input: {
       },
     },
   );
+  if (result.result_kind !== "truthful_incomplete") {
+    assert.fail("provider rejection must produce a truthful incomplete result");
+  }
   assert.equal(
     transportCalls,
     138,
@@ -570,8 +636,8 @@ async function runIncompleteCohortCaseV01(input: {
   assert.equal(result.report.accounting.completed_live_calls, 137);
   assert.equal(result.report.non_dominance.status, "undetermined");
   assert.equal(
-    result.report.arms.find((arm) => arm.arm === "single_strong_actor")!.comparable,
-    false,
+    result.report.arms.find((arm) => arm.arm === "single_strong_actor")!.status,
+    "incomplete",
   );
 }
 
@@ -611,10 +677,796 @@ async function runRouteDriftCohortCaseV01(input: {
       },
     },
   );
+  if (result.result_kind !== "truthful_incomplete") {
+    assert.fail("route drift must produce a truthful incomplete result");
+  }
   assert.equal(result.report.accounting.attempted_provider_calls, 0);
   assert.equal(result.report.accounting.route_changed, 140);
   assert.equal(result.report.accounting.provider_model_consistent, false);
   assert.equal(result.report.non_dominance.status, "undetermined");
+}
+
+function runEvaluationAndPeerContractCasesV01(input: {
+  result: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "complete" }>;
+  casebook: typeof governedActorLabLiveCasebookFixture;
+  firstEnvelope: GovernedActorLabModelInvocationEnvelopeV01;
+}): void {
+  const liveCase = input.casebook.development_cases[1];
+  const binding = input.result.invocation_bindings.find(
+    (candidate) =>
+      candidate.arm === "single_strong_actor" &&
+      candidate.generation === 1 &&
+      candidate.phase === "challenge_synthesis" &&
+      candidate.actor_slot === "slot-0",
+  )!;
+  const peerBlind = input.result.invocation_bindings.find(
+    (candidate) =>
+      candidate.arm === binding.arm &&
+      candidate.generation === binding.generation &&
+      candidate.phase === "blind_solve" &&
+      candidate.actor_slot === binding.peer_slot,
+  )!;
+  const peerArtifact = peerArtifactFromBindingV01(peerBlind);
+  const evaluate = (
+    candidate: GovernedActorLabLiveInvocationBindingV01,
+    peer: GovernedActorLabLivePeerArtifactV01 | null = peerArtifact,
+  ) => evaluateGovernedActorLabLiveOutputV01({
+    arm: candidate.arm,
+    generation: candidate.generation,
+    slot: candidate.actor_slot,
+    liveCase,
+    binding: candidate,
+    peerArtifact: peer,
+  });
+
+  const mismatch = cloneBindingWithOutputV01(binding, (output) => {
+    output.synthesis_token = liveCase.actor_visible.allowed_result_tokens.find(
+      (token) => token !== liveCase.evaluator_only.expected_result_token,
+    )!;
+  });
+  const mismatchEvaluation = evaluate(mismatch);
+  assert.equal(mismatchEvaluation.status, "fail");
+  assert.deepEqual(mismatchEvaluation.hard_gate_failure_codes, []);
+  assert.ok(
+    mismatchEvaluation.evaluation_failure_codes.includes(
+      "expected_result_mismatch",
+    ),
+  );
+
+  const supportMiss = cloneBindingWithOutputV01(binding, (output) => {
+    output.claim_candidates.forEach((claim) => {
+      claim.source_tokens = [];
+    });
+  });
+  const supportEvaluation = evaluate(supportMiss);
+  assert.equal(supportEvaluation.hard_gate_failure, false);
+  assert.ok(
+    supportEvaluation.evaluation_failure_codes.includes(
+      "required_support_missing",
+    ),
+  );
+
+  const peerIgnored = cloneBindingWithOutputV01(binding, (output) => {
+    output.challenge_response = {
+      peer_claim_tokens_considered: [],
+      accepted_peer_claim_tokens: [],
+      rejected_peer_claim_tokens: [],
+    };
+  });
+  const peerIgnoredEvaluation = evaluate(peerIgnored);
+  assert.equal(peerIgnoredEvaluation.hard_gate_failure, false);
+  assert.ok(
+    peerIgnoredEvaluation.evaluation_failure_codes.includes(
+      "peer_challenge_not_considered",
+    ),
+  );
+
+  const harmfulForbidden = cloneBindingWithOutputV01(binding, (output) => {
+    output.claim_candidates.push({
+      claim_token: liveCase.evaluator_only.forbidden_claim_tokens[0]!,
+      source_tokens: [liveCase.actor_visible.evidence_snippets[0]!.source_token],
+    });
+  });
+  const harmfulEvaluation = evaluate(harmfulForbidden);
+  assert.equal(harmfulEvaluation.hard_gate_failure, true);
+  assert.deepEqual(harmfulEvaluation.hard_gate_failure_codes, [
+    "forbidden_unsupported_claim",
+  ]);
+  assert.equal(
+    harmfulEvaluation.required_checks_passed,
+    harmfulEvaluation.checks.filter((check) => check.result === "pass").length,
+    "required-check accounting must derive from explicit predicate results",
+  );
+
+  const unknown = structuredClone(binding);
+  unknown.normalized_output = null;
+  unknown.normalized_output_fingerprint = null;
+  unknown.invocation_status = "provider_rejected";
+  const unknownEvaluation = evaluate(unknown);
+  assert.equal(unknownEvaluation.status, "unknown");
+  assert.equal(unknownEvaluation.required_checks_passed, null);
+  assert.ok(unknownEvaluation.checks.every((check) => check.result === "unknown"));
+
+  const zeroPeer = { ...peerArtifact, claim_candidates: [] };
+  const zeroPeerBinding = cloneBindingWithOutputV01(binding, (output) => {
+    output.challenge_response = {
+      peer_claim_tokens_considered: [],
+      accepted_peer_claim_tokens: [],
+      rejected_peer_claim_tokens: [],
+    };
+  });
+  const zeroPeerEvaluation = evaluate(zeroPeerBinding, zeroPeer);
+  const peerCheck = zeroPeerEvaluation.checks.find(
+    (check) => check.check_code === "peer_challenge_not_considered",
+  )!;
+  assert.equal(peerCheck.result, "pass");
+  assert.equal(peerCheck.basis, "no_addressable_peer_claim");
+
+  const blindInput = validateGovernedActorLabModelInputV01(
+    input.firstEnvelope.input,
+  );
+  const ownArtifact = { ...peerArtifact, peer_artifact_ref: "peer:own" };
+  const oneClaimPeer = {
+    ...peerArtifact,
+    peer_artifact_ref: "peer:challenge",
+    claim_candidates: peerArtifact.claim_candidates.slice(0, 1),
+  };
+  const challengeInput = validateGovernedActorLabModelInputV01({
+    ...blindInput,
+    phase: "challenge_synthesis",
+    own_blind_artifact: ownArtifact,
+    peer_challenge_artifact: oneClaimPeer,
+  });
+  const addressed = providerOutputV01(input.casebook.development_cases[0], challengeInput);
+  assert.deepEqual(
+    parseGovernedActorLabOutputV01(JSON.stringify(addressed), challengeInput)
+      .challenge_response.peer_claim_tokens_considered,
+    oneClaimPeer.claim_candidates.map((claim) => claim.claim_token),
+  );
+  const inventedPeer = structuredClone(addressed);
+  inventedPeer.challenge_response.peer_claim_tokens_considered = ["peer:invented"];
+  assert.throws(
+    () => parseGovernedActorLabOutputV01(JSON.stringify(inventedPeer), challengeInput),
+    /governed_actor_lab_output_invalid/u,
+  );
+  const zeroClaimInput = validateGovernedActorLabModelInputV01({
+    ...challengeInput,
+    own_blind_artifact: { ...ownArtifact, claim_candidates: [] },
+    peer_challenge_artifact: { ...oneClaimPeer, claim_candidates: [] },
+  });
+  const zeroClaimOutput = providerOutputV01(
+    input.casebook.development_cases[0],
+    zeroClaimInput,
+  );
+  assert.deepEqual(
+    parseGovernedActorLabOutputV01(JSON.stringify(zeroClaimOutput), zeroClaimInput)
+      .challenge_response.peer_claim_tokens_considered,
+    [],
+  );
+  const inventedMemory = structuredClone(zeroClaimOutput);
+  inventedMemory.referenced_memory_tokens = ["memory:invented"];
+  assert.throws(
+    () => parseGovernedActorLabOutputV01(JSON.stringify(inventedMemory), zeroClaimInput),
+    /governed_actor_lab_output_invalid/u,
+  );
+}
+
+async function runSelectionAndArmTerminalCasesV01(input: {
+  sourceHead: string;
+  c1Manifest: ReturnType<typeof createGovernedActorLabManifestV01>;
+  casebook: typeof governedActorLabLiveCasebookFixture;
+  route: NonNullable<Awaited<ReturnType<typeof prepareGovernedActorLabModelGatewayRouteV01>>>;
+  admission: ReturnType<typeof registerProjectV01>;
+  casesById: Map<string, GovernedActorLabLiveCaseV01>;
+}) {
+  const ordinary = await runTransformedMockCohortV01(input, (output, modelInput, liveCase) => {
+    if (
+      modelInput.invocation_context.arm === "persistent_evolutionary_population" &&
+      modelInput.invocation_context.generation === 0 &&
+      modelInput.phase === "challenge_synthesis"
+    ) {
+      output.synthesis_token = liveCase.actor_visible.allowed_result_tokens.find(
+        (token) => token !== liveCase.evaluator_only.expected_result_token,
+      )!;
+    }
+    return output;
+  });
+  if (ordinary.result.result_kind !== "complete") {
+    assert.fail("ordinary evaluation failures must not eliminate selection evidence");
+  }
+  const ordinaryEvolutionary = ordinary.result.report.arms.find(
+    (arm) => arm.arm === "persistent_evolutionary_population",
+  )!;
+  assert.equal(ordinaryEvolutionary.population_transitions.length, 2);
+  assert.equal(
+    ordinaryEvolutionary.evaluations.filter(
+      (evaluation) => evaluation.generation === 0 && evaluation.status === "fail",
+    ).length,
+    4,
+  );
+  assert.ok(
+    ordinaryEvolutionary.evaluations
+      .filter((evaluation) => evaluation.generation === 0)
+      .every((evaluation) => evaluation.hard_gate_failure === false),
+  );
+
+  const oneHardGate = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        modelInput.invocation_context.arm === "persistent_evolutionary_population" &&
+        modelInput.invocation_context.generation === 1 &&
+        modelInput.invocation_context.actor_slot === "slot-0" &&
+        modelInput.phase === "challenge_synthesis"
+      ) addForbiddenClaimV01(output, liveCase);
+      return output;
+    },
+  );
+  if (oneHardGate.result.result_kind !== "complete") {
+    assert.fail("one safely excluded actor must not poison the arm");
+  }
+  const continuingEvolution = oneHardGate.result.report.arms.find(
+    (arm) => arm.arm === "persistent_evolutionary_population",
+  )!;
+  assert.ok(
+    continuingEvolution.population_transitions[1]!
+      .hard_gate_excluded_actor_ids.length >= 1,
+  );
+  assert.ok(
+    continuingEvolution.population_transitions[1]!
+      .hard_gate_excluded_actor_ids.every(
+        (excluded) =>
+          !continuingEvolution.population_transitions[1]!.child_start_memory_refs.some(
+            (child) => child.lab_actor_id === excluded,
+          ),
+      ),
+    "C1 selection must not revive an excluded actor",
+  );
+  assert.equal(continuingEvolution.arm_level_hard_gate.failed, false);
+  assert.equal(continuingEvolution.comparison_eligible, true);
+
+  const evolutionaryTerminal = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        modelInput.invocation_context.arm === "persistent_evolutionary_population" &&
+        modelInput.invocation_context.generation === 1 &&
+        modelInput.phase === "challenge_synthesis"
+      ) addForbiddenClaimV01(output, liveCase);
+      return output;
+    },
+  );
+  if (evolutionaryTerminal.result.result_kind !== "truthful_incomplete") {
+    assert.fail("all-hard-gated evolutionary population must terminate its arm");
+  }
+  assert.equal(evolutionaryTerminal.calls, 128);
+  assert.equal(
+    evolutionaryTerminal.result.report.accounting.not_attempted_arm_terminal,
+    12,
+  );
+  assert.deepEqual(
+    evolutionaryTerminal.result.report.terminal_arms.map((terminal) => terminal.arm),
+    ["persistent_evolutionary_population"],
+  );
+  assert.ok(
+    evolutionaryTerminal.result.arm_terminals.every(
+      (terminal) =>
+        terminal.excluded_actors_revived === false &&
+        terminal.mutation_applied === false,
+    ),
+  );
+  const terminalArm = evolutionaryTerminal.result.report.arms.find(
+    (arm) => arm.arm === "persistent_evolutionary_population",
+  )!;
+  assert.equal(terminalArm.holdout_materialization, "not_materialized_arm_terminal");
+  assert.ok(
+    evolutionaryTerminal.result.invocation_bindings
+      .filter((binding) => binding.invocation_status === "not_attempted_arm_terminal")
+      .every(
+        (binding) =>
+          binding.frozen_actor_ref === null &&
+          binding.frozen_private_memory_ref === null &&
+          binding.last_terminal_state_ref !== null,
+      ),
+  );
+  assert.ok(
+    evolutionaryTerminal.result.report.arms
+      .filter((arm) => arm.arm !== "persistent_evolutionary_population")
+      .every((arm) => arm.holdout_materialization === "materialized"),
+  );
+  assert.equal(
+    evolutionaryTerminal.captured.some((request) => {
+      const material = requestModelMaterialV01(request);
+      return material.invocation_context.arm === "persistent_evolutionary_population" &&
+        material.phase === "holdout_blind";
+    }),
+    false,
+    "terminal-arm holdout actor-visible material must never reach provider material",
+  );
+
+  const allTerminal = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput, liveCase) => {
+      if (
+        modelInput.invocation_context.generation === 1 &&
+        modelInput.phase === "challenge_synthesis"
+      ) addForbiddenClaimV01(output, liveCase);
+      return output;
+    },
+  );
+  if (allTerminal.result.result_kind !== "truthful_incomplete") {
+    assert.fail("an all-arm terminal cohort must return a truthful incomplete report");
+  }
+  assert.equal(allTerminal.calls, 80);
+  assert.equal(allTerminal.result.report.terminal_arms.length, 5);
+  assert.equal(allTerminal.result.report.accounting.not_attempted_arm_terminal, 60);
+  assert.equal(allTerminal.result.report.non_dominance.status, "undetermined");
+
+  const zeroClaims = await runTransformedMockCohortV01(
+    input,
+    (output, modelInput) => {
+      if (modelInput.phase === "blind_solve") output.claim_candidates = [];
+      output.referenced_memory_tokens = [];
+      output.referenced_curated_tokens = [];
+      return output;
+    },
+  );
+  if (zeroClaims.result.result_kind !== "complete") {
+    assert.fail("zero-claim blind artifacts must not create an impossible peer contract");
+  }
+  assert.equal(zeroClaims.calls, 140);
+  assert.equal(
+    zeroClaims.result.report.arms.flatMap((arm) => arm.evaluations).some(
+      (evaluation) =>
+        evaluation.evaluation_failure_codes.includes(
+          "peer_challenge_not_considered",
+        ),
+    ),
+    false,
+  );
+  const persistent = zeroClaims.result.report.arms.find(
+    (arm) => arm.arm === "persistent_population_no_evolution",
+  )!;
+  assert.ok(persistent.metrics.actor_memory_presented > 0);
+  assert.equal(persistent.metrics.actor_memory_explicitly_referenced, 0);
+  assert.equal(persistent.metrics.actor_memory_actual_use, null);
+  const curated = zeroClaims.result.report.arms.find(
+    (arm) => arm.arm === "disposable_curated_knowledge",
+  )!;
+  assert.ok(curated.metrics.curated_material_presented > 0);
+  assert.equal(curated.metrics.curated_material_explicitly_referenced, 0);
+  assert.equal(curated.metrics.curated_material_actual_use, null);
+
+  return evolutionaryTerminal.result;
+}
+
+async function runTransformedMockCohortV01(
+  input: {
+    sourceHead: string;
+    c1Manifest: ReturnType<typeof createGovernedActorLabManifestV01>;
+    casebook: typeof governedActorLabLiveCasebookFixture;
+    route: NonNullable<Awaited<ReturnType<typeof prepareGovernedActorLabModelGatewayRouteV01>>>;
+    admission: ReturnType<typeof registerProjectV01>;
+    casesById: Map<string, GovernedActorLabLiveCaseV01>;
+  },
+  transform: Parameters<typeof providerTransportV01>[2],
+) {
+  const captured: OpenAIResponsesTransportRequestV01[] = [];
+  const adapter = createOpenAIResponsesAdapterV01({
+    environment: {
+      OPENAI_API_KEY: credentialSentinel,
+      OPENAI_MODEL: "governed-actor-test-model",
+    },
+    transport: providerTransportV01(input.casesById, captured, transform),
+  });
+  const result = await runGovernedActorLabLiveCohortV01(
+    {
+      source_repository_head_sha: input.sourceHead,
+      c1_manifest: input.c1Manifest,
+      casebook: structuredClone(input.casebook),
+      route: input.route,
+      admission: input.admission,
+    },
+    {
+      gateway_dependencies: {
+        adapter,
+        open_database: () => new Database(databasePath),
+        read_root_availability: async () => "available",
+      },
+    },
+  );
+  return { result, calls: captured.length, captured };
+}
+
+async function runUnknownInternalErrorCasesV01(input: {
+  sourceHead: string;
+  c1Manifest: ReturnType<typeof createGovernedActorLabManifestV01>;
+  casebook: typeof governedActorLabLiveCasebookFixture;
+  route: NonNullable<Awaited<ReturnType<typeof prepareGovernedActorLabModelGatewayRouteV01>>>;
+  admission: ReturnType<typeof registerProjectV01>;
+  adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>;
+  successfulReceipt: ModelInvocationReceiptV02;
+}): Promise<void> {
+  let unknownCalls = 0;
+  const unknown = await runGovernedActorLabLiveCohortV01(
+    {
+      source_repository_head_sha: input.sourceHead,
+      c1_manifest: input.c1Manifest,
+      casebook: structuredClone(input.casebook),
+      route: input.route,
+      admission: input.admission,
+    },
+    {
+      async invoke_gateway() {
+        unknownCalls += 1;
+        throw new Error("simulated_unknown_after_invocation_boundary");
+      },
+    },
+  );
+  if (unknown.result_kind !== "truthful_incomplete") {
+    assert.fail("an unknown receipt-free exception must stop with incomplete truth");
+  }
+  assert.equal(unknownCalls, 1);
+  assert.equal(unknown.invocation_bindings.length, 1);
+  assert.equal(
+    unknown.invocation_bindings[0]!.invocation_status,
+    "cohort_internal_error_receipt_unavailable",
+  );
+  assert.equal(
+    unknown.invocation_bindings[0]!.provider_attempt_status,
+    "unknown_receipt_unavailable",
+  );
+  assert.equal(unknown.report.accounting.attempted_provider_calls, null);
+  assert.equal(unknown.report.accounting.attempted_provider_calls_unknown_slots, 1);
+  assert.equal(unknown.report.accounting.transport_failed, 0);
+
+  let beforeEntryCalls = 0;
+  const beforeEntry = await runGovernedActorLabLiveCohortV01(
+    {
+      source_repository_head_sha: input.sourceHead,
+      c1_manifest: input.c1Manifest,
+      casebook: structuredClone(input.casebook),
+      route: input.route,
+      admission: input.admission,
+    },
+    {
+      before_gateway_entry() {
+        throw new Error("simulated_before_gateway_entry");
+      },
+      async invoke_gateway() {
+        beforeEntryCalls += 1;
+        throw new Error("unreachable");
+      },
+    },
+  );
+  if (beforeEntry.result_kind !== "truthful_incomplete") {
+    assert.fail("a pre-entry internal exception must produce incomplete truth");
+  }
+  assert.equal(beforeEntryCalls, 0);
+  assert.equal(beforeEntry.report.accounting.attempted_provider_calls, 0);
+  assert.equal(
+    beforeEntry.invocation_bindings[0]!.provider_attempt_status,
+    "known_not_attempted_local",
+  );
+
+  for (const failure of ["model_gateway_timeout", "model_gateway_transport_failed"] as const) {
+    let injected = false;
+    const result = await runGovernedActorLabLiveCohortV01(
+      {
+        source_repository_head_sha: input.sourceHead,
+        c1_manifest: input.c1Manifest,
+        casebook: structuredClone(input.casebook),
+        route: input.route,
+        admission: input.admission,
+      },
+      {
+        async invoke_gateway(envelope, dependencies) {
+          const typedEnvelope = envelope as GovernedActorLabModelInvocationEnvelopeV01;
+          if (!injected) {
+            injected = true;
+            throw new ModelGatewayInvocationErrorV01(
+              failure,
+              failureReceiptV01(input.successfulReceipt, typedEnvelope.invocation_id, failure),
+            );
+          }
+          return invokeGovernedActorLabModelGatewayV01(envelope, dependencies);
+        },
+        gateway_dependencies: {
+          adapter: input.adapter,
+          open_database: () => new Database(databasePath),
+          read_root_availability: async () => "available",
+        },
+      },
+    );
+    if (result.result_kind !== "truthful_incomplete") {
+      assert.fail(`${failure} must preserve a truthful incomplete result`);
+    }
+    const binding = result.invocation_bindings[0]!;
+    assert.ok(binding.model_invocation_receipt);
+    assert.equal(binding.provider_attempt_status, "receipt_attempted");
+    assert.equal(
+      binding.invocation_status,
+      failure === "model_gateway_timeout" ? "timed_out" : "transport_failed",
+    );
+  }
+}
+
+function runJournalCrashAndTamperCasesV01(input: {
+  result: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "complete" }>;
+  terminalResult: Extract<GovernedActorLabLiveExecutionResultV01, { result_kind: "truthful_incomplete" }>;
+}): void {
+  const crashJournal = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: repositoryRoot,
+    run_label: "crash-after-five",
+    result_identity: input.result,
+  });
+  input.result.invocation_bindings.slice(0, 5).forEach((binding) =>
+    crashJournal.append_binding(binding),
+  );
+  const reconstructed = buildGovernedActorLabLiveIncompleteResultFromJournalV01({
+    manifest: input.result.manifest,
+    call_plan: input.result.call_plan,
+    invocation_bindings: input.result.invocation_bindings.slice(0, 5),
+    checkpoints: [],
+    arm_terminals: [],
+  });
+  const crashSummary = crashJournal.finalize(reconstructed);
+  assert.equal(
+    readdirSync(path.join(crashSummary.run_root, "invocations")).length,
+    5,
+  );
+  assert.equal(reconstructed.report.accounting.receipt_bearing_attempted_calls, 5);
+  assert.equal(reconstructed.report.accounting.completed_live_calls, 5);
+  assert.equal(reconstructed.report.accounting.missing_call_slots, 135);
+  assert.ok(existsSync(path.join(crashSummary.run_root, "terminal-attempt.json")));
+
+  const duplicate = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: repositoryRoot,
+    run_label: "duplicate-refusal",
+    result_identity: input.result,
+  });
+  duplicate.append_binding(input.result.invocation_bindings[0]!);
+  assert.throws(
+    () => duplicate.append_binding(input.result.invocation_bindings[0]!),
+    /actor_lab|governed_actor_lab/u,
+  );
+  assert.throws(
+    () => beginGovernedActorLabLiveCohortAttemptV01({
+      repository_root: repositoryRoot,
+      run_label: "duplicate-refusal",
+      result_identity: input.result,
+    }),
+    /actor_lab_run_root_not_clean/u,
+  );
+  const gap = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: repositoryRoot,
+    run_label: "gap-refusal",
+    result_identity: input.result,
+  });
+  assert.throws(
+    () => gap.append_binding(input.result.invocation_bindings[1]!),
+    /governed_actor_lab_live_plan_binding_mismatch/u,
+  );
+  const checkpointGap = beginGovernedActorLabLiveCohortAttemptV01({
+    repository_root: repositoryRoot,
+    run_label: "checkpoint-gap-refusal",
+    result_identity: input.result,
+  });
+  input.result.invocation_bindings.slice(0, 7).forEach((binding) =>
+    checkpointGap.append_binding(binding),
+  );
+  assert.throws(
+    () => checkpointGap.append_checkpoint(input.result.checkpoints[0]!),
+    /governed_actor_lab_live_checkpoint_invalid|actor_lab_live_checkpoint_prefix_invalid/u,
+  );
+
+  for (const mutate of [
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.phase = "challenge_synthesis";
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.case_id = "live-case:tampered";
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.budget.max_output_tokens -= 1;
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.invocation_status = "provider_rejected";
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.model_invocation_receipt = null;
+      binding.model_invocation_receipt_fingerprint = null;
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.provider_ref.external_id = `${binding.provider_ref.external_id}-tampered`;
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.normalized_output_fingerprint = `sha256:${"0".repeat(64)}`;
+    },
+    (binding: GovernedActorLabLiveInvocationBindingV01) => {
+      binding.call_order = 1;
+    },
+  ]) {
+    const tampered = structuredClone(input.result);
+    mutate(tampered.invocation_bindings[0]!);
+    tampered.invocation_bindings[0] = resealIntegrityV01(
+      tampered.invocation_bindings[0]!,
+    );
+    assert.throws(() => validateGovernedActorLabLiveCohortResultV01(tampered));
+  }
+
+  const accountingTamper = structuredClone(input.result);
+  accountingTamper.report.accounting.attempted_provider_calls = 139;
+  accountingTamper.report.accounting = resealIntegrityV01(
+    accountingTamper.report.accounting,
+  );
+  accountingTamper.report = resealIntegrityV01(accountingTamper.report);
+  assert.throws(
+    () => validateGovernedActorLabLiveCohortResultV01(accountingTamper),
+    /governed_actor_lab_live_accounting_invalid/u,
+  );
+  const pairwiseTamper = structuredClone(input.result);
+  pairwiseTamper.report.comparisons[0]!.status =
+    pairwiseTamper.report.comparisons[0]!.status === "equal"
+      ? "tradeoff"
+      : "equal";
+  pairwiseTamper.report = resealIntegrityV01(pairwiseTamper.report);
+  assert.throws(
+    () => validateGovernedActorLabLiveCohortResultV01(pairwiseTamper),
+    /governed_actor_lab_live_comparison_derivation_invalid/u,
+  );
+
+  const dispositionTamper = structuredClone(input.terminalResult);
+  const terminalBindingIndex = dispositionTamper.invocation_bindings.findIndex(
+    (binding) => binding.invocation_status === "not_attempted_arm_terminal",
+  );
+  dispositionTamper.invocation_bindings[terminalBindingIndex]!.no_egress_disposition!.code =
+    "dependency_missing";
+  dispositionTamper.invocation_bindings[terminalBindingIndex] = resealIntegrityV01(
+    dispositionTamper.invocation_bindings[terminalBindingIndex]!,
+  );
+  assert.throws(
+    () => validateGovernedActorLabLiveIncompleteResultV01(dispositionTamper),
+    /governed_actor_lab_live_arm_terminal_binding_invalid/u,
+  );
+  const terminalReasonTamper = structuredClone(input.terminalResult);
+  terminalReasonTamper.arm_terminals[0]!.terminal_reason =
+    "tampered_terminal_reason" as never;
+  terminalReasonTamper.arm_terminals[0] = resealIntegrityV01(
+    terminalReasonTamper.arm_terminals[0]!,
+  );
+  assert.throws(() =>
+    validateGovernedActorLabLiveIncompleteResultV01(terminalReasonTamper),
+  );
+  const incompleteDominanceTamper = structuredClone(input.terminalResult);
+  incompleteDominanceTamper.report.non_dominance.status = "determined" as never;
+  incompleteDominanceTamper.report = resealIntegrityV01(
+    incompleteDominanceTamper.report,
+  );
+  assert.throws(() =>
+    validateGovernedActorLabLiveIncompleteResultV01(incompleteDominanceTamper),
+  );
+}
+
+function runSourcePurityCasesV01(artifactText: string): void {
+  const forbiddenRepositoryRoot = [
+    "",
+    "Users",
+    "hynk",
+    "code",
+    "augnes-temp",
+  ].join("/");
+  const macUserRootPrefix = ["", "Users", ""].join("/");
+  const sourceFiles = [
+    "types/vnext/governed-actor-lab-live.ts",
+    "fixtures/vnext/protocol/governed-actor-lab-live-v0-1.ts",
+    "lib/vnext/governed-actor-lab-live.ts",
+    "lib/vnext/governed-actor-lab-artifact-store.ts",
+    "lib/vnext/model-gateway/openai/governed-actor-lab-codec.ts",
+    "scripts/governed-actor-lab-live-cohort.ts",
+    "scripts/test-governed-actor-lab-live.ts",
+  ];
+  for (const sourceFile of sourceFiles) {
+    const source = readFileSync(path.join(process.cwd(), sourceFile), "utf8");
+    assert.ok(!source.includes(forbiddenRepositoryRoot));
+  }
+  assert.ok(!artifactText.includes(macUserRootPrefix));
+  assert.ok(!artifactText.includes(projectRoot));
+  assert.ok(
+    !readFileSync(
+      path.join(process.cwd(), "lib/vnext/governed-actor-lab-live.ts"),
+      "utf8",
+    ).includes(".includes(claim.claim_token)"),
+    "memory attribution must not use prose substring heuristics",
+  );
+}
+
+function peerArtifactFromBindingV01(
+  binding: GovernedActorLabLiveInvocationBindingV01,
+): GovernedActorLabLivePeerArtifactV01 {
+  assert.ok(binding.normalized_output);
+  assert.ok(binding.normalized_output_fingerprint);
+  return {
+    peer_artifact_ref: `peer:${binding.call_slot_id}`,
+    peer_slot: binding.actor_slot,
+    result_token: binding.normalized_output.result_token,
+    claim_candidates: structuredClone(binding.normalized_output.claim_candidates),
+    uncertainties: [...binding.normalized_output.uncertainties],
+    abstention: binding.normalized_output.abstention,
+    normalized_output_fingerprint: binding.normalized_output_fingerprint,
+  };
+}
+
+function cloneBindingWithOutputV01(
+  binding: GovernedActorLabLiveInvocationBindingV01,
+  mutate: (output: GovernedActorLabLiveModelOutputV01) => void,
+): GovernedActorLabLiveInvocationBindingV01 {
+  const candidate = structuredClone(binding);
+  assert.ok(candidate.normalized_output);
+  mutate(candidate.normalized_output);
+  candidate.normalized_output_fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(candidate.normalized_output),
+  );
+  return candidate;
+}
+
+function addForbiddenClaimV01(
+  output: GovernedActorLabLiveModelOutputV01,
+  liveCase: GovernedActorLabLiveCaseV01,
+): void {
+  output.claim_candidates.push({
+    claim_token: liveCase.evaluator_only.forbidden_claim_tokens[0]!,
+    source_tokens: [liveCase.actor_visible.evidence_snippets[0]!.source_token],
+  });
+}
+
+function requestModelMaterialV01(
+  request: OpenAIResponsesTransportRequestV01,
+): GovernedActorLabLiveModelInputV01 {
+  const body = JSON.parse(request.body) as Record<string, any>;
+  return {
+    input_kind: "governed_actor_lab",
+    codec_version: "governed_actor_lab_live_codec.v0.1",
+    ...JSON.parse(body.input[1].content[0].text),
+  } as GovernedActorLabLiveModelInputV01;
+}
+
+function failureReceiptV01(
+  successful: ModelInvocationReceiptV02,
+  invocationId: string,
+  failure:
+    | "model_gateway_timeout"
+    | "model_gateway_transport_failed",
+): ModelInvocationReceiptV02 {
+  const { normalized_output_fingerprint: _output, ...base } =
+    structuredClone(successful);
+  const timeout = failure === "model_gateway_timeout";
+  return validateModelInvocationReceiptV02({
+    ...base,
+    invocation_id: invocationId,
+    usage: null,
+    status: timeout ? "timed_out" : "failed",
+    outcome: timeout ? "timeout" : "provider_failure",
+    failure_code: failure,
+    trust_class: "direct_local_observation",
+    budget: {
+      ...base.budget,
+      output_tokens_used: null,
+      timeout_disposition: timeout ? "timed_out" : "completed_within_deadline",
+    },
+    cancellation_disposition: "not_cancelled",
+  });
+}
+
+function resealIntegrityV01<T extends { integrity: { fingerprint: string } }>(
+  value: T,
+): T {
+  const clone = structuredClone(value);
+  const { integrity: _integrity, ...withoutIntegrity } = clone;
+  clone.integrity.fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(withoutIntegrity),
+  );
+  return clone;
 }
 
 async function expectGatewayFailureV01(
@@ -631,6 +1483,11 @@ async function expectGatewayFailureV01(
 function providerTransportV01(
   casesById: Map<string, GovernedActorLabLiveCaseV01>,
   captured: OpenAIResponsesTransportRequestV01[],
+  transform?: (
+    output: GovernedActorLabLiveModelOutputV01,
+    input: GovernedActorLabLiveModelInputV01,
+    liveCase: GovernedActorLabLiveCaseV01,
+  ) => GovernedActorLabLiveModelOutputV01,
 ): OpenAIResponsesTransportV01 {
   return async (request) => {
     captured.push(request);
@@ -647,9 +1504,12 @@ function providerTransportV01(
       ok: true,
       status: 200,
       async json() {
+        const output = providerOutputV01(liveCase, modelInput);
         return {
           status: "completed",
-          output_text: JSON.stringify(providerOutputV01(liveCase, modelInput)),
+          output_text: JSON.stringify(
+            transform ? transform(output, modelInput, liveCase) : output,
+          ),
           usage: { input_tokens: 120, output_tokens: 32, total_tokens: 152 },
         };
       },
@@ -677,6 +1537,12 @@ function providerOutputV01(
       accepted_peer_claim_tokens: [...peerClaims],
       rejected_peer_claim_tokens: [],
     },
+    referenced_memory_tokens: input.admitted_private_memory.map(
+      (item) => item.memory_token,
+    ),
+    referenced_curated_tokens: input.curated_knowledge.map(
+      (item) => item.curated_token,
+    ),
     synthesis_token: liveCase.evaluator_only.expected_result_token,
   };
 }
@@ -740,4 +1606,25 @@ function readAllArtifactsV01(rootPath: string): string {
       return lstatSync(target).isDirectory() ? walk(target) : [target];
     });
   return walk(rootPath).map((file) => readTextSync(file, "utf8")).join("\n");
+}
+
+function appendResultToJournalV01(
+  journal: GovernedActorLabLiveAttemptJournalV01,
+  result: Extract<
+    Awaited<ReturnType<typeof runGovernedActorLabLiveCohortV01>>,
+    { result_kind: "complete" }
+  >,
+): void {
+  const checkpoints = new Map<number, typeof result.checkpoints>();
+  for (const checkpoint of result.checkpoints) {
+    const entries = checkpoints.get(checkpoint.journal_prefix_length) ?? [];
+    entries.push(checkpoint);
+    checkpoints.set(checkpoint.journal_prefix_length, entries);
+  }
+  for (const binding of result.invocation_bindings) {
+    journal.append_binding(binding);
+    for (const checkpoint of checkpoints.get(binding.call_order + 1) ?? []) {
+      journal.append_checkpoint(checkpoint);
+    }
+  }
 }

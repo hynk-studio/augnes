@@ -18,6 +18,11 @@ export function runGovernedActorLabLiveConformanceV01() {
     plan.entries.filter((entry) => entry.generation === "holdout").length,
     20,
   );
+  assert.ok(
+    plan.entries
+      .filter((entry) => entry.generation === "holdout")
+      .every((entry) => entry.phase === "holdout_blind" && entry.peer_slot === null),
+  );
   assert.equal(
     plan.entries.filter((entry) => entry.phase === "challenge_synthesis").length,
     60,
@@ -30,6 +35,7 @@ export function runGovernedActorLabLiveConformanceV01() {
     "lib/vnext/model-gateway/openai/responses-adapter.ts",
   );
   const typesSource = sourceV01("types/vnext/governed-actor-lab-live.ts");
+  const runnerSource = sourceV01("scripts/governed-actor-lab-live-cohort.ts");
   assert.ok(!liveSource.includes("fetch("), "the Lab must not own provider transport");
   assert.ok(!liveSource.includes("openDatabase"), "the Lab must not directly read the product database");
   assert.ok(!liveSource.includes("process.env"), "the Lab must not inspect credentials or provider configuration");
@@ -44,6 +50,11 @@ export function runGovernedActorLabLiveConformanceV01() {
   );
   assert.ok(!codecSource.includes("chain_of_thought"));
   assert.ok(!typesSource.includes("chain_of_thought"));
+  assert.ok(!liveSource.includes(".includes(claim.claim_token)"));
+  assert.ok(liveSource.includes("referenced_memory_tokens"));
+  assert.ok(liveSource.includes("not_attempted_arm_terminal"));
+  assert.ok(liveSource.includes("on_binding_finalized"));
+  assert.ok(!runnerSource.includes(["", "Users", "hynk", "code", "augnes-temp"].join("/")));
   assert.ok(typesSource.includes("raw_prompt_persisted: false"));
   assert.ok(typesSource.includes("raw_response_persisted: false"));
   assert.ok(typesSource.includes("hidden_reasoning_persisted: false"));

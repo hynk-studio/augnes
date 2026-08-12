@@ -24,14 +24,62 @@ export const GOVERNED_ACTOR_LAB_LIVE_CALL_PLAN_VERSION_V01 =
   "governed_actor_lab_live_call_plan.v0.1" as const;
 export const GOVERNED_ACTOR_LAB_LIVE_AGGREGATE_VERSION_V01 =
   "governed_actor_lab_live_aggregate.v0.1" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_INCOMPLETE_REPORT_VERSION_V01 =
+  "governed_actor_lab_live_incomplete_report.v0.1" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01 =
+  "governed_actor_lab_live_attempt.v0.1" as const;
+export const GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01 =
+  "governed_actor_lab_live_checkpoint.v0.1" as const;
 
 export const GOVERNED_ACTOR_LAB_LIVE_PHASES_V01 = [
   "blind_solve",
   "challenge_synthesis",
+  "holdout_blind",
 ] as const;
 
 export type GovernedActorLabLivePhaseV01 =
   (typeof GOVERNED_ACTOR_LAB_LIVE_PHASES_V01)[number];
+
+export const GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_CODES_V01 = [
+  "expected_result_mismatch",
+  "required_support_missing",
+  "forbidden_unsupported_claim",
+  "abstention_mismatch",
+  "peer_challenge_not_considered",
+] as const;
+
+export type GovernedActorLabLiveEvaluationCheckCodeV01 =
+  (typeof GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_CODES_V01)[number];
+
+export const GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_PREDICATES_V01 = [
+  "expected_result_matches",
+  "all_required_support_relations_present",
+  "no_forbidden_claim_present",
+  "abstention_matches",
+  "addressable_peer_claim_considered",
+] as const;
+
+export type GovernedActorLabLiveEvaluationCheckPredicateV01 =
+  (typeof GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_PREDICATES_V01)[number];
+
+export type GovernedActorLabLiveEvaluationCheckSeverityV01 =
+  | "ordinary_evaluation_failure"
+  | "selection_disqualifying_hard_gate";
+
+export interface GovernedActorLabLiveEvaluationCheckRuleV01 {
+  check_code: GovernedActorLabLiveEvaluationCheckCodeV01;
+  predicate: GovernedActorLabLiveEvaluationCheckPredicateV01;
+  severity: GovernedActorLabLiveEvaluationCheckSeverityV01;
+}
+
+export interface GovernedActorLabLiveEvaluationCheckResultV01
+  extends GovernedActorLabLiveEvaluationCheckRuleV01 {
+  result: "pass" | "fail" | "unknown";
+  basis:
+    | "deterministic_predicate"
+    | "no_addressable_peer_claim"
+    | "provider_output_unavailable";
+}
 
 export interface GovernedActorLabLiveAuthorityBoundaryV01 {
   gateway_authorization_project_is_lab_experiment_meaning: false;
@@ -95,7 +143,8 @@ export interface GovernedActorLabLiveEvaluatorCaseV01 {
   }>;
   forbidden_claim_tokens: string[];
   abstention_required: boolean;
-  required_checks: string[];
+  quality_dimensions: string[];
+  required_checks: GovernedActorLabLiveEvaluationCheckRuleV01[];
   harmful_transfer_trap: boolean;
   evaluator_answer_material_never_provider_visible: true;
 }
@@ -133,6 +182,7 @@ export interface GovernedActorLabLiveCasebookV01 {
 }
 
 export interface GovernedActorLabLivePrivateMemoryMaterialV01 {
+  memory_token: string;
   memory_item_ref: string;
   bounded_content: string;
   applicability: string;
@@ -142,6 +192,7 @@ export interface GovernedActorLabLivePrivateMemoryMaterialV01 {
 }
 
 export interface GovernedActorLabLiveCuratedMaterialV01 {
+  curated_token: string;
   curated_item_ref: string;
   bounded_content: string;
   source_tokens: string[];
@@ -206,6 +257,8 @@ export interface GovernedActorLabLiveModelOutputV01 {
     accepted_peer_claim_tokens: string[];
     rejected_peer_claim_tokens: string[];
   };
+  referenced_memory_tokens: string[];
+  referenced_curated_tokens: string[];
   synthesis_token: string;
 }
 
@@ -312,7 +365,57 @@ export type GovernedActorLabLiveInvocationStatusV01 =
   | "transport_failed"
   | "source_token_invalid"
   | "route_changed"
-  | "dependency_missing";
+  | "dependency_missing"
+  | "not_attempted_arm_terminal"
+  | "cohort_internal_error_receipt_unavailable";
+
+export type GovernedActorLabLiveProviderAttemptStatusV01 =
+  | "receipt_attempted"
+  | "receipt_not_attempted"
+  | "known_not_attempted_local"
+  | "unknown_receipt_unavailable";
+
+export type GovernedActorLabLiveArmTerminalReasonV01 =
+  "no_valid_population";
+
+export interface GovernedActorLabLiveArmTerminalV01 {
+  terminal_version: "governed_actor_lab_live_arm_terminal.v0.1";
+  terminal_id: string;
+  arm: GovernedActorLabBaselineArmV01;
+  terminal_generation: 0 | 1;
+  terminal_reason: GovernedActorLabLiveArmTerminalReasonV01;
+  selection_evaluation_ref: {
+    evaluation_id: string;
+    evaluation_fingerprint: string;
+  };
+  actor_evaluation_refs: Array<{
+    lab_actor_id: string;
+    evaluation_id: string;
+    evaluation_fingerprint: string;
+  }>;
+  actor_hard_gate_exclusions: Array<{
+    lab_actor_id: string;
+    evaluation_id: string;
+    hard_gate_failure_codes: GovernedActorLabLiveEvaluationCheckCodeV01[];
+  }>;
+  last_terminal_state_ref: string;
+  arm_state_frozen: true;
+  excluded_actors_revived: false;
+  mutation_applied: false;
+  product_authority: false;
+  promotion_authority: false;
+  integrity: GovernedActorLabIntegrityV01;
+}
+
+export interface GovernedActorLabLiveNoEgressDispositionV01 {
+  code:
+    | "dependency_missing"
+    | "route_changed"
+    | "not_attempted_arm_terminal"
+    | "cohort_internal_error_receipt_unavailable";
+  arm_terminal_ref: string | null;
+  arm_terminal_reason: GovernedActorLabLiveArmTerminalReasonV01 | null;
+}
 
 export interface GovernedActorLabLiveInvocationBindingV01 {
   binding_version: "governed_actor_lab_live_invocation_binding.v0.1";
@@ -321,15 +424,22 @@ export interface GovernedActorLabLiveInvocationBindingV01 {
   cohort_id: string;
   arm: GovernedActorLabBaselineArmV01;
   generation: 0 | 1 | 2 | "holdout";
+  episode_or_holdout_index: number;
   actor_slot: string;
-  lab_actor_id: string;
+  peer_slot: string | null;
+  lab_actor_id: string | null;
   phase: GovernedActorLabLivePhaseV01;
   case_id: string;
   case_fingerprint: string;
-  frozen_actor_ref: string;
+  frozen_actor_ref: string | null;
   frozen_private_memory_ref: string | null;
+  last_terminal_state_ref: string | null;
+  arm_terminal_ref: string | null;
   curated_material_refs: string[];
+  presented_memory_tokens: string[];
+  presented_curated_tokens: string[];
   peer_artifact_ref: string | null;
+  peer_claim_tokens_supplied: string[];
   normalized_output: GovernedActorLabLiveModelOutputV01 | null;
   normalized_output_fingerprint: string | null;
   model_invocation_receipt: ModelInvocationReceiptV02 | null;
@@ -337,6 +447,8 @@ export interface GovernedActorLabLiveInvocationBindingV01 {
   provider_ref: ExternalRefV01;
   model_ref: ExternalRefV01;
   invocation_status: GovernedActorLabLiveInvocationStatusV01;
+  provider_attempt_status: GovernedActorLabLiveProviderAttemptStatusV01;
+  no_egress_disposition: GovernedActorLabLiveNoEgressDispositionV01 | null;
   usage: ModelInvocationReceiptUsageV02 | null;
   latency_ms: number | null;
   budget: {
@@ -360,8 +472,10 @@ export interface GovernedActorLabLiveEvaluationV01 {
   actor_slot: string;
   case_id: string;
   status: "pass" | "fail" | "unknown";
+  checks: GovernedActorLabLiveEvaluationCheckResultV01[];
+  evaluation_failure_codes: GovernedActorLabLiveEvaluationCheckCodeV01[];
   hard_gate_failure: boolean | null;
-  hard_gate_failure_codes: string[];
+  hard_gate_failure_codes: GovernedActorLabLiveEvaluationCheckCodeV01[];
   required_checks_passed: number | null;
   required_checks_total: number;
   source_reference_coverage: number | null;
@@ -378,7 +492,9 @@ export interface GovernedActorLabLiveAggregateAccountingV01 {
   aggregate_version: typeof GOVERNED_ACTOR_LAB_LIVE_AGGREGATE_VERSION_V01;
   basis: "recomputed_from_model_invocation_receipts_and_local_refusals";
   planned_calls: 140;
-  attempted_provider_calls: number;
+  attempted_provider_calls: number | null;
+  receipt_bearing_attempted_calls: number;
+  attempted_provider_calls_unknown_slots: number;
   completed_live_calls: number;
   refused: number;
   provider_rejected: number;
@@ -389,6 +505,10 @@ export interface GovernedActorLabLiveAggregateAccountingV01 {
   source_token_invalid: number;
   route_changed: number;
   dependency_missing: number;
+  not_attempted_arm_terminal: number;
+  cohort_internal_error_receipt_unavailable: number;
+  journaled_slot_count: number;
+  missing_call_slots: number;
   input_bytes: number;
   input_tokens_provider_reported: number | null;
   output_tokens_provider_reported: number | null;
@@ -416,6 +536,24 @@ export interface GovernedActorLabLiveArmResultV01 {
   evaluations: GovernedActorLabLiveEvaluationV01[];
   memory_admissions: GovernedActorLabMemoryAdmissionV01[];
   population_transitions: GovernedActorLabPopulationTransitionV01[];
+  terminal: GovernedActorLabLiveArmTerminalV01 | null;
+  actor_evaluation_failures: number;
+  actor_selection_hard_gate_exclusions: number;
+  actor_unknowns: number;
+  arm_completion_status: "complete" | "terminal" | "incomplete";
+  arm_level_hard_gate: {
+    failed: boolean;
+    codes: Array<
+      | "no_valid_population"
+      | "required_arm_evaluation_incomplete"
+      | "route_model_inconsistency"
+      | "call_budget_violation"
+      | "holdout_leakage"
+      | "forbidden_authority_effect"
+      | "cohort_internal_error"
+      | "insufficient_required_observations"
+    >;
+  };
   holdout: {
     passed: number;
     failed: number;
@@ -423,6 +561,7 @@ export interface GovernedActorLabLiveArmResultV01 {
     state_frozen_before_materialization: true;
     memory_writes_after_holdout: 0;
     mutations_after_holdout: 0;
+    materialized: boolean;
   };
   metrics: {
     required_checks_passed: number | null;
@@ -432,7 +571,12 @@ export interface GovernedActorLabLiveArmResultV01 {
     abstentions: number | null;
     actor_memory_retrieved: number;
     actor_memory_presented: number;
-    actor_memory_used: number;
+    actor_memory_eligible: number;
+    actor_memory_explicitly_referenced: number;
+    actor_memory_actual_use: null;
+    curated_material_presented: number;
+    curated_material_explicitly_referenced: number;
+    curated_material_actual_use: null;
     contamination_quarantined: number;
     poisoning_refusals: number;
     harmful_transfer_candidates: number | null;
@@ -444,7 +588,68 @@ export interface GovernedActorLabLiveArmResultV01 {
     missingness: string[];
   };
   comparable: boolean;
+  comparison_eligible: boolean;
   non_comparable_reasons: string[];
+}
+
+export interface GovernedActorLabLiveCheckpointV01 {
+  checkpoint_version: typeof GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01;
+  checkpoint_id: string;
+  cohort_id: string;
+  arm: GovernedActorLabBaselineArmV01;
+  generation: 0 | 1 | 2;
+  actor_refs: Array<{
+    lab_actor_id: string;
+    actor_snapshot_id: string;
+    actor_snapshot_fingerprint: string;
+  }>;
+  memory_refs: Array<{
+    lab_actor_id: string;
+    memory_snapshot_id: string;
+    memory_snapshot_fingerprint: string;
+  }>;
+  evaluation_refs: Array<{
+    evaluation_id: string;
+    evaluation_fingerprint: string;
+  }>;
+  memory_admission_refs: Array<{
+    admission_id: string;
+    candidate_id: string;
+    resulting_memory_snapshot_id: string;
+    resulting_memory_snapshot_fingerprint: string;
+  }>;
+  transition_ref: {
+    transition_id: string;
+    transition_fingerprint: string;
+  } | null;
+  terminal_ref: {
+    terminal_id: string;
+    terminal_fingerprint: string;
+  } | null;
+  holdout_content_included: false;
+  journal_prefix_length: number;
+  integrity: GovernedActorLabIntegrityV01;
+}
+
+export type GovernedActorLabLiveAttemptStatusV01 =
+  | "complete"
+  | "truthful_incomplete"
+  | "blocked_pre_egress"
+  | "cohort_internal_error"
+  | "cancelled";
+
+export interface GovernedActorLabLiveTerminalAttemptV01 {
+  attempt_version: typeof GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01;
+  cohort_id: string;
+  status: GovernedActorLabLiveAttemptStatusV01;
+  terminal_reason: string;
+  persisted_invocation_prefix: number;
+  persisted_checkpoint_count: number;
+  missing_call_slots: number;
+  provider_attempt_count_unknown: boolean;
+  retry_authorized: false;
+  second_cohort_authorized: false;
+  integrity: GovernedActorLabIntegrityV01;
 }
 
 export interface GovernedActorLabLiveComparisonV01 {
@@ -460,6 +665,7 @@ export interface GovernedActorLabLiveReportV01 {
   report_version: typeof GOVERNED_ACTOR_LAB_LIVE_REPORT_VERSION_V01;
   report_id: string;
   report_kind: "bounded_live_model_governed_actor_lab_single_cohort";
+  completion_status: "complete";
   cohort_ref: {
     cohort_id: string;
     cohort_fingerprint: string;
@@ -511,8 +717,81 @@ export interface GovernedActorLabLiveReportV01 {
 }
 
 export interface GovernedActorLabLiveCohortResultV01 {
+  result_kind: "complete";
   manifest: GovernedActorLabLiveCohortManifestV01;
   call_plan: GovernedActorLabLiveCallPlanV01;
   invocation_bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+  terminal_attempt: GovernedActorLabLiveTerminalAttemptV01;
   report: GovernedActorLabLiveReportV01;
 }
+
+export interface GovernedActorLabLiveIncompleteArmV01 {
+  arm: GovernedActorLabBaselineArmV01;
+  status: "terminal" | "incomplete" | "frozen_g2";
+  terminal_ref: string | null;
+  terminal_reason: GovernedActorLabLiveArmTerminalReasonV01 | null;
+  latest_checkpoint_ref: string | null;
+  finalized_slots: number;
+  receipt_bearing_attempted_calls: number;
+  completed_live_calls: number;
+  holdout_materialization:
+    | "materialized"
+    | "not_materialized_arm_terminal"
+    | "not_reached";
+}
+
+export interface GovernedActorLabLiveIncompleteReportV01 {
+  report_version: typeof GOVERNED_ACTOR_LAB_LIVE_INCOMPLETE_REPORT_VERSION_V01;
+  report_id: string;
+  report_kind: "bounded_live_model_governed_actor_lab_truthful_incomplete";
+  completion_status: "truthful_incomplete";
+  cohort_ref: {
+    cohort_id: string;
+    cohort_fingerprint: string;
+  };
+  source_repository_head_sha: string;
+  route: GovernedActorLabLiveRouteV01;
+  accounting: GovernedActorLabLiveAggregateAccountingV01;
+  arms: GovernedActorLabLiveIncompleteArmV01[];
+  terminal_arms: Array<{
+    arm: GovernedActorLabBaselineArmV01;
+    terminal_ref: string;
+    terminal_reason: GovernedActorLabLiveArmTerminalReasonV01;
+  }>;
+  incomplete_arms: GovernedActorLabBaselineArmV01[];
+  comparisons: [
+    GovernedActorLabLiveComparisonV01,
+    GovernedActorLabLiveComparisonV01,
+    GovernedActorLabLiveComparisonV01,
+  ];
+  non_dominance: {
+    status: "undetermined";
+    non_dominated_arms: [];
+    tradeoffs: string[];
+    pairwise_better_is_global_winner: false;
+  };
+  holdout_materialization_complete: boolean;
+  stochastic_repeatability: "unmeasured_single_cohort";
+  verified_general_benefit: false;
+  global_winner_created: false;
+  product_promotion_created: false;
+  authority_boundary: GovernedActorLabLiveAuthorityBoundaryV01;
+  limitations: string[];
+  integrity: GovernedActorLabIntegrityV01;
+}
+
+export interface GovernedActorLabLiveIncompleteResultV01 {
+  result_kind: "truthful_incomplete";
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  call_plan: GovernedActorLabLiveCallPlanV01;
+  invocation_bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+  arm_terminals: GovernedActorLabLiveArmTerminalV01[];
+  terminal_attempt: GovernedActorLabLiveTerminalAttemptV01;
+  report: GovernedActorLabLiveIncompleteReportV01;
+}
+
+export type GovernedActorLabLiveExecutionResultV01 =
+  | GovernedActorLabLiveCohortResultV01
+  | GovernedActorLabLiveIncompleteResultV01;

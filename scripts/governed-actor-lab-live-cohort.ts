@@ -6,7 +6,6 @@ import { governedActorLabLiveCasebookFixture } from "@/fixtures/vnext/protocol/g
 import { createGovernedActorLabManifestV01 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import {
   beginGovernedActorLabLiveCohortAttemptV01,
-  writeGovernedActorLabLiveCohortArtifactsV01,
 } from "@/lib/vnext/governed-actor-lab-artifact-store";
 import {
   buildGovernedActorLabLiveCohortManifestV01,
@@ -19,7 +18,10 @@ import {
   readModelGatewayInteractiveAdmissionForRootV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 
-const EXPECTED_ROOT = "/Users/hynk/code/augnes-temp";
+const AUTHORIZED_ORIGINS = new Set([
+  "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+]);
 
 void main().catch((error) => {
   console.error("governed_actor_lab_live_cohort_failed");
@@ -29,8 +31,13 @@ void main().catch((error) => {
 
 async function main() {
   const options = parseArgumentsV01(process.argv.slice(2));
-  const repositoryRoot = realpathSync(process.cwd());
-  if (repositoryRoot !== EXPECTED_ROOT) failV01("live_cohort_repository_root_mismatch");
+  const repositoryRoot = realpathSync(options.repositoryRoot ?? process.cwd());
+  if (realpathSync(gitV01(repositoryRoot, ["rev-parse", "--show-toplevel"])) !== repositoryRoot) {
+    failV01("live_cohort_repository_root_mismatch");
+  }
+  if (!AUTHORIZED_ORIGINS.has(gitV01(repositoryRoot, ["remote", "get-url", "origin"]))) {
+    failV01("live_cohort_repository_origin_mismatch");
+  }
   if (!/^[0-9a-f]{40}$/u.test(options.sourceHead)) {
     failV01("live_cohort_source_head_invalid");
   }
@@ -91,7 +98,25 @@ async function main() {
         route,
         admission,
       },
-      { cancellation_signal: cancellation.signal },
+      {
+        cancellation_signal: cancellation.signal,
+        on_attempt_prepared(identity) {
+          if (
+            identity.manifest.integrity.fingerprint !==
+              prepared.manifest.integrity.fingerprint ||
+            identity.call_plan.integrity.fingerprint !==
+              prepared.call_plan.integrity.fingerprint
+          ) {
+            failV01("live_cohort_attempt_identity_changed");
+          }
+        },
+        on_binding_finalized(binding) {
+          attempt.append_binding(binding);
+        },
+        on_checkpoint_finalized(checkpoint) {
+          attempt.append_checkpoint(checkpoint);
+        },
+      },
     );
     const finalHead = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
     const finalTrackedStatus = gitV01(repositoryRoot, [
@@ -102,13 +127,9 @@ async function main() {
     if (finalHead !== options.sourceHead || finalTrackedStatus !== "") {
       failV01("live_cohort_source_head_changed_after_egress");
     }
-    const artifacts = writeGovernedActorLabLiveCohortArtifactsV01({
-      repository_root: repositoryRoot,
-      run_label: options.runLabel,
-      result,
-    });
+    const artifacts = attempt.finalize(result);
     console.log(JSON.stringify({
-      status: result.report.accounting.completed_live_calls === 140
+      status: result.result_kind === "complete"
         ? "live_cohort_complete"
         : "live_cohort_truthful_incomplete",
       source_repository_head_sha: result.manifest.source_repository_head_sha,
@@ -171,11 +192,13 @@ async function main() {
 function parseArgumentsV01(args: string[]) {
   let sourceHead: string | null = null;
   let runLabel: string | null = null;
+  let repositoryRoot: string | null = null;
   let confirmed = false;
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--source-head") sourceHead = args[++index] ?? null;
     else if (value === "--run-label") runLabel = args[++index] ?? null;
+    else if (value === "--repository-root") repositoryRoot = args[++index] ?? null;
     else if (value === "--confirm-first-cohort") confirmed = true;
     else failV01("live_cohort_argument_invalid");
   }
@@ -184,7 +207,7 @@ function parseArgumentsV01(args: string[]) {
   if (!/^[A-Za-z0-9._-]{1,200}$/u.test(label) || label === "." || label === "..") {
     failV01("live_cohort_run_label_invalid");
   }
-  return { sourceHead, runLabel: label };
+  return { sourceHead, runLabel: label, repositoryRoot };
 }
 
 function gitV01(repositoryRoot: string, args: string[]): string {

@@ -3,7 +3,7 @@ import {
   buildGovernedActorLabCuratedKnowledgeInputV01,
   buildGovernedActorLabGenerationZeroV01,
   buildGovernedActorLabPopulationTransitionFromFrozenEvaluationV01,
-  canonicalizeGovernedActorLabValueV01,
+  GovernedActorLabErrorV01,
   rebaseGovernedActorLabFixedPopulationV01,
   retrieveGovernedActorLabPrivateMemoryV01,
 } from "@/lib/vnext/governed-actor-lab";
@@ -42,11 +42,16 @@ import {
 } from "@/types/vnext/governed-actor-lab";
 import {
   GOVERNED_ACTOR_LAB_LIVE_AGGREGATE_VERSION_V01,
+  GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_CALL_PLAN_VERSION_V01,
+  GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_CODEC_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_COHORT_VERSION_V01,
+  GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_CODES_V01,
+  GOVERNED_ACTOR_LAB_LIVE_INCOMPLETE_REPORT_VERSION_V01,
   GOVERNED_ACTOR_LAB_LIVE_REPORT_VERSION_V01,
   type GovernedActorLabLiveAggregateAccountingV01,
+  type GovernedActorLabLiveArmTerminalV01,
   type GovernedActorLabLiveArmResultV01,
   type GovernedActorLabLiveAuthorityBoundaryV01,
   type GovernedActorLabLiveCallPlanEntryV01,
@@ -58,6 +63,9 @@ import {
   type GovernedActorLabLiveComparisonV01,
   type GovernedActorLabLiveCuratedMaterialV01,
   type GovernedActorLabLiveEvaluationV01,
+  type GovernedActorLabLiveExecutionResultV01,
+  type GovernedActorLabLiveCheckpointV01,
+  type GovernedActorLabLiveIncompleteResultV01,
   type GovernedActorLabLiveInvocationBindingV01,
   type GovernedActorLabLiveInvocationStatusV01,
   type GovernedActorLabLiveModelInputV01,
@@ -66,6 +74,7 @@ import {
   type GovernedActorLabLivePrivateMemoryMaterialV01,
   type GovernedActorLabLiveReportV01,
   type GovernedActorLabLiveRouteV01,
+  type GovernedActorLabLiveTerminalAttemptV01,
 } from "@/types/vnext/governed-actor-lab-live";
 import type {
   ModelGatewayCostBudgetV01,
@@ -101,6 +110,23 @@ export interface RunGovernedActorLabLiveCohortDependenciesV01 {
   invoke_gateway?: typeof invokeGovernedActorLabModelGatewayV01;
   gateway_dependencies?: GovernedActorLabModelGatewayDependenciesV01;
   cancellation_signal?: AbortSignal;
+  /** Production passes an already-created append-only attempt journal. */
+  on_attempt_prepared?: (input: {
+    manifest: GovernedActorLabLiveCohortManifestV01;
+    call_plan: GovernedActorLabLiveCallPlanV01;
+  }) => void | Promise<void>;
+  /** Awaited after sealing a slot and before any later provider slot starts. */
+  on_binding_finalized?: (
+    binding: GovernedActorLabLiveInvocationBindingV01,
+  ) => void | Promise<void>;
+  /** Awaited after each actual arm/episode evaluation freeze. */
+  on_checkpoint_finalized?: (
+    checkpoint: GovernedActorLabLiveCheckpointV01,
+  ) => void | Promise<void>;
+  /** Test-only boundary hook; production leaves it undefined. */
+  before_gateway_entry?: (
+    entry: GovernedActorLabLiveCallPlanEntryV01,
+  ) => void | Promise<void>;
 }
 
 interface ArmRuntimeStateV01 {
@@ -113,10 +139,15 @@ interface ArmRuntimeStateV01 {
   populationTransitions: GovernedActorLabLiveArmResultV01["population_transitions"];
   memoryRetrieved: number;
   memoryPresented: number;
-  memoryUsed: number;
+  memoryEligible: number;
+  memoryExplicitlyReferenced: number;
+  curatedPresented: number;
+  curatedExplicitlyReferenced: number;
   quarantined: number;
   streamInterference: number;
   frozenForHoldout: boolean;
+  holdoutMaterialized: boolean;
+  terminal: GovernedActorLabLiveArmTerminalV01 | null;
 }
 
 export function createGovernedActorLabLiveAuthorityBoundaryV01(): GovernedActorLabLiveAuthorityBoundaryV01 {
@@ -198,7 +229,7 @@ export function buildGovernedActorLabLiveCallPlanV01(
         callPlanEntryV01({
           callOrder: callOrder++,
           arm,
-          phase: "blind_solve",
+          phase: "holdout_blind",
           generation: "holdout",
           episodeOrHoldoutIndex: index,
           actorSlot: slot,
@@ -322,10 +353,11 @@ export function buildGovernedActorLabLiveCohortManifestV01(
 export async function runGovernedActorLabLiveCohortV01(
   input: RunGovernedActorLabLiveCohortInputV01,
   dependencies: RunGovernedActorLabLiveCohortDependenciesV01 = {},
-): Promise<GovernedActorLabLiveCohortResultV01> {
+): Promise<GovernedActorLabLiveExecutionResultV01> {
   const { manifest, call_plan: callPlan } =
     buildGovernedActorLabLiveCohortManifestV01(input);
   assertAdmissionV01(input.admission);
+  await dependencies.on_attempt_prepared?.({ manifest, call_plan: callPlan });
   const invokeGateway = dependencies.invoke_gateway ??
     invokeGovernedActorLabModelGatewayV01;
   const externalSignal = dependencies.cancellation_signal ??
@@ -335,6 +367,7 @@ export async function runGovernedActorLabLiveCohortV01(
   );
   const usedEntries = new Set<string>();
   const bindings: GovernedActorLabLiveInvocationBindingV01[] = [];
+  const checkpoints: GovernedActorLabLiveCheckpointV01[] = [];
   const states = new Map<GovernedActorLabBaselineArmV01, ArmRuntimeStateV01>();
   for (const arm of LIVE_ARMS) {
     const initial = buildGovernedActorLabGenerationZeroV01(input.c1_manifest);
@@ -348,10 +381,15 @@ export async function runGovernedActorLabLiveCohortV01(
       populationTransitions: [],
       memoryRetrieved: 0,
       memoryPresented: 0,
-      memoryUsed: 0,
+      memoryEligible: 0,
+      memoryExplicitlyReferenced: 0,
+      curatedPresented: 0,
+      curatedExplicitlyReferenced: 0,
       quarantined: 0,
       streamInterference: 0,
       frozenForHoldout: false,
+      holdoutMaterialized: false,
+      terminal: null,
     });
   }
   const curatedInput = buildGovernedActorLabCuratedKnowledgeInputV01(
@@ -362,31 +400,40 @@ export async function runGovernedActorLabLiveCohortV01(
     (liveCase) => liveSyntheticSourceV01(liveCase),
   );
   let routeChanged = false;
+  let executionStopReason: string | null = null;
+  let executionStopStatus: GovernedActorLabLiveTerminalAttemptV01["status"] | null = null;
 
+  try {
   for (let episode = 0; episode < 3; episode += 1) {
     const liveCase = input.casebook.development_cases[episode]!;
     for (const arm of LIVE_ARMS) {
+      if (executionStopReason) break;
       const state = states.get(arm)!;
+      if (state.terminal) {
+        for (const phase of ["blind_solve", "challenge_synthesis"] as const) {
+          for (const slot of SLOTS) {
+            const planned = requiredPlanEntryV01(entriesByKey, {
+              arm,
+              phase,
+              generation: episode as 0 | 1 | 2,
+              index: episode,
+              slot,
+            });
+            const binding = armTerminalBindingV01(manifest, planned, state.terminal);
+            await registerBindingV01(
+              state,
+              bindings,
+              usedEntries,
+              planned,
+              binding,
+              dependencies.on_binding_finalized,
+            );
+          }
+        }
+        continue;
+      }
       const actorsBySlot = actorsForSlotsV01(state, arm);
       const memoriesBySlot = memoriesForSlotsV01(state, actorsBySlot);
-      const privateMemoryBySlot = new Map<string, GovernedActorLabLivePrivateMemoryMaterialV01[]>();
-      const curatedMaterial = arm === "disposable_curated_knowledge"
-        ? curatedMaterialV01(curatedInput)
-        : [];
-      for (const slot of SLOTS) {
-        const memory = memoriesBySlot.get(slot)!;
-        const material = persistentArmV01(arm)
-          ? privateMemoryMaterialV01(
-              memory,
-              input.c1_manifest.experiment_id,
-              liveCase.actor_visible.task_family_key,
-              liveDevelopmentSources,
-            )
-          : [];
-        privateMemoryBySlot.set(slot, material);
-        state.memoryRetrieved += material.length;
-        state.memoryPresented += material.length;
-      }
       const blindBySlot = new Map<string, GovernedActorLabLiveInvocationBindingV01>();
       for (const slot of SLOTS) {
         const actor = actorsBySlot.get(slot)!;
@@ -398,6 +445,19 @@ export async function runGovernedActorLabLiveCohortV01(
           index: episode,
           slot,
         });
+        const privateMemory = persistentArmV01(arm)
+          ? privateMemoryMaterialV01(
+              memory,
+              input.c1_manifest.experiment_id,
+              liveCase.actor_visible.task_family_key,
+              liveDevelopmentSources,
+              planned.call_slot_id,
+            )
+          : [];
+        const curatedMaterial = arm === "disposable_curated_knowledge"
+          ? curatedMaterialV01(curatedInput, planned.call_slot_id)
+          : [];
+        registerPresentedMaterialV01(state, privateMemory, curatedMaterial);
         const modelInput = modelInputV01({
           manifest,
           arm,
@@ -406,14 +466,14 @@ export async function runGovernedActorLabLiveCohortV01(
           slot,
           actor,
           liveCase,
-          privateMemory: privateMemoryBySlot.get(slot)!,
+          privateMemory,
           curatedMaterial,
           ownBlind: null,
           peer: null,
           phase: "blind_solve",
         });
-        const binding = routeChanged
-          ? localBindingV01(
+        const executed = routeChanged
+          ? { binding: localBindingV01(
               manifest,
               planned,
               actor,
@@ -421,7 +481,9 @@ export async function runGovernedActorLabLiveCohortV01(
               curatedMaterial,
               null,
               "route_changed",
-            )
+              [],
+              privateMemory.map((item) => item.memory_token),
+            ), stop_reason: null, stop_status: null }
           : await executeCallV01({
               manifest,
               planned,
@@ -434,12 +496,28 @@ export async function runGovernedActorLabLiveCohortV01(
               costBudget: input.cost_budget,
               invokeGateway,
               gatewayDependencies: dependencies.gateway_dependencies,
-              signal: externalSignal,
-            });
+            signal: externalSignal,
+            beforeGatewayEntry: dependencies.before_gateway_entry,
+          });
+        const binding = executed.binding;
         if (binding.invocation_status === "route_changed") routeChanged = true;
-        registerBindingV01(state, bindings, usedEntries, planned, binding);
+        await registerBindingV01(
+          state,
+          bindings,
+          usedEntries,
+          planned,
+          binding,
+          dependencies.on_binding_finalized,
+        );
+        registerExplicitReferencesV01(state, binding);
         blindBySlot.set(slot, binding);
+        if (executed.stop_reason) {
+          executionStopReason = executed.stop_reason;
+          executionStopStatus = executed.stop_status;
+          break;
+        }
       }
+      if (executionStopReason) break;
       const synthesisBySlot = new Map<string, GovernedActorLabLiveInvocationBindingV01>();
       for (const [slotIndex, slot] of SLOTS.entries()) {
         const peerSlot = SLOTS[(slotIndex + 1) % SLOTS.length]!;
@@ -456,9 +534,22 @@ export async function runGovernedActorLabLiveCohortV01(
           index: episode,
           slot,
         });
-        let binding: GovernedActorLabLiveInvocationBindingV01;
+        const privateMemory = persistentArmV01(arm)
+          ? privateMemoryMaterialV01(
+              memory,
+              input.c1_manifest.experiment_id,
+              liveCase.actor_visible.task_family_key,
+              liveDevelopmentSources,
+              planned.call_slot_id,
+            )
+          : [];
+        const curatedMaterial = arm === "disposable_curated_knowledge"
+          ? curatedMaterialV01(curatedInput, planned.call_slot_id)
+          : [];
+        registerPresentedMaterialV01(state, privateMemory, curatedMaterial);
+        let executed: Awaited<ReturnType<typeof executeCallV01>>;
         if (routeChanged) {
-          binding = localBindingV01(
+          executed = { binding: localBindingV01(
             manifest,
             planned,
             actor,
@@ -466,9 +557,11 @@ export async function runGovernedActorLabLiveCohortV01(
             curatedMaterial,
             peerArtifact?.peer_artifact_ref ?? null,
             "route_changed",
-          );
+            peerArtifact?.claim_candidates.map((claim) => claim.claim_token) ?? [],
+            privateMemory.map((item) => item.memory_token),
+          ), stop_reason: null, stop_status: null };
         } else if (!ownArtifact || !peerArtifact) {
-          binding = localBindingV01(
+          executed = { binding: localBindingV01(
             manifest,
             planned,
             actor,
@@ -476,9 +569,11 @@ export async function runGovernedActorLabLiveCohortV01(
             curatedMaterial,
             peerArtifact?.peer_artifact_ref ?? null,
             "dependency_missing",
-          );
+            peerArtifact?.claim_candidates.map((claim) => claim.claim_token) ?? [],
+            privateMemory.map((item) => item.memory_token),
+          ), stop_reason: null, stop_status: null };
         } else {
-          binding = await executeCallV01({
+          executed = await executeCallV01({
             manifest,
             planned,
             admission: input.admission,
@@ -494,7 +589,7 @@ export async function runGovernedActorLabLiveCohortV01(
               slot,
               actor,
               liveCase,
-              privateMemory: privateMemoryBySlot.get(slot)!,
+              privateMemory,
               curatedMaterial,
               ownBlind: ownArtifact,
               peer: peerArtifact,
@@ -504,37 +599,45 @@ export async function runGovernedActorLabLiveCohortV01(
             invokeGateway,
             gatewayDependencies: dependencies.gateway_dependencies,
             signal: externalSignal,
+            beforeGatewayEntry: dependencies.before_gateway_entry,
           });
         }
+        const binding = executed.binding;
         if (binding.invocation_status === "route_changed") routeChanged = true;
-        registerBindingV01(state, bindings, usedEntries, planned, binding);
+        await registerBindingV01(
+          state,
+          bindings,
+          usedEntries,
+          planned,
+          binding,
+          dependencies.on_binding_finalized,
+        );
+        registerExplicitReferencesV01(state, binding);
         synthesisBySlot.set(slot, binding);
+        if (executed.stop_reason) {
+          executionStopReason = executed.stop_reason;
+          executionStopStatus = executed.stop_status;
+          break;
+        }
       }
+      if (executionStopReason) break;
 
       const episodeEvaluations: GovernedActorLabLiveEvaluationV01[] = [];
       for (const slot of SLOTS) {
         const finalBinding = synthesisBySlot.get(slot)!;
-        const evaluation = evaluateLiveOutputV01({
+        const evaluation = evaluateGovernedActorLabLiveOutputV01({
           arm,
           generation: episode as 0 | 1 | 2,
           slot,
           liveCase,
           binding: finalBinding,
-          challengeRequired: true,
+          peerArtifact: peerArtifactV01(
+            SLOTS[(SLOTS.indexOf(slot) + 1) % SLOTS.length]!,
+            blindBySlot.get(SLOTS[(SLOTS.indexOf(slot) + 1) % SLOTS.length]!)!,
+          ),
         });
         state.evaluations.push(evaluation);
         episodeEvaluations.push(evaluation);
-        const presented = privateMemoryBySlot.get(slot)!;
-        if (
-          finalBinding.normalized_output &&
-          presented.some((memory) =>
-            finalBinding.normalized_output!.claim_candidates.some((claim) =>
-              memory.bounded_content.includes(claim.claim_token),
-            ),
-          )
-        ) {
-          state.memoryUsed += 1;
-        }
       }
       if (persistentArmV01(arm)) {
         admitEpisodeMemoryV01({
@@ -549,26 +652,57 @@ export async function runGovernedActorLabLiveCohortV01(
           source: liveDevelopmentSources[episode]!,
         });
       }
+      const evaluatedActors = structuredClone(state.actors);
+      const postEpisodeMemories = structuredClone(state.memories);
       if (episode < 2) {
+        const evaluationRef = frozenSelectionEvaluationV01(
+          arm,
+          episode,
+          actorsBySlot,
+          episodeEvaluations,
+        );
         if (arm === "persistent_evolutionary_population") {
-          const evaluationRef = frozenSelectionEvaluationV01(
-            arm,
-            episode,
-            actorsBySlot,
-            episodeEvaluations,
-          );
-          const transition =
-            buildGovernedActorLabPopulationTransitionFromFrozenEvaluationV01({
-              manifest: input.c1_manifest,
-              actors: state.actors,
-              memories: state.memories,
-              from_generation: episode as 0 | 1,
-              to_generation: (episode + 1) as 1 | 2,
+          try {
+            const transition =
+              buildGovernedActorLabPopulationTransitionFromFrozenEvaluationV01({
+                manifest: input.c1_manifest,
+                actors: state.actors,
+                memories: state.memories,
+                from_generation: episode as 0 | 1,
+                to_generation: (episode + 1) as 1 | 2,
+                evaluation: evaluationRef,
+              });
+            state.populationTransitions.push(transition.transition);
+            state.actors = transition.actors;
+            state.memories = transition.memories;
+          } catch (error) {
+            if (
+              !(error instanceof GovernedActorLabErrorV01) ||
+              error.code !== "actor_lab_no_selection_evidence"
+            ) {
+              throw error;
+            }
+            state.terminal = buildArmTerminalV01({
+              state,
+              generation: episode as 0 | 1,
               evaluation: evaluationRef,
+              episodeEvaluations,
+              actorsBySlot,
             });
-          state.populationTransitions.push(transition.transition);
-          state.actors = transition.actors;
-          state.memories = transition.memories;
+          }
+        } else if (
+          episodeEvaluations.length === SLOTS.length &&
+          episodeEvaluations.every(
+            (evaluation) => evaluation.hard_gate_failure === true,
+          )
+        ) {
+          state.terminal = buildArmTerminalV01({
+            state,
+            generation: episode as 0 | 1,
+            evaluation: evaluationRef,
+            episodeEvaluations,
+            actorsBySlot,
+          });
         } else {
           const rebased = rebaseGovernedActorLabFixedPopulationV01({
             manifest: input.c1_manifest,
@@ -581,46 +715,82 @@ export async function runGovernedActorLabLiveCohortV01(
           state.memories = rebased.memories;
         }
       }
+      const checkpoint = buildCheckpointV01({
+        manifest,
+        state,
+        generation: episode as 0 | 1 | 2,
+        episodeEvaluations,
+        evaluatedActors,
+        postEpisodeMemories,
+        journalPrefixLength: bindings.length,
+      });
+      await dependencies.on_checkpoint_finalized?.(checkpoint);
+      checkpoints.push(checkpoint);
     }
+    if (executionStopReason) break;
   }
 
-  for (const state of states.values()) state.frozenForHoldout = true;
+  if (!executionStopReason) {
+    for (const state of states.values()) state.frozenForHoldout = true;
+  }
   if ([...states.values()].some((state) => !state.frozenForHoldout)) {
-    failV01("governed_actor_lab_live_holdout_freeze_failed");
+    if (!executionStopReason) failV01("governed_actor_lab_live_holdout_freeze_failed");
   }
 
   // Holdout actor-visible material is first dereferenced only after every arm
   // has frozen G2 actor, mutation, and private-memory state.
-  for (const arm of LIVE_ARMS) {
+  for (const arm of executionStopReason ? [] : LIVE_ARMS) {
     const state = states.get(arm)!;
+    if (state.terminal) {
+      for (const [index, slot] of SLOTS.entries()) {
+        const planned = requiredPlanEntryV01(entriesByKey, {
+          arm,
+          phase: "holdout_blind",
+          generation: "holdout",
+          index,
+          slot,
+        });
+        const binding = armTerminalBindingV01(manifest, planned, state.terminal);
+        await registerBindingV01(
+          state,
+          bindings,
+          usedEntries,
+          planned,
+          binding,
+          dependencies.on_binding_finalized,
+        );
+      }
+      continue;
+    }
     const actorsBySlot = actorsForSlotsV01(state, arm);
     const memoriesBySlot = memoriesForSlotsV01(state, actorsBySlot);
-    const curatedMaterial = arm === "disposable_curated_knowledge"
-      ? curatedMaterialV01(curatedInput)
-      : [];
+    state.holdoutMaterialized = true;
     for (const [index, slot] of SLOTS.entries()) {
       const liveCase = input.casebook.hidden_holdout.cases[index]!;
       const actor = actorsBySlot.get(slot)!;
       const memory = memoriesBySlot.get(slot)!;
+      const planned = requiredPlanEntryV01(entriesByKey, {
+        arm,
+        phase: "holdout_blind",
+        generation: "holdout",
+        index,
+        slot,
+      });
       const privateMemory = persistentArmV01(arm)
         ? privateMemoryMaterialV01(
             memory,
             input.c1_manifest.experiment_id,
             liveCase.actor_visible.task_family_key,
             liveDevelopmentSources,
+            planned.call_slot_id,
           )
         : [];
-      state.memoryRetrieved += privateMemory.length;
-      state.memoryPresented += privateMemory.length;
-      const planned = requiredPlanEntryV01(entriesByKey, {
-        arm,
-        phase: "blind_solve",
-        generation: "holdout",
-        index,
-        slot,
-      });
-      const binding = routeChanged
-        ? localBindingV01(
+      const curatedMaterial = arm === "disposable_curated_knowledge"
+        ? curatedMaterialV01(curatedInput, planned.call_slot_id)
+        : [];
+      registerPresentedMaterialV01(state, privateMemory, curatedMaterial);
+      const executed = routeChanged
+        ? { binding: localBindingV01(
             manifest,
             planned,
             actor,
@@ -628,7 +798,9 @@ export async function runGovernedActorLabLiveCohortV01(
             curatedMaterial,
             null,
             "route_changed",
-          )
+            [],
+            privateMemory.map((item) => item.memory_token),
+          ), stop_reason: null, stop_status: null }
         : await executeCallV01({
             manifest,
             planned,
@@ -649,49 +821,124 @@ export async function runGovernedActorLabLiveCohortV01(
               curatedMaterial,
               ownBlind: null,
               peer: null,
-              phase: "blind_solve",
+            phase: "holdout_blind",
             }),
             costBudget: input.cost_budget,
             invokeGateway,
             gatewayDependencies: dependencies.gateway_dependencies,
-            signal: externalSignal,
-          });
+          signal: externalSignal,
+          beforeGatewayEntry: dependencies.before_gateway_entry,
+        });
+      const binding = executed.binding;
       if (binding.invocation_status === "route_changed") routeChanged = true;
-      registerBindingV01(state, bindings, usedEntries, planned, binding);
+      await registerBindingV01(
+        state,
+        bindings,
+        usedEntries,
+        planned,
+        binding,
+        dependencies.on_binding_finalized,
+      );
+      registerExplicitReferencesV01(state, binding);
       state.evaluations.push(
-        evaluateLiveOutputV01({
+        evaluateGovernedActorLabLiveOutputV01({
           arm,
           generation: "holdout",
           slot,
           liveCase,
           binding,
-          challengeRequired: false,
+          peerArtifact: null,
         }),
       );
+      if (executed.stop_reason) {
+        executionStopReason = executed.stop_reason;
+        executionStopStatus = executed.stop_status;
+        break;
+      }
     }
+    if (executionStopReason) break;
+  }
+  } catch {
+    executionStopReason = "cohort_internal_error";
+    executionStopStatus = "cohort_internal_error";
   }
 
-  if (bindings.length !== 140 || usedEntries.size !== 140) {
-    failV01("governed_actor_lab_live_execution_plan_incomplete");
-  }
   bindings.sort((left, right) => left.call_order - right.call_order);
-  const accounting = deriveGovernedActorLabLiveAggregateAccountingV01(
+  return finalizeExecutionResultV01({
+    manifest,
+    callPlan,
+    casebook: input.casebook,
     bindings,
-    input.route,
+    checkpoints,
+    states,
+    stopReason: executionStopReason,
+    stopStatus: executionStopStatus,
+  });
+}
+
+function finalizeExecutionResultV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  callPlan: GovernedActorLabLiveCallPlanV01;
+  casebook: GovernedActorLabLiveCasebookV01;
+  bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+  states: Map<GovernedActorLabBaselineArmV01, ArmRuntimeStateV01>;
+  stopReason: string | null;
+  stopStatus: GovernedActorLabLiveTerminalAttemptV01["status"] | null;
+}): GovernedActorLabLiveExecutionResultV01 {
+  const accounting = deriveGovernedActorLabLiveAggregateAccountingV01(
+    input.bindings,
+    input.manifest.route,
   );
-  const armResults = LIVE_ARMS.map((arm) => buildArmResultV01(states.get(arm)!));
+  const armResults = LIVE_ARMS.map((arm) =>
+    buildArmResultV01(input.states.get(arm)!),
+  );
+  const terminals = LIVE_ARMS.flatMap((arm) => {
+    const terminal = input.states.get(arm)!.terminal;
+    return terminal ? [terminal] : [];
+  });
+  const complete =
+    input.stopReason === null &&
+    terminals.length === 0 &&
+    input.bindings.length === 140 &&
+    accounting.attempted_provider_calls_unknown_slots === 0 &&
+    armResults.every(
+      (arm) => arm.arm_completion_status === "complete" && arm.comparison_eligible,
+    );
+  if (!complete) {
+    const terminalAttempt = buildTerminalAttemptV01({
+      manifest: input.manifest,
+      status: input.stopStatus ?? "truthful_incomplete",
+      terminalReason: input.stopReason ?? (
+        terminals.length > 0
+          ? "arm_terminal_no_valid_population"
+          : "required_live_observations_incomplete"
+      ),
+      bindings: input.bindings,
+      checkpoints: input.checkpoints,
+    });
+    return buildGovernedActorLabLiveIncompleteResultFromJournalV01({
+      manifest: input.manifest,
+      call_plan: input.callPlan,
+      invocation_bindings: input.bindings,
+      checkpoints: input.checkpoints,
+      arm_terminals: terminals,
+      terminal_attempt: terminalAttempt,
+    });
+  }
   const comparisons = buildComparisonsV01(armResults);
   const nonDominance = deriveNonDominanceV01(armResults);
   const reportWithoutIntegrity = {
     report_version: GOVERNED_ACTOR_LAB_LIVE_REPORT_VERSION_V01,
-    report_id: `live-report:${manifest.cohort_id.slice("live-cohort:".length)}`,
+    report_id: `live-report:${input.manifest.cohort_id.slice("live-cohort:".length)}`,
     report_kind: "bounded_live_model_governed_actor_lab_single_cohort" as const,
+    completion_status: "complete" as const,
     cohort_ref: {
-      cohort_id: manifest.cohort_id,
-      cohort_fingerprint: manifest.integrity.fingerprint,
+      cohort_id: input.manifest.cohort_id,
+      cohort_fingerprint: input.manifest.integrity.fingerprint,
     },
-    source_repository_head_sha: manifest.source_repository_head_sha,
-    route: structuredClone(manifest.route),
+    source_repository_head_sha: input.manifest.source_repository_head_sha,
+    route: structuredClone(input.manifest.route),
     casebook_ref: {
       casebook_id: input.casebook.casebook_id,
       casebook_fingerprint: input.casebook.integrity.fingerprint,
@@ -723,18 +970,220 @@ export async function runGovernedActorLabLiveCohortV01(
     product_promotion_created: false as const,
     promotion_candidates: [] as string[],
     authority_boundary: createGovernedActorLabLiveAuthorityBoundaryV01(),
-    limitations: [
-      "One live cohort cannot measure stochastic repeatability.",
-      "Provider and model identity are provenance, not Lab actor identity.",
-      "Live cohort advantage is not verified general benefit.",
-      "Pairwise better is not a global winner; non-dominance is not product promotion.",
-      "ModelInvocationReceipt is not Evidence and is not task success.",
-      "Gateway Authorization Project is not Lab Experiment Project Meaning.",
-    ],
+    limitations: liveLimitationsV01(),
   };
-  const report = sealV01(reportWithoutIntegrity) as GovernedActorLabLiveReportV01;
-  const result = { manifest, call_plan: callPlan, invocation_bindings: bindings, report };
+  const terminalAttempt = buildTerminalAttemptV01({
+    manifest: input.manifest,
+    status: "complete",
+    terminalReason: "complete_exact_call_plan",
+    bindings: input.bindings,
+    checkpoints: input.checkpoints,
+  });
+  const result: GovernedActorLabLiveCohortResultV01 = {
+    result_kind: "complete",
+    manifest: input.manifest,
+    call_plan: input.callPlan,
+    invocation_bindings: input.bindings,
+    checkpoints: input.checkpoints,
+    terminal_attempt: terminalAttempt,
+    report: sealV01(reportWithoutIntegrity) as GovernedActorLabLiveReportV01,
+  };
   return validateGovernedActorLabLiveCohortResultV01(result);
+}
+
+function buildTerminalAttemptV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  status: GovernedActorLabLiveTerminalAttemptV01["status"];
+  terminalReason: string;
+  bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+}): GovernedActorLabLiveTerminalAttemptV01 {
+  return sealV01({
+    attempt_version: GOVERNED_ACTOR_LAB_LIVE_ATTEMPT_VERSION_V01,
+    cohort_id: input.manifest.cohort_id,
+    status: input.status,
+    terminal_reason: input.terminalReason,
+    persisted_invocation_prefix: input.bindings.length,
+    persisted_checkpoint_count: input.checkpoints.length,
+    missing_call_slots: 140 - input.bindings.length,
+    provider_attempt_count_unknown: input.bindings.some(
+      (binding) => binding.provider_attempt_status === "unknown_receipt_unavailable",
+    ),
+    retry_authorized: false as const,
+    second_cohort_authorized: false as const,
+  });
+}
+
+export function buildGovernedActorLabLiveIncompleteResultFromJournalV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  call_plan: GovernedActorLabLiveCallPlanV01;
+  invocation_bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+  arm_terminals: GovernedActorLabLiveArmTerminalV01[];
+  terminal_attempt?: GovernedActorLabLiveTerminalAttemptV01;
+}): GovernedActorLabLiveIncompleteResultV01 {
+  const terminalAttempt = input.terminal_attempt ?? buildTerminalAttemptV01({
+    manifest: input.manifest,
+    status: "truthful_incomplete",
+    terminalReason: "journal_prefix_reconstructed_after_interruption",
+    bindings: input.invocation_bindings,
+    checkpoints: input.checkpoints,
+  });
+  const report = buildIncompleteReportV01({
+    manifest: input.manifest,
+    callPlan: input.call_plan,
+    bindings: input.invocation_bindings,
+    checkpoints: input.checkpoints,
+    terminals: input.arm_terminals,
+  });
+  const result: GovernedActorLabLiveIncompleteResultV01 = {
+    result_kind: "truthful_incomplete",
+    manifest: structuredClone(input.manifest),
+    call_plan: structuredClone(input.call_plan),
+    invocation_bindings: structuredClone(input.invocation_bindings),
+    checkpoints: structuredClone(input.checkpoints),
+    arm_terminals: structuredClone(input.arm_terminals),
+    terminal_attempt: structuredClone(terminalAttempt),
+    report,
+  };
+  return validateGovernedActorLabLiveIncompleteResultV01(result);
+}
+
+function buildIncompleteReportV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  callPlan: GovernedActorLabLiveCallPlanV01;
+  bindings: GovernedActorLabLiveInvocationBindingV01[];
+  checkpoints: GovernedActorLabLiveCheckpointV01[];
+  terminals: GovernedActorLabLiveArmTerminalV01[];
+}) {
+  const accounting = deriveGovernedActorLabLiveAggregateAccountingV01(
+    input.bindings,
+    input.manifest.route,
+  );
+  const arms = LIVE_ARMS.map((arm) => {
+    const bindings = input.bindings.filter((binding) => binding.arm === arm);
+    const checkpoints = input.checkpoints.filter(
+      (checkpoint) => checkpoint.arm === arm,
+    );
+    const terminal = input.terminals.find((candidate) => candidate.arm === arm) ?? null;
+    const holdoutBindings = bindings.filter(
+      (binding) => binding.phase === "holdout_blind",
+    );
+    const requiredObserved =
+      bindings.length === 28 &&
+      bindings.every((binding) => binding.invocation_status === "completed_live") &&
+      holdoutBindings.length === 4;
+    return {
+      arm,
+      status: terminal
+        ? "terminal" as const
+        : requiredObserved
+          ? "frozen_g2" as const
+          : "incomplete" as const,
+      terminal_ref: terminal?.integrity.fingerprint ?? null,
+      terminal_reason: terminal?.terminal_reason ?? null,
+      latest_checkpoint_ref: checkpoints.at(-1)?.integrity.fingerprint ?? null,
+      finalized_slots: bindings.length,
+      receipt_bearing_attempted_calls: bindings.filter(
+        (binding) => binding.model_invocation_receipt?.egress_attempted,
+      ).length,
+      completed_live_calls: bindings.filter(
+        (binding) => binding.invocation_status === "completed_live",
+      ).length,
+      holdout_materialization: terminal
+        ? "not_materialized_arm_terminal" as const
+        : holdoutBindings.length > 0
+          ? "materialized" as const
+          : "not_reached" as const,
+    };
+  });
+  const comparisons = undeterminedComparisonsV01(
+    "Incomplete or terminal arm evidence prevents the required comparison.",
+  );
+  return sealV01({
+    report_version: GOVERNED_ACTOR_LAB_LIVE_INCOMPLETE_REPORT_VERSION_V01,
+    report_id: `live-incomplete-report:${input.manifest.cohort_id.slice("live-cohort:".length)}`,
+    report_kind: "bounded_live_model_governed_actor_lab_truthful_incomplete" as const,
+    completion_status: "truthful_incomplete" as const,
+    cohort_ref: {
+      cohort_id: input.manifest.cohort_id,
+      cohort_fingerprint: input.manifest.integrity.fingerprint,
+    },
+    source_repository_head_sha: input.manifest.source_repository_head_sha,
+    route: structuredClone(input.manifest.route),
+    accounting,
+    arms,
+    terminal_arms: input.terminals.map((terminal) => ({
+      arm: terminal.arm,
+      terminal_ref: terminal.integrity.fingerprint,
+      terminal_reason: terminal.terminal_reason,
+    })),
+    incomplete_arms: arms
+      .filter((arm) => arm.status !== "frozen_g2")
+      .map((arm) => arm.arm),
+    comparisons,
+    non_dominance: {
+      status: "undetermined" as const,
+      non_dominated_arms: [] as [],
+      tradeoffs: [
+        "Incomplete evidence cannot establish a five-arm non-dominated set.",
+      ],
+      pairwise_better_is_global_winner: false as const,
+    },
+    holdout_materialization_complete: arms.every(
+      (arm) => arm.holdout_materialization !== "not_reached",
+    ),
+    stochastic_repeatability: "unmeasured_single_cohort" as const,
+    verified_general_benefit: false as const,
+    global_winner_created: false as const,
+    product_promotion_created: false as const,
+    authority_boundary: createGovernedActorLabLiveAuthorityBoundaryV01(),
+    limitations: [
+      ...liveLimitationsV01(),
+      "Missing observations remain missing; no dominance or promotion claim is produced.",
+    ],
+  });
+}
+
+function undeterminedComparisonsV01(reason: string): GovernedActorLabLiveReportV01["comparisons"] {
+  return [
+    {
+      comparison: "persistence-only vs nonpersistent",
+      left_arm: "persistent_population_no_evolution",
+      right_arm: "nonpersistent_compute_matched_ensemble",
+      status: "undetermined",
+      basis: [reason],
+      global_winner_created: false,
+    },
+    {
+      comparison: "persistence-only vs curated",
+      left_arm: "persistent_population_no_evolution",
+      right_arm: "disposable_curated_knowledge",
+      status: "undetermined",
+      basis: [reason],
+      global_winner_created: false,
+    },
+    {
+      comparison: "evolutionary vs persistence-only",
+      left_arm: "persistent_evolutionary_population",
+      right_arm: "persistent_population_no_evolution",
+      status: "undetermined",
+      basis: [reason],
+      global_winner_created: false,
+    },
+  ];
+}
+
+function liveLimitationsV01(): string[] {
+  return [
+    "One live cohort cannot measure stochastic repeatability.",
+    "Provider and model identity are provenance, not Lab actor identity.",
+    "Live cohort advantage is not verified general benefit.",
+    "Pairwise better is not a global winner; non-dominance is not product promotion.",
+    "ModelInvocationReceipt is not Evidence and is not task success.",
+    "Gateway Authorization Project is not Lab Experiment Project Meaning.",
+    "Presented is not referenced; referenced is not support, outcome, or causal contribution.",
+  ];
 }
 
 export function deriveGovernedActorLabLiveAggregateAccountingV01(
@@ -745,6 +1194,9 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
     binding.model_invocation_receipt ? [validateModelInvocationReceiptV02(binding.model_invocation_receipt)] : [],
   );
   const attempted = receipts.filter((receipt) => receipt.egress_attempted);
+  const unknownAttemptSlots = bindings.filter(
+    (binding) => binding.provider_attempt_status === "unknown_receipt_unavailable",
+  ).length;
   const usageReceipts = attempted.filter((receipt) => receipt.usage !== null);
   const latencies = attempted.map((receipt) => receipt.latency_ms);
   const count = (status: GovernedActorLabLiveInvocationStatusV01) =>
@@ -756,7 +1208,9 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
     aggregate_version: GOVERNED_ACTOR_LAB_LIVE_AGGREGATE_VERSION_V01,
     basis: "recomputed_from_model_invocation_receipts_and_local_refusals" as const,
     planned_calls: 140 as const,
-    attempted_provider_calls: attempted.length,
+    attempted_provider_calls: unknownAttemptSlots > 0 ? null : attempted.length,
+    receipt_bearing_attempted_calls: attempted.length,
+    attempted_provider_calls_unknown_slots: unknownAttemptSlots,
     completed_live_calls: count("completed_live"),
     refused: count("refused"),
     provider_rejected: count("provider_rejected"),
@@ -767,6 +1221,12 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
     source_token_invalid: count("source_token_invalid"),
     route_changed: count("route_changed"),
     dependency_missing: count("dependency_missing"),
+    not_attempted_arm_terminal: count("not_attempted_arm_terminal"),
+    cohort_internal_error_receipt_unavailable: count(
+      "cohort_internal_error_receipt_unavailable",
+    ),
+    journaled_slot_count: bindings.length,
+    missing_call_slots: 140 - bindings.length,
     input_bytes: attempted.reduce(
       (sum, receipt) => sum + (receipt.budget.input_bytes_used ?? 0),
       0,
@@ -784,9 +1244,12 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
     latency_ms_total: latencies.reduce((sum, latency) => sum + latency, 0),
     latency_ms_min: latencies.length > 0 ? Math.min(...latencies) : null,
     latency_ms_max: latencies.length > 0 ? Math.max(...latencies) : null,
-    provider_model_consistent: receipts.every((receipt) =>
-      (receipt.attempted_provider_ref === null && receipt.attempted_model_ref === null) ||
-      (canonicalizeProtocolValueV01(receipt.attempted_provider_ref) ===
+    provider_model_consistent:
+      unknownAttemptSlots === 0 &&
+      !bindings.some((binding) => binding.invocation_status === "route_changed") &&
+      receipts.every((receipt) =>
+        (receipt.attempted_provider_ref === null && receipt.attempted_model_ref === null) ||
+        (canonicalizeProtocolValueV01(receipt.attempted_provider_ref) ===
         canonicalizeProtocolValueV01(route.provider_ref) &&
         canonicalizeProtocolValueV01(receipt.attempted_model_ref) ===
           canonicalizeProtocolValueV01(route.model_ref) &&
@@ -796,7 +1259,7 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
         receipt.final_implementation_id === route.adapter_implementation_id &&
         receipt.final_implementation_version ===
           route.adapter_implementation_version),
-    ),
+      ),
     output_token_ceiling: GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.maxOutputTokens,
     aggregate_provider_call_ceiling: 140 as const,
     pricing_status: pricingAuthorityPresent
@@ -806,7 +1269,9 @@ export function deriveGovernedActorLabLiveAggregateAccountingV01(
     cost_currency: null,
     planned_ceiling_copied_as_observed_usage: false as const,
   };
-  if (attempted.length > 140) failV01("governed_actor_lab_live_call_ceiling_exceeded");
+  if (attempted.length > 140 || bindings.length > 140) {
+    failV01("governed_actor_lab_live_call_ceiling_exceeded");
+  }
   return sealV01(withoutIntegrity);
 }
 
@@ -816,10 +1281,14 @@ export function validateGovernedActorLabLiveCohortResultV01(
   if (!isRecordV01(input)) failV01("governed_actor_lab_live_result_invalid");
   const result = input as unknown as GovernedActorLabLiveCohortResultV01;
   if (
+    result.result_kind !== "complete" ||
     result.manifest.cohort_count !== 1 ||
     result.call_plan.planned_calls !== 140 ||
     result.call_plan.entries.length !== 140 ||
     result.invocation_bindings.length !== 140 ||
+    result.terminal_attempt.status !== "complete" ||
+    result.terminal_attempt.persisted_invocation_prefix !== 140 ||
+    result.report.completion_status !== "complete" ||
     result.report.stochastic_repeatability !== "unmeasured_single_cohort" ||
     result.report.product_promotion_created !== false ||
     result.report.global_winner_created !== false ||
@@ -832,14 +1301,18 @@ export function validateGovernedActorLabLiveCohortResultV01(
   assertSealedV01(result.manifest);
   assertSealedV01(result.call_plan);
   assertSealedV01(result.report);
+  assertSealedV01(result.terminal_attempt);
+  result.checkpoints.forEach(assertSealedV01);
+  validateManifestPlanBindingV01(result.manifest, result.call_plan);
   if (
     new Set(result.invocation_bindings.map((binding) => binding.call_slot_id)).size !== 140 ||
     result.invocation_bindings.some((binding, index) => binding.call_order !== index)
   ) {
     failV01("governed_actor_lab_live_lineage_invalid");
   }
-  for (const binding of result.invocation_bindings) {
-    assertSealedV01(binding);
+  for (const [index, binding] of result.invocation_bindings.entries()) {
+    const planned = result.call_plan.entries[index]!;
+    validateBindingAgainstPlanEntryV01(binding, planned, result.manifest.route);
     if (binding.model_invocation_receipt) {
       const receipt = validateModelInvocationReceiptV02(binding.model_invocation_receipt);
       if (
@@ -878,6 +1351,7 @@ export function validateGovernedActorLabLiveCohortResultV01(
   ) {
     failV01("governed_actor_lab_live_accounting_invalid");
   }
+  validateCompleteArmProjectionsV01(result);
   if (
     canonicalizeProtocolValueV01(buildComparisonsV01(result.report.arms)) !==
       canonicalizeProtocolValueV01(result.report.comparisons) ||
@@ -886,19 +1360,276 @@ export function validateGovernedActorLabLiveCohortResultV01(
   ) {
     failV01("governed_actor_lab_live_comparison_derivation_invalid");
   }
-  const serialized = canonicalizeProtocolValueV01(result);
+  validateCheckpointPrefixV01(result.checkpoints, 140);
+  scanForbiddenPersistedMaterialV01(result);
+  return structuredClone(result);
+}
+
+function validateCompleteArmProjectionsV01(
+  result: GovernedActorLabLiveCohortResultV01,
+): void {
+  if (
+    result.report.arms.length !== LIVE_ARMS.length ||
+    new Set(result.report.arms.map((arm) => arm.arm)).size !== LIVE_ARMS.length ||
+    LIVE_ARMS.some((arm) => !result.report.arms.some((entry) => entry.arm === arm))
+  ) {
+    failV01("governed_actor_lab_live_arm_projection_invalid");
+  }
+  for (const arm of result.report.arms) {
+    const bindings = result.invocation_bindings.filter(
+      (binding) => binding.arm === arm.arm,
+    );
+    const expectedBindingRefs = bindings.map(
+      (binding) => binding.integrity.fingerprint,
+    );
+    const holdoutBindings = bindings.filter(
+      (binding) => binding.phase === "holdout_blind",
+    );
+    const holdoutEvaluations = arm.evaluations.filter(
+      (evaluation) => evaluation.generation === "holdout",
+    );
+    const transitionExclusions = arm.population_transitions.reduce(
+      (sum, transition) => sum + transition.hard_gate_excluded_actor_ids.length,
+      0,
+    );
+    if (
+      bindings.length !== 28 ||
+      holdoutBindings.length !== 4 ||
+      holdoutEvaluations.length !== 4 ||
+      arm.evaluations.length !== 16 ||
+      arm.terminal !== null ||
+      arm.arm_completion_status !== "complete" ||
+      arm.arm_level_hard_gate.failed ||
+      arm.arm_level_hard_gate.codes.length !== 0 ||
+      !arm.comparable ||
+      !arm.comparison_eligible ||
+      canonicalizeProtocolValueV01(arm.invocation_binding_refs) !==
+        canonicalizeProtocolValueV01(expectedBindingRefs) ||
+      arm.actor_evaluation_failures !== arm.evaluations.filter(
+        (evaluation) => evaluation.status === "fail",
+      ).length ||
+      arm.actor_unknowns !== arm.evaluations.filter(
+        (evaluation) => evaluation.status === "unknown",
+      ).length ||
+      arm.actor_selection_hard_gate_exclusions !== transitionExclusions ||
+      arm.holdout.materialized !== true ||
+      arm.holdout.passed !== holdoutEvaluations.filter(
+        (evaluation) => evaluation.status === "pass",
+      ).length ||
+      arm.holdout.failed !== holdoutEvaluations.filter(
+        (evaluation) => evaluation.status === "fail",
+      ).length ||
+      arm.holdout.unknown !== holdoutEvaluations.filter(
+        (evaluation) => evaluation.status === "unknown",
+      ).length ||
+      arm.metrics.actor_memory_presented !== bindings.reduce(
+        (sum, binding) => sum + binding.presented_memory_tokens.length,
+        0,
+      ) ||
+      arm.metrics.actor_memory_retrieved !== arm.metrics.actor_memory_presented ||
+      arm.metrics.actor_memory_eligible !== arm.metrics.actor_memory_presented ||
+      arm.metrics.actor_memory_explicitly_referenced !== bindings.reduce(
+        (sum, binding) =>
+          sum + (binding.normalized_output?.referenced_memory_tokens.length ?? 0),
+        0,
+      ) ||
+      arm.metrics.actor_memory_actual_use !== null ||
+      arm.metrics.curated_material_presented !== bindings.reduce(
+        (sum, binding) => sum + binding.presented_curated_tokens.length,
+        0,
+      ) ||
+      arm.metrics.curated_material_explicitly_referenced !== bindings.reduce(
+        (sum, binding) =>
+          sum + (binding.normalized_output?.referenced_curated_tokens.length ?? 0),
+        0,
+      ) ||
+      arm.metrics.curated_material_actual_use !== null
+    ) {
+      failV01("governed_actor_lab_live_arm_projection_invalid");
+    }
+    arm.evaluations.forEach(validateSerializedEvaluationV01);
+  }
+}
+
+function validateSerializedEvaluationV01(
+  evaluation: GovernedActorLabLiveEvaluationV01,
+): void {
+  const { evaluation_fingerprint: fingerprint, ...withoutFingerprint } = evaluation;
+  const failed = evaluation.checks.filter((check) => check.result === "fail");
+  const hardFailed = failed.filter(
+    (check) => check.severity === "selection_disqualifying_hard_gate",
+  );
+  const unknown = evaluation.checks.some((check) => check.result === "unknown");
+  if (
+    fingerprint !== createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ) ||
+    evaluation.checks.length !== evaluation.required_checks_total ||
+    evaluation.checks.some(
+      (check) =>
+        !GOVERNED_ACTOR_LAB_LIVE_EVALUATION_CHECK_CODES_V01.includes(
+          check.check_code,
+        ),
+    ) ||
+    new Set(evaluation.checks.map((check) => check.check_code)).size !==
+      evaluation.checks.length ||
+    canonicalizeProtocolValueV01(evaluation.evaluation_failure_codes) !==
+      canonicalizeProtocolValueV01(
+        failed.map((check) => check.check_code).sort(compareProtocolCodeUnitsV01),
+      ) ||
+    canonicalizeProtocolValueV01(evaluation.hard_gate_failure_codes) !==
+      canonicalizeProtocolValueV01(
+        hardFailed.map((check) => check.check_code).sort(compareProtocolCodeUnitsV01),
+      ) ||
+    evaluation.required_checks_passed !== (
+      unknown
+        ? null
+        : evaluation.checks.filter((check) => check.result === "pass").length
+    ) ||
+    evaluation.status !== (
+      unknown ? "unknown" : failed.length > 0 ? "fail" : "pass"
+    ) ||
+    evaluation.hard_gate_failure !== (
+      unknown ? null : hardFailed.length > 0
+    )
+  ) {
+    failV01("governed_actor_lab_live_evaluation_projection_invalid");
+  }
+}
+
+export function validateGovernedActorLabLiveIncompleteResultV01(
+  input: unknown,
+): GovernedActorLabLiveIncompleteResultV01 {
+  if (!isRecordV01(input)) failV01("governed_actor_lab_live_incomplete_result_invalid");
+  const result = input as unknown as GovernedActorLabLiveIncompleteResultV01;
+  if (
+    result.result_kind !== "truthful_incomplete" ||
+    result.report.completion_status !== "truthful_incomplete" ||
+    result.report.non_dominance.status !== "undetermined" ||
+    result.report.non_dominance.non_dominated_arms.length !== 0 ||
+    result.report.comparisons.some((comparison) => comparison.status !== "undetermined") ||
+    result.report.verified_general_benefit !== false ||
+    result.report.global_winner_created !== false ||
+    result.report.product_promotion_created !== false
+  ) {
+    failV01("governed_actor_lab_live_incomplete_result_invalid");
+  }
+  assertSealedV01(result.manifest);
+  assertSealedV01(result.call_plan);
+  assertSealedV01(result.report);
+  assertSealedV01(result.terminal_attempt);
+  result.checkpoints.forEach(assertSealedV01);
+  result.arm_terminals.forEach(assertSealedV01);
+  validateManifestPlanBindingV01(result.manifest, result.call_plan);
+  if (
+    result.invocation_bindings.length !== result.terminal_attempt.persisted_invocation_prefix ||
+    result.checkpoints.length !== result.terminal_attempt.persisted_checkpoint_count ||
+    result.terminal_attempt.missing_call_slots !== 140 - result.invocation_bindings.length ||
+    result.invocation_bindings.some((binding, index) => binding.call_order !== index) ||
+    new Set(result.invocation_bindings.map((binding) => binding.call_slot_id)).size !==
+      result.invocation_bindings.length
+  ) {
+    failV01("governed_actor_lab_live_incomplete_prefix_invalid");
+  }
+  for (const [index, binding] of result.invocation_bindings.entries()) {
+    validateBindingAgainstPlanEntryV01(
+      binding,
+      result.call_plan.entries[index]!,
+      result.manifest.route,
+    );
+  }
+  validateCheckpointPrefixV01(result.checkpoints, result.invocation_bindings.length);
+  validateTerminalBindingLineageV01(
+    result.invocation_bindings,
+    result.arm_terminals,
+  );
+  const rebuiltReport = buildIncompleteReportV01({
+    manifest: result.manifest,
+    callPlan: result.call_plan,
+    bindings: result.invocation_bindings,
+    checkpoints: result.checkpoints,
+    terminals: result.arm_terminals,
+  });
+  if (
+    canonicalizeProtocolValueV01(rebuiltReport) !==
+      canonicalizeProtocolValueV01(result.report)
+  ) {
+    failV01("governed_actor_lab_live_incomplete_projection_invalid");
+  }
+  scanForbiddenPersistedMaterialV01(result);
+  return structuredClone(result);
+}
+
+function validateManifestPlanBindingV01(
+  manifest: GovernedActorLabLiveCohortManifestV01,
+  callPlan: GovernedActorLabLiveCallPlanV01,
+): void {
+  if (
+    manifest.call_plan_ref.call_plan_fingerprint !== callPlan.integrity.fingerprint ||
+    manifest.call_plan_ref.planned_calls !== callPlan.planned_calls ||
+    callPlan.entries.length !== 140 ||
+    callPlan.entries.some((entry, index) => entry.call_order !== index) ||
+    new Set(callPlan.entries.map((entry) => entry.call_slot_id)).size !== 140
+  ) {
+    failV01("governed_actor_lab_live_manifest_plan_invalid");
+  }
+}
+
+function validateCheckpointPrefixV01(
+  checkpoints: GovernedActorLabLiveCheckpointV01[],
+  maximumPrefix: number,
+): void {
+  let priorPrefix = -1;
+  const seen = new Set<string>();
+  for (const checkpoint of checkpoints) {
+    if (
+      seen.has(checkpoint.checkpoint_id) ||
+      checkpoint.journal_prefix_length < priorPrefix ||
+      checkpoint.journal_prefix_length > maximumPrefix ||
+      checkpoint.holdout_content_included !== false
+    ) {
+      failV01("governed_actor_lab_live_checkpoint_invalid");
+    }
+    seen.add(checkpoint.checkpoint_id);
+    priorPrefix = checkpoint.journal_prefix_length;
+  }
+}
+
+function validateTerminalBindingLineageV01(
+  bindings: GovernedActorLabLiveInvocationBindingV01[],
+  terminals: GovernedActorLabLiveArmTerminalV01[],
+): void {
+  const terminalByRef = new Map(
+    terminals.map((terminal) => [terminal.integrity.fingerprint, terminal]),
+  );
+  for (const binding of bindings.filter(
+    (candidate) => candidate.invocation_status === "not_attempted_arm_terminal",
+  )) {
+    const terminal = terminalByRef.get(binding.arm_terminal_ref!);
+    if (
+      !terminal ||
+      terminal.arm !== binding.arm ||
+      terminal.terminal_reason !== binding.no_egress_disposition?.arm_terminal_reason ||
+      terminal.last_terminal_state_ref !== binding.last_terminal_state_ref
+    ) {
+      failV01("governed_actor_lab_live_arm_terminal_lineage_invalid");
+    }
+  }
+}
+
+function scanForbiddenPersistedMaterialV01(value: unknown): void {
+  const serialized = canonicalizeProtocolValueV01(value);
   if (
     /(?:OPENAI_API_KEY|"Authorization"\s*:|Bearer\s+|\/Users\/|\/home\/|[A-Za-z]:\\)/u.test(serialized)
   ) {
     failV01("governed_actor_lab_live_forbidden_material_persisted");
   }
-  return structuredClone(result);
 }
 
 function callPlanEntryV01(input: {
   callOrder: number;
   arm: GovernedActorLabBaselineArmV01;
-  phase: "blind_solve" | "challenge_synthesis";
+  phase: "blind_solve" | "challenge_synthesis" | "holdout_blind";
   generation: 0 | 1 | 2 | "holdout";
   episodeOrHoldoutIndex: number;
   actorSlot: string;
@@ -936,7 +1667,7 @@ function requiredPlanEntryV01(
   entries: Map<string, GovernedActorLabLiveCallPlanEntryV01>,
   input: {
     arm: GovernedActorLabBaselineArmV01;
-    phase: "blind_solve" | "challenge_synthesis";
+    phase: "blind_solve" | "challenge_synthesis" | "holdout_blind";
     generation: 0 | 1 | 2 | "holdout";
     index: number;
     slot: string;
@@ -990,6 +1721,7 @@ function privateMemoryMaterialV01(
   experimentId: string,
   taskFamilyKey: string,
   allowedSources: GovernedActorLabSyntheticSourceV01[],
+  invocationTokenBasis: string,
 ): GovernedActorLabLivePrivateMemoryMaterialV01[] {
   return retrieveGovernedActorLabPrivateMemoryV01(memory, {
     experiment_id: experimentId,
@@ -999,6 +1731,11 @@ function privateMemoryMaterialV01(
   })
     .sort((left, right) => compareProtocolCodeUnitsV01(left.memory_item_id, right.memory_item_id))
     .map((item) => ({
+      memory_token: opaqueMaterialTokenV01(
+        "memory",
+        invocationTokenBasis,
+        item.memory_item_id,
+      ),
       memory_item_ref: item.memory_item_id,
       bounded_content: item.bounded_content,
       applicability: item.applicability,
@@ -1010,8 +1747,14 @@ function privateMemoryMaterialV01(
 
 function curatedMaterialV01(
   curated: ReturnType<typeof buildGovernedActorLabCuratedKnowledgeInputV01>,
+  invocationTokenBasis: string,
 ): GovernedActorLabLiveCuratedMaterialV01[] {
   return curated.items.map((item, index) => ({
+    curated_token: opaqueMaterialTokenV01(
+      "curated",
+      invocationTokenBasis,
+      `${curated.curated_input_id}:item-${index}`,
+    ),
     curated_item_ref: `${curated.curated_input_id}:item-${index}`,
     bounded_content: `Pre-cutoff source-bound operator ${item.procedural_operator_policy} with retrieval ${item.evidence_retrieval_policy}.`,
     source_tokens: [item.source_ref.source_id],
@@ -1029,9 +1772,10 @@ function modelInputV01(input: {
   liveCase: GovernedActorLabLiveCaseV01;
   privateMemory: GovernedActorLabLivePrivateMemoryMaterialV01[];
   curatedMaterial: GovernedActorLabLiveCuratedMaterialV01[];
+  privateMemoryTokens?: string[];
   ownBlind: GovernedActorLabLivePeerArtifactV01 | null;
   peer: GovernedActorLabLivePeerArtifactV01 | null;
-  phase: "blind_solve" | "challenge_synthesis";
+  phase: "blind_solve" | "challenge_synthesis" | "holdout_blind";
 }): GovernedActorLabLiveModelInputV01 {
   return validateGovernedActorLabModelInputV01({
     input_kind: GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
@@ -1078,7 +1822,14 @@ async function executeCallV01(input: {
   invokeGateway: typeof invokeGovernedActorLabModelGatewayV01;
   gatewayDependencies?: GovernedActorLabModelGatewayDependenciesV01;
   signal: AbortSignal;
-}): Promise<GovernedActorLabLiveInvocationBindingV01> {
+  beforeGatewayEntry?: (
+    entry: GovernedActorLabLiveCallPlanEntryV01,
+  ) => void | Promise<void>;
+}): Promise<{
+  binding: GovernedActorLabLiveInvocationBindingV01;
+  stop_reason: string | null;
+  stop_status: GovernedActorLabLiveTerminalAttemptV01["status"] | null;
+}> {
   const envelope: GovernedActorLabModelInvocationEnvelopeV01 = {
     envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
     invocation_id: input.planned.call_slot_id,
@@ -1111,36 +1862,81 @@ async function executeCallV01(input: {
     input: input.modelInput,
   };
   try {
-    const result = await input.invokeGateway(envelope, {
-      ...input.gatewayDependencies,
-      expected_governed_actor_lab_route: input.manifest.route,
-    });
-    return bindingV01({
-      manifest: input.manifest,
-      planned: input.planned,
-      actor: input.actor,
-      memory: input.memory,
-      curatedMaterial: input.curatedMaterial,
-      peerArtifactRef: input.peerArtifactRef,
-      output: result.output,
-      receipt: result.model_invocation_receipt,
-      status: "completed_live",
-      costBudget: input.costBudget,
-    });
-  } catch (error) {
-    if (!isModelGatewayInvocationErrorV01(error)) {
-      return bindingV01({
+    await input.beforeGatewayEntry?.(input.planned);
+  } catch {
+    return {
+      binding: internalErrorBindingV01({
         manifest: input.manifest,
         planned: input.planned,
         actor: input.actor,
         memory: input.memory,
         curatedMaterial: input.curatedMaterial,
         peerArtifactRef: input.peerArtifactRef,
-        output: null,
-        receipt: null,
-        status: "transport_failed",
+        peerClaimTokens:
+          input.modelInput.peer_challenge_artifact?.claim_candidates.map(
+            (claim) => claim.claim_token,
+          ) ?? [],
+        privateMemoryTokens: input.modelInput.admitted_private_memory.map(
+          (item) => item.memory_token,
+        ),
         costBudget: input.costBudget,
-      });
+        providerAttemptStatus: "known_not_attempted_local",
+      }),
+      stop_reason: "cohort_internal_error_before_gateway_entry",
+      stop_status: "cohort_internal_error",
+    };
+  }
+  try {
+    const result = await input.invokeGateway(envelope, {
+      ...input.gatewayDependencies,
+      expected_governed_actor_lab_route: input.manifest.route,
+    });
+    return {
+      binding: bindingV01({
+        manifest: input.manifest,
+        planned: input.planned,
+        actor: input.actor,
+        memory: input.memory,
+        curatedMaterial: input.curatedMaterial,
+        peerArtifactRef: input.peerArtifactRef,
+        peerClaimTokens:
+          input.modelInput.peer_challenge_artifact?.claim_candidates.map(
+            (claim) => claim.claim_token,
+          ) ?? [],
+        privateMemoryTokens: input.modelInput.admitted_private_memory.map(
+          (item) => item.memory_token,
+        ),
+        output: result.output,
+        receipt: result.model_invocation_receipt,
+        status: "completed_live",
+        costBudget: input.costBudget,
+      }),
+      stop_reason: null,
+      stop_status: null,
+    };
+  } catch (error) {
+    if (!isModelGatewayInvocationErrorV01(error)) {
+      return {
+        binding: internalErrorBindingV01({
+          manifest: input.manifest,
+          planned: input.planned,
+          actor: input.actor,
+          memory: input.memory,
+          curatedMaterial: input.curatedMaterial,
+          peerArtifactRef: input.peerArtifactRef,
+          peerClaimTokens:
+            input.modelInput.peer_challenge_artifact?.claim_candidates.map(
+              (claim) => claim.claim_token,
+            ) ?? [],
+          privateMemoryTokens: input.modelInput.admitted_private_memory.map(
+            (item) => item.memory_token,
+          ),
+          costBudget: input.costBudget,
+          providerAttemptStatus: "unknown_receipt_unavailable",
+        }),
+        stop_reason: "cohort_internal_error_receipt_unavailable",
+        stop_status: "cohort_internal_error",
+      };
     }
     const receipt = error.receipt;
     const routeMismatch = receipt !== null &&
@@ -1157,20 +1953,39 @@ async function executeCallV01(input: {
           input.manifest.route.adapter_implementation_id ||
         receipt.final_implementation_version !==
           input.manifest.route.adapter_implementation_version);
-    return bindingV01({
-      manifest: input.manifest,
-      planned: input.planned,
-      actor: input.actor,
-      memory: input.memory,
-      curatedMaterial: input.curatedMaterial,
-      peerArtifactRef: input.peerArtifactRef,
-      output: null,
-      receipt,
-      status: routeMismatch
-        ? "route_changed"
-        : invocationStatusFromFailureV01(error.code),
-      costBudget: input.costBudget,
-    });
+    const status = routeMismatch
+      ? "route_changed"
+      : invocationStatusFromFailureV01(error.code);
+    return {
+      binding: bindingV01({
+        manifest: input.manifest,
+        planned: input.planned,
+        actor: input.actor,
+        memory: input.memory,
+        curatedMaterial: input.curatedMaterial,
+        peerArtifactRef: input.peerArtifactRef,
+        peerClaimTokens:
+          input.modelInput.peer_challenge_artifact?.claim_candidates.map(
+            (claim) => claim.claim_token,
+          ) ?? [],
+        privateMemoryTokens: input.modelInput.admitted_private_memory.map(
+          (item) => item.memory_token,
+        ),
+        output: null,
+        receipt,
+        status,
+        costBudget: input.costBudget,
+        noEgressDisposition: status === "route_changed" && receipt === null
+          ? {
+              code: "route_changed",
+              arm_terminal_ref: null,
+              arm_terminal_reason: null,
+            }
+          : null,
+      }),
+      stop_reason: status === "cancelled" ? "cohort_cancelled" : null,
+      stop_status: status === "cancelled" ? "cancelled" : null,
+    };
   }
 }
 
@@ -1182,6 +1997,8 @@ function localBindingV01(
   curatedMaterial: GovernedActorLabLiveCuratedMaterialV01[],
   peerArtifactRef: string | null,
   status: "dependency_missing" | "route_changed",
+  peerClaimTokens: string[] = [],
+  privateMemoryTokens: string[] = [],
 ): GovernedActorLabLiveInvocationBindingV01 {
   return bindingV01({
     manifest,
@@ -1190,23 +2007,91 @@ function localBindingV01(
     memory,
     curatedMaterial,
     peerArtifactRef,
+    peerClaimTokens,
+    privateMemoryTokens,
     output: null,
     receipt: null,
     status,
+    providerAttemptStatus: "known_not_attempted_local",
+    noEgressDisposition: {
+      code: status,
+      arm_terminal_ref: null,
+      arm_terminal_reason: null,
+    },
   });
 }
 
-function bindingV01(input: {
+function armTerminalBindingV01(
+  manifest: GovernedActorLabLiveCohortManifestV01,
+  planned: GovernedActorLabLiveCallPlanEntryV01,
+  terminal: GovernedActorLabLiveArmTerminalV01,
+): GovernedActorLabLiveInvocationBindingV01 {
+  return bindingV01({
+    manifest,
+    planned,
+    actor: null,
+    memory: null,
+    curatedMaterial: [],
+    peerArtifactRef: null,
+    peerClaimTokens: [],
+    output: null,
+    receipt: null,
+    status: "not_attempted_arm_terminal",
+    providerAttemptStatus: "known_not_attempted_local",
+    lastTerminalStateRef: terminal.last_terminal_state_ref,
+    armTerminalRef: terminal.integrity.fingerprint,
+    noEgressDisposition: {
+      code: "not_attempted_arm_terminal",
+      arm_terminal_ref: terminal.integrity.fingerprint,
+      arm_terminal_reason: terminal.terminal_reason,
+    },
+  });
+}
+
+function internalErrorBindingV01(input: {
   manifest: GovernedActorLabLiveCohortManifestV01;
   planned: GovernedActorLabLiveCallPlanEntryV01;
   actor: GovernedActorLabActorSnapshotV01;
   memory: GovernedActorLabPrivateMemorySnapshotV01;
   curatedMaterial: GovernedActorLabLiveCuratedMaterialV01[];
   peerArtifactRef: string | null;
+  peerClaimTokens: string[];
+  privateMemoryTokens: string[];
+  costBudget?: ModelGatewayCostBudgetV01;
+  providerAttemptStatus:
+    | "known_not_attempted_local"
+    | "unknown_receipt_unavailable";
+}): GovernedActorLabLiveInvocationBindingV01 {
+  return bindingV01({
+    ...input,
+    output: null,
+    receipt: null,
+    status: "cohort_internal_error_receipt_unavailable",
+    noEgressDisposition: {
+      code: "cohort_internal_error_receipt_unavailable",
+      arm_terminal_ref: null,
+      arm_terminal_reason: null,
+    },
+  });
+}
+
+function bindingV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  planned: GovernedActorLabLiveCallPlanEntryV01;
+  actor: GovernedActorLabActorSnapshotV01 | null;
+  memory: GovernedActorLabPrivateMemorySnapshotV01 | null;
+  curatedMaterial: GovernedActorLabLiveCuratedMaterialV01[];
+  peerArtifactRef: string | null;
+  peerClaimTokens: string[];
+  privateMemoryTokens?: string[];
   output: GovernedActorLabLiveModelOutputV01 | null;
   receipt: ModelInvocationReceiptV02 | null;
   status: GovernedActorLabLiveInvocationStatusV01;
   costBudget?: ModelGatewayCostBudgetV01;
+  providerAttemptStatus?: GovernedActorLabLiveInvocationBindingV01["provider_attempt_status"];
+  noEgressDisposition?: GovernedActorLabLiveInvocationBindingV01["no_egress_disposition"];
+  lastTerminalStateRef?: string | null;
+  armTerminalRef?: string | null;
 }): GovernedActorLabLiveInvocationBindingV01 {
   const receipt = input.receipt ? validateModelInvocationReceiptV02(input.receipt) : null;
   const outputFingerprint = input.output
@@ -1225,17 +2110,24 @@ function bindingV01(input: {
     cohort_id: input.manifest.cohort_id,
     arm: input.planned.arm,
     generation: input.planned.generation,
+    episode_or_holdout_index: input.planned.episode_or_holdout_index,
     actor_slot: input.planned.actor_slot,
-    lab_actor_id: input.actor.lab_actor_id,
+    peer_slot: input.planned.peer_slot,
+    lab_actor_id: input.actor?.lab_actor_id ?? null,
     phase: input.planned.phase,
     case_id: input.planned.case_id,
     case_fingerprint: input.planned.case_fingerprint,
-    frozen_actor_ref: input.actor.actor_snapshot_id,
-    frozen_private_memory_ref: persistentArmV01(input.planned.arm)
+    frozen_actor_ref: input.actor?.actor_snapshot_id ?? null,
+    frozen_private_memory_ref: persistentArmV01(input.planned.arm) && input.memory
       ? input.memory.memory_snapshot_id
       : null,
+    last_terminal_state_ref: input.lastTerminalStateRef ?? null,
+    arm_terminal_ref: input.armTerminalRef ?? null,
     curated_material_refs: input.curatedMaterial.map((item) => item.curated_item_ref),
+    presented_memory_tokens: input.privateMemoryTokens ?? [],
+    presented_curated_tokens: input.curatedMaterial.map((item) => item.curated_token),
     peer_artifact_ref: input.peerArtifactRef,
+    peer_claim_tokens_supplied: uniqueStringsV01(input.peerClaimTokens),
     normalized_output: input.output ? structuredClone(input.output) : null,
     normalized_output_fingerprint: outputFingerprint,
     model_invocation_receipt: receipt,
@@ -1243,6 +2135,14 @@ function bindingV01(input: {
     provider_ref: structuredClone(input.manifest.route.provider_ref),
     model_ref: structuredClone(input.manifest.route.model_ref),
     invocation_status: input.status,
+    provider_attempt_status: input.providerAttemptStatus ?? (
+      receipt?.egress_attempted
+        ? "receipt_attempted"
+        : receipt
+          ? "receipt_not_attempted"
+          : "known_not_attempted_local"
+    ),
+    no_egress_disposition: input.noEgressDisposition ?? null,
     usage: receipt?.usage ?? null,
     latency_ms: receipt?.latency_ms ?? null,
     budget: {
@@ -1279,13 +2179,364 @@ function peerArtifactV01(
   };
 }
 
-function evaluateLiveOutputV01(input: {
+function opaqueMaterialTokenV01(
+  kind: "memory" | "curated",
+  invocationTokenBasis: string,
+  materialRef: string,
+): string {
+  return `${kind}:${createProtocolSha256V01(
+    canonicalizeProtocolValueV01({ invocationTokenBasis, materialRef }),
+  ).slice("sha256:".length, "sha256:".length + 32)}`;
+}
+
+function registerPresentedMaterialV01(
+  state: ArmRuntimeStateV01,
+  memory: GovernedActorLabLivePrivateMemoryMaterialV01[],
+  curated: GovernedActorLabLiveCuratedMaterialV01[],
+): void {
+  state.memoryEligible += memory.length;
+  state.memoryRetrieved += memory.length;
+  state.memoryPresented += memory.length;
+  state.curatedPresented += curated.length;
+}
+
+function registerExplicitReferencesV01(
+  state: ArmRuntimeStateV01,
+  binding: GovernedActorLabLiveInvocationBindingV01,
+): void {
+  if (!binding.normalized_output) return;
+  state.memoryExplicitlyReferenced +=
+    binding.normalized_output.referenced_memory_tokens.length;
+  state.curatedExplicitlyReferenced +=
+    binding.normalized_output.referenced_curated_tokens.length;
+}
+
+function buildArmTerminalV01(input: {
+  state: ArmRuntimeStateV01;
+  generation: 0 | 1;
+  evaluation: ReturnType<typeof frozenSelectionEvaluationV01>;
+  episodeEvaluations: GovernedActorLabLiveEvaluationV01[];
+  actorsBySlot: Map<string, GovernedActorLabActorSnapshotV01>;
+}): GovernedActorLabLiveArmTerminalV01 {
+  const actorEvaluationRefs = SLOTS.map((slot) => {
+    const actor = input.actorsBySlot.get(slot)!;
+    const evaluation = input.episodeEvaluations.find(
+      (entry) => entry.actor_slot === slot,
+    )!;
+    return {
+      lab_actor_id: actor.lab_actor_id,
+      evaluation_id: evaluation.evaluation_id,
+      evaluation_fingerprint: evaluation.evaluation_fingerprint,
+    };
+  }).sort((left, right) =>
+    compareProtocolCodeUnitsV01(left.lab_actor_id, right.lab_actor_id),
+  );
+  const actorHardGateExclusions = actorEvaluationRefs.flatMap((ref) => {
+    const evaluation = input.episodeEvaluations.find(
+      (entry) => entry.evaluation_id === ref.evaluation_id,
+    )!;
+    return evaluation.hard_gate_failure === true
+      ? [{
+          lab_actor_id: ref.lab_actor_id,
+          evaluation_id: ref.evaluation_id,
+          hard_gate_failure_codes: [...evaluation.hard_gate_failure_codes],
+        }]
+      : [];
+  });
+  const lastTerminalStateRef = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      actors: input.state.actors.map((actor) => ({
+        lab_actor_id: actor.lab_actor_id,
+        actor_snapshot_id: actor.actor_snapshot_id,
+        actor_snapshot_fingerprint: actor.integrity.fingerprint,
+      })),
+      memories: input.state.memories.map((memory) => ({
+        lab_actor_id: memory.lab_actor_id,
+        memory_snapshot_id: memory.memory_snapshot_id,
+        memory_snapshot_fingerprint: memory.integrity.fingerprint,
+      })),
+    }),
+  );
+  const terminalBasis = {
+    arm: input.state.arm,
+    terminal_generation: input.generation,
+    terminal_reason: "no_valid_population" as const,
+    selection_evaluation_ref: {
+      evaluation_id: input.evaluation.evaluation_id,
+      evaluation_fingerprint: input.evaluation.evaluation_fingerprint,
+    },
+    actor_evaluation_refs: actorEvaluationRefs,
+    actor_hard_gate_exclusions: actorHardGateExclusions,
+    last_terminal_state_ref: lastTerminalStateRef,
+  };
+  const withoutIntegrity = {
+    terminal_version: "governed_actor_lab_live_arm_terminal.v0.1" as const,
+    terminal_id: `live-arm-terminal:${createProtocolSha256V01(
+      canonicalizeProtocolValueV01(terminalBasis),
+    ).slice("sha256:".length, "sha256:".length + 32)}`,
+    ...terminalBasis,
+    arm_state_frozen: true as const,
+    excluded_actors_revived: false as const,
+    mutation_applied: false as const,
+    product_authority: false as const,
+    promotion_authority: false as const,
+  };
+  return sealV01(withoutIntegrity);
+}
+
+function buildCheckpointV01(input: {
+  manifest: GovernedActorLabLiveCohortManifestV01;
+  state: ArmRuntimeStateV01;
+  generation: 0 | 1 | 2;
+  episodeEvaluations: GovernedActorLabLiveEvaluationV01[];
+  evaluatedActors: GovernedActorLabActorSnapshotV01[];
+  postEpisodeMemories: GovernedActorLabPrivateMemorySnapshotV01[];
+  journalPrefixLength: number;
+}): GovernedActorLabLiveCheckpointV01 {
+  const transition = input.state.populationTransitions.find(
+    (candidate) => candidate.from_generation === input.generation,
+  ) ?? null;
+  const checkpointBasis = {
+    cohort_id: input.manifest.cohort_id,
+    arm: input.state.arm,
+    generation: input.generation,
+    journal_prefix_length: input.journalPrefixLength,
+  };
+  const withoutIntegrity = {
+    checkpoint_version: GOVERNED_ACTOR_LAB_LIVE_CHECKPOINT_VERSION_V01,
+    checkpoint_id: `live-checkpoint:${createProtocolSha256V01(
+      canonicalizeProtocolValueV01(checkpointBasis),
+    ).slice("sha256:".length, "sha256:".length + 32)}`,
+    cohort_id: input.manifest.cohort_id,
+    arm: input.state.arm,
+    generation: input.generation,
+    actor_refs: [...input.evaluatedActors]
+      .sort((left, right) => compareProtocolCodeUnitsV01(left.lab_actor_id, right.lab_actor_id))
+      .map((actor) => ({
+        lab_actor_id: actor.lab_actor_id,
+        actor_snapshot_id: actor.actor_snapshot_id,
+        actor_snapshot_fingerprint: actor.integrity.fingerprint,
+      })),
+    memory_refs: [...input.postEpisodeMemories]
+      .sort((left, right) => compareProtocolCodeUnitsV01(left.lab_actor_id, right.lab_actor_id))
+      .map((memory) => ({
+        lab_actor_id: memory.lab_actor_id,
+        memory_snapshot_id: memory.memory_snapshot_id,
+        memory_snapshot_fingerprint: memory.integrity.fingerprint,
+      })),
+    evaluation_refs: input.episodeEvaluations
+      .map((evaluation) => ({
+        evaluation_id: evaluation.evaluation_id,
+        evaluation_fingerprint: evaluation.evaluation_fingerprint,
+      }))
+      .sort((left, right) => compareProtocolCodeUnitsV01(left.evaluation_id, right.evaluation_id)),
+    memory_admission_refs: input.state.memoryAdmissions
+      .filter((admission) => admission.episode_id.endsWith(`g${input.generation}`))
+      .map((admission) => ({
+        admission_id: admission.admission_id,
+        candidate_id: admission.candidate_id,
+        resulting_memory_snapshot_id:
+          admission.resulting_memory_snapshot.memory_snapshot_id,
+        resulting_memory_snapshot_fingerprint:
+          admission.resulting_memory_snapshot.memory_snapshot_fingerprint,
+      }))
+      .sort((left, right) => compareProtocolCodeUnitsV01(left.admission_id, right.admission_id)),
+    transition_ref: transition
+      ? {
+          transition_id: transition.transition_id,
+          transition_fingerprint: transition.integrity.fingerprint,
+        }
+      : null,
+    terminal_ref: input.state.terminal
+      ? {
+          terminal_id: input.state.terminal.terminal_id,
+          terminal_fingerprint: input.state.terminal.integrity.fingerprint,
+        }
+      : null,
+    holdout_content_included: false as const,
+    journal_prefix_length: input.journalPrefixLength,
+  };
+  return sealV01(withoutIntegrity);
+}
+
+function validateBindingAgainstPlanEntryV01(
+  binding: GovernedActorLabLiveInvocationBindingV01,
+  planned: GovernedActorLabLiveCallPlanEntryV01,
+  route?: GovernedActorLabLiveRouteV01,
+): void {
+  assertSealedV01(binding);
+  const receipt = binding.model_invocation_receipt;
+  const recomputedOutputFingerprint = binding.normalized_output === null
+    ? null
+    : createProtocolSha256V01(
+        canonicalizeProtocolValueV01(binding.normalized_output),
+      );
+  if (
+    binding.call_slot_id !== planned.call_slot_id ||
+    binding.call_order !== planned.call_order ||
+    binding.arm !== planned.arm ||
+    binding.phase !== planned.phase ||
+    binding.generation !== planned.generation ||
+    binding.episode_or_holdout_index !== planned.episode_or_holdout_index ||
+    binding.actor_slot !== planned.actor_slot ||
+    binding.peer_slot !== planned.peer_slot ||
+    binding.case_id !== planned.case_id ||
+    binding.case_fingerprint !== planned.case_fingerprint ||
+    binding.budget.max_input_bytes !== planned.max_input_bytes ||
+    binding.budget.max_output_tokens !== planned.max_output_tokens ||
+    binding.budget.timeout_ms !== planned.timeout_ms ||
+    binding.budget.max_provider_calls !== 1 ||
+    binding.normalized_output_fingerprint !== recomputedOutputFingerprint ||
+    (receipt === null &&
+      (binding.model_invocation_receipt_fingerprint !== null ||
+        binding.usage !== null ||
+        binding.latency_ms !== null)) ||
+    (receipt !== null &&
+      (binding.model_invocation_receipt_fingerprint !== receiptFingerprintV01(receipt) ||
+        canonicalizeProtocolValueV01(binding.usage) !==
+          canonicalizeProtocolValueV01(receipt.usage) ||
+        binding.latency_ms !== receipt.latency_ms))
+  ) {
+    failV01("governed_actor_lab_live_plan_binding_mismatch");
+  }
+  if (
+    route &&
+    (canonicalizeProtocolValueV01(binding.provider_ref) !==
+      canonicalizeProtocolValueV01(route.provider_ref) ||
+      canonicalizeProtocolValueV01(binding.model_ref) !==
+        canonicalizeProtocolValueV01(route.model_ref))
+  ) {
+    failV01("governed_actor_lab_live_route_binding_invalid");
+  }
+  if (receipt) {
+    validateModelInvocationReceiptV02(receipt);
+    if (
+      receipt.invocation_id !== binding.call_slot_id ||
+      receipt.purpose !== GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
+      (receipt.normalized_output_fingerprint ?? null) !==
+        recomputedOutputFingerprint ||
+      (route &&
+        binding.invocation_status !== "route_changed" &&
+        (receipt.final_implementation_id !== route.adapter_implementation_id ||
+          receipt.final_implementation_version !== route.adapter_implementation_version ||
+          (receipt.egress_attempted &&
+            (canonicalizeProtocolValueV01(receipt.attempted_provider_ref) !==
+              canonicalizeProtocolValueV01(route.provider_ref) ||
+              canonicalizeProtocolValueV01(receipt.attempted_model_ref) !==
+                canonicalizeProtocolValueV01(route.model_ref) ||
+              receipt.attempted_implementation_id !== route.adapter_implementation_id ||
+              receipt.attempted_implementation_version !==
+                route.adapter_implementation_version))))
+    ) {
+      failV01("governed_actor_lab_live_receipt_lineage_invalid");
+    }
+  }
+  if (
+    (binding.provider_attempt_status === "receipt_attempted" &&
+      (!receipt || !receipt.egress_attempted)) ||
+    (binding.provider_attempt_status === "receipt_not_attempted" &&
+      (!receipt || receipt.egress_attempted)) ||
+    (binding.provider_attempt_status === "known_not_attempted_local" && receipt !== null) ||
+    (binding.provider_attempt_status === "unknown_receipt_unavailable" && receipt !== null)
+  ) {
+    failV01("governed_actor_lab_live_attempt_semantics_invalid");
+  }
+  const expectedFailureCode = binding.invocation_status === "provider_rejected"
+    ? "model_gateway_provider_rejected"
+    : binding.invocation_status === "malformed_response" ||
+        binding.invocation_status === "source_token_invalid"
+      ? "model_gateway_provider_response_invalid"
+      : binding.invocation_status === "timed_out"
+        ? "model_gateway_timeout"
+        : binding.invocation_status === "cancelled"
+          ? "model_gateway_cancelled"
+          : binding.invocation_status === "transport_failed"
+            ? "model_gateway_transport_failed"
+            : null;
+  const receiptForbidden = new Set<GovernedActorLabLiveInvocationStatusV01>([
+    "dependency_missing",
+    "not_attempted_arm_terminal",
+    "cohort_internal_error_receipt_unavailable",
+  ]).has(binding.invocation_status);
+  if (
+    (binding.invocation_status === "completed_live" &&
+      (!receipt ||
+        !receipt.egress_attempted ||
+        receipt.status !== "completed" ||
+        receipt.outcome !== "live_success" ||
+        receipt.failure_code !== null ||
+        binding.normalized_output === null)) ||
+    (binding.invocation_status !== "completed_live" &&
+      binding.normalized_output !== null) ||
+    (expectedFailureCode !== null &&
+      (!receipt || receipt.failure_code !== expectedFailureCode)) ||
+    (receiptForbidden && receipt !== null)
+  ) {
+    failV01("governed_actor_lab_live_invocation_status_invalid");
+  }
+  if (
+    new Set(binding.presented_memory_tokens).size !== binding.presented_memory_tokens.length ||
+    new Set(binding.presented_curated_tokens).size !== binding.presented_curated_tokens.length ||
+    binding.normalized_output?.referenced_memory_tokens.some(
+      (token) => !binding.presented_memory_tokens.includes(token),
+    ) ||
+    binding.normalized_output?.referenced_curated_tokens.some(
+      (token) => !binding.presented_curated_tokens.includes(token),
+    )
+  ) {
+    failV01("governed_actor_lab_live_material_reference_invalid");
+  }
+  if (
+    binding.invocation_status === "transport_failed" &&
+    (!receipt || receipt.failure_code !== "model_gateway_transport_failed")
+  ) {
+    failV01("governed_actor_lab_live_transport_receipt_required");
+  }
+  if (binding.invocation_status === "not_attempted_arm_terminal") {
+    if (
+      binding.lab_actor_id !== null ||
+      binding.frozen_actor_ref !== null ||
+      binding.frozen_private_memory_ref !== null ||
+      binding.last_terminal_state_ref === null ||
+      binding.arm_terminal_ref === null ||
+      binding.no_egress_disposition?.code !== "not_attempted_arm_terminal" ||
+      binding.no_egress_disposition.arm_terminal_ref !== binding.arm_terminal_ref ||
+      binding.no_egress_disposition.arm_terminal_reason !== "no_valid_population"
+    ) {
+      failV01("governed_actor_lab_live_arm_terminal_binding_invalid");
+    }
+  } else if (!binding.frozen_actor_ref || !binding.lab_actor_id) {
+    failV01("governed_actor_lab_live_actor_binding_invalid");
+  }
+}
+
+export function validateGovernedActorLabLiveInvocationBindingV01(
+  binding: GovernedActorLabLiveInvocationBindingV01,
+  planned: GovernedActorLabLiveCallPlanEntryV01,
+  route: GovernedActorLabLiveRouteV01,
+): GovernedActorLabLiveInvocationBindingV01 {
+  validateBindingAgainstPlanEntryV01(binding, planned, route);
+  scanForbiddenPersistedMaterialV01(binding);
+  return structuredClone(binding);
+}
+
+export function validateGovernedActorLabLiveCheckpointV01(
+  checkpoint: GovernedActorLabLiveCheckpointV01,
+  maximumJournalPrefix: number,
+): GovernedActorLabLiveCheckpointV01 {
+  assertSealedV01(checkpoint);
+  validateCheckpointPrefixV01([checkpoint], maximumJournalPrefix);
+  scanForbiddenPersistedMaterialV01(checkpoint);
+  return structuredClone(checkpoint);
+}
+
+export function evaluateGovernedActorLabLiveOutputV01(input: {
   arm: GovernedActorLabBaselineArmV01;
   generation: 0 | 1 | 2 | "holdout";
   slot: string;
   liveCase: GovernedActorLabLiveCaseV01;
   binding: GovernedActorLabLiveInvocationBindingV01;
-  challengeRequired: boolean;
+  peerArtifact: GovernedActorLabLivePeerArtifactV01 | null;
 }): GovernedActorLabLiveEvaluationV01 {
   const output = input.binding.normalized_output;
   const evaluator = input.liveCase.evaluator_only;
@@ -1300,20 +2551,24 @@ function evaluateLiveOutputV01(input: {
     canonicalizeProtocolValueV01(evaluationBasis),
   ).slice("sha256:".length, "sha256:".length + 32)}`;
   if (!output) {
-    return {
+    const checks = evaluator.required_checks.map((rule) => ({
+      ...structuredClone(rule),
+      result: "unknown" as const,
+      basis: "provider_output_unavailable" as const,
+    }));
+    const evaluationWithoutFingerprint = {
       evaluation_id: evaluationId,
-      evaluation_fingerprint: createProtocolSha256V01(
-        canonicalizeProtocolValueV01({ ...evaluationBasis, status: "unknown" }),
-      ),
       arm: input.arm,
       generation: input.generation,
       actor_slot: input.slot,
       case_id: input.liveCase.actor_visible.case_id,
-      status: "unknown",
+      status: "unknown" as const,
+      checks,
+      evaluation_failure_codes: [],
       hard_gate_failure: null,
       hard_gate_failure_codes: [],
       required_checks_passed: null,
-      required_checks_total: evaluator.required_checks.length,
+      required_checks_total: checks.length,
       source_reference_coverage: null,
       support_validation_coverage: null,
       supported_claims: null,
@@ -1321,7 +2576,13 @@ function evaluateLiveOutputV01(input: {
       abstention_observed: null,
       harmful_transfer_candidate: null,
       missingness: [input.binding.invocation_status],
-      evaluator_model_calls: 0,
+      evaluator_model_calls: 0 as const,
+    };
+    return {
+      ...evaluationWithoutFingerprint,
+      evaluation_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(evaluationWithoutFingerprint),
+      ),
     };
   }
   const outputClaims = new Map(
@@ -1332,34 +2593,63 @@ function evaluateLiveOutputV01(input: {
     return relation.required_source_tokens.every((source) => supplied.includes(source));
   });
   const forbidden = evaluator.forbidden_claim_tokens.filter((claim) => outputClaims.has(claim));
-  const gates: string[] = [];
-  const resultToken = input.challengeRequired ? output.synthesis_token : output.result_token;
-  if (resultToken !== evaluator.expected_result_token) gates.push("expected_result_mismatch");
-  if (relationPasses.some((passed) => !passed)) gates.push("required_support_missing");
-  if (forbidden.length > 0) gates.push("forbidden_unsupported_claim");
-  if (output.abstention !== evaluator.abstention_required) gates.push("abstention_mismatch");
-  if (
-    input.challengeRequired &&
-    input.binding.peer_artifact_ref !== null &&
-    output.challenge_response.peer_claim_tokens_considered.length === 0
-  ) gates.push("peer_challenge_not_considered");
+  const resultToken = input.binding.phase === "challenge_synthesis"
+    ? output.synthesis_token
+    : output.result_token;
+  const peerClaimTokens = input.peerArtifact?.claim_candidates.map(
+    (claim) => claim.claim_token,
+  ) ?? [];
+  const checks = evaluator.required_checks.map((rule) => {
+    let passed: boolean;
+    let basis: "deterministic_predicate" | "no_addressable_peer_claim" =
+      "deterministic_predicate";
+    if (rule.predicate === "expected_result_matches") {
+      passed = resultToken === evaluator.expected_result_token;
+    } else if (rule.predicate === "all_required_support_relations_present") {
+      passed = relationPasses.every(Boolean);
+    } else if (rule.predicate === "no_forbidden_claim_present") {
+      passed = forbidden.length === 0;
+    } else if (rule.predicate === "abstention_matches") {
+      passed = output.abstention === evaluator.abstention_required;
+    } else {
+      if (peerClaimTokens.length === 0) {
+        passed = true;
+        basis = "no_addressable_peer_claim";
+      } else {
+        passed = output.challenge_response.peer_claim_tokens_considered.some(
+          (token) => peerClaimTokens.includes(token),
+        );
+      }
+    }
+    return {
+      ...structuredClone(rule),
+      result: passed ? "pass" as const : "fail" as const,
+      basis,
+    };
+  });
+  const failedChecks = checks.filter((check) => check.result === "fail");
+  const hardGateFailures = failedChecks.filter(
+    (check) => check.severity === "selection_disqualifying_hard_gate",
+  );
   const supportedClaims = relationPasses.filter(Boolean).length;
   const claimsWithSources = output.claim_candidates.filter((claim) => claim.source_tokens.length > 0).length;
-  const requiredChecksPassed = Math.max(
-    0,
-    evaluator.required_checks.length - Math.min(evaluator.required_checks.length, gates.length),
-  );
   const evaluationWithoutFingerprint = {
     evaluation_id: evaluationId,
     arm: input.arm,
     generation: input.generation,
     actor_slot: input.slot,
     case_id: input.liveCase.actor_visible.case_id,
-    status: gates.length === 0 ? "pass" as const : "fail" as const,
-    hard_gate_failure: gates.length > 0,
-    hard_gate_failure_codes: gates.sort(compareProtocolCodeUnitsV01),
-    required_checks_passed: requiredChecksPassed,
-    required_checks_total: evaluator.required_checks.length,
+    status: failedChecks.length === 0 ? "pass" as const : "fail" as const,
+    checks,
+    evaluation_failure_codes: failedChecks
+      .map((check) => check.check_code)
+      .sort(compareProtocolCodeUnitsV01),
+    hard_gate_failure: hardGateFailures.length > 0,
+    hard_gate_failure_codes: hardGateFailures
+      .map((check) => check.check_code)
+      .sort(compareProtocolCodeUnitsV01),
+    required_checks_passed: checks.filter((check) => check.result === "pass").length,
+    required_checks_total: checks.length,
     source_reference_coverage: output.claim_candidates.length === 0
       ? 1
       : claimsWithSources / output.claim_candidates.length,
@@ -1539,22 +2829,32 @@ function c1SelectionOutcomeV01(
   };
 }
 
-function registerBindingV01(
+async function registerBindingV01(
   state: ArmRuntimeStateV01,
   all: GovernedActorLabLiveInvocationBindingV01[],
   used: Set<string>,
   planned: GovernedActorLabLiveCallPlanEntryV01,
   binding: GovernedActorLabLiveInvocationBindingV01,
-): void {
+  onBindingFinalized?: (
+    binding: GovernedActorLabLiveInvocationBindingV01,
+  ) => void | Promise<void>,
+): Promise<void> {
   if (used.has(planned.call_slot_id) || binding.call_slot_id !== planned.call_slot_id) {
     failV01("governed_actor_lab_live_call_replay_refused");
   }
+  if (planned.call_order !== all.length) {
+    failV01("governed_actor_lab_live_journal_order_invalid");
+  }
+  validateBindingAgainstPlanEntryV01(binding, planned);
+  await onBindingFinalized?.(structuredClone(binding));
   used.add(planned.call_slot_id);
   all.push(binding);
   state.invocationBindingRefs.push(binding.integrity.fingerprint);
 }
 
-function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmResultV01 {
+function buildArmResultV01(
+  state: ArmRuntimeStateV01,
+): GovernedActorLabLiveArmResultV01 {
   const holdout = state.evaluations.filter((evaluation) => evaluation.generation === "holdout");
   const known = state.evaluations.filter((evaluation) => evaluation.status !== "unknown");
   const sumNullable = (values: Array<number | null>) =>
@@ -1569,10 +2869,34 @@ function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmRe
     state.evaluations.flatMap((evaluation) => evaluation.missingness),
   );
   const hardFailures = state.evaluations.filter((evaluation) => evaluation.hard_gate_failure === true);
-  const comparable =
-    missingness.length === 0 &&
-    holdout.length === 4 &&
-    hardFailures.length === 0;
+  const armGateCodes: GovernedActorLabLiveArmResultV01["arm_level_hard_gate"]["codes"] = [];
+  if (state.terminal) armGateCodes.push("no_valid_population");
+  if (missingness.includes("route_changed")) armGateCodes.push("route_model_inconsistency");
+  if (missingness.includes("cohort_internal_error_receipt_unavailable")) {
+    armGateCodes.push("cohort_internal_error");
+  }
+  if (holdout.length !== 4 || holdout.some((evaluation) => evaluation.status === "unknown")) {
+    armGateCodes.push("required_arm_evaluation_incomplete");
+  }
+  if (holdout.some((evaluation) => evaluation.hard_gate_failure === true)) {
+    armGateCodes.push("required_arm_evaluation_incomplete");
+  }
+  for (const generation of [0, 1, 2] as const) {
+    const generationEvaluations = state.evaluations.filter(
+      (evaluation) => evaluation.generation === generation,
+    );
+    if (
+      generationEvaluations.length > 0 &&
+      generationEvaluations.every(
+        (evaluation) =>
+          evaluation.status === "unknown" || evaluation.hard_gate_failure === true,
+      )
+    ) {
+      armGateCodes.push("insufficient_required_observations");
+    }
+  }
+  const canonicalArmGateCodes = uniqueStringsV01(armGateCodes) as typeof armGateCodes;
+  const comparable = canonicalArmGateCodes.length === 0 && missingness.length === 0;
   const finalProfiles = new Set(
     state.actors.map((actor) => canonicalizeProtocolValueV01(actor.profile)),
   );
@@ -1592,6 +2916,27 @@ function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmRe
     evaluations: structuredClone(state.evaluations),
     memory_admissions: structuredClone(state.memoryAdmissions),
     population_transitions: structuredClone(state.populationTransitions),
+    terminal: structuredClone(state.terminal),
+    actor_evaluation_failures: state.evaluations.filter(
+      (evaluation) => evaluation.status === "fail",
+    ).length,
+    actor_selection_hard_gate_exclusions:
+      state.populationTransitions.reduce(
+        (sum, transition) => sum + transition.hard_gate_excluded_actor_ids.length,
+        0,
+      ) + (state.terminal?.actor_hard_gate_exclusions.length ?? 0),
+    actor_unknowns: state.evaluations.filter(
+      (evaluation) => evaluation.status === "unknown",
+    ).length,
+    arm_completion_status: state.terminal
+      ? "terminal"
+      : state.invocationBindingRefs.length === 28 && holdout.length === 4
+        ? "complete"
+        : "incomplete",
+    arm_level_hard_gate: {
+      failed: canonicalArmGateCodes.length > 0,
+      codes: canonicalArmGateCodes,
+    },
     holdout: {
       passed: holdout.filter((evaluation) => evaluation.status === "pass").length,
       failed: holdout.filter((evaluation) => evaluation.status === "fail").length,
@@ -1599,6 +2944,7 @@ function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmRe
       state_frozen_before_materialization: true,
       memory_writes_after_holdout: 0,
       mutations_after_holdout: 0,
+      materialized: state.holdoutMaterialized,
     },
     metrics: {
       required_checks_passed: sumNullable(known.map((evaluation) => evaluation.required_checks_passed)),
@@ -1610,7 +2956,12 @@ function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmRe
         : null,
       actor_memory_retrieved: state.memoryRetrieved,
       actor_memory_presented: state.memoryPresented,
-      actor_memory_used: state.memoryUsed,
+      actor_memory_eligible: state.memoryEligible,
+      actor_memory_explicitly_referenced: state.memoryExplicitlyReferenced,
+      actor_memory_actual_use: null,
+      curated_material_presented: state.curatedPresented,
+      curated_material_explicitly_referenced: state.curatedExplicitlyReferenced,
+      curated_material_actual_use: null,
       contamination_quarantined: state.quarantined,
       poisoning_refusals: state.memoryAdmissions.filter(
         (admission) =>
@@ -1639,10 +2990,11 @@ function buildArmResultV01(state: ArmRuntimeStateV01): GovernedActorLabLiveArmRe
       missingness,
     },
     comparable,
+    comparison_eligible: comparable,
     non_comparable_reasons: comparable ? [] : uniqueStringsV01([
       ...missingness,
       ...(holdout.length !== 4 ? ["holdout_count_incomplete"] : []),
-      ...(hardFailures.length > 0 ? ["hard_gate_failure"] : []),
+      ...canonicalArmGateCodes,
     ]),
   };
 }
