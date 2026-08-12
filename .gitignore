@@ -28,6 +28,7 @@ pnpm-debug.log*
 
 # generated local artifacts
 .augnes-local-verification/
+.augnes-lab/
 data/*.db
 data/*.db-*
 outputs/*
