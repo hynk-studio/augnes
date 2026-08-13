@@ -20,6 +20,7 @@ import type {
 import type { TaskContextPacketDataClassificationV01 } from "./task-context-packet";
 import type { StrategicAdvantageTransferProfileV01 } from "./strategic-advantage-transfer";
 import type { ProjectVerifyLifecycleProposalProfileV01 } from "./project-verify-lifecycle";
+import type { OperationalFrictionProposalProfileV01 } from "./operational-friction-proposal";
 
 export const EPISODE_DELTA_PROPOSAL_VERSION_V01 =
   "episode_delta_proposal.v0.1" as const;
@@ -417,6 +418,11 @@ export interface EpisodeDeltaProposalV01 {
    * this field and preserve their prior canonical identity.
    */
   project_verify_lifecycle?: ProjectVerifyLifecycleProposalProfileV01;
+  /**
+   * Optional pure/rebuildable ACGC4A friction material. It is proposal-only,
+   * has no activation owner, and is ineligible for semantic Transition.
+   */
+  operational_friction_proposal?: OperationalFrictionProposalProfileV01;
   observations: EpisodeDeltaProposalObservationV01[];
   attestations: EpisodeDeltaProposalAttestationV01[];
   inferences: EpisodeDeltaProposalInferenceV01[];

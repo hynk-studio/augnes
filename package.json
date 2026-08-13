@@ -75,6 +75,7 @@
     "test:context-shadow-navigation": "node --import tsx scripts/test-context-shadow-navigation.ts",
     "context-shadow-navigation:report": "node --import tsx scripts/context-shadow-navigation-report.ts",
     "test:continuity-dynamics": "node --import tsx scripts/test-continuity-dynamics.ts",
+    "test:operational-friction-proposal": "node --import tsx scripts/test-operational-friction-proposal.ts",
     "continuity-dynamics:report": "node --import tsx scripts/continuity-dynamics-report.ts",
     "test:strategy-composition-case": "node --import tsx scripts/test-strategy-composition-case.ts",
     "test:strategy-composition-comparison": "node --import tsx scripts/test-strategy-composition-comparison.ts",

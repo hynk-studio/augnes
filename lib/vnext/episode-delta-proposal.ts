@@ -32,6 +32,11 @@ import {
   normalizeProjectVerifyLifecycleProposalProfileV01,
   validateProjectVerifyLifecycleProposalProfileV01,
 } from "@/lib/vnext/project-verify-lifecycle-protocol";
+import {
+  createOperationalFrictionSourceExternalRefV01,
+  normalizeOperationalFrictionProposalProfileV01,
+  validateOperationalFrictionProposalProfileV01,
+} from "@/lib/vnext/operational-friction-proposal-profile";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import { PROJECT_VERIFY_LIFECYCLE_TARGET_NAMESPACE_V01 } from "@/types/vnext/project-verify-lifecycle";
 import {
@@ -97,6 +102,7 @@ const allowedRootKeys = new Set([
   "operation_revision",
   "strategic_advantage_transfer",
   "project_verify_lifecycle",
+  "operational_friction_proposal",
   "observations",
   "attestations",
   "inferences",
@@ -493,6 +499,14 @@ export function buildEpisodeDeltaProposalV01(
           project_verify_lifecycle:
             normalizeProjectVerifyLifecycleProposalProfileV01(
               input.project_verify_lifecycle,
+            ),
+        }
+      : {}),
+    ...(input.operational_friction_proposal
+      ? {
+          operational_friction_proposal:
+            normalizeOperationalFrictionProposalProfileV01(
+              input.operational_friction_proposal,
             ),
         }
       : {}),
@@ -900,6 +914,7 @@ export function validateEpisodeDeltaProposalV01(
   validateSourceAssessmentV01(input, accumulator);
   validateOperationRevisionV01(input, accumulator);
   validateStrategicAdvantageTransferV01(input, accumulator);
+  validateOperationalFrictionProposalV01(input, accumulator);
   validateRefArray(input.source_refs, "$.source_refs", accumulator);
   validateDuplicateExternalRefsPrimitiveV01(input, sink);
 
@@ -2231,6 +2246,213 @@ function validateProjectVerifyLifecycleV01(
       "project_verify_lifecycle_compatibility_contract_missing",
       "$.compatibility.source_contracts",
       "Lifecycle proposals must declare both lifecycle binding contracts.",
+    );
+  }
+  return exact;
+}
+
+function validateOperationalFrictionProposalV01(
+  proposal: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+): boolean {
+  if (proposal.operational_friction_proposal === undefined) return false;
+  const path = "$.operational_friction_proposal";
+  const validation = validateOperationalFrictionProposalProfileV01(
+    proposal.operational_friction_proposal,
+  );
+  for (const issue of validation.errors) {
+    addError(
+      accumulator,
+      issue.code,
+      issue.path ? `${path}${issue.path.slice(1)}` : path,
+      issue.message,
+      validation.status === "blocked",
+    );
+  }
+  if (
+    validation.status !== "valid" ||
+    !isProtocolRecordV01(proposal.operational_friction_proposal)
+  ) {
+    return false;
+  }
+  const profile =
+    proposal.operational_friction_proposal as unknown as NonNullable<
+      EpisodeDeltaProposalV01["operational_friction_proposal"]
+    >;
+  let exact = true;
+  const conflict = (code: string, issuePath: string, message: string) => {
+    exact = false;
+    addError(accumulator, code, issuePath, message, true);
+  };
+  if (
+    proposal.source_assessment !== undefined ||
+    proposal.operation_revision !== undefined ||
+    proposal.strategic_advantage_transfer !== undefined ||
+    proposal.project_verify_lifecycle !== undefined ||
+    proposal.status !== "pending_review"
+  ) {
+    conflict(
+      "operational_friction_profile_collision",
+      path,
+      "Operational friction material is one distinct pending-review proposal profile.",
+    );
+  }
+  if (
+    proposal.workspace_id !== profile.workspace_id ||
+    proposal.project_id !== profile.project_id ||
+    proposal.created_at !== profile.created_at
+  ) {
+    conflict(
+      "operational_friction_profile_scope_mismatch",
+      path,
+      "Operational friction profile scope and source chronology must exactly match the proposal.",
+    );
+  }
+  const proposedDeltas = Array.isArray(proposal.proposed_deltas)
+    ? proposal.proposed_deltas.filter(isProtocolRecordV01)
+    : [];
+  if (proposedDeltas.length !== profile.candidate_bindings.length) {
+    conflict(
+      "operational_friction_candidate_count_mismatch",
+      "$.proposed_deltas",
+      "Every operational friction candidate binding must map to exactly one proposal candidate and no unrelated candidate may be injected.",
+    );
+  }
+  const proposedById = new Map(
+    proposedDeltas.map((candidate) => [
+      protocolStringValueV01(candidate.candidate_id),
+      candidate,
+    ]),
+  );
+  const observationsById = new Map(
+    profile.observations.map((observation) => [
+      observation.observation_id,
+      observation,
+    ]),
+  );
+  for (const binding of profile.candidate_bindings) {
+    const candidate = proposedById.get(binding.candidate_id);
+    const candidateFingerprint = candidate
+      ? createProtocolSha256V01(canonicalizeProtocolValueV01(candidate))
+      : null;
+    const expectedTargetClass =
+      binding.delta_family === "research_delta"
+        ? "bounded_research_hypothesis"
+        : binding.delta_family === "validation_delta"
+          ? "bounded_validation_hypothesis"
+          : "bounded_agent_plan_hypothesis";
+    if (
+      !candidate ||
+      candidateFingerprint !== binding.candidate_fingerprint ||
+      candidate.delta_type !== binding.delta_family ||
+      candidate.operation !== "unknown" ||
+      binding.operation !== "unknown" ||
+      binding.target_class !== expectedTargetClass ||
+      !Array.isArray(candidate.target_refs) ||
+      candidate.target_refs.length !== 1 ||
+      !isProtocolRecordV01(candidate.target_refs[0]) ||
+      candidate.target_refs[0].ref_type !== "operational_friction_target" ||
+      candidate.target_refs[0].source_ref !==
+        profile.source_bundle.bundle_fingerprint ||
+      candidate.target_refs[0].compatibility_namespace !==
+        `${binding.operation_domain}:${binding.target_class}` ||
+      candidate.review_required !== true ||
+      canonicalizeProtocolValueV01(candidate.basis_material_ids) !==
+        canonicalizeProtocolValueV01(binding.basis_observation_ids)
+    ) {
+      conflict(
+        "operational_friction_candidate_binding_mismatch",
+        "$.proposed_deltas",
+        "Operational candidates must preserve exact binding, allowlisted family, unknown operation, one non-semantic operational target, and basis observations.",
+      );
+      continue;
+    }
+    const exactBasisRefs = binding.basis_observation_ids.flatMap(
+      (id) => observationsById.get(id)?.source_refs ?? [],
+    );
+    if (
+      !Array.isArray(candidate.source_refs) ||
+      exactBasisRefs.some(
+        (ref) => !refArrayContainsV01(candidate.source_refs, ref),
+      )
+    ) {
+      conflict(
+        "operational_friction_candidate_source_mismatch",
+        "$.proposed_deltas",
+        "Operational candidates must retain every exact source ref from their basis friction observations.",
+      );
+    }
+  }
+  const inferences = Array.isArray(proposal.inferences)
+    ? proposal.inferences.filter(isProtocolRecordV01)
+    : [];
+  if (
+    inferences.length !== profile.observations.length ||
+    profile.observations.some((observation) => {
+      const inference = inferences.find(
+        (item) => item.material_id === observation.observation_id,
+      );
+      return (
+        !inference ||
+        inference.material_kind !== "operational_friction_observation.v0.1" ||
+        inference.trust_class !== "derived_interpretation" ||
+        !Array.isArray(inference.source_refs) ||
+        observation.source_refs.some(
+          (ref) => !refArrayContainsV01(inference.source_refs, ref),
+        )
+      );
+    })
+  ) {
+    conflict(
+      "operational_friction_observation_material_mismatch",
+      "$.inferences",
+      "Each serialized friction observation must remain one exact derived proposal material item.",
+    );
+  }
+  const requiredSourceRefs = [
+    profile.source_bundle.attribution,
+    profile.source_bundle.paired_evaluation,
+    profile.source_bundle.dynamics_digest,
+    ...profile.source_bundle.ordered_frames,
+  ].map(createOperationalFrictionSourceExternalRefV01);
+  if (
+    !Array.isArray(proposal.source_refs) ||
+    requiredSourceRefs.some(
+      (ref) => !refArrayContainsV01(proposal.source_refs, ref),
+    )
+  ) {
+    conflict(
+      "operational_friction_proposal_source_ref_missing",
+      "$.source_refs",
+      "Proposal source refs must preserve the exact ACGC1, ACGC2, digest, and ordered-frame identities.",
+    );
+  }
+  const requiredContracts = [
+    profile.profile_version,
+    profile.source_bundle.bundle_version,
+    profile.derivation_rule_version,
+    profile.source_bundle.attribution.source_version,
+    profile.source_bundle.paired_evaluation.source_version,
+    profile.source_bundle.dynamics_digest.source_version,
+    ...profile.source_bundle.ordered_frames.map((frame) => frame.source_version),
+  ];
+  const compatibility = isProtocolRecordV01(proposal.compatibility)
+    ? proposal.compatibility
+    : null;
+  const sourceContracts =
+    compatibility && Array.isArray(compatibility.source_contracts)
+      ? compatibility.source_contracts
+      : null;
+  if (
+    !sourceContracts ||
+    requiredContracts.some(
+      (contract) => !sourceContracts.includes(contract),
+    )
+  ) {
+    conflict(
+      "operational_friction_compatibility_contract_missing",
+      "$.compatibility.source_contracts",
+      "Operational friction proposals must declare every exact source and derivation contract.",
     );
   }
   return exact;
