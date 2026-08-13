@@ -78,6 +78,7 @@ export function validateModelGatewayCostAuthorityV01(
       "planner_plan",
       "temporal_interpretation",
       "strategic_advantage_transfer",
+      "governed_actor_lab",
     ].includes(String(value.purpose)) ||
     typeof value.cost_unit !== "string" ||
     !SAFE_TEXT.test(value.cost_unit) ||

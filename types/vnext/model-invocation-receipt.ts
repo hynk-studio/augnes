@@ -51,7 +51,8 @@ export type ModelInvocationReceiptPurposeV02 =
   | "planner_plan"
   | "temporal_interpretation"
   | "strategic_advantage_transfer"
-  | "guidebrief_interpretation";
+  | "guidebrief_interpretation"
+  | "governed_actor_lab";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";

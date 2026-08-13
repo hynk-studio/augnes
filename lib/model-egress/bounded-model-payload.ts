@@ -4,6 +4,7 @@ export const MODEL_EGRESS_PURPOSES = [
   "temporal_interpretation",
   "strategic_advantage_transfer",
   "guidebrief_interpretation",
+  "governed_actor_lab",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];

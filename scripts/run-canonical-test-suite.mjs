@@ -588,6 +588,12 @@ const suites = {
       ...rootNode("scripts/test-model-gateway.ts"),
     },
     {
+      label:
+        "ACGC3C2 bounded live Governed Actor Lab Gateway and cohort contract",
+      ...rootNode("scripts/test-governed-actor-lab-live.ts"),
+      timeoutMs: 60_000,
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },

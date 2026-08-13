@@ -81,6 +81,8 @@
     "strategy-composition-comparison:report": "node --import tsx scripts/strategy-composition-comparison-report.ts",
     "test:governed-actor-lab": "node --import tsx scripts/test-governed-actor-lab.ts",
     "governed-actor-lab:pilot": "node --import tsx scripts/governed-actor-lab-pilot.ts",
+    "test:governed-actor-lab-live": "node --import tsx scripts/test-governed-actor-lab-live.ts",
+    "governed-actor-lab:live-cohort": "node --import tsx scripts/governed-actor-lab-live-cohort.ts",
     "verify:local:quick": "node scripts/run-local-canonical-verification.mjs quick",
     "verify:local:changed": "node scripts/run-local-canonical-verification.mjs changed",
     "verify:local:full": "node scripts/run-local-canonical-verification.mjs full",

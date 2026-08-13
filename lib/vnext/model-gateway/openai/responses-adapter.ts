@@ -8,6 +8,7 @@ import {
 import {
   ModelGatewayAdapterFailureV01,
   GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+  GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -54,6 +55,13 @@ import {
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS,
   strategicAdvantageTransferResponseSchema,
 } from "@/lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
+import {
+  buildGovernedActorLabSystemPromptV01,
+  governedActorLabResponseSchemaV01,
+  parseGovernedActorLabOutputV01,
+  projectGovernedActorLabModelMaterialV01,
+  GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
+} from "@/lib/vnext/model-gateway/openai/governed-actor-lab-codec";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -77,6 +85,10 @@ export const OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_ID_V01 =
   "openai_responses.guidebrief_interpretation" as const;
 export const OPENAI_RESPONSES_GUIDE_BRIEF_INTERPRETATION_ADAPTER_VERSION_V01 =
   "openai_responses_guidebrief_interpretation_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_ID_V01 =
+  "openai_responses.governed_actor_lab" as const;
+export const OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_VERSION_V01 =
+  "openai_responses_governed_actor_lab_adapter.v0.1" as const;
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
@@ -291,6 +303,28 @@ type PurposeCodec = {
 };
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
+  if (input.input_kind === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    const validatedInput = { ...input };
+    const material = projectGovernedActorLabModelMaterialV01(validatedInput);
+    return {
+      dynamic_material: material,
+      dynamic_bytes: GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.dynamicBytes,
+      final_request_bytes:
+        GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+      response_bytes:
+        GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.responseBytes,
+      system_prompt: buildGovernedActorLabSystemPromptV01(),
+      schema_name: "governed_actor_lab",
+      schema: governedActorLabResponseSchemaV01(input),
+      parse(outputText, usage) {
+        return {
+          purpose: GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseGovernedActorLabOutputV01(outputText, input),
+          usage,
+        };
+      },
+    };
+  }
   if (
     input.input_kind ===
     GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
@@ -410,6 +444,14 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
 function describeOpenAIImplementation(
   purpose: ModelGatewayPurposeV01,
 ): ModelAdapterImplementationV01 {
+  if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_VERSION_V01,
+    };
+  }
   if (
     purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
   ) {
