@@ -29,6 +29,7 @@ export interface OperationalFrictionSourceFixtureOptionsV01 {
   unresolved_counts?: readonly [number, number, number];
   wrong_context_correction_count?: number | null;
   repeated_explanation_estimate?: number | null;
+  max_shadow_selected?: number;
 }
 
 export function buildOperationalFrictionSourceFixtureV01(
@@ -42,7 +43,7 @@ export function buildOperationalFrictionSourceFixtureV01(
   const exact = chains.map((source) => {
     const attribution = buildContextUseAttributionProjectionV01(source);
     const shadow = buildPersonalPerspectiveShadowProjectionV01(
-      shadowInputV01(source),
+      shadowInputV01(source, options),
     );
     const paired = buildPersonalPerspectivePairedEvaluationV01(
       shadow,
@@ -65,6 +66,7 @@ export function buildOperationalFrictionSourceFixtureV01(
     workspace_id: current.source.review.workspace_id,
     project_id: current.source.review.project_id,
     attribution: current.attribution,
+    context_shadow_projection: current.shadow,
     paired_evaluation: current.paired,
     dynamics_digest: digest,
     frames,
@@ -235,7 +237,10 @@ function frameInputV01(
   };
 }
 
-function shadowInputV01(source: SourceChainV01) {
+function shadowInputV01(
+  source: SourceChainV01,
+  options: OperationalFrictionSourceFixtureOptionsV01,
+) {
   const candidates: PersonalPerspectiveContextCandidateV01[] =
     source.later_packet.selected_context
       .filter((entry) => entry.entry_kind === "memory_ref")
@@ -259,7 +264,7 @@ function shadowInputV01(source: SourceChainV01) {
       packet_id: source.later_packet.packet_id,
       packet_fingerprint: source.later_packet.integrity.fingerprint,
     },
-    max_shadow_selected: 1,
+    max_shadow_selected: options.max_shadow_selected ?? 1,
   };
 }
 

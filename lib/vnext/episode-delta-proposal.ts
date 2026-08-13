@@ -2411,6 +2411,7 @@ function validateOperationalFrictionProposalV01(
   }
   const requiredSourceRefs = [
     profile.source_bundle.attribution,
+    profile.source_bundle.context_shadow_projection,
     profile.source_bundle.paired_evaluation,
     profile.source_bundle.dynamics_digest,
     ...profile.source_bundle.ordered_frames,
@@ -2424,7 +2425,7 @@ function validateOperationalFrictionProposalV01(
     conflict(
       "operational_friction_proposal_source_ref_missing",
       "$.source_refs",
-      "Proposal source refs must preserve the exact ACGC1, ACGC2, digest, and ordered-frame identities.",
+      "Proposal source refs must preserve the exact ACGC1 attribution, ACGC2 shadow and paired evaluation, digest, and ordered-frame identities.",
     );
   }
   const requiredContracts = [
@@ -2432,6 +2433,7 @@ function validateOperationalFrictionProposalV01(
     profile.source_bundle.bundle_version,
     profile.derivation_rule_version,
     profile.source_bundle.attribution.source_version,
+    profile.source_bundle.context_shadow_projection.source_version,
     profile.source_bundle.paired_evaluation.source_version,
     profile.source_bundle.dynamics_digest.source_version,
     ...profile.source_bundle.ordered_frames.map((frame) => frame.source_version),
@@ -2443,6 +2445,10 @@ function validateOperationalFrictionProposalV01(
     compatibility && Array.isArray(compatibility.source_contracts)
       ? compatibility.source_contracts
       : null;
+  const compatibilityExternalRefs =
+    compatibility && Array.isArray(compatibility.external_refs)
+      ? compatibility.external_refs
+      : null;
   if (
     !sourceContracts ||
     requiredContracts.some(
@@ -2453,6 +2459,18 @@ function validateOperationalFrictionProposalV01(
       "operational_friction_compatibility_contract_missing",
       "$.compatibility.source_contracts",
       "Operational friction proposals must declare every exact source and derivation contract.",
+    );
+  }
+  if (
+    !compatibilityExternalRefs ||
+    requiredSourceRefs.some(
+      (ref) => !refArrayContainsV01(compatibilityExternalRefs, ref),
+    )
+  ) {
+    conflict(
+      "operational_friction_compatibility_source_ref_missing",
+      "$.compatibility.external_refs",
+      "Operational friction compatibility refs must preserve every exact source identity.",
     );
   }
   return exact;

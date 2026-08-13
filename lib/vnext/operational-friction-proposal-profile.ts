@@ -70,6 +70,7 @@ const BUNDLE_KEYS = [
   "workspace_id",
   "project_id",
   "attribution",
+  "context_shadow_projection",
   "paired_evaluation",
   "dynamics_digest",
   "ordered_frames",
@@ -299,6 +300,9 @@ export function normalizeOperationalFrictionSourceBundleV01(
     workspace_id: normalizeProtocolTextV01(input.workspace_id),
     project_id: normalizeProtocolTextV01(input.project_id),
     attribution: normalizeSourceBindingV01(input.attribution),
+    context_shadow_projection: normalizeSourceBindingV01(
+      input.context_shadow_projection,
+    ),
     paired_evaluation: normalizeSourceBindingV01(input.paired_evaluation),
     dynamics_digest: normalizeSourceBindingV01(input.dynamics_digest),
     ordered_frames: input.ordered_frames.map(normalizeSourceBindingV01),
@@ -713,6 +717,11 @@ function assertSourceBundleV01(
     "$.source_bundle.attribution",
     "context_use_attribution_projection",
   );
+  const shadow = assertSourceBindingV01(
+    bundle.context_shadow_projection,
+    "$.source_bundle.context_shadow_projection",
+    "personal_perspective_shadow_projection",
+  );
   const paired = assertSourceBindingV01(
     bundle.paired_evaluation,
     "$.source_bundle.paired_evaluation",
@@ -725,8 +734,10 @@ function assertSourceBundleV01(
   );
   if (
     attribution.source_timestamp !== null ||
+    shadow.source_timestamp !== null ||
     paired.source_timestamp !== null ||
     attribution.source_timestamp_basis !== "not_serialized_by_source_contract" ||
+    shadow.source_timestamp_basis !== "not_serialized_by_source_contract" ||
     paired.source_timestamp_basis !== "not_serialized_by_source_contract" ||
     digest.source_timestamp_basis !== "exact_boundary_timestamp"
   ) {

@@ -47,6 +47,7 @@ export type OperationalFrictionUnavailableLaneCodeV01 =
 
 export type OperationalFrictionSourceKindV01 =
   | "context_use_attribution_projection"
+  | "personal_perspective_shadow_projection"
   | "personal_perspective_paired_evaluation"
   | "continuity_dynamics_digest"
   | "work_continuity_state_frame";
@@ -78,6 +79,7 @@ export interface OperationalFrictionSourceBundleV01 {
   workspace_id: string;
   project_id: string;
   attribution: OperationalFrictionSourceBindingV01;
+  context_shadow_projection: OperationalFrictionSourceBindingV01;
   paired_evaluation: OperationalFrictionSourceBindingV01;
   dynamics_digest: OperationalFrictionSourceBindingV01;
   ordered_frames: OperationalFrictionSourceBindingV01[];

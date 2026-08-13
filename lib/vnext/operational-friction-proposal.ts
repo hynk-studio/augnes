@@ -1,5 +1,7 @@
 import {
+  assertValidPersonalPerspectiveShadowProjectionV01,
   assertValidPersonalPerspectivePairedEvaluationV01,
+  buildPersonalPerspectivePairedEvaluationV01,
 } from "@/lib/vnext/context-shadow-navigation";
 import {
   assertValidContinuityDynamicsDigestV01,
@@ -38,7 +40,9 @@ import {
 } from "@/types/vnext/continuity-dynamics";
 import {
   PERSONAL_PERSPECTIVE_PAIRED_EVALUATION_VERSION_V01,
+  PERSONAL_PERSPECTIVE_SHADOW_PROJECTION_VERSION_V01,
   type PersonalPerspectivePairedEvaluationV01,
+  type PersonalPerspectiveShadowProjectionV01,
 } from "@/types/vnext/context-shadow-navigation";
 import {
   CONTEXT_USE_ATTRIBUTION_PROJECTION_VERSION_V01,
@@ -86,6 +90,7 @@ export interface MaterializeOperationalFrictionProposalInputV01 {
   workspace_id: string;
   project_id: string;
   attribution: ContextUseAttributionProjectionV01;
+  context_shadow_projection: PersonalPerspectiveShadowProjectionV01;
   paired_evaluation: PersonalPerspectivePairedEvaluationV01;
   dynamics_digest: ContinuityDynamicsDigestV01;
   frames: readonly WorkContinuityStateFrameV01[];
@@ -283,7 +288,7 @@ export function materializeOperationalFrictionProposalV01(
         profile.source_currentness === "unknown" ? null : profile.created_at,
       review_required: true,
       basis:
-        "Exact ACGC1 attribution, ACGC2 paired evaluation, and ACGC3A ordered frame/digest relations.",
+        "Exact ACGC1 attribution, ACGC2 shadow projection plus rebuilt paired evaluation, and ACGC3A ordered frame/digest relations.",
       source_refs: [...sourceRefs, packetRef, receiptRef, reviewRef],
     },
     source_refs: [...sourceRefs, packetRef, receiptRef, reviewRef],
@@ -293,6 +298,7 @@ export function materializeOperationalFrictionProposalV01(
         OPERATIONAL_FRICTION_SOURCE_BUNDLE_VERSION_V01,
         OPERATIONAL_FRICTION_DERIVATION_RULE_VERSION_V01,
         CONTEXT_USE_ATTRIBUTION_PROJECTION_VERSION_V01,
+        PERSONAL_PERSPECTIVE_SHADOW_PROJECTION_VERSION_V01,
         PERSONAL_PERSPECTIVE_PAIRED_EVALUATION_VERSION_V01,
         CONTINUITY_DYNAMICS_DIGEST_VERSION_V01,
         WORK_CONTINUITY_STATE_FRAME_VERSION_V01,
@@ -366,6 +372,13 @@ export function assertExactOperationalFrictionSourceRelationsV01(
     throw new Error("operational_friction_attribution_invalid");
   }
   try {
+    assertValidPersonalPerspectiveShadowProjectionV01(
+      input.context_shadow_projection,
+    );
+  } catch {
+    throw new Error("operational_friction_shadow_projection_invalid");
+  }
+  try {
     assertValidPersonalPerspectivePairedEvaluationV01(input.paired_evaluation);
   } catch {
     throw new Error("operational_friction_paired_evaluation_invalid");
@@ -378,6 +391,7 @@ export function assertExactOperationalFrictionSourceRelationsV01(
   }
   const scopeValues = [
     input.attribution,
+    input.context_shadow_projection,
     input.paired_evaluation,
     input.dynamics_digest,
     ...input.frames,
@@ -412,6 +426,25 @@ export function assertExactOperationalFrictionSourceRelationsV01(
       input.attribution.later_task_context_packet.packet_version
   ) {
     throw new Error("operational_friction_paired_packet_review_mismatch");
+  }
+  let rebuiltPaired: PersonalPerspectivePairedEvaluationV01;
+  try {
+    rebuiltPaired = buildPersonalPerspectivePairedEvaluationV01(
+      input.context_shadow_projection,
+      input.attribution,
+    );
+  } catch {
+    throw new Error(
+      "operational_friction_paired_evaluation_source_relation_mismatch",
+    );
+  }
+  if (
+    canonicalizeProtocolValueV01(rebuiltPaired) !==
+    canonicalizeProtocolValueV01(input.paired_evaluation)
+  ) {
+    throw new Error(
+      "operational_friction_paired_evaluation_source_relation_mismatch",
+    );
   }
   if (
     input.frames.length !== input.dynamics_digest.ordered_frames.length ||
@@ -488,6 +521,11 @@ export function assertExactOperationalFrictionSourceRelationsV01(
       input.attribution.integrity.fingerprint,
     ) ||
     !hasBinding(
+      "personal_perspective_shadow_projection",
+      input.context_shadow_projection.projection_id,
+      input.context_shadow_projection.integrity.fingerprint,
+    ) ||
+    !hasBinding(
       "personal_perspective_paired_evaluation",
       input.paired_evaluation.evaluation_id,
       input.paired_evaluation.integrity.fingerprint,
@@ -544,6 +582,7 @@ function assertExactMaterializerInputV01(input: unknown): asserts input is Mater
     "workspace_id",
     "project_id",
     "attribution",
+    "context_shadow_projection",
     "paired_evaluation",
     "dynamics_digest",
     "frames",
@@ -571,6 +610,15 @@ function buildSourceBundleV01(
       source_version: input.attribution.projection_version,
       source_id: input.attribution.projection_id,
       source_fingerprint: input.attribution.integrity.fingerprint,
+      source_timestamp: null,
+      source_timestamp_basis: "not_serialized_by_source_contract",
+    },
+    context_shadow_projection: {
+      source_kind: "personal_perspective_shadow_projection",
+      source_version: input.context_shadow_projection.projection_version,
+      source_id: input.context_shadow_projection.projection_id,
+      source_fingerprint:
+        input.context_shadow_projection.integrity.fingerprint,
       source_timestamp: null,
       source_timestamp_basis: "not_serialized_by_source_contract",
     },
@@ -623,6 +671,9 @@ function deriveFrictionObservationsV01(
   const attributionRef = createOperationalFrictionSourceExternalRefV01(
     bundle.attribution,
   );
+  const shadowRef = createOperationalFrictionSourceExternalRefV01(
+    bundle.context_shadow_projection,
+  );
   const pairedRef = createOperationalFrictionSourceExternalRefV01(
     bundle.paired_evaluation,
   );
@@ -645,7 +696,7 @@ function deriveFrictionObservationsV01(
         epistemic_status: "bounded_non_causal_candidate",
         derivation_rule_id:
           "critical_omission_candidate_to_bounded_validation_delta.v0.1",
-        source_refs: [attributionRef, pairedRef],
+        source_refs: [attributionRef, shadowRef, pairedRef],
         attribution_row_ids: criticalRows.map((row) => row.entry_id),
         paired_evaluation_entry_ids: criticalRows.map((row) => row.entry_id),
         frame_ids: [currentFrame.frame_id],
@@ -1106,6 +1157,7 @@ function sourceBundleRefsV01(
   return uniqueRefsV01(
     [
       bundle.attribution,
+      bundle.context_shadow_projection,
       bundle.paired_evaluation,
       bundle.dynamics_digest,
       ...bundle.ordered_frames,

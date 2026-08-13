@@ -3,10 +3,13 @@ import { readFileSync } from "node:fs";
 
 import { buildOperationalFrictionSourceFixtureV01 } from "@/fixtures/vnext/research/operational-friction-proposal-v0-1";
 import {
+  assertValidPersonalPerspectivePairedEvaluationV01,
   createPersonalPerspectivePairedEvaluationFingerprintV01,
   derivePersonalPerspectivePairedEvaluationIdV01,
 } from "@/lib/vnext/context-shadow-navigation";
 import {
+  assertValidContinuityDynamicsDigestV01,
+  assertValidWorkContinuityStateFrameV01,
   buildContinuityDynamicsDigestV01,
   createContinuityDynamicsDigestFingerprintV01,
   createWorkContinuityStateFrameFingerprintV01,
@@ -74,6 +77,15 @@ try {
   assert.equal(result.proposal.created_at, source.dynamics_digest.end_boundary.boundary_timestamp);
   assert.equal(result.profile.created_at, result.proposal.created_at);
   assert.equal(result.profile.source_bundle.caller_timestamp_used, false);
+  assert.deepEqual(result.profile.source_bundle.context_shadow_projection, {
+    source_kind: "personal_perspective_shadow_projection",
+    source_version: source.context_shadow_projection.projection_version,
+    source_id: source.context_shadow_projection.projection_id,
+    source_fingerprint:
+      source.context_shadow_projection.integrity.fingerprint,
+    source_timestamp: null,
+    source_timestamp_basis: "not_serialized_by_source_contract",
+  });
   assert.equal(result.profile.source_bundle.ordered_frames.length, source.frames.length);
   assert.deepEqual(
     result.profile.source_bundle.ordered_frames.map((frame) => [
@@ -311,9 +323,13 @@ try {
       {
         suite: "operational-friction-proposal-v0.1",
         status: "passed",
+        materialization_id: result.materialization_id,
+        source_bundle_id: result.source_bundle_id,
+        source_bundle_fingerprint: result.source_bundle_fingerprint,
         profile_id: result.profile.profile_id,
         profile_fingerprint: result.profile.integrity.fingerprint,
         proposal_id: result.proposal.proposal_id,
+        proposal_fingerprint: result.proposal.integrity.fingerprint,
         observation_counts_by_code: Object.fromEntries(
           result.profile.observations.map((observation) => [
             observation.friction_code,
@@ -386,6 +402,70 @@ function assertSourceRelationFailuresV01(
     /operational_friction_paired_packet_review_mismatch/u,
   );
 
+  const shadowIdMismatch = clone(source);
+  shadowIdMismatch.paired_evaluation.pre_outcome_shadow.projection_id =
+    "personal-perspective-shadow:substituted";
+  resignPairedV01(shadowIdMismatch.paired_evaluation);
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(shadowIdMismatch),
+    /operational_friction_paired_evaluation_source_relation_mismatch/u,
+  );
+  const shadowFingerprintMismatch = clone(source);
+  shadowFingerprintMismatch.paired_evaluation.pre_outcome_shadow.projection_fingerprint =
+    `sha256:${"d".repeat(64)}`;
+  resignPairedV01(shadowFingerprintMismatch.paired_evaluation);
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(shadowFingerprintMismatch),
+    /operational_friction_paired_evaluation_source_relation_mismatch/u,
+  );
+  const substitutedShadow = clone(source);
+  substitutedShadow.context_shadow_projection =
+    buildOperationalFrictionSourceFixtureV01({
+      max_shadow_selected: 2,
+    }).context_shadow_projection;
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(substitutedShadow),
+    /operational_friction_paired_evaluation_source_relation_mismatch/u,
+  );
+
+  const resealedPairedChain = clone(source);
+  const criticalRow = resealedPairedChain.paired_evaluation.rows.find(
+    (row) => row.critical_omission_candidate,
+  )!;
+  criticalRow.critical_omission_candidate = false;
+  criticalRow.critical_omission_candidate_rule = null;
+  resealedPairedChain.paired_evaluation.summary.critical_omission_candidate_count -= 1;
+  resignPairedV01(resealedPairedChain.paired_evaluation);
+  const resealedEndFrame = resealedPairedChain.frames.at(-1)!;
+  const resealedPairedBinding = resealedEndFrame.source_bindings.find(
+    (binding) =>
+      binding.source_kind === "personal_perspective_paired_evaluation",
+  )!;
+  resealedPairedBinding.source_id =
+    resealedPairedChain.paired_evaluation.evaluation_id;
+  resealedPairedBinding.source_fingerprint =
+    resealedPairedChain.paired_evaluation.integrity.fingerprint;
+  resignFrameV01(resealedEndFrame);
+  resealedPairedChain.dynamics_digest = buildContinuityDynamicsDigestV01({
+    workspace_id: resealedPairedChain.workspace_id,
+    project_id: resealedPairedChain.project_id,
+    frames: resealedPairedChain.frames,
+    window_kind: "recent_3",
+  });
+  assertValidPersonalPerspectivePairedEvaluationV01(
+    resealedPairedChain.paired_evaluation,
+  );
+  resealedPairedChain.frames.forEach(
+    assertValidWorkContinuityStateFrameV01,
+  );
+  assertValidContinuityDynamicsDigestV01(
+    resealedPairedChain.dynamics_digest,
+  );
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(resealedPairedChain),
+    /operational_friction_paired_evaluation_source_relation_mismatch/u,
+  );
+
   const frameIdMismatch = clone(source);
   frameIdMismatch.dynamics_digest.ordered_frames[0]!.frame_id =
     "work-continuity-frame:substituted";
@@ -419,6 +499,44 @@ function assertSourceRelationFailuresV01(
   });
   assert.throws(
     () => materializeOperationalFrictionProposalV01(frameLineageMismatch),
+    /operational_friction_frame_source_lineage_mismatch/u,
+  );
+
+  const missingShadowFrameBinding = clone(source);
+  const missingShadowEndFrame = missingShadowFrameBinding.frames.at(-1)!;
+  missingShadowEndFrame.source_bindings =
+    missingShadowEndFrame.source_bindings.filter(
+      (binding) =>
+        binding.source_kind !== "personal_perspective_shadow_projection",
+    );
+  resignFrameV01(missingShadowEndFrame);
+  missingShadowFrameBinding.dynamics_digest =
+    buildContinuityDynamicsDigestV01({
+      workspace_id: missingShadowFrameBinding.workspace_id,
+      project_id: missingShadowFrameBinding.project_id,
+      frames: missingShadowFrameBinding.frames,
+      window_kind: "recent_3",
+    });
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(missingShadowFrameBinding),
+    /operational_friction_frame_source_lineage_mismatch/u,
+  );
+  const wrongShadowFrameBinding = clone(source);
+  const wrongShadowEndFrame = wrongShadowFrameBinding.frames.at(-1)!;
+  const shadowBinding = wrongShadowEndFrame.source_bindings.find(
+    (binding) =>
+      binding.source_kind === "personal_perspective_shadow_projection",
+  )!;
+  shadowBinding.source_id = "personal-perspective-shadow:other";
+  resignFrameV01(wrongShadowEndFrame);
+  wrongShadowFrameBinding.dynamics_digest = buildContinuityDynamicsDigestV01({
+    workspace_id: wrongShadowFrameBinding.workspace_id,
+    project_id: wrongShadowFrameBinding.project_id,
+    frames: wrongShadowFrameBinding.frames,
+    window_kind: "recent_3",
+  });
+  assert.throws(
+    () => materializeOperationalFrictionProposalV01(wrongShadowFrameBinding),
     /operational_friction_frame_source_lineage_mismatch/u,
   );
 
@@ -737,6 +855,36 @@ function assertIntegrityAndCompatibilityV01(
     /operational_friction_resealed_profile_refused/u,
   );
 
+  const missingShadowBinding = clone(profile);
+  delete (
+    missingShadowBinding.source_bundle as Partial<
+      OperationalFrictionProposalProfileV01["source_bundle"]
+    >
+  ).context_shadow_projection;
+  assertValidationCodeV01(
+    validateOperationalFrictionProposalProfileV01(missingShadowBinding),
+    "source_binding_malformed",
+  );
+
+  const resealedShadowBinding = clone(profile);
+  resealedShadowBinding.source_bundle.context_shadow_projection.source_id =
+    "personal-perspective-shadow:resealed";
+  resignBundleV01(resealedShadowBinding.source_bundle);
+  resignProfileV01(resealedShadowBinding);
+  assert.equal(
+    validateOperationalFrictionProposalProfileV01(resealedShadowBinding).status,
+    "valid",
+  );
+  assert.throws(
+    () =>
+      assertOperationalFrictionMaterialMatchesSourcesV01(
+        source,
+        resealedShadowBinding,
+        proposal,
+      ),
+    /operational_friction_resealed_profile_refused/u,
+  );
+
   const resealedCount = clone(profile);
   const countObservation = resealedCount.observations.find(
     (item) => item.exact_count !== null,
@@ -804,6 +952,40 @@ function assertIntegrityAndCompatibilityV01(
   assertEpisodeValidationCodeV01(
     sourceRelation,
     "operational_friction_proposal_source_ref_missing",
+  );
+
+  const missingShadowSourceRef = clone(proposal);
+  missingShadowSourceRef.source_refs = missingShadowSourceRef.source_refs.filter(
+    (ref) => ref.ref_type !== "personal_perspective_shadow_projection",
+  );
+  resignProposalV01(missingShadowSourceRef);
+  assertEpisodeValidationCodeV01(
+    missingShadowSourceRef,
+    "operational_friction_proposal_source_ref_missing",
+  );
+
+  const missingShadowCompatibilityRef = clone(proposal);
+  missingShadowCompatibilityRef.compatibility.external_refs =
+    missingShadowCompatibilityRef.compatibility.external_refs.filter(
+      (ref) => ref.ref_type !== "personal_perspective_shadow_projection",
+    );
+  resignProposalV01(missingShadowCompatibilityRef);
+  assertEpisodeValidationCodeV01(
+    missingShadowCompatibilityRef,
+    "operational_friction_compatibility_source_ref_missing",
+  );
+
+  const missingShadowContract = clone(proposal);
+  missingShadowContract.compatibility.source_contracts =
+    missingShadowContract.compatibility.source_contracts.filter(
+      (contract) =>
+        contract !==
+        source.context_shadow_projection.projection_version,
+    );
+  resignProposalV01(missingShadowContract);
+  assertEpisodeValidationCodeV01(
+    missingShadowContract,
+    "operational_friction_compatibility_contract_missing",
   );
 
   const profileCollision = clone(proposal);
