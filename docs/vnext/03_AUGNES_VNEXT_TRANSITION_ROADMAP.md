@@ -394,6 +394,27 @@ and helper physical targets to the canonical package root and revalidates them
 immediately before invocation. No native binary is committed, no Windows
 package support is claimed, and neither Windows Start nor Resume is enabled.
 
+### CDX2B3B verified Windows managed delegation — Completed
+
+[Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
+and [PR #135](https://github.com/hynk-studio/augnes-perspective-lab/pull/135)
+define the completed CDX2B3B slice, merged as
+`faa8c62f22d2cc7e1538378e5cc63c1393a7278a`. It enables the existing
+Browser-confirmed attachment-backed Start and explicit same-run Resume on the
+verified Windows 11 x64 source-runtime lane on local fixed NTFS. One shared
+platform capability decision is rechecked before admission, after commit, and
+immediately before provider invocation. The existing MCP, Operator, Companion,
+strict route, attachment, envelope, run, checkpoint, provider, cancellation,
+result, RunReceipt, proposal, and semantic-review owners remain canonical.
+
+The completing exact-head Windows lane was Windows 11 Home 25H2 build
+26200.8875, x64 local fixed NTFS, on source head
+`7a0fced1e836858259aebcfcdb7cb8c207f5d851`. Windows 10 managed execution,
+ARM64, packaged Windows, unsupported roots, automatic Resume, a second
+run/attachment, and broader authority remain unsupported or unclaimed. The
+merge does not create semantic acceptance, ReviewDecision, Transition,
+publication, or merge authority.
+
 ### LPX1 reliable exact local-project connection — Completed
 
 [Issue #126](https://github.com/hynk-studio/augnes-perspective-lab/issues/126)
@@ -507,21 +528,33 @@ satisfied. PC6 is completed at main merge
 `a9ba6c6c7c9071308db69387579aab5b7f7b5b65`. PC6 implementation and merged-head
 completion criteria are complete, and parent Issue #87 is closed.
 
-## Current
+## ACGC completed and merge-bound lifecycle
 
-### CDX2B3B verified Windows managed delegation
+The detailed doctrine, gates, and later sequencing remain in the ACGC research
+program owner. This compact lifecycle record reconciles only the merged issue
+and pull-request truth through ACGC3C2:
 
-[Issue #132](https://github.com/hynk-studio/augnes-perspective-lab/issues/132)
-defines the current CDX2B3B slice. It enables the existing Browser-confirmed
-attachment-backed Start and explicit same-run Resume on the verified Windows 11
-x64 source-runtime lane on local fixed NTFS. One shared platform capability
-decision is rechecked before admission, after commit, and immediately before
-provider invocation. The existing MCP, Operator, Companion, strict route,
-attachment, envelope, run, checkpoint, provider, cancellation, result,
-RunReceipt, proposal, and semantic review owners remain canonical. Windows 10
-managed execution remains unclaimed and packaged Windows remains unsupported;
-no Windows runner, automatic Resume, second run/attachment, or broader authority
-is added.
+| Stage | Issue | Merged outcome record | Completed outcome |
+| --- | --- | --- | --- |
+| Stage 0 | [#147](https://github.com/hynk-studio/augnes-perspective-lab/issues/147) | [PR #146](https://github.com/hynk-studio/augnes-perspective-lab/pull/146), `568fa638` | Admitted the integrated adaptive-continuity R&D program without activating later stages. |
+| ACGC1 | [#148](https://github.com/hynk-studio/augnes-perspective-lab/issues/148) | [PR #149](https://github.com/hynk-studio/augnes-perspective-lab/pull/149), `0bc928ff` | Added item-level context-use attribution as a bounded read-only research projection. |
+| ACGC2 | [#150](https://github.com/hynk-studio/augnes-perspective-lab/issues/150) | [PR #151](https://github.com/hynk-studio/augnes-perspective-lab/pull/151), `8feac6fd` | Evaluated Personal Perspective shadow navigation without product mutation or promotion. |
+| ACGC3A | [#152](https://github.com/hynk-studio/augnes-perspective-lab/issues/152) | [PR #153](https://github.com/hynk-studio/augnes-perspective-lab/pull/153), `770145b5` | Added the Continuity Dynamics Observer as bounded observation rather than authority. |
+| ACGC3B1 | [#154](https://github.com/hynk-studio/augnes-perspective-lab/issues/154) | [PR #155](https://github.com/hynk-studio/augnes-perspective-lab/pull/155), `01985beb` | Defined the Strategy Composition Casebook and its research/authority firewall. |
+| ACGC3B2 | [#156](https://github.com/hynk-studio/augnes-perspective-lab/issues/156) | [PR #157](https://github.com/hynk-studio/augnes-perspective-lab/pull/157), `edd3dc54` | Added deterministic strategy-composition comparison without winner or promotion semantics. |
+| ACGC3C1 | [#158](https://github.com/hynk-studio/augnes-perspective-lab/issues/158) | [PR #159](https://github.com/hynk-studio/augnes-perspective-lab/pull/159), `6cc0f444` | Built the isolated Governed Actor Lab pilot with product and Lab authority separated. |
+| ACGC3C2 | [#160](https://github.com/hynk-studio/augnes-perspective-lab/issues/160) | [PR #161](https://github.com/hynk-studio/augnes-perspective-lab/pull/161), `e06a678a` | Completed the bounded live-model Lab cohort record while retaining zero product authority. |
+
+### ACGC3D boundary coverage gap audit — lifecycle follows PR #163
+
+[Issue #162](https://github.com/hynk-studio/augnes-perspective-lab/issues/162)
+defines ACGC3D, and
+[PR #163](https://github.com/hynk-studio/augnes-perspective-lab/pull/163)
+is its linked implementation and outcome record. Under the phase-state rule,
+ACGC3D is **Current** while PR #163 is open and becomes **Completed** only if
+that PR merges. Neither opening nor merging the audit selects or authorizes
+Stage 4, operational policy activation, EpisodeDeltaProposal creation,
+ReviewDecision, Transition, execution, publication, or merge authority.
 
 ## Next separately authorized work
 
