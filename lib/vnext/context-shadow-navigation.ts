@@ -57,6 +57,7 @@ const PENDING_FINGERPRINT = `sha256:${"0".repeat(64)}`;
 const CANONICALIZATION = "augnes-json-c14n-v0_1" as const;
 const SHADOW_BUDGET_REASON =
   "Excluded only from the shadow result because max_shadow_selected was reached; the unchanged baseline selector remains eligible.";
+const SHA256_PATTERN = /^sha256:[a-f0-9]{64}$/u;
 
 const selectedEntryKinds = new Set<TaskContextPacketSelectedEntryKindV01>([
   "accepted_state_ref",
@@ -429,6 +430,178 @@ export function assertValidPersonalPerspectiveShadowProjectionV01(
   ) {
     throw new Error("context_shadow_navigation_strict_subset_invalid");
   }
+}
+
+export function derivePersonalPerspectivePairedEvaluationIdV01(
+  evaluation: PersonalPerspectivePairedEvaluationV01,
+): string {
+  return deriveIdentityV01(
+    evaluation as PersonalPerspectivePairedEvaluationV01 &
+      Record<string, unknown>,
+    "personal-perspective-paired-evaluation",
+  );
+}
+
+export function createPersonalPerspectivePairedEvaluationFingerprintV01(
+  evaluation: PersonalPerspectivePairedEvaluationV01,
+): string {
+  return createFingerprintV01(evaluation);
+}
+
+/**
+ * Serialized validation for a paired evaluation. This proves only the
+ * evaluation's internal shape, derived counts, epistemic boundary, and
+ * deterministic seal. Exact upstream projection/attribution relations remain
+ * the responsibility of a source-bound caller that has those objects.
+ */
+export function assertValidPersonalPerspectivePairedEvaluationV01(
+  input: unknown,
+): asserts input is PersonalPerspectivePairedEvaluationV01 {
+  if (!isProtocolRecordV01(input)) {
+    throw new Error("context_shadow_navigation_paired_evaluation_invalid");
+  }
+  assertExactKeysV01(input, [
+    "evaluation_version",
+    "evaluation_id",
+    "evaluation_kind",
+    "workspace_id",
+    "project_id",
+    "pre_outcome_shadow",
+    "later_context_use_attribution",
+    "rows",
+    "summary",
+    "hindsight_boundary",
+    "limitations",
+    "authority_summary",
+    "integrity",
+  ]);
+  const evaluation = input as unknown as PersonalPerspectivePairedEvaluationV01;
+  if (
+    evaluation.evaluation_version !==
+      PERSONAL_PERSPECTIVE_PAIRED_EVALUATION_VERSION_V01 ||
+    evaluation.evaluation_kind !==
+      "derived_rebuildable_later_paired_research_output" ||
+    !requireNonEmptyStringV01(evaluation.workspace_id) ||
+    !requireNonEmptyStringV01(evaluation.project_id) ||
+    canonicalizeProtocolValueV01(evaluation.authority_summary) !==
+      canonicalizeProtocolValueV01(createAuthoritySummaryV01()) ||
+    evaluation.hindsight_boundary?.frozen_shadow_unchanged !== true ||
+    evaluation.hindsight_boundary?.later_evidence_used_for_selection !== false ||
+    evaluation.hindsight_boundary?.later_evidence_scope !== "evaluation_only" ||
+    !Array.isArray(evaluation.rows)
+  ) {
+    throw new Error("context_shadow_navigation_paired_evaluation_invalid");
+  }
+  assertExactKeysV01(
+    evaluation.pre_outcome_shadow as unknown as Record<string, unknown>,
+    [
+      "projection_id",
+      "projection_fingerprint",
+      "frozen_pair_fingerprint",
+    ],
+  );
+  assertExactKeysV01(
+    evaluation.later_context_use_attribution as unknown as Record<
+      string,
+      unknown
+    >,
+    ["projection_id", "projection_fingerprint", "review_id", "packet"],
+  );
+  validatePacketBindingV01(evaluation.later_context_use_attribution.packet);
+  for (const fingerprint of [
+    evaluation.pre_outcome_shadow.projection_fingerprint,
+    evaluation.pre_outcome_shadow.frozen_pair_fingerprint,
+    evaluation.later_context_use_attribution.projection_fingerprint,
+  ]) {
+    if (!SHA256_PATTERN.test(fingerprint)) {
+      throw new Error(
+        "context_shadow_navigation_paired_evaluation_source_invalid",
+      );
+    }
+  }
+  const laneCounts = {
+    overlap: 0,
+    baseline_only: 0,
+    shadow_only: 0,
+  };
+  let criticalCount = 0;
+  const rowIdentities = new Set<string>();
+  for (const row of evaluation.rows) {
+    if (!isProtocolRecordV01(row)) {
+      throw new Error("context_shadow_navigation_paired_evaluation_row_invalid");
+    }
+    assertExactKeysV01(row, [
+      "comparison_lane",
+      "entry_id",
+      "attribution",
+      "critical_omission_candidate",
+      "critical_omission_candidate_rule",
+      "limitations",
+    ]);
+    if (
+      !["overlap", "baseline_only", "shadow_only"].includes(
+        row.comparison_lane,
+      ) ||
+      !requireNonEmptyStringV01(row.entry_id) ||
+      !Array.isArray(row.limitations) ||
+      row.limitations.some((item) => typeof item !== "string")
+    ) {
+      throw new Error("context_shadow_navigation_paired_evaluation_row_invalid");
+    }
+    const identity = `${row.comparison_lane}:${row.entry_id}`;
+    if (rowIdentities.has(identity)) {
+      throw new Error(
+        "context_shadow_navigation_paired_evaluation_row_duplicate",
+      );
+    }
+    rowIdentities.add(identity);
+    laneCounts[row.comparison_lane] += 1;
+    if (row.critical_omission_candidate) {
+      criticalCount += 1;
+      if (
+        row.comparison_lane !== "baseline_only" ||
+        row.critical_omission_candidate_rule !==
+          "baseline_only_exact_reference_non_causal_v0.1" ||
+        !isProtocolRecordV01(row.attribution) ||
+        !isProtocolRecordV01(row.attribution.causal_contribution) ||
+        row.attribution.causal_contribution.basis !==
+          "no_intervention_relation"
+      ) {
+        throw new Error(
+          "context_shadow_navigation_critical_omission_boundary_invalid",
+        );
+      }
+    } else if (row.critical_omission_candidate_rule !== null) {
+      throw new Error(
+        "context_shadow_navigation_critical_omission_boundary_invalid",
+      );
+    }
+  }
+  if (
+    evaluation.summary.overlap_count !== laneCounts.overlap ||
+    evaluation.summary.baseline_only_count !== laneCounts.baseline_only ||
+    evaluation.summary.shadow_only_count !== laneCounts.shadow_only ||
+    evaluation.summary.critical_omission_candidate_count !== criticalCount ||
+    evaluation.summary.attribution_coverage !== "partial" ||
+    !Array.isArray(evaluation.summary.attribution_missing_lanes)
+  ) {
+    throw new Error(
+      "context_shadow_navigation_paired_evaluation_summary_invalid",
+    );
+  }
+  if (
+    createFingerprintV01(evaluation) !== evaluation.integrity.fingerprint ||
+    deriveIdentityV01(
+      evaluation as PersonalPerspectivePairedEvaluationV01 &
+        Record<string, unknown>,
+      "personal-perspective-paired-evaluation",
+    ) !== evaluation.evaluation_id
+  ) {
+    throw new Error(
+      "context_shadow_navigation_paired_evaluation_fingerprint_invalid",
+    );
+  }
+  assertSafeMaterialV01(evaluation);
 }
 
 function buildCandidateSnapshotV01(

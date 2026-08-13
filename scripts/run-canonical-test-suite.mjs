@@ -137,6 +137,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "source-bound operational friction proposal contract",
+      ...rootNode("scripts/test-operational-friction-proposal.ts"),
+      timeoutMs: 45_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",

@@ -532,7 +532,7 @@ completion criteria are complete, and parent Issue #87 is closed.
 
 The detailed doctrine, gates, and later sequencing remain in the ACGC research
 program owner. This compact lifecycle record reconciles only the merged issue
-and pull-request truth through ACGC3C2:
+and pull-request truth through ACGC3D:
 
 | Stage | Issue | Merged outcome record | Completed outcome |
 | --- | --- | --- | --- |
@@ -544,17 +544,26 @@ and pull-request truth through ACGC3C2:
 | ACGC3B2 | [#156](https://github.com/hynk-studio/augnes-perspective-lab/issues/156) | [PR #157](https://github.com/hynk-studio/augnes-perspective-lab/pull/157), `edd3dc54` | Added deterministic strategy-composition comparison without winner or promotion semantics. |
 | ACGC3C1 | [#158](https://github.com/hynk-studio/augnes-perspective-lab/issues/158) | [PR #159](https://github.com/hynk-studio/augnes-perspective-lab/pull/159), `6cc0f444` | Built the isolated Governed Actor Lab pilot with product and Lab authority separated. |
 | ACGC3C2 | [#160](https://github.com/hynk-studio/augnes-perspective-lab/issues/160) | [PR #161](https://github.com/hynk-studio/augnes-perspective-lab/pull/161), `e06a678a` | Completed the bounded live-model Lab cohort record while retaining zero product authority. |
+| ACGC3D | [#162](https://github.com/hynk-studio/augnes-perspective-lab/issues/162) | [PR #163](https://github.com/hynk-studio/augnes-perspective-lab/pull/163), `b56f3ebf` | Completed the boundary coverage gap audit without activating Stage 4, policy, proposal admission, review, Transition, execution, publication, or merge authority. |
 
-### ACGC3D boundary coverage gap audit — lifecycle follows PR #163
+### ACGC4A source-bound friction proposal material — Current
 
-[Issue #162](https://github.com/hynk-studio/augnes-perspective-lab/issues/162)
-defines ACGC3D, and
-[PR #163](https://github.com/hynk-studio/augnes-perspective-lab/pull/163)
-is its linked implementation and outcome record. Under the phase-state rule,
-ACGC3D is **Current** while PR #163 is open and becomes **Completed** only if
-that PR merges. Neither opening nor merging the audit selects or authorizes
-Stage 4, operational policy activation, EpisodeDeltaProposal creation,
-ReviewDecision, Transition, execution, publication, or merge authority.
+[Issue #164](https://github.com/hynk-studio/augnes-perspective-lab/issues/164)
+defines ACGC4A, and
+[PR #165](https://github.com/hynk-studio/augnes-perspective-lab/pull/165)
+is its linked Draft implementation and outcome record. Under the phase-state
+rule, ACGC4A is **Current** while PR #165 is open and becomes **Completed** only
+if that PR merges. ACGC4A is limited to an exact source bundle, a pure and
+rebuildable operational-friction proposal profile, deterministic
+`EpisodeDeltaProposal` materialization, and negative Transition proof.
+
+ACGC4B remains a separate, unauthorized phase for durable proposal
+admission/readback and existing review-consumer integration. Stage 4 remains
+incomplete until ACGC4B is separately authorized, implemented, reviewed, and
+merged. Stage 5 and later ACGC stages remain separately unauthorized. Neither
+ACGC4A nor this roadmap reconciliation activates an operational policy or
+product phase, creates a review decision or Transition, or grants execution,
+publication, or merge authority.
 
 ## Next separately authorized work
 
