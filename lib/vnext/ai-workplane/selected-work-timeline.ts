@@ -274,7 +274,10 @@ export function buildSelectedWorkTimelineV01(input: {
     timeline_version: SELECTED_WORK_TIMELINE_VERSION_V01,
     selected_work: {
       title: bounded(selected.candidate.title),
-      operation_label: operationLabelV01(selected.candidate.operation),
+      operation_label:
+        selected.pilot_admission.review_mode === "proposal_only_no_activation"
+          ? "Proposal-only operational hypothesis"
+          : operationLabelV01(selected.candidate.operation),
       current_meaning: bounded(selected.candidate.proposed_state_summary),
       selected_candidate_id: selected.candidate.candidate_id,
       selected_candidate_fingerprint: selected.candidate_fingerprint,
@@ -301,6 +304,7 @@ export function selectedWorkTimelineDecisionStatusV01(
 ):
   | "needs_decision"
   | "decision_saved"
+  | "accepted_proposal_only"
   | "project_updated"
   | "rejected"
   | "deferred"
@@ -320,6 +324,8 @@ export function selectedWorkTimelineDecisionStatusV01(
         : timeline.current_position.title.startsWith("Rejected")
         ? "rejected"
         : "blocked";
+    case "proposal_only_accepted":
+      return "accepted_proposal_only";
     case "deferred_until_condition":
       return timeline.current_position.primary_action_owner === "decision"
         ? "needs_decision"
@@ -535,20 +541,59 @@ function currentPositionV01(input: {
   }
   if (effective.decision === "defer") {
     const due = revisitDueV01(read.projection_observed_at, effective);
+    const proposalOnlyNextCandidate =
+      selected.pilot_admission.review_mode ===
+        "proposal_only_no_activation" && nextCandidatePresent;
     return {
       stage: "deferred_until_condition",
       title: due ? "Deferred review is due" : "Deferred until condition",
       summary: deferSummaryV01(effective, due),
-      next_meaningful_step: due
-        ? "Review this selected suggestion again now."
-        : "Wait for the saved revisit condition or time.",
-      primary_action_owner:
-        due && !strategicDecisionUnavailable ? "decision" : "none",
-      destination:
-        due && !strategicDecisionUnavailable
+      next_meaningful_step: proposalOnlyNextCandidate
+        ? "Review the next unresolved operational proposal candidate."
+        : due
+          ? "Review this selected suggestion again now."
+          : "Wait for the saved revisit condition or time.",
+      primary_action_owner: proposalOnlyNextCandidate
+        ? "candidate_selection"
+        : due && !strategicDecisionUnavailable
+          ? "decision"
+          : "none",
+      destination: proposalOnlyNextCandidate
+        ? "#selected-work-next-candidate"
+        : due && !strategicDecisionUnavailable
           ? "#selected-work-decision"
           : null,
       status: due ? "current" : "pending",
+      occurred_at: exactTimestampOrNullV01(effective.decided_at),
+      time_status: exactTimestampOrNullV01(effective.decided_at)
+        ? "exact"
+        : "not_established",
+      order_basis: "source_lineage",
+      basis: "user_decision",
+      source_refs: decisionSourceRefsV01(effective),
+    };
+  }
+
+  if (
+    effective.decision === "accept" &&
+    selected.pilot_admission.review_mode === "proposal_only_no_activation" &&
+    effective.requested_transition_intent === null
+  ) {
+    return {
+      stage: "proposal_only_accepted",
+      title: "Operational proposal accepted · project unchanged",
+      summary:
+        "The proposal-only judgment is recorded. No semantic Transition or operational activation is pending.",
+      next_meaningful_step: nextCandidatePresent
+        ? "Review the next unresolved operational proposal candidate."
+        : "No further application step exists in ACGC4B.",
+      primary_action_owner: nextCandidatePresent
+        ? "candidate_selection"
+        : "none",
+      destination: nextCandidatePresent
+        ? "#selected-work-next-candidate"
+        : null,
+      status: "current",
       occurred_at: exactTimestampOrNullV01(effective.decided_at),
       time_status: exactTimestampOrNullV01(effective.decided_at)
         ? "exact"
@@ -1107,6 +1152,8 @@ function meaningChangeForCurrentV01(
 ): string {
   return stage === "deferred_until_condition"
     ? "The review remains pending its exact saved revisit semantics."
+    : stage === "proposal_only_accepted"
+      ? "A proposal-only judgment is recorded; project state and operational policy remain unchanged."
     : stage === "awaiting_application"
       ? "A decision exists, but saved project state has not changed."
       : stage === "transition_blocked"

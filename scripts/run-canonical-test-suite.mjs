@@ -142,6 +142,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "canonical operational proposal admission and proposal-only review",
+      ...rootNode("scripts/test-vnext-operational-proposal-review.ts"),
+      timeoutMs: 45_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",

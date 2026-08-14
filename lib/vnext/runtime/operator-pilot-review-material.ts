@@ -7,7 +7,14 @@ import {
   readVNextCoreRecordV01,
   readVNextCoreRecordByIdempotencyKeyV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
-import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
+import {
+  assertPersistedRunAssessmentProposalSourceBoundV01,
+  readOperationalFrictionProposalByIdentityV01,
+} from "@/lib/vnext/persistence/episode-delta-proposal-admission";
+import {
+  deriveOperationalFrictionProposalAdmissionIdentityV01,
+  type OperationalFrictionProposalAdmissionIdentityV01,
+} from "@/lib/vnext/operational-friction-proposal";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -115,11 +122,13 @@ export interface VNextOperatorPilotReviewListItemV01 {
   decision_count: number;
   transition_status: "not_applied" | "applied";
   decision_application_summary: VNextOperatorPilotProposalDecisionApplicationSummaryV01;
+  operational_friction_review?: VNextOperatorPilotOperationalFrictionReviewV01 | null;
 }
 
 export type VNextOperatorPilotProposalDecisionApplicationStatusV01 =
   | "needs_decision"
   | "ready_to_complete"
+  | "accepted_proposal_only"
   | "project_updated"
   | "rejected"
   | "deferred"
@@ -146,6 +155,19 @@ export interface VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
   applying_decision_pending: boolean;
   matching_transition_receipt_present: boolean;
   exact_lineage_and_receipt_binding: true;
+}
+
+export interface VNextOperatorPilotOperationalFrictionReviewV01 {
+  status: "canonical_admission_verified";
+  review_mode: "proposal_only_no_activation";
+  admission_identity: OperationalFrictionProposalAdmissionIdentityV01;
+  write_time_source_rematerialization_bound: true;
+  ordinary_readback_rehydrates_upstream_sources: false;
+  activation_owner_present: false;
+  semantic_transition_applicable: false;
+  project_state_changed: false;
+  task_context_packet_changed: false;
+  authority_granted: false;
 }
 
 export interface VNextOperatorPilotReviewDetailV01
@@ -199,7 +221,8 @@ export interface VNextOperatorPilotDecisionRequestV01 {
   revisit?: { condition_summary: string } | null;
 }
 
-export interface VNextOperatorPilotApplyingDecisionV01 {
+export interface VNextOperatorPilotSemanticApplyingDecisionV01 {
+  review_mode: "semantic_transition";
   decision: "accept" | "supersede" | "retract";
   transition_kind:
     | "semantic_candidate_apply"
@@ -207,7 +230,21 @@ export interface VNextOperatorPilotApplyingDecisionV01 {
     | "semantic_candidate_retract";
   target_refs: ExternalRefV01[];
   project_verify_lifecycle: boolean;
+  activation_owner: null;
 }
+
+export interface VNextOperatorPilotProposalOnlyApplyingDecisionV01 {
+  review_mode: "proposal_only_no_activation";
+  decision: "accept";
+  transition_kind: null;
+  target_refs: [];
+  project_verify_lifecycle: false;
+  activation_owner: null;
+}
+
+export type VNextOperatorPilotApplyingDecisionV01 =
+  | VNextOperatorPilotSemanticApplyingDecisionV01
+  | VNextOperatorPilotProposalOnlyApplyingDecisionV01;
 
 /**
  * Pure adapter mapping over an exact proposal candidate. Generic R6 proposals
@@ -218,6 +255,27 @@ export function resolveVNextOperatorPilotApplyingDecisionV01(
   proposal: EpisodeDeltaProposalV01,
   candidate: EpisodeDeltaProposalDeltaCandidateV01,
 ): VNextOperatorPilotApplyingDecisionV01 {
+  const operationalBinding =
+    proposal.operational_friction_proposal?.candidate_bindings.find(
+      (binding) =>
+        binding.candidate_id === candidate.candidate_id &&
+        binding.candidate_fingerprint ===
+          createEpisodeDeltaCandidateFingerprintV01(candidate) &&
+        binding.operation === "unknown" &&
+        binding.proposal_only === true &&
+        binding.activation_owner === null &&
+        binding.semantic_state_target_present === false,
+    );
+  if (operationalBinding) {
+    return {
+      review_mode: "proposal_only_no_activation",
+      decision: "accept",
+      transition_kind: null,
+      target_refs: [],
+      project_verify_lifecycle: false,
+      activation_owner: null,
+    };
+  }
   const profile = proposal.project_verify_lifecycle;
   if (
     profile &&
@@ -229,6 +287,7 @@ export function resolveVNextOperatorPilotApplyingDecisionV01(
     const operation =
       profile.lifecycle_binding.selected_record_operation_intent;
     return {
+      review_mode: "semantic_transition",
       decision:
         operation === "supersede"
           ? "supersede"
@@ -245,13 +304,16 @@ export function resolveVNextOperatorPilotApplyingDecisionV01(
         structuredClone(profile.lifecycle_binding.family_target_ref),
       ],
       project_verify_lifecycle: true,
+      activation_owner: null,
     };
   }
   return {
+    review_mode: "semantic_transition",
     decision: "accept",
     transition_kind: "semantic_candidate_apply",
     target_refs: structuredClone(candidate.target_refs),
     project_verify_lifecycle: false,
+    activation_owner: null,
   };
 }
 
@@ -260,6 +322,7 @@ export interface VNextOperatorPilotDecisionResultV01 {
   decision: ReviewDecisionV01;
   transition_requested: boolean;
   transition_applied: false;
+  activation_requested: false;
   session_cookie: {
     value: string;
     expires_at: string;
@@ -315,6 +378,7 @@ export function listVNextOperatorPilotSemanticReviewsV01(
       decision_count: detail.decision_count,
       transition_status: detail.transition_status,
       decision_application_summary: detail.decision_application_summary,
+      operational_friction_review: detail.operational_friction_review,
     };
   });
 }
@@ -368,6 +432,42 @@ export function readVNextOperatorPilotSemanticReviewV01(
     throw reviewError("operator_pilot_proposal_envelope_mismatch", 422);
   }
   assertScope(input.config, proposal.workspace_id, proposal.project_id);
+  let operationalFrictionReview: VNextOperatorPilotOperationalFrictionReviewV01 | null =
+    null;
+  if (proposal.operational_friction_proposal) {
+    try {
+      const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+        workspace_id: input.config.workspace_id,
+        project_id: input.config.project_id,
+        proposal,
+      });
+      const canonical = readOperationalFrictionProposalByIdentityV01(
+        db,
+        identity,
+      );
+      if (
+        !canonical ||
+        canonical.record.record_id !== proposalRecord.record_id ||
+        canonical.record.fingerprint !== proposalRecord.fingerprint
+      ) {
+        throw new Error("operational_friction_admission_missing");
+      }
+      operationalFrictionReview = {
+        status: "canonical_admission_verified",
+        review_mode: "proposal_only_no_activation",
+        admission_identity: identity,
+        write_time_source_rematerialization_bound: true,
+        ordinary_readback_rehydrates_upstream_sources: false,
+        activation_owner_present: false,
+        semantic_transition_applicable: false,
+        project_state_changed: false,
+        task_context_packet_changed: false,
+        authority_granted: false,
+      };
+    } catch {
+      throw reviewError("operator_pilot_operational_admission_conflict", 422);
+    }
+  }
   let criterionSpecificRelationsSourceBound = false;
   try {
     criterionSpecificRelationsSourceBound =
@@ -400,11 +500,22 @@ export function readVNextOperatorPilotSemanticReviewV01(
       authenticated_session_id: input.authenticated_session_id,
     }),
   }));
+  if (operationalFrictionReview) {
+    assertNoOperationalTransitionReceiptClaimV01(
+      db,
+      input.config,
+      proposal,
+      decisions,
+    );
+  }
   const transitionReceipts = loadProposalTransitionReceipts(
     db,
     input.config,
     proposal,
   );
+  if (operationalFrictionReview && transitionReceipts.length > 0) {
+    throw reviewError("operator_pilot_operational_transition_conflict", 422);
+  }
   const candidateAdmissions = proposal.proposed_deltas.map((candidate) =>
     inspectVNextOperatorPilotCandidateAdmissionV01(db, {
       config: input.config,
@@ -440,6 +551,7 @@ export function readVNextOperatorPilotSemanticReviewV01(
     transition_status:
       transitionReceipts.length > 0 ? "applied" : "not_applied",
     decision_application_summary: decisionApplicationSummary,
+    operational_friction_review: operationalFrictionReview,
     proposal,
     criterion_specific_relations_source_bound:
       criterionSpecificRelationsSourceBound,
@@ -486,6 +598,19 @@ export function deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01(
     transition_receipts: StateTransitionReceiptV01[];
   },
 ): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  const proposalOnlyAdmissions = input.candidate_admissions.filter(
+    (candidate) => candidate.review_mode === "proposal_only_no_activation",
+  );
+  if (proposalOnlyAdmissions.length > 0) {
+    if (proposalOnlyAdmissions.length !== input.candidate_admissions.length) {
+      throw reviewError("operator_pilot_review_mode_mixed", 422);
+    }
+    return deriveProposalOnlyDecisionApplicationSummaryV01({
+      candidate_admissions: proposalOnlyAdmissions,
+      decision_history: input.decision_history,
+      transition_receipts: input.transition_receipts,
+    });
+  }
   const exactDecisions = input.decision_history
     .filter(
       (entry) =>
@@ -559,6 +684,80 @@ export function deriveVNextOperatorPilotProposalDecisionApplicationSummaryV01(
     "needs_more_information",
     input.candidate_admissions[0] ?? null,
   );
+}
+
+function deriveProposalOnlyDecisionApplicationSummaryV01(input: {
+  candidate_admissions: VNextOperatorPilotCandidateAdmissionV01[];
+  decision_history: VNextOperatorPilotDecisionHistoryItemV01[];
+  transition_receipts: StateTransitionReceiptV01[];
+}): VNextOperatorPilotProposalDecisionApplicationSummaryV01 {
+  const effectiveByCandidate = new Map<
+    string,
+    VNextOperatorPilotDecisionHistoryItemV01
+  >();
+  for (const admission of input.candidate_admissions) {
+    const effective = input.decision_history
+      .filter(
+        (entry) =>
+          entry.status === "valid" &&
+          entry.pilot_session_bound &&
+          entry.decision.candidate.candidate_id === admission.candidate_id &&
+          entry.decision.candidate.candidate_fingerprint ===
+            admission.candidate_fingerprint,
+      )
+      .sort((left, right) =>
+        compareEffectiveReviewDecisionsV01(left.decision, right.decision),
+      )[0];
+    if (effective) effectiveByCandidate.set(admission.candidate_id, effective);
+  }
+  for (const entry of effectiveByCandidate.values()) {
+    if (
+      findExactDecisionCandidateTransitionReceiptV01(
+        input.transition_receipts,
+        entry.decision,
+      )
+    ) {
+      throw reviewError("operator_pilot_operational_transition_conflict", 422);
+    }
+  }
+  const unresolved = input.candidate_admissions.find(
+    (candidate) => !effectiveByCandidate.has(candidate.candidate_id),
+  );
+  if (unresolved) {
+    return unresolvedDecisionApplicationSummaryV01(
+      "needs_decision",
+      unresolved,
+    );
+  }
+  const settled = [...effectiveByCandidate.values()].sort((left, right) =>
+    compareEffectiveReviewDecisionsV01(left.decision, right.decision),
+  );
+  const effective = settled[0];
+  if (!effective) {
+    return unresolvedDecisionApplicationSummaryV01(
+      "needs_decision",
+      input.candidate_admissions[0] ?? null,
+    );
+  }
+  if (
+    settled.some((entry) => entry.decision.decision === "defer")
+  ) {
+    return decisionApplicationSummaryV01(
+      "deferred",
+      settled.find((entry) => entry.decision.decision === "defer")!,
+      null,
+    );
+  }
+  if (
+    settled.some((entry) => entry.decision.decision === "accept")
+  ) {
+    return decisionApplicationSummaryV01(
+      "accepted_proposal_only",
+      settled.find((entry) => entry.decision.decision === "accept")!,
+      null,
+    );
+  }
+  return decisionApplicationSummaryV01("rejected", effective, null);
 }
 
 function unresolvedDecisionApplicationSummaryV01(
@@ -670,6 +869,12 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       prevalidated.candidate,
     );
   if (
+    prevalidated.admission.review_mode === "proposal_only_no_activation" &&
+    (request.decision === "supersede" || request.decision === "retract")
+  ) {
+    throw reviewError("operator_pilot_proposal_only_decision_not_allowed", 409);
+  }
+  if (
     !prevalidatedReplay &&
     isApplyingDecisionV01(request.decision) &&
     request.decision !== prevalidatedApplying.decision
@@ -720,6 +925,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         decision: replay,
         transition_requested: replay.requested_transition_intent !== null,
         transition_applied: false,
+        activation_requested: false,
         session_cookie: admissionCookie(nonceAdmission),
       };
     }
@@ -727,6 +933,12 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       material.proposal,
       material.candidate,
     );
+    if (
+      material.admission.review_mode === "proposal_only_no_activation" &&
+      (request.decision === "supersede" || request.decision === "retract")
+    ) {
+      throw reviewError("operator_pilot_proposal_only_decision_not_allowed", 409);
+    }
     if (
       isApplyingDecisionV01(request.decision) &&
       request.decision !== applying.decision
@@ -766,7 +978,9 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       compatibility_namespace: "augnes.vnext.local-operator-pilot.v0.1",
     };
     const applyingDecision = request.decision === applying.decision;
-    const priorDecisionBinding = applyingDecision
+    const requestsSemanticTransition =
+      applyingDecision && applying.review_mode === "semantic_transition";
+    const priorDecisionBinding = requestsSemanticTransition
       ? resolveProjectVerifyPriorDecisionBindingV01(
           db,
           input.config,
@@ -814,7 +1028,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
             }
           : null,
       requested_transition_intent:
-        applyingDecision
+        requestsSemanticTransition
           ? {
               intent_id: deriveIntentId(
                 material.proposal.proposal_id,
@@ -834,15 +1048,15 @@ export function recordVNextOperatorPilotReviewDecisionV01(
           : null,
       lineage: {
         prior_decisions:
-          applyingDecision && priorDecisionBinding
+          requestsSemanticTransition && priorDecisionBinding
             ? [priorDecisionBinding]
             : [],
         superseding_candidate:
-          applyingDecision && applying.decision === "supersede"
+          requestsSemanticTransition && applying.decision === "supersede"
             ? selectedCandidateBinding
             : null,
         retracted_decision:
-          applyingDecision && applying.decision === "retract"
+          requestsSemanticTransition && applying.decision === "retract"
             ? priorDecisionBinding
             : null,
       },
@@ -859,13 +1073,23 @@ export function recordVNextOperatorPilotReviewDecisionV01(
                   .binding_version,
               ]
             : []),
+          ...(material.proposal.operational_friction_proposal
+            ? [
+                material.proposal.operational_friction_proposal.profile_version,
+                material.proposal.operational_friction_proposal.source_bundle
+                  .bundle_version,
+              ]
+            : []),
         ],
         unmapped_fields: [],
         warnings: [
           "Local session verification proves possession of a locally issued secret, not external or legal identity.",
-          applyingDecision
+          requestsSemanticTransition
             ? "The applying ReviewDecision carries intent for a separately recomputed gate and Transition path; the decision itself applies no state."
-            : "This ReviewDecision carries no Transition intent and applies no state.",
+            : applying.review_mode === "proposal_only_no_activation" &&
+                request.decision === "accept"
+              ? "This decision records proposal-only judgment, creates no Transition intent, activates no operational policy, and has no later apply action in ACGC4B."
+              : "This ReviewDecision carries no Transition intent and applies no state.",
         ],
         external_refs: [sessionBasisRef],
       },
@@ -900,6 +1124,7 @@ export function recordVNextOperatorPilotReviewDecisionV01(
       decision,
       transition_requested: decision.requested_transition_intent !== null,
       transition_applied: false,
+      activation_requested: false,
       session_cookie: admissionCookie(nonceAdmission),
     };
   } catch (error) {
@@ -1039,6 +1264,78 @@ function admissionCookie(
     expires_at: admission.cookie_expires_at,
     max_age_seconds: admission.cookie_max_age_seconds,
   };
+}
+
+function assertNoOperationalTransitionReceiptClaimV01(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  proposal: EpisodeDeltaProposalV01,
+  decisions: ReviewDecisionV01[],
+): void {
+  const exactCandidates = new Set(
+    proposal.proposed_deltas.map((candidate) =>
+      [
+        candidate.candidate_id,
+        createEpisodeDeltaCandidateFingerprintV01(candidate),
+      ].join("\0"),
+    ),
+  );
+  const exactDecisions = new Set(
+    decisions.map((decision) =>
+      [decision.decision_id, decision.integrity.fingerprint].join("\0"),
+    ),
+  );
+  const rows = db
+    .prepare(
+      `SELECT payload_json FROM vnext_core_records
+       WHERE workspace_id = ? AND project_id = ?
+         AND record_kind = 'state_transition_receipt'
+       ORDER BY created_at, record_id
+       LIMIT ?`,
+    )
+    .all(
+      config.workspace_id,
+      config.project_id,
+      VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01 + 1,
+    ) as Array<{ payload_json: string }>;
+  if (rows.length > VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01) {
+    throw reviewError("operator_pilot_transition_history_bound_exceeded", 422);
+  }
+  for (const row of rows) {
+    let value: Record<string, unknown>;
+    try {
+      value = JSON.parse(row.payload_json) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const sourceProposal = value.source_proposal as
+      | Record<string, unknown>
+      | undefined;
+    const sourceCandidate = value.source_candidate as
+      | Record<string, unknown>
+      | undefined;
+    const sourceDecision = value.source_decision as
+      | Record<string, unknown>
+      | undefined;
+    if (
+      sourceProposal?.proposal_id === proposal.proposal_id &&
+      sourceProposal.proposal_fingerprint === proposal.integrity.fingerprint &&
+      exactCandidates.has(
+        [
+          sourceCandidate?.candidate_id,
+          sourceCandidate?.candidate_fingerprint,
+        ].join("\0"),
+      ) &&
+      exactDecisions.has(
+        [
+          sourceDecision?.decision_id,
+          sourceDecision?.decision_fingerprint,
+        ].join("\0"),
+      )
+    ) {
+      throw reviewError("operator_pilot_operational_transition_conflict", 422);
+    }
+  }
 }
 
 function loadSourceRunReceipts(
@@ -1541,7 +1838,9 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
   if (isApplyingDecisionV01(decision.decision) && !applyingDecision) {
     add("operator_pilot_decision_operation_mismatch");
   }
-  if (applyingDecision && applying) {
+  const transitionApplyingDecision =
+    applyingDecision && applying?.review_mode === "semantic_transition";
+  if (transitionApplyingDecision && applying) {
     const intent = decision.requested_transition_intent;
     if (
       !intent ||
@@ -1568,18 +1867,18 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
   }
   const expectedLineage = {
     prior_decisions:
-      applyingDecision && priorDecisionBinding
+      transitionApplyingDecision && priorDecisionBinding
         ? [priorDecisionBinding]
         : [],
     superseding_candidate:
-      applyingDecision && applying?.decision === "supersede"
+      transitionApplyingDecision && applying?.decision === "supersede"
         ? {
             candidate_id: decision.candidate.candidate_id,
             candidate_fingerprint: decision.candidate.candidate_fingerprint,
           }
         : null,
     retracted_decision:
-      applyingDecision && applying?.decision === "retract"
+      transitionApplyingDecision && applying?.decision === "retract"
         ? priorDecisionBinding
         : null,
   };

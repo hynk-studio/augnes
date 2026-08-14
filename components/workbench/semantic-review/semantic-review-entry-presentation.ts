@@ -42,6 +42,7 @@ export function semanticReviewDetailEntryPresentationV01(
         label: current.title,
       };
     case "decision_recorded":
+    case "proposal_only_accepted":
       return {
         state:
           current.primary_action_owner === "decision"

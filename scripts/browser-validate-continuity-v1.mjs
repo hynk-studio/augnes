@@ -29,6 +29,7 @@ import {
   buildSemanticReviewLoopProposalFixture,
   buildSemanticReviewLoopRunReceiptFixture,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1.ts";
+import { buildOperationalFrictionDisposableReviewFixtureFromSourceChainV01 } from "../fixtures/vnext/research/operational-friction-proposal-v0-1.ts";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store.ts";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission.ts";
 import {
@@ -61,6 +62,7 @@ import {
 } from "../lib/vnext/protocol-primitives.ts";
 import { evaluateCriterionAssessmentV01 } from "../lib/vnext/criterion-assessment.ts";
 import { materializeRunAssessmentProposalV01 } from "../lib/vnext/run-assessment-proposal.ts";
+import { materializeOperationalFrictionProposalV01 } from "../lib/vnext/operational-friction-proposal.ts";
 import { admitEpisodeDeltaProposalV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission.ts";
 import { createSharedInspectorHrefV01 } from "../lib/vnext/shared-project-inspector-href.ts";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision.ts";
@@ -69,9 +71,13 @@ import {
 } from "../lib/vnext/ai-workplane/selected-work-timeline.ts";
 import { DIRECT_NATIVE_HOST_ROUND_TRIP_VERSION_V01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
 import { readProjectRunResultOverviewV01 } from "../lib/vnext/runtime/project-run-result-read-model.ts";
-import { VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract.ts";
+import {
+  createVNextOperatorPilotContextUseReviewLogicalIdentityV01,
+  VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01,
+} from "../lib/vnext/runtime/operator-pilot-context-use-contract.ts";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage.ts";
+import { listVNextOperatorPilotSemanticReviewsV01 } from "../lib/vnext/runtime/operator-pilot-review-material.ts";
 import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger.ts";
 import {
   buildDefaultRunnerAuthorityBoundary,
@@ -285,6 +291,8 @@ const result = {
   personal_perspective_included: false,
   personal_perspective_shared_inspector_exact: false,
   personal_perspective_project_b_excluded: false,
+  operational_proposal_browser_verified: false,
+  operational_proposal_fully_settled_without_pending_attention: false,
   portable_export_preview_visible: false,
   portable_export_created: false,
   portable_import_clean_destination: false,
@@ -949,6 +957,8 @@ async function main() {
     record("bounded_automation_packet_excluded_from_workbench_lineage");
     record("older_packet_bound_later_result_is_not_latest_continuity");
   });
+
+  await runOperationalProposalOnlyReviewV01();
 
   await runPhase("personal_perspective_inspector", async () => {
     const personalScopeWriter = new Database(databasePath);
@@ -1714,6 +1724,300 @@ async function main() {
     readonly: true,
     fileMustExist: true,
   });
+  async function runOperationalProposalOnlyReviewV01() {
+    await runPhase("operational_proposal_only_review", async () => {
+    const sourceProposal = readCoreRecordPayloadV01(database, {
+      record_kind: "episode_delta_proposal",
+      record_id: manifest.strategic_source_proposal_id,
+      fingerprint: manifest.strategic_source_proposal_fingerprint,
+    });
+    const sourceReceiptRef = sourceProposal.source_assessment?.receipt_ref;
+    assert(sourceReceiptRef, "operational Browser source receipt binding missing");
+    const feedbackResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/project-continuity', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'record_context_use_review',
+          later_run_receipt_id: ${JSON.stringify(sourceReceiptRef.external_id)},
+          later_run_receipt_fingerprint: ${JSON.stringify(sourceReceiptRef.source_ref)},
+          actually_used: 'yes',
+          assessment: 'stale',
+          correction_summaries: ['The bounded Browser source required a correction before the next review.'],
+          notes: ['This exact source review remains proposal material, not operational activation.'],
+          metrics: {
+            wrong_context_correction_count: 2,
+            repeated_explanation_estimate: null,
+            missing_critical_context_count: 0,
+            context_refs_used_count: 1
+          }
+        })
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      feedbackResponse.status,
+      201,
+      `operational source review failed: ${JSON.stringify(feedbackResponse.body)}`,
+    );
+    assert.equal(feedbackResponse.body.status, "inserted");
+    assert.equal(feedbackResponse.body.semantic_state_changed, false);
+    assert.equal(feedbackResponse.body.transition_created, false);
+    assert.equal(feedbackResponse.body.packet_created, false);
+
+    const operational = seedOperationalFrictionProposalForBrowserV01({
+      databasePath,
+      manifest,
+      review: feedbackResponse.body.review,
+    });
+    const operationalProposal = operational.proposal;
+    const operationalPath = `/workbench/semantic-review/${operationalProposal.proposal_id.replace(":", "~")}`;
+    const firstCandidate = operationalProposal.proposed_deltas[0];
+    assert(firstCandidate, "operational Browser candidate missing");
+    const operationalReadResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({
+        proposal_id: ${JSON.stringify(operationalProposal.proposal_id)}
+      }), {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      operationalReadResponse.status,
+      200,
+      `operational readback failed: ${JSON.stringify(operationalReadResponse.body)}`,
+    );
+
+    await navigate(`${appOrigin}${operationalPath}`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-vnext-operational-review="canonical_admission_verified"] [data-selected-candidate-review-mode="proposal_only_no_activation"][data-vnext-candidate-accept-eligible="true"]') !== null`,
+      "canonical operational proposal-only detail",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const form = document.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+        const select = form?.querySelector('select');
+        if (!(select instanceof HTMLSelectElement)) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+        if (!setter) return false;
+        setter.call(select, 'accept');
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-operator-decision-form="v0.1"]')?.textContent?.includes('no operational activation follows in ACGC4B') === true`,
+      "operational accept judgment-only notice",
+    );
+    const operationalBeforeDecision = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const decision = detail?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+      const text = detail?.textContent ?? '';
+      return {
+        operation_domain: text.includes('Operation domain'),
+        target_class: text.includes('Target class'),
+        proposal_only: text.includes('proposal-only operational hypothesis'),
+        no_activation: text.includes('no activation owner'),
+        project_unchanged: text.includes('leaves project state unchanged'),
+        accept_label: Array.from(decision?.querySelectorAll('option') ?? []).some(
+          (option) => option.value === 'accept' && option.textContent?.trim() === 'Accept this operational hypothesis'
+        ),
+        accept_notice:
+          text.includes('The project is not changed') &&
+          text.includes('no semantic Transition follows') &&
+          text.includes('no operational activation follows in ACGC4B'),
+        complete_control_absent: !text.includes('Complete reviewed change'),
+        review_impact_absent: !text.includes('Review impact'),
+        transition_controls_absent:
+          detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null
+      };
+    })()`);
+    assert.deepEqual(operationalBeforeDecision, {
+      operation_domain: true,
+      target_class: true,
+      proposal_only: true,
+      no_activation: true,
+      project_unchanged: true,
+      accept_label: true,
+      accept_notice: true,
+      complete_control_absent: true,
+      review_impact_absent: true,
+      transition_controls_absent: true,
+    });
+    await validateOperationalProposalViewportV01();
+
+    const transitionCountsBeforeAccept = operationalTransitionEffectCountsV01(database);
+    const acceptResponse = await submitOperationalBrowserDecisionV01({
+      proposal: operationalProposal,
+      candidate: firstCandidate,
+      decision: "accept",
+    });
+    assert.equal(
+      acceptResponse.status,
+      201,
+      `operational accept failed: ${JSON.stringify(acceptResponse.body)}`,
+    );
+    assert.equal(acceptResponse.body.status, "inserted");
+    assert.equal(acceptResponse.body.decision.decision, "accept");
+    assert.equal(acceptResponse.body.decision.requested_transition_intent, null);
+    assert.equal(acceptResponse.body.transition_requested, false);
+    assert.equal(acceptResponse.body.transition_applied, false);
+    assert.equal(acceptResponse.body.activation_requested, false);
+    assert.deepEqual(
+      operationalTransitionEffectCountsV01(database),
+      transitionCountsBeforeAccept,
+    );
+
+    await navigate(`${appOrigin}${operationalPath}`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
+      "operational accepted detail",
+    );
+    assert.equal(
+      await evaluateBoolean(`(() => {
+        const selector = document.querySelector('[data-vnext-candidate-selector="v0.1"]');
+        if (!(selector instanceof HTMLSelectElement)) return false;
+        selector.value = ${JSON.stringify(firstCandidate.candidate_id)};
+        selector.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`),
+      true,
+    );
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="proposal_only_accepted"] [data-vnext-review-next-change="true"]') !== null`,
+      "accepted operational judgment with next candidate",
+    );
+    const acceptedSelected = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const text = detail?.textContent ?? '';
+      return {
+        judgment_only: text.includes('Operational proposal accepted') && text.includes('project unchanged'),
+        no_transition_pending: text.includes('No semantic Transition or operational activation is pending'),
+        next_candidate: detail?.querySelector('[data-vnext-review-next-change="true"]') !== null,
+        decision_form_absent: detail?.querySelector('[data-vnext-operator-decision-form="v0.1"]') === null,
+        transition_controls_absent: detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null
+      };
+    })()`);
+    assert.deepEqual(acceptedSelected, {
+      judgment_only: true,
+      no_transition_pending: true,
+      next_candidate: true,
+      decision_form_absent: true,
+      transition_controls_absent: true,
+    });
+
+    for (const candidate of operationalProposal.proposed_deltas.slice(1)) {
+      const rejectResponse = await submitOperationalBrowserDecisionV01({
+        proposal: operationalProposal,
+        candidate,
+        decision: "reject",
+      });
+      assert.equal(rejectResponse.status, 201);
+      assert.equal(rejectResponse.body.status, "inserted");
+      assert.equal(rejectResponse.body.decision.decision, "reject");
+      assert.equal(rejectResponse.body.decision.requested_transition_intent, null);
+      assert.equal(rejectResponse.body.transition_requested, false);
+      assert.equal(rejectResponse.body.transition_applied, false);
+      assert.equal(rejectResponse.body.activation_requested, false);
+    }
+    assert.deepEqual(
+      operationalTransitionEffectCountsV01(database),
+      transitionCountsBeforeAccept,
+    );
+
+    await navigate(`${appOrigin}${operationalPath}`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"][data-selected-work-current-stage="proposal_only_accepted"][data-selected-work-primary-action-owner="none"]') !== null`,
+      "fully settled operational proposal",
+    );
+    const fullySettled = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const text = detail?.textContent ?? '';
+      return {
+        no_decision_form: detail?.querySelector('[data-vnext-operator-decision-form="v0.1"]') === null,
+        no_transition_controls: detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null,
+        no_next_candidate: detail?.querySelector('[data-vnext-review-next-change="true"]') === null,
+        no_later_apply: text.includes('No further application step exists in ACGC4B.'),
+        no_pending_completion: !text.includes('A saved decision still needs completion')
+      };
+    })()`);
+    assert.deepEqual(fullySettled, {
+      no_decision_form: true,
+      no_transition_controls: true,
+      no_next_candidate: true,
+      no_later_apply: true,
+      no_pending_completion: true,
+    });
+    const settledReadDatabase = new Database(databasePath, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      const config = {
+        enabled: true,
+        workspace_id: manifest.workspace_id,
+        project_id: manifest.project_id,
+        operator_id: manifest.operator_id,
+        database_path: databasePath,
+      };
+      for (const [owner, read] of [
+        ["list", () => listVNextOperatorPilotSemanticReviewsV01(settledReadDatabase, {
+          config,
+          authenticated_session_id: null,
+        })],
+        ["continuity", () => projectVNextOperatorPilotContinuityV01(settledReadDatabase, {
+          config,
+        })],
+      ]) {
+        try {
+          read();
+        } catch (error) {
+          throw new Error(
+            `operational_browser_settled_${owner}_invalid:${
+              error instanceof Error ? error.message : "unknown"
+            }`,
+          );
+        }
+      }
+    } finally {
+      settledReadDatabase.close();
+    }
+    const operationalListResponse = await evaluateJson(`(async () => {
+      const response = await fetch('/api/vnext/operator/semantic-review', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      return { status: response.status, body: await response.json() };
+    })()`);
+    assert.equal(
+      operationalListResponse.status,
+      200,
+      `operational settled list failed: ${JSON.stringify(operationalListResponse.body)}`,
+    );
+    await navigate(`${appOrigin}/workbench/semantic-review`);
+    await waitForCondition(
+      `document.querySelector('[data-vnext-semantic-review-list="v0.2"]') !== null`,
+      "operational fully settled workplane",
+    );
+    assert.equal(
+      await evaluateBoolean(
+        `!document.body.textContent.includes(${JSON.stringify(firstCandidate.title)}) && !document.body.textContent.includes('A saved decision still needs completion')`,
+      ),
+      true,
+    );
+    result.semantic_proposals_created += 1;
+    result.review_decisions_created += operationalProposal.proposed_deltas.length;
+    result.operational_proposal_browser_verified = true;
+    result.operational_proposal_fully_settled_without_pending_attention = true;
+    });
+  }
+
   await runPhase("final_r8_portability_reconciliation", async () => {
     mkdirSync(downloadDirectory, { recursive: true, mode: 0o700 });
     await cdp.send("Browser.setDownloadBehavior", {
@@ -1794,8 +2098,7 @@ async function main() {
       () => responses.slice(portableUiImportResponseStart).some(
         (entry) =>
           entry.path === "/api/vnext/portability" &&
-          entry.method === "POST" &&
-          entry.status === 200,
+          entry.method === "POST",
       ),
       "portable UI import response",
     );
@@ -1804,8 +2107,7 @@ async function main() {
       .find(
         (entry) =>
           entry.path === "/api/vnext/portability" &&
-          entry.method === "POST" &&
-          entry.status === 200,
+          entry.method === "POST",
       );
     assert(portableUiImportResponse);
     const portableUiImportBody = JSON.parse(
@@ -1814,6 +2116,11 @@ async function main() {
           requestId: portableUiImportResponse.request_id,
         })
       ).body,
+    );
+    assert.equal(
+      portableUiImportResponse.status,
+      200,
+      `portable UI import failed: ${JSON.stringify(portableUiImportBody)}`,
     );
     assert.equal(portableUiImportBody.status, "imported");
     assert.equal(
@@ -2685,6 +2992,11 @@ async function main() {
           request.path === "/api/vnext/operator/semantic-transition")
       ) &&
       !(
+        request.phase === "operational_proposal_only_review" &&
+        (request.path === "/api/vnext/operator/project-continuity" ||
+          request.path === "/api/vnext/operator/semantic-review")
+      ) &&
+      !(
         request.phase === "final_r8_portability_reconciliation" &&
         (request.path === "/api/vnext/portability" ||
           request.path === "/api/recovery" ||
@@ -2779,6 +3091,250 @@ function activateFixtureProjectForContinuity(
     });
   } finally {
     writableDatabase.close();
+  }
+}
+
+function seedOperationalFrictionProposalForBrowserV01({
+  databasePath: targetDatabasePath,
+  manifest,
+  review,
+}) {
+  const writableDatabase = new Database(targetDatabasePath, {
+    fileMustExist: true,
+  });
+  try {
+    writableDatabase.pragma("foreign_keys = ON");
+    const priorPacket = readCoreRecordPayloadV01(writableDatabase, {
+      record_kind: "task_context_packet",
+      record_id: review.prior_packet.packet_id,
+      fingerprint: review.prior_packet.packet_fingerprint,
+    });
+    const laterPacket = readCoreRecordPayloadV01(writableDatabase, {
+      record_kind: "task_context_packet",
+      record_id: review.later_packet.packet_id,
+      fingerprint: review.later_packet.packet_fingerprint,
+    });
+    const sourceReceipt = readCoreRecordPayloadV01(writableDatabase, {
+      record_kind: "run_receipt",
+      record_id: review.later_task_run_receipt.receipt_id,
+      fingerprint: review.later_task_run_receipt.receipt_fingerprint,
+    });
+    const transitionReceipt = readCoreRecordPayloadV01(writableDatabase, {
+      record_kind: "state_transition_receipt",
+      record_id: manifest.transition_receipt_id,
+      fingerprint: manifest.transition_receipt_fingerprint,
+    });
+    const fixture =
+      buildOperationalFrictionDisposableReviewFixtureFromSourceChainV01({
+        prior_packet: priorPacket,
+        later_packet: laterPacket,
+        source_transition_receipt: transitionReceipt,
+        later_task_run_receipt: sourceReceipt,
+        review,
+      }, {
+        materialization_final_reviewed_at: new Date(
+          Date.parse(review.reviewed_at) - 1000,
+        ).toISOString(),
+        persisted_source_role: "operational_fixture",
+      });
+    const latestSource = fixture.exact_source_records.at(-1);
+    assert(latestSource, "operational Browser exact source record missing");
+    const runCountBefore = coreRecordKindCountV01(
+      writableDatabase,
+      "run_receipt",
+    );
+    const packetRecords = new Map();
+    for (const sourceRecord of fixture.exact_source_records) {
+      packetRecords.set(
+        sourceRecord.prior_task_context_packet.packet_id,
+        sourceRecord.prior_task_context_packet,
+      );
+      packetRecords.set(
+        sourceRecord.later_task_context_packet.packet_id,
+        sourceRecord.later_task_context_packet,
+      );
+    }
+    for (const packet of packetRecords.values()) {
+      insertVNextCoreRecordV01(writableDatabase, {
+        record_kind: "task_context_packet",
+        record_id: packet.packet_id,
+        workspace_id: packet.workspace_id,
+        project_id: packet.project_id,
+        fingerprint: packet.integrity.fingerprint,
+        idempotency_key: null,
+        payload: packet,
+        created_at: packet.generated_at,
+      });
+    }
+    for (const sourceRecord of fixture.exact_source_records) {
+      const runAdmission = admitStructuredRunReceiptV01(
+        writableDatabase,
+        sourceRecord.later_task_run_receipt,
+      );
+      assert.equal(runAdmission.status, "inserted");
+      const contextUseReview = sourceRecord.context_use_review;
+      insertVNextCoreRecordV01(writableDatabase, {
+        record_kind: "context_use_review",
+        record_id: contextUseReview.review_id,
+        workspace_id: contextUseReview.workspace_id,
+        project_id: contextUseReview.project_id,
+        fingerprint: contextUseReview.integrity.fingerprint,
+        idempotency_key: createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            logical_identity:
+              createVNextOperatorPilotContextUseReviewLogicalIdentityV01(
+                contextUseReview,
+              ),
+          }),
+        ),
+        payload: contextUseReview,
+        created_at: contextUseReview.reviewed_at,
+      });
+    }
+    assert.equal(
+      coreRecordKindCountV01(writableDatabase, "run_receipt"),
+      runCountBefore + fixture.exact_source_records.length,
+    );
+
+    const source = fixture.materialization_source;
+    const expected = materializeOperationalFrictionProposalV01(source);
+    const proposalCountBefore = coreRecordKindCountV01(
+      writableDatabase,
+      "episode_delta_proposal",
+    );
+    const proposalAdmission = admitEpisodeDeltaProposalV01(writableDatabase, {
+      expected,
+      source,
+    });
+    assert.equal(proposalAdmission.status, "inserted");
+    assert.equal(
+      coreRecordKindCountV01(writableDatabase, "episode_delta_proposal"),
+      proposalCountBefore + 1,
+    );
+    return {
+      proposal: proposalAdmission.proposal,
+      admission_identity: proposalAdmission.admission_identity,
+    };
+  } finally {
+    writableDatabase.close();
+  }
+}
+
+function readCoreRecordPayloadV01(
+  targetDatabase,
+  { record_kind, record_id, fingerprint },
+) {
+  const rows = targetDatabase
+    .prepare(
+      `SELECT payload_json
+       FROM vnext_core_records
+       WHERE record_kind = ?
+         AND record_id = ?
+         AND fingerprint = ?`,
+    )
+    .all(record_kind, record_id, fingerprint);
+  assert.equal(
+    rows.length,
+    1,
+    `exact ${record_kind} source record must be singular`,
+  );
+  return JSON.parse(rows[0].payload_json);
+}
+
+function coreRecordKindCountV01(targetDatabase, recordKind) {
+  return targetDatabase
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM vnext_core_records
+       WHERE record_kind = ?`,
+    )
+    .get(recordKind).count;
+}
+
+function operationalTransitionEffectCountsV01(targetDatabase) {
+  return Object.fromEntries(
+    [
+      "semantic_commit_gate",
+      "semantic_state",
+      "state_transition_receipt",
+      "task_context_packet",
+    ].map((recordKind) => [
+      recordKind,
+      coreRecordKindCountV01(targetDatabase, recordKind),
+    ]),
+  );
+}
+
+async function submitOperationalBrowserDecisionV01({
+  proposal,
+  candidate,
+  decision,
+}) {
+  const request = {
+    proposal_id: proposal.proposal_id,
+    proposal_fingerprint: proposal.integrity.fingerprint,
+    candidate_id: candidate.candidate_id,
+    candidate_fingerprint:
+      createEpisodeDeltaCandidateFingerprintV01(candidate),
+    decision,
+    rationale_summary:
+      decision === "accept"
+        ? "Retain this bounded operational hypothesis for review without changing project state or activating policy."
+        : "Do not retain this bounded operational hypothesis; no project or activation effect is requested.",
+  };
+  return evaluateJson(`(async () => {
+    const response = await fetch('/api/vnext/operator/semantic-review', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(${JSON.stringify(request)})
+    });
+    return { status: response.status, body: await response.json() };
+  })()`);
+}
+
+async function validateOperationalProposalViewportV01() {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  try {
+    const metrics = await evaluateJson(`(() => {
+      const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
+      const operational = detail?.querySelector('[data-vnext-operational-proposal-only="true"]');
+      const form = detail?.querySelector('[data-vnext-operator-decision-form="v0.1"]');
+      const visible = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      return {
+        width: window.innerWidth,
+        horizontal_overflow:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        operational_visible: visible(operational),
+        decision_form_visible: visible(form),
+        transition_controls_absent:
+          detail?.querySelector('[data-vnext-semantic-transition-actions="v0.1"]') === null
+      };
+    })()`);
+    assert.deepEqual(metrics, {
+      width: 390,
+      horizontal_overflow: false,
+      operational_visible: true,
+      decision_form_visible: true,
+      transition_controls_absent: true,
+    });
+  } finally {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 1000,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
   }
 }
 

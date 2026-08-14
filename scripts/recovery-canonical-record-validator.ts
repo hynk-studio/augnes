@@ -15,6 +15,7 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
+import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "../lib/vnext/operational-friction-proposal";
 import {
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
   validateReviewDecisionV01,
@@ -50,7 +51,11 @@ import {
   validateRepositoryRunResumeCheckpointRelationsV01,
   validateRepositoryRunResumeCheckpointV01,
 } from "../lib/vnext/repository-execution/repository-run-resume";
-import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
+import {
+  assertOperationalFrictionProposalRelationV01,
+  assertPersistedRunAssessmentProposalSourceBoundV01,
+  readOperationalFrictionProposalByIdentityV01,
+} from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   readClaimEvidenceRelationV01,
   readClaimRecordV01,
@@ -302,6 +307,14 @@ function capabilityGrantIdempotencyV01(
 function proposalIdempotencyV01(
   payload: Record<string, unknown>,
 ): string | null {
+  const operational = payload.operational_friction_proposal;
+  if (isRecordV01(operational)) {
+    return deriveOperationalFrictionProposalAdmissionIdentityV01({
+      workspace_id: requiredStringV01(payload.workspace_id),
+      project_id: requiredStringV01(payload.project_id),
+      proposal: payload as unknown as EpisodeDeltaProposalV01,
+    }).idempotency_key;
+  }
   const revision = payload.operation_revision;
   if (isRecordV01(revision)) {
     return requiredStringV01(revision.admission_idempotency_key);
@@ -607,6 +620,23 @@ function validateProposalRelationsV01(
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
   const proposal = record.payload as unknown as EpisodeDeltaProposalV01;
+  if (proposal.operational_friction_proposal) {
+    const identity =
+      deriveOperationalFrictionProposalAdmissionIdentityV01({
+        workspace_id: record.workspace_id,
+        project_id: record.project_id,
+        proposal,
+      });
+    assertOperationalFrictionProposalRelationV01(proposal, identity);
+    const durable = readOperationalFrictionProposalByIdentityV01(db, identity);
+    if (
+      !durable ||
+      durable.record.record_id !== record.record_id ||
+      durable.record.fingerprint !== record.fingerprint
+    ) {
+      refuseV01();
+    }
+  }
   if (
     proposal.source_assessment?.comparison
       .criterion_specific_relations_available === true

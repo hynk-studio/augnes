@@ -23,6 +23,7 @@ export type AIWorkplaneQueueItemStatusV01 =
   | "needs_decision"
   | "continue_review"
   | "ready_to_complete"
+  | "accepted_proposal_only"
   | "project_updated"
   | "needs_more_information"
   | "deferred"
@@ -90,6 +91,7 @@ export interface AIWorkplaneChangeReviewViewV01 {
   decision_status:
     | "needs_decision"
     | "decision_saved"
+    | "accepted_proposal_only"
     | "rejected"
     | "deferred"
     | "project_updated"
