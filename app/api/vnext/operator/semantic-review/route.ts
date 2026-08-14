@@ -329,6 +329,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           decision: result.decision,
           transition_requested: result.transition_requested,
           transition_applied: false,
+          activation_requested: result.activation_requested,
           authentication_boundary:
             "local_secret_possession_only_not_external_identity",
           semantic_authority_granted: false,

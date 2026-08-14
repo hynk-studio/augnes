@@ -19,6 +19,7 @@ import {
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
+import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "@/lib/vnext/operational-friction-proposal";
 import {
   deriveContextUseReviewPresentationProvenanceV01,
   validateContextUseReviewRelationsV01,
@@ -239,12 +240,13 @@ export function projectVNextOperatorPilotContinuityV01(
       `${receipt.source_decision.decision_id}\0${receipt.source_decision.decision_fingerprint}`,
     ),
   );
-  const decisionsByProposal = new Map<string, number>();
+  const decisionsByProposal = new Map<string, Set<string>>();
   for (const decision of decisions) {
-    decisionsByProposal.set(
-      decision.source_proposal.proposal_id,
-      (decisionsByProposal.get(decision.source_proposal.proposal_id) ?? 0) + 1,
-    );
+    const settled =
+      decisionsByProposal.get(decision.source_proposal.proposal_id) ??
+      new Set<string>();
+    settled.add(decision.candidate.candidate_id);
+    decisionsByProposal.set(decision.source_proposal.proposal_id, settled);
   }
   const stateEntries = validateCurrentSemanticState(db, input.config);
   const targetHeads = listVNextSemanticTargetHeadsV01(db, {
@@ -306,11 +308,20 @@ export function projectVNextOperatorPilotContinuityV01(
     workspace_id: input.config.workspace_id,
     project_id: input.config.project_id,
     pending_proposal_count: proposals.filter(
-      (proposal) => !decisionsByProposal.has(proposal.proposal_id),
+      (proposal) =>
+        proposal.operational_friction_proposal
+          ? proposal.proposed_deltas.some(
+              (candidate) =>
+                !decisionsByProposal
+                  .get(proposal.proposal_id)
+                  ?.has(candidate.candidate_id),
+            )
+          : !decisionsByProposal.has(proposal.proposal_id),
     ).length,
     pending_accepted_decision_count: decisions.filter(
       (decision) =>
         decision.decision === "accept" &&
+        decision.requested_transition_intent !== null &&
         !receiptDecisionKeys.has(
           `${decision.decision_id}\0${decision.integrity.fingerprint}`,
         ),
@@ -560,6 +571,13 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
       proposal.created_at,
       proposal.operation_revision?.admission_idempotency_key ??
         proposal.source_assessment?.admission_idempotency_key ??
+        (proposal.operational_friction_proposal
+          ? deriveOperationalFrictionProposalAdmissionIdentityV01({
+              workspace_id: proposal.workspace_id,
+              project_id: proposal.project_id,
+              proposal,
+            }).idempotency_key
+          : null) ??
         (proposal.strategic_advantage_transfer
           ? createProtocolSha256V01(
               canonicalizeProtocolValueV01({

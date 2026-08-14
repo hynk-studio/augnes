@@ -142,6 +142,19 @@ function readProposalDurableLineage(
     input.clock,
     "operator_pilot_workbench_lineage_observed_at",
   );
+  if (input.proposal.operational_friction_proposal) {
+    return {
+      lineage_version: VNEXT_OPERATOR_PILOT_WORKBENCH_LINEAGE_VERSION_V01,
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      proposal_id: input.proposal.proposal_id,
+      proposal_fingerprint: input.proposal.integrity.fingerprint,
+      overall_status: "not_applied",
+      chains: [],
+      read_only: true,
+      semantic_authority_granted: false,
+    };
+  }
   const transitions = loadValidatedTransitions(
     db,
     input.config,

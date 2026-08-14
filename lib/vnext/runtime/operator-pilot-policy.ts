@@ -12,6 +12,8 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/review-decision";
+import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "@/lib/vnext/operational-friction-proposal";
+import { readOperationalFrictionProposalByIdentityV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import type { EpisodeDeltaProposalDeltaCandidateV01, EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -29,7 +31,8 @@ export type VNextOperatorPilotCurrentStateStatusV01 =
   | "absent"
   | "present"
   | "mixed"
-  | "drifted";
+  | "drifted"
+  | "not_applicable";
 
 export interface VNextOperatorPilotTargetStateV01 {
   target_ref: ExternalRefV01;
@@ -48,6 +51,13 @@ export interface VNextOperatorPilotCandidateAdmissionV01 {
   target_count: number;
   current_state_status: VNextOperatorPilotCurrentStateStatusV01;
   target_states: VNextOperatorPilotTargetStateV01[];
+  review_mode?: "semantic_transition" | "proposal_only_no_activation";
+  accept_effect?:
+    | "requests_separate_semantic_transition"
+    | "records_judgment_only";
+  semantic_current_state_applicability?: "applicable" | "not_applicable";
+  semantic_transition_applicable?: boolean;
+  activation_owner_present?: false;
   decision_allowed: {
     accept: boolean;
     reject: true;
@@ -87,6 +97,43 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
     createEpisodeDeltaCandidateFingerprintV01(proposalCandidate);
   if (candidateFingerprint !== input.candidate_fingerprint) {
     throw new Error("operator_pilot_candidate_fingerprint_mismatch");
+  }
+
+  const operationalBinding = operationalFrictionCandidateBindingV01(
+    db,
+    input.config,
+    input.proposal,
+    proposalCandidate,
+    candidateFingerprint,
+  );
+  if (operationalBinding) {
+    return {
+      policy_version: VNEXT_OPERATOR_PILOT_POLICY_VERSION_V01,
+      candidate_id: proposalCandidate.candidate_id,
+      candidate_fingerprint: candidateFingerprint,
+      target_count: proposalCandidate.target_refs.length,
+      current_state_status: "not_applicable",
+      target_states: [],
+      review_mode: "proposal_only_no_activation",
+      accept_effect: "records_judgment_only",
+      semantic_current_state_applicability: "not_applicable",
+      semantic_transition_applicable: false,
+      activation_owner_present: false,
+      decision_allowed: {
+        accept: true,
+        reject: true,
+        defer: true,
+      },
+      mapped_operation: null,
+      accept_operation: null,
+      blocking_reasons: [],
+      policy_notes: [
+        "The exact canonical ACGC4A profile binding admits proposal-only review without semantic current-state lookup.",
+        `Operational domain ${operationalBinding.operation_domain} and target class ${operationalBinding.target_class} remain bounded proposal material.`,
+        "Accept records judgment only; it creates no semantic Transition intent or operational activation.",
+        "Source currentness remains exact and does not become fresh merely because bounded proposal-only review is available.",
+      ],
+    };
   }
 
   const targetStates = input.candidate.target_refs.map((targetRef) =>
@@ -141,6 +188,11 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
     target_count: input.candidate.target_refs.length,
     current_state_status: currentStateStatus,
     target_states: targetStates,
+    review_mode: "semantic_transition",
+    accept_effect: "requests_separate_semantic_transition",
+    semantic_current_state_applicability: "applicable",
+    semantic_transition_applicable: true,
+    activation_owner_present: false,
     decision_allowed: {
       accept: acceptAllowed,
       reject: true,
@@ -156,6 +208,54 @@ export function inspectVNextOperatorPilotCandidateAdmissionV01(
       "Admission is a read-only policy result, not a decision, gate, or state transition.",
     ],
   };
+}
+
+function operationalFrictionCandidateBindingV01(
+  db: Database.Database,
+  config: VNextOperatorPilotProjectScopeV01,
+  proposal: EpisodeDeltaProposalV01,
+  candidate: EpisodeDeltaProposalDeltaCandidateV01,
+  candidateFingerprint: string,
+) {
+  const profile = proposal.operational_friction_proposal;
+  if (!profile) return null;
+  const canonical = (() => {
+    try {
+      const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        proposal,
+      });
+      return readOperationalFrictionProposalByIdentityV01(db, identity);
+    } catch {
+      throw new Error("operator_pilot_operational_admission_not_canonical");
+    }
+  })();
+  if (
+    !canonical ||
+    canonical.record.record_id !== proposal.proposal_id ||
+    canonical.record.fingerprint !== proposal.integrity.fingerprint
+  ) {
+    throw new Error("operator_pilot_operational_admission_not_canonical");
+  }
+  const binding = profile.candidate_bindings.find(
+    (item) => item.candidate_id === candidate.candidate_id,
+  );
+  if (
+    !binding ||
+    binding.candidate_fingerprint !== candidateFingerprint ||
+    binding.delta_family !== candidate.delta_type ||
+    binding.operation !== "unknown" ||
+    candidate.operation !== "unknown" ||
+    binding.proposal_only !== true ||
+    binding.activation_owner !== null ||
+    binding.semantic_state_target_present !== false ||
+    canonicalizeProtocolValueV01(binding.basis_observation_ids) !==
+      canonicalizeProtocolValueV01(candidate.basis_material_ids)
+  ) {
+    throw new Error("operator_pilot_operational_candidate_binding_conflict");
+  }
+  return binding;
 }
 
 function mapCandidateOperation(

@@ -221,6 +221,7 @@ function preferredQuestionV01(
     case "change_suggested":
       return "support_and_source";
     case "decision_recorded":
+    case "proposal_only_accepted":
     case "deferred_until_condition":
     case "awaiting_application":
       return "candidate_and_decision";

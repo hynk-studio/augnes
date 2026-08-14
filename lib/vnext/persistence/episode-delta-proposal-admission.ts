@@ -10,6 +10,15 @@ import {
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
+import {
+  assertOperationalFrictionMaterialMatchesSourcesV01,
+  deriveOperationalFrictionProposalAdmissionIdentityV01,
+  materializeOperationalFrictionProposalV01,
+  validateOperationalFrictionProposalAdmissionIdentityV01,
+  type MaterializeOperationalFrictionProposalInputV01,
+  type MaterializeOperationalFrictionProposalResultV01,
+  type OperationalFrictionProposalAdmissionIdentityV01,
+} from "@/lib/vnext/operational-friction-proposal";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
@@ -55,6 +64,11 @@ interface StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01 {
   source: StrategicAdvantageTransferMaterializationSourceV01;
 }
 
+export interface OperationalFrictionEpisodeDeltaProposalAdmissionInputV01 {
+  expected: MaterializeOperationalFrictionProposalResultV01;
+  source: MaterializeOperationalFrictionProposalInputV01;
+}
+
 export function admitEpisodeDeltaProposalV01(
   db: Database.Database,
   input: RunAssessmentEpisodeDeltaProposalAdmissionInputV01,
@@ -69,6 +83,14 @@ export function admitEpisodeDeltaProposalV01(
   status: "inserted" | "exact_replay";
   proposal: EpisodeDeltaProposalV01;
 };
+export function admitEpisodeDeltaProposalV01(
+  db: Database.Database,
+  input: OperationalFrictionEpisodeDeltaProposalAdmissionInputV01,
+): {
+  status: "inserted" | "exact_replay";
+  proposal: EpisodeDeltaProposalV01;
+  admission_identity: OperationalFrictionProposalAdmissionIdentityV01;
+};
 /**
  * Canonical EpisodeDeltaProposal writer and replay authority. Each production
  * profile supplies exact source material, which is rematerialized here before
@@ -78,16 +100,18 @@ export function admitEpisodeDeltaProposalV01(
   db: Database.Database,
   input:
     | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
-    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01
+    | OperationalFrictionEpisodeDeltaProposalAdmissionInputV01,
 ): {
   status: "inserted" | "exact_replay";
   proposal: EpisodeDeltaProposalV01;
+  admission_identity?: OperationalFrictionProposalAdmissionIdentityV01;
 } {
   const ownsTransaction = !db.inTransaction;
   if (ownsTransaction) db.exec("BEGIN IMMEDIATE");
   try {
     assertVNextDurableSemanticStoreSchemaV01(db);
-    const { proposal, idempotency_key, related } =
+    const { proposal, idempotency_key, related, admission_identity } =
       resolveExpectedEpisodeDeltaProposalAdmissionV01(db, input);
     if (related) {
       if (
@@ -98,7 +122,11 @@ export function admitEpisodeDeltaProposalV01(
         refuseV01("project_result_proposal_material_conflict");
       }
       if (ownsTransaction) db.exec("COMMIT");
-      return { status: "exact_replay", proposal: related.proposal };
+      return {
+        status: "exact_replay",
+        proposal: related.proposal,
+        ...(admission_identity ? { admission_identity } : {}),
+      };
     }
     const write = writeExpectedEpisodeDeltaProposalV01(db, {
       proposal,
@@ -108,6 +136,7 @@ export function admitEpisodeDeltaProposalV01(
     return {
       status: write.status,
       proposal: write.proposal,
+      ...(admission_identity ? { admission_identity } : {}),
     };
   } catch (error) {
     if (ownsTransaction && db.inTransaction) db.exec("ROLLBACK");
@@ -129,7 +158,8 @@ function resolveExpectedEpisodeDeltaProposalAdmissionV01(
   db: Database.Database,
   input:
     | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
-    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01
+    | OperationalFrictionEpisodeDeltaProposalAdmissionInputV01,
 ): {
   proposal: EpisodeDeltaProposalV01;
   idempotency_key: string;
@@ -137,7 +167,29 @@ function resolveExpectedEpisodeDeltaProposalAdmissionV01(
     record: VNextCoreRecordEnvelopeV01;
     proposal: EpisodeDeltaProposalV01;
   } | null;
+  admission_identity: OperationalFrictionProposalAdmissionIdentityV01 | null;
 } {
+  if (isOperationalFrictionAdmissionInputV01(input)) {
+    const material = materializeOperationalFrictionProposalV01(input.source);
+    if (
+      canonicalizeProtocolValueV01(material) !==
+      canonicalizeProtocolValueV01(input.expected)
+    ) {
+      refuseV01("operational_friction_proposal_material_conflict");
+    }
+    const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+      workspace_id: input.source.workspace_id,
+      project_id: input.source.project_id,
+      proposal: material.proposal,
+    });
+    assertOperationalFrictionProposalRelationV01(material.proposal, identity);
+    return {
+      proposal: material.proposal,
+      idempotency_key: identity.idempotency_key,
+      related: readOperationalFrictionProposalByIdentityV01(db, identity),
+      admission_identity: identity,
+    };
+  }
   if (isStrategicAdmissionInputV01(input)) {
     const material = materializeStrategicAdvantageTransferProposalV01(
       input.source,
@@ -159,7 +211,11 @@ function resolveExpectedEpisodeDeltaProposalAdmissionV01(
         db,
         material.identity,
       ),
+      admission_identity: null,
     };
+  }
+  if (!isRunAssessmentAdmissionInputV01(input)) {
+    refuseV01("episode_delta_proposal_admission_input_unknown");
   }
   const material = materializeRunAssessmentProposalV01(input.source);
   if (
@@ -176,15 +232,250 @@ function resolveExpectedEpisodeDeltaProposalAdmissionV01(
     proposal: material.proposal,
     idempotency_key: material.identity.idempotency_key,
     related: readProposalForExactSourcePurposeV01(db, material.identity),
+    admission_identity: null,
   };
 }
 
+function isOperationalFrictionAdmissionInputV01(
+  input: unknown,
+): input is OperationalFrictionEpisodeDeltaProposalAdmissionInputV01 {
+  if (!isAdmissionRecordV01(input)) return false;
+  const source = input.source;
+  const expected = input.expected;
+  return (
+    isAdmissionRecordV01(source) &&
+    isAdmissionRecordV01(expected) &&
+    "attribution" in source &&
+    "context_shadow_projection" in source &&
+    "paired_evaluation" in source &&
+    "dynamics_digest" in source &&
+    "frames" in source &&
+    expected.materialization_version ===
+      "operational_friction_proposal_materialization.v0.1"
+  );
+}
+
 function isStrategicAdmissionInputV01(
-  input:
-    | RunAssessmentEpisodeDeltaProposalAdmissionInputV01
-    | StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01,
+  input: unknown,
 ): input is StrategicAdvantageTransferEpisodeDeltaProposalAdmissionInputV01 {
-  return "base_strategy" in input.source;
+  return (
+    isAdmissionRecordV01(input) &&
+    isAdmissionRecordV01(input.source) &&
+    "base_strategy" in input.source
+  );
+}
+
+function isRunAssessmentAdmissionInputV01(
+  input: unknown,
+): input is RunAssessmentEpisodeDeltaProposalAdmissionInputV01 {
+  if (!isAdmissionRecordV01(input)) return false;
+  const source = input.source;
+  const expected = input.expected;
+  return (
+    isAdmissionRecordV01(source) &&
+    isAdmissionRecordV01(expected) &&
+    "packet" in source &&
+    "receipt" in source &&
+    "assessment" in source &&
+    isAdmissionRecordV01(expected.identity) &&
+    "admission_profile" in expected.identity
+  );
+}
+
+function isAdmissionRecordV01(
+  value: unknown,
+): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function readOperationalFrictionProposalByIdentityV01(
+  db: Database.Database,
+  identity: OperationalFrictionProposalAdmissionIdentityV01,
+): {
+  record: VNextCoreRecordEnvelopeV01;
+  proposal: EpisodeDeltaProposalV01;
+  admission_identity: OperationalFrictionProposalAdmissionIdentityV01;
+  canonical_admission_identity_verified: true;
+  canonical_writer_requires_exact_source_rematerialization: true;
+  write_path_provenance: "not_serialized_not_reprovable";
+  ordinary_readback_rehydrates_upstream_sources: false;
+} | null {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (
+    validateOperationalFrictionProposalAdmissionIdentityV01(identity).status !==
+    "valid"
+  ) {
+    refuseV01("operational_friction_admission_identity_invalid");
+  }
+  const rows = db
+    .prepare(
+      `SELECT record_id, workspace_id, project_id
+       FROM vnext_core_records
+       WHERE record_kind = 'episode_delta_proposal'
+         AND idempotency_key = ?
+       ORDER BY workspace_id, project_id, record_id
+       LIMIT 2`,
+    )
+    .all(identity.idempotency_key) as Array<{
+    record_id: string;
+    workspace_id: string;
+    project_id: string;
+  }>;
+  if (rows.length > 1) {
+    refuseV01("operational_friction_proposal_identity_ambiguous");
+  }
+  const row = rows[0];
+  if (!row) {
+    const conflicts = db
+      .prepare(
+        `SELECT record_id FROM vnext_core_records
+         WHERE record_kind = 'episode_delta_proposal'
+           AND record_id = ?
+         ORDER BY workspace_id, project_id
+         LIMIT 2`,
+      )
+      .all(identity.proposal_id) as Array<{ record_id: string }>;
+    if (conflicts.length > 0) {
+      refuseV01("operational_friction_proposal_envelope_conflict");
+    }
+    return null;
+  }
+  if (
+    row.workspace_id !== identity.workspace_id ||
+    row.project_id !== identity.project_id
+  ) {
+    refuseV01("operational_friction_proposal_scope_conflict");
+  }
+  const record = readVNextCoreRecordV01(db, {
+    record_kind: "episode_delta_proposal",
+    record_id: row.record_id,
+    workspace_id: row.workspace_id,
+    project_id: row.project_id,
+  });
+  if (!record) refuseV01("operational_friction_proposal_record_missing");
+  if (validateEpisodeDeltaProposalV01(record.payload).status !== "valid") {
+    refuseV01("operational_friction_proposal_record_invalid");
+  }
+  const proposal = record.payload as EpisodeDeltaProposalV01;
+  try {
+    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      fingerprint: proposal.integrity.fingerprint,
+    });
+  } catch {
+    refuseV01("operational_friction_proposal_envelope_conflict");
+  }
+  if (
+    record.record_kind !== "episode_delta_proposal" ||
+    record.record_id !== proposal.proposal_id ||
+    record.workspace_id !== identity.workspace_id ||
+    record.project_id !== identity.project_id ||
+    record.fingerprint !== proposal.integrity.fingerprint ||
+    record.created_at !== proposal.created_at ||
+    record.idempotency_key !== identity.idempotency_key
+  ) {
+    refuseV01("operational_friction_proposal_envelope_conflict");
+  }
+  const derivedIdentity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: record.workspace_id,
+    project_id: record.project_id,
+    proposal,
+  });
+  if (
+    canonicalizeProtocolValueV01(derivedIdentity) !==
+    canonicalizeProtocolValueV01(identity)
+  ) {
+    refuseV01("operational_friction_proposal_identity_conflict");
+  }
+  assertOperationalFrictionProposalRelationV01(proposal, derivedIdentity);
+  return {
+    record,
+    proposal,
+    admission_identity: derivedIdentity,
+    canonical_admission_identity_verified: true,
+    canonical_writer_requires_exact_source_rematerialization: true,
+    write_path_provenance: "not_serialized_not_reprovable",
+    ordinary_readback_rehydrates_upstream_sources: false,
+  };
+}
+
+export function readOperationalFrictionProposalFromExactSourcesV01(
+  db: Database.Database,
+  source: MaterializeOperationalFrictionProposalInputV01,
+): NonNullable<ReturnType<typeof readOperationalFrictionProposalByIdentityV01>> & {
+  exact_source_rematerialization_bound: true;
+} | null {
+  const material = materializeOperationalFrictionProposalV01(source);
+  const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: source.workspace_id,
+    project_id: source.project_id,
+    proposal: material.proposal,
+  });
+  const read = readOperationalFrictionProposalByIdentityV01(db, identity);
+  if (!read) return null;
+  assertOperationalFrictionMaterialMatchesSourcesV01(
+    source,
+    material.profile,
+    read.proposal,
+  );
+  if (
+    canonicalizeProtocolValueV01(read.proposal) !==
+    canonicalizeProtocolValueV01(material.proposal)
+  ) {
+    refuseV01("operational_friction_proposal_exact_source_conflict");
+  }
+  return { ...read, exact_source_rematerialization_bound: true };
+}
+
+export function assertOperationalFrictionProposalRelationV01(
+  proposal: EpisodeDeltaProposalV01,
+  identity: OperationalFrictionProposalAdmissionIdentityV01,
+): void {
+  const profile = proposal.operational_friction_proposal;
+  if (
+    validateEpisodeDeltaProposalV01(proposal).status !== "valid" ||
+    !profile ||
+    proposal.workspace_id !== identity.workspace_id ||
+    proposal.project_id !== identity.project_id ||
+    proposal.status !== "pending_review" ||
+    proposal.source_assessment !== undefined ||
+    proposal.operation_revision !== undefined ||
+    proposal.strategic_advantage_transfer !== undefined ||
+    proposal.project_verify_lifecycle !== undefined ||
+    profile.profile_id !== identity.profile_id ||
+    profile.integrity.fingerprint !== identity.profile_fingerprint ||
+    profile.source_bundle.bundle_id !== identity.source_bundle_id ||
+    profile.source_bundle.bundle_fingerprint !==
+      identity.source_bundle_fingerprint ||
+    proposal.proposal_id !== identity.proposal_id ||
+    proposal.integrity.fingerprint !== identity.proposal_fingerprint ||
+    profile.policy_activation_owner !== null ||
+    profile.proposal_only_status !== "proposal_only" ||
+    profile.authority_summary.semantic_transition_eligible !== false ||
+    profile.authority_summary.activates_policy !== false ||
+    profile.authority_summary.mutates_task_context_packet !== false ||
+    profile.candidate_bindings.some(
+      (binding) =>
+        binding.operation !== "unknown" ||
+        binding.proposal_only !== true ||
+        binding.activation_owner !== null ||
+        binding.semantic_state_target_present !== false,
+    )
+  ) {
+    refuseV01("operational_friction_proposal_relation_conflict");
+  }
+  const derived = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: proposal.workspace_id,
+    project_id: proposal.project_id,
+    proposal,
+  });
+  if (
+    canonicalizeProtocolValueV01(derived) !==
+    canonicalizeProtocolValueV01(identity)
+  ) {
+    refuseV01("operational_friction_proposal_identity_conflict");
+  }
 }
 
 export function readStrategicAdvantageTransferProposalByIdentityV01(

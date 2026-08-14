@@ -195,6 +195,13 @@ export function DecisionCenteredProposalDetail({
   const applyingDecision = selected
     ? selectedApplyingDecisionV01(read, selected.candidate.candidate_id)
     : "accept";
+  const operationalBinding = selected
+    ? proposal.operational_friction_proposal?.candidate_bindings.find(
+        (binding) =>
+          binding.candidate_id === selected.candidate.candidate_id &&
+          binding.candidate_fingerprint === selected.candidate_fingerprint,
+      ) ?? null
+    : null;
   const proposalLocalBusy = busyCandidateId !== null || transitionMutationBusy;
   const strategicActionsAvailable =
     !proposal.strategic_advantage_transfer || read.strategic_analysis.status === "available";
@@ -264,6 +271,9 @@ export function DecisionCenteredProposalDetail({
       data-vnext-selected-decision-count={selectedDecisions.length}
       data-vnext-transition-status={read.transition.status}
       data-vnext-selected-candidate={selected ? "present" : "none"}
+      data-vnext-operational-review={
+        read.operational_friction_review?.status ?? "not_applicable"
+      }
       data-selected-work-timeline={timeline?.timeline_version ?? "unavailable"}
       data-selected-work-current-stage={
         timeline?.current_position.stage ?? "unavailable"
@@ -313,6 +323,7 @@ export function DecisionCenteredProposalDetail({
             data-vnext-candidate-accept-eligible={String(selected.pilot_admission.decision_allowed.accept)}
             data-selected-candidate-operation={selected.candidate.operation}
             data-selected-candidate-current-state={selected.pilot_admission.current_state_status}
+            data-selected-candidate-review-mode={selected.pilot_admission.review_mode}
           >
             <div className={styles.candidateHeader}>
               <div>
@@ -321,6 +332,23 @@ export function DecisionCenteredProposalDetail({
               </div>
             </div>
             <p className={styles.copy}>{view.effect_summary}</p>
+            {operationalBinding ? (
+              <div data-vnext-operational-proposal-only="true">
+                <DataPoint
+                  label="Operation domain"
+                  value={humanize(operationalBinding.operation_domain)}
+                />
+                <DataPoint
+                  label="Target class"
+                  value={humanize(operationalBinding.target_class)}
+                />
+                <p className={styles.notice}>
+                  This is a proposal-only operational hypothesis. It has no
+                  activation owner, leaves project state unchanged, and preserves
+                  its bounded uncertainty and limitations.
+                </p>
+              </div>
+            ) : null}
           </section>
         ) : (
           <p className={styles.empty}>No reviewable change is available.</p>
@@ -577,6 +605,7 @@ export function DecisionCenteredProposalDetail({
         <summary>Other review options</summary>
         {selected &&
         timeline?.current_position.primary_action_owner !== "decision" &&
+        selected.pilot_admission.review_mode !== "proposal_only_no_activation" &&
         strategicActionsAvailable ? (
           <section className={styles.materialCard}>
             <h3>Change the saved decision</h3>
@@ -596,15 +625,18 @@ export function DecisionCenteredProposalDetail({
             />
           </section>
         ) : null}
-        <StrategicAdvantageTransferPanel
-          proposal={proposal}
-          readback={read.strategic_analysis}
-          inspectorHref={proposalInspectorHref}
-          busy={strategicAnalysisBusy || transitionMutationBusy}
-          onRequest={onStrategicAnalysis}
-        />
+        {!proposal.operational_friction_proposal ? (
+          <StrategicAdvantageTransferPanel
+            proposal={proposal}
+            readback={read.strategic_analysis}
+            inspectorHref={proposalInspectorHref}
+            busy={strategicAnalysisBusy || transitionMutationBusy}
+            onRequest={onStrategicAnalysis}
+          />
+        ) : null}
         {selected &&
         strategicActionsAvailable &&
+        !proposal.operational_friction_proposal &&
         !proposal.operation_revision &&
         (selected.candidate.operation === "unknown" || selected.candidate.operation === "no_change") &&
         (!proposal.strategic_advantage_transfer ||

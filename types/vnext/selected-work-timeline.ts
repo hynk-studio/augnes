@@ -8,6 +8,7 @@ export type SelectedWorkTimelineStageV01 =
   | "change_suggested"
   | "review_focused"
   | "decision_recorded"
+  | "proposal_only_accepted"
   | "deferred_until_condition"
   | "awaiting_application"
   | "transition_blocked"

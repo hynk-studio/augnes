@@ -71,6 +71,9 @@ export const ReviewDecisionForm = forwardRef<
   const decisionControlRef = useRef<HTMLSelectElement | null>(null);
 
   const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
+  const proposalOnly =
+    candidateRead.pilot_admission.review_mode ===
+    "proposal_only_no_activation";
   const selectedDecisionAllowed =
     decision !== applyingDecision || applyAllowed;
   const ownerState: ReviewDecisionFormOwnerStateV01 = {
@@ -177,6 +180,7 @@ export const ReviewDecisionForm = forwardRef<
       data-vnext-operator-decision-candidate={candidateRead.candidate.candidate_id}
       data-vnext-proposal-local-controls-busy={String(busy)}
       data-vnext-default-decision-path-interactions="2"
+      data-vnext-review-mode={candidateRead.pilot_admission.review_mode}
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
@@ -192,10 +196,14 @@ export const ReviewDecisionForm = forwardRef<
         }
       >
         <option value="defer">Decide later</option>
-        <option value="reject">Reject this change</option>
+        <option value="reject">
+          {proposalOnly ? "Reject this proposal" : "Reject this change"}
+        </option>
         <option value={applyingDecision} disabled={!applyAllowed}>
           {applyingDecision === "accept"
-            ? "Accept this change"
+            ? proposalOnly
+              ? "Accept this operational hypothesis"
+              : "Accept this change"
             : applyingDecision === "supersede"
               ? "Replace the current saved state"
               : "Remove the current saved state"}
@@ -245,8 +253,9 @@ export const ReviewDecisionForm = forwardRef<
 
       {decision === applyingDecision ? (
         <p className={styles.notice}>
-          Saving this decision does not change the project yet. Applying the
-          reviewed change remains a separate confirmed action.
+          {proposalOnly
+            ? "Saving records this proposal-only review judgment. The project is not changed, no semantic Transition follows, and no operational activation follows in ACGC4B. Any later activation requires a separately authorized owner and stage."
+            : "Saving this decision does not change the project yet. Applying the reviewed change remains a separate confirmed action."}
         </p>
       ) : (
         <p className={styles.copy}>

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import Database from "better-sqlite3";
+
 import { buildOperationalFrictionSourceFixtureV01 } from "@/fixtures/vnext/research/operational-friction-proposal-v0-1";
 import {
   assertValidPersonalPerspectivePairedEvaluationV01,
@@ -24,7 +26,9 @@ import {
 import {
   assertExactOperationalFrictionSourceRelationsV01,
   assertOperationalFrictionMaterialMatchesSourcesV01,
+  deriveOperationalFrictionProposalAdmissionIdentityV01,
   materializeOperationalFrictionProposalV01,
+  validateOperationalFrictionProposalAdmissionIdentityV01,
   type MaterializeOperationalFrictionProposalInputV01,
 } from "@/lib/vnext/operational-friction-proposal";
 import {
@@ -36,7 +40,20 @@ import {
   deriveOperationalFrictionSourceBundleIdV01,
   validateOperationalFrictionProposalProfileV01,
 } from "@/lib/vnext/operational-friction-proposal-profile";
-import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
+import {
+  countVNextCoreRecordsV01,
+  ensureVNextDurableSemanticStoreSchemaV01,
+  insertVNextCoreRecordV01,
+} from "@/lib/vnext/persistence/durable-semantic-store";
+import {
+  admitEpisodeDeltaProposalV01,
+  readOperationalFrictionProposalByIdentityV01,
+  readOperationalFrictionProposalFromExactSourcesV01,
+} from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
@@ -298,6 +315,8 @@ try {
   assertSourceRelationFailuresV01(source);
   assertEpistemicAndCandidateFailuresV01(source, result.profile, result.proposal);
   assertIntegrityAndCompatibilityV01(source, result.profile, result.proposal);
+  assertOperationalAdmissionAndReadbackV01(source, result);
+  assertOperationalReadbackEpistemicScopeV01(source, result);
   assertReviewAndTransitionNegativeV01(result.proposal);
   assertSourcePurityV01();
 
@@ -1106,6 +1125,345 @@ function assertReviewAndTransitionNegativeV01(
     ),
   );
   assert.equal(proposal.operational_friction_proposal!.authority_summary.semantic_transition_eligible, false);
+}
+
+function assertOperationalAdmissionAndReadbackV01(
+  source: MaterializeOperationalFrictionProposalInputV01,
+  expected: ReturnType<typeof materializeOperationalFrictionProposalV01>,
+): void {
+  const before = canonicalizeProtocolValueV01(source);
+  const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: source.workspace_id,
+    project_id: source.project_id,
+    proposal: expected.proposal,
+  });
+  assert.equal(
+    identity.idempotency_key,
+    expected.future_admission_idempotency_key,
+  );
+  assert.equal(
+    validateOperationalFrictionProposalAdmissionIdentityV01(identity).status,
+    "valid",
+  );
+  assert.deepEqual(Object.keys(identity).sort(), [
+    "idempotency_key",
+    "materialization_id",
+    "materialization_version",
+    "profile_fingerprint",
+    "profile_id",
+    "project_id",
+    "proposal_fingerprint",
+    "proposal_id",
+    "source_bundle_fingerprint",
+    "source_bundle_id",
+    "workspace_id",
+  ]);
+  for (const field of [
+    "source_bundle_fingerprint",
+    "profile_fingerprint",
+    "proposal_fingerprint",
+    "idempotency_key",
+  ] as const) {
+    assert.match(identity[field], /^sha256:[0-9a-f]{64}$/u);
+  }
+  const forgedIdentity = clone(identity);
+  forgedIdentity.idempotency_key = createProtocolSha256V01("forged-key");
+  assert.deepEqual(
+    validateOperationalFrictionProposalAdmissionIdentityV01(forgedIdentity),
+    { status: "invalid", errors: ["idempotency_key_relation_invalid"] },
+  );
+
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    assert.equal(countVNextCoreRecordsV01(db), 0);
+    const inserted = admitEpisodeDeltaProposalV01(db, {
+      expected,
+      source,
+    });
+    assert.equal(inserted.status, "inserted");
+    assert.deepEqual(inserted.admission_identity, identity);
+    assert.equal(countVNextCoreRecordsV01(db), 1);
+    assert.equal(
+      countVNextCoreRecordsV01(db, {
+        record_kind: "episode_delta_proposal",
+      }),
+      1,
+    );
+    const proposalBytes = canonicalizeProtocolValueV01(inserted.proposal);
+    const replay = admitEpisodeDeltaProposalV01(db, {
+      expected: clone(expected),
+      source: clone(source),
+    });
+    assert.equal(replay.status, "exact_replay");
+    assert.deepEqual(replay.admission_identity, identity);
+    assert.equal(countVNextCoreRecordsV01(db), 1);
+    assert.equal(canonicalizeProtocolValueV01(replay.proposal), proposalBytes);
+
+    const ordinary = readOperationalFrictionProposalByIdentityV01(db, identity);
+    assert(ordinary);
+    assert.deepEqual(ordinary.admission_identity, identity);
+    assert.equal(ordinary.canonical_admission_identity_verified, true);
+    assert.equal(
+      ordinary.canonical_writer_requires_exact_source_rematerialization,
+      true,
+    );
+    assert.equal(
+      ordinary.write_path_provenance,
+      "not_serialized_not_reprovable",
+    );
+    assert.equal("exact_source_rematerialization_bound" in ordinary, false);
+    assert.equal(ordinary.ordinary_readback_rehydrates_upstream_sources, false);
+    assert.equal(canonicalizeProtocolValueV01(ordinary.proposal), proposalBytes);
+    const exactSource = readOperationalFrictionProposalFromExactSourcesV01(
+      db,
+      clone(source),
+    );
+    assert(exactSource);
+    assert.equal(exactSource.exact_source_rematerialization_bound, true);
+    assert.equal(
+      exactSource.ordinary_readback_rehydrates_upstream_sources,
+      false,
+    );
+    for (const field of ["workspace_id", "project_id"] as const) {
+      const wrongScope = clone(identity);
+      wrongScope[field] = `${wrongScope[field]}:wrong`;
+      assert.throws(
+        () =>
+          readOperationalFrictionProposalByIdentityV01(db, wrongScope),
+        /operational_friction_proposal_scope_conflict/u,
+      );
+    }
+    assert.equal(canonicalizeProtocolValueV01(source), before);
+  } finally {
+    db.close();
+  }
+
+  for (const mutate of [
+    (material: typeof expected) => {
+      material.materialization_id = "operational-friction-materialization:forged";
+    },
+    (material: typeof expected) => {
+      material.source_bundle_id = "operational-friction-source-bundle:forged";
+    },
+    (material: typeof expected) => {
+      material.profile.profile_id = "operational-friction-profile:forged";
+    },
+    (material: typeof expected) => {
+      material.proposal.proposal_id = "episode-delta-proposal:forged";
+    },
+    (material: typeof expected) => {
+      material.profile.candidate_bindings[0]!.candidate_id =
+        "operational-friction-candidate:forged";
+    },
+  ]) {
+    const conflictDb = new Database(":memory:");
+    try {
+      ensureVNextDurableSemanticStoreSchemaV01(conflictDb);
+      const conflicting = clone(expected);
+      mutate(conflicting);
+      assert.throws(
+        () =>
+          admitEpisodeDeltaProposalV01(conflictDb, {
+            expected: conflicting,
+            source: clone(source),
+          }),
+        /operational_friction_proposal_material_conflict/u,
+      );
+      assert.equal(countVNextCoreRecordsV01(conflictDb), 0);
+    } finally {
+      conflictDb.close();
+    }
+  }
+
+  const malformedSource = clone(source);
+  malformedSource.frames = [];
+  const malformedDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(malformedDb);
+    assert.throws(
+      () =>
+        admitEpisodeDeltaProposalV01(malformedDb, {
+          expected,
+          source: malformedSource,
+        }),
+      /operational_friction_/u,
+    );
+  } finally {
+    malformedDb.close();
+  }
+
+  for (const envelopeConflict of [
+    "missing_idempotency_key",
+    "wrong_idempotency_key",
+    "wrong_envelope_fingerprint",
+    "wrong_created_at",
+  ] as const) {
+    const conflictDb = new Database(":memory:");
+    try {
+      ensureVNextDurableSemanticStoreSchemaV01(conflictDb);
+      insertRawOperationalRecordV01(conflictDb, expected.proposal, {
+        idempotency_key:
+          envelopeConflict === "missing_idempotency_key"
+            ? null
+            : envelopeConflict === "wrong_idempotency_key"
+              ? createProtocolSha256V01("wrong-idempotency")
+              : identity.idempotency_key,
+        fingerprint:
+          envelopeConflict === "wrong_envelope_fingerprint"
+            ? createProtocolSha256V01("wrong-envelope")
+            : expected.proposal.integrity.fingerprint,
+        created_at:
+          envelopeConflict === "wrong_created_at"
+            ? "2026-01-01T00:00:00.000Z"
+            : expected.proposal.created_at,
+      });
+      assert.throws(
+        () =>
+          readOperationalFrictionProposalByIdentityV01(conflictDb, identity),
+        /operational_friction_proposal_envelope_conflict|vnext_core_record_protocol_binding_conflict/u,
+      );
+      if (
+        envelopeConflict === "missing_idempotency_key" ||
+        envelopeConflict === "wrong_idempotency_key"
+      ) {
+        assert.throws(
+          () => admitEpisodeDeltaProposalV01(conflictDb, { expected, source }),
+          /operational_friction_proposal_envelope_conflict/u,
+        );
+      }
+    } finally {
+      conflictDb.close();
+    }
+  }
+
+  const ambiguousDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(ambiguousDb);
+    insertRawOperationalRecordV01(ambiguousDb, expected.proposal, {
+      idempotency_key: identity.idempotency_key,
+    });
+    insertRawOperationalRecordV01(
+      ambiguousDb,
+      {
+        ...expected.proposal,
+        proposal_id: `${expected.proposal.proposal_id}:duplicate`,
+        workspace_id: `${expected.proposal.workspace_id}:duplicate`,
+        project_id: `${expected.proposal.project_id}:duplicate`,
+      },
+      {
+        idempotency_key: identity.idempotency_key,
+        workspace_id: `${expected.proposal.workspace_id}:duplicate`,
+        project_id: `${expected.proposal.project_id}:duplicate`,
+        record_id: `${expected.proposal.proposal_id}:duplicate`,
+      },
+    );
+    assert.throws(
+      () => readOperationalFrictionProposalByIdentityV01(ambiguousDb, identity),
+      /operational_friction_proposal_identity_ambiguous/u,
+    );
+  } finally {
+    ambiguousDb.close();
+  }
+
+  const unknownDb = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(unknownDb);
+    assert.throws(
+      () =>
+        admitEpisodeDeltaProposalV01(unknownDb, {
+          expected: {},
+          source: {},
+        } as never),
+      /episode_delta_proposal_admission_input_unknown/u,
+    );
+  } finally {
+    unknownDb.close();
+  }
+}
+
+function assertOperationalReadbackEpistemicScopeV01(
+  source: MaterializeOperationalFrictionProposalInputV01,
+  expected: ReturnType<typeof materializeOperationalFrictionProposalV01>,
+): void {
+  const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: source.workspace_id,
+    project_id: source.project_id,
+    proposal: expected.proposal,
+  });
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    const genericWrite = insertVNextCoreRecordV01(db, {
+      record_kind: "episode_delta_proposal",
+      record_id: expected.proposal.proposal_id,
+      workspace_id: expected.proposal.workspace_id,
+      project_id: expected.proposal.project_id,
+      fingerprint: expected.proposal.integrity.fingerprint,
+      idempotency_key: identity.idempotency_key,
+      payload: expected.proposal,
+      created_at: expected.proposal.created_at,
+    });
+    assert.equal(genericWrite.status, "inserted");
+
+    const ordinary = readOperationalFrictionProposalByIdentityV01(db, identity);
+    assert(ordinary);
+    assert.deepEqual(ordinary.admission_identity, identity);
+    assert.equal(ordinary.canonical_admission_identity_verified, true);
+    assert.equal(
+      ordinary.canonical_writer_requires_exact_source_rematerialization,
+      true,
+    );
+    assert.equal(
+      ordinary.write_path_provenance,
+      "not_serialized_not_reprovable",
+    );
+    assert.equal(ordinary.ordinary_readback_rehydrates_upstream_sources, false);
+    assert.equal("exact_source_rematerialization_bound" in ordinary, false);
+
+    const exactSource = readOperationalFrictionProposalFromExactSourcesV01(
+      db,
+      clone(source),
+    );
+    assert(exactSource);
+    assert.equal(exactSource.exact_source_rematerialization_bound, true);
+    assert.equal(
+      canonicalizeProtocolValueV01(exactSource.proposal),
+      canonicalizeProtocolValueV01(expected.proposal),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+function insertRawOperationalRecordV01(
+  db: Database.Database,
+  proposal: EpisodeDeltaProposalV01,
+  overrides: {
+    record_id?: string;
+    workspace_id?: string;
+    project_id?: string;
+    fingerprint?: string;
+    idempotency_key?: string | null;
+    created_at?: string;
+  },
+): void {
+  db.prepare(
+    `INSERT INTO vnext_core_records (
+      record_kind, record_id, workspace_id, project_id, fingerprint,
+      idempotency_key, payload_json, created_at
+    ) VALUES ('episode_delta_proposal', ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    overrides.record_id ?? proposal.proposal_id,
+    overrides.workspace_id ?? proposal.workspace_id,
+    overrides.project_id ?? proposal.project_id,
+    overrides.fingerprint ?? proposal.integrity.fingerprint,
+    overrides.idempotency_key === undefined
+      ? proposal.integrity.fingerprint
+      : overrides.idempotency_key,
+    canonicalizeProtocolValueV01(proposal),
+    overrides.created_at ?? proposal.created_at,
+  );
 }
 
 function assertSourcePurityV01(): void {

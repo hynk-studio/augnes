@@ -891,6 +891,7 @@ export function classifyCodexCurrentContinuityResultCurrentnessV01(
 export interface CodexCurrentContinuityReviewClassificationInputV01 {
   application_status:
     | "needs_decision"
+    | "accepted_proposal_only"
     | "ready_to_complete"
     | "project_updated"
     | "rejected"
@@ -938,6 +939,15 @@ export function classifyCodexCurrentContinuityReviewV01(
       summary: "An exact StateTransitionReceipt changed project meaning and later context.",
       decision_kind: input.decision_kind,
       transition_currentness: "applied",
+    };
+  }
+  if (input.application_status === "accepted_proposal_only") {
+    return {
+      state: "decision_recorded",
+      summary:
+        "A proposal-only user judgment is recorded; no project Transition or operational activation is pending.",
+      decision_kind: input.decision_kind,
+      transition_currentness: "not_available",
     };
   }
   if (

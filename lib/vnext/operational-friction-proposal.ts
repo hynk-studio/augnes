@@ -72,6 +72,8 @@ import {
 
 const SOURCE_MATERIAL_KIND = "operational_friction_source_binding.v0.1";
 const FRICTION_MATERIAL_KIND = "operational_friction_observation.v0.1";
+export const OPERATIONAL_FRICTION_PROPOSAL_MATERIALIZATION_VERSION_V01 =
+  "operational_friction_proposal_materialization.v0.1" as const;
 const MATERIALIZER_REF = normalizeExternalRefPrimitiveV01({
   ref_version: "external_ref.v0.1",
   ref_type: "pure_materializer",
@@ -97,7 +99,8 @@ export interface MaterializeOperationalFrictionProposalInputV01 {
 }
 
 export interface MaterializeOperationalFrictionProposalResultV01 {
-  materialization_version: "operational_friction_proposal_materialization.v0.1";
+  materialization_version:
+    typeof OPERATIONAL_FRICTION_PROPOSAL_MATERIALIZATION_VERSION_V01;
   materialization_id: string;
   future_admission_idempotency_key: string;
   source_bundle_id: string;
@@ -121,6 +124,26 @@ export interface MaterializeOperationalFrictionProposalResultV01 {
   created_task_context_packet: false;
   created_semantic_state: false;
   activated_policy: false;
+}
+
+export interface OperationalFrictionProposalAdmissionIdentityV01 {
+  workspace_id: string;
+  project_id: string;
+  materialization_version:
+    typeof OPERATIONAL_FRICTION_PROPOSAL_MATERIALIZATION_VERSION_V01;
+  materialization_id: string;
+  source_bundle_id: string;
+  source_bundle_fingerprint: string;
+  profile_id: string;
+  profile_fingerprint: string;
+  proposal_id: string;
+  proposal_fingerprint: string;
+  idempotency_key: string;
+}
+
+export interface OperationalFrictionProposalAdmissionIdentityValidationV01 {
+  status: "valid" | "invalid";
+  errors: string[];
 }
 
 type CandidateRuleV01 = {
@@ -321,29 +344,18 @@ export function materializeOperationalFrictionProposalV01(
   if (canonicalizeProtocolValueV01(input) !== before) {
     throw new Error("operational_friction_source_input_mutated");
   }
-  const identityMaterial = {
-    source_bundle_id: profile.source_bundle.bundle_id,
-    source_bundle_fingerprint: profile.source_bundle.bundle_fingerprint,
-    profile_id: profile.profile_id,
-    profile_fingerprint: profile.integrity.fingerprint,
-    proposal_id: proposal.proposal_id,
-    proposal_fingerprint: proposal.integrity.fingerprint,
-  };
-  const identityHash = createProtocolSha256V01(
-    canonicalizeProtocolValueV01(identityMaterial),
-  );
+  const admissionIdentity =
+    deriveOperationalFrictionProposalAdmissionIdentityV01({
+      workspace_id: source.workspace_id,
+      project_id: source.project_id,
+      proposal,
+    });
   return {
-    materialization_version:
-      "operational_friction_proposal_materialization.v0.1",
-    materialization_id: `operational-friction-materialization:${identityHash.slice("sha256:".length, 38)}`,
-    future_admission_idempotency_key: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        purpose: "future_acgc4b_admission_identity_only",
-        ...identityMaterial,
-      }),
-    ),
-    source_bundle_id: profile.source_bundle.bundle_id,
-    source_bundle_fingerprint: profile.source_bundle.bundle_fingerprint,
+    materialization_version: admissionIdentity.materialization_version,
+    materialization_id: admissionIdentity.materialization_id,
+    future_admission_idempotency_key: admissionIdentity.idempotency_key,
+    source_bundle_id: admissionIdentity.source_bundle_id,
+    source_bundle_fingerprint: admissionIdentity.source_bundle_fingerprint,
     profile,
     proposal,
     persistence: { reads: 0, writes: 0, database_calls: 0 },
@@ -360,6 +372,171 @@ export function materializeOperationalFrictionProposalV01(
     created_semantic_state: false,
     activated_policy: false,
   };
+}
+
+/**
+ * Pure ACGC4B admission identity derivation over exact durable ACGC4A material.
+ * It deliberately accepts no caller idempotency key, timestamp, process,
+ * environment, persistence, runtime, or activation input.
+ */
+export function deriveOperationalFrictionProposalAdmissionIdentityV01(input: {
+  workspace_id: string;
+  project_id: string;
+  proposal: EpisodeDeltaProposalV01;
+}): OperationalFrictionProposalAdmissionIdentityV01 {
+  const proposalValidation = validateEpisodeDeltaProposalV01(input.proposal);
+  const profile = input.proposal.operational_friction_proposal;
+  if (proposalValidation.status !== "valid" || !profile) {
+    throw new Error("operational_friction_admission_proposal_invalid");
+  }
+  if (
+    input.workspace_id !== input.proposal.workspace_id ||
+    input.project_id !== input.proposal.project_id ||
+    input.workspace_id !== profile.workspace_id ||
+    input.project_id !== profile.project_id
+  ) {
+    throw new Error("operational_friction_admission_scope_mismatch");
+  }
+  const sha256Fields = [
+    profile.source_bundle.bundle_fingerprint,
+    profile.integrity.fingerprint,
+    input.proposal.integrity.fingerprint,
+  ];
+  if (sha256Fields.some((value) => !isExactProtocolSha256V01(value))) {
+    throw new Error("operational_friction_admission_fingerprint_invalid");
+  }
+  const identityMaterial = {
+    source_bundle_id: profile.source_bundle.bundle_id,
+    source_bundle_fingerprint: profile.source_bundle.bundle_fingerprint,
+    profile_id: profile.profile_id,
+    profile_fingerprint: profile.integrity.fingerprint,
+    proposal_id: input.proposal.proposal_id,
+    proposal_fingerprint: input.proposal.integrity.fingerprint,
+  };
+  const identityHash = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(identityMaterial),
+  );
+  const identity: OperationalFrictionProposalAdmissionIdentityV01 = {
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    materialization_version:
+      OPERATIONAL_FRICTION_PROPOSAL_MATERIALIZATION_VERSION_V01,
+    materialization_id: `operational-friction-materialization:${identityHash.slice("sha256:".length, 38)}`,
+    ...identityMaterial,
+    idempotency_key: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        purpose: "future_acgc4b_admission_identity_only",
+        ...identityMaterial,
+      }),
+    ),
+  };
+  const validation = validateOperationalFrictionProposalAdmissionIdentityV01(
+    identity,
+  );
+  if (validation.status !== "valid") {
+    throw new Error(
+      `operational_friction_admission_identity_invalid:${validation.errors.join(",")}`,
+    );
+  }
+  return identity;
+}
+
+export function validateOperationalFrictionProposalAdmissionIdentityV01(
+  value: unknown,
+): OperationalFrictionProposalAdmissionIdentityValidationV01 {
+  const errors: string[] = [];
+  const add = (code: string) => {
+    if (!errors.includes(code)) errors.push(code);
+  };
+  if (!isProtocolRecordV01(value)) {
+    return { status: "invalid", errors: ["identity_shape_invalid"] };
+  }
+  const expectedKeys = [
+    "workspace_id",
+    "project_id",
+    "materialization_version",
+    "materialization_id",
+    "source_bundle_id",
+    "source_bundle_fingerprint",
+    "profile_id",
+    "profile_fingerprint",
+    "proposal_id",
+    "proposal_fingerprint",
+    "idempotency_key",
+  ].sort(compareProtocolCodeUnitsV01);
+  if (
+    canonicalizeProtocolValueV01(
+      Object.keys(value).sort(compareProtocolCodeUnitsV01),
+    ) !==
+    canonicalizeProtocolValueV01(expectedKeys)
+  ) {
+    add("identity_shape_invalid");
+  }
+  for (const field of [
+    "workspace_id",
+    "project_id",
+    "materialization_id",
+    "source_bundle_id",
+    "profile_id",
+    "proposal_id",
+  ] as const) {
+    if (
+      typeof value[field] !== "string" ||
+      value[field].trim() !== value[field] ||
+      value[field].length < 1
+    ) {
+      add(`${field}_invalid`);
+    }
+  }
+  if (
+    value.materialization_version !==
+    OPERATIONAL_FRICTION_PROPOSAL_MATERIALIZATION_VERSION_V01
+  ) {
+    add("materialization_version_invalid");
+  }
+  for (const field of [
+    "source_bundle_fingerprint",
+    "profile_fingerprint",
+    "proposal_fingerprint",
+    "idempotency_key",
+  ] as const) {
+    if (!isExactProtocolSha256V01(value[field])) add(`${field}_invalid`);
+  }
+  if (errors.length === 0) {
+    const identityMaterial = {
+      source_bundle_id: value.source_bundle_id,
+      source_bundle_fingerprint: value.source_bundle_fingerprint,
+      profile_id: value.profile_id,
+      profile_fingerprint: value.profile_fingerprint,
+      proposal_id: value.proposal_id,
+      proposal_fingerprint: value.proposal_fingerprint,
+    };
+    const identityHash = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(identityMaterial),
+    );
+    if (
+      value.materialization_id !==
+      `operational-friction-materialization:${identityHash.slice("sha256:".length, 38)}`
+    ) {
+      add("materialization_id_relation_invalid");
+    }
+    if (
+      value.idempotency_key !==
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          purpose: "future_acgc4b_admission_identity_only",
+          ...identityMaterial,
+        }),
+      )
+    ) {
+      add("idempotency_key_relation_invalid");
+    }
+  }
+  return { status: errors.length === 0 ? "valid" : "invalid", errors };
+}
+
+function isExactProtocolSha256V01(value: unknown): value is string {
+  return typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value);
 }
 
 export function assertExactOperationalFrictionSourceRelationsV01(

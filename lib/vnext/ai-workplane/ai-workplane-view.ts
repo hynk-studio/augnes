@@ -342,6 +342,11 @@ export function buildAIWorkplaneQueueV01(
   proposals: VNextOperatorPilotReviewListItemV01[],
 ): AIWorkplaneQueueItemV01[] {
   return [...proposals]
+    .filter(
+      (proposal) =>
+        proposal.decision_application_summary.status !==
+        "accepted_proposal_only",
+    )
     .sort((left, right) => {
       const leftPriority = queuePriority(left);
       const rightPriority = queuePriority(right);
@@ -398,7 +403,10 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
   return {
     presentation_version: AI_WORKPLANE_PRESENTATION_VERSION_V01,
     title: bounded(selected.candidate.title),
-    operation_label: operationLabel(selected.candidate.operation),
+    operation_label:
+      selected.pilot_admission.review_mode === "proposal_only_no_activation"
+        ? "Accept an operational hypothesis for review only"
+        : operationLabel(selected.candidate.operation),
     effect_summary: bounded(selected.candidate.proposed_state_summary),
     reason: bounded(read.proposal.bounded_summary),
     verification: verificationFromChange(read),
@@ -409,6 +417,8 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
       ? { kind: "save_decision", label: "Save decision", href: null }
       : decisionStatus === "decision_saved"
         ? { kind: "review_impact", label: "Review impact", href: null }
+        : decisionStatus === "accepted_proposal_only"
+          ? null
         : decisionStatus === "project_updated"
           ? { kind: "link", label: "Return to AI Workplane", href: "/workbench/semantic-review" }
           : null,
@@ -592,7 +602,9 @@ function queuePriority(proposal: VNextOperatorPilotReviewListItemV01): number {
             ? 4
             : status === "rejected"
               ? 5
-              : 6;
+              : status === "accepted_proposal_only"
+                ? 6
+                : 7;
 }
 
 function queueStatusLabel(status: AIWorkplaneQueueItemV01["status"]): string {
@@ -600,6 +612,8 @@ function queueStatusLabel(status: AIWorkplaneQueueItemV01["status"]): string {
     ? "Needs your decision"
     : status === "ready_to_complete"
       ? "Ready to complete"
+      : status === "accepted_proposal_only"
+        ? "Accepted for proposal-only review"
       : status === "project_updated"
         ? "Project updated"
         : status === "deferred"
@@ -619,6 +633,7 @@ function queueReason(
   if (status === "needs_decision") return "Augnes has prepared a bounded suggested change for your review.";
   if (status === "project_updated") return "The reviewed change is already reflected in saved project state.";
   if (status === "ready_to_complete") return "Your saved decision is ready for the separate project-change steps.";
+  if (status === "accepted_proposal_only") return "The judgment is recorded; no project change, Transition, or activation is pending.";
   if (status === "deferred") return "This review is waiting for the saved revisit condition.";
   if (status === "rejected") return "The suggested change was rejected and did not change the project.";
   if (status === "needs_more_information") return "The current change cannot be completed from the verified material.";
@@ -630,6 +645,8 @@ function decisionStatusLabel(status: AIWorkplaneChangeReviewViewV01["decision_st
     ? "Needs your decision"
     : status === "decision_saved"
       ? "Decision saved · project unchanged"
+      : status === "accepted_proposal_only"
+        ? "Proposal accepted · project unchanged · no activation"
       : status === "project_updated"
         ? "Project updated"
         : status === "rejected"
