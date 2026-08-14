@@ -61,15 +61,17 @@ The script prints the recommended deterministic local runtime setup:
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
-npm run augnes
+npm run augnes:service:install
 ```
 
 These commands are printed for the operator to run. The bootstrap script does
 not execute them.
 
-The single supervisor starts both UI and bridge and keeps provider credentials
-optional. The bootstrap also prints the one plugin-install instruction; it
-does not install the plugin or start the Companion itself.
+The explicit macOS service action installs one user-session owner for this
+exact checkout and starts the existing supervisor, UI/Core, and bridge. It
+stores no secret and grants no repository execution or semantic authority.
+The bootstrap only prints this action; it does not install the service itself.
+Linux and Windows service installation remain unsupported.
 
 ## Install Mode 1: Repo-native Codex Use
 
@@ -92,13 +94,18 @@ The current ordinary setup is the repo-local `augnes-operator` plugin plus the
 existing supervised Companion:
 
 ```bash
-codex plugin marketplace add .
-codex plugin add augnes-operator@augnes-local
-npm run augnes
+npm run augnes:plugin:install
+npm run augnes:service:install
 # Ask Codex: Resume this repository with Augnes.
 ```
 
-The supervisor owns both UI and bridge and may move either after a port
+The reviewed 0.4.0 plugin refresh removes a stale effective 0.3.0 cache and
+verifies that its manifest, proxy, lifecycle core, skill, hook, and default
+prompt come from one exact version. Fresh continuation reads lifecycle status,
+starts one already-installed exact service only when offered, then performs
+one read-only canonical Resume. It never installs the service from MCP.
+
+The service-owned supervisor owns both UI and bridge and may move either after a port
 collision. The plugin's stdio proxy verifies the live manifest, bridge identity,
 and narrow generation-bound Companion access record, then calls the strict
 UI/Core repository route directly. `.codex/config.toml.example` retains only a

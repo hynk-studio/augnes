@@ -23,10 +23,13 @@ const operatorManifest = JSON.parse(readFileSync(
 ));
 const operatorDefaultPrompt = operatorManifest.interface?.defaultPrompt;
 assert.equal(typeof operatorDefaultPrompt, "string");
-assert.ok(operatorDefaultPrompt.length <= 128);
+assert.equal(operatorManifest.version, "0.4.0");
+assert.ok(operatorDefaultPrompt.length <= 256);
+assert.match(operatorDefaultPrompt, /augnes_companion_lifecycle_status/u);
+assert.match(operatorDefaultPrompt, /augnes_start_companion_service once/u);
 assert.match(operatorDefaultPrompt, /augnes_resume_repository/u);
-assert.match(operatorDefaultPrompt, /current repository root/u);
-assert.match(operatorDefaultPrompt, /before reading files or docs/u);
+assert.match(operatorDefaultPrompt, /exact current root/u);
+assert.match(operatorDefaultPrompt, /live verification/u);
 
 const operatorHooks = JSON.parse(readFileSync(
   path.join(operatorPluginRoot, "hooks", "hooks.json"),
@@ -56,17 +59,18 @@ const repositoryResumeHook = spawnSync(
 assert.equal(repositoryResumeHook.status, 0, repositoryResumeHook.stderr);
 const repositoryResumeHookOutput = JSON.parse(repositoryResumeHook.stdout);
 assert.equal(repositoryResumeHookOutput.hookSpecificOutput?.hookEventName, "SessionStart");
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository .* as the first tool action/u);
 assert.match(
   repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
-  /augnes_resume_repository with repositoryRoot equal to the exact absolute current working directory/u,
+  /first call augnes_companion_lifecycle_status with repositoryRoot equal to the exact absolute current working directory/u,
 );
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_start_companion_service exactly once/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository exactly once/u);
 assert.match(
   repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
   /augnes_prepare_repository_execution with repositoryRoot equal to that same exact absolute current working directory/u,
 );
 assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /before reading repository files, docs, memory, or skills/u);
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /stop without inspecting or changing repository files/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /do not reconstruct continuity/u);
 
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
@@ -166,6 +170,9 @@ try {
     ...process.env,
     AUGNES_COMPANION_RUNTIME_MANIFEST: manifestPath,
     AUGNES_COMPANION_TEST_MODE: "1",
+    AUGNES_COMPANION_SERVICE_TEST_MODE: "1",
+    AUGNES_COMPANION_SERVICE_TEST_ROOT: path.join(root, "service-state"),
+    AUGNES_COMPANION_SERVICE_TEST_SCOPE: "discovery-contract",
   };
 
   assert.deepEqual(candidateManifestPathsV01({
@@ -199,6 +206,8 @@ try {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map((tool) => tool.name), [
+      "augnes_companion_lifecycle_status",
+      "augnes_start_companion_service",
       "augnes_resume_repository",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
@@ -230,6 +239,8 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_start_companion_service")?.annotations?.readOnlyHint, false);
     const deferredToolInventory = tools.tools.map(({ name, description }) => ({ name, description }));
     for (const tool of tools.tools) {
       const deferredDescription = deferredToolInventory.find(({ name }) => name === tool.name)?.description ?? "";
@@ -278,6 +289,37 @@ try {
       assert.equal(byName.get(name)?.annotations?.destructiveHint, true);
     }
     uiHealthAvailable = true;
+    const lifecycleStatus = await client.callTool({
+      name: "augnes_companion_lifecycle_status",
+      arguments: { repositoryRoot: process.cwd() },
+    });
+    assert.notEqual(lifecycleStatus.isError, true);
+    assert.equal(lifecycleStatus.structuredContent?.service?.status, "not_installed");
+    assert.equal(
+      lifecycleStatus.structuredContent?.service?.canonical_resume_available,
+      false,
+    );
+    assert.equal(lifecycleStatus.structuredContent?.authority?.runtime_lifecycle_effect, false);
+    const publicLifecycle = JSON.stringify(lifecycleStatus.structuredContent);
+    assert.equal(publicLifecycle.includes(process.cwd()), false);
+    assert.equal(publicLifecycle.includes(root), false);
+    assert.equal(publicLifecycle.includes("node_path"), false);
+    assert.equal(publicLifecycle.includes("supervisor_pid"), false);
+    assert.equal(publicLifecycle.includes("proxy_token"), false);
+    const executionCallsBeforeLifecycleStart = executionCalls;
+    const continuityCallsBeforeLifecycleStart = continuityCalls;
+    const lifecycleStart = await client.callTool({
+      name: "augnes_start_companion_service",
+      arguments: { repositoryRoot: process.cwd() },
+    });
+    assert.equal(lifecycleStart.isError, true);
+    assert.equal(
+      lifecycleStart.structuredContent?.reason,
+      "companion_service_setup_required",
+    );
+    assert.equal(lifecycleStart.structuredContent?.authority?.runtime_lifecycle_effect, false);
+    assert.equal(executionCalls, executionCallsBeforeLifecycleStart);
+    assert.equal(continuityCalls, continuityCallsBeforeLifecycleStart);
     await assertRepositoryExecutionProxyRefusalContractV01(client);
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;

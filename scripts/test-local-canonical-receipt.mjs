@@ -124,6 +124,21 @@ const baseReceipt = {
   cleanup: {
     completed: true,
     remaining_owned_processes: 0,
+    companion_service: {
+      before: {
+        status: "not_installed",
+        checkout_relation: "exact",
+        service_identity: null,
+      },
+      after: {
+        status: "not_installed",
+        checkout_relation: "exact",
+        service_identity: null,
+      },
+      maintenance_acquired: false,
+      maintenance_released: true,
+      restored: true,
+    },
     generated_next: {
       present_before: false,
       removed_before_execution: false,

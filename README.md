@@ -23,17 +23,29 @@ The source checkout supports maintained even-numbered Node.js 22 and 24 lines
 with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
 npm 11.16.0.
 
-On a supported macOS or Linux development host:
+On a supported macOS development host, install the exact checkout-bound local
+Companion service once:
 
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
-npm run augnes
+npm run augnes:service:install
 ```
 
-Augnes prepares its application-owned local database, starts the supervised UI
-and bridge, waits for both to become ready, and prints the loopback UI URL.
-Normal startup does not reset or seed operator data.
+This explicit action installs a user-session LaunchAgent for this physical
+checkout, selects and pins one Node 24 binary, and starts the existing
+supervised UI/Core and bridge. It stores no secret in the service definition,
+survives the installing terminal, starts at login, and recovers unexpected
+runtime failure. It grants no repository execution, managed-run Resume,
+provider, semantic, external-effect, publication, or merge authority. Stop or
+remove it reversibly with `npm run augnes:service:stop` or
+`npm run augnes:service:uninstall`. Linux and Windows service installation are
+unsupported; their source development flow remains foreground-only.
+
+Normal startup prepares the application-owned local database and does not
+reset or seed operator data. `npm run augnes:service:status` returns bounded
+lifecycle state without exposing service paths, Node paths, PIDs, ports,
+tokens, manifests, or database paths.
 
 Open the URL and connect a local project. The primary path uses **Choose a
 folder**. If the native picker is unavailable, remains invisible, is cancelled,
@@ -70,10 +82,12 @@ and does not rewrite its saved root. Recovery does not run Codex or change
 project files.
 
 For source-blind local Codex resumption, install the repo-local
-`plugins/augnes-operator` plugin once with `codex plugin marketplace add .`
-then `codex plugin add augnes-operator@augnes-local`. With
-the same supervised `npm run augnes` Companion running, ask “Resume this
-repository with Augnes.” The plugin verifies the current supervised bridge and
+`plugins/augnes-operator` plugin once with
+`npm run augnes:plugin:install`. Ask “Resume this
+repository with Augnes.” Plugin version 0.4.0 first checks lifecycle status,
+starts an already-installed exact service at most once when offered, and only
+then performs one read-only canonical Resume through a verified Companion. It
+never installs the service from MCP. The plugin verifies the supervised bridge and
 calls the strict UI/Core route through a private generation-bound channel; no
 fixed `8787` configuration, Browser open page, mock, seed, docs, or legacy brief
 fallback is required.

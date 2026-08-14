@@ -193,7 +193,14 @@ capability, compatibility, or deferred work rather than default product UI.
   reacquisition without claiming provider stop. Generic historical interactive/policy resume
   keeps its existing owner. Companion startup never resumes automatically.
 - For a fresh Codex request to resume, continue, or inspect the current local
-  repository, use the Augnes Operator `augnes_resume_repository` tool. It must
+  repository, first call `augnes_companion_lifecycle_status` for the exact
+  root. If live, call `augnes_resume_repository` once. If one exact installed
+  service start is offered, call `augnes_start_companion_service` once, require
+  live verification, then call `augnes_resume_repository` once. Never loop or
+  retry. `not_installed` requires the explicit checkout service setup action;
+  lifecycle state never substitutes for canonical continuity. Resume authority
+  may start an already-installed exact service as a reversible prerequisite,
+  but does not install or modify it. `augnes_resume_repository` must still
   resolve one verified live supervised Companion and one registered physical
   project root through the narrow generation-bound Companion channel; never
   substitute docs, seeds, GuideBrief, legacy Work Brief, mock data, repository

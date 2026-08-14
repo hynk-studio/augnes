@@ -10,18 +10,19 @@ const requiredFiles = [
   "plugins/augnes-operator/.codex-plugin/plugin.json",
   "plugins/augnes-operator/.mcp.json",
   "plugins/augnes-operator/mcp/companion-proxy.mjs",
+  "plugins/augnes-operator/mcp/companion-service-core.mjs",
+  "scripts/augnes-companion-service.mjs",
   "apps/augnes_apps/package.json",
 ];
 
 const localSetupCommands = [
   "npm install",
   "npm --prefix apps/augnes_apps install",
-  "npm run augnes",
+  "npm run augnes:service:install",
 ];
 
 const mcpBridgeSetupCommands = [
-  "codex plugin marketplace add .",
-  "codex plugin add augnes-operator@augnes-local",
+  "npm run augnes:plugin:install",
   "# Then ask Codex: Resume this repository with Augnes.",
 ];
 

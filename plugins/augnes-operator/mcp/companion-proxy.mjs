@@ -6,7 +6,17 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  inspectCompanionService,
+  lifecycleAuthority,
+  publicCompanionServiceProjection,
+  PublicCompanionServiceError,
+  startCompanionService,
+} from "./companion-service-core.mjs";
+
 const TOOL_NAME = "augnes_resume_repository";
+const LIFECYCLE_STATUS_TOOL_NAME = "augnes_companion_lifecycle_status";
+const LIFECYCLE_START_TOOL_NAME = "augnes_start_companion_service";
 const PREPARE_TOOL_NAME = "augnes_prepare_repository_execution";
 const ADOPT_TOOL_NAME = "augnes_adopt_repository_execution_root";
 const VALIDATE_TOOL_NAME = "augnes_validate_repository_execution_attachment";
@@ -692,6 +702,41 @@ function toolDescriptionV01() {
   });
 }
 
+function lifecycleToolDescriptionsV01() {
+  const inputSchema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["repositoryRoot"],
+    properties: { repositoryRoot: { type: "string", minLength: 1 } },
+  };
+  return [
+    exposeRequiredInputsInDescriptionV01({
+      name: LIFECYCLE_STATUS_TOOL_NAME,
+      title: "Read Companion lifecycle status",
+      description: "Read the bounded local user-session Companion service state for one exact repository root without contacting UI or Core when no Companion exists. Service state is not canonical continuity.",
+      inputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    }),
+    exposeRequiredInputsInDescriptionV01({
+      name: LIFECYCLE_START_TOOL_NAME,
+      title: "Start installed Companion service",
+      description: "Start or recover the already-installed exact local Companion service once, then verify exactly one live Companion. This cannot install or modify service configuration, run repository commands, create work, or start or resume a managed run.",
+      inputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    }),
+  ];
+}
+
 function repositoryExecutionToolDescriptionsV01() {
   const mutationAnnotations = {
     readOnlyHint: false,
@@ -926,24 +971,29 @@ function unavailableToolResultV01(reason) {
   };
 }
 
-async function handleMessageV01(message) {
+export async function handleMessageV01(message) {
   if (message.method === "initialize") {
     return { jsonrpc: "2.0", id: message.id, result: {
       protocolVersion: message.params?.protocolVersion ?? "2025-06-18",
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "augnes-live-companion-proxy", version: "0.1.0" },
+      serverInfo: { name: "augnes-live-companion-proxy", version: "0.2.0" },
     } };
   }
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [toolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+    }
+    if (
+      [LIFECYCLE_STATUS_TOOL_NAME, LIFECYCLE_START_TOOL_NAME].includes(toolName)
+    ) {
+      return handleLifecycleToolV01({ message, toolName, args });
     }
     const discovery = toolName === TOOL_NAME
       ? await selectCompanionForReadonlyRouteV01()
@@ -1062,6 +1112,126 @@ async function handleMessageV01(message) {
     }
   }
   return { jsonrpc: "2.0", id: message.id ?? null, error: { code: -32601, message: "method_not_found" } };
+}
+
+async function handleLifecycleToolV01({ message, toolName, args }) {
+  if (
+    !exactKeysV01(args, ["repositoryRoot"]) ||
+    typeof args.repositoryRoot !== "string" ||
+    !path.isAbsolute(args.repositoryRoot)
+  ) {
+    return {
+      jsonrpc: "2.0",
+      id: message.id,
+      error: { code: -32602, message: "invalid_companion_lifecycle_request" },
+    };
+  }
+  let lifecycle = null;
+  try {
+    if (toolName === LIFECYCLE_STATUS_TOOL_NAME) {
+      const observation = await inspectCompanionService({
+        repositoryRoot: args.repositoryRoot,
+        environment: process.env,
+        testScope: process.env.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
+      });
+      let companionVerification = "not_attempted";
+      let service = publicCompanionServiceProjection(observation);
+      if (observation.status === "live") {
+        const discovery = await discoverVerifiedCompanionV01(process.env);
+        const exact =
+          discovery.status === "resolved" &&
+          discovery.companion.repository_fingerprint ===
+            observation.configuration?.repository_fingerprint;
+        companionVerification = exact
+          ? "exactly_one_verified"
+          : discovery.status === "companion_ambiguous"
+            ? "ambiguous"
+            : "unavailable";
+        if (!exact) {
+          service = { ...service, canonical_resume_available: false };
+        }
+      }
+      return lifecycleToolResponseV01({
+        id: message.id,
+        service,
+        companionVerification,
+        runtimeLifecycleEffect: false,
+      });
+    }
+
+    lifecycle = await startCompanionService({
+      repositoryRoot: args.repositoryRoot,
+      environment: process.env,
+      testScope: process.env.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
+    });
+    const discovery = await discoverVerifiedCompanionV01(process.env);
+    const observation = await inspectCompanionService({
+      repositoryRoot: args.repositoryRoot,
+      environment: process.env,
+      testScope: process.env.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
+    });
+    const exact =
+      discovery.status === "resolved" &&
+      discovery.companion.repository_fingerprint ===
+        observation.configuration?.repository_fingerprint;
+    return lifecycleToolResponseV01({
+      id: message.id,
+      service: lifecycle.service,
+      companionVerification: exact
+        ? "exactly_one_verified"
+        : discovery.status === "companion_ambiguous"
+          ? "ambiguous"
+          : "unavailable",
+      runtimeLifecycleEffect:
+        lifecycle.authority.runtime_lifecycle_effect === true,
+      isError: !exact,
+      reason: exact ? null : "companion_service_live_verification_failed",
+    });
+  } catch (error) {
+    const reason = error instanceof PublicCompanionServiceError
+      ? error.code
+      : "companion_service_lifecycle_failed";
+    return lifecycleToolResponseV01({
+      id: message.id,
+      service: lifecycle?.service ?? null,
+      companionVerification: "not_verified",
+      runtimeLifecycleEffect:
+        lifecycle?.authority?.runtime_lifecycle_effect === true,
+      isError: true,
+      reason,
+    });
+  }
+}
+
+function lifecycleToolResponseV01({
+  id,
+  service,
+  companionVerification,
+  runtimeLifecycleEffect,
+  isError = false,
+  reason = null,
+}) {
+  const authority = lifecycleAuthority(runtimeLifecycleEffect);
+  const structuredContent = {
+    service,
+    companion_verification: companionVerification,
+    reason,
+    authority,
+  };
+  return {
+    jsonrpc: "2.0",
+    id,
+    result: {
+      ...(isError ? { isError: true } : {}),
+      structuredContent,
+      content: [{
+        type: "text",
+        text: isError
+          ? `Augnes Companion lifecycle action was refused: ${reason}.`
+          : service?.next_action ?? "Companion lifecycle status is available.",
+      }],
+    },
+  };
 }
 
 function exactKeysV01(value, keys) {

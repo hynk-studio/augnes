@@ -53,6 +53,12 @@ import {
   inspectReceiptForDecision,
   readReceiptFile,
 } from "./local-canonical-receipt.mjs";
+import {
+  acquireCompanionServiceMaintenance,
+  boundedLifecycleState,
+  inspectCompanionService,
+  releaseCompanionServiceMaintenance,
+} from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -74,6 +80,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-test-environment.mjs",
   "scripts/local-canonical-environment.mjs",
   "scripts/local-canonical-receipt.mjs",
+  "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "scripts/run-local-canonical-verification.mjs",
   "scripts/test-harness-process-lifecycle.mjs",
   "scripts/validate-canonical-docs-change.mjs",
@@ -332,6 +339,12 @@ export async function executeLocalCanonicalVerification({
     browserPhaseIds: plan.planner_browser_phase_ids,
   });
   const phaseReceipts = phaseDefinitions.map(notRunPhaseReceipt);
+  const serviceLifecycleBefore = boundedLifecycleState(
+    await inspectCompanionService({ repositoryRoot }),
+  );
+  let serviceLifecycleAfter = serviceLifecycleBefore;
+  let dependencyMaintenance = null;
+  let dependencyMaintenanceRelease = null;
   const preflightIssues = [];
   const diskMinimumBytes =
     plan.selected_plan === "full-canonical"
@@ -421,13 +434,39 @@ export async function executeLocalCanonicalVerification({
       }
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
-        execute: (phase) =>
-          executePhase({
-            phase,
-            mode,
-            runLogRoot,
-            browserExecutablePath: hostResult.browserExecutablePath,
-          }),
+        execute: async (phase) => {
+          if (phase.id === "dependencies-root") {
+            dependencyMaintenance = await acquireCompanionServiceMaintenance({
+              repositoryRoot,
+              operationId: `local-canonical-dependencies:${runId}`,
+            });
+          }
+          let result;
+          try {
+            result = await executePhase({
+              phase,
+              mode,
+              runLogRoot,
+              browserExecutablePath: hostResult.browserExecutablePath,
+            });
+            return result;
+          } finally {
+            const dependenciesComplete =
+              phase.id === "dependencies-nested" ||
+              (phase.id === "dependencies-root" && result?.status !== "pass");
+            if (
+              dependenciesComplete &&
+              dependencyMaintenance &&
+              !dependencyMaintenanceRelease
+            ) {
+              dependencyMaintenanceRelease =
+                await releaseCompanionServiceMaintenance({
+                  repositoryRoot,
+                  lease: dependencyMaintenance.lease,
+                });
+            }
+          }
+        },
         onStart: (phase) => {
           console.log(
             `[local-canonical] phase_start id=${phase.id} timeout_ms=${phase.timeoutMs}`,
@@ -460,6 +499,17 @@ export async function executeLocalCanonicalVerification({
       `[local-canonical] failure phase=executor code=${cleanupReason}`,
     );
   } finally {
+    if (dependencyMaintenance && !dependencyMaintenanceRelease) {
+      try {
+        dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
+          repositoryRoot,
+          lease: dependencyMaintenance.lease,
+        });
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+    }
     console.log("[local-canonical] cleanup_start");
     if (
       plan.selected_plan === "full-canonical" &&
@@ -506,6 +556,19 @@ export async function executeLocalCanonicalVerification({
     console.log(
       `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${existsSync(generatedNextRoot)} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
     );
+    serviceLifecycleAfter = boundedLifecycleState(
+      await inspectCompanionService({ repositoryRoot }),
+    );
+  }
+
+  const serviceLifecycleRestored = lifecycleStateRestored(
+    serviceLifecycleBefore,
+    serviceLifecycleAfter,
+  );
+  if (!serviceLifecycleRestored) {
+    executionFailure = true;
+    cleanupComplete = false;
+    cleanupReason ??= "companion_service_not_restored";
   }
 
   let identityAfter;
@@ -665,6 +728,16 @@ export async function executeLocalCanonicalVerification({
     cleanup: {
       completed: cleanupComplete && remainingOwnedProcesses === 0,
       remaining_owned_processes: remainingOwnedProcesses,
+      companion_service: {
+        before: serviceLifecycleBefore,
+        after: serviceLifecycleAfter,
+        maintenance_acquired: dependencyMaintenance?.acquired === true,
+        maintenance_released:
+          dependencyMaintenance === null ||
+          dependencyMaintenanceRelease?.released === true ||
+          dependencyMaintenance?.acquired === false,
+        restored: serviceLifecycleRestored,
+      },
       generated_next: {
         ...nextState,
         present_after: existsSync(generatedNextRoot),
@@ -708,6 +781,18 @@ export async function executeLocalCanonicalVerification({
     receiptRelativePath,
     exitCode: receipt.final.exit_status,
   };
+}
+
+function lifecycleStateRestored(before, after) {
+  if (before.status === "live" || before.status === "starting") {
+    return after.status === "live";
+  }
+  if (before.status === "installed_stopped") {
+    return after.status === "installed_stopped";
+  }
+  return before.status === after.status &&
+    before.checkout_relation === after.checkout_relation &&
+    before.service_identity === after.service_identity;
 }
 
 export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
