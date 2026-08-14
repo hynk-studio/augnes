@@ -161,7 +161,9 @@ export interface VNextOperatorPilotOperationalFrictionReviewV01 {
   status: "canonical_admission_verified";
   review_mode: "proposal_only_no_activation";
   admission_identity: OperationalFrictionProposalAdmissionIdentityV01;
-  write_time_source_rematerialization_bound: true;
+  canonical_admission_identity_verified: true;
+  canonical_writer_requires_exact_source_rematerialization: true;
+  write_path_provenance: "not_serialized_not_reprovable";
   ordinary_readback_rehydrates_upstream_sources: false;
   activation_owner_present: false;
   semantic_transition_applicable: false;
@@ -456,7 +458,11 @@ export function readVNextOperatorPilotSemanticReviewV01(
         status: "canonical_admission_verified",
         review_mode: "proposal_only_no_activation",
         admission_identity: identity,
-        write_time_source_rematerialization_bound: true,
+        canonical_admission_identity_verified:
+          canonical.canonical_admission_identity_verified,
+        canonical_writer_requires_exact_source_rematerialization:
+          canonical.canonical_writer_requires_exact_source_rematerialization,
+        write_path_provenance: canonical.write_path_provenance,
         ordinary_readback_rehydrates_upstream_sources: false,
         activation_owner_present: false,
         semantic_transition_applicable: false,
@@ -863,40 +869,34 @@ export function recordVNextOperatorPilotReviewDecisionV01(
     authentication.session.session_id,
     request,
   );
-  const prevalidatedApplying =
-    resolveVNextOperatorPilotApplyingDecisionV01(
-      prevalidated.proposal,
-      prevalidated.candidate,
-    );
-  if (
-    prevalidated.admission.review_mode === "proposal_only_no_activation" &&
-    (request.decision === "supersede" || request.decision === "retract")
-  ) {
-    throw reviewError("operator_pilot_proposal_only_decision_not_allowed", 409);
-  }
-  if (
-    !prevalidatedReplay &&
-    isApplyingDecisionV01(request.decision) &&
-    request.decision !== prevalidatedApplying.decision
-  ) {
-    throw reviewError("operator_pilot_decision_operation_mismatch", 409);
-  }
-  if (
-    !prevalidatedReplay &&
-    request.decision === prevalidatedApplying.decision &&
-    !prevalidated.admission.decision_allowed.accept
-  ) {
-    throw reviewError(
-      prevalidated.admission.blocking_reasons[0] ??
-        "operator_pilot_accept_not_admitted",
-      409,
-    );
-  }
+  assertDecisionRequestAllowedBeforeNonceV01(
+    prevalidated,
+    prevalidatedReplay,
+    request,
+  );
   if (db.inTransaction) {
     throw reviewError("operator_pilot_nested_transaction_forbidden", 409);
   }
   db.exec("BEGIN IMMEDIATE");
   try {
+    const material = resolveDecisionRequestMaterial(
+      db,
+      input.config,
+      request,
+      authentication.session.session_id,
+    );
+    const replay = findExactSemanticDecisionReplay(
+      db,
+      input.config,
+      material.proposal,
+      authentication.session.session_id,
+      request,
+    );
+    const applying = assertDecisionRequestAllowedBeforeNonceV01(
+      material,
+      replay,
+      request,
+    );
     const nonceAdmission =
       admitVNextLocalOperatorMutationInsideTransactionV01(db, {
         config: input.config,
@@ -905,19 +905,6 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         secret_source: input.secret_source,
       });
     assertSessionScope(input.config, nonceAdmission.session);
-    const material = resolveDecisionRequestMaterial(
-      db,
-      input.config,
-      request,
-      nonceAdmission.session.session_id,
-    );
-    const replay = findExactSemanticDecisionReplay(
-      db,
-      input.config,
-      material.proposal,
-      nonceAdmission.session.session_id,
-      request,
-    );
     if (replay) {
       db.exec("COMMIT");
       return {
@@ -928,32 +915,6 @@ export function recordVNextOperatorPilotReviewDecisionV01(
         activation_requested: false,
         session_cookie: admissionCookie(nonceAdmission),
       };
-    }
-    const applying = resolveVNextOperatorPilotApplyingDecisionV01(
-      material.proposal,
-      material.candidate,
-    );
-    if (
-      material.admission.review_mode === "proposal_only_no_activation" &&
-      (request.decision === "supersede" || request.decision === "retract")
-    ) {
-      throw reviewError("operator_pilot_proposal_only_decision_not_allowed", 409);
-    }
-    if (
-      isApplyingDecisionV01(request.decision) &&
-      request.decision !== applying.decision
-    ) {
-      throw reviewError("operator_pilot_decision_operation_mismatch", 409);
-    }
-    if (
-      request.decision === applying.decision &&
-      !material.admission.decision_allowed.accept
-    ) {
-      throw reviewError(
-        material.admission.blocking_reasons[0] ??
-          "operator_pilot_accept_not_admitted",
-        409,
-      );
     }
     const decidedAt = nonceAdmission.action_observed_at;
     const decisionRequestFingerprint =
@@ -1149,6 +1110,75 @@ function isApplyingDecisionV01(
     decision === "supersede" ||
     decision === "retract"
   );
+}
+
+function assertDecisionRequestAllowedBeforeNonceV01(
+  material: ResolvedDecisionRequestMaterialV01,
+  replay: ReviewDecisionV01 | null,
+  request: VNextOperatorPilotDecisionRequestV01,
+): VNextOperatorPilotApplyingDecisionV01 {
+  const applying = resolveVNextOperatorPilotApplyingDecisionV01(
+    material.proposal,
+    material.candidate,
+  );
+  if (material.admission.review_mode === "proposal_only_no_activation") {
+    const effective = material.detail.decision_history
+      .filter(
+        (entry) =>
+          entry.status === "valid" &&
+          entry.pilot_session_bound &&
+          entry.decision.candidate.candidate_id ===
+            material.candidate.candidate_id &&
+          entry.decision.candidate.candidate_fingerprint ===
+            material.candidate_fingerprint,
+      )
+      .sort((left, right) =>
+        compareEffectiveReviewDecisionsV01(left.decision, right.decision),
+      )[0];
+    if (
+      effective &&
+      (effective.decision.decision === "accept" ||
+        effective.decision.decision === "reject")
+    ) {
+      if (
+        replay &&
+        replay.decision_id === effective.decision.decision_id &&
+        replay.integrity.fingerprint ===
+          effective.decision.integrity.fingerprint
+      ) {
+        return applying;
+      }
+      throw reviewError(
+        "operator_pilot_proposal_only_candidate_already_settled",
+        409,
+      );
+    }
+    if (request.decision === "supersede" || request.decision === "retract") {
+      throw reviewError(
+        "operator_pilot_proposal_only_decision_not_allowed",
+        409,
+      );
+    }
+  }
+  if (
+    !replay &&
+    isApplyingDecisionV01(request.decision) &&
+    request.decision !== applying.decision
+  ) {
+    throw reviewError("operator_pilot_decision_operation_mismatch", 409);
+  }
+  if (
+    !replay &&
+    request.decision === applying.decision &&
+    !material.admission.decision_allowed.accept
+  ) {
+    throw reviewError(
+      material.admission.blocking_reasons[0] ??
+        "operator_pilot_accept_not_admitted",
+      409,
+    );
+  }
+  return applying;
 }
 
 function resolveProjectVerifyPriorDecisionBindingV01(

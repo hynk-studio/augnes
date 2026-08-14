@@ -295,6 +295,9 @@ export function readOperationalFrictionProposalByIdentityV01(
   record: VNextCoreRecordEnvelopeV01;
   proposal: EpisodeDeltaProposalV01;
   admission_identity: OperationalFrictionProposalAdmissionIdentityV01;
+  canonical_admission_identity_verified: true;
+  canonical_writer_requires_exact_source_rematerialization: true;
+  write_path_provenance: "not_serialized_not_reprovable";
   ordinary_readback_rehydrates_upstream_sources: false;
 } | null {
   assertVNextDurableSemanticStoreSchemaV01(db);
@@ -390,6 +393,9 @@ export function readOperationalFrictionProposalByIdentityV01(
     record,
     proposal,
     admission_identity: derivedIdentity,
+    canonical_admission_identity_verified: true,
+    canonical_writer_requires_exact_source_rematerialization: true,
+    write_path_provenance: "not_serialized_not_reprovable",
     ordinary_readback_rehydrates_upstream_sources: false,
   };
 }

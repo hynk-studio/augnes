@@ -79,6 +79,7 @@ interface OperationalReviewFixtureV01 {
 async function main(): Promise<void> {
   assertPolicyAndAuthenticatedDecisionFlowV01();
   assertRejectAndDeferV01();
+  assertProposalOnlyTerminalDecisionBoundaryV01();
   await assertExistingRoutesV01();
   assertSourcePurityV01();
   console.log(
@@ -87,7 +88,12 @@ async function main(): Promise<void> {
         suite: "vnext-operational-proposal-review-v0.1",
         status: "passed",
         canonical_admission_verified: true,
+        ordinary_readback_write_path_provenance:
+          "not_serialized_not_reprovable",
         proposal_only_accept_review_decision: true,
+        proposal_only_terminal_decision_gate: true,
+        terminal_refusal_preserves_nonce: true,
+        defer_revisit_remains_available: true,
         accepted_proposal_only: true,
         semantic_transition_firewall: true,
         durable_effect_counts: "passed",
@@ -196,8 +202,22 @@ function assertPolicyAndAuthenticatedDecisionFlowV01(): void {
     );
     assert.equal(
       detailBefore.operational_friction_review
-        ?.write_time_source_rematerialization_bound,
+        ?.canonical_admission_identity_verified,
       true,
+    );
+    assert.equal(
+      detailBefore.operational_friction_review
+        ?.canonical_writer_requires_exact_source_rematerialization,
+      true,
+    );
+    assert.equal(
+      detailBefore.operational_friction_review?.write_path_provenance,
+      "not_serialized_not_reprovable",
+    );
+    assert.equal(
+      "write_time_source_rematerialization_bound" in
+        detailBefore.operational_friction_review!,
+      false,
     );
     assert.equal(detailBefore.decision_application_summary.status, "needs_decision");
     assert.equal(
@@ -459,6 +479,142 @@ function assertRejectAndDeferV01(): void {
   }
 }
 
+function assertProposalOnlyTerminalDecisionBoundaryV01(): void {
+  for (const terminalDecision of ["accept", "reject"] as const) {
+    const fixture = createOperationalReviewFixtureV01(":memory:");
+    let credential = fixture.credential;
+    try {
+      const candidate = fixture.proposal.proposed_deltas[0]!;
+      const otherCandidate = fixture.proposal.proposed_deltas[1]!;
+      const terminalRequest = decisionRequestV01(
+        fixture.proposal,
+        candidate,
+        terminalDecision,
+      );
+      const terminal = recordVNextOperatorPilotReviewDecisionV01(fixture.db, {
+        config: fixture.config,
+        credential,
+        request: terminalRequest,
+        clock: TEST_CLOCK,
+        secret_source: fixture.secret_source,
+      });
+      credential = credentialFromCookieValueV01(terminal.session_cookie.value);
+      assert.equal(terminal.status, "inserted");
+
+      const replayBaseline = durableEffectSnapshotV01(fixture.db);
+      const replay = recordVNextOperatorPilotReviewDecisionV01(fixture.db, {
+        config: fixture.config,
+        credential,
+        request: terminalRequest,
+        clock: TEST_CLOCK,
+        secret_source: fixture.secret_source,
+      });
+      credential = credentialFromCookieValueV01(replay.session_cookie.value);
+      assert.equal(replay.status, "exact_replay");
+      assert.deepEqual(replay.decision, terminal.decision);
+      assertDurableDeltaV01(
+        replayBaseline,
+        durableEffectSnapshotV01(fixture.db),
+        { episode_delta_proposal: 0, review_decision: 0 },
+      );
+
+      const refusalBaseline = durableEffectSnapshotV01(fixture.db);
+      for (const laterDecision of [
+        "accept",
+        "reject",
+        "defer",
+        "supersede",
+        "retract",
+      ] as const) {
+        const distinctRequest = decisionRequestV01(
+          fixture.proposal,
+          candidate,
+          laterDecision,
+        );
+        if (laterDecision === terminalDecision) {
+          distinctRequest.rationale_summary =
+            `Distinct later ACGC4B ${laterDecision} judgment.`;
+        }
+        assert.throws(
+          () =>
+            recordVNextOperatorPilotReviewDecisionV01(fixture.db, {
+              config: fixture.config,
+              credential,
+              request: distinctRequest,
+              clock: TEST_CLOCK,
+              secret_source: fixture.secret_source,
+            }),
+          /operator_pilot_proposal_only_candidate_already_settled/u,
+        );
+      }
+      assertDurableDeltaV01(
+        refusalBaseline,
+        durableEffectSnapshotV01(fixture.db),
+        { episode_delta_proposal: 0, review_decision: 0 },
+      );
+
+      const otherCandidateResult =
+        recordVNextOperatorPilotReviewDecisionV01(fixture.db, {
+          config: fixture.config,
+          credential,
+          request: decisionRequestV01(
+            fixture.proposal,
+            otherCandidate,
+            "reject",
+          ),
+          clock: TEST_CLOCK,
+          secret_source: fixture.secret_source,
+        });
+      assert.equal(otherCandidateResult.status, "inserted");
+      assert.equal(otherCandidateResult.decision.decision, "reject");
+    } finally {
+      fixture.db.close();
+    }
+  }
+
+  const deferredFixture = createOperationalReviewFixtureV01(":memory:");
+  try {
+    const candidate = deferredFixture.proposal.proposed_deltas[0]!;
+    const deferred = recordVNextOperatorPilotReviewDecisionV01(
+      deferredFixture.db,
+      {
+        config: deferredFixture.config,
+        credential: deferredFixture.credential,
+        request: decisionRequestV01(
+          deferredFixture.proposal,
+          candidate,
+          "defer",
+        ),
+        clock: TEST_CLOCK,
+        secret_source: deferredFixture.secret_source,
+      },
+    );
+    const later = recordVNextOperatorPilotReviewDecisionV01(
+      deferredFixture.db,
+      {
+        config: deferredFixture.config,
+        credential: credentialFromCookieValueV01(
+          deferred.session_cookie.value,
+        ),
+        request: decisionRequestV01(
+          deferredFixture.proposal,
+          candidate,
+          "accept",
+        ),
+        clock: {
+          now: () => "2026-07-19T00:00:01.000Z",
+        },
+        secret_source: deferredFixture.secret_source,
+      },
+    );
+    assert.equal(later.status, "inserted");
+    assert.equal(later.decision.decision, "accept");
+    assert.equal(later.decision.requested_transition_intent, null);
+  } finally {
+    deferredFixture.db.close();
+  }
+}
+
 async function assertExistingRoutesV01(): Promise<void> {
   const directory = mkdtempSync(path.join(os.tmpdir(), "augnes-acgc4b-"));
   const databasePath = path.join(directory, "operator.sqlite");
@@ -553,6 +709,21 @@ async function assertExistingRoutesV01(): Promise<void> {
     assert.equal(acceptedBody.activation_requested, false);
     assert.equal(acceptedBody.decision.requested_transition_intent, null);
     cookie = accepted.headers.get("set-cookie")!.split(";", 1)[0]!;
+
+    const terminalRefusal = await reviewHandlers.POST(
+      localRequestV01("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        cookie,
+        body: decisionRequestV01(proposal, candidate, "reject"),
+      }),
+    );
+    assert.equal(terminalRefusal.status, 409);
+    assertSecurityHeadersV01(terminalRefusal);
+    assert.equal(
+      (await terminalRefusal.json()).error_code,
+      "operator_pilot_proposal_only_candidate_already_settled",
+    );
+    assert.equal(terminalRefusal.headers.get("set-cookie"), null);
 
     const acceptedDetail = await reviewHandlers.GET(
       localRequestV01(

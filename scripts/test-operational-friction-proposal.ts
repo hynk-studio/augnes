@@ -47,6 +47,7 @@ import {
 import {
   countVNextCoreRecordsV01,
   ensureVNextDurableSemanticStoreSchemaV01,
+  insertVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
   admitEpisodeDeltaProposalV01,
@@ -315,6 +316,7 @@ try {
   assertEpistemicAndCandidateFailuresV01(source, result.profile, result.proposal);
   assertIntegrityAndCompatibilityV01(source, result.profile, result.proposal);
   assertOperationalAdmissionAndReadbackV01(source, result);
+  assertOperationalReadbackEpistemicScopeV01(source, result);
   assertReviewAndTransitionNegativeV01(result.proposal);
   assertSourcePurityV01();
 
@@ -1201,6 +1203,16 @@ function assertOperationalAdmissionAndReadbackV01(
     const ordinary = readOperationalFrictionProposalByIdentityV01(db, identity);
     assert(ordinary);
     assert.deepEqual(ordinary.admission_identity, identity);
+    assert.equal(ordinary.canonical_admission_identity_verified, true);
+    assert.equal(
+      ordinary.canonical_writer_requires_exact_source_rematerialization,
+      true,
+    );
+    assert.equal(
+      ordinary.write_path_provenance,
+      "not_serialized_not_reprovable",
+    );
+    assert.equal("exact_source_rematerialization_bound" in ordinary, false);
     assert.equal(ordinary.ordinary_readback_rehydrates_upstream_sources, false);
     assert.equal(canonicalizeProtocolValueV01(ordinary.proposal), proposalBytes);
     const exactSource = readOperationalFrictionProposalFromExactSourcesV01(
@@ -1367,6 +1379,60 @@ function assertOperationalAdmissionAndReadbackV01(
     );
   } finally {
     unknownDb.close();
+  }
+}
+
+function assertOperationalReadbackEpistemicScopeV01(
+  source: MaterializeOperationalFrictionProposalInputV01,
+  expected: ReturnType<typeof materializeOperationalFrictionProposalV01>,
+): void {
+  const identity = deriveOperationalFrictionProposalAdmissionIdentityV01({
+    workspace_id: source.workspace_id,
+    project_id: source.project_id,
+    proposal: expected.proposal,
+  });
+  const db = new Database(":memory:");
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    const genericWrite = insertVNextCoreRecordV01(db, {
+      record_kind: "episode_delta_proposal",
+      record_id: expected.proposal.proposal_id,
+      workspace_id: expected.proposal.workspace_id,
+      project_id: expected.proposal.project_id,
+      fingerprint: expected.proposal.integrity.fingerprint,
+      idempotency_key: identity.idempotency_key,
+      payload: expected.proposal,
+      created_at: expected.proposal.created_at,
+    });
+    assert.equal(genericWrite.status, "inserted");
+
+    const ordinary = readOperationalFrictionProposalByIdentityV01(db, identity);
+    assert(ordinary);
+    assert.deepEqual(ordinary.admission_identity, identity);
+    assert.equal(ordinary.canonical_admission_identity_verified, true);
+    assert.equal(
+      ordinary.canonical_writer_requires_exact_source_rematerialization,
+      true,
+    );
+    assert.equal(
+      ordinary.write_path_provenance,
+      "not_serialized_not_reprovable",
+    );
+    assert.equal(ordinary.ordinary_readback_rehydrates_upstream_sources, false);
+    assert.equal("exact_source_rematerialization_bound" in ordinary, false);
+
+    const exactSource = readOperationalFrictionProposalFromExactSourcesV01(
+      db,
+      clone(source),
+    );
+    assert(exactSource);
+    assert.equal(exactSource.exact_source_rematerialization_bound, true);
+    assert.equal(
+      canonicalizeProtocolValueV01(exactSource.proposal),
+      canonicalizeProtocolValueV01(expected.proposal),
+    );
+  } finally {
+    db.close();
   }
 }
 
