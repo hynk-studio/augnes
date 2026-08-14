@@ -19,6 +19,9 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import {
+  COMPANION_SERVICE_CONTRACT,
+  COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
+  COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION,
   acquireCompanionServiceMaintenance,
   inspectCompanionService,
   releaseCompanionServiceMaintenance,
@@ -180,6 +183,7 @@ try {
 
   const stopped = await stopCompanionService(options);
   assert.equal(stopped.service.status, "installed_stopped");
+  assert.equal(readDesiredState().desired_state, "stopped");
   const stoppedFresh = await runCli(["status"]);
   assert.equal(JSON.parse(stoppedFresh.stdout).status, "installed_stopped");
   assert.equal(
@@ -189,6 +193,30 @@ try {
     ]).status,
     113,
   );
+  const stoppedManagerState = JSON.parse(
+    readFileSync(layout.manager_state_path, "utf8"),
+  );
+  const reload = spawnSync("/bin/launchctl", [
+    "bootstrap",
+    `gui/${process.getuid()}`,
+    layout.launch_agent_path,
+  ]);
+  assert.equal(reload.status, 0, reload.stderr?.toString("utf8"));
+  const reloadedStoppedManager = await waitForFreshStoppedManager(
+    stoppedManagerState.manager_pid,
+    10_000,
+  );
+  await waitForManagerProcessGone(reloadedStoppedManager, 10_000);
+  const stoppedAfterReload = await inspectCompanionService(options);
+  assert.equal(stoppedAfterReload.status, "installed_stopped");
+  assert.equal(readDesiredState().desired_state, "stopped");
+  for (const file of [
+    layout.runtime_manifest_path,
+    layout.runtime_access_path,
+    layout.runtime_token_path,
+    layout.runtime_lock_path,
+    layout.runtime_bridge_environment_path,
+  ]) assert.equal(existsSync(file), false, file);
 
   const stoppedProjectFingerprint = projectFileFingerprint();
   const stoppedAuthorityState = authorityStateSnapshot();
@@ -218,6 +246,7 @@ try {
     assert.equal(start.structuredContent?.service?.status, "live");
     assert.equal(start.structuredContent?.companion_verification, "exactly_one_verified");
     assert.equal(start.structuredContent?.authority?.runtime_lifecycle_effect, true);
+    assert.equal(readDesiredState().desired_state, "running");
     const resume = await coldClient.callTool({
       name: "augnes_resume_repository",
       arguments: { repositoryRoot },
@@ -236,10 +265,71 @@ try {
   assert.equal(projectFilesUnchanged, true);
   assert.equal(authorityStateUnchanged, true);
   await stopCompanionService(options);
-  const concurrentColdStarts = await Promise.all([
+  assert.equal(readDesiredState().desired_state, "stopped");
+  const stoppedMaintenance = await acquireCompanionServiceMaintenance({
+    ...options,
+    operationId: `native-stopped-maintenance:${process.pid}`,
+  });
+  assert.equal(stoppedMaintenance.acquired, false);
+  assert.equal(stoppedMaintenance.reason, "companion_service_maintenance_not_required");
+  assert.equal(existsSync(layout.maintenance_lease_path), false);
+  const stoppedRelease = await releaseCompanionServiceMaintenance({
+    ...options,
+    lease: stoppedMaintenance.lease,
+  });
+  assert.equal(stoppedRelease.released, false);
+  assert.equal(stoppedRelease.after.status, "installed_stopped");
+
+  const staleStoppedLease = {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: layout.service_identity,
+    repository_fingerprint: layout.repository.repository_fingerprint,
+    operation_id: `native-stale-stopped:${process.pid}`,
+    owner_pid: 2_147_483_647,
+    owner_process_identity: "a".repeat(64),
+    pre_maintenance_desired_state: "stopped",
+    acquired_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+  };
+  writeFileSync(
+    layout.maintenance_lease_path,
+    `${JSON.stringify(staleStoppedLease)}\n`,
+    { mode: 0o600 },
+  );
+  const beforeStaleStoppedReload = JSON.parse(
+    readFileSync(layout.manager_state_path, "utf8"),
+  );
+  const staleStoppedReload = spawnSync("/bin/launchctl", [
+    "bootstrap",
+    `gui/${process.getuid()}`,
+    layout.launch_agent_path,
+  ]);
+  assert.equal(
+    staleStoppedReload.status,
+    0,
+    staleStoppedReload.stderr?.toString("utf8"),
+  );
+  const staleStoppedManager = await waitForFreshStoppedManager(
+    beforeStaleStoppedReload.manager_pid,
+    10_000,
+  );
+  await waitForManagerProcessGone(staleStoppedManager, 10_000);
+  assert.equal(existsSync(layout.maintenance_lease_path), false);
+  assert.equal(readDesiredState().desired_state, "stopped");
+  assert.equal((await inspectCompanionService(options)).status, "installed_stopped");
+  assert.equal(existsSync(layout.runtime_manifest_path), false);
+  const concurrentColdStartSettled = await Promise.allSettled([
     startCompanionService(options),
     startCompanionService(options),
   ]);
+  assert.deepEqual(
+    concurrentColdStartSettled.map((result) => result.status),
+    ["fulfilled", "fulfilled"],
+  );
+  const concurrentColdStarts = concurrentColdStartSettled.map(
+    (result) => result.value,
+  );
   assert.equal(
     concurrentColdStarts.filter((result) => result.result === "changed").length,
     1,
@@ -335,6 +425,7 @@ try {
   assert.equal(uninstall.service.status, "not_installed");
   assert.equal(existsSync(layout.launch_agent_path), false);
   assert.equal(existsSync(layout.configuration_path), false);
+  assert.equal(existsSync(layout.desired_state_path), false);
   assert.equal(
     spawnSync("/bin/launchctl", [
       "print",
@@ -348,6 +439,7 @@ try {
   console.log(JSON.stringify({
     status: "pass",
     service_contract: "augnes-companion-service.v0.1",
+    desired_state_contract: COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
     temporary_launch_agent: true,
     installer_parent_exit_survived: true,
     manager_crash_restart_recovered_service: true,
@@ -359,11 +451,15 @@ try {
     duplicate_start_single_runtime: true,
     concurrent_cold_start_one_lifecycle_effect: true,
     explicit_stop_remained_stopped: true,
+    explicit_stop_fresh_manager_reload_remained_stopped: true,
+    explicit_start_changed_desired_state_to_running: true,
     explicit_restart_succeeded: true,
     explicit_service_update_succeeded: true,
     stale_service_stop_and_uninstall_succeeded: true,
     exact_orphan_runtime_stopped_on_uninstall: true,
     maintenance_pause_and_restore: true,
+    maintenance_stopped_state_noop: true,
+    stale_stopped_maintenance_recovery_did_not_wake_service: true,
     nested_maintenance_joined_ancestor: true,
     stale_owner_recovery: true,
     uninstall_exact_cleanup: true,
@@ -549,6 +645,67 @@ async function waitForManagerChange(managerPid, timeoutMs) {
   assert.equal(observation.status, "live", observation.reason);
   assert.notEqual(currentManagerPid, managerPid);
   return observation;
+}
+
+async function waitForFreshStoppedManager(previousManagerPid, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let state = null;
+  while (Date.now() < deadline) {
+    try {
+      state = JSON.parse(readFileSync(layout.manager_state_path, "utf8"));
+    } catch {
+      state = null;
+    }
+    if (
+      state?.status === "installed_stopped" &&
+      Number.isInteger(state.manager_pid) &&
+      state.manager_pid !== previousManagerPid &&
+      typeof state.manager_process_identity === "string"
+    ) return state;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.equal(state?.status, "installed_stopped");
+  assert.notEqual(state?.manager_pid, previousManagerPid);
+  return state;
+}
+
+async function waitForManagerProcessGone(managerState, timeoutMs) {
+  const exactManagerAlive = () => {
+    const material = processIdentity(managerState.manager_pid);
+    if (material === null) return false;
+    return createHash("sha256")
+      .update(`${process.platform}:${managerState.manager_pid}:${material}`)
+      .digest("hex") === managerState.manager_process_identity;
+  };
+  const deadline = Date.now() + timeoutMs;
+  while (exactManagerAlive() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.equal(exactManagerAlive(), false);
+}
+
+function readDesiredState() {
+  const state = JSON.parse(readFileSync(layout.desired_state_path, "utf8"));
+  assert.equal(state.contract, COMPANION_SERVICE_DESIRED_STATE_CONTRACT);
+  assert.equal(
+    state.schema_version,
+    COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION,
+  );
+  assert.equal(state.service_identity, layout.service_identity);
+  assert.equal(
+    state.repository_fingerprint,
+    layout.repository.repository_fingerprint,
+  );
+  assert.match(state.updated_at, /^\d{4}-\d{2}-\d{2}T/u);
+  assert.deepEqual(Object.keys(state).sort(), [
+    "contract",
+    "desired_state",
+    "repository_fingerprint",
+    "schema_version",
+    "service_identity",
+    "updated_at",
+  ]);
+  return state;
 }
 
 function rememberRuntime(observation) {

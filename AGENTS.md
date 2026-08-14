@@ -200,7 +200,11 @@ capability, compatibility, or deferred work rather than default product UI.
   retry. `not_installed` requires the explicit checkout service setup action;
   lifecycle state never substitutes for canonical continuity. Resume authority
   may start an already-installed exact service as a reversible prerequisite,
-  but does not install or modify it. `augnes_resume_repository` must still
+  but does not install or modify it. Explicit Stop remains stopped across
+  login or LaunchAgent reload until an explicit Start or Install. Only one
+  production Companion service may be installed per local user session; a
+  different checkout fails closed without mutating the existing service.
+  `augnes_resume_repository` must still
   resolve one verified live supervised Companion and one registered physical
   project root through the narrow generation-bound Companion channel; never
   substitute docs, seeds, GuideBrief, legacy Work Brief, mock data, repository

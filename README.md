@@ -41,6 +41,10 @@ provider, semantic, external-effect, publication, or merge authority. Stop or
 remove it reversibly with `npm run augnes:service:stop` or
 `npm run augnes:service:uninstall`. Linux and Windows service installation are
 unsupported; their source development flow remains foreground-only.
+Explicit Stop remains stopped across a later login or LaunchAgent reload; only
+an explicit Start or Install returns that exact service to running. One
+production Companion service may be installed per local user session, so setup
+or Start for another checkout refuses without changing the existing service.
 
 Normal startup prepares the application-owned local database and does not
 reset or seed operator data. `npm run augnes:service:status` returns bounded

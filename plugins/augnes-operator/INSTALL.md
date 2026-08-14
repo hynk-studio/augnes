@@ -41,6 +41,12 @@ npm run augnes:service:stop
 npm run augnes:service:uninstall
 ```
 
+Explicit Stop is durable across login and LaunchAgent reload; only an explicit
+Start or Install returns the exact service to running. Augnes permits one
+production Companion service per local user session. Installing or starting a
+different checkout refuses without stopping, adopting, rewriting, or removing
+the existing checkout service.
+
 The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
 surface; that build uses `plugin add`, not a nonexistent `plugin install`
 command. It refreshes an already-installed local plugin, requires effective

@@ -9,6 +9,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmdirSync,
@@ -20,7 +21,10 @@ import os from "node:os";
 import path from "node:path";
 
 export const COMPANION_SERVICE_CONTRACT = "augnes-companion-service.v0.1";
+export const COMPANION_SERVICE_DESIRED_STATE_CONTRACT =
+  "augnes-companion-service-desired-state.v0.1";
 export const COMPANION_SERVICE_SCHEMA_VERSION = 1;
+export const COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION = 1;
 export const COMPANION_SERVICE_MANAGER_VERSION = 1;
 export const COMPANION_SERVICE_PLATFORM = "darwin";
 export const COMPANION_SERVICE_NODE_MAJOR = 24;
@@ -53,6 +57,7 @@ const MAINTENANCE_WAIT_MS = 30_000;
 const DEFAULT_MAINTENANCE_TTL_MS = 6 * 60 * 60 * 1_000;
 const MAX_MAINTENANCE_TTL_MS = 12 * 60 * 60 * 1_000;
 const MAX_CHILD_TAIL_BYTES = 16 * 1024;
+const MAX_PRODUCTION_CHECKOUT_SCOPES = 512;
 
 export class PublicCompanionServiceError extends Error {
   constructor(code, cause) {
@@ -95,6 +100,14 @@ export function resolveCompanionServiceLayout({
         "config",
         "companion-service",
       );
+  const productionCheckoutsDirectory = path.join(
+    home,
+    "Library",
+    "Application Support",
+    "Augnes",
+    "v1",
+    "checkouts",
+  );
   const runtimeDirectory = test
     ? path.join(test.root, `runtime-${serviceIdentity.slice(0, 16)}`)
     : path.join(
@@ -115,6 +128,8 @@ export function resolveCompanionServiceLayout({
     service_label: label,
     service_directory: serviceDirectory,
     configuration_path: path.join(serviceDirectory, "service.json"),
+    desired_state_path: path.join(serviceDirectory, "desired-state.json"),
+    lifecycle_lock_path: path.join(serviceDirectory, "lifecycle.lock"),
     manager_state_path: path.join(serviceDirectory, "manager-state.json"),
     manager_lock_path: path.join(serviceDirectory, "manager.lock"),
     maintenance_lease_path: path.join(serviceDirectory, "maintenance.json"),
@@ -128,6 +143,7 @@ export function resolveCompanionServiceLayout({
       "bridge-supervisor.env",
     ),
     launch_agent_path: path.join(home, "Library", "LaunchAgents", `${label}.plist`),
+    production_checkouts_directory: productionCheckoutsDirectory,
   };
 }
 
@@ -173,7 +189,12 @@ export async function inspectCompanionService({
 
   const configurationResult = readRegularJson(layout.configuration_path);
   const plistResult = readRegularText(layout.launch_agent_path);
-  if (configurationResult.state === "missing" && plistResult.state === "missing") {
+  const desiredStateResult = readRegularJson(layout.desired_state_path);
+  if (
+    configurationResult.state === "missing" &&
+    plistResult.state === "missing" &&
+    desiredStateResult.state === "missing"
+  ) {
     return serviceObservation({
       layout,
       status: "not_installed",
@@ -183,7 +204,10 @@ export async function inspectCompanionService({
       reason: "companion_service_not_installed",
     });
   }
-  if (configurationResult.state !== "valid" || plistResult.state !== "valid") {
+  if (
+    configurationResult.state !== "valid" ||
+    plistResult.state !== "valid"
+  ) {
     return serviceObservation({
       layout,
       status: "ambiguous",
@@ -216,6 +240,36 @@ export async function inspectCompanionService({
     });
   }
 
+  if (desiredStateResult.state !== "valid") {
+    return serviceObservation({
+      layout,
+      configuration,
+      status: "ambiguous",
+      checkoutRelation: "exact",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: desiredStateResult.state === "missing"
+        ? "companion_service_desired_state_missing"
+        : "companion_service_desired_state_invalid",
+    });
+  }
+
+  const desiredState = validateDesiredStateRecord(
+    desiredStateResult.value,
+    configuration,
+  );
+  if (!desiredState.valid) {
+    return serviceObservation({
+      layout,
+      configuration,
+      status: "ambiguous",
+      checkoutRelation: "exact",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: desiredState.reason,
+    });
+  }
+
   const sourceFingerprint = computeServiceSourceFingerprint(
     layout.repository.realpath,
   );
@@ -239,6 +293,7 @@ export async function inspectCompanionService({
         : "companion_service_configuration_stale",
       runtime,
       loaded,
+      desiredState: desiredState.record,
     });
   }
 
@@ -249,6 +304,26 @@ export async function inspectCompanionService({
   });
   const runtime = await inspectVerifiedRuntime({ layout, configuration });
   const managerState = readRegularJson(layout.manager_state_path);
+
+  if (
+    maintenance.lease &&
+    maintenance.lease.pre_maintenance_desired_state !==
+      desiredState.record.desired_state
+  ) {
+    return serviceObservation({
+      layout,
+      configuration,
+      status: "ambiguous",
+      checkoutRelation: "exact",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: "companion_service_maintenance_desired_state_conflict",
+      runtime,
+      maintenance,
+      loaded,
+      desiredState: desiredState.record,
+    });
+  }
 
   if (maintenance.status === "active") {
     return serviceObservation({
@@ -262,6 +337,7 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   if (maintenance.status === "ambiguous") {
@@ -276,6 +352,7 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   if (maintenance.status === "stale") {
@@ -290,6 +367,37 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
+    });
+  }
+  if (desiredState.record.desired_state === "stopped") {
+    if (runtime.verified) {
+      return serviceObservation({
+        layout,
+        configuration,
+        status: "recovery_required",
+        checkoutRelation: "exact",
+        startAvailable: false,
+        resumeAvailable: false,
+        reason: "companion_service_stopped_runtime_conflict",
+        runtime,
+        maintenance,
+        loaded,
+        desiredState: desiredState.record,
+      });
+    }
+    return serviceObservation({
+      layout,
+      configuration,
+      status: "installed_stopped",
+      checkoutRelation: "exact",
+      startAvailable: true,
+      resumeAvailable: false,
+      reason: "companion_service_installed_stopped",
+      runtime,
+      maintenance,
+      loaded,
+      desiredState: desiredState.record,
     });
   }
   if (
@@ -309,6 +417,7 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   if (runtime.verified) {
@@ -323,20 +432,22 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   if (!loaded) {
     return serviceObservation({
       layout,
       configuration,
-      status: "installed_stopped",
+      status: "recovery_required",
       checkoutRelation: "exact",
       startAvailable: true,
       resumeAvailable: false,
-      reason: "companion_service_installed_stopped",
+      reason: "companion_service_running_service_unloaded",
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   if (
@@ -356,6 +467,7 @@ export async function inspectCompanionService({
       runtime,
       maintenance,
       loaded,
+      desiredState: desiredState.record,
     });
   }
   return serviceObservation({
@@ -371,6 +483,7 @@ export async function inspectCompanionService({
     runtime,
     maintenance,
     loaded,
+    desiredState: desiredState.record,
   });
 }
 
@@ -413,6 +526,7 @@ export async function installCompanionService({
     homeDirectory,
     testScope,
   });
+  assertNoOtherProductionCompanionService(layout);
   const node = inspectNodeBinary(nodePath);
   if (!node.valid) {
     throw new PublicCompanionServiceError("companion_service_node24_required");
@@ -456,11 +570,27 @@ export async function installCompanionService({
 
   const existingConfiguration = readRegularJson(layout.configuration_path);
   const existingPlist = readRegularText(layout.launch_agent_path);
-  if (existingConfiguration.state !== "missing" || existingPlist.state !== "missing") {
-    if (existingConfiguration.state !== "valid" || existingPlist.state !== "valid") {
+  const existingDesiredState = readRegularJson(layout.desired_state_path);
+  if (
+    existingConfiguration.state !== "missing" ||
+    existingPlist.state !== "missing" ||
+    existingDesiredState.state !== "missing"
+  ) {
+    if (
+      existingConfiguration.state !== "valid" ||
+      existingPlist.state !== "valid" ||
+      existingDesiredState.state !== "valid"
+    ) {
       throw new PublicCompanionServiceError(
         "companion_service_installation_conflict",
       );
+    }
+    const desiredValidation = validateDesiredStateRecord(
+      existingDesiredState.value,
+      existingConfiguration.value,
+    );
+    if (!desiredValidation.valid) {
+      throw new PublicCompanionServiceError(desiredValidation.reason);
     }
     if (
       sameInstalledConfiguration(existingConfiguration.value, configuration) &&
@@ -509,6 +639,10 @@ export async function installCompanionService({
       removeServiceOwnedStateFile(file, existingConfiguration.value);
     }
     removeOwnedRegularFile(layout.launch_agent_path, existingPlist.contents);
+    removeServiceOwnedDesiredState(
+      layout.desired_state_path,
+      existingConfiguration.value,
+    );
     removeOwnedRegularJson(
       layout.configuration_path,
       existingConfiguration.value,
@@ -518,7 +652,14 @@ export async function installCompanionService({
   ensureOwnedDirectory(layout.service_directory);
   ensureLaunchAgentDirectory(path.dirname(layout.launch_agent_path));
   atomicWriteJson(layout.configuration_path, configuration, 0o600);
+  let desiredState = null;
   try {
+    desiredState = setExactDesiredState({
+      layout,
+      configuration,
+      desiredState: "running",
+      allowMissing: true,
+    }).record;
     atomicWriteText(layout.launch_agent_path, plist, 0o600, true);
     const result = launchctl([
       "bootstrap",
@@ -547,13 +688,34 @@ export async function installCompanionService({
   } catch (error) {
     defaultLaunchctlSafeBootout(layout, launchctl);
     removeOwnedRegularFile(layout.launch_agent_path, plist);
+    if (desiredState) {
+      removeOwnedRegularJson(layout.desired_state_path, desiredState);
+    }
     removeOwnedRegularJson(layout.configuration_path, configuration);
     removeDirectoryIfEmpty(layout.service_directory);
     throw error;
   }
 }
 
-export async function startCompanionService({
+export async function startCompanionService(options = {}) {
+  const preliminary = await inspectCompanionService(options);
+  if (!preliminary.configuration || preliminary.checkout_relation !== "exact") {
+    return startCompanionServiceUnlocked(options);
+  }
+  const lock = await acquireLifecycleLock(
+    preliminary.layout,
+    preliminary.configuration,
+    (Number.isInteger(options.waitMs) ? options.waitMs : DEFAULT_LIVE_WAIT_MS) +
+      STOP_WAIT_MS,
+  );
+  try {
+    return await startCompanionServiceUnlocked(options);
+  } finally {
+    releaseLifecycleLock(preliminary.layout, lock);
+  }
+}
+
+async function startCompanionServiceUnlocked({
   repositoryRoot,
   environment = process.env,
   platform = process.platform,
@@ -570,6 +732,7 @@ export async function startCompanionService({
     testScope,
     launchctl,
   });
+  if (before.layout) assertNoOtherProductionCompanionService(before.layout);
   if (before.status === "live") {
     return lifecycleCommandResult("start", before, false);
   }
@@ -608,6 +771,12 @@ export async function startCompanionService({
     maintenanceRecovered = true;
   }
 
+  const desiredState = setExactDesiredState({
+    layout: before.layout,
+    configuration: before.configuration,
+    desiredState: "running",
+  });
+
   const wasLoaded = before.loaded === true;
   const command = wasLoaded
     ? ["kickstart", `gui/${currentUid()}/${before.layout.service_label}`]
@@ -636,11 +805,29 @@ export async function startCompanionService({
   return lifecycleCommandResult(
     "start",
     after,
-    maintenanceRecovered || result.status === 0,
+    desiredState.changed || maintenanceRecovered || result.status === 0,
   );
 }
 
-export async function stopCompanionService({
+export async function stopCompanionService(options = {}) {
+  const preliminary = await inspectCompanionService(options);
+  if (!preliminary.configuration || preliminary.checkout_relation !== "exact") {
+    return stopCompanionServiceUnlocked(options);
+  }
+  const lock = await acquireLifecycleLock(
+    preliminary.layout,
+    preliminary.configuration,
+    (Number.isInteger(options.waitMs) ? options.waitMs : STOP_WAIT_MS) +
+      STOP_WAIT_MS,
+  );
+  try {
+    return await stopCompanionServiceUnlocked(options);
+  } finally {
+    releaseLifecycleLock(preliminary.layout, lock);
+  }
+}
+
+async function stopCompanionServiceUnlocked({
   repositoryRoot,
   environment = process.env,
   platform = process.platform,
@@ -671,6 +858,11 @@ export async function stopCompanionService({
   if (!replaceableInstalledConfiguration(before.configuration, before.layout)) {
     throw new PublicCompanionServiceError("companion_service_stop_refused");
   }
+  const desiredState = setExactDesiredState({
+    layout: before.layout,
+    configuration: before.configuration,
+    desiredState: "stopped",
+  });
   const loaded = typeof before.loaded === "boolean"
     ? before.loaded
     : launchctlLoaded(before.layout, launchctl);
@@ -713,7 +905,7 @@ export async function stopCompanionService({
       await waitForRuntimeGenerationMaterialMissing(before.layout, 2_000)
     ) {
       if (before.status === "service_update_required") {
-        return lifecycleCommandResult("stop", before, false);
+        return lifecycleCommandResult("stop", before, desiredState.changed);
       }
       return lifecycleCommandResult("stop", {
         ...before,
@@ -721,7 +913,7 @@ export async function stopCompanionService({
         start_available: true,
         resume_available: false,
         reason: "companion_service_installed_stopped",
-      }, false);
+      }, desiredState.changed);
     }
     if (await stopExactResidualRuntime({
       layout: before.layout,
@@ -744,7 +936,7 @@ export async function stopCompanionService({
       return lifecycleCommandResult("stop", afterResidualStop, true);
     }
     if (before.status === "service_update_required") {
-      return lifecycleCommandResult("stop", before, false);
+      return lifecycleCommandResult("stop", before, desiredState.changed);
     }
     return lifecycleCommandResult("stop", {
       ...before,
@@ -752,7 +944,7 @@ export async function stopCompanionService({
       start_available: true,
       resume_available: false,
       reason: "companion_service_installed_stopped",
-    }, false);
+    }, desiredState.changed);
   }
   const managerState = readRegularJson(before.layout.manager_state_path);
   const managerPid = managerState.state === "valid"
@@ -791,7 +983,11 @@ export async function stopCompanionService({
         : ["installed_stopped"],
     ),
   });
-  return lifecycleCommandResult("stop", after, result.status === 0);
+  return lifecycleCommandResult(
+    "stop",
+    after,
+    desiredState.changed || result.status === 0,
+  );
 }
 
 export async function uninstallCompanionService(options = {}) {
@@ -812,6 +1008,7 @@ export async function uninstallCompanionService(options = {}) {
   }
   await stopCompanionService(options);
   const layout = before.layout;
+  removeInactiveLifecycleLock(layout, before.configuration);
   removeOwnedRegularFile(
     layout.launch_agent_path,
     buildLaunchAgentPlist(before.configuration),
@@ -823,6 +1020,10 @@ export async function uninstallCompanionService(options = {}) {
   ]) {
     removeServiceOwnedStateFile(file, before.configuration);
   }
+  removeServiceOwnedDesiredState(
+    layout.desired_state_path,
+    before.configuration,
+  );
   removeOwnedRegularJson(layout.configuration_path, before.configuration);
   removeDirectoryIfEmpty(layout.service_directory);
   removeDirectoryIfEmpty(layout.runtime_directory);
@@ -902,6 +1103,18 @@ export async function acquireCompanionServiceMaintenance({
       "companion_service_maintenance_refused",
     );
   }
+  const durableDesiredState = readExactDesiredState(
+    before.layout,
+    before.configuration,
+  );
+  if (durableDesiredState.desired_state === "stopped") {
+    return {
+      acquired: false,
+      lease: null,
+      before: boundedLifecycleState(before),
+      reason: "companion_service_maintenance_not_required",
+    };
+  }
   const ownerIdentity = readProcessBirthIdentity(process.pid);
   if (ownerIdentity.state !== "present") {
     throw new PublicCompanionServiceError(
@@ -917,13 +1130,12 @@ export async function acquireCompanionServiceMaintenance({
     operation_id: operationId,
     owner_pid: process.pid,
     owner_process_identity: ownerIdentity.identity,
-    pre_maintenance_desired_state:
-      before.status === "live" || before.status === "starting" ? "live" : "stopped",
+    pre_maintenance_desired_state: durableDesiredState.desired_state,
     acquired_at: new Date(nowMs).toISOString(),
     expires_at: new Date(nowMs + ttlMs).toISOString(),
   };
   createExclusiveJson(before.layout.maintenance_lease_path, lease);
-  if (lease.pre_maintenance_desired_state === "live" && before.loaded) {
+  if (lease.pre_maintenance_desired_state === "running" && before.loaded) {
     const maintenance = await waitForMaintenancePause({
       repositoryRoot,
       environment,
@@ -979,8 +1191,25 @@ export async function releaseCompanionServiceMaintenance({
     homeDirectory,
     testScope,
   });
+  const configurationResult = readRegularJson(layout.configuration_path);
+  if (configurationResult.state !== "valid") {
+    throw new PublicCompanionServiceError(
+      "companion_service_maintenance_restore_refused",
+    );
+  }
+  const desiredState = readExactDesiredState(
+    layout,
+    configurationResult.value,
+  );
+  if (
+    desiredState.desired_state !== lease.pre_maintenance_desired_state
+  ) {
+    throw new PublicCompanionServiceError(
+      "companion_service_maintenance_desired_state_conflict",
+    );
+  }
   removeExactMaintenanceLease(layout.maintenance_lease_path, lease);
-  const accepted = lease.pre_maintenance_desired_state === "live"
+  const accepted = lease.pre_maintenance_desired_state === "running"
     ? new Set(["live"])
     : new Set(["installed_stopped"]);
   const after = await waitForServiceStatus({
@@ -1069,6 +1298,27 @@ export async function runCompanionServiceManager({
   if (!validation.valid) {
     throw new PublicCompanionServiceError(validation.reason);
   }
+  let startupRefusal = null;
+  try {
+    assertNoOtherProductionCompanionService(layout);
+  } catch (error) {
+    startupRefusal = publicCode(
+      error,
+      "companion_service_production_registry_ambiguous",
+    );
+  }
+  const desiredStateResult = readRegularJson(layout.desired_state_path);
+  const desiredStateValidation = desiredStateResult.state === "valid"
+    ? validateDesiredStateRecord(desiredStateResult.value, configuration)
+    : {
+        valid: false,
+        reason: desiredStateResult.state === "missing"
+          ? "companion_service_desired_state_missing"
+          : "companion_service_desired_state_invalid",
+      };
+  if (!desiredStateValidation.valid) {
+    startupRefusal ??= desiredStateValidation.reason;
+  }
   if (process.execPath !== configuration.node_path) {
     throw new PublicCompanionServiceError(
       "companion_service_node_binding_stale",
@@ -1087,6 +1337,61 @@ export async function runCompanionServiceManager({
   }
   const recoverableManagerState = readRegularJson(layout.manager_state_path);
   const managerLock = acquireManagerLock(layout, configuration);
+  if (startupRefusal) {
+    writeManagerState(layout, configuration, {
+      status: "recovery_required",
+      reason: startupRefusal,
+      supervisor_pid: null,
+      restart_count: 0,
+    });
+    releaseManagerLock(layout, managerLock);
+    return 0;
+  }
+  if (desiredStateValidation.record.desired_state === "stopped") {
+    const maintenance = classifyMaintenanceLease({
+      leasePath: layout.maintenance_lease_path,
+      configuration,
+    });
+    if (
+      maintenance.lease &&
+      maintenance.lease.pre_maintenance_desired_state !== "stopped"
+    ) {
+      writeManagerState(layout, configuration, {
+        status: "recovery_required",
+        reason: "companion_service_maintenance_desired_state_conflict",
+        supervisor_pid: null,
+        restart_count: 0,
+      });
+      releaseManagerLock(layout, managerLock);
+      return 0;
+    }
+    if (maintenance.status === "ambiguous" || maintenance.status === "active") {
+      writeManagerState(layout, configuration, {
+        status: maintenance.status === "active" ? "maintenance" : "recovery_required",
+        reason: maintenance.status === "active"
+          ? "companion_service_maintenance_active"
+          : "companion_service_maintenance_ambiguous",
+        supervisor_pid: null,
+        restart_count: 0,
+      });
+      releaseManagerLock(layout, managerLock);
+      return 0;
+    }
+    if (maintenance.status === "stale") {
+      removeExactMaintenanceLease(
+        layout.maintenance_lease_path,
+        maintenance.lease,
+      );
+    }
+    writeManagerState(layout, configuration, {
+      status: "installed_stopped",
+      reason: "companion_service_explicitly_stopped",
+      supervisor_pid: null,
+      restart_count: 0,
+    });
+    releaseManagerLock(layout, managerLock);
+    return 0;
+  }
   let shutdown = false;
   let child = null;
   let childIdentity = null;
@@ -1116,10 +1421,72 @@ export async function runCompanionServiceManager({
           "companion_service_configuration_stale",
         );
       }
+      const currentDesiredStateResult = readRegularJson(layout.desired_state_path);
+      const currentDesiredState = currentDesiredStateResult.state === "valid"
+        ? validateDesiredStateRecord(currentDesiredStateResult.value, configuration)
+        : {
+            valid: false,
+            reason: currentDesiredStateResult.state === "missing"
+              ? "companion_service_desired_state_missing"
+              : "companion_service_desired_state_invalid",
+          };
+      if (!currentDesiredState.valid) {
+        await stopManagedSupervisor({
+          child, childIdentity, adoptedPid, layout, configuration,
+        });
+        child = null;
+        childIdentity = null;
+        adoptedPid = null;
+        runtimeOwnership = null;
+        writeManagerState(layout, configuration, {
+          status: "recovery_required",
+          reason: currentDesiredState.reason,
+          supervisor_pid: null,
+          restart_count: failures,
+        });
+        await delay(MANAGER_POLL_MS);
+        continue;
+      }
+      if (currentDesiredState.record.desired_state === "stopped") {
+        await stopManagedSupervisor({
+          child, childIdentity, adoptedPid, layout, configuration,
+        });
+        child = null;
+        childIdentity = null;
+        adoptedPid = null;
+        runtimeOwnership = null;
+        writeManagerState(layout, configuration, {
+          status: "installed_stopped",
+          reason: "companion_service_explicitly_stopped",
+          supervisor_pid: null,
+          restart_count: failures,
+        });
+        break;
+      }
       const maintenance = classifyMaintenanceLease({
         leasePath: layout.maintenance_lease_path,
         configuration,
       });
+      if (
+        maintenance.lease &&
+        maintenance.lease.pre_maintenance_desired_state !== "running"
+      ) {
+        await stopManagedSupervisor({
+          child, childIdentity, adoptedPid, layout, configuration,
+        });
+        child = null;
+        childIdentity = null;
+        adoptedPid = null;
+        runtimeOwnership = null;
+        writeManagerState(layout, configuration, {
+          status: "recovery_required",
+          reason: "companion_service_maintenance_desired_state_conflict",
+          supervisor_pid: null,
+          restart_count: failures,
+        });
+        await delay(MANAGER_POLL_MS);
+        continue;
+      }
       if (maintenance.status === "ambiguous") {
         await stopManagedSupervisor({
           child, childIdentity, adoptedPid, layout, configuration,
@@ -1513,6 +1880,282 @@ function invalidConfiguration(reason, updateRequired, checkoutRelation) {
   return { valid: false, reason, updateRequired, checkoutRelation };
 }
 
+function newDesiredStateRecord(configuration, desiredState) {
+  return {
+    contract: COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
+    schema_version: COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION,
+    service_identity: configuration.service_identity,
+    repository_fingerprint: configuration.repository_fingerprint,
+    desired_state: desiredState,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function validateDesiredStateRecord(value, configuration) {
+  if (
+    !isObject(value) ||
+    value.contract !== COMPANION_SERVICE_DESIRED_STATE_CONTRACT ||
+    value.schema_version !== COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION ||
+    Object.keys(value).length !== 6 ||
+    ![
+      "contract",
+      "schema_version",
+      "service_identity",
+      "repository_fingerprint",
+      "desired_state",
+      "updated_at",
+    ].every((key) => Object.hasOwn(value, key)) ||
+    !["running", "stopped"].includes(value.desired_state) ||
+    !isIsoTimestamp(value.updated_at)
+  ) {
+    return {
+      valid: false,
+      record: null,
+      reason: "companion_service_desired_state_invalid",
+    };
+  }
+  if (
+    value.service_identity !== configuration.service_identity ||
+    value.repository_fingerprint !== configuration.repository_fingerprint
+  ) {
+    return {
+      valid: false,
+      record: null,
+      reason: "companion_service_desired_state_conflict",
+    };
+  }
+  return { valid: true, record: value, reason: null };
+}
+
+function readExactDesiredState(layout, configuration) {
+  const result = readRegularJson(layout.desired_state_path);
+  if (result.state !== "valid") {
+    throw new PublicCompanionServiceError(
+      result.state === "missing"
+        ? "companion_service_desired_state_missing"
+        : "companion_service_desired_state_invalid",
+    );
+  }
+  const validation = validateDesiredStateRecord(result.value, configuration);
+  if (!validation.valid) {
+    throw new PublicCompanionServiceError(validation.reason);
+  }
+  return validation.record;
+}
+
+function setExactDesiredState({
+  layout,
+  configuration,
+  desiredState,
+  allowMissing = false,
+}) {
+  const current = readRegularJson(layout.desired_state_path);
+  if (current.state === "missing" && allowMissing) {
+    const record = newDesiredStateRecord(configuration, desiredState);
+    atomicWriteJson(layout.desired_state_path, record, 0o600);
+    return { changed: true, record };
+  }
+  if (current.state !== "valid") {
+    throw new PublicCompanionServiceError(
+      current.state === "missing"
+        ? "companion_service_desired_state_missing"
+        : "companion_service_desired_state_invalid",
+    );
+  }
+  const validation = validateDesiredStateRecord(current.value, configuration);
+  if (!validation.valid) {
+    throw new PublicCompanionServiceError(validation.reason);
+  }
+  if (validation.record.desired_state === desiredState) {
+    return { changed: false, record: validation.record };
+  }
+  const record = newDesiredStateRecord(configuration, desiredState);
+  atomicWriteJson(layout.desired_state_path, record, 0o600);
+  return { changed: true, record };
+}
+
+function assertNoOtherProductionCompanionService(layout) {
+  if (layout.test) return;
+  let rootStats;
+  try {
+    rootStats = lstatSync(layout.production_checkouts_directory);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw new PublicCompanionServiceError(
+      "companion_service_production_registry_ambiguous",
+      error,
+    );
+  }
+  if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) {
+    throw new PublicCompanionServiceError(
+      "companion_service_production_registry_ambiguous",
+    );
+  }
+  let entries;
+  try {
+    entries = readdirSync(layout.production_checkouts_directory, {
+      withFileTypes: true,
+    }).filter((entry) => entry.name.startsWith("checkout-"));
+  } catch (error) {
+    throw new PublicCompanionServiceError(
+      "companion_service_production_registry_ambiguous",
+      error,
+    );
+  }
+  if (entries.length > MAX_PRODUCTION_CHECKOUT_SCOPES) {
+    throw new PublicCompanionServiceError(
+      "companion_service_production_registry_ambiguous",
+    );
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    const candidateDirectory = path.join(
+      layout.production_checkouts_directory,
+      entry.name,
+      "config",
+      "companion-service",
+    );
+    if (candidateDirectory === layout.service_directory) continue;
+    if (!/^checkout-[a-f0-9]{16}$/u.test(entry.name)) {
+      if (ownedServiceDirectoryExists(candidateDirectory)) {
+        throw new PublicCompanionServiceError(
+          "companion_service_other_checkout_ambiguous",
+        );
+      }
+      continue;
+    }
+    const directoryState = ownedServiceDirectoryState(candidateDirectory);
+    if (directoryState === "missing") continue;
+    if (directoryState !== "valid") {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    const configurationPath = path.join(candidateDirectory, "service.json");
+    const desiredStatePath = path.join(candidateDirectory, "desired-state.json");
+    const configurationResult = readRegularJson(configurationPath);
+    const desiredStateResult = readRegularJson(desiredStatePath);
+    if (
+      configurationResult.state !== "valid" ||
+      desiredStateResult.state !== "valid" ||
+      !validForeignProductionConfiguration({
+        configuration: configurationResult.value,
+        configurationPath,
+        checkoutScope: entry.name,
+        layout,
+      })
+    ) {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    const configuration = configurationResult.value;
+    if (!validateDesiredStateRecord(desiredStateResult.value, configuration).valid) {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    const plist = readRegularText(configuration.launch_agent_path);
+    if (
+      plist.state !== "valid" ||
+      plist.contents !== buildLaunchAgentPlist(configuration)
+    ) {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    if (
+      configuration.repository_fingerprint ===
+        layout.repository.repository_fingerprint ||
+      configuration.service_identity === layout.service_identity
+    ) {
+      throw new PublicCompanionServiceError(
+        "companion_service_other_checkout_ambiguous",
+      );
+    }
+    throw new PublicCompanionServiceError(
+      "companion_service_other_checkout_conflict",
+    );
+  }
+}
+
+function ownedServiceDirectoryState(directory) {
+  try {
+    const stats = lstatSync(directory);
+    return stats.isDirectory() && !stats.isSymbolicLink() ? "valid" : "invalid";
+  } catch (error) {
+    return error?.code === "ENOENT" ? "missing" : "invalid";
+  }
+}
+
+function ownedServiceDirectoryExists(directory) {
+  return ownedServiceDirectoryState(directory) !== "missing";
+}
+
+function validForeignProductionConfiguration({
+  configuration,
+  configurationPath,
+  checkoutScope,
+  layout,
+}) {
+  if (!isObject(configuration)) return false;
+  const repositoryFingerprint = configuration.repository_fingerprint;
+  if (!/^[a-f0-9]{64}$/u.test(repositoryFingerprint ?? "")) return false;
+  const serviceIdentity = sha256(JSON.stringify([
+    COMPANION_SERVICE_CONTRACT,
+    repositoryFingerprint,
+    "production",
+  ]));
+  const expectedLabel = `${SERVICE_LABEL_PREFIX}.${serviceIdentity.slice(0, 16)}`;
+  const expectedRuntimeDirectory = path.join(
+    layout.home,
+    "Library",
+    "Application Support",
+    "Augnes",
+    "runtime",
+    checkoutScope,
+  );
+  return (
+    configuration.contract === COMPANION_SERVICE_CONTRACT &&
+    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
+    checkoutScope === `checkout-${repositoryFingerprint.slice(0, 16)}` &&
+    configuration.service_identity === serviceIdentity &&
+    configuration.service_label === expectedLabel &&
+    typeof configuration.repository_root === "string" &&
+    path.isAbsolute(configuration.repository_root) &&
+    sha256(path.resolve(configuration.repository_root)) === repositoryFingerprint &&
+    typeof configuration.repository_device === "string" &&
+    typeof configuration.repository_inode === "string" &&
+    typeof configuration.node_path === "string" &&
+    path.isAbsolute(configuration.node_path) &&
+    /^v24\.\d+\.\d+$/u.test(configuration.node_version ?? "") &&
+    configuration.manager_entry_path === path.join(
+      configuration.repository_root,
+      "scripts",
+      "augnes-companion-service.mjs",
+    ) &&
+    /^[a-f0-9]{64}$/u.test(configuration.service_source_fingerprint ?? "") &&
+    configuration.runtime_state_directory === expectedRuntimeDirectory &&
+    configuration.runtime_home_directory === layout.home &&
+    configuration.database_path === null &&
+    configuration.configuration_path === configurationPath &&
+    configuration.launch_agent_path === path.join(
+      layout.home,
+      "Library",
+      "LaunchAgents",
+      `${expectedLabel}.plist`,
+    ) &&
+    isIsoTimestamp(configuration.installed_at) &&
+    configuration.test_scope === null &&
+    configuration.test_root === null
+  );
+}
+
 function sameInstalledConfiguration(left, right) {
   const comparable = [
     "contract",
@@ -1785,7 +2428,7 @@ function validMaintenanceLease(value, configuration) {
     validOperationId(value.operation_id) &&
     Number.isInteger(value.owner_pid) && value.owner_pid > 0 &&
     /^[a-f0-9]{64}$/u.test(value.owner_process_identity ?? "") &&
-    ["live", "stopped"].includes(value.pre_maintenance_desired_state) &&
+    ["running", "stopped"].includes(value.pre_maintenance_desired_state) &&
     isIsoTimestamp(value.acquired_at) &&
     isIsoTimestamp(value.expires_at) &&
     Date.parse(value.expires_at) > Date.parse(value.acquired_at) &&
@@ -2133,6 +2776,90 @@ function removeExactResidualRuntimeState({ layout, configuration, manifest }) {
   removeDirectoryIfEmpty(layout.runtime_directory);
 }
 
+async function acquireLifecycleLock(layout, configuration, waitMs) {
+  const ownerIdentity = readProcessBirthIdentity(process.pid);
+  if (ownerIdentity.state !== "present") {
+    throw new PublicCompanionServiceError(
+      "companion_service_lifecycle_owner_unverifiable",
+    );
+  }
+  const lock = {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: COMPANION_SERVICE_SCHEMA_VERSION,
+    service_identity: configuration.service_identity,
+    repository_fingerprint: configuration.repository_fingerprint,
+    lifecycle_operation_id: randomUUID(),
+    owner_pid: process.pid,
+    owner_process_identity: ownerIdentity.identity,
+    acquired_at: new Date().toISOString(),
+  };
+  const deadline = Date.now() + waitMs;
+  while (true) {
+    if (tryCreateExclusiveJson(layout.lifecycle_lock_path, lock)) return lock;
+    const existing = readRegularJson(layout.lifecycle_lock_path);
+    if (
+      existing.state !== "valid" ||
+      !validLifecycleLock(existing.value, configuration)
+    ) {
+      throw new PublicCompanionServiceError(
+        "companion_service_lifecycle_lock_ambiguous",
+      );
+    }
+    if (!processMatchesBirthIdentity(
+      existing.value.owner_pid,
+      existing.value.owner_process_identity,
+    )) {
+      removeOwnedRegularJson(layout.lifecycle_lock_path, existing.value);
+      continue;
+    }
+    if (Date.now() >= deadline) {
+      throw new PublicCompanionServiceError(
+        "companion_service_lifecycle_busy",
+      );
+    }
+    await delay(25);
+  }
+}
+
+function releaseLifecycleLock(layout, lock) {
+  removeOwnedRegularJson(layout.lifecycle_lock_path, lock);
+}
+
+function validLifecycleLock(value, configuration) {
+  return (
+    isObject(value) &&
+    value.contract === COMPANION_SERVICE_CONTRACT &&
+    value.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    value.service_identity === configuration.service_identity &&
+    value.repository_fingerprint === configuration.repository_fingerprint &&
+    typeof value.lifecycle_operation_id === "string" &&
+    value.lifecycle_operation_id.length > 0 &&
+    Number.isInteger(value.owner_pid) && value.owner_pid > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.owner_process_identity ?? "") &&
+    isIsoTimestamp(value.acquired_at)
+  );
+}
+
+function removeInactiveLifecycleLock(layout, configuration) {
+  const existing = readRegularJson(layout.lifecycle_lock_path);
+  if (existing.state === "missing") return;
+  if (
+    existing.state !== "valid" ||
+    !validLifecycleLock(existing.value, configuration)
+  ) {
+    throw new PublicCompanionServiceError(
+      "companion_service_lifecycle_lock_ambiguous",
+    );
+  }
+  if (processMatchesBirthIdentity(
+    existing.value.owner_pid,
+    existing.value.owner_process_identity,
+  )) {
+    throw new PublicCompanionServiceError("companion_service_lifecycle_busy");
+  }
+  removeOwnedRegularJson(layout.lifecycle_lock_path, existing.value);
+}
+
 function acquireManagerLock(layout, configuration) {
   const existing = readRegularJson(layout.manager_lock_path);
   if (existing.state === "valid" && validManagerLock(existing.value, configuration)) {
@@ -2396,6 +3123,7 @@ function serviceObservation({
   runtime = null,
   maintenance = null,
   loaded = false,
+  desiredState = null,
 }) {
   return {
     status,
@@ -2409,6 +3137,8 @@ function serviceObservation({
     runtime,
     maintenance,
     loaded,
+    desired_state: desiredState?.desired_state ?? null,
+    desired_state_record: desiredState,
   };
 }
 
@@ -2773,6 +3503,24 @@ function createExclusiveJson(file, value) {
   }
 }
 
+function tryCreateExclusiveJson(file, value) {
+  ensureOwnedDirectory(path.dirname(file));
+  let descriptor = null;
+  try {
+    descriptor = openSync(file, "wx", 0o600);
+    writeFileSync(descriptor, `${JSON.stringify(value)}\n`, "utf8");
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = null;
+    chmodSync(file, 0o600);
+    return true;
+  } catch (error) {
+    if (descriptor !== null) closeSync(descriptor);
+    if (error?.code === "EEXIST") return false;
+    throw error;
+  }
+}
+
 function atomicWriteJson(file, value, mode = 0o600) {
   atomicWriteText(file, `${JSON.stringify(value)}\n`, mode);
 }
@@ -2856,6 +3604,20 @@ function removeServiceOwnedStateFile(file, configuration) {
     value.value?.contract !== COMPANION_SERVICE_CONTRACT ||
     value.value?.service_identity !== configuration.service_identity ||
     value.value?.repository_fingerprint !== configuration.repository_fingerprint
+  ) {
+    throw new PublicCompanionServiceError(
+      "companion_service_owned_state_conflict",
+    );
+  }
+  unlinkSync(file);
+}
+
+function removeServiceOwnedDesiredState(file, configuration) {
+  const value = readRegularJson(file);
+  if (value.state === "missing") return;
+  if (
+    value.state !== "valid" ||
+    !validateDesiredStateRecord(value.value, configuration).valid
   ) {
     throw new PublicCompanionServiceError(
       "companion_service_owned_state_conflict",

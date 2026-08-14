@@ -79,7 +79,11 @@ The user LaunchAgent is an explicit, checkout-bound macOS installation. It
 pins one Node 24 binary and survives terminal/Codex exit, login, and unexpected
 supervisor failure. It grants no repository execution, managed Resume,
 provider, semantic, publication, or merge authority. Explicit stop/uninstall
-remain available. Linux and Windows service installation are unsupported.
+remain available. Stop persists across a later login or LaunchAgent reload;
+only explicit Start or Install returns that exact service to running. One
+production Companion service is allowed per local user session, and a
+different checkout refuses without mutating the existing service. Linux and
+Windows service installation are unsupported.
 
 The supervisor owns database preparation, UI, bridge, runtime generation and
 instance identity, dynamic port selection, package compatibility, recovery,
