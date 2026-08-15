@@ -207,6 +207,14 @@ export interface VNextLocalOperatorSessionAuthenticationV01 {
   credential: VNextLocalOperatorSessionCredentialV01;
 }
 
+export interface VNextLocalOperatorCurrentCredentialAuthenticationV01
+  extends VNextLocalOperatorSessionAuthenticationV01 {
+  authenticated_at: string;
+  cookie_value: string;
+  cookie_expires_at: string;
+  cookie_max_age_seconds: number;
+}
+
 export interface VNextLocalOperatorSessionMutationAdmissionV01
   extends VNextLocalOperatorSessionAuthenticationV01 {
   action_observed_at: string;
@@ -899,6 +907,35 @@ export function authenticateVNextLocalOperatorSessionV01(
 }
 
 /**
+ * Authenticates the exact current local Operator credential and returns an
+ * equivalent cookie presentation without rotating or consuming its action
+ * nonce. This is a read-only seam for an already-admitted exact replay; it
+ * performs no UPDATE, secret generation, or durable mutation.
+ */
+export function authenticateVNextLocalOperatorCurrentCredentialV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    credential: VNextLocalOperatorSessionCredentialV01;
+    clock?: VNextLocalRuntimeClockV01;
+  },
+): VNextLocalOperatorCurrentCredentialAuthenticationV01 {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  const now = readVNextLocalRuntimeClockNowV01(
+    input.clock,
+    "operator_session_current_credential_authenticated_at",
+  );
+  const row = requireSession(db, input.credential.session_id);
+  assertSessionCanAuthenticate(row, input.config, input.credential, now);
+  return {
+    session: publicSession(row, true),
+    credential: input.credential,
+    authenticated_at: now,
+    ...sessionCredentialCookiePresentation(row, input.credential, now),
+  };
+}
+
+/**
  * Reads public historical session metadata without authenticating the caller.
  * This is only for validating already-recorded local operator action lineage;
  * it never returns token hashes or grants current session authority.
@@ -1531,15 +1568,28 @@ function sessionAdmission(
   credential: VNextLocalOperatorSessionCredentialV01,
   now: string,
 ): VNextLocalOperatorSessionMutationAdmissionV01 {
+  return {
+    session: publicSession(row, true),
+    credential,
+    action_observed_at: now,
+    ...sessionCredentialCookiePresentation(row, credential, now),
+  };
+}
+
+function sessionCredentialCookiePresentation(
+  row: LocalOperatorSessionRowV01,
+  credential: VNextLocalOperatorSessionCredentialV01,
+  now: string,
+): Pick<
+  VNextLocalOperatorCurrentCredentialAuthenticationV01,
+  "cookie_value" | "cookie_expires_at" | "cookie_max_age_seconds"
+> {
   const expires = strictTimestampMilliseconds(row.expires_at);
   const nowMs = strictTimestampMilliseconds(now);
   if (expires === null || nowMs === null || expires <= nowMs) {
     throw sessionError("operator_session_expired", 401);
   }
   return {
-    session: publicSession(row, true),
-    credential,
-    action_observed_at: now,
     cookie_value: serializeCredential(credential),
     cookie_expires_at: row.expires_at,
     cookie_max_age_seconds: Math.max(1, Math.floor((expires - nowMs) / 1000)),

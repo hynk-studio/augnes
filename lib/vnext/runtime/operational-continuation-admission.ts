@@ -19,6 +19,7 @@ import {
 import {
   VNextLocalOperatorSessionErrorV01,
   admitVNextLocalOperatorMutationInsideTransactionV01,
+  authenticateVNextLocalOperatorCurrentCredentialV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
   type VNextLocalOperatorSessionCredentialV01,
@@ -119,6 +120,21 @@ export function admitSourceLinkedOperationalContinuationV01(
       request,
       dependencies,
     );
+    if (exact.existing) {
+      const currentSession =
+        authenticateVNextLocalOperatorCurrentCredentialV01(db, {
+          config: input.config,
+          credential: input.credential,
+          clock: input.clock,
+        });
+      db.exec("COMMIT");
+      return resultV01(
+        "exact_replay",
+        exact.existing.admission,
+        exact.existing.packet_b,
+        currentSession,
+      );
+    }
     const sessionAdmission =
       admitVNextLocalOperatorMutationInsideTransactionV01(db, {
         config: input.config,
@@ -126,15 +142,6 @@ export function admitSourceLinkedOperationalContinuationV01(
         clock: input.clock,
         secret_source: input.secret_source,
       });
-    if (exact.existing) {
-      db.exec("COMMIT");
-      return resultV01(
-        "exact_replay",
-        exact.existing.admission,
-        exact.existing.packet_b,
-        sessionAdmission,
-      );
-    }
     const admission = createOperationalContinuationAdmissionV01({
       continuation: exact.continuation,
       operator_id: input.config.operator_id,
@@ -383,9 +390,11 @@ function resultV01(
   status: "inserted" | "exact_replay",
   admission: AdmitSourceLinkedOperationalContinuationResultV01["admission"],
   packetB: AdmitSourceLinkedOperationalContinuationResultV01["packet_b"],
-  session: ReturnType<
-    typeof admitVNextLocalOperatorMutationInsideTransactionV01
-  >,
+  session: {
+    cookie_value: string;
+    cookie_expires_at: string;
+    cookie_max_age_seconds: number;
+  },
 ): AdmitSourceLinkedOperationalContinuationResultV01 {
   return {
     status,

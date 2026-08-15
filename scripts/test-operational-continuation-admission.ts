@@ -126,8 +126,10 @@ class DeterministicSecretSourceV01
   implements VNextLocalOperatorSecretSourceV01
 {
   private state = 0x5a17c9e3;
+  calls = 0;
 
   bytes(size: number): Uint8Array {
+    this.calls += 1;
     const value = new Uint8Array(size);
     for (let index = 0; index < size; index += 1) {
       this.state ^= this.state << 13;
@@ -190,6 +192,10 @@ async function main(): Promise<void> {
           status: "passed",
           exact_acgc5a_rematerialization: true,
           authenticated_atomic_admission: true,
+          initial_admission_nonce_rotations: 1,
+          exact_replay_session_writes: 0,
+          exact_replay_same_current_credential_reusable: true,
+          unauthenticated_exact_replay_material_returned: false,
           packet_b_current_before_start: true,
           packet_b_execution_authority: false,
           source_linked_non_semantic_lineage: true,
@@ -640,6 +646,11 @@ async function assertAdmissionAndFreshStartV01(
       operator_id: config.operator_id,
       ...request.source_request,
     });
+  const sessionBeforeAdmission = localOperatorSessionRowV01(
+    db,
+    fixture.admission_credential.session_id,
+  );
+  const secretCallsBeforeAdmission = secrets.calls;
   const admitted = admitSourceLinkedOperationalContinuationV01(db, {
     config,
     credential: fixture.admission_credential,
@@ -648,6 +659,40 @@ async function assertAdmissionAndFreshStartV01(
     secret_source: secrets,
   });
   assert.equal(admitted.status, "inserted");
+  assert.equal(secrets.calls, secretCallsBeforeAdmission + 1);
+  const currentCredential = credentialFromCookieV01(
+    admitted.session_admission.cookie_value,
+  );
+  const sessionAfterAdmission = localOperatorSessionRowV01(
+    db,
+    currentCredential.session_id,
+  );
+  assert.equal(sessionAfterAdmission.session_id, sessionBeforeAdmission.session_id);
+  assert.equal(
+    sessionAfterAdmission.session_token_hash,
+    sessionBeforeAdmission.session_token_hash,
+  );
+  assert.notEqual(
+    sessionAfterAdmission.action_nonce_hash,
+    sessionBeforeAdmission.action_nonce_hash,
+  );
+  assert.equal(
+    sessionAfterAdmission.updated_at,
+    admitted.admission.authenticated_action.admitted_at,
+  );
+  assert.deepEqual(
+    changedObjectKeysV01(sessionBeforeAdmission, sessionAfterAdmission),
+    ["action_nonce_hash", "updated_at"],
+  );
+  assert.equal(currentCredential.session_id, fixture.admission_credential.session_id);
+  assert.equal(
+    currentCredential.session_secret,
+    fixture.admission_credential.session_secret,
+  );
+  assert.notEqual(
+    currentCredential.action_nonce,
+    fixture.admission_credential.action_nonce,
+  );
   assert.equal(canonicalizeProtocolValueV01(request), inputBefore);
   assert.equal(admitted.packet_b.packet_id, request.expected_packet_b_id);
   assert.equal(
@@ -746,11 +791,31 @@ async function assertAdmissionAndFreshStartV01(
   );
   assertUnknownHistoricalPacketRemainsHistoryV01(fixture, admitted.packet_b);
 
+  const beforeStaleOriginalCredential = databaseStateV01(db);
+  const secretCallsBeforeStaleOriginalCredential = secrets.calls;
+  assert.throws(
+    () =>
+      admitSourceLinkedOperationalContinuationV01(db, {
+        config,
+        credential: fixture.admission_credential,
+        request,
+        clock: fixedClockV01("2026-07-18T15:01:59.000Z"),
+        secret_source: secrets,
+      }),
+    /operator_action_nonce_invalid/u,
+  );
+  assert.equal(databaseStateV01(db), beforeStaleOriginalCredential);
+  assert.equal(secrets.calls, secretCallsBeforeStaleOriginalCredential);
+
+  const replayDatabaseBefore = databaseStateV01(db);
+  const replaySessionBefore = localOperatorSessionRowV01(
+    db,
+    currentCredential.session_id,
+  );
+  const secretCallsBeforeReplay = secrets.calls;
   const replay = admitSourceLinkedOperationalContinuationV01(db, {
     config,
-    credential: credentialFromCookieV01(
-      admitted.session_admission.cookie_value,
-    ),
+    credential: currentCredential,
     request,
     clock: fixedClockV01("2026-07-18T15:02:00.000Z"),
     secret_source: secrets,
@@ -758,19 +823,49 @@ async function assertAdmissionAndFreshStartV01(
   assert.equal(replay.status, "exact_replay");
   assert.deepEqual(replay.admission, admitted.admission);
   assert.deepEqual(replay.packet_b, admitted.packet_b);
-  assert.deepEqual(effectCountsV01(db, config), effectCountsAfterAdmission);
-  assert.throws(
-    () =>
-      admitSourceLinkedOperationalContinuationV01(db, {
-        config,
-        credential: fixture.admission_credential,
-        request,
-        clock: fixedClockV01("2026-07-18T15:02:01.000Z"),
-        secret_source: secrets,
-      }),
-    /operator_action_nonce_invalid/u,
+  assert.equal(
+    replay.session_admission.cookie_value,
+    admitted.session_admission.cookie_value,
   );
+  assert.equal(databaseStateV01(db), replayDatabaseBefore);
+  assert.deepEqual(
+    localOperatorSessionRowV01(db, currentCredential.session_id),
+    replaySessionBefore,
+  );
+  assert.equal(
+    localOperatorSessionRowV01(db, currentCredential.session_id).updated_at,
+    replaySessionBefore.updated_at,
+  );
+  assert.equal(
+    localOperatorSessionRowV01(db, currentCredential.session_id)
+      .action_nonce_hash,
+    replaySessionBefore.action_nonce_hash,
+  );
+  assert.equal(secrets.calls, secretCallsBeforeReplay);
   assert.deepEqual(effectCountsV01(db, config), effectCountsAfterAdmission);
+
+  const secondReplayDatabaseBefore = databaseStateV01(db);
+  const secondReplay = admitSourceLinkedOperationalContinuationV01(db, {
+    config,
+    credential: currentCredential,
+    request,
+    clock: fixedClockV01("2026-07-18T15:02:01.000Z"),
+    secret_source: secrets,
+  });
+  assert.equal(secondReplay.status, "exact_replay");
+  assert.deepEqual(secondReplay.admission, admitted.admission);
+  assert.deepEqual(secondReplay.packet_b, admitted.packet_b);
+  assert.equal(
+    secondReplay.session_admission.cookie_value,
+    admitted.session_admission.cookie_value,
+  );
+  assert.equal(databaseStateV01(db), secondReplayDatabaseBefore);
+  assert.deepEqual(
+    localOperatorSessionRowV01(db, currentCredential.session_id),
+    replaySessionBefore,
+  );
+  assert.equal(secrets.calls, secretCallsBeforeReplay);
+  assertExactReplayAuthenticationRefusalsV01(fixture, currentCredential);
 
   const changedBudgetSourceRequest = {
     ...structuredClone(request.source_request),
@@ -789,13 +884,15 @@ async function assertAdmissionAndFreshStartV01(
     changedBudgetContinuation,
   );
   const beforeSecondContinuation = databaseStateV01(db);
+  const sessionBeforeSecondContinuation = localOperatorSessionRowV01(
+    db,
+    currentCredential.session_id,
+  );
   assert.throws(
     () =>
       admitSourceLinkedOperationalContinuationV01(db, {
         config,
-        credential: credentialFromCookieV01(
-          replay.session_admission.cookie_value,
-        ),
+        credential: currentCredential,
         request: secondContinuationRequest,
         clock: fixedClockV01("2026-07-18T15:02:30.000Z"),
         secret_source: secrets,
@@ -803,6 +900,10 @@ async function assertAdmissionAndFreshStartV01(
     /operational_continuation_admission_replay_conflict/u,
   );
   assert.equal(databaseStateV01(db), beforeSecondContinuation);
+  assert.deepEqual(
+    localOperatorSessionRowV01(db, currentCredential.session_id),
+    sessionBeforeSecondContinuation,
+  );
 
   const attachmentB = await prepareRepositoryExecutionV01(
     db,
@@ -1342,6 +1443,192 @@ function assertPreAdmissionRefusalsAndAtomicityV01(
   } finally {
     mismatchedPacketAdmission.close();
   }
+  assertConcurrentInsertionReplayFailsClosedV01(fixture);
+}
+
+function assertConcurrentInsertionReplayFailsClosedV01(
+  fixture: FixtureV01,
+): void {
+  const concurrent = cloneDatabaseV01(
+    fixture.db,
+    "concurrent-insertion-replay",
+  );
+  try {
+    const countsBefore = effectCountsV01(concurrent, fixture.config);
+    const secretCallsBefore = secrets.calls;
+    const interleaving: {
+      winning_admission: ReturnType<
+        typeof admitSourceLinkedOperationalContinuationV01
+      > | null;
+      state_after_winner: string | null;
+    } = {
+      winning_admission: null,
+      state_after_winner: null,
+    };
+    assert.throws(
+      () =>
+        admitSourceLinkedOperationalContinuationV01(
+          concurrent,
+          {
+            config: fixture.config,
+            credential: fixture.admission_credential,
+            request: fixture.admission_request,
+            clock: fixedClockV01("2026-07-18T15:00:59.000Z"),
+            secret_source: secrets,
+          },
+          {
+            before_transaction: () => {
+              interleaving.winning_admission =
+                admitSourceLinkedOperationalContinuationV01(concurrent, {
+                  config: fixture.config,
+                  credential: fixture.admission_credential,
+                  request: fixture.admission_request,
+                  clock: fixedClockV01("2026-07-18T15:00:58.000Z"),
+                  secret_source: secrets,
+                });
+              interleaving.state_after_winner = databaseStateV01(concurrent);
+            },
+          },
+        ),
+      /operator_action_nonce_invalid/u,
+    );
+    assert(interleaving.winning_admission);
+    assert.equal(interleaving.winning_admission.status, "inserted");
+    assert(interleaving.state_after_winner);
+    assert.equal(
+      databaseStateV01(concurrent),
+      interleaving.state_after_winner,
+    );
+    assert.equal(secrets.calls, secretCallsBefore + 1);
+    const countsAfter = effectCountsV01(concurrent, fixture.config);
+    assert.equal(
+      countsAfter.task_context_packet,
+      countsBefore.task_context_packet + 1,
+    );
+    assert.equal(
+      countsAfter.operational_continuation_admission,
+      countsBefore.operational_continuation_admission + 1,
+    );
+    assert.equal(
+      readOperationalContinuationLineageStateV01(
+        concurrent,
+        fixture.config,
+      )?.admission.admission_id,
+      interleaving.winning_admission.admission.admission_id,
+    );
+  } finally {
+    concurrent.close();
+  }
+}
+
+function assertExactReplayAuthenticationRefusalsV01(
+  fixture: FixtureV01,
+  currentCredential: VNextLocalOperatorSessionCredentialV01,
+): void {
+  const { db, config, admission_request: request } = fixture;
+  const refuseWithoutMutation = (
+    credential: VNextLocalOperatorSessionCredentialV01,
+    expected: RegExp,
+    observedAt = "2026-07-18T15:02:02.000Z",
+  ) => {
+    const before = databaseStateV01(db);
+    const secretCallsBefore = secrets.calls;
+    assert.throws(
+      () =>
+        admitSourceLinkedOperationalContinuationV01(db, {
+          config,
+          credential,
+          request,
+          clock: fixedClockV01(observedAt),
+          secret_source: secrets,
+        }),
+      expected,
+    );
+    assert.equal(databaseStateV01(db), before);
+    assert.equal(secrets.calls, secretCallsBefore);
+  };
+
+  refuseWithoutMutation(
+    {
+      ...currentCredential,
+      action_nonce: `${currentCredential.action_nonce}invalid`,
+    },
+    /operator_action_nonce_invalid/u,
+  );
+  refuseWithoutMutation(
+    {
+      ...currentCredential,
+      session_secret: `${currentCredential.session_secret}invalid`,
+    },
+    /operator_session_invalid/u,
+  );
+  refuseWithoutMutation(
+    currentCredential,
+    /operator_session_expired|operator_action_nonce_expired/u,
+    "2026-07-19T15:02:02.000Z",
+  );
+
+  const foreignScope = cloneDatabaseV01(db, "replay-foreign-scope");
+  try {
+    const foreignCredential = credentialV01(
+      foreignScope,
+      {
+        ...config,
+        project_id: "project:foreign-replay-scope",
+        operator_id: "operator:foreign-replay-scope",
+      },
+      "2026-07-18T15:02:03.000Z",
+    );
+    const before = databaseStateV01(foreignScope);
+    const secretCallsBefore = secrets.calls;
+    assert.throws(
+      () =>
+        admitSourceLinkedOperationalContinuationV01(foreignScope, {
+          config,
+          credential: foreignCredential,
+          request,
+          clock: fixedClockV01("2026-07-18T15:02:04.000Z"),
+          secret_source: secrets,
+        }),
+      /operator_session_scope_mismatch/u,
+    );
+    assert.equal(databaseStateV01(foreignScope), before);
+    assert.equal(secrets.calls, secretCallsBefore);
+  } finally {
+    foreignScope.close();
+  }
+
+  const revoked = cloneDatabaseV01(db, "replay-revoked-session");
+  try {
+    revoked
+      .prepare(
+        `UPDATE vnext_local_operator_sessions
+            SET revoked_at = ?, updated_at = ?
+          WHERE session_id = ?`,
+      )
+      .run(
+        "2026-07-18T15:02:03.000Z",
+        "2026-07-18T15:02:03.000Z",
+        currentCredential.session_id,
+      );
+    const before = databaseStateV01(revoked);
+    const secretCallsBefore = secrets.calls;
+    assert.throws(
+      () =>
+        admitSourceLinkedOperationalContinuationV01(revoked, {
+          config,
+          credential: currentCredential,
+          request,
+          clock: fixedClockV01("2026-07-18T15:02:04.000Z"),
+          secret_source: secrets,
+        }),
+      /operator_session_revoked/u,
+    );
+    assert.equal(databaseStateV01(revoked), before);
+    assert.equal(secrets.calls, secretCallsBefore);
+  } finally {
+    revoked.close();
+  }
 }
 
 function assertUnknownHistoricalPacketRemainsHistoryV01(
@@ -1795,6 +2082,39 @@ function countScopedV01(
 
 function tableSnapshotV01(db: Database.Database, table: string): unknown[] {
   return db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all();
+}
+
+type LocalOperatorSessionRowSnapshotV01 = Record<string, string | null> & {
+  session_id: string;
+  session_token_hash: string | null;
+  action_nonce_hash: string | null;
+  updated_at: string;
+};
+
+function localOperatorSessionRowV01(
+  db: Database.Database,
+  sessionId: string,
+): LocalOperatorSessionRowSnapshotV01 {
+  const row = db
+    .prepare(
+      "SELECT * FROM vnext_local_operator_sessions WHERE session_id = ?",
+    )
+    .get(sessionId) as LocalOperatorSessionRowSnapshotV01 | undefined;
+  assert(row);
+  return structuredClone(row);
+}
+
+function changedObjectKeysV01(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): string[] {
+  return Object.keys(before)
+    .filter(
+      (key) =>
+        canonicalizeProtocolValueV01(before[key]) !==
+        canonicalizeProtocolValueV01(after[key]),
+    )
+    .sort();
 }
 
 function databaseStateV01(db: Database.Database): string {
