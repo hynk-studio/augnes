@@ -70,6 +70,7 @@ const sourcePaths = [
   "lib/vnext/continuity-dynamics.ts",
   "lib/vnext/operational-friction-proposal-profile.ts",
   "lib/vnext/operational-friction-proposal.ts",
+  "lib/vnext/operational-context-selection.ts",
   "lib/vnext/strategy-composition-case.ts",
   "lib/vnext/strategy-composition-comparison.ts",
   "lib/vnext/governed-actor-lab.ts",
