@@ -628,6 +628,7 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
   const database = new Database(databasePath, { fileMustExist: true });
   try {
     database.pragma("foreign_keys = ON");
+    restorePreAcgc5bCoreRecordConstraint(database);
     database.exec(
       "DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;" +
         "DROP INDEX idx_vnext_local_operator_sessions_decision_token;" +
@@ -653,6 +654,97 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
     database.close();
   }
   chmodSync(databasePath, 0o600);
+}
+
+function restorePreAcgc5bCoreRecordConstraint(database) {
+  const rows = database
+    .prepare(
+      `SELECT record_kind, record_id, workspace_id, project_id, fingerprint,
+              idempotency_key, payload_json, created_at
+       FROM vnext_core_records
+       ORDER BY record_kind, record_id`,
+    )
+    .all();
+  assert.equal(
+    rows.some(
+      (row) => row.record_kind === "operational_continuation_admission",
+    ),
+    false,
+    "the pinned historical fixture cannot contain ACGC5B records",
+  );
+  database.transaction(() => {
+    database.exec(`
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_update;
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_delete;
+      DROP INDEX IF EXISTS idx_vnext_core_records_project_idempotency;
+      DROP INDEX IF EXISTS idx_vnext_core_records_project_kind_created;
+      DROP TABLE vnext_core_records;
+
+      CREATE TABLE IF NOT EXISTS vnext_core_records (
+        record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'automation_work_item',
+          'capability_grant',
+          'evidence_record',
+          'claim_record',
+          'claim_evidence_relation',
+          'episode_delta_proposal',
+          'review_decision',
+          'semantic_commit_gate',
+          'semantic_state',
+          'state_transition_receipt',
+          'task_context_packet',
+          'run_receipt',
+          'context_use_review'
+        )),
+        record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
+        workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+        project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+        fingerprint TEXT NOT NULL CHECK (
+          length(fingerprint) = 71 AND substr(fingerprint, 1, 7) = 'sha256:'
+        ),
+        idempotency_key TEXT CHECK (
+          idempotency_key IS NULL OR
+          (length(idempotency_key) = 71 AND substr(idempotency_key, 1, 7) = 'sha256:')
+        ),
+        payload_json TEXT NOT NULL CHECK (
+          json_valid(payload_json) AND json_type(payload_json) = 'object'
+        ),
+        created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+        PRIMARY KEY (record_kind, record_id)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_core_records_project_idempotency
+        ON vnext_core_records(workspace_id, project_id, record_kind, idempotency_key)
+        WHERE idempotency_key IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS idx_vnext_core_records_project_kind_created
+        ON vnext_core_records(workspace_id, project_id, record_kind, created_at, record_id);
+
+      CREATE TRIGGER IF NOT EXISTS trg_vnext_core_records_immutable_update
+        BEFORE UPDATE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+      CREATE TRIGGER IF NOT EXISTS trg_vnext_core_records_immutable_delete
+        BEFORE DELETE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+    `);
+    const insert = database.prepare(
+      `INSERT INTO vnext_core_records (
+         record_kind, record_id, workspace_id, project_id, fingerprint,
+         idempotency_key, payload_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const row of rows) {
+      insert.run(
+        row.record_kind,
+        row.record_id,
+        row.workspace_id,
+        row.project_id,
+        row.fingerprint,
+        row.idempotency_key,
+        row.payload_json,
+        row.created_at,
+      );
+    }
+  })();
 }
 
 async function runBackupOperationCrashHelper(options) {

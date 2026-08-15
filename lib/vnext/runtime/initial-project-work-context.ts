@@ -16,6 +16,7 @@ import {
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 
 export const INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 =
   "augnes.vnext.initial-work-context-compiler.v0.1" as const;
@@ -370,6 +371,9 @@ export function initialProjectWorkIdempotencyKeyV01(
     ) ||
     packet.compatibility.source_contracts.includes(
       PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+    ) ||
+    packet.compatibility.source_contracts.includes(
+      SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
     )
   ) {
     return null;
@@ -406,6 +410,9 @@ export function inspectInitialProjectWorkPacketLineageV01(
     ) ||
     packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ) ||
+    packet.compatibility.source_contracts.includes(
+      SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
     )
   ) {
     refuse("initial_project_work_lineage_kind_invalid");
@@ -434,6 +441,9 @@ export function inspectInitialProjectWorkPacketLineageV01(
         ) &&
         !value.compatibility?.source_contracts?.includes(
           PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+        ) &&
+        !value.compatibility?.source_contracts?.includes(
+          SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
         )
       );
     } catch {

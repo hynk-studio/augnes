@@ -47,6 +47,7 @@ export interface OperationalFrictionSourceFixtureOptionsV01 {
   max_shadow_selected?: number;
   materialization_final_reviewed_at?: string;
   persisted_source_role?: "semantic_lineage" | "operational_fixture";
+  preserve_final_exact_source_chain?: boolean;
 }
 
 export interface OperationalFrictionDisposableReviewFixtureV01 {
@@ -91,6 +92,9 @@ export function buildOperationalFrictionDisposableReviewFixtureFromSourceChainV0
   const chains = unresolvedCounts.map((unresolved, index) =>
     buildSourceChainV01(base, unresolved, index, options),
   );
+  if (options.preserve_final_exact_source_chain === true) {
+    chains[chains.length - 1] = clone(sourceChain);
+  }
   const exact = chains.map((source) => {
     const relation = validateContextUseReviewRelationsV01(
       source.review,

@@ -41,7 +41,8 @@ export type CodexCurrentContinuityWorkStatusV01 =
 export type CodexCurrentContinuityLineageKindV01 =
   | "initial_user_defined"
   | "pre_execution_user_revision"
-  | "semantic_transition";
+  | "semantic_transition"
+  | "source_linked_operational_continuation";
 
 export type CodexCurrentContinuityWorkCurrentnessV01 =
   | "fresh"

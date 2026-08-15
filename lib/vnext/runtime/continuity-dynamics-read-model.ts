@@ -84,6 +84,41 @@ export function readContinuityDynamicsV01(
 ): ContinuityDynamicsReadResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   assertQueryOnlyV01(db);
+  const rebuilt = rebuildContinuityDynamicsFromDurableSourcesV01(
+    db,
+    requestInput,
+  );
+  return {
+    result_version: "continuity_dynamics_read_result.v0.1",
+    result_kind: "persisted_read_only_bounded_observation",
+    ...rebuilt,
+    persistence_boundary: {
+      sqlite_query_only_required: true,
+      inserts: 0,
+      updates: 0,
+      deletes: 0,
+      schema_changes: 0,
+      source_record_mutations: 0,
+      provider_calls: 0,
+      network_calls: 0,
+      external_calls: 0,
+    },
+  };
+}
+
+/**
+ * Exact durable-source reconstruction shared with the authenticated ACGC5B
+ * writer. It performs no mutation; a writer must repeat it under its own
+ * transaction before admitting any derived record.
+ */
+export function rebuildContinuityDynamicsFromDurableSourcesV01(
+  db: Database.Database,
+  requestInput: ContinuityDynamicsReadRequestV01,
+): Pick<
+  ContinuityDynamicsReadResultV01,
+  "workspace_id" | "project_id" | "frames" | "digest"
+> {
+  assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseRequestV01(requestInput);
   const frames = request.frames.map((frameRequest) => {
     const attribution = readContextUseAttributionProjectionV01(db, {
@@ -161,23 +196,10 @@ export function readContinuityDynamicsV01(
     window_kind: request.window_kind,
   });
   return {
-    result_version: "continuity_dynamics_read_result.v0.1",
-    result_kind: "persisted_read_only_bounded_observation",
     workspace_id: request.workspace_id,
     project_id: request.project_id,
     frames,
     digest,
-    persistence_boundary: {
-      sqlite_query_only_required: true,
-      inserts: 0,
-      updates: 0,
-      deletes: 0,
-      schema_changes: 0,
-      source_record_mutations: 0,
-      provider_calls: 0,
-      network_calls: 0,
-      external_calls: 0,
-    },
   };
 }
 

@@ -24,6 +24,7 @@ import {
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { readOperationalContinuationLineageStateV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
   type VNextOperatorPilotTransitionPacketLineageInspectionV01,
@@ -40,6 +41,7 @@ import {
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 
 export const VNEXT_OPERATOR_PILOT_WORKBENCH_LINEAGE_VERSION_V01 =
   "vnext_operator_pilot_workbench_lineage.v0.1" as const;
@@ -279,6 +281,29 @@ function loadValidatedCompiledPackets(
       }).status !== "valid"
     ) {
       throw lineageError("operator_pilot_workbench_lineage_packet_invalid");
+    }
+    if (
+      packet.compatibility.source_contracts.includes(
+        SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+      )
+    ) {
+      const continuation = readOperationalContinuationLineageStateV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+      });
+      if (
+        !continuation ||
+        continuation.packet_b.packet_id !== packet.packet_id ||
+        continuation.packet_b.integrity.fingerprint !==
+          packet.integrity.fingerprint ||
+        continuation.record.record_id !==
+          continuation.admission.admission_id
+      ) {
+        throw lineageError(
+          "operator_pilot_workbench_lineage_continuation_packet_invalid",
+        );
+      }
+      continue;
     }
     assertRecordEnvelope(record, {
       record_id: packet.packet_id,

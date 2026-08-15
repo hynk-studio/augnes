@@ -2686,9 +2686,11 @@ function prepareLegacyRecoveryAdoptionSnapshot({ databasePath }) {
     database.pragma("journal_mode = DELETE");
     database.pragma("foreign_keys = ON");
     database.pragma("secure_delete = ON");
-    database.transaction(() => {
-      applyCanonicalDatabaseMigrations(database);
-    })();
+    // Canonical migrations own their bounded schema-rebuild transactions.
+    // This database is an unpublished staging snapshot and is discarded in
+    // full on failure, so an outer transaction would only prevent an exact
+    // predecessor Core record-kind constraint from upgrading.
+    applyCanonicalDatabaseMigrations(database);
     database.exec("VACUUM");
     database.pragma("journal_mode = DELETE");
   } finally {

@@ -461,6 +461,7 @@ function relevanceForTargetV01(
       "task_context_packet",
       "later_task_context_packet",
       "context_use_review",
+      "operational_continuation_admission",
       "personal_perspective_inclusion",
     ].includes(targetKind)
   ) {
@@ -665,6 +666,7 @@ function targetLabelV01(
     semantic_state: "Saved project state",
     later_task_context_packet: "Later work context",
     context_use_review: "Context feedback",
+    operational_continuation_admission: "Operational continuation admission",
     capability_grant: "Capability grant",
     criterion: "Requirement check",
     claim_family: "Project statement history",

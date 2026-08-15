@@ -113,6 +113,10 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // identity and private resume history are both complete; arbitrary
     // partial combinations remain unsupported.
     "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
+    // Exact ACGC5B structural contract with only the migration ledger and
+    // package identity guard removed. The continuation-admission record kind
+    // is present; arbitrary partial schemas remain unsupported.
+    "542b04dcf26b7fc95480438e8ac4fe2e60e29817fce07b2af141def313eab2e5",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

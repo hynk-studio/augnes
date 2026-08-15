@@ -1765,6 +1765,7 @@ function assertPreSr2SchemaUpgradeV01(): void {
       "evidence_record",
       "claim_record",
       "claim_evidence_relation",
+      "operational_continuation_admission",
     ]) {
       assert.equal(upgradedSql.includes(`'${kind}'`), true);
     }
@@ -1818,6 +1819,15 @@ function assertPreSr2SchemaUpgradeV01(): void {
         .get(),
       undefined,
       "failed upgrade must rollback its temporary table",
+    );
+    assert.equal(
+      rollbackDb
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records_upgrade_v0_4'",
+        )
+        .get(),
+      undefined,
+      "failed ACGC5B record-kind upgrade must rollback its temporary table",
     );
   } finally {
     rollbackDb.close();

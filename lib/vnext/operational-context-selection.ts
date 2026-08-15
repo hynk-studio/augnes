@@ -118,6 +118,11 @@ export interface OperationalContextSelectionValidationResultV01 {
   errors: string[];
 }
 
+export interface OperationalContinuationAdmissionIdentityValidationResultV01 {
+  status: "valid" | "invalid";
+  errors: string[];
+}
+
 /**
  * Pure ACGC5A compiler. It accepts exact source objects and returns one
  * non-durable candidate packet; it has no ambient clock, environment,
@@ -619,6 +624,141 @@ export function assertValidOperationalContextSelectionV01(
   const validation = validateOperationalContextSelectionV01(input);
   if (validation.status !== "valid") {
     failV01(`operational_context_selection_invalid:${validation.errors.join(",")}`);
+  }
+}
+
+export function validateOperationalContinuationAdmissionIdentityV01(
+  value: unknown,
+): OperationalContinuationAdmissionIdentityValidationResultV01 {
+  try {
+    if (!isProtocolRecordV01(value)) {
+      failV01("operational_continuation_admission_identity_invalid");
+    }
+    const expectedKeys = [
+      "identity_version",
+      "materialization_id",
+      "materialization_fingerprint",
+      "workspace_id",
+      "project_id",
+      "work_ref_fingerprint",
+      "packet_a_id",
+      "packet_a_fingerprint",
+      "run_receipt_a_id",
+      "run_receipt_a_fingerprint",
+      "context_use_review_a_id",
+      "context_use_review_a_fingerprint",
+      "acgc4_source_bundle_id",
+      "acgc4_source_bundle_fingerprint",
+      "acgc4_profile_id",
+      "acgc4_profile_fingerprint",
+      "acgc4_proposal_id",
+      "acgc4_proposal_fingerprint",
+      "acgc4_admission_idempotency_key",
+      "effective_decisions_fingerprint",
+      "decision_time_cutoff",
+      "selection_rule_version",
+      "max_selected_candidates",
+      "selection_id",
+      "selection_fingerprint",
+      "candidate_packet_b_id",
+      "candidate_packet_b_fingerprint",
+      "future_admission_idempotency_key",
+    ].sort();
+    if (
+      canonicalizeProtocolValueV01(Object.keys(value).sort()) !==
+      canonicalizeProtocolValueV01(expectedKeys)
+    ) {
+      failV01("operational_continuation_admission_identity_shape_invalid");
+    }
+    const identity = value as unknown as OperationalContinuationAdmissionIdentityV01;
+    const fingerprintKeys = [
+      "materialization_fingerprint",
+      "work_ref_fingerprint",
+      "packet_a_fingerprint",
+      "run_receipt_a_fingerprint",
+      "context_use_review_a_fingerprint",
+      "acgc4_source_bundle_fingerprint",
+      "acgc4_profile_fingerprint",
+      "acgc4_proposal_fingerprint",
+      "acgc4_admission_idempotency_key",
+      "effective_decisions_fingerprint",
+      "selection_fingerprint",
+      "candidate_packet_b_fingerprint",
+      "future_admission_idempotency_key",
+    ] as const;
+    const textKeys = [
+      "workspace_id",
+      "project_id",
+      "packet_a_id",
+      "run_receipt_a_id",
+      "context_use_review_a_id",
+      "acgc4_source_bundle_id",
+      "acgc4_profile_id",
+      "acgc4_proposal_id",
+      "selection_id",
+      "candidate_packet_b_id",
+    ] as const;
+    if (
+      identity.identity_version !==
+        OPERATIONAL_CONTINUATION_ADMISSION_IDENTITY_VERSION_V01 ||
+      identity.selection_rule_version !==
+        OPERATIONAL_CONTEXT_SELECTION_RULE_VERSION_V01 ||
+      !identity.materialization_id.startsWith(
+        "operational-continuation-materialization:",
+      ) ||
+      textKeys.some(
+        (key) =>
+          typeof identity[key] !== "string" || identity[key].length === 0,
+      ) ||
+      fingerprintKeys.some(
+        (key) => !/^sha256:[a-f0-9]{64}$/u.test(identity[key]),
+      ) ||
+      parseStrictIsoTimestampV01(identity.decision_time_cutoff) === null ||
+      !Number.isInteger(identity.max_selected_candidates) ||
+      identity.max_selected_candidates < 0 ||
+      identity.max_selected_candidates >
+        OPERATIONAL_CONTEXT_SELECTION_MAX_CANDIDATES_V01
+    ) {
+      failV01("operational_continuation_admission_identity_invalid");
+    }
+    const {
+      materialization_id: _materializationId,
+      materialization_fingerprint: _materializationFingerprint,
+      future_admission_idempotency_key: _futureAdmissionKey,
+      ...core
+    } = identity;
+    const coreHash = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(core),
+    );
+    const materializationId = `operational-continuation-materialization:${coreHash.slice("sha256:".length, 38)}`;
+    const materializationFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({ materialization_id: materializationId, ...core }),
+    );
+    const futureAdmissionKey = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        purpose: OPERATIONAL_CONTINUATION_ADMISSION_IDENTITY_VERSION_V01,
+        materialization_id: materializationId,
+        materialization_fingerprint: materializationFingerprint,
+        ...core,
+      }),
+    );
+    if (
+      identity.materialization_id !== materializationId ||
+      identity.materialization_fingerprint !== materializationFingerprint ||
+      identity.future_admission_idempotency_key !== futureAdmissionKey
+    ) {
+      failV01("operational_continuation_admission_identity_fingerprint_invalid");
+    }
+    return { status: "valid", errors: [] };
+  } catch (error) {
+    return {
+      status: "invalid",
+      errors: [
+        error instanceof OperationalContextSelectionErrorV01
+          ? error.code
+          : "operational_continuation_admission_identity_invalid",
+      ],
+    };
   }
 }
 

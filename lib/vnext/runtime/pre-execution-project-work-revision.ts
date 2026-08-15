@@ -30,6 +30,7 @@ import {
   type RevisePreExecutionProjectWorkRequestV01,
 } from "@/types/vnext/project-work-revision";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 
 export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
   "augnes.vnext.pre-execution-work-revision-request.v0.1" as const;
@@ -528,6 +529,10 @@ export function inspectPreExecutionProjectWorkRevisionPacketV01(
       !hasContract(
         candidate.packet,
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+      ) &&
+      !hasContract(
+        candidate.packet,
+        SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
       ),
   );
   if (initialRecords.length !== 1) {
@@ -813,7 +818,8 @@ function packetLineageKind(
     return "pre_execution_user_revision";
   }
   return hasContract(packet, INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01) &&
-    !hasContract(packet, VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01)
+    !hasContract(packet, VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01) &&
+    !hasContract(packet, SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01)
     ? "initial_user_defined"
     : null;
 }
@@ -827,6 +833,10 @@ function isStandaloneRevisionPacketV01(packet: TaskContextPacketV01): boolean {
     !hasContract(
       packet,
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ) &&
+    !hasContract(
+      packet,
+      SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
     )
   );
 }
