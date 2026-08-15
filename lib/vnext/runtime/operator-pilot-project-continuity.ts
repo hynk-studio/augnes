@@ -55,6 +55,7 @@ import {
   inspectSourceLinkedOperationalContinuationLineageV01,
   operationalContinuationPacketIdempotencyKeyV01,
   packetHasOperationalContinuationSuccessorV01,
+  readOperationalContinuationLineageStateV01,
 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { validateVNextOperatorPilotReviewDecisionProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
@@ -71,6 +72,7 @@ import {
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
 import {
   CONTEXT_USE_REVIEW_USAGE_PROVENANCE_VERSION_V01,
   type ContextUseReviewV01,
@@ -1251,32 +1253,74 @@ function loadContextUseReviews(
       review.later_packet.packet_id,
       review.later_packet.packet_fingerprint,
     );
-    const inspection = validateCompiledPacketLineage(db, config, laterPacket);
-    if (
-      review.source_transition_receipt.transition_receipt_id !==
-        inspection.source_transition_receipt.transition_receipt_id ||
-      review.source_transition_receipt.transition_receipt_fingerprint !==
-        inspection.source_transition_receipt.transition_receipt_fingerprint
+    const inspection = inspectVNextOperatorPilotPacketLineageV01(db, {
+      config,
+      packet_id: laterPacket.packet_id,
+      packet_fingerprint: laterPacket.integrity.fingerprint,
+    });
+    let priorPacket: TaskContextPacketV01;
+    let lineageSource: StateTransitionReceiptV01 | OperationalContinuationAdmissionV01;
+    if (inspection.lineage_kind === "semantic_transition") {
+      if (
+        !review.source_transition_receipt ||
+        review.source_operational_continuation !== undefined ||
+        review.source_transition_receipt.transition_receipt_id !==
+          inspection.source_transition_receipt.transition_receipt_id ||
+        review.source_transition_receipt.transition_receipt_fingerprint !==
+          inspection.source_transition_receipt.transition_receipt_fingerprint
+      ) {
+        throw continuityError(
+          "operator_pilot_context_use_review_transition_lineage_invalid",
+          422,
+        );
+      }
+      priorPacket = loadPacket(
+        db,
+        config,
+        inspection.prior_packet.packet_id,
+        inspection.prior_packet.packet_fingerprint,
+      );
+      lineageSource = loadValidatedVNextSemanticTransitionRelationV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+        transition_receipt_id:
+          inspection.source_transition_receipt.transition_receipt_id,
+        transition_receipt_fingerprint:
+          inspection.source_transition_receipt.transition_receipt_fingerprint,
+      }).receipt;
+    } else if (
+      inspection.lineage_kind === "source_linked_operational_continuation"
     ) {
+      const state = readOperationalContinuationLineageStateV01(db, config);
+      const binding = review.source_operational_continuation;
+      if (
+        !state ||
+        !binding ||
+        review.source_transition_receipt !== undefined ||
+        binding.admission_id !== state.admission.admission_id ||
+        binding.admission_fingerprint !==
+          state.admission.integrity.fingerprint ||
+        binding.materialization_id !== inspection.materialization_id ||
+        binding.materialization_fingerprint !==
+          inspection.materialization_fingerprint ||
+        binding.selection_id !==
+          state.admission.operational_context_selection.selection_id ||
+        binding.selection_fingerprint !==
+          state.admission.operational_context_selection.selection_fingerprint
+      ) {
+        throw continuityError(
+          "operator_pilot_context_use_review_continuation_lineage_invalid",
+          422,
+        );
+      }
+      priorPacket = state.packet_a;
+      lineageSource = state.admission;
+    } else {
       throw continuityError(
-        "operator_pilot_context_use_review_transition_lineage_invalid",
+        "operator_pilot_context_use_review_lineage_invalid",
         422,
       );
     }
-    const priorPacket = loadPacket(
-      db,
-      config,
-      inspection.prior_packet.packet_id,
-      inspection.prior_packet.packet_fingerprint,
-    );
-    const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-      workspace_id: config.workspace_id,
-      project_id: config.project_id,
-      transition_receipt_id:
-        inspection.source_transition_receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        inspection.source_transition_receipt.transition_receipt_fingerprint,
-    });
     const matchingReceipts = contextUseReceipts.filter(
       (receipt) =>
         receipt.receipt_id === review.later_task_run_receipt.receipt_id &&
@@ -1292,7 +1336,7 @@ function loadContextUseReviews(
         review,
         priorPacket,
         laterPacket,
-        transition.receipt,
+        lineageSource,
         matchingReceipts[0],
       ).status !== "valid"
     ) {

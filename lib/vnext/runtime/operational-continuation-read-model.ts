@@ -163,6 +163,12 @@ export function rebuildOperationalContinuationFromDurableSourcesV01(
     workspace_id: request.workspace_id,
     project_id: request.project_id,
   });
+  if (
+    !review.source_transition_receipt ||
+    review.source_operational_continuation !== undefined
+  ) {
+    refuseV01("operational_continuation_semantic_source_review_required");
+  }
   const priorPacket = readBoundRecordV01<TaskContextPacketV01>(db, {
     record_kind: "task_context_packet",
     record_id: review.prior_packet.packet_id,

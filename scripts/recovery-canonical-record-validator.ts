@@ -763,6 +763,7 @@ function relationBindingV01(
 }
 
 function validateContextUseReviewRelationV01(
+  db: Database.Database,
   record: ParsedCanonicalRecordV01,
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
@@ -776,11 +777,6 @@ function validateContextUseReviewRelationV01(
     review.later_packet,
     "packet_id",
     "packet_fingerprint",
-  );
-  const transitionBinding = relationBindingV01(
-    review.source_transition_receipt,
-    "transition_receipt_id",
-    "transition_receipt_fingerprint",
   );
   const runBinding = relationBindingV01(
     review.later_task_run_receipt,
@@ -799,24 +795,58 @@ function validateContextUseReviewRelationV01(
     workspace_id: record.workspace_id,
     project_id: record.project_id,
   });
-  const transition = requireRelatedRecordV01(byIdentity, {
-    kind: "state_transition_receipt",
-    ...transitionBinding,
-    workspace_id: record.workspace_id,
-    project_id: record.project_id,
-  });
   const run = requireRelatedRecordV01(byIdentity, {
     kind: "run_receipt",
     ...runBinding,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
   });
+  let lineageSource: StateTransitionReceiptV01 | OperationalContinuationAdmissionV01;
+  if (review.source_transition_receipt !== undefined) {
+    const transitionBinding = relationBindingV01(
+      review.source_transition_receipt,
+      "transition_receipt_id",
+      "transition_receipt_fingerprint",
+    );
+    const transition = requireRelatedRecordV01(byIdentity, {
+      kind: "state_transition_receipt",
+      ...transitionBinding,
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    lineageSource = transition.payload as unknown as StateTransitionReceiptV01;
+  } else {
+    const admissionBinding = relationBindingV01(
+      review.source_operational_continuation,
+      "admission_id",
+      "admission_fingerprint",
+    );
+    const admissionRecord = requireRelatedRecordV01(byIdentity, {
+      kind: "operational_continuation_admission",
+      ...admissionBinding,
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    assertOperationalContinuationAdmissionV01(admissionRecord.payload);
+    const lineage = readOperationalContinuationLineageStateV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    if (
+      !lineage ||
+      lineage.record.record_id !== admissionRecord.record_id ||
+      lineage.record.fingerprint !== admissionRecord.fingerprint
+    ) {
+      refuseV01();
+    }
+    lineageSource = lineage.admission;
+  }
   if (
     validateContextUseReviewRelationsV01(
       review,
       prior.payload as unknown as TaskContextPacketV01,
       later.payload as unknown as TaskContextPacketV01,
-      transition.payload as unknown as StateTransitionReceiptV01,
+      lineageSource,
       run.payload as unknown as RunReceiptV01,
     ).status !== "valid"
   ) {
@@ -1107,7 +1137,7 @@ function validateDatabaseRelationsV01(
         });
         break;
       case "context_use_review":
-        validateContextUseReviewRelationV01(record, byIdentity);
+        validateContextUseReviewRelationV01(db, record, byIdentity);
         break;
       case "operational_continuation_admission": {
         const lineage = readOperationalContinuationLineageStateV01(db, {

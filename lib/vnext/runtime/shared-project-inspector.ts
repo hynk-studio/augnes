@@ -1743,6 +1743,40 @@ function validateAndDescribeCoreRecordV01(
     case "context_use_review": {
       if (validateContextUseReviewV01(record.payload).status !== "valid") refuseV01("shared_inspector_context_use_review_conflict");
       const review = record.payload as ContextUseReviewV01;
+      if (review.source_operational_continuation) {
+        const lineage = readOperationalContinuationLineageStateV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        if (
+          !lineage ||
+          lineage.admission.admission_id !==
+            review.source_operational_continuation.admission_id ||
+          lineage.admission.integrity.fingerprint !==
+            review.source_operational_continuation.admission_fingerprint ||
+          lineage.packet_a.packet_id !== review.prior_packet.packet_id ||
+          lineage.packet_a.integrity.fingerprint !==
+            review.prior_packet.packet_fingerprint ||
+          lineage.packet_b.packet_id !== review.later_packet.packet_id ||
+          lineage.packet_b.integrity.fingerprint !==
+            review.later_packet.packet_fingerprint
+        ) {
+          refuseV01("shared_inspector_context_use_review_continuation_conflict");
+        }
+        return {
+          ...focusV01(
+            "ContextUseReview",
+            `${review.assessment}; actual use ${review.usage.actually_used}`,
+            "packet-level feedback, not item-level truth",
+            review.reviewed_at,
+          ),
+          receipt_id: review.later_task_run_receipt.receipt_id,
+          packet: lineage.packet_b,
+        };
+      }
+      if (!review.source_transition_receipt) {
+        refuseV01("shared_inspector_context_use_review_lineage_missing");
+      }
       const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
         workspace_id: config.workspace_id,
         project_id: config.project_id,

@@ -23,7 +23,7 @@ import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
-  authenticateVNextLocalOperatorSessionV01,
+  authenticateVNextLocalOperatorCurrentCredentialV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
   type VNextLocalOperatorSessionCredentialV01,
@@ -39,6 +39,7 @@ import {
 } from "@/lib/vnext/runtime/operator-pilot-context-use-contract";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import { inspectVNextOperatorPilotPacketLineageV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
+import { readOperationalContinuationLineageStateV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import {
   CONTEXT_USE_REVIEW_ACTUALLY_USED_VALUES_V01,
   CONTEXT_USE_REVIEW_ASSESSMENTS_V01,
@@ -50,6 +51,7 @@ import {
 } from "@/types/vnext/context-use-review";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
 const SESSION_ACTION_NAMESPACE = "augnes.vnext.local-operator-session.v0.1";
@@ -88,7 +90,8 @@ export interface VNextOperatorPilotContextUseReviewResultV01 {
   session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
 }
 
-interface ContextUseSourceV01 {
+interface SemanticContextUseSourceV01 {
+  lineage_kind: "semantic_transition";
   later_receipt: RunReceiptV01;
   later_packet: TaskContextPacketV01;
   prior_packet: TaskContextPacketV01;
@@ -96,6 +99,18 @@ interface ContextUseSourceV01 {
     typeof loadValidatedVNextSemanticTransitionRelationV01
   >;
 }
+
+interface OperationalContinuationContextUseSourceV01 {
+  lineage_kind: "source_linked_operational_continuation";
+  later_receipt: RunReceiptV01;
+  later_packet: TaskContextPacketV01;
+  prior_packet: TaskContextPacketV01;
+  continuation_admission: OperationalContinuationAdmissionV01;
+}
+
+type ContextUseSourceV01 =
+  | SemanticContextUseSourceV01
+  | OperationalContinuationContextUseSourceV01;
 
 export function recordVNextOperatorPilotContextUseReviewV01(
   db: Database.Database,
@@ -109,17 +124,12 @@ export function recordVNextOperatorPilotContextUseReviewV01(
 ): VNextOperatorPilotContextUseReviewResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseRequest(input.request);
-  authenticateVNextLocalOperatorSessionV01(db, input);
   resolveContextUseSource(db, input.config, request);
   if (db.inTransaction) {
     throw reviewError("operator_pilot_context_use_review_nested_transaction", 409);
   }
   db.exec("BEGIN IMMEDIATE");
   try {
-    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(
-      db,
-      input,
-    );
     const source = resolveContextUseSource(db, input.config, request);
     const identitySeed = identityMaterial(input.config, source);
     const logicalIdentity =
@@ -134,6 +144,12 @@ export function recordVNextOperatorPilotContextUseReviewV01(
       idempotency_key: idempotencyKey,
     });
     if (existing) {
+      const authentication =
+        authenticateVNextLocalOperatorCurrentCredentialV01(db, {
+          config: input.config,
+          credential: input.credential,
+          clock: input.clock,
+        });
       if (validateContextUseReviewV01(existing.payload).status !== "valid") {
         throw reviewError("operator_pilot_context_use_review_replay_conflict", 409);
       }
@@ -142,7 +158,7 @@ export function recordVNextOperatorPilotContextUseReviewV01(
         config: input.config,
         source,
         request,
-        session_id: admission.session.session_id,
+        session_id: authentication.session.session_id,
         reviewed_at: stored.reviewed_at,
         include_usage_provenance: stored.usage_provenance !== undefined,
       });
@@ -161,8 +177,19 @@ export function recordVNextOperatorPilotContextUseReviewV01(
         throw reviewError("operator_pilot_context_use_review_replay_conflict", 409);
       }
       db.exec("COMMIT");
-      return result("exact_replay", stored, admission);
+      return result("exact_replay", stored, {
+        session: authentication.session,
+        credential: authentication.credential,
+        action_observed_at: stored.reviewed_at,
+        cookie_value: authentication.cookie_value,
+        cookie_expires_at: authentication.cookie_expires_at,
+        cookie_max_age_seconds: authentication.cookie_max_age_seconds,
+      });
     }
+    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(
+      db,
+      input,
+    );
     const review = materializeReview({
       config: input.config,
       source,
@@ -174,7 +201,9 @@ export function recordVNextOperatorPilotContextUseReviewV01(
       review,
       source.prior_packet,
       source.later_packet,
-      source.transition.receipt,
+      source.lineage_kind === "semantic_transition"
+        ? source.transition.receipt
+        : source.continuation_admission,
       source.later_receipt,
     );
     if (relation.status !== "valid") {
@@ -330,6 +359,40 @@ function identityMaterial(
   config: VNextLocalOperatorPilotConfigV01,
   source: ContextUseSourceV01,
 ) {
+  const lineageIdentity =
+    source.lineage_kind === "semantic_transition"
+      ? {
+          source_transition_receipt: {
+            transition_receipt_version:
+              source.transition.receipt.transition_receipt_version,
+            transition_receipt_id:
+              source.transition.receipt.transition_receipt_id,
+            transition_receipt_fingerprint:
+              source.transition.receipt.integrity.fingerprint,
+          },
+        }
+      : {
+          source_operational_continuation: {
+            lineage_kind: source.lineage_kind,
+            admission_version:
+              source.continuation_admission.admission_version,
+            admission_id: source.continuation_admission.admission_id,
+            admission_fingerprint:
+              source.continuation_admission.integrity.fingerprint,
+            materialization_id:
+              source.continuation_admission.acgc5a_materialization_identity
+                .materialization_id,
+            materialization_fingerprint:
+              source.continuation_admission.acgc5a_materialization_identity
+                .materialization_fingerprint,
+            selection_id:
+              source.continuation_admission.operational_context_selection
+                .selection_id,
+            selection_fingerprint:
+              source.continuation_admission.operational_context_selection
+                .selection_fingerprint,
+          },
+        };
   return {
     workspace_id: config.workspace_id,
     project_id: config.project_id,
@@ -343,14 +406,7 @@ function identityMaterial(
       packet_id: source.later_packet.packet_id,
       packet_fingerprint: source.later_packet.integrity.fingerprint,
     },
-    source_transition_receipt: {
-      transition_receipt_version:
-        source.transition.receipt.transition_receipt_version,
-      transition_receipt_id:
-        source.transition.receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        source.transition.receipt.integrity.fingerprint,
-    },
+    ...lineageIdentity,
     later_task_run_receipt: {
       receipt_version: source.later_receipt.receipt_version,
       receipt_id: source.later_receipt.receipt_id,
@@ -423,9 +479,58 @@ function resolveContextUseSource(
   ) {
     throw reviewError("operator_pilot_context_use_packet_lineage_invalid", 422);
   }
+  if (inspection.lineage_kind === "source_linked_operational_continuation") {
+    const state = readOperationalContinuationLineageStateV01(db, {
+      workspace_id: config.workspace_id,
+      project_id: config.project_id,
+    });
+    if (
+      !state ||
+      state.packet_b.packet_id !== laterPacket.packet_id ||
+      state.packet_b.integrity.fingerprint !== laterPacket.integrity.fingerprint ||
+      state.admission.admission_id !== inspection.admission_id ||
+      state.admission.integrity.fingerprint !== inspection.admission_fingerprint ||
+      state.admission.acgc5a_materialization_identity.materialization_id !==
+        inspection.materialization_id ||
+      state.admission.acgc5a_materialization_identity
+        .materialization_fingerprint !== inspection.materialization_fingerprint
+    ) {
+      throw reviewError(
+        "operator_pilot_context_use_continuation_lineage_invalid",
+        422,
+      );
+    }
+    const expectedRefs = [
+      inspection.operational_continuation_admission_ref,
+      inspection.operational_continuation_materialization_ref,
+      inspection.immediate_prior_packet_ref,
+    ];
+    if (
+      expectedRefs.some(
+        (expected) =>
+          laterReceipt.source_refs.filter(
+            (ref) =>
+              ref.ref_type === expected.ref_type &&
+              ref.external_id === expected.external_id &&
+              ref.source_ref === expected.source_ref &&
+              (ref.trust_class === "direct_local_observation" ||
+                ref.trust_class === "verified_external_observation"),
+          ).length !== 1,
+      )
+    ) {
+      throw reviewError("operator_pilot_context_use_full_chain_invalid", 422);
+    }
+    return {
+      lineage_kind: "source_linked_operational_continuation",
+      later_receipt: laterReceipt,
+      later_packet: laterPacket,
+      prior_packet: state.packet_a,
+      continuation_admission: state.admission,
+    };
+  }
   if (inspection.lineage_kind !== "semantic_transition") {
     throw reviewError(
-      "operator_pilot_context_use_transition_lineage_required",
+      "operator_pilot_context_use_supported_lineage_required",
       409,
     );
   }
@@ -455,6 +560,7 @@ function resolveContextUseSource(
     throw reviewError("operator_pilot_context_use_full_chain_invalid", 422);
   }
   return {
+    lineage_kind: "semantic_transition",
     later_receipt: laterReceipt,
     later_packet: laterPacket,
     prior_packet: priorPacket,

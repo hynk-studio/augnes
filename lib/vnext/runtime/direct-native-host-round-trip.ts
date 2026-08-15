@@ -2780,7 +2780,9 @@ function buildDirectHostRunReceipt(input: {
         NATIVE_HOST_RESULT_VERSION_V01,
         result.adapter_version,
         result.capability_version,
-        ...(admission.packet_lineage.lineage_kind === "semantic_transition"
+        ...(admission.packet_lineage.lineage_kind === "semantic_transition" ||
+          admission.packet_lineage.lineage_kind ===
+            "source_linked_operational_continuation"
           ? [VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01]
           : []),
         ...(hostApprovals.length ? ["native_host_approval.v0.1"] : []),

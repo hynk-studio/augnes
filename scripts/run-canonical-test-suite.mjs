@@ -162,6 +162,12 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label:
+        "terminal continuation attribution and exact-case equal-ceiling comparison contract",
+      ...rootNode("scripts/test-operational-continuation-comparison.ts"),
+      timeoutMs: 90_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
