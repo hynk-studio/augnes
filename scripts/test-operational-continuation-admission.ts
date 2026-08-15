@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import Database from "better-sqlite3";
 
@@ -118,9 +119,11 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-acgc5b-"));
 const DATABASE_PATH = path.join(ROOT, "augnes.db");
 const PROJECT_ROOT = path.join(ROOT, "project");
+const BASELINE_SEED_ROOT = path.join(ROOT, "baseline-seed");
 const originalEnvironment = { ...process.env };
 const originalFetch = globalThis.fetch;
 let fetchCalls = 0;
+let beforeRunAHook: (() => void) | null = null;
 
 class DeterministicSecretSourceV01
   implements VNextLocalOperatorSecretSourceV01
@@ -143,7 +146,7 @@ class DeterministicSecretSourceV01
 
 const secrets = new DeterministicSecretSourceV01();
 
-interface FixtureV01 {
+export interface FixtureV01 {
   db: Database.Database;
   config: VNextLocalOperatorPilotConfigV01;
   initial_packet: TaskContextPacketV01;
@@ -164,10 +167,212 @@ interface FixtureV01 {
   admission_credential: VNextLocalOperatorSessionCredentialV01;
 }
 
-void main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  void main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+export interface ReusableOperationalContinuationFixtureV01
+  extends FixtureV01 {
+  root: string;
+  project_root: string;
+  database_path: string;
+  baseline_seed_root: string;
+}
+
+export interface CompletedOperationalContinuationRunBV01 {
+  continuation: ReturnType<
+    typeof rebuildOperationalContinuationFromDurableSourcesV01
+  >;
+  admission: OperationalContinuationAdmissionV01;
+  packet_b: TaskContextPacketV01;
+  current_credential: VNextLocalOperatorSessionCredentialV01;
+  run_b: NonNullable<ReturnType<typeof readAutonomyRunLedgerRecord>>;
+  run_b_receipt: RunReceiptV01;
+  run_b_attachment_id: string;
+  run_b_attachment_binding_fingerprint: string;
+  run_b_start_request_fingerprint: string;
+  run_b_grant_fingerprint: string;
+  run_b_controller_runtime_instance_fingerprint: string;
+  delivered_request: NativeHostRequestV01;
+}
+
+export async function createReusableOperationalContinuationFixtureV01(): Promise<ReusableOperationalContinuationFixtureV01> {
+  process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  process.env.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER = "1";
+  process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
+  process.env.AUGNES_DB_PATH = DATABASE_PATH;
+  fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    throw new Error("ACGC5C fixture must not call fetch");
+  }) as typeof fetch;
+  initializeRepositoryV01();
+  const db = openDatabaseV01();
+  beforeRunAHook = () => {
+    execFileSync("git", ["clone", "--quiet", "--no-hardlinks", PROJECT_ROOT, BASELINE_SEED_ROOT]);
+    execFileSync("git", ["-C", BASELINE_SEED_ROOT, "remote", "remove", "origin"]);
+  };
+  try {
+    const fixture = await createFixtureV01(db);
+    beforeRunAHook = null;
+    return {
+      ...fixture,
+      root: ROOT,
+      project_root: PROJECT_ROOT,
+      database_path: DATABASE_PATH,
+      baseline_seed_root: BASELINE_SEED_ROOT,
+    };
+  } catch (error) {
+    beforeRunAHook = null;
+    db.close();
+    globalThis.fetch = originalFetch;
+    process.env = originalEnvironment;
+    rmSync(ROOT, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function completeReusableOperationalContinuationRunBV01(
+  fixture: ReusableOperationalContinuationFixtureV01,
+): Promise<CompletedOperationalContinuationRunBV01> {
+  const continuation = rebuildOperationalContinuationFromDurableSourcesV01(
+    fixture.db,
+    {
+      workspace_id: fixture.config.workspace_id,
+      project_id: fixture.config.project_id,
+      operator_id: fixture.config.operator_id,
+      ...fixture.source_request,
+    },
+  );
+  const admitted = admitSourceLinkedOperationalContinuationV01(fixture.db, {
+    config: fixture.config,
+    credential: fixture.admission_credential,
+    request: fixture.admission_request,
+    clock: fixedClockV01("2026-07-18T15:01:00.000Z"),
+    secret_source: secrets,
+  });
+  assert.equal(admitted.status, "inserted");
+  const currentCredential = credentialFromCookieV01(
+    admitted.session_admission.cookie_value,
+  );
+  const attachment = await prepareRepositoryExecutionV01(
+    fixture.db,
+    {
+      workspace_id: fixture.config.workspace_id,
+      project_id: fixture.config.project_id,
+    },
+    { now: () => "2026-07-18T15:03:00.000Z", platform: "darwin" },
+  );
+  assert.equal(attachment.status, "prepared", JSON.stringify(attachment));
+  assert(attachment.attachment);
+  const captured: NativeHostRequestV01[] = [];
+  const delegate = createDeterministicCodexAdapterV01({
+    now: () => "2026-07-18T15:08:00.000Z",
+  });
+  const adapter: NativeHostAdapterV01 = {
+    ...delegate,
+    invoke(request, control) {
+      captured.push(structuredClone(request));
+      return delegate.invoke(request, control);
+    },
+  };
+  const service = new LiveNativeHostRunServiceV01({
+    open_database: openDatabaseV01,
+    adapter_factory: () => adapter,
+    now: () => "2026-07-18T15:08:00.000Z",
+    runtime_instance_fingerprint: `sha256:${"2".repeat(64)}`,
+    runtime_generation_fingerprint: `sha256:${"b".repeat(64)}`,
+    repository_execution_dependencies: { platform: "darwin" },
+  });
+  try {
+    const prepared = await prepareRepositoryManagedDelegationV01(
+      fixture.db,
+      {
+        workspace_id: fixture.config.workspace_id,
+        project_id: fixture.config.project_id,
+        attachment_id: attachment.attachment.attachment_id,
+      },
+      service,
+      { now: () => "2026-07-18T15:04:00.000Z", platform: "darwin" },
+    );
+    assert.equal(prepared.status, "decision_required");
+    assert(prepared.decision_request && prepared.execution_envelope);
+    const grant = grantStartDecisionV01(
+      fixture.db,
+      fixture.config,
+      prepared.decision_request,
+      "2026-07-18T15:05:00.000Z",
+    );
+    const started = await startRepositoryManagedDelegationV01(
+      fixture.db,
+      {
+        config: fixture.config,
+        workspace_id: fixture.config.workspace_id,
+        project_id: fixture.config.project_id,
+        attachment_id: attachment.attachment.attachment_id,
+        expected_attachment_binding_fingerprint:
+          attachment.attachment.binding_fingerprint,
+        expected_execution_envelope_fingerprint:
+          prepared.execution_envelope.envelope_fingerprint,
+        decision_request_fingerprint: grant.request_fingerprint,
+        decision_grant_fingerprint: grant.grant_fingerprint!,
+      },
+      service,
+      { now: () => "2026-07-18T15:06:00.000Z", platform: "darwin" },
+    );
+    assert.equal(started.status, "accepted");
+    await waitForTerminalV01(fixture.db, started.run_id);
+    const runB = readAutonomyRunLedgerRecord(started.run_id, {
+      db: fixture.db,
+    });
+    assert(runB);
+    const receiptRecord = readVNextCoreRecordV01(fixture.db, {
+      record_kind: "run_receipt",
+      record_id: String(runB.metadata.run_receipt_id),
+      workspace_id: fixture.config.workspace_id,
+      project_id: fixture.config.project_id,
+    });
+    assert(receiptRecord);
+    assert.equal(captured.length, 1);
+    return {
+      continuation,
+      admission: admitted.admission,
+      packet_b: admitted.packet_b,
+      current_credential: currentCredential,
+      run_b: runB,
+      run_b_receipt: receiptRecord.payload as RunReceiptV01,
+      run_b_attachment_id: attachment.attachment.attachment_id,
+      run_b_attachment_binding_fingerprint:
+        attachment.attachment.binding_fingerprint,
+      run_b_start_request_fingerprint:
+        prepared.decision_request.request_fingerprint,
+      run_b_grant_fingerprint: grant.grant_fingerprint!,
+      run_b_controller_runtime_instance_fingerprint: `sha256:${"2".repeat(64)}`,
+      delivered_request: captured[0]!,
+    };
+  } finally {
+    await service.shutdown();
+  }
+}
+
+export function reusableOperationalContinuationFixtureFetchCallsV01(): number {
+  return fetchCalls;
+}
+
+export function cleanupReusableOperationalContinuationFixtureV01(
+  fixture: ReusableOperationalContinuationFixtureV01,
+): void {
+  fixture.db.close();
+  globalThis.fetch = originalFetch;
+  process.env = originalEnvironment;
+  rmSync(ROOT, { recursive: true, force: true });
+}
 
 async function main(): Promise<void> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
@@ -389,6 +594,8 @@ async function createFixtureV01(db: Database.Database): Promise<FixtureV01> {
     "semantic_transition",
   );
 
+  beforeRunAHook?.();
+
   const attachmentA = await prepareRepositoryExecutionV01(
     db,
     { workspace_id: workspaceId, project_id: projectId },
@@ -459,27 +666,76 @@ async function createFixtureV01(db: Database.Database): Promise<FixtureV01> {
     config,
     "2026-07-18T10:40:00.000Z",
   );
+  const contextSessionBefore = localOperatorSessionRowV01(
+    db,
+    contextCredential.session_id,
+  );
+  const contextSecretCallsBefore = secrets.calls;
+  const baseReviewRequest = {
+    action: "record_context_use_review" as const,
+    later_run_receipt_id: runAReceipt.receipt_id,
+    later_run_receipt_fingerprint: runAReceipt.integrity.fingerprint,
+    actually_used: "yes" as const,
+    assessment: "stale" as const,
+    correction_summaries: ["One bounded operational correction was needed."],
+    notes: ["Exact disposable ACGC5B Run A review."],
+    metrics: {
+      wrong_context_correction_count: 1,
+      repeated_explanation_estimate: 1,
+      missing_critical_context_count: 1,
+      context_refs_used_count: 1,
+    },
+  };
   const baseReview = recordVNextOperatorPilotContextUseReviewV01(db, {
     config,
     credential: contextCredential,
-    request: {
-      action: "record_context_use_review",
-      later_run_receipt_id: runAReceipt.receipt_id,
-      later_run_receipt_fingerprint: runAReceipt.integrity.fingerprint,
-      actually_used: "yes",
-      assessment: "stale",
-      correction_summaries: ["One bounded operational correction was needed."],
-      notes: ["Exact disposable ACGC5B Run A review."],
-      metrics: {
-        wrong_context_correction_count: 1,
-        repeated_explanation_estimate: 1,
-        missing_critical_context_count: 1,
-        context_refs_used_count: 1,
-      },
-    },
+    request: baseReviewRequest,
     clock: fixedClockV01("2026-07-18T10:41:00.000Z"),
     secret_source: secrets,
   });
+  assert.equal(baseReview.status, "inserted");
+  assert.equal(secrets.calls, contextSecretCallsBefore + 1);
+  const postReviewCredential = credentialFromCookieV01(
+    baseReview.session_admission.cookie_value,
+  );
+  const contextSessionAfter = localOperatorSessionRowV01(
+    db,
+    postReviewCredential.session_id,
+  );
+  assert.deepEqual(
+    changedObjectKeysV01(contextSessionBefore, contextSessionAfter),
+    ["action_nonce_hash", "updated_at"],
+  );
+  const semanticReplayState = databaseStateV01(db);
+  const semanticReplaySecretCalls = secrets.calls;
+  const semanticReplay = recordVNextOperatorPilotContextUseReviewV01(db, {
+    config,
+    credential: postReviewCredential,
+    request: baseReviewRequest,
+    clock: fixedClockV01("2026-07-18T10:41:01.000Z"),
+    secret_source: secrets,
+  });
+  assert.equal(semanticReplay.status, "exact_replay");
+  assert.deepEqual(semanticReplay.review, baseReview.review);
+  assert.equal(databaseStateV01(db), semanticReplayState);
+  assert.deepEqual(
+    localOperatorSessionRowV01(db, postReviewCredential.session_id),
+    contextSessionAfter,
+  );
+  assert.equal(secrets.calls, semanticReplaySecretCalls);
+  const staleSemanticCredentialState = databaseStateV01(db);
+  assert.throws(
+    () =>
+      recordVNextOperatorPilotContextUseReviewV01(db, {
+        config,
+        credential: contextCredential,
+        request: baseReviewRequest,
+        clock: fixedClockV01("2026-07-18T10:41:03.000Z"),
+        secret_source: secrets,
+      }),
+    /operator_action_nonce_invalid/u,
+  );
+  assert.equal(databaseStateV01(db), staleSemanticCredentialState);
   const operationalSource =
     buildOperationalFrictionDisposableReviewFixtureFromSourceChainV01(
       {

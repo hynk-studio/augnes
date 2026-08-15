@@ -17,10 +17,13 @@ import {
 import { normalizeProtocolTextV01 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import { readOperationalContinuationLineageStateV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ContextUseAttributionProjectionV01 } from "@/types/vnext/context-use-attribution-projection";
 import type { ContextUseReviewV01 } from "@/types/vnext/context-use-review";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
+import type { OperationalContextSelectionV01 } from "@/types/vnext/operational-context-selection";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
@@ -29,6 +32,7 @@ export interface ContextUseAttributionReadRequestV01 {
   project_id: string;
   review_id: string;
   review_fingerprint: string;
+  operational_context_selection?: OperationalContextSelectionV01;
 }
 
 export class ContextUseAttributionReadModelErrorV01 extends Error {
@@ -89,13 +93,21 @@ export function readContextUseAttributionProjectionV01(
     packet_fingerprint: review.later_packet.packet_fingerprint,
     role: "later",
   });
-  const transition = readTransitionV01(db, request, review);
   const runReceipt = readRunReceiptV01(db, request, review);
+  if (
+    review.source_transition_receipt &&
+    request.operational_context_selection !== undefined
+  ) {
+    failV01("context_use_attribution_unexpected_operational_selection");
+  }
+  const lineageSource = review.source_transition_receipt
+    ? readTransitionV01(db, request, review)
+    : readOperationalContinuationV01(db, request, review);
   const relation = validateContextUseReviewRelationsV01(
     review,
     priorPacket,
     laterPacket,
-    transition,
+    lineageSource,
     runReceipt,
   );
   if (relation.status !== "valid") {
@@ -109,7 +121,17 @@ export function readContextUseAttributionProjectionV01(
     review,
     prior_packet: priorPacket,
     later_packet: laterPacket,
-    source_transition_receipt: transition,
+    ...(review.source_transition_receipt
+      ? {
+          source_transition_receipt:
+            lineageSource as StateTransitionReceiptV01,
+        }
+      : {
+          source_operational_continuation_admission:
+            lineageSource as OperationalContinuationAdmissionV01,
+          source_operational_context_selection:
+            request.operational_context_selection,
+        }),
     later_task_run_receipt: runReceipt,
   });
 }
@@ -158,6 +180,9 @@ function readTransitionV01(
   request: ContextUseAttributionReadRequestV01,
   review: ContextUseReviewV01,
 ): StateTransitionReceiptV01 {
+  if (!review.source_transition_receipt) {
+    failV01("context_use_attribution_transition_receipt_binding_missing");
+  }
   const record = readRequiredRecordV01(db, {
     record_kind: "state_transition_receipt",
     record_id: review.source_transition_receipt.transition_receipt_id,
@@ -185,6 +210,35 @@ function readTransitionV01(
     error_code: "context_use_attribution_transition_receipt_envelope_invalid",
   });
   return transition;
+}
+
+function readOperationalContinuationV01(
+  db: Database.Database,
+  request: ContextUseAttributionReadRequestV01,
+  review: ContextUseReviewV01,
+) {
+  const binding = review.source_operational_continuation;
+  if (!binding) {
+    failV01("context_use_attribution_operational_continuation_binding_missing");
+  }
+  const state = readOperationalContinuationLineageStateV01(db, request);
+  if (
+    !request.operational_context_selection ||
+    !state ||
+    state.admission.admission_id !== binding.admission_id ||
+    state.admission.integrity.fingerprint !== binding.admission_fingerprint ||
+    state.admission.acgc5a_materialization_identity.materialization_id !==
+      binding.materialization_id ||
+    state.admission.acgc5a_materialization_identity.materialization_fingerprint !==
+      binding.materialization_fingerprint ||
+    state.admission.operational_context_selection.selection_id !==
+      binding.selection_id ||
+    state.admission.operational_context_selection.selection_fingerprint !==
+      binding.selection_fingerprint
+  ) {
+    failV01("context_use_attribution_operational_continuation_mismatch");
+  }
+  return state.admission;
 }
 
 function readRunReceiptV01(
@@ -273,10 +327,12 @@ function parseRequestV01(
     "project_id",
     "review_id",
     "review_fingerprint",
+    "operational_context_selection",
   ]);
   const keys = Object.keys(value);
   if (
-    keys.length !== allowed.size ||
+    keys.length < allowed.size - 1 ||
+    keys.length > allowed.size ||
     keys.some((key) => !allowed.has(key))
   ) {
     failV01("context_use_attribution_read_request_unknown_field");
@@ -286,6 +342,13 @@ function parseRequestV01(
     project_id: normalizeProtocolTextV01(value.project_id),
     review_id: normalizeProtocolTextV01(value.review_id),
     review_fingerprint: normalizeProtocolTextV01(value.review_fingerprint),
+    ...(value.operational_context_selection
+      ? {
+          operational_context_selection: structuredClone(
+            value.operational_context_selection,
+          ),
+        }
+      : {}),
   };
   if (
     !request.workspace_id ||

@@ -532,7 +532,7 @@ completion criteria are complete, and parent Issue #87 is closed.
 
 The detailed doctrine, gates, and later sequencing remain in the ACGC research
 program owner. This compact lifecycle record reconciles the merged issue and
-pull-request truth through ACGC Stage 4:
+pull-request truth through ACGC5B:
 
 | Stage | Issue | Merged outcome record | Completed outcome |
 | --- | --- | --- | --- |
@@ -548,26 +548,34 @@ pull-request truth through ACGC Stage 4:
 | ACGC4A | [#164](https://github.com/hynk-studio/augnes-perspective-lab/issues/164) | [PR #165](https://github.com/hynk-studio/augnes-perspective-lab/pull/165), `75640423` | Derived exact source-bound operational-friction proposal material without activation or Transition authority. |
 | ACGC4B | [#166](https://github.com/hynk-studio/augnes-perspective-lab/issues/166) | [PR #167](https://github.com/hynk-studio/augnes-perspective-lab/pull/167), `b89d73cf` | Added durable canonical operational proposal admission/readback and proposal-only accept/reject/defer while preserving null Transition intent and zero activation authority. |
 | ACGC5A | [#171](https://github.com/hynk-studio/augnes-perspective-lab/issues/171) | [PR #172](https://github.com/hynk-studio/augnes-perspective-lab/pull/172), `2f67300e` | Completed pure `OperationalContextSelectionV01` plus rebuildable, non-durable Packet B candidate materialization without persistence, activation, or execution authority. |
+| ACGC5B | [#173](https://github.com/hynk-studio/augnes-perspective-lab/issues/173) | [PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174), `05718240` | Completed explicit exact Packet B admission/current lineage plus the ordinary fresh Browser-confirmed managed Start path without semantic Transition or inherited execution authority. |
 
 ACGC Stages 0–4 remain **Completed**.
 
-### ACGC5B explicit Packet B admission and fresh managed Start — Current
+### ACGC5C terminal Run B attribution and equal-budget comparison — Current
 
-[Issue #173](https://github.com/hynk-studio/augnes-perspective-lab/issues/173)
-and [Draft PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174)
-are **Current** while the Draft PR is open. ACGC5B exactly revalidates the
-merged ACGC5A source chain and candidate, requires one explicit authenticated
-continuation admission, persists the exact Packet B as a distinct non-semantic
-current-work lineage, and then reuses the ordinary repository attachment and
-Browser-confirmed managed Start path for one fresh Run B. It stops after Run B
-is admitted and started; it does not complete or evaluate Run B.
+[Issue #175](https://github.com/hynk-studio/augnes-perspective-lab/issues/175)
+and [Draft PR #176](https://github.com/hynk-studio/augnes-perspective-lab/pull/176)
+are **Current** while the Draft PR is open. ACGC5C completes the exact Run B,
+records one exact RunReceipt B and authenticated continuation-lineage
+ContextUseReview, derives source-linked item attribution without bundle credit,
+and compares the two-run candidate with an isolated equal-ceiling one-run
+baseline through one pure, rebuildable, exact-case research contract.
 
-Stage 5 remains incomplete. ACGC5C and Stage 6+ remain separately unauthorized.
-No operational policy activation, automatic context injection, automatic
-Start or Resume, provider call, semantic Transition, C9, remote-node or Linux
-rollout, orchestration, publication, Ready, merge, or auto-merge authority was
-added. Packet B currentness remains separate from execution authority, and the
-fresh Browser-confirmed Start grant is not inherited from Run A.
+Stage 5 remains incomplete until ACGC5C merges. After merge, Stage 5 becomes
+**Completed** with the exact two-run completion, downstream source-linked
+attribution, strongest currently supportable equal-budget one-run comparison,
+and an exact-case `inconclusive` status that preserves the baseline-favoring
+observed structural coordination overhead separately from unobserved usage,
+cost, human-intervention, and performance-latency dimensions. This creates no
+general-benefit or general-failure claim and activates no operational policy.
+Stage 6 becomes only the next candidate for separate authorization; it is not
+**Current** and has not started.
+
+No automatic context injection, automatic Start or Resume, Packet C, second
+continuation hop, provider call, semantic Transition, C9, remote-node or Linux
+rollout, orchestration, actor promotion, publication, Ready, merge, or
+auto-merge authority was added.
 
 ### CLH1 machine-owned Companion lifecycle — Completed
 
@@ -588,10 +596,11 @@ uninstalled until that separate setup action is explicitly performed.
 
 ## Next separately authorized work
 
-For ACGC, ACGC5B is **Current** only while
-[Draft PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174)
-is open. Stage 5 remains incomplete; ACGC5C and Stage 6+ require their own
-separate explicit authorization. C9, current-session attachment, automatic
+For ACGC, ACGC5C is **Current** only while
+[Draft PR #176](https://github.com/hynk-studio/augnes-perspective-lab/pull/176)
+is open. Stage 5 remains incomplete until merge. Stage 6 is not **Current**, has
+not started, and requires separate explicit authorization. C9,
+current-session attachment, Packet C, a second continuation hop, automatic
 Start or Resume after controller loss or Companion startup, Linux product
 rollout, remote nodes, long-horizon control, continuous policy execution, and
 multi-agent orchestration remain later, separately unauthorized, and separate.
@@ -705,7 +714,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–4 and ACGC5A [Issue #171](https://github.com/hynk-studio/augnes-perspective-lab/issues/171) / [PR #172](https://github.com/hynk-studio/augnes-perspective-lab/pull/172) are merged and Completed at `2f67300e6e65abb80500b9a9efaf55ac48612ff7`. ACGC5B [Issue #173](https://github.com/hynk-studio/augnes-perspective-lab/issues/173) and [Draft PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174) are Current while open, limited to explicit exact Packet B admission/current lineage plus the ordinary fresh managed Start path; Stage 5 remains incomplete. | ACGC5C, Stage 6 model-succession/operational-policy ADR, and later live policy/orchestration expansion remain separately unauthorized. Documentation adds no operational policy activation, automatic context injection, automatic Start/Resume, provider call, semantic Transition, C9, remote-node or Linux rollout, orchestration, publication, Ready, merge, auto-merge, winner promotion, new authority, or default UI; every implementation slice requires its own issue, exact baseline, Draft PR, evaluation, and user review. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–4 and ACGC5A [Issue #171](https://github.com/hynk-studio/augnes-perspective-lab/issues/171) / [PR #172](https://github.com/hynk-studio/augnes-perspective-lab/pull/172) are merged and Completed. ACGC5B [Issue #173](https://github.com/hynk-studio/augnes-perspective-lab/issues/173) / [PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174) is merged and Completed at `05718240bd47cacdb97b3915f01ade3c1e9ad456`. ACGC5C [Issue #175](https://github.com/hynk-studio/augnes-perspective-lab/issues/175) and [Draft PR #176](https://github.com/hynk-studio/augnes-perspective-lab/pull/176) are Current while open; Stage 5 remains incomplete until merge. | After ACGC5C merge, Stage 5 becomes Completed with the exact two-run path, downstream source-linked attribution, strongest currently supportable equal-budget one-run comparison, and bounded exact-case `inconclusive` status: observed structural coordination overhead favors the baseline while material usage, cost, human-intervention, and performance-latency lanes remain unobserved. No general benefit or general failure is claimed. Stage 6 becomes only the next candidate for separate authorization: it is not Current and has not started. Documentation adds no operational policy activation, automatic context injection, automatic Start/Resume, Packet C, second continuation, provider call, semantic Transition, C9, remote-node or Linux rollout, orchestration, actor promotion, publication, Ready, merge, auto-merge, winner promotion, new authority, or default UI. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |

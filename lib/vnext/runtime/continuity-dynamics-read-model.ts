@@ -138,6 +138,12 @@ export function rebuildContinuityDynamicsFromDurableSourcesV01(
       failV01("continuity_dynamics_review_fingerprint_mismatch");
     }
     const review = reviewRecord.payload as ContextUseReviewV01;
+    if (
+      !review.source_transition_receipt ||
+      review.source_operational_continuation !== undefined
+    ) {
+      failV01("continuity_dynamics_semantic_transition_review_required");
+    }
     const priorPacket = readBoundRecordV01<TaskContextPacketV01>(db, {
       record_kind: "task_context_packet",
       record_id: review.prior_packet.packet_id,

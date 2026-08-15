@@ -37,10 +37,35 @@ export interface ContextUseAttributionTransitionBindingV01 {
   transition_receipt_fingerprint: string;
 }
 
+export interface ContextUseAttributionOperationalContinuationBindingV01 {
+  lineage_kind: "source_linked_operational_continuation";
+  admission_version: "operational_continuation_admission.v0.1";
+  admission_id: string;
+  admission_fingerprint: string;
+  materialization_id: string;
+  materialization_fingerprint: string;
+  selection_id: string;
+  selection_fingerprint: string;
+}
+
 export interface ContextUseAttributionSourceChainV01 {
   prior_packet: ContextUseAttributionPacketBindingV01;
-  source_transition_receipt: ContextUseAttributionTransitionBindingV01;
+  source_transition_receipt?: ContextUseAttributionTransitionBindingV01;
+  source_operational_continuation?: ContextUseAttributionOperationalContinuationBindingV01;
   relation_validation: "passed";
+}
+
+export interface ContextUseAttributionOperationalEntryBindingV01 {
+  admission_id: string;
+  admission_fingerprint: string;
+  selection_id: string;
+  selection_fingerprint: string;
+  candidate_id: string;
+  candidate_fingerprint: string;
+  selected_by_exact_packet_and_admission_relation: true;
+  proposal_only: true;
+  semantic_transition_eligible: false;
+  item_level_credit_or_blame: false;
 }
 
 export interface ContextUseAttributionEpisodeReviewContextV01 {
@@ -123,6 +148,7 @@ export interface ContextUseAttributionRowV01 {
   support_validation: ContextUseAttributionSupportValidationV01;
   outcome_association: ContextUseAttributionOutcomeAssociationV01;
   causal_contribution: ContextUseAttributionCausalContributionV01;
+  operational_continuation?: ContextUseAttributionOperationalEntryBindingV01;
   limitations: string[];
 }
 

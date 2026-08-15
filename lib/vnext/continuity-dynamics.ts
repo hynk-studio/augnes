@@ -1214,7 +1214,11 @@ function assertExactAttributionV01(
   if (validateContextUseAttributionProjectionV01(attribution).status !== "valid") {
     failV01("continuity_dynamics_acgc1_attribution_invalid");
   }
+  const transitionBinding =
+    attribution.source_chain.source_transition_receipt;
   const exact =
+    transitionBinding !== undefined &&
+    attribution.source_chain.source_operational_continuation === undefined &&
     attribution.workspace_id === input.workspace_id &&
     attribution.project_id === input.project_id &&
     attribution.context_use_review.review_id === input.context_use_review.review_id &&
@@ -1225,8 +1229,8 @@ function assertExactAttributionV01(
     attribution.later_task_context_packet.packet_fingerprint === input.later_task_context_packet.integrity.fingerprint &&
     attribution.source_chain.prior_packet.packet_id === input.prior_task_context_packet.packet_id &&
     attribution.source_chain.prior_packet.packet_fingerprint === input.prior_task_context_packet.integrity.fingerprint &&
-    attribution.source_chain.source_transition_receipt.transition_receipt_id === input.source_transition_receipt.transition_receipt_id &&
-    attribution.source_chain.source_transition_receipt.transition_receipt_fingerprint === input.source_transition_receipt.integrity.fingerprint;
+    transitionBinding.transition_receipt_id === input.source_transition_receipt.transition_receipt_id &&
+    transitionBinding.transition_receipt_fingerprint === input.source_transition_receipt.integrity.fingerprint;
   if (!exact) failV01("continuity_dynamics_acgc1_attribution_binding_mismatch");
 }
 

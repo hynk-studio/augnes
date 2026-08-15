@@ -17,6 +17,8 @@ import {
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateContextUseReviewRelationsV01 } from "@/lib/vnext/context-use-review";
+import { validateOperationalContextSelectionV01 } from "@/lib/vnext/operational-context-selection";
+import { assertOperationalContinuationAdmissionV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import {
   CONTEXT_USE_REVIEW_ACTUALLY_USED_VALUES_V01,
   CONTEXT_USE_REVIEW_ASSESSMENTS_V01,
@@ -43,6 +45,8 @@ import {
   type ExternalRefV01,
 } from "@/types/vnext/external-ref";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
+import type { OperationalContextSelectionV01 } from "@/types/vnext/operational-context-selection";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import {
   TASK_CONTEXT_PACKET_CURRENTNESS_STATUSES_V01,
@@ -96,7 +100,18 @@ const allowedTransitionBindingKeys = new Set([
 const allowedSourceChainKeys = new Set([
   "prior_packet",
   "source_transition_receipt",
+  "source_operational_continuation",
   "relation_validation",
+]);
+const allowedOperationalContinuationBindingKeys = new Set([
+  "lineage_kind",
+  "admission_version",
+  "admission_id",
+  "admission_fingerprint",
+  "materialization_id",
+  "materialization_fingerprint",
+  "selection_id",
+  "selection_fingerprint",
 ]);
 const allowedEpisodeReviewKeys = new Set([
   "scope",
@@ -143,7 +158,20 @@ const allowedRowKeys = new Set([
   "support_validation",
   "outcome_association",
   "causal_contribution",
+  "operational_continuation",
   "limitations",
+]);
+const allowedOperationalEntryBindingKeys = new Set([
+  "admission_id",
+  "admission_fingerprint",
+  "selection_id",
+  "selection_fingerprint",
+  "candidate_id",
+  "candidate_fingerprint",
+  "selected_by_exact_packet_and_admission_relation",
+  "proposal_only",
+  "semantic_transition_eligible",
+  "item_level_credit_or_blame",
 ]);
 const allowedCurrentnessKeys = new Set([
   "status",
@@ -253,18 +281,56 @@ export interface ContextUseAttributionBuilderInputV01 {
   review: ContextUseReviewV01;
   prior_packet: TaskContextPacketV01;
   later_packet: TaskContextPacketV01;
-  source_transition_receipt: StateTransitionReceiptV01;
+  source_transition_receipt?: StateTransitionReceiptV01;
+  source_operational_continuation_admission?: OperationalContinuationAdmissionV01;
+  source_operational_context_selection?: OperationalContextSelectionV01;
   later_task_run_receipt: RunReceiptV01;
 }
 
 export function buildContextUseAttributionProjectionV01(
   input: ContextUseAttributionBuilderInputV01,
 ): ContextUseAttributionProjectionV01 {
+  const lineageSource =
+    input.source_transition_receipt ??
+    input.source_operational_continuation_admission;
+  if (
+    (input.source_transition_receipt === undefined) ===
+    (input.source_operational_continuation_admission === undefined)
+  ) {
+    throw new RangeError(
+      "context_use_attribution_exactly_one_lineage_source_required",
+    );
+  }
+  if (input.source_operational_continuation_admission) {
+    assertOperationalContinuationAdmissionV01(
+      input.source_operational_continuation_admission,
+    );
+    if (
+      !input.source_operational_context_selection ||
+      validateOperationalContextSelectionV01(
+        input.source_operational_context_selection,
+      ).status !== "valid" ||
+      input.source_operational_context_selection.selection_id !==
+        input.source_operational_continuation_admission.operational_context_selection
+          .selection_id ||
+      input.source_operational_context_selection.integrity.fingerprint !==
+        input.source_operational_continuation_admission.operational_context_selection
+          .selection_fingerprint
+    ) {
+      throw new RangeError(
+        "context_use_attribution_operational_selection_relation_invalid",
+      );
+    }
+  } else if (input.source_operational_context_selection !== undefined) {
+    throw new RangeError(
+      "context_use_attribution_unexpected_operational_selection",
+    );
+  }
   const relation = validateContextUseReviewRelationsV01(
     input.review,
     input.prior_packet,
     input.later_packet,
-    input.source_transition_receipt,
+    lineageSource,
     input.later_task_run_receipt,
   );
   if (relation.status !== "valid") {
@@ -285,7 +351,15 @@ export function buildContextUseAttributionProjectionV01(
     input.later_task_run_receipt,
   );
   const rows = input.later_packet.selected_context
-    .map((entry) => buildRowV01(entry, input.review, receiptRefs))
+    .map((entry) =>
+      buildRowV01(
+        entry,
+        input.review,
+        receiptRefs,
+        input.source_operational_continuation_admission ?? null,
+        input.source_operational_context_selection ?? null,
+      ),
+    )
     .sort((left, right) =>
       canonicalizeProtocolValueV01(left).localeCompare(
         canonicalizeProtocolValueV01(right),
@@ -327,19 +401,28 @@ export function buildContextUseAttributionProjectionV01(
       ),
     },
     later_task_context_packet: packetBindingV01(input.later_packet),
-    source_chain: {
-      prior_packet: packetBindingV01(input.prior_packet),
-      source_transition_receipt: {
-        transition_receipt_version: "state_transition_receipt.v0.1",
-        transition_receipt_id: normalizeProtocolTextV01(
-          input.source_transition_receipt.transition_receipt_id,
-        ),
-        transition_receipt_fingerprint: normalizeProtocolTextV01(
-          input.source_transition_receipt.integrity.fingerprint,
-        ),
-      },
-      relation_validation: "passed",
-    },
+    source_chain: input.source_transition_receipt
+      ? {
+          prior_packet: packetBindingV01(input.prior_packet),
+          source_transition_receipt: {
+            transition_receipt_version: "state_transition_receipt.v0.1",
+            transition_receipt_id: normalizeProtocolTextV01(
+              input.source_transition_receipt.transition_receipt_id,
+            ),
+            transition_receipt_fingerprint: normalizeProtocolTextV01(
+              input.source_transition_receipt.integrity.fingerprint,
+            ),
+          },
+          relation_validation: "passed",
+        }
+      : {
+          prior_packet: packetBindingV01(input.prior_packet),
+          source_operational_continuation:
+            operationalContinuationBindingV01(
+              input.source_operational_continuation_admission!,
+            ),
+          relation_validation: "passed",
+        },
     episode_review_context: {
       scope: "packet_level_episode_review_only",
       presented: input.review.usage.presented,
@@ -587,6 +670,8 @@ function buildRowV01(
   entry: TaskContextPacketSelectedEntryV01,
   review: ContextUseReviewV01,
   receiptRefs: ExternalRefV01[],
+  continuationAdmission: OperationalContinuationAdmissionV01 | null,
+  continuationSelection: OperationalContextSelectionV01 | null,
 ): ContextUseAttributionRowV01 {
   const presentationKnown =
     review.usage.presented === "yes" &&
@@ -623,6 +708,13 @@ function buildRowV01(
       ? ["reference_presence_not_support_validation"]
       : ["no_exact_run_receipt_item_reference"]),
   ];
+  const operationalContinuation = continuationAdmission
+    ? operationalEntryBindingV01(
+        entry,
+        continuationAdmission,
+        continuationSelection!,
+      )
+    : null;
   return {
     entry_id: normalizeProtocolTextV01(entry.entry_id),
     entry_kind: entry.entry_kind,
@@ -705,7 +797,84 @@ function buildRowV01(
       unknown_reason:
         "No intervention, ablation, or counterfactual relation is present.",
     },
+    ...(operationalContinuation
+      ? { operational_continuation: operationalContinuation }
+      : {}),
     limitations: uniqueProtocolStringsV01(limitations),
+  };
+}
+
+function operationalContinuationBindingV01(
+  admission: OperationalContinuationAdmissionV01,
+) {
+  return {
+    lineage_kind: "source_linked_operational_continuation" as const,
+    admission_version: "operational_continuation_admission.v0.1" as const,
+    admission_id: admission.admission_id,
+    admission_fingerprint: admission.integrity.fingerprint,
+    materialization_id:
+      admission.acgc5a_materialization_identity.materialization_id,
+    materialization_fingerprint:
+      admission.acgc5a_materialization_identity.materialization_fingerprint,
+    selection_id: admission.operational_context_selection.selection_id,
+    selection_fingerprint:
+      admission.operational_context_selection.selection_fingerprint,
+  };
+}
+
+function operationalEntryBindingV01(
+  entry: TaskContextPacketSelectedEntryV01,
+  admission: OperationalContinuationAdmissionV01,
+  selection: OperationalContextSelectionV01,
+): ContextUseAttributionRowV01["operational_continuation"] | null {
+  const candidateId = entry.external_ref?.external_id ?? null;
+  const candidateFingerprint = entry.external_ref?.source_ref ?? null;
+  const selectedRow = selection.selected_rows.find(
+    (row) =>
+      row.candidate_id === candidateId &&
+      row.candidate_fingerprint === candidateFingerprint,
+  );
+  const selectedDecision = selectedRow?.review_decision
+    ? admission.effective_proposal_only_decisions.find(
+        (decision) =>
+          decision.decision_id === selectedRow.review_decision!.decision_id &&
+          decision.decision_fingerprint ===
+            selectedRow.review_decision!.decision_fingerprint &&
+          decision.disposition === "accept" &&
+          decision.review_mode === "proposal_only_no_activation" &&
+          decision.requested_transition_intent_present === false,
+      )
+    : undefined;
+  if (
+    entry.entry_kind !== "source_ref" ||
+    entry.source_ref !== candidateFingerprint ||
+    entry.external_ref?.ref_type !== "operational_friction_candidate" ||
+    entry.external_ref.trust_class !== "derived_interpretation" ||
+    entry.compatibility_source_ref?.ref_type !==
+      "operational_context_selection" ||
+    entry.compatibility_source_ref.external_id !== selection.selection_id ||
+    entry.compatibility_source_ref.source_ref !== selection.integrity.fingerprint ||
+    selectedRow?.disposition !== "selected_effective_accept" ||
+    selectedRow.proposal_only !== true ||
+    selectedRow.semantic_transition_eligible !== false ||
+    selectedRow.item_level_credit_or_blame !== false ||
+    !selectedDecision ||
+    !candidateId ||
+    !candidateFingerprint
+  ) {
+    return null;
+  }
+  return {
+    admission_id: admission.admission_id,
+    admission_fingerprint: admission.integrity.fingerprint,
+    selection_id: selection.selection_id,
+    selection_fingerprint: selection.integrity.fingerprint,
+    candidate_id: candidateId,
+    candidate_fingerprint: candidateFingerprint,
+    selected_by_exact_packet_and_admission_relation: true,
+    proposal_only: true,
+    semantic_transition_eligible: false,
+    item_level_credit_or_blame: false,
   };
 }
 
@@ -903,17 +1072,41 @@ function validateSourceChainV01(value: unknown, accumulator: Accumulator) {
     ],
     accumulator,
   );
-  validateBindingV01(
-    source.source_transition_receipt,
-    `${path}.source_transition_receipt`,
-    allowedTransitionBindingKeys,
-    [
-      ["transition_receipt_version", "state_transition_receipt.v0.1"],
-      ["transition_receipt_id", null],
-      ["transition_receipt_fingerprint", "sha256"],
-    ],
-    accumulator,
-  );
+  const hasTransition = source.source_transition_receipt !== undefined;
+  const hasContinuation =
+    source.source_operational_continuation !== undefined;
+  if (hasTransition === hasContinuation) {
+    addError(accumulator, "source_lineage_relation_invalid", path, "Exactly one attribution source lineage is required.", true);
+  } else if (hasTransition) {
+    validateBindingV01(
+      source.source_transition_receipt,
+      `${path}.source_transition_receipt`,
+      allowedTransitionBindingKeys,
+      [
+        ["transition_receipt_version", "state_transition_receipt.v0.1"],
+        ["transition_receipt_id", null],
+        ["transition_receipt_fingerprint", "sha256"],
+      ],
+      accumulator,
+    );
+  } else {
+    validateBindingV01(
+      source.source_operational_continuation,
+      `${path}.source_operational_continuation`,
+      allowedOperationalContinuationBindingKeys,
+      [
+        ["lineage_kind", "source_linked_operational_continuation"],
+        ["admission_version", "operational_continuation_admission.v0.1"],
+        ["admission_id", null],
+        ["admission_fingerprint", "sha256"],
+        ["materialization_id", null],
+        ["materialization_fingerprint", "sha256"],
+        ["selection_id", null],
+        ["selection_fingerprint", "sha256"],
+      ],
+      accumulator,
+    );
+  }
   if (source.relation_validation !== "passed") {
     addError(
       accumulator,
@@ -1055,6 +1248,9 @@ function validateCrossSectionSemanticsV01(
     ? input.rows.filter(isProtocolRecordV01)
     : [];
   if (!episode || !completeness) return;
+  const sourceChain = isProtocolRecordV01(input.source_chain)
+    ? input.source_chain
+    : null;
 
   const historical = episode.usage_provenance_status === "historical_missing";
   if (completeness.historical_usage_provenance_missing !== historical) {
@@ -1151,6 +1347,37 @@ function validateCrossSectionSemanticsV01(
         );
       }
     }
+    if (row.operational_continuation !== undefined) {
+      const binding = isProtocolRecordV01(row.operational_continuation)
+        ? row.operational_continuation
+        : null;
+      const source =
+        sourceChain &&
+        isProtocolRecordV01(sourceChain.source_operational_continuation)
+          ? sourceChain.source_operational_continuation
+          : null;
+      if (
+        !binding ||
+        !source ||
+        binding.admission_id !== source.admission_id ||
+        binding.admission_fingerprint !== source.admission_fingerprint ||
+        binding.selection_id !== source.selection_id ||
+        binding.selection_fingerprint !== source.selection_fingerprint ||
+        binding.candidate_id !==
+          (isProtocolRecordV01(row.external_ref)
+            ? row.external_ref.external_id
+            : null) ||
+        binding.candidate_fingerprint !== row.source_ref
+      ) {
+        addError(accumulator, "operational_entry_relation_invalid", `$.rows[${index}].operational_continuation`, "Operational entry attribution must bind the exact admission, selection, candidate, and selected packet entry.", true);
+      }
+    }
+  }
+  if (
+    sourceChain?.source_operational_continuation !== undefined &&
+    !rows.some((row) => row.operational_continuation !== undefined)
+  ) {
+    addError(accumulator, "operational_entry_binding_missing", "$.rows", "Continuation attribution requires at least one exact selected operational entry binding.", true);
   }
 
   const missing = Array.isArray(completeness.missing_lanes)
@@ -1223,8 +1450,54 @@ function validateRowsV01(value: unknown, accumulator: Accumulator) {
     validateUnknownLaneV01(row.support_validation, `${path}.support_validation`, "no_exact_item_support_relation", accumulator);
     validateUnknownLaneV01(row.outcome_association, `${path}.outcome_association`, "no_exact_item_outcome_relation", accumulator);
     validateCausalLaneV01(row.causal_contribution, `${path}.causal_contribution`, accumulator);
+    if (row.operational_continuation !== undefined) {
+      validateOperationalEntryBindingV01(
+        row.operational_continuation,
+        `${path}.operational_continuation`,
+        accumulator,
+      );
+    }
     validateStringArrayV01(row.limitations, `${path}.limitations`, accumulator);
   });
+}
+
+function validateOperationalEntryBindingV01(
+  value: unknown,
+  path: string,
+  accumulator: Accumulator,
+) {
+  const binding = recordV01(value, path, accumulator);
+  if (!binding) return;
+  rejectNestedV01(
+    binding,
+    allowedOperationalEntryBindingKeys,
+    path,
+    accumulator,
+  );
+  for (const field of [
+    "admission_id",
+    "selection_id",
+    "candidate_id",
+  ] as const) {
+    requireStringV01(binding[field], `${path}.${field}`, accumulator);
+  }
+  for (const field of [
+    "admission_fingerprint",
+    "selection_fingerprint",
+    "candidate_fingerprint",
+  ] as const) {
+    validateShaV01(binding[field], `${path}.${field}`, accumulator);
+  }
+  for (const [field, expected] of [
+    ["selected_by_exact_packet_and_admission_relation", true],
+    ["proposal_only", true],
+    ["semantic_transition_eligible", false],
+    ["item_level_credit_or_blame", false],
+  ] as const) {
+    if (binding[field] !== expected) {
+      addError(accumulator, "operational_entry_authority_boundary_invalid", `${path}.${field}`, "Operational entry authority and attribution boundaries must remain exact.", true);
+    }
+  }
 }
 
 function validateCurrentnessV01(

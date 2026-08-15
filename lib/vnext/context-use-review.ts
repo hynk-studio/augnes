@@ -18,6 +18,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import { assertOperationalContinuationAdmissionV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import {
   validateTaskContextPacketTransitionRelationV01,
 } from "@/lib/vnext/state-transition-eligibility";
@@ -35,6 +36,7 @@ import {
   type ContextUseReviewCompatibilityMetadataV01,
   type ContextUseReviewMaterialBoundaryV01,
   type ContextUseReviewMetricsV01,
+  type ContextUseReviewOperationalContinuationBindingV01,
   type ContextUseReviewPacketBindingV01,
   type ContextUseReviewRunReceiptBindingV01,
   type ContextUseReviewTransitionReceiptBindingV01,
@@ -45,6 +47,11 @@ import {
   type ContextUseReviewValidationResultV01,
 } from "@/types/vnext/context-use-review";
 import { RUN_RECEIPT_VERSION_V01, type RunReceiptV01 } from "@/types/vnext/run-receipt";
+import {
+  OPERATIONAL_CONTINUATION_ADMISSION_VERSION_V01,
+  SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01,
+  type OperationalContinuationAdmissionV01,
+} from "@/types/vnext/operational-continuation-admission";
 import {
   STATE_TRANSITION_RECEIPT_VERSION_V01,
   type StateTransitionReceiptV01,
@@ -68,6 +75,7 @@ const usageProvenanceBases = new Set<string>(
 const allowedRootKeys = new Set([
   "review_version", "review_id", "workspace_id", "project_id",
   "prior_packet", "later_packet", "source_transition_receipt",
+  "source_operational_continuation",
   "later_task_run_receipt", "reviewer_ref",
   "reviewer_authentication_basis_refs", "reviewed_at", "usage",
   "usage_provenance", "assessment", "corrections", "metrics", "notes", "compatibility",
@@ -79,6 +87,11 @@ const allowedPacketBindingKeys = new Set([
 const allowedTransitionBindingKeys = new Set([
   "transition_receipt_version", "transition_receipt_id",
   "transition_receipt_fingerprint",
+]);
+const allowedOperationalContinuationBindingKeys = new Set([
+  "lineage_kind", "admission_version", "admission_id",
+  "admission_fingerprint", "materialization_id",
+  "materialization_fingerprint", "selection_id", "selection_fingerprint",
 ]);
 const allowedRunBindingKeys = new Set([
   "receipt_version", "receipt_id", "receipt_fingerprint",
@@ -125,7 +138,7 @@ const boundedTextFields = new Set(["summaries", "notes", "warnings", "reason"]);
 
 export const CONTEXT_USE_REVIEW_REQUIRED_CORE_FIELDS_V01 = [
   "review_version", "review_id", "workspace_id", "project_id",
-  "prior_packet", "later_packet", "source_transition_receipt",
+  "prior_packet", "later_packet",
   "later_task_run_receipt", "reviewer_ref",
   "reviewer_authentication_basis_refs", "reviewed_at", "usage",
   "assessment", "corrections", "metrics", "notes", "compatibility",
@@ -153,9 +166,21 @@ export function buildContextUseReviewV01(
     project_id: normalizeProtocolTextV01(input.project_id),
     prior_packet: normalizePacketBinding(input.prior_packet),
     later_packet: normalizePacketBinding(input.later_packet),
-    source_transition_receipt: normalizeTransitionBinding(
-      input.source_transition_receipt,
-    ),
+    ...(input.source_transition_receipt
+      ? {
+          source_transition_receipt: normalizeTransitionBinding(
+            input.source_transition_receipt,
+          ),
+        }
+      : {}),
+    ...(input.source_operational_continuation
+      ? {
+          source_operational_continuation:
+            normalizeOperationalContinuationBinding(
+              input.source_operational_continuation,
+            ),
+        }
+      : {}),
     later_task_run_receipt: normalizeRunBinding(input.later_task_run_receipt),
     reviewer_ref: normalizeExternalRefPrimitiveV01(input.reviewer_ref),
     reviewer_authentication_basis_refs: normalizeRefs(
@@ -316,7 +341,12 @@ export function deriveContextUseReviewIdV01(review: ContextUseReviewV01): string
       project_id: review.project_id,
       prior_packet: review.prior_packet,
       later_packet: review.later_packet,
-      source_transition_receipt: review.source_transition_receipt,
+      ...(review.source_transition_receipt
+        ? { source_transition_receipt: review.source_transition_receipt }
+        : {
+            source_operational_continuation:
+              review.source_operational_continuation,
+          }),
       later_task_run_receipt: review.later_task_run_receipt,
       reviewer_ref: review.reviewer_ref,
       reviewed_at: review.reviewed_at,
@@ -374,7 +404,27 @@ export function validateContextUseReviewV01(
   requireString(input.project_id, "$.project_id", accumulator);
   validatePacketBinding(input.prior_packet, "$.prior_packet", accumulator);
   validatePacketBinding(input.later_packet, "$.later_packet", accumulator);
-  validateTransitionBinding(input.source_transition_receipt, accumulator);
+  const hasTransition = input.source_transition_receipt !== undefined;
+  const hasOperationalContinuation =
+    input.source_operational_continuation !== undefined;
+  if (hasTransition === hasOperationalContinuation) {
+    addError(
+      accumulator,
+      "context_use_review_lineage_relation_invalid",
+      "$",
+      "Exactly one semantic-transition or source-linked operational-continuation relation is required.",
+      true,
+    );
+  }
+  if (hasTransition) {
+    validateTransitionBinding(input.source_transition_receipt, accumulator);
+  }
+  if (hasOperationalContinuation) {
+    validateOperationalContinuationBinding(
+      input.source_operational_continuation,
+      accumulator,
+    );
+  }
   validateRunBinding(input.later_task_run_receipt, accumulator);
   validateExternalRefStructureV01(input.reviewer_ref, "$.reviewer_ref", sink);
   if (
@@ -439,7 +489,7 @@ export function validateContextUseReviewRelationsV01(
   reviewInput: unknown,
   priorPacketInput: unknown,
   laterPacketInput: unknown,
-  transitionReceiptInput: unknown,
+  lineageSourceInput: unknown,
   laterTaskRunReceiptInput: unknown,
 ): ContextUseReviewValidationResultV01 {
   const base = validateContextUseReviewV01(reviewInput);
@@ -447,7 +497,7 @@ export function validateContextUseReviewRelationsV01(
     errors: [...base.errors], warnings: [...base.warnings],
     blocked: base.status === "blocked",
   };
-  const relatedValidations = [
+  const commonValidations = [
     [
       validateTaskContextPacketV01(priorPacketInput, {
         evaluated_at: packetEvaluationTime(priorPacketInput),
@@ -463,49 +513,74 @@ export function validateContextUseReviewRelationsV01(
       "$.later_packet",
     ],
     [
-      validateStateTransitionReceiptV01(transitionReceiptInput),
-      "source_transition_receipt_invalid",
-      "$.source_transition_receipt",
-    ],
-    [
       validateRunReceiptV01(laterTaskRunReceiptInput),
       "later_task_run_receipt_invalid",
       "$.later_task_run_receipt",
     ],
   ] as const;
-  for (const [validation, code, path] of relatedValidations) {
+  for (const [validation, code, path] of commonValidations) {
     if (validation.status !== "valid") addError(accumulator, code, path, "Related payload must validate independently.", true);
   }
   if (
     base.status !== "valid" ||
-    relatedValidations.some(([validation]) => validation.status !== "valid") ||
+    commonValidations.some(([validation]) => validation.status !== "valid") ||
     !isProtocolRecordV01(reviewInput)
   ) return result(accumulator, base.normalized_protocol_version);
 
   const review = reviewInput as unknown as ContextUseReviewV01;
   const prior = priorPacketInput as TaskContextPacketV01;
   const later = laterPacketInput as TaskContextPacketV01;
-  const transition = transitionReceiptInput as StateTransitionReceiptV01;
   const run = laterTaskRunReceiptInput as RunReceiptV01;
+  const semanticRelation = review.source_transition_receipt !== undefined;
+  let transition: StateTransitionReceiptV01 | null = null;
+  let continuationAdmission: OperationalContinuationAdmissionV01 | null = null;
+  if (semanticRelation) {
+    const transitionValidation = validateStateTransitionReceiptV01(
+      lineageSourceInput,
+    );
+    if (transitionValidation.status !== "valid") {
+      addError(accumulator, "source_transition_receipt_invalid", "$.source_transition_receipt", "Related payload must validate independently.", true);
+      return result(accumulator, base.normalized_protocol_version);
+    }
+    transition = lineageSourceInput as StateTransitionReceiptV01;
+  } else {
+    try {
+      assertOperationalContinuationAdmissionV01(lineageSourceInput);
+      continuationAdmission = lineageSourceInput;
+    } catch {
+      addError(accumulator, "source_operational_continuation_admission_invalid", "$.source_operational_continuation", "Related operational continuation admission must validate independently.", true);
+      return result(accumulator, base.normalized_protocol_version);
+    }
+  }
   for (const [value, code, path] of [
     [prior.workspace_id, "workspace_mismatch", "$.prior_packet"],
     [later.workspace_id, "workspace_mismatch", "$.later_packet"],
-    [transition.workspace_id, "workspace_mismatch", "$.source_transition_receipt"],
+    [semanticRelation ? transition!.workspace_id : continuationAdmission!.workspace_id, "workspace_mismatch", semanticRelation ? "$.source_transition_receipt" : "$.source_operational_continuation"],
     [run.workspace_id, "workspace_mismatch", "$.later_task_run_receipt"],
   ] as const) if (value !== review.workspace_id) addError(accumulator, code, path, "Workspace identity must match.", true);
   for (const [value, code, path] of [
     [prior.project_id, "project_mismatch", "$.prior_packet"],
     [later.project_id, "project_mismatch", "$.later_packet"],
-    [transition.project_id, "project_mismatch", "$.source_transition_receipt"],
+    [semanticRelation ? transition!.project_id : continuationAdmission!.project_id, "project_mismatch", semanticRelation ? "$.source_transition_receipt" : "$.source_operational_continuation"],
     [run.project_id, "project_mismatch", "$.later_task_run_receipt"],
   ] as const) if (value !== review.project_id) addError(accumulator, code, path, "Project identity must match.", true);
 
   validateExactPacketBinding(review.prior_packet, prior, "prior_packet", accumulator);
   validateExactPacketBinding(review.later_packet, later, "later_packet", accumulator);
-  if (
-    review.source_transition_receipt.transition_receipt_id !== transition.transition_receipt_id ||
-    review.source_transition_receipt.transition_receipt_fingerprint !== transition.integrity.fingerprint
-  ) addError(accumulator, "transition_receipt_binding_mismatch", "$.source_transition_receipt", "Review must bind the exact transition receipt.", true);
+  if (semanticRelation) {
+    if (
+      review.source_transition_receipt!.transition_receipt_id !== transition!.transition_receipt_id ||
+      review.source_transition_receipt!.transition_receipt_fingerprint !== transition!.integrity.fingerprint
+    ) addError(accumulator, "transition_receipt_binding_mismatch", "$.source_transition_receipt", "Review must bind the exact transition receipt.", true);
+  } else {
+    validateOperationalContinuationReviewBindingV01(
+      review,
+      prior,
+      later,
+      continuationAdmission!,
+      accumulator,
+    );
+  }
   if (
     review.later_task_run_receipt.receipt_id !== run.receipt_id ||
     review.later_task_run_receipt.receipt_fingerprint !== run.integrity.fingerprint
@@ -532,9 +607,11 @@ export function validateContextUseReviewRelationsV01(
     }
   }
 
-  const packetRelation = validateTaskContextPacketTransitionRelationV01(prior, transition, later);
-  if (packetRelation.status !== "valid") {
-    addError(accumulator, "packet_transition_relation_invalid", "$.later_packet", "Prior packet, transition receipt, and later packet relation must validate.", true);
+  if (semanticRelation) {
+    const packetRelation = validateTaskContextPacketTransitionRelationV01(prior, transition!, later);
+    if (packetRelation.status !== "valid") {
+      addError(accumulator, "packet_transition_relation_invalid", "$.later_packet", "Prior packet, transition receipt, and later packet relation must validate.", true);
+    }
   }
   const packetRef = run.task_context_packet_ref;
   if (
@@ -543,24 +620,33 @@ export function validateContextUseReviewRelationsV01(
     packetRef.source_ref !== later.integrity.fingerprint ||
     !["direct_local_observation", "verified_external_observation"].includes(packetRef.trust_class)
   ) addError(accumulator, "later_packet_run_receipt_relation_mismatch", "$.later_task_run_receipt", "Later-task receipt must preserve an observation-grade exact later packet ID and fingerprint reference.", true);
-  const transitionRefs = run.external_refs.filter(
-    (ref) =>
-      ref.ref_type === "state_transition_receipt" &&
-      ref.external_id === transition.transition_receipt_id,
-  );
-  if (
-    transitionRefs.length !== 1 ||
-    transitionRefs[0]!.source_ref !== transition.integrity.fingerprint ||
-    !["direct_local_observation", "verified_external_observation"].includes(
-      transitionRefs[0]!.trust_class,
-    )
-  ) {
-    addError(
+  if (semanticRelation) {
+    const transitionRefs = run.external_refs.filter(
+      (ref) =>
+        ref.ref_type === "state_transition_receipt" &&
+        ref.external_id === transition!.transition_receipt_id,
+    );
+    if (
+      transitionRefs.length !== 1 ||
+      transitionRefs[0]!.source_ref !== transition!.integrity.fingerprint ||
+      !["direct_local_observation", "verified_external_observation"].includes(
+        transitionRefs[0]!.trust_class,
+      )
+    ) {
+      addError(
+        accumulator,
+        "transition_run_receipt_relation_mismatch",
+        "$.later_task_run_receipt",
+        "Later-task receipt must preserve one observation-grade exact source transition receipt ID and fingerprint reference.",
+        true,
+      );
+    }
+  } else {
+    validateOperationalContinuationRunReceiptRefsV01(
+      run,
+      prior,
+      continuationAdmission!,
       accumulator,
-      "transition_run_receipt_relation_mismatch",
-      "$.later_task_run_receipt",
-      "Later-task receipt must preserve one observation-grade exact source transition receipt ID and fingerprint reference.",
-      true,
     );
   }
 
@@ -572,11 +658,105 @@ export function validateContextUseReviewRelationsV01(
   return result(accumulator, base.normalized_protocol_version);
 }
 
+function validateOperationalContinuationReviewBindingV01(
+  review: ContextUseReviewV01,
+  prior: TaskContextPacketV01,
+  later: TaskContextPacketV01,
+  admission: OperationalContinuationAdmissionV01,
+  accumulator: Accumulator,
+): void {
+  const binding = review.source_operational_continuation!;
+  const identity = admission.acgc5a_materialization_identity;
+  if (
+    binding.lineage_kind !== SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01 ||
+    binding.admission_version !== admission.admission_version ||
+    binding.admission_id !== admission.admission_id ||
+    binding.admission_fingerprint !== admission.integrity.fingerprint ||
+    binding.materialization_id !== identity.materialization_id ||
+    binding.materialization_fingerprint !== identity.materialization_fingerprint ||
+    binding.selection_id !== admission.operational_context_selection.selection_id ||
+    binding.selection_fingerprint !== admission.operational_context_selection.selection_fingerprint ||
+    admission.lineage.packet_a.packet_id !== prior.packet_id ||
+    admission.lineage.packet_a.packet_fingerprint !== prior.integrity.fingerprint ||
+    admission.lineage.packet_b.packet_id !== later.packet_id ||
+    admission.lineage.packet_b.packet_fingerprint !== later.integrity.fingerprint ||
+    admission.lineage.continuation_hop !== 1 ||
+    admission.lineage.semantic_transition_created !== false ||
+    canonicalizeProtocolValueV01(admission.work_ref) !==
+      canonicalizeProtocolValueV01(later.work_ref) ||
+    canonicalizeProtocolValueV01(prior.work_ref) !==
+      canonicalizeProtocolValueV01(later.work_ref)
+  ) {
+    addError(
+      accumulator,
+      "operational_continuation_relation_mismatch",
+      "$.source_operational_continuation",
+      "Review must bind the exact one-hop admission, materialization, selection, Packet A, and Packet B relation.",
+      true,
+    );
+  }
+}
+
+function validateOperationalContinuationRunReceiptRefsV01(
+  run: RunReceiptV01,
+  prior: TaskContextPacketV01,
+  admission: OperationalContinuationAdmissionV01,
+  accumulator: Accumulator,
+): void {
+  const identity = admission.acgc5a_materialization_identity;
+  const expected = [
+    ["operational_continuation_admission", admission.admission_id, admission.integrity.fingerprint],
+    ["source_linked_operational_continuation", identity.materialization_id, identity.materialization_fingerprint],
+    ["task_context_packet", prior.packet_id, prior.integrity.fingerprint],
+  ] as const;
+  for (const [refType, externalId, sourceRef] of expected) {
+    const matches = run.source_refs.filter(
+      (ref) =>
+        ref.ref_type === refType &&
+        ref.external_id === externalId &&
+        ref.source_ref === sourceRef &&
+        ["direct_local_observation", "verified_external_observation"].includes(
+          ref.trust_class,
+        ),
+    );
+    if (matches.length !== 1) {
+      addError(
+        accumulator,
+        "operational_continuation_run_receipt_relation_mismatch",
+        "$.later_task_run_receipt",
+        "RunReceipt B must preserve one observation-grade exact admission, materialization, and immediate-prior Packet A reference.",
+        true,
+      );
+      return;
+    }
+  }
+}
+
 function normalizePacketBinding(input: ContextUseReviewPacketBindingV01): ContextUseReviewPacketBindingV01 {
   return { packet_version: TASK_CONTEXT_PACKET_VERSION_V01, packet_id: normalizeProtocolTextV01(input.packet_id), packet_fingerprint: normalizeProtocolTextV01(input.packet_fingerprint) };
 }
 function normalizeTransitionBinding(input: ContextUseReviewTransitionReceiptBindingV01): ContextUseReviewTransitionReceiptBindingV01 {
   return { transition_receipt_version: STATE_TRANSITION_RECEIPT_VERSION_V01, transition_receipt_id: normalizeProtocolTextV01(input.transition_receipt_id), transition_receipt_fingerprint: normalizeProtocolTextV01(input.transition_receipt_fingerprint) };
+}
+function normalizeOperationalContinuationBinding(
+  input: ContextUseReviewOperationalContinuationBindingV01,
+): ContextUseReviewOperationalContinuationBindingV01 {
+  return {
+    lineage_kind: SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01,
+    admission_version: OPERATIONAL_CONTINUATION_ADMISSION_VERSION_V01,
+    admission_id: normalizeProtocolTextV01(input.admission_id),
+    admission_fingerprint: normalizeProtocolTextV01(
+      input.admission_fingerprint,
+    ),
+    materialization_id: normalizeProtocolTextV01(input.materialization_id),
+    materialization_fingerprint: normalizeProtocolTextV01(
+      input.materialization_fingerprint,
+    ),
+    selection_id: normalizeProtocolTextV01(input.selection_id),
+    selection_fingerprint: normalizeProtocolTextV01(
+      input.selection_fingerprint,
+    ),
+  };
 }
 function normalizeRunBinding(input: ContextUseReviewRunReceiptBindingV01): ContextUseReviewRunReceiptBindingV01 {
   return { receipt_version: RUN_RECEIPT_VERSION_V01, receipt_id: normalizeProtocolTextV01(input.receipt_id), receipt_fingerprint: normalizeProtocolTextV01(input.receipt_fingerprint) };
@@ -628,6 +808,36 @@ function validateSha(value: unknown, path: string, acc: Accumulator) { if (!/^sh
 function rejectNested(value: ProtocolJsonRecordV01, keys: Set<string>, path: string, acc: Accumulator) { rejectUnknownProtocolKeysV01(value, keys, path, issueSink(acc), "unknown_nested_field", true); }
 function validatePacketBinding(value: unknown, path: string, acc: Accumulator) { const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedPacketBindingKeys, path, acc); if (item.packet_version !== TASK_CONTEXT_PACKET_VERSION_V01) addError(acc, "packet_version_invalid", `${path}.packet_version`, "Packet version is invalid."); requireString(item.packet_id, `${path}.packet_id`, acc); validateSha(item.packet_fingerprint, `${path}.packet_fingerprint`, acc); }
 function validateTransitionBinding(value: unknown, acc: Accumulator) { const path = "$.source_transition_receipt"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedTransitionBindingKeys, path, acc); if (item.transition_receipt_version !== STATE_TRANSITION_RECEIPT_VERSION_V01) addError(acc, "transition_receipt_version_invalid", `${path}.transition_receipt_version`, "Transition receipt version is invalid."); requireString(item.transition_receipt_id, `${path}.transition_receipt_id`, acc); validateSha(item.transition_receipt_fingerprint, `${path}.transition_receipt_fingerprint`, acc); }
+function validateOperationalContinuationBinding(value: unknown, acc: Accumulator) {
+  const path = "$.source_operational_continuation";
+  const item = record(value, path, acc);
+  if (!item) return;
+  rejectNested(item, allowedOperationalContinuationBindingKeys, path, acc);
+  if (
+    item.lineage_kind !== SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01
+  ) {
+    addError(acc, "operational_continuation_lineage_kind_invalid", `${path}.lineage_kind`, "Operational continuation lineage kind is invalid.", true);
+  }
+  if (
+    item.admission_version !== OPERATIONAL_CONTINUATION_ADMISSION_VERSION_V01
+  ) {
+    addError(acc, "operational_continuation_admission_version_invalid", `${path}.admission_version`, "Operational continuation admission version is invalid.", true);
+  }
+  for (const field of [
+    "admission_id",
+    "materialization_id",
+    "selection_id",
+  ] as const) {
+    requireString(item[field], `${path}.${field}`, acc);
+  }
+  for (const field of [
+    "admission_fingerprint",
+    "materialization_fingerprint",
+    "selection_fingerprint",
+  ] as const) {
+    validateSha(item[field], `${path}.${field}`, acc);
+  }
+}
 function validateRunBinding(value: unknown, acc: Accumulator) { const path = "$.later_task_run_receipt"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedRunBindingKeys, path, acc); if (item.receipt_version !== RUN_RECEIPT_VERSION_V01) addError(acc, "run_receipt_version_invalid", `${path}.receipt_version`, "RunReceipt version is invalid."); requireString(item.receipt_id, `${path}.receipt_id`, acc); validateSha(item.receipt_fingerprint, `${path}.receipt_fingerprint`, acc); }
 function validateUsage(value: unknown, acc: Accumulator) { const path = "$.usage"; const item = record(value, path, acc); if (!item) return; rejectNested(item, allowedUsageKeys, path, acc); if (!presentedValues.has(protocolStringValueV01(item.presented) ?? "")) addError(acc, "presented_invalid", `${path}.presented`, "Presented value is invalid."); if (!actuallyUsedValues.has(protocolStringValueV01(item.actually_used) ?? "")) addError(acc, "actually_used_invalid", `${path}.actually_used`, "Actually-used value is invalid."); }
 function validateUsageProvenance(value: unknown, root: ProtocolJsonRecordV01, acc: Accumulator) {
