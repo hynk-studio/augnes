@@ -59,7 +59,9 @@ The supported CDX2B1 path is:
 fresh local Codex
 → installed augnes-operator plugin
 → plugin stdio discovery proxy
-→ verified existing supervised Augnes bridge identity
+→ bounded checkout service lifecycle status
+→ optional one start of the already-installed exact service
+→ verified supervised Augnes bridge identity
 → strict supervised UI/Core repository route
 → canonical Augnes database
 → exact repository-scoped continuity
@@ -70,8 +72,18 @@ Start the sole Companion lifecycle owner from the Augnes checkout:
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
-npm run augnes
+npm run augnes:service:install
 ```
+
+The user LaunchAgent is an explicit, checkout-bound macOS installation. It
+pins one Node 24 binary and survives terminal/Codex exit, login, and unexpected
+supervisor failure. It grants no repository execution, managed Resume,
+provider, semantic, publication, or merge authority. Explicit stop/uninstall
+remain available. Stop persists across a later login or LaunchAgent reload;
+only explicit Start or Install returns that exact service to running. One
+production Companion service is allowed per local user session, and a
+different checkout refuses without mutating the existing service. Linux and
+Windows service installation are unsupported.
 
 The supervisor owns database preparation, UI, bridge, runtime generation and
 instance identity, dynamic port selection, package compatibility, recovery,
@@ -81,13 +93,14 @@ or supervisor for normal Codex use.
 Install the reviewed repo-local plugin once from the repository root:
 
 ```bash
-codex plugin marketplace add .
-codex plugin add augnes-operator@augnes-local
+npm run augnes:plugin:install
 ```
 
 The plugin's reviewed `.mcp.json` starts a
 per-Codex-session stdio proxy. That proxy is not a daemon and owns no Augnes
-state. It locates supervisor manifests in the application-owned runtime area,
+state. Even with no live Companion it exposes bounded lifecycle status and an
+already-installed exact service start. It never installs or rewrites service
+configuration. After live verification it locates supervisor manifests in the application-owned runtime area,
 verifies the adjacent generation-bound Companion access record plus UI and
 bridge identity, then calls the strict UI/Core route directly instead of
 partially forwarding MCP JSON. The plugin forwards the supervisor's existing
@@ -101,8 +114,10 @@ whose exact port is already known.
 
 ## Repository resume tool
 
-Users do not need to memorize the tool name. The Augnes Operator discovery
-layer maps requests such as these to `augnes_resume_repository`:
+Users do not need to memorize tool names. The Augnes Operator maps fresh
+continuation to `augnes_companion_lifecycle_status`, at most one
+`augnes_start_companion_service`, and then at most one read-only
+`augnes_resume_repository` call:
 
 - Resume this repository with Augnes.
 - What was I working on here?

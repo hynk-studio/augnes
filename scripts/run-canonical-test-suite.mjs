@@ -16,6 +16,10 @@ import {
   findForbiddenAmbientKeysForwarded,
 } from "./canonical-test-environment.mjs";
 import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
+import {
+  acquireCompanionServiceMaintenance,
+  releaseCompanionServiceMaintenance,
+} from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -280,6 +284,16 @@ const suites = {
     {
       label: "live Companion discovery and dynamic bridge-port contract",
       ...rootNode("scripts/test-codex-companion-discovery.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "machine-owned Companion service and public lifecycle contract",
+      ...rootNode("scripts/test-companion-service-contract.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "Augnes Operator reviewed plugin install and cache contract",
+      ...rootNode("scripts/test-augnes-operator-plugin-setup.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -664,6 +678,24 @@ const suites = {
       timeoutMs: 390_000,
     },
     ...buildRuntimeOperabilityCanonicalSteps(rootNode),
+    ...(process.platform === "darwin"
+      ? [{
+          id: "companion-service-native",
+          shard: "operability-supervisor",
+          requirements: [
+            "database",
+            "process-owning",
+            "listener-port-owning",
+            "filesystem",
+            "nested-app-runtime",
+            "launch-agent-owning",
+          ],
+          label: "machine-owned macOS Companion service lifecycle and cleanup",
+          ...rootNode("scripts/test-companion-service-native.mjs"),
+          timeoutMs: 240_000,
+          requireNaturalExit: true,
+        }]
+      : []),
     {
       id: "runtime-reconciliation",
       shard: "operability-runtime-reconciliation",
@@ -777,6 +809,8 @@ if (!(suiteName in suites)) {
 const results = [];
 let forbiddenEnvironmentKeysForwarded = 0;
 let canonicalChildrenChecked = 0;
+let serviceMaintenance = null;
+let serviceMaintenanceRelease = null;
 
 try {
   const preparedSteps = suites[suiteName].map((step, index) => {
@@ -852,6 +886,18 @@ try {
     );
   }
 
+  const requiresServiceMaintenance = preparedSteps.some((step) =>
+    step.requirements.includes("process-owning") ||
+    step.requirements.includes("listener-port-owning") ||
+    step.requirements.includes("browser-profile-owning"),
+  );
+  if (requiresServiceMaintenance) {
+    serviceMaintenance = await acquireCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      operationId: `canonical-suite:${suiteName}:${process.pid}`,
+    });
+  }
+
   let completedResults;
   if (suiteName === "integration") {
     const operator = preparedSteps.filter(
@@ -914,6 +960,13 @@ try {
     });
   }
 
+  if (serviceMaintenance) {
+    serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      lease: serviceMaintenance.lease,
+    });
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -941,12 +994,28 @@ try {
             }
           : {}),
         results,
+        companion_service_maintenance: serviceMaintenance
+          ? {
+              before: serviceMaintenance.before,
+              after: serviceMaintenanceRelease.after,
+              acquired: serviceMaintenance.acquired,
+              release_completed:
+                serviceMaintenance.acquired === false ||
+                serviceMaintenanceRelease.released === true,
+            }
+          : null,
       },
       null,
       2,
     ),
   );
 } finally {
+  if (serviceMaintenance && !serviceMaintenanceRelease) {
+    serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      lease: serviceMaintenance.lease,
+    });
+  }
   for (const resourceRoot of ownedResourceRoots) {
     rmSync(resourceRoot, { recursive: true, force: true });
   }

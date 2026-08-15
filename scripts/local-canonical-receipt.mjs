@@ -237,6 +237,12 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     issues.push("receipt_cleanup_incomplete");
   }
   if (
+    receipt?.cleanup?.companion_service?.restored !== true ||
+    receipt?.cleanup?.companion_service?.maintenance_released !== true
+  ) {
+    issues.push("receipt_companion_service_not_restored");
+  }
+  if (
     receipt?.final?.result !== "pass" ||
     receipt?.final?.exit_status !== 0
   ) {

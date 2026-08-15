@@ -6,16 +6,15 @@
    the reviewed plugin once:
 
    ```bash
-   codex plugin marketplace add .
-   codex plugin add augnes-operator@augnes-local
+   npm run augnes:plugin:install
    ```
 
-2. Start the existing supervised Augnes Companion from the Augnes checkout:
+2. Explicitly install the Companion service for this checkout once on macOS:
 
    ```bash
    npm install
    npm --prefix apps/augnes_apps install
-   npm run augnes
+   npm run augnes:service:install
    ```
 
    After connecting the exact local project in the Browser, work-definition
@@ -32,15 +31,50 @@
    Resume this repository with Augnes.
    ```
 
-These commands match the locally verified Codex CLI `0.147.0` plugin surface;
-that build uses `plugin add`, not a nonexistent `plugin install` command. The
-plugin install is the one explicit setup step. No fixed bridge URL or copied
+The service setup is local user-session infrastructure for this exact physical
+checkout. It starts only the existing supervised UI/Core and bridge, contains
+no secret, grants no repository execution or semantic authority, and never
+starts or resumes a managed run. Explicit stop and uninstall are reversible:
+
+```bash
+npm run augnes:service:stop
+npm run augnes:service:uninstall
+```
+
+Explicit Stop is durable across login and LaunchAgent reload; only an explicit
+Start or Install returns the exact service to running. Augnes permits one
+production Companion service per local user session. Installing or starting a
+different checkout refuses without stopping, adopting, rewriting, or removing
+the existing checkout service.
+
+The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
+surface; that build uses `plugin add`, not a nonexistent `plugin install`
+command. It refreshes an already-installed local plugin, requires effective
+version 0.4.0, verifies the cached manifest/proxy/service core/skill/hook as one
+reviewed copy, and refuses any silently retained 0.3.0 cache. The
+plugin and checkout service installs are explicit setup actions. No fixed bridge URL or copied
 user-level MCP config is required. The plugin manifest points to `.mcp.json`,
 which starts `mcp/companion-proxy.mjs` as a per-session stdio server. Current
 Codex plugin/MCP support recognizes the reviewed `mcpServers` manifest pointer
 and the standard `command`, `args`, and `cwd` server fields used here.
 
+Plugin version 0.4.0 replaces stale 0.3.0 Resume-first behavior. Start a new
+Codex conversation after refreshing the repo-local marketplace and plugin so
+the proxy, skill, hook, and default prompt all come from the same reviewed
+version; setup verification fails closed if 0.3.0 remains effective.
+
 ## What the proxy does
+
+The per-session proxy exposes `augnes_companion_lifecycle_status` even when no
+Companion exists. It returns bounded service and exact-checkout relation state.
+For one already-installed exact startable service,
+`augnes_start_companion_service` may perform one reversible runtime start and
+wait for exactly one verified Companion. It cannot install or rewrite a
+service, accept a command/label/executable, run repository commands, write
+project files, create work, start or resume a managed run, call a provider, or
+change semantic state. The fresh flow is status, at most one start, then at
+most one `augnes_resume_repository` call; no loop or fallback reconstruction is
+allowed.
 
 The proxy scans only application-owned Augnes runtime-manifest locations (or a
 single explicit test manifest), then verifies:

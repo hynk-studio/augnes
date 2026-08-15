@@ -9,22 +9,36 @@ Use this skill when the user says “Resume this repository with Augnes,” “W
 was I working on here?”, “Continue from the current Augnes context,” or “Show
 the current Augnes project state.”
 
-1. Supply the current local repository root to `augnes_resume_repository`.
-2. Use only a response whose Companion status is `live`, repository resolution
+1. Supply the exact current local repository root to
+   `augnes_companion_lifecycle_status`. Lifecycle state is machine-local
+   infrastructure state, not canonical repository continuity.
+2. If status is `live` with canonical Resume available, call
+   `augnes_resume_repository` exactly once. If status is `installed_stopped`
+   or offers one exact recoverable start, call
+   `augnes_start_companion_service` exactly once, require exactly one verified
+   live Companion, then call `augnes_resume_repository` exactly once. Do not
+   loop or retry either tool.
+3. For `not_installed`, stop with the single setup action **Install Augnes
+   Companion service for this checkout**. Resume/continue authority permits
+   starting an already-installed exact service as a reversible prerequisite;
+   it does not permit installation. Preserve `unsupported`, `ambiguous`,
+   `service_update_required`, and `recovery_required` as their one bounded
+   action or refusal.
+4. Use only a response whose Companion status is `live`, repository resolution
    is `resolved_exact`, and nested continuity comes from
    `codex_current_continuity.v0.1`.
-3. Present the ordinary-language current situation and one next meaningful
+5. Present the ordinary-language current situation and one next meaningful
    action. Use the Browser deep link only when returned.
-4. Refresh the tool after Browser-side work revision before continuing from a
+6. Refresh the tool after Browser-side work revision before continuing from a
    prior snapshot binding.
-5. Preserve every unavailable, ambiguous, moved-root, or partial
+7. Preserve every unavailable, ambiguous, moved-root, or partial
    result. Do not reconstruct missing continuity from source, docs, fixtures,
    GuideBrief, Work Brief, names, branches, GitHub URLs, or active Browser
    selection.
-6. When later managed work needs a trusted repository attachment, call
+8. When later managed work needs a trusted repository attachment, call
    `augnes_prepare_repository_execution` with the same physical root. Exact
    preparation is silent and requires no Browser-active match.
-7. If the result is `baseline_adoption_required`, request the one explicit
+9. If the result is `baseline_adoption_required`, request the one explicit
    legacy-root decision, direct the user to confirm the exact request in Augnes
    Browser project settings, and use `augnes_adopt_repository_execution_root`
    only with the returned expected admission/observation fingerprints plus the
@@ -35,7 +49,7 @@ the current Augnes project state.”
    any decision from Git remote equality, annotations, or assistant-generated
    prose. The Browser's HttpOnly decision session and request-bound nonce are
    intentionally unavailable to this skill and all MCP tools.
-8. Validate a prepared handle with
+10. Validate a prepared handle with
    `augnes_validate_repository_execution_attachment` before treating it as
    current. Use the explicit revoke tool only for a user-authorized exact
    attachment.
@@ -50,7 +64,7 @@ the current Augnes project state.”
    `567c9bbbad5d35e6803ad740adfac1b881983912`. A later integrated head is not
    Windows 10 exact-head verified without a fresh run there; packaged Windows
    remains unsupported and must remain truthfully distinguished.
-9. To start managed repository work, call
+11. To start managed repository work, call
    `augnes_request_repository_delegation` for the exact prepared attachment.
    Ask the user to confirm the displayed start card in Augnes Browser. Never
    request, infer, or reproduce the Browser session, challenge, cookie, or
@@ -62,7 +76,7 @@ the current Augnes project state.”
    envelope, request, and grant binding returned by that canonical replay.
    Never guess a grant or reuse the request fingerprint as the grant.
    Exact Start replay must return the same run.
-10. Use `augnes_resume_repository` for managed status/result/review continuity.
+12. Use `augnes_resume_repository` for managed status/result/review continuity.
     For an attachment-backed run, report its canonical resume-eligibility
     status and last confirmed operation without invoking resume. Treat
     `approval_pending` as approval review and `reconciliation_required` as an

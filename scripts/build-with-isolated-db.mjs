@@ -21,6 +21,10 @@ import {
   terminateOwnedProcessTree,
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
+import {
+  acquireCompanionServiceMaintenance,
+  releaseCompanionServiceMaintenance,
+} from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const DATABASE_BUILD_STEP_TIMEOUT_MS = 30_000;
 const NEXT_BUILD_STEP_TIMEOUT_MS = 120_000;
@@ -47,8 +51,15 @@ const ownedDatabaseFiles = [
   `${buildDatabasePath}-journal`,
 ];
 let defaultDatabaseGuardBaseline = null;
+let serviceMaintenance = null;
+let serviceMaintenanceRelease = null;
 
 try {
+  serviceMaintenance = await acquireCompanionServiceMaintenance({
+    repositoryRoot: rootDir,
+    operationId: `build:${process.pid}`,
+    joinAncestorLease: true,
+  });
   if (!absentDefaultGuardMode) {
     defaultDatabaseGuardBaseline = createDefaultDatabaseGuardFixture(
       defaultDatabaseGuardPath,
@@ -76,6 +87,23 @@ try {
   );
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
+  if (serviceMaintenance) {
+    serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
+      repositoryRoot: rootDir,
+      lease: serviceMaintenance.lease,
+    });
+  }
+  console.log(JSON.stringify({
+    companion_service_maintenance: {
+      before: serviceMaintenance?.before ?? null,
+      after: serviceMaintenanceRelease?.after ?? null,
+      acquired: serviceMaintenance?.acquired === true,
+      release_completed:
+        serviceMaintenance === null ||
+        serviceMaintenance.acquired === false ||
+        serviceMaintenanceRelease?.released === true,
+    },
+  }));
 }
 
 assert.equal(

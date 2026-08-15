@@ -1,7 +1,7 @@
 {
   "name": "augnes-operator",
-  "version": "0.3.0",
-  "description": "Augnes workflow harness plus a fail-closed local connection to the live supervised Augnes Companion for exact repository continuity.",
+  "version": "0.4.0",
+  "description": "Augnes workflow harness plus a fail-closed macOS Companion service lifecycle and exact canonical repository continuity.",
   "author": {
     "name": "Aurna-code"
   },
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Augnes Operator",
     "shortDescription": "Use Augnes workflow skills inside Codex.",
-    "longDescription": "Packages Augnes workflow skills and one read-only local MCP connection that discovers the existing supervised Companion, resolves the current physical repository to one registered project, and returns exact canonical continuity without mock or fallback state.",
+    "longDescription": "Packages Augnes workflow skills, bounded status and start controls for an explicitly installed checkout-bound macOS Companion service, and exact canonical continuity through one verified live Companion without mock or fallback state.",
     "developerName": "Aurna-code",
     "category": "Productivity",
     "capabilities": [
@@ -19,8 +19,9 @@
       "surface-ops-guidance",
       "capsule-handoff-guidance",
       "authority-audit",
+      "companion-service-lifecycle",
       "live-repository-continuity"
     ],
-    "defaultPrompt": "For Augnes repository resume, call augnes_resume_repository with the current repository root before reading files or docs."
+    "defaultPrompt": "For fresh repository continuation, call augnes_companion_lifecycle_status for the exact current root; if startable, call augnes_start_companion_service once; after live verification, call augnes_resume_repository once."
   }
 }

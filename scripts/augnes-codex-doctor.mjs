@@ -5,6 +5,11 @@ import http from "node:http";
 import path from "node:path";
 import { URL } from "node:url";
 
+import {
+  inspectCompanionService,
+  publicCompanionServiceProjection,
+} from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
+
 const args = new Set(process.argv.slice(2));
 const outputMode = args.has("--json") ? "json" : args.has("--report") ? "report" : "human";
 
@@ -23,6 +28,11 @@ const requiredPackageScripts = [
   "augnes:codex-bootstrap",
   "augnes:doctor",
   "augnes:setup-local-demo",
+  "augnes:service:install",
+  "augnes:service:status",
+  "augnes:service:start",
+  "augnes:service:stop",
+  "augnes:service:uninstall",
   "typecheck",
   "build",
   "test",
@@ -115,6 +125,7 @@ checkNodeModules(
 );
 
 checkPackageScripts();
+await checkCompanionService();
 await checkTempDemoDb();
 await checkRuntimeStateBrief("http://localhost:3000/api/state/brief?scope=project:augnes");
 await checkMcpBridgeReachability("http://localhost:8787/mcp");
@@ -169,6 +180,31 @@ function checkPackageScripts() {
     } else {
       fail(`package_script:${scriptName}`, "missing", `${scriptName} must be wired in package.json`);
     }
+  }
+}
+
+async function checkCompanionService() {
+  const service = publicCompanionServiceProjection(
+    await inspectCompanionService({ repositoryRoot: repoRoot }),
+  );
+  const detail = JSON.stringify({
+    contract: service.contract,
+    service_version: service.service_version,
+    status: service.status,
+    checkout_relation: service.checkout_relation,
+    start_available: service.start_available,
+    canonical_resume_available: service.canonical_resume_available,
+    reason: service.reason,
+  });
+  if (["live", "installed_stopped", "starting", "maintenance"].includes(service.status)) {
+    pass("companion_service", detail);
+    return;
+  }
+  warn("companion_service", service.reason, detail);
+  if (service.status === "not_installed") {
+    addAction("Install Augnes Companion service for this checkout: `npm run augnes:service:install`.");
+  } else {
+    addAction(service.next_action);
   }
 }
 
