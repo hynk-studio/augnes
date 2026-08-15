@@ -531,8 +531,8 @@ completion criteria are complete, and parent Issue #87 is closed.
 ## ACGC completed and merge-bound lifecycle
 
 The detailed doctrine, gates, and later sequencing remain in the ACGC research
-program owner. This compact lifecycle record reconciles only the merged issue
-and pull-request truth through ACGC3D:
+program owner. This compact lifecycle record reconciles the merged issue and
+pull-request truth through ACGC Stage 4:
 
 | Stage | Issue | Merged outcome record | Completed outcome |
 | --- | --- | --- | --- |
@@ -545,31 +545,39 @@ and pull-request truth through ACGC3D:
 | ACGC3C1 | [#158](https://github.com/hynk-studio/augnes-perspective-lab/issues/158) | [PR #159](https://github.com/hynk-studio/augnes-perspective-lab/pull/159), `6cc0f444` | Built the isolated Governed Actor Lab pilot with product and Lab authority separated. |
 | ACGC3C2 | [#160](https://github.com/hynk-studio/augnes-perspective-lab/issues/160) | [PR #161](https://github.com/hynk-studio/augnes-perspective-lab/pull/161), `e06a678a` | Completed the bounded live-model Lab cohort record while retaining zero product authority. |
 | ACGC3D | [#162](https://github.com/hynk-studio/augnes-perspective-lab/issues/162) | [PR #163](https://github.com/hynk-studio/augnes-perspective-lab/pull/163), `b56f3ebf` | Completed the boundary coverage gap audit without activating Stage 4, policy, proposal admission, review, Transition, execution, publication, or merge authority. |
+| ACGC4A | [#164](https://github.com/hynk-studio/augnes-perspective-lab/issues/164) | [PR #165](https://github.com/hynk-studio/augnes-perspective-lab/pull/165), `75640423` | Derived exact source-bound operational-friction proposal material without activation or Transition authority. |
+| ACGC4B | [#166](https://github.com/hynk-studio/augnes-perspective-lab/issues/166) | [PR #167](https://github.com/hynk-studio/augnes-perspective-lab/pull/167), `b89d73cf` | Added durable canonical operational proposal admission/readback and proposal-only accept/reject/defer while preserving null Transition intent and zero activation authority. |
 
-### ACGC4B operational proposal admission and review — Current
+ACGC Stage 4 is **Completed**. Stage 5 — source-linked two-run operational
+continuation — is the next ACGC candidate for separate explicit authorization
+and remains unstarted. No operational policy or product activation has occurred;
+proposal-only acceptance remains review judgment rather than semantic Transition
+or operational activation.
 
-ACGC4A ([Issue #164](https://github.com/hynk-studio/augnes-perspective-lab/issues/164),
-[PR #165](https://github.com/hynk-studio/augnes-perspective-lab/pull/165)) is
-**Completed** at merged main `7564042349d1374867a364fdb04e2f3f927c4d87`.
-Its completed scope is the exact source bundle, pure and rebuildable
-operational-friction proposal profile, deterministic `EpisodeDeltaProposal`
-materialization, and negative Transition proof.
+### CLH1 machine-owned Companion lifecycle — Completed
 
-ACGC4B ([Issue #166](https://github.com/hynk-studio/augnes-perspective-lab/issues/166),
-[Draft PR #167](https://github.com/hynk-studio/augnes-perspective-lab/pull/167))
-is **Current** while that PR is open and becomes **Completed** only if it
-merges. Stage 4 remains incomplete until ACGC4B merges. Stage 5 and later ACGC
-stages remain separately unauthorized and unstarted. ACGC4B admits and records
-review judgment for bounded operational proposals only; no operational policy
-or product activation has occurred, and this roadmap reconciliation grants no
-Transition, execution, publication, or merge authority.
+[Issue #168](https://github.com/hynk-studio/augnes-perspective-lab/issues/168)
+and [PR #169](https://github.com/hynk-studio/augnes-perspective-lab/pull/169)
+define the completed Companion lifecycle infrastructure correction, merged as
+`980848f582ca2914ad3603ca910fd0e2456a5558`. CLH1 replaces PTY-owned cold-start
+bootstrap on the supported macOS source lane with one explicit checkout-bound
+user-session Companion service, plugin `0.4.0`, lifecycle-first
+status → optional one Start → read-only Resume, durable explicit Stop intent,
+and maintenance restoration across process-owning verification.
+
+CLH1 is infrastructure hardening, not ACGC Stage 5. Service installation remains
+one explicit host setup action; Companion restart does not automatically Start
+or Resume managed work and grants no semantic, provider, external-effect,
+publication, or merge authority. The ordinary production service remains
+uninstalled until that separate setup action is explicitly performed.
 
 ## Next separately authorized work
 
-C9, current-session attachment, automatic Resume after controller loss or
-Companion startup, Linux product rollout, remote nodes, long-horizon control,
-continuous policy execution, and multi-agent orchestration remain later,
-separately unauthorized, and separate.
+For ACGC, Stage 5 source-linked two-run operational continuation is **Next** and
+requires separate explicit authorization. C9, current-session attachment,
+automatic Resume after controller loss or Companion startup, Linux product
+rollout, remote nodes, long-horizon control, continuous policy execution, and
+multi-agent orchestration remain later, separately unauthorized, and separate.
 
 ## Integrated resume lifecycle
 
@@ -680,7 +688,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Conditional cross-cutting R&D over current packets, receipts, context-use feedback, assessment/proposal lineage, and Lab boundaries. | Begin with source-bound item-level context-use attribution and one-selector shadow evaluation; temporal dynamics, strategy composition, model succession, two-run continuation, and separately authorized Lab-only actor evolution are later or parallel slices. Documentation does not activate packet mutation, operational policy, actors, automatic context injection, winner promotion, new authority, or default UI; every implementation slice requires its own issue, exact baseline, Draft PR, evaluation, and user review. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–4 are merged. Stage 5 source-linked two-run operational continuation is the next separately authorized candidate and remains unstarted. | Stage 6 model-succession/operational-policy ADR and later live policy/orchestration expansion remain separate or conditional. Documentation does not activate packet mutation, operational policy, automatic context injection, winner promotion, new authority, or default UI; every implementation slice requires its own issue, exact baseline, Draft PR, evaluation, and user review. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
