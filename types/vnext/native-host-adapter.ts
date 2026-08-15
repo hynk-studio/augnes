@@ -128,6 +128,14 @@ export type NativeHostPacketLineageV01 =
       origin_first_work_definition_ref: ExternalRefV01;
       packet_source_refs: ExternalRefV01[];
       selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "source_linked_operational_continuation";
+      operational_continuation_admission_ref: ExternalRefV01;
+      operational_continuation_materialization_ref: ExternalRefV01;
+      immediate_prior_packet_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
     };
 
 export interface NativeHostRequestV01 {

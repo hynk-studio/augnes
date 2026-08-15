@@ -50,6 +50,7 @@ import { applyCanonicalDatabaseMigrations } from "@/scripts/canonical-database-m
 import type { VNextSemanticCommitGateRecordV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
 import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
@@ -72,6 +73,7 @@ export const PORTABLE_PROJECT_SUPPORTED_RECORD_KINDS_V01 = Object.freeze([
   "task_context_packet",
   "run_receipt",
   "context_use_review",
+  "operational_continuation_admission",
 ] as const satisfies readonly VNextCoreRecordKindV01[]);
 
 export const PORTABLE_PROJECT_EXCLUDED_CATEGORIES_V01 = Object.freeze([
@@ -436,14 +438,26 @@ export function parseAndValidatePortableProjectV01(
         ),
       ) ||
     candidate.records
-      .filter((record) => record.record_kind === "review_decision")
+      .filter(
+        (record) =>
+          record.record_kind === "review_decision" ||
+          record.record_kind === "operational_continuation_admission",
+      )
       .some((record) => {
-        const decision = record.payload as {
-          authorization_basis_refs?: Array<{ ref_type?: string; external_id?: string }>;
-        };
-        const refs = decision.authorization_basis_refs?.filter(
-          (ref) => ref.ref_type === "local_operator_session_action",
-        ) ?? [];
+        const refs =
+          record.record_kind === "review_decision"
+            ? ((record.payload as {
+                authorization_basis_refs?: Array<{
+                  ref_type?: string;
+                  external_id?: string;
+                }>;
+              }).authorization_basis_refs?.filter(
+                (ref) => ref.ref_type === "local_operator_session_action",
+              ) ?? [])
+            : [
+                (record.payload as OperationalContinuationAdmissionV01)
+                  .authenticated_action?.local_session_action_ref,
+              ].filter(Boolean);
         return refs.length !== 1 || !provenanceIds.has(refs[0]!.external_id ?? "");
       })
   ) {
@@ -1033,6 +1047,12 @@ function readPortableOperatorProvenanceSessionsV01(
       refs = decision.authorization_basis_refs?.filter(
         (ref) => ref.ref_type === "local_operator_session_action",
       ) ?? [];
+    } else if (record.record_kind === "operational_continuation_admission") {
+      provenanceRequired = true;
+      const admission = record.payload as OperationalContinuationAdmissionV01;
+      refs = [admission.authenticated_action?.local_session_action_ref].filter(
+        (ref): ref is NonNullable<typeof ref> => Boolean(ref),
+      );
     } else if (record.record_kind === "task_context_packet") {
       const packet = record.payload as TaskContextPacketV01;
       if (

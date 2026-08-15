@@ -156,6 +156,12 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label:
+        "authenticated source-linked continuation admission and fresh managed Start contract",
+      ...rootNode("scripts/test-operational-continuation-admission.ts"),
+      timeoutMs: 45_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",

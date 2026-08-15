@@ -25,6 +25,10 @@ import {
 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import {
+  inspectSourceLinkedOperationalContinuationLineageV01,
+  readOperationalContinuationLineageStateV01,
+} from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
+import {
   INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
   normalizeInitialProjectWorkDefinitionV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
@@ -130,6 +134,31 @@ export function readProjectWorkRevisionEligibilityStrictV01(
       ...activeBinding,
       status: "blocked_not_current",
       reason: "current_packet_stale_or_unavailable",
+    });
+  }
+  const continuation = readOperationalContinuationLineageStateV01(db, input);
+  if (continuation) {
+    const lineage = inspectSourceLinkedOperationalContinuationLineageV01(db, {
+      ...input,
+      packet_id: continuation.packet_b.packet_id,
+      packet_fingerprint: continuation.packet_b.integrity.fingerprint,
+    });
+    if (!lineage.projection_current) {
+      return eligibilityV01(input, {
+        ...activeBinding,
+        status: "blocked_not_current",
+        reason: "current_packet_stale_or_unavailable",
+      });
+    }
+    return eligibilityV01(input, {
+      ...activeBinding,
+      current_packet_id: continuation.packet_b.packet_id,
+      current_packet_fingerprint:
+        continuation.packet_b.integrity.fingerprint,
+      current_lineage_kind: null,
+      revision_count: 0,
+      status: "blocked_operational_continuation",
+      reason: "operational_continuation_not_revisable",
     });
   }
   let chain: ReturnType<

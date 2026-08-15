@@ -1470,6 +1470,8 @@ function revisionReasonV01(reason: ProjectWorkInitializationV01["revision_eligib
     current_revision_packet_zero_history: "Current revised work may be revised again before execution.",
     managed_run_history_present: "Work revision closes after managed execution history exists.",
     durable_work_history_present: "Work revision closes after durable work history exists.",
+    operational_continuation_not_revisable:
+      "Source-linked operational continuation work cannot be reopened as a pre-execution revision.",
     current_packet_stale_or_unavailable: "The current work packet is stale or unavailable.",
     project_inactive: "The project is not active.",
     project_unavailable: "The canonical project is unavailable.",
@@ -1507,6 +1509,8 @@ function workResolutionGapV01(
       "The append-only work revision lineage is invalid.",
     invalid_semantic_transition_lineage:
       "The semantic-transition work lineage is invalid.",
+    invalid_operational_continuation_lineage:
+      "The source-linked operational-continuation lineage is invalid.",
     invalid_packet_lineage:
       "A durable work packet lineage cannot be validated.",
     superseded_work_without_current_packet:

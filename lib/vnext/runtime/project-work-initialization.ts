@@ -43,6 +43,7 @@ import {
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import { readProjectWorkRevisionEligibilityV01 } from "@/lib/vnext/runtime/project-work-revision";
 
@@ -340,13 +341,17 @@ function readProjectWorkInitializationStrictV01(
         ? "defined_initial_work"
         : current.lineage_kind === "pre_execution_user_revision"
           ? "defined_revised_work"
-          : "defined_transition_work";
+          : current.lineage_kind === "semantic_transition"
+            ? "defined_transition_work"
+            : "defined_operational_continuation_work";
     const reason =
       current.lineage_kind === "initial_user_defined"
         ? "current_initial_packet"
         : current.lineage_kind === "pre_execution_user_revision"
           ? "current_revision_packet"
-          : "current_transition_packet";
+          : current.lineage_kind === "semantic_transition"
+            ? "current_transition_packet"
+            : "current_operational_continuation_packet";
     return {
       ...baseV01(
         input,
@@ -422,6 +427,9 @@ function invalidPacketReasonV01(
   const contracts = Array.isArray(candidate.compatibility?.source_contracts)
     ? candidate.compatibility.source_contracts
     : [];
+  if (contracts.includes(SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01)) {
+    return "invalid_operational_continuation_lineage";
+  }
   if (contracts.includes(PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01)) {
     return "invalid_revision_lineage";
   }

@@ -79,12 +79,18 @@ import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../l
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
+import {
+  assertOperationalContinuationAdmissionV01,
+  readOperationalContinuationLineageStateV01,
+} from "../lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
+import type { OperationalContinuationAdmissionV01 } from "../types/vnext/operational-continuation-admission";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "../types/vnext/operational-context-selection";
 
 export const RECOVERY_CANONICAL_RECORD_VALIDATOR_CONTRACT_V01 =
   "augnes.recovery-canonical-record-validator.v1" as const;
@@ -108,6 +114,7 @@ const RECORD_KINDS_V01 = [
   "task_context_packet",
   "run_receipt",
   "context_use_review",
+  "operational_continuation_admission",
 ] as const;
 
 type CanonicalRecordKindV01 = (typeof RECORD_KINDS_V01)[number];
@@ -580,7 +587,12 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
           ) ??
           preExecutionProjectWorkRevisionIdempotencyKeyV01(
             payload as unknown as TaskContextPacketV01,
-          ),
+          ) ??
+          ((payload as unknown as TaskContextPacketV01).compatibility.source_contracts.includes(
+            SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+          )
+            ? record.idempotency_key
+            : null),
         created_at: payload.generated_at,
       });
       return;
@@ -608,6 +620,19 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         fingerprint: exactFingerprintV01(payload),
         idempotency_key: contextUseReviewIdempotencyV01(payload),
         created_at: payload.reviewed_at,
+      });
+      return;
+    }
+    case "operational_continuation_admission": {
+      assertOperationalContinuationAdmissionV01(payload);
+      const admission = payload as unknown as OperationalContinuationAdmissionV01;
+      exactEnvelopeV01(record, {
+        record_id: admission.admission_id,
+        workspace_id: admission.workspace_id,
+        project_id: admission.project_id,
+        fingerprint: admission.integrity.fingerprint,
+        idempotency_key: admission.idempotency_key,
+        created_at: admission.authenticated_action.admitted_at,
       });
       return;
     }
@@ -805,6 +830,24 @@ function validateCompiledTaskContextPacketRelationV01(
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
   const packet = record.payload as unknown as TaskContextPacketV01;
+  if (
+    packet.compatibility.source_contracts.includes(
+      SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+    )
+  ) {
+    const lineage = readOperationalContinuationLineageStateV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    if (
+      !lineage ||
+      lineage.packet_b.packet_id !== record.record_id ||
+      lineage.packet_b.integrity.fingerprint !== record.fingerprint
+    ) {
+      refuseV01();
+    }
+    return;
+  }
   if (
     !packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -1066,6 +1109,20 @@ function validateDatabaseRelationsV01(
       case "context_use_review":
         validateContextUseReviewRelationV01(record, byIdentity);
         break;
+      case "operational_continuation_admission": {
+        const lineage = readOperationalContinuationLineageStateV01(db, {
+          workspace_id: record.workspace_id,
+          project_id: record.project_id,
+        });
+        if (
+          !lineage ||
+          lineage.record.record_id !== record.record_id ||
+          lineage.record.fingerprint !== record.fingerprint
+        ) {
+          refuseV01();
+        }
+        break;
+      }
     }
   }
 }

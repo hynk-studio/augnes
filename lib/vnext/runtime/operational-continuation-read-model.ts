@@ -24,7 +24,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { readContextUseAttributionProjectionV01 } from "@/lib/vnext/runtime/context-use-attribution-read-model";
 import {
-  readContinuityDynamicsV01,
+  rebuildContinuityDynamicsFromDurableSourcesV01,
   type ContinuityDynamicsReadRequestV01,
 } from "@/lib/vnext/runtime/continuity-dynamics-read-model";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
@@ -98,9 +98,56 @@ export function readOperationalContinuationV01(
 ): OperationalContinuationReadResultV01 {
   assertQueryOnlyV01(db);
   const totalChangesBefore = readTotalChangesV01(db);
+  const continuation = rebuildOperationalContinuationFromDurableSourcesV01(
+    db,
+    requestInput,
+  );
+  if (readTotalChangesV01(db) !== totalChangesBefore) {
+    refuseV01("operational_continuation_query_only_mutation_detected");
+  }
+  return {
+    result_version: "operational_continuation_read_result.v0.1",
+    result_kind: "query_only_exact_source_compilation",
+    workspace_id: continuation.selection.workspace_id,
+    project_id: continuation.selection.project_id,
+    continuation,
+    canonical_admission_identity_verified: true,
+    exact_source_rematerialization_bound: true,
+    historical_canonical_writer_invocation_proven: false,
+    persistence_boundary: {
+      sqlite_query_only_required: true,
+      inserts: 0,
+      updates: 0,
+      deletes: 0,
+      migrations: 0,
+      local_session_mutations: 0,
+      proposal_mutations: 0,
+      decision_mutations: 0,
+      task_context_packet_writes: 0,
+      semantic_writes: 0,
+      attachment_or_execution_decisions: 0,
+      provider_calls: 0,
+      model_calls: 0,
+      network_calls: 0,
+      github_calls: 0,
+      external_calls: 0,
+    },
+  };
+}
+
+/**
+ * Exact durable-source recompilation shared by the query-only ACGC5A
+ * consumer and the authenticated ACGC5B writer. This function performs no
+ * write; callers that may later mutate own their transaction and must repeat
+ * the complete read inside it before committing any continuation record.
+ */
+export function rebuildOperationalContinuationFromDurableSourcesV01(
+  db: Database.Database,
+  requestInput: OperationalContinuationReadRequestV01,
+): SourceLinkedOperationalContinuationV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const request = parseRequestV01(requestInput);
-  const dynamics = readContinuityDynamicsV01(db, {
+  const dynamics = rebuildContinuityDynamicsFromDurableSourcesV01(db, {
     workspace_id: request.workspace_id,
     project_id: request.project_id,
     frames: request.frames,
@@ -216,37 +263,7 @@ export function readOperationalContinuationV01(
     decision_time_cutoff: request.decision_time_cutoff,
     max_selected_candidates: request.max_selected_candidates,
   });
-  if (readTotalChangesV01(db) !== totalChangesBefore) {
-    refuseV01("operational_continuation_query_only_mutation_detected");
-  }
-  return {
-    result_version: "operational_continuation_read_result.v0.1",
-    result_kind: "query_only_exact_source_compilation",
-    workspace_id: request.workspace_id,
-    project_id: request.project_id,
-    continuation,
-    canonical_admission_identity_verified: true,
-    exact_source_rematerialization_bound: true,
-    historical_canonical_writer_invocation_proven: false,
-    persistence_boundary: {
-      sqlite_query_only_required: true,
-      inserts: 0,
-      updates: 0,
-      deletes: 0,
-      migrations: 0,
-      local_session_mutations: 0,
-      proposal_mutations: 0,
-      decision_mutations: 0,
-      task_context_packet_writes: 0,
-      semantic_writes: 0,
-      attachment_or_execution_decisions: 0,
-      provider_calls: 0,
-      model_calls: 0,
-      network_calls: 0,
-      github_calls: 0,
-      external_calls: 0,
-    },
-  };
+  return continuation;
 }
 
 function parseRequestV01(

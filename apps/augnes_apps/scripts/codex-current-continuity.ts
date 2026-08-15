@@ -56,6 +56,7 @@ export const ProjectionSchema = z.object({
       "initial_user_defined",
       "pre_execution_user_revision",
       "semantic_transition",
+      "source_linked_operational_continuation",
     ]).nullable(),
     currentness: z.enum(["fresh", "stale", "unavailable_or_ambiguous", "not_available"]),
     start_eligible: z.boolean(),

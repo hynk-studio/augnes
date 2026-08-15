@@ -17,6 +17,7 @@ export type SharedProjectInspectorFingerprintTargetKindV01 =
   | "semantic_state"
   | "later_task_context_packet"
   | "context_use_review"
+  | "operational_continuation_admission"
   | "capability_grant";
 
 export type SharedProjectInspectorTargetV01 =

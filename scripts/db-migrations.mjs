@@ -5137,7 +5137,8 @@ export const vNextDurableSemanticStoreSchemaSqlV01 = `
       'state_transition_receipt',
       'task_context_packet',
       'run_receipt',
-      'context_use_review'
+      'context_use_review',
+      'operational_continuation_admission'
     )),
     record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
     workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
@@ -5270,12 +5271,15 @@ const vNextCoreRecordKindsV01 = [
   "task_context_packet",
   "run_receipt",
   "context_use_review",
+  "operational_continuation_admission",
 ];
 
 const vNextCoreRecordsUpgradeTableV02 =
   "vnext_core_records_upgrade_v0_2";
 const vNextCoreRecordsUpgradeTableV03 =
   "vnext_core_records_upgrade_v0_3";
+const vNextCoreRecordsUpgradeTableV04 =
+  "vnext_core_records_upgrade_v0_4";
 
 function upgradeVNextCoreRecordKindConstraintV01(db) {
   const table = db
@@ -5287,11 +5291,12 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
     db
       .prepare(
         `SELECT 1 FROM sqlite_master
-         WHERE type = 'table' AND name IN (?, ?)`,
+         WHERE type = 'table' AND name IN (?, ?, ?)`,
       )
       .get(
         vNextCoreRecordsUpgradeTableV02,
         vNextCoreRecordsUpgradeTableV03,
+        vNextCoreRecordsUpgradeTableV04,
       )
   ) {
     throw new Error("vnext_core_record_kind_upgrade_orphan_table");
@@ -5315,7 +5320,7 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
   db.exec("BEGIN IMMEDIATE");
   try {
     db.exec(`
-      CREATE TABLE ${vNextCoreRecordsUpgradeTableV03} (
+      CREATE TABLE ${vNextCoreRecordsUpgradeTableV04} (
         record_kind TEXT NOT NULL CHECK (record_kind IN (
           'automation_work_item',
           'capability_grant',
@@ -5329,7 +5334,8 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
           'state_transition_receipt',
           'task_context_packet',
           'run_receipt',
-          'context_use_review'
+          'context_use_review',
+          'operational_continuation_admission'
         )),
         record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
         workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
@@ -5347,7 +5353,7 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
         created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
         PRIMARY KEY (record_kind, record_id)
       );
-      INSERT INTO ${vNextCoreRecordsUpgradeTableV03} (
+      INSERT INTO ${vNextCoreRecordsUpgradeTableV04} (
         record_kind, record_id, workspace_id, project_id, fingerprint,
         idempotency_key, payload_json, created_at
       )
@@ -5358,7 +5364,7 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
     `);
     const copied = db
       .prepare(
-        `SELECT COUNT(*) AS count FROM ${vNextCoreRecordsUpgradeTableV03}`,
+        `SELECT COUNT(*) AS count FROM ${vNextCoreRecordsUpgradeTableV04}`,
       )
       .get();
     if (copied.count !== before.count) {
@@ -5368,20 +5374,25 @@ function upgradeVNextCoreRecordKindConstraintV01(db) {
       DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_update;
       DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_delete;
       DROP TABLE vnext_core_records;
-      ALTER TABLE ${vNextCoreRecordsUpgradeTableV03}
-        RENAME TO vnext_core_records;
-      CREATE UNIQUE INDEX idx_vnext_core_records_project_idempotency
-        ON vnext_core_records(workspace_id, project_id, record_kind, idempotency_key)
-        WHERE idempotency_key IS NOT NULL;
-      CREATE INDEX idx_vnext_core_records_project_kind_created
-        ON vnext_core_records(workspace_id, project_id, record_kind, created_at, record_id);
-      CREATE TRIGGER trg_vnext_core_records_immutable_update
-        BEFORE UPDATE ON vnext_core_records
-        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
-      CREATE TRIGGER trg_vnext_core_records_immutable_delete
-        BEFORE DELETE ON vnext_core_records
-        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
     `);
+    db.exec(vNextDurableSemanticStoreSchemaSqlV01);
+    db.exec(`
+      INSERT INTO vnext_core_records (
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      )
+      SELECT
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      FROM ${vNextCoreRecordsUpgradeTableV04};
+      DROP TABLE ${vNextCoreRecordsUpgradeTableV04};
+    `);
+    const restored = db
+      .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
+      .get();
+    if (restored.count !== before.count) {
+      throw new Error("vnext_core_record_kind_upgrade_restore_count_mismatch");
+    }
     db.exec("COMMIT");
     return true;
   } catch (error) {

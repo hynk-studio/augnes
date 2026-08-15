@@ -18,6 +18,7 @@ export type ProjectWorkInitializationStateV01 =
   | "defined_initial_work"
   | "defined_revised_work"
   | "defined_transition_work"
+  | "defined_operational_continuation_work"
   | "existing_history_without_current_packet"
   | "unavailable";
 
@@ -41,10 +42,12 @@ export interface ProjectWorkInitializationV01 {
     | "current_initial_packet"
     | "current_revision_packet"
     | "current_transition_packet"
+    | "current_operational_continuation_packet"
     | "multiple_current_packet_candidates"
     | "malformed_packet_record"
     | "invalid_revision_lineage"
     | "invalid_semantic_transition_lineage"
+    | "invalid_operational_continuation_lineage"
     | "invalid_packet_lineage"
     | "superseded_work_without_current_packet"
     | "durable_history_without_current_packet"
@@ -61,7 +64,8 @@ export interface ProjectWorkInitializationV01 {
     lineage_kind:
       | "initial_user_defined"
       | "pre_execution_user_revision"
-      | "semantic_transition";
+      | "semantic_transition"
+      | "source_linked_operational_continuation";
   };
   mutation_eligible: boolean;
   revision_eligibility: ProjectWorkRevisionEligibilityV01;
