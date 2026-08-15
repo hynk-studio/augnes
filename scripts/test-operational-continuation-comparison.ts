@@ -229,7 +229,13 @@ async function main(): Promise<void> {
       "markdown",
     );
     assert.match(jsonReport, /"exact_case_status"/u);
+    assert.match(jsonReport, /"synthetic_event_chronology"/u);
     assert.match(markdownReport, /Packet-level use is not distributed/u);
+    assert.match(markdownReport, /inconclusive rather than refuted/u);
+    assert.match(
+      markdownReport,
+      /Candidate latency provenance: synthetic_event_chronology/u,
+    );
     assert.equal(databaseStateV01(candidateFixture.db), candidateStateBefore);
     assert.equal(databaseStateV01(baseline.db), baselineStateBefore);
     assert.equal(gitStatusV01(candidateFixture.project_root), candidateGitBefore);
@@ -1464,6 +1470,7 @@ function buildComparisonInputV01(
         recovery_reconciliation_actions: 0,
         cleanup_recovery_burden: 0,
         additional_review_actions: 0,
+        latency_provenance: "synthetic_event_chronology",
       },
     },
     baseline: {
@@ -1481,10 +1488,12 @@ function buildComparisonInputV01(
         recovery_reconciliation_actions: 0,
         cleanup_recovery_burden: 0,
         additional_review_actions: 0,
+        latency_provenance: "synthetic_event_chronology",
       },
     },
     limitations: [
       "The deterministic exact-case fixture does not observe usage units or monetary cost.",
+      "Injected deterministic timestamps preserve protocol chronology but do not measure performance latency.",
       "The baseline and candidate have equal declared ceilings, not proven equal capability.",
     ],
   };
@@ -1515,6 +1524,9 @@ function assertComparisonSemanticsV01(
   assert.ok(
     comparison.skipped_unobserved_dimensions.includes("budget.cost_microunits"),
   );
+  assert.ok(
+    comparison.skipped_unobserved_dimensions.includes("budget.latency_ms"),
+  );
   assert.equal(
     comparison.continuation_contribution.selected_operational_entry_count,
     input.candidate.continuation.selection.selected_rows.length,
@@ -1541,11 +1553,57 @@ function assertComparisonSemanticsV01(
   assert.equal(comparison.baseline_coordination_overhead.repository_attachments, 1);
   assert.equal(comparison.candidate_cost_operability.provider_model_call_count, 0);
   assert.equal(comparison.baseline_cost_operability.provider_model_call_count, 0);
-  assert.ok(
-    ["supported", "mixed", "refuted", "inconclusive"].includes(
-      comparison.exact_case_status,
-    ),
+  assert.equal(
+    comparison.candidate_coordination_overhead.required_human_interventions,
+    null,
   );
+  assert.equal(
+    comparison.baseline_coordination_overhead.required_human_interventions,
+    null,
+  );
+  for (const cost of [
+    comparison.candidate_cost_operability,
+    comparison.baseline_cost_operability,
+  ]) {
+    assert.equal(cost.usage_unit_count, null);
+    assert.equal(cost.cost_microunits, null);
+    assert.equal(cost.run_latency_ms, null);
+    assert.equal(cost.end_to_end_latency_ms, null);
+    assert.equal(cost.latency_provenance, "synthetic_event_chronology");
+  }
+  for (const coordination of [
+    comparison.candidate_coordination_overhead,
+    comparison.baseline_coordination_overhead,
+  ]) {
+    assert.equal(coordination.coordination_elapsed_latency_ms, null);
+    assert.equal(
+      coordination.latency_provenance,
+      "synthetic_event_chronology",
+    );
+  }
+  const observedBaselineBetterCoordination = [
+    "coordination.managed_runs",
+    "coordination.repository_attachments",
+    "coordination.browser_start_confirmations",
+    "coordination.proposal_only_review_decisions",
+    "coordination.continuation_admission_actions",
+    "coordination.context_use_review_actions",
+  ];
+  for (const dimension of observedBaselineBetterCoordination) {
+    assert.equal(
+      comparison.dimension_deltas.find((row) => row.dimension === dimension)
+        ?.relation,
+      "baseline_better",
+      dimension,
+    );
+  }
+  assert.equal(
+    comparison.dimension_deltas.some(
+      (row) => row.relation === "candidate_better",
+    ),
+    false,
+  );
+  assert.equal(comparison.exact_case_status, "inconclusive");
   assert.equal(comparison.exact_case_only, true);
   assert.equal(comparison.no_bundle_credit, true);
   for (const [key, value] of Object.entries(comparison.authority_summary)) {
@@ -1587,6 +1645,76 @@ function assertComparisonIdentityV01(
   const observationComparison =
     buildOperationalContinuationComparisonV01(changedObservation);
   assert.notEqual(observationComparison.comparison_id, comparison.comparison_id);
+
+  const changedSyntheticSpacing = structuredClone(input);
+  changedSyntheticSpacing.candidate.context_use_review_b.reviewed_at =
+    "2026-07-18T15:50:00.000Z";
+  resignReviewV01(changedSyntheticSpacing.candidate.context_use_review_b);
+  changedSyntheticSpacing.candidate.context_use_attribution_b =
+    buildContextUseAttributionProjectionV01({
+      review: changedSyntheticSpacing.candidate.context_use_review_b,
+      prior_packet: changedSyntheticSpacing.candidate.packet_a,
+      later_packet:
+        changedSyntheticSpacing.candidate.continuation
+          .candidate_task_context_packet_b,
+      source_operational_continuation_admission:
+        changedSyntheticSpacing.candidate.admission,
+      source_operational_context_selection:
+        changedSyntheticSpacing.candidate.continuation.selection,
+      later_task_run_receipt:
+        changedSyntheticSpacing.candidate.run_receipt_b,
+    });
+  const changedSyntheticSpacingComparison =
+    buildOperationalContinuationComparisonV01(changedSyntheticSpacing);
+  assert.notEqual(
+    changedSyntheticSpacingComparison.comparison_id,
+    comparison.comparison_id,
+  );
+  assert.equal(
+    changedSyntheticSpacingComparison.exact_case_status,
+    "inconclusive",
+  );
+  assert.equal(
+    changedSyntheticSpacingComparison.candidate_coordination_overhead
+      .coordination_elapsed_latency_ms,
+    null,
+  );
+  assert.equal(
+    changedSyntheticSpacingComparison.candidate_cost_operability
+      .end_to_end_latency_ms,
+    null,
+  );
+
+  const unavailableLatency = structuredClone(input);
+  unavailableLatency.candidate.exact_observations.latency_provenance =
+    "unobserved";
+  unavailableLatency.baseline.exact_observations.latency_provenance =
+    "unobserved";
+  const unavailableLatencyComparison =
+    buildOperationalContinuationComparisonV01(unavailableLatency);
+  assert.equal(
+    unavailableLatencyComparison.candidate_cost_operability.latency_provenance,
+    "unobserved",
+  );
+  assert.equal(
+    unavailableLatencyComparison.candidate_cost_operability.run_latency_ms,
+    null,
+  );
+  assert.equal(
+    unavailableLatencyComparison.exact_case_status,
+    "inconclusive",
+  );
+
+  const unsupportedObservedLatency = structuredClone(input);
+  unsupportedObservedLatency.candidate.exact_observations.latency_provenance =
+    "observed_elapsed";
+  assert.throws(
+    () =>
+      buildOperationalContinuationComparisonV01(
+        unsupportedObservedLatency,
+      ),
+    /operational_comparison_observed_latency_source_unavailable/u,
+  );
 
   const changedReview = structuredClone(input);
   changedReview.candidate.context_use_review_b.metrics.repeated_explanation_estimate =
@@ -1689,11 +1817,22 @@ function assertStatusVariantsV01(
     hard_gate_failure: false,
     hard_gate_codes: [],
   };
+  const completeComparable = {
+    complete_equal_budget_claim: true,
+    structural_parity: comparison.structural_parity,
+  };
+  assert.equal(
+    completeComparable.structural_parity.every(
+      (parity) => parity.status === "equal",
+    ),
+    true,
+  );
   assert.equal(
     deriveOperationalContinuationExactCaseStatusV01(
       [row("candidate_better")],
       clearHardGate,
       clearHardGate,
+      completeComparable,
     ),
     "supported",
   );
@@ -1702,6 +1841,7 @@ function assertStatusVariantsV01(
       [row("candidate_better"), row("baseline_better")],
       clearHardGate,
       clearHardGate,
+      completeComparable,
     ),
     "mixed",
   );
@@ -1710,6 +1850,7 @@ function assertStatusVariantsV01(
       [row("baseline_better")],
       clearHardGate,
       clearHardGate,
+      completeComparable,
     ),
     "refuted",
   );
@@ -1718,6 +1859,7 @@ function assertStatusVariantsV01(
       [row("equal")],
       clearHardGate,
       clearHardGate,
+      completeComparable,
     ),
     "inconclusive",
   );
@@ -1731,8 +1873,66 @@ function assertStatusVariantsV01(
         hard_gate_codes: ["required-check"],
       },
       clearHardGate,
+      {
+        complete_equal_budget_claim: false,
+        structural_parity: comparison.structural_parity,
+      },
     ),
     "refuted",
+  );
+  assert.equal(
+    deriveOperationalContinuationExactCaseStatusV01(
+      [row("unknown")],
+      clearHardGate,
+      {
+        ...clearHardGate,
+        failed_count: 1,
+        hard_gate_failure: true,
+        hard_gate_codes: ["baseline-required-check"],
+      },
+      {
+        complete_equal_budget_claim: false,
+        structural_parity: comparison.structural_parity,
+      },
+    ),
+    "supported",
+  );
+  assert.equal(
+    deriveOperationalContinuationExactCaseStatusV01(
+      [row("candidate_better"), row("unknown")],
+      clearHardGate,
+      clearHardGate,
+      completeComparable,
+    ),
+    "inconclusive",
+  );
+  assert.equal(
+    deriveOperationalContinuationExactCaseStatusV01(
+      [row("baseline_better")],
+      clearHardGate,
+      clearHardGate,
+      {
+        complete_equal_budget_claim: false,
+        structural_parity: comparison.structural_parity,
+      },
+    ),
+    "inconclusive",
+  );
+  const notComparableParity = structuredClone(comparison.structural_parity);
+  notComparableParity[0]!.status = "not_comparable";
+  notComparableParity[0]!.limitation =
+    "Focused status fixture is not structurally comparable.";
+  assert.equal(
+    deriveOperationalContinuationExactCaseStatusV01(
+      [row("baseline_better")],
+      clearHardGate,
+      clearHardGate,
+      {
+        complete_equal_budget_claim: true,
+        structural_parity: notComparableParity,
+      },
+    ),
+    "inconclusive",
   );
 }
 

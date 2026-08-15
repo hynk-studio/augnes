@@ -20,6 +20,11 @@ export type OperationalContinuationComparisonRelationV01 =
   | "unknown"
   | "not_comparable";
 
+export type OperationalContinuationLatencyProvenanceV01 =
+  | "observed_elapsed"
+  | "synthetic_event_chronology"
+  | "unobserved";
+
 export interface OperationalContinuationComparisonRecordRefV01 {
   record_version: string;
   record_id: string;
@@ -219,6 +224,7 @@ export interface OperationalContinuationCoordinationOverheadV01 {
   required_human_interventions: number | null;
   recovery_reconciliation_actions: number | null;
   coordination_elapsed_latency_ms: number | null;
+  latency_provenance: OperationalContinuationLatencyProvenanceV01;
 }
 
 export interface OperationalContinuationCostOperabilityV01 {
@@ -228,6 +234,7 @@ export interface OperationalContinuationCostOperabilityV01 {
   cost_microunits: number | null;
   run_latency_ms: number | null;
   end_to_end_latency_ms: number | null;
+  latency_provenance: OperationalContinuationLatencyProvenanceV01;
   cleanup_recovery_burden: number | null;
   privacy_egress_observation: "none_observed" | "observed" | "unknown";
   platform_evidence_boundary: string;

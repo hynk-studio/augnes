@@ -50,6 +50,7 @@ import {
   type OperationalContinuationEqualCeilingEnvelopeV01,
   type OperationalContinuationEqualCeilingRowV01,
   type OperationalContinuationHarmfulTransferV01,
+  type OperationalContinuationLatencyProvenanceV01,
   type OperationalContinuationManagedRunBindingV01,
   type OperationalContinuationParityDimensionV01,
   type OperationalContinuationParityRowV01,
@@ -123,6 +124,7 @@ export interface OperationalContinuationComparisonExactObservationsV01 {
   recovery_reconciliation_actions: number | null;
   cleanup_recovery_burden: number | null;
   additional_review_actions: number | null;
+  latency_provenance: OperationalContinuationLatencyProvenanceV01;
 }
 
 export interface OperationalContinuationEqualCeilingInputV01 {
@@ -310,6 +312,11 @@ export function buildOperationalContinuationComparisonV01(
     dimensionDeltas,
     candidateTaskOutcome,
     baselineTaskOutcome,
+    {
+      complete_equal_budget_claim:
+        equalCeiling.complete_equal_budget_claim,
+      structural_parity: structuralParity,
+    },
   );
   const harmfulTransfer = deriveHarmfulTransferV01(
     candidateTaskOutcome,
@@ -373,6 +380,14 @@ export function buildOperationalContinuationComparisonV01(
       "Exact-case association is not a general operational-policy benefit.",
       "Packet-level use is not distributed to item-level actual use, support, outcome association, or causal contribution.",
       "Equal declared ceilings do not establish equal capability.",
+      ...(input.candidate.exact_observations.latency_provenance ===
+          "synthetic_event_chronology" ||
+        input.baseline.exact_observations.latency_provenance ===
+          "synthetic_event_chronology"
+        ? [
+            "Synthetic protocol event chronology validates ordering but is not observed performance latency.",
+          ]
+        : []),
       "The comparison is pure, rebuildable, non-authoritative, and not persisted by default.",
     ]),
     missing_evidence: missingEvidence,
@@ -512,6 +527,11 @@ export function assertValidOperationalContinuationComparisonV01(
     rebuiltDeltas,
     comparison.candidate_task_outcome,
     comparison.baseline_task_outcome,
+    {
+      complete_equal_budget_claim:
+        comparison.equal_ceiling.complete_equal_budget_claim,
+      structural_parity: comparison.structural_parity,
+    },
   );
   if (comparison.exact_case_status !== rebuiltStatus) {
     failV01("operational_comparison_status_reseal");
@@ -1057,10 +1077,14 @@ function deriveCandidateCoordinationV01(
       input.exact_observations.required_human_interventions,
     recovery_reconciliation_actions:
       input.exact_observations.recovery_reconciliation_actions,
-    coordination_elapsed_latency_ms: elapsedV01(
-      input.run_a.started_at,
-      input.context_use_review_b.reviewed_at,
-    ),
+    coordination_elapsed_latency_ms:
+      input.exact_observations.latency_provenance === "observed_elapsed"
+        ? elapsedV01(
+            input.run_a.started_at,
+            input.context_use_review_b.reviewed_at,
+          )
+        : null,
+    latency_provenance: input.exact_observations.latency_provenance,
   };
 }
 
@@ -1078,10 +1102,14 @@ function deriveBaselineCoordinationV01(
       input.exact_observations.required_human_interventions,
     recovery_reconciliation_actions:
       input.exact_observations.recovery_reconciliation_actions,
-    coordination_elapsed_latency_ms: elapsedV01(
-      input.run.started_at,
-      input.context_use_review.reviewed_at,
-    ),
+    coordination_elapsed_latency_ms:
+      input.exact_observations.latency_provenance === "observed_elapsed"
+        ? elapsedV01(
+            input.run.started_at,
+            input.context_use_review.reviewed_at,
+          )
+        : null,
+    latency_provenance: input.exact_observations.latency_provenance,
   };
 }
 
@@ -1105,12 +1133,16 @@ function deriveCostOperabilityV01(
         0,
       )
     : null;
-  const latencies = receipts.map((receipt) =>
-    receipt.started_at && receipt.finished_at
-      ? elapsedV01(receipt.started_at, receipt.finished_at)
-      : null,
-  );
-  const runLatency = sumNullableV01(latencies);
+  const observedElapsed =
+    observations.latency_provenance === "observed_elapsed";
+  const latencies = observedElapsed
+    ? receipts.map((receipt) =>
+        receipt.started_at && receipt.finished_at
+          ? elapsedV01(receipt.started_at, receipt.finished_at)
+          : null,
+      )
+    : [];
+  const runLatency = observedElapsed ? sumNullableV01(latencies) : null;
   const egress = receipts.some(
     (receipt) => receipt.privacy_egress.egress_status === "occurred",
   )
@@ -1134,7 +1166,10 @@ function deriveCostOperabilityV01(
     usage_unit_count: usage,
     cost_microunits: cost,
     run_latency_ms: runLatency,
-    end_to_end_latency_ms: elapsedV01(startedAt, completedReviewAt),
+    end_to_end_latency_ms: observedElapsed
+      ? elapsedV01(startedAt, completedReviewAt)
+      : null,
+    latency_provenance: observations.latency_provenance,
     cleanup_recovery_burden: observations.cleanup_recovery_burden,
     privacy_egress_observation: egress,
     platform_evidence_boundary: `${platform}_source_runtime_exact_case_only`,
@@ -1340,9 +1375,25 @@ export function deriveOperationalContinuationExactCaseStatusV01(
   deltas: OperationalContinuationComparisonDimensionDeltaV01[],
   candidate: OperationalContinuationTaskOutcomeV01,
   baseline: OperationalContinuationTaskOutcomeV01,
+  completeness: {
+    complete_equal_budget_claim: boolean;
+    structural_parity: OperationalContinuationParityRowV01[];
+  },
 ): OperationalContinuationComparisonStatusV01 {
   if (candidate.hard_gate_failure !== baseline.hard_gate_failure) {
     return candidate.hard_gate_failure ? "refuted" : "supported";
+  }
+  if (
+    completeness.complete_equal_budget_claim !== true ||
+    completeness.structural_parity.some(
+      (row) => row.status === "not_comparable",
+    ) ||
+    deltas.some(
+      (row) =>
+        row.relation === "unknown" || row.relation === "not_comparable",
+    )
+  ) {
+    return "inconclusive";
   }
   const candidateBetter = deltas.some(
     (row) => row.relation === "candidate_better",
@@ -1622,10 +1673,29 @@ function assertExactObservationV01(
   assertExactKeysV01(input, [
     "step_operation_count", "required_human_interventions",
     "recovery_reconciliation_actions", "cleanup_recovery_burden",
-    "additional_review_actions",
+    "additional_review_actions", "latency_provenance",
   ], path);
-  for (const [key, value] of Object.entries(input)) {
-    nullableCountV01(value as number | null, `${path}.${key}`);
+  for (const key of [
+    "step_operation_count", "required_human_interventions",
+    "recovery_reconciliation_actions", "cleanup_recovery_burden",
+    "additional_review_actions",
+  ] as const) {
+    nullableCountV01(input[key], `${path}.${key}`);
+  }
+  if (
+    ![
+      "observed_elapsed",
+      "synthetic_event_chronology",
+      "unobserved",
+    ].includes(input.latency_provenance)
+  ) {
+    failV01("operational_comparison_latency_provenance_invalid", path);
+  }
+  if (input.latency_provenance === "observed_elapsed") {
+    failV01(
+      "operational_comparison_observed_latency_source_unavailable",
+      `${path}.latency_provenance`,
+    );
   }
 }
 
@@ -1934,6 +2004,7 @@ function assertCoordinationV01(value: OperationalContinuationCoordinationOverhea
     "proposal_only_review_decisions", "continuation_admission_actions",
     "context_use_review_actions", "required_human_interventions",
     "recovery_reconciliation_actions", "coordination_elapsed_latency_ms",
+    "latency_provenance",
   ], path);
   for (const item of [
     value.managed_runs,
@@ -1946,13 +2017,19 @@ function assertCoordinationV01(value: OperationalContinuationCoordinationOverhea
     value.recovery_reconciliation_actions,
     value.coordination_elapsed_latency_ms,
   ]) nullableCountV01(item, path);
+  assertLatencyObservationV01(
+    value.latency_provenance,
+    [value.coordination_elapsed_latency_ms],
+    path,
+  );
 }
 
 function assertCostV01(value: OperationalContinuationCostOperabilityV01, path: string): void {
   assertExactKeysV01(value, [
     "provider_model_call_count", "host_tool_command_count",
     "usage_unit_count", "cost_microunits", "run_latency_ms",
-    "end_to_end_latency_ms", "cleanup_recovery_burden",
+    "end_to_end_latency_ms", "latency_provenance",
+    "cleanup_recovery_burden",
     "privacy_egress_observation", "platform_evidence_boundary",
   ], path);
   for (const item of [
@@ -1960,6 +2037,11 @@ function assertCostV01(value: OperationalContinuationCostOperabilityV01, path: s
     value.usage_unit_count, value.cost_microunits, value.run_latency_ms,
     value.end_to_end_latency_ms, value.cleanup_recovery_burden,
   ]) nullableCountV01(item, path);
+  assertLatencyObservationV01(
+    value.latency_provenance,
+    [value.run_latency_ms, value.end_to_end_latency_ms],
+    path,
+  );
   if (
     !["none_observed", "observed", "unknown"].includes(
       value.privacy_egress_observation,
@@ -1968,6 +2050,25 @@ function assertCostV01(value: OperationalContinuationCostOperabilityV01, path: s
     failV01("operational_comparison_privacy_observation_invalid", path);
   }
   requiredIdV01(value.platform_evidence_boundary, `${path}.platform_evidence_boundary`);
+}
+
+function assertLatencyObservationV01(
+  provenance: OperationalContinuationLatencyProvenanceV01,
+  values: Array<number | null>,
+  path: string,
+): void {
+  if (
+    ![
+      "observed_elapsed",
+      "synthetic_event_chronology",
+      "unobserved",
+    ].includes(provenance) ||
+    (provenance === "observed_elapsed"
+      ? values.some((value) => value === null)
+      : values.some((value) => value !== null))
+  ) {
+    failV01("operational_comparison_latency_observation_invalid", path);
+  }
 }
 
 function assertWorkBindingV01(value: OperationalContinuationComparisonV01["candidate"]["work"], path: string): void {

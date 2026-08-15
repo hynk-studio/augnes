@@ -23,6 +23,7 @@ export function renderOperationalContinuationComparisonReportV01(
         .join(",")}`,
     );
   }
+  const interpretation = deriveBoundedInterpretationV01(comparison);
   const report = {
     report_version: "operational_continuation_comparison_report.v0.1",
     comparison_id: comparison.comparison_id,
@@ -58,6 +59,10 @@ export function renderOperationalContinuationComparisonReportV01(
       candidate: comparison.candidate_coordination_overhead,
       baseline: comparison.baseline_coordination_overhead,
     },
+    cost_operability: {
+      candidate: comparison.candidate_cost_operability,
+      baseline: comparison.baseline_cost_operability,
+    },
     equal_ceiling: {
       envelope_id: comparison.equal_ceiling.envelope_id,
       complete_equal_budget_claim:
@@ -66,6 +71,8 @@ export function renderOperationalContinuationComparisonReportV01(
         comparison.equal_ceiling.equal_budget_is_equal_capability,
       rows: comparison.equal_ceiling.rows,
     },
+    dimension_deltas: comparison.dimension_deltas,
+    interpretation,
     trade_offs: comparison.trade_offs,
     harmful_transfer: comparison.harmful_transfer,
     skipped_unobserved_dimensions:
@@ -89,6 +96,12 @@ export function renderOperationalContinuationComparisonReportV01(
     `- Baseline run: \`${comparison.baseline.run.run_id}\``,
     `- Complete equal-budget claim: ${comparison.equal_ceiling.complete_equal_budget_claim}`,
     `- Equal budget is equal capability: ${comparison.equal_ceiling.equal_budget_is_equal_capability}`,
+    `- Candidate latency provenance: ${comparison.candidate_cost_operability.latency_provenance}`,
+    `- Baseline latency provenance: ${comparison.baseline_cost_operability.latency_provenance}`,
+    "",
+    "## Bounded interpretation",
+    "",
+    interpretation,
     "",
     "| Dimension | Candidate | Baseline | Relation |",
     "| --- | ---: | ---: | --- |",
@@ -107,6 +120,34 @@ export function renderOperationalContinuationComparisonReportV01(
     ...comparison.limitations.map((item) => `- ${item}`),
     "",
   ].join("\n");
+}
+
+function deriveBoundedInterpretationV01(
+  comparison: OperationalContinuationComparisonV01,
+): string {
+  if (comparison.hard_gate_non_compensation_applied) {
+    return "The exact-case status is decided only by the non-compensating hard-gate difference; other unknown dimensions do not offset it.";
+  }
+  const candidateBetter = comparison.dimension_deltas.filter(
+    (row) => row.relation === "candidate_better",
+  );
+  const baselineBetterCoordination = comparison.dimension_deltas.filter(
+    (row) =>
+      row.relation === "baseline_better" &&
+      row.dimension.startsWith("coordination."),
+  );
+  if (
+    comparison.exact_case_status === "inconclusive" &&
+    comparison.equal_ceiling.complete_equal_budget_claim === false &&
+    candidateBetter.length === 0 &&
+    baselineBetterCoordination.length > 0
+  ) {
+    return "The exact case did not demonstrate a continuation benefit. The continuation path incurred greater observed structural coordination overhead, while material cost, usage, human-intervention, or performance-latency dimensions remained unobserved. The bounded overall comparison is therefore inconclusive rather than refuted.";
+  }
+  if (comparison.exact_case_status === "inconclusive") {
+    return "Material comparison dimensions remain incomplete, unknown, or not comparable, so observed directional deltas do not establish an overall supported, mixed, or refuted verdict.";
+  }
+  return "The directional exact-case status is bounded to the materially complete comparable dimensions and creates no general benefit, harm, rank, winner, or policy conclusion.";
 }
 
 function parseCliV01(argv: string[]): {
