@@ -151,6 +151,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "source-linked operational continuation candidate contract",
+      ...rootNode("scripts/test-operational-continuation.ts"),
+      timeoutMs: 45_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
