@@ -27,6 +27,7 @@ import {
 } from "@/lib/vnext/context-use-review";
 import {
   buildOperationalContinuationComparisonV01,
+  aggregateOperationalContinuationReviewBurdenV01,
   deriveOperationalContinuationExactCaseStatusV01,
   validateOperationalContinuationComparisonV01,
   type BuildOperationalContinuationComparisonInputV01,
@@ -232,6 +233,11 @@ async function main(): Promise<void> {
     assert.match(jsonReport, /"synthetic_event_chronology"/u);
     assert.match(markdownReport, /Packet-level use is not distributed/u);
     assert.match(markdownReport, /inconclusive rather than refuted/u);
+    assert.match(markdownReport, /greater complete-path review burden/u);
+    assert.match(
+      markdownReport,
+      /Pre-continuation Review A burden is not post-continuation harmful-transfer evidence/u,
+    );
     assert.match(
       markdownReport,
       /Candidate latency provenance: synthetic_event_chronology/u,
@@ -277,6 +283,8 @@ async function main(): Promise<void> {
           equal_budget_is_equal_capability:
             comparison.equal_ceiling.equal_budget_is_equal_capability,
           candidate_review_burden: comparison.candidate_review_burden,
+          candidate_post_continuation_review_burden:
+            comparison.candidate_post_continuation_review_burden,
           baseline_review_burden: comparison.baseline_review_burden,
           candidate_coordination_overhead:
             comparison.candidate_coordination_overhead,
@@ -1439,6 +1447,15 @@ function buildComparisonInputV01(
     controller_identity_fingerprint:
       baseline.controller_identity_fingerprint,
   });
+  const reviewARecord = readVNextCoreRecordV01(candidate.db, {
+    record_kind: "context_use_review",
+    record_id:
+      completed.continuation.selection.context_use_review_a.record_id,
+    workspace_id: candidate.config.workspace_id,
+    project_id: candidate.config.project_id,
+  });
+  assert(reviewARecord);
+  const reviewA = reviewARecord.payload as ContextUseReviewV01;
   return {
     task_family_key: "semantic-review-loop-equal-budget-stage-5",
     frozen_construction_cutoff: constructionCutoff,
@@ -1457,6 +1474,7 @@ function buildComparisonInputV01(
       packet_a: candidate.packet_a,
       run_a: runA,
       run_receipt_a: candidate.run_a_receipt,
+      context_use_review_a: reviewA,
       continuation: completed.continuation,
       admission: completed.admission,
       run_b: runB,
@@ -1547,6 +1565,36 @@ function assertComparisonSemanticsV01(
   assert.equal(comparison.continuation_contribution.outcome_associated_count, 0);
   assert.equal(comparison.continuation_contribution.causally_supported_count, 0);
   assert.equal(comparison.continuation_contribution.bundle_credit_assigned, false);
+  assert.deepEqual(comparison.candidate.context_use_review_a, {
+    record_version: input.candidate.context_use_review_a.review_version,
+    record_id: input.candidate.context_use_review_a.review_id,
+    record_fingerprint:
+      input.candidate.context_use_review_a.integrity.fingerprint,
+  });
+  assert.deepEqual(comparison.candidate_review_burden, {
+    correction_count: 1,
+    wrong_context_correction_count: 1,
+    repeated_explanation_estimate: 1,
+    missing_critical_context_count: 1,
+    context_refs_used_count: 2,
+    additional_review_actions: 0,
+  });
+  assert.deepEqual(comparison.candidate_post_continuation_review_burden, {
+    correction_count: 0,
+    wrong_context_correction_count: 0,
+    repeated_explanation_estimate: 0,
+    missing_critical_context_count: 0,
+    context_refs_used_count: 1,
+    additional_review_actions: 0,
+  });
+  assert.deepEqual(comparison.baseline_review_burden, {
+    correction_count: 0,
+    wrong_context_correction_count: 0,
+    repeated_explanation_estimate: 0,
+    missing_critical_context_count: 0,
+    context_refs_used_count: 0,
+    additional_review_actions: 0,
+  });
   assert.equal(comparison.candidate_coordination_overhead.managed_runs, 2);
   assert.equal(comparison.baseline_coordination_overhead.managed_runs, 1);
   assert.equal(comparison.candidate_coordination_overhead.repository_attachments, 2);
@@ -1589,7 +1637,16 @@ function assertComparisonSemanticsV01(
     "coordination.continuation_admission_actions",
     "coordination.context_use_review_actions",
   ];
-  for (const dimension of observedBaselineBetterCoordination) {
+  const observedBaselineBetterReviewBurden = [
+    "review.corrections",
+    "review.wrong_context_corrections",
+    "review.repeated_explanation",
+    "review.missing_critical_context",
+  ];
+  for (const dimension of [
+    ...observedBaselineBetterCoordination,
+    ...observedBaselineBetterReviewBurden,
+  ]) {
     assert.equal(
       comparison.dimension_deltas.find((row) => row.dimension === dimension)
         ?.relation,
@@ -1598,12 +1655,20 @@ function assertComparisonSemanticsV01(
     );
   }
   assert.equal(
+    comparison.dimension_deltas.find(
+      (row) => row.dimension === "review.context_refs_used",
+    )?.relation,
+    "tradeoff",
+  );
+  assert.equal(
     comparison.dimension_deltas.some(
       (row) => row.relation === "candidate_better",
     ),
     false,
   );
   assert.equal(comparison.exact_case_status, "inconclusive");
+  assert.equal(comparison.harmful_transfer.status, "none_observed");
+  assert.deepEqual(comparison.harmful_transfer.adverse_observations, []);
   assert.equal(comparison.exact_case_only, true);
   assert.equal(comparison.no_bundle_credit, true);
   for (const [key, value] of Object.entries(comparison.authority_summary)) {
@@ -1611,7 +1676,145 @@ function assertComparisonSemanticsV01(
   }
   assertNoScoreRankWinnerV01(comparison);
   assertStatusVariantsV01(comparison);
+  assertReviewABindingAndAggregationV01(input, comparison);
+  assertHarmfulTransferChronologyV01(input, comparison);
   assertTerminalReceiptVariantsV01(input);
+}
+
+function assertReviewABindingAndAggregationV01(
+  input: BuildOperationalContinuationComparisonInputV01,
+  comparison: OperationalContinuationComparisonV01,
+): void {
+  assert.equal(validateContextUseReviewV01(input.candidate.context_use_review_a).status, "valid");
+  assert.equal(
+    input.candidate.context_use_review_a.review_id,
+    input.candidate.continuation.selection.context_use_review_a.record_id,
+  );
+  assert.equal(
+    input.candidate.context_use_review_a.integrity.fingerprint,
+    input.candidate.continuation.selection.context_use_review_a
+      .record_fingerprint,
+  );
+  assert.equal(
+    input.candidate.context_use_review_a.review_id,
+    input.candidate.continuation.materialization_identity
+      .context_use_review_a_id,
+  );
+  assert.equal(
+    input.candidate.context_use_review_a.integrity.fingerprint,
+    input.candidate.continuation.materialization_identity
+      .context_use_review_a_fingerprint,
+  );
+  for (const [mutation, expected] of [
+    [
+      (value: BuildOperationalContinuationComparisonInputV01) => {
+        value.candidate.context_use_review_a.notes.push(
+          "Changed exact Review A identity.",
+        );
+        resignReviewV01(value.candidate.context_use_review_a);
+      },
+      /operational_comparison_review_a_selection_relation_invalid/u,
+    ],
+    [
+      (value: BuildOperationalContinuationComparisonInputV01) => {
+        value.candidate.context_use_review_a.integrity.fingerprint =
+          `sha256:${"f".repeat(64)}`;
+      },
+      /operational_comparison_review_a_invalid/u,
+    ],
+    [
+      (value: BuildOperationalContinuationComparisonInputV01) => {
+        value.candidate.continuation.materialization_identity
+          .context_use_review_a_id = "context-use-review:foreign";
+      },
+      /operational_comparison_materialization_identity_invalid/u,
+    ],
+    [
+      (value: BuildOperationalContinuationComparisonInputV01) => {
+        value.candidate.context_use_review_a.project_id =
+          "project:foreign";
+        resignReviewV01(value.candidate.context_use_review_a);
+      },
+      /operational_comparison_review_a_source_relation_invalid/u,
+    ],
+  ] as const) {
+    const changed = structuredClone(input);
+    mutation(changed);
+    assert.throws(
+      () => buildOperationalContinuationComparisonV01(changed),
+      expected,
+    );
+  }
+
+  const reviewANull = structuredClone(input.candidate.context_use_review_a);
+  reviewANull.metrics.wrong_context_correction_count = null;
+  assert.equal(
+    aggregateOperationalContinuationReviewBurdenV01(
+      reviewANull,
+      input.candidate.context_use_review_b,
+      input.candidate.exact_observations,
+    ).wrong_context_correction_count,
+    null,
+  );
+  const reviewBNull = structuredClone(input.candidate.context_use_review_b);
+  reviewBNull.metrics.wrong_context_correction_count = null;
+  assert.equal(
+    aggregateOperationalContinuationReviewBurdenV01(
+      input.candidate.context_use_review_a,
+      reviewBNull,
+      input.candidate.exact_observations,
+    ).wrong_context_correction_count,
+    null,
+  );
+
+  const changedBoundRef = structuredClone(comparison);
+  changedBoundRef.candidate.context_use_review_a.record_fingerprint =
+    `sha256:${"e".repeat(64)}`;
+  assert.deepEqual(rebuildComparisonIdentityV01(comparison), {
+    comparison_id: comparison.comparison_id,
+    fingerprint: comparison.integrity.fingerprint,
+  });
+  assert.notEqual(
+    rebuildComparisonIdentityV01(changedBoundRef).comparison_id,
+    comparison.comparison_id,
+  );
+  assert.notEqual(
+    rebuildComparisonIdentityV01(changedBoundRef).fingerprint,
+    comparison.integrity.fingerprint,
+  );
+}
+
+function assertHarmfulTransferChronologyV01(
+  input: BuildOperationalContinuationComparisonInputV01,
+  comparison: OperationalContinuationComparisonV01,
+): void {
+  assert.equal(comparison.candidate_review_burden.correction_count, 1);
+  assert.equal(comparison.harmful_transfer.status, "none_observed");
+
+  const adverseReviewB = structuredClone(input);
+  adverseReviewB.candidate.context_use_review_b.metrics.wrong_context_correction_count =
+    1;
+  resignReviewV01(adverseReviewB.candidate.context_use_review_b);
+  adverseReviewB.candidate.context_use_attribution_b =
+    buildContextUseAttributionProjectionV01({
+      review: adverseReviewB.candidate.context_use_review_b,
+      prior_packet: adverseReviewB.candidate.packet_a,
+      later_packet:
+        adverseReviewB.candidate.continuation.candidate_task_context_packet_b,
+      source_operational_continuation_admission:
+        adverseReviewB.candidate.admission,
+      source_operational_context_selection:
+        adverseReviewB.candidate.continuation.selection,
+      later_task_run_receipt: adverseReviewB.candidate.run_receipt_b,
+    });
+  const adverse = buildOperationalContinuationComparisonV01(adverseReviewB);
+  assert.equal(adverse.harmful_transfer.status, "local_candidate");
+  assert.ok(
+    adverse.harmful_transfer.adverse_observations.includes(
+      "additional_wrong_context_corrections",
+    ),
+  );
+  assert.equal(adverse.exact_case_status, "inconclusive");
 }
 
 function assertComparisonIdentityV01(
@@ -2358,6 +2561,25 @@ function changedKeysV01(
 function resignReviewV01(review: ContextUseReviewV01): void {
   review.review_id = deriveContextUseReviewIdV01(review);
   review.integrity.fingerprint = createContextUseReviewFingerprintV01(review);
+}
+
+function rebuildComparisonIdentityV01(
+  comparisonInput: OperationalContinuationComparisonV01,
+): { comparison_id: string; fingerprint: string } {
+  const comparison = structuredClone(comparisonInput);
+  comparison.comparison_id = "operational-continuation-comparison:pending";
+  comparison.integrity.fingerprint = `sha256:${"0".repeat(64)}`;
+  const identityHash = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(comparison),
+  );
+  comparison.comparison_id =
+    `operational-continuation-comparison:${identityHash.slice(7, 39)}`;
+  return {
+    comparison_id: comparison.comparison_id,
+    fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(comparison),
+    ),
+  };
 }
 
 function countScopedV01(

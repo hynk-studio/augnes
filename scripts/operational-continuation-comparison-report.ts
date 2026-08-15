@@ -52,7 +52,9 @@ export function renderOperationalContinuationComparisonReportV01(
     },
     continuation_attribution: comparison.continuation_contribution,
     review_burden: {
-      candidate: comparison.candidate_review_burden,
+      candidate_complete_path: comparison.candidate_review_burden,
+      candidate_post_continuation:
+        comparison.candidate_post_continuation_review_burden,
       baseline: comparison.baseline_review_burden,
     },
     coordination_overhead: {
@@ -136,13 +138,22 @@ function deriveBoundedInterpretationV01(
       row.relation === "baseline_better" &&
       row.dimension.startsWith("coordination."),
   );
+  const baselineBetterReviewBurden = comparison.dimension_deltas.filter(
+    (row) =>
+      row.relation === "baseline_better" &&
+      row.dimension.startsWith("review."),
+  );
   if (
     comparison.exact_case_status === "inconclusive" &&
     comparison.equal_ceiling.complete_equal_budget_claim === false &&
     candidateBetter.length === 0 &&
     baselineBetterCoordination.length > 0
   ) {
-    return "The exact case did not demonstrate a continuation benefit. The continuation path incurred greater observed structural coordination overhead, while material cost, usage, human-intervention, or performance-latency dimensions remained unobserved. The bounded overall comparison is therefore inconclusive rather than refuted.";
+    return `The exact case did not demonstrate a continuation benefit. The continuation path incurred greater observed structural coordination overhead${
+      baselineBetterReviewBurden.length > 0
+        ? " and greater complete-path review burden"
+        : ""
+    }, while material cost, usage, human-intervention, or performance-latency dimensions remained unobserved. The bounded overall comparison is therefore inconclusive rather than refuted. Pre-continuation Review A burden is not post-continuation harmful-transfer evidence.`;
   }
   if (comparison.exact_case_status === "inconclusive") {
     return "Material comparison dimensions remain incomplete, unknown, or not comparable, so observed directional deltas do not establish an overall supported, mixed, or refuted verdict.";

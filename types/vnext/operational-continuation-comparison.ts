@@ -78,6 +78,7 @@ export interface OperationalContinuationCandidateBindingV01 {
   packet_a: OperationalContinuationComparisonRecordRefV01;
   run_a: OperationalContinuationManagedRunBindingV01;
   run_receipt_a: OperationalContinuationComparisonRecordRefV01;
+  context_use_review_a: OperationalContinuationComparisonRecordRefV01;
   operational_context_selection: OperationalContinuationComparisonRecordRefV01;
   acgc5a_materialization: OperationalContinuationComparisonRecordRefV01;
   continuation_admission: OperationalContinuationComparisonRecordRefV01;
@@ -309,6 +310,7 @@ export interface OperationalContinuationComparisonV01 {
   baseline_task_outcome: OperationalContinuationTaskOutcomeV01;
   continuation_contribution: OperationalContinuationContributionSummaryV01;
   candidate_review_burden: OperationalContinuationReviewBurdenV01;
+  candidate_post_continuation_review_burden: OperationalContinuationReviewBurdenV01;
   baseline_review_burden: OperationalContinuationReviewBurdenV01;
   candidate_coordination_overhead: OperationalContinuationCoordinationOverheadV01;
   baseline_coordination_overhead: OperationalContinuationCoordinationOverheadV01;

@@ -147,6 +147,7 @@ export interface BuildOperationalContinuationComparisonInputV01 {
     packet_a: TaskContextPacketV01;
     run_a: OperationalContinuationManagedRunBindingV01;
     run_receipt_a: RunReceiptV01;
+    context_use_review_a: ContextUseReviewV01;
     continuation: SourceLinkedOperationalContinuationV01;
     admission: OperationalContinuationAdmissionV01;
     run_b: OperationalContinuationManagedRunBindingV01;
@@ -253,7 +254,12 @@ export function buildOperationalContinuationComparisonV01(
     input.candidate.context_use_review_b,
     input.candidate.context_use_attribution_b,
   );
-  const candidateReviewBurden = deriveReviewBurdenV01(
+  const candidatePostContinuationReviewBurden = deriveReviewBurdenV01(
+    input.candidate.context_use_review_b,
+    input.candidate.exact_observations,
+  );
+  const candidateReviewBurden = aggregateOperationalContinuationReviewBurdenV01(
+    input.candidate.context_use_review_a,
     input.candidate.context_use_review_b,
     input.candidate.exact_observations,
   );
@@ -321,7 +327,7 @@ export function buildOperationalContinuationComparisonV01(
   const harmfulTransfer = deriveHarmfulTransferV01(
     candidateTaskOutcome,
     baselineTaskOutcome,
-    candidateReviewBurden,
+    candidatePostContinuationReviewBurden,
     baselineReviewBurden,
     candidateCost,
     baselineCost,
@@ -356,6 +362,8 @@ export function buildOperationalContinuationComparisonV01(
     baseline_task_outcome: baselineTaskOutcome,
     continuation_contribution: continuationContribution,
     candidate_review_burden: candidateReviewBurden,
+    candidate_post_continuation_review_burden:
+      candidatePostContinuationReviewBurden,
     baseline_review_burden: baselineReviewBurden,
     candidate_coordination_overhead: candidateCoordination,
     baseline_coordination_overhead: baselineCoordination,
@@ -378,6 +386,7 @@ export function buildOperationalContinuationComparisonV01(
     limitations: uniqueTextV01([
       ...input.limitations,
       "Exact-case association is not a general operational-policy benefit.",
+      "Review A is structurally validated and exact-bound to the validated ACGC5A selection and materialization identity; complete historical semantic source revalidation remains owned upstream.",
       "Packet-level use is not distributed to item-level actual use, support, outcome association, or causal contribution.",
       "Equal declared ceilings do not establish equal capability.",
       ...(input.candidate.exact_observations.latency_provenance ===
@@ -446,7 +455,8 @@ export function assertValidOperationalContinuationComparisonV01(
     "frozen_construction_cutoff", "observation_cutoff", "candidate", "baseline",
     "structural_parity", "equal_ceiling", "candidate_task_outcome",
     "baseline_task_outcome", "continuation_contribution", "candidate_review_burden",
-    "baseline_review_burden", "candidate_coordination_overhead",
+    "candidate_post_continuation_review_burden", "baseline_review_burden",
+    "candidate_coordination_overhead",
     "baseline_coordination_overhead", "candidate_cost_operability",
     "baseline_cost_operability", "dimension_deltas",
     "hard_gate_non_compensation_applied", "trade_offs",
@@ -487,7 +497,15 @@ export function assertValidOperationalContinuationComparisonV01(
   assertTaskOutcomeV01(comparison.baseline_task_outcome, "$.baseline_task_outcome");
   assertContributionV01(comparison.continuation_contribution);
   assertReviewBurdenV01(comparison.candidate_review_burden, "$.candidate_review_burden");
+  assertReviewBurdenV01(
+    comparison.candidate_post_continuation_review_burden,
+    "$.candidate_post_continuation_review_burden",
+  );
   assertReviewBurdenV01(comparison.baseline_review_burden, "$.baseline_review_burden");
+  assertCandidateReviewBurdenRelationV01(
+    comparison.candidate_review_burden,
+    comparison.candidate_post_continuation_review_burden,
+  );
   assertCoordinationV01(comparison.candidate_coordination_overhead, "$.candidate_coordination_overhead");
   assertCoordinationV01(comparison.baseline_coordination_overhead, "$.baseline_coordination_overhead");
   if (
@@ -539,7 +557,7 @@ export function assertValidOperationalContinuationComparisonV01(
   const rebuiltHarm = deriveHarmfulTransferV01(
     comparison.candidate_task_outcome,
     comparison.baseline_task_outcome,
-    comparison.candidate_review_burden,
+    comparison.candidate_post_continuation_review_burden,
     comparison.baseline_review_burden,
     comparison.candidate_cost_operability,
     comparison.baseline_cost_operability,
@@ -694,6 +712,71 @@ function validateAndBindCandidateV01(
   }
   assertRunAndReceiptV01(input.run_a, input.run_receipt_a, packetA, "$.candidate.run_a");
   assertRunAndReceiptV01(input.run_b, input.run_receipt_b, packetB, "$.candidate.run_b");
+  const reviewAValidation = validateContextUseReviewV01(
+    input.context_use_review_a,
+  );
+  if (reviewAValidation.status !== "valid") {
+    failV01(
+      `operational_comparison_review_a_invalid:${reviewAValidation.errors
+        .map((issue) => issue.code)
+        .join(",")}`,
+      "$.candidate.context_use_review_a",
+    );
+  }
+  const reviewAFingerprint = input.context_use_review_a.integrity.fingerprint;
+  if (
+    input.context_use_review_a.workspace_id !== packetA.workspace_id ||
+    input.context_use_review_a.project_id !== packetA.project_id ||
+    input.context_use_review_a.later_packet.packet_version !==
+      packetA.packet_version ||
+    input.context_use_review_a.later_packet.packet_id !== packetA.packet_id ||
+    input.context_use_review_a.later_packet.packet_fingerprint !==
+      packetA.integrity.fingerprint ||
+    input.context_use_review_a.later_task_run_receipt.receipt_version !==
+      input.run_receipt_a.receipt_version ||
+    input.context_use_review_a.later_task_run_receipt.receipt_id !==
+      input.run_receipt_a.receipt_id ||
+    input.context_use_review_a.later_task_run_receipt.receipt_fingerprint !==
+      input.run_receipt_a.integrity.fingerprint
+  ) {
+    failV01(
+      "operational_comparison_review_a_source_relation_invalid",
+      "$.candidate.context_use_review_a",
+    );
+  }
+  if (
+    input.context_use_review_a.review_id !==
+      selection.context_use_review_a.record_id ||
+    reviewAFingerprint !==
+      selection.context_use_review_a.record_fingerprint
+  ) {
+    failV01(
+      "operational_comparison_review_a_selection_relation_invalid",
+      "$.candidate.context_use_review_a",
+    );
+  }
+  if (
+    input.context_use_review_a.review_id !== identity.context_use_review_a_id ||
+    reviewAFingerprint !== identity.context_use_review_a_fingerprint
+  ) {
+    failV01(
+      "operational_comparison_review_a_materialization_relation_invalid",
+      "$.candidate.context_use_review_a",
+    );
+  }
+  if (
+    timestampV01(input.context_use_review_a.reviewed_at) <
+      timestampV01(input.run_receipt_a.recorded_at) ||
+    timestampV01(input.context_use_review_a.reviewed_at) >=
+      timestampV01(selection.decision_time_cutoff) ||
+    timestampV01(input.context_use_review_a.reviewed_at) >=
+      timestampV01(input.admission.authenticated_action.admitted_at)
+  ) {
+    failV01(
+      "operational_comparison_review_a_chronology_invalid",
+      "$.candidate.context_use_review_a.reviewed_at",
+    );
+  }
   if (
     input.run_a.run_id === input.run_b.run_id ||
     input.run_a.attachment_id === input.run_b.attachment_id ||
@@ -771,6 +854,7 @@ function validateAndBindCandidateV01(
   assertObservedByCutoffV01(observationCutoff, [
     input.run_receipt_a.recorded_at,
     input.run_receipt_b.recorded_at,
+    input.context_use_review_a.reviewed_at,
     input.context_use_review_b.reviewed_at,
   ]);
   return {
@@ -782,6 +866,7 @@ function validateAndBindCandidateV01(
     packet_a: packetRefV01(packetA),
     run_a: structuredClone(input.run_a),
     run_receipt_a: receiptRefV01(input.run_receipt_a),
+    context_use_review_a: reviewRefV01(input.context_use_review_a),
     operational_context_selection: recordRefV01(
       selection.selection_version,
       selection.selection_id,
@@ -1058,6 +1143,41 @@ function deriveReviewBurdenV01(
     missing_critical_context_count:
       review.metrics.missing_critical_context_count,
     context_refs_used_count: review.metrics.context_refs_used_count,
+    additional_review_actions: observations.additional_review_actions,
+  };
+}
+
+export function aggregateOperationalContinuationReviewBurdenV01(
+  reviewA: ContextUseReviewV01,
+  reviewB: ContextUseReviewV01,
+  observations: OperationalContinuationComparisonExactObservationsV01,
+): OperationalContinuationReviewBurdenV01 {
+  return {
+    correction_count: boundedIntegerV01(
+      reviewA.corrections.correction_count +
+        reviewB.corrections.correction_count,
+      "$.candidate_review_burden.correction_count",
+    ),
+    wrong_context_correction_count: nullableSumV01(
+      reviewA.metrics.wrong_context_correction_count,
+      reviewB.metrics.wrong_context_correction_count,
+      "$.candidate_review_burden.wrong_context_correction_count",
+    ),
+    repeated_explanation_estimate: nullableSumV01(
+      reviewA.metrics.repeated_explanation_estimate,
+      reviewB.metrics.repeated_explanation_estimate,
+      "$.candidate_review_burden.repeated_explanation_estimate",
+    ),
+    missing_critical_context_count: nullableSumV01(
+      reviewA.metrics.missing_critical_context_count,
+      reviewB.metrics.missing_critical_context_count,
+      "$.candidate_review_burden.missing_critical_context_count",
+    ),
+    context_refs_used_count: nullableSumV01(
+      reviewA.metrics.context_refs_used_count,
+      reviewB.metrics.context_refs_used_count,
+      "$.candidate_review_burden.context_refs_used_count",
+    ),
     additional_review_actions: observations.additional_review_actions,
   };
 }
@@ -1705,6 +1825,7 @@ function assertCandidateBindingV01(
   assertExactKeysV01(value, [
     "workspace_id", "project_id", "work", "evaluation_case_id",
     "repository_state", "packet_a", "run_a", "run_receipt_a",
+    "context_use_review_a",
     "operational_context_selection", "acgc5a_materialization",
     "continuation_admission", "packet_b", "run_b", "run_receipt_b",
     "context_use_review_b", "context_use_attribution_b",
@@ -1715,6 +1836,7 @@ function assertCandidateBindingV01(
   assertRepositoryStateV01(value.repository_state, "$.candidate.repository_state");
   for (const [key, ref] of [
     ["packet_a", value.packet_a], ["run_receipt_a", value.run_receipt_a],
+    ["context_use_review_a", value.context_use_review_a],
     ["operational_context_selection", value.operational_context_selection],
     ["acgc5a_materialization", value.acgc5a_materialization],
     ["continuation_admission", value.continuation_admission],
@@ -1998,6 +2120,36 @@ function assertReviewBurdenV01(value: OperationalContinuationReviewBurdenV01, pa
   ]) nullableCountV01(item, path);
 }
 
+function assertCandidateReviewBurdenRelationV01(
+  completePath: OperationalContinuationReviewBurdenV01,
+  postContinuation: OperationalContinuationReviewBurdenV01,
+): void {
+  if (
+    completePath.correction_count < postContinuation.correction_count ||
+    completePath.additional_review_actions !==
+      postContinuation.additional_review_actions
+  ) {
+    failV01("operational_comparison_review_burden_scope_invalid");
+  }
+  for (const key of [
+    "wrong_context_correction_count",
+    "repeated_explanation_estimate",
+    "missing_critical_context_count",
+    "context_refs_used_count",
+  ] as const) {
+    const completeValue = completePath[key];
+    const postValue = postContinuation[key];
+    if (
+      (postValue === null && completeValue !== null) ||
+      (postValue !== null &&
+        completeValue !== null &&
+        completeValue < postValue)
+    ) {
+      failV01("operational_comparison_review_burden_scope_invalid");
+    }
+  }
+}
+
 function assertCoordinationV01(value: OperationalContinuationCoordinationOverheadV01, path: string): void {
   assertExactKeysV01(value, [
     "managed_runs", "repository_attachments", "browser_start_confirmations",
@@ -2269,6 +2421,15 @@ function boundedIntegerV01(value: unknown, path: string): number {
 function nullableCountV01(value: number | null, path: string): number | null {
   if (value === null) return null;
   return boundedIntegerV01(value, path);
+}
+
+function nullableSumV01(
+  left: number | null,
+  right: number | null,
+  path: string,
+): number | null {
+  if (left === null || right === null) return null;
+  return boundedIntegerV01(left + right, path);
 }
 
 function uniqueSortedV01<T extends string>(values: readonly T[]): T[] {
