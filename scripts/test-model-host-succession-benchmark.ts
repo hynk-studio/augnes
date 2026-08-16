@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import {
   buildDeterministicModelHostSuccessionBenchmarkFixtureV01,
   buildModelHostSuccessionRouteProfilesFixtureV01,
-  buildUnavailableModelHostSuccessionBenchmarkFixtureV01,
+  type ModelHostSuccessionUnavailableBenchmarkFixtureResultV01,
 } from "@/fixtures/vnext/research/model-host-succession-benchmark-v0-1";
 import {
   ACGC6A_MERGED_STAGE5_BASELINE_COMMIT_V01,
@@ -17,6 +17,7 @@ import {
   buildModelHostSuccessionFallbackPlanV01,
   buildModelHostSuccessionFrozenCaseV01,
   buildModelHostSuccessionRouteProfileV01,
+  deriveModelHostSuccessionFallbackRelationV01,
   deriveModelHostSuccessionPairwiseRouteDeltasV01,
   modelHostSuccessionFallbackArmRefV01,
   routeProfileRefV01,
@@ -52,8 +53,11 @@ if (
 }
 
 async function main(): Promise<void> {
-  const fixture = await buildDeterministicModelHostSuccessionBenchmarkFixtureV01();
+  const fixture = await buildDeterministicModelHostSuccessionBenchmarkFixtureV01({
+    include_nonexecuted_fixtures: true,
+  });
   const benchmark = fixture.benchmark;
+  assert(fixture.focused_nonexecuted_fixtures);
 
   assert.equal(validateModelHostSuccessionBenchmarkV01(benchmark).status, "valid");
   assertSourceBindingV01(benchmark);
@@ -62,7 +66,10 @@ async function main(): Promise<void> {
   assertContinuationTraceV01(benchmark);
   assertFallbackV01(benchmark);
   assertBenchmarkSemanticsV01(benchmark);
-  assertUnavailableArmSemanticsV01(benchmark);
+  assertUnavailableArmSemanticsV01(
+    benchmark,
+    fixture.focused_nonexecuted_fixtures,
+  );
   assertZeroUnauthorizedEffectsV01(benchmark, fixture);
   assertReportV01(benchmark);
 
@@ -450,6 +457,85 @@ function assertFallbackV01(benchmark: ModelHostSuccessionBenchmarkV01): void {
   assert.equal(armV01(benchmark, "zero_model_fallback").fallback_used, false);
   assert.equal(replay.fallback_used, true);
   assertNoIdentityOverlapV01(constrained, replay);
+  assert.equal(constrained.chronology.observation_basis, "exact_run_receipt");
+  assert.deepEqual(
+    constrained.chronology.source_record_ref,
+    constrained.record_refs.run_receipt,
+  );
+  assert.equal(replay.chronology.observation_basis, "exact_run_receipt");
+  assert.deepEqual(
+    replay.chronology.source_record_ref,
+    replay.record_refs.run_receipt,
+  );
+  assert.equal(
+    Date.parse(benchmark.fallback_relation.chronology.candidate_settled_at) <
+      Date.parse(
+        benchmark.fallback_relation.chronology.predecessor_replay_started_at,
+      ),
+    true,
+  );
+  assert.deepEqual(
+    benchmark.fallback_relation,
+    deriveModelHostSuccessionFallbackRelationV01(constrained, replay),
+  );
+  assert.equal(
+    Date.parse(benchmark.fallback_relation.chronology.predecessor_replay_started_at) <=
+      Date.parse(benchmark.frozen_case.repository_state.observation_cutoff),
+    true,
+  );
+
+  const chronologyBeforeCandidate = cloneV01(benchmark);
+  chronologyBeforeCandidate.fallback_relation.chronology
+    .predecessor_replay_started_at = new Date(
+      Date.parse(constrained.chronology.settled_at) - 1,
+    ).toISOString();
+  assertBlockedCodeV01(
+    validateModelHostSuccessionBenchmarkV01(
+      resealBenchmarkV01(chronologyBeforeCandidate),
+    ),
+    "model_host_fallback_relation_invalid",
+  );
+
+  for (const offset of [0, -1]) {
+    const reorderedReplay = buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(replay),
+      chronology: {
+        ...replay.chronology,
+        execution_started_at: new Date(
+          Date.parse(constrained.chronology.settled_at) + offset,
+        ).toISOString(),
+      },
+    });
+    assert.throws(
+      () => deriveModelHostSuccessionFallbackRelationV01(
+        constrained,
+        reorderedReplay,
+      ),
+      /model_host_fallback_chronology_order_invalid/u,
+    );
+  }
+
+  assertChronologyIdentityChangesV01(benchmark, constrained, replay);
+
+  for (const role of [
+    "same_model_cold_session_simulation",
+    "alternate_provider_host_contract_simulation",
+    "zero_model_fallback",
+  ] as const) {
+    const direct = armV01(benchmark, role);
+    assert.equal(direct.contract_status, "contract_compatible");
+    assert.equal(direct.fallback_required, false);
+    assert.equal(direct.fallback_used, false);
+    assert.throws(
+      () => buildModelHostSuccessionArmResultV01({
+        ...armBuilderInputV01(direct),
+        fallback_required: true,
+      }),
+      /model_host_arm_compatible_fallback_required_invalid/u,
+    );
+  }
+  assert.equal(replay.contract_status, "contract_compatible");
+  assert.equal(replay.fallback_required, false);
 
   const planReplay = buildModelHostSuccessionFallbackPlanV01(
     fallbackBuilderInputV01(plan),
@@ -578,6 +664,82 @@ function assertFallbackV01(benchmark: ModelHostSuccessionBenchmarkV01): void {
       },
     }),
     /model_host_cross_arm_identity_reuse_detected/u,
+  );
+}
+
+function assertChronologyIdentityChangesV01(
+  benchmark: ModelHostSuccessionBenchmarkV01,
+  candidate: ModelHostSuccessionArmResultV01,
+  replay: ModelHostSuccessionArmResultV01,
+): void {
+  const changedCandidate = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(candidate),
+    chronology: {
+      ...candidate.chronology,
+      settled_at: new Date(
+        Date.parse(candidate.chronology.settled_at) + 1_000,
+      ).toISOString(),
+    },
+  });
+  const changedPlan = buildModelHostSuccessionFallbackPlanV01({
+    ...fallbackBuilderInputV01(benchmark.fallback_plan),
+    failed_arm_ref: modelHostSuccessionFallbackArmRefV01(changedCandidate),
+  });
+  const reboundReplay = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(replay),
+    fallback_execution_binding: {
+      fallback_plan_id: changedPlan.fallback_plan_id,
+      fallback_plan_fingerprint: changedPlan.integrity.fingerprint,
+      candidate_arm_id: changedCandidate.arm_id,
+      candidate_arm_fingerprint: changedCandidate.integrity.fingerprint,
+    },
+  });
+  const candidateChronologyChanged = buildModelHostSuccessionBenchmarkV01({
+    ...benchmarkBuilderInputV01(benchmark),
+    arm_results: benchmark.arm_results.map((arm) => {
+      if (
+        arm.route_profile_ref.route_role ===
+          "capability_constrained_simulation"
+      ) return changedCandidate;
+      if (arm.route_profile_ref.route_role === "predecessor_route_replay") {
+        return reboundReplay;
+      }
+      return arm;
+    }),
+    fallback_plan: changedPlan,
+    fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+      changedCandidate,
+      reboundReplay,
+    ),
+  });
+  assert.notEqual(
+    candidateChronologyChanged.benchmark_id,
+    benchmark.benchmark_id,
+  );
+
+  const replayStartChanged = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(replay),
+    chronology: {
+      ...replay.chronology,
+      execution_started_at: new Date(
+        Date.parse(replay.chronology.execution_started_at!) - 1_000,
+      ).toISOString(),
+    },
+  });
+  const replayChronologyChanged = buildModelHostSuccessionBenchmarkV01({
+    ...benchmarkBuilderInputV01(benchmark),
+    arm_results: benchmark.arm_results.map((arm) =>
+      arm.route_profile_ref.route_role === "predecessor_route_replay"
+        ? replayStartChanged
+        : arm),
+    fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+      candidate,
+      replayStartChanged,
+    ),
+  });
+  assert.notEqual(
+    replayChronologyChanged.benchmark_id,
+    benchmark.benchmark_id,
   );
 }
 
@@ -729,19 +891,15 @@ function assertPairwiseSourceChangeV01(
     ...armBuilderInputV01(alternate),
     contract_status: "unobserved",
   });
-  const stateChangedBenchmark = buildModelHostSuccessionBenchmarkV01({
-    ...benchmarkBuilderInputV01(benchmark),
-    arm_results: benchmark.arm_results.map((arm) =>
+  const stateChangedArms = benchmark.arm_results.map((arm) =>
       arm.route_profile_ref.route_role ===
-        "alternate_provider_host_contract_simulation"
+      "alternate_provider_host_contract_simulation"
         ? stateChangedArm
-        : arm),
-  });
+        : arm);
   assert.notDeepEqual(
-    stateChangedBenchmark.pairwise_route_deltas,
+    deriveModelHostSuccessionPairwiseRouteDeltasV01(stateChangedArms),
     benchmark.pairwise_route_deltas,
   );
-  assert.notEqual(stateChangedBenchmark.benchmark_id, benchmark.benchmark_id);
 
   const alternateProfile = routeV01(
     benchmark,
@@ -801,25 +959,39 @@ function assertPairwiseSourceChangeV01(
 
 function assertUnavailableArmSemanticsV01(
   decidingBenchmark: ModelHostSuccessionBenchmarkV01,
+  focusedFixtures: {
+    unavailable: ModelHostSuccessionUnavailableBenchmarkFixtureResultV01;
+    not_executed: ModelHostSuccessionUnavailableBenchmarkFixtureResultV01;
+  },
 ): void {
-  const unavailableBenchmark =
-    buildUnavailableModelHostSuccessionBenchmarkFixtureV01(decidingBenchmark);
+  const unavailableFixture = focusedFixtures.unavailable;
+  const unavailableBenchmark = unavailableFixture.benchmark;
   assert.equal(
     validateModelHostSuccessionBenchmarkV01(unavailableBenchmark).status,
     "valid",
   );
   assert.equal(unavailableBenchmark.summary, "inconclusive");
+  assert.notEqual(unavailableBenchmark.benchmark_id, decidingBenchmark.benchmark_id);
   const candidate = armV01(
     unavailableBenchmark,
     "capability_constrained_simulation",
   );
   const replay = armV01(unavailableBenchmark, "predecessor_route_replay");
+  assert.deepEqual(candidate, unavailableFixture.candidate);
+  assert.deepEqual(replay, unavailableFixture.predecessor_replay);
   assert.equal(candidate.contract_status, "unobserved");
   assert.equal(candidate.execution_status, "unavailable");
   assert.equal(candidate.verification_status, "not_run");
   assert.equal(candidate.fallback_required, true);
   assert.equal(candidate.fallback_used, false);
   assert.equal(candidate.direct_success_claimed, false);
+  assert.equal(candidate.fallback_execution_binding, null);
+  assert.equal(candidate.chronology.execution_started_at, null);
+  assert.equal(
+    candidate.chronology.observation_basis,
+    "benchmark_route_resolution_observation",
+  );
+  assert.equal(candidate.chronology.source_record_ref, null);
   assert.equal(candidate.continuation_trace.packet_b_exact_bytes_delivered, false);
   assert.equal(candidate.continuation_trace.selected_entry_count, 1);
   assert.equal(candidate.continuation_trace.selected_entry_delivered_count, 0);
@@ -842,6 +1014,16 @@ function assertUnavailableArmSemanticsV01(
     true,
   );
   assert.equal(
+    candidate.fresh_identity_proof.database_scope_fingerprint,
+    createProtocolSha256V01(unavailableFixture.candidate_database_path),
+  );
+  assert.equal(
+    candidate.fresh_identity_proof.repository_root_fingerprint,
+    createProtocolSha256V01(unavailableFixture.candidate_project_root),
+  );
+  assert.equal(unavailableFixture.candidate_scope_created, true);
+  assert.equal(unavailableFixture.candidate_downstream_execution_created, false);
+  assert.equal(
     unavailableBenchmark.fallback_plan.failed_arm_ref.settled_status,
     "unavailable",
   );
@@ -854,7 +1036,63 @@ function assertUnavailableArmSemanticsV01(
     replay.route_profile_ref,
   );
   assert.equal(replay.fallback_used, true);
+  assert.equal(replay.fallback_required, false);
+  assert(replay.fallback_execution_binding);
+  assert.equal(
+    replay.fallback_execution_binding.fallback_plan_id,
+    unavailableBenchmark.fallback_plan.fallback_plan_id,
+  );
+  assert.equal(
+    replay.fallback_execution_binding.candidate_arm_id,
+    candidate.arm_id,
+  );
+  assert.notEqual(
+    replay.arm_id,
+    armV01(decidingBenchmark, "predecessor_route_replay").arm_id,
+    "focused unavailable fixture reused the deciding benchmark replay arm",
+  );
+  assertNoIdentityOverlapV01(
+    armV01(decidingBenchmark, "predecessor_route_replay"),
+    replay,
+  );
+  assert.equal(
+    Date.parse(candidate.chronology.settled_at) <
+      Date.parse(replay.chronology.execution_started_at!),
+    true,
+  );
+  assert.deepEqual(
+    unavailableBenchmark.fallback_relation,
+    deriveModelHostSuccessionFallbackRelationV01(candidate, replay),
+  );
   assertNoIdentityOverlapV01(candidate, replay);
+  assert.equal(
+    [
+      replay.fresh_identity_proof.attachment_id,
+      replay.fresh_identity_proof.attachment_binding_fingerprint,
+      replay.fresh_identity_proof.start_request_fingerprint,
+      replay.fresh_identity_proof.start_grant_fingerprint,
+      replay.fresh_identity_proof.managed_run_id,
+      replay.fresh_identity_proof.controller_identity_fingerprint,
+      replay.fresh_identity_proof.browser_decision_session_identity_fingerprint,
+      replay.fresh_identity_proof.host_session_identity_fingerprint,
+      replay.fresh_identity_proof.host_thread_identity_fingerprint,
+      replay.fresh_identity_proof.host_turn_identity_fingerprint,
+    ].every((value) => typeof value === "string" && value.length > 0),
+    true,
+  );
+  assert.equal(unavailableFixture.real_provider_calls, 0);
+  assert.equal(unavailableFixture.fetch_calls, 0);
+  assert.equal(unavailableFixture.cleanup_verified, true);
+  assert.equal(unavailableFixture.source_fixture_root_removed, true);
+  assert.equal(
+    [
+      unavailableFixture.candidate_database_path,
+      unavailableFixture.candidate_project_root,
+      unavailableFixture.replay_database_path,
+      unavailableFixture.replay_project_root,
+    ].every((ownedPath) => !existsSync(ownedPath)),
+    true,
+  );
   assert.equal(
     unavailableBenchmark.pairwise_route_deltas.some((row) =>
       row.dimension === "route_contract_status" &&
@@ -871,10 +1109,10 @@ function assertUnavailableArmSemanticsV01(
     true,
   );
 
-  const notExecutedCandidate = buildModelHostSuccessionArmResultV01({
-    ...armBuilderInputV01(candidate),
-    execution_status: "not_executed",
-  });
+  const notExecutedFixture = focusedFixtures.not_executed;
+  const notExecutedBenchmark = notExecutedFixture.benchmark;
+  const notExecutedCandidate = notExecutedFixture.candidate;
+  const notExecutedReplay = notExecutedFixture.predecessor_replay;
   assert.equal(
     validateModelHostSuccessionArmResultV01(notExecutedCandidate).status,
     "valid",
@@ -883,27 +1121,74 @@ function assertUnavailableArmSemanticsV01(
     modelHostSuccessionFallbackArmRefV01(notExecutedCandidate).settled_status,
     "not_executed",
   );
-  const notExecutedPlan = buildModelHostSuccessionFallbackPlanV01({
-    ...fallbackBuilderInputV01(unavailableBenchmark.fallback_plan),
-    failed_arm_ref: modelHostSuccessionFallbackArmRefV01(notExecutedCandidate),
-  });
-  const notExecutedBenchmark = buildModelHostSuccessionBenchmarkV01({
-    ...benchmarkBuilderInputV01(unavailableBenchmark),
-    arm_results: unavailableBenchmark.arm_results.map((arm) =>
-      arm.route_profile_ref.route_role === "capability_constrained_simulation"
-        ? notExecutedCandidate
-        : arm),
-    fallback_plan: notExecutedPlan,
-    fallback_relation: {
-      ...unavailableBenchmark.fallback_relation,
-      candidate_arm_id: notExecutedCandidate.arm_id,
-    },
-  });
   assert.equal(
     validateModelHostSuccessionBenchmarkV01(notExecutedBenchmark).status,
     "valid",
   );
   assert.equal(notExecutedBenchmark.summary, "inconclusive");
+  assert.equal(notExecutedCandidate.chronology.execution_started_at, null);
+  assert.equal(
+    notExecutedCandidate.chronology.observation_basis,
+    "benchmark_route_resolution_observation",
+  );
+  assert.equal(
+    Date.parse(notExecutedCandidate.chronology.settled_at) <
+      Date.parse(notExecutedReplay.chronology.execution_started_at!),
+    true,
+  );
+  assert.deepEqual(
+    notExecutedBenchmark.fallback_relation,
+    deriveModelHostSuccessionFallbackRelationV01(
+      notExecutedCandidate,
+      notExecutedReplay,
+    ),
+  );
+  assertNoIdentityOverlapV01(notExecutedCandidate, notExecutedReplay);
+  assertNoIdentityOverlapV01(
+    armV01(decidingBenchmark, "predecessor_route_replay"),
+    notExecutedReplay,
+  );
+  assertNoIdentityOverlapV01(replay, notExecutedReplay);
+  assert.equal(notExecutedFixture.real_provider_calls, 0);
+  assert.equal(
+    [
+      notExecutedFixture.candidate_database_path,
+      notExecutedFixture.candidate_project_root,
+      notExecutedFixture.replay_database_path,
+      notExecutedFixture.replay_project_root,
+    ].every((ownedPath) => !existsSync(ownedPath)),
+    true,
+  );
+
+  const oldReplay = armV01(decidingBenchmark, "predecessor_route_replay");
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(unavailableBenchmark),
+      arm_results: unavailableBenchmark.arm_results.map((arm) =>
+        arm.route_profile_ref.route_role === "predecessor_route_replay"
+          ? oldReplay
+          : arm),
+      fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+        candidate,
+        oldReplay,
+      ),
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(unavailableBenchmark),
+      arm_results: unavailableBenchmark.arm_results.map((arm) =>
+        arm.route_profile_ref.route_role === "predecessor_route_replay"
+          ? notExecutedReplay
+          : arm),
+      fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+        candidate,
+        notExecutedReplay,
+      ),
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
 
   assert.throws(
     () => buildModelHostSuccessionArmResultV01({

@@ -13,6 +13,7 @@ import {
   buildModelHostSuccessionFallbackPlanV01,
   buildModelHostSuccessionFrozenCaseV01,
   buildModelHostSuccessionRouteProfileV01,
+  deriveModelHostSuccessionFallbackRelationV01,
   modelHostSuccessionFallbackArmRefV01,
   routeProfileRefV01,
 } from "@/lib/vnext/model-host-succession-benchmark";
@@ -97,6 +98,26 @@ export interface ModelHostSuccessionBenchmarkFixtureResultV01 {
   fetch_calls: 0;
   cleanup_verified: true;
   source_fixture_root_removed: true;
+  focused_nonexecuted_fixtures?: {
+    unavailable: ModelHostSuccessionUnavailableBenchmarkFixtureResultV01;
+    not_executed: ModelHostSuccessionUnavailableBenchmarkFixtureResultV01;
+  };
+}
+
+export interface ModelHostSuccessionUnavailableBenchmarkFixtureResultV01 {
+  benchmark: ModelHostSuccessionBenchmarkV01;
+  candidate: ModelHostSuccessionArmResultV01;
+  predecessor_replay: ModelHostSuccessionArmResultV01;
+  candidate_database_path: string;
+  candidate_project_root: string;
+  replay_database_path: string;
+  replay_project_root: string;
+  candidate_scope_created: true;
+  candidate_downstream_execution_created: false;
+  real_provider_calls: 0;
+  fetch_calls: 0;
+  cleanup_verified: true;
+  source_fixture_root_removed: true;
 }
 
 interface ExecutedArmV01 {
@@ -107,6 +128,12 @@ interface ExecutedArmV01 {
   review: ContextUseReviewV01;
   attribution: ContextUseAttributionProjectionV01;
   receipt: RunReceiptV01;
+}
+
+interface NonExecutedCandidateArmV01 {
+  result: ModelHostSuccessionArmResultV01;
+  database_path: string;
+  project_root: string;
 }
 
 class BenchmarkSecretSourceV01 implements VNextLocalOperatorSecretSourceV01 {
@@ -260,7 +287,9 @@ export function buildModelHostSuccessionRouteProfilesFixtureV01(): ModelHostSucc
   return [sameModel, constrained, alternate, zero, predecessor];
 }
 
-export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01(): Promise<ModelHostSuccessionBenchmarkFixtureResultV01> {
+export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01(
+  options: { include_nonexecuted_fixtures?: boolean } = {},
+): Promise<ModelHostSuccessionBenchmarkFixtureResultV01> {
   let sourceFixture: ReusableOperationalContinuationFixtureV01 | null = null;
   let sourceRoot = "";
   try {
@@ -308,6 +337,10 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
       frozen_case: frozenCase,
       profile: predecessorProfile,
       index: 4,
+      fallback_context: {
+        plan: fallbackPlan,
+        candidate: constrained.result,
+      },
     });
     executed.push(predecessor);
     assert.equal(
@@ -321,13 +354,10 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
       route_profiles: profiles,
       arm_results: executed.map((arm) => arm.result),
       fallback_plan: fallbackPlan,
-      fallback_relation: {
-        candidate_arm_id: constrained.result.arm_id,
-        predecessor_replay_arm_id: predecessor.result.arm_id,
-        candidate_history_unchanged: true,
-        cross_arm_contamination_detected: false,
-        automatic_execution_used: false,
-      },
+      fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+        constrained.result,
+        predecessor.result,
+      ),
       trade_offs: [
         "The constrained route preserved the unsupported-operation hard gate but required explicit fallback.",
         "The alternate simulated route preserved normalized request and result contracts without establishing equal capability or model quality.",
@@ -356,7 +386,31 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
       adr_owner_gap_observations: adrOwnerGapObservationsV01(),
     });
     assert.equal(reusableOperationalContinuationFixtureFetchCallsV01(), 0);
-    const result = {
+    const focusedNonexecutedFixtures = options.include_nonexecuted_fixtures
+      ? {
+        unavailable: await buildNonExecutedBenchmarkFromSourceV01({
+          source_fixture: sourceFixture,
+          admitted,
+          portable_bytes: exported.bytes,
+          frozen_case: frozenCase,
+          profiles,
+          direct_arms: executed,
+          execution_status: "unavailable",
+          scope_namespace: "focused-unavailable",
+        }),
+        not_executed: await buildNonExecutedBenchmarkFromSourceV01({
+          source_fixture: sourceFixture,
+          admitted,
+          portable_bytes: exported.bytes,
+          frozen_case: frozenCase,
+          profiles,
+          direct_arms: executed,
+          execution_status: "not_executed",
+          scope_namespace: "focused-not-executed",
+        }),
+      }
+      : undefined;
+    const result: ModelHostSuccessionBenchmarkFixtureResultV01 = {
       benchmark,
       frozen_packet_b_canonical_bytes: canonicalizeProtocolValueV01(
         frozenCase.packet_b,
@@ -370,168 +424,204 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
       fetch_calls: 0 as const,
       cleanup_verified: true as const,
       source_fixture_root_removed: true as const,
+      ...(focusedNonexecutedFixtures
+        ? { focused_nonexecuted_fixtures: focusedNonexecutedFixtures }
+        : {}),
     };
     cleanupReusableOperationalContinuationFixtureV01(sourceFixture);
     sourceFixture = null;
     assert.equal(execFileSync("test", ["!", "-e", sourceRoot], {
       encoding: "utf8",
     }), "");
+    for (const focusedFixture of Object.values(
+      focusedNonexecutedFixtures ?? {},
+    )) {
+      for (const ownedPath of [
+        focusedFixture.candidate_database_path,
+        focusedFixture.candidate_project_root,
+        focusedFixture.replay_database_path,
+        focusedFixture.replay_project_root,
+      ]) {
+        assert.equal(execFileSync("test", ["!", "-e", ownedPath], {
+          encoding: "utf8",
+        }), "");
+      }
+    }
     return result;
   } finally {
     if (sourceFixture) cleanupReusableOperationalContinuationFixtureV01(sourceFixture);
   }
 }
 
-export function buildUnavailableModelHostSuccessionBenchmarkFixtureV01(
-  sourceBenchmark: ModelHostSuccessionBenchmarkV01,
-): ModelHostSuccessionBenchmarkV01 {
-  const constrainedProfile = sourceBenchmark.route_profiles.find(
-    (profile) =>
-      profile.route_role === "capability_constrained_simulation",
-  );
-  const predecessorProfile = sourceBenchmark.route_profiles.find(
-    (profile) => profile.route_role === "predecessor_route_replay",
-  );
-  const replay = sourceBenchmark.arm_results.find(
-    (arm) => arm.route_profile_ref.route_role === "predecessor_route_replay",
-  );
-  assert(constrainedProfile && predecessorProfile && replay);
-  const scopeSeed = canonicalizeProtocolValueV01({
-    frozen_case_id: sourceBenchmark.frozen_case.frozen_case_id,
-    route_profile_id: constrainedProfile.route_profile_id,
-    fixture: "route_unavailable_before_managed_execution",
-  });
-  const unavailableCandidate = buildModelHostSuccessionArmResultV01({
-    route_profile_ref: routeProfileRefV01(constrainedProfile),
-    evidence_class: constrainedProfile.evidence_class,
-    fresh_identity_proof: {
-      project_scope_fingerprint: createProtocolSha256V01(
-        `${scopeSeed}:project`,
-      ),
-      database_scope_fingerprint: createProtocolSha256V01(
-        `${scopeSeed}:database`,
-      ),
-      repository_root_fingerprint: createProtocolSha256V01(
-        `${scopeSeed}:repository-root`,
-      ),
-      attachment_id: null,
-      attachment_binding_fingerprint: null,
-      start_request_fingerprint: null,
-      start_grant_fingerprint: null,
-      managed_run_id: null,
-      controller_identity_fingerprint: null,
-      browser_decision_session_identity_fingerprint: null,
-      host_session_identity_fingerprint: null,
-      host_thread_identity_fingerprint: null,
-      host_turn_identity_fingerprint: null,
-      provider_thread_identity_fingerprint: null,
-      prior_identity_reuse_count: 0,
-      no_reuse_proven: true,
-      resume_used: false,
-      retry_used: false,
-    },
-    contract_status: "unobserved",
-    execution_status: "unavailable",
-    verification_status: "not_run",
-    required_checks: {
-      passed: [],
-      failed: [],
-      blocked: [],
-      skipped: [],
-      unknown: sourceBenchmark.frozen_case.constraints.required_checks,
-    },
-    supported_capability: constrainedProfile.supported_operation_classes,
-    unsupported_capability: constrainedProfile.unsupported_operation_classes,
-    unsupported_operation_executed_count: 0,
-    stronger_result_inherited: false,
-    silent_fallback_used: false,
-    continuation_trace: {
-      packet_b_exact_bytes_delivered: false,
-      selected_entry_count:
-        sourceBenchmark.frozen_case.operational_context_selection.selected_rows
-          .length,
-      selected_entry_delivered_count: 0,
-      selected_entry_exact_receipt_referenced_count: 0,
-      excluded_candidate_credit_count: 0,
-      bundle_credit_assigned: false,
-      packet_level_actual_use_claim: "unknown",
-      item_actual_use: "unknown",
-      support_validation: "unknown",
-      outcome_association: "unknown",
-      causal_contribution: "unknown",
-    },
-    record_refs: {
-      run: null,
-      run_receipt: null,
-      context_use_review: null,
-      context_use_attribution: null,
-    },
-    resource_observations: {
-      provider_calls: 0,
-      model_calls: 0,
-      network_calls: 0,
-      github_calls: 0,
-      external_calls: 0,
-      usage_units: null,
-      monetary_cost_microunits: null,
-      genuine_latency_ms: null,
-      observation_provenance: "unobserved",
-    },
-    privacy_egress: "unobserved",
-    review_burden: {
-      review_action_count: 0,
-      correction_count: null,
-      required_human_intervention_count: null,
-    },
-    fallback_required: true,
-    fallback_used: false,
-    direct_success_claimed: false,
-    predecessor_replay_status: "not_applicable",
-    cleanup_recovery_burden: null,
-    cleanup_status: "complete",
-    platform_boundary:
-      "Deterministic contract fixture resolved the candidate route unavailable before managed execution; no live provider or platform execution claim.",
-    limitations: [
-      "The unavailable route created no attachment, Start request or grant, managed run, controller, host/provider thread, receipt, review, or attribution evidence.",
-      "Route unavailability is not evidence of global provider or model inferiority.",
-    ],
+export async function buildUnavailableModelHostSuccessionBenchmarkFixtureV01(
+  options: {
+    execution_status?: "unavailable" | "not_executed";
+  } = {},
+): Promise<ModelHostSuccessionUnavailableBenchmarkFixtureResultV01> {
+  let sourceFixture: ReusableOperationalContinuationFixtureV01 | null = null;
+  let sourceRoot = "";
+  try {
+    sourceFixture = await createReusableOperationalContinuationFixtureV01({
+      data_classification: "public_safe",
+    });
+    sourceRoot = sourceFixture.root;
+    const admitted = admitReusableOperationalContinuationPacketBV01(
+      sourceFixture,
+    );
+    const frozenCase = buildFrozenCaseV01(sourceFixture, admitted);
+    const exported = exportActivePortableProjectV01(sourceFixture.db, {
+      include_personal_perspective: false,
+      exported_at: "2026-07-18T15:02:30.000Z",
+    });
+    const profiles = buildModelHostSuccessionRouteProfilesFixtureV01();
+    const executed: ExecutedArmV01[] = [];
+    for (const index of [0, 2, 3]) {
+      executed.push(await executeArmV01({
+        source_fixture: sourceFixture,
+        admitted,
+        portable_bytes: exported.bytes,
+        frozen_case: frozenCase,
+        profile: profiles[index]!,
+        index,
+        scope_namespace: "focused-standalone",
+      }));
+    }
+    const result = await buildNonExecutedBenchmarkFromSourceV01({
+      source_fixture: sourceFixture,
+      admitted,
+      portable_bytes: exported.bytes,
+      frozen_case: frozenCase,
+      profiles,
+      direct_arms: executed,
+      execution_status: options.execution_status ?? "unavailable",
+      scope_namespace: "focused-standalone",
+    });
+    assert.equal(reusableOperationalContinuationFixtureFetchCallsV01(), 0);
+    cleanupReusableOperationalContinuationFixtureV01(sourceFixture);
+    sourceFixture = null;
+    for (const ownedPath of [
+      sourceRoot,
+      result.candidate_database_path,
+      result.candidate_project_root,
+      result.replay_database_path,
+      result.replay_project_root,
+    ]) {
+      assert.equal(execFileSync("test", ["!", "-e", ownedPath], {
+        encoding: "utf8",
+      }), "");
+    }
+    return result;
+  } finally {
+    if (sourceFixture) {
+      cleanupReusableOperationalContinuationFixtureV01(sourceFixture);
+    }
+  }
+}
+
+async function buildNonExecutedBenchmarkFromSourceV01(input: {
+  source_fixture: ReusableOperationalContinuationFixtureV01;
+  admitted: AdmittedReusableOperationalContinuationPacketBV01;
+  portable_bytes: Uint8Array;
+  frozen_case: ReturnType<typeof buildFrozenCaseV01>;
+  profiles: ModelHostSuccessionRouteProfileV01[];
+  direct_arms: ExecutedArmV01[];
+  execution_status: "unavailable" | "not_executed";
+  scope_namespace: string;
+}): Promise<ModelHostSuccessionUnavailableBenchmarkFixtureResultV01> {
+  const candidate = createNonExecutedCandidateArmV01({
+    source_fixture: input.source_fixture,
+    portable_bytes: input.portable_bytes,
+    frozen_case: input.frozen_case,
+    profile: input.profiles[1]!,
+    index: 1,
+    execution_status: input.execution_status,
+    scope_namespace: input.scope_namespace,
   });
   const candidateHistoryBefore = canonicalizeProtocolValueV01(
-    unavailableCandidate,
+    candidate.result,
   );
+  const predecessorProfile = input.profiles[4]!;
   const fallbackPlan = buildFallbackPlanV01(
-    sourceBenchmark.frozen_case,
-    unavailableCandidate,
+    input.frozen_case,
+    candidate.result,
     predecessorProfile,
   );
-  const benchmark = buildModelHostSuccessionBenchmarkV01({
-    frozen_case: sourceBenchmark.frozen_case,
-    route_profiles: sourceBenchmark.route_profiles,
-    arm_results: sourceBenchmark.arm_results.map((arm) =>
-      arm.route_profile_ref.route_role === "capability_constrained_simulation"
-        ? unavailableCandidate
-        : arm),
-    fallback_plan: fallbackPlan,
-    fallback_relation: {
-      candidate_arm_id: unavailableCandidate.arm_id,
-      predecessor_replay_arm_id: replay.arm_id,
-      candidate_history_unchanged: true,
-      cross_arm_contamination_detected: false,
-      automatic_execution_used: false,
+  const predecessor = await executeArmV01({
+    source_fixture: input.source_fixture,
+    admitted: input.admitted,
+    portable_bytes: input.portable_bytes,
+    frozen_case: input.frozen_case,
+    profile: predecessorProfile,
+    index: 4,
+    scope_namespace: input.scope_namespace,
+    fallback_context: {
+      plan: fallbackPlan,
+      candidate: candidate.result,
     },
-    trade_offs: sourceBenchmark.trade_offs,
-    resource_observation_provenance:
-      sourceBenchmark.resource_observation_provenance,
-    missing_evidence: sourceBenchmark.missing_evidence,
-    limitations: sourceBenchmark.limitations,
-    adr_owner_gap_observations: sourceBenchmark.adr_owner_gap_observations,
   });
   assert.equal(
-    canonicalizeProtocolValueV01(unavailableCandidate),
+    canonicalizeProtocolValueV01(candidate.result),
     candidateHistoryBefore,
-    "predecessor replay relation mutated unavailable candidate history",
+    "fresh predecessor replay mutated the settled non-executed candidate",
   );
-  return benchmark;
+  const directResults = input.direct_arms
+    .filter((arm) => [
+      "same_model_cold_session_simulation",
+      "alternate_provider_host_contract_simulation",
+      "zero_model_fallback",
+    ].includes(arm.result.route_profile_ref.route_role))
+    .map((arm) => arm.result);
+  assert.equal(directResults.length, 3);
+  const armResults = [
+    ...directResults,
+    candidate.result,
+    predecessor.result,
+  ];
+  assertNoCrossArmIdentityReuseV01(armResults);
+  const benchmark = buildModelHostSuccessionBenchmarkV01({
+    frozen_case: input.frozen_case,
+    route_profiles: input.profiles,
+    arm_results: armResults,
+    fallback_plan: fallbackPlan,
+    fallback_relation: deriveModelHostSuccessionFallbackRelationV01(
+      candidate.result,
+      predecessor.result,
+    ),
+    trade_offs: [
+      "The route-unavailable candidate retained its exact non-execution boundary and required explicit fallback.",
+      "The fresh predecessor replay demonstrated later exact-source reconstruction without automatic rollback authority.",
+      "The alternate and zero-model routes preserve bounded contract observations without establishing model quality.",
+    ],
+    resource_observation_provenance: [
+      "Candidate route resolution and replay event chronology are deterministic fixture observations, not performance latency.",
+      "Provider, model, network, GitHub, and external call counts remain zero in the fixture ledger.",
+    ],
+    missing_evidence: [
+      "Real model quality remains unobserved because no live provider or model was called.",
+      "Usage, monetary cost, genuine performance latency, and required human intervention remain unobserved.",
+    ],
+    limitations: [
+      "The focused non-live fixture evaluates route unavailability followed by an explicitly sequenced fresh replay only.",
+      "Deterministic event chronology is not a performance-latency observation.",
+      "Fallback readiness does not authorize automatic fallback, rollback, Start, or Resume.",
+    ],
+    adr_owner_gap_observations: adrOwnerGapObservationsV01(),
+  });
+  return {
+    benchmark,
+    candidate: candidate.result,
+    predecessor_replay: predecessor.result,
+    candidate_database_path: candidate.database_path,
+    candidate_project_root: candidate.project_root,
+    replay_database_path: predecessor.database_path,
+    replay_project_root: predecessor.project_root,
+    candidate_scope_created: true,
+    candidate_downstream_execution_created: false,
+    real_provider_calls: 0,
+    fetch_calls: 0,
+    cleanup_verified: true,
+    source_fixture_root_removed: true,
+  };
 }
 
 function buildFrozenCaseV01(
@@ -556,6 +646,166 @@ function buildFrozenCaseV01(
   });
 }
 
+function createNonExecutedCandidateArmV01(input: {
+  source_fixture: ReusableOperationalContinuationFixtureV01;
+  portable_bytes: Uint8Array;
+  frozen_case: ReturnType<typeof buildFrozenCaseV01>;
+  profile: ModelHostSuccessionRouteProfileV01;
+  index: number;
+  execution_status: "unavailable" | "not_executed";
+  scope_namespace?: string;
+}): NonExecutedCandidateArmV01 {
+  const role = input.profile.route_role;
+  const armScopeRoot = path.join(
+    input.source_fixture.root,
+    `${input.scope_namespace ? `${input.scope_namespace}-` : ""}acgc6a-arm-${String(input.index + 1).padStart(2, "0")}-${role}`,
+  );
+  const projectsRoot = path.join(armScopeRoot, "projects");
+  const databasePath = path.join(armScopeRoot, "augnes.db");
+  mkdirSync(projectsRoot, { recursive: true });
+  const db = openDatabaseV01(databasePath);
+  try {
+    const baseMs = Date.parse("2026-07-18T16:00:00.000Z") +
+      input.index * 12 * 60_000;
+    const settledAt = new Date(baseMs + 6 * 60_000).toISOString();
+    const imported = importPortableProjectV01(db, {
+      bytes: input.portable_bytes,
+      destination_root_base: projectsRoot,
+      imported_at: new Date(baseMs).toISOString(),
+    });
+    assert.equal(imported.status, "imported");
+    const projectRoot = path.join(
+      projectsRoot,
+      imported.project_id.slice("project:".length),
+    );
+    execFileSync("git", [
+      "clone", "--quiet", "--no-hardlinks",
+      input.source_fixture.project_root,
+      projectRoot,
+    ]);
+    execFileSync("git", ["-C", projectRoot, "remote", "remove", "origin"]);
+    assert.equal(gitV01(projectRoot, ["status", "--porcelain"]), "");
+    assert.equal(
+      gitV01(projectRoot, ["rev-parse", "HEAD"]),
+      input.frozen_case.repository_state.frozen_head_commit,
+    );
+    assert.equal(
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(
+          gitV01(projectRoot, ["ls-files", "-s"]).split("\n"),
+        ),
+      ),
+      input.frozen_case.repository_state.frozen_worktree_content_fingerprint,
+    );
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+    const result = buildModelHostSuccessionArmResultV01({
+      route_profile_ref: routeProfileRefV01(input.profile),
+      evidence_class: input.profile.evidence_class,
+      fresh_identity_proof: {
+        project_scope_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            role,
+            workspace_id: imported.workspace_id,
+            project_id: imported.project_id,
+            database_scope: createProtocolSha256V01(databasePath),
+          }),
+        ),
+        database_scope_fingerprint: createProtocolSha256V01(databasePath),
+        repository_root_fingerprint: createProtocolSha256V01(projectRoot),
+        attachment_id: null,
+        attachment_binding_fingerprint: null,
+        start_request_fingerprint: null,
+        start_grant_fingerprint: null,
+        managed_run_id: null,
+        controller_identity_fingerprint: null,
+        browser_decision_session_identity_fingerprint: null,
+        host_session_identity_fingerprint: null,
+        host_thread_identity_fingerprint: null,
+        host_turn_identity_fingerprint: null,
+        provider_thread_identity_fingerprint: null,
+        prior_identity_reuse_count: 0,
+        no_reuse_proven: true,
+        resume_used: false,
+        retry_used: false,
+      },
+      contract_status: "unobserved",
+      execution_status: input.execution_status,
+      verification_status: "not_run",
+      required_checks: {
+        passed: [],
+        failed: [],
+        blocked: [],
+        skipped: [],
+        unknown: input.frozen_case.constraints.required_checks,
+      },
+      supported_capability: input.profile.supported_operation_classes,
+      unsupported_capability: input.profile.unsupported_operation_classes,
+      unsupported_operation_executed_count: 0,
+      stronger_result_inherited: false,
+      silent_fallback_used: false,
+      continuation_trace: {
+        packet_b_exact_bytes_delivered: false,
+        selected_entry_count:
+          input.frozen_case.operational_context_selection.selected_rows.length,
+        selected_entry_delivered_count: 0,
+        selected_entry_exact_receipt_referenced_count: 0,
+        excluded_candidate_credit_count: 0,
+        bundle_credit_assigned: false,
+        packet_level_actual_use_claim: "unknown",
+        item_actual_use: "unknown",
+        support_validation: "unknown",
+        outcome_association: "unknown",
+        causal_contribution: "unknown",
+      },
+      record_refs: {
+        run: null,
+        run_receipt: null,
+        context_use_review: null,
+        context_use_attribution: null,
+      },
+      chronology: {
+        execution_started_at: null,
+        settled_at: settledAt,
+        observation_basis: "benchmark_route_resolution_observation",
+        source_record_ref: null,
+      },
+      fallback_execution_binding: null,
+      resource_observations: {
+        provider_calls: 0,
+        model_calls: 0,
+        network_calls: 0,
+        github_calls: 0,
+        external_calls: 0,
+        usage_units: null,
+        monetary_cost_microunits: null,
+        genuine_latency_ms: null,
+        observation_provenance: "exact_deterministic_fixture_ledger",
+      },
+      privacy_egress: "none_observed",
+      review_burden: {
+        review_action_count: 0,
+        correction_count: null,
+        required_human_intervention_count: null,
+      },
+      fallback_required: true,
+      fallback_used: false,
+      direct_success_claimed: false,
+      predecessor_replay_status: "not_applicable",
+      cleanup_recovery_burden: null,
+      cleanup_status: "complete",
+      platform_boundary:
+        "Deterministic benchmark route resolution occurred in a disposable macOS project/database/root scope before managed execution; no provider or host execution claim.",
+      limitations: [
+        "The candidate created no attachment, Start request or grant, managed run, controller, host/provider thread, receipt, review, or attribution evidence.",
+        "Route unavailability or non-execution is not evidence of global provider or model inferiority.",
+      ],
+    });
+    return { result, database_path: databasePath, project_root: projectRoot };
+  } finally {
+    db.close();
+  }
+}
+
 async function executeArmV01(input: {
   source_fixture: ReusableOperationalContinuationFixtureV01;
   admitted: AdmittedReusableOperationalContinuationPacketBV01;
@@ -563,11 +813,16 @@ async function executeArmV01(input: {
   frozen_case: ReturnType<typeof buildFrozenCaseV01>;
   profile: ModelHostSuccessionRouteProfileV01;
   index: number;
+  scope_namespace?: string;
+  fallback_context?: {
+    plan: ModelHostSuccessionFallbackPlanV01;
+    candidate: ModelHostSuccessionArmResultV01;
+  };
 }): Promise<ExecutedArmV01> {
   const role = input.profile.route_role;
   const armScopeRoot = path.join(
     input.source_fixture.root,
-    `acgc6a-arm-${String(input.index + 1).padStart(2, "0")}-${role}`,
+    `${input.scope_namespace ? `${input.scope_namespace}-` : ""}acgc6a-arm-${String(input.index + 1).padStart(2, "0")}-${role}`,
   );
   const projectsRoot = path.join(armScopeRoot, "projects");
   const databasePath = path.join(armScopeRoot, "augnes.db");
@@ -615,7 +870,12 @@ async function executeArmV01(input: {
       database_path: databasePath,
     };
     const protectedStateBefore = protectedSemanticStateV01(db, config);
-    const secrets = new BenchmarkSecretSourceV01(0x6a00_0000 + input.index);
+    const namespaceSeed = Array.from(input.scope_namespace ?? "main")
+      .reduce((seed, character) =>
+        ((seed * 33) ^ character.codePointAt(0)!) >>> 0, 0);
+    const secrets = new BenchmarkSecretSourceV01(
+      (0x6a00_0000 + input.index + namespaceSeed) >>> 0,
+    );
     const baselinePreparation = await prepareRepositoryExecutionV01(
       db,
       config,
@@ -661,7 +921,11 @@ async function executeArmV01(input: {
       captured,
     );
     const runtimeInstanceFingerprint = createProtocolSha256V01(
-      canonicalizeProtocolValueV01({ role, runtime: input.index + 1 }),
+      canonicalizeProtocolValueV01({
+        role,
+        runtime: input.index + 1,
+        scope_namespace: input.scope_namespace ?? "main",
+      }),
     );
     service = new LiveNativeHostRunServiceV01({
       open_database: () => openDatabaseV01(databasePath),
@@ -820,6 +1084,7 @@ async function executeArmV01(input: {
       runtime_instance_fingerprint: runtimeInstanceFingerprint,
       browser_session_id: startGrant.session_id,
       captured_request: captured[0]!,
+      fallback_context: input.fallback_context,
     });
     await service.shutdown();
     service = null;
@@ -857,6 +1122,10 @@ function armResultV01(input: {
   runtime_instance_fingerprint: string;
   browser_session_id: string;
   captured_request: NativeHostRequestV01;
+  fallback_context?: {
+    plan: ModelHostSuccessionFallbackPlanV01;
+    candidate: ModelHostSuccessionArmResultV01;
+  };
 }): ModelHostSuccessionArmResultV01 {
   const constrained =
     input.profile.route_role === "capability_constrained_simulation";
@@ -896,6 +1165,17 @@ function armResultV01(input: {
   const providerThreadRef = input.receipt.external_refs.find(
     (ref) => ref.ref_type === "provider_thread",
   );
+  assert(input.receipt.started_at && input.receipt.finished_at);
+  const runReceiptRef = {
+    record_version: input.receipt.receipt_version,
+    record_id: input.receipt.receipt_id,
+    record_fingerprint: input.receipt.integrity.fingerprint,
+  };
+  if (role === "predecessor_route_replay") {
+    assert(input.fallback_context);
+  } else {
+    assert.equal(input.fallback_context, undefined);
+  }
   return buildModelHostSuccessionArmResultV01({
     route_profile_ref: routeProfileRefV01(input.profile),
     evidence_class: input.profile.evidence_class,
@@ -968,11 +1248,7 @@ function armResultV01(input: {
           canonicalizeProtocolValueV01(input.run),
         ),
       },
-      run_receipt: {
-        record_version: input.receipt.receipt_version,
-        record_id: input.receipt.receipt_id,
-        record_fingerprint: input.receipt.integrity.fingerprint,
-      },
+      run_receipt: runReceiptRef,
       context_use_review: {
         record_version: input.review.review_version,
         record_id: input.review.review_id,
@@ -984,6 +1260,22 @@ function armResultV01(input: {
         record_fingerprint: input.attribution.integrity.fingerprint,
       },
     },
+    chronology: {
+      execution_started_at: input.receipt.started_at,
+      settled_at: input.receipt.finished_at,
+      observation_basis: "exact_run_receipt",
+      source_record_ref: runReceiptRef,
+    },
+    fallback_execution_binding: input.fallback_context
+      ? {
+          fallback_plan_id: input.fallback_context.plan.fallback_plan_id,
+          fallback_plan_fingerprint:
+            input.fallback_context.plan.integrity.fingerprint,
+          candidate_arm_id: input.fallback_context.candidate.arm_id,
+          candidate_arm_fingerprint:
+            input.fallback_context.candidate.integrity.fingerprint,
+        }
+      : null,
     resource_observations: {
       provider_calls: 0,
       model_calls: 0,

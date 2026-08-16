@@ -23,6 +23,7 @@ import {
   type ModelHostSuccessionCapabilityDeltaValueV01,
   type ModelHostSuccessionCapabilityCoverageRowV01,
   type ModelHostSuccessionEvidenceClassV01,
+  type ModelHostSuccessionFallbackRelationV01,
   type ModelHostSuccessionFallbackPlanV01,
   type ModelHostSuccessionFrozenCaseV01,
   type ModelHostSuccessionIntegrityV01,
@@ -424,6 +425,63 @@ export function modelHostSuccessionFallbackArmRefV01(
   };
 }
 
+export function deriveModelHostSuccessionFallbackRelationV01(
+  candidate: ModelHostSuccessionArmResultV01,
+  predecessorReplay: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionFallbackRelationV01 {
+  assertValidModelHostSuccessionArmResultV01(candidate);
+  assertValidModelHostSuccessionArmResultV01(predecessorReplay);
+  if (
+    candidate.route_profile_ref.route_role !==
+      "capability_constrained_simulation" ||
+    candidate.fallback_required !== true ||
+    candidate.fallback_used !== false ||
+    predecessorReplay.route_profile_ref.route_role !==
+      "predecessor_route_replay" ||
+    predecessorReplay.fallback_required !== false ||
+    predecessorReplay.fallback_used !== true ||
+    predecessorReplay.chronology.execution_started_at === null ||
+    predecessorReplay.chronology.observation_basis !== "exact_run_receipt" ||
+    predecessorReplay.chronology.source_record_ref === null
+  ) {
+    failV01("model_host_fallback_chronology_source_invalid");
+  }
+  const candidateSettled = parseStrictIsoTimestampV01(
+    candidate.chronology.settled_at,
+  );
+  const replayStarted = parseStrictIsoTimestampV01(
+    predecessorReplay.chronology.execution_started_at,
+  );
+  if (
+    candidateSettled === null ||
+    replayStarted === null ||
+    candidateSettled >= replayStarted
+  ) {
+    failV01("model_host_fallback_chronology_order_invalid");
+  }
+  return {
+    candidate_arm_id: candidate.arm_id,
+    predecessor_replay_arm_id: predecessorReplay.arm_id,
+    chronology: {
+      candidate_settled_at: candidate.chronology.settled_at,
+      candidate_settlement_basis: candidate.chronology.observation_basis,
+      candidate_settlement_source_ref: cloneV01(
+        candidate.chronology.source_record_ref,
+      ),
+      predecessor_replay_started_at:
+        predecessorReplay.chronology.execution_started_at,
+      predecessor_replay_start_basis: "exact_run_receipt",
+      predecessor_replay_start_source_ref: cloneV01(
+        predecessorReplay.chronology.source_record_ref,
+      ),
+      ordering: "candidate_settled_before_predecessor_replay_started",
+    },
+    candidate_history_unchanged: true,
+    cross_arm_contamination_detected: false,
+    automatic_execution_used: false,
+  };
+}
+
 export function buildModelHostSuccessionFallbackPlanV01(
   input: BuildModelHostSuccessionFallbackPlanInputV01,
 ): ModelHostSuccessionFallbackPlanV01 {
@@ -765,7 +823,8 @@ export function assertValidModelHostSuccessionArmResultV01(
     "verification_status", "required_checks", "supported_capability",
     "unsupported_capability", "unsupported_operation_executed_count",
     "stronger_result_inherited", "silent_fallback_used",
-    "continuation_trace", "record_refs", "resource_observations",
+    "continuation_trace", "record_refs", "chronology",
+    "fallback_execution_binding", "resource_observations",
     "privacy_egress", "review_burden", "fallback_required",
     "fallback_used", "direct_success_claimed", "predecessor_replay_status",
     "cleanup_recovery_burden", "cleanup_status", "platform_boundary",
@@ -798,6 +857,7 @@ export function assertValidModelHostSuccessionArmResultV01(
     !isProtocolRecordV01(arm.required_checks) ||
     !isProtocolRecordV01(arm.continuation_trace) ||
     !isProtocolRecordV01(arm.record_refs) ||
+    !isProtocolRecordV01(arm.chronology) ||
     !isProtocolRecordV01(arm.resource_observations) ||
     !isProtocolRecordV01(arm.review_burden)
   ) {
@@ -829,6 +889,35 @@ export function assertValidModelHostSuccessionArmResultV01(
   assertExactKeysV01(arm.record_refs, [
     "run", "run_receipt", "context_use_review", "context_use_attribution",
   ], "$.record_refs");
+  assertExactKeysV01(arm.chronology, [
+    "execution_started_at", "settled_at", "observation_basis",
+    "source_record_ref",
+  ], "$.chronology");
+  if (arm.fallback_execution_binding !== null) {
+    if (!isProtocolRecordV01(arm.fallback_execution_binding)) {
+      failV01("model_host_arm_fallback_execution_binding_invalid");
+    }
+    assertExactKeysV01(arm.fallback_execution_binding, [
+      "fallback_plan_id", "fallback_plan_fingerprint",
+      "candidate_arm_id", "candidate_arm_fingerprint",
+    ], "$.fallback_execution_binding");
+    requiredIdV01(
+      arm.fallback_execution_binding.fallback_plan_id,
+      "$.fallback_execution_binding.fallback_plan_id",
+    );
+    requiredFingerprintV01(
+      arm.fallback_execution_binding.fallback_plan_fingerprint,
+      "$.fallback_execution_binding.fallback_plan_fingerprint",
+    );
+    requiredIdV01(
+      arm.fallback_execution_binding.candidate_arm_id,
+      "$.fallback_execution_binding.candidate_arm_id",
+    );
+    requiredFingerprintV01(
+      arm.fallback_execution_binding.candidate_arm_fingerprint,
+      "$.fallback_execution_binding.candidate_arm_fingerprint",
+    );
+  }
   assertExactKeysV01(arm.resource_observations, [
     "provider_calls", "model_calls", "network_calls", "github_calls",
     "external_calls", "usage_units", "monetary_cost_microunits",
@@ -890,6 +979,7 @@ export function assertValidModelHostSuccessionArmResultV01(
     }
   }
   assertRouteRefV01(arm.route_profile_ref, "$.route_profile_ref");
+  assertArmChronologyV01(arm);
   assertArmExecutionEvidenceV01(arm);
   if (
     arm.fresh_identity_proof.prior_identity_reuse_count !== 0 ||
@@ -922,10 +1012,22 @@ export function assertValidModelHostSuccessionArmResultV01(
     failV01("model_host_arm_fallback_binding_invalid");
   }
   if (
+    arm.contract_status === "contract_compatible" &&
+    arm.fallback_required !== false
+  ) {
+    failV01("model_host_arm_compatible_fallback_required_invalid");
+  }
+  if (
     arm.route_profile_ref.route_role !== "predecessor_route_replay" &&
     arm.fallback_used !== false
   ) {
     failV01("model_host_arm_fallback_use_invalid");
+  }
+  if (
+    (arm.route_profile_ref.route_role === "predecessor_route_replay") !==
+      (arm.fallback_execution_binding !== null)
+  ) {
+    failV01("model_host_arm_fallback_execution_binding_invalid");
   }
   const partition = [
     ...arm.required_checks.passed,
@@ -958,6 +1060,47 @@ export function assertValidModelHostSuccessionArmResultV01(
   }
   assertIdentityV01(arm, "arm_id", "model-host-succession-arm");
   assertFingerprintV01(arm);
+}
+
+function assertArmChronologyV01(
+  arm: ModelHostSuccessionArmResultV01,
+): void {
+  const chronology = arm.chronology;
+  const settledAt = parseStrictIsoTimestampV01(chronology.settled_at);
+  if (settledAt === null) {
+    failV01("model_host_arm_chronology_invalid", "$.chronology.settled_at");
+  }
+  if (isNonExecutedArmV01(arm)) {
+    if (
+      chronology.execution_started_at !== null ||
+      chronology.observation_basis !==
+        "benchmark_route_resolution_observation" ||
+      chronology.source_record_ref !== null
+    ) {
+      failV01("model_host_arm_nonexecuted_chronology_invalid");
+    }
+    return;
+  }
+  const startedAt = chronology.execution_started_at === null
+    ? null
+    : parseStrictIsoTimestampV01(chronology.execution_started_at);
+  if (
+    startedAt === null ||
+    startedAt > settledAt ||
+    chronology.observation_basis !== "exact_run_receipt" ||
+    chronology.source_record_ref === null ||
+    arm.record_refs.run_receipt === null ||
+    !deepEqualV01(
+      chronology.source_record_ref,
+      arm.record_refs.run_receipt,
+    )
+  ) {
+    failV01("model_host_arm_executed_chronology_invalid");
+  }
+  assertRecordRefV01(
+    chronology.source_record_ref,
+    "$.chronology.source_record_ref",
+  );
 }
 
 function assertArmExecutionEvidenceV01(
@@ -1119,9 +1262,19 @@ export function assertValidModelHostSuccessionBenchmarkV01(
   }
   assertExactKeysV01(benchmark.fallback_relation, [
     "candidate_arm_id", "predecessor_replay_arm_id",
+    "chronology",
     "candidate_history_unchanged", "cross_arm_contamination_detected",
     "automatic_execution_used",
   ], "$.fallback_relation");
+  if (!isProtocolRecordV01(benchmark.fallback_relation.chronology)) {
+    failV01("model_host_benchmark_fallback_chronology_invalid");
+  }
+  assertExactKeysV01(benchmark.fallback_relation.chronology, [
+    "candidate_settled_at", "candidate_settlement_basis",
+    "candidate_settlement_source_ref", "predecessor_replay_started_at",
+    "predecessor_replay_start_basis", "predecessor_replay_start_source_ref",
+    "ordering",
+  ], "$.fallback_relation.chronology");
   if (
     benchmark.benchmark_version !== MODEL_HOST_SUCCESSION_BENCHMARK_VERSION_V01 ||
     benchmark.benchmark_kind !== "pure_rebuildable_exact_case_non_authoritative" ||
@@ -1420,6 +1573,9 @@ function assertExactRouteMatrixV01(
   const zeroArm = arms[3]!;
   const replayArm = arms[4]!;
   if (
+    sameArm.contract_status !== "contract_compatible" ||
+    sameArm.fallback_required !== false ||
+    sameArm.fallback_used !== false ||
     constrainedArm.fallback_required !== true ||
     constrainedArm.fallback_used !== false ||
     (!isNonExecutedArmV01(constrainedArm) &&
@@ -1427,11 +1583,16 @@ function assertExactRouteMatrixV01(
         constrainedArm.execution_status !== "blocked")) ||
     constrainedArm.required_checks.passed.some((check) =>
       constrainedArm.unsupported_capability.includes(check)) ||
-    sameArm.fallback_used !== false ||
+    alternateArm.contract_status !== "contract_compatible" ||
+    alternateArm.fallback_required !== false ||
     alternateArm.fallback_used !== false ||
+    zeroArm.contract_status !== "contract_compatible" ||
+    zeroArm.fallback_required !== false ||
     zeroArm.fallback_used !== false ||
     zeroArm.resource_observations.provider_calls !== 0 ||
     zeroArm.resource_observations.model_calls !== 0 ||
+    replayArm.contract_status !== "contract_compatible" ||
+    replayArm.fallback_required !== false ||
     replayArm.fallback_used !== true ||
     replayArm.predecessor_replay_status !== "explicit_fresh_replay_completed" ||
     isNonExecutedArmV01(replayArm)
@@ -1465,11 +1626,41 @@ function assertFallbackRelationV01(
   const expectedPredecessorRef = predecessorProfile
     ? routeProfileRefV01(predecessorProfile)
     : null;
+  const expectedRelation = candidate && replay
+    ? deriveModelHostSuccessionFallbackRelationV01(candidate, replay)
+    : null;
+  const constructionCutoff = parseStrictIsoTimestampV01(
+    benchmark.frozen_case.repository_state.construction_cutoff,
+  );
+  const observationCutoff = parseStrictIsoTimestampV01(
+    benchmark.frozen_case.repository_state.observation_cutoff,
+  );
+  const candidateSettledAt = candidate
+    ? parseStrictIsoTimestampV01(candidate.chronology.settled_at)
+    : null;
+  const replayStartedAt = replay?.chronology.execution_started_at
+    ? parseStrictIsoTimestampV01(replay.chronology.execution_started_at)
+    : null;
   if (
     !candidate || !replay || !predecessorProfile ||
+    !expectedRelation ||
+    constructionCutoff === null || observationCutoff === null ||
+    candidateSettledAt === null || replayStartedAt === null ||
+    candidateSettledAt < constructionCutoff ||
+    replayStartedAt < constructionCutoff ||
+    candidateSettledAt > observationCutoff ||
+    replayStartedAt > observationCutoff ||
     candidate.fallback_required !== true || candidate.fallback_used !== false ||
     replay.fallback_used !== true ||
     replay.predecessor_replay_status !== "explicit_fresh_replay_completed" ||
+    replay.fallback_execution_binding === null ||
+    replay.fallback_execution_binding.fallback_plan_id !==
+      benchmark.fallback_plan.fallback_plan_id ||
+    replay.fallback_execution_binding.fallback_plan_fingerprint !==
+      benchmark.fallback_plan.integrity.fingerprint ||
+    replay.fallback_execution_binding.candidate_arm_id !== candidate.arm_id ||
+    replay.fallback_execution_binding.candidate_arm_fingerprint !==
+      candidate.integrity.fingerprint ||
     !deepEqualV01(benchmark.fallback_plan.failed_arm_ref, expectedCandidateRef) ||
     !deepEqualV01(
       benchmark.fallback_plan.predecessor_route_ref,
@@ -1483,11 +1674,7 @@ function assertFallbackRelationV01(
       benchmark.frozen_case.frozen_case_id ||
     benchmark.fallback_plan.frozen_case_ref.frozen_case_fingerprint !==
       benchmark.frozen_case.integrity.fingerprint ||
-    benchmark.fallback_relation.candidate_arm_id !== candidate.arm_id ||
-    benchmark.fallback_relation.predecessor_replay_arm_id !== replay.arm_id ||
-    benchmark.fallback_relation.candidate_history_unchanged !== true ||
-    benchmark.fallback_relation.cross_arm_contamination_detected !== false ||
-    benchmark.fallback_relation.automatic_execution_used !== false ||
+    !deepEqualV01(benchmark.fallback_relation, expectedRelation) ||
     identityValuesV01(candidate).some((value) =>
       value !== null && identityValuesV01(replay).includes(value))
   ) {

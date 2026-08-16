@@ -229,6 +229,22 @@ export interface ModelHostSuccessionArmRecordRefsV01 {
   context_use_attribution: ModelHostSuccessionRecordRefV01 | null;
 }
 
+export interface ModelHostSuccessionArmChronologyV01 {
+  execution_started_at: string | null;
+  settled_at: string;
+  observation_basis:
+    | "exact_run_receipt"
+    | "benchmark_route_resolution_observation";
+  source_record_ref: ModelHostSuccessionRecordRefV01 | null;
+}
+
+export interface ModelHostSuccessionReplayExecutionBindingV01 {
+  fallback_plan_id: string;
+  fallback_plan_fingerprint: string;
+  candidate_arm_id: string;
+  candidate_arm_fingerprint: string;
+}
+
 export interface ModelHostSuccessionResourceObservationsV01 {
   provider_calls: number;
   model_calls: number;
@@ -261,6 +277,9 @@ export interface ModelHostSuccessionArmResultV01 {
   silent_fallback_used: false;
   continuation_trace: ModelHostSuccessionContinuationTraceV01;
   record_refs: ModelHostSuccessionArmRecordRefsV01;
+  chronology: ModelHostSuccessionArmChronologyV01;
+  fallback_execution_binding:
+    ModelHostSuccessionReplayExecutionBindingV01 | null;
   resource_observations: ModelHostSuccessionResourceObservationsV01;
   privacy_egress: "none_observed" | "unobserved";
   review_burden: {
@@ -388,6 +407,26 @@ export type ModelHostSuccessionBenchmarkSummaryV01 =
   | "not_portable_in_exact_case"
   | "inconclusive";
 
+export interface ModelHostSuccessionFallbackChronologyV01 {
+  candidate_settled_at: string;
+  candidate_settlement_basis:
+    ModelHostSuccessionArmChronologyV01["observation_basis"];
+  candidate_settlement_source_ref: ModelHostSuccessionRecordRefV01 | null;
+  predecessor_replay_started_at: string;
+  predecessor_replay_start_basis: "exact_run_receipt";
+  predecessor_replay_start_source_ref: ModelHostSuccessionRecordRefV01;
+  ordering: "candidate_settled_before_predecessor_replay_started";
+}
+
+export interface ModelHostSuccessionFallbackRelationV01 {
+  candidate_arm_id: string;
+  predecessor_replay_arm_id: string;
+  chronology: ModelHostSuccessionFallbackChronologyV01;
+  candidate_history_unchanged: true;
+  cross_arm_contamination_detected: false;
+  automatic_execution_used: false;
+}
+
 export interface ModelHostSuccessionBenchmarkV01 {
   benchmark_version: typeof MODEL_HOST_SUCCESSION_BENCHMARK_VERSION_V01;
   benchmark_id: string;
@@ -396,13 +435,7 @@ export interface ModelHostSuccessionBenchmarkV01 {
   route_profiles: ModelHostSuccessionRouteProfileV01[];
   arm_results: ModelHostSuccessionArmResultV01[];
   fallback_plan: ModelHostSuccessionFallbackPlanV01;
-  fallback_relation: {
-    candidate_arm_id: string;
-    predecessor_replay_arm_id: string;
-    candidate_history_unchanged: true;
-    cross_arm_contamination_detected: false;
-    automatic_execution_used: false;
-  };
+  fallback_relation: ModelHostSuccessionFallbackRelationV01;
   pairwise_route_deltas: ModelHostSuccessionPairwiseDeltaV01[];
   summary: ModelHostSuccessionBenchmarkSummaryV01;
   trade_offs: string[];
