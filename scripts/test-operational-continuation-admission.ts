@@ -185,6 +185,19 @@ export interface ReusableOperationalContinuationFixtureV01
   baseline_seed_root: string;
 }
 
+export interface ReusableOperationalContinuationFixtureOptionsV01 {
+  data_classification?: "public_safe";
+}
+
+export interface AdmittedReusableOperationalContinuationPacketBV01 {
+  continuation: ReturnType<
+    typeof rebuildOperationalContinuationFromDurableSourcesV01
+  >;
+  admission: OperationalContinuationAdmissionV01;
+  packet_b: TaskContextPacketV01;
+  current_credential: VNextLocalOperatorSessionCredentialV01;
+}
+
 export interface CompletedOperationalContinuationRunBV01 {
   continuation: ReturnType<
     typeof rebuildOperationalContinuationFromDurableSourcesV01
@@ -202,7 +215,9 @@ export interface CompletedOperationalContinuationRunBV01 {
   delivered_request: NativeHostRequestV01;
 }
 
-export async function createReusableOperationalContinuationFixtureV01(): Promise<ReusableOperationalContinuationFixtureV01> {
+export async function createReusableOperationalContinuationFixtureV01(
+  options: ReusableOperationalContinuationFixtureOptionsV01 = {},
+): Promise<ReusableOperationalContinuationFixtureV01> {
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
   process.env.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = ROOT;
@@ -219,7 +234,7 @@ export async function createReusableOperationalContinuationFixtureV01(): Promise
     execFileSync("git", ["-C", BASELINE_SEED_ROOT, "remote", "remove", "origin"]);
   };
   try {
-    const fixture = await createFixtureV01(db);
+    const fixture = await createFixtureV01(db, options);
     beforeRunAHook = null;
     return {
       ...fixture,
@@ -241,26 +256,15 @@ export async function createReusableOperationalContinuationFixtureV01(): Promise
 export async function completeReusableOperationalContinuationRunBV01(
   fixture: ReusableOperationalContinuationFixtureV01,
 ): Promise<CompletedOperationalContinuationRunBV01> {
-  const continuation = rebuildOperationalContinuationFromDurableSourcesV01(
-    fixture.db,
-    {
-      workspace_id: fixture.config.workspace_id,
-      project_id: fixture.config.project_id,
-      operator_id: fixture.config.operator_id,
-      ...fixture.source_request,
-    },
+  const admittedPacketB = admitReusableOperationalContinuationPacketBV01(
+    fixture,
   );
-  const admitted = admitSourceLinkedOperationalContinuationV01(fixture.db, {
-    config: fixture.config,
-    credential: fixture.admission_credential,
-    request: fixture.admission_request,
-    clock: fixedClockV01("2026-07-18T15:01:00.000Z"),
-    secret_source: secrets,
-  });
-  assert.equal(admitted.status, "inserted");
-  const currentCredential = credentialFromCookieV01(
-    admitted.session_admission.cookie_value,
-  );
+  const {
+    continuation,
+    admission,
+    packet_b: packetB,
+    current_credential: currentCredential,
+  } = admittedPacketB;
   const attachment = await prepareRepositoryExecutionV01(
     fixture.db,
     {
@@ -342,8 +346,8 @@ export async function completeReusableOperationalContinuationRunBV01(
     assert.equal(captured.length, 1);
     return {
       continuation,
-      admission: admitted.admission,
-      packet_b: admitted.packet_b,
+      admission,
+      packet_b: packetB,
       current_credential: currentCredential,
       run_b: runB,
       run_b_receipt: receiptRecord.payload as RunReceiptV01,
@@ -359,6 +363,36 @@ export async function completeReusableOperationalContinuationRunBV01(
   } finally {
     await service.shutdown();
   }
+}
+
+export function admitReusableOperationalContinuationPacketBV01(
+  fixture: ReusableOperationalContinuationFixtureV01,
+): AdmittedReusableOperationalContinuationPacketBV01 {
+  const continuation = rebuildOperationalContinuationFromDurableSourcesV01(
+    fixture.db,
+    {
+      workspace_id: fixture.config.workspace_id,
+      project_id: fixture.config.project_id,
+      operator_id: fixture.config.operator_id,
+      ...fixture.source_request,
+    },
+  );
+  const admitted = admitSourceLinkedOperationalContinuationV01(fixture.db, {
+    config: fixture.config,
+    credential: fixture.admission_credential,
+    request: fixture.admission_request,
+    clock: fixedClockV01("2026-07-18T15:01:00.000Z"),
+    secret_source: secrets,
+  });
+  assert.equal(admitted.status, "inserted");
+  return {
+    continuation,
+    admission: admitted.admission,
+    packet_b: admitted.packet_b,
+    current_credential: credentialFromCookieV01(
+      admitted.session_admission.cookie_value,
+    ),
+  };
 }
 
 export function reusableOperationalContinuationFixtureFetchCallsV01(): number {
@@ -426,7 +460,10 @@ async function main(): Promise<void> {
   }
 }
 
-async function createFixtureV01(db: Database.Database): Promise<FixtureV01> {
+async function createFixtureV01(
+  db: Database.Database,
+  options: ReusableOperationalContinuationFixtureOptionsV01 = {},
+): Promise<FixtureV01> {
   process.env.AUGNES_TEST_FOLDER_PICKER_PATH = PROJECT_ROOT;
   const picked = await pickAndInspectLocalProjectV01({
     open_database: openDatabaseV01,
@@ -473,6 +510,7 @@ async function createFixtureV01(db: Database.Database): Promise<FixtureV01> {
   };
   const initialPacket = buildSemanticReviewLoopTaskContextPacketFixture(
     semanticProject,
+    options,
   );
   insertVNextCoreRecordV01(db, {
     record_kind: "task_context_packet",

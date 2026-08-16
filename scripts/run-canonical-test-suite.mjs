@@ -168,6 +168,12 @@ const suites = {
       timeoutMs: 90_000,
     },
     {
+      label:
+        "deterministic model and host succession portability and fallback benchmark contract",
+      ...rootNode("scripts/test-model-host-succession-benchmark.ts"),
+      timeoutMs: 90_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
