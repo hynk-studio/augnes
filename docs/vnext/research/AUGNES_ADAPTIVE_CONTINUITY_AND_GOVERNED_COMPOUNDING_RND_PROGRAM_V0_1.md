@@ -1356,6 +1356,22 @@ Packet A
 
 ADR은 “새 schema 불필요”로 결론날 수 있다.
 
+#### current evidence-state disposition
+
+ACGC6A [Issue #177](https://github.com/hynk-studio/augnes-perspective-lab/issues/177) /
+[PR #178](https://github.com/hynk-studio/augnes-perspective-lab/pull/178) benchmark는
+main `de557be31dbf3bb7a6bf9df9f6ad3621d9fc7a47`에서 완료되었다. 이 결과는
+route-contract 및 explicit fallback readiness를 확립했지만 live-provider
+quality/resource evidence, route winner, policy fitness, active route, 또는 automatic
+fallback authority를 만들지 않았다.
+
+ACGC6B [Issue #179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179)의
+[operational-policy non-activation ADR](./ACGC_STAGE_6_OPERATIONAL_POLICY_ADR_V0_1.md)은
+현재 evidence state에서 schema와 activation을 선택하지 않는다. ACGC6B Draft PR이
+open인 동안 Stage 6은 incomplete이다. 해당 PR이 merge된 뒤에만 Stage 6이
+Completed가 된다. 이 closeout은 Stage 7을 시작하거나 승인하지 않으며, Stage 7은
+여전히 separate authorization과 evidence가 필요하다.
+
 ### Stage 7 — Smallest live reversible context policy
 
 Stage 4와 Stage 6의 evidence가 반복될 때만 별도 승인한다.

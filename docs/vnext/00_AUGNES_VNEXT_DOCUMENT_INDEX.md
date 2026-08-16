@@ -51,6 +51,14 @@ handoff compatibility; bounded automation versus legacy autonomy/Autohunt;
 deferred Arena/actor/debate substrate; and current relationship responsibility
 versus legacy “constellation” branding.
 
+### Supporting decisions
+
+The
+[ACGC Stage 6 Operational-Policy Non-Activation ADR](./research/ACGC_STAGE_6_OPERATIONAL_POLICY_ADR_V0_1.md)
+records the current no-activation architecture choice and supports the ACGC
+research program. It does not become a competing product, protocol, sequencing,
+or evaluation authority.
+
 ### Operator and developer manuals
 
 Runbooks, setup guides, package manuals, skills, and verification manuals govern
