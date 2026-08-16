@@ -13,6 +13,7 @@ import {
   buildModelHostSuccessionFallbackPlanV01,
   buildModelHostSuccessionFrozenCaseV01,
   buildModelHostSuccessionRouteProfileV01,
+  modelHostSuccessionFallbackArmRefV01,
   routeProfileRefV01,
 } from "@/lib/vnext/model-host-succession-benchmark";
 import {
@@ -64,7 +65,6 @@ import {
   type ModelHostSuccessionArmResultV01,
   type ModelHostSuccessionBenchmarkV01,
   type ModelHostSuccessionFallbackPlanV01,
-  type ModelHostSuccessionPairwiseDeltaV01,
   type ModelHostSuccessionRouteProfileV01,
   type ModelHostSuccessionRouteRoleV01,
 } from "@/types/vnext/model-host-succession-benchmark";
@@ -328,7 +328,6 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
         cross_arm_contamination_detected: false,
         automatic_execution_used: false,
       },
-      pairwise_route_deltas: pairwiseDeltasV01(executed.map((arm) => arm.result)),
       trade_offs: [
         "The constrained route preserved the unsupported-operation hard gate but required explicit fallback.",
         "The alternate simulated route preserved normalized request and result contracts without establishing equal capability or model quality.",
@@ -381,6 +380,158 @@ export async function buildDeterministicModelHostSuccessionBenchmarkFixtureV01()
   } finally {
     if (sourceFixture) cleanupReusableOperationalContinuationFixtureV01(sourceFixture);
   }
+}
+
+export function buildUnavailableModelHostSuccessionBenchmarkFixtureV01(
+  sourceBenchmark: ModelHostSuccessionBenchmarkV01,
+): ModelHostSuccessionBenchmarkV01 {
+  const constrainedProfile = sourceBenchmark.route_profiles.find(
+    (profile) =>
+      profile.route_role === "capability_constrained_simulation",
+  );
+  const predecessorProfile = sourceBenchmark.route_profiles.find(
+    (profile) => profile.route_role === "predecessor_route_replay",
+  );
+  const replay = sourceBenchmark.arm_results.find(
+    (arm) => arm.route_profile_ref.route_role === "predecessor_route_replay",
+  );
+  assert(constrainedProfile && predecessorProfile && replay);
+  const scopeSeed = canonicalizeProtocolValueV01({
+    frozen_case_id: sourceBenchmark.frozen_case.frozen_case_id,
+    route_profile_id: constrainedProfile.route_profile_id,
+    fixture: "route_unavailable_before_managed_execution",
+  });
+  const unavailableCandidate = buildModelHostSuccessionArmResultV01({
+    route_profile_ref: routeProfileRefV01(constrainedProfile),
+    evidence_class: constrainedProfile.evidence_class,
+    fresh_identity_proof: {
+      project_scope_fingerprint: createProtocolSha256V01(
+        `${scopeSeed}:project`,
+      ),
+      database_scope_fingerprint: createProtocolSha256V01(
+        `${scopeSeed}:database`,
+      ),
+      repository_root_fingerprint: createProtocolSha256V01(
+        `${scopeSeed}:repository-root`,
+      ),
+      attachment_id: null,
+      attachment_binding_fingerprint: null,
+      start_request_fingerprint: null,
+      start_grant_fingerprint: null,
+      managed_run_id: null,
+      controller_identity_fingerprint: null,
+      browser_decision_session_identity_fingerprint: null,
+      host_session_identity_fingerprint: null,
+      host_thread_identity_fingerprint: null,
+      host_turn_identity_fingerprint: null,
+      provider_thread_identity_fingerprint: null,
+      prior_identity_reuse_count: 0,
+      no_reuse_proven: true,
+      resume_used: false,
+      retry_used: false,
+    },
+    contract_status: "unobserved",
+    execution_status: "unavailable",
+    verification_status: "not_run",
+    required_checks: {
+      passed: [],
+      failed: [],
+      blocked: [],
+      skipped: [],
+      unknown: sourceBenchmark.frozen_case.constraints.required_checks,
+    },
+    supported_capability: constrainedProfile.supported_operation_classes,
+    unsupported_capability: constrainedProfile.unsupported_operation_classes,
+    unsupported_operation_executed_count: 0,
+    stronger_result_inherited: false,
+    silent_fallback_used: false,
+    continuation_trace: {
+      packet_b_exact_bytes_delivered: false,
+      selected_entry_count:
+        sourceBenchmark.frozen_case.operational_context_selection.selected_rows
+          .length,
+      selected_entry_delivered_count: 0,
+      selected_entry_exact_receipt_referenced_count: 0,
+      excluded_candidate_credit_count: 0,
+      bundle_credit_assigned: false,
+      packet_level_actual_use_claim: "unknown",
+      item_actual_use: "unknown",
+      support_validation: "unknown",
+      outcome_association: "unknown",
+      causal_contribution: "unknown",
+    },
+    record_refs: {
+      run: null,
+      run_receipt: null,
+      context_use_review: null,
+      context_use_attribution: null,
+    },
+    resource_observations: {
+      provider_calls: 0,
+      model_calls: 0,
+      network_calls: 0,
+      github_calls: 0,
+      external_calls: 0,
+      usage_units: null,
+      monetary_cost_microunits: null,
+      genuine_latency_ms: null,
+      observation_provenance: "unobserved",
+    },
+    privacy_egress: "unobserved",
+    review_burden: {
+      review_action_count: 0,
+      correction_count: null,
+      required_human_intervention_count: null,
+    },
+    fallback_required: true,
+    fallback_used: false,
+    direct_success_claimed: false,
+    predecessor_replay_status: "not_applicable",
+    cleanup_recovery_burden: null,
+    cleanup_status: "complete",
+    platform_boundary:
+      "Deterministic contract fixture resolved the candidate route unavailable before managed execution; no live provider or platform execution claim.",
+    limitations: [
+      "The unavailable route created no attachment, Start request or grant, managed run, controller, host/provider thread, receipt, review, or attribution evidence.",
+      "Route unavailability is not evidence of global provider or model inferiority.",
+    ],
+  });
+  const candidateHistoryBefore = canonicalizeProtocolValueV01(
+    unavailableCandidate,
+  );
+  const fallbackPlan = buildFallbackPlanV01(
+    sourceBenchmark.frozen_case,
+    unavailableCandidate,
+    predecessorProfile,
+  );
+  const benchmark = buildModelHostSuccessionBenchmarkV01({
+    frozen_case: sourceBenchmark.frozen_case,
+    route_profiles: sourceBenchmark.route_profiles,
+    arm_results: sourceBenchmark.arm_results.map((arm) =>
+      arm.route_profile_ref.route_role === "capability_constrained_simulation"
+        ? unavailableCandidate
+        : arm),
+    fallback_plan: fallbackPlan,
+    fallback_relation: {
+      candidate_arm_id: unavailableCandidate.arm_id,
+      predecessor_replay_arm_id: replay.arm_id,
+      candidate_history_unchanged: true,
+      cross_arm_contamination_detected: false,
+      automatic_execution_used: false,
+    },
+    trade_offs: sourceBenchmark.trade_offs,
+    resource_observation_provenance:
+      sourceBenchmark.resource_observation_provenance,
+    missing_evidence: sourceBenchmark.missing_evidence,
+    limitations: sourceBenchmark.limitations,
+    adr_owner_gap_observations: sourceBenchmark.adr_owner_gap_observations,
+  });
+  assert.equal(
+    canonicalizeProtocolValueV01(unavailableCandidate),
+    candidateHistoryBefore,
+    "predecessor replay relation mutated unavailable candidate history",
+  );
+  return benchmark;
 }
 
 function buildFrozenCaseV01(
@@ -854,8 +1005,7 @@ function armResultV01(input: {
       required_human_intervention_count: null,
     },
     fallback_required: constrained,
-    fallback_used:
-      role === "zero_model_fallback" || role === "predecessor_route_replay",
+    fallback_used: role === "predecessor_route_replay",
     direct_success_claimed: false,
     predecessor_replay_status:
       role === "predecessor_route_replay"
@@ -1045,22 +1195,24 @@ function buildFallbackPlanV01(
   candidate: ModelHostSuccessionArmResultV01,
   predecessor: ModelHostSuccessionRouteProfileV01,
 ): ModelHostSuccessionFallbackPlanV01 {
-  assert.equal(candidate.contract_status, "fallback_required");
+  assert.equal(candidate.fallback_required, true);
+  const routeUnavailable = candidate.execution_status === "unavailable" ||
+    candidate.execution_status === "not_executed";
   return buildModelHostSuccessionFallbackPlanV01({
-    failed_arm_ref: {
-      arm_id: candidate.arm_id,
-      arm_fingerprint: candidate.integrity.fingerprint,
-      settled_status: "fallback_required",
-    },
+    failed_arm_ref: modelHostSuccessionFallbackArmRefV01(candidate),
     predecessor_route_ref: routeProfileRefV01(predecessor),
     frozen_case_ref: {
       frozen_case_id: frozenCase.frozen_case_id,
       frozen_case_fingerprint: frozenCase.integrity.fingerprint,
     },
     fallback_reason:
-      "The constrained route cannot execute the frozen required repository verification operation.",
+      routeUnavailable
+        ? "The candidate route was unavailable before managed execution and produced no execution result."
+        : "The constrained route cannot execute the frozen required repository verification operation.",
     fallback_trigger:
-      "Execute only after the constrained arm has settled as fallback-required.",
+      routeUnavailable
+        ? "Execute only after the candidate arm has settled unavailable or not-executed."
+        : "Execute only after the constrained arm has settled as fallback-required.",
     benchmark_harness_authorization: "explicit_harness_sequence_only",
     required_fresh_execution_identities: [
       "attachment",
@@ -1078,55 +1230,6 @@ function buildFallbackPlanV01(
       "start_request",
     ],
   });
-}
-
-function pairwiseDeltasV01(
-  arms: ModelHostSuccessionArmResultV01[],
-): ModelHostSuccessionPairwiseDeltaV01[] {
-  const rows: ModelHostSuccessionPairwiseDeltaV01[] = [];
-  for (let leftIndex = 0; leftIndex < arms.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < arms.length; rightIndex += 1) {
-      const left = arms[leftIndex]!;
-      const right = arms[rightIndex]!;
-      const constrained = [left, right].some(
-        (arm) => arm.contract_status === "fallback_required",
-      );
-      rows.push({
-        left_route_role: left.route_profile_ref.route_role,
-        right_route_role: right.route_profile_ref.route_role,
-        dimension: "route_contract_status",
-        relation: constrained ? "tradeoff" : "equal",
-        left_value: left.contract_status,
-        right_value: right.contract_status,
-        basis: constrained
-          ? "One exact constrained route preserved a narrower hard gate and required fallback; this is not a global route ranking."
-          : "Both routes preserved normalized contracts in this deterministic exact case only.",
-      });
-      rows.push({
-        left_route_role: left.route_profile_ref.route_role,
-        right_route_role: right.route_profile_ref.route_role,
-        dimension: "model_quality",
-        relation: "unknown",
-        left_value: null,
-        right_value: null,
-        basis: "No live provider or model execution occurred, so model quality is unobserved.",
-      });
-      rows.push({
-        left_route_role: left.route_profile_ref.route_role,
-        right_route_role: right.route_profile_ref.route_role,
-        dimension: "capability_coverage",
-        relation:
-          left.supported_capability.length === right.supported_capability.length
-            ? "not_comparable"
-            : "tradeoff",
-        left_value: left.supported_capability.length,
-        right_value: right.supported_capability.length,
-        basis:
-          "Coverage counts describe explicit tested operation classes and do not establish capability equality or a winner.",
-      });
-    }
-  }
-  return rows;
 }
 
 function adrOwnerGapObservationsV01() {

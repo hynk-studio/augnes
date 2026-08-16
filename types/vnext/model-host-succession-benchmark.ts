@@ -285,7 +285,12 @@ export interface ModelHostSuccessionFallbackPlanV01 {
   failed_arm_ref: {
     arm_id: string;
     arm_fingerprint: string;
-    settled_status: "failed" | "unavailable" | "contract_incompatible" | "fallback_required";
+    settled_status:
+      | "failed"
+      | "unavailable"
+      | "not_executed"
+      | "contract_incompatible"
+      | "fallback_required";
   };
   predecessor_route_ref: ModelHostSuccessionRouteProfileRefV01;
   frozen_case_ref: {
@@ -304,13 +309,37 @@ export interface ModelHostSuccessionFallbackPlanV01 {
   integrity: ModelHostSuccessionIntegrityV01;
 }
 
+export interface ModelHostSuccessionCapabilityDeltaValueV01 {
+  explicit_operation_class_count: number;
+  supported_operation_class_count: number;
+  unsupported_operation_class_count: number;
+  supported_operation_classes_fingerprint: string;
+  unsupported_operation_classes_fingerprint: string;
+}
+
 export interface ModelHostSuccessionPairwiseDeltaV01 {
   left_route_role: ModelHostSuccessionRouteRoleV01;
   right_route_role: ModelHostSuccessionRouteRoleV01;
   dimension: string;
-  relation: "equal" | "tradeoff" | "unknown" | "not_comparable" | "left_narrow_failure";
-  left_value: string | number | boolean | null;
-  right_value: string | number | boolean | null;
+  relation:
+    | "equal"
+    | "tradeoff"
+    | "unknown"
+    | "not_comparable"
+    | "left_narrow_coverage"
+    | "right_narrow_coverage";
+  left_value:
+    | string
+    | number
+    | boolean
+    | ModelHostSuccessionCapabilityDeltaValueV01
+    | null;
+  right_value:
+    | string
+    | number
+    | boolean
+    | ModelHostSuccessionCapabilityDeltaValueV01
+    | null;
   basis: string;
 }
 

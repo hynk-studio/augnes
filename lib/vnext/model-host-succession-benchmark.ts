@@ -20,6 +20,7 @@ import {
   type ModelHostSuccessionArmResultV01,
   type ModelHostSuccessionBenchmarkAuthorityV01,
   type ModelHostSuccessionBenchmarkV01,
+  type ModelHostSuccessionCapabilityDeltaValueV01,
   type ModelHostSuccessionCapabilityCoverageRowV01,
   type ModelHostSuccessionEvidenceClassV01,
   type ModelHostSuccessionFallbackPlanV01,
@@ -74,6 +75,13 @@ const ARM_EXECUTION_STATUSES_V01 = Object.freeze([
   "unavailable",
   "not_executed",
 ] as const);
+const FALLBACK_SETTLED_STATUSES_V01 = Object.freeze([
+  "failed",
+  "unavailable",
+  "not_executed",
+  "contract_incompatible",
+  "fallback_required",
+] as const satisfies readonly ModelHostSuccessionFallbackPlanV01["failed_arm_ref"]["settled_status"][]);
 const REQUIRED_FALLBACK_FRESH_IDENTITIES_V01 = Object.freeze([
   "attachment",
   "browser_decision_session",
@@ -221,7 +229,6 @@ export interface BuildModelHostSuccessionBenchmarkInputV01 {
   arm_results: ModelHostSuccessionArmResultV01[];
   fallback_plan: ModelHostSuccessionFallbackPlanV01;
   fallback_relation: ModelHostSuccessionBenchmarkV01["fallback_relation"];
-  pairwise_route_deltas: ModelHostSuccessionPairwiseDeltaV01[];
   trade_offs: string[];
   resource_observation_provenance: string[];
   missing_evidence: string[];
@@ -406,6 +413,17 @@ export function buildModelHostSuccessionArmResultV01(
   return result;
 }
 
+export function modelHostSuccessionFallbackArmRefV01(
+  arm: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionFallbackPlanV01["failed_arm_ref"] {
+  assertValidModelHostSuccessionArmResultV01(arm);
+  return {
+    arm_id: arm.arm_id,
+    arm_fingerprint: arm.integrity.fingerprint,
+    settled_status: deriveFallbackSettledStatusV01(arm),
+  };
+}
+
 export function buildModelHostSuccessionFallbackPlanV01(
   input: BuildModelHostSuccessionFallbackPlanInputV01,
 ): ModelHostSuccessionFallbackPlanV01 {
@@ -445,6 +463,7 @@ export function buildModelHostSuccessionBenchmarkV01(
   const routeProfiles = canonicalRouteProfilesV01(input.route_profiles);
   const armResults = canonicalArmResultsV01(input.arm_results);
   assertExactRouteMatrixV01(routeProfiles, armResults);
+  assertNoCrossArmIdentityReuseV01(armResults);
   assertValidModelHostSuccessionFallbackPlanV01(input.fallback_plan);
   const benchmark: ModelHostSuccessionBenchmarkV01 = {
     benchmark_version: MODEL_HOST_SUCCESSION_BENCHMARK_VERSION_V01,
@@ -455,9 +474,8 @@ export function buildModelHostSuccessionBenchmarkV01(
     arm_results: armResults,
     fallback_plan: cloneV01(input.fallback_plan),
     fallback_relation: cloneV01(input.fallback_relation),
-    pairwise_route_deltas: canonicalPairwiseDeltasV01(
-      input.pairwise_route_deltas,
-    ),
+    pairwise_route_deltas:
+      deriveModelHostSuccessionPairwiseRouteDeltasV01(armResults),
     summary: "inconclusive",
     trade_offs: canonicalUniqueTextV01(input.trade_offs),
     resource_observation_provenance: canonicalUniqueTextV01(
@@ -486,11 +504,51 @@ export function buildModelHostSuccessionBenchmarkV01(
   return benchmark;
 }
 
+export function deriveModelHostSuccessionPairwiseRouteDeltasV01(
+  input: ModelHostSuccessionArmResultV01[],
+): ModelHostSuccessionPairwiseDeltaV01[] {
+  const arms = canonicalArmResultsV01(input);
+  const rows: ModelHostSuccessionPairwiseDeltaV01[] = [];
+  for (let leftIndex = 0; leftIndex < arms.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < arms.length;
+      rightIndex += 1
+    ) {
+      const left = arms[leftIndex]!;
+      const right = arms[rightIndex]!;
+      rows.push(
+        deriveRouteContractDeltaV01(left, right),
+        deriveCapabilityCoverageDeltaV01(left, right),
+        {
+          left_route_role: left.route_profile_ref.route_role,
+          right_route_role: right.route_profile_ref.route_role,
+          dimension: "model_quality",
+          relation: "unknown",
+          left_value: null,
+          right_value: null,
+          basis:
+            "No live provider or model execution occurred, so model quality is unobserved.",
+        },
+      );
+    }
+  }
+  return canonicalPairwiseDeltasV01(rows);
+}
+
 export function validateModelHostSuccessionRouteProfileV01(
   input: unknown,
 ): ModelHostSuccessionValidationResultV01 {
   return validationResultV01(() =>
     assertValidModelHostSuccessionRouteProfileV01(input),
+  );
+}
+
+export function validateModelHostSuccessionArmResultV01(
+  input: unknown,
+): ModelHostSuccessionValidationResultV01 {
+  return validationResultV01(() =>
+    assertValidModelHostSuccessionArmResultV01(input),
   );
 }
 
@@ -787,6 +845,10 @@ export function assertValidModelHostSuccessionArmResultV01(
       arm.fresh_identity_proof.database_scope_fingerprint,
     repository_root_fingerprint:
       arm.fresh_identity_proof.repository_root_fingerprint,
+  })) {
+    requiredFingerprintV01(value, `$.fresh_identity_proof.${field}`);
+  }
+  for (const [field, value] of Object.entries({
     attachment_binding_fingerprint:
       arm.fresh_identity_proof.attachment_binding_fingerprint,
     start_request_fingerprint:
@@ -803,22 +865,18 @@ export function assertValidModelHostSuccessionArmResultV01(
       arm.fresh_identity_proof.host_thread_identity_fingerprint,
     host_turn_identity_fingerprint:
       arm.fresh_identity_proof.host_turn_identity_fingerprint,
-  })) {
-    requiredFingerprintV01(value, `$.fresh_identity_proof.${field}`);
-  }
-  requiredTextV01(
-    arm.fresh_identity_proof.attachment_id,
-    "$.fresh_identity_proof.attachment_id",
-  );
-  requiredTextV01(
-    arm.fresh_identity_proof.managed_run_id,
-    "$.fresh_identity_proof.managed_run_id",
-  );
-  if (arm.fresh_identity_proof.provider_thread_identity_fingerprint !== null) {
-    requiredFingerprintV01(
+    provider_thread_identity_fingerprint:
       arm.fresh_identity_proof.provider_thread_identity_fingerprint,
-      "$.fresh_identity_proof.provider_thread_identity_fingerprint",
-    );
+  })) {
+    if (value !== null) {
+      requiredFingerprintV01(value, `$.fresh_identity_proof.${field}`);
+    }
+  }
+  for (const [field, value] of Object.entries({
+    attachment_id: arm.fresh_identity_proof.attachment_id,
+    managed_run_id: arm.fresh_identity_proof.managed_run_id,
+  })) {
+    if (value !== null) requiredTextV01(value, `$.fresh_identity_proof.${field}`);
   }
   if (
     !["exact_deterministic_fixture_ledger", "simulated_contract_only", "unobserved"]
@@ -832,6 +890,7 @@ export function assertValidModelHostSuccessionArmResultV01(
     }
   }
   assertRouteRefV01(arm.route_profile_ref, "$.route_profile_ref");
+  assertArmExecutionEvidenceV01(arm);
   if (
     arm.fresh_identity_proof.prior_identity_reuse_count !== 0 ||
     arm.fresh_identity_proof.no_reuse_proven !== true ||
@@ -861,6 +920,12 @@ export function assertValidModelHostSuccessionArmResultV01(
     arm.fallback_required !== true
   ) {
     failV01("model_host_arm_fallback_binding_invalid");
+  }
+  if (
+    arm.route_profile_ref.route_role !== "predecessor_route_replay" &&
+    arm.fallback_used !== false
+  ) {
+    failV01("model_host_arm_fallback_use_invalid");
   }
   const partition = [
     ...arm.required_checks.passed,
@@ -893,6 +958,74 @@ export function assertValidModelHostSuccessionArmResultV01(
   }
   assertIdentityV01(arm, "arm_id", "model-host-succession-arm");
   assertFingerprintV01(arm);
+}
+
+function assertArmExecutionEvidenceV01(
+  arm: ModelHostSuccessionArmResultV01,
+): void {
+  const proof = arm.fresh_identity_proof;
+  const nonExecuted = isNonExecutedArmV01(arm);
+  if (nonExecuted) {
+    const attachmentPairComplete =
+      (proof.attachment_id === null) ===
+      (proof.attachment_binding_fingerprint === null);
+    const preExecutionSequenceValid =
+      (proof.start_request_fingerprint === null || proof.attachment_id !== null) &&
+      (proof.browser_decision_session_identity_fingerprint === null ||
+        proof.start_request_fingerprint !== null);
+    if (
+      arm.verification_status !== "not_run" ||
+      !attachmentPairComplete ||
+      !preExecutionSequenceValid ||
+      proof.start_grant_fingerprint !== null ||
+      proof.managed_run_id !== null ||
+      proof.controller_identity_fingerprint !== null ||
+      proof.host_session_identity_fingerprint !== null ||
+      proof.host_thread_identity_fingerprint !== null ||
+      proof.host_turn_identity_fingerprint !== null ||
+      proof.provider_thread_identity_fingerprint !== null ||
+      Object.values(arm.record_refs).some((ref) => ref !== null) ||
+      arm.continuation_trace.packet_b_exact_bytes_delivered !== false ||
+      arm.continuation_trace.selected_entry_count !== 1 ||
+      arm.continuation_trace.selected_entry_delivered_count !== 0 ||
+      arm.continuation_trace.selected_entry_exact_receipt_referenced_count !== 0 ||
+      arm.required_checks.passed.length !== 0 ||
+      arm.required_checks.failed.length !== 0 ||
+      arm.review_burden.review_action_count !== 0 ||
+      arm.review_burden.correction_count !== null ||
+      arm.fallback_used !== false ||
+      arm.predecessor_replay_status !== "not_applicable" ||
+      arm.cleanup_status === "pending"
+    ) {
+      failV01("model_host_arm_nonexecuted_evidence_invalid");
+    }
+    return;
+  }
+  for (const [field, value] of Object.entries({
+    attachment_binding_fingerprint: proof.attachment_binding_fingerprint,
+    start_request_fingerprint: proof.start_request_fingerprint,
+    start_grant_fingerprint: proof.start_grant_fingerprint,
+    controller_identity_fingerprint: proof.controller_identity_fingerprint,
+    browser_decision_session_identity_fingerprint:
+      proof.browser_decision_session_identity_fingerprint,
+    host_session_identity_fingerprint: proof.host_session_identity_fingerprint,
+    host_thread_identity_fingerprint: proof.host_thread_identity_fingerprint,
+    host_turn_identity_fingerprint: proof.host_turn_identity_fingerprint,
+  })) {
+    requiredFingerprintV01(value, `$.fresh_identity_proof.${field}`);
+  }
+  requiredTextV01(proof.attachment_id, "$.fresh_identity_proof.attachment_id");
+  requiredTextV01(proof.managed_run_id, "$.fresh_identity_proof.managed_run_id");
+  if (
+    Object.values(arm.record_refs).some((ref) => ref === null) ||
+    arm.continuation_trace.packet_b_exact_bytes_delivered !== true ||
+    arm.continuation_trace.selected_entry_count !== 1 ||
+    arm.continuation_trace.selected_entry_delivered_count !== 1 ||
+    arm.continuation_trace.selected_entry_exact_receipt_referenced_count !== 1 ||
+    arm.cleanup_status !== "complete"
+  ) {
+    failV01("model_host_arm_executed_evidence_invalid");
+  }
 }
 
 export function assertValidModelHostSuccessionFallbackPlanV01(
@@ -932,8 +1065,9 @@ export function assertValidModelHostSuccessionFallbackPlanV01(
     plan.policy_activation_authorized !== false ||
     plan.rollback_activation_authorized !== false ||
     plan.predecessor_route_ref.route_role !== "predecessor_route_replay" ||
-    !["failed", "unavailable", "contract_incompatible", "fallback_required"]
-      .includes(plan.failed_arm_ref.settled_status)
+    !FALLBACK_SETTLED_STATUSES_V01.includes(
+      plan.failed_arm_ref.settled_status,
+    )
   ) {
     failV01("model_host_fallback_plan_contract_invalid");
   }
@@ -1011,10 +1145,14 @@ export function assertValidModelHostSuccessionBenchmarkV01(
   assertValidModelHostSuccessionFallbackPlanV01(benchmark.fallback_plan);
   assertFallbackRelationV01(benchmark);
   assertAdrOwnerGapObservationsV01(benchmark.adr_owner_gap_observations);
-  assertPairwiseRouteDeltasV01(benchmark.pairwise_route_deltas);
+  assertPairwiseRouteDeltasV01(benchmark.pairwise_route_deltas, arms);
   if (
     !deepEqualV01(
       canonicalPairwiseDeltasV01(benchmark.pairwise_route_deltas),
+      benchmark.pairwise_route_deltas,
+    ) ||
+    !deepEqualV01(
+      deriveModelHostSuccessionPairwiseRouteDeltasV01(arms),
       benchmark.pairwise_route_deltas,
     ) ||
     !deepEqualV01(
@@ -1260,19 +1398,15 @@ function assertExactRouteMatrixV01(
         arm.unsupported_capability,
         profile.unsupported_operation_classes,
       ) ||
-      arm.continuation_trace.packet_b_exact_bytes_delivered !== true ||
       arm.continuation_trace.selected_entry_count !== 1 ||
-      arm.continuation_trace.selected_entry_delivered_count !== 1 ||
-      arm.continuation_trace.selected_entry_exact_receipt_referenced_count !== 1 ||
-      Object.values(arm.record_refs).some((ref) => ref === null) ||
       arm.resource_observations.usage_units !== null ||
       arm.resource_observations.monetary_cost_microunits !== null ||
-      arm.resource_observations.genuine_latency_ms !== null ||
-      arm.cleanup_status !== "complete"
+      arm.resource_observations.genuine_latency_ms !== null
     ) {
       failV01("model_host_route_arm_exact_case_invalid");
     }
-    const expectsProviderThread = profile.provider_ref !== null;
+    const expectsProviderThread =
+      !isNonExecutedArmV01(arm) && profile.provider_ref !== null;
     if (
       expectsProviderThread !==
         (arm.fresh_identity_proof.provider_thread_identity_fingerprint !== null)
@@ -1281,18 +1415,26 @@ function assertExactRouteMatrixV01(
     }
   }
   const constrainedArm = arms[1]!;
+  const sameArm = arms[0]!;
+  const alternateArm = arms[2]!;
   const zeroArm = arms[3]!;
   const replayArm = arms[4]!;
   if (
-    constrainedArm.contract_status !== "fallback_required" ||
-    constrainedArm.execution_status !== "blocked" ||
     constrainedArm.fallback_required !== true ||
     constrainedArm.fallback_used !== false ||
+    (!isNonExecutedArmV01(constrainedArm) &&
+      (constrainedArm.contract_status !== "fallback_required" ||
+        constrainedArm.execution_status !== "blocked")) ||
     constrainedArm.required_checks.passed.some((check) =>
       constrainedArm.unsupported_capability.includes(check)) ||
+    sameArm.fallback_used !== false ||
+    alternateArm.fallback_used !== false ||
+    zeroArm.fallback_used !== false ||
     zeroArm.resource_observations.provider_calls !== 0 ||
     zeroArm.resource_observations.model_calls !== 0 ||
-    replayArm.predecessor_replay_status !== "explicit_fresh_replay_completed"
+    replayArm.fallback_used !== true ||
+    replayArm.predecessor_replay_status !== "explicit_fresh_replay_completed" ||
+    isNonExecutedArmV01(replayArm)
   ) {
     failV01("model_host_route_arm_semantics_invalid");
   }
@@ -1301,7 +1443,11 @@ function assertExactRouteMatrixV01(
 function assertFallbackRelationV01(
   benchmark: Pick<
     ModelHostSuccessionBenchmarkV01,
-    "frozen_case" | "arm_results" | "fallback_plan" | "fallback_relation"
+    | "frozen_case"
+    | "route_profiles"
+    | "arm_results"
+    | "fallback_plan"
+    | "fallback_relation"
   >,
 ): void {
   const candidate = benchmark.arm_results.find(
@@ -1310,12 +1456,29 @@ function assertFallbackRelationV01(
   const replay = benchmark.arm_results.find(
     (arm) => arm.route_profile_ref.route_role === "predecessor_route_replay",
   );
+  const predecessorProfile = benchmark.route_profiles.find(
+    (profile) => profile.route_role === "predecessor_route_replay",
+  );
+  const expectedCandidateRef = candidate
+    ? modelHostSuccessionFallbackArmRefV01(candidate)
+    : null;
+  const expectedPredecessorRef = predecessorProfile
+    ? routeProfileRefV01(predecessorProfile)
+    : null;
   if (
-    !candidate || !replay || candidate.contract_status !== "fallback_required" ||
+    !candidate || !replay || !predecessorProfile ||
+    candidate.fallback_required !== true || candidate.fallback_used !== false ||
+    replay.fallback_used !== true ||
     replay.predecessor_replay_status !== "explicit_fresh_replay_completed" ||
-    benchmark.fallback_plan.failed_arm_ref.arm_id !== candidate.arm_id ||
-    benchmark.fallback_plan.failed_arm_ref.arm_fingerprint !==
-      candidate.integrity.fingerprint ||
+    !deepEqualV01(benchmark.fallback_plan.failed_arm_ref, expectedCandidateRef) ||
+    !deepEqualV01(
+      benchmark.fallback_plan.predecessor_route_ref,
+      expectedPredecessorRef,
+    ) ||
+    !deepEqualV01(
+      benchmark.fallback_plan.predecessor_route_ref,
+      replay.route_profile_ref,
+    ) ||
     benchmark.fallback_plan.frozen_case_ref.frozen_case_id !==
       benchmark.frozen_case.frozen_case_id ||
     benchmark.fallback_plan.frozen_case_ref.frozen_case_fingerprint !==
@@ -1443,20 +1606,140 @@ function canonicalArmResultsV01(
   );
 }
 
+function deriveRouteContractDeltaV01(
+  left: ModelHostSuccessionArmResultV01,
+  right: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionPairwiseDeltaV01 {
+  const leftStatus = left.contract_status;
+  const rightStatus = right.contract_status;
+  let relation: ModelHostSuccessionPairwiseDeltaV01["relation"];
+  let basis: string;
+  if (leftStatus === rightStatus) {
+    relation = "equal";
+    basis =
+      `Both arms have the exact route-contract status ${leftStatus}; this dimension establishes no global route ranking.`;
+  } else if (
+    (leftStatus === "contract_compatible" &&
+      ["fallback_required", "contract_incompatible"].includes(rightStatus)) ||
+    (rightStatus === "contract_compatible" &&
+      ["fallback_required", "contract_incompatible"].includes(leftStatus))
+  ) {
+    relation = "tradeoff";
+    const narrowStatus = leftStatus === "contract_compatible"
+      ? rightStatus
+      : leftStatus;
+    basis =
+      `One arm is contract-compatible while the other has the exact narrow status ${narrowStatus}; this route-contract delta is not a global route ranking.`;
+  } else {
+    relation = "not_comparable";
+    basis =
+      "The exact categorical route-contract statuses differ without a bounded compatible-versus-narrow-failure rule; this dimension is not comparable.";
+  }
+  return {
+    left_route_role: left.route_profile_ref.route_role,
+    right_route_role: right.route_profile_ref.route_role,
+    dimension: "route_contract_status",
+    relation,
+    left_value: leftStatus,
+    right_value: rightStatus,
+    basis,
+  };
+}
+
+function deriveCapabilityCoverageDeltaV01(
+  left: ModelHostSuccessionArmResultV01,
+  right: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionPairwiseDeltaV01 {
+  const leftSupported = new Set(left.supported_capability);
+  const rightSupported = new Set(right.supported_capability);
+  const leftUniverse = new Set([
+    ...left.supported_capability,
+    ...left.unsupported_capability,
+  ]);
+  const rightUniverse = new Set([
+    ...right.supported_capability,
+    ...right.unsupported_capability,
+  ]);
+  let relation: ModelHostSuccessionPairwiseDeltaV01["relation"];
+  let basis: string;
+  if (
+    sameStringSetV01(leftSupported, rightSupported) &&
+    sameStringSetV01(leftUniverse, rightUniverse)
+  ) {
+    relation = "equal";
+    basis =
+      "The exact declared supported and unsupported benchmark operation-class sets are equal; no model capability or route ranking is inferred.";
+  } else if (
+    sameStringSetV01(leftUniverse, rightUniverse) &&
+    strictStringSubsetV01(leftSupported, rightSupported)
+  ) {
+    relation = "left_narrow_coverage";
+    basis =
+      "The left arm supports a strict subset of the same explicit benchmark operation-class universe; this is narrow coverage only, not a global route ranking.";
+  } else if (
+    sameStringSetV01(leftUniverse, rightUniverse) &&
+    strictStringSubsetV01(rightSupported, leftSupported)
+  ) {
+    relation = "right_narrow_coverage";
+    basis =
+      "The right arm supports a strict subset of the same explicit benchmark operation-class universe; this is narrow coverage only, not a global route ranking.";
+  } else {
+    relation = "not_comparable";
+    basis =
+      "The declared benchmark operation-class coverage differs without an exact nested universe; model capability and global route quality remain unobserved.";
+  }
+  return {
+    left_route_role: left.route_profile_ref.route_role,
+    right_route_role: right.route_profile_ref.route_role,
+    dimension: "capability_coverage",
+    relation,
+    left_value: capabilityDeltaValueV01(left),
+    right_value: capabilityDeltaValueV01(right),
+    basis,
+  };
+}
+
+function capabilityDeltaValueV01(
+  arm: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionCapabilityDeltaValueV01 {
+  return {
+    explicit_operation_class_count:
+      arm.supported_capability.length + arm.unsupported_capability.length,
+    supported_operation_class_count: arm.supported_capability.length,
+    unsupported_operation_class_count: arm.unsupported_capability.length,
+    supported_operation_classes_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(arm.supported_capability),
+    ),
+    unsupported_operation_classes_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(arm.unsupported_capability),
+    ),
+  };
+}
+
 function canonicalPairwiseDeltasV01(
   input: ModelHostSuccessionPairwiseDeltaV01[],
 ): ModelHostSuccessionPairwiseDeltaV01[] {
+  if (!Array.isArray(input)) failV01("model_host_pairwise_delta_invalid");
   if (input.length > MAX_ITEMS) failV01("model_host_pairwise_delta_limit_exceeded");
   const values = cloneV01(input);
   for (const row of values) {
+    if (!isProtocolRecordV01(row)) {
+      failV01("model_host_pairwise_delta_invalid");
+    }
+    assertExactKeysV01(row, [
+      "left_route_role", "right_route_role", "dimension", "relation",
+      "left_value", "right_value", "basis",
+    ], "$.pairwise_route_deltas[]");
     requiredTextV01(row.dimension, "$.pairwise_route_deltas.dimension");
     requiredTextV01(row.basis, "$.pairwise_route_deltas.basis");
     if (!MODEL_HOST_SUCCESSION_ROUTE_ROLE_ORDER_V01.includes(row.left_route_role) ||
         !MODEL_HOST_SUCCESSION_ROUTE_ROLE_ORDER_V01.includes(row.right_route_role) ||
-        !["equal", "tradeoff", "unknown", "not_comparable", "left_narrow_failure"]
+        ![
+          "equal", "tradeoff", "unknown", "not_comparable",
+          "left_narrow_coverage", "right_narrow_coverage",
+        ]
           .includes(row.relation) ||
-        ![row.left_value, row.right_value].every((value) =>
-          value === null || ["string", "number", "boolean"].includes(typeof value))) {
+        ![row.left_value, row.right_value].every(isPairwiseDeltaValueV01)) {
       failV01("model_host_pairwise_route_role_invalid");
     }
   }
@@ -1474,7 +1757,9 @@ function canonicalPairwiseDeltasV01(
 
 function assertPairwiseRouteDeltasV01(
   rows: ModelHostSuccessionPairwiseDeltaV01[],
+  arms: ModelHostSuccessionArmResultV01[],
 ): void {
+  canonicalPairwiseDeltasV01(rows);
   const expected = new Set<string>();
   for (
     let left = 0;
@@ -1515,6 +1800,66 @@ function assertPairwiseRouteDeltasV01(
   if (actual.size !== expected.size) {
     failV01("model_host_pairwise_matrix_incomplete");
   }
+  if (
+    !deepEqualV01(
+      deriveModelHostSuccessionPairwiseRouteDeltasV01(arms),
+      rows,
+    )
+  ) {
+    failV01("model_host_pairwise_source_binding_invalid");
+  }
+}
+
+function isPairwiseDeltaValueV01(value: unknown): boolean {
+  if (
+    value === null ||
+    ["string", "number", "boolean"].includes(typeof value)
+  ) {
+    return true;
+  }
+  if (!isProtocolRecordV01(value)) return false;
+  try {
+    assertExactKeysV01(value, [
+      "explicit_operation_class_count",
+      "supported_operation_class_count",
+      "unsupported_operation_class_count",
+      "supported_operation_classes_fingerprint",
+      "unsupported_operation_classes_fingerprint",
+    ], "$.pairwise_route_deltas.value");
+    const capability = value as unknown as ModelHostSuccessionCapabilityDeltaValueV01;
+    if (
+      !Number.isInteger(capability.explicit_operation_class_count) ||
+      !Number.isInteger(capability.supported_operation_class_count) ||
+      !Number.isInteger(capability.unsupported_operation_class_count) ||
+      capability.explicit_operation_class_count < 0 ||
+      capability.supported_operation_class_count < 0 ||
+      capability.unsupported_operation_class_count < 0 ||
+      capability.explicit_operation_class_count !==
+        capability.supported_operation_class_count +
+          capability.unsupported_operation_class_count
+    ) {
+      return false;
+    }
+    requiredFingerprintV01(
+      capability.supported_operation_classes_fingerprint,
+      "$.pairwise_route_deltas.value.supported_operation_classes_fingerprint",
+    );
+    requiredFingerprintV01(
+      capability.unsupported_operation_classes_fingerprint,
+      "$.pairwise_route_deltas.value.unsupported_operation_classes_fingerprint",
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sameStringSetV01(left: Set<string>, right: Set<string>): boolean {
+  return left.size === right.size && [...left].every((value) => right.has(value));
+}
+
+function strictStringSubsetV01(left: Set<string>, right: Set<string>): boolean {
+  return left.size < right.size && [...left].every((value) => right.has(value));
 }
 
 function canonicalCoverageV01(
@@ -1570,6 +1915,27 @@ function sameIdentityV01(
     left.adapter_implementation_version === right.adapter_implementation_version &&
     left.native_host_adapter_version === right.native_host_adapter_version &&
     left.capability_version === right.capability_version;
+}
+
+function isNonExecutedArmV01(arm: ModelHostSuccessionArmResultV01): boolean {
+  return arm.execution_status === "unavailable" ||
+    arm.execution_status === "not_executed";
+}
+
+function deriveFallbackSettledStatusV01(
+  arm: ModelHostSuccessionArmResultV01,
+): ModelHostSuccessionFallbackPlanV01["failed_arm_ref"]["settled_status"] {
+  if (arm.fallback_required !== true || arm.fallback_used !== false) {
+    failV01("model_host_fallback_candidate_state_invalid");
+  }
+  if (arm.contract_status === "fallback_required") return "fallback_required";
+  if (arm.contract_status === "contract_incompatible") {
+    return "contract_incompatible";
+  }
+  if (arm.execution_status === "unavailable") return "unavailable";
+  if (arm.execution_status === "not_executed") return "not_executed";
+  if (arm.execution_status === "failed") return "failed";
+  failV01("model_host_fallback_candidate_not_settled");
 }
 
 function identityValuesV01(arm: ModelHostSuccessionArmResultV01): Array<string | null> {

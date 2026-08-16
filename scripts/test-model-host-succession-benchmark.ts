@@ -8,23 +8,34 @@ import { pathToFileURL } from "node:url";
 import {
   buildDeterministicModelHostSuccessionBenchmarkFixtureV01,
   buildModelHostSuccessionRouteProfilesFixtureV01,
+  buildUnavailableModelHostSuccessionBenchmarkFixtureV01,
 } from "@/fixtures/vnext/research/model-host-succession-benchmark-v0-1";
 import {
   ACGC6A_MERGED_STAGE5_BASELINE_COMMIT_V01,
+  buildModelHostSuccessionArmResultV01,
   buildModelHostSuccessionBenchmarkV01,
   buildModelHostSuccessionFallbackPlanV01,
   buildModelHostSuccessionFrozenCaseV01,
   buildModelHostSuccessionRouteProfileV01,
+  deriveModelHostSuccessionPairwiseRouteDeltasV01,
+  modelHostSuccessionFallbackArmRefV01,
+  routeProfileRefV01,
+  validateModelHostSuccessionArmResultV01,
   validateModelHostSuccessionBenchmarkV01,
   validateModelHostSuccessionFallbackPlanV01,
   validateModelHostSuccessionFrozenCaseV01,
   validateModelHostSuccessionRouteProfileV01,
 } from "@/lib/vnext/model-host-succession-benchmark";
-import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
 import { renderModelHostSuccessionBenchmarkReportV01 } from "@/scripts/model-host-succession-benchmark-report";
 import {
   MODEL_HOST_SUCCESSION_ROUTE_ROLE_ORDER_V01,
+  type ModelHostSuccessionArmResultV01,
   type ModelHostSuccessionBenchmarkV01,
+  type ModelHostSuccessionPairwiseDeltaV01,
   type ModelHostSuccessionFallbackPlanV01,
   type ModelHostSuccessionFrozenCaseV01,
   type ModelHostSuccessionRouteProfileV01,
@@ -51,6 +62,7 @@ async function main(): Promise<void> {
   assertContinuationTraceV01(benchmark);
   assertFallbackV01(benchmark);
   assertBenchmarkSemanticsV01(benchmark);
+  assertUnavailableArmSemanticsV01(benchmark);
   assertZeroUnauthorizedEffectsV01(benchmark, fixture);
   assertReportV01(benchmark);
 
@@ -405,12 +417,18 @@ function assertFallbackV01(benchmark: ModelHostSuccessionBenchmarkV01): void {
     "capability_constrained_simulation",
   );
   const replay = armV01(benchmark, "predecessor_route_replay");
+  const predecessorProfile = routeV01(benchmark, "predecessor_route_replay");
   assert.equal(plan.failed_arm_ref.arm_id, constrained.arm_id);
   assert.equal(
     plan.failed_arm_ref.arm_fingerprint,
     constrained.integrity.fingerprint,
   );
   assert.equal(plan.failed_arm_ref.settled_status, "fallback_required");
+  assert.deepEqual(
+    plan.predecessor_route_ref,
+    routeProfileRefV01(predecessorProfile),
+  );
+  assert.deepEqual(plan.predecessor_route_ref, replay.route_profile_ref);
   assert.equal(plan.frozen_case_ref.frozen_case_id, benchmark.frozen_case.frozen_case_id);
   assert.equal(plan.automatic_execution_authorized, false);
   assert.equal(plan.product_route_mutation_authorized, false);
@@ -426,6 +444,11 @@ function assertFallbackV01(benchmark: ModelHostSuccessionBenchmarkV01): void {
     false,
   );
   assert.equal(benchmark.fallback_relation.automatic_execution_used, false);
+  assert.equal(constrained.fallback_used, false);
+  assert.equal(armV01(benchmark, "same_model_cold_session_simulation").fallback_used, false);
+  assert.equal(armV01(benchmark, "alternate_provider_host_contract_simulation").fallback_used, false);
+  assert.equal(armV01(benchmark, "zero_model_fallback").fallback_used, false);
+  assert.equal(replay.fallback_used, true);
   assertNoIdentityOverlapV01(constrained, replay);
 
   const planReplay = buildModelHostSuccessionFallbackPlanV01(
@@ -443,26 +466,142 @@ function assertFallbackV01(benchmark: ModelHostSuccessionBenchmarkV01): void {
     validateModelHostSuccessionFallbackPlanV01(conflict),
     "fallback conflicting reseal",
   );
+
+  const fabricatedPredecessor = buildModelHostSuccessionFallbackPlanV01({
+    ...fallbackBuilderInputV01(plan),
+    predecessor_route_ref: {
+      ...plan.predecessor_route_ref,
+      route_profile_id: "model-host-succession-route:fabricated",
+      route_profile_fingerprint: `sha256:${"a".repeat(64)}`,
+    },
+  });
+  assert.equal(
+    validateModelHostSuccessionFallbackPlanV01(fabricatedPredecessor).status,
+    "valid",
+  );
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      fallback_plan: fabricatedPredecessor,
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
+
+  const zeroRoute = routeV01(benchmark, "zero_model_fallback");
+  const substitutedBenchmarkRoute = buildModelHostSuccessionFallbackPlanV01({
+    ...fallbackBuilderInputV01(plan),
+    predecessor_route_ref: {
+      ...routeProfileRefV01(zeroRoute),
+      route_role: "predecessor_route_replay",
+    },
+  });
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      fallback_plan: substitutedBenchmarkRoute,
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
+
+  const wrongPredecessorFingerprint =
+    buildModelHostSuccessionFallbackPlanV01({
+      ...fallbackBuilderInputV01(plan),
+      predecessor_route_ref: {
+        ...plan.predecessor_route_ref,
+        route_profile_fingerprint: `sha256:${"b".repeat(64)}`,
+      },
+    });
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      fallback_plan: wrongPredecessorFingerprint,
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
+
+  for (const settledStatus of [
+    "failed",
+    "unavailable",
+    "not_executed",
+    "contract_incompatible",
+  ] as const) {
+    const wrongSettledStatus = buildModelHostSuccessionFallbackPlanV01({
+      ...fallbackBuilderInputV01(plan),
+      failed_arm_ref: {
+        arm_id: constrained.arm_id,
+        arm_fingerprint: constrained.integrity.fingerprint,
+        settled_status: settledStatus,
+      },
+    });
+    assert.notEqual(wrongSettledStatus.fallback_plan_id, plan.fallback_plan_id);
+    assert.throws(
+      () => buildModelHostSuccessionBenchmarkV01({
+        ...benchmarkBuilderInputV01(benchmark),
+        fallback_plan: wrongSettledStatus,
+      }),
+      /model_host_fallback_relation_invalid/u,
+    );
+  }
+
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      fallback_relation: {
+        ...benchmark.fallback_relation,
+        predecessor_replay_arm_id: armV01(
+          benchmark,
+          "zero_model_fallback",
+        ).arm_id,
+      },
+    }),
+    /model_host_fallback_relation_invalid/u,
+  );
+
+  const identityReusingReplay = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(replay),
+    fresh_identity_proof: {
+      ...replay.fresh_identity_proof,
+      project_scope_fingerprint:
+        constrained.fresh_identity_proof.project_scope_fingerprint,
+    },
+  });
+  assert.throws(
+    () => buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      arm_results: benchmark.arm_results.map((arm) =>
+        arm.route_profile_ref.route_role === "predecessor_route_replay"
+          ? identityReusingReplay
+          : arm),
+      fallback_relation: {
+        ...benchmark.fallback_relation,
+        predecessor_replay_arm_id: identityReusingReplay.arm_id,
+      },
+    }),
+    /model_host_cross_arm_identity_reuse_detected/u,
+  );
 }
 
 function assertBenchmarkSemanticsV01(
   benchmark: ModelHostSuccessionBenchmarkV01,
 ): void {
   const replay = buildModelHostSuccessionBenchmarkV01({
-    frozen_case: benchmark.frozen_case,
-    route_profiles: benchmark.route_profiles,
-    arm_results: benchmark.arm_results,
-    fallback_plan: benchmark.fallback_plan,
-    fallback_relation: benchmark.fallback_relation,
-    pairwise_route_deltas: benchmark.pairwise_route_deltas,
-    trade_offs: benchmark.trade_offs,
-    resource_observation_provenance:
-      benchmark.resource_observation_provenance,
-    missing_evidence: benchmark.missing_evidence,
-    limitations: benchmark.limitations,
-    adr_owner_gap_observations: benchmark.adr_owner_gap_observations,
+    ...benchmarkBuilderInputV01(benchmark),
   });
   assert.deepEqual(replay, benchmark);
+  assert.deepEqual(
+    buildModelHostSuccessionBenchmarkV01({
+      ...benchmarkBuilderInputV01(benchmark),
+      route_profiles: [...benchmark.route_profiles].reverse(),
+      arm_results: [...benchmark.arm_results].reverse(),
+    }),
+    benchmark,
+  );
+  assert.deepEqual(
+    deriveModelHostSuccessionPairwiseRouteDeltasV01(
+      [...benchmark.arm_results].reverse(),
+    ),
+    benchmark.pairwise_route_deltas,
+  );
   assert.equal(benchmark.summary, "inconclusive");
   assert.equal(
     benchmark.pairwise_route_deltas.some(
@@ -471,9 +610,9 @@ function assertBenchmarkSemanticsV01(
     true,
   );
   assert.equal(
-    benchmark.pairwise_route_deltas.some(
-      (row) => row.relation === "not_comparable",
-    ),
+    benchmark.pairwise_route_deltas.some((row) =>
+      row.dimension === "capability_coverage" &&
+      ["left_narrow_coverage", "right_narrow_coverage"].includes(row.relation)),
     true,
   );
   assert.equal(
@@ -521,6 +660,320 @@ function assertBenchmarkSemanticsV01(
   assert.equal(benchmark.authority_summary.policy_fitness_claimed, false);
   assert.equal(benchmark.authority_summary.operational_policy_activated, false);
   assert.equal(benchmark.authority_summary.active_route_pointer_created, false);
+
+  assertPairwiseResealRefusalsV01(benchmark);
+  assertPairwiseSourceChangeV01(benchmark);
+}
+
+function assertPairwiseResealRefusalsV01(
+  benchmark: ModelHostSuccessionBenchmarkV01,
+): void {
+  const routeStatusRow = benchmark.pairwise_route_deltas.find(
+    (row) =>
+      row.dimension === "route_contract_status" &&
+      row.relation === "tradeoff",
+  );
+  const capabilityRow = benchmark.pairwise_route_deltas.find(
+    (row) => row.dimension === "capability_coverage",
+  );
+  assert(routeStatusRow && capabilityRow);
+
+  const changedStatusValue = cloneV01(benchmark);
+  pairwiseRowV01(changedStatusValue, routeStatusRow).left_value = "unobserved";
+  assertBlockedCodeV01(
+    validateModelHostSuccessionBenchmarkV01(
+      resealBenchmarkV01(changedStatusValue),
+    ),
+    "model_host_pairwise_source_binding_invalid",
+  );
+
+  const changedRelation = cloneV01(benchmark);
+  pairwiseRowV01(changedRelation, routeStatusRow).relation = "equal";
+  assertBlockedCodeV01(
+    validateModelHostSuccessionBenchmarkV01(resealBenchmarkV01(changedRelation)),
+    "model_host_pairwise_source_binding_invalid",
+  );
+
+  const changedCapabilityValue = cloneV01(benchmark);
+  const capabilityValue = pairwiseRowV01(
+    changedCapabilityValue,
+    capabilityRow,
+  ).left_value;
+  assert(capabilityValue && typeof capabilityValue === "object");
+  capabilityValue.supported_operation_class_count += 1;
+  capabilityValue.explicit_operation_class_count += 1;
+  assertBlockedCodeV01(
+    validateModelHostSuccessionBenchmarkV01(
+      resealBenchmarkV01(changedCapabilityValue),
+    ),
+    "model_host_pairwise_source_binding_invalid",
+  );
+
+  const changedBasis = cloneV01(benchmark);
+  pairwiseRowV01(changedBasis, routeStatusRow).basis =
+    "Caller-supplied contradictory route interpretation.";
+  assertBlockedCodeV01(
+    validateModelHostSuccessionBenchmarkV01(resealBenchmarkV01(changedBasis)),
+    "model_host_pairwise_source_binding_invalid",
+  );
+}
+
+function assertPairwiseSourceChangeV01(
+  benchmark: ModelHostSuccessionBenchmarkV01,
+): void {
+  const alternate = armV01(
+    benchmark,
+    "alternate_provider_host_contract_simulation",
+  );
+  const stateChangedArm = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(alternate),
+    contract_status: "unobserved",
+  });
+  const stateChangedBenchmark = buildModelHostSuccessionBenchmarkV01({
+    ...benchmarkBuilderInputV01(benchmark),
+    arm_results: benchmark.arm_results.map((arm) =>
+      arm.route_profile_ref.route_role ===
+        "alternate_provider_host_contract_simulation"
+        ? stateChangedArm
+        : arm),
+  });
+  assert.notDeepEqual(
+    stateChangedBenchmark.pairwise_route_deltas,
+    benchmark.pairwise_route_deltas,
+  );
+  assert.notEqual(stateChangedBenchmark.benchmark_id, benchmark.benchmark_id);
+
+  const alternateProfile = routeV01(
+    benchmark,
+    "alternate_provider_host_contract_simulation",
+  );
+  const capabilityChangedProfile = buildModelHostSuccessionRouteProfileV01({
+    ...routeBuilderInputV01(alternateProfile),
+    capability_version: "alternate_contract_capability.narrow.v0.1",
+    supported_operation_classes: ["validated_packet_delivery"],
+    unsupported_operation_classes: [
+      "provider_or_model_egress",
+      "repository_command_execution",
+      "return_bounded_structured_result",
+      "verify-portable-output",
+    ],
+    capability_coverage: alternateProfile.capability_coverage.map((row) =>
+      row.operation_class === "return_bounded_structured_result"
+        ? { ...row, coverage: "unsupported" as const }
+        : row),
+  });
+  const capabilityChangedArm = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(alternate),
+    route_profile_ref: routeProfileRefV01(capabilityChangedProfile),
+    supported_capability:
+      capabilityChangedProfile.supported_operation_classes,
+    unsupported_capability:
+      capabilityChangedProfile.unsupported_operation_classes,
+  });
+  const capabilityChangedBenchmark = buildModelHostSuccessionBenchmarkV01({
+    ...benchmarkBuilderInputV01(benchmark),
+    route_profiles: benchmark.route_profiles.map((profile) =>
+      profile.route_role === "alternate_provider_host_contract_simulation"
+        ? capabilityChangedProfile
+        : profile),
+    arm_results: benchmark.arm_results.map((arm) =>
+      arm.route_profile_ref.route_role ===
+        "alternate_provider_host_contract_simulation"
+        ? capabilityChangedArm
+        : arm),
+  });
+  assert.notDeepEqual(
+    capabilityChangedBenchmark.pairwise_route_deltas,
+    benchmark.pairwise_route_deltas,
+  );
+  assert.notEqual(
+    capabilityChangedBenchmark.benchmark_id,
+    benchmark.benchmark_id,
+  );
+  assert.equal(
+    capabilityChangedBenchmark.pairwise_route_deltas.every((row) =>
+      row.dimension !== "model_quality" ||
+      (row.relation === "unknown" &&
+        row.left_value === null && row.right_value === null)),
+    true,
+  );
+}
+
+function assertUnavailableArmSemanticsV01(
+  decidingBenchmark: ModelHostSuccessionBenchmarkV01,
+): void {
+  const unavailableBenchmark =
+    buildUnavailableModelHostSuccessionBenchmarkFixtureV01(decidingBenchmark);
+  assert.equal(
+    validateModelHostSuccessionBenchmarkV01(unavailableBenchmark).status,
+    "valid",
+  );
+  assert.equal(unavailableBenchmark.summary, "inconclusive");
+  const candidate = armV01(
+    unavailableBenchmark,
+    "capability_constrained_simulation",
+  );
+  const replay = armV01(unavailableBenchmark, "predecessor_route_replay");
+  assert.equal(candidate.contract_status, "unobserved");
+  assert.equal(candidate.execution_status, "unavailable");
+  assert.equal(candidate.verification_status, "not_run");
+  assert.equal(candidate.fallback_required, true);
+  assert.equal(candidate.fallback_used, false);
+  assert.equal(candidate.direct_success_claimed, false);
+  assert.equal(candidate.continuation_trace.packet_b_exact_bytes_delivered, false);
+  assert.equal(candidate.continuation_trace.selected_entry_count, 1);
+  assert.equal(candidate.continuation_trace.selected_entry_delivered_count, 0);
+  assert.equal(
+    candidate.continuation_trace.selected_entry_exact_receipt_referenced_count,
+    0,
+  );
+  assert.equal(Object.values(candidate.record_refs).every((ref) => ref === null), true);
+  assert.equal(
+    Object.entries(candidate.fresh_identity_proof).every(([field, value]) =>
+      [
+        "project_scope_fingerprint",
+        "database_scope_fingerprint",
+        "repository_root_fingerprint",
+        "prior_identity_reuse_count",
+        "no_reuse_proven",
+        "resume_used",
+        "retry_used",
+      ].includes(field) || value === null),
+    true,
+  );
+  assert.equal(
+    unavailableBenchmark.fallback_plan.failed_arm_ref.settled_status,
+    "unavailable",
+  );
+  assert.deepEqual(
+    unavailableBenchmark.fallback_plan.failed_arm_ref,
+    modelHostSuccessionFallbackArmRefV01(candidate),
+  );
+  assert.deepEqual(
+    unavailableBenchmark.fallback_plan.predecessor_route_ref,
+    replay.route_profile_ref,
+  );
+  assert.equal(replay.fallback_used, true);
+  assertNoIdentityOverlapV01(candidate, replay);
+  assert.equal(
+    unavailableBenchmark.pairwise_route_deltas.some((row) =>
+      row.dimension === "route_contract_status" &&
+      row.relation === "not_comparable" &&
+      (row.left_route_role === "capability_constrained_simulation" ||
+        row.right_route_role === "capability_constrained_simulation")),
+    true,
+  );
+  assert.equal(
+    unavailableBenchmark.pairwise_route_deltas.every((row) =>
+      row.dimension !== "model_quality" ||
+      (row.relation === "unknown" &&
+        row.left_value === null && row.right_value === null)),
+    true,
+  );
+
+  const notExecutedCandidate = buildModelHostSuccessionArmResultV01({
+    ...armBuilderInputV01(candidate),
+    execution_status: "not_executed",
+  });
+  assert.equal(
+    validateModelHostSuccessionArmResultV01(notExecutedCandidate).status,
+    "valid",
+  );
+  assert.equal(
+    modelHostSuccessionFallbackArmRefV01(notExecutedCandidate).settled_status,
+    "not_executed",
+  );
+  const notExecutedPlan = buildModelHostSuccessionFallbackPlanV01({
+    ...fallbackBuilderInputV01(unavailableBenchmark.fallback_plan),
+    failed_arm_ref: modelHostSuccessionFallbackArmRefV01(notExecutedCandidate),
+  });
+  const notExecutedBenchmark = buildModelHostSuccessionBenchmarkV01({
+    ...benchmarkBuilderInputV01(unavailableBenchmark),
+    arm_results: unavailableBenchmark.arm_results.map((arm) =>
+      arm.route_profile_ref.route_role === "capability_constrained_simulation"
+        ? notExecutedCandidate
+        : arm),
+    fallback_plan: notExecutedPlan,
+    fallback_relation: {
+      ...unavailableBenchmark.fallback_relation,
+      candidate_arm_id: notExecutedCandidate.arm_id,
+    },
+  });
+  assert.equal(
+    validateModelHostSuccessionBenchmarkV01(notExecutedBenchmark).status,
+    "valid",
+  );
+  assert.equal(notExecutedBenchmark.summary, "inconclusive");
+
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(candidate),
+      record_refs: {
+        ...candidate.record_refs,
+        run_receipt: replay.record_refs.run_receipt,
+      },
+    }),
+    /model_host_arm_nonexecuted_evidence_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(candidate),
+      continuation_trace: {
+        ...candidate.continuation_trace,
+        packet_b_exact_bytes_delivered: true,
+        selected_entry_delivered_count: 1,
+        selected_entry_exact_receipt_referenced_count: 1,
+      },
+    }),
+    /model_host_arm_nonexecuted_evidence_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(candidate),
+      direct_success_claimed: true as false,
+    }),
+    /model_host_arm_authority_or_reuse_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(candidate),
+      verification_status: "passed",
+    }),
+    /model_host_arm_nonexecuted_evidence_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(
+        armV01(decidingBenchmark, "same_model_cold_session_simulation"),
+      ),
+      fresh_identity_proof: {
+        ...armV01(
+          decidingBenchmark,
+          "same_model_cold_session_simulation",
+        ).fresh_identity_proof,
+        managed_run_id: null,
+      },
+    }),
+    /model_host_arm_executed_evidence_invalid|model_host_text_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(notExecutedCandidate),
+      fresh_identity_proof: {
+        ...notExecutedCandidate.fresh_identity_proof,
+        host_thread_identity_fingerprint: `sha256:${"c".repeat(64)}`,
+        provider_thread_identity_fingerprint: `sha256:${"d".repeat(64)}`,
+      },
+    }),
+    /model_host_arm_nonexecuted_evidence_invalid/u,
+  );
+  assert.throws(
+    () => buildModelHostSuccessionArmResultV01({
+      ...armBuilderInputV01(candidate),
+      record_refs: cloneV01(replay.record_refs),
+    }),
+    /model_host_arm_nonexecuted_evidence_invalid/u,
+  );
 }
 
 function assertZeroUnauthorizedEffectsV01(
@@ -674,6 +1127,63 @@ function fallbackBuilderInputV01(plan: ModelHostSuccessionFallbackPlanV01) {
     required_fresh_execution_identities:
       plan.required_fresh_execution_identities,
   };
+}
+
+function armBuilderInputV01(arm: ModelHostSuccessionArmResultV01) {
+  const {
+    arm_version: _armVersion,
+    arm_id: _armId,
+    integrity: _integrity,
+    ...input
+  } = arm;
+  return input;
+}
+
+function benchmarkBuilderInputV01(
+  benchmark: ModelHostSuccessionBenchmarkV01,
+) {
+  return {
+    frozen_case: benchmark.frozen_case,
+    route_profiles: benchmark.route_profiles,
+    arm_results: benchmark.arm_results,
+    fallback_plan: benchmark.fallback_plan,
+    fallback_relation: benchmark.fallback_relation,
+    trade_offs: benchmark.trade_offs,
+    resource_observation_provenance:
+      benchmark.resource_observation_provenance,
+    missing_evidence: benchmark.missing_evidence,
+    limitations: benchmark.limitations,
+    adr_owner_gap_observations: benchmark.adr_owner_gap_observations,
+  };
+}
+
+function pairwiseRowV01(
+  benchmark: ModelHostSuccessionBenchmarkV01,
+  source: ModelHostSuccessionPairwiseDeltaV01,
+): ModelHostSuccessionPairwiseDeltaV01 {
+  const row = benchmark.pairwise_route_deltas.find((candidate) =>
+    candidate.left_route_role === source.left_route_role &&
+    candidate.right_route_role === source.right_route_role &&
+    candidate.dimension === source.dimension);
+  assert(row);
+  return row;
+}
+
+function resealBenchmarkV01(
+  value: ModelHostSuccessionBenchmarkV01,
+): ModelHostSuccessionBenchmarkV01 {
+  const benchmark = cloneV01(value);
+  const pendingFingerprint = `sha256:${"0".repeat(64)}`;
+  benchmark.benchmark_id = "model-host-succession-benchmark:pending";
+  benchmark.integrity.fingerprint = pendingFingerprint;
+  benchmark.benchmark_id = `model-host-succession-benchmark:${createProtocolSha256V01(
+    canonicalizeProtocolValueV01(benchmark),
+  ).slice(7, 31)}`;
+  benchmark.integrity.fingerprint = pendingFingerprint;
+  benchmark.integrity.fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(benchmark),
+  );
+  return benchmark;
 }
 
 function assertFreshIdentityMatrixV01(

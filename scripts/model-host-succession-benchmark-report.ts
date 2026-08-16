@@ -103,7 +103,7 @@ function renderMarkdownV01(
     `| ${arm.route_profile_ref.route_role} | ${arm.contract_status} | ${arm.execution_status} | ${arm.verification_status} | ${arm.required_checks.passed.length}/${arm.required_checks.failed.length}/${arm.required_checks.blocked.length}/${arm.required_checks.skipped.length}/${arm.required_checks.unknown.length} | ${arm.continuation_trace.selected_entry_count}/${arm.continuation_trace.selected_entry_delivered_count}/${arm.continuation_trace.selected_entry_exact_receipt_referenced_count} | ${arm.fallback_required}/${arm.fallback_used} |`,
   );
   const deltaRows = benchmark.pairwise_route_deltas.map((row) =>
-    `| ${row.left_route_role} | ${row.right_route_role} | ${row.dimension} | ${row.relation} | ${row.left_value ?? "unobserved"} | ${row.right_value ?? "unobserved"} |`,
+    `| ${row.left_route_role} | ${row.right_route_role} | ${row.dimension} | ${row.relation} | ${formatDeltaValueV01(row.left_value)} | ${formatDeltaValueV01(row.right_value)} |`,
   );
   const constrained = benchmark.arm_results.find(
     (arm) =>
@@ -154,6 +154,8 @@ function renderMarkdownV01(
     "",
     `- Plan: \`${benchmark.fallback_plan.fallback_plan_id}\``,
     `- Failed arm: \`${benchmark.fallback_plan.failed_arm_ref.arm_id}\``,
+    `- Exact settled status: \`${benchmark.fallback_plan.failed_arm_ref.settled_status}\``,
+    `- Exact predecessor route: \`${benchmark.fallback_plan.predecessor_route_ref.route_profile_id}\``,
     `- Trigger: ${benchmark.fallback_plan.fallback_trigger}`,
     `- Reason: ${benchmark.fallback_plan.fallback_reason}`,
     `- Harness authority: ${benchmark.fallback_plan.benchmark_harness_authorization}`,
@@ -195,6 +197,12 @@ function renderMarkdownV01(
     ...benchmark.limitations.map((item) => `- ${item}`),
     "",
   ].join("\n");
+}
+
+function formatDeltaValueV01(value: unknown): string {
+  if (value === null) return "unobserved";
+  if (typeof value === "object") return `\`${JSON.stringify(value)}\``;
+  return String(value);
 }
 
 const REQUIRED_CHECK_LABEL = "verify-portable-output";
