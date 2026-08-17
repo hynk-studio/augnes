@@ -49,6 +49,7 @@ import { runGovernedActorLabLiveConformanceV01 } from "@/scripts/vnext-protocol-
 import { runBoundedAutomationCycleConformanceV01 } from "@/scripts/vnext-protocol-conformance/bounded-automation-cycle";
 import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol-conformance/project-verify-material";
 import { runModelHostSuccessionBenchmarkConformanceV01 } from "@/scripts/vnext-protocol-conformance/model-host-succession-benchmark";
+import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-perturbation";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -74,6 +75,7 @@ const sourcePaths = [
   "lib/vnext/operational-context-selection.ts",
   "lib/vnext/operational-continuation-comparison.ts",
   "lib/vnext/model-host-succession-benchmark.ts",
+  "lib/vnext/operational-reentry-perturbation.ts",
   "lib/vnext/strategy-composition-case.ts",
   "lib/vnext/strategy-composition-comparison.ts",
   "lib/vnext/governed-actor-lab.ts",
@@ -618,6 +620,8 @@ try {
     runGovernedActorLabLiveConformanceV01();
   const modelHostSuccessionBenchmarkSummary =
     runModelHostSuccessionBenchmarkConformanceV01();
+  const operationalReentryPerturbationSummary =
+    runOperationalReentryPerturbationConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -695,6 +699,8 @@ try {
         governed_actor_lab_live: governedActorLabLiveSummary,
         model_host_succession_benchmark:
           modelHostSuccessionBenchmarkSummary,
+        operational_reentry_perturbation:
+          operationalReentryPerturbationSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:
