@@ -51,13 +51,20 @@ handoff compatibility; bounded automation versus legacy autonomy/Autohunt;
 deferred Arena/actor/debate substrate; and current relationship responsibility
 versus legacy “constellation” branding.
 
-### Supporting decisions
+### Supporting decisions and research direction
 
 The
 [ACGC Stage 6 Operational-Policy Non-Activation ADR](./research/ACGC_STAGE_6_OPERATIONAL_POLICY_ADR_V0_1.md)
-records the current no-activation architecture choice and supports the ACGC
-research program. It does not become a competing product, protocol, sequencing,
-or evaluation authority.
+records the no-activation architecture choice accepted for the current evidence
+state and supports the ACGC research program. It does not become a competing
+product, protocol, sequencing, or evaluation authority.
+
+The
+[ACGC Post-Stage-6 Evidence Direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
+consolidates later design inputs under the existing ACGC owner. It is a
+supporting research direction only: listing a preferred evidence sequence does
+not make any slice Current or Next, authorize Stage 7, or create memory, policy,
+actor, promotion, runtime, or product authority.
 
 ### Operator and developer manuals
 
