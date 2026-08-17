@@ -19,6 +19,7 @@ import {
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   createOpenAIResponsesAdapterV01,
+  projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01,
   readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
@@ -82,7 +83,10 @@ import {
   type TemporalModelInvocationEnvelopeV01,
 } from "@/lib/vnext/model-gateway/contracts";
 import type { GovernedActorLabLiveRouteV01 } from "@/types/vnext/governed-actor-lab-live";
-import type { OperationalReentryMatchedCohortRouteV01 } from "@/types/vnext/operational-reentry-matched-cohort";
+import type {
+  OperationalReentryMatchedCohortModelInputV01,
+  OperationalReentryMatchedCohortRouteV01,
+} from "@/types/vnext/operational-reentry-matched-cohort";
 import { LOCAL_PROJECT_ROOT_REF_VERSION_V01 } from "@/types/vnext/project-identity";
 import {
   canonicalizeProtocolValueV01,
@@ -95,6 +99,14 @@ export {
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
   validateOperationalReentryMatchedCohortModelInputV01,
 };
+
+export function projectOperationalReentryMatchedCohortProviderRequestV01(
+  input: OperationalReentryMatchedCohortModelInputV01,
+) {
+  return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01(
+    input,
+  );
+}
 
 export const DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01 =
   "deterministic.observe" as const;

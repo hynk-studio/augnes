@@ -1,8 +1,3 @@
-import {
-  assertModelEgressTextIsSafe,
-  requireModelEgressText,
-  serializeModelEgressJson,
-} from "@/lib/model-egress/bounded-model-payload";
 import { operationalReentryMatchedCohortCaseFixtureV01 } from "@/fixtures/vnext/research/operational-reentry-matched-cohort-v0-1";
 import {
   buildModelGatewayCostBudgetV01,
@@ -16,23 +11,12 @@ import {
 } from "@/lib/vnext/model-gateway/contracts";
 import {
   invokeOperationalReentryMatchedCohortModelGatewayV01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
+  projectOperationalReentryMatchedCohortProviderRequestV01,
   type ModelGatewayInteractiveAdmissionV01,
   type OperationalReentryMatchedCohortModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
-import {
-  buildOperationalReentryMatchedCohortSystemPromptV01,
-  operationalReentryMatchedCohortResponseSchemaV02,
-  projectOperationalReentryMatchedCohortModelMaterialV01,
-  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
-} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
-import {
-  OPENAI_RESPONSES_ENDPOINT_V01,
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
-} from "@/lib/vnext/model-gateway/openai/responses-adapter";
-import { validateOpenAIStrictSchemaSupportedSubsetV01 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
 import {
   createDeterministicModelClientRequestIdV01,
   createDeterministicModelProviderRequestTraceV01,
@@ -282,6 +266,7 @@ export function buildOperationalReentryProviderCompatibilityProbeProviderContrac
   route: OperationalReentryMatchedCohortRouteV01,
 ): OperationalReentryProviderCompatibilityProbeProviderContractV01 {
   assertExactProbeRouteV01(route);
+  const providerBoundary = readProbeProviderBoundaryV01();
   return sealV01("provider_contract_without_integrity_fingerprint", {
     provider_contract_identity_version:
       OPERATIONAL_REENTRY_PROVIDER_COMPATIBILITY_PROBE_PROVIDER_CONTRACT_VERSION_V01,
@@ -289,17 +274,16 @@ export function buildOperationalReentryProviderCompatibilityProbeProviderContrac
       OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
     reused_codec_version: OPERATIONAL_REENTRY_MATCHED_COHORT_CODEC_VERSION_V02,
     strict_schema_supported_subset_version:
-      "openai_strict_schema_supported_subset.v0.1" as const,
-    response_schema_version:
-      "operational_reentry_matched_cohort_response_schema.v0.2" as const,
-    parser_version: "operational_reentry_matched_cohort_parser.v0.1" as const,
-    endpoint: OPENAI_RESPONSES_ENDPOINT_V01,
+      providerBoundary.strict_schema_supported_subset_version,
+    response_schema_version: providerBoundary.response_schema_version,
+    parser_version: providerBoundary.parser_version,
+    provider_endpoint_fingerprint:
+      providerBoundary.provider_endpoint_fingerprint,
     provider_ref: structuredClone(route.provider_ref),
     model_ref: structuredClone(route.model_ref),
-    adapter_implementation_id:
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+    adapter_implementation_id: providerBoundary.adapter_implementation_id,
     adapter_implementation_version:
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
+      providerBoundary.adapter_implementation_version,
     deterministic_fallback_counts_as_success: false as const,
     target_and_stale_consistency_rules_preserved: true as const,
   });
@@ -370,78 +354,7 @@ export function buildOperationalReentryProviderCompatibilityProbeProviderVisible
   schema_fingerprint: string;
   adapter_request_route_fingerprint: string;
 } {
-  const schema = operationalReentryMatchedCohortResponseSchemaV02(modelInput);
-  validateOpenAIStrictSchemaSupportedSubsetV01(schema);
-  const dynamicMaterial =
-    projectOperationalReentryMatchedCohortModelMaterialV01({
-      canonical_project_id:
-        "project:00000000-0000-4000-8000-000000000000",
-      ...modelInput,
-    });
-  const dynamicText = serializeModelEgressJson(
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-    dynamicMaterial,
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.dynamicBytes,
-  );
-  assertModelEgressTextIsSafe(
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-    dynamicText,
-  );
-  const requestBody = serializeModelEgressJson(
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-    {
-      model: requireModelEgressText(
-        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
-        128,
-      ),
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildOperationalReentryMatchedCohortSystemPromptV01(),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: dynamicText }],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "operational_reentry_matched_cohort",
-          strict: true,
-          schema,
-        },
-      },
-      max_output_tokens:
-        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.maxOutputTokens,
-      store: false,
-    },
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
-  );
-  return {
-    request_body: requestBody,
-    request_fingerprint: createProtocolSha256V01(requestBody),
-    schema_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(schema),
-    ),
-    adapter_request_route_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-        provider: "openai",
-        model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
-        adapter_implementation_id:
-          OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
-        adapter_implementation_version:
-          OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
-      }),
-    ),
-  };
+  return projectOperationalReentryMatchedCohortProviderRequestV01(modelInput);
 }
 
 export function buildOperationalReentryProviderCompatibilityProbeV01(
@@ -553,7 +466,7 @@ export function buildOperationalReentryProviderCompatibilityProbeV01(
         purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
         provider_request_trace_id: requestFamilyTraceId,
         call_slot_id: entry.call_slot_id,
-        model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+        model: input.route.model_ref.external_id,
       }),
     }));
   const plan = sealV01("plan_without_integrity_fingerprint", {
@@ -1215,21 +1128,32 @@ function buildReportV01(
   });
 }
 
+function readProbeProviderBoundaryV01() {
+  const representative = buildOperationalReentryMatchedCohortCallPlanV01()
+    .entries[0];
+  if (!representative) {
+    failV01("operational_reentry_probe_shape_missing");
+  }
+  return projectOperationalReentryMatchedCohortProviderRequestV01(
+    representative.model_input,
+  );
+}
+
 function assertExactProbeRouteV01(
   route: OperationalReentryMatchedCohortRouteV01,
 ): void {
+  const providerBoundary = readProbeProviderBoundaryV01();
   const { integrity_fingerprint: fingerprint, ...withoutFingerprint } = route;
   if (
     route.gateway_version !== MODEL_GATEWAY_VERSION_V01 ||
     route.purpose !==
       OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
     route.provider_ref.external_id !== "openai" ||
-    route.model_ref.external_id !==
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02 ||
+    route.model_ref.external_id !== providerBoundary.model ||
     route.adapter_implementation_id !==
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01 ||
+      providerBoundary.adapter_implementation_id ||
     route.adapter_implementation_version !==
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03 ||
+      providerBoundary.adapter_implementation_version ||
     route.prepared_without_provider_egress !== true ||
     fingerprint !==
       createProtocolSha256V01(

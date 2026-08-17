@@ -88,7 +88,7 @@ export interface OperationalReentryProviderCompatibilityProbeProviderContractV01
   strict_schema_supported_subset_version: "openai_strict_schema_supported_subset.v0.1";
   response_schema_version: "operational_reentry_matched_cohort_response_schema.v0.2";
   parser_version: "operational_reentry_matched_cohort_parser.v0.1";
-  endpoint: "https://api.openai.com/v1/responses";
+  provider_endpoint_fingerprint: string;
   provider_ref: ExternalRefV01;
   model_ref: ExternalRefV01;
   adapter_implementation_id: "openai_responses.operational_reentry_matched_cohort";
