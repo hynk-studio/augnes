@@ -531,8 +531,11 @@ completion criteria are complete, and parent Issue #87 is closed.
 ## ACGC completed and merge-bound lifecycle
 
 The detailed doctrine, gates, and later sequencing remain in the ACGC research
-program owner. This compact lifecycle record reconciles the merged issue and
-pull-request truth through ACGC6A:
+program owner. The
+[post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
+is one supporting research note under that owner and creates no competing
+roadmap or authority. This compact lifecycle record reconciles the merged issue
+and pull-request truth through Stage 6:
 
 | Stage | Issue | Merged outcome record | Completed outcome |
 | --- | --- | --- | --- |
@@ -551,40 +554,43 @@ pull-request truth through ACGC6A:
 | ACGC5B | [#173](https://github.com/hynk-studio/augnes-perspective-lab/issues/173) | [PR #174](https://github.com/hynk-studio/augnes-perspective-lab/pull/174), `05718240` | Completed explicit exact Packet B admission/current lineage plus the ordinary fresh Browser-confirmed managed Start path without semantic Transition or inherited execution authority. |
 | ACGC5C | [#175](https://github.com/hynk-studio/augnes-perspective-lab/issues/175) | [PR #176](https://github.com/hynk-studio/augnes-perspective-lab/pull/176), `7c30c83f` | Completed terminal Run B, downstream source-linked attribution, and the strongest currently supportable isolated one-run comparison while preserving incomplete evidence and an exact-case `inconclusive` result. |
 | ACGC6A | [#177](https://github.com/hynk-studio/augnes-perspective-lab/issues/177) | [PR #178](https://github.com/hynk-studio/augnes-perspective-lab/pull/178), `de557be3` | Completed the deterministic model/host succession benchmark and fresh predecessor replay while preserving an `inconclusive` result, zero live-provider calls, no route winner, and no policy or automatic-fallback authority. |
+| ACGC6B | [#179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179) | [PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180), `cfcf0674` | Completed the Stage 6 architecture closeout by accepting no live operational-policy owner, schema, active pointer, activation/rollback receipt, automatic context injection, or automatic execution behavior for the current evidence state. |
 
-ACGC Stages 0–5 are **Completed** at main
-`7c30c83ffc6bc579a8d730f7967244efe8a19214`.
+ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
+`cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
 
-### ACGC6B operational-policy non-activation ADR — Current
+### ACGC Stage 6 closeout — Completed
 
 ACGC6A [Issue #177](https://github.com/hynk-studio/augnes-perspective-lab/issues/177)
 and [PR #178](https://github.com/hynk-studio/augnes-perspective-lab/pull/178)
-are completed at main `de557be31dbf3bb7a6bf9df9f6ad3621d9fc7a47`.
-[Issue #179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179)
-and [Draft PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180)
-are **Current** while the Draft PR is open. Stage 6 remains incomplete until
-ACGC6B merges.
+are completed at `de557be31dbf3bb7a6bf9df9f6ad3621d9fc7a47`.
+ACGC6B [Issue #179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179)
+and [PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180)
+are completed at merge `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
+The ACGC6B no-policy ADR remains accepted for the current evidence state.
 
 The merged Stage 5 result remains exactly `inconclusive`: observed structural
 coordination and complete-path review burden favored the one-run baseline,
 while material usage, monetary cost, required human intervention, and genuine
 performance latency remained unobserved. Stage 5 completion establishes no
 general benefit, general failure, harmful Packet B transfer, or policy fitness.
+ACGC6A established route-contract and fallback readiness only.
 
-The current ACGC6B decision is to add no live operational-policy owner, contract,
+The completed ACGC6B decision adds no live operational-policy owner, contract,
 schema, active pointer, activation or rollback receipt, automatic context
 injection, or automatic execution behavior. Current explicit per-invocation
-route preparation and explicit fallback planning remain the product/research
-boundary. The missing durable policy capabilities are not implementation
-authorization.
+route preparation, explicit Packet B admission, fresh authority resolution,
+explicit fallback planning/replay, zero-model continuity, and rebuildable
+research comparison remain the product/research boundary.
 
-Stage 7 and an optional live-provider cohort remain separately unauthorized.
-ACGC6B creates no automatic fallback or rollback, automatic Start or Resume,
-retry or scheduler integration, Packet C, second continuation hop, or Stage 7+
-authority.
+Stage 7 and an optional live-provider or repeated-benefit cohort remain
+separately unauthorized and unstarted. Stage 6 completion creates no automatic
+fallback or rollback, automatic Start or Resume, retry or scheduler integration,
+Packet C, second continuation hop, winner promotion, actor promotion, or Stage
+7+ authority.
 
-No C9, remote-node or Linux rollout, orchestration, actor promotion,
-publication, Ready, merge, or auto-merge authority was added.
+No C9, remote-node or Linux rollout, orchestration, publication, Ready, merge,
+or auto-merge authority was added by Stage 6.
 
 ### CLH1 machine-owned Companion lifecycle — Completed
 
@@ -605,19 +611,29 @@ uninstalled until that separate setup action is explicitly performed.
 
 ## Next separately authorized work
 
-For ACGC, ACGC6A is completed at main
-`de557be31dbf3bb7a6bf9df9f6ad3621d9fc7a47`. ACGC6B
-[Issue #179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179)
-and [Draft PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180)
-are **Current** only while the Draft PR is open, and Stage 6 remains incomplete
-until it merges. Stage 7 and an optional live-provider cohort require separate
-explicit authorization and are not Current. C9, current-session attachment,
-Packet C, a second continuation hop, operational-policy activation, an active
-route pointer, automatic context injection, automatic fallback or rollback,
-automatic Start or Resume after controller loss or Companion startup, retry or
-scheduler integration, Linux product rollout, remote nodes, Stage 7+,
-long-horizon control, continuous policy execution, and multi-agent
-orchestration remain later, separately unauthorized, and separate.
+There is no active ACGC implementation phase after the completed Stage 6.
+[Issue #181](https://github.com/hynk-studio/augnes-perspective-lab/issues/181)
+and [Draft PR #182](https://github.com/hynk-studio/augnes-perspective-lab/pull/182)
+are Current only as a documentation-only lifecycle/research-direction
+reconciliation while that Draft PR is open. They authorize no executable
+research slice and do not make any preferred evidence candidate `Next`.
+
+The supporting
+[post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
+records matched re-entry perturbation/reset as the preferred first substantive
+candidate for a future separately authorized research issue. Reconstructability
+conformance and trajectory casebook work are lower-authority parallel evidence;
+reference-conditioned deviation, anomaly retention, bounded composition, and
+relational functional profiling remain evidence-gated. Stage 7 and an optional
+live-provider/repeated-benefit cohort require separate explicit authorization.
+
+C9, current-session attachment, Packet C, a second continuation hop,
+operational-policy activation, an active route pointer, automatic context
+injection, automatic fallback or rollback, automatic Start or Resume after
+controller loss or Companion startup, retry or scheduler integration, Linux
+product rollout, remote nodes, Stage 7+, long-horizon control, continuous
+policy execution, and multi-agent orchestration remain later, separately
+unauthorized, and separate.
 
 ## Integrated resume lifecycle
 
@@ -728,7 +744,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–5 are merged and Completed at `7c30c83ffc6bc579a8d730f7967244efe8a19214`. The exact Stage 5 result remains `inconclusive`: observed structural coordination and complete-path review burden favored the one-run baseline while material usage, cost, human-intervention, and performance-latency lanes remained unobserved. ACGC6A [Issue #177](https://github.com/hynk-studio/augnes-perspective-lab/issues/177) / [PR #178](https://github.com/hynk-studio/augnes-perspective-lab/pull/178) is completed at main `de557be31dbf3bb7a6bf9df9f6ad3621d9fc7a47`. ACGC6B [Issue #179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179) / [Draft PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180) is Current while open; Stage 6 remains incomplete until merge. | ACGC6B selects no live operational-policy schema or activation for the current evidence state. Stage 7 and an optional live-provider cohort remain separately unauthorized. No active route pointer, automatic context injection, automatic fallback/rollback, automatic Start/Resume, retry/scheduling, Packet C, second continuation, Stage 7+, C9, remote-node or Linux rollout, orchestration, actor promotion, publication, Ready, merge, auto-merge, winner promotion, new authority, or default UI is added. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; the Stage 6 closeout merged at `cfcf0674ca682fd647fe166b23e47bcb511a62bf`. The Stage 5 exact result remains `inconclusive`, ACGC6A established route-contract/fallback readiness only, and ACGC6B selected no live operational policy for the current evidence state. [Issue #181](https://github.com/hynk-studio/augnes-perspective-lab/issues/181) / [Draft PR #182](https://github.com/hynk-studio/augnes-perspective-lab/pull/182) is only the Current documentation reconciliation while open; no ACGC implementation phase is Current. The [post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md) is a supporting research note, not a new program or phase. | Stage 7 and any live policy remain separately unauthorized. Preferred future evidence candidates do not become Next by being documented. No active route pointer, automatic context injection, automatic fallback/rollback, automatic Start/Resume, retry/scheduling, Packet C, second continuation, C9, remote-node or Linux rollout, orchestration, actor/winner promotion, population evolution, publication, new authority, or default UI is added. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |

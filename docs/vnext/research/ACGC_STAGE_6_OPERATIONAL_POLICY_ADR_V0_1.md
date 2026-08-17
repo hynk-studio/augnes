@@ -6,6 +6,7 @@
 Decision ID: ACGC6B
 Date: 2026-08-16
 Status: accepted for the current evidence state
+Lifecycle: Completed by PR #180 at cfcf0674ca682fd647fe166b23e47bcb511a62bf
 Scope: ACGC Stage 6 operational-policy architecture decision
 Related issue: Issue #179
 Evidence predecessor: ACGC6A, Issue #177 / PR #178
@@ -15,8 +16,9 @@ This status accepts a no-activation architecture decision for the evidence that
 exists now. It does not claim that an operational policy exists, that Stage 6
 has demonstrated policy fitness, or that later implementation is approved.
 
-Stage 6 remains incomplete while the ACGC6B Draft PR is open. Merge would close
-Stage 6 only; it would not authorize or start Stage 7.
+ACGC6B merged in PR #180, so Stage 6 is Completed. That closeout does not
+authorize or start Stage 7; Stage 7 remains unstarted and separately
+authorized only through a future explicit issue and decision.
 
 ## 2. Classification and authority
 
@@ -42,7 +44,7 @@ Checked-in code and configuration remain the truth for implemented behavior.
 
 No-policy is an explicit architecture decision, not an implementation
 omission. Proof is review material rather than approval, and Stage 6 completion
-would not grant Stage 7 authority.
+does not grant Stage 7 authority.
 
 ## 3. Context
 
@@ -394,7 +396,9 @@ Stage 7 authorized = false
 ## 13. Links
 
 - [Issue #179 — ACGC6B: Record the operational-policy non-activation ADR and close Stage 6](https://github.com/hynk-studio/augnes-perspective-lab/issues/179)
+- [PR #180 — ACGC6B operational-policy non-activation ADR](https://github.com/hynk-studio/augnes-perspective-lab/pull/180)
 - [PR #178 — ACGC6A model and host succession benchmark](https://github.com/hynk-studio/augnes-perspective-lab/pull/178)
+- [ACGC Post-Stage-6 Evidence Direction v0.1](./ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
 - [Adaptive Continuity and Governed Compounding R&D Program v0.1](./AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md)
 - [Augnes vNext authority map](../00_AUGNES_VNEXT_DOCUMENT_INDEX.md)
 - [Augnes vNext transition roadmap](../03_AUGNES_VNEXT_TRANSITION_ROADMAP.md)
