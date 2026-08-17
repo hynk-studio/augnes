@@ -20,6 +20,8 @@ import {
   type OperationalReentryMaterialBoundaryV01,
   type OperationalReentryParityDimensionV01,
   type OperationalReentryParityRowV01,
+  type OperationalReentryResetInputParityRowV01,
+  type OperationalReentryResetMatchedArmRoleV01,
   type OperationalReentryResetRelationV01,
   type OperationalReentrySourceV01,
   type OperationalReentryValidationResultV01,
@@ -280,8 +282,23 @@ export function buildOperationalReentryEvaluationV01(
     exact.target_entry_ids.length === 1 &&
     ablation.target_entry_ids.length === 0;
   const directComparable = onlyTargetDifference;
-  const conditioning = deriveConditioningV01(exact, ablation, directComparable);
-  const staleComparable = deriveStaleComparabilityV01(input.source, stale);
+  const conditioning = deriveConditioningV01(
+    input.source,
+    exact,
+    ablation,
+    directComparable,
+  );
+  const resetComparison = deriveResetInputParityV01(
+    input.source,
+    exact,
+    ablation,
+    stale,
+  );
+  const staleComparable = deriveStaleComparabilityV01(
+    input.source,
+    stale,
+    resetComparison.inputsEqual,
+  );
   const reset = deriveResetV01(input.source, stale, staleComparable);
 
   const evaluation: OperationalReentryEvaluationV01 = {
@@ -302,6 +319,9 @@ export function buildOperationalReentryEvaluationV01(
       direct_conditioning_comparable: directComparable,
     },
     stale_regime_relation: {
+      matched_arm_role: resetComparison.matchedArmRole,
+      input_parity: resetComparison.rows,
+      non_stale_regime_inputs_equal: resetComparison.inputsEqual,
       target_identity_preserved:
         stale.target_lineage !== null &&
         canonicalizeProtocolValueV01(stale.target_lineage) ===
@@ -532,8 +552,23 @@ function buildEvaluationDerivedShapeV01(
     introduced.length === 0 &&
     exact.target_entry_ids.length === 1 &&
     ablation.target_entry_ids.length === 0;
-  const conditioning = deriveConditioningV01(exact, ablation, onlyTarget);
-  const staleComparable = deriveStaleComparabilityV01(input.source, stale);
+  const conditioning = deriveConditioningV01(
+    input.source,
+    exact,
+    ablation,
+    onlyTarget,
+  );
+  const resetComparison = deriveResetInputParityV01(
+    input.source,
+    exact,
+    ablation,
+    stale,
+  );
+  const staleComparable = deriveStaleComparabilityV01(
+    input.source,
+    stale,
+    resetComparison.inputsEqual,
+  );
   const reset = deriveResetV01(input.source, stale, staleComparable);
   return {
     exact_reentry_ablation_parity: parity,
@@ -548,6 +583,9 @@ function buildEvaluationDerivedShapeV01(
       direct_conditioning_comparable: onlyTarget,
     },
     stale_regime_relation: {
+      matched_arm_role: resetComparison.matchedArmRole,
+      input_parity: resetComparison.rows,
+      non_stale_regime_inputs_equal: resetComparison.inputsEqual,
       target_identity_preserved:
         stale.target_lineage !== null &&
         canonicalizeProtocolValueV01(stale.target_lineage) ===
@@ -634,6 +672,23 @@ function assertArmNestedShapesV01(arm: OperationalReentryArmV01): void {
       "$.stale_relation",
       "operational_reentry_arm_unknown_field",
     );
+    if (
+      ![
+        "stale",
+        "contradicted",
+        "superseded",
+        "regime_inapplicable",
+      ].includes(arm.stale_relation.reason_kind) ||
+      typeof arm.stale_relation.target_entry_id !== "string" ||
+      arm.stale_relation.target_entry_id.length === 0 ||
+      !SHA256.test(arm.stale_relation.source_ref) ||
+      parseStrictIsoTimestampV01(arm.stale_relation.reason_observed_at) === null ||
+      arm.stale_relation.applies_before_outcome !== true ||
+      typeof arm.stale_relation.regime_key !== "string" ||
+      arm.stale_relation.regime_key.length === 0
+    ) {
+      failV01("operational_reentry_stale_relation_invalid", "$.stale_relation");
+    }
   }
   assertIntegrityShapeV01(arm.integrity, "$.integrity");
 }
@@ -675,6 +730,14 @@ function assertEvaluationNestedShapesV01(
       evaluation.exact_reentry_ablation_parity[index],
       PARITY_ROW_KEYS,
       `$.exact_reentry_ablation_parity[${index}]`,
+      "operational_reentry_evaluation_unknown_field",
+    );
+  }
+  for (let index = 0; index < evaluation.stale_regime_relation.input_parity.length; index += 1) {
+    assertExactKeysV01(
+      evaluation.stale_regime_relation.input_parity[index],
+      RESET_PARITY_ROW_KEYS,
+      `$.stale_regime_relation.input_parity[${index}]`,
       "operational_reentry_evaluation_unknown_field",
     );
   }
@@ -966,6 +1029,14 @@ function assertArmFamilyV01(
   const staleTargetPresent = stale.target_entry_ids.includes(
     source.target.packet_entry_id,
   );
+  if (
+    canonicalizeProtocolValueV01(stale.target_entry_ids) !==
+      canonicalizeProtocolValueV01(
+        staleTargetPresent ? [source.target.packet_entry_id] : [],
+      )
+  ) {
+    failV01("operational_reentry_stale_target_partition_invalid");
+  }
   const expectedStaleEntryIds = staleTargetPresent
     ? source.packet_b_entry_ids
     : source.non_target_packet_entry_ids;
@@ -1049,7 +1120,47 @@ function parityValuesV01(
   };
 }
 
+function deriveResetInputParityV01(
+  source: OperationalReentrySourceV01,
+  exact: OperationalReentryArmV01,
+  ablation: OperationalReentryArmV01,
+  stale: OperationalReentryArmV01,
+): {
+  matchedArmRole: OperationalReentryResetMatchedArmRoleV01;
+  rows: OperationalReentryResetInputParityRowV01[];
+  inputsEqual: boolean;
+} {
+  const targetRetained = stale.target_entry_ids.includes(
+    source.target.packet_entry_id,
+  );
+  const matchedArm = targetRetained ? exact : ablation;
+  const matchedArmRole: OperationalReentryResetMatchedArmRoleV01 =
+    targetRetained ? "exact_reentry" : "matched_single_item_ablation";
+  const matchedValues = parityValuesV01(matchedArm, source);
+  const resetValues = parityValuesV01(stale, source);
+  const rows = PARITY_DIMENSIONS.map((dimension) => ({
+    dimension,
+    status:
+      canonicalizeProtocolValueV01(matchedValues[dimension]) ===
+      canonicalizeProtocolValueV01(resetValues[dimension])
+        ? ("equal" as const)
+        : ("not_comparable" as const),
+    matched_arm_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(matchedValues[dimension]),
+    ),
+    reset_arm_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(resetValues[dimension]),
+    ),
+  }));
+  return {
+    matchedArmRole,
+    rows,
+    inputsEqual: rows.every((row) => row.status === "equal"),
+  };
+}
+
 function deriveConditioningV01(
+  source: OperationalReentrySourceV01,
   exact: OperationalReentryArmV01,
   ablation: OperationalReentryArmV01,
   comparable: boolean,
@@ -1071,9 +1182,30 @@ function deriveConditioningV01(
       basis: "One or both matched downstream fixture observations are unobserved.",
     };
   }
-  const targetReferenceDiff =
-    canonicalizeProtocolValueV01(exact.downstream.referenced_source_ids) !==
-    canonicalizeProtocolValueV01(ablation.downstream.referenced_source_ids);
+  const exactTargetReferencePresent =
+    exact.downstream.referenced_source_ids.includes(
+      source.target.packet_entry_id,
+    );
+  const ablationTargetReferencePresent =
+    ablation.downstream.referenced_source_ids.some((ref) =>
+      isTargetRefV01(source, ref),
+    );
+  const exactNonTargetReferences = exact.downstream.referenced_source_ids.filter(
+    (ref) => !isTargetRefV01(source, ref),
+  );
+  const ablationNonTargetReferences =
+    ablation.downstream.referenced_source_ids.filter(
+      (ref) => !isTargetRefV01(source, ref),
+    );
+  if (
+    canonicalizeProtocolValueV01(exactNonTargetReferences) !==
+    canonicalizeProtocolValueV01(ablationNonTargetReferences)
+  ) {
+    return {
+      relation: "not_comparable",
+      basis: "A and B contain an unrelated added or removed reference outside the exact target-reference relation.",
+    };
+  }
   const structuredDelta =
     canonicalizeProtocolValueV01(downstreamBeyondReferenceV01(exact.downstream)) !==
     canonicalizeProtocolValueV01(downstreamBeyondReferenceV01(ablation.downstream));
@@ -1083,10 +1215,10 @@ function deriveConditioningV01(
       basis: "Under exact single-target parity, at least one bounded structured downstream dimension changed beyond reference presence.",
     };
   }
-  if (targetReferenceDiff) {
+  if (exactTargetReferencePresent && !ablationTargetReferencePresent) {
     return {
       relation: "reference_only",
-      basis: "Only the exact target-reference set changed; no other bounded structured downstream dimension changed.",
+      basis: "The exact target reference is present in A and absent from B, canonically equal non-target reference sets are preserved, and no other bounded structured downstream dimension changed.",
     };
   }
   return {
@@ -1098,6 +1230,7 @@ function deriveConditioningV01(
 function deriveStaleComparabilityV01(
   source: OperationalReentrySourceV01,
   arm: OperationalReentryArmV01,
+  nonStaleRegimeInputsEqual: boolean,
 ): boolean {
   const relation = arm.stale_relation;
   if (relation === null) return false;
@@ -1108,6 +1241,7 @@ function deriveStaleComparabilityV01(
     cutoff !== null &&
     observedAt < cutoff &&
     relation.applies_before_outcome === true &&
+    nonStaleRegimeInputsEqual &&
     relation.target_entry_id === source.target.packet_entry_id &&
     SHA256.test(relation.source_ref) &&
     arm.target_lineage !== null &&
@@ -1124,7 +1258,7 @@ function deriveResetV01(
   if (!comparable) {
     return {
       relation: "not_comparable",
-      basis: "The stale/regime source, cutoff, or exact target-lineage relation is invalid.",
+      basis: "The stale/regime source, cutoff, exact target-lineage relation, or matched non-stale/regime input parity is invalid.",
     };
   }
   if (
@@ -1151,26 +1285,16 @@ function deriveResetV01(
     "withheld",
     "refused",
     "abstained",
-    "neutral_current_source_selected",
   ]);
   if (resetStatuses.has(arm.downstream.response_status)) {
-    if (
-      arm.downstream.response_status === "neutral_current_source_selected" &&
-      arm.stale_relation?.current_source_ref === null
-    ) {
-      return {
-        relation: "not_comparable",
-        basis: "A neutral/current reselection lacks its exact separately bound current source.",
-      };
-    }
     return {
       relation: "appropriate_reset_observed",
-      basis: "The deterministic fixture explicitly withheld, refused, abstained from, or exactly reselected away from the stale target.",
+      basis: "The deterministic fixture explicitly withheld, refused, or abstained from the stale target under matched non-stale/regime inputs.",
     };
   }
   return {
     relation: "unknown",
-    basis: "The structured fixture behavior does not establish withholding, refusal, abstention, reselection, or persistence.",
+    basis: "The structured fixture behavior does not establish withholding, refusal, abstention, or persistence.",
   };
 }
 
@@ -1267,7 +1391,6 @@ function assertDownstreamV01(downstream: OperationalReentryDownstreamVectorV01):
       "withheld",
       "refused",
       "abstained",
-      "neutral_current_source_selected",
       "unobserved",
     ].includes(downstream.response_status)
   ) {
@@ -1570,7 +1693,7 @@ const STAGE5_TRUTH_KEYS = new Set([
 ]);
 const STALE_RELATION_KEYS = new Set([
   "reason_kind", "target_entry_id", "source_ref", "reason_observed_at",
-  "applies_before_outcome", "regime_key", "current_source_ref",
+  "applies_before_outcome", "regime_key",
 ]);
 const CHECK_DISPOSITION_KEYS = new Set(["check_id", "disposition"]);
 const CHANGED_ARTIFACT_KEYS = new Set([
@@ -1582,8 +1705,8 @@ const SINGLE_TARGET_INTERVENTION_KEYS = new Set([
   "only_intended_difference_is_target_presence", "direct_conditioning_comparable",
 ]);
 const STALE_REGIME_SUMMARY_KEYS = new Set([
-  "target_identity_preserved", "explicit_source_bound_pre_outcome_reason",
-  "comparable",
+  "matched_arm_role", "input_parity", "non_stale_regime_inputs_equal",
+  "target_identity_preserved", "explicit_source_bound_pre_outcome_reason", "comparable",
 ]);
 const EVIDENCE_LADDER_KEYS = new Set([
   "availability", "reference", "conditioning_candidate", "support_validation",
@@ -1591,6 +1714,9 @@ const EVIDENCE_LADDER_KEYS = new Set([
 ]);
 const PARITY_ROW_KEYS = new Set([
   "dimension", "status", "exact_reentry_fingerprint", "ablation_fingerprint",
+]);
+const RESET_PARITY_ROW_KEYS = new Set([
+  "dimension", "status", "matched_arm_fingerprint", "reset_arm_fingerprint",
 ]);
 const INTEGRITY_KEYS = new Set([
   "algorithm", "canonicalization", "fingerprint_scope", "fingerprint",

@@ -197,7 +197,6 @@ export interface OperationalReentryDownstreamVectorV01 {
     | "withheld"
     | "refused"
     | "abstained"
-    | "neutral_current_source_selected"
     | "unobserved";
 }
 
@@ -208,7 +207,6 @@ export interface OperationalReentryStaleRelationV01 {
   reason_observed_at: string;
   applies_before_outcome: true;
   regime_key: string;
-  current_source_ref: string | null;
 }
 
 export interface OperationalReentryArmV01 {
@@ -266,6 +264,17 @@ export interface OperationalReentryParityRowV01 {
   status: "equal" | "not_comparable";
   exact_reentry_fingerprint: string;
   ablation_fingerprint: string;
+}
+
+export type OperationalReentryResetMatchedArmRoleV01 =
+  | "exact_reentry"
+  | "matched_single_item_ablation";
+
+export interface OperationalReentryResetInputParityRowV01 {
+  dimension: OperationalReentryParityDimensionV01;
+  status: "equal" | "not_comparable";
+  matched_arm_fingerprint: string;
+  reset_arm_fingerprint: string;
 }
 
 export interface OperationalReentryAuthorityV01 {
@@ -331,6 +340,9 @@ export interface OperationalReentryEvaluationV01 {
     direct_conditioning_comparable: boolean;
   };
   stale_regime_relation: {
+    matched_arm_role: OperationalReentryResetMatchedArmRoleV01;
+    input_parity: OperationalReentryResetInputParityRowV01[];
+    non_stale_regime_inputs_equal: boolean;
     target_identity_preserved: boolean;
     explicit_source_bound_pre_outcome_reason: boolean;
     comparable: boolean;

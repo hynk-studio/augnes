@@ -169,6 +169,20 @@ function assertFourArmFamilyV01(evaluation: OperationalReentryEvaluationV01): vo
     evaluation.source.repository.equal_budget_is_equal_capability,
     false,
   );
+  assert.equal(
+    evaluation.stale_regime_relation.matched_arm_role,
+    "matched_single_item_ablation",
+  );
+  assert.equal(evaluation.stale_regime_relation.input_parity.length, 19);
+  assert.equal(
+    evaluation.stale_regime_relation.non_stale_regime_inputs_equal,
+    true,
+  );
+  assert.ok(
+    evaluation.stale_regime_relation.input_parity.every(
+      (row) => row.status === "equal",
+    ),
+  );
 }
 
 function assertPositiveSemanticsV01(
@@ -194,6 +208,14 @@ function assertPositiveSemanticsV01(
   assert.equal(
     family.sticky_stale.evaluation.reset_relation,
     "stale_persistence_candidate",
+  );
+  assert.equal(
+    family.sticky_stale.evaluation.stale_regime_relation.matched_arm_role,
+    "exact_reentry",
+  );
+  assert.equal(
+    family.sticky_stale.evaluation.stale_regime_relation.non_stale_regime_inputs_equal,
+    true,
   );
   assert.equal(family.unknown_reset.evaluation.reset_relation, "unknown");
   for (const fixture of Object.values(family)) {
@@ -251,11 +273,15 @@ function assertReportsV01(evaluation: OperationalReentryEvaluationV01): void {
   assert.equal(parsed.conditioning.is_causal_contribution, false);
   assert.equal(parsed.exact_reference_relation.reference_is_actual_use, false);
   assert.equal(parsed.reset.relation, "appropriate_reset_observed");
+  assert.equal(parsed.reset.matched_arm_role, "matched_single_item_ablation");
+  assert.equal(parsed.reset.non_stale_regime_inputs_equal, true);
+  assert.equal(parsed.reset.input_parity.length, 19);
   assert.equal(parsed.reset.activates_reset_or_fallback, false);
   assert.match(markdownA, /mechanics only/u);
   assert.match(markdownA, /Reference-only is not actual use/u);
   assert.match(markdownA, /not support validation, outcome benefit, causal contribution/u);
   assert.match(markdownA, /sticky-stale result is a candidate mechanics observation/u);
+  assert.match(markdownA, /Neutral current-source reselection is outside E1 v0\.1/u);
   assert.match(markdownA, /neither continuation benefit nor Stage 7 fitness/u);
   assert.ok(Buffer.byteLength(jsonA) < 2 * 1024 * 1024);
   assert.ok(Buffer.byteLength(markdownA) < 128 * 1024);
@@ -347,6 +373,47 @@ function assertRefusalMatrixV01(evaluation: OperationalReentryEvaluationV01): nu
     }]);
   }
 
+  const resetParityMutations: Array<[
+    string,
+    (input: BuildOperationalReentryArmInputV01) => void,
+  ]> = [
+    ["reset task drift", (value) => { value.task.goal = "Different reset task."; }],
+    ["reset repository drift", (value) => {
+      value.repository.frozen_head_commit = "2".repeat(40);
+    }],
+    ["reset cutoff drift", (value) => {
+      value.repository.observation_cutoff = "2026-07-18T17:59:00.000Z";
+    }],
+    ["reset capability drift", (value) => {
+      value.repository.capability_version = "other-reset-capability.v0.1";
+    }],
+    ["reset non-target-input drift", (value) => {
+      value.non_target_downstream_input_fingerprints = [
+        `sha256:${"e".repeat(64)}`,
+      ];
+    }],
+  ];
+  for (const [label, mutate] of resetParityMutations) {
+    cases.push([label, () => {
+      const input = armInputV01(armV01(evaluation, "stale_or_regime_shift_reset"));
+      mutate(input);
+      const result = rebuildWithArmV01(
+        evaluation,
+        buildOperationalReentryArmV01(input),
+      );
+      assert.equal(result.reset_relation, "not_comparable");
+      assert.equal(
+        result.stale_regime_relation.non_stale_regime_inputs_equal,
+        false,
+      );
+      assert.ok(
+        result.stale_regime_relation.input_parity.some(
+          (row) => row.status === "not_comparable",
+        ),
+      );
+    }]);
+  }
+
   cases.push(
     ["target reference survives ablation", () => {
       const input = armInputV01(armV01(evaluation, "matched_single_item_ablation"));
@@ -355,6 +422,18 @@ function assertRefusalMatrixV01(evaluation: OperationalReentryEvaluationV01): nu
         () => rebuildWithArmV01(evaluation, buildOperationalReentryArmV01(input)),
         /operational_reentry_ablation_target_survived/u,
       );
+    }],
+    ["unrelated reference-set difference", () => {
+      const referenceOnly = buildOperationalReentryPerturbationFixtureV01({
+        conditioning: "reference_only",
+      }).evaluation;
+      const input = armInputV01(armV01(referenceOnly, "exact_reentry"));
+      input.downstream.referenced_source_ids.push("context:unrelated-reference");
+      const result = rebuildWithArmV01(
+        referenceOnly,
+        buildOperationalReentryArmV01(input),
+      );
+      assert.equal(result.conditioning_relation, "not_comparable");
     }],
     ["post-cutoff material", () => evaluationMutationBlockedV01(evaluation, (value) => {
       value.arms[0]!.post_cutoff_material_present = true as false;
@@ -377,6 +456,26 @@ function assertRefusalMatrixV01(evaluation: OperationalReentryEvaluationV01): nu
       assert.throws(
         () => rebuildWithArmV01(evaluation, buildOperationalReentryArmV01(input)),
         /operational_reentry_stale_reason_unrelated/u,
+      );
+    }],
+    ["neutral current-source reselection removed", () => {
+      const input = armInputV01(armV01(evaluation, "stale_or_regime_shift_reset"));
+      input.downstream.response_status =
+        "neutral_current_source_selected" as typeof input.downstream.response_status;
+      assert.throws(
+        () => buildOperationalReentryArmV01(input),
+        /operational_reentry_response_status_invalid/u,
+      );
+    }],
+    ["unbound current-source field removed", () => {
+      const input = armInputV01(armV01(evaluation, "stale_or_regime_shift_reset"));
+      const relation = input.stale_relation as NonNullable<
+        typeof input.stale_relation
+      > & { current_source_ref?: string };
+      relation.current_source_ref = "arbitrary-unbound-current-source";
+      assert.throws(
+        () => buildOperationalReentryArmV01(input),
+        /operational_reentry_arm_unknown_field/u,
       );
     }],
     ["conditioning overclaim from reference", () => {

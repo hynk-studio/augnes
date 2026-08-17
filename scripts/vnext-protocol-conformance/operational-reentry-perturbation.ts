@@ -33,6 +33,14 @@ export function runOperationalReentryPerturbationConformanceV01() {
   assert.equal(deciding.conditioning_relation, "structured_delta_observed");
   assert.equal(deciding.reset_relation, "appropriate_reset_observed");
   assert.equal(
+    deciding.stale_regime_relation.matched_arm_role,
+    "matched_single_item_ablation",
+  );
+  assert.equal(
+    deciding.stale_regime_relation.non_stale_regime_inputs_equal,
+    true,
+  );
+  assert.equal(
     family.reference_only.evaluation.conditioning_relation,
     "reference_only",
   );
@@ -43,6 +51,10 @@ export function runOperationalReentryPerturbationConformanceV01() {
   assert.equal(
     family.sticky_stale.evaluation.reset_relation,
     "stale_persistence_candidate",
+  );
+  assert.equal(
+    family.sticky_stale.evaluation.stale_regime_relation.matched_arm_role,
+    "exact_reentry",
   );
   return {
     suite: "operational-reentry-perturbation-v0.1",

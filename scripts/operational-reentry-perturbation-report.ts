@@ -83,6 +83,10 @@ export function renderOperationalReentryPerturbationReportV01(
       relation: evaluation.reset_relation,
       basis: evaluation.reset_basis,
       stale_relation: stale.stale_relation,
+      matched_arm_role: evaluation.stale_regime_relation.matched_arm_role,
+      input_parity: evaluation.stale_regime_relation.input_parity,
+      non_stale_regime_inputs_equal:
+        evaluation.stale_regime_relation.non_stale_regime_inputs_equal,
       activates_reset_or_fallback: false,
       sticky_stale_is_policy_decision: false,
     },
@@ -109,6 +113,9 @@ function renderMarkdownV01(evaluation: OperationalReentryEvaluationV01): string 
   const armRows = evaluation.arms.map(
     (arm) =>
       `| ${arm.role} | ${arm.evidence_class} | ${arm.target_entry_ids.length > 0 ? "present" : "absent"} | ${arm.downstream.response_status} | ${arm.provider_calls}/${arm.model_calls}/${arm.network_calls} |`,
+  );
+  const resetParityRows = evaluation.stale_regime_relation.input_parity.map(
+    (row) => `| ${row.dimension} | ${row.status} |`,
   );
   const falseAuthority = Object.entries(evaluation.authority_summary)
     .map(([key, value]) => `- \`${key}\`: ${value}`);
@@ -160,10 +167,16 @@ function renderMarkdownV01(evaluation: OperationalReentryEvaluationV01): string 
     "## Reset",
     "",
     `- Exact stale/regime reason: \`${stale.stale_relation?.reason_kind ?? "unavailable"}\``,
+    `- Matched non-stale/regime arm: \`${evaluation.stale_regime_relation.matched_arm_role}\``,
+    `- Non-stale/regime inputs equal: ${evaluation.stale_regime_relation.non_stale_regime_inputs_equal}`,
     `- Reset relation: **${evaluation.reset_relation}**`,
     `- Basis: ${evaluation.reset_basis}`,
     "",
-    "A sticky-stale result is a candidate mechanics observation, not a policy decision. Reset observation creates no reset, fallback, rollback, or activation authority.",
+    "| Reset input parity dimension | Status |",
+    "| --- | --- |",
+    ...resetParityRows,
+    "",
+    "A sticky-stale result is a candidate mechanics observation, not a policy decision. Reset observation creates no reset, fallback, rollback, or activation authority. Neutral current-source reselection is outside E1 v0.1 until a separately exact repository-consistent source binding exists.",
     "",
     "## Evidence ladder",
     "",

@@ -188,6 +188,7 @@ export function buildOperationalReentryPerturbationFixtureV01(
       "The frozen source identities bind one captured public-safe Stage 5-derived construction; fresh upstream fixture constructions may allocate different exact lineage identities.",
       "Reference is not actual use, support validation, outcome association, or causal contribution.",
       "Reset observation is not reset, fallback, rollback, or policy authority.",
+      "Neutral current-source reselection is outside E1 v0.1 and requires a separately exact repository-consistent source binding.",
       "The merged Stage 5 exact-case result remains inconclusive.",
     ],
     missing_evidence: [
@@ -197,6 +198,7 @@ export function buildOperationalReentryPerturbationFixtureV01(
       "empirical_general_benefit",
       "real_model_or_provider_observation",
       "stochastic_repetition_or_confidence",
+      "exact_repository_bound_current_source_reselection",
     ],
   });
   return {
@@ -448,7 +450,6 @@ function buildStaleArmV01(
       reason_observed_at: "2026-07-18T15:30:00.000Z",
       applies_before_outcome: true,
       regime_key: "synthetic-regime:verification-preparation-no-longer-applicable",
-      current_source_ref: null,
     },
   });
 }
@@ -484,7 +485,6 @@ function commonDownstreamV01() {
       | "withheld"
       | "refused"
       | "abstained"
-      | "neutral_current_source_selected"
       | "unobserved",
   };
 }
