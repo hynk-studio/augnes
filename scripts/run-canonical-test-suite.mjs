@@ -647,6 +647,12 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label:
+        "ACGC-E2 historical compatibility and provider-contract hardening (zero egress)",
+      ...rootNode("scripts/test-operational-reentry-matched-cohort.ts"),
+      timeoutMs: 60_000,
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },
