@@ -5,6 +5,7 @@ export const MODEL_EGRESS_PURPOSES = [
   "strategic_advantage_transfer",
   "guidebrief_interpretation",
   "governed_actor_lab",
+  "operational_reentry_matched_cohort",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];
@@ -30,6 +31,10 @@ export type ModelEgressJsonValue =
 export type ModelTransportResponse = {
   ok: boolean;
   status: number;
+  headers?: {
+    get(name: string): string | null;
+  };
+  text?(): Promise<string>;
   json(): Promise<unknown>;
 };
 

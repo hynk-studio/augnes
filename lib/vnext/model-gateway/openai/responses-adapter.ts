@@ -1,14 +1,20 @@
 import {
   assertModelEgressTextIsSafe,
+  refuseModelEgress,
   requireModelEgressText,
   serializeModelEgressJson,
   utf8ByteLength,
   type ModelTransportResponse,
 } from "@/lib/model-egress/bounded-model-payload";
 import {
+  canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
+import {
   ModelGatewayAdapterFailureV01,
   GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
   GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -62,6 +68,21 @@ import {
   projectGovernedActorLabModelMaterialV01,
   GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
 } from "@/lib/vnext/model-gateway/openai/governed-actor-lab-codec";
+import {
+  buildOperationalReentryMatchedCohortSystemPromptV01,
+  operationalReentryMatchedCohortResponseSchemaV02,
+  parseOperationalReentryMatchedCohortOutputV01,
+  projectOperationalReentryMatchedCohortModelMaterialV01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
+import {
+  OpenAIStrictSchemaSupportedSubsetErrorV01,
+  validateOpenAIStrictSchemaSupportedSubsetV01,
+} from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
+import {
+  createDeterministicModelClientRequestIdV01,
+  projectModelProviderRejectionObservationV01,
+} from "@/lib/vnext/model-gateway/provider-rejection-observation";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -89,13 +110,25 @@ export const OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_ID_V01 =
   "openai_responses.governed_actor_lab" as const;
 export const OPENAI_RESPONSES_GOVERNED_ACTOR_LAB_ADAPTER_VERSION_V01 =
   "openai_responses_governed_actor_lab_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01 =
+  "openai_responses.operational_reentry_matched_cohort" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V01 =
+  "openai_responses_operational_reentry_matched_cohort_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02 =
+  "openai_responses_operational_reentry_matched_cohort_adapter.v0.2" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02 =
+  "gpt-4.1-mini-2025-04-14" as const;
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const MAX_PROVIDER_REJECTION_DIAGNOSTIC_BYTES_V02 = 4_096;
 
 export interface OpenAIResponsesTransportRequestV01 {
   url: typeof OPENAI_RESPONSES_ENDPOINT_V01;
   method: "POST";
-  headers: Readonly<Record<"Authorization" | "Content-Type", string>>;
+  headers: Readonly<
+    Record<"Authorization" | "Content-Type", string> &
+      Partial<Record<"X-Client-Request-Id", string>>
+  >;
   body: string;
   signal: AbortSignal;
 }
@@ -175,7 +208,9 @@ export function createOpenAIResponsesAdapterV01(
       const apiKey = optionalConfigurationText(environment.OPENAI_API_KEY);
       if (!apiKey) return null;
       const model = requireModelIdentifier(
-        optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL,
+        purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+          ? OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02
+          : optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL,
       );
       const implementation = describeOpenAIImplementation(purpose);
 
@@ -199,6 +234,19 @@ export function createOpenAIResponsesAdapterV01(
         async invoke(input, lifecycle) {
           if (input.input_kind !== purpose) adapterResponseInvalid();
           const codec = codecFor(input);
+          try {
+            validateOpenAIStrictSchemaSupportedSubsetV01(codec.schema);
+          } catch (error) {
+            if (error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01) {
+              refuseModelEgress(
+                purpose,
+                "model_egress_payload_unsupported",
+                1,
+                0,
+              );
+            }
+            throw error;
+          }
           const dynamicText = serializeModelEgressJson(
             purpose,
             codec.dynamic_material,
@@ -232,6 +280,28 @@ export function createOpenAIResponsesAdapterV01(
             },
             Math.min(codec.final_request_bytes, lifecycle.budget.max_input_bytes),
           );
+          const schemaFingerprint = createProtocolSha256V01(
+            canonicalizeProtocolValueV01(codec.schema),
+          );
+          const requestFingerprint = createProtocolSha256V01(requestBody);
+          const routeFingerprint = createProtocolSha256V01(
+            canonicalizeProtocolValueV01({
+              purpose,
+              provider: "openai",
+              model,
+              adapter_implementation_id: implementation.implementation_id,
+              adapter_implementation_version: implementation.implementation_version,
+            }),
+          );
+          const clientRequestId = createDeterministicModelClientRequestIdV01({
+            purpose,
+            call_slot_id:
+              input.input_kind ===
+              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+                ? input.invocation_context.call_slot_id
+                : null,
+            model,
+          });
           lifecycle.report_input_bytes(utf8ByteLength(requestBody));
           lifecycle.mark_egress_attempted();
 
@@ -243,6 +313,7 @@ export function createOpenAIResponsesAdapterV01(
               headers: {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "X-Client-Request-Id": clientRequestId,
               },
               body: requestBody,
               signal: lifecycle.signal,
@@ -258,7 +329,64 @@ export function createOpenAIResponsesAdapterV01(
             adapterResponseInvalid();
           }
           if (!response.ok) {
-            throw new ModelGatewayAdapterFailureV01("adapter_provider_rejected");
+            if (
+              purpose !==
+              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+            ) {
+              throw new ModelGatewayAdapterFailureV01(
+                "adapter_provider_rejected",
+              );
+            }
+            let errorPayload: unknown = null;
+            let providerRequestId: string | null = null;
+            let contentLength: number | null = null;
+            try {
+              providerRequestId =
+                response.headers?.get("x-request-id") ??
+                response.headers?.get("openai-request-id") ??
+                null;
+              const contentLengthHeader =
+                response.headers?.get("content-length") ?? null;
+              contentLength =
+                contentLengthHeader !== null && /^\d{1,8}$/u.test(contentLengthHeader)
+                  ? Number(contentLengthHeader)
+                  : null;
+            } catch {
+              providerRequestId = null;
+              contentLength = null;
+            }
+            if (
+              contentLength === null ||
+              contentLength <= MAX_PROVIDER_REJECTION_DIAGNOSTIC_BYTES_V02
+            ) {
+              try {
+                if (response.text) {
+                  const errorText = await response.text();
+                  if (
+                    utf8ByteLength(errorText) <=
+                    MAX_PROVIDER_REJECTION_DIAGNOSTIC_BYTES_V02
+                  ) {
+                    errorPayload = JSON.parse(errorText) as unknown;
+                  }
+                } else {
+                  errorPayload = await response.json();
+                }
+              } catch {
+                errorPayload = null;
+              }
+            }
+            throw new ModelGatewayAdapterFailureV01(
+              "adapter_provider_rejected",
+              projectModelProviderRejectionObservationV01({
+                http_status: response.status,
+                error_payload: errorPayload,
+                provider_request_id: providerRequestId,
+                client_request_id: clientRequestId,
+                route_fingerprint: routeFingerprint,
+                request_fingerprint: requestFingerprint,
+                schema_fingerprint: schemaFingerprint,
+              }),
+            );
           }
 
           let payload: unknown;
@@ -303,6 +431,35 @@ type PurposeCodec = {
 };
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
+  if (
+    input.input_kind ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const material = projectOperationalReentryMatchedCohortModelMaterialV01(input);
+    return {
+      dynamic_material: material,
+      dynamic_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.dynamicBytes,
+      final_request_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+      response_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.responseBytes,
+      system_prompt: buildOperationalReentryMatchedCohortSystemPromptV01(),
+      schema_name: "operational_reentry_matched_cohort",
+      schema: operationalReentryMatchedCohortResponseSchemaV02(input),
+      parse(outputText, usage) {
+        return {
+          purpose:
+            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseOperationalReentryMatchedCohortOutputV01(
+            outputText,
+            input,
+          ),
+          usage,
+        };
+      },
+    };
+  }
   if (input.input_kind === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
     const validatedInput = { ...input };
     const material = projectGovernedActorLabModelMaterialV01(validatedInput);
@@ -444,6 +601,16 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
 function describeOpenAIImplementation(
   purpose: ModelGatewayPurposeV01,
 ): ModelAdapterImplementationV01 {
+  if (
+    purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+    };
+  }
   if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
     return {
       implementation_id:
@@ -528,12 +695,21 @@ function normalizeUsage(value: unknown): ModelGatewayNormalizedUsageV01 | null {
   const inputTokens = requireUsageCount(record.input_tokens);
   const outputTokens = requireUsageCount(record.output_tokens);
   const totalTokens = requireUsageCount(record.total_tokens);
+  let cachedInputTokens: number | undefined;
+  if (Object.hasOwn(record, "input_tokens_details")) {
+    const details = requireProviderRecord(record.input_tokens_details);
+    cachedInputTokens = requireUsageCount(details.cached_tokens);
+    if (cachedInputTokens > inputTokens) throw new Error("usage_invalid");
+  }
   if (totalTokens < inputTokens + outputTokens) throw new Error("usage_invalid");
   return {
     basis: "provider_report",
     quality: "reported",
     source: "provider_response",
     input_tokens: inputTokens,
+    ...(cachedInputTokens === undefined
+      ? {}
+      : { cached_input_tokens: cachedInputTokens }),
     output_tokens: outputTokens,
     total_tokens: totalTokens,
   };

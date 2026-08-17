@@ -52,13 +52,16 @@ export type ModelInvocationReceiptPurposeV02 =
   | "temporal_interpretation"
   | "strategic_advantage_transfer"
   | "guidebrief_interpretation"
-  | "governed_actor_lab";
+  | "governed_actor_lab"
+  | "operational_reentry_matched_cohort";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
   quality: "reported";
   source: "provider_response";
   input_tokens: number;
+  /** Provider-reported cached subset when the provider exposes it. */
+  cached_input_tokens?: number;
   output_tokens: number;
   total_tokens: number;
 }

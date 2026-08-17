@@ -199,7 +199,8 @@ export function validateModelInvocationReceiptV02(
     }
     if (
       (receipt.purpose === "strategic_advantage_transfer" ||
-        receipt.purpose === "governed_actor_lab") &&
+        receipt.purpose === "governed_actor_lab" ||
+        receipt.purpose === "operational_reentry_matched_cohort") &&
       receipt.status === "completed" &&
       (typeof receipt.normalized_output_fingerprint !== "string" ||
         !/^sha256:[0-9a-f]{64}$/.test(
@@ -228,18 +229,28 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 function validateUsage(value: unknown): void {
   if (value === null) return;
-  const usage = exactRecord(value, [
+  const keys = [
     "basis",
     "quality",
     "source",
     "input_tokens",
     "output_tokens",
     "total_tokens",
-  ]);
+  ];
+  const usage = exactRecord(
+    value,
+    isPlainRecord(value) && Object.hasOwn(value, "cached_input_tokens")
+      ? [...keys, "cached_input_tokens"]
+      : keys,
+  );
   literal(usage.basis, "provider_report");
   literal(usage.quality, "reported");
   literal(usage.source, "provider_response");
   nonnegativeInteger(usage.input_tokens);
+  if (Object.hasOwn(usage, "cached_input_tokens")) {
+    nonnegativeInteger(usage.cached_input_tokens);
+    if (Number(usage.cached_input_tokens) > Number(usage.input_tokens)) invalid();
+  }
   nonnegativeInteger(usage.output_tokens);
   nonnegativeInteger(usage.total_tokens);
   if (
