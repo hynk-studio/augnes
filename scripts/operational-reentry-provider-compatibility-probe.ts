@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 import {
   beginOperationalReentryProviderCompatibilityProbeAttemptV01,
@@ -21,11 +22,16 @@ const AUTHORIZED_ORIGINS_V01 = new Set([
   "git@github.com:hynk-studio/augnes-perspective-lab.git",
 ]);
 
-void main().catch((error) => {
-  console.error("operational_reentry_provider_compatibility_probe_failed");
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url
+) {
+  void main().catch((error) => {
+    console.error("operational_reentry_provider_compatibility_probe_failed");
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
 
 async function main(): Promise<void> {
   const options = parseArgumentsV01(process.argv.slice(2));
@@ -36,7 +42,10 @@ async function main(): Promise<void> {
     readFileSync(options.authorization_file, "utf8"),
   ) as unknown;
   const sourceHead = readAuthorizationSourceHeadV01(authorization);
-  preflightRepositoryV01(repositoryRoot, sourceHead);
+  preflightOperationalReentryProviderCompatibilityProbeRepositoryV01(
+    repositoryRoot,
+    sourceHead,
+  );
 
   const capability = readDefaultModelGatewayLocalCapabilityV01();
   if (capability.status !== "available") {
@@ -76,7 +85,10 @@ async function main(): Promise<void> {
         {
           cancellation_signal: cancellation.signal,
           assert_source_unchanged() {
-            preflightRepositoryV01(repositoryRoot, sourceHead);
+            preflightOperationalReentryProviderCompatibilityProbeRepositoryV01(
+              repositoryRoot,
+              sourceHead,
+            );
           },
           consume_authorization(consumption) {
             journal.consume_authorization({
@@ -185,7 +197,7 @@ function readAuthorizationSourceHeadV01(value: unknown): string {
   return value.exact_merged_source_head;
 }
 
-function preflightRepositoryV01(
+export function preflightOperationalReentryProviderCompatibilityProbeRepositoryV01(
   repositoryRoot: string,
   sourceHead: string,
 ): void {
@@ -204,6 +216,19 @@ function preflightRepositoryV01(
   }
   if (gitV01(repositoryRoot, ["rev-parse", "HEAD"]) !== sourceHead) {
     failV01("operational_reentry_probe_dirty_or_mismatched_head");
+  }
+  let exactOriginMain: string;
+  try {
+    exactOriginMain = gitV01(repositoryRoot, [
+      "rev-parse",
+      "--verify",
+      "refs/remotes/origin/main^{commit}",
+    ]);
+  } catch {
+    failV01("operational_reentry_probe_origin_main_unavailable");
+  }
+  if (exactOriginMain !== sourceHead) {
+    failV01("operational_reentry_probe_source_head_not_exact_origin_main");
   }
   if (
     gitV01(repositoryRoot, [

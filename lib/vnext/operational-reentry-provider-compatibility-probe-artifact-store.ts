@@ -33,6 +33,8 @@ import type {
 const SAFE_SEGMENT_V01 = /^[A-Za-z0-9._-]{1,200}$/u;
 const PROBE_ARTIFACT_PREFIX_V01 =
   ".augnes-lab/operational-reentry-provider-probes/" as const;
+const AUTHORIZATION_CONSUMPTION_DIRECTORY_V01 =
+  "authorization-consumptions" as const;
 
 export class OperationalReentryProviderCompatibilityProbeArtifactErrorV01 extends Error {
   constructor(readonly code: string) {
@@ -88,6 +90,10 @@ export function beginOperationalReentryProviderCompatibilityProbeAttemptV01(
   const repositoryRoot = requireRepositoryRootV01(input.repository_root);
   assertOperationalReentryProviderCompatibilityProbeArtifactPayloadSafeV01(
     input.prepared,
+  );
+  assertAuthorizationNotPreviouslyConsumedV01(
+    repositoryRoot,
+    input.prepared.authorization.integrity.fingerprint,
   );
   const relativeRunRoot = `${PROBE_ARTIFACT_PREFIX_V01}${safeSegmentV01(
     input.prepared.manifest.probe_id,
@@ -187,7 +193,7 @@ export function beginOperationalReentryProviderCompatibilityProbeAttemptV01(
       ) {
         failV01("operational_reentry_probe_authorization_consumption_mismatch");
       }
-      writeExclusiveV01(runRoot, ["authorization-consumed.json"], {
+      const consumptionRecord = {
         consumption_version:
           "operational_reentry_provider_compatibility_probe_authorization_consumption.v0.1",
         authorization_fingerprint:
@@ -200,7 +206,17 @@ export function beginOperationalReentryProviderCompatibilityProbeAttemptV01(
         replacements_authorized: false,
         replacement_cohort_authorized: false,
         stage_7_authorized: false,
-      });
+      };
+      writeAuthorizationConsumptionExclusiveV01(
+        repositoryRoot,
+        input.prepared.authorization.integrity.fingerprint,
+        consumptionRecord,
+      );
+      writeExclusiveV01(
+        runRoot,
+        ["authorization-consumed.json"],
+        consumptionRecord,
+      );
       consumed = true;
     },
     append_shape(shape) {
@@ -538,6 +554,77 @@ function safeSegmentV01(value: string): string {
     failV01("operational_reentry_probe_artifact_segment_invalid");
   }
   return segment;
+}
+
+function authorizationConsumptionPathV01(
+  repositoryRoot: string,
+  authorizationFingerprint: string,
+): string {
+  const fingerprintSegment = safeSegmentV01(authorizationFingerprint);
+  const target = path.join(
+    repositoryRoot,
+    ...PROBE_ARTIFACT_PREFIX_V01.split("/").filter(Boolean),
+    AUTHORIZATION_CONSUMPTION_DIRECTORY_V01,
+    `${fingerprintSegment}.json`,
+  );
+  assertContainedV01(repositoryRoot, target);
+  return target;
+}
+
+function assertAuthorizationNotPreviouslyConsumedV01(
+  repositoryRoot: string,
+  authorizationFingerprint: string,
+): void {
+  const target = authorizationConsumptionPathV01(
+    repositoryRoot,
+    authorizationFingerprint,
+  );
+  if (existsSync(target)) {
+    failV01(
+      "operational_reentry_probe_authorization_global_collision_refused",
+    );
+  }
+}
+
+function writeAuthorizationConsumptionExclusiveV01(
+  repositoryRoot: string,
+  authorizationFingerprint: string,
+  value: unknown,
+): void {
+  assertOperationalReentryProviderCompatibilityProbeArtifactPayloadSafeV01(
+    value,
+  );
+  const target = authorizationConsumptionPathV01(
+    repositoryRoot,
+    authorizationFingerprint,
+  );
+  ensureDirectoryChainV01(repositoryRoot, path.dirname(target));
+  let descriptor: number;
+  try {
+    descriptor = openSync(target, "wx", 0o600);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "EEXIST"
+    ) {
+      failV01(
+        "operational_reentry_probe_authorization_global_collision_refused",
+      );
+    }
+    throw error;
+  }
+  try {
+    writeFileSync(
+      descriptor,
+      `${canonicalizeProtocolValueV01(value)}\n`,
+      { encoding: "utf8" },
+    );
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 function writeExclusiveV01(

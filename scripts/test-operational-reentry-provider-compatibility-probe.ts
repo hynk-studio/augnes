@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -78,6 +80,9 @@ import {
   type OperationalReentryProviderCompatibilityProbeAuthorizationV01,
   type OperationalReentryProviderCompatibilityProbeExecutionResultV01,
 } from "@/types/vnext/operational-reentry-provider-compatibility-probe";
+import {
+  preflightOperationalReentryProviderCompatibilityProbeRepositoryV01,
+} from "./operational-reentry-provider-compatibility-probe";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-e2p1-probe-"));
 const projectRoot = path.join(root, "project");
@@ -141,6 +146,7 @@ async function main(): Promise<void> {
   await verifyDeterministicFallbackCannotSucceedV01(admission);
   await verifyAuthorizationAndCostRefusalsV01(admission);
   await verifyAppendOnlyArtifactsAndPrivacyV01(admission);
+  verifyExactOriginMainPreflightV01();
   verifyStaticNoBehaviorAndCliBoundaryV01();
   assert.deepEqual(readFileSync(databasePath), databaseBefore);
 
@@ -846,7 +852,17 @@ async function verifyAppendOnlyArtifactsAndPrivacyV01(
   assert.equal(summary.authorization_consumed, true);
   assert.equal(summary.product_database_writes, 0);
   assert.equal(summary.core_writes, 0);
-  const stored = readTreeV01(journal.run_root);
+  const providerProbeFamilyRoot = path.join(
+    artifactRepository,
+    ".augnes-lab",
+    "operational-reentry-provider-probes",
+  );
+  const authorizationConsumptionRoot = path.join(
+    providerProbeFamilyRoot,
+    "authorization-consumptions",
+  );
+  assert.equal(readdirSync(authorizationConsumptionRoot).length, 1);
+  const stored = readTreeV01(providerProbeFamilyRoot);
   for (const forbidden of [
     "test-credential-never-persisted",
     "Authorization",
@@ -865,14 +881,35 @@ async function verifyAppendOnlyArtifactsAndPrivacyV01(
     readdirSync(path.join(journal.run_root, "shapes")).length,
     4,
   );
+  const laterEvaluatedAt = "2026-08-19T08:00:00.000Z";
+  let secondProviderTransportCalls = 0;
+  const laterAdapter = adapterV01(async () => {
+    secondProviderTransportCalls += 1;
+    throw new Error("reused authorization must be refused before transport");
+  });
+  const laterRoute = await routeV01(laterAdapter);
+  const laterPrepared =
+    buildOperationalReentryProviderCompatibilityProbeV01({
+      authorization,
+      admission,
+      route: laterRoute,
+      evaluated_at: laterEvaluatedAt,
+    });
+  assert.notEqual(
+    laterPrepared.pricing.integrity.fingerprint,
+    prepared.pricing.integrity.fingerprint,
+  );
+  assert.notEqual(laterPrepared.manifest.probe_id, prepared.manifest.probe_id);
   assert.throws(
     () =>
       beginOperationalReentryProviderCompatibilityProbeAttemptV01({
         repository_root: artifactRepository,
-        prepared,
+        prepared: laterPrepared,
       }),
-    /operational_reentry_probe_authorization_collision_refused/,
+    /operational_reentry_probe_authorization_global_collision_refused/,
   );
+  assert.equal(secondProviderTransportCalls, 0);
+  assert.equal(readdirSync(authorizationConsumptionRoot).length, 1);
   assert.throws(
     () =>
       journal.consume_authorization({
@@ -880,6 +917,30 @@ async function verifyAppendOnlyArtifactsAndPrivacyV01(
         probe_id: prepared.manifest.probe_id,
       }),
     /operational_reentry_probe_authorization_reuse_refused/,
+  );
+  const collisionAuthorization = authorizationV01(
+    admission,
+    route,
+    "unconsumed-root-collision",
+  );
+  const collisionPrepared =
+    buildOperationalReentryProviderCompatibilityProbeV01({
+      authorization: collisionAuthorization,
+      admission,
+      route,
+      evaluated_at: evaluatedAt,
+    });
+  beginOperationalReentryProviderCompatibilityProbeAttemptV01({
+    repository_root: artifactRepository,
+    prepared: collisionPrepared,
+  });
+  assert.throws(
+    () =>
+      beginOperationalReentryProviderCompatibilityProbeAttemptV01({
+        repository_root: artifactRepository,
+        prepared: collisionPrepared,
+      }),
+    /operational_reentry_probe_authorization_collision_refused/,
   );
   for (const relative_run_root of [
     ".augnes-lab/operational-reentry-matched-cohorts/other/issue-185",
@@ -910,6 +971,52 @@ async function verifyAppendOnlyArtifactsAndPrivacyV01(
       /operational_reentry_probe_artifact_/,
     );
   }
+}
+
+function verifyExactOriginMainPreflightV01(): void {
+  const repository = path.join(root, "source-preflight-repository");
+  mkdirSync(repository, { recursive: true });
+  const git = (args: string[]): string =>
+    execFileSync("git", ["-C", repository, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  git(["init", "--initial-branch=main"]);
+  git(["config", "user.name", "E2P1 Test"]);
+  git(["config", "user.email", "e2p1-test@example.invalid"]);
+  git(["config", "commit.gpgsign", "false"]);
+  git([
+    "remote",
+    "add",
+    "origin",
+    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  ]);
+  writeFileSync(path.join(repository, "baseline.txt"), "merged main\n");
+  git(["add", "baseline.txt"]);
+  git(["commit", "-m", "merged main"]);
+  const mainHead = git(["rev-parse", "HEAD"]);
+  git(["update-ref", "refs/remotes/origin/main", mainHead]);
+  const exactRepository = realpathSync(repository);
+  assert.doesNotThrow(() =>
+    preflightOperationalReentryProviderCompatibilityProbeRepositoryV01(
+      exactRepository,
+      mainHead,
+    ),
+  );
+
+  git(["switch", "-c", "clean-unmerged-feature"]);
+  writeFileSync(path.join(repository, "feature.txt"), "not merged\n");
+  git(["add", "feature.txt"]);
+  git(["commit", "-m", "clean unmerged feature"]);
+  const cleanUnmergedHead = git(["rev-parse", "HEAD"]);
+  assert.throws(
+    () =>
+      preflightOperationalReentryProviderCompatibilityProbeRepositoryV01(
+        exactRepository,
+        cleanUnmergedHead,
+      ),
+    /operational_reentry_probe_source_head_not_exact_origin_main/,
+  );
 }
 
 function verifyStaticNoBehaviorAndCliBoundaryV01(): void {
@@ -944,6 +1051,8 @@ function verifyStaticNoBehaviorAndCliBoundaryV01(): void {
   assert.ok(cli.includes("--confirm-future-live-compatibility-probe"));
   assert.ok(cli.includes("--authorization-file"));
   assert.ok(cli.includes("exact_merged_source_head"));
+  assert.ok(cli.includes("refs/remotes/origin/main^{commit}"));
+  assert.ok(cli.includes("source_head_not_exact_origin_main"));
   assert.ok(cli.includes("dirty_or_mismatched_head"));
   assert.equal(cli.includes("previous_response_id"), false);
   assert.equal(cli.includes("retry" + "("), false);
