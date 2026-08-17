@@ -555,27 +555,62 @@ and pull-request truth through Stage 6:
 | ACGC5C | [#175](https://github.com/hynk-studio/augnes-perspective-lab/issues/175) | [PR #176](https://github.com/hynk-studio/augnes-perspective-lab/pull/176), `7c30c83f` | Completed terminal Run B, downstream source-linked attribution, and the strongest currently supportable isolated one-run comparison while preserving incomplete evidence and an exact-case `inconclusive` result. |
 | ACGC6A | [#177](https://github.com/hynk-studio/augnes-perspective-lab/issues/177) | [PR #178](https://github.com/hynk-studio/augnes-perspective-lab/pull/178), `de557be3` | Completed the deterministic model/host succession benchmark and fresh predecessor replay while preserving an `inconclusive` result, zero live-provider calls, no route winner, and no policy or automatic-fallback authority. |
 | ACGC6B | [#179](https://github.com/hynk-studio/augnes-perspective-lab/issues/179) | [PR #180](https://github.com/hynk-studio/augnes-perspective-lab/pull/180), `cfcf0674` | Completed the Stage 6 architecture closeout by accepting no live operational-policy owner, schema, active pointer, activation/rollback receipt, automatic context injection, or automatic execution behavior for the current evidence state. |
+| ACGC-E1 | [#183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183) | [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184), `d5fba752` | Completed deterministic matched re-entry perturbation/reset mechanics only, without empirical model, support, outcome, causal, policy-fitness, or Stage 7 claims. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
 
-### ACGC-E1 matched re-entry perturbation/reset mechanics — Current
+### ACGC-E1 matched re-entry perturbation/reset mechanics — Completed
 
 [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183)
-and [Draft PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184)
-are **Current** while that Draft PR remains open. ACGC Stages 0–6 remain
-Completed. ACGC-E1 is a deterministic, pure, rebuildable fixture/evaluator
-mechanics slice only: it binds one exact selected Stage 5-derived continuation
-entry across exact re-entry, matched single-item ablation, stale/regime-shift
-reset, and the existing one-run baseline context without changing the completed
-Stage 5 attribution or comparison records.
+and [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184)
+are **Completed** at merge
+`d5fba752e2c994c9a4823df7944ba5954b1e13c2`. ACGC-E1 established
+deterministic, pure, rebuildable matched re-entry perturbation/reset mechanics
+only. It binds one exact selected Stage 5-derived continuation entry across
+exact re-entry, matched single-item ablation, stale/regime-shift reset, and the
+existing one-run baseline context without changing the completed Stage 5
+attribution or comparison records.
 
-No bounded real cohort has run. Item support, outcome association, causal
-contribution, empirical general benefit, and Stage 7 fitness remain
-unestablished. ACGC-E2, Stage 7, live policy, automatic context injection,
-persistent actor, winner or population promotion, C9, remote nodes, Linux
-rollout, orchestration, publication, Ready, merge, and auto-merge remain
-separately unauthorized.
+The Stage 5 exact result remains `inconclusive`. Historical item actual use,
+support validation, outcome association, and causal contribution remain
+`unknown`; E1 established no empirical model benefit, policy fitness, or Stage
+7 readiness.
+
+### ACGC-E2 initial bounded live attempt — Terminal incomplete / historical HOLD
+
+[Issue #185](https://github.com/hynk-studio/augnes-perspective-lab/issues/185)
+authorized exactly one bounded 16-call cohort. [Draft PR
+#186](https://github.com/hynk-studio/augnes-perspective-lab/pull/186) contains
+the unmerged historical implementation and attempt record at source head
+`123c5e31708a35c68be73b332d595bed9a9eea94`. It remains open, Draft,
+unmerged, and on historical **HOLD**; this documentation reconciliation does
+not admit it as canonical implementation.
+
+The terminal attempt record is exact: all `16/16` planned calls were attempted
+once, and all 16 ended `provider_rejected` /
+`model_gateway_provider_rejected`. Normalized provider outputs and valid
+per-block E1 evaluations are both `0`; every behavioral pairwise relation is
+`not_comparable`; conditioning and reset dispositions are both `incomplete`.
+Authorization was consumed. Retries, replacement calls, a second cohort, and
+post-egress tracked-source mutations are all `0`. Exact calculated cost is
+`unknown`, not zero; the recorded aggregate worst-case cost is `$0.0851968`
+against the `$5.00` ceiling.
+
+The rejection cause is unclassified from preserved historical evidence. It
+must not be attributed to `uniqueItems`, schema compatibility, credentials,
+permissions, rate or spend limits, model access, or any other hypothesis. The
+attempt creates no behavioral conclusion about continuation, conditioning,
+reset, benefit, harm, model quality, or provider quality.
+
+There is currently no active E2 implementation or replacement cohort merely
+because this historical attempt exists. Provider-contract hardening, provider
+compatibility probes, and any replacement cohort each require a separate issue
+and explicit authorization. The ACGC6B no-live-policy decision remains in
+force, and Stage 7 remains unstarted and separately unauthorized. No automatic
+context injection, fallback or rollback, Start or Resume, retry or scheduling;
+actor, winner, or population promotion; C9; remote-node or Linux rollout;
+orchestration; publication; Ready; merge; or auto-merge authority follows.
 
 ### ACGC Stage 6 closeout — Completed
 
@@ -636,22 +671,29 @@ merge `e937024643bdc0823c9b1baf3b35a2812ccb94a9`. They did not authorize an
 executable research slice or make a preferred evidence candidate `Next`.
 
 ACGC-E1 [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183)
-and [Draft PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184)
-are the only Current ACGC implementation slice while open. Their authority is
-limited to deterministic re-entry perturbation/reset fixture and evaluator
-mechanics. No real cohort, provider/model evidence, support, outcome, causal,
-general-benefit, product, policy, or execution claim follows.
+and [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184)
+are Completed at `d5fba752e2c994c9a4823df7944ba5954b1e13c2` for deterministic
+re-entry perturbation/reset fixture and evaluator mechanics only. The initial
+ACGC-E2 attempt authorized by [Issue
+#185](https://github.com/hynk-studio/augnes-perspective-lab/issues/185) is
+terminal incomplete and retained only as the open/Draft/unmerged historical
+HOLD in [PR
+#186](https://github.com/hynk-studio/augnes-perspective-lab/pull/186). No ACGC-E2
+implementation or replacement cohort is Current. Provider-contract hardening,
+provider compatibility probes, and any replacement cohort require separate
+issues and explicit authorization.
 
 The supporting
 [post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
 records why matched re-entry perturbation/reset was the preferred first
-substantive evidence candidate. ACGC-E1 is its separately authorized
-deterministic mechanics slice; empirical cohort work remains a separate ACGC-E2
-candidate. Reconstructability
+substantive evidence candidate. ACGC-E1 is its completed deterministic
+mechanics slice; the historical E2 terminal attempt creates no behavioral
+result or successor authority. Reconstructability
 conformance and trajectory casebook work are lower-authority parallel evidence;
 reference-conditioned deviation, anomaly retention, bounded composition, and
-relational functional profiling remain evidence-gated. Stage 7 and an optional
-live-provider/repeated-benefit cohort require separate explicit authorization.
+relational functional profiling remain evidence-gated. Stage 7 remains
+unstarted, and any further live-provider/repeated-benefit cohort requires
+separate explicit authorization.
 
 C9, current-session attachment, Packet C, a second continuation hop,
 operational-policy activation, an active route pointer, automatic context
@@ -770,7 +812,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; the Stage 6 closeout merged at `cfcf0674ca682fd647fe166b23e47bcb511a62bf`. The Stage 5 exact result remains `inconclusive`, ACGC6A established route-contract/fallback readiness only, and ACGC6B selected no live operational policy for the current evidence state. Issue #181 / PR #182 completed the post-Stage-6 documentation reconciliation at `e937024643bdc0823c9b1baf3b35a2812ccb94a9`. [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183) / [Draft PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184) is Current while open for deterministic ACGC-E1 fixture/evaluator mechanics only; no real cohort has run and support, outcome, causal, and general-benefit claims remain unestablished. | ACGC-E2, Stage 7, live policy, automatic context injection, persistent actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, and auto-merge remain separately unauthorized. No active route pointer, automatic fallback/rollback, automatic Start/Resume, retry/scheduling, Packet C, second continuation, new authority, or default UI is added. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; the Stage 6 closeout merged at `cfcf0674ca682fd647fe166b23e47bcb511a62bf`. The Stage 5 exact result remains `inconclusive`, with historical actual-use, support, outcome, and causal lanes `unknown`; ACGC6A established route-contract/fallback readiness only, and ACGC6B selected no live operational policy. ACGC-E1 [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183) / [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184) completed deterministic matched re-entry perturbation/reset mechanics at `d5fba752e2c994c9a4823df7944ba5954b1e13c2`. The initial E2 attempt authorized by [Issue #185](https://github.com/hynk-studio/augnes-perspective-lab/issues/185) is terminal incomplete: the historical source head `123c5e31708a35c68be73b332d595bed9a9eea94` attempted `16/16` calls exactly once, all ended `provider_rejected` / `model_gateway_provider_rejected`, normalized outputs and valid E1 evaluations are `0`, all behavioral relations are `not_comparable`, conditioning/reset are `incomplete`, authorization is consumed, and exact cost is `unknown`, not zero. [Draft PR #186](https://github.com/hynk-studio/augnes-perspective-lab/pull/186) remains open/Draft/unmerged historical HOLD and is not canonical implementation. | The rejection cause is unclassified and creates no continuation, conditioning, reset, benefit, harm, model-quality, or provider-quality conclusion. No E2 implementation or replacement cohort is Current. Provider-contract hardening, compatibility probes, and any replacement cohort require separate issues and explicit authorization. Stage 7 remains unstarted; live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, and auto-merge remain separately unauthorized. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
