@@ -46,7 +46,7 @@ import {
 } from "@/lib/vnext/model-gateway/contracts";
 import {
   createOpenAIResponsesAdapterV01,
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
   OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import {
@@ -57,9 +57,16 @@ import {
   validateOperationalReentryMatchedCohortModelInputV01,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
 import {
+  OPENAI_STRICT_SCHEMA_MAX_NESTING_LEVELS_V01,
+  OPENAI_STRICT_SCHEMA_MAX_TOTAL_ENUM_VALUES_V01,
+  OPENAI_STRICT_SCHEMA_MAX_TOTAL_STRING_CHARACTERS_V01,
   OpenAIStrictSchemaSupportedSubsetErrorV01,
   validateOpenAIStrictSchemaSupportedSubsetV01,
 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
+import {
+  createDeterministicModelClientRequestIdV01,
+  createDeterministicModelProviderRequestTraceV01,
+} from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
   getOrCreateDefaultWorkspaceIdentityV01,
@@ -72,11 +79,17 @@ import type {
   OperationalReentryMatchedCohortModelInputV01,
   OperationalReentryMatchedCohortModelOutputV01,
 } from "@/types/vnext/operational-reentry-matched-cohort";
+import { OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03 } from "@/types/vnext/operational-reentry-matched-cohort";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-e2-cohort-"));
 const projectRoot = path.join(root, "project");
 const databasePath = path.join(root, "gateway.db");
 const sourceHead = "1234567890abcdef1234567890abcdef12345678";
+const providerRequestTraceId =
+  createDeterministicModelProviderRequestTraceV01({
+    request_family_kind: "cohort_attempt",
+    request_family_fingerprint: `sha256:${"b".repeat(64)}`,
+  });
 
 void main().finally(() => rmSync(root, { recursive: true, force: true })).catch((error) => {
   console.error("operational_reentry_matched_cohort_test_failed");
@@ -98,6 +111,7 @@ async function main() {
   verifyCallPlanAndParityV01();
   verifyStrictCodecAndProviderProjectionV01();
   verifyCorrectedSchemaBoundaryV02();
+  verifyClientRequestIdentityV03();
   await verifyOpenAICodecTransportV01();
   await verifyBoundedProviderRejectionDiagnosticsV02(admission);
   verifyPricingRefusalsV01(admission, route);
@@ -333,6 +347,106 @@ function verifyCorrectedSchemaBoundaryV02(): void {
       error.code === "openai_strict_schema_unsupported_keyword",
   );
 
+  assert.equal(OPENAI_STRICT_SCHEMA_MAX_NESTING_LEVELS_V01, 10);
+  assert.throws(
+    () =>
+      validateOpenAIStrictSchemaSupportedSubsetV01({
+        anyOf: [
+          {
+            type: "object",
+            properties: { value: { type: "string" } },
+            required: ["value"],
+            additionalProperties: false,
+          },
+        ],
+      }),
+    (error: unknown) =>
+      error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01 &&
+      error.schema_path === "$.anyOf",
+  );
+
+  const schemaAtLevelsV01 = (levels: number): Record<string, unknown> => {
+    let schema: Record<string, unknown> = { type: "string" };
+    for (let level = levels - 1; level >= 1; level -= 1) {
+      const propertyName = `level_${level + 1}`;
+      schema = {
+        type: "object",
+        properties: { [propertyName]: schema },
+        required: [propertyName],
+        additionalProperties: false,
+      };
+    }
+    return schema;
+  };
+  assert.doesNotThrow(() =>
+    validateOpenAIStrictSchemaSupportedSubsetV01(schemaAtLevelsV01(10)),
+  );
+  assert.throws(
+    () =>
+      validateOpenAIStrictSchemaSupportedSubsetV01(schemaAtLevelsV01(11)),
+    (error: unknown) =>
+      error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01 &&
+      error.code === "openai_strict_schema_malformed",
+  );
+
+  assert.equal(OPENAI_STRICT_SCHEMA_MAX_TOTAL_ENUM_VALUES_V01, 1_000);
+  const enumProperties: Record<string, unknown> = {};
+  const enumRequired: string[] = [];
+  let enumValueIndex = 0;
+  while (enumValueIndex <= OPENAI_STRICT_SCHEMA_MAX_TOTAL_ENUM_VALUES_V01) {
+    const propertyName = `enum_group_${enumRequired.length}`;
+    enumRequired.push(propertyName);
+    const values = Array.from(
+      {
+        length: Math.min(
+          128,
+          OPENAI_STRICT_SCHEMA_MAX_TOTAL_ENUM_VALUES_V01 + 1 -
+            enumValueIndex,
+        ),
+      },
+      () => `enum_value_${enumValueIndex++}`,
+    );
+    enumProperties[propertyName] = { type: "string", enum: values };
+  }
+  assert.throws(
+    () =>
+      validateOpenAIStrictSchemaSupportedSubsetV01({
+        type: "object",
+        properties: enumProperties,
+        required: enumRequired,
+        additionalProperties: false,
+      }),
+    (error: unknown) =>
+      error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01 &&
+      error.code === "openai_strict_schema_malformed",
+  );
+
+  assert.equal(
+    OPENAI_STRICT_SCHEMA_MAX_TOTAL_STRING_CHARACTERS_V01,
+    120_000,
+  );
+  assert.throws(
+    () =>
+      validateOpenAIStrictSchemaSupportedSubsetV01({
+        type: "object",
+        properties: {
+          value: {
+            type: "string",
+            enum: [
+              "x".repeat(
+                OPENAI_STRICT_SCHEMA_MAX_TOTAL_STRING_CHARACTERS_V01 + 1,
+              ),
+            ],
+          },
+        },
+        required: ["value"],
+        additionalProperties: false,
+      }),
+    (error: unknown) =>
+      error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01 &&
+      error.code === "openai_strict_schema_malformed",
+  );
+
   const b = plan.entries.find((entry) => entry.arm === "B")!.model_input;
   const duplicate = outputForV01(b);
   duplicate.referenced_context_tokens = [
@@ -349,15 +463,85 @@ function verifyCorrectedSchemaBoundaryV02(): void {
   );
 }
 
+function verifyClientRequestIdentityV03(): void {
+  assert.equal(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+    "operational_reentry_matched_cohort_provider_contract.v0.3",
+  );
+  const requestFamilyFingerprint = `sha256:${"a".repeat(64)}`;
+  const cohortTrace = createDeterministicModelProviderRequestTraceV01({
+    request_family_kind: "cohort_attempt",
+    request_family_fingerprint: requestFamilyFingerprint,
+  });
+  assert.equal(
+    createDeterministicModelProviderRequestTraceV01({
+      request_family_kind: "cohort_attempt",
+      request_family_fingerprint: requestFamilyFingerprint,
+    }),
+    cohortTrace,
+  );
+  const callPlan = buildOperationalReentryMatchedCohortCallPlanV01();
+  const requestIds = callPlan.entries.map((entry) =>
+    createDeterministicModelClientRequestIdV01({
+      purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+      provider_request_trace_id: cohortTrace,
+      call_slot_id: entry.call_slot_id,
+      model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    }),
+  );
+  assert.equal(new Set(requestIds).size, 16);
+  for (const requestId of requestIds) {
+    assert.equal(
+      Array.from(requestId).every((character) => character.charCodeAt(0) <= 127),
+      true,
+    );
+    assert.ok(requestId.length <= 512);
+  }
+
+  const compatibilityProbeTrace =
+    createDeterministicModelProviderRequestTraceV01({
+      request_family_kind: "compatibility_probe",
+      request_family_fingerprint: requestFamilyFingerprint,
+    });
+  const replacementTrace = createDeterministicModelProviderRequestTraceV01({
+    request_family_kind: "replacement_cohort",
+    request_family_fingerprint: requestFamilyFingerprint,
+  });
+  const firstCallSlot = callPlan.entries[0]!.call_slot_id;
+  const requestIdForTraceV01 = (providerRequestTraceId: string) =>
+    createDeterministicModelClientRequestIdV01({
+      purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+      provider_request_trace_id: providerRequestTraceId,
+      call_slot_id: firstCallSlot,
+      model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    });
+  assert.notEqual(
+    requestIdForTraceV01(compatibilityProbeTrace),
+    requestIdForTraceV01(replacementTrace),
+  );
+  assert.notEqual(
+    requestIdForTraceV01(cohortTrace),
+    requestIdForTraceV01(compatibilityProbeTrace),
+  );
+  assert.equal(
+    requestIdForTraceV01(cohortTrace),
+    requestIdForTraceV01(cohortTrace),
+  );
+}
+
 async function verifyOpenAICodecTransportV01(): Promise<void> {
   const input = buildOperationalReentryMatchedCohortCallPlanV01().entries[0]!.model_input;
   let requestBody = "";
+  let clientRequestHeader: string | undefined;
   let egressMarks = 0;
   let inputBytes = 0;
+  let transportCalls = 0;
   const adapter = createOpenAIResponsesAdapterV01({
     environment: { OPENAI_API_KEY: "test-credential-never-persisted", OPENAI_MODEL: "ambient-model-must-not-route-e2" },
     transport: async (request) => {
+      transportCalls += 1;
       requestBody = request.body;
+      clientRequestHeader = request.headers["X-Client-Request-Id"];
       return {
         ok: true,
         status: 200,
@@ -387,7 +571,7 @@ async function verifyOpenAICodecTransportV01(): Promise<void> {
   );
   assert.equal(
     session.implementation_version,
-    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
   );
   const ordinarySession = await adapter.prepare(
     OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
@@ -412,29 +596,57 @@ async function verifyOpenAICodecTransportV01(): Promise<void> {
   );
   assert.equal(
     preparedRoute.adapter_implementation_version,
-    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
   );
   assert.match(preparedRoute.integrity_fingerprint, /^sha256:[0-9a-f]{64}$/u);
+  await assert.rejects(
+    session.invoke(
+      {
+        canonical_project_id:
+          "project:22222222-2222-4222-8222-222222222222",
+        ...input,
+      },
+      {
+        signal: new AbortController().signal,
+        budget: {
+          max_input_bytes: 12_288,
+          max_output_tokens: 256,
+          max_provider_calls: 1,
+        },
+        retention_class: "none",
+        mark_egress_attempted() { egressMarks += 1; },
+        report_input_bytes(bytes) { inputBytes = bytes; },
+      },
+    ),
+    /Model egress refused/,
+  );
+  assert.equal(egressMarks, 0);
+  assert.equal(transportCalls, 0);
   const result = await session.invoke(
     { canonical_project_id: "project:22222222-2222-4222-8222-222222222222", ...input },
     {
       signal: new AbortController().signal,
       budget: { max_input_bytes: 12_288, max_output_tokens: 256, max_provider_calls: 1 },
       retention_class: "none",
+      provider_request_trace_id: providerRequestTraceId,
       mark_egress_attempted() { egressMarks += 1; },
       report_input_bytes(bytes) { inputBytes = bytes; },
     },
   );
   assert.equal(result.purpose, OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01);
   assert.equal(egressMarks, 1);
+  assert.equal(transportCalls, 1);
   assert.ok(inputBytes > 0 && inputBytes <= 12_288);
   assert.equal(requestBody.includes("operational_reentry_matched_cohort"), true);
   assert.equal(requestBody.includes("evaluator_only"), false);
   assert.equal(requestBody.includes("aggregate_rules"), false);
   assert.equal(requestBody.includes("previous_response_id"), false);
+  assert.equal(requestBody.includes("acgc_trace_"), false);
   assert.equal(JSON.parse(requestBody).store, false);
   assert.equal(JSON.parse(requestBody).model, "gpt-4.1-mini-2025-04-14");
   assert.equal(requestBody.includes("uniqueItems"), false);
+  assert.match(clientRequestHeader ?? "", /^acgc_req_[0-9a-f]{40}$/u);
+  assert.ok((clientRequestHeader?.length ?? 513) <= 512);
 }
 
 async function verifyBoundedProviderRejectionDiagnosticsV02(
@@ -494,6 +706,7 @@ async function verifyBoundedProviderRejectionDiagnosticsV02(
             max_provider_calls: 1,
           },
           retention_class: "none",
+          provider_request_trace_id: providerRequestTraceId,
           mark_egress_attempted() {},
           report_input_bytes() {},
         },
@@ -564,6 +777,7 @@ async function verifyBoundedProviderRejectionDiagnosticsV02(
           max_provider_calls: 1,
         },
         retention_class: "none",
+        provider_request_trace_id: providerRequestTraceId,
         mark_egress_attempted() {},
         report_input_bytes() {},
       },
@@ -1120,6 +1334,16 @@ function verifyGatewayEnvelopeRefusalsV01(
     validateOperationalReentryMatchedCohortModelInvocationEnvelopeV01(envelope).purpose,
     OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
   );
+  assert.match(envelope.provider_request_trace_id, /^acgc_trace_[0-9a-f]{40}$/u);
+  const withoutRequestTrace = { ...envelope } as Record<string, unknown>;
+  delete withoutRequestTrace.provider_request_trace_id;
+  assert.throws(
+    () =>
+      validateOperationalReentryMatchedCohortModelInvocationEnvelopeV01(
+        withoutRequestTrace,
+      ),
+    /Model gateway invocation failed/,
+  );
   assert.throws(() => validateOperationalReentryMatchedCohortModelInvocationEnvelopeV01({
     ...envelope,
     execution_mode: "deterministic",
@@ -1268,6 +1492,10 @@ function fakeAdapterV01(
         model_ref: modelRefV01(),
         async invoke(input, lifecycle) {
           assert.equal(input.input_kind, OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01);
+          assert.match(
+            lifecycle.provider_request_trace_id ?? "",
+            /^acgc_trace_[0-9a-f]{40}$/u,
+          );
           lifecycle.report_input_bytes(1_024);
           lifecycle.mark_egress_attempted();
           const current = invocation++;
@@ -1362,6 +1590,11 @@ function envelopeV01(
   return {
     envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
     invocation_id: invocationId,
+    provider_request_trace_id:
+      createDeterministicModelProviderRequestTraceV01({
+        request_family_kind: "cohort_attempt",
+        request_family_fingerprint: built.manifest.integrity.fingerprint,
+      }),
     workspace_id: admission.workspace_id,
     project_id: admission.project_id,
     purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,

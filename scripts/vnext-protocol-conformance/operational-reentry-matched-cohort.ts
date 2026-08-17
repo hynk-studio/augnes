@@ -16,13 +16,18 @@ import {
   operationalReentryMatchedCohortResponseSchemaV02,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
 import {
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
   OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
+import {
+  createDeterministicModelClientRequestIdV01,
+  createDeterministicModelProviderRequestTraceV01,
+} from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import {
   OpenAIStrictSchemaSupportedSubsetErrorV01,
   validateOpenAIStrictSchemaSupportedSubsetV01,
 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
+import { OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03 } from "@/types/vnext/operational-reentry-matched-cohort";
 
 export function runOperationalReentryMatchedCohortConformanceV01() {
   const plan = buildOperationalReentryMatchedCohortCallPlanV01();
@@ -64,9 +69,27 @@ export function runOperationalReentryMatchedCohortConformanceV01() {
     "gpt-4.1-mini-2025-04-14",
   );
   assert.equal(
-    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
-    "openai_responses_operational_reentry_matched_cohort_adapter.v0.2",
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
+    "openai_responses_operational_reentry_matched_cohort_adapter.v0.3",
   );
+  assert.equal(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+    "operational_reentry_matched_cohort_provider_contract.v0.3",
+  );
+  const requestFamilyFingerprint = `sha256:${"c".repeat(64)}`;
+  const requestTrace = createDeterministicModelProviderRequestTraceV01({
+    request_family_kind: "cohort_attempt",
+    request_family_fingerprint: requestFamilyFingerprint,
+  });
+  const clientRequestIds = plan.entries.map((entry) =>
+    createDeterministicModelClientRequestIdV01({
+      purpose: "operational_reentry_matched_cohort",
+      provider_request_trace_id: requestTrace,
+      call_slot_id: entry.call_slot_id,
+      model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    }),
+  );
+  assert.equal(new Set(clientRequestIds).size, 16);
   const replacementLineage =
     buildOperationalReentryMatchedCohortReplacementLineageV02();
   assert.equal(replacementLineage.retry_of_historical_cohort, false);

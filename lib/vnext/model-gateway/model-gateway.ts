@@ -1023,7 +1023,7 @@ export function validateModelInvocationEnvelopeV01(
         "policy",
         "input",
       ],
-      ["project_root"],
+      ["project_root", "provider_request_trace_id"],
     );
     if (
       readOwn(record, "envelope_version") !==
@@ -1033,6 +1033,19 @@ export function validateModelInvocationEnvelopeV01(
     }
     const purpose = readOwn(record, "purpose");
     if (!isOneOf(purpose, MODEL_GATEWAY_PURPOSES_V01)) invalid();
+    const providerRequestTraceId = Object.hasOwn(
+      record,
+      "provider_request_trace_id",
+    )
+      ? requireSafeIdentifier(readOwn(record, "provider_request_trace_id"))
+      : null;
+    if (
+      (purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01) !==
+      (providerRequestTraceId !== null)
+    ) {
+      invalid();
+    }
     const invocationId = requireSafeIdentifier(readOwn(record, "invocation_id"));
     const workspaceId = requireCanonicalId(
       readOwn(record, "workspace_id"),
@@ -1143,7 +1156,12 @@ export function validateModelInvocationEnvelopeV01(
       ) invalid();
       const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
       validatePurposeInputSafety(purpose, purposeInput);
-      return { ...common, purpose, input: purposeInput };
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
     }
     if (
       purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
@@ -1448,6 +1466,13 @@ async function invokeLiveAdapter(
           signal: lifecycle.signal,
           budget: envelope.budget,
           retention_class: envelope.privacy.retention_class,
+          ...(envelope.purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+            ? {
+                provider_request_trace_id:
+                  envelope.provider_request_trace_id,
+              }
+            : {}),
           mark_egress_attempted() {
             lifecycle.throwIfStopped();
             if (egressAttempted) {

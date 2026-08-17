@@ -116,6 +116,8 @@ export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION
   "openai_responses_operational_reentry_matched_cohort_adapter.v0.1" as const;
 export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02 =
   "openai_responses_operational_reentry_matched_cohort_adapter.v0.2" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03 =
+  "openai_responses_operational_reentry_matched_cohort_adapter.v0.3" as const;
 export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02 =
   "gpt-4.1-mini-2025-04-14" as const;
 
@@ -293,15 +295,33 @@ export function createOpenAIResponsesAdapterV01(
               adapter_implementation_version: implementation.implementation_version,
             }),
           );
-          const clientRequestId = createDeterministicModelClientRequestIdV01({
-            purpose,
-            call_slot_id:
-              input.input_kind ===
+          let clientRequestId: string | null = null;
+          if (
+            purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+          ) {
+            if (
+              input.input_kind !==
               OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
-                ? input.invocation_context.call_slot_id
-                : null,
-            model,
-          });
+            ) {
+              adapterResponseInvalid();
+            }
+            if (!lifecycle.provider_request_trace_id) {
+              refuseModelEgress(
+                purpose,
+                "model_egress_payload_unsupported",
+                1,
+                0,
+              );
+            }
+            clientRequestId = createDeterministicModelClientRequestIdV01({
+              purpose,
+              provider_request_trace_id:
+                lifecycle.provider_request_trace_id,
+              call_slot_id: input.invocation_context.call_slot_id,
+              model,
+            });
+          }
           lifecycle.report_input_bytes(utf8ByteLength(requestBody));
           lifecycle.mark_egress_attempted();
 
@@ -313,7 +333,9 @@ export function createOpenAIResponsesAdapterV01(
               headers: {
                 Authorization: `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
-                "X-Client-Request-Id": clientRequestId,
+                ...(clientRequestId
+                  ? { "X-Client-Request-Id": clientRequestId }
+                  : {}),
               },
               body: requestBody,
               signal: lifecycle.signal,
@@ -381,7 +403,7 @@ export function createOpenAIResponsesAdapterV01(
                 http_status: response.status,
                 error_payload: errorPayload,
                 provider_request_id: providerRequestId,
-                client_request_id: clientRequestId,
+                client_request_id: clientRequestId!,
                 route_fingerprint: routeFingerprint,
                 request_fingerprint: requestFingerprint,
                 schema_fingerprint: schemaFingerprint,
@@ -608,7 +630,7 @@ function describeOpenAIImplementation(
       implementation_id:
         OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
       implementation_version:
-        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V02,
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
     };
   }
   if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {

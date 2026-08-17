@@ -15,6 +15,8 @@ export const OPERATIONAL_REENTRY_MATCHED_COHORT_CODEC_VERSION_V01 =
   "operational_reentry_matched_cohort_codec.v0.1" as const;
 export const OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02 =
   "operational_reentry_matched_cohort_provider_contract.v0.2" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03 =
+  "operational_reentry_matched_cohort_provider_contract.v0.3" as const;
 export const OPERATIONAL_REENTRY_MATCHED_COHORT_CODEC_VERSION_V02 =
   "operational_reentry_matched_cohort_codec.v0.2" as const;
 export const OPERATIONAL_REENTRY_MATCHED_COHORT_AUTHORIZATION_VERSION_V01 =

@@ -6,6 +6,15 @@ import {
 const SAFE_DIAGNOSTIC_TOKEN_V01 = /^[A-Za-z0-9:._/-]{1,160}$/u;
 const SHA256_V01 = /^sha256:[0-9a-f]{64}$/u;
 
+export const MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01 = [
+  "cohort_attempt",
+  "compatibility_probe",
+  "replacement_cohort",
+] as const;
+
+export type ModelProviderRequestFamilyKindV01 =
+  (typeof MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01)[number];
+
 export const MODEL_PROVIDER_REJECTION_OBSERVATION_VERSION_V01 =
   "model_provider_rejection_observation.v0.1" as const;
 
@@ -22,14 +31,41 @@ export interface ModelProviderRejectionObservationV01 {
   schema_fingerprint: string;
 }
 
+/**
+ * Creates a non-semantic trace for one sealed provider-request family. The
+ * caller must supply a fingerprint unique to that authorized attempt, probe,
+ * or replacement. Rebuilding the same sealed family remains deterministic.
+ */
+export function createDeterministicModelProviderRequestTraceV01(input: {
+  request_family_kind: ModelProviderRequestFamilyKindV01;
+  request_family_fingerprint: string;
+}): string {
+  if (
+    !MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01.includes(
+      input.request_family_kind,
+    ) ||
+    !SHA256_V01.test(input.request_family_fingerprint)
+  ) {
+    throw new Error("model_provider_request_trace_invalid");
+  }
+  return `acgc_trace_${protocolHashTokenV01(input)}`;
+}
+
 export function createDeterministicModelClientRequestIdV01(input: {
   purpose: string;
-  call_slot_id: string | null;
+  provider_request_trace_id: string;
+  call_slot_id: string;
   model: string;
 }): string {
-  return `acgc_${createProtocolSha256V01(
-    canonicalizeProtocolValueV01(input),
-  ).slice(0, 32)}`;
+  if (
+    !SAFE_DIAGNOSTIC_TOKEN_V01.test(input.purpose) ||
+    !SAFE_DIAGNOSTIC_TOKEN_V01.test(input.provider_request_trace_id) ||
+    !SAFE_DIAGNOSTIC_TOKEN_V01.test(input.call_slot_id) ||
+    !SAFE_DIAGNOSTIC_TOKEN_V01.test(input.model)
+  ) {
+    throw new Error("model_client_request_id_input_invalid");
+  }
+  return `acgc_req_${protocolHashTokenV01(input)}`;
 }
 
 export function projectModelProviderRejectionObservationV01(input: {
@@ -119,4 +155,11 @@ function isPlainRecordV01(value: unknown): value is Record<string, unknown> {
   }
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function protocolHashTokenV01(value: unknown): string {
+  return createProtocolSha256V01(canonicalizeProtocolValueV01(value)).slice(
+    "sha256:".length,
+    "sha256:".length + 40,
+  );
 }

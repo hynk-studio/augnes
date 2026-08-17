@@ -33,6 +33,7 @@ import {
   type OperationalReentryMatchedCohortModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import { createDeterministicModelProviderRequestTraceV01 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_AUTHORIZATION_VERSION_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_CALL_PLAN_VERSION_V01,
@@ -579,6 +580,11 @@ function buildEnvelopeV01(
   return {
     envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
     invocation_id: entry.call_slot_id,
+    provider_request_trace_id:
+      createDeterministicModelProviderRequestTraceV01({
+        request_family_kind: "cohort_attempt",
+        request_family_fingerprint: built.manifest.integrity.fingerprint,
+      }),
     workspace_id: admission.workspace_id,
     project_id: admission.project_id,
     purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,

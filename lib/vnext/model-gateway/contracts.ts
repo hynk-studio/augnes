@@ -133,6 +133,9 @@ interface ModelInvocationEnvelopeBaseV01 {
     path_flavor: "posix" | "win32";
     normalized_path: string;
   };
+  /** Transport-only trace identity. Runtime validation permits this only for
+   * the dedicated matched-cohort purpose. */
+  provider_request_trace_id?: string;
 }
 
 export interface ObserveModelInvocationEnvelopeV01
@@ -187,6 +190,7 @@ export interface GovernedActorLabModelInvocationEnvelopeV01
 export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV01
   extends ModelInvocationEnvelopeBaseV01 {
   purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
   input: OperationalReentryMatchedCohortModelInputV01;
 }
 
@@ -275,6 +279,7 @@ export interface ModelAdapterLifecycleV01 {
   signal: AbortSignal;
   budget: ModelGatewayBudgetV01;
   retention_class: "none";
+  provider_request_trace_id?: string;
   mark_egress_attempted(): void;
   report_input_bytes(bytes: number): void;
 }
