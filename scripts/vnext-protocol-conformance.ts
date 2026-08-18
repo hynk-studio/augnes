@@ -52,6 +52,7 @@ import { runModelHostSuccessionBenchmarkConformanceV01 } from "@/scripts/vnext-p
 import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-perturbation";
 import { runOperationalReentryMatchedCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort";
 import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
+import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -628,6 +629,8 @@ try {
     runOperationalReentryMatchedCohortConformanceV01();
   const operationalReentryProviderCompatibilityProbeSummary =
     runOperationalReentryProviderCompatibilityProbeConformanceV01();
+  const operationalReentryMatchedCohortReplacementSummary =
+    runOperationalReentryMatchedCohortReplacementConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -711,6 +714,8 @@ try {
           operationalReentryMatchedCohortSummary,
         operational_reentry_provider_compatibility_probe:
           operationalReentryProviderCompatibilityProbeSummary,
+        operational_reentry_matched_cohort_replacement:
+          operationalReentryMatchedCohortReplacementSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:

@@ -661,6 +661,14 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label:
+        "ACGC-E2R1H replacement matched-cohort harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-replacement.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },

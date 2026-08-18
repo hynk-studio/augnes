@@ -370,7 +370,7 @@ export async function runOperationalReentryMatchedCohortV01(
     try {
       await dependencies.assert_source_unchanged?.(entry);
     } catch {
-      const terminal = terminalV01({
+      const terminal = buildOperationalReentryMatchedCohortCallTerminalV01({
         entry,
         route: built.manifest.route,
         pricing: built.pricing,
@@ -398,7 +398,7 @@ export async function runOperationalReentryMatchedCohortV01(
           },
         },
       );
-      terminal = terminalV01({
+      terminal = buildOperationalReentryMatchedCohortCallTerminalV01({
         entry,
         route: built.manifest.route,
         pricing: built.pricing,
@@ -411,11 +411,11 @@ export async function runOperationalReentryMatchedCohortV01(
       const receipt = error instanceof ModelGatewayInvocationErrorV01
         ? error.receipt
         : null;
-      terminal = terminalV01({
+      terminal = buildOperationalReentryMatchedCohortCallTerminalV01({
         entry,
         route: built.manifest.route,
         pricing: built.pricing,
-        category: terminalCategoryV01(error),
+        category: classifyOperationalReentryMatchedCohortTerminalV01(error),
         receipt,
         output: null,
         failureCode:
@@ -431,7 +431,7 @@ export async function runOperationalReentryMatchedCohortV01(
     calls.push(terminal);
     await dependencies.on_call_terminal?.(terminal);
     if (calls.length % 4 === 0) {
-      const block = evaluateBlockV01(
+      const block = evaluateOperationalReentryMatchedCohortBlockV01(
         (calls.length / 4 - 1) as OperationalReentryMatchedCohortBlockV01,
         calls.slice(calls.length - 4),
         built.rubric,
@@ -617,10 +617,18 @@ function buildEnvelopeV01(
   };
 }
 
-function terminalV01(input: {
+/** Shared frozen terminal projection for historical E2 and future replacements. */
+export function buildOperationalReentryMatchedCohortCallTerminalV01(input: {
   entry: OperationalReentryMatchedCohortCallPlanV01["entries"][number];
   route: OperationalReentryMatchedCohortRouteV01;
-  pricing: OperationalReentryMatchedCohortPricingV01;
+  pricing: Pick<
+    OperationalReentryMatchedCohortPricingV01,
+    | "input_nano_usd_per_token"
+    | "cached_input_nano_usd_per_token"
+    | "output_nano_usd_per_token"
+    | "gateway_cost_budget"
+    | "integrity"
+  >;
   category: OperationalReentryMatchedCohortTerminalCategoryV01;
   receipt: OperationalReentryMatchedCohortCallTerminalV01["receipt"];
   output: OperationalReentryMatchedCohortModelOutputV01 | null;
@@ -694,7 +702,10 @@ function terminalV01(input: {
   });
 }
 
-function terminalCategoryV01(error: unknown): OperationalReentryMatchedCohortTerminalCategoryV01 {
+/** Shared fail-closed terminal classification for the matched-cohort family. */
+export function classifyOperationalReentryMatchedCohortTerminalV01(
+  error: unknown,
+): OperationalReentryMatchedCohortTerminalCategoryV01 {
   if (!(error instanceof ModelGatewayInvocationErrorV01)) return "cohort_internal_failure";
   if (error.code === "model_gateway_provider_rejected") return "provider_rejected";
   if (error.code === "model_gateway_provider_response_invalid") return "provider_response_invalid";
@@ -704,7 +715,8 @@ function terminalCategoryV01(error: unknown): OperationalReentryMatchedCohortTer
   return "blocked_before_egress";
 }
 
-function evaluateBlockV01(
+/** Shared E1 mapping and deterministic rubric evaluation for one sealed block. */
+export function evaluateOperationalReentryMatchedCohortBlockV01(
   block: OperationalReentryMatchedCohortBlockV01,
   calls: OperationalReentryMatchedCohortCallTerminalV01[],
   rubric: OperationalReentryMatchedCohortRubricV01,
