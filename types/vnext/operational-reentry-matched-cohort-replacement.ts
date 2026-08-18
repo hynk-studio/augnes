@@ -109,6 +109,8 @@ export interface OperationalReentryMatchedCohortReplacementAuthorizationV01 {
   call_plan_fingerprint: string;
   route_fingerprint: string;
   provider_contract_fingerprint: string;
+  pricing_fingerprint: string;
+  pricing_snapshot_evaluated_at: string;
   pricing_authority_fingerprint: string;
   planned_calls: 16;
   repeat_blocks: 4;

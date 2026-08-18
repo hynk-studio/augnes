@@ -284,6 +284,61 @@ export function readOperationalReentryMatchedCohortReplacementCompatibilityGateV
   });
 }
 
+export function revalidateOperationalReentryMatchedCohortReplacementCompatibilityGateBeforeAttemptV01(
+  input: {
+    repository_root: string;
+    probe_run_root: string;
+    prepared: OperationalReentryMatchedCohortReplacementPreparedV01;
+  },
+  dependencies: Parameters<
+    typeof readOperationalReentryMatchedCohortReplacementCompatibilityGateV01
+  >[1] = {},
+): OperationalReentryMatchedCohortReplacementCompatibilityGateV01 {
+  const finalGate =
+    readOperationalReentryMatchedCohortReplacementCompatibilityGateV01(
+      {
+        repository_root: input.repository_root,
+        probe_run_root: input.probe_run_root,
+      },
+      dependencies,
+    );
+  if (
+    canonicalizeProtocolValueV01(finalGate) !==
+      canonicalizeProtocolValueV01(input.prepared.compatibility_gate) ||
+    finalGate.integrity.fingerprint !==
+      input.prepared.authorization.compatibility_gate_fingerprint ||
+    finalGate.integrity.fingerprint !==
+      input.prepared.manifest.compatibility_gate_fingerprint ||
+    finalGate.report_fingerprint !==
+      input.prepared.lineage.compatibility_report_fingerprint ||
+    finalGate.artifact_index_fingerprint !==
+      input.prepared.lineage.compatibility_artifact_index_fingerprint
+  ) {
+    failV01("operational_reentry_replacement_final_compatibility_gate_changed");
+  }
+  return finalGate;
+}
+
+export function assertOperationalReentryMatchedCohortReplacementAggregateCostWithinCeilingV01(
+  input: {
+    aggregate_worst_case_cost_nano_usd: number;
+    maximum_total_cost_nano_usd: number;
+  },
+): void {
+  if (
+    !Number.isSafeInteger(input.aggregate_worst_case_cost_nano_usd) ||
+    input.aggregate_worst_case_cost_nano_usd < 0 ||
+    !Number.isSafeInteger(input.maximum_total_cost_nano_usd) ||
+    input.maximum_total_cost_nano_usd < 0 ||
+    input.aggregate_worst_case_cost_nano_usd >
+      input.maximum_total_cost_nano_usd ||
+    input.maximum_total_cost_nano_usd >
+      ACGC_E2R1_AGGREGATE_COST_CEILING_NANO_USD_V01
+  ) {
+    failV01("operational_reentry_replacement_aggregate_cost_exceeded");
+  }
+}
+
 export function buildOperationalReentryMatchedCohortReplacementPricingV01(
   input: {
     admission: ModelGatewayInteractiveAdmissionV01;
@@ -311,13 +366,13 @@ export function buildOperationalReentryMatchedCohortReplacementPricingV01(
   });
   assertModelGatewayCostBudgetCurrentV01(budget, input.evaluated_at);
   const aggregateWorstCase = budget.calculated_worst_case_cost * 16;
-  if (
-    !Number.isSafeInteger(aggregateWorstCase) ||
-    aggregateWorstCase >
-      ACGC_E2R1_AGGREGATE_COST_CEILING_NANO_USD_V01
-  ) {
-    failV01("operational_reentry_replacement_aggregate_cost_exceeded");
-  }
+  assertOperationalReentryMatchedCohortReplacementAggregateCostWithinCeilingV01(
+    {
+      aggregate_worst_case_cost_nano_usd: aggregateWorstCase,
+      maximum_total_cost_nano_usd:
+        ACGC_E2R1_AGGREGATE_COST_CEILING_NANO_USD_V01,
+    },
+  );
   return sealV01("replacement_pricing_without_integrity_fingerprint", {
     pricing_version:
       OPERATIONAL_REENTRY_MATCHED_COHORT_REPLACEMENT_PRICING_VERSION_V01,
@@ -381,6 +436,7 @@ export function buildOperationalReentryMatchedCohortReplacementAuthorizationExpe
     provider_contract_fingerprint:
       providerContract.integrity.fingerprint,
     pricing_fingerprint: pricing.integrity.fingerprint,
+    pricing_snapshot_evaluated_at: pricing.evaluated_at,
     pricing_authority_fingerprint:
       pricing.gateway_cost_budget.authority.pricing_fingerprint,
     pricing_expires_at: pricing.pricing_expires_at,
@@ -422,6 +478,8 @@ export function validateOperationalReentryMatchedCohortReplacementAuthorizationV
     "call_plan_fingerprint",
     "route_fingerprint",
     "provider_contract_fingerprint",
+    "pricing_fingerprint",
+    "pricing_snapshot_evaluated_at",
     "pricing_authority_fingerprint",
     "planned_calls",
     "repeat_blocks",
@@ -447,10 +505,18 @@ export function validateOperationalReentryMatchedCohortReplacementAuthorizationV
     value,
   ) as unknown as OperationalReentryMatchedCohortReplacementAuthorizationV01;
   assertSealedV01(authorization);
+  const pricingSnapshotEvaluatedAt = timestampV01(
+    authorization.pricing_snapshot_evaluated_at,
+  );
   const expectations =
     buildOperationalReentryMatchedCohortReplacementAuthorizationExpectationsV01(
-      input,
+      {
+        ...input,
+        evaluated_at: authorization.pricing_snapshot_evaluated_at,
+      },
     );
+  const currentPricing =
+    buildOperationalReentryMatchedCohortReplacementPricingV01(input);
   const issuedAt = timestampV01(authorization.issued_at);
   const expiresAt = timestampV01(authorization.expires_at);
   const evaluatedAt = timestampV01(input.evaluated_at);
@@ -487,8 +553,13 @@ export function validateOperationalReentryMatchedCohortReplacementAuthorizationV
     authorization.route_fingerprint !== expectations.route_fingerprint ||
     authorization.provider_contract_fingerprint !==
       expectations.provider_contract_fingerprint ||
+    authorization.pricing_fingerprint !== expectations.pricing_fingerprint ||
+    authorization.pricing_snapshot_evaluated_at !==
+      expectations.pricing_snapshot_evaluated_at ||
     authorization.pricing_authority_fingerprint !==
       expectations.pricing_authority_fingerprint ||
+    authorization.pricing_authority_fingerprint !==
+      currentPricing.gateway_cost_budget.authority.pricing_fingerprint ||
     authorization.planned_calls !== 16 ||
     authorization.repeat_blocks !== 4 ||
     authorization.calls_per_arm !== 4 ||
@@ -508,8 +579,7 @@ export function validateOperationalReentryMatchedCohortReplacementAuthorizationV
     authorization.stage_7_authorized !== false ||
     authorization.maximum_total_cost_nano_usd !==
       ACGC_E2R1_AGGREGATE_COST_CEILING_NANO_USD_V01 ||
-    expectations.aggregate_worst_case_cost_nano_usd >
-      authorization.maximum_total_cost_nano_usd ||
+    pricingSnapshotEvaluatedAt > issuedAt ||
     issuedAt >= expiresAt ||
     expiresAt - issuedAt > 2 * 60 * 60 * 1000 ||
     evaluatedAt < issuedAt ||
@@ -518,6 +588,22 @@ export function validateOperationalReentryMatchedCohortReplacementAuthorizationV
   ) {
     failV01("operational_reentry_replacement_authorization_mismatched");
   }
+  assertOperationalReentryMatchedCohortReplacementAggregateCostWithinCeilingV01(
+    {
+      aggregate_worst_case_cost_nano_usd:
+        expectations.aggregate_worst_case_cost_nano_usd,
+      maximum_total_cost_nano_usd:
+        authorization.maximum_total_cost_nano_usd,
+    },
+  );
+  assertOperationalReentryMatchedCohortReplacementAggregateCostWithinCeilingV01(
+    {
+      aggregate_worst_case_cost_nano_usd:
+        currentPricing.aggregate_worst_case_cost_nano_usd,
+      maximum_total_cost_nano_usd:
+        authorization.maximum_total_cost_nano_usd,
+    },
+  );
   return authorization;
 }
 
@@ -544,7 +630,11 @@ export function buildOperationalReentryMatchedCohortReplacementV01(
       input.route,
     );
   const pricing = buildOperationalReentryMatchedCohortReplacementPricingV01(
-    input,
+    {
+      admission: input.admission,
+      route: input.route,
+      evaluated_at: authorization.pricing_snapshot_evaluated_at,
+    },
   );
   const replacementCohortId =
     `operational-reentry-replacement-cohort:${createProtocolSha256V01(
@@ -995,6 +1085,12 @@ function validatePreparedV01(
       prepared.call_plan.integrity.fingerprint ||
     prepared.manifest.pricing_fingerprint !==
       prepared.pricing.integrity.fingerprint ||
+    prepared.authorization.pricing_fingerprint !==
+      prepared.pricing.integrity.fingerprint ||
+    prepared.authorization.pricing_snapshot_evaluated_at !==
+      prepared.pricing.evaluated_at ||
+    prepared.authorization.pricing_authority_fingerprint !==
+      prepared.pricing.gateway_cost_budget.authority.pricing_fingerprint ||
     prepared.manifest.provider_contract_fingerprint !==
       prepared.provider_contract.integrity.fingerprint ||
     prepared.manifest.request_family_kind !== "replacement_cohort" ||

@@ -12,6 +12,7 @@ import {
   ACGC_E2R1_AGGREGATE_COST_CEILING_NANO_USD_V01,
   buildOperationalReentryMatchedCohortReplacementV01,
   readOperationalReentryMatchedCohortReplacementCompatibilityGateV01,
+  revalidateOperationalReentryMatchedCohortReplacementCompatibilityGateBeforeAttemptV01,
   runOperationalReentryMatchedCohortReplacementV01,
 } from "@/lib/vnext/operational-reentry-matched-cohort-replacement";
 import {
@@ -102,10 +103,39 @@ async function main(): Promise<void> {
     failV01("operational_reentry_replacement_admission_changed");
   }
 
+  const finalCompatibilityGate =
+    revalidateOperationalReentryMatchedCohortReplacementCompatibilityGateBeforeAttemptV01(
+      {
+        repository_root: repositoryRoot,
+        probe_run_root: options.compatibility_probe_root,
+        prepared,
+      },
+    );
+  const finalEvaluatedAt = new Date().toISOString();
+  const finalPrepared = buildOperationalReentryMatchedCohortReplacementV01({
+    authorization,
+    admission: finalAdmission,
+    route,
+    compatibility_gate: finalCompatibilityGate,
+    evaluated_at: finalEvaluatedAt,
+  });
+  if (
+    finalPrepared.authorization.integrity.fingerprint !==
+      prepared.authorization.integrity.fingerprint ||
+    finalPrepared.manifest.integrity.fingerprint !==
+      prepared.manifest.integrity.fingerprint ||
+    finalPrepared.compatibility_gate.integrity.fingerprint !==
+      prepared.compatibility_gate.integrity.fingerprint ||
+    finalPrepared.pricing.integrity.fingerprint !==
+      prepared.pricing.integrity.fingerprint
+  ) {
+    failV01("operational_reentry_replacement_frozen_identity_changed");
+  }
+
   const journal =
     beginOperationalReentryMatchedCohortReplacementAttemptV01({
       repository_root: repositoryRoot,
-      prepared,
+      prepared: finalPrepared,
     });
   const cancellation = new AbortController();
   const cancel = () => cancellation.abort();
@@ -116,10 +146,10 @@ async function main(): Promise<void> {
       await runOperationalReentryMatchedCohortReplacementV01(
         {
           authorization,
-          admission,
+          admission: finalAdmission,
           route,
-          compatibility_gate: compatibilityGate,
-          evaluated_at: evaluatedAt,
+          compatibility_gate: finalCompatibilityGate,
+          evaluated_at: finalEvaluatedAt,
         },
         {
           cancellation_signal: cancellation.signal,
@@ -132,15 +162,15 @@ async function main(): Promise<void> {
           on_attempt_prepared(identity) {
             if (
               identity.manifest.integrity.fingerprint !==
-                prepared.manifest.integrity.fingerprint ||
+                finalPrepared.manifest.integrity.fingerprint ||
               identity.authorization.integrity.fingerprint !==
-                prepared.authorization.integrity.fingerprint ||
+                finalPrepared.authorization.integrity.fingerprint ||
               identity.compatibility_gate.integrity.fingerprint !==
-                prepared.compatibility_gate.integrity.fingerprint ||
+                finalPrepared.compatibility_gate.integrity.fingerprint ||
               identity.call_plan.integrity.fingerprint !==
-                prepared.call_plan.integrity.fingerprint ||
+                finalPrepared.call_plan.integrity.fingerprint ||
               identity.pricing.integrity.fingerprint !==
-                prepared.pricing.integrity.fingerprint
+                finalPrepared.pricing.integrity.fingerprint
             ) {
               failV01("operational_reentry_replacement_frozen_identity_changed");
             }
