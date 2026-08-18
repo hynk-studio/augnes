@@ -76,6 +76,15 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
 import {
+  buildOperationalReentryMatchedCohortSystemPromptV02,
+  operationalReentryMatchedCohortResponseSchemaV03,
+  projectOperationalReentryMatchedCohortModelMaterialV02,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V02,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V03,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec";
+import {
   OpenAIStrictSchemaSupportedSubsetErrorV01,
   validateOpenAIStrictSchemaSupportedSubsetV01,
 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
@@ -84,6 +93,10 @@ import {
   projectModelProviderRejectionObservationV01,
 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import type { OperationalReentryMatchedCohortModelInputV01 } from "@/types/vnext/operational-reentry-matched-cohort";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
+  type OperationalReentryMatchedCohortModelInputV02,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-2";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -186,6 +199,78 @@ export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01(
       "operational_reentry_matched_cohort_response_schema.v0.2" as const,
     parser_version:
       "operational_reentry_matched_cohort_parser.v0.1" as const,
+  };
+}
+
+export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
+  modelInput: OperationalReentryMatchedCohortModelInputV02,
+) {
+  const material =
+    projectOperationalReentryMatchedCohortModelMaterialV02(modelInput);
+  const schema = operationalReentryMatchedCohortResponseSchemaV03(modelInput);
+  validateOpenAIStrictSchemaSupportedSubsetV01(schema);
+  const requestBody = serializeModelEgressJson(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+    {
+      model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: buildOperationalReentryMatchedCohortSystemPromptV02(),
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: serializeModelEgressJson(
+                OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+                material,
+                OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.dynamicBytes,
+              ),
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "operational_reentry_matched_cohort_v02",
+          strict: true,
+          schema,
+        },
+      },
+      max_output_tokens:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens,
+      store: false,
+    },
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
+  );
+  return {
+    provider: "openai" as const,
+    model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    adapter_implementation_id:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
+    response_schema_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V03,
+    parser_version: OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V02,
+    request_body: requestBody,
+    request_fingerprint: createProtocolSha256V01(requestBody),
+    schema_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(schema),
+    ),
+    real_provider_calls: 0 as const,
+    compatibility_established: false as const,
+    separately_authorized_compatibility_probe_required: true as const,
   };
 }
 
