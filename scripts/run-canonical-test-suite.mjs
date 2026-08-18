@@ -653,6 +653,14 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
+      label:
+        "ACGC-E2P1 bounded provider compatibility probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
       label: "root runtime authority invariants",
       ...rootNode("scripts/smoke-authority-invariants.mjs"),
     },

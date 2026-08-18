@@ -83,6 +83,7 @@ import {
   createDeterministicModelClientRequestIdV01,
   projectModelProviderRejectionObservationV01,
 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
+import type { OperationalReentryMatchedCohortModelInputV01 } from "@/types/vnext/operational-reentry-matched-cohort";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -144,6 +145,48 @@ export interface OpenAIResponsesAdapterDependenciesV01 {
     Pick<NodeJS.ProcessEnv, "OPENAI_API_KEY" | "OPENAI_MODEL">
   >;
   transport?: OpenAIResponsesTransportV01;
+}
+
+export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01(
+  modelInput: OperationalReentryMatchedCohortModelInputV01,
+) {
+  const purpose =
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01;
+  const model =
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02;
+  const implementation = describeOpenAIImplementation(purpose);
+  const input = {
+    canonical_project_id: "project:00000000-0000-4000-8000-000000000000",
+    ...structuredClone(modelInput),
+  } as ModelAdapterInputV01;
+  const request = buildOpenAIResponsesRequestMaterialV01({
+    purpose,
+    codec: codecFor(input),
+    model,
+    implementation,
+    max_output_tokens:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.maxOutputTokens,
+    max_input_bytes:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+  });
+  return {
+    ...request,
+    provider: "openai" as const,
+    model,
+    adapter_implementation_id:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
+    provider_endpoint_fingerprint: createProtocolSha256V01(
+      OPENAI_RESPONSES_ENDPOINT_V01,
+    ),
+    strict_schema_supported_subset_version:
+      "openai_strict_schema_supported_subset.v0.1" as const,
+    response_schema_version:
+      "operational_reentry_matched_cohort_response_schema.v0.2" as const,
+    parser_version:
+      "operational_reentry_matched_cohort_parser.v0.1" as const,
+  };
 }
 
 export type OpenAILocalCapabilityStatusV01 =
@@ -236,65 +279,18 @@ export function createOpenAIResponsesAdapterV01(
         async invoke(input, lifecycle) {
           if (input.input_kind !== purpose) adapterResponseInvalid();
           const codec = codecFor(input);
-          try {
-            validateOpenAIStrictSchemaSupportedSubsetV01(codec.schema);
-          } catch (error) {
-            if (error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01) {
-              refuseModelEgress(
-                purpose,
-                "model_egress_payload_unsupported",
-                1,
-                0,
-              );
-            }
-            throw error;
-          }
-          const dynamicText = serializeModelEgressJson(
+          const request = buildOpenAIResponsesRequestMaterialV01({
             purpose,
-            codec.dynamic_material,
-            codec.dynamic_bytes,
-          );
-          assertModelEgressTextIsSafe(purpose, dynamicText);
-          const requestBody = serializeModelEgressJson(
-            purpose,
-            {
-              model: requireModelEgressText(purpose, model, 128),
-              input: [
-                {
-                  role: "system",
-                  content: [{ type: "input_text", text: codec.system_prompt }],
-                },
-                {
-                  role: "user",
-                  content: [{ type: "input_text", text: dynamicText }],
-                },
-              ],
-              text: {
-                format: {
-                  type: "json_schema",
-                  name: codec.schema_name,
-                  strict: true,
-                  schema: codec.schema,
-                },
-              },
-              max_output_tokens: lifecycle.budget.max_output_tokens,
-              store: false,
-            },
-            Math.min(codec.final_request_bytes, lifecycle.budget.max_input_bytes),
-          );
-          const schemaFingerprint = createProtocolSha256V01(
-            canonicalizeProtocolValueV01(codec.schema),
-          );
-          const requestFingerprint = createProtocolSha256V01(requestBody);
-          const routeFingerprint = createProtocolSha256V01(
-            canonicalizeProtocolValueV01({
-              purpose,
-              provider: "openai",
-              model,
-              adapter_implementation_id: implementation.implementation_id,
-              adapter_implementation_version: implementation.implementation_version,
-            }),
-          );
+            codec,
+            model,
+            implementation,
+            max_output_tokens: lifecycle.budget.max_output_tokens,
+            max_input_bytes: lifecycle.budget.max_input_bytes,
+          });
+          const requestBody = request.request_body;
+          const schemaFingerprint = request.schema_fingerprint;
+          const requestFingerprint = request.request_fingerprint;
+          const routeFingerprint = request.adapter_request_route_fingerprint;
           let clientRequestId: string | null = null;
           if (
             purpose ===
@@ -451,6 +447,82 @@ type PurposeCodec = {
     model: string,
   ): ModelAdapterInvocationResultV01;
 };
+
+function buildOpenAIResponsesRequestMaterialV01(input: {
+  purpose: ModelGatewayPurposeV01;
+  codec: PurposeCodec;
+  model: string;
+  implementation: ModelAdapterImplementationV01;
+  max_output_tokens: number;
+  max_input_bytes: number;
+}) {
+  try {
+    validateOpenAIStrictSchemaSupportedSubsetV01(input.codec.schema);
+  } catch (error) {
+    if (error instanceof OpenAIStrictSchemaSupportedSubsetErrorV01) {
+      refuseModelEgress(
+        input.purpose,
+        "model_egress_payload_unsupported",
+        1,
+        0,
+      );
+    }
+    throw error;
+  }
+  const dynamicText = serializeModelEgressJson(
+    input.purpose,
+    input.codec.dynamic_material,
+    input.codec.dynamic_bytes,
+  );
+  assertModelEgressTextIsSafe(input.purpose, dynamicText);
+  const requestBody = serializeModelEgressJson(
+    input.purpose,
+    {
+      model: requireModelEgressText(input.purpose, input.model, 128),
+      input: [
+        {
+          role: "system",
+          content: [
+            { type: "input_text", text: input.codec.system_prompt },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: dynamicText }],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: input.codec.schema_name,
+          strict: true,
+          schema: input.codec.schema,
+        },
+      },
+      max_output_tokens: input.max_output_tokens,
+      store: false,
+    },
+    Math.min(input.codec.final_request_bytes, input.max_input_bytes),
+  );
+  return {
+    request_body: requestBody,
+    request_fingerprint: createProtocolSha256V01(requestBody),
+    schema_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.codec.schema),
+    ),
+    adapter_request_route_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        purpose: input.purpose,
+        provider: "openai",
+        model: input.model,
+        adapter_implementation_id:
+          input.implementation.implementation_id,
+        adapter_implementation_version:
+          input.implementation.implementation_version,
+      }),
+    ),
+  };
+}
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
   if (
