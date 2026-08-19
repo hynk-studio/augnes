@@ -15,6 +15,7 @@ import {
   GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
   GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -78,6 +79,7 @@ import {
 import {
   buildOperationalReentryMatchedCohortSystemPromptV02,
   operationalReentryMatchedCohortResponseSchemaV03,
+  parseOperationalReentryMatchedCohortOutputV02,
   projectOperationalReentryMatchedCohortModelMaterialV02,
   OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
@@ -205,55 +207,29 @@ export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01(
 export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
   modelInput: OperationalReentryMatchedCohortModelInputV02,
 ) {
-  const material =
-    projectOperationalReentryMatchedCohortModelMaterialV02(modelInput);
-  const schema = operationalReentryMatchedCohortResponseSchemaV03(modelInput);
-  validateOpenAIStrictSchemaSupportedSubsetV01(schema);
-  const requestBody = serializeModelEgressJson(
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-    {
-      model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text: buildOperationalReentryMatchedCohortSystemPromptV02(),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: serializeModelEgressJson(
-                OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-                material,
-                OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.dynamicBytes,
-              ),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "operational_reentry_matched_cohort_v02",
-          strict: true,
-          schema,
-        },
-      },
-      max_output_tokens:
-        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens,
-      store: false,
-    },
-    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
-  );
+  const purpose =
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01;
+  const model =
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02;
+  const implementation = describeOpenAIImplementation(purpose);
+  const input = {
+    canonical_project_id: "project:00000000-0000-4000-8000-000000000000",
+    ...structuredClone(modelInput),
+  } as ModelAdapterInputV01;
+  const request = buildOpenAIResponsesRequestMaterialV01({
+    purpose,
+    codec: codecFor(input),
+    model,
+    implementation,
+    max_output_tokens:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens,
+    max_input_bytes:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
+  });
   return {
+    ...request,
     provider: "openai" as const,
-    model: OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    model,
     adapter_implementation_id:
       OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
     adapter_implementation_version:
@@ -263,11 +239,6 @@ export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
     response_schema_version:
       OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V03,
     parser_version: OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V02,
-    request_body: requestBody,
-    request_fingerprint: createProtocolSha256V01(requestBody),
-    schema_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(schema),
-    ),
     real_provider_calls: 0 as const,
     compatibility_established: false as const,
     separately_authorized_compatibility_probe_required: true as const,
@@ -338,7 +309,7 @@ export function createOpenAIResponsesAdapterV01(
       const apiKey = optionalConfigurationText(environment.OPENAI_API_KEY);
       if (!apiKey) return null;
       const model = requireModelIdentifier(
-        purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+        isOperationalReentryMatchedCohortPurposeV01(purpose)
           ? OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02
           : optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL,
       );
@@ -377,13 +348,12 @@ export function createOpenAIResponsesAdapterV01(
           const requestFingerprint = request.request_fingerprint;
           const routeFingerprint = request.adapter_request_route_fingerprint;
           let clientRequestId: string | null = null;
-          if (
-            purpose ===
-            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
-          ) {
+          if (isOperationalReentryMatchedCohortPurposeV01(purpose)) {
             if (
               input.input_kind !==
-              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+                OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 &&
+              input.input_kind !==
+                OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
             ) {
               adapterResponseInvalid();
             }
@@ -432,10 +402,7 @@ export function createOpenAIResponsesAdapterV01(
             adapterResponseInvalid();
           }
           if (!response.ok) {
-            if (
-              purpose !==
-              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
-            ) {
+            if (!isOperationalReentryMatchedCohortPurposeV01(purpose)) {
               throw new ModelGatewayAdapterFailureV01(
                 "adapter_provider_rejected",
               );
@@ -612,6 +579,38 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
   if (
     input.input_kind ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const { canonical_project_id: _authorizationProjectId, ...modelInput } =
+      input;
+    const material =
+      projectOperationalReentryMatchedCohortModelMaterialV02(modelInput);
+    return {
+      dynamic_material: material,
+      dynamic_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.dynamicBytes,
+      final_request_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
+      response_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.responseBytes,
+      system_prompt: buildOperationalReentryMatchedCohortSystemPromptV02(),
+      schema_name: "operational_reentry_matched_cohort_v02",
+      schema: operationalReentryMatchedCohortResponseSchemaV03(modelInput),
+      parse(outputText, usage) {
+        return {
+          purpose:
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseOperationalReentryMatchedCohortOutputV02(
+            outputText,
+            modelInput,
+          ),
+          usage,
+        };
+      },
+    };
+  }
+  if (
+    input.input_kind ===
     OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
   ) {
     const material = projectOperationalReentryMatchedCohortModelMaterialV01(input);
@@ -781,6 +780,17 @@ function describeOpenAIImplementation(
   purpose: ModelGatewayPurposeV01,
 ): ModelAdapterImplementationV01 {
   if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+    };
+  }
+  if (
     purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
   ) {
     return {
@@ -833,6 +843,16 @@ function describeOpenAIImplementation(
     implementation_id: OPENAI_RESPONSES_TEMPORAL_ADAPTER_ID_V01,
     implementation_version: OPENAI_RESPONSES_TEMPORAL_ADAPTER_VERSION_V01,
   };
+}
+
+function isOperationalReentryMatchedCohortPurposeV01(
+  purpose: ModelGatewayPurposeV01,
+): boolean {
+  return (
+    purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  );
 }
 
 async function sendOpenAIResponsesRequest(

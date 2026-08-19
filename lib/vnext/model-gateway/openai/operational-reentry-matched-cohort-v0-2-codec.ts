@@ -6,6 +6,7 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import { OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 } from "@/lib/vnext/model-gateway/contracts";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_CODEC_VERSION_V03,
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
@@ -15,7 +16,8 @@ import {
   type OperationalReentryMatchedCohortProviderContractV02,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-2";
 
-const PURPOSE = "operational_reentry_matched_cohort" as const;
+const PURPOSE =
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01;
 const INPUT_KIND = "operational_reentry_matched_cohort_v02" as const;
 const SAFE_TOKEN = /^[A-Za-z0-9:._-]{1,160}$/u;
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;

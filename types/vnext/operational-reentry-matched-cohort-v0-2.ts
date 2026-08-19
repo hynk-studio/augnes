@@ -5,6 +5,7 @@ import type {
   OperationalReentryMatchedCohortIntegrityV01,
   OperationalReentryMatchedCohortModelOutputV01,
 } from "./operational-reentry-matched-cohort";
+import type { ExternalRefV01 } from "./external-ref";
 
 export const OPERATIONAL_REENTRY_MATCHED_COHORT_VERSION_V02 =
   "operational_reentry_matched_cohort.v0.2" as const;
@@ -146,6 +147,18 @@ export interface OperationalReentryMatchedCohortModelOutputV02 {
     "uncertain"
   >;
   abstention: boolean;
+}
+
+export interface OperationalReentryMatchedCohortRouteV02 {
+  gateway_version: "model_gateway.v0.1";
+  purpose: "operational_reentry_matched_cohort_v02";
+  provider_ref: ExternalRefV01;
+  model_ref: ExternalRefV01;
+  adapter_implementation_id: "openai_responses.operational_reentry_matched_cohort";
+  adapter_implementation_version: "openai_responses_operational_reentry_matched_cohort_adapter.v0.4";
+  provider_contract_version: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02;
+  prepared_without_provider_egress: true;
+  integrity_fingerprint: string;
 }
 
 export interface OperationalReentryMatchedCohortCaseV02 {

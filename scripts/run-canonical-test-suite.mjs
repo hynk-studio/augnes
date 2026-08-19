@@ -654,6 +654,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2H clean-control v0.2 shared-Gateway harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-2.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2P1 bounded provider compatibility probe harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-provider-compatibility-probe.ts",

@@ -53,7 +53,8 @@ export type ModelInvocationReceiptPurposeV02 =
   | "strategic_advantage_transfer"
   | "guidebrief_interpretation"
   | "governed_actor_lab"
-  | "operational_reentry_matched_cohort";
+  | "operational_reentry_matched_cohort"
+  | "operational_reentry_matched_cohort_v02";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";

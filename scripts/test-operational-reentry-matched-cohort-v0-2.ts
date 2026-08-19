@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+
+import Database from "better-sqlite3";
 
 import { ModelEgressBoundaryError } from "@/lib/model-egress/bounded-model-payload";
 import {
@@ -36,13 +40,44 @@ import {
   projectOperationalReentryMatchedCohortModelMaterialV02,
   validateOperationalReentryMatchedCohortModelInputV02,
   OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec";
 import {
+  createOpenAIResponsesAdapterV01,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02,
+  type OpenAIResponsesTransportRequestV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
+import {
+  invokeOperationalReentryMatchedCohortModelGatewayV02,
+  prepareOperationalReentryMatchedCohortModelGatewayRouteV01,
+  prepareOperationalReentryMatchedCohortModelGatewayRouteV02,
+  validateOperationalReentryMatchedCohortModelInvocationEnvelopeV02,
+  type ModelGatewayInteractiveAdmissionV01,
+} from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+  ModelGatewayInvocationErrorV01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+} from "@/lib/vnext/model-gateway/contracts";
+import {
+  buildModelGatewayCostAuthorityV01,
+  buildModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import { createDeterministicModelProviderRequestTraceV01 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
+import {
+  getOrCreateCanonicalProjectForLocalRootV01,
+  getOrCreateDefaultWorkspaceIdentityV01,
+  normalizeLocalProjectRootRefV01,
+} from "@/lib/vnext/persistence/project-identity-registry";
+import { selectActiveProjectV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { validateOpenAIStrictSchemaSupportedSubsetV01 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
 import {
   canonicalizeProtocolValueV01,
+  createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import type {
   OperationalReentryMatchedCohortArmV02,
@@ -52,15 +87,22 @@ import type {
 const repositoryRoot = process.cwd();
 const originalFetch = globalThis.fetch;
 let fetchCalls = 0;
-globalThis.fetch = (async () => {
-  fetchCalls += 1;
-  throw new Error("v0.2 clean-control tests must not call fetch");
-}) as typeof fetch;
+void main().catch((error) => {
+  console.error("operational_reentry_matched_cohort_v02_test_failed");
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
 
-try {
+async function main(): Promise<void> {
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    throw new Error("v0.2 clean-control tests must not call fetch");
+  }) as typeof fetch;
+  try {
   testHistoricalIdentityPreservationV02();
   testCommonEvidenceIsolationV02();
   testProviderContractV02();
+  const gatewayProof = await testSharedModelGatewayPathV02();
   testCleanControlAdmissionV02();
   testRequiredCheckAndStatusComplianceV02();
   testPairwiseComparabilityV02();
@@ -96,11 +138,15 @@ try {
       reset_relation: cleanBlock.reset_relation,
       compatibility_probe_executed: false,
       behavioral_cohort_executed: false,
+      fake_transport_calls: gatewayProof.fake_transport_calls,
+      shared_gateway_purpose: gatewayProof.purpose,
+      shared_gateway_adapter_version: gatewayProof.adapter_version,
       real_provider_calls: 0,
     }),
   );
-} finally {
-  globalThis.fetch = originalFetch;
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 
 function testHistoricalIdentityPreservationV02(): void {
@@ -382,6 +428,452 @@ function testProviderContractV02(): void {
       ),
     /operational_reentry_matched_cohort_v02_output_invalid/,
   );
+}
+
+async function testSharedModelGatewayPathV02(): Promise<{
+  fake_transport_calls: 1;
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01;
+  adapter_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04;
+}> {
+  const root = mkdtempSync(path.join(tmpdir(), "augnes-e2r2h-gateway-v02-"));
+  const projectRoot = path.join(root, "project");
+  const databasePath = path.join(root, "gateway.db");
+  mkdirSync(projectRoot, { recursive: true });
+  const database = new Database(databasePath);
+  database.exec(
+    readFileSync(path.join(repositoryRoot, "lib/db/schema.sql"), "utf8"),
+  );
+  database.close();
+
+  try {
+    const admission = registerGatewayProjectV02(databasePath, projectRoot);
+    const plan = buildOperationalReentryMatchedCohortCallPlanV02();
+    const entry = plan.entries.find(
+      (candidate) => candidate.repeat_block === 0 && candidate.arm === "D",
+    )!;
+    const output = buildOperationalReentryMatchedCohortGoldenOutputV02("D");
+    const successRequests: OpenAIResponsesTransportRequestV01[] = [];
+    const successAdapter = createOpenAIResponsesAdapterV01({
+      environment: {
+        OPENAI_API_KEY: "test-credential-never-persisted",
+        OPENAI_MODEL: "ambient-model-must-not-route-e2-v02",
+      },
+      transport: async (request) => {
+        successRequests.push(request);
+        return completedProviderResponseV02(output);
+      },
+    });
+    const route = await prepareOperationalReentryMatchedCohortModelGatewayRouteV02({
+      adapter: successAdapter,
+    });
+    assert.ok(route);
+    assert.equal(
+      route.purpose,
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    );
+    assert.equal(route.provider_ref.external_id, "openai");
+    assert.equal(
+      route.model_ref.external_id,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    );
+    assert.equal(
+      route.adapter_implementation_version,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+    );
+    assert.equal(
+      route.provider_contract_version,
+      "operational_reentry_clean_control_matched_cohort_provider_contract.v0.2",
+    );
+
+    const envelope = gatewayEnvelopeV02({
+      admission,
+      route,
+      model_input: entry.model_input,
+    });
+    assert.doesNotThrow(() =>
+      validateOperationalReentryMatchedCohortModelInvocationEnvelopeV02(
+        envelope,
+      ),
+    );
+    const result = await invokeOperationalReentryMatchedCohortModelGatewayV02(
+      envelope,
+      gatewayDependenciesV02(databasePath, successAdapter, route),
+    );
+    assert.equal(successRequests.length, 1);
+    assert.deepEqual(result.output, output);
+    assert.equal(
+      result.model_invocation_receipt.purpose,
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    );
+    assert.equal(result.model_invocation_receipt.egress_attempted, true);
+    assert.equal(result.model_invocation_receipt.budget.provider_calls_used, 1);
+    assert.equal(
+      result.model_invocation_receipt.final_implementation_version,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+    );
+    assert.doesNotThrow(() =>
+      validateModelInvocationReceiptV02(result.model_invocation_receipt),
+    );
+
+    const actualRequest = successRequests[0]!;
+    const clientRequestId = actualRequest.headers["X-Client-Request-Id"];
+    assert.match(clientRequestId ?? "", /^acgc_req_[0-9a-f]{40}$/u);
+    assert.notEqual(clientRequestId, envelope.provider_request_trace_id);
+    assert.equal(
+      actualRequest.body.includes(envelope.provider_request_trace_id),
+      false,
+    );
+    const staticRequest =
+      projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
+        entry.model_input,
+      );
+    assert.equal(actualRequest.body, staticRequest.request_body);
+    assert.equal(
+      createProtocolSha256V01(actualRequest.body),
+      staticRequest.request_fingerprint,
+    );
+    const actualRequestRecord = JSON.parse(actualRequest.body) as {
+      model: string;
+      text: { format: { schema: unknown } };
+    };
+    assert.equal(
+      actualRequestRecord.model,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02,
+    );
+    assert.equal(
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(actualRequestRecord.text.format.schema),
+      ),
+      staticRequest.schema_fingerprint,
+    );
+
+    const historicalRoute =
+      await prepareOperationalReentryMatchedCohortModelGatewayRouteV01({
+        adapter: successAdapter,
+      });
+    assert.ok(historicalRoute);
+    assert.equal(
+      historicalRoute.purpose,
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+    );
+    assert.equal(
+      historicalRoute.adapter_implementation_version,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03,
+    );
+
+    const missingTrace = { ...envelope } as Record<string, unknown>;
+    delete missingTrace.provider_request_trace_id;
+    await assertGatewayFailureV02(
+      () =>
+        invokeOperationalReentryMatchedCohortModelGatewayV02(
+          missingTrace,
+          gatewayDependenciesV02(databasePath, successAdapter, route),
+        ),
+      "model_gateway_invalid_envelope",
+    );
+    assert.equal(successRequests.length, 1);
+
+    const invalidRequests: OpenAIResponsesTransportRequestV01[] = [];
+    const invalidAdapter = createOpenAIResponsesAdapterV01({
+      environment: { OPENAI_API_KEY: "test-credential-never-persisted" },
+      transport: async (request) => {
+        invalidRequests.push(request);
+        return completedProviderResponseV02({});
+      },
+    });
+    await assertGatewayFailureV02(
+      () =>
+        invokeOperationalReentryMatchedCohortModelGatewayV02(
+          envelope,
+          gatewayDependenciesV02(databasePath, invalidAdapter, route),
+        ),
+      "model_gateway_provider_response_invalid",
+      true,
+    );
+    assert.equal(invalidRequests.length, 1);
+
+    const rejectedRequests: OpenAIResponsesTransportRequestV01[] = [];
+    const rawProviderMessage = "raw-provider-message-must-not-persist";
+    const rejectedAdapter = createOpenAIResponsesAdapterV01({
+      environment: { OPENAI_API_KEY: "test-credential-never-persisted" },
+      transport: async (request) => {
+        rejectedRequests.push(request);
+        return {
+          ok: false,
+          status: 429,
+          headers: {
+            get(name) {
+              if (name === "x-request-id") return "req_v02_test_429";
+              return null;
+            },
+          },
+          async text() {
+            return JSON.stringify({
+              error: {
+                type: "rate_limit_error",
+                code: "synthetic_rate_limit",
+                param: "text.format.schema",
+                message: rawProviderMessage,
+              },
+            });
+          },
+          async json() {
+            throw new Error("text path expected");
+          },
+        };
+      },
+    });
+    const rejected = await captureGatewayFailureV02(() =>
+      invokeOperationalReentryMatchedCohortModelGatewayV02(
+        envelope,
+        gatewayDependenciesV02(databasePath, rejectedAdapter, route),
+      ),
+    );
+    assert.equal(rejected.code, "model_gateway_provider_rejected");
+    assert.equal(rejected.receipt?.egress_attempted, true);
+    assert.equal(
+      rejected.provider_rejection_observation?.http_status,
+      429,
+    );
+    assert.equal(
+      rejected.provider_rejection_observation?.error_type,
+      "rate_limit_error",
+    );
+    assert.equal(
+      rejected.provider_rejection_observation?.error_code,
+      "synthetic_rate_limit",
+    );
+    assert.equal(
+      rejected.provider_rejection_observation?.error_param,
+      "text.format.schema",
+    );
+    assert.equal(
+      JSON.stringify(rejected).includes(rawProviderMessage),
+      false,
+    );
+    assert.equal(rejectedRequests.length, 1);
+
+    const unsupportedSchemaMaterial = {
+      ...entry.model_input,
+      response_schema: { uniqueItems: true },
+    };
+    const unsupportedEnvelope = gatewayEnvelopeV02({
+      admission,
+      route,
+      model_input: unsupportedSchemaMaterial,
+    });
+    await assertGatewayFailureV02(
+      () =>
+        invokeOperationalReentryMatchedCohortModelGatewayV02(
+          unsupportedEnvelope,
+          gatewayDependenciesV02(databasePath, successAdapter, route),
+        ),
+      "model_gateway_invalid_envelope",
+    );
+    assert.equal(successRequests.length, 1);
+
+    return {
+      fake_transport_calls: 1,
+      purpose:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+      adapter_version:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04,
+    };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function completedProviderResponseV02(output: unknown) {
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        status: "completed",
+        output_text: JSON.stringify(output),
+        usage: {
+          input_tokens: 120,
+          cached_input_tokens: 0,
+          output_tokens: 40,
+          total_tokens: 160,
+        },
+      };
+    },
+  };
+}
+
+function registerGatewayProjectV02(
+  databasePath: string,
+  projectRoot: string,
+): ModelGatewayInteractiveAdmissionV01 {
+  const database = new Database(databasePath);
+  try {
+    const workspace = getOrCreateDefaultWorkspaceIdentityV01(database, {
+      create_uuid: () => "11111111-1111-4111-8111-111111111111",
+      now: () => "2026-08-19T00:00:00.000Z",
+    });
+    const localRoot = normalizeLocalProjectRootRefV01(projectRoot, {
+      base_path: path.parse(projectRoot).root,
+    });
+    const project = getOrCreateCanonicalProjectForLocalRootV01(
+      database,
+      {
+        workspace_id: workspace.workspace_id,
+        local_root: localRoot,
+        display_name: "e2r2h-v02-test-project",
+      },
+      {
+        create_uuid: () => "22222222-2222-4222-8222-222222222222",
+        now: () => "2026-08-19T00:00:01.000Z",
+      },
+    );
+    const active = selectActiveProjectV01(database, {
+      workspace_id: workspace.workspace_id,
+      project_id: project.project.project_id,
+      now: "2026-08-19T00:00:02.000Z",
+      expected_project_id: null,
+      expected_revision: null,
+    });
+    return {
+      workspace_id: workspace.workspace_id,
+      project_id: project.project.project_id,
+      expected_active_selection_revision: active.selection_revision,
+      project_root: {
+        path_flavor: localRoot.path_flavor,
+        normalized_path: localRoot.normalized_path,
+      },
+      gateway_authorization_project_is_lab_experiment_meaning: false,
+    };
+  } finally {
+    database.close();
+  }
+}
+
+function gatewayEnvelopeV02(input: {
+  admission: ModelGatewayInteractiveAdmissionV01;
+  route: NonNullable<
+    Awaited<ReturnType<typeof prepareOperationalReentryMatchedCohortModelGatewayRouteV02>>
+  >;
+  model_input: unknown;
+}) {
+  const evaluatedAt = "2026-08-19T00:01:00.000Z";
+  const authority = buildModelGatewayCostAuthorityV01({
+    authority_kind: "provider_model_pricing_snapshot",
+    workspace_id: input.admission.workspace_id,
+    project_id: input.admission.project_id,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: input.route.provider_ref,
+    model_ref: input.route.model_ref,
+    cost_unit: "nano_usd",
+    input_rate: { unit: "utf8_byte", cost_per_unit: 400 },
+    output_rate: { unit: "token", cost_per_unit: 1_600 },
+    pricing_source_version: "synthetic_test_pricing_v02",
+    pricing_effective_at: "2026-08-18T00:00:00.000Z",
+    pricing_expires_at: "2026-08-20T00:00:00.000Z",
+    project_model_policy_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.route),
+    ),
+  });
+  const costBudget = buildModelGatewayCostBudgetV01({
+    authority,
+    workspace_id: input.admission.workspace_id,
+    project_id: input.admission.project_id,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: input.route.provider_ref,
+    model_ref: input.route.model_ref,
+    maximum_input_units:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
+    maximum_output_units:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens,
+    timeout_ms:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.timeoutMs,
+    maximum_permitted_cost: 25_000_000,
+    evaluated_at: evaluatedAt,
+  });
+  return {
+    envelope_version: MODEL_INVOCATION_ENVELOPE_VERSION_V01,
+    invocation_id: "e2r2h-v02-shared-gateway-test",
+    provider_request_trace_id:
+      createDeterministicModelProviderRequestTraceV01({
+        request_family_kind: "compatibility_probe",
+        request_family_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(input.model_input),
+        ),
+      }),
+    workspace_id: input.admission.workspace_id,
+    project_id: input.admission.project_id,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    data_classification: "public_safe" as const,
+    provenance_refs: [
+      operationalReentryMatchedCohortCaseFixtureV02.integrity.fingerprint,
+    ],
+    privacy: {
+      provider_egress: "allow" as const,
+      retention_class: "none" as const,
+    },
+    budget: {
+      max_input_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes,
+      max_output_tokens:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens,
+      max_provider_calls: 1 as const,
+      cost_budget: costBudget,
+    },
+    timeout_ms:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.timeoutMs,
+    cancellation: { signal: new AbortController().signal },
+    execution_mode: "live" as const,
+    policy: {
+      invocation_origin: "interactive" as const,
+      expected_active_project_id: input.admission.project_id,
+      expected_active_selection_revision:
+        input.admission.expected_active_selection_revision,
+    },
+    project_root: input.admission.project_root,
+    input: input.model_input,
+  };
+}
+
+function gatewayDependenciesV02(
+  databasePath: string,
+  adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>,
+  route: NonNullable<
+    Awaited<ReturnType<typeof prepareOperationalReentryMatchedCohortModelGatewayRouteV02>>
+  >,
+) {
+  return {
+    adapter,
+    expected_operational_reentry_matched_cohort_v02_route: route,
+    open_database: () => new Database(databasePath),
+    read_root_availability: async () => "available" as const,
+    now: () => new Date("2026-08-19T00:01:00.000Z"),
+  };
+}
+
+async function captureGatewayFailureV02(
+  run: () => Promise<unknown>,
+): Promise<ModelGatewayInvocationErrorV01> {
+  try {
+    await run();
+  } catch (error) {
+    assert.ok(error instanceof ModelGatewayInvocationErrorV01);
+    return error;
+  }
+  assert.fail("expected v0.2 Model Gateway invocation to fail");
+}
+
+async function assertGatewayFailureV02(
+  run: () => Promise<unknown>,
+  expectedCode: ModelGatewayInvocationErrorV01["code"],
+  egressAttempted = false,
+): Promise<void> {
+  const failure = await captureGatewayFailureV02(run);
+  assert.equal(failure.code, expectedCode);
+  assert.equal(failure.receipt?.egress_attempted ?? false, egressAttempted);
 }
 
 function testCleanControlAdmissionV02(): void {

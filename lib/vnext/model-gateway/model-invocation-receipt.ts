@@ -200,7 +200,8 @@ export function validateModelInvocationReceiptV02(
     if (
       (receipt.purpose === "strategic_advantage_transfer" ||
         receipt.purpose === "governed_actor_lab" ||
-        receipt.purpose === "operational_reentry_matched_cohort") &&
+        receipt.purpose === "operational_reentry_matched_cohort" ||
+        receipt.purpose === "operational_reentry_matched_cohort_v02") &&
       receipt.status === "completed" &&
       (typeof receipt.normalized_output_fingerprint !== "string" ||
         !/^sha256:[0-9a-f]{64}$/.test(
