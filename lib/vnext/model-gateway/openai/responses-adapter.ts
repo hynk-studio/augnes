@@ -16,6 +16,7 @@ import {
   GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -87,6 +88,14 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V03,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec";
 import {
+  buildOperationalReentryMatchedCohortSystemPromptV03,
+  operationalReentryMatchedCohortResponseSchemaV04,
+  parseOperationalReentryMatchedCohortOutputV03,
+  projectOperationalReentryMatchedCohortModelMaterialV03,
+  OperationalReentryMatchedCohortOutputInvalidErrorV03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec";
+import {
   OpenAIStrictSchemaSupportedSubsetErrorV01,
   validateOpenAIStrictSchemaSupportedSubsetV01,
 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
@@ -94,11 +103,24 @@ import {
   createDeterministicModelClientRequestIdV01,
   projectModelProviderRejectionObservationV01,
 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
+import {
+  projectModelProviderResponseInvalidObservationV01,
+  type ModelProviderIncompleteReasonV01,
+  type ModelProviderResponseInvalidStageV01,
+  type ModelProviderResponseStatusV01,
+} from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
 import type { OperationalReentryMatchedCohortModelInputV01 } from "@/types/vnext/operational-reentry-matched-cohort";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
   type OperationalReentryMatchedCohortModelInputV02,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-2";
+import {
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V04,
+  type OperationalReentryMatchedCohortModelInputV03,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -245,6 +267,48 @@ export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
   };
 }
 
+export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03(
+  modelInput: OperationalReentryMatchedCohortModelInputV03,
+) {
+  const purpose =
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01;
+  const model = OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02;
+  const implementation = describeOpenAIImplementation(purpose);
+  const input = {
+    canonical_project_id: "project:00000000-0000-4000-8000-000000000000",
+    ...structuredClone(modelInput),
+  } as ModelAdapterInputV01;
+  const request = buildOpenAIResponsesRequestMaterialV01({
+    purpose,
+    codec: codecFor(input),
+    model,
+    implementation,
+    max_output_tokens:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.maxOutputTokens,
+    max_input_bytes:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.finalRequestBytes,
+  });
+  return {
+    ...request,
+    provider: "openai" as const,
+    model,
+    adapter_implementation_id:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+    response_schema_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_RESPONSE_SCHEMA_VERSION_V04,
+    parser_version: OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V03,
+    real_provider_calls: 0 as const,
+    successor_live_authorizations_created: 0 as const,
+    successor_live_authorizations_consumed: 0 as const,
+    compatibility_result: "none" as const,
+    successor_live_probe_authorized: false as const,
+  };
+}
+
 export type OpenAILocalCapabilityStatusV01 =
   | "available"
   | "action_required"
@@ -353,7 +417,9 @@ export function createOpenAIResponsesAdapterV01(
               input.input_kind !==
                 OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 &&
               input.input_kind !==
-                OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+                OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 &&
+              input.input_kind !==
+                OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
             ) {
               adapterResponseInvalid();
             }
@@ -373,6 +439,33 @@ export function createOpenAIResponsesAdapterV01(
               model,
             });
           }
+          const responseInvalid = (
+            stage: ModelProviderResponseInvalidStageV01,
+            observation: {
+              provider_status?: unknown;
+              incomplete_reason?: unknown;
+              output_text_present: boolean;
+              provider_request_id?: unknown;
+            },
+          ): never => {
+            throw new ModelGatewayAdapterFailureV01(
+              "adapter_response_invalid",
+              null,
+              clientRequestId
+                ? projectModelProviderResponseInvalidObservationV01({
+                    stage,
+                    provider_status: observation.provider_status,
+                    incomplete_reason: observation.incomplete_reason,
+                    output_text_present: observation.output_text_present,
+                    provider_request_id: observation.provider_request_id,
+                    client_request_id: clientRequestId,
+                    route_fingerprint: routeFingerprint,
+                    request_fingerprint: requestFingerprint,
+                    schema_fingerprint: schemaFingerprint,
+                  })
+                : null,
+            );
+          };
           lifecycle.report_input_bytes(utf8ByteLength(requestBody));
           lifecycle.mark_egress_attempted();
 
@@ -399,7 +492,10 @@ export function createOpenAIResponsesAdapterV01(
             typeof response.ok !== "boolean" ||
             typeof response.status !== "number"
           ) {
-            adapterResponseInvalid();
+            responseInvalid("response_envelope_invalid", {
+              output_text_present: false,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
           }
           if (!response.ok) {
             if (!isOperationalReentryMatchedCohortPurposeV01(purpose)) {
@@ -463,21 +559,83 @@ export function createOpenAIResponsesAdapterV01(
           try {
             payload = await response.json();
           } catch {
-            adapterResponseInvalid();
+            responseInvalid("response_json_unreadable", {
+              output_text_present: false,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
           }
-
+          let record: Record<string, unknown> | null = null;
           try {
-            const record = requireProviderRecord(payload);
-            if (Object.hasOwn(record, "status") && record.status !== "completed") {
-              adapterResponseInvalid();
-            }
-            const outputText = extractOutputText(record);
-            if (!outputText) adapterResponseInvalid();
-            requireModelEgressText(purpose, outputText, codec.response_bytes);
-            return codec.parse(outputText, normalizeUsage(record.usage), model);
+            record = requireProviderRecord(payload);
+          } catch {
+            responseInvalid("response_envelope_invalid", {
+              output_text_present: false,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          if (record === null) {
+            return responseInvalid("response_envelope_invalid", {
+              output_text_present: false,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          if (
+            purpose ===
+              OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 &&
+            !Object.hasOwn(record, "status")
+          ) {
+            responseInvalid("response_envelope_invalid", {
+              output_text_present: extractOutputText(record) !== null,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          if (Object.hasOwn(record, "status") && record.status !== "completed") {
+            responseInvalid("response_status_not_completed", {
+              provider_status: boundedProviderStatusV01(record.status),
+              incomplete_reason: boundedIncompleteReasonV01(record),
+              output_text_present: extractOutputText(record) !== null,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          const outputText = extractOutputText(record);
+          if (!outputText) {
+            return responseInvalid("response_output_text_missing", {
+              provider_status: boundedProviderStatusV01(record.status),
+              output_text_present: false,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          if (utf8ByteLength(outputText) > codec.response_bytes) {
+            responseInvalid("response_output_text_out_of_bounds", {
+              provider_status: boundedProviderStatusV01(record.status),
+              output_text_present: true,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          let usage: ModelGatewayNormalizedUsageV01 | null = null;
+          try {
+            usage = normalizeUsage(record.usage);
+          } catch {
+            return responseInvalid("response_usage_invalid", {
+              provider_status: boundedProviderStatusV01(record.status),
+              output_text_present: true,
+              provider_request_id: readProviderRequestIdV01(response),
+            });
+          }
+          try {
+            return codec.parse(outputText, usage, model);
           } catch (error) {
             if (error instanceof ModelGatewayAdapterFailureV01) throw error;
-            adapterResponseInvalid();
+            return responseInvalid(
+              error instanceof OperationalReentryMatchedCohortOutputInvalidErrorV03
+                ? error.stage
+                : "response_other_invalid",
+              {
+                provider_status: boundedProviderStatusV01(record.status),
+                output_text_present: true,
+                provider_request_id: readProviderRequestIdV01(response),
+              },
+            );
           }
         },
       };
@@ -571,12 +729,54 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
           input.implementation.implementation_id,
         adapter_implementation_version:
           input.implementation.implementation_version,
+        ...(input.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+          ? {
+              provider_contract_version:
+                OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+              max_input_bytes: input.max_input_bytes,
+              max_output_tokens: input.max_output_tokens,
+              response_bytes: input.codec.response_bytes,
+            }
+          : {}),
       }),
     ),
   };
 }
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
+  if (
+    input.input_kind ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const { canonical_project_id: _authorizationProjectId, ...modelInput } =
+      input;
+    const material =
+      projectOperationalReentryMatchedCohortModelMaterialV03(modelInput);
+    return {
+      dynamic_material: material,
+      dynamic_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.dynamicBytes,
+      final_request_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.finalRequestBytes,
+      response_bytes:
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.responseBytes,
+      system_prompt: buildOperationalReentryMatchedCohortSystemPromptV03(),
+      schema_name: "operational_reentry_matched_cohort_v03",
+      schema: operationalReentryMatchedCohortResponseSchemaV04(modelInput),
+      parse(outputText, usage) {
+        return {
+          purpose:
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseOperationalReentryMatchedCohortOutputV03(
+            outputText,
+            modelInput,
+          ),
+          usage,
+        };
+      },
+    };
+  }
   if (
     input.input_kind ===
     OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
@@ -781,6 +981,17 @@ function describeOpenAIImplementation(
 ): ModelAdapterImplementationV01 {
   if (
     purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
+    };
+  }
+  if (
+    purpose ===
     OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
   ) {
     return {
@@ -851,7 +1062,9 @@ function isOperationalReentryMatchedCohortPurposeV01(
   return (
     purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose ===
-      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
   );
 }
 
@@ -945,6 +1158,40 @@ function requireModelIdentifier(value: string): string {
 
 function isValidModelIdentifier(value: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+}
+
+function readProviderRequestIdV01(
+  response: Pick<ModelTransportResponse, "headers">,
+): string | null {
+  try {
+    return (
+      response.headers?.get("x-request-id") ??
+      response.headers?.get("openai-request-id") ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function boundedProviderStatusV01(
+  value: unknown,
+): ModelProviderResponseStatusV01 | null {
+  if (value === undefined || value === null) return null;
+  return ["completed", "incomplete", "failed"].includes(value as string)
+    ? (value as ModelProviderResponseStatusV01)
+    : "unknown";
+}
+
+function boundedIncompleteReasonV01(
+  record: Record<string, unknown>,
+): ModelProviderIncompleteReasonV01 | null {
+  if (record.status !== "incomplete") return null;
+  if (!isProviderRecord(record.incomplete_details)) return "unknown";
+  const reason = record.incomplete_details.reason;
+  return ["max_output_tokens", "content_filter"].includes(reason as string)
+    ? (reason as ModelProviderIncompleteReasonV01)
+    : "unknown";
 }
 
 function adapterResponseInvalid(): never {

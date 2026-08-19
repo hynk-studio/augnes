@@ -54,7 +54,8 @@ export type ModelInvocationReceiptPurposeV02 =
   | "guidebrief_interpretation"
   | "governed_actor_lab"
   | "operational_reentry_matched_cohort"
-  | "operational_reentry_matched_cohort_v02";
+  | "operational_reentry_matched_cohort_v02"
+  | "operational_reentry_matched_cohort_v03";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";

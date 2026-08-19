@@ -567,6 +567,8 @@ truth:
 | ACGC-E2R2H | [#203](https://github.com/hynk-studio/augnes-perspective-lab/issues/203) | [PR #204](https://github.com/hynk-studio/augnes-perspective-lab/pull/204), `224da0e8` | Completed the zero-egress clean-control matched-cohort v0.2 harness at `224da0e8210396cd00854133094467265e48d29b`; it created no provider compatibility, behavioral cohort, replication, policy, or Stage 7 authority. |
 | ACGC-E2R2P1 | [#206](https://github.com/hynk-studio/augnes-perspective-lab/issues/206) | [PR #207](https://github.com/hynk-studio/augnes-perspective-lab/pull/207), `7d78b214` | Completed the zero-real-egress clean-control v0.2 provider compatibility-probe harness only, with live authorizations created/consumed `0/0` and no v0.2 compatibility result. |
 | ACGC-E2R2P2 | [#208](https://github.com/hynk-studio/augnes-perspective-lab/issues/208) | Reviewed bounded local run reconciled by [#209](https://github.com/hynk-studio/augnes-perspective-lab/issues/209) | Completed one authorization-consumed terminal probe at `7d78b214`: shape A ended `provider_response_invalid`, B/C/D were not attempted, v0.2 compatibility was not established, and the exact invalidity cause remains unknown. |
+| ACGC-E2R2P2 closeout | [#209](https://github.com/hynk-studio/augnes-perspective-lab/issues/209) | [PR #211](https://github.com/hynk-studio/augnes-perspective-lab/pull/211), `5ff369a5` | Completed the documentation-only lifecycle reconciliation at `5ff369a5068302aeae0b43aab77e5d389bfe7315` without changing the immutable Issue #208 result or creating successor authority. |
+| ACGC-E2R2P3H | [#212](https://github.com/hynk-studio/augnes-perspective-lab/issues/212) | [Draft PR #213](https://github.com/hynk-studio/augnes-perspective-lab/pull/213) | **Current while Draft only** for zero-real-egress response-invalid attribution and a parser-closed v0.3 provider contract; no successor compatibility result, live-probe harness, live authorization, or provider call exists. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1098,15 +1100,26 @@ support validation, outcome association, and causal contribution remain
 `unknown`, and its exact case remains `inconclusive`. Issue #205 remains a
 separate open Companion/runtime infrastructure investigation.
 
-The preferred next separately authorized candidate is zero-egress
-response-invalid diagnostic hardening only; it is not implemented or
-authorized here. Two code-review hypotheses deserve explicit audit without
-claiming either caused Issue #208: arrays are schema-bounded while uniqueness
-is enforced only by the local parser, and fresh-target
-disposition/reference/structure relations are parser-enforced while the
-provider-visible prompt/schema represents stale-target relations more
-explicitly. No new live probe is Current or authorized. A v0.2 behavioral
-cohort, v0.1 replication, policy work, and Stage 7 remain unauthorized.
+The documentation-only Issue #209 closeout merged through [PR
+#211](https://github.com/hynk-studio/augnes-perspective-lab/pull/211) at
+`5ff369a5068302aeae0b43aab77e5d389bfe7315`. It did not change the immutable
+Issue #208 result or classify its exact invalidity cause.
+
+ACGC-E2R2P3H [Issue
+#212](https://github.com/hynk-studio/augnes-perspective-lab/issues/212) and
+[Draft PR #213](https://github.com/hynk-studio/augnes-perspective-lab/pull/213)
+are **Current while Draft only** for the separately authorized zero-real-egress
+response-invalid diagnostic hardening and parser-closed v0.3 provider-contract
+slice. The design findings remain non-causal hypotheses about Issue #208:
+schema-bounded arrays did not express the uniqueness enforced by the v0.2
+parser, and fresh-target cross-field relations were parser-enforced but less
+explicit in provider-visible material than stale-target relations. Issue #208's
+exact cause remains unclassified. No successor compatibility result exists;
+the successor compatibility-probe harness and any successor live probe remain
+separately unauthorized. A behavioral cohort, v0.1 replication, policy work,
+and Stage 7 remain unauthorized. Issue #205 remains separate and open, and
+Draft PR #186 remains untouched historical HOLD. This Draft work grants no
+automatic execution, publication, Ready, merge, or auto-merge authority.
 
 The ACGC6B no-live-policy remains in force. No automatic context injection,
 fallback, rollback, Start, Resume, retry, scheduling, actor/winner/population
@@ -1226,9 +1239,16 @@ Completed as one authorization-consumed terminal probe: `4` shapes planned,
 `1` provider call attempted, `0` accepted/normalized, and `3` not attempted
 after shape A ended `provider_response_invalid`. V0.2 compatibility was not
 established and the exact invalidity cause remains unknown. No independent
-replication cohort or new live probe is Current or authorized. Zero-egress
-response-invalid diagnostic hardening is only the preferred next separately
-authorized candidate. A v0.2 behavioral cohort, v0.1 replication,
+replication cohort or new live probe is Current or authorized. The
+documentation-only [Issue
+#209](https://github.com/hynk-studio/augnes-perspective-lab/issues/209) / [PR
+#211](https://github.com/hynk-studio/augnes-perspective-lab/pull/211) closeout
+is Completed at `5ff369a5068302aeae0b43aab77e5d389bfe7315`. Zero-egress
+E2R2P3H [Issue
+#212](https://github.com/hynk-studio/augnes-perspective-lab/issues/212) / [Draft
+PR #213](https://github.com/hynk-studio/augnes-perspective-lab/pull/213) is
+Current while Draft only; no successor compatibility result or live-probe
+authority follows. A v0.2 behavioral cohort, v0.1 replication,
 reconstructability or trajectory work, policy work, and Stage 7 remain separate
 user decisions.
 
@@ -1370,6 +1390,11 @@ surface, or user experience.
 | Automation | Bounded current automation plus legacy autonomy/Autohunt compatibility and research. | Do not treat legacy autonomy surfaces as the current product spine. |
 | Arena, actor, challenger, and debate substrate | Productization and automatic promotion remain deferred. A separately authorized local/offline Lab experiment may begin only after shared ACGC attribution/evaluation prerequisites exist. | Lab selection is not `ReviewDecision`, actor-private memory is not product memory, and no actor/population result may write TaskContext, Personal/Project Perspective, Core state, execution authority, or external authority. |
 | Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
+
+For current sequencing, the ACGC summary row's earlier “preferred next”
+wording is historical pre-Issue-#212 context. E2R2P3H Issue #212 / Draft PR
+#213 is Current while Draft only for zero-real-egress hardening; no successor
+compatibility result or successor live-probe authority exists.
 
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,
