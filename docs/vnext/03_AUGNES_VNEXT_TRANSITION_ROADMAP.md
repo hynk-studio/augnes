@@ -563,6 +563,8 @@ truth:
 | ACGC-E2P2 | [#193](https://github.com/hynk-studio/augnes-perspective-lab/issues/193) | Reviewed local run reconciled by [#195](https://github.com/hynk-studio/augnes-perspective-lab/issues/195) | Completed exactly one bounded provider-compatibility probe at `838ea69a`: A/B/C/D were accepted and normalized, with no retry, replacement call, second probe, or behavioral conclusion. |
 | ACGC-E2R1H | [#197](https://github.com/hynk-studio/augnes-perspective-lab/issues/197) | [PR #198](https://github.com/hynk-studio/augnes-perspective-lab/pull/198), `86a1f0a4` | Completed the zero-egress, merge-first replacement behavioral cohort harness only, with live replacement authorizations created/consumed `0/0`, replacement provider calls `0`, and no behavioral result. |
 | ACGC-E2R1L | [#199](https://github.com/hynk-studio/augnes-perspective-lab/issues/199) | Reviewed bounded local run reconciled by [#200](https://github.com/hynk-studio/augnes-perspective-lab/issues/200) | Completed one authorization-consumed terminal-incomplete replacement cohort: `16` planned/attempted/terminal, `15` completed live, `1` provider-response-invalid, no missing slot, retry, replacement call, or second/further cohort, and canonical conditioning/reset both `incomplete`. |
+| ACGC-E2R1A | [#202](https://github.com/hynk-studio/augnes-perspective-lab/issues/202) | Reviewed zero-egress, read-only audit | Completed dimension-level attribution over the immutable Issue #199 artifacts: `required_check_disposition` hard-failed all 12 complete-block arm evaluations, A<B and C>A were each driven only by `appropriate_abstention`, and no clean control existed. |
+| ACGC-E2R2H | [#203](https://github.com/hynk-studio/augnes-perspective-lab/issues/203) | [Draft PR #204](https://github.com/hynk-studio/augnes-perspective-lab/pull/204) | **Current while Draft** only as the zero-egress clean-control matched-cohort v0.2 harness. It creates no provider compatibility, behavioral cohort, replication, policy, or Stage 7 authority. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -917,15 +919,46 @@ cause `unclassified`. Stage 5 actual use, support validation, outcome
 association, and causal contribution remain `unknown`; its exact-case result
 remains `inconclusive`.
 
-No independent replication cohort is Current or authorized. The preferred
-next separately authorized candidate is a zero-egress, read-only
-dimension-level failure attribution audit over the existing Issue #199 arm
-evaluations. Its future question is which exact frozen rubric dimensions
-failed per arm and produced A<B and C>A while every arm still had a hard
-failure. This reconciliation does not execute that audit. After a future audit
-is reviewed, replication, protocol correction, or movement to
-reconstructability conformance or trajectory casebook work remains a separate
-user decision.
+No independent replication cohort is Current or authorized. The zero-egress,
+read-only dimension-level failure attribution audit is now Completed under
+[Issue #202](https://github.com/hynk-studio/augnes-perspective-lab/issues/202).
+It found that `required_check_disposition` hard-failed all 12 complete-block
+arm evaluations, A<B and C>A were driven only by `appropriate_abstention`, and
+no clean control existed. E2R1L v0.1 remains terminal incomplete and immutable.
+
+### ACGC-E2R1A dimension-level failure attribution — Completed read-only
+
+[Issue #202](https://github.com/hynk-studio/augnes-perspective-lab/issues/202)
+completed a zero-egress, read-only audit over the already-final Issue #199
+artifact family. Across complete blocks 0, 1, and 3,
+`required_check_disposition` was the universal hard-failure dimension for all
+12 arm evaluations. A failed `appropriate_abstention` while B passed it in all
+three complete blocks, and C passed it while A failed it; those were the sole
+dimension deltas producing A<B and C>A. Neither relation came from
+hard-failure asymmetry. No arm was a clean control under the frozen v0.1
+rubric. The audit changed no source, artifact, authorization, issue, or PR and
+created no behavioral, causal, policy, replication, or Stage 7 authority.
+
+### ACGC-E2R2H clean-control matched-cohort v0.2 harness — Current while Draft
+
+[Issue #203](https://github.com/hynk-studio/augnes-perspective-lab/issues/203)
+and [Draft PR #204](https://github.com/hynk-studio/augnes-perspective-lab/pull/204)
+are **Current while Draft** only for a zero-egress corrected harness. The v0.2
+family separates common task evidence from continuation context, retains full
+task and required-check truth for the zero-continuation D arm, gives A/B/C/D
+identical common evidence, and separates target-invariant compliance, E1
+behavioral intervention effect, and bounded outcome quality. Deterministic
+golden A/B/C/D outputs can pass every target-invariant hard gate, so B and D
+are clean controls and no universal hard-failure dimension remains in the
+four-arm protocol-validation block. This is protocol validation, not
+behavioral evidence.
+
+The Issue #193 `accepted_all_shapes` result does not establish v0.2 provider
+compatibility. After E2R2H merges, a new separately authorized v0.2
+compatibility probe is required before any separately authorized v0.2 live
+behavioral cohort may be considered. That probe is not authorized or executed
+by Issue #203. A v0.2 live cohort, v0.1 replication, protocol/rubric correction
+beyond this harness, policy work, and Stage 7 remain unauthorized.
 
 The ACGC6B no-live-policy remains in force. Stage 7 remains unstarted and
 unauthorized. E2R1L creates no automatic context injection, fallback,
@@ -1028,15 +1061,21 @@ completed live, one C slot was `provider_response_invalid`, retries and
 replacement/further-cohort calls were `0`, and canonical conditioning/reset
 are `incomplete`.
 
-No independent replication cohort is Current or authorized. The preferred
-next separately authorized candidate is a zero-egress, read-only
-dimension-level failure attribution audit over the existing Issue #199
-`arm_evaluations[].dimensions`. Its future question is which exact rubric
-dimensions failed per arm and produced A<B and C>A while every arm in every
-complete block still had a hard failure. This roadmap reconciliation does not
-execute that audit. After a future audit, replication, bounded protocol/rubric
-correction with a new experimental lineage, or movement to reconstructability
-conformance or trajectory casebook work remains a separate user decision.
+ACGC-E2R1A [Issue
+#202](https://github.com/hynk-studio/augnes-perspective-lab/issues/202) is
+Completed as the zero-egress, read-only dimension audit recorded above. It
+found the universal `required_check_disposition` hard failure, the sole
+`appropriate_abstention` deltas behind A<B and C>A, and the absence of a clean
+control. ACGC-E2R2H [Issue
+#203](https://github.com/hynk-studio/augnes-perspective-lab/issues/203) / [Draft
+PR #204](https://github.com/hynk-studio/augnes-perspective-lab/pull/204) is
+**Current while Draft** only as the corrected zero-egress v0.2 harness. No
+independent replication cohort is Current or authorized. A new v0.2 provider
+compatibility probe remains separately unauthorized; only after that future
+probe succeeds may a separately authorized v0.2 live behavioral cohort be
+considered. V0.1 replication, additional protocol/rubric correction,
+reconstructability or trajectory work, policy work, and Stage 7 remain
+separate user decisions.
 
 The supporting
 [post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
@@ -1167,7 +1206,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; the Stage 6 closeout merged at `cfcf0674ca682fd647fe166b23e47bcb511a62bf`. The Stage 5 exact result remains `inconclusive`, with actual use, support validation, outcome association, and causal contribution all `unknown`; ACGC6A established route-contract/fallback readiness only, and ACGC6B selected no live operational policy. ACGC-E1 [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183) / [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184) completed deterministic matched re-entry perturbation/reset mechanics at `d5fba752e2c994c9a4823df7944ba5954b1e13c2`. The initial E2 attempt authorized by [Issue #185](https://github.com/hynk-studio/augnes-perspective-lab/issues/185) remains terminal incomplete at historical head `123c5e31708a35c68be73b332d595bed9a9eea94`: `16/16` calls were attempted exactly once, all 16 were `provider_rejected`, normalized outputs and valid E1 evaluations are `0`, all behavioral relations are `not_comparable`, conditioning/reset are `incomplete`, authorization is consumed, and the cause remains unclassified. [Draft PR #186](https://github.com/hynk-studio/augnes-perspective-lab/pull/186) remains open/Draft/unmerged historical HOLD. ACGC-E2H [Issue #189](https://github.com/hynk-studio/augnes-perspective-lab/issues/189) / [PR #190](https://github.com/hynk-studio/augnes-perspective-lab/pull/190) is Completed at `41fc71adfbdbe0ec0ad7de8395e79ce3f1f927e5`; ACGC-E2P1 [Issue #191](https://github.com/hynk-studio/augnes-perspective-lab/issues/191) / [PR #192](https://github.com/hynk-studio/augnes-perspective-lab/pull/192) is Completed at `838ea69ab61046706ba84643d864c59f4886d688`; E2P2A [Issue #194](https://github.com/hynk-studio/augnes-perspective-lab/issues/194) completed zero-egress local admission; E2P2 [Issue #193](https://github.com/hynk-studio/augnes-perspective-lab/issues/193) completed exactly one probe with `accepted_all_shapes` and `4/4` accepted and normalized; E2R1H [Issue #197](https://github.com/hynk-studio/augnes-perspective-lab/issues/197) / [PR #198](https://github.com/hynk-studio/augnes-perspective-lab/pull/198) completed the zero-egress replacement harness at `86a1f0a4f2c0f1f3993fc164fbadb9af43fa1e4f`; and E2R1L [Issue #199](https://github.com/hynk-studio/augnes-perspective-lab/issues/199) completed one authorization-consumed terminal-incomplete replacement cohort with `16` attempted/terminal, `15` completed live, one invalid C slot, no retry/replacement/further cohort, and canonical conditioning/reset `incomplete`. | E2P2 establishes provider-contract compatibility only and does not explain the historical failures or create any behavioral conclusion. E2R1H is harness implementation only. The E2R1L three-complete-block pattern is non-canonical review material and every arm had a hard failure; no replication cohort is Current or authorized. A zero-egress, read-only dimension-level failure attribution audit is only the preferred next separately authorized candidate. Stage 7 remains unstarted and unauthorized; live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, and auto-merge remain separately unauthorized. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; the Stage 6 closeout merged at `cfcf0674ca682fd647fe166b23e47bcb511a62bf`. The Stage 5 exact result remains `inconclusive`, with actual use, support validation, outcome association, and causal contribution all `unknown`; ACGC6A established route-contract/fallback readiness only, and ACGC6B selected no live operational policy. ACGC-E1 [Issue #183](https://github.com/hynk-studio/augnes-perspective-lab/issues/183) / [PR #184](https://github.com/hynk-studio/augnes-perspective-lab/pull/184) completed deterministic matched re-entry perturbation/reset mechanics at `d5fba752e2c994c9a4823df7944ba5954b1e13c2`. The initial E2 attempt authorized by [Issue #185](https://github.com/hynk-studio/augnes-perspective-lab/issues/185) remains terminal incomplete at historical head `123c5e31708a35c68be73b332d595bed9a9eea94`: `16/16` calls were attempted exactly once, all 16 were `provider_rejected`, normalized outputs and valid E1 evaluations are `0`, all behavioral relations are `not_comparable`, conditioning/reset are `incomplete`, authorization is consumed, and the cause remains unclassified. [Draft PR #186](https://github.com/hynk-studio/augnes-perspective-lab/pull/186) remains open/Draft/unmerged historical HOLD. ACGC-E2H [Issue #189](https://github.com/hynk-studio/augnes-perspective-lab/issues/189) / [PR #190](https://github.com/hynk-studio/augnes-perspective-lab/pull/190) is Completed at `41fc71adfbdbe0ec0ad7de8395e79ce3f1f927e5`; ACGC-E2P1 [Issue #191](https://github.com/hynk-studio/augnes-perspective-lab/issues/191) / [PR #192](https://github.com/hynk-studio/augnes-perspective-lab/pull/192) is Completed at `838ea69ab61046706ba84643d864c59f4886d688`; E2P2A [Issue #194](https://github.com/hynk-studio/augnes-perspective-lab/issues/194) completed zero-egress local admission; E2P2 [Issue #193](https://github.com/hynk-studio/augnes-perspective-lab/issues/193) completed exactly one probe with `accepted_all_shapes` and `4/4` accepted and normalized; E2R1H [Issue #197](https://github.com/hynk-studio/augnes-perspective-lab/issues/197) / [PR #198](https://github.com/hynk-studio/augnes-perspective-lab/pull/198) completed the zero-egress replacement harness at `86a1f0a4f2c0f1f3993fc164fbadb9af43fa1e4f`; E2R1L [Issue #199](https://github.com/hynk-studio/augnes-perspective-lab/issues/199) completed one authorization-consumed terminal-incomplete replacement cohort with `16` attempted/terminal, `15` completed live, one invalid C slot, no retry/replacement/further cohort, and canonical conditioning/reset `incomplete`; and E2R1A [Issue #202](https://github.com/hynk-studio/augnes-perspective-lab/issues/202) completed the read-only audit that found a universal `required_check_disposition` hard failure, sole `appropriate_abstention` deltas behind A<B/C>A, and no clean control. E2R2H [Issue #203](https://github.com/hynk-studio/augnes-perspective-lab/issues/203) / [Draft PR #204](https://github.com/hynk-studio/augnes-perspective-lab/pull/204) is Current only as a zero-egress corrected v0.2 harness. | E2P2 establishes v0.1 provider-contract compatibility only and does not explain historical failures or establish v0.2 compatibility. E2R1H is harness implementation only. E2R1L remains terminal incomplete and immutable; its three-complete-block pattern remains non-canonical review material. E2R2H is protocol validation only. A new v0.2 compatibility probe, a v0.2 live cohort, v0.1 replication, policy work, and Stage 7 remain unauthorized; live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, and auto-merge remain separately unauthorized. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |

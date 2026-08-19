@@ -20,6 +20,7 @@ const approvedTransportConfigurationOwner =
 const sharedGatewayOwner = "lib/vnext/model-gateway/model-gateway.ts";
 const approvedPurposeCodecOwners = new Set([
   "lib/vnext/model-gateway/openai/observe-codec.ts",
+  "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec.ts",
   "lib/vnext/model-gateway/openai/planner-codec.ts",
   "lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec.ts",
   "lib/vnext/model-gateway/openai/temporal-codec.ts",
@@ -122,7 +123,7 @@ const providerResponseShapePattern = /\boutput_text\b|["'`]json_schema["'`]/i;
 const providerRoleLayoutPattern =
   /\brole\s*:\s*["'`](?:system|developer|user)["'`][\s\S]{0,240}(?:input_text|json_schema)/i;
 const purposeCodecPattern =
-  /\b(?:build(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)SystemPrompt|parse(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)Output|project(?:Observe|Planner|Temporal|StrategicAdvantageTransfer)ModelMaterial|(?:observe|planner|temporal|strategicAdvantageTransfer)ResponseSchema)\b/;
+  /\b(?:build(?:Observe|OperationalReentryMatchedCohort|Planner|Temporal|StrategicAdvantageTransfer)SystemPrompt|parse(?:Observe|OperationalReentryMatchedCohort|Planner|Temporal|StrategicAdvantageTransfer)Output|project(?:Observe|OperationalReentryMatchedCohort|Planner|Temporal|StrategicAdvantageTransfer)ModelMaterial|(?:observe|operationalReentryMatchedCohort|planner|temporal|strategicAdvantageTransfer)ResponseSchema)\b/;
 const openAIBoundaryImportPattern =
   /(?:from\s*|require\s*\(\s*)["'`][^"'`]*model-gateway\/openai(?:\/[^"'`]*)?["'`]/;
 

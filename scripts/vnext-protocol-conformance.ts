@@ -51,6 +51,7 @@ import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol
 import { runModelHostSuccessionBenchmarkConformanceV01 } from "@/scripts/vnext-protocol-conformance/model-host-succession-benchmark";
 import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-perturbation";
 import { runOperationalReentryMatchedCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort";
+import { runOperationalReentryMatchedCohortConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-2";
 import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
 import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
@@ -627,6 +628,8 @@ try {
     runOperationalReentryPerturbationConformanceV01();
   const operationalReentryMatchedCohortSummary =
     runOperationalReentryMatchedCohortConformanceV01();
+  const operationalReentryMatchedCohortV02Summary =
+    runOperationalReentryMatchedCohortConformanceV02();
   const operationalReentryProviderCompatibilityProbeSummary =
     runOperationalReentryProviderCompatibilityProbeConformanceV01();
   const operationalReentryMatchedCohortReplacementSummary =
@@ -712,6 +715,8 @@ try {
           operationalReentryPerturbationSummary,
         operational_reentry_matched_cohort:
           operationalReentryMatchedCohortSummary,
+        operational_reentry_matched_cohort_v02:
+          operationalReentryMatchedCohortV02Summary,
         operational_reentry_provider_compatibility_probe:
           operationalReentryProviderCompatibilityProbeSummary,
         operational_reentry_matched_cohort_replacement:
