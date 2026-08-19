@@ -78,6 +78,7 @@ export function runOperationalReentryCleanControlProviderCompatibilityProbeConfo
     "compatibility_probe",
     "replacement_cohort",
     "clean_control_compatibility_probe",
+    "parser_closed_compatibility_probe",
   ]);
 
   const plan =
