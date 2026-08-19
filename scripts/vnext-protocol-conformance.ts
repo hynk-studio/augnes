@@ -53,6 +53,7 @@ import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext
 import { runOperationalReentryMatchedCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort";
 import { runOperationalReentryMatchedCohortConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-2";
 import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
+import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-clean-control-provider-compatibility-probe";
 import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
 const legacyAdapterSourcePath =
@@ -632,6 +633,8 @@ try {
     runOperationalReentryMatchedCohortConformanceV02();
   const operationalReentryProviderCompatibilityProbeSummary =
     runOperationalReentryProviderCompatibilityProbeConformanceV01();
+  const operationalReentryCleanControlProviderCompatibilityProbeSummary =
+    runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02();
   const operationalReentryMatchedCohortReplacementSummary =
     runOperationalReentryMatchedCohortReplacementConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
@@ -719,6 +722,8 @@ try {
           operationalReentryMatchedCohortV02Summary,
         operational_reentry_provider_compatibility_probe:
           operationalReentryProviderCompatibilityProbeSummary,
+        operational_reentry_clean_control_provider_compatibility_probe:
+          operationalReentryCleanControlProviderCompatibilityProbeSummary,
         operational_reentry_matched_cohort_replacement:
           operationalReentryMatchedCohortReplacementSummary,
         semantic_review_loop: semanticReviewLoopSummary,

@@ -2423,7 +2423,7 @@ function validatePurposeInput(
     OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
   ) {
     const validated = validateOperationalReentryMatchedCohortModelInputV02(record);
-    assertNoProviderControlFields(validated);
+    assertNoOperationalReentryMatchedCohortV02ProviderControlFields(validated);
     return validated;
   }
   if (purpose === OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
@@ -2708,6 +2708,35 @@ function assertNoProviderControlFields(value: unknown) {
     }
   };
   visit(cloned);
+}
+
+function assertNoOperationalReentryMatchedCohortV02ProviderControlFields(
+  value: unknown,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    value,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) {
+        invalid();
+      }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
 }
 
 function validateStrategicProfileBudget(budget: Record<string, unknown>): void {

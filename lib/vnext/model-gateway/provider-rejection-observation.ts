@@ -10,6 +10,7 @@ export const MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01 = [
   "cohort_attempt",
   "compatibility_probe",
   "replacement_cohort",
+  "clean_control_compatibility_probe",
 ] as const;
 
 export type ModelProviderRequestFamilyKindV01 =

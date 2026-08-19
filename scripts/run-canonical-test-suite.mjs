@@ -670,6 +670,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P1 clean-control v0.2 compatibility probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-clean-control-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2R1H replacement matched-cohort harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-matched-cohort-replacement.ts",
