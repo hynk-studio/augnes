@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+  existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -135,6 +137,7 @@ async function main(): Promise<void> {
   await verifyTerminalMappingsV02(admission);
   await verifyAuthorizationRefusalsV02(admission);
   await verifyArtifactSingleUseAndPrivacyV02(admission);
+  await verifyArtifactConsumptionWriteFailureFailsClosedV02(admission);
   verifyMergedMainPreflightV02();
   verifyStaticAuthorityAndNoBehaviorV02();
   assert.equal(fetchCalls, 0);
@@ -795,6 +798,127 @@ async function verifyArtifactSingleUseAndPrivacyV02(
       /clean_control_probe_artifact_/,
     );
   }
+}
+
+async function verifyArtifactConsumptionWriteFailureFailsClosedV02(
+  admission: ModelGatewayInteractiveAdmissionV01,
+): Promise<void> {
+  let prepared: OperationalReentryCleanControlProviderCompatibilityProbePreparedV02;
+  let partialTransportCalls = 0;
+  const adapter = adapterV02(async () => {
+    partialTransportCalls += 1;
+    const entry = prepared.plan.entries[partialTransportCalls - 1]!;
+    return acceptedResponseV02(
+      buildOperationalReentryMatchedCohortGoldenOutputV02(entry.shape),
+    );
+  });
+  const route = await routeV02(adapter);
+  const authorization = authorizationV02(
+    admission,
+    route,
+    "consumption-write-failure",
+  );
+  const buildInput = {
+    authorization,
+    admission,
+    route,
+    repository_identity: repositoryIdentity,
+    evaluated_at: evaluatedAt,
+  };
+  prepared =
+    buildOperationalReentryCleanControlProviderCompatibilityProbeV02(
+      buildInput,
+    );
+  const journal =
+    beginOperationalReentryCleanControlProviderCompatibilityProbeAttemptV02({
+      repository_root: projectRoot,
+      prepared,
+    });
+  const runLocalConsumptionPath = path.join(
+    journal.run_root,
+    "authorization-consumed.json",
+  );
+  mkdirSync(runLocalConsumptionPath);
+  const fakeTransportCallsBefore = fakeTransportCalls;
+  const result =
+    await runOperationalReentryCleanControlProviderCompatibilityProbeV02(
+      buildInput,
+      dependenciesV02(adapter, route, {
+        consume_authorization(consumption) {
+          journal.consume_authorization({
+            authorization_fingerprint:
+              consumption.authorization.integrity.fingerprint,
+            probe_id: consumption.probe_id,
+          });
+        },
+        on_shape_terminal(shape) {
+          journal.append_shape(shape);
+        },
+      }),
+    );
+  assert.equal(partialTransportCalls, 0);
+  assert.equal(fakeTransportCalls, fakeTransportCallsBefore);
+  assert.equal(result.report.authorization_consumed, false);
+  assert.equal(result.report.outcome, "transport_or_runtime_incomplete");
+  assert.equal(result.shapes[0]?.terminal_category, "transport_failed");
+  assert.equal(
+    result.shapes.filter(
+      (shape) =>
+        shape.terminal_category === "not_attempted_after_terminal_failure",
+    ).length,
+    3,
+  );
+
+  const familyRoot = path.join(
+    projectRoot,
+    ".augnes-lab",
+    "operational-reentry-clean-control-provider-probes",
+  );
+  const globalConsumptionPath = path.join(
+    familyRoot,
+    "authorization-consumptions",
+    `${authorization.integrity.fingerprint.replaceAll(":", "_")}.json`,
+  );
+  assert.equal(existsSync(globalConsumptionPath), true);
+  assert.equal(lstatSync(globalConsumptionPath).isFile(), true);
+  assert.equal(lstatSync(runLocalConsumptionPath).isDirectory(), true);
+  assert.equal(existsSync(path.join(journal.run_root, "report.json")), false);
+  assert.equal(
+    existsSync(path.join(journal.run_root, "artifact-index.json")),
+    false,
+  );
+  const partialTreeBefore = readTreeV02(journal.run_root);
+  const globalConsumptionBefore = readFileSync(globalConsumptionPath, "utf8");
+  assert.throws(
+    () => journal.finalize(result),
+    /clean_control_probe_authorization_consumption_history_incomplete/,
+  );
+  assert.throws(
+    () =>
+      validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02(
+        { repository_root: projectRoot, run_root: journal.run_root },
+      ),
+    /clean_control_probe_authorization_consumption_history_incomplete/,
+  );
+  assert.throws(
+    () =>
+      beginOperationalReentryCleanControlProviderCompatibilityProbeAttemptV02({
+        repository_root: projectRoot,
+        prepared,
+      }),
+    /clean_control_probe_authorization_global_collision_refused/,
+  );
+  assert.equal(readTreeV02(journal.run_root), partialTreeBefore);
+  assert.equal(
+    readFileSync(globalConsumptionPath, "utf8"),
+    globalConsumptionBefore,
+  );
+  assert.equal(existsSync(globalConsumptionPath), true);
+  assert.equal(existsSync(path.join(journal.run_root, "report.json")), false);
+  assert.equal(
+    existsSync(path.join(journal.run_root, "artifact-index.json")),
+    false,
+  );
 }
 
 function verifyMergedMainPreflightV02(): void {

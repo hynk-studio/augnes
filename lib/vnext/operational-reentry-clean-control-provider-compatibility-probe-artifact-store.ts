@@ -277,6 +277,13 @@ export function beginOperationalReentryCleanControlProviderCompatibilityProbeAtt
         validateOperationalReentryCleanControlProviderCompatibilityProbeExecutionResultV02(
           resultInput,
         );
+      const durableAuthorizationConsumed =
+        assertAuthorizationConsumptionHistoryCompleteV02({
+          repository_root: repositoryRoot,
+          run_root: runRoot,
+          authorization_fingerprint:
+            input.prepared.authorization.integrity.fingerprint,
+        });
       if (
         result.manifest.integrity.fingerprint !==
           input.prepared.manifest.integrity.fingerprint ||
@@ -288,7 +295,8 @@ export function beginOperationalReentryCleanControlProviderCompatibilityProbeAtt
           input.prepared.pricing.integrity.fingerprint ||
         result.shapes.length !== nextShape ||
         nextShape !== 4 ||
-        result.report.authorization_consumed !== consumed
+        durableAuthorizationConsumed !== consumed ||
+        result.report.authorization_consumed !== durableAuthorizationConsumed
       ) {
         failV02("clean_control_probe_artifact_finalize_mismatch");
       }
@@ -392,6 +400,13 @@ export function validateOperationalReentryCleanControlProviderCompatibilityProbe
   if (!relativeRunRoot.startsWith(PROBE_ARTIFACT_PREFIX_V02)) {
     failV02("clean_control_probe_artifact_root_invalid");
   }
+  const authorizationFingerprint = readAuthorizationFingerprintV02(runRoot);
+  const durableAuthorizationConsumed =
+    assertAuthorizationConsumptionHistoryCompleteV02({
+      repository_root: repositoryRoot,
+      run_root: runRoot,
+      authorization_fingerprint: authorizationFingerprint,
+    });
   const indexPath = path.join(runRoot, "artifact-index.json");
   if (!existsSync(indexPath)) {
     failV02("clean_control_probe_artifact_index_missing");
@@ -471,11 +486,27 @@ export function validateOperationalReentryCleanControlProviderCompatibilityProbe
   ) {
     failV02("clean_control_probe_artifact_index_invalid");
   }
-  const report = JSON.parse(
-    readFileSync(path.join(runRoot, "report.json"), "utf8"),
-  ) as { integrity: { fingerprint: string } };
+  let report: {
+    authorization_consumed: boolean;
+    integrity: { fingerprint: string };
+  };
+  try {
+    report = JSON.parse(
+      readFileSync(path.join(runRoot, "report.json"), "utf8"),
+    ) as typeof report;
+  } catch {
+    failV02("clean_control_probe_report_invalid");
+  }
   if (report.integrity.fingerprint !== index.report_fingerprint) {
     failV02("clean_control_probe_report_fingerprint_invalid");
+  }
+  if (
+    report.authorization_consumed !== durableAuthorizationConsumed ||
+    index.authorization_consumed !== durableAuthorizationConsumed
+  ) {
+    failV02(
+      "clean_control_probe_authorization_consumption_history_incomplete",
+    );
   }
   return {
     relative_run_root: relativeRunRoot,
@@ -625,6 +656,80 @@ function authorizationConsumptionPathV02(
   );
   assertContainedV02(repositoryRoot, target);
   return target;
+}
+
+function readAuthorizationFingerprintV02(runRoot: string): string {
+  const authorizationPath = path.join(runRoot, "authorization.json");
+  let authorization: { integrity?: { fingerprint?: unknown } };
+  try {
+    const stat = lstatSync(authorizationPath);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      failV02("clean_control_probe_artifact_authorization_invalid");
+    }
+    authorization = JSON.parse(
+      readFileSync(authorizationPath, "utf8"),
+    ) as typeof authorization;
+  } catch (error) {
+    if (
+      error instanceof
+      OperationalReentryCleanControlProviderCompatibilityProbeArtifactErrorV02
+    ) {
+      throw error;
+    }
+    failV02("clean_control_probe_artifact_authorization_invalid");
+  }
+  if (typeof authorization.integrity?.fingerprint !== "string") {
+    failV02("clean_control_probe_artifact_authorization_invalid");
+  }
+  return authorization.integrity.fingerprint;
+}
+
+function assertAuthorizationConsumptionHistoryCompleteV02(input: {
+  repository_root: string;
+  run_root: string;
+  authorization_fingerprint: string;
+}): boolean {
+  const globalMarker = readConsumptionRecordV02(
+    authorizationConsumptionPathV02(
+      input.repository_root,
+      input.authorization_fingerprint,
+    ),
+  );
+  const runLocalRecord = readConsumptionRecordV02(
+    path.join(input.run_root, "authorization-consumed.json"),
+  );
+  if (
+    (globalMarker === null) !== (runLocalRecord === null) ||
+    (globalMarker !== null && globalMarker !== runLocalRecord)
+  ) {
+    failV02(
+      "clean_control_probe_authorization_consumption_history_incomplete",
+    );
+  }
+  return globalMarker !== null;
+}
+
+function readConsumptionRecordV02(target: string): string | null {
+  if (!existsSync(target)) return null;
+  try {
+    const stat = lstatSync(target);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      failV02(
+        "clean_control_probe_authorization_consumption_history_incomplete",
+      );
+    }
+    return readFileSync(target, "utf8").trimEnd();
+  } catch (error) {
+    if (
+      error instanceof
+      OperationalReentryCleanControlProviderCompatibilityProbeArtifactErrorV02
+    ) {
+      throw error;
+    }
+    failV02(
+      "clean_control_probe_authorization_consumption_history_incomplete",
+    );
+  }
 }
 
 function assertAuthorizationNotPreviouslyConsumedV02(
