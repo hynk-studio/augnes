@@ -113,6 +113,7 @@ import {
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
   type OperationalReentryMatchedCohortModelInputV03,
+  type OperationalReentryMatchedCohortProviderContractV03,
   type OperationalReentryMatchedCohortRouteV03,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
 import { LOCAL_PROJECT_ROOT_REF_VERSION_V01 } from "@/types/vnext/project-identity";
@@ -131,6 +132,14 @@ export {
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03,
   validateOperationalReentryMatchedCohortModelInputV03,
 };
+
+/** Exposes the frozen v0.3 contract through the shared Gateway ownership boundary. */
+export function readOperationalReentryMatchedCohortProviderContractV03():
+  OperationalReentryMatchedCohortProviderContractV03 {
+  return structuredClone(
+    buildOperationalReentryMatchedCohortProviderContractV03(),
+  );
+}
 
 export function projectOperationalReentryMatchedCohortProviderRequestV01(
   input: OperationalReentryMatchedCohortModelInputV01,
