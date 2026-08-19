@@ -7,6 +7,7 @@ export const MODEL_EGRESS_PURPOSES = [
   "governed_actor_lab",
   "operational_reentry_matched_cohort",
   "operational_reentry_matched_cohort_v02",
+  "operational_reentry_matched_cohort_v03",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];

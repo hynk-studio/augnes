@@ -662,6 +662,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P3H parser-closed v0.3 provider contract and response-invalid attribution (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-3.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2P1 bounded provider compatibility probe harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-provider-compatibility-probe.ts",
