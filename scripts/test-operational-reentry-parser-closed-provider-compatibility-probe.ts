@@ -176,6 +176,7 @@ async function main(): Promise<void> {
         shapeIdentity.pricing_authority_fingerprint,
       aggregate_worst_case_cost_nano_usd:
         shapeIdentity.aggregate_worst_case_cost_nano_usd,
+      index_only_tamper_regressions: 5,
       accepted_fake_transport_calls: accepted.fake_transport_calls,
       total_fake_transport_calls: fakeTransportCalls,
       real_provider_calls: 0,
@@ -1197,8 +1198,69 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     );
   }
   const indexPath = path.join(journal.run_root, "artifact-index.json");
+  const validIndexText = readFileSync(indexPath, "utf8");
+  const validIndex = JSON.parse(validIndexText) as {
+    probe_id: string;
+    source_repository_head_sha: string;
+    future_live_issue_number: number;
+    request_family_kind: string;
+    outcome: string;
+    artifacts: Array<{ path: string; fingerprint: string }>;
+  };
+  const memberContents = new Map(
+    validIndex.artifacts.map((artifact) => [
+      artifact.path,
+      readFileSync(path.join(journal.run_root, artifact.path), "utf8"),
+    ]),
+  );
+  for (const tamper of [
+    {
+      field: "outcome",
+      value:
+        validIndex.outcome === "accepted_all_shapes"
+          ? "provider_rejected"
+          : "accepted_all_shapes",
+    },
+    { field: "probe_id", value: `${validIndex.probe_id}-tampered` },
+    { field: "source_repository_head_sha", value: "d".repeat(40) },
+    {
+      field: "future_live_issue_number",
+      value: validIndex.future_live_issue_number + 1,
+    },
+    {
+      field: "request_family_kind",
+      value: "clean_control_compatibility_probe",
+    },
+  ] as const) {
+    const tamperedIndex = structuredClone(validIndex) as Record<
+      string,
+      unknown
+    >;
+    tamperedIndex[tamper.field] = tamper.value;
+    writeFileSync(
+      indexPath,
+      `${canonicalizeProtocolValueV01(tamperedIndex)}\n`,
+      "utf8",
+    );
+    assert.throws(
+      () =>
+        validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01(
+          { repository_root: projectRoot, run_root: journal.run_root },
+        ),
+      /parser_closed_probe_artifact_index_source_mismatch/,
+      tamper.field,
+    );
+    for (const [artifactPath, contents] of memberContents) {
+      assert.equal(
+        readFileSync(path.join(journal.run_root, artifactPath), "utf8"),
+        contents,
+        `${tamper.field}:${artifactPath}`,
+      );
+    }
+  }
+  writeFileSync(indexPath, validIndexText, "utf8");
   const malformedIndex = JSON.parse(
-    readFileSync(indexPath, "utf8"),
+    validIndexText,
   ) as Record<string, unknown>;
   malformedIndex.unexpected_field = false;
   writeFileSync(indexPath, `${JSON.stringify(malformedIndex)}\n`, "utf8");

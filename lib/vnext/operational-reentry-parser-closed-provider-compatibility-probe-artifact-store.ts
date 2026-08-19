@@ -584,7 +584,7 @@ export function validateOperationalReentryParserClosedProviderCompatibilityProbe
     !GIT_SHA_V01.test(index.source_repository_head_sha) ||
     !Number.isSafeInteger(index.future_live_issue_number) ||
     index.future_live_issue_number <= 214 ||
-    index.request_family_kind !== "parser_closed_compatibility_probe" ||
+    typeof index.request_family_kind !== "string" ||
     ![
       "accepted_all_shapes",
       "provider_rejected",
@@ -640,6 +640,8 @@ export function validateOperationalReentryParserClosedProviderCompatibilityProbe
     failV01("parser_closed_probe_artifact_index_invalid");
   }
   let report: {
+    probe_id: string;
+    outcome: OperationalReentryParserClosedProviderCompatibilityProbeArtifactSummaryV01["outcome"];
     authorization_consumed: boolean;
     integrity: { fingerprint: string };
   };
@@ -651,15 +653,44 @@ export function validateOperationalReentryParserClosedProviderCompatibilityProbe
     failV01("parser_closed_probe_report_invalid");
   }
   assertSealedArtifactV01(report, "parser_closed_probe_report_invalid");
+  const manifest = readSealedArtifactV01(runRoot, "manifest.json") as {
+    probe_id: string;
+    source_repository_head_sha: string;
+    future_live_issue_number: number;
+    request_family_kind: string;
+    integrity: { fingerprint: string };
+  };
+  const authorization = readSealedArtifactV01(
+    runRoot,
+    "authorization.json",
+  ) as {
+    exact_merged_source_head: string;
+    future_live_issue_number: number;
+    request_family_kind: string;
+    integrity: { fingerprint: string };
+  };
   if (
     report.integrity.fingerprint !== index.report_fingerprint ||
-    index.probe_fingerprint !==
-      readSealedArtifactV01(runRoot, "manifest.json").integrity.fingerprint
+    index.probe_fingerprint !== manifest.integrity.fingerprint
   ) {
     failV01("parser_closed_probe_report_fingerprint_invalid");
   }
-  for (const sealedPath of ["authorization.json"] as const) {
-    readSealedArtifactV01(runRoot, sealedPath);
+  if (
+    index.probe_id !== manifest.probe_id ||
+    index.probe_id !== report.probe_id ||
+    index.outcome !== report.outcome ||
+    index.source_repository_head_sha !==
+      manifest.source_repository_head_sha ||
+    index.source_repository_head_sha !==
+      authorization.exact_merged_source_head ||
+    index.future_live_issue_number !== manifest.future_live_issue_number ||
+    index.future_live_issue_number !==
+      authorization.future_live_issue_number ||
+    index.request_family_kind !== manifest.request_family_kind ||
+    index.request_family_kind !== authorization.request_family_kind ||
+    index.request_family_kind !== "parser_closed_compatibility_probe"
+  ) {
+    failV01("parser_closed_probe_artifact_index_source_mismatch");
   }
   if (
     report.authorization_consumed !== durableAuthorizationConsumed ||
