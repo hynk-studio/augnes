@@ -83,8 +83,10 @@ export function runOperationalReentryParserClosedCleanControlCohortConformanceV0
   assert.equal(ACGC_E2R2P5H_DEFAULT_AUTHORIZATION_CEILING_NANO_USD_V01, 1_000_000_000);
   assert.equal(operationalReentryParserClosedCleanControlCohortHarnessV01.real_provider_calls, 0);
   assert.equal(operationalReentryParserClosedCleanControlCohortHarnessV01.behavioral_cohort_result, "none");
+  assert.equal(operationalReentryParserClosedCleanControlCohortHarnessV01.behavioral_cohort_executed, false);
 
   const core = sourceV01("lib/vnext/operational-reentry-parser-closed-clean-control-cohort.ts");
+  const types = sourceV01("types/vnext/operational-reentry-parser-closed-clean-control-cohort.ts");
   const artifacts = sourceV01("lib/vnext/operational-reentry-parser-closed-clean-control-cohort-artifact-store.ts");
   const cli = sourceV01("scripts/operational-reentry-parser-closed-clean-control-cohort.ts");
   assert.ok(core.includes("buildOperationalReentryMatchedCohortModelInputV03"));
@@ -92,6 +94,15 @@ export function runOperationalReentryParserClosedCleanControlCohortConformanceV0
   assert.ok(core.includes("evaluateOperationalReentryMatchedCohortBlockV02"));
   assert.equal(core.includes("fetch("), false);
   assert.equal(core.includes("process.env"), false);
+  assert.ok(core.includes("prepared.pricing.input_nano_usd_per_token"));
+  assert.ok(core.includes("prepared.pricing.cached_input_nano_usd_per_token"));
+  assert.ok(core.includes("prepared.pricing.output_nano_usd_per_token"));
+  assert.equal(
+    core.includes("gateway_cost_budget.authority.input_rate.cost_per_unit"),
+    false,
+  );
+  assert.ok(types.includes("behavioral_cohort_authorized: true"));
+  assert.ok(types.includes("missing_exact_usage_or_cost: \"unknown_never_zero\""));
   assert.ok(artifacts.includes(".augnes-lab/operational-reentry-parser-closed-clean-control-cohorts/"));
   assert.ok(artifacts.includes('openSync(target, "wx"'));
   assert.ok(artifacts.includes("authorization_consumption_history_incomplete"));

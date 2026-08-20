@@ -337,6 +337,8 @@ export function buildOperationalReentryParserClosedCleanControlCohortPricingV01(
     | "aggregate_conservative_worst_case_nano_usd"
     | "maximum_total_cost_nano_usd"
     | "static_harness_is_live_pricing_authority"
+    | "exact_cost_basis"
+    | "missing_exact_usage_or_cost"
     | "integrity"
   >,
 ): OperationalReentryParserClosedCleanControlCohortPricingV01 {
@@ -347,6 +349,9 @@ export function buildOperationalReentryParserClosedCleanControlCohortPricingV01(
     !SHA256_V01.test(input.pricing_authority_fingerprint) ||
     input.pricing_authority_fingerprint !==
       input.gateway_cost_budget.authority.pricing_fingerprint ||
+    !nonnegativeSafeIntegerV01(input.input_nano_usd_per_token) ||
+    !nonnegativeSafeIntegerV01(input.cached_input_nano_usd_per_token) ||
+    !nonnegativeSafeIntegerV01(input.output_nano_usd_per_token) ||
     input.gateway_cost_budget.calculated_worst_case_cost !==
       ACGC_E2R2P5H_PER_CALL_WORST_CASE_NANO_USD_V01 ||
     input.gateway_cost_budget.maximum_permitted_cost !==
@@ -363,6 +368,8 @@ export function buildOperationalReentryParserClosedCleanControlCohortPricingV01(
       pricing_version:
         "operational_reentry_parser_closed_clean_control_matched_cohort_pricing.v0.1" as const,
       ...structuredClone(input),
+      exact_cost_basis: "validated_provider_reported_token_usage" as const,
+      missing_exact_usage_or_cost: "unknown_never_zero" as const,
       per_call_conservative_worst_case_nano_usd:
         ACGC_E2R2P5H_PER_CALL_WORST_CASE_NANO_USD_V01,
       aggregate_conservative_worst_case_nano_usd:
@@ -818,6 +825,11 @@ function validatePricingV01(
       ACGC_E2R2P5H_AGGREGATE_WORST_CASE_NANO_USD_V01 ||
     value.maximum_total_cost_nano_usd !==
       ACGC_E2R2P5H_DEFAULT_AUTHORIZATION_CEILING_NANO_USD_V01 ||
+    !nonnegativeSafeIntegerV01(value.input_nano_usd_per_token) ||
+    !nonnegativeSafeIntegerV01(value.cached_input_nano_usd_per_token) ||
+    !nonnegativeSafeIntegerV01(value.output_nano_usd_per_token) ||
+    value.exact_cost_basis !== "validated_provider_reported_token_usage" ||
+    value.missing_exact_usage_or_cost !== "unknown_never_zero" ||
     value.static_harness_is_live_pricing_authority !== false
   ) {
     failV01("parser_closed_clean_control_pricing_invalid");
@@ -852,6 +864,7 @@ function validateAuthorizationShapeV01(
     authorization.conversation_reuse !== false ||
     authorization.thread_reuse !== false ||
     authorization.previous_response_reuse !== false ||
+    authorization.behavioral_cohort_authorized !== true ||
     authorization.replication_authorized !== false ||
     authorization.policy_authorized !== false ||
     authorization.stage_7_authorized !== false ||
@@ -993,10 +1006,12 @@ function terminalV01(
   const usage = receipt?.usage ?? null;
   const inputBytes = receipt?.budget.input_bytes_used ?? null;
   const exactCost =
-    inputBytes !== null && usage
-      ? inputBytes * prepared.pricing.gateway_cost_budget.authority.input_rate.cost_per_unit +
-        usage.output_tokens *
-          prepared.pricing.gateway_cost_budget.authority.output_rate.cost_per_unit
+    usage?.cached_input_tokens !== undefined
+      ? (usage.input_tokens - usage.cached_input_tokens) *
+          prepared.pricing.input_nano_usd_per_token +
+        usage.cached_input_tokens *
+          prepared.pricing.cached_input_nano_usd_per_token +
+        usage.output_tokens * prepared.pricing.output_nano_usd_per_token
       : "unknown";
   return sealV01(
     "parser_closed_clean_control_call_terminal_without_integrity_fingerprint",
@@ -1053,11 +1068,15 @@ function buildReportV01(
         `${relation.comparison_status}:${relation.behavioral_relation}:${relation.bounded_outcome_relation}`,
     ),
   );
-  const usages = calls.flatMap((call) => (call.usage ? [call.usage] : []));
-  const latencies = calls.flatMap((call) =>
+  const attemptedCalls = calls.filter((call) => call.egress_attempted);
+  const usages = attemptedCalls.flatMap((call) => (call.usage ? [call.usage] : []));
+  const cachedUsages = usages.filter(
+    (usage) => usage.cached_input_tokens !== undefined,
+  );
+  const latencies = attemptedCalls.flatMap((call) =>
     call.latency_ms === null ? [] : [call.latency_ms],
   );
-  const exactCosts = calls.flatMap((call) =>
+  const exactCosts = attemptedCalls.flatMap((call) =>
     typeof call.exact_cost_nano_usd === "number"
       ? [call.exact_cost_nano_usd]
       : [],
@@ -1118,26 +1137,50 @@ function buildReportV01(
             : ("mixed" as const),
       usage: {
         known_call_count: usages.length,
+        cached_input_known_call_count: cachedUsages.length,
         total_input_tokens:
-          usages.length === calls.filter((call) => call.egress_attempted).length
+          usages.length === attemptedCalls.length
             ? usages.reduce((sum, usage) => sum + usage.input_tokens, 0)
             : ("unknown" as const),
+        total_cached_input_tokens:
+          cachedUsages.length === attemptedCalls.length
+            ? cachedUsages.reduce(
+                (sum, usage) => sum + usage.cached_input_tokens!,
+                0,
+              )
+            : ("unknown" as const),
+        total_uncached_input_tokens:
+          cachedUsages.length === attemptedCalls.length
+            ? cachedUsages.reduce(
+                (sum, usage) =>
+                  sum + usage.input_tokens - usage.cached_input_tokens!,
+                0,
+              )
+            : ("unknown" as const),
         total_output_tokens:
-          usages.length === calls.filter((call) => call.egress_attempted).length
+          usages.length === attemptedCalls.length
             ? usages.reduce((sum, usage) => sum + usage.output_tokens, 0)
             : ("unknown" as const),
       },
       latency: {
         known_call_count: latencies.length,
         total_ms:
-          latencies.length === calls.filter((call) => call.egress_attempted).length
+          latencies.length === attemptedCalls.length
             ? latencies.reduce((sum, value) => sum + value, 0)
             : ("unknown" as const),
       },
       exact_cost_nano_usd:
-        exactCosts.length === calls.filter((call) => call.egress_attempted).length
+        exactCosts.length === attemptedCalls.length
           ? exactCosts.reduce((sum, value) => sum + value, 0)
           : ("unknown" as const),
+      conservative_cost: {
+        per_call_worst_case_nano_usd:
+          prepared.pricing.per_call_conservative_worst_case_nano_usd,
+        planned_aggregate_worst_case_nano_usd:
+          prepared.pricing.aggregate_conservative_worst_case_nano_usd,
+        authorization_ceiling_nano_usd:
+          prepared.pricing.maximum_total_cost_nano_usd,
+      },
       limitations: [
         "synthetic_behavioral_result_is_not_core_evidence",
         "no_product_history_attribution",
@@ -1171,6 +1214,10 @@ function countStringsV01(values: string[]): Record<string, number> {
       values.filter((candidate) => candidate === value).length,
     ]),
   );
+}
+
+function nonnegativeSafeIntegerV01(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function fingerprintV01(value: unknown): string {

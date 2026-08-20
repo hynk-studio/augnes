@@ -53,6 +53,7 @@
     "autohunt:daily-launcher-v0-1": "tsx --tsconfig tsconfig.json scripts/autohunt-daily-launcher-v0-1.mjs",
     "typegen": "next typegen",
     "typecheck": "npm run typegen && tsc --noEmit",
+    "protocol:conformance": "node --import tsx scripts/vnext-protocol-conformance.ts",
     "test:operator-pure-contracts": "node --import tsx scripts/test-vnext-operator-pure-contracts-v0-1.ts",
     "test:operator-browser-fixture": "node --import tsx scripts/test-vnext-operator-browser-fixture-v0-1.ts",
     "test:project-experience-browser-fixture": "node --import tsx scripts/test-project-experience-browser-fixture-v1.ts",

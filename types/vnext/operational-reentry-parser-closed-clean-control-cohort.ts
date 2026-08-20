@@ -128,6 +128,11 @@ export interface OperationalReentryParserClosedCleanControlCohortPricingV01 {
   pricing_snapshot_evaluated_at: string;
   pricing_authority_expires_at: string;
   pricing_authority_fingerprint: string;
+  input_nano_usd_per_token: number;
+  cached_input_nano_usd_per_token: number;
+  output_nano_usd_per_token: number;
+  exact_cost_basis: "validated_provider_reported_token_usage";
+  missing_exact_usage_or_cost: "unknown_never_zero";
   gateway_cost_budget: ModelGatewayCostBudgetV01;
   per_call_conservative_worst_case_nano_usd: 11_699_200;
   aggregate_conservative_worst_case_nano_usd: 187_187_200;
@@ -178,6 +183,7 @@ export interface OperationalReentryParserClosedCleanControlCohortAuthorizationV0
   conversation_reuse: false;
   thread_reuse: false;
   previous_response_reuse: false;
+  behavioral_cohort_authorized: true;
   replication_authorized: false;
   policy_authorized: false;
   stage_7_authorized: false;
@@ -279,9 +285,21 @@ export interface OperationalReentryParserClosedCleanControlCohortReportV01 {
   reset_relations: Array<{ block: OperationalReentryMatchedCohortBlockV02; relation: string }>;
   bounded_pairwise_relation_counts: Record<string, number>;
   relation_repeatability: "repeatable" | "mixed" | "unknown";
-  usage: { known_call_count: number; total_input_tokens: number | "unknown"; total_output_tokens: number | "unknown" };
+  usage: {
+    known_call_count: number;
+    cached_input_known_call_count: number;
+    total_input_tokens: number | "unknown";
+    total_cached_input_tokens: number | "unknown";
+    total_uncached_input_tokens: number | "unknown";
+    total_output_tokens: number | "unknown";
+  };
   latency: { known_call_count: number; total_ms: number | "unknown" };
   exact_cost_nano_usd: number | "unknown";
+  conservative_cost: {
+    per_call_worst_case_nano_usd: 11_699_200;
+    planned_aggregate_worst_case_nano_usd: 187_187_200;
+    authorization_ceiling_nano_usd: 1_000_000_000;
+  };
   limitations: readonly [
     "synthetic_behavioral_result_is_not_core_evidence",
     "no_product_history_attribution",

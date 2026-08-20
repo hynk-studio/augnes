@@ -114,6 +114,7 @@ async function main(): Promise<void> {
   verifyEvaluatorBoundaryV01();
   await verifyAuthorizationContractRefusalsV01(admission);
   const golden = await verifyGoldenBehavioralRunV01(admission);
+  const exactCost = await verifyExactCostAccountingV01(admission);
   const providerFailure = await verifyOrdinaryProviderFailureContinuesV01(admission);
   await verifyDriftHardStopsV01(admission);
   await verifyTerminalDriftPreventsCompleteV01(admission);
@@ -138,6 +139,7 @@ async function main(): Promise<void> {
       adapter_request_route_fingerprint:
         ACGC_E2R2P5H_ADAPTER_REQUEST_ROUTE_FINGERPRINT_V01,
       golden_complete_blocks: golden.complete_blocks,
+      cached_aware_exact_cost_cases: exactCost.checked_cases,
       ordinary_failure_terminal_calls: providerFailure.terminal_calls,
       artifact_index_fingerprint: artifacts.artifact_index_fingerprint,
       fake_transport_calls: fakeTransportCalls,
@@ -343,7 +345,54 @@ async function verifyGoldenBehavioralRunV01(
   assert.equal(result.report.winner_created, false);
   assert.equal(result.report.product_database_writes, 0);
   assert.equal(result.report.core_writes, 0);
+  assert.equal(result.calls[0]!.exact_cost_nano_usd, 112_000);
+  assert.equal(result.report.exact_cost_nano_usd, 1_792_000);
+  assert.equal(result.report.usage.total_cached_input_tokens, 0);
+  assert.equal(result.report.usage.total_uncached_input_tokens, 1_920);
+  assert.deepEqual(result.report.conservative_cost, {
+    per_call_worst_case_nano_usd: 11_699_200,
+    planned_aggregate_worst_case_nano_usd: 187_187_200,
+    authorization_ceiling_nano_usd: 1_000_000_000,
+  });
   return { complete_blocks: result.report.complete_blocks.length };
+}
+
+async function verifyExactCostAccountingV01(
+  admission: ModelGatewayInteractiveAdmissionV01,
+): Promise<{ checked_cases: 3 }> {
+  const plan = buildOperationalReentryParserClosedCleanControlCohortPlanV01();
+  let call = 0;
+  const adapter = adapterV01(async () => {
+    const entry = plan.entries[call]!;
+    const cachedInputTokens = call === 1 ? 20 : call === 2 ? "unavailable" : 0;
+    call += 1;
+    return acceptedResponseV01(
+      buildOperationalReentryMatchedCohortGoldenWireOutputV03(entry.arm),
+      cachedInputTokens,
+    );
+  });
+  const route = await routeV01(adapter);
+  const result = await runOperationalReentryParserClosedCleanControlCohortV01(
+    buildInputV01(admission, route, "exact-cost"),
+    dependenciesV01(adapter, route),
+  );
+  assert.equal(call, 16);
+  assert.equal(result.calls[0]!.exact_cost_nano_usd, 112_000);
+  assert.equal(result.calls[1]!.exact_cost_nano_usd, 106_000);
+  assert.equal(result.calls[2]!.exact_cost_nano_usd, "unknown");
+  assert.equal(result.report.exact_cost_nano_usd, "unknown");
+  assert.equal(result.report.usage.known_call_count, 16);
+  assert.equal(result.report.usage.cached_input_known_call_count, 15);
+  assert.equal(result.report.usage.total_input_tokens, 1_920);
+  assert.equal(result.report.usage.total_cached_input_tokens, "unknown");
+  assert.equal(result.report.usage.total_uncached_input_tokens, "unknown");
+  assert.equal(result.report.usage.total_output_tokens, 640);
+  assert.deepEqual(result.report.conservative_cost, {
+    per_call_worst_case_nano_usd: 11_699_200,
+    planned_aggregate_worst_case_nano_usd: 187_187_200,
+    authorization_ceiling_nano_usd: 1_000_000_000,
+  });
+  return { checked_cases: 3 };
 }
 
 async function verifyAuthorizationContractRefusalsV01(
@@ -357,6 +406,14 @@ async function verifyAuthorizationContractRefusalsV01(
   assert.doesNotThrow(() =>
     buildOperationalReentryParserClosedCleanControlCohortV01(input),
   );
+  assert.equal(
+    (
+      input.authorization as {
+        behavioral_cohort_authorized?: unknown;
+      }
+    ).behavioral_cohort_authorized,
+    true,
+  );
   for (const override of [
     { case_fingerprint: `sha256:${"1".repeat(64)}` },
     { common_task_evidence_fingerprint: `sha256:${"2".repeat(64)}` },
@@ -367,10 +424,12 @@ async function verifyAuthorizationContractRefusalsV01(
     { adapter_request_route_fingerprint: `sha256:${"7".repeat(64)}` },
     { maximum_parallel_provider_calls: 2 },
     { retries: 1 },
+    { behavioral_cohort_authorized: false },
     { replication_authorized: true },
     { policy_authorized: true },
     { stage_7_authorized: true },
   ]) {
+    const transportCallsBeforeRefusal = fakeTransportCalls;
     assert.throws(
       () =>
         buildOperationalReentryParserClosedCleanControlCohortV01({
@@ -382,7 +441,22 @@ async function verifyAuthorizationContractRefusalsV01(
         }),
       /authorization_(?:invalid|mismatched)/u,
     );
+    assert.equal(fakeTransportCalls, transportCallsBeforeRefusal);
   }
+  const missingBehavioralGrant = structuredClone(
+    input.authorization,
+  ) as Record<string, unknown>;
+  delete missingBehavioralGrant.behavioral_cohort_authorized;
+  const transportCallsBeforeMissingGrantRefusal = fakeTransportCalls;
+  assert.throws(
+    () =>
+      buildOperationalReentryParserClosedCleanControlCohortV01({
+        ...input,
+        authorization: resealAuthorizationV01(missingBehavioralGrant),
+      }),
+    /authorization_(?:invalid|mismatched)/u,
+  );
+  assert.equal(fakeTransportCalls, transportCallsBeforeMissingGrantRefusal);
 }
 
 async function verifyOrdinaryProviderFailureContinuesV01(
@@ -708,6 +782,10 @@ function verifyStaticPrivacyAndAuthorityBoundaryV01(): void {
     ],
     "node --import tsx scripts/test-operational-reentry-parser-closed-clean-control-cohort.ts",
   );
+  assert.equal(
+    packageJson.scripts["protocol:conformance"],
+    "node --import tsx scripts/vnext-protocol-conformance.ts",
+  );
   const cli = readFileSync(
     path.join(
       repositoryRoot,
@@ -767,6 +845,9 @@ function buildInputV01(
     pricing_snapshot_evaluated_at: evaluatedAt,
     pricing_authority_expires_at: authority.pricing_expires_at!,
     pricing_authority_fingerprint: authority.pricing_fingerprint,
+    input_nano_usd_per_token: 400,
+    cached_input_nano_usd_per_token: 100,
+    output_nano_usd_per_token: 1_600,
     gateway_cost_budget: budget,
   });
   assert.equal(
@@ -777,6 +858,14 @@ function buildInputV01(
     pricing.aggregate_conservative_worst_case_nano_usd,
     ACGC_E2R2P5H_AGGREGATE_WORST_CASE_NANO_USD_V01,
   );
+  assert.equal(pricing.input_nano_usd_per_token, 400);
+  assert.equal(pricing.cached_input_nano_usd_per_token, 100);
+  assert.equal(pricing.output_nano_usd_per_token, 1_600);
+  assert.equal(
+    pricing.exact_cost_basis,
+    "validated_provider_reported_token_usage",
+  );
+  assert.equal(pricing.missing_exact_usage_or_cost, "unknown_never_zero");
   const authorization =
     buildOperationalReentryParserClosedCleanControlCohortAuthorizationCandidateV01({
       authorization_id: `e2r2p5h-test-${label}-${authorizationSequence++}`,
@@ -822,6 +911,7 @@ function buildInputV01(
       conversation_reuse: false,
       thread_reuse: false,
       previous_response_reuse: false,
+      behavioral_cohort_authorized: true,
       replication_authorized: false,
       policy_authorized: false,
       stage_7_authorized: false,
@@ -889,7 +979,10 @@ async function routeV01(
   return route;
 }
 
-function acceptedResponseV01(output: unknown) {
+function acceptedResponseV01(
+  output: unknown,
+  cachedInputTokens: number | "unavailable" = 0,
+) {
   return {
     ok: true,
     status: 200,
@@ -900,7 +993,9 @@ function acceptedResponseV01(output: unknown) {
         output_text: JSON.stringify(output),
         usage: {
           input_tokens: 120,
-          input_tokens_details: { cached_tokens: 0 },
+          ...(cachedInputTokens === "unavailable"
+            ? {}
+            : { input_tokens_details: { cached_tokens: cachedInputTokens } }),
           output_tokens: 40,
           total_tokens: 160,
         },
