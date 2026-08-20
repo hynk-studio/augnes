@@ -345,6 +345,7 @@ async function verifyShapePlanAndPricingV02(
     "replacement_cohort",
     "clean_control_compatibility_probe",
     "parser_closed_compatibility_probe",
+    "parser_closed_clean_control_cohort",
   ]);
   const traceBasis = createProtocolSha256V01("same-basis");
   const familyTraces = MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01.map(
@@ -354,7 +355,7 @@ async function verifyShapePlanAndPricingV02(
         request_family_fingerprint: traceBasis,
       }),
   );
-  assert.equal(new Set(familyTraces).size, 5);
+  assert.equal(new Set(familyTraces).size, 6);
   assert.equal(
     prepared.pricing.aggregate_worst_case_cost_nano_usd,
     27_852_800,

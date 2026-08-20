@@ -56,6 +56,7 @@ import { runOperationalReentryMatchedCohortConformanceV03 } from "@/scripts/vnex
 import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
 import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-clean-control-provider-compatibility-probe";
 import { runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-provider-compatibility-probe";
+import { runOperationalReentryParserClosedCleanControlCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-clean-control-cohort";
 import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
 const legacyAdapterSourcePath =
@@ -641,6 +642,8 @@ try {
     runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02();
   const operationalReentryParserClosedProviderCompatibilityProbeSummary =
     runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01();
+  const operationalReentryParserClosedCleanControlCohortSummary =
+    runOperationalReentryParserClosedCleanControlCohortConformanceV01();
   const operationalReentryMatchedCohortReplacementSummary =
     runOperationalReentryMatchedCohortReplacementConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
@@ -734,6 +737,8 @@ try {
           operationalReentryCleanControlProviderCompatibilityProbeSummary,
         operational_reentry_parser_closed_provider_compatibility_probe:
           operationalReentryParserClosedProviderCompatibilityProbeSummary,
+        operational_reentry_parser_closed_clean_control_cohort:
+          operationalReentryParserClosedCleanControlCohortSummary,
         operational_reentry_matched_cohort_replacement:
           operationalReentryMatchedCohortReplacementSummary,
         semantic_review_loop: semanticReviewLoopSummary,

@@ -678,6 +678,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P5H parser-closed v0.3 clean-control behavioral cohort harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-parser-closed-clean-control-cohort.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2P1 bounded provider compatibility probe harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-provider-compatibility-probe.ts",
