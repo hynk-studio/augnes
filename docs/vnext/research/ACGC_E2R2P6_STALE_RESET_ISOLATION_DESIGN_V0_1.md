@@ -15,8 +15,8 @@ Stage 7 authority: none
 ```
 
 This document audits whether a future A/B/C/G stale-reset isolation harness can
-exclude stale target material before provider materialization while reusing the
-merged parser-closed v0.3 provider contract exactly. It is subordinate to the
+exclude stale target material before provider materialization while satisfying
+Issue #225's exact full-provider-request parity requirement. It is subordinate to the
 canonical document owners `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
 through `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`, the checked-in
 runtime owners cited below, and the sequencing authority in
@@ -24,7 +24,8 @@ runtime owners cited below, and the sequencing authority in
 
 This audit creates no harness, provider call, compatibility probe,
 authorization, candidate, artifact namespace, live cohort, policy, or Stage 7
-authority. A positive design verdict is review material only.
+authority. This correction remains documentation-only with zero provider
+egress. Its fail-closed verdict is review material only.
 
 ## 2. Audited historical result and question
 
@@ -68,7 +69,7 @@ The design conclusion is grounded in these source owners at audited source
 | Input validation and material projection | `lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec.ts` — `validateOperationalReentryMatchedCohortModelInputV03` and `projectOperationalReentryMatchedCohortModelMaterialV03` | Only exact A/B/C/D provider-visible shapes pass. G-specific wire material would be rejected. |
 | Strict schema and parser | same file — `operationalReentryMatchedCohortResponseSchemaV04` and `parseOperationalReentryMatchedCohortOutputV03` | The strict boolean-selection schema and locally derived target disposition can remain unchanged if G reaches the route as exact B material. |
 | Provider contract | same file — `buildOperationalReentryMatchedCohortProviderContractV03` | The contract is parser-closed and forbids persistence of raw prompt, raw provider response/error, and hidden reasoning. |
-| OpenAI Responses request | `lib/vnext/model-gateway/openai/responses-adapter.ts` — `projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03` | Canonical request-body equality can be proved without transport. Opaque per-call correlation remains transport identity, not experimental material. |
+| OpenAI Responses request | `lib/vnext/model-gateway/openai/responses-adapter.ts` — `projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03`; local `buildOpenAIResponsesRequestMaterialV01` | The adapter serializes codec `dynamic_material` into the provider-visible user input. Because that material includes `invocation_context`, distinct `call_slot_id` values prevent exact full-request equality. |
 | Model Gateway route | `lib/vnext/model-gateway/model-gateway.ts` — `projectOperationalReentryMatchedCohortProviderRequestV03` and `prepareOperationalReentryMatchedCohortModelGatewayRouteV03` | A future harness can invoke the unchanged v0.3 route only after local G/B conformance succeeds. |
 | E2R2P5 plan and bridge | `lib/vnext/operational-reentry-parser-closed-clean-control-cohort.ts` — `buildOperationalReentryParserClosedCleanControlCohortPlanV01`, `buildOperationalReentryParserClosedCleanControlEvaluatorBridgeV01`, and `projectOperationalReentryParserClosedCleanControlEvaluatorInputV01` | The current plan is fixed to A/B/C/D, and its v0.3→canonical-v0.2 bridge cannot represent G as a new semantic wire arm. |
 | Common compliance, bounded outcome, and pairwise comparison | `lib/vnext/operational-reentry-matched-cohort-v0-2.ts` — `evaluateOperationalReentryMatchedCohortArmV02`, `deriveOperationalReentryMatchedCohortPairwiseComparisonV02`, and `evaluateOperationalReentryMatchedCohortBlockV02` | Their dimension semantics are reusable locally, but the fixed five-pair A/B/C/D matrix is not sufficient for A/B/C/G. |
@@ -138,13 +139,22 @@ dimensions:
 - evaluator-visible non-target material and common-compliance rubric; and
 - source and gate provenance rules for the pair being evaluated.
 
-Per-call slot, trace, and client-request identities remain unique local or
-transport correlation identities. They must not encode the arm or gate result
-in provider-visible experimental material. The future conformance owner must
-construct a same-block B/G provider-material parity basis and prove that the
-projected v0.3 request bodies, strict schemas, system prompts, budgets, and
-route identities are canonical-equal. Any opaque correlation header is outside
-the experimental material and must carry no G label or G-only fact.
+Per-call slot, trace, and client-request identities must remain distinct. The
+current contract does not keep all of them outside model material:
+`projectOperationalReentryMatchedCohortModelMaterialV03` includes
+`invocation_context`, whose exact keys are `cohort_ref`, `call_slot_id`, and
+`repeat_block`. `buildOpenAIResponsesRequestMaterialV01` serializes that dynamic
+material into the provider-visible user input. Two separate B and G calls with
+distinct `call_slot_id` values therefore cannot have byte- or canonical-equal
+full request bodies under current exact v0.3.
+
+Treatment material excluding opaque invocation identity can be equal. Issue
+#225, however, requires equality of the full provider-visible request. This
+audit may not silently redefine that requirement modulo `invocation_context`
+or call `call_slot_id` transport-only. Reusing one `call_slot_id` for B and G
+would collapse distinct experimental call identities and distort its current
+meaning. Moving or removing call identity from model-visible material would
+change provider-visible contract semantics and cannot be assumed compatible.
 
 An unequal or unproved non-intervention dimension yields `not_comparable`. An
 invalid source, gate record, route, schema, or canonical request proof yields
@@ -161,10 +171,9 @@ future implementation should own a pure function conceptually equivalent to:
 bounded upstream C-shaped source
 + exact target/stale-relation fingerprints
 + local gate rule/version/decision
-+ same-block B/G provider-material parity identity
-→ local G provenance record
+→ local G intervention provenance
 + buildOperationalReentryMatchedCohortModelInputV03({ arm: "B", ... })
-→ projectOperationalReentryMatchedCohortProviderRequestV03(...)
+→ B-shaped treatment material with G's distinct invocation_context
 ```
 
 The dedicated projection is preferred over calling the B builder directly at
@@ -177,8 +186,9 @@ shape is built:
 4. both target material and stale relation are excluded;
 5. shared non-target material remains unchanged;
 6. the locally recorded source/gate provenance is complete; and
-7. the resulting v0.3 model material and provider request equal the paired B
-   projection under the declared provider-material parity identity.
+7. the resulting target/stale treatment fields equal B while the distinct
+   provider-visible invocation identity remains explicit and unresolved for
+   Issue #225 full-request parity.
 
 The gate record must remain local and public-safe. It may contain bounded
 fingerprints, gate version, disposition, and exact source lineage. It must not
@@ -186,35 +196,53 @@ contain raw prompt, raw provider request/response, hidden reasoning,
 credentials, private paths, or target text that the provider projection is
 supposed to exclude.
 
-This separation is possible with current owners because the frozen v0.2 case
+The local gating separation is possible with current owners because the frozen v0.2 case
 already contains the candidate fresh target, stale target, stale relation, and
 shared non-target material before `buildOperationalReentryMatchedCohortModelInputV02`
 selects a provider-visible arm. The v0.3 builder can then receive the exact B
 selection after local proof. Conversely, the v0.3 codec proves that a
 provider-visible G extension is not allowed: `matchesOneExactShapeV03` accepts
-only A/B/C/D material.
+only A/B/C/D material. This proves treatment-field projection feasibility; it
+does not solve full-request equality because the codec also materializes the
+distinct `call_slot_id`.
 
 ## 7. Provider-contract verdict
 
 ```text
-provider_contract_verdict = reuse_parser_closed_v03_exact
+provider_contract_verdict = audit_blocked_by_unresolved_parity_or_evaluator_semantics
 ```
 
-Reuse is valid only while all of the following remain true:
+The merge-blocking parity contradiction is exact:
 
-- A, B, and C are the exact current v0.3 shapes;
-- G enters provider materialization as the exact B shape;
-- no target bytes, target token, stale relation, gate notice, G label, or
-  G-only metadata reaches the provider;
-- the local same-block conformance proof establishes canonical equality of G
-  and B provider request bodies and schemas;
-- provider contract, codec, strict response schema, parser, adapter, route,
-  model, input bytes, response bytes, and output-token limits remain unchanged;
-  and
-- transport correlation carries no experimental arm/gate semantics.
+- G can exclude target and stale-relation treatment material and otherwise use
+  the B shape;
+- B and G must remain separate experimental calls with distinct call slots;
+- current v0.3 includes each `call_slot_id` in provider-visible dynamic
+  material; therefore
+- exact full provider-visible G/B request equality is impossible under the
+  current contract and the Issue #225 requirement.
 
-If any provider-visible experimental material changes, the verdict becomes
-`new_provider_contract_required`. The required future sequence would then be:
+Redefining equality modulo invocation identity is a separate design-authority
+decision, not an interpretation this audit may make. Removing invocation
+identity from model-visible material is a provider-contract change, not an
+unchanged-v0.3 reuse assumption.
+
+Two possible future resolution paths remain candidates only:
+
+### Candidate A — explicitly redefine parity
+
+Separately review and explicitly redefine the experimental parity requirement
+as equality of provider-visible treatment material modulo bounded opaque
+invocation identity. That review would have to prove the identity carries no
+arm/gate semantics and decide whether the revised requirement answers the
+intended experiment.
+
+### Candidate B — version the provider contract
+
+Version the provider contract so invocation/correlation identity is removed
+from model-visible experimental material and remains only in local/transport
+correlation. A provider-visible change would require this separately authorized
+sequence:
 
 ```text
 new versioned provider contract
@@ -224,7 +252,8 @@ new versioned provider contract
 → separately authorized behavioral harness/live work
 ```
 
-This audit implements and authorizes none of that sequence.
+This audit chooses and implements neither candidate and authorizes none of that
+sequence.
 
 ## 8. Sealed future call plan
 
@@ -300,20 +329,36 @@ but it must retain G's local source/gate provenance in its own bounded record.
 The fixed E2R2P5 bridge and five-pair comparator cannot be relabeled as an
 A/B/C/G evaluator.
 
-### 10.2 Finite target-persistence vector
+### 10.2 `intervention_provenance_vector`
 
-Each completed arm record should contain a finite vector with explicit
-availability:
+Each arm must first record and validate local/source intervention facts:
 
 | Dimension | Current source | Future bounded value |
 |---|---|---|
 | `upstream_target_identity_present` | local frozen source and target fingerprint | `present`, `absent`, `unknown`, or `protocol_invalid` |
 | `upstream_stale_relation_present` | local stale relation and source-bound fingerprint | `present`, `absent`, `unknown`, or `protocol_invalid` |
 | `substrate_gate_disposition` | local gate record | `not_applicable`, `excluded`, `not_excluded`, `unknown`, or `protocol_invalid` |
+| `gate_rule_version` | local gate owner | exact bounded version, `unknown`, or `protocol_invalid` |
+| `source_gate_lineage_identity` | source, target, stale-relation, rule, and decision fingerprints | exact fingerprint, `unknown`, or `protocol_invalid` |
+
+This vector proves which intervention occurred. It is not target-persistence
+outcome material and is not used to judge G/B post-gate equivalence. B and G
+must differ here: B has no upstream target and no applicable gate; G has the
+exact upstream stale target/relation and an `excluded` gate disposition. G/B
+source inequality is expected, and valid G provenance must prove that G really
+originated from stale source material and was gated.
+
+### 10.3 `post_materialization_target_persistence_vector`
+
+Only dimensions at or downstream of provider materialization belong in the
+G/B target-persistence equivalence hypothesis:
+
+| Dimension | Current source | Future bounded value |
+|---|---|---|
 | `provider_target_continuation_present` | projected model input | `present`, `absent`, `unknown`, or `protocol_invalid` |
 | `provider_stale_relation_present` | projected model input | `present`, `absent`, `unknown`, or `protocol_invalid` |
 | `selected_or_referenced_target_identity` | normalized `referenced_continuation_tokens` | `present`, `absent`, or `unknown` |
-| `target_packet_or_continuation_material` | local source plus projected continuation | `upstream_only`, `provider_visible`, `absent`, `unknown`, or `protocol_invalid` |
+| `provider_visible_target_continuation_material` | projected provider-visible continuation | `present`, `absent`, `unknown`, or `protocol_invalid` |
 | `target_operation_action_class` | normalized operation/action tokens | `present`, `absent`, or `unknown` |
 | `target_decision_preparation_structure` | `target_linked_verification_preparation` | `present`, `absent`, or `unknown` |
 | `target_disposition` | locally derived current v0.3 target disposition | current finite disposition, `unknown`, or `not_available` |
@@ -323,13 +368,17 @@ availability:
 
 The current provider contract exposes only the common required-check
 disposition. It does not expose a target-specific required-check disposition.
-That dimension therefore remains explicitly unavailable under exact v0.3
-reuse. This is not silently filled from the common check and is not a blocker
-to the narrower target-persistence hypotheses below. If a future design makes a
-directional target-specific required-check result mandatory, it must select
-`new_provider_contract_required`.
+That dimension therefore remains explicitly `not_available_under_v03` or
+`unknown` under an unchanged contract and is never filled from the common
+check.
 
-### 10.3 Separate relation layers
+The future G↔B equivalence hypothesis is defined only over
+`post_materialization_target_persistence_vector`, plus the independent
+`common_compliance_relation` and `bounded_outcome_relation`. The intentionally
+different `intervention_provenance_vector` is validated separately and is
+excluded from the equivalence calculation.
+
+### 10.4 Separate relation layers
 
 For every pair, the evaluator reports four independent layers:
 
@@ -337,7 +386,7 @@ For every pair, the evaluator reports four independent layers:
    `not_comparable` over the predeclared normalized behavioral projection;
 2. `target_persistence_relation` — `equal`, `left_persists_more`,
    `right_persists_more`, `mixed`, `unknown`, or `not_comparable` over the
-   finite target vector;
+   `post_materialization_target_persistence_vector` only;
 3. `common_compliance_relation` — both valid, protocol invalid,
    compliance-asymmetric, unknown, or incomplete; and
 4. `bounded_outcome_relation` — the current declared bounded-outcome relation,
@@ -348,6 +397,11 @@ Required interpretation boundaries are structural:
 ```text
 whole-output distinctness ≠ target persistence
 G/B provider-request equality ≠ raw-output equality
+provenance_difference ≠ persistence_difference
+gate provenance ≠ provider-visible treatment
+G/B source inequality is expected
+G/B post-materialization equivalence is the hypothesis
+whole-output stochastic difference ≠ failed gate equivalence
 bounded target reset ≠ general benefit
 intervention-associated difference ≠ general causal mechanism
 stale recognition ≠ stale constraint preservation
@@ -359,16 +413,22 @@ forced into equivalence, persistence, reset, or effect.
 
 ## 11. Stochastic G/B handling
 
-If G and B have canonically equal provider-visible request bodies, stochastic
-differences between their independent calls do not by themselves falsify the
-substrate gate or prove a G/B effect. The gate claim concerns exclusion before
-provider materialization. G/B behavioral review concerns only the predeclared
-target-persistence, common-compliance, and bounded-outcome dimensions.
+If a future separately reviewed resolution establishes an admissible G/B
+provider-material parity basis, stochastic differences between their
+independent calls would not by themselves falsify the substrate gate or prove a
+G/B effect. The gate claim concerns exclusion before provider materialization.
+G/B behavioral review concerns only the predeclared post-materialization target
+persistence, common-compliance, and bounded-outcome dimensions.
 
 Raw output string equality is neither required nor sufficient. A G/B
 target-persistence relation can be `equal` while whole-output behavior is
 `distinct`; conversely, a protocol or parity failure makes the pair
 `not_comparable` even if raw strings happen to match.
+
+The current audit cannot establish the required parity basis: separate B and G
+calls expose different `call_slot_id` values through `invocation_context` in
+their full provider requests. The stochastic-output rule remains a future
+evaluator rule; it does not cure that provider-request contradiction.
 
 ## 12. Frozen hypotheses
 
@@ -377,16 +437,22 @@ H1: A vs B preserves the fresh-target conditioning positive control.
 
 H2: C vs B directly tests metadata-only stale persistence.
 
-H3: G vs B tests target-specific equivalence after substrate gating.
+H3: After valid but intentionally different intervention provenance is
+    established, G and B are compared for equivalence only over the
+    post-materialization target-persistence vector, common compliance, and
+    bounded outcome.
 
-H4: G vs C tests a bounded substrate-gating-associated target-persistence
-    difference.
+H4: G vs C tests a bounded gating-associated post-materialization
+    target-persistence difference, conditional on valid intervention
+    provenance.
 
-H5: Common compliance and bounded outcome remain independent from H1–H4.
+H5: Common compliance and bounded outcome remain independent.
 ```
 
 These are hypotheses, not results. No hypothesis requires or predicts raw
-output equality, general benefit, harm, or a general causal mechanism.
+output equality, general benefit, harm, or a general causal mechanism. The
+corrected evaluator structures do not make P6H ready because the required full
+provider-request parity remains unresolved.
 
 ## 13. Recommended future family and namespaces
 
@@ -406,11 +472,12 @@ run-root, candidate, and artifact namespaces. It must not reuse the Issue #221
 or #222 authorization IDs/fingerprints, cohort ID, plan, call slots, request
 family, consumption marker, candidate namespace, run root, or artifact index.
 
-The recommended G implementation is the dedicated local pre-materialization
-projection described in section 6. After exact gate proof, it calls the
-existing B model-input builder and proves canonical request-body equality with
-the same-block B parity projection before either request can reach the
-unchanged v0.3 route.
+The candidate G implementation remains the dedicated local
+pre-materialization projection described in section 6. It can prove exact gate
+provenance and B-shaped treatment material, but no future harness is cleared by
+this audit because full G/B request equality cannot coexist with distinct
+provider-visible `call_slot_id` values under exact v0.3. Candidate A or B from
+section 7 requires separate review before a harness design can proceed.
 
 ## 14. Future live boundary
 
@@ -457,31 +524,31 @@ publication, Ready, merge, and auto-merge remain unauthorized.
 ## 16. Go / no-go conclusions
 
 ```text
-provider_contract_verdict = reuse_parser_closed_v03_exact
-P6H_harness_go = true
-compatibility_probe_required_before_P6H_live = false
-unresolved_design_blockers = none
+provider_contract_verdict = audit_blocked_by_unresolved_parity_or_evaluator_semantics
+P6H_harness_go = false
+compatibility_probe_required_before_P6H_live = unknown_pending_design_resolution
+unresolved_design_blockers =
+  provider_visible_invocation_context_prevents_exact_g_b_request_equality
 ```
 
-`P6H_harness_go = true` means only that a separately authorized zero-egress
-implementation can proceed without a known design blocker if it satisfies all
-of these merge gates:
+The two architecture-review blockers have these dispositions:
 
-- dedicated local G source/gate provenance and exact exclusion proof;
-- all shared-parity checks fail closed;
-- exact same-block G/B v0.3 request-body and schema equality conformance;
-- no G-specific provider-visible material;
-- unchanged provider contract, codec, schema, parser, adapter, route, model,
-  and byte/token bounds;
-- the balanced 16-slot A/B/C/G plan and all six direct comparisons;
-- a new local target-persistence evaluator with explicit unavailable/unknown
-  handling;
-- independent common-compliance and bounded-outcome reporting;
-- distinct authorization, consumption, artifact, and request-family owners;
-- privacy and historical-preservation tests; and
-- zero provider egress during harness implementation and verification.
+1. Full-provider-request parity is unresolved. Current exact v0.3 exposes each
+   distinct call's `call_slot_id` through provider-visible
+   `invocation_context`, so separate G and B calls cannot satisfy Issue #225's
+   equality requirement. Candidate A could separately redefine parity modulo
+   bounded opaque invocation identity; Candidate B could version the provider
+   contract to keep invocation identity outside model-visible material. This
+   audit chooses neither.
+2. Evaluator semantics are corrected at the design level by validating
+   `intervention_provenance_vector` separately and comparing G/B only over
+   `post_materialization_target_persistence_vector`, common compliance, and
+   bounded outcome. This correction does not clear the unresolved request
+   parity blocker.
 
-Failure of G/B canonical request conformance, or any need to expose a
-target-specific required-check field or other G material to the provider,
-invalidates the reuse verdict. No P6H implementation or live work is authorized
-by this audit, even though the design go value is true.
+P6H remains unauthorized and blocked pending a separately reviewed resolution
+of provider-visible invocation identity and parity semantics. Only after such a
+resolution could a future audit decide whether a compatibility probe is
+required and whether a separately authorized zero-egress implementation may
+proceed. No P6H implementation, compatibility probe, live work, or provider
+call is authorized by this audit.

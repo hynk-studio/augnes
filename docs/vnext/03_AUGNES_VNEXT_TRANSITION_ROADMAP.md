@@ -1467,26 +1467,35 @@ ACGC-E2R2P6A [Issue
 #225](https://github.com/hynk-studio/augnes-perspective-lab/issues/225) is
 **Current while its documentation pull request remains Draft**. The
 [design audit](./research/ACGC_E2R2P6_STALE_RESET_ISOLATION_DESIGN_V0_1.md)
-selects `reuse_parser_closed_v03_exact` only when a future local G projection
-proves that the exact upstream stale target and relation were excluded before
-materialization and that the resulting G request body is canonical-equal to
-the paired B request under unchanged v0.3 contract, codec, schema, parser,
-adapter, route, and egress bounds.
+fails closed with
+`provider_contract_verdict = audit_blocked_by_unresolved_parity_or_evaluator_semantics`,
+`P6H_harness_go = false`, and
+`compatibility_probe_required_before_P6H_live = unknown_pending_design_resolution`.
+Current exact v0.3 serializes each distinct `call_slot_id` inside
+provider-visible `invocation_context`, so separate B and G calls cannot satisfy
+Issue #225's full-provider-request equality requirement. Treatment material
+excluding opaque invocation identity may be equal, but redefining parity modulo
+that identity or moving identity outside model-visible material requires a
+separately reviewed design decision.
 
 The audited future order is A/B/G/C, B/C/A/G, C/G/B/A, and G/A/C/B across four
 balanced blocks. Its evaluator design requires all six A↔B, A↔C, A↔G, B↔C,
 B↔G, and C↔G comparisons and separates whole-output behavior,
-target-persistence, common-compliance, and bounded-outcome relations.
-`P6H_harness_go = true` is a design conclusion only;
-`compatibility_probe_required_before_P6H_live = false` remains conditional on
-exact static G/B request conformance and zero provider-visible change.
+target-persistence, common-compliance, and bounded-outcome relations. It also
+separates `intervention_provenance_vector`, where B and G intentionally differ,
+from `post_materialization_target_persistence_vector`, over which a future G/B
+equivalence hypothesis would be evaluated together with independent common
+compliance and bounded outcome. The first design constraint remains unresolved;
+the second is corrected at the evaluator-design level but does not clear P6H.
 
-E2R2P6A creates no P6H implementation or live authority. Any harness,
-compatibility work caused by contract drift, candidate, authorization, Gate A,
-Gate B, or provider call remains separately authorized. Issue #205 remains
-separate/open, and PR #186 remains open/Draft/unmerged historical HOLD. Policy,
-Stage 7, C9, actor/winner/population work, publication, deployment, Ready,
-merge, and auto-merge remain unauthorized.
+P6H remains unauthorized and blocked pending a separately reviewed resolution
+of provider-visible invocation identity and parity semantics. E2R2P6A creates
+no P6H implementation or live authority. Any harness, compatibility work,
+candidate, authorization, Gate A, Gate B, or provider call remains separately
+authorized. Issue #205 remains separate/open, and PR #186 remains
+open/Draft/unmerged historical HOLD. Policy, Stage 7, C9,
+actor/winner/population work, publication, deployment, Ready, merge, and
+auto-merge remain unauthorized.
 
 ### ACGC Stage 6 closeout — Completed
 
@@ -1761,7 +1770,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 is Current while its zero-egress design-audit PR remains Draft. Issue #205 remains separate/open, and Draft PR #186 remains open/Draft/unmerged historical HOLD. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A audits a local pre-materialization G gate, exact B-shaped v0.3 reuse, direct C↔B coverage, and a bounded target-persistence evaluator only. It authorizes no P6H implementation, compatibility probe, live work, replication, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, or auto-merge. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 is Current while its zero-egress design-audit PR remains Draft. Issue #205 remains separate/open, and Draft PR #186 remains open/Draft/unmerged historical HOLD. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A fails closed because exact full G/B provider-request equality conflicts with provider-visible distinct `call_slot_id` under current v0.3. Its evaluator design separately validates intervention provenance and compares only post-materialization target persistence, common compliance, and bounded outcome. Direct C↔B coverage and all six A/B/C/G pairs remain required. P6H is not design-cleared. E2R2P6A authorizes no P6H implementation, compatibility probe, live work, replication, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, or auto-merge. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
