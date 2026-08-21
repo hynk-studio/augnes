@@ -31,6 +31,10 @@ import type {
   OperationalReentryMatchedCohortModelOutputV03,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
 import type {
+  OperationalReentryMatchedCohortInvocationV04,
+  OperationalReentryMatchedCohortModelOutputV04,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
+import type {
   ModelGatewayCostBudgetV01,
   ModelInvocationReceiptUsageV02,
   ModelInvocationReceiptV02,
@@ -64,6 +68,8 @@ export const OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 =
   "operational_reentry_matched_cohort_v02" as const;
 export const OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 =
   "operational_reentry_matched_cohort_v03" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_matched_cohort_v04" as const;
 export const MODEL_GATEWAY_PURPOSES_V01 = [
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
@@ -74,6 +80,7 @@ export const MODEL_GATEWAY_PURPOSES_V01 = [
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
 ] as const;
 
 export type ModelGatewayPurposeV01 =
@@ -223,6 +230,13 @@ export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV03
   input: OperationalReentryMatchedCohortModelInputV03;
 }
 
+export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV04
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryMatchedCohortInvocationV04;
+}
+
 export type ModelInvocationEnvelopeV01 =
   | ObserveModelInvocationEnvelopeV01
   | PlannerModelInvocationEnvelopeV01
@@ -232,7 +246,8 @@ export type ModelInvocationEnvelopeV01 =
   | GovernedActorLabModelInvocationEnvelopeV01
   | OperationalReentryMatchedCohortModelInvocationEnvelopeV01
   | OperationalReentryMatchedCohortModelInvocationEnvelopeV02
-  | OperationalReentryMatchedCohortModelInvocationEnvelopeV03;
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV03
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV04;
 
 export interface ModelGatewayPolicyAuthorizationV01 {
   workspace_id: string;
@@ -309,6 +324,12 @@ export interface OperationalReentryMatchedCohortModelGatewayResultV03 {
   model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
+export interface OperationalReentryMatchedCohortModelGatewayResultV04 {
+  generator: "openai";
+  output: OperationalReentryMatchedCohortModelOutputV04;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
 export type ModelAdapterInputV01 =
   | ({ canonical_project_id: string } & ObserveModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & PlannerModelInvocationEnvelopeV01["input"])
@@ -318,7 +339,8 @@ export type ModelAdapterInputV01 =
   | ({ canonical_project_id: string } & GovernedActorLabModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV02["input"])
-  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV03["input"]);
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV03["input"])
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV04["input"]);
 
 export interface ModelAdapterLifecycleV01 {
   signal: AbortSignal;
@@ -375,6 +397,11 @@ export type ModelAdapterInvocationResultV01 =
   | {
       purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01;
       output: OperationalReentryMatchedCohortModelOutputV03;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryMatchedCohortModelOutputV04;
       usage: ModelGatewayNormalizedUsageV01 | null;
     };
 

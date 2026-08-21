@@ -670,6 +670,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P6B invocation-identity-separated parser-closed v0.4 contract (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-4.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2R2P4H parser-closed v0.3 successor compatibility-probe harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-parser-closed-provider-compatibility-probe.ts",

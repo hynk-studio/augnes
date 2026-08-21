@@ -55,7 +55,8 @@ export type ModelInvocationReceiptPurposeV02 =
   | "governed_actor_lab"
   | "operational_reentry_matched_cohort"
   | "operational_reentry_matched_cohort_v02"
-  | "operational_reentry_matched_cohort_v03";
+  | "operational_reentry_matched_cohort_v03"
+  | "operational_reentry_matched_cohort_v04";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
@@ -77,6 +78,8 @@ export interface ModelInvocationReceiptV02 {
   work_id: string | null;
   run_id: string | null;
   purpose: ModelInvocationReceiptPurposeV02;
+  /** Local-only binding for invocation-identity-separated contracts. */
+  local_invocation_identity_fingerprint?: string;
   invocation_origin: "interactive" | "policy_triggered";
   attempted_implementation_id: string | null;
   attempted_implementation_version: string | null;
