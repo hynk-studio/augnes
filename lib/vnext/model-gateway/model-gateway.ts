@@ -55,7 +55,8 @@ import {
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec";
 import {
   buildOperationalReentryMatchedCohortProviderContractV04,
-  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04,
+  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04 as createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04,
+  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04 as createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
   OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V04,
   validateOperationalReentryMatchedCohortInvocationV04,
@@ -130,6 +131,7 @@ import {
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04,
   type OperationalReentryMatchedCohortInvocationV04,
+  type OperationalReentryMatchedCohortProviderMaterialV04,
   type OperationalReentryMatchedCohortProviderContractV04,
   type OperationalReentryMatchedCohortRouteV04,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
@@ -165,6 +167,24 @@ export function readOperationalReentryMatchedCohortProviderContractV04():
   OperationalReentryMatchedCohortProviderContractV04 {
   return structuredClone(
     buildOperationalReentryMatchedCohortProviderContractV04(),
+  );
+}
+
+/** Preserves codec-owned v0.4 local invocation identity through the shared Gateway. */
+export function createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04(
+  invocation: OperationalReentryMatchedCohortInvocationV04,
+): string {
+  return createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04(
+    invocation,
+  );
+}
+
+/** Preserves codec-owned v0.4 provider material identity through the shared Gateway. */
+export function createOperationalReentryMatchedCohortProviderMaterialFingerprintV04(
+  material: OperationalReentryMatchedCohortProviderMaterialV04,
+): string {
+  return createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04(
+    material,
   );
 }
 

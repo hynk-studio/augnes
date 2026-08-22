@@ -75,7 +75,12 @@ export function runOperationalReentryParserClosedCleanControlCohortConformanceV0
     ACGC_E2R2P5H_COMMON_TASK_EVIDENCE_FINGERPRINT_V01,
   );
   assert.equal(plan.entries[0]!.adapter_request_route_fingerprint, ACGC_E2R2P5H_ADAPTER_REQUEST_ROUTE_FINGERPRINT_V01);
-  assert.equal(MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01.at(-1), "parser_closed_clean_control_cohort");
+  assert.equal(
+    MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01.includes(
+      "parser_closed_clean_control_cohort",
+    ),
+    true,
+  );
   assert.equal(ACGC_E2R2P5H_ROUTE_FINGERPRINT_V01, "sha256:4d286f56405ff66236a19d1e0f4529510faa8c53a80e6bba4ecac9c4845930e0");
   assert.equal(ACGC_E2R2P5H_PROVIDER_CONTRACT_FINGERPRINT_V01, "sha256:682905683f083ee67002dc4cf2577ec3ae4302e90fc85e27f43019b8b7978bbb");
   assert.equal(ACGC_E2R2P5H_PER_CALL_WORST_CASE_NANO_USD_V01, 11_699_200);

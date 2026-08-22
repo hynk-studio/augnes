@@ -577,7 +577,8 @@ truth:
 | ACGC-E2R2P5A2 | [#222](https://github.com/hynk-studio/augnes-perspective-lab/issues/222) | Reviewed zero-egress refresh lineage reconciled by [#223](https://github.com/hynk-studio/augnes-perspective-lab/issues/223) | Completed the zero-egress refresh of one expired, unconsumed candidate; the refresh was not a second cohort or provider retry. |
 | ACGC-E2R2P5C | [#223](https://github.com/hynk-studio/augnes-perspective-lab/issues/223) | [PR #224](https://github.com/hynk-studio/augnes-perspective-lab/pull/224), `e6260670` | Completed the documentation-only behavioral closeout at `e62606704edf1103390f3c067401a2cb853741b5` without creating successor execution or policy authority. |
 | ACGC-E2R2P6A | [#225](https://github.com/hynk-studio/augnes-perspective-lab/issues/225) | [PR #226](https://github.com/hynk-studio/augnes-perspective-lab/pull/226), `9b24e5d7` | Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with the fail-closed finding that provider-visible v0.3 invocation identity prevented exact full-request G/B parity. |
-| ACGC-E2R2P6B | [#227](https://github.com/hynk-studio/augnes-perspective-lab/issues/227) | Dedicated implementation branch; Draft PR is the only authorized lifecycle state | **Current while Draft only.** Selects a versioned v0.4 separation between local invocation identity, model-visible experimental material, and opaque transport correlation. v0.4 compatibility is not established; P6H remains blocked and unauthorized. |
+| ACGC-E2R2P6B | [#227](https://github.com/hynk-studio/augnes-perspective-lab/issues/227) | [PR #228](https://github.com/hynk-studio/augnes-perspective-lab/pull/228), `e1c6aa46` | Completed at `e1c6aa46960bf3d983818faba0d9531d3e3333fa` with the versioned v0.4 separation between local invocation identity, model-visible experimental material, and opaque transport correlation. |
+| ACGC-E2R2P6C | [#229](https://github.com/hynk-studio/augnes-perspective-lab/issues/229) | Draft [PR #230](https://github.com/hynk-studio/augnes-perspective-lab/pull/230) | **Current while Draft only.** Adds the zero-real-egress v0.4 compatibility-probe harness; compatibility remains `none`, successor live authorizations created/consumed remain `0/0`, and real provider calls remain `0`. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1448,9 +1449,11 @@ Its question is whether substrate-level gating can make G provider-material
 equal to B while metadata-only C retains a separately measurable
 target-persistence path. E2R2P6A audited exact A/B/C/G parity, the mandatory
 direct C↔B comparison, evaluator dimensions, provider-contract reuse, future
-namespaces, and zero-egress-first sequencing. E2R2P6B is the current
-zero-provider contract slice and selects model-visible identity separation;
-it does not implement or authorize the P6H harness or live work.
+namespaces, and zero-egress-first sequencing. E2R2P6B completed the
+zero-provider v0.4 contract slice at
+`e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C is the current
+zero-provider compatibility-harness slice; it does not create a compatibility
+result or authorize the P6H harness or live work.
 
 ### ACGC-E2R2P5C documentation closeout — Completed
 
@@ -1493,19 +1496,21 @@ the second is corrected at the evaluator-design level but does not clear P6H.
 
 P6H remains unauthorized and blocked pending a separately reviewed resolution
 of provider-visible invocation identity and parity semantics. E2R2P6A creates
-no P6H implementation or live authority. Any harness, compatibility work,
-candidate, authorization, Gate A, Gate B, or provider call remains separately
-authorized. Issue #205 remains separate/open, and PR #186 remains
+no P6H implementation or live authority. The later P6B contract and current
+P6C zero-egress harness remain separate lifecycle slices; a compatibility
+result, candidate, live authorization, Gate A, Gate B, or provider call remains
+separately authorized. Issue #205 remains separate/open, and PR #186 remains
 open/Draft/unmerged historical HOLD. Policy, Stage 7, C9,
 actor/winner/population work, publication, deployment, Ready, merge, and
 auto-merge remain unauthorized.
 
-### ACGC-E2R2P6B invocation-identity-separated parser-closed v0.4 contract — Current while Draft only
+### ACGC-E2R2P6B invocation-identity-separated parser-closed v0.4 contract — Completed
 
 ACGC-E2R2P6B [Issue
-#227](https://github.com/hynk-studio/augnes-perspective-lab/issues/227) is
-**Current while its implementation pull request remains Draft**. It selects a
-new versioned parser-closed contract with this strict boundary:
+#227](https://github.com/hynk-studio/augnes-perspective-lab/issues/227) / [PR
+#228](https://github.com/hynk-studio/augnes-perspective-lab/pull/228) is
+**Completed** at merge `e1c6aa46960bf3d983818faba0d9531d3e3333fa`. It
+selects a new versioned parser-closed contract with this strict boundary:
 
 ```text
 local_invocation_identity
@@ -1534,14 +1539,29 @@ schema parity and unchanged `1168` response bytes, `1168` max output tokens,
 and `24576` final request bytes verified. Exhaustive parser closure covers
 `172032` schema-permitted A/B/C/D outputs.
 
-This implementation establishes no v0.4 compatibility result. Required future
-sequencing remains merged P6B contract → separate zero-egress v0.4
-compatibility harness → separate live-only compatibility issue → Gate A → one
-Gate B compatibility probe → documentation closeout → only then reconsider
-P6H. P6H remains blocked and unauthorized. No provider/live, authorization,
-behavioral, replication, policy, Stage 7, or C9 authority follows. Issue #205
-remains separate/open, and PR #186 remains open/Draft/unmerged historical
-HOLD.
+This merged implementation establishes no v0.4 compatibility result. It
+created or consumed no successor live authorization and made no real provider
+call.
+
+### ACGC-E2R2P6C v0.4 identity-separated compatibility-probe harness — Current while Draft only
+
+ACGC-E2R2P6C [Issue
+#229](https://github.com/hynk-studio/augnes-perspective-lab/issues/229) / Draft
+[PR #230](https://github.com/hynk-studio/augnes-perspective-lab/pull/230) is
+**Current while Draft only**. It defines a future four-shape A/B/C/D
+compatibility-probe authorization and append-only artifact family over the
+merged v0.4 route, plus a static zero-egress twin-B witness proving that
+distinct local invocation and transport-correlation identities can retain an
+identical provider JSON body and request fingerprint. The witness is static
+contract lineage only and is not a fifth live call or behavioral datum.
+
+This Draft creates or consumes `0/0` successor live authorizations, makes `0`
+real provider calls, and leaves the v0.4 compatibility result `none`. The
+future E2R2P6D live-only issue, Gate A, Gate B, documentation closeout, P6H,
+behavioral work, replication, policy, Stage 7, C9, actor/winner/population
+work, publication, deployment, Ready, merge, and auto-merge all remain
+separately unauthorized. Issue #205 remains separate/open, and PR #186 remains
+open/Draft/unmerged historical HOLD.
 
 ### ACGC Stage 6 closeout — Completed
 
@@ -1683,11 +1703,13 @@ completed exactly one authorization-consumed parser-closed v0.3 cohort with
 candidate. E2R2P5C Issue #223 / PR #224 is Completed at
 `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is
 Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit
-result. E2R2P6B Issue #227 is Current while its implementation pull request
-remains Draft; it selects model-visible identity separation but establishes no
-v0.4 compatibility and creates no P6H implementation or live authority. Reconstructability
-or trajectory work, replication, policy work, and Stage 7 remain separate user
-decisions.
+result. E2R2P6B Issue #227 / PR #228 is Completed at
+`e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C Issue #229 / Draft PR
+#230 is Current while Draft only; v0.4 compatibility remains `none`, successor
+live authorizations created/consumed remain `0/0`, and real provider calls
+remain `0`. P6H implementation and live authority remain absent.
+Reconstructability or trajectory work, replication, policy work, and Stage 7
+remain separate user decisions.
 
 The supporting
 [post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
@@ -1818,7 +1840,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains v0.3 provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit result. E2R2P6B Issue #227 is Current while its implementation PR remains Draft; it selects model-visible identity separation, and v0.4 compatibility is not established. Issue #205 remains separate/open, and Draft PR #186 remains open/Draft/unmerged historical HOLD. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A failed closed because exact full G/B provider-request equality conflicted with provider-visible distinct `call_slot_id` under v0.3. E2R2P6B addresses that contract blocker prospectively through a new v0.4 identity separation; it does not retroactively alter P6A or v0.3 and establishes no compatibility result. The evaluator design separately validates intervention provenance and compares only post-materialization target persistence, common compliance, and bounded outcome. Direct C↔B coverage and all six A/B/C/G pairs remain required. P6H is not design-cleared. E2R2P6B authorizes no compatibility harness/probe, P6H implementation, live work, replication, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, Ready, merge, or auto-merge. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains v0.3 provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit result. E2R2P6B Issue #227 / PR #228 is Completed at `e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C Issue #229 / Draft PR #230 is Current while Draft only; v0.4 compatibility remains `none`, successor live authorizations created/consumed remain `0/0`, and real provider calls remain `0`. Issue #205 remains separate/open, and Draft PR #186 remains open/Draft/unmerged historical HOLD. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A failed closed because exact full G/B provider-request equality conflicted with provider-visible distinct `call_slot_id` under v0.3. E2R2P6B addresses that contract blocker prospectively through a new v0.4 identity separation; it does not retroactively alter P6A or v0.3 and establishes no compatibility result. The evaluator design separately validates intervention provenance and compares only post-materialization target persistence, common compliance, and bounded outcome. Direct C↔B coverage and all six A/B/C/G pairs remain required. P6H is not design-cleared. E2R2P6C defines only the zero-egress compatibility harness. A future E2R2P6D live-only issue, Gate A, Gate B, closeout, P6H implementation, behavioral work, replication, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, deployment, Ready, merge, and auto-merge remain separately unauthorized. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
@@ -1842,11 +1864,13 @@ cohort; E2R2P5A2 Issue #222 completed only its zero-egress expired-candidate
 refresh; and E2R2P5C Issue #223 / PR #224 is Completed at
 `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is
 Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit
-result. E2R2P6B Issue #227 is Current while its implementation pull request
-remains Draft. It selects model-visible identity separation, while v0.4
-compatibility, P6H implementation, and live work remain separately
-unauthorized. Stage 7 remains
-unauthorized and unstarted.
+result. E2R2P6B Issue #227 / PR #228 is Completed at
+`e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C Issue #229 / Draft PR
+#230 is Current while Draft only. v0.4 compatibility remains `none`, successor
+live authorizations created/consumed remain `0/0`, and real provider calls
+remain `0`; the future E2R2P6D live-only issue, Gate A, Gate B, closeout, P6H,
+and live work remain separately unauthorized. Stage 7 remains unauthorized
+and unstarted.
 
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,

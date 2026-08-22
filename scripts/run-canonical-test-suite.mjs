@@ -686,6 +686,14 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P6C identity-separated v0.4 compatibility-probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-v0-4-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2R2P5H parser-closed v0.3 clean-control behavioral cohort harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-parser-closed-clean-control-cohort.ts",
