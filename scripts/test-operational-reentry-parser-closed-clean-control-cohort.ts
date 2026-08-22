@@ -217,6 +217,7 @@ function verifyPlanProviderContractAndBridgeV01(): {
     "clean_control_compatibility_probe",
     "parser_closed_compatibility_probe",
     "parser_closed_clean_control_cohort",
+    "operational_reentry_v04_compatibility_probe",
   ]);
   const traceBasis = fingerprintV01("same-request-family-basis");
   assert.equal(
@@ -228,7 +229,7 @@ function verifyPlanProviderContractAndBridgeV01(): {
         }),
       ),
     ).size,
-    6,
+    7,
   );
   assert.equal(bridge.parser_closed_wire_representation_is_evaluator_dimension, false);
   assert.equal(bridge.historical_evaluator_version, "operational_reentry_matched_cohort_evaluator.v0.2");

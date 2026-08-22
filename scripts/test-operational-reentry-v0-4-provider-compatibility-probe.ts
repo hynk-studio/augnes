@@ -26,30 +26,30 @@ import {
   operationalReentryMatchedCohortCaseFixtureV02,
 } from "@/fixtures/vnext/research/operational-reentry-matched-cohort-v0-2";
 import {
-  assertOperationalReentryParserClosedProviderCompatibilityProbeArtifactPayloadSafeV01,
-  assertOperationalReentryParserClosedProviderCompatibilityProbeArtifactRootAvailableV01,
-  beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01,
-  validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01,
-} from "@/lib/vnext/operational-reentry-parser-closed-provider-compatibility-probe-artifact-store";
+  assertOperationalReentryV04ProviderCompatibilityProbeArtifactPayloadSafeV01,
+  assertOperationalReentryV04ProviderCompatibilityProbeArtifactRootAvailableV01,
+  beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01,
+  validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01,
+} from "@/lib/vnext/operational-reentry-v0-4-provider-compatibility-probe-artifact-store";
 import { validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02 } from "@/lib/vnext/operational-reentry-clean-control-provider-compatibility-probe-artifact-store";
 import { buildOperationalReentryCleanControlProviderCompatibilityProbeRepresentativeShapePlanV02 } from "@/lib/vnext/operational-reentry-clean-control-provider-compatibility-probe";
 import {
-  ACGC_E2R2P4H_AGGREGATE_COST_CEILING_NANO_USD_V01,
-  ACGC_E2R2P4H_CANONICAL_SHAPE_ORDER_V01,
-  buildOperationalReentryParserClosedProviderCompatibilityProbeAuthorizationExpectationsV01,
-  buildOperationalReentryParserClosedProviderCompatibilityProbeModelInvocationEnvelopeV01,
-  buildOperationalReentryParserClosedProviderCompatibilityProbeRepresentativeShapePlanV01,
-  buildOperationalReentryParserClosedProviderCompatibilityProbeV01,
-  deriveOperationalReentryParserClosedProviderCompatibilityProbeOutcomeV01,
-  operationalReentryParserClosedProviderCompatibilityProbeHarnessAuthorityV01,
-  projectOperationalReentryParserClosedProviderCompatibilityProbePlanForArtifactV01,
-  runOperationalReentryParserClosedProviderCompatibilityProbeV01,
-  type RunOperationalReentryParserClosedProviderCompatibilityProbeDependenciesV01,
-} from "@/lib/vnext/operational-reentry-parser-closed-provider-compatibility-probe";
+  ACGC_E2R2P6C_AGGREGATE_COST_CEILING_NANO_USD_V01,
+  ACGC_E2R2P6C_CANONICAL_SHAPE_ORDER_V01,
+  buildOperationalReentryV04ProviderCompatibilityProbeAuthorizationExpectationsV01,
+  buildOperationalReentryV04ProviderCompatibilityProbeModelInvocationEnvelopeV01,
+  buildOperationalReentryV04ProviderCompatibilityProbeRepresentativeShapePlanV01,
+  buildOperationalReentryV04ProviderCompatibilityProbeV01,
+  deriveOperationalReentryV04ProviderCompatibilityProbeOutcomeV01,
+  operationalReentryV04ProviderCompatibilityProbeHarnessAuthorityV01,
+  projectOperationalReentryV04ProviderCompatibilityProbePlanForArtifactV01,
+  runOperationalReentryV04ProviderCompatibilityProbeV01,
+  type RunOperationalReentryV04ProviderCompatibilityProbeDependenciesV01,
+} from "@/lib/vnext/operational-reentry-v0-4-provider-compatibility-probe";
 import { validateOperationalReentryMatchedCohortArtifactsV01 } from "@/lib/vnext/operational-reentry-matched-cohort-artifact-store";
 import { validateOperationalReentryMatchedCohortReplacementArtifactsV01 } from "@/lib/vnext/operational-reentry-matched-cohort-replacement-artifact-store";
 import { buildOperationalReentryMatchedCohortCallPlanV01 } from "@/lib/vnext/operational-reentry-matched-cohort";
-import { buildOperationalReentryMatchedCohortGoldenWireOutputV03 } from "@/lib/vnext/operational-reentry-matched-cohort-v0-3";
+import { buildOperationalReentryMatchedCohortGoldenWireOutputV04 } from "@/lib/vnext/operational-reentry-matched-cohort-v0-4";
 import { validateOperationalReentryProviderCompatibilityProbeArtifactsV01 } from "@/lib/vnext/operational-reentry-provider-compatibility-probe-artifact-store";
 import {
   MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01,
@@ -58,15 +58,17 @@ import {
 import type { ModelProviderResponseInvalidStageV01 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
-  OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
 } from "@/lib/vnext/model-gateway/contracts";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   prepareOperationalReentryMatchedCohortModelGatewayRouteV01,
   prepareOperationalReentryMatchedCohortModelGatewayRouteV02,
   prepareOperationalReentryMatchedCohortModelGatewayRouteV03,
+  prepareOperationalReentryMatchedCohortModelGatewayRouteV04,
   projectOperationalReentryMatchedCohortProviderRequestV02,
   projectOperationalReentryMatchedCohortProviderRequestV03,
+  projectOperationalReentryMatchedCohortProviderRequestV04,
   validateModelInvocationEnvelopeV01,
   type ModelGatewayInteractiveAdmissionV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
@@ -77,10 +79,11 @@ import {
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import {
   operationalReentryMatchedCohortResponseSchemaV04,
-  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03,
-} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec";
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
 import { OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V04 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec";
 import { buildOperationalReentryMatchedCohortModelInputV02 } from "@/lib/vnext/operational-reentry-matched-cohort-v0-2";
+import { buildOperationalReentryMatchedCohortModelInputV03 } from "@/lib/vnext/operational-reentry-matched-cohort-v0-3";
 import { validateOpenAIStrictSchemaSupportedSubsetV01 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
 import {
   getOrCreateCanonicalProjectForLocalRootV01,
@@ -92,22 +95,22 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { preflightOperationalReentryParserClosedProviderCompatibilityProbeRepositoryV01 } from "@/scripts/operational-reentry-parser-closed-provider-compatibility-probe";
+import { preflightOperationalReentryV04ProviderCompatibilityProbeRepositoryV01 } from "@/scripts/operational-reentry-v0-4-provider-compatibility-probe";
 import {
-  OPERATIONAL_REENTRY_PARSER_CLOSED_PROVIDER_COMPATIBILITY_PROBE_AUTHORIZATION_VERSION_V01,
-  type OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01,
-  type OperationalReentryParserClosedProviderCompatibilityProbePreparedV01,
-} from "@/types/vnext/operational-reentry-parser-closed-provider-compatibility-probe";
+  OPERATIONAL_REENTRY_V04_PROVIDER_COMPATIBILITY_PROBE_AUTHORIZATION_VERSION_V01,
+  type OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01,
+  type OperationalReentryV04ProviderCompatibilityProbePreparedV01,
+} from "@/types/vnext/operational-reentry-v0-4-provider-compatibility-probe";
 import {
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
-  type OperationalReentryMatchedCohortRouteV03,
-} from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V06,
+  type OperationalReentryMatchedCohortRouteV04,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
 
 const repositoryRoot = process.cwd();
-const root = mkdtempSync(path.join(tmpdir(), "augnes-e2r2p4h-v03-"));
+const root = mkdtempSync(path.join(tmpdir(), "augnes-e2r2p6c-v04-"));
 const projectRoot = path.join(root, "project");
 const databasePath = path.join(root, "gateway.db");
-const evaluatedAt = "2026-08-19T08:00:00.000Z";
+const evaluatedAt = "2026-08-22T08:00:00.000Z";
 const futureMergedSourceHead = "c".repeat(40);
 const repositoryIdentity = {
   repository_slug: "hynk-studio/augnes-perspective-lab" as const,
@@ -125,7 +128,7 @@ void main()
   })
   .catch((error) => {
     console.error(
-      "operational_reentry_parser_closed_provider_compatibility_probe_test_failed",
+      "operational_reentry_v04_provider_compatibility_probe_test_failed",
     );
     console.error(error instanceof Error ? error.stack ?? error.message : String(error));
     process.exitCode = 1;
@@ -134,14 +137,14 @@ void main()
 async function main(): Promise<void> {
   globalThis.fetch = (async () => {
     fetchCalls += 1;
-    throw new Error("parser-closed compatibility tests must not call fetch");
+    throw new Error("v0.4 compatibility harness tests must not call fetch");
   }) as typeof fetch;
   mkdirSync(projectRoot, { recursive: true });
   writeFileSync(path.join(projectRoot, ".gitignore"), ".augnes-lab/\n");
   initializeDatabaseV01();
   const admission = registerProjectV01();
 
-  verifyHistoricalPreservationV01();
+  await verifyHistoricalPreservationV01();
   const shapeIdentity = await verifyShapePlanAndPricingV01(admission);
   const accepted = await verifySharedGatewayFourShapeProbeV01(admission);
   await verifyTerminalMappingsV01(admission);
@@ -155,15 +158,17 @@ async function main(): Promise<void> {
   console.log(
     JSON.stringify({
       status:
-        "operational_reentry_parser_closed_provider_compatibility_probe_test_passed",
+        "operational_reentry_v04_provider_compatibility_probe_test_passed",
       planned_shapes: 4,
-      canonical_order: ACGC_E2R2P4H_CANONICAL_SHAPE_ORDER_V01,
+      canonical_order: ACGC_E2R2P6C_CANONICAL_SHAPE_ORDER_V01,
       case_fingerprint:
         operationalReentryMatchedCohortCaseFixtureV02.integrity.fingerprint,
       common_task_evidence_fingerprint:
         OPERATIONAL_REENTRY_MATCHED_COHORT_COMMON_TASK_EVIDENCE_FINGERPRINT_V02,
       representative_shape_plan_fingerprint:
         shapeIdentity.representative_shape_plan_fingerprint,
+      twin_b_zero_egress_witness_fingerprint:
+        shapeIdentity.twin_b_zero_egress_witness_fingerprint,
       route_fingerprint: shapeIdentity.route_fingerprint,
       provider_contract_fingerprint:
         shapeIdentity.provider_contract_fingerprint,
@@ -176,7 +181,9 @@ async function main(): Promise<void> {
         shapeIdentity.pricing_authority_fingerprint,
       aggregate_worst_case_cost_nano_usd:
         shapeIdentity.aggregate_worst_case_cost_nano_usd,
+      required_fake_deterministic_test_categories: 22,
       index_only_tamper_regressions: 5,
+      coordinated_artifact_cross_link_tamper_regressions: 2,
       accepted_fake_transport_calls: accepted.fake_transport_calls,
       total_fake_transport_calls: fakeTransportCalls,
       real_provider_calls: 0,
@@ -191,7 +198,7 @@ async function main(): Promise<void> {
   );
 }
 
-function verifyHistoricalPreservationV01(): void {
+async function verifyHistoricalPreservationV01(): Promise<void> {
   assert.equal(
     operationalReentryMatchedCohortCaseFixtureV01.integrity.fingerprint,
     "sha256:de6326bcd9411507790a271e57d09e7442018a22509d211a95f81dcc9f55b4d6",
@@ -203,75 +210,6 @@ function verifyHistoricalPreservationV01(): void {
   assert.equal(
     buildOperationalReentryMatchedCohortCallPlanV01().integrity.fingerprint,
     "sha256:02ce97acf6f9e7a02a1eb85f73e4da3748c2d6d944bbd96acdac5a515f89f9df",
-  );
-  const issue193 =
-    validateOperationalReentryProviderCompatibilityProbeArtifactsV01({
-      repository_root: repositoryRoot,
-      run_root: path.join(
-        repositoryRoot,
-        ".augnes-lab/operational-reentry-provider-probes/operational-reentry-provider-probe_724ed8fce6d30d0979efd6bf837a3edc/issue-193",
-      ),
-    });
-  assert.equal(
-    issue193.report_fingerprint,
-    "sha256:1ef3f21894272f390fcdacce80226383ae6d921c43712c3736a18843a8b08eb2",
-  );
-  assert.equal(
-    issue193.artifact_index_fingerprint,
-    "sha256:19bc10cb3f9cbd6d2a0fb2b4df9fca6728c4bb4e571255e52f3c2d0fd7a6bd76",
-  );
-  const issue199 =
-    validateOperationalReentryMatchedCohortReplacementArtifactsV01({
-      repository_root: repositoryRoot,
-      run_root: path.join(
-        repositoryRoot,
-        ".augnes-lab/operational-reentry-matched-cohort-replacements/operational-reentry-replacement-cohort_d3136fe392e130ba74f67349686a91d9/issue-199",
-      ),
-    });
-  assert.equal(
-    issue199.replacement_cohort_fingerprint,
-    "sha256:e23a70a7e7d9a136b1133c0683db46723ba5d2ec93dc4bf029caf9b7c64612a9",
-  );
-  assert.equal(
-    issue199.report_fingerprint,
-    "sha256:a3cdf87b2d85bb40d577f4e324ac058652c41414f6fbc26dc21b4ef51e8afa73",
-  );
-  assert.equal(
-    issue199.artifact_index_fingerprint,
-    "sha256:14296adcac5b81308a11a0761ac39ce77a4ba0c56ddf2cbf6e7e998f33415755",
-  );
-  const issue208Root = path.join(
-    repositoryRoot,
-    ".augnes-lab/operational-reentry-clean-control-provider-probes/operational-reentry-clean-control-provider-probe_9b197e054fab24139b511d4a1e6a4bde/issue-208",
-  );
-  const issue208 =
-    validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02(
-      { repository_root: repositoryRoot, run_root: issue208Root },
-    );
-  assert.equal(issue208.outcome, "provider_response_invalid");
-  assert.equal(
-    issue208.probe_fingerprint,
-    "sha256:4d93d73ee21d223fbe554cf768d74c74d175bba89df6eebf99c06a2d5dc940d9",
-  );
-  assert.equal(
-    issue208.report_fingerprint,
-    "sha256:1dd9cdf3909e0c5667064f1e38b569805c7e38b38fd63ea707535c1a85308aab",
-  );
-  assert.equal(
-    issue208.artifact_index_fingerprint,
-    "sha256:8ffb5af4c99f2524eb7bc3b787c7d063d2bd639d2e461c18c408aa8475ac102c",
-  );
-  const issue208Authorization = JSON.parse(
-    readFileSync(path.join(issue208Root, "authorization.json"), "utf8"),
-  ) as { integrity: { fingerprint: string } };
-  assert.equal(
-    issue208Authorization.integrity.fingerprint,
-    "sha256:ca4af721dce8b69d95904626e2a67c09c00e312efef138ab9161a3b71e70c9c9",
-  );
-  assert.equal(
-    buildOperationalReentryCleanControlProviderCompatibilityProbeRepresentativeShapePlanV02()
-      .integrity.fingerprint,
-    "sha256:abed2c04ff06f92e533932cd42c35fd95991424fa2841015e7050b11bd5a92eb",
   );
   const historicalRequest =
     projectOperationalReentryMatchedCohortProviderRequestV02(
@@ -297,14 +235,34 @@ function verifyHistoricalPreservationV01(): void {
     historicalRequest.parser_version,
     "operational_reentry_matched_cohort_parser.v0.2",
   );
-  const issue185 = validateOperationalReentryMatchedCohortArtifactsV01({
-    repository_root: repositoryRoot,
-    run_root: path.join(
-      repositoryRoot,
-      ".augnes-lab/operational-reentry-matched-cohorts/operational-reentry-cohort_48331280ed7ead6dbad2d12105208dfb/issue-185",
-    ),
+  const historicalAdapter = adapterV01(async () => {
+    throw new Error("historical v0.3 preservation must remain zero egress");
   });
-  assert.equal(issue185.result_kind, "incomplete");
+  const historicalV03Route =
+    await prepareOperationalReentryMatchedCohortModelGatewayRouteV03({
+      adapter: historicalAdapter,
+    });
+  assert.ok(historicalV03Route);
+  assert.equal(
+    historicalV03Route.integrity_fingerprint,
+    "sha256:4d286f56405ff66236a19d1e0f4529510faa8c53a80e6bba4ecac9c4845930e0",
+  );
+  assert.equal(
+    historicalV03Route.provider_contract_fingerprint,
+    "sha256:682905683f083ee67002dc4cf2577ec3ae4302e90fc85e27f43019b8b7978bbb",
+  );
+  const historicalV03Request =
+    projectOperationalReentryMatchedCohortProviderRequestV03(
+      buildOperationalReentryMatchedCohortModelInputV03({
+        arm: "A",
+        block: 0,
+        call_slot_id: "historical-v03-route-check",
+      }),
+    );
+  assert.equal(
+    historicalV03Request.adapter_request_route_fingerprint,
+    "sha256:182e0be9c2b4a53baca61c01d9b83f67fbd6855d1e3b8c9cbd182abeff4831e9",
+  );
   const packageJson = JSON.parse(
     readFileSync(path.join(repositoryRoot, "package.json"), "utf8"),
   ) as { scripts: Record<string, string> };
@@ -328,9 +286,15 @@ function verifyHistoricalPreservationV01(): void {
   );
   assert.equal(
     packageJson.scripts[
-      "test:operational-reentry-parser-closed-provider-compatibility-probe"
+      "operational-reentry:v04-provider-compatibility-probe"
     ],
-    "node --import tsx scripts/test-operational-reentry-parser-closed-provider-compatibility-probe.ts",
+    "node --import tsx scripts/operational-reentry-v0-4-provider-compatibility-probe.ts",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "test:operational-reentry-v04-provider-compatibility-probe"
+    ],
+    "node --import tsx scripts/test-operational-reentry-v0-4-provider-compatibility-probe.ts",
   );
 }
 
@@ -338,6 +302,7 @@ async function verifyShapePlanAndPricingV01(
   admission: ModelGatewayInteractiveAdmissionV01,
 ): Promise<{
   representative_shape_plan_fingerprint: string;
+  twin_b_zero_egress_witness_fingerprint: string;
   route_fingerprint: string;
   provider_contract_fingerprint: string;
   adapter_request_route_fingerprint: string;
@@ -352,7 +317,7 @@ async function verifyShapePlanAndPricingV01(
   const route = await routeV01(adapter);
   const authorization = authorizationV01(admission, route, "shape-plan");
   const prepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+    buildOperationalReentryV04ProviderCompatibilityProbeV01({
       authorization,
       admission,
       route,
@@ -381,30 +346,60 @@ async function verifyShapePlanAndPricingV01(
     1,
   );
   const [a, b, c, d] = prepared.plan.entries;
-  assert.equal(
-    a!.non_target_continuation_fingerprint,
-    b!.non_target_continuation_fingerprint,
+  assert.notEqual(
+    a!.provider_material_fingerprint,
+    b!.provider_material_fingerprint,
   );
-  assert.equal(
-    b!.non_target_continuation_fingerprint,
-    c!.non_target_continuation_fingerprint,
+  assert.notEqual(
+    b!.provider_material_fingerprint,
+    c!.provider_material_fingerprint,
   );
-  assert.equal(d!.model_input.continuation_context.length, 0);
+  assert.equal(d!.invocation.provider_material.continuation_context.length, 0);
   assert.deepEqual(
-    d!.model_input.common_task_evidence,
-    a!.model_input.common_task_evidence,
+    d!.invocation.provider_material.common_task_evidence,
+    a!.invocation.provider_material.common_task_evidence,
   );
   assert.equal(
-    a!.model_input.continuation_context.filter((item) => item.role === "target")
+    a!.invocation.provider_material.continuation_context.filter((item) => item.role === "target")
       .length,
     1,
   );
   assert.equal(
-    b!.model_input.continuation_context.filter((item) => item.role === "target")
+    b!.invocation.provider_material.continuation_context.filter((item) => item.role === "target")
       .length,
     0,
   );
-  assert.equal(c!.model_input.stale_relation?.applies_before_outcome, true);
+  assert.equal(c!.invocation.provider_material.stale_relation?.applies_before_outcome, true);
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .exact_provider_body_equal,
+    true,
+  );
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .live_eligible,
+    false,
+  );
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .cohort_refs_distinct,
+    true,
+  );
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .call_slot_ids_distinct,
+    true,
+  );
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .repeat_blocks_distinct,
+    true,
+  );
+  assert.equal(
+    prepared.representative_shape_plan.twin_b_identity_separation_witness
+      .canonical_openai_json_request_body_bytes_equal,
+    true,
+  );
   assert.equal(new Set(prepared.plan.entries.map((entry) => entry.call_slot_id)).size, 4);
   assert.equal(
     new Set(
@@ -417,12 +412,14 @@ async function verifyShapePlanAndPricingV01(
     4,
   );
   for (const entry of prepared.plan.entries) {
-    assert.match(entry.call_slot_id, /^e2r2p4h-call-/u);
+    assert.match(entry.call_slot_id, /^e2r2p6c-call-/u);
     assert.equal(entry.call_slot_id.startsWith("e2r2p-call-"), false);
     assert.equal(entry.call_slot_id.startsWith("e2-call-"), false);
     assert.equal(entry.call_slot_id.startsWith("e2p-call-"), false);
     const schema =
-      operationalReentryMatchedCohortResponseSchemaV04(entry.model_input);
+      operationalReentryMatchedCohortResponseSchemaV04(
+        entry.invocation.provider_material,
+      );
     assert.doesNotThrow(() =>
       validateOpenAIStrictSchemaSupportedSubsetV01(schema),
     );
@@ -435,10 +432,10 @@ async function verifyShapePlanAndPricingV01(
       schema.properties.referenced_continuation_selections.properties,
     ).sort();
     const expectedSelectionKeys = (
-      entry.model_input.allowed_output.referenced_continuation_tokens.length ===
+      entry.invocation.provider_material.allowed_output.referenced_continuation_tokens.length ===
       0
         ? ["no_continuation_available"]
-        : [...entry.model_input.allowed_output.referenced_continuation_tokens]
+        : [...entry.invocation.provider_material.allowed_output.referenced_continuation_tokens]
     ).sort();
     assert.deepEqual(selectionKeys, expectedSelectionKeys);
     assert.equal(
@@ -448,8 +445,8 @@ async function verifyShapePlanAndPricingV01(
       true,
     );
     const request =
-      projectOperationalReentryMatchedCohortProviderRequestV03(
-        entry.model_input,
+      projectOperationalReentryMatchedCohortProviderRequestV04(
+        entry.invocation,
       );
     assert.equal(
       request.request_fingerprint,
@@ -491,42 +488,45 @@ async function verifyShapePlanAndPricingV01(
   );
   assert.equal(
     prepared.pricing.aggregate_ceiling_nano_usd,
-    ACGC_E2R2P4H_AGGREGATE_COST_CEILING_NANO_USD_V01,
+    ACGC_E2R2P6C_AGGREGATE_COST_CEILING_NANO_USD_V01,
   );
   assert.equal(
     prepared.pricing.pricing_source_version,
-    "openai_gpt-4.1-mini-2025-04-14_2026-08-19",
+    "openai_gpt-4.1-mini-2025-04-14_2026-08-22",
   );
   assert.equal(
     prepared.manifest.route.purpose,
-    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
   );
   assert.equal(
     prepared.manifest.route.adapter_implementation_version,
-    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
+    OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V06,
   );
   assert.equal(
     prepared.manifest.route.provider_contract_version,
-    "operational_reentry_clean_control_matched_cohort_provider_contract.v0.3",
+    "operational_reentry_clean_control_matched_cohort_provider_contract.v0.4",
   );
   assert.equal(prepared.manifest.route.response_bytes, 1168);
   assert.equal(prepared.manifest.route.max_output_tokens, 1168);
   assert.equal(
     prepared.provider_contract.integrity.fingerprint,
-    "sha256:682905683f083ee67002dc4cf2577ec3ae4302e90fc85e27f43019b8b7978bbb",
+    "sha256:1ca7da7cf3870de67fdbe36f1a6bf9d67a3a50accbd8f7daf147e424901eda52",
   );
   assert.equal(
     prepared.manifest.adapter_request_route_fingerprint,
-    "sha256:182e0be9c2b4a53baca61c01d9b83f67fbd6855d1e3b8c9cbd182abeff4831e9",
+    "sha256:7418f3ace51f53a8089c33392dc00d697f21ab383a4c4442fc4ffdc39efea0fa",
   );
   const artifactPlan =
-    projectOperationalReentryParserClosedProviderCompatibilityProbePlanForArtifactV01(
+    projectOperationalReentryV04ProviderCompatibilityProbePlanForArtifactV01(
       prepared.plan,
     );
-  assert.equal(JSON.stringify(artifactPlan).includes("model_input"), false);
+  assert.equal(JSON.stringify(artifactPlan).includes('"invocation":'), false);
   return {
     representative_shape_plan_fingerprint:
       prepared.representative_shape_plan.integrity.fingerprint,
+    twin_b_zero_egress_witness_fingerprint:
+      prepared.representative_shape_plan.twin_b_identity_separation_witness
+        .integrity.fingerprint,
     route_fingerprint: prepared.manifest.route.integrity_fingerprint,
     provider_contract_fingerprint:
       prepared.provider_contract.integrity.fingerprint,
@@ -545,12 +545,12 @@ async function verifySharedGatewayFourShapeProbeV01(
   admission: ModelGatewayInteractiveAdmissionV01,
 ): Promise<{ fake_transport_calls: 4 }> {
   const requests: OpenAIResponsesTransportRequestV01[] = [];
-  let prepared: OperationalReentryParserClosedProviderCompatibilityProbePreparedV01;
+  let prepared: OperationalReentryV04ProviderCompatibilityProbePreparedV01;
   const adapter = adapterV01(async (request) => {
     const entry = prepared.plan.entries[requests.length]!;
     requests.push(request);
     return acceptedResponseV01(
-      buildOperationalReentryMatchedCohortGoldenWireOutputV03(entry.shape),
+      buildOperationalReentryMatchedCohortGoldenWireOutputV04(entry.shape),
     );
   });
   const route = await routeV01(adapter);
@@ -563,11 +563,11 @@ async function verifySharedGatewayFourShapeProbeV01(
     evaluated_at: evaluatedAt,
   };
   prepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    buildOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
     );
   validateModelInvocationEnvelopeV01(
-    buildOperationalReentryParserClosedProviderCompatibilityProbeModelInvocationEnvelopeV01(
+    buildOperationalReentryV04ProviderCompatibilityProbeModelInvocationEnvelopeV01(
       prepared.plan.entries[0]!,
       prepared,
       admission,
@@ -576,7 +576,7 @@ async function verifySharedGatewayFourShapeProbeV01(
   );
   let consumptions = 0;
   const result =
-    await runOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    await runOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
       dependenciesV01(adapter, route, {
         consume_authorization() {
@@ -622,11 +622,11 @@ async function verifySharedGatewayFourShapeProbeV01(
     assert.equal(result.shapes[index]!.receipt?.egress_attempted, true);
     assert.equal(
       result.shapes[index]!.receipt?.purpose,
-      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
     );
     assert.equal(
       result.shapes[index]!.receipt?.final_implementation_version,
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V05,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V06,
     );
   }
   const historicalRoute =
@@ -707,7 +707,7 @@ async function verifyTerminalMappingsV01(
           return {
             status: "completed",
             output_text: "x".repeat(
-              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.responseBytes +
+              OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.responseBytes +
                 1,
             ),
           };
@@ -718,7 +718,7 @@ async function verifyTerminalMappingsV01(
       stage: "response_usage_invalid",
       transport: async () =>
         acceptedResponseV01(
-          buildOperationalReentryMatchedCohortGoldenWireOutputV03("A"),
+          buildOperationalReentryMatchedCohortGoldenWireOutputV04("A"),
           { input_tokens: 2, output_tokens: 2, total_tokens: 1 },
         ),
     },
@@ -734,7 +734,7 @@ async function verifyTerminalMappingsV01(
       stage: "response_wire_value_invalid",
       transport: async () =>
         acceptedResponseV01({
-          ...buildOperationalReentryMatchedCohortGoldenWireOutputV03("A"),
+          ...buildOperationalReentryMatchedCohortGoldenWireOutputV04("A"),
           result_status: "invented",
         }),
     },
@@ -742,7 +742,7 @@ async function verifyTerminalMappingsV01(
       stage: "response_wire_selection_invalid",
       transport: async () => {
         const output =
-          buildOperationalReentryMatchedCohortGoldenWireOutputV03("A");
+          buildOperationalReentryMatchedCohortGoldenWireOutputV04("A");
         delete output.operation_action_class_selections.bounded_result_review;
         return acceptedResponseV01(output);
       },
@@ -800,7 +800,7 @@ async function verifyTerminalMappingsV01(
     false,
   );
   assert.equal(
-    deriveOperationalReentryParserClosedProviderCompatibilityProbeOutcomeV01(
+    deriveOperationalReentryV04ProviderCompatibilityProbeOutcomeV01(
       [],
     ),
     "not_run",
@@ -817,10 +817,10 @@ async function verifyAuthorizationRefusalsV01(
   );
   const authorization = authorizationV01(admission, route, "refusals");
   const build = (
-    changedAuthorization: OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01,
+    changedAuthorization: OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01,
     changedAdmission = admission,
   ) =>
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+    buildOperationalReentryV04ProviderCompatibilityProbeV01({
       authorization: changedAuthorization,
       admission: changedAdmission,
       route,
@@ -841,6 +841,10 @@ async function verifyAuthorizationRefusalsV01(
       representative_shape_plan_fingerprint:
         createProtocolSha256V01("changed-plan"),
     },
+    {
+      twin_b_zero_egress_witness_fingerprint:
+        createProtocolSha256V01("changed-twin-b-witness"),
+    },
     { route_fingerprint: createProtocolSha256V01("changed-route") },
     {
       provider_contract_fingerprint:
@@ -852,6 +856,7 @@ async function verifyAuthorizationRefusalsV01(
     },
     { response_bytes: 1167 },
     { max_output_tokens: 1167 },
+    { final_request_bytes: 24_575 },
     { pricing_fingerprint: createProtocolSha256V01("changed-pricing") },
     {
       pricing_authority_fingerprint:
@@ -859,9 +864,9 @@ async function verifyAuthorizationRefusalsV01(
     },
     { pricing_authority_expires_at: "2026-08-25T00:00:00.000Z" },
     { maximum_total_cost_nano_usd: 1 },
-    { exact_merged_source_head: "8fb239d05d0839e64c7975539dd4c5bdcea8d772" },
+    { exact_merged_source_head: "e1c6aa46960bf3d983818faba0d9531d3e3333fa" },
     { second_probe_authorized: true },
-    { issue_208_authorization_reuse: true },
+    { historical_authorization_reuse: true },
     { adaptive_prompt_schema_or_input_changes: true },
     { behavioral_cohort_authorized: true },
     { replication_authorized: true },
@@ -870,7 +875,7 @@ async function verifyAuthorizationRefusalsV01(
   ]) {
     assert.throws(
       () => build(resealAuthorizationV01({ ...authorization, ...override })),
-      /parser_closed_probe_authorization_mismatched/,
+      /operational_reentry_v04_probe_authorization_mismatched/,
     );
   }
   const changedAdmission = {
@@ -880,7 +885,7 @@ async function verifyAuthorizationRefusalsV01(
   };
   assert.throws(
     () => build(authorization, changedAdmission),
-    /parser_closed_probe_authorization_mismatched/,
+    /operational_reentry_v04_probe_authorization_mismatched/,
   );
   const { integrity_fingerprint: _routeFingerprint, ...routeWithoutFingerprint } =
     route;
@@ -896,29 +901,29 @@ async function verifyAuthorizationRefusalsV01(
   } as typeof route;
   assert.throws(
     () =>
-      buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+      buildOperationalReentryV04ProviderCompatibilityProbeV01({
         authorization,
         admission,
         route: changedBudgetRoute,
         repository_identity: repositoryIdentity,
         evaluated_at: evaluatedAt,
       }),
-    /parser_closed_probe_route_mismatch/,
+    /operational_reentry_v04_probe_route_mismatch/,
   );
   assert.throws(
     () =>
-      buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+      buildOperationalReentryV04ProviderCompatibilityProbeV01({
         authorization,
         admission,
         route,
         repository_identity: repositoryIdentity,
-        evaluated_at: "2026-08-27T00:00:00.000Z",
+        evaluated_at: "2026-08-29T00:00:00.000Z",
       }),
     /model_gateway_pricing_stale/,
   );
   assert.throws(
     () =>
-      buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+      buildOperationalReentryV04ProviderCompatibilityProbeV01({
         authorization,
         admission,
         route,
@@ -928,7 +933,7 @@ async function verifyAuthorizationRefusalsV01(
         },
         evaluated_at: evaluatedAt,
       }),
-    /parser_closed_probe_repository_origin_mismatch/,
+    /operational_reentry_v04_probe_repository_origin_mismatch/,
   );
   assert.equal(fakeTransportCalls >= 6, true);
 }
@@ -936,12 +941,12 @@ async function verifyAuthorizationRefusalsV01(
 async function verifyArtifactSingleUseAndPrivacyV01(
   admission: ModelGatewayInteractiveAdmissionV01,
 ): Promise<void> {
-  let prepared: OperationalReentryParserClosedProviderCompatibilityProbePreparedV01;
+  let prepared: OperationalReentryV04ProviderCompatibilityProbePreparedV01;
   let callIndex = 0;
   const adapter = adapterV01(async () => {
     const entry = prepared.plan.entries[callIndex++]!;
     return acceptedResponseV01(
-      buildOperationalReentryMatchedCohortGoldenWireOutputV03(entry.shape),
+      buildOperationalReentryMatchedCohortGoldenWireOutputV04(entry.shape),
     );
   });
   const route = await routeV01(adapter);
@@ -954,16 +959,16 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     evaluated_at: evaluatedAt,
   };
   prepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    buildOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
     );
   const journal =
-    beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+    beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
       repository_root: projectRoot,
       prepared,
     });
   const result =
-    await runOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    await runOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
       dependenciesV01(adapter, route, {
         consume_authorization(consumption) {
@@ -980,20 +985,20 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     );
   const summary = journal.finalize(result);
   assert.deepEqual(
-    validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01(
+    validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01(
       { repository_root: projectRoot, run_root: journal.run_root },
     ),
     summary,
   );
   assert.match(
     summary.relative_run_root,
-    /^\.augnes-lab\/operational-reentry-parser-closed-provider-probes\/[^/]+\/issue-[1-9][0-9]*$/u,
+    /^\.augnes-lab\/operational-reentry-v04-provider-probes\/[^/]+\/issue-[1-9][0-9]*$/u,
   );
   assert.equal(summary.authorization_consumed, true);
   const familyRoot = path.join(
     projectRoot,
     ".augnes-lab",
-    "operational-reentry-parser-closed-provider-probes",
+    "operational-reentry-v04-provider-probes",
   );
   assert.equal(
     readdirSync(path.join(familyRoot, "authorization-consumptions")).length,
@@ -1006,7 +1011,7 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     '"headers"',
     "/Users/",
     "/home/",
-    '"model_input"',
+    '"invocation"',
     '"e1_evaluation"',
     '"pairwise_relations"',
     '"conditioning_disposition"',
@@ -1021,23 +1026,23 @@ async function verifyArtifactSingleUseAndPrivacyV01(
   });
   const laterRoute = await routeV01(laterAdapter);
   const laterPrepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+    buildOperationalReentryV04ProviderCompatibilityProbeV01({
       authorization,
       admission,
       route: laterRoute,
       repository_identity: repositoryIdentity,
-      evaluated_at: "2026-08-19T08:30:00.000Z",
+      evaluated_at: "2026-08-22T08:30:00.000Z",
     });
   const tamperedProbeId = structuredClone(laterPrepared);
   tamperedProbeId.manifest.probe_id =
     `${tamperedProbeId.manifest.probe_id}-changed`;
   assert.throws(
     () =>
-      beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+      beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
         repository_root: projectRoot,
         prepared: tamperedProbeId,
       }),
-    /parser_closed_probe_authorization_global_collision_refused/,
+    /operational_reentry_v04_probe_authorization_global_collision_refused/,
   );
   assert.equal(secondTransportCalls, 0);
   const collisionAuthorization = authorizationV01(
@@ -1046,7 +1051,7 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     "root-collision",
   );
   const collisionPrepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01({
+    buildOperationalReentryV04ProviderCompatibilityProbeV01({
       authorization: collisionAuthorization,
       admission,
       route,
@@ -1054,7 +1059,7 @@ async function verifyArtifactSingleUseAndPrivacyV01(
       evaluated_at: evaluatedAt,
     });
   const collisionJournal =
-    beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+    beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
       repository_root: projectRoot,
       prepared: collisionPrepared,
     });
@@ -1068,8 +1073,8 @@ async function verifyArtifactSingleUseAndPrivacyV01(
         call_slot_id: collisionEntry.call_slot_id,
         request_family_trace_id: collisionEntry.request_family_trace_id,
         client_request_id: collisionEntry.client_request_id,
-        representative_input_fingerprint:
-          collisionEntry.representative_input_fingerprint,
+        local_invocation_identity_fingerprint:
+          collisionEntry.local_invocation_identity_fingerprint,
         schema_fingerprint: collisionEntry.schema_fingerprint,
         provider_visible_request_fingerprint:
           collisionEntry.provider_visible_request_fingerprint,
@@ -1098,7 +1103,7 @@ async function verifyArtifactSingleUseAndPrivacyV01(
           schema_fingerprint: collisionEntry.schema_fingerprint,
         },
       } as never),
-    /parser_closed_probe_response_invalid_observation_malformed/,
+    /operational_reentry_v04_probe_response_invalid_observation_malformed/,
   );
   assert.throws(
     () =>
@@ -1109,8 +1114,8 @@ async function verifyArtifactSingleUseAndPrivacyV01(
         call_slot_id: collisionEntry.call_slot_id,
         request_family_trace_id: collisionEntry.request_family_trace_id,
         client_request_id: collisionEntry.client_request_id,
-        representative_input_fingerprint:
-          collisionEntry.representative_input_fingerprint,
+        local_invocation_identity_fingerprint:
+          collisionEntry.local_invocation_identity_fingerprint,
         schema_fingerprint: collisionEntry.schema_fingerprint,
         provider_visible_request_fingerprint:
           collisionEntry.provider_visible_request_fingerprint,
@@ -1139,49 +1144,51 @@ async function verifyArtifactSingleUseAndPrivacyV01(
         },
         provider_response_invalid_observation: null,
       } as never),
-    /parser_closed_probe_rejection_observation_malformed/,
+    /operational_reentry_v04_probe_rejection_observation_malformed/,
   );
   assert.throws(
     () =>
-      beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+      beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
         repository_root: projectRoot,
         prepared: collisionPrepared,
       }),
-    /parser_closed_probe_authorization_collision_refused/,
+    /operational_reentry_v04_probe_authorization_collision_refused/,
   );
   for (const relative_run_root of [
     ".augnes-lab/operational-reentry-provider-probes/other/issue-193",
     ".augnes-lab/operational-reentry-matched-cohort-replacements/other/issue-199",
     ".augnes-lab/operational-reentry-clean-control-provider-probes/other/issue-208",
-    ".augnes-lab/operational-reentry-parser-closed-provider-probes/cohort_attempt/issue-999",
-    ".augnes-lab/operational-reentry-parser-closed-provider-probes/behavioral_cohort/issue-999",
-    ".augnes-lab/operational-reentry-parser-closed-provider-probes/other/issue-208",
+    ".augnes-lab/operational-reentry-v04-provider-probes/cohort_attempt/issue-999",
+    ".augnes-lab/operational-reentry-v04-provider-probes/behavioral_cohort/issue-999",
+    ".augnes-lab/operational-reentry-v04-provider-probes/other/issue-998",
   ]) {
     assert.throws(
       () =>
-        assertOperationalReentryParserClosedProviderCompatibilityProbeArtifactRootAvailableV01(
+        assertOperationalReentryV04ProviderCompatibilityProbeArtifactRootAvailableV01(
           { repository_root: projectRoot, relative_run_root },
         ),
-      /parser_closed_probe_historical_or_cohort_root_refused/,
+      /operational_reentry_v04_probe_historical_or_cohort_root_refused/,
     );
   }
   const symlinkRoot = path.join(
     projectRoot,
     ".augnes-lab",
-    "operational-reentry-parser-closed-provider-probes",
-    "symlink-root",
+    "operational-reentry-v04-provider-probes",
+    "operational-reentry-v04-provider-probe_0123456789abcdef0123456789abcdef",
+    "issue-999",
   );
+  mkdirSync(path.dirname(symlinkRoot), { recursive: true });
   symlinkSync(root, symlinkRoot);
   assert.throws(
     () =>
-      assertOperationalReentryParserClosedProviderCompatibilityProbeArtifactRootAvailableV01(
+      assertOperationalReentryV04ProviderCompatibilityProbeArtifactRootAvailableV01(
         {
           repository_root: projectRoot,
           relative_run_root:
-            ".augnes-lab/operational-reentry-parser-closed-provider-probes/symlink-root",
+            ".augnes-lab/operational-reentry-v04-provider-probes/operational-reentry-v04-provider-probe_0123456789abcdef0123456789abcdef/issue-999",
         },
       ),
-    /parser_closed_probe_artifact_symlink_refused/,
+    /operational_reentry_v04_probe_artifact_symlink_refused/,
   );
   for (const payload of [
     { request_body: "forbidden" },
@@ -1193,10 +1200,10 @@ async function verifyArtifactSingleUseAndPrivacyV01(
   ]) {
     assert.throws(
       () =>
-        assertOperationalReentryParserClosedProviderCompatibilityProbeArtifactPayloadSafeV01(
+        assertOperationalReentryV04ProviderCompatibilityProbeArtifactPayloadSafeV01(
           payload,
         ),
-      /parser_closed_probe_artifact_/,
+      /operational_reentry_v04_probe_artifact_/,
     );
   }
   const indexPath = path.join(journal.run_root, "artifact-index.json");
@@ -1246,10 +1253,10 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     );
     assert.throws(
       () =>
-        validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01(
+        validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01(
           { repository_root: projectRoot, run_root: journal.run_root },
         ),
-      /parser_closed_probe_artifact_index_source_mismatch/,
+      /operational_reentry_v04_probe_artifact_index_source_mismatch/,
       tamper.field,
     );
     for (const [artifactPath, contents] of memberContents) {
@@ -1261,6 +1268,60 @@ async function verifyArtifactSingleUseAndPrivacyV01(
     }
   }
   writeFileSync(indexPath, validIndexText, "utf8");
+  for (const crossLinkTamper of [
+    {
+      artifactPath: "plan.json",
+      mutate(value: Record<string, unknown>) {
+        value.future_live_issue_number =
+          Number(value.future_live_issue_number) + 1;
+      },
+    },
+    {
+      artifactPath: "identities.json",
+      mutate(value: Record<string, unknown>) {
+        value.twin_b_zero_egress_witness_fingerprint =
+          createProtocolSha256V01("coordinated-twin-b-tamper");
+      },
+    },
+  ]) {
+    const artifactPath = path.join(
+      journal.run_root,
+      crossLinkTamper.artifactPath,
+    );
+    const validArtifactText = readFileSync(artifactPath, "utf8");
+    const tamperedArtifact = JSON.parse(validArtifactText) as Record<
+      string,
+      unknown
+    >;
+    crossLinkTamper.mutate(tamperedArtifact);
+    const tamperedArtifactText = `${canonicalizeProtocolValueV01(
+      tamperedArtifact,
+    )}\n`;
+    writeFileSync(artifactPath, tamperedArtifactText, "utf8");
+    const crossLinkedIndex = JSON.parse(validIndexText) as typeof validIndex;
+    const indexedArtifact = crossLinkedIndex.artifacts.find(
+      (artifact) => artifact.path === crossLinkTamper.artifactPath,
+    );
+    assert.ok(indexedArtifact);
+    indexedArtifact.fingerprint = createProtocolSha256V01(
+      tamperedArtifactText.trimEnd(),
+    );
+    writeFileSync(
+      indexPath,
+      `${canonicalizeProtocolValueV01(crossLinkedIndex)}\n`,
+      "utf8",
+    );
+    assert.throws(
+      () =>
+        validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01(
+          { repository_root: projectRoot, run_root: journal.run_root },
+        ),
+      /operational_reentry_v04_probe_artifact_cross_link_invalid/,
+      crossLinkTamper.artifactPath,
+    );
+    writeFileSync(artifactPath, validArtifactText, "utf8");
+    writeFileSync(indexPath, validIndexText, "utf8");
+  }
   const malformedIndex = JSON.parse(
     validIndexText,
   ) as Record<string, unknown>;
@@ -1268,23 +1329,23 @@ async function verifyArtifactSingleUseAndPrivacyV01(
   writeFileSync(indexPath, `${JSON.stringify(malformedIndex)}\n`, "utf8");
   assert.throws(
     () =>
-      validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01(
+      validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01(
         { repository_root: projectRoot, run_root: journal.run_root },
       ),
-    /parser_closed_probe_artifact_index_invalid/,
+    /operational_reentry_v04_probe_artifact_index_invalid/,
   );
 }
 
 async function verifyArtifactConsumptionWriteFailureFailsClosedV01(
   admission: ModelGatewayInteractiveAdmissionV01,
 ): Promise<void> {
-  let prepared: OperationalReentryParserClosedProviderCompatibilityProbePreparedV01;
+  let prepared: OperationalReentryV04ProviderCompatibilityProbePreparedV01;
   let partialTransportCalls = 0;
   const adapter = adapterV01(async () => {
     partialTransportCalls += 1;
     const entry = prepared.plan.entries[partialTransportCalls - 1]!;
     return acceptedResponseV01(
-      buildOperationalReentryMatchedCohortGoldenWireOutputV03(entry.shape),
+      buildOperationalReentryMatchedCohortGoldenWireOutputV04(entry.shape),
     );
   });
   const route = await routeV01(adapter);
@@ -1301,11 +1362,11 @@ async function verifyArtifactConsumptionWriteFailureFailsClosedV01(
     evaluated_at: evaluatedAt,
   };
   prepared =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    buildOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
     );
   const journal =
-    beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+    beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
       repository_root: projectRoot,
       prepared,
     });
@@ -1316,7 +1377,7 @@ async function verifyArtifactConsumptionWriteFailureFailsClosedV01(
   mkdirSync(runLocalConsumptionPath);
   const fakeTransportCallsBefore = fakeTransportCalls;
   const result =
-    await runOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    await runOperationalReentryV04ProviderCompatibilityProbeV01(
       buildInput,
       dependenciesV01(adapter, route, {
         consume_authorization(consumption) {
@@ -1347,7 +1408,7 @@ async function verifyArtifactConsumptionWriteFailureFailsClosedV01(
   const familyRoot = path.join(
     projectRoot,
     ".augnes-lab",
-    "operational-reentry-parser-closed-provider-probes",
+    "operational-reentry-v04-provider-probes",
   );
   const globalConsumptionPath = path.join(
     familyRoot,
@@ -1366,22 +1427,22 @@ async function verifyArtifactConsumptionWriteFailureFailsClosedV01(
   const globalConsumptionBefore = readFileSync(globalConsumptionPath, "utf8");
   assert.throws(
     () => journal.finalize(result),
-    /parser_closed_probe_authorization_consumption_history_incomplete/,
+    /operational_reentry_v04_probe_authorization_consumption_history_incomplete/,
   );
   assert.throws(
     () =>
-      validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01(
+      validateOperationalReentryV04ProviderCompatibilityProbeArtifactsV01(
         { repository_root: projectRoot, run_root: journal.run_root },
       ),
-    /parser_closed_probe_authorization_consumption_history_incomplete/,
+    /operational_reentry_v04_probe_authorization_consumption_history_incomplete/,
   );
   assert.throws(
     () =>
-      beginOperationalReentryParserClosedProviderCompatibilityProbeAttemptV01({
+      beginOperationalReentryV04ProviderCompatibilityProbeAttemptV01({
         repository_root: projectRoot,
         prepared,
       }),
-    /parser_closed_probe_authorization_global_collision_refused/,
+    /operational_reentry_v04_probe_authorization_global_collision_refused/,
   );
   assert.equal(readTreeV01(journal.run_root), partialTreeBefore);
   assert.equal(
@@ -1421,7 +1482,7 @@ function verifyMergedMainPreflightV01(): void {
     authorized_origin: repositoryIdentity.origin,
   };
   assert.doesNotThrow(() =>
-    preflightOperationalReentryParserClosedProviderCompatibilityProbeRepositoryV01(
+    preflightOperationalReentryV04ProviderCompatibilityProbeRepositoryV01(
       exactRepository,
       identity,
     ),
@@ -1429,11 +1490,11 @@ function verifyMergedMainPreflightV01(): void {
   writeFileSync(path.join(repository, "dirty.txt"), "dirty\n");
   assert.throws(
     () =>
-      preflightOperationalReentryParserClosedProviderCompatibilityProbeRepositoryV01(
+      preflightOperationalReentryV04ProviderCompatibilityProbeRepositoryV01(
         exactRepository,
         identity,
       ),
-    /parser_closed_probe_dirty_or_mismatched_head/,
+    /operational_reentry_v04_probe_dirty_or_mismatched_head/,
   );
   rmSync(path.join(repository, "dirty.txt"));
   git(["switch", "-c", "clean-feature"]);
@@ -1443,17 +1504,17 @@ function verifyMergedMainPreflightV01(): void {
   const featureHead = git(["rev-parse", "HEAD"]);
   assert.throws(
     () =>
-      preflightOperationalReentryParserClosedProviderCompatibilityProbeRepositoryV01(
+      preflightOperationalReentryV04ProviderCompatibilityProbeRepositoryV01(
         exactRepository,
         { ...identity, exact_merged_source_head: featureHead },
       ),
-    /parser_closed_probe_source_head_not_exact_origin_main/,
+    /operational_reentry_v04_probe_source_head_not_exact_origin_main/,
   );
 }
 
 function verifyStaticAuthorityAndNoBehaviorV01(): void {
   assert.deepEqual(
-    operationalReentryParserClosedProviderCompatibilityProbeHarnessAuthorityV01,
+    operationalReentryV04ProviderCompatibilityProbeHarnessAuthorityV01,
     {
       successor_live_authorization_granted: false,
       successor_live_authorization_consumed: false,
@@ -1468,14 +1529,14 @@ function verifyStaticAuthorityAndNoBehaviorV01(): void {
   const core = readFileSync(
     path.join(
       repositoryRoot,
-      "lib/vnext/operational-reentry-parser-closed-provider-compatibility-probe.ts",
+      "lib/vnext/operational-reentry-v0-4-provider-compatibility-probe.ts",
     ),
     "utf8",
   );
   const cli = readFileSync(
     path.join(
       repositoryRoot,
-      "scripts/operational-reentry-parser-closed-provider-compatibility-probe.ts",
+      "scripts/operational-reentry-v0-4-provider-compatibility-probe.ts",
     ),
     "utf8",
   );
@@ -1485,17 +1546,17 @@ function verifyStaticAuthorityAndNoBehaviorV01(): void {
   assert.equal(core.includes("fetch("), false);
   assert.equal(core.includes("process.env"), false);
   assert.ok(
-    core.includes("invokeOperationalReentryMatchedCohortModelGatewayV03"),
+    core.includes("invokeOperationalReentryMatchedCohortModelGatewayV04"),
   );
   assert.ok(cli.includes("refs/remotes/origin/main^{commit}"));
   assert.ok(
-    cli.includes("--confirm-future-live-parser-closed-compatibility-probe"),
+    cli.includes("--confirm-operational-reentry-v04-provider-compatibility-probe"),
   );
   assert.ok(cli.includes("--authorization-file"));
   assert.equal(cli.includes("previous_response_id"), false);
   assert.equal(cli.includes("buildAuthorization"), false);
   assert.equal(cli.includes("String(error)"), false);
-  assert.ok(cli.includes("parser_closed_probe_runtime_failed"));
+  assert.ok(cli.includes("operational_reentry_v04_probe_runtime_failed"));
 }
 
 async function runScenarioV01(
@@ -1511,7 +1572,7 @@ async function runScenarioV01(
   const route = await routeV01(adapter);
   const authorization = authorizationV01(admission, route, label);
   const result =
-    await runOperationalReentryParserClosedProviderCompatibilityProbeV01(
+    await runOperationalReentryV04ProviderCompatibilityProbeV01(
       {
         authorization,
         admission,
@@ -1526,12 +1587,12 @@ async function runScenarioV01(
 
 function authorizationV01(
   admission: ModelGatewayInteractiveAdmissionV01,
-  route: OperationalReentryMatchedCohortRouteV03,
+  route: OperationalReentryMatchedCohortRouteV04,
   label: string,
-  overrides: Partial<OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01> = {},
-): OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01 {
+  overrides: Partial<OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01> = {},
+): OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01 {
   const expectations =
-    buildOperationalReentryParserClosedProviderCompatibilityProbeAuthorizationExpectationsV01(
+    buildOperationalReentryV04ProviderCompatibilityProbeAuthorizationExpectationsV01(
       {
         admission,
         route,
@@ -1541,17 +1602,17 @@ function authorizationV01(
     );
   return resealAuthorizationV01({
     authorization_version:
-      OPERATIONAL_REENTRY_PARSER_CLOSED_PROVIDER_COMPATIBILITY_PROBE_AUTHORIZATION_VERSION_V01,
-    authorization_id: `parser-closed-probe-${label}-${authorizationSequence++}`,
+      OPERATIONAL_REENTRY_V04_PROVIDER_COMPATIBILITY_PROBE_AUTHORIZATION_VERSION_V01,
+    authorization_id: `v04-provider-probe-${label}-${authorizationSequence++}`,
     authorization_kind:
-      "one_bounded_parser_closed_provider_compatibility_probe",
-    request_family_kind: "parser_closed_compatibility_probe",
-    future_live_issue_number: 215,
+      "one_bounded_operational_reentry_v04_provider_compatibility_probe",
+    request_family_kind: "operational_reentry_v04_compatibility_probe",
+    future_live_issue_number: 230,
     exact_merged_source_head: futureMergedSourceHead,
     repository_slug: expectations.repository_slug,
     authorized_origin: expectations.authorized_origin,
     issued_at: evaluatedAt,
-    expires_at: "2026-08-19T09:00:00.000Z",
+    expires_at: "2026-08-22T09:00:00.000Z",
     workspace_id: expectations.workspace_id,
     project_id: expectations.project_id,
     expected_active_selection_revision:
@@ -1563,25 +1624,28 @@ function authorizationV01(
       expectations.common_task_evidence_fingerprint,
     representative_shape_plan_fingerprint:
       expectations.representative_shape_plan_fingerprint,
+    twin_b_zero_egress_witness_fingerprint:
+      expectations.twin_b_zero_egress_witness_fingerprint,
     route_fingerprint: expectations.route_fingerprint,
     provider_contract_fingerprint:
       expectations.provider_contract_fingerprint,
     adapter_request_route_fingerprint:
       expectations.adapter_request_route_fingerprint,
     provider_contract_version:
-      "operational_reentry_clean_control_matched_cohort_provider_contract.v0.3",
-    codec_version: "operational_reentry_matched_cohort_codec.v0.4",
+      "operational_reentry_clean_control_matched_cohort_provider_contract.v0.4",
+    codec_version: "operational_reentry_matched_cohort_codec.v0.5",
     response_schema_version:
       "operational_reentry_matched_cohort_response_schema.v0.4",
-    parser_version: "operational_reentry_matched_cohort_parser.v0.3",
+    parser_version: "operational_reentry_matched_cohort_parser.v0.4",
     adapter_implementation_id:
       "openai_responses.operational_reentry_matched_cohort",
     adapter_implementation_version:
-      "openai_responses_operational_reentry_matched_cohort_adapter.v0.5",
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.6",
     response_invalid_observation_version:
       "model_provider_response_invalid_observation.v0.1",
     response_bytes: 1168,
     max_output_tokens: 1168,
+    final_request_bytes: 24_576,
     pricing_fingerprint: expectations.pricing_fingerprint,
     pricing_snapshot_evaluated_at:
       expectations.pricing_snapshot_evaluated_at,
@@ -1602,7 +1666,7 @@ function authorizationV01(
     adaptive_prompt_schema_or_input_changes: false,
     stop_after_first_non_success_terminal_result: true,
     second_probe_authorized: false,
-    issue_208_authorization_reuse: false,
+    historical_authorization_reuse: false,
     behavioral_cohort_authorized: false,
     replication_authorized: false,
     policy_authorized: false,
@@ -1614,7 +1678,7 @@ function authorizationV01(
 
 function resealAuthorizationV01(
   input: Record<string, unknown>,
-): OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01 {
+): OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01 {
   const { integrity: _integrity, ...payload } = input;
   return {
     ...payload,
@@ -1622,12 +1686,12 @@ function resealAuthorizationV01(
       algorithm: "sha256",
       canonicalization: "augnes-json-c14n-v0_1",
       fingerprint_scope:
-        "parser_closed_probe_authorization_without_integrity_fingerprint",
+        "operational_reentry_v04_probe_authorization_without_integrity_fingerprint",
       fingerprint: createProtocolSha256V01(
         canonicalizeProtocolValueV01(payload),
       ),
     },
-  } as unknown as OperationalReentryParserClosedProviderCompatibilityProbeAuthorizationV01;
+  } as unknown as OperationalReentryV04ProviderCompatibilityProbeAuthorizationV01;
 }
 
 function adapterV01(
@@ -1640,7 +1704,7 @@ function adapterV01(
   return createOpenAIResponsesAdapterV01({
     environment: {
       OPENAI_API_KEY: "test-credential-never-persisted",
-      OPENAI_MODEL: "ambient-model-must-not-override-v03",
+      OPENAI_MODEL: "ambient-model-must-not-override-v04",
     },
     transport: async (request) => {
       fakeTransportCalls += 1;
@@ -1651,9 +1715,9 @@ function adapterV01(
 
 async function routeV01(
   adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>,
-): Promise<OperationalReentryMatchedCohortRouteV03> {
+): Promise<OperationalReentryMatchedCohortRouteV04> {
   const route =
-    await prepareOperationalReentryMatchedCohortModelGatewayRouteV03({
+    await prepareOperationalReentryMatchedCohortModelGatewayRouteV04({
       adapter,
     });
   assert.ok(route);
@@ -1662,13 +1726,13 @@ async function routeV01(
 
 function dependenciesV01(
   adapter: ReturnType<typeof createOpenAIResponsesAdapterV01>,
-  route: OperationalReentryMatchedCohortRouteV03,
-  overrides: Partial<RunOperationalReentryParserClosedProviderCompatibilityProbeDependenciesV01> = {},
-): RunOperationalReentryParserClosedProviderCompatibilityProbeDependenciesV01 {
+  route: OperationalReentryMatchedCohortRouteV04,
+  overrides: Partial<RunOperationalReentryV04ProviderCompatibilityProbeDependenciesV01> = {},
+): RunOperationalReentryV04ProviderCompatibilityProbeDependenciesV01 {
   return {
     gateway_dependencies: {
       adapter,
-      expected_operational_reentry_matched_cohort_v03_route: route,
+      expected_operational_reentry_matched_cohort_v04_route: route,
       open_database: () => new Database(databasePath),
       read_root_availability: async () => "available" as const,
       now: () => new Date(evaluatedAt),
@@ -1764,7 +1828,7 @@ function registerProjectV01(): ModelGatewayInteractiveAdmissionV01 {
   try {
     const workspace = getOrCreateDefaultWorkspaceIdentityV01(database, {
       create_uuid: () => "11111111-1111-4111-8111-111111111111",
-      now: () => "2026-08-19T07:50:00.000Z",
+      now: () => "2026-08-22T07:50:00.000Z",
     });
     const localRoot = normalizeLocalProjectRootRefV01(projectRoot, {
       base_path: path.parse(projectRoot).root,
@@ -1774,17 +1838,17 @@ function registerProjectV01(): ModelGatewayInteractiveAdmissionV01 {
       {
         workspace_id: workspace.workspace_id,
         local_root: localRoot,
-        display_name: "e2r2p4h-v03-test-project",
+        display_name: "e2r2p6c-v04-test-project",
       },
       {
         create_uuid: () => "22222222-2222-4222-8222-222222222222",
-        now: () => "2026-08-19T07:51:00.000Z",
+        now: () => "2026-08-22T07:51:00.000Z",
       },
     );
     const active = selectActiveProjectV01(database, {
       workspace_id: workspace.workspace_id,
       project_id: project.project.project_id,
-      now: "2026-08-19T07:52:00.000Z",
+      now: "2026-08-22T07:52:00.000Z",
       expected_project_id: null,
       expected_revision: null,
     });
