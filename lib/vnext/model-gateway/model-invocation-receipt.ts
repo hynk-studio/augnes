@@ -79,11 +79,6 @@ const ROOT_KEYS = [
   "hidden_reasoning_persisted",
   "receipt_is_semantic_authority",
 ] as const;
-const ROOT_KEYS_WITH_OUTPUT_FINGERPRINT = [
-  ...ROOT_KEYS,
-  "normalized_output_fingerprint",
-] as const;
-
 export class ModelInvocationReceiptValidationErrorV02 extends Error {
   readonly code = "model_invocation_receipt_invalid";
 
@@ -97,12 +92,16 @@ export function validateModelInvocationReceiptV02(
   input: unknown,
 ): ModelInvocationReceiptV02 {
   try {
-    const receipt = exactRecord(
-      input,
-      isPlainRecord(input) && Object.hasOwn(input, "normalized_output_fingerprint")
-        ? ROOT_KEYS_WITH_OUTPUT_FINGERPRINT
-        : ROOT_KEYS,
-    );
+    const receiptRecord = isPlainRecord(input) ? input : {};
+    const receipt = exactRecord(input, [
+      ...ROOT_KEYS,
+      ...(Object.hasOwn(receiptRecord, "local_invocation_identity_fingerprint")
+        ? ["local_invocation_identity_fingerprint" as const]
+        : []),
+      ...(Object.hasOwn(receiptRecord, "normalized_output_fingerprint")
+        ? ["normalized_output_fingerprint" as const]
+        : []),
+    ]);
     literal(receipt.receipt_version, MODEL_INVOCATION_RECEIPT_VERSION_V02);
     literal(receipt.gateway_version, MODEL_GATEWAY_VERSION_V01);
     safeIdentifier(receipt.invocation_id);
@@ -111,6 +110,14 @@ export function validateModelInvocationReceiptV02(
     nullableIdentifier(receipt.work_id);
     nullableIdentifier(receipt.run_id);
     member(receipt.purpose, MODEL_GATEWAY_PURPOSES_V01);
+    if (receipt.purpose === "operational_reentry_matched_cohort_v04") {
+      matches(
+        receipt.local_invocation_identity_fingerprint,
+        /^sha256:[0-9a-f]{64}$/,
+      );
+    } else if (Object.hasOwn(receipt, "local_invocation_identity_fingerprint")) {
+      invalid();
+    }
     member(receipt.invocation_origin, ["interactive", "policy_triggered"]);
     nullableIdentifier(receipt.attempted_implementation_id);
     nullableIdentifier(receipt.attempted_implementation_version);
@@ -202,7 +209,8 @@ export function validateModelInvocationReceiptV02(
         receipt.purpose === "governed_actor_lab" ||
         receipt.purpose === "operational_reentry_matched_cohort" ||
         receipt.purpose === "operational_reentry_matched_cohort_v02" ||
-        receipt.purpose === "operational_reentry_matched_cohort_v03") &&
+        receipt.purpose === "operational_reentry_matched_cohort_v03" ||
+        receipt.purpose === "operational_reentry_matched_cohort_v04") &&
       receipt.status === "completed" &&
       (typeof receipt.normalized_output_fingerprint !== "string" ||
         !/^sha256:[0-9a-f]{64}$/.test(

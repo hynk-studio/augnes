@@ -95,6 +95,7 @@
     "test:operational-reentry-matched-cohort": "node --import tsx scripts/test-operational-reentry-matched-cohort.ts",
     "test:operational-reentry-matched-cohort-v2": "node --import tsx scripts/test-operational-reentry-matched-cohort-v0-2.ts",
     "test:operational-reentry-matched-cohort-v3": "node --import tsx scripts/test-operational-reentry-matched-cohort-v0-3.ts",
+    "test:operational-reentry-matched-cohort-v4": "node --import tsx scripts/test-operational-reentry-matched-cohort-v0-4.ts",
     "test:operational-reentry-provider-compatibility-probe": "node --import tsx scripts/test-operational-reentry-provider-compatibility-probe.ts",
     "test:operational-reentry-clean-control-provider-compatibility-probe": "node --import tsx scripts/test-operational-reentry-clean-control-provider-compatibility-probe.ts",
     "test:operational-reentry-parser-closed-provider-compatibility-probe": "node --import tsx scripts/test-operational-reentry-parser-closed-provider-compatibility-probe.ts",

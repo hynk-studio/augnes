@@ -82,6 +82,7 @@ export function validateModelGatewayCostAuthorityV01(
       "operational_reentry_matched_cohort",
       "operational_reentry_matched_cohort_v02",
       "operational_reentry_matched_cohort_v03",
+      "operational_reentry_matched_cohort_v04",
     ].includes(String(value.purpose)) ||
     typeof value.cost_unit !== "string" ||
     !SAFE_TEXT.test(value.cost_unit) ||

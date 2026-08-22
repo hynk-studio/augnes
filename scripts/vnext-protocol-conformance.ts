@@ -53,6 +53,7 @@ import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext
 import { runOperationalReentryMatchedCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort";
 import { runOperationalReentryMatchedCohortConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-2";
 import { runOperationalReentryMatchedCohortConformanceV03 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-3";
+import { runOperationalReentryMatchedCohortConformanceV04 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-4";
 import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
 import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-clean-control-provider-compatibility-probe";
 import { runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-provider-compatibility-probe";
@@ -636,6 +637,8 @@ try {
     runOperationalReentryMatchedCohortConformanceV02();
   const operationalReentryMatchedCohortV03Summary =
     runOperationalReentryMatchedCohortConformanceV03();
+  const operationalReentryMatchedCohortV04Summary =
+    runOperationalReentryMatchedCohortConformanceV04();
   const operationalReentryProviderCompatibilityProbeSummary =
     runOperationalReentryProviderCompatibilityProbeConformanceV01();
   const operationalReentryCleanControlProviderCompatibilityProbeSummary =
@@ -731,6 +734,8 @@ try {
           operationalReentryMatchedCohortV02Summary,
         operational_reentry_matched_cohort_v03:
           operationalReentryMatchedCohortV03Summary,
+        operational_reentry_matched_cohort_v04:
+          operationalReentryMatchedCohortV04Summary,
         operational_reentry_provider_compatibility_probe:
           operationalReentryProviderCompatibilityProbeSummary,
         operational_reentry_clean_control_provider_compatibility_probe:
