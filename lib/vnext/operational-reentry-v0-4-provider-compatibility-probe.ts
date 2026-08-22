@@ -14,6 +14,8 @@ import {
   isModelGatewayInvocationErrorV01,
 } from "@/lib/vnext/model-gateway/contracts";
 import {
+  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04,
+  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
   invokeOperationalReentryMatchedCohortModelGatewayV04,
   projectOperationalReentryMatchedCohortProviderRequestV04,
@@ -33,10 +35,6 @@ import {
   MODEL_PROVIDER_INCOMPLETE_REASONS_V01,
 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
 import { buildOperationalReentryMatchedCohortInvocationV04 } from "@/lib/vnext/operational-reentry-matched-cohort-v0-4";
-import {
-  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04,
-  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04,
-} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,

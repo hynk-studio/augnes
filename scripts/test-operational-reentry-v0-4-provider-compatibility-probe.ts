@@ -62,6 +62,8 @@ import {
 } from "@/lib/vnext/model-gateway/contracts";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
+  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04,
+  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04,
   prepareOperationalReentryMatchedCohortModelGatewayRouteV01,
   prepareOperationalReentryMatchedCohortModelGatewayRouteV02,
   prepareOperationalReentryMatchedCohortModelGatewayRouteV03,
@@ -78,6 +80,8 @@ import {
   type OpenAIResponsesTransportV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import {
+  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04 as createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04,
+  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04 as createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04,
   operationalReentryMatchedCohortResponseSchemaV04,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
@@ -412,6 +416,34 @@ async function verifyShapePlanAndPricingV01(
     4,
   );
   for (const entry of prepared.plan.entries) {
+    assert.equal(
+      entry.local_invocation_identity_fingerprint,
+      createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04(
+        entry.invocation,
+      ),
+    );
+    assert.equal(
+      createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04(
+        entry.invocation,
+      ),
+      createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04(
+        entry.invocation,
+      ),
+    );
+    assert.equal(
+      entry.provider_material_fingerprint,
+      createOperationalReentryMatchedCohortProviderMaterialFingerprintV04(
+        entry.invocation.provider_material,
+      ),
+    );
+    assert.equal(
+      createOperationalReentryMatchedCohortProviderMaterialFingerprintV04(
+        entry.invocation.provider_material,
+      ),
+      createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04(
+        entry.invocation.provider_material,
+      ),
+    );
     assert.match(entry.call_slot_id, /^e2r2p6c-call-/u);
     assert.equal(entry.call_slot_id.startsWith("e2r2p-call-"), false);
     assert.equal(entry.call_slot_id.startsWith("e2-call-"), false);
