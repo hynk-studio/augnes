@@ -238,69 +238,151 @@ The future evaluator must consume only structured current fields. It must not
 use raw-string equality, free-form semantic scoring, a model judge, a scalar,
 rank, or winner.
 
-### 9.1 Local intervention provenance
+### 9.1 Layer A — `intervention_and_projection_integrity`
 
-Before evaluating outputs, the future harness validates a separate local
-vector:
+Before any behavioral interpretation, the future harness validates the
+experiment construction in a separate treatment/projection layer:
 
-| Dimension | Finite values |
-|---|---|
-| `upstream_target_identity` | exact frozen target, absent, unknown, protocol_invalid |
-| `upstream_stale_relation_identity` | exact frozen relation, absent, unknown, protocol_invalid |
-| `substrate_gate_disposition` | not_applicable, excluded_before_materialization, not_excluded, unknown, protocol_invalid |
-| `source_gate_lineage` | exact fingerprint, unknown, protocol_invalid |
-| `provider_projection_shape` | exact_A, exact_B, exact_C, unknown, protocol_invalid |
-| `local_provenance_provider_visibility` | absent, present_protocol_invalid, unknown |
-
-B and G intentionally differ in upstream provenance. B has no source target or
-gate; G has the exact C source target/relation and a successful exclusion gate.
-That difference proves the intervention and is excluded from the G/B
-post-materialization equivalence calculation.
-
-### 9.2 Post-materialization target-persistence vector
-
-| Dimension | Exact current structured source | Finite values |
+| Dimension | Exact source | Finite values |
 |---|---|---|
+| `upstream_target_identity` | frozen local source record | exact frozen target, absent, unknown, protocol_invalid |
+| `upstream_stale_relation_identity` | frozen local source relation | exact frozen relation, absent, unknown, protocol_invalid |
+| `substrate_gate_disposition` | local pre-materialization gate record | not_applicable, excluded_before_materialization, not_excluded, unknown, protocol_invalid |
+| `source_gate_lineage` | public-safe local gate/source binding | exact fingerprint, unknown, protocol_invalid |
+| `provider_projection_shape` | validated v0.4 provider material | exact_A, exact_B, exact_C, unknown, protocol_invalid |
 | `provider_target_material` | `provider_material.continuation_context` target role | present, absent, unknown, protocol_invalid |
 | `provider_stale_relation` | `provider_material.stale_relation` | present, absent, unknown, protocol_invalid |
-| `selected_or_referenced_target_identity` | parsed `referenced_continuation_tokens` from `referenced_continuation_selections` | present, absent, unknown, protocol_invalid |
-| `continuation_packet_target_material` | E1 `referenced_source_ids` bridge from the structured target token | present, absent, unknown, not_comparable, protocol_invalid |
-| `target_operation_action_class` | `target_linked_verification_preparation` selection | present, absent, unknown, protocol_invalid |
-| `target_decision_preparation_structure` | the same explicit structured action token, reported separately as decision-preparation presence | present, absent, unknown, protocol_invalid |
-| `target_disposition` | locally derived v0.4 disposition | not_available, not_referenced, reference_only, applied_to_structure, withheld_stale, stale_persisted, unknown, protocol_invalid |
-| `target_specific_required_check_relation` | no dedicated current target-specific field | not_available_under_v04, unknown, protocol_invalid |
-| `target_specific_result_limitation` | `limitation_target_not_available`, `limitation_stale_target_withheld`, and `limitation_stale_target_persisted` selections | absent, target_not_available, stale_withheld, stale_persisted, mixed, unknown, protocol_invalid |
-| `target_abstention_relation` | structured `abstention`, result status, target availability, and disposition | consistent, inconsistent, not_available, unknown, protocol_invalid |
+| `provider_material_fingerprint` | canonical v0.4 provider-material fingerprint | exact fingerprint, mismatch, unknown, protocol_invalid |
+| `provider_request_fingerprint` | canonical OpenAI JSON request-body fingerprint | exact fingerprint, mismatch, unknown, protocol_invalid |
+| `local_provenance_provider_visibility` | request/body projection audit | absent, present_protocol_invalid, unknown |
 
-The common `required_check` is not a target-specific check and must never fill
-that unavailable dimension.
+This layer may establish treatment/parity validity, `protocol_invalid`, or
+`not_comparable`. It never counts as downstream target persistence and cannot
+produce `left_persists_more` or `right_persists_more`. In particular,
+`provider_target_material` and `provider_stale_relation` are input-treatment
+facts. Their construction-required A/B or C/B differences are not model
+behavior.
 
-For each arm and pair, the finite aggregate target-persistence state is exactly
-one of:
+For B/G this layer must prove all of:
 
 ```text
-valid_target_absent_or_gated
+B upstream target = absent
+G upstream target/relation = exact C target/relation
+G gate = valid exclusion before materialization
+B/G final provider target material = absent
+B/G final provider stale relation = absent
+B/G provider material = equal
+B/G OpenAI JSON request body = equal
+B/G provider request fingerprint = equal
+G local provenance provider visibility = absent
+```
+
+The upstream difference proves the intervention. The provider equality proves
+the gate projection. Neither proves downstream behavioral equivalence.
+
+### 9.2 Layer B — `downstream_target_persistence_vector`
+
+Only normalized post-provider or local-derived structured observations enter
+the downstream vector:
+
+| Dimension | Exact current structured source | Finite values | Aggregation role |
+|---|---|---|---|
+| `selected_or_referenced_target_identity` | parsed `referenced_continuation_tokens` from `referenced_continuation_selections` | present, absent, unknown, protocol_invalid | independent directional observation |
+| `continuation_packet_target_material` | E1 `referenced_source_ids` bridge from the structured target token | present, absent, unknown, not_comparable, protocol_invalid | consistency alias of target reference; never counted independently |
+| `target_action_or_decision_preparation` | the single `target_linked_verification_preparation` selection | present, absent, unknown, protocol_invalid | independent directional observation |
+| `target_disposition` | locally derived v0.4 disposition | not_available, not_referenced, reference_only, applied_to_structure, withheld_stale, stale_persisted, unknown, protocol_invalid | consistency projection of reference/action/limitation; never counted independently |
+| `target_specific_required_check_relation` | no dedicated current target-specific field | not_available_under_v04, unknown, protocol_invalid | unavailable and excluded from direction |
+| `target_specific_result_limitation` | `limitation_target_not_available`, `limitation_stale_target_withheld`, and `limitation_stale_target_persisted` selections | absent, target_not_available, stale_withheld, stale_persisted, mixed, unknown, protocol_invalid | independent directional observation |
+| `target_abstention_relation` | structured `abstention`, result status, target availability, and disposition | consistent, inconsistent, not_available, unknown, protocol_invalid | consistency gate only; never directional |
+
+The earlier `target_operation_action_class` and
+`target_decision_preparation_structure` entries are collapsed into the one
+`target_action_or_decision_preparation` observation. The same
+`target_linked_verification_preparation` token can never supply two pieces of
+evidence. The continuation-packet bridge and locally derived disposition are
+also redundant projections and are excluded from independent directional
+aggregation. A contradiction between either projection and its source fields
+is `protocol_invalid`.
+
+The common `required_check` is not target-specific and must never fill
+`target_specific_required_check_relation`. `not_available_under_v04` carries no
+directional information. An inconsistent target-abstention relation makes the
+pair `not_comparable`; a consistent or unavailable relation adds no persistence
+weight.
+
+### 9.3 Exact deterministic pairwise derivation
+
+Every direct pair uses this ordered, fail-closed procedure:
+
+1. Validate `intervention_and_projection_integrity`. Invalid
+   source/gate/provider projection, body, schema, or parser integrity yields
+   `protocol_invalid`.
+2. Validate pair-required non-intervention parity. A parity mismatch yields
+   `not_comparable`; no downstream direction is derived.
+3. Validate the downstream structured fields and the non-independent
+   consistency projections. Invalid structure or a contradictory derived alias
+   yields `protocol_invalid`; a semantically non-comparable consistency state
+   yields `not_comparable`.
+4. Apply common-compliance comparability independently. Exactly one valid side
+   yields `compliance_asymmetry`; both invalid yields `not_comparable`; an
+   unknown or incomplete side yields `unknown`. None produces a directional
+   target-persistence result.
+5. Compare only the three independent persistence observations below. Each
+   returns exactly `equal`, `left_more_persistent`,
+   `right_more_persistent`, `unknown`, or `not_comparable`:
+   - target reference and target action/preparation use `present > absent`;
+     equal known values yield `equal`;
+   - target-specific limitation reduces `stale_persisted` to
+     persistence-present and `absent`, `target_not_available`, or
+     `stale_withheld` to persistence-absent; `mixed` is `not_comparable`;
+   - any unknown input yields `unknown`, and an inadmissible comparison yields
+     `not_comparable`.
+6. Aggregate deterministically: any `not_comparable` result yields
+   `not_comparable`; otherwise any required `unknown` yields `unknown`; both a
+   left and right directional result yield `mixed`; one or more left results
+   and no right result yield `left_persists_more`; one or more right results
+   and no left result yield `right_persists_more`; and all three equal yield
+   `equal`.
+
+The evaluator never counts dimensions, majority-votes, weights fields, or
+creates a scalar persistence score, rank, or winner. Correlated or derived
+fields cannot break a tie or add evidentiary weight.
+
+### 9.4 Arm-level states without treatment tautology
+
+Layer A and Layer B retain separate arm states. Layer A may report
+`valid_target_absent_or_gated` for a correctly constructed B or G projection.
+That state proves only target absence after the required source/gate projection;
+it never proves downstream absence, reset, or B/G behavioral equivalence.
+
+After integrity and common-compliance gates, Layer B reports exactly one of:
+
+```text
 bounded_target_persistence_observed
 no_target_persistence_observed
 unknown
 not_comparable
 protocol_invalid
-compliance_asymmetry
 ```
 
-`protocol_invalid` covers invalid source/gate/body/schema/parser facts.
-`compliance_asymmetry` prevents comparison when common-compliance validity
-differs. Missing or incomplete material remains `unknown` or `not_comparable`;
-it is never coerced into absence, persistence, equivalence, or reset.
+`bounded_target_persistence_observed` requires at least one valid independent
+post-provider observation of target reference, target-linked action/decision
+preparation, or stale-target-persisted limitation, with no blocking unknown or
+non-comparable state. `no_target_persistence_observed` requires all three
+independent observations to be valid and persistence-absent. C provider input
+presence alone can never produce the former. B/G provider equality alone can
+never produce downstream equivalence. Pair-level
+`compliance_asymmetry` remains separate from both arm states.
 
-### 9.3 Independent relation layers
+### 9.5 Independent relation layers
 
 Each pair reports these independently:
 
 1. `whole_output_behavioral_relation` — equal, distinct, unknown, or
    not_comparable over the predeclared normalized structured projection;
 2. `target_persistence_relation` — equal, left_persists_more,
-   right_persists_more, mixed, unknown, or not_comparable over the vector above;
+   right_persists_more, mixed, unknown, not_comparable, protocol_invalid, or
+   compliance_asymmetry under the exact derivation above;
 3. `common_compliance_relation` — both_valid, protocol_invalid,
    compliance_asymmetry, unknown, or incomplete; and
 4. `bounded_outcome_relation` — the existing declared bounded relation, never
@@ -310,28 +392,34 @@ Each pair reports these independently:
 whole-output distinctness != target persistence
 target persistence != bounded outcome
 compliance validity != behavioral relation
-local provenance difference != provider-visible treatment difference
+input-treatment difference != downstream target persistence
+provider equality != downstream behavioral equivalence
 ```
 
 ## 10. Stochastic B/G interpretation
 
 B and G are separate fresh stateless invocations. Identical provider requests
 do not imply identical sampled outputs, so stochastic whole-output difference
-does not automatically falsify H3. H3 is judged only by the predeclared
-target-persistence vector after both calls pass independent common-compliance
-and bounded-outcome gates. Raw-string equality is neither necessary nor
-sufficient for gate equivalence.
+does not automatically falsify H3. Provider equality establishes treatment
+parity only. H3 is judged by the deterministic downstream target-persistence
+derivation after intervention/projection integrity and independent
+common-compliance comparability pass, with bounded outcome reported as its own
+gate. Raw-string equality is neither necessary nor sufficient for downstream
+gate equivalence.
 
 ## 11. Frozen hypotheses
 
 ```text
 H1: A vs B reproduces fresh-target positive-control conditioning.
 
-H2: C vs B directly measures metadata-only stale persistence.
+H2: C vs B measures downstream post-provider stale-target persistence after
+    metadata-only stale presentation; provider input presence is not evidence.
 
-H3: G vs B tests target-specific equivalence after valid substrate gating.
+H3: G vs B tests downstream target-specific equivalence after valid substrate
+    gating and exact provider parity; provider equality is not the result.
 
-H4: G vs C tests a bounded gating-associated target-persistence difference.
+H4: G vs C tests a downstream bounded gating-associated target-persistence
+    difference, not the treatment-presence difference itself.
 
 H5: Common compliance and bounded outcome remain independent gates.
 ```
@@ -404,7 +492,10 @@ All design gates are satisfied:
 - A is explicitly retained as the positive control;
 - all six comparisons, including direct C↔B and G↔B, are finite and directly
   owned;
-- the target-persistence vector is finite and fail-closed; and
+- intervention/projection integrity is separate from downstream persistence;
+- the target-persistence vector and exact no-vote/no-score pairwise derivation
+  are finite and fail-closed, with duplicate or derived observations excluded
+  from independent weighting; and
 - no unresolved privacy, authority, or namespace blocker remains at design
   level.
 

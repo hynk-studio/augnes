@@ -1700,6 +1700,12 @@ trace/client-request identities. A remains the positive control. The future
 balanced order is A/B/G/C, B/C/A/G, C/G/B/A, and G/A/C/B, and all six A↔B,
 A↔C, A↔G, B↔C, B↔G, and C↔G comparisons are direct. Whole-output behavior,
 target persistence, common compliance, and bounded outcome remain separate.
+Provider target/stale-relation presence belongs only to treatment/projection
+integrity and cannot establish downstream persistence; exact B/G provider
+parity likewise cannot establish behavioral equivalence. The downstream
+relation is derived deterministically from non-duplicated structured
+reference, target-action/decision-preparation, and target-limitation evidence,
+without counts, votes, scalar scores, ranks, or weights.
 
 P6H is now eligible only for a **future, separately authorized zero-egress
 harness candidate**. P6F implements none of the future cohort, plan, evaluator,
