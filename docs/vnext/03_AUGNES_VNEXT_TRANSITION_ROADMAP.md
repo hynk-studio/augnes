@@ -585,7 +585,7 @@ truth:
 | ACGC-E2R2P6H | [#237](https://github.com/hynk-studio/augnes-perspective-lab/issues/237) | [PR #238](https://github.com/hynk-studio/augnes-perspective-lab/pull/238), `858e06d2` | **Completed** at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d` with the zero-real-egress stale-reset isolation harness and exact four-block B/G provider parity. |
 | ACGC-E2R2P6I | [#239](https://github.com/hynk-studio/augnes-perspective-lab/issues/239) | Reviewed bounded local run reconciled by [PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241) | **Completed** at merge `0c6fb9615bb904781aba1eb323038440678bad5c`. One authorization was consumed and one cohort completed `16/16` live calls with retry/replacement `0/0`; artifact validation is valid. |
 | ACGC-E2R2P6J | [#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) | [PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241), `0c6fb961` | **Completed** at merge `0c6fb9615bb904781aba1eb323038440678bad5c` with the documentation-only P6I closeout. |
-| ACGC-E2R2P6K | [#242](https://github.com/hynk-studio/augnes-perspective-lab/issues/242) | Draft PR pending | **Current while Draft.** Cross-case replication design only: the replication harness is not implemented, R1/R2 live issues are not created, provider calls are `0`, replication live authority is false, and product transfer, policy, and Stage 7 remain unauthorized. |
+| ACGC-E2R2P6K | [#242](https://github.com/hynk-studio/augnes-perspective-lab/issues/242) | [Draft PR #243](https://github.com/hynk-studio/augnes-perspective-lab/pull/243) | **Current while Draft.** Cross-case replication design only: the replication harness is not implemented, R1/R2 live issues are not created, provider calls are `0`, replication live authority is false, and product transfer, policy, and Stage 7 remain unauthorized. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1775,10 +1775,12 @@ ACGC-E2R2P6J [Issue
 **Completed** at merge `0c6fb9615bb904781aba1eb323038440678bad5c`. It
 reconciled the terminal P6I record only.
 
-### ACGC-E2R2P6K cross-case replication design — Current while Draft
+### ACGC-E2R2P6K cross-case replication design — Current while Draft PR #243
 
 ACGC-E2R2P6K [Issue
-#242](https://github.com/hynk-studio/augnes-perspective-lab/issues/242) is
+#242](https://github.com/hynk-studio/augnes-perspective-lab/issues/242) /
+[Draft PR #243](https://github.com/hynk-studio/augnes-perspective-lab/pull/243)
+is
 **Current while its Draft design PR remains unmerged**. The versioned
 [cross-case design](./research/ACGC_E2R2P6_CROSS_CASE_REPLICATION_DESIGN_V0_1.md)
 freezes two materially independent public-safe cases, two separately authorized
@@ -1792,7 +1794,7 @@ separate/open, and PR #186 remains historical Draft HOLD.
 ```text
 P6I / Issue #239 = Completed
 P6J / Issue #240 / PR #241 = Completed at merge 0c6fb9615bb904781aba1eb323038440678bad5c
-P6K / Issue #242 / Draft PR pending = Current while Draft
+P6K / Issue #242 / Draft PR #243 = Current while Draft
 P6K = cross-case replication design only
 replication harness = not implemented
 R1/R2 live issues = not created
