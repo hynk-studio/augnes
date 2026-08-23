@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -23,6 +24,7 @@ import {
   beginOperationalReentryV04StaleResetIsolationAttemptV01,
   buildOperationalReentryV04StaleResetIsolationArtifactFamilyContractV01,
   OPERATIONAL_REENTRY_V04_STALE_RESET_ISOLATION_ARTIFACT_NAMESPACE_V01,
+  validateOperationalReentryV04StaleResetIsolationArtifactsV01,
 } from "@/lib/vnext/operational-reentry-v0-4-stale-reset-isolation-artifact-store";
 import {
   ACGC_E2R2P6H_ADAPTER_REQUEST_ROUTE_FINGERPRINT_V01,
@@ -74,7 +76,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { preflightOperationalReentryV04StaleResetIsolationRepositoryV01 } from "@/scripts/operational-reentry-v0-4-stale-reset-isolation-cohort";
+import {
+  preflightOperationalReentryV04StaleResetIsolationRepositoryV01,
+  refreshOperationalReentryV04StaleResetIsolationRemoteMainV01,
+} from "@/scripts/operational-reentry-v0-4-stale-reset-isolation-cohort";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_CODEC_VERSION_V05,
   OPERATIONAL_REENTRY_MATCHED_COHORT_PARSER_VERSION_V04,
@@ -130,7 +135,7 @@ async function main(): Promise<void> {
   verifyHistoricalAndAuthorityBoundariesV01();
 
   assert.equal(fetchCalls, 0);
-  assert.equal(fakeTransportCalls, 0);
+  assert.equal(fakeTransportCalls, 16);
   console.log(
     JSON.stringify({
       status:
@@ -1071,9 +1076,58 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
   });
   assert.equal(journal.authorization_consumed, false);
   assert.equal(existsSync(path.join(artifactRepository, journal.consumption_marker_path)), false);
-  journal.consume_authorization();
+  const persistedResult =
+    await runOperationalReentryV04StaleResetIsolationCohortV01(
+      buildInput,
+      {
+        invoke_gateway: (async () => {
+          const entry = prepared.plan.entries[fakeTransportCalls];
+          assert.ok(entry);
+          fakeTransportCalls += 1;
+          return {
+            generator: "model",
+            output: normalizedGoldenV01(entry),
+            model_invocation_receipt: null,
+          };
+        }) as unknown as NonNullable<
+          Parameters<
+            typeof runOperationalReentryV04StaleResetIsolationCohortV01
+          >[1]["invoke_gateway"]
+        >,
+        assert_execution_state() {},
+        consume_authorization() {
+          journal.consume_authorization();
+        },
+        on_call_terminal(call) {
+          journal.append_call(call);
+        },
+        on_block_evaluation(block) {
+          journal.append_block(block);
+        },
+      },
+    );
+  const cleanBundle = journal.finalize(persistedResult);
   assert.equal(journal.authorization_consumed, true);
   assert.equal(existsSync(path.join(artifactRepository, journal.consumption_marker_path)), true);
+  assert.equal(persistedResult.calls.length, 16);
+  assert.equal(persistedResult.blocks.length, 4);
+  assert.equal(persistedResult.report.complete_blocks, 4);
+  assert.equal(persistedResult.report.all_six_pair_records, 24);
+  assert.equal(persistedResult.report.real_provider_calls, 0);
+  assert.equal(cleanBundle.completion_status, "complete");
+  assert.equal(cleanBundle.authorization_consumed, true);
+  assert.doesNotThrow(() =>
+    validateOperationalReentryV04StaleResetIsolationArtifactsV01({
+      repository_root: artifactRepository,
+      run_root: journal.run_root,
+    }),
+  );
+  const tamperFailureCount = verifyPersistedBundleTamperMatrixV01({
+    clean_repository: artifactRepository,
+    relative_run_root: journal.relative_run_root,
+    consumption_marker_path: journal.consumption_marker_path,
+  });
+  assert.equal(tamperFailureCount, 23);
   assert.throws(
     () => journal.consume_authorization(),
     /operational_reentry_v04_stale_reset_authorization_already_consumed/,
@@ -1125,6 +1179,15 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
       }),
     /operational_reentry_v04_stale_reset_historical_namespace_refused/,
   );
+  const tamperedBeginRepository = path.join(
+    temporaryRoot,
+    "tampered-begin-repository",
+  );
+  mkdirSync(tamperedBeginRepository, { recursive: true });
+  writeFileSync(
+    path.join(tamperedBeginRepository, ".gitignore"),
+    ".augnes-lab/\n",
+  );
   const tamperedManifest = {
     ...prepared.manifest,
     plan_fingerprint: "sha256:" + "c".repeat(64),
@@ -1132,7 +1195,7 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
   assert.throws(
     () =>
       beginOperationalReentryV04StaleResetIsolationAttemptV01({
-        repository_root: artifactRepository,
+        repository_root: tamperedBeginRepository,
         authorization,
         manifest: tamperedManifest,
         plan: prepared.plan,
@@ -1196,10 +1259,247 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
     manifest_family_fingerprint: prepared.manifest.integrity.fingerprint,
     pricing_reference_fingerprint: pricing.integrity.fingerprint,
     in_memory_fake_authorization_fingerprint: authorization.integrity.fingerprint,
+    clean_full_persisted_bundle_validation: "passed" as const,
+    clean_full_persisted_bundle_artifact_index_fingerprint:
+      cleanBundle.artifact_index_fingerprint,
+    tamper_fail_closed_cases: tamperFailureCount + 2,
     live_candidates_created: 0,
     live_authorizations_consumed: 0,
     real_run_roots_created: 0,
   };
+}
+
+function verifyPersistedBundleTamperMatrixV01(input: {
+  clean_repository: string;
+  relative_run_root: string;
+  consumption_marker_path: string;
+}): number {
+  let failures = 0;
+  const expectFailure = (
+    id: string,
+    mutate: (context: {
+      repository: string;
+      runRoot: string;
+      globalMarker: string;
+    }) => void,
+  ): void => {
+    const repository = path.join(temporaryRoot, `tamper-${id}`);
+    cpSync(input.clean_repository, repository, { recursive: true });
+    const runRoot = path.join(repository, input.relative_run_root);
+    const globalMarker = path.join(repository, input.consumption_marker_path);
+    mutate({ repository, runRoot, globalMarker });
+    assert.throws(() =>
+      validateOperationalReentryV04StaleResetIsolationArtifactsV01({
+        repository_root: repository,
+        run_root: runRoot,
+      }),
+    );
+    failures += 1;
+  };
+
+  expectFailure("01-call-bytes", ({ runRoot }) => {
+    const target = path.join(runRoot, "calls/00.json");
+    writeFileSync(target, `${readFileSync(target, "utf8").trimEnd()} \n`);
+  });
+  expectFailure("02-call-payload-stale-integrity", ({ runRoot }) => {
+    const target = path.join(runRoot, "calls/00.json");
+    const value = readJsonV01(target);
+    value.call_slot_id = "e2r2p6h-call-tampered-stale-integrity";
+    writeCanonicalJsonV01(target, value);
+  });
+  expectFailure("03-call-resealed-index-stale", ({ runRoot }) => {
+    const target = path.join(runRoot, "calls/00.json");
+    const value = readJsonV01(target);
+    value.call_slot_id = "e2r2p6h-call-tampered-resealed";
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+  });
+  expectFailure("04-report-payload", ({ runRoot }) => {
+    const target = path.join(runRoot, "report.json");
+    const value = readJsonV01(target);
+    value.attempted_provider_calls = 1;
+    writeCanonicalJsonV01(target, value);
+  });
+  expectFailure("05-report-resealed-index-stale", ({ runRoot }) => {
+    const target = path.join(runRoot, "report.json");
+    const value = readJsonV01(target);
+    value.attempted_provider_calls = 1;
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+  });
+  expectFailure("06-report-resealed-index-updated", ({ runRoot }) => {
+    const target = path.join(runRoot, "report.json");
+    const value = readJsonV01(target);
+    value.attempted_provider_calls = 1;
+    const resealed = resealRecordV01(value);
+    writeCanonicalJsonV01(target, resealed);
+    updateIndexMemberV01(runRoot, "report.json", {
+      report_fingerprint: resealed.integrity.fingerprint,
+    });
+  });
+  expectFailure("07-manifest-source-resealed", ({ runRoot }) => {
+    const target = path.join(runRoot, "manifest.json");
+    const value = readJsonV01(target);
+    value.source_repository_head_sha = "b".repeat(40);
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+    updateIndexMemberV01(runRoot, "manifest.json", {
+      source_repository_head_sha: "b".repeat(40),
+    });
+  });
+  expectFailure("08-authorization-resealed", ({ runRoot }) => {
+    const target = path.join(runRoot, "authorization.json");
+    const value = readJsonV01(target);
+    value.future_live_issue_number = 239;
+    value.exact_merged_source_head = "b".repeat(40);
+    value.sealed_plan_fingerprint = "sha256:" + "9".repeat(64);
+    const resealed = resealRecordV01(value);
+    writeCanonicalJsonV01(target, resealed);
+    updateIndexMemberV01(runRoot, "authorization.json", {
+      authorization_fingerprint: resealed.integrity.fingerprint,
+      source_repository_head_sha: "b".repeat(40),
+    });
+  });
+  expectFailure("09-plan-order-resealed", ({ runRoot }) => {
+    const target = path.join(runRoot, "plan.json");
+    const value = readJsonV01(target);
+    [value.entries[0], value.entries[1]] = [value.entries[1], value.entries[0]];
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+    updateIndexMemberV01(runRoot, "plan.json");
+  });
+  expectFailure("10-pricing-identity-resealed", ({ runRoot }) => {
+    const target = path.join(runRoot, "pricing.json");
+    const value = readJsonV01(target);
+    value.pricing_authority_fingerprint = "sha256:" + "8".repeat(64);
+    value.gateway_cost_budget.authority.pricing_fingerprint =
+      value.pricing_authority_fingerprint;
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+    updateIndexMemberV01(runRoot, "pricing.json");
+  });
+  expectFailure("11-call-deleted", ({ runRoot }) => {
+    rmSync(path.join(runRoot, "calls/15.json"));
+  });
+  expectFailure("12-call-duplicated", ({ runRoot }) => {
+    cpSync(
+      path.join(runRoot, "calls/00.json"),
+      path.join(runRoot, "calls/01.json"),
+      { force: true },
+    );
+    updateIndexMemberV01(runRoot, "calls/01.json");
+  });
+  expectFailure("13-block-deleted", ({ runRoot }) => {
+    rmSync(path.join(runRoot, "checkpoints/block-3.json"));
+  });
+  expectFailure("14-block-pair-resealed", ({ runRoot }) => {
+    const target = path.join(runRoot, "checkpoints/block-0.json");
+    const value = readJsonV01(target);
+    value.all_six_pairs_evaluated_directly = false;
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+    updateIndexMemberV01(runRoot, "checkpoints/block-0.json");
+  });
+  expectFailure("15-global-marker-removed", ({ globalMarker }) => {
+    rmSync(globalMarker);
+  });
+  expectFailure("16-global-marker-mutated", ({ globalMarker }) => {
+    const value = readJsonV01(globalMarker);
+    value.retries_authorized = true;
+    writeCanonicalJsonV01(globalMarker, value);
+  });
+  expectFailure("17-local-marker-disagrees", ({ runRoot }) => {
+    const target = path.join(runRoot, "authorization-consumed.json");
+    const value = readJsonV01(target);
+    value.replacements_authorized = true;
+    writeCanonicalJsonV01(target, value);
+    updateIndexMemberV01(runRoot, "authorization-consumed.json");
+  });
+  expectFailure("18-consumed-false-marker-present", ({ runRoot }) => {
+    for (const relative of ["report.json", "terminal.json"]) {
+      const target = path.join(runRoot, relative);
+      const value = readJsonV01(target);
+      value.authorization_consumed = false;
+      const resealed = resealRecordV01(value);
+      writeCanonicalJsonV01(target, resealed);
+      updateIndexMemberV01(
+        runRoot,
+        relative,
+        relative === "report.json"
+          ? { report_fingerprint: resealed.integrity.fingerprint }
+          : {},
+      );
+    }
+    const indexPath = path.join(runRoot, "artifact-index.json");
+    const index = readJsonV01(indexPath);
+    index.authorization_consumed = false;
+    writeCanonicalJsonV01(indexPath, resealRecordV01(index));
+  });
+  expectFailure("19-index-noncanonical", ({ runRoot }) => {
+    const target = path.join(runRoot, "artifact-index.json");
+    writeFileSync(target, `${JSON.stringify(readJsonV01(target), null, 2)}\n`);
+  });
+  expectFailure("20-index-extra-key", ({ runRoot }) => {
+    const target = path.join(runRoot, "artifact-index.json");
+    const value = readJsonV01(target);
+    value.unexpected = false;
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+  });
+  expectFailure("21-index-missing-key", ({ runRoot }) => {
+    const target = path.join(runRoot, "artifact-index.json");
+    const value = readJsonV01(target);
+    delete value.report_fingerprint;
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+  });
+  expectFailure("22-index-version", ({ runRoot }) => {
+    const target = path.join(runRoot, "artifact-index.json");
+    const value = readJsonV01(target);
+    value.index_version =
+      "operational_reentry_v04_stale_reset_isolation_artifact_index.v9.9";
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+  });
+  expectFailure("23-coherent-index-semantic-drift", ({ runRoot }) => {
+    const target = path.join(runRoot, "calls/00.json");
+    const value = readJsonV01(target);
+    value.request_family_trace_id = "acgc_trace_" + "f".repeat(40);
+    writeCanonicalJsonV01(target, resealRecordV01(value));
+    updateIndexMemberV01(runRoot, "calls/00.json");
+  });
+  return failures;
+}
+
+function readJsonV01(target: string): Record<string, any> {
+  return JSON.parse(readFileSync(target, "utf8")) as Record<string, any>;
+}
+
+function writeCanonicalJsonV01(target: string, value: unknown): void {
+  writeFileSync(target, `${canonicalizeProtocolValueV01(value)}\n`);
+}
+
+function resealRecordV01(value: Record<string, any>): Record<string, any> {
+  const { integrity, ...payload } = value;
+  assert.equal(typeof integrity?.fingerprint_scope, "string");
+  return {
+    ...payload,
+    integrity: {
+      algorithm: "sha256",
+      canonicalization: "augnes-json-c14n-v0_1",
+      fingerprint_scope: integrity.fingerprint_scope,
+      fingerprint: fingerprintV01(payload),
+    },
+  };
+}
+
+function updateIndexMemberV01(
+  runRoot: string,
+  relativePath: string,
+  replacements: Record<string, unknown> = {},
+): void {
+  const indexPath = path.join(runRoot, "artifact-index.json");
+  const index = readJsonV01(indexPath);
+  const member = index.artifacts.find(
+    (entry: { path: string }) => entry.path === relativePath,
+  );
+  assert.ok(member);
+  member.fingerprint = createProtocolSha256V01(
+    readFileSync(path.join(runRoot, relativePath), "utf8").trimEnd(),
+  );
+  Object.assign(index, replacements);
+  writeCanonicalJsonV01(indexPath, resealRecordV01(index));
 }
 
 function stripAuthorizationIntegrityV01(
@@ -1225,6 +1525,7 @@ function stripAuthorizationIntegrityV01(
 
 function verifyFutureRunnerPreflightV01(): void {
   const repositoryInput = path.join(temporaryRoot, "preflight-repository");
+  const actualRemote = path.join(temporaryRoot, "preflight-actual-remote.git");
   mkdirSync(repositoryInput, { recursive: true });
   const repository = realpathSync(repositoryInput);
   const git = (args: string[]) =>
@@ -1236,6 +1537,9 @@ function verifyFutureRunnerPreflightV01(): void {
   git(["config", "user.name", "P6H Static Test"]);
   git(["config", "user.email", "p6h-test@example.invalid"]);
   git(["config", "commit.gpgsign", "false"]);
+  execFileSync("git", ["init", "--bare", actualRemote], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   git([
     "remote",
     "add",
@@ -1245,30 +1549,112 @@ function verifyFutureRunnerPreflightV01(): void {
   writeFileSync(path.join(repository, "baseline.txt"), "future merged source\n");
   git(["add", "baseline.txt"]);
   git(["commit", "-m", "future merged source"]);
-  const head = git(["rev-parse", "HEAD"]);
-  git(["update-ref", "refs/remotes/origin/main", head]);
-  const identity = {
-    exact_merged_source_head: head,
+  const oldHead = git(["rev-parse", "HEAD"]);
+  git(["push", actualRemote, "HEAD:refs/heads/main"]);
+  git(["update-ref", "refs/remotes/origin/main", oldHead]);
+  const oldIdentity = {
+    exact_merged_source_head: oldHead,
     repository_slug: "hynk-studio/augnes-perspective-lab",
     authorized_origin:
       "https://github.com/hynk-studio/augnes-perspective-lab.git",
   };
+  let localRefreshes = 0;
+  const localRefresh = {
+    fetch_origin_main(root: string) {
+      localRefreshes += 1;
+      execFileSync(
+        "git",
+        [
+          "-C", root, "fetch", "--no-tags", "--no-recurse-submodules",
+          "--no-write-fetch-head", actualRemote,
+          "+refs/heads/main:refs/remotes/origin/main",
+        ],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+    },
+  };
+  assert.equal(
+    refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+      repository,
+      localRefresh,
+    ),
+    oldHead,
+  );
   assert.doesNotThrow(() =>
     preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
       repository,
-      identity,
+      oldIdentity,
     ),
   );
+
+  const remoteWork = path.join(temporaryRoot, "preflight-remote-work");
+  execFileSync("git", ["clone", repository, remoteWork], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const remoteGit = (args: string[]) =>
+    execFileSync("git", ["-C", remoteWork, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  remoteGit(["config", "user.name", "P6H Static Test"]);
+  remoteGit(["config", "user.email", "p6h-test@example.invalid"]);
+  remoteGit(["config", "commit.gpgsign", "false"]);
+  writeFileSync(path.join(remoteWork, "remote-new.txt"), "new actual main\n");
+  remoteGit(["add", "remote-new.txt"]);
+  remoteGit(["commit", "-m", "advance actual remote main"]);
+  const newHead = remoteGit(["rev-parse", "HEAD"]);
+  remoteGit(["push", actualRemote, "HEAD:refs/heads/main"]);
+  assert.equal(git(["rev-parse", "refs/remotes/origin/main"]), oldHead);
+  assert.equal(git(["rev-parse", "HEAD"]), oldHead);
+  assert.equal(
+    refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+      repository,
+      localRefresh,
+    ),
+    newHead,
+  );
+  assert.throws(
+    () =>
+      preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
+        repository,
+        oldIdentity,
+      ),
+    /operational_reentry_v04_stale_reset_head_not_exact_origin_main/,
+  );
+
+  const realArtifactRoot = path.join(
+    repository,
+    ...OPERATIONAL_REENTRY_V04_STALE_RESET_ISOLATION_ARTIFACT_NAMESPACE_V01.split(
+      "/",
+    ),
+  );
+  assert.equal(existsSync(realArtifactRoot), false);
+  assert.throws(
+    () =>
+      refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+        repository,
+        {
+          fetch_origin_main() {
+            throw new Error("deterministic local refresh failure");
+          },
+        },
+      ),
+    /operational_reentry_v04_stale_reset_origin_main_refresh_failed/,
+  );
+  assert.equal(existsSync(realArtifactRoot), false);
+
+  git(["update-ref", "refs/remotes/origin/main", oldHead]);
   writeFileSync(path.join(repository, "dirty.txt"), "dirty\n");
   assert.throws(
     () =>
       preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
         repository,
-        identity,
+        oldIdentity,
       ),
     /operational_reentry_v04_stale_reset_worktree_not_clean/,
   );
   rmSync(path.join(repository, "dirty.txt"));
+  git(["update-ref", "refs/remotes/origin/main", newHead]);
   git(["switch", "-c", "future-feature"]);
   writeFileSync(path.join(repository, "feature.txt"), "feature\n");
   git(["add", "feature.txt"]);
@@ -1278,10 +1664,43 @@ function verifyFutureRunnerPreflightV01(): void {
     () =>
       preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
         repository,
-        { ...identity, exact_merged_source_head: featureHead },
+        { ...oldIdentity, exact_merged_source_head: featureHead },
       ),
     /operational_reentry_v04_stale_reset_head_not_exact_origin_main/,
   );
+  assert.equal(
+    refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+      repository,
+      localRefresh,
+    ),
+    newHead,
+  );
+  assert.throws(
+    () =>
+      preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
+        repository,
+        { ...oldIdentity, exact_merged_source_head: featureHead },
+      ),
+    /operational_reentry_v04_stale_reset_head_not_exact_origin_main/,
+  );
+
+  git(["switch", "main"]);
+  git(["merge", "--ff-only", newHead]);
+  const freshIdentity = { ...oldIdentity, exact_merged_source_head: newHead };
+  assert.equal(
+    refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+      repository,
+      localRefresh,
+    ),
+    newHead,
+  );
+  assert.doesNotThrow(() =>
+    preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
+      repository,
+      freshIdentity,
+    ),
+  );
+  assert.equal(localRefreshes, 4);
 }
 
 function verifyHistoricalAndAuthorityBoundariesV01(): void {
@@ -1348,6 +1767,20 @@ function verifyHistoricalAndAuthorityBoundariesV01(): void {
   );
   assert.ok(runner.includes("--authorization-file"));
   assert.ok(runner.includes("refs/remotes/origin/main^{commit}"));
+  assert.ok(
+    runner.includes(
+      "+refs/heads/main:refs/remotes/origin/main",
+    ),
+  );
+  assert.ok(runner.includes("--no-write-fetch-head"));
+  assert.ok(
+    runner.indexOf(
+      "refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(",
+    ) <
+      runner.indexOf(
+        "beginOperationalReentryV04StaleResetIsolationAttemptV01({",
+      ),
+  );
   for (const forbiddenOwner of [
     "TaskContextPacket",
     "ReviewDecision",

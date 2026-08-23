@@ -86,6 +86,13 @@ async function main(): Promise<void> {
   };
   const prepared =
     buildOperationalReentryV04StaleResetIsolationCohortV01(buildInput);
+  refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+    repositoryRoot,
+  );
+  preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
+    repositoryRoot,
+    authorizationIdentity,
+  );
   assertOperationalReentryV04StaleResetIsolationAuthorizationUnusedV01({
     repository_root: repositoryRoot,
     authorization_fingerprint:
@@ -319,6 +326,57 @@ export function preflightOperationalReentryV04StaleResetIsolationRepositoryV01(
     ]) !== ""
   ) {
     failV01("operational_reentry_v04_stale_reset_worktree_not_clean");
+  }
+}
+
+export interface OperationalReentryV04StaleResetIsolationRemoteRefreshDependenciesV01 {
+  fetch_origin_main(repositoryRoot: string): void;
+}
+
+const productionRemoteRefreshDependenciesV01: OperationalReentryV04StaleResetIsolationRemoteRefreshDependenciesV01 = {
+  fetch_origin_main(repositoryRoot) {
+    execFileSync(
+      "git",
+      [
+        "-C",
+        repositoryRoot,
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "--no-write-fetch-head",
+        "origin",
+        "+refs/heads/main:refs/remotes/origin/main",
+      ],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60_000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+  },
+};
+
+export function refreshOperationalReentryV04StaleResetIsolationRemoteMainV01(
+  repositoryRoot: string,
+  dependencies: OperationalReentryV04StaleResetIsolationRemoteRefreshDependenciesV01 =
+    productionRemoteRefreshDependenciesV01,
+): string {
+  if (
+    !dependencies ||
+    typeof dependencies.fetch_origin_main !== "function"
+  ) {
+    failV01("operational_reentry_v04_stale_reset_origin_main_refresh_dependency_invalid");
+  }
+  try {
+    dependencies.fetch_origin_main(repositoryRoot);
+    return gitV01(repositoryRoot, [
+      "rev-parse",
+      "--verify",
+      "refs/remotes/origin/main^{commit}",
+    ]);
+  } catch {
+    failV01("operational_reentry_v04_stale_reset_origin_main_refresh_failed");
   }
 }
 
