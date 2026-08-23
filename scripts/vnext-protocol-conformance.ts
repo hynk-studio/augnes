@@ -58,6 +58,7 @@ import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@
 import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-clean-control-provider-compatibility-probe";
 import { runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-provider-compatibility-probe";
 import { runOperationalReentryV04ProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-provider-compatibility-probe";
+import { runOperationalReentryV04StaleResetIsolationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-stale-reset-isolation-cohort";
 import { runOperationalReentryParserClosedCleanControlCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-clean-control-cohort";
 import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
@@ -648,6 +649,8 @@ try {
     runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01();
   const operationalReentryV04ProviderCompatibilityProbeSummary =
     runOperationalReentryV04ProviderCompatibilityProbeConformanceV01();
+  const operationalReentryV04StaleResetIsolationSummary =
+    runOperationalReentryV04StaleResetIsolationConformanceV01();
   const operationalReentryParserClosedCleanControlCohortSummary =
     runOperationalReentryParserClosedCleanControlCohortConformanceV01();
   const operationalReentryMatchedCohortReplacementSummary =
@@ -747,6 +750,8 @@ try {
           operationalReentryParserClosedProviderCompatibilityProbeSummary,
         operational_reentry_v04_provider_compatibility_probe:
           operationalReentryV04ProviderCompatibilityProbeSummary,
+        operational_reentry_v04_stale_reset_isolation_cohort:
+          operationalReentryV04StaleResetIsolationSummary,
         operational_reentry_parser_closed_clean_control_cohort:
           operationalReentryParserClosedCleanControlCohortSummary,
         operational_reentry_matched_cohort_replacement:
