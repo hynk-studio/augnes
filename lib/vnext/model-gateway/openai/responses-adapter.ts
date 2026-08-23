@@ -18,6 +18,7 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -105,6 +106,14 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
 import {
+  buildOperationalReentryStaleResetCrossCaseSystemPromptV01,
+  operationalReentryStaleResetCrossCaseResponseSchemaV01,
+  parseOperationalReentryStaleResetCrossCaseOutputV01,
+  projectOperationalReentryStaleResetCrossCaseProviderMaterialV01,
+  OperationalReentryStaleResetCrossCaseOutputInvalidErrorV01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-stale-reset-cross-case-replication-v0-1-codec";
+import {
   OpenAIStrictSchemaSupportedSubsetErrorV01,
   validateOpenAIStrictSchemaSupportedSubsetV01,
 } from "@/lib/vnext/model-gateway/openai/strict-schema-supported-subset";
@@ -136,6 +145,13 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04,
   type OperationalReentryMatchedCohortInvocationV04,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
+import {
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
+  type OperationalReentryStaleResetCrossCaseInvocationV01,
+} from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
 
 export const OPENAI_RESPONSES_ENDPOINT_V01 =
   "https://api.openai.com/v1/responses" as const;
@@ -171,6 +187,8 @@ export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION
   "openai_responses_operational_reentry_matched_cohort_adapter.v0.2" as const;
 export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_ADAPTER_VERSION_V03 =
   "openai_responses_operational_reentry_matched_cohort_adapter.v0.3" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_ID_V01 =
+  "openai_responses.operational_reentry_stale_reset_cross_case_replication" as const;
 export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02 =
   "gpt-4.1-mini-2025-04-14" as const;
 
@@ -366,6 +384,49 @@ export function projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04(
   };
 }
 
+export function projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+) {
+  const purpose =
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01;
+  const model = OPENAI_RESPONSES_OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_V02;
+  const implementation = describeOpenAIImplementation(purpose);
+  const input = {
+    canonical_project_id: "project:00000000-0000-4000-8000-000000000000",
+    ...structuredClone(invocation),
+  } as ModelAdapterInputV01;
+  const request = buildOpenAIResponsesRequestMaterialV01({
+    purpose,
+    codec: codecFor(input),
+    model,
+    implementation,
+    max_output_tokens:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens,
+    max_input_bytes:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+  });
+  return {
+    ...request,
+    provider: "openai" as const,
+    model,
+    adapter_implementation_id:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_ID_V01,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+    response_schema_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
+    parser_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
+    real_provider_calls: 0 as const,
+    live_compatibility_authorizations_created: 0 as const,
+    live_compatibility_authorizations_consumed: 0 as const,
+    compatibility_result: "none" as const,
+    replication_live_authorized: false as const,
+  };
+}
+
 export type OpenAILocalCapabilityStatusV01 =
   | "available"
   | "action_required"
@@ -478,7 +539,9 @@ export function createOpenAIResponsesAdapterV01(
               input.input_kind !==
                 OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 &&
               input.input_kind !==
-                OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+                OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 &&
+              input.input_kind !==
+                OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
             ) {
               adapterResponseInvalid();
             }
@@ -492,7 +555,9 @@ export function createOpenAIResponsesAdapterV01(
             }
             const callSlotId =
               input.input_kind ===
-              OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+                OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+              input.input_kind ===
+                OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
                 ? input.local_invocation_context.call_slot_id
                 : input.invocation_context.call_slot_id;
             clientRequestId = createDeterministicModelClientRequestIdV01({
@@ -692,7 +757,8 @@ export function createOpenAIResponsesAdapterV01(
             if (error instanceof ModelGatewayAdapterFailureV01) throw error;
             return responseInvalid(
               error instanceof OperationalReentryMatchedCohortOutputInvalidErrorV03 ||
-                error instanceof OperationalReentryMatchedCohortOutputInvalidErrorV04
+              error instanceof OperationalReentryMatchedCohortOutputInvalidErrorV04 ||
+                error instanceof OperationalReentryStaleResetCrossCaseOutputInvalidErrorV01
                 ? error.stage
                 : "response_other_invalid",
               {
@@ -797,12 +863,17 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
         ...(input.purpose ===
           OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
         input.purpose ===
-          OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+          OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+        input.purpose ===
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
           ? {
               provider_contract_version:
                 input.purpose ===
                 OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
                   ? OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04
+                  : input.purpose ===
+                      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+                    ? OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01
                   : OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
               max_input_bytes: input.max_input_bytes,
               max_output_tokens: input.max_output_tokens,
@@ -815,6 +886,40 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
 }
 
 function codecFor(input: ModelAdapterInputV01): PurposeCodec {
+  if (
+    input.input_kind ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const { canonical_project_id: _authorizationProjectId, ...invocation } =
+      input;
+    const material =
+      projectOperationalReentryStaleResetCrossCaseProviderMaterialV01(
+        invocation,
+      );
+    return {
+      dynamic_material: material,
+      dynamic_bytes:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.dynamicBytes,
+      final_request_bytes:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes,
+      response_bytes:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.responseBytes,
+      system_prompt: buildOperationalReentryStaleResetCrossCaseSystemPromptV01(),
+      schema_name: "operational_reentry_stale_reset_cross_case_replication_v01",
+      schema: operationalReentryStaleResetCrossCaseResponseSchemaV01(material),
+      parse(outputText, usage) {
+        return {
+          purpose:
+            OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+          output: parseOperationalReentryStaleResetCrossCaseOutputV01(
+            outputText,
+            material,
+          ),
+          usage,
+        };
+      },
+    };
+  }
   if (
     input.input_kind ===
     OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
@@ -1083,6 +1188,17 @@ function describeOpenAIImplementation(
 ): ModelAdapterImplementationV01 {
   if (
     purpose ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return {
+      implementation_id:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_ID_V01,
+      implementation_version:
+        OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+    };
+  }
+  if (
+    purpose ===
     OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
   ) {
     return {
@@ -1179,7 +1295,9 @@ function isOperationalReentryMatchedCohortPurposeV01(
     purpose ===
       OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose ===
-      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
   );
 }
 

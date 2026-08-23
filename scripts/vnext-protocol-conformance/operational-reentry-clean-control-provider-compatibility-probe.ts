@@ -82,6 +82,8 @@ export function runOperationalReentryCleanControlProviderCompatibilityProbeConfo
     "parser_closed_clean_control_cohort",
     "operational_reentry_v04_compatibility_probe",
     "operational_reentry_v04_stale_reset_isolation_cohort",
+    "operational_reentry_v04_stale_reset_cross_case_replication",
+    "operational_reentry_stale_reset_cross_case_compatibility_probe",
   ]);
 
   const plan =

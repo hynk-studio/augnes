@@ -23,6 +23,7 @@ import {
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02,
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03,
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04,
+  projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01,
   readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
@@ -62,6 +63,14 @@ import {
   validateOperationalReentryMatchedCohortInvocationV04,
 } from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
 import {
+  buildOperationalReentryStaleResetCrossCaseProviderContractV01,
+  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01 as createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintCodecV01,
+  createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01 as createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintCodecV01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01,
+  validateOperationalReentryStaleResetCrossCaseInvocationV01,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-stale-reset-cross-case-replication-v0-1-codec";
+import {
   MODEL_GATEWAY_PURPOSES_V01,
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
   MODEL_GATEWAY_VERSION_V01,
@@ -75,6 +84,7 @@ import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
   OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -100,6 +110,8 @@ import {
   type OperationalReentryMatchedCohortModelInvocationEnvelopeV03,
   type OperationalReentryMatchedCohortModelGatewayResultV04,
   type OperationalReentryMatchedCohortModelInvocationEnvelopeV04,
+  type OperationalReentryStaleResetCrossCaseModelGatewayResultV01,
+  type OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01,
   type ModelInvocationEnvelopeV01,
   type ModelInvocationReceiptV02,
   type ObserveModelGatewayResultV01,
@@ -135,6 +147,14 @@ import {
   type OperationalReentryMatchedCohortProviderContractV04,
   type OperationalReentryMatchedCohortRouteV04,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
+import {
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+  type OperationalReentryStaleResetCrossCaseInvocationV01,
+  type OperationalReentryStaleResetCrossCaseProviderContractV01,
+  type OperationalReentryStaleResetCrossCaseProviderMaterialV01,
+  type OperationalReentryStaleResetCrossCaseRouteV01,
+} from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
 import { LOCAL_PROJECT_ROOT_REF_VERSION_V01 } from "@/types/vnext/project-identity";
 import {
   canonicalizeProtocolValueV01,
@@ -152,6 +172,8 @@ export {
   validateOperationalReentryMatchedCohortModelInputV03,
   OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
   validateOperationalReentryMatchedCohortInvocationV04,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01,
+  validateOperationalReentryStaleResetCrossCaseInvocationV01,
 };
 
 /** Exposes the frozen v0.3 contract through the shared Gateway ownership boundary. */
@@ -167,6 +189,44 @@ export function readOperationalReentryMatchedCohortProviderContractV04():
   OperationalReentryMatchedCohortProviderContractV04 {
   return structuredClone(
     buildOperationalReentryMatchedCohortProviderContractV04(),
+  );
+}
+
+/** Exposes the new cross-case contract through the shared Gateway boundary. */
+export function readOperationalReentryStaleResetCrossCaseProviderContractV01(): OperationalReentryStaleResetCrossCaseProviderContractV01 {
+  return structuredClone(
+    buildOperationalReentryStaleResetCrossCaseProviderContractV01(),
+  );
+}
+
+/** Exposes exact zero-egress compatibility bindings through the Gateway owner. */
+export function readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01() {
+  const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
+  return Object.freeze({
+    parser_closure_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(contract.per_shape_parser_closure),
+    ),
+    request_response_bounds_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01,
+      ),
+    ),
+  });
+}
+
+export function createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+): string {
+  return createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintCodecV01(
+    invocation,
+  );
+}
+
+export function createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01(
+  material: OperationalReentryStaleResetCrossCaseProviderMaterialV01,
+): string {
+  return createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintCodecV01(
+    material,
   );
 }
 
@@ -216,6 +276,14 @@ export function projectOperationalReentryMatchedCohortProviderRequestV04(
   invocation: OperationalReentryMatchedCohortInvocationV04,
 ) {
   return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04(
+    invocation,
+  );
+}
+
+export function projectOperationalReentryStaleResetCrossCaseProviderRequestV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+) {
+  return projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01(
     invocation,
   );
 }
@@ -299,7 +367,8 @@ function isOperationalReentryMatchedCohortPurposeV01(
   | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
   | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
   | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
-  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 {
+  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  | typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 {
   return (
     purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose ===
@@ -307,7 +376,9 @@ function isOperationalReentryMatchedCohortPurposeV01(
     purpose ===
       OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose ===
-      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
   );
 }
 
@@ -324,6 +395,7 @@ interface SharedModelGatewayDependenciesV01 {
   expected_operational_reentry_matched_cohort_v02_route?: OperationalReentryMatchedCohortRouteV02;
   expected_operational_reentry_matched_cohort_v03_route?: OperationalReentryMatchedCohortRouteV03;
   expected_operational_reentry_matched_cohort_v04_route?: OperationalReentryMatchedCohortRouteV04;
+  expected_operational_reentry_stale_reset_cross_case_route?: OperationalReentryStaleResetCrossCaseRouteV01;
   on_provider_egress_attempt?: () => void;
 }
 
@@ -372,6 +444,9 @@ export interface OperationalReentryMatchedCohortModelGatewayDependenciesV03
   extends SharedModelGatewayDependenciesV01 {}
 
 export interface OperationalReentryMatchedCohortModelGatewayDependenciesV04
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01
   extends SharedModelGatewayDependenciesV01 {}
 
 export interface ModelGatewayInteractiveAdmissionV01 {
@@ -841,6 +916,90 @@ function operationalReentryMatchedCohortRouteMatchesSessionV04(
   );
 }
 
+/** Freezes the new cross-case route without provider egress. */
+export async function prepareOperationalReentryStaleResetCrossCaseModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryStaleResetCrossCaseRouteV01 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
+    session.implementation_id !==
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" ||
+    session.implementation_version !==
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id:
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" as const,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+    provider_contract_fingerprint: contract.integrity.fingerprint,
+    maximum_canonical_wire_response_bytes:
+      contract.maximum_canonical_wire_response_bytes,
+    response_bytes: contract.response_bytes,
+    max_output_tokens: contract.max_output_tokens,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryStaleResetCrossCaseRouteMatchesSessionV01(
+  expected: OperationalReentryStaleResetCrossCaseRouteV01,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const { integrity_fingerprint: _ignored, ...withoutFingerprint } = expected;
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.adapter_implementation_id ===
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" &&
+    expected.adapter_implementation_version ===
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01 &&
+    expected.provider_contract_version ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01 &&
+    expected.provider_contract_fingerprint ===
+      buildOperationalReentryStaleResetCrossCaseProviderContractV01().integrity
+        .fingerprint &&
+    expected.maximum_canonical_wire_response_bytes ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01.maximum_canonical_wire_response_bytes &&
+    expected.response_bytes ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.responseBytes &&
+    expected.max_output_tokens ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(canonicalizeProtocolValueV01(withoutFingerprint)) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
 type DeterministicOutputV01 =
   | {
       purpose: typeof OBSERVE_MODEL_GATEWAY_PURPOSE_V01;
@@ -1161,6 +1320,29 @@ export async function invokeOperationalReentryMatchedCohortModelGatewayV04(
   };
 }
 
+export async function invokeOperationalReentryStaleResetCrossCaseModelGatewayV01(
+  input: unknown,
+  dependencies: OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01 = {},
+): Promise<OperationalReentryStaleResetCrossCaseModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error("cross_case_replication_live_model_required");
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
 async function invokeModelGatewayV01(
   input: unknown,
   dependencies: InternalModelGatewayDependenciesV01,
@@ -1283,7 +1465,9 @@ async function invokeModelGatewayV01(
         envelope.purpose ===
           OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
         envelope.purpose ===
-          OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+          OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
       ) {
         throw gatewayFailure(
           "model_gateway_transport_failed",
@@ -1474,6 +1658,18 @@ async function invokeModelGatewayV01(
 
     if (
       envelope.purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_stale_reset_cross_case_route &&
+      !operationalReentryStaleResetCrossCaseRouteMatchesSessionV01(
+        dependencies.expected_operational_reentry_stale_reset_cross_case_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure("model_gateway_budget_refused");
+    }
+
+    if (
+      envelope.purpose ===
         STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
       envelope.purpose ===
         OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
@@ -1483,6 +1679,8 @@ async function invokeModelGatewayV01(
         OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
       envelope.purpose ===
         OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
       (envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
         envelope.budget.cost_budget !== undefined)
     ) {
@@ -1656,6 +1854,17 @@ export function validateOperationalReentryMatchedCohortModelInvocationEnvelopeV0
   if (
     envelope.purpose !==
     OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
+export function validateOperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01(
+  input: unknown,
+): OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
   ) invalid();
   return envelope;
 }
@@ -1895,6 +2104,34 @@ export function validateModelInvocationEnvelopeV01(
         common.budget.max_provider_calls !== 1 ||
         common.timeout_ms !==
           OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.timeoutMs ||
         common.budget.cost_budget === undefined
       ) invalid();
       const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
@@ -2275,7 +2512,9 @@ async function invokeLiveAdapter(
           result.purpose ===
             OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
           result.purpose ===
-            OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
             ? createProtocolSha256V01(
                 canonicalizeProtocolValueV01(result.output),
               )
@@ -2520,6 +2759,14 @@ function buildReceipt(
               input.envelope.input,
             ),
         }
+      : input.envelope.purpose ===
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+        ? {
+            local_invocation_identity_fingerprint:
+              createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
+                input.envelope.input,
+              ),
+          }
       : {}),
     invocation_origin: policy.invocation_origin,
     attempted_implementation_id: attemptedImplementation
@@ -2759,9 +3006,12 @@ function validateBudget(
         : purpose ===
             OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
           ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.maxOutputTokens
-          : purpose ===
+        : purpose ===
             OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
             ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.maxOutputTokens
+          : purpose ===
+              OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+            ? OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens
             : MAX_OUTPUT_TOKENS,
   );
   const maxProviderCalls = readOwn(record, "max_provider_calls");
@@ -2778,7 +3028,9 @@ function validateBudget(
       purpose ===
         OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
       purpose ===
-        OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01) &&
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01) &&
     !costBudget
   ) {
     invalid();
@@ -2829,6 +3081,12 @@ function maximumInputBytesForPurpose(purpose: ModelGatewayPurposeV01) {
     OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
   ) {
     return OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.finalRequestBytes;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
   }
   return TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes;
 }
@@ -2965,6 +3223,11 @@ function validatePurposeInput(
 ): OperationalReentryMatchedCohortModelInvocationEnvelopeV04["input"];
 function validatePurposeInput(
   value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
   purpose: ModelGatewayPurposeV01,
   projectId: string,
 ): ModelInvocationEnvelopeV01["input"] {
@@ -3003,6 +3266,17 @@ function validatePurposeInput(
   ) {
     const validated = validateOperationalReentryMatchedCohortInvocationV04(record);
     assertNoOperationalReentryMatchedCohortProviderControlFieldsV04(validated);
+    return validated;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated =
+      validateOperationalReentryStaleResetCrossCaseInvocationV01(record);
+    assertNoOperationalReentryStaleResetCrossCaseProviderControlFieldsV01(
+      validated,
+    );
     return validated;
   }
   if (purpose === OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
@@ -3370,6 +3644,33 @@ function assertNoOperationalReentryMatchedCohortProviderControlFieldsV04(
       ) {
         invalid();
       }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
+}
+
+function assertNoOperationalReentryStaleResetCrossCaseProviderControlFieldsV01(
+  value: OperationalReentryStaleResetCrossCaseInvocationV01,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    value.provider_material,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) invalid();
       visit(child, `${path}.${key}`);
     }
   };

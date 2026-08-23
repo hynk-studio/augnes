@@ -110,7 +110,11 @@ export function validateModelInvocationReceiptV02(
     nullableIdentifier(receipt.work_id);
     nullableIdentifier(receipt.run_id);
     member(receipt.purpose, MODEL_GATEWAY_PURPOSES_V01);
-    if (receipt.purpose === "operational_reentry_matched_cohort_v04") {
+    if (
+      receipt.purpose === "operational_reentry_matched_cohort_v04" ||
+      receipt.purpose ===
+        "operational_reentry_stale_reset_cross_case_replication_v01"
+    ) {
       matches(
         receipt.local_invocation_identity_fingerprint,
         /^sha256:[0-9a-f]{64}$/,
@@ -210,7 +214,9 @@ export function validateModelInvocationReceiptV02(
         receipt.purpose === "operational_reentry_matched_cohort" ||
         receipt.purpose === "operational_reentry_matched_cohort_v02" ||
         receipt.purpose === "operational_reentry_matched_cohort_v03" ||
-        receipt.purpose === "operational_reentry_matched_cohort_v04") &&
+        receipt.purpose === "operational_reentry_matched_cohort_v04" ||
+        receipt.purpose ===
+          "operational_reentry_stale_reset_cross_case_replication_v01") &&
       receipt.status === "completed" &&
       (typeof receipt.normalized_output_fingerprint !== "string" ||
         !/^sha256:[0-9a-f]{64}$/.test(

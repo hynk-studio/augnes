@@ -59,6 +59,7 @@ import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV
 import { runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-provider-compatibility-probe";
 import { runOperationalReentryV04ProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-provider-compatibility-probe";
 import { runOperationalReentryV04StaleResetIsolationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-stale-reset-isolation-cohort";
+import { runOperationalReentryStaleResetCrossCaseReplicationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-stale-reset-cross-case-replication";
 import { runOperationalReentryParserClosedCleanControlCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-clean-control-cohort";
 import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
@@ -651,6 +652,8 @@ try {
     runOperationalReentryV04ProviderCompatibilityProbeConformanceV01();
   const operationalReentryV04StaleResetIsolationSummary =
     runOperationalReentryV04StaleResetIsolationConformanceV01();
+  const operationalReentryStaleResetCrossCaseReplicationSummary =
+    runOperationalReentryStaleResetCrossCaseReplicationConformanceV01();
   const operationalReentryParserClosedCleanControlCohortSummary =
     runOperationalReentryParserClosedCleanControlCohortConformanceV01();
   const operationalReentryMatchedCohortReplacementSummary =
@@ -752,6 +755,8 @@ try {
           operationalReentryV04ProviderCompatibilityProbeSummary,
         operational_reentry_v04_stale_reset_isolation_cohort:
           operationalReentryV04StaleResetIsolationSummary,
+        operational_reentry_stale_reset_cross_case_replication:
+          operationalReentryStaleResetCrossCaseReplicationSummary,
         operational_reentry_parser_closed_clean_control_cohort:
           operationalReentryParserClosedCleanControlCohortSummary,
         operational_reentry_matched_cohort_replacement:

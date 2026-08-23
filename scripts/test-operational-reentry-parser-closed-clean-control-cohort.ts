@@ -219,6 +219,8 @@ function verifyPlanProviderContractAndBridgeV01(): {
     "parser_closed_clean_control_cohort",
     "operational_reentry_v04_compatibility_probe",
     "operational_reentry_v04_stale_reset_isolation_cohort",
+    "operational_reentry_v04_stale_reset_cross_case_replication",
+    "operational_reentry_stale_reset_cross_case_compatibility_probe",
   ]);
   const traceBasis = fingerprintV01("same-request-family-basis");
   assert.equal(
@@ -230,7 +232,7 @@ function verifyPlanProviderContractAndBridgeV01(): {
         }),
       ),
     ).size,
-    8,
+    10,
   );
   assert.equal(bridge.parser_closed_wire_representation_is_evaluator_dimension, false);
   assert.equal(bridge.historical_evaluator_version, "operational_reentry_matched_cohort_evaluator.v0.2");

@@ -476,6 +476,8 @@ async function verifyShapePlanAndPricingV01(
     "parser_closed_clean_control_cohort",
     "operational_reentry_v04_compatibility_probe",
     "operational_reentry_v04_stale_reset_isolation_cohort",
+    "operational_reentry_v04_stale_reset_cross_case_replication",
+    "operational_reentry_stale_reset_cross_case_compatibility_probe",
   ]);
   const traceBasis = createProtocolSha256V01("same-basis");
   const familyTraces = MODEL_PROVIDER_REQUEST_FAMILY_KINDS_V01.map(
@@ -485,7 +487,7 @@ async function verifyShapePlanAndPricingV01(
         request_family_fingerprint: traceBasis,
       }),
   );
-  assert.equal(new Set(familyTraces).size, 8);
+  assert.equal(new Set(familyTraces).size, 10);
   assert.equal(
     prepared.pricing.aggregate_worst_case_cost_nano_usd,
     46_796_800,
