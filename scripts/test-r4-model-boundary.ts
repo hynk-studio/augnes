@@ -23,6 +23,7 @@ const approvedPurposeCodecOwners = new Set([
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec.ts",
+  "lib/vnext/model-gateway/openai/operational-reentry-stale-reset-cross-case-replication-v0-1-codec.ts",
   "lib/vnext/model-gateway/openai/planner-codec.ts",
   "lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec.ts",
   "lib/vnext/model-gateway/openai/temporal-codec.ts",

@@ -702,6 +702,22 @@ const suites = {
     },
     {
       label:
+        "ACGC-E2R2P6L cross-case replication provider contract and evaluator harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-stale-reset-cross-case-replication.ts",
+      ),
+      timeoutMs: 90_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6L cross-case six-shape compatibility harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-stale-reset-cross-case-compatibility.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
         "ACGC-E2R2P5H parser-closed v0.3 clean-control behavioral cohort harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-parser-closed-clean-control-cohort.ts",
