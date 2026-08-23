@@ -583,8 +583,8 @@ truth:
 | ACGC-E2R2P6E | [#233](https://github.com/hynk-studio/augnes-perspective-lab/issues/233) | [PR #234](https://github.com/hynk-studio/augnes-perspective-lab/pull/234), `9ff7edaf` | **Completed** at `9ff7edaff3dd09fc36ee3b74b8a241cac6c9e2f0` with the documentation-only P6C/P6D lifecycle closeout. |
 | ACGC-E2R2P6F | [#235](https://github.com/hynk-studio/augnes-perspective-lab/issues/235) | [PR #236](https://github.com/hynk-studio/augnes-perspective-lab/pull/236), `32cc6e6d` | **Completed** at `32cc6e6de753cee84bef5d923fab341503bf22c9` with the P6H stale-reset isolation design freeze over exact v0.4 only; it created no P6H implementation or live authority. |
 | ACGC-E2R2P6H | [#237](https://github.com/hynk-studio/augnes-perspective-lab/issues/237) | [PR #238](https://github.com/hynk-studio/augnes-perspective-lab/pull/238), `858e06d2` | **Completed** at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d` with the zero-real-egress stale-reset isolation harness and exact four-block B/G provider parity. |
-| ACGC-E2R2P6I | [#239](https://github.com/hynk-studio/augnes-perspective-lab/issues/239) | Reviewed bounded local run; closeout pending this Draft PR | **Terminal-complete pending closeout.** One authorization was consumed and one cohort completed `16/16` live calls with retry/replacement `0/0`; artifact validation is valid. |
-| ACGC-E2R2P6J | [#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) | This Draft closeout PR | **Current while Draft.** Records the bounded P6I result without replication, policy, Stage 7, or successor authority. |
+| ACGC-E2R2P6I | [#239](https://github.com/hynk-studio/augnes-perspective-lab/issues/239) | Reviewed bounded local run; closeout pending [Draft PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241) | **Terminal-complete pending closeout.** One authorization was consumed and one cohort completed `16/16` live calls with retry/replacement `0/0`; artifact validation is valid. |
+| ACGC-E2R2P6J | [#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) | [Draft PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241) | **Current while Draft.** Records the bounded P6I result without replication, policy, Stage 7, or successor authority. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1465,9 +1465,8 @@ closed out those lifecycle records at
 `9ff7edaff3dd09fc36ee3b74b8a241cac6c9e2f0`. E2R2P6F completed the design
 freeze, and E2R2P6H completed the zero-egress harness at merge
 `858e06d210d4be7de6f0300adad15fd4d9e9015d`. E2R2P6I then completed exactly
-one authorization-consumed live cohort. E2R2P6J Issue #240 is Current while
-this documentation closeout PR remains Draft; replication, policy, and Stage 7
-remain unauthorized.
+one authorization-consumed live cohort. E2R2P6J Issue #240 / Draft PR #241 is
+Current while Draft; replication, policy, and Stage 7 remain unauthorized.
 
 ### ACGC-E2R2P5C documentation closeout — Completed
 
@@ -1750,7 +1749,7 @@ Issue #239 and did not retroactively change the P6H implementation boundary.
 
 ACGC-E2R2P6I [Issue
 #239](https://github.com/hynk-studio/augnes-perspective-lab/issues/239) is
-**terminal-complete pending this Draft closeout PR**. Exactly one authorization
+**terminal-complete pending Draft PR #241**. Exactly one authorization
 was consumed and exactly one sealed cohort executed. All `16/16` planned calls
 completed live, retry/replacement remained `0/0`, all four blocks completed all
 six direct comparisons without transitive inference, and the 29-artifact
@@ -1764,12 +1763,13 @@ provider-request equality and target-persistence equality as different claims
 from whole-output equality. The bounded terminal record is documented in the
 [P6I live closeout](./research/ACGC_E2R2P6_STALE_RESET_ISOLATION_LIVE_CLOSEOUT_V0_1.md).
 
-### ACGC-E2R2P6J documentation closeout — Current while Draft
+### ACGC-E2R2P6J documentation closeout — Current while Draft PR #241
 
 ACGC-E2R2P6J [Issue
-#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) is
-**Current while this closeout PR remains Draft**. It reconciles the terminal
-P6I record only. P6I and P6J remain open until the reviewed Draft PR merges.
+#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) /
+[Draft PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241)
+is **Current while Draft**. It reconciles the terminal P6I record only. P6I
+and P6J remain open until the reviewed Draft PR merges.
 Replication is unauthorized. Policy is unauthorized. Stage 7 is unauthorized.
 No automatic successor research issue exists. Issue #205 and PR #186 remain
 separate and untouched.
@@ -1925,9 +1925,9 @@ E2R2P6F Issue #235 / PR #236 is Completed at
 `32cc6e6de753cee84bef5d923fab341503bf22c9`. E2R2P6H Issue #237 / PR #238 is
 Completed at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d` with the zero-egress harness.
 E2R2P6I Issue #239 is terminal-complete after one consumed authorization and
-one validated `16/16` cohort with retry/replacement `0/0`. E2R2P6J Issue #240
-is Current while this Draft closeout PR remains unmerged. Replication, policy,
-Stage 7, and any successor research issue remain separate user decisions.
+one validated `16/16` cohort with retry/replacement `0/0`. E2R2P6J Issue #240 /
+Draft PR #241 is Current while Draft. Replication, policy, Stage 7, and any
+successor research issue remain separate user decisions.
 
 The supporting
 [post-Stage-6 evidence direction](./research/ACGC_POST_STAGE_6_EVIDENCE_DIRECTION_V0_1.md)
@@ -2092,7 +2092,7 @@ retry/replacement `0/0`. E2R2P6E Issue #233 / PR #234 is Completed at
 Completed at `32cc6e6de753cee84bef5d923fab341503bf22c9`. E2R2P6H Issue #237 / PR #238
 is Completed at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d`. E2R2P6I Issue #239 is
 terminal-complete after one authorization-consumed validated `16/16` cohort;
-E2R2P6J Issue #240 is Current while this Draft closeout PR remains unmerged.
+E2R2P6J Issue #240 / Draft PR #241 is Current while Draft.
 Replication, policy, Stage 7, and an automatic successor issue remain
 unauthorized.
 
