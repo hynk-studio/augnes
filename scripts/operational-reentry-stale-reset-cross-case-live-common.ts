@@ -11,6 +11,7 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import { validateOperationalReentryStaleResetCrossCasePricingV01 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
 
 const REPOSITORY = "hynk-studio/augnes-perspective-lab" as const;
 const ORIGINS = new Set([
@@ -72,25 +73,35 @@ export function preflightCrossCaseLiveRepositoryV01(input: {
   if (path.dirname(actualCandidate) !== expectedCandidateRoot) {
     fail("cross_case_live_candidate_not_current");
   }
-  validatePricing(input.authorization, input.pricing);
-  if (input.authorization.gateway_authorization_project_is_lab_experiment_meaning !== false) {
-    fail("cross_case_live_lab_meaning_invalid");
-  }
-  if (input.authorization.project_root_fingerprint !== hash(root)) {
-    fail("cross_case_live_project_root_fingerprint_mismatch");
-  }
+  const admission = readModelGatewayInteractiveAdmissionForRootV01(root);
+  validateCrossCaseLiveAdmissionBindingV01(input.authorization, admission);
   const capability = readDefaultModelGatewayLocalCapabilityV01();
   if (capability.status !== "available") {
     fail(`cross_case_live_model_gateway_${capability.status}`);
   }
-  const admission = readModelGatewayInteractiveAdmissionForRootV01(root);
-  if (admission.workspace_id !== input.authorization.workspace_id ||
-      admission.project_id !== input.authorization.project_id ||
-      admission.expected_active_selection_revision !== input.authorization.expected_active_selection_revision ||
-      admission.gateway_authorization_project_is_lab_experiment_meaning !== false) {
-    fail("cross_case_live_gateway_admission_drift");
-  }
+  validatePricing(
+    input.authorization,
+    input.pricing,
+    input.issue_field === "future_live_issue_number" ? 16 : 6,
+  );
   return admission;
+}
+
+export function validateCrossCaseLiveAdmissionBindingV01(
+  authorization: Record<string, unknown>,
+  admission: ModelGatewayInteractiveAdmissionV01,
+): void {
+  if (
+    authorization.gateway_authorization_project_is_lab_experiment_meaning !== false ||
+    admission.gateway_authorization_project_is_lab_experiment_meaning !== false
+  ) fail("cross_case_live_lab_meaning_invalid");
+  if (
+    admission.workspace_id !== authorization.workspace_id ||
+    admission.project_id !== authorization.project_id ||
+    admission.expected_active_selection_revision !==
+      authorization.expected_active_selection_revision ||
+    authorization.project_root_fingerprint !== hash(admission.project_root)
+  ) fail("cross_case_live_gateway_admission_drift");
 }
 
 export function refreshOriginMainV01(repositoryRoot: string): string {
@@ -110,23 +121,27 @@ export function assertCrossCaseLiveExecutionStateV01(
   }
 }
 
-function validatePricing(authorization: Record<string, unknown>, pricing: unknown): void {
-  if (typeof pricing !== "object" || pricing === null || Array.isArray(pricing) ||
-      !("integrity" in pricing) || typeof pricing.integrity !== "object" ||
-      pricing.integrity === null || !("fingerprint" in pricing.integrity)) {
-    fail("cross_case_live_pricing_invalid");
-  }
-  const pricingFingerprint = String(pricing.integrity.fingerprint);
-  const { integrity: _ignored, ...withoutIntegrity } = pricing as Record<string, unknown>;
-  if (pricingFingerprint !== hash(withoutIntegrity) ||
-      pricingFingerprint !== authorization.pricing_snapshot_fingerprint &&
-      pricingFingerprint !== authorization.pricing_fingerprint) {
-    fail("cross_case_live_pricing_fingerprint_mismatch");
-  }
-  const expiry = Date.parse(String(authorization.pricing_authority_expires_at));
-  if (!Number.isFinite(expiry) || Date.now() >= expiry) {
-    fail("cross_case_live_pricing_expired");
-  }
+function validatePricing(
+  authorization: Record<string, unknown>,
+  value: unknown,
+  plannedCalls: 6 | 16,
+): void {
+  const pricing = validateOperationalReentryStaleResetCrossCasePricingV01(
+    value,
+    plannedCalls,
+  );
+  const authorizationPricingFingerprint = plannedCalls === 16
+    ? authorization.pricing_snapshot_fingerprint
+    : authorization.pricing_fingerprint;
+  if (
+    pricing.integrity.fingerprint !== authorizationPricingFingerprint ||
+    pricing.pricing_authority_fingerprint !==
+      authorization.pricing_authority_fingerprint ||
+    pricing.pricing_authority_expires_at !==
+      authorization.pricing_authority_expires_at ||
+    canonicalizeProtocolValueV01(pricing.gateway_cost_budget) !==
+      canonicalizeProtocolValueV01(authorization.gateway_cost_budget)
+  ) fail("cross_case_live_pricing_fingerprint_mismatch");
 }
 
 function refreshOriginMain(repositoryRoot: string): void {

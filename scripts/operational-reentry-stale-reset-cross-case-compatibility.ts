@@ -54,6 +54,7 @@ async function main(): Promise<void> {
     plan_fingerprint: plan.integrity.fingerprint,
     provider_contract_fingerprint: route.provider_contract_fingerprint,
     route_fingerprint: route.integrity_fingerprint,
+    route: structuredClone(route),
     pricing_fingerprint: (pricing as { integrity: { fingerprint: string } }).integrity.fingerprint,
     behavioral_replication: false as const,
     raw_or_private_material_persisted: false as const,
@@ -61,7 +62,7 @@ async function main(): Promise<void> {
   let consumption: Awaited<ReturnType<typeof consumeOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01>> | null = null;
   const shapeRecords: unknown[] = [];
   const result = await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
-    { authorization, admission, route },
+    { authorization, admission, route, pricing },
     {
       assert_execution_state() { assertCrossCaseLiveExecutionStateV01(root, authorization); },
       async consume_authorization() {
@@ -103,10 +104,10 @@ async function main(): Promise<void> {
     await appendOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01({ run_root: finalConsumption.run_root, relative_path, artifact });
   }
   const validation = validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01({
-    authorization, plan, manifest, shape_records: shapeRecords, report, terminal,
+    authorization, plan, pricing, manifest, shape_records: shapeRecords, report, terminal,
     artifact_index: index, global_consumption_marker: finalConsumption.marker,
     run_local_consumption_marker: structuredClone(finalConsumption.marker),
-  });
+  }, { admission, route });
   console.log(JSON.stringify({ status: "operational_reentry_stale_reset_cross_case_compatibility_terminal", attempted_provider_calls: result.attempted_provider_calls, retries: 0, replacements: 0, artifact_validation: validation, run_root: path.relative(root, finalConsumption.run_root) }));
 }
 

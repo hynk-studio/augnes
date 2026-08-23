@@ -199,6 +199,21 @@ export function readOperationalReentryStaleResetCrossCaseProviderContractV01(): 
   );
 }
 
+/** Exposes exact zero-egress compatibility bindings through the Gateway owner. */
+export function readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01() {
+  const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
+  return Object.freeze({
+    parser_closure_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(contract.per_shape_parser_closure),
+    ),
+    request_response_bounds_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01,
+      ),
+    ),
+  });
+}
+
 export function createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
   invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
 ): string {

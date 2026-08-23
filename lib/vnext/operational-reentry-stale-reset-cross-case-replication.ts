@@ -9,11 +9,17 @@ import {
   createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01,
   invokeOperationalReentryStaleResetCrossCaseModelGatewayV01,
   projectOperationalReentryStaleResetCrossCaseProviderRequestV01,
+  readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01,
   readOperationalReentryStaleResetCrossCaseProviderContractV01,
   type ModelGatewayInteractiveAdmissionV01,
   type OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { isModelGatewayInvocationErrorV01 } from "@/lib/vnext/model-gateway/contracts";
+import {
+  assertModelGatewayCostBudgetCurrentV01,
+  validateModelGatewayCostBudgetV01,
+} from "@/lib/vnext/model-gateway/cost-authority";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   createDeterministicModelClientRequestIdV01,
   createDeterministicModelProviderRequestTraceV01,
@@ -34,6 +40,7 @@ import {
   OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
   OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_EVALUATOR_VERSION_V01,
   OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V01,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
   type OperationalReentryStaleResetCrossCaseArmV01,
   type OperationalReentryStaleResetCrossCaseAuthorizationV01,
   type OperationalReentryStaleResetCrossCaseBlockEvaluationV01,
@@ -52,8 +59,14 @@ import {
   type OperationalReentryStaleResetCrossCaseRouteV01,
   type OperationalReentryStaleResetCrossCaseTargetRelationV01,
 } from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
+import type { ModelGatewayCostBudgetV01 } from "@/types/vnext/model-invocation-receipt";
 
 const MODEL = "gpt-4.1-mini-2025-04-14" as const;
+const REPOSITORY = "hynk-studio/augnes-perspective-lab" as const;
+const ORIGINS = new Set([
+  "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+]);
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const GIT_SHA = /^[0-9a-f]{40}$/u;
 const SAFE_ID = /^[A-Za-z0-9:._-]{1,256}$/u;
@@ -1053,6 +1066,81 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01(
   });
 }
 
+export function buildOperationalReentryStaleResetCrossCasePricingV01(input: {
+  gateway_cost_budget: ModelGatewayCostBudgetV01;
+  planned_calls: 6 | 16;
+  maximum_total_ceiling_nano_usd: number;
+}) {
+  const budget = validateModelGatewayCostBudgetV01(input.gateway_cost_budget);
+  const aggregate = budget.calculated_worst_case_cost * input.planned_calls;
+  if (
+    !Number.isSafeInteger(input.maximum_total_ceiling_nano_usd) ||
+    input.maximum_total_ceiling_nano_usd < 0 ||
+    !Number.isSafeInteger(aggregate) ||
+    aggregate > input.maximum_total_ceiling_nano_usd ||
+    budget.maximum_input_units !== 24_576 ||
+    budget.maximum_output_units !== 1_168 ||
+    budget.maximum_invocation_count !== 1 ||
+    budget.timeout_ms !== 30_000 ||
+    budget.authority.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 ||
+    budget.authority.provider_ref.external_id !== "openai" ||
+    budget.authority.model_ref.external_id !== MODEL ||
+    budget.authority.pricing_expires_at === null
+  ) fail("cross_case_pricing_invalid");
+  return seal("cross_case_pricing_without_integrity_fingerprint", {
+    pricing_version:
+      "operational_reentry_stale_reset_cross_case_pricing.v0.1" as const,
+    pricing_snapshot_evaluated_at: budget.evaluated_at,
+    pricing_authority_expires_at: budget.authority.pricing_expires_at,
+    pricing_authority_fingerprint: budget.authority.pricing_fingerprint,
+    planned_calls: input.planned_calls,
+    aggregate_worst_case_cost_nano_usd: aggregate,
+    maximum_total_ceiling_nano_usd: input.maximum_total_ceiling_nano_usd,
+    gateway_cost_budget: budget,
+  });
+}
+
+export function validateOperationalReentryStaleResetCrossCasePricingV01(
+  value: unknown,
+  plannedCalls: 6 | 16,
+  evaluatedAt = new Date().toISOString(),
+) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail("cross_case_pricing_invalid");
+  }
+  exactRecordKeys(value as Record<string, unknown>, [
+    "pricing_version",
+    "pricing_snapshot_evaluated_at",
+    "pricing_authority_expires_at",
+    "pricing_authority_fingerprint",
+    "planned_calls",
+    "aggregate_worst_case_cost_nano_usd",
+    "maximum_total_ceiling_nano_usd",
+    "gateway_cost_budget",
+    "integrity",
+  ], "cross_case_pricing_invalid");
+  const pricing = value as ReturnType<
+    typeof buildOperationalReentryStaleResetCrossCasePricingV01
+  >;
+  if (!sealedIntegrityValid(pricing)) fail("cross_case_pricing_invalid");
+  const budget = assertModelGatewayCostBudgetCurrentV01(
+    pricing.gateway_cost_budget,
+    evaluatedAt,
+  );
+  const rebuilt = buildOperationalReentryStaleResetCrossCasePricingV01({
+    gateway_cost_budget: budget,
+    planned_calls: plannedCalls,
+    maximum_total_ceiling_nano_usd:
+      pricing.maximum_total_ceiling_nano_usd,
+  });
+  if (
+    canonicalizeProtocolValueV01(pricing) !==
+    canonicalizeProtocolValueV01(rebuilt)
+  ) fail("cross_case_pricing_invalid");
+  return structuredClone(rebuilt);
+}
+
 export function buildOperationalReentryStaleResetReplicationAuthorizationV01(
   input: Omit<
     OperationalReentryStaleResetCrossCaseAuthorizationV01,
@@ -1111,44 +1199,46 @@ export function buildOperationalReentryStaleResetReplicationAuthorizationV01(
     input.aggregate_worst_case_cost_nano_usd >
       input.maximum_total_ceiling_nano_usd
   ) fail("cross_case_replication_authorization_invalid");
-  return seal("cross_case_replication_authorization_without_integrity_fingerprint", {
-    authorization_version:
-      OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
-    authorization_kind:
-      "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication" as const,
-    ...input,
-    case_version: spec.case_version,
-    codec_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01,
-    response_schema_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
-    parser_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
-    request_family:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01,
-    provider: "openai" as const,
-    model: MODEL,
-    response_bytes: 1168 as const,
-    max_output_tokens: 1168 as const,
-    final_request_bytes: 24576 as const,
-    planned_calls: 16 as const,
-    repeat_blocks: 4 as const,
-    calls_per_arm: 4 as const,
-    parallel: 1 as const,
-    retries: 0 as const,
-    replacements: 0 as const,
-    adaptive_changes: 0 as const,
-    fresh_stateless: true as const,
-    conversation_reuse: false as const,
-    thread_reuse: false as const,
-    previous_response_reuse: false as const,
-    historical_authorization_reuse: false as const,
-    second_cohort_under_same_authorization: false as const,
-    other_case_under_same_authorization: false as const,
-    replication_of_historical_calls: false as const,
-    policy: false as const,
-    stage_7: false as const,
-  });
+  return validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(
+    seal("cross_case_replication_authorization_without_integrity_fingerprint", {
+      authorization_version:
+        OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
+      authorization_kind:
+        "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication" as const,
+      ...input,
+      case_version: spec.case_version,
+      codec_version:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01,
+      response_schema_version:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
+      parser_version:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
+      request_family:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01,
+      provider: "openai" as const,
+      model: MODEL,
+      response_bytes: 1168 as const,
+      max_output_tokens: 1168 as const,
+      final_request_bytes: 24576 as const,
+      planned_calls: 16 as const,
+      repeat_blocks: 4 as const,
+      calls_per_arm: 4 as const,
+      parallel: 1 as const,
+      retries: 0 as const,
+      replacements: 0 as const,
+      adaptive_changes: 0 as const,
+      fresh_stateless: true as const,
+      conversation_reuse: false as const,
+      thread_reuse: false as const,
+      previous_response_reuse: false as const,
+      historical_authorization_reuse: false as const,
+      second_cohort_under_same_authorization: false as const,
+      other_case_under_same_authorization: false as const,
+      replication_of_historical_calls: false as const,
+      policy: false as const,
+      stage_7: false as const,
+    }),
+  );
 }
 
 export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContractV01() {
@@ -1238,25 +1328,27 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthoriza
       input.project_root_fingerprint,
     ].every((value) => SHA256.test(value))
   ) fail("cross_case_compatibility_authorization_invalid");
-  return seal("cross_case_compatibility_authorization_without_integrity_fingerprint", {
-    authorization_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01,
-    authorization_kind:
-      "one_bounded_operational_reentry_stale_reset_cross_case_compatibility_probe" as const,
-    ...input,
-    gateway_authorization_project_is_lab_experiment_meaning: false as const,
-    request_family:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01,
-    maximum_calls: 6 as const,
-    parallel: 1 as const,
-    retries: 0 as const,
-    replacements: 0 as const,
-    adaptive_changes: 0 as const,
-    second_probe: false as const,
-    behavioral_replication: false as const,
-    policy: false as const,
-    stage_7: false as const,
-  });
+  return validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(
+    seal("cross_case_compatibility_authorization_without_integrity_fingerprint", {
+      authorization_version:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01,
+      authorization_kind:
+        "one_bounded_operational_reentry_stale_reset_cross_case_compatibility_probe" as const,
+      ...input,
+      gateway_authorization_project_is_lab_experiment_meaning: false as const,
+      request_family:
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01,
+      maximum_calls: 6 as const,
+      parallel: 1 as const,
+      retries: 0 as const,
+      replacements: 0 as const,
+      adaptive_changes: 0 as const,
+      second_probe: false as const,
+      behavioral_replication: false as const,
+      policy: false as const,
+      stage_7: false as const,
+    }),
+  );
 }
 
 export function validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(
@@ -1287,15 +1379,60 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationAuthoriz
   const spec = readOperationalReentryStaleResetCrossCaseV01(
     authorization.case_id,
   );
+  const budget = validateModelGatewayCostBudgetV01(
+    authorization.gateway_cost_budget,
+  );
   if (
+    !sealedIntegrityValid(authorization) ||
     integrity?.fingerprint !== fingerprint(withoutIntegrity) ||
     authorization.authorization_version !==
       OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01 ||
+    authorization.authorization_kind !==
+      "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication" ||
+    !SAFE_ID.test(authorization.authorization_id) ||
+    !Number.isSafeInteger(authorization.future_live_issue_number) ||
+    authorization.future_live_issue_number <= 244 ||
+    !GIT_SHA.test(authorization.exact_merged_source_head) ||
+    authorization.repository_slug !== REPOSITORY ||
+    !ORIGINS.has(authorization.authorized_origin) ||
+    !SAFE_ID.test(authorization.workspace_id) ||
+    !SAFE_ID.test(authorization.project_id) ||
+    !Number.isSafeInteger(authorization.expected_active_selection_revision) ||
+    authorization.expected_active_selection_revision < 0 ||
+    !SHA256.test(authorization.project_root_fingerprint) ||
+    authorization.gateway_authorization_project_is_lab_experiment_meaning !== false ||
+    authorization.case_version !== spec.case_version ||
     authorization.case_fingerprint !== spec.integrity.fingerprint ||
     authorization.common_evidence_fingerprint !==
       spec.common_evidence_fingerprint ||
+    authorization.construction_cutoff !== spec.construction_cutoff ||
+    authorization.observation_cutoff !== spec.observation_cutoff ||
+    ![
+      authorization.gate_contract_fingerprint,
+      authorization.evaluator_binding_fingerprint,
+      authorization.sealed_plan_fingerprint,
+      authorization.bg_witness_fingerprint,
+      authorization.route_fingerprint,
+      authorization.provider_contract_fingerprint,
+      authorization.adapter_request_route_fingerprint,
+      authorization.pricing_snapshot_fingerprint,
+      authorization.pricing_authority_fingerprint,
+    ].every((item) => SHA256.test(item)) ||
+    authorization.codec_version !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01 ||
+    authorization.response_schema_version !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01 ||
+    authorization.parser_version !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01 ||
+    authorization.adapter_version !==
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01 ||
     authorization.request_family !==
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01 ||
+    authorization.provider !== "openai" ||
+    authorization.model !== MODEL ||
+    authorization.response_bytes !== 1168 ||
+    authorization.max_output_tokens !== 1168 ||
+    authorization.final_request_bytes !== 24576 ||
     authorization.planned_calls !== 16 ||
     authorization.repeat_blocks !== 4 ||
     authorization.calls_per_arm !== 4 ||
@@ -1303,13 +1440,109 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationAuthoriz
     authorization.retries !== 0 ||
     authorization.replacements !== 0 ||
     authorization.adaptive_changes !== 0 ||
+    authorization.fresh_stateless !== true ||
+    authorization.conversation_reuse !== false ||
+    authorization.thread_reuse !== false ||
+    authorization.previous_response_reuse !== false ||
     authorization.other_case_under_same_authorization !== false ||
     authorization.second_cohort_under_same_authorization !== false ||
     authorization.historical_authorization_reuse !== false ||
+    authorization.replication_of_historical_calls !== false ||
     authorization.policy !== false ||
-    authorization.stage_7 !== false
+    authorization.stage_7 !== false ||
+    !Number.isSafeInteger(authorization.aggregate_worst_case_cost_nano_usd) ||
+    !Number.isSafeInteger(authorization.maximum_total_ceiling_nano_usd) ||
+    authorization.aggregate_worst_case_cost_nano_usd !==
+      budget.calculated_worst_case_cost * 16 ||
+    authorization.aggregate_worst_case_cost_nano_usd >
+      authorization.maximum_total_ceiling_nano_usd ||
+    authorization.maximum_total_ceiling_nano_usd !==
+      budget.maximum_permitted_cost ||
+    authorization.pricing_authority_fingerprint !==
+      budget.authority.pricing_fingerprint ||
+    authorization.pricing_authority_expires_at !==
+      budget.authority.pricing_expires_at ||
+    budget.authority.workspace_id !== authorization.workspace_id ||
+    budget.authority.project_id !== authorization.project_id ||
+    budget.authority.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 ||
+    budget.authority.provider_ref.external_id !== "openai" ||
+    budget.authority.model_ref.external_id !== MODEL ||
+    budget.authority.project_model_policy_fingerprint !==
+      authorization.route_fingerprint ||
+    budget.maximum_input_units !== 24576 ||
+    budget.maximum_output_units !== 1168 ||
+    budget.maximum_invocation_count !== 1 ||
+    budget.timeout_ms !== 30000
   ) fail("cross_case_replication_authorization_invalid");
   return structuredClone(authorization);
+}
+
+export function validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationContextV01(
+  value: unknown,
+  input: {
+    admission: ModelGatewayInteractiveAdmissionV01;
+    route: OperationalReentryStaleResetCrossCaseRouteV01;
+    pricing: unknown;
+    pricing_evaluated_at?: string;
+  },
+) {
+  const authorization =
+    validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(
+      value,
+    );
+  const plan = buildOperationalReentryStaleResetCrossCasePlanV01(
+    authorization.case_id,
+    input.route,
+  );
+  const pricing = validateOperationalReentryStaleResetCrossCasePricingV01(
+    input.pricing,
+    16,
+    input.pricing_evaluated_at,
+  );
+  const spec = readOperationalReentryStaleResetCrossCaseV01(
+    authorization.case_id,
+  );
+  if (
+    authorization.workspace_id !== input.admission.workspace_id ||
+    authorization.project_id !== input.admission.project_id ||
+    authorization.expected_active_selection_revision !==
+      input.admission.expected_active_selection_revision ||
+    authorization.project_root_fingerprint !==
+      fingerprint(input.admission.project_root) ||
+    input.admission.gateway_authorization_project_is_lab_experiment_meaning !== false ||
+    authorization.case_fingerprint !== spec.integrity.fingerprint ||
+    authorization.common_evidence_fingerprint !==
+      spec.common_evidence_fingerprint ||
+    authorization.gate_contract_fingerprint !==
+      plan.gate_contract_fingerprint ||
+    authorization.evaluator_binding_fingerprint !==
+      plan.evaluator_binding_fingerprint ||
+    authorization.sealed_plan_fingerprint !== plan.integrity.fingerprint ||
+    !plan.bg_conformance_witnesses.some(
+      (witness) =>
+        witness.integrity.fingerprint === authorization.bg_witness_fingerprint,
+    ) ||
+    authorization.route_fingerprint !== input.route.integrity_fingerprint ||
+    authorization.provider_contract_fingerprint !==
+      input.route.provider_contract_fingerprint ||
+    plan.entries.some(
+      (entry) =>
+        entry.adapter_request_route_fingerprint !==
+        authorization.adapter_request_route_fingerprint,
+    ) ||
+    authorization.pricing_snapshot_fingerprint !==
+      pricing.integrity.fingerprint ||
+    authorization.pricing_authority_fingerprint !==
+      pricing.pricing_authority_fingerprint ||
+    canonicalizeProtocolValueV01(authorization.gateway_cost_budget) !==
+      canonicalizeProtocolValueV01(pricing.gateway_cost_budget) ||
+    authorization.aggregate_worst_case_cost_nano_usd !==
+      pricing.aggregate_worst_case_cost_nano_usd ||
+    authorization.maximum_total_ceiling_nano_usd !==
+      pricing.maximum_total_ceiling_nano_usd
+  ) fail("cross_case_replication_authorization_context_invalid");
+  return { authorization, plan, pricing };
 }
 
 export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(
@@ -1335,20 +1568,149 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthor
     integrity: OperationalReentryStaleResetCrossCaseIntegrityV01;
   };
   const { integrity, ...withoutIntegrity } = authorization;
+  const r1 = readOperationalReentryStaleResetCrossCaseV01(
+    OPERATIONAL_REENTRY_STALE_RESET_R1_CASE_ID_V01,
+  );
+  const r2 = readOperationalReentryStaleResetCrossCaseV01(
+    OPERATIONAL_REENTRY_STALE_RESET_R2_CASE_ID_V01,
+  );
+  const budget = validateModelGatewayCostBudgetV01(
+    authorization.gateway_cost_budget,
+  );
+  const bindings =
+    readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01();
   if (
+    !sealedIntegrityValid(authorization) ||
     integrity?.fingerprint !== fingerprint(withoutIntegrity) ||
     authorization.authorization_version !==
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01 ||
+    authorization.authorization_kind !==
+      "one_bounded_operational_reentry_stale_reset_cross_case_compatibility_probe" ||
+    typeof authorization.authorization_id !== "string" ||
+    !SAFE_ID.test(authorization.authorization_id) ||
+    !Number.isSafeInteger(authorization.future_compatibility_issue_number) ||
+    Number(authorization.future_compatibility_issue_number) <= 244 ||
+    typeof authorization.exact_merged_source_head !== "string" ||
+    !GIT_SHA.test(authorization.exact_merged_source_head) ||
+    authorization.repository_slug !== REPOSITORY ||
+    typeof authorization.authorized_origin !== "string" ||
+    !ORIGINS.has(authorization.authorized_origin) ||
+    typeof authorization.workspace_id !== "string" ||
+    !SAFE_ID.test(authorization.workspace_id) ||
+    typeof authorization.project_id !== "string" ||
+    !SAFE_ID.test(authorization.project_id) ||
+    !Number.isSafeInteger(authorization.expected_active_selection_revision) ||
+    Number(authorization.expected_active_selection_revision) < 0 ||
+    typeof authorization.project_root_fingerprint !== "string" ||
+    !SHA256.test(authorization.project_root_fingerprint) ||
+    authorization.gateway_authorization_project_is_lab_experiment_meaning !== false ||
+    authorization.r1_case_fingerprint !== r1.integrity.fingerprint ||
+    authorization.r1_common_evidence_fingerprint !==
+      r1.common_evidence_fingerprint ||
+    authorization.r2_case_fingerprint !== r2.integrity.fingerprint ||
+    authorization.r2_common_evidence_fingerprint !==
+      r2.common_evidence_fingerprint ||
+    ![
+      authorization.six_shape_plan_fingerprint,
+      authorization.r1_bg_witness_fingerprint,
+      authorization.r2_bg_witness_fingerprint,
+      authorization.provider_contract_fingerprint,
+      authorization.route_fingerprint,
+      authorization.adapter_request_route_fingerprint,
+      authorization.parser_closure_fingerprint,
+      authorization.request_response_bounds_fingerprint,
+      authorization.pricing_fingerprint,
+      authorization.pricing_authority_fingerprint,
+    ].every((item) => typeof item === "string" && SHA256.test(item)) ||
+    authorization.parser_closure_fingerprint !==
+      bindings.parser_closure_fingerprint ||
+    authorization.request_response_bounds_fingerprint !==
+      bindings.request_response_bounds_fingerprint ||
+    authorization.request_family !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01 ||
     authorization.maximum_calls !== 6 ||
     authorization.parallel !== 1 ||
     authorization.retries !== 0 ||
     authorization.replacements !== 0 ||
+    authorization.adaptive_changes !== 0 ||
     authorization.second_probe !== false ||
     authorization.behavioral_replication !== false ||
     authorization.policy !== false ||
-    authorization.stage_7 !== false
+    authorization.stage_7 !== false ||
+    authorization.pricing_authority_fingerprint !==
+      budget.authority.pricing_fingerprint ||
+    authorization.pricing_authority_expires_at !==
+      budget.authority.pricing_expires_at ||
+    budget.authority.workspace_id !== authorization.workspace_id ||
+    budget.authority.project_id !== authorization.project_id ||
+    budget.authority.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 ||
+    budget.authority.provider_ref.external_id !== "openai" ||
+    budget.authority.model_ref.external_id !== MODEL ||
+    budget.authority.project_model_policy_fingerprint !==
+      authorization.route_fingerprint ||
+    budget.maximum_input_units !== 24576 ||
+    budget.maximum_output_units !== 1168 ||
+    budget.maximum_invocation_count !== 1 ||
+    budget.timeout_ms !== 30000 ||
+    budget.calculated_worst_case_cost * 6 >
+      Number(authorization.maximum_total_ceiling_nano_usd) ||
+    budget.maximum_permitted_cost !==
+      authorization.maximum_total_ceiling_nano_usd
   ) fail("cross_case_compatibility_authorization_invalid");
   return structuredClone(authorization);
+}
+
+export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01(
+  value: unknown,
+  input: {
+    admission: ModelGatewayInteractiveAdmissionV01;
+    route: OperationalReentryStaleResetCrossCaseRouteV01;
+    pricing: unknown;
+    pricing_evaluated_at?: string;
+  },
+) {
+  const authorization =
+    validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(
+      value,
+    );
+  const plan =
+    buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01(input.route);
+  const pricing = validateOperationalReentryStaleResetCrossCasePricingV01(
+    input.pricing,
+    6,
+    input.pricing_evaluated_at,
+  );
+  if (
+    authorization.workspace_id !== input.admission.workspace_id ||
+    authorization.project_id !== input.admission.project_id ||
+    authorization.expected_active_selection_revision !==
+      input.admission.expected_active_selection_revision ||
+    authorization.project_root_fingerprint !==
+      fingerprint(input.admission.project_root) ||
+    input.admission.gateway_authorization_project_is_lab_experiment_meaning !== false ||
+    authorization.six_shape_plan_fingerprint !== plan.integrity.fingerprint ||
+    authorization.r1_bg_witness_fingerprint !==
+      plan.r1_bg_zero_egress_witness_fingerprint ||
+    authorization.r2_bg_witness_fingerprint !==
+      plan.r2_bg_zero_egress_witness_fingerprint ||
+    authorization.provider_contract_fingerprint !==
+      input.route.provider_contract_fingerprint ||
+    authorization.route_fingerprint !== input.route.integrity_fingerprint ||
+    plan.entries.some(
+      (entry) =>
+        entry.adapter_request_route_fingerprint !==
+        authorization.adapter_request_route_fingerprint,
+    ) ||
+    authorization.pricing_fingerprint !== pricing.integrity.fingerprint ||
+    authorization.pricing_authority_fingerprint !==
+      pricing.pricing_authority_fingerprint ||
+    canonicalizeProtocolValueV01(authorization.gateway_cost_budget) !==
+      canonicalizeProtocolValueV01(pricing.gateway_cost_budget) ||
+    Number(authorization.maximum_total_ceiling_nano_usd) !==
+      pricing.maximum_total_ceiling_nano_usd
+  ) fail("cross_case_compatibility_authorization_context_invalid");
+  return { authorization, plan, pricing };
 }
 
 export function buildOperationalReentryStaleResetCrossCaseAuthorizationContractV01() {
@@ -1383,7 +1745,7 @@ export interface RunOperationalReentryStaleResetCrossCaseDependenciesV01 {
   cancellation_signal?: AbortSignal;
   assert_execution_state: () => void | Promise<void>;
   consume_authorization: () => void | Promise<void>;
-  on_call_terminal?: (call: ReturnType<typeof crossCaseCallTerminal>) => void | Promise<void>;
+  on_call_terminal?: (call: ReturnType<typeof buildOperationalReentryStaleResetCrossCaseCallTerminalV01>) => void | Promise<void>;
   on_block_evaluation?: (block: OperationalReentryStaleResetCrossCaseBlockEvaluationV01) => void | Promise<void>;
 }
 
@@ -1435,46 +1797,57 @@ export async function runOperationalReentryStaleResetCrossCaseReplicationV01(inp
   authorization: unknown;
   admission: ModelGatewayInteractiveAdmissionV01;
   route: OperationalReentryStaleResetCrossCaseRouteV01;
+  pricing: unknown;
 }, dependencies: RunOperationalReentryStaleResetCrossCaseDependenciesV01) {
   if (!dependencies || typeof dependencies.assert_execution_state !== "function" ||
       typeof dependencies.consume_authorization !== "function") {
     fail("cross_case_replication_runtime_dependencies_missing");
   }
-  const authorization = validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(input.authorization);
-  const plan = buildOperationalReentryStaleResetCrossCasePlanV01(authorization.case_id, input.route);
-  assertReplicationAuthorizationAgainstPlan(authorization, plan, input.route);
+  const { authorization, plan } =
+    validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationContextV01(
+      input.authorization,
+      input,
+    );
   const invoke = dependencies.invoke_gateway ?? invokeOperationalReentryStaleResetCrossCaseModelGatewayV01;
   const cancellation = dependencies.cancellation_signal ?? new AbortController().signal;
-  const calls: Array<ReturnType<typeof crossCaseCallTerminal>> = [];
+  const calls: Array<ReturnType<typeof buildOperationalReentryStaleResetCrossCaseCallTerminalV01>> = [];
   let consumed = false;
   let hardStop = false;
   for (const entry of plan.entries) {
     if (hardStop) {
-      const terminal = crossCaseCallTerminal(entry, "not_attempted_after_hard_stop", null, null, "cross_case_replication_hard_stop");
+      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "not_attempted_after_hard_stop", null, null, "cross_case_replication_hard_stop");
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       continue;
     }
+    let result;
     try {
       await dependencies.assert_execution_state();
       if (!consumed) {
         await dependencies.consume_authorization();
         consumed = true;
       }
-      const result = await invoke(
+      result = await invoke(
         buildOperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01(entry, authorization, input.admission, cancellation),
         { ...dependencies.gateway_dependencies, expected_operational_reentry_stale_reset_cross_case_route: input.route },
       );
-      const terminal = crossCaseCallTerminal(entry, "completed_live", result.output, result.model_invocation_receipt, null);
-      calls.push(terminal);
-      await dependencies.on_call_terminal?.(terminal);
     } catch (error) {
       const receipt = isModelGatewayInvocationErrorV01(error) ? error.receipt : null;
-      const terminal = crossCaseCallTerminal(entry, "terminal_failure", null, receipt, boundedFailure(error));
+      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "terminal_failure", null, receipt, boundedFailure(error));
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       hardStop = true;
+      continue;
     }
+    const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+      entry,
+      "completed_live",
+      result.output,
+      result.model_invocation_receipt,
+      null,
+    );
+    calls.push(terminal);
+    await dependencies.on_call_terminal?.(terminal);
   }
   const blocks: OperationalReentryStaleResetCrossCaseBlockEvaluationV01[] = [];
   for (const block of [0, 1, 2, 3] as const) {
@@ -1494,7 +1867,10 @@ export async function runOperationalReentryStaleResetCrossCaseReplicationV01(inp
     calls,
     blocks,
     case_status: caseStatus,
-    attempted_provider_calls: calls.filter((call) => call.egress_attempted).length,
+    attempted_provider_calls: calls.reduce(
+      (total, call) => total + call.provider_calls_used,
+      0,
+    ),
     retries: 0 as const,
     replacements: 0 as const,
     product_or_core_writes: 0 as const,
@@ -1507,13 +1883,16 @@ export async function runOperationalReentryStaleResetCrossCaseCompatibilityV01(i
   authorization: unknown;
   admission: ModelGatewayInteractiveAdmissionV01;
   route: OperationalReentryStaleResetCrossCaseRouteV01;
+  pricing: unknown;
 }, dependencies: Omit<RunOperationalReentryStaleResetCrossCaseDependenciesV01, "on_block_evaluation">) {
-  const authorization = validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(input.authorization);
-  const plan = buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01(input.route);
-  assertCompatibilityAuthorizationAgainstPlan(authorization, plan, input.route);
+  const { authorization, plan } =
+    validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01(
+      input.authorization,
+      input,
+    );
   const invoke = dependencies.invoke_gateway ?? invokeOperationalReentryStaleResetCrossCaseModelGatewayV01;
   const cancellation = dependencies.cancellation_signal ?? new AbortController().signal;
-  const calls: Array<ReturnType<typeof crossCaseCallTerminal>> = [];
+  const calls: Array<ReturnType<typeof buildOperationalReentryStaleResetCrossCaseCallTerminalV01>> = [];
   let consumed = false;
   let hardStop = false;
   for (const compatibleEntry of plan.entries) {
@@ -1534,31 +1913,39 @@ export async function runOperationalReentryStaleResetCrossCaseCompatibilityV01(i
         OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01,
     });
     if (hardStop) {
-      const terminal = crossCaseCallTerminal(entry, "not_attempted_after_hard_stop", null, null, "cross_case_compatibility_hard_stop");
+      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "not_attempted_after_hard_stop", null, null, "cross_case_compatibility_hard_stop");
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       continue;
     }
+    let result;
     try {
       await dependencies.assert_execution_state();
       if (!consumed) {
         await dependencies.consume_authorization();
         consumed = true;
       }
-      const result = await invoke(
+      result = await invoke(
         buildCompatibilityEnvelope(entry, authorization, input.admission, cancellation),
         { ...dependencies.gateway_dependencies, expected_operational_reentry_stale_reset_cross_case_route: input.route },
       );
-      const terminal = crossCaseCallTerminal(entry, "completed_live", result.output, result.model_invocation_receipt, null);
-      calls.push(terminal);
-      await dependencies.on_call_terminal?.(terminal);
     } catch (error) {
       const receipt = isModelGatewayInvocationErrorV01(error) ? error.receipt : null;
-      const terminal = crossCaseCallTerminal(entry, "terminal_failure", null, receipt, boundedFailure(error));
+      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "terminal_failure", null, receipt, boundedFailure(error));
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       hardStop = true;
+      continue;
     }
+    const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+      entry,
+      "completed_live",
+      result.output,
+      result.model_invocation_receipt,
+      null,
+    );
+    calls.push(terminal);
+    await dependencies.on_call_terminal?.(terminal);
   }
   return seal("cross_case_compatibility_execution_result_without_integrity_fingerprint", {
     authorization_fingerprint: authorization.integrity.fingerprint,
@@ -1566,42 +1953,16 @@ export async function runOperationalReentryStaleResetCrossCaseCompatibilityV01(i
     authorization_consumed: consumed,
     calls,
     stop_after_first_non_success: true as const,
-    attempted_provider_calls: calls.filter((call) => call.egress_attempted).length,
+    attempted_provider_calls: calls.reduce(
+      (total, call) => total + call.provider_calls_used,
+      0,
+    ),
     retries: 0 as const,
     replacements: 0 as const,
     behavioral_replication: false as const,
     policy: false as const,
     stage_7: false as const,
   });
-}
-
-function assertReplicationAuthorizationAgainstPlan(
-  authorization: OperationalReentryStaleResetCrossCaseAuthorizationV01,
-  plan: ReturnType<typeof buildOperationalReentryStaleResetCrossCasePlanV01>,
-  route: OperationalReentryStaleResetCrossCaseRouteV01,
-): void {
-  if (authorization.sealed_plan_fingerprint !== plan.integrity.fingerprint ||
-      authorization.gate_contract_fingerprint !== plan.gate_contract_fingerprint ||
-      authorization.evaluator_binding_fingerprint !== plan.evaluator_binding_fingerprint ||
-      authorization.route_fingerprint !== route.integrity_fingerprint ||
-      authorization.provider_contract_fingerprint !== route.provider_contract_fingerprint ||
-      !plan.bg_conformance_witnesses.some((witness) => witness.integrity.fingerprint === authorization.bg_witness_fingerprint)) {
-    fail("cross_case_replication_authorization_plan_drift");
-  }
-}
-
-function assertCompatibilityAuthorizationAgainstPlan(
-  authorization: Record<string, unknown> & { integrity: OperationalReentryStaleResetCrossCaseIntegrityV01 },
-  plan: ReturnType<typeof buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01>,
-  route: OperationalReentryStaleResetCrossCaseRouteV01,
-): void {
-  if (authorization.six_shape_plan_fingerprint !== plan.integrity.fingerprint ||
-      authorization.route_fingerprint !== route.integrity_fingerprint ||
-      authorization.provider_contract_fingerprint !== route.provider_contract_fingerprint ||
-      authorization.r1_bg_witness_fingerprint !== plan.r1_bg_zero_egress_witness_fingerprint ||
-      authorization.r2_bg_witness_fingerprint !== plan.r2_bg_zero_egress_witness_fingerprint) {
-    fail("cross_case_compatibility_authorization_plan_drift");
-  }
 }
 
 function buildCompatibilityEnvelope(
@@ -1626,15 +1987,53 @@ function buildCompatibilityEnvelope(
   );
 }
 
-function crossCaseCallTerminal(
+export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
   entry: ReturnType<typeof buildPlanEntry>,
   terminalCategory: "completed_live" | "terminal_failure" | "not_attempted_after_hard_stop",
   output: OperationalReentryStaleResetCrossCaseModelOutputV01 | null,
   receipt: unknown,
   failureCode: string | null,
 ) {
-  const egressAttempted = receipt !== null && typeof receipt === "object" &&
-    "provider_calls_used" in receipt && Number((receipt as { provider_calls_used?: unknown }).provider_calls_used) > 0;
+  if (output !== null) {
+    validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
+      entry.invocation,
+      output,
+    );
+  }
+  const validatedReceipt = receipt === null
+    ? null
+    : validateModelInvocationReceiptV02(receipt);
+  const egressAttempted = validatedReceipt?.egress_attempted ?? false;
+  const providerCallsUsed = validatedReceipt?.budget.provider_calls_used ?? 0;
+  const outputFingerprint = output === null ? null : fingerprint(output);
+  if (
+    validatedReceipt !== null &&
+    (validatedReceipt.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 ||
+      validatedReceipt.invocation_id !== entry.call_slot_id ||
+      validatedReceipt.local_invocation_identity_fingerprint !==
+        entry.local_invocation_identity_fingerprint ||
+      (output !== null &&
+        validatedReceipt.normalized_output_fingerprint !== outputFingerprint))
+  ) fail("cross_case_replication_receipt_binding_invalid");
+  if (
+    (terminalCategory === "completed_live" &&
+      (output === null ||
+        failureCode !== null ||
+        validatedReceipt === null ||
+        validatedReceipt.status !== "completed" ||
+        validatedReceipt.outcome !== "live_success" ||
+        validatedReceipt.execution_mode !== "live" ||
+        !egressAttempted ||
+        providerCallsUsed !== 1)) ||
+    (terminalCategory === "terminal_failure" &&
+      (output !== null || failureCode === null ||
+        validatedReceipt?.status === "completed")) ||
+    (terminalCategory === "not_attempted_after_hard_stop" &&
+      (output !== null ||
+        validatedReceipt !== null ||
+        failureCode === null))
+  ) fail("cross_case_replication_call_terminal_invalid");
   return seal("cross_case_replication_call_terminal_without_integrity_fingerprint", {
     call_order: entry.call_order,
     repeat_block: entry.repeat_block,
@@ -1643,11 +2042,12 @@ function crossCaseCallTerminal(
     call_id: entry.call_slot_id,
     terminal_category: terminalCategory,
     normalized_output: output === null ? null : structuredClone(output),
-    receipt_fingerprint: receipt !== null && typeof receipt === "object" && "integrity" in receipt
-      ? String((receipt as { integrity?: { fingerprint?: unknown } }).integrity?.fingerprint ?? "unknown")
-      : null,
+    model_invocation_receipt:
+      validatedReceipt === null ? null : structuredClone(validatedReceipt),
+    receipt_fingerprint:
+      validatedReceipt === null ? null : fingerprint(validatedReceipt),
     egress_attempted: egressAttempted,
-    provider_calls_used: egressAttempted ? 1 as const : 0 as const,
+    provider_calls_used: providerCallsUsed,
     failure_code: failureCode,
     raw_prompt_persisted: false as const,
     raw_request_body_persisted: false as const,
@@ -1655,6 +2055,73 @@ function crossCaseCallTerminal(
     raw_provider_error_persisted: false as const,
     hidden_reasoning_persisted: false as const,
   });
+}
+
+export function validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+  output: OperationalReentryStaleResetCrossCaseModelOutputV01,
+): void {
+  const caseId = invocation.local_invocation_context.case_id;
+  const spec = readOperationalReentryStaleResetCrossCaseV01(caseId);
+  exactRecordKeys(output as unknown as Record<string, unknown>, [
+    "result_status",
+    "common_task_evidence_fingerprint",
+    "required_check",
+    "referenced_continuation_tokens",
+    "operation_action_class_tokens",
+    "result_limitation_tokens",
+    "target_disposition",
+    "abstention",
+  ], "cross_case_replication_normalized_output_invalid");
+  exactRecordKeys(output.required_check as unknown as Record<string, unknown>, [
+    "check_token",
+    "disposition",
+  ], "cross_case_replication_normalized_output_invalid");
+  const material = invocation.provider_material;
+  const arraysValid = [
+    [
+      output.referenced_continuation_tokens,
+      material.allowed_output.referenced_continuation_tokens,
+    ],
+    [
+      output.operation_action_class_tokens,
+      material.allowed_output.operation_action_class_tokens,
+    ],
+    [
+      output.result_limitation_tokens,
+      material.allowed_output.result_limitation_tokens,
+    ],
+  ].every(([selected, allowed]) =>
+    Array.isArray(selected) &&
+    new Set(selected).size === selected.length &&
+    canonicalizeProtocolValueV01(selected) ===
+      canonicalizeProtocolValueV01(
+        allowed.filter((token) => selected.includes(token)),
+      ),
+  );
+  if (
+    !arraysValid ||
+    !material.allowed_output.result_statuses.includes(output.result_status) ||
+    output.common_task_evidence_fingerprint !==
+      spec.common_evidence_fingerprint ||
+    output.required_check.check_token !== spec.task.required_check ||
+    !material.allowed_output.required_check_dispositions.includes(
+      output.required_check.disposition,
+    ) ||
+    ![
+      "not_available",
+      "not_referenced",
+      "reference_only",
+      "applied_to_structure",
+      "withheld_stale",
+      "stale_persisted",
+    ].includes(output.target_disposition) ||
+    typeof output.abstention !== "boolean" ||
+    buildOperationalReentryStaleResetCrossCaseLayerBV01(
+      caseId,
+      output,
+    ).state === "protocol_invalid"
+  ) fail("cross_case_replication_normalized_output_invalid");
 }
 
 function boundedFailure(error: unknown): string {

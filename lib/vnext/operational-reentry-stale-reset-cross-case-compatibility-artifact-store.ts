@@ -5,8 +5,21 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
-import type { OperationalReentryStaleResetCrossCaseIntegrityV01 } from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
+import {
+  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
+  type ModelGatewayInteractiveAdmissionV01,
+} from "@/lib/vnext/model-gateway/model-gateway";
+import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
+import {
+  validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01,
+  validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01,
+  validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01,
+} from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
+import type {
+  OperationalReentryStaleResetCrossCaseIntegrityV01,
+  OperationalReentryStaleResetCrossCaseModelOutputV01,
+  OperationalReentryStaleResetCrossCaseRouteV01,
+} from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
 
 const NAMESPACE =
   "operational-reentry-stale-reset-cross-case-compatibility-probes" as const;
@@ -52,6 +65,9 @@ export async function consumeOperationalReentryStaleResetCrossCaseCompatibilityA
     consumed_at: string;
   },
 ) {
+  validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(
+    input.authorization,
+  );
   assertSealed(input.authorization);
   if (!/^[A-Za-z0-9:._-]{1,200}$/u.test(input.probe_id)) {
     fail("cross_case_compatibility_probe_id_invalid");
@@ -92,11 +108,16 @@ export async function consumeOperationalReentryStaleResetCrossCaseCompatibilityA
 
 export function validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(
   bundle: unknown,
+  context: {
+    admission: ModelGatewayInteractiveAdmissionV01;
+    route: OperationalReentryStaleResetCrossCaseRouteV01;
+  },
 ) {
   const value = record(bundle);
   exactKeys(value, [
     "authorization",
     "plan",
+    "pricing",
     "manifest",
     "shape_records",
     "report",
@@ -106,8 +127,17 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityArtifa
     "run_local_consumption_marker",
   ]);
   assertPrivacy(value);
-  validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(value.authorization);
-  const authorization = assertSealed(value.authorization);
+  const pricing = assertSealed(value.pricing);
+  const validated =
+    validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01(
+      value.authorization,
+      {
+        ...context,
+        pricing: value.pricing,
+        pricing_evaluated_at: String(pricing.pricing_snapshot_evaluated_at),
+      },
+    );
+  const authorization = assertSealed(validated.authorization);
   const plan = assertSealed(value.plan);
   const manifest = assertSealed(value.manifest);
   const report = assertSealed(value.report);
@@ -115,24 +145,77 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityArtifa
   const index = assertSealed(value.artifact_index);
   const globalMarker = assertSealed(value.global_consumption_marker);
   const localMarker = assertSealed(value.run_local_consumption_marker);
+  if (
+    canonicalizeProtocolValueV01(plan) !==
+      canonicalizeProtocolValueV01(validated.plan) ||
+    canonicalizeProtocolValueV01(manifest.route) !==
+      canonicalizeProtocolValueV01(context.route)
+  ) fail("cross_case_compatibility_canonical_owner_drift");
   if (!Array.isArray(value.shape_records) || value.shape_records.length !== 6) {
     fail("cross_case_compatibility_shape_count_invalid");
   }
   const shapes = value.shape_records.map((shape, indexValue) => {
     const item = assertSealed(shape);
-    if (item.call_order !== indexValue) {
+    const entry = validated.plan.entries[indexValue]!;
+    const expectedLabel = `${entry.case_id.includes(":r1-") ? "R1" : "R2"}-${entry.provider_shape}`;
+    validateShapeTerminal(item, entry);
+    if (
+      item.call_order !== indexValue ||
+      item.case_id !== entry.case_id ||
+      item.arm !== entry.provider_shape ||
+      item.repeat_block !== 0 ||
+      item.call_id !== entry.invocation.local_invocation_context.call_slot_id ||
+      item.shape_label !== expectedLabel ||
+      item.manifest_fingerprint !== manifest.integrity.fingerprint
+    ) {
       fail("cross_case_compatibility_shape_order_invalid");
     }
     return item;
   });
   const expectedOrder = ["R1-A", "R1-B", "R1-C", "R2-A", "R2-B", "R2-C"];
+  let failureSeen = false;
+  for (const shape of shapes) {
+    if (failureSeen && shape.terminal_category !== "not_attempted_after_hard_stop") {
+      fail("cross_case_compatibility_stop_semantics_invalid");
+    }
+    if (shape.terminal_category === "not_attempted_after_hard_stop" && !failureSeen) {
+      fail("cross_case_compatibility_stop_semantics_invalid");
+    }
+    if (shape.terminal_category === "terminal_failure") failureSeen = true;
+  }
+  const attemptedProviderCalls = shapes.reduce(
+    (total, shape) => total + Number(shape.provider_calls_used),
+    0,
+  );
+  const compatible = shapes.every(
+    (shape) => shape.terminal_category === "completed_live",
+  );
+  const expectedReport = {
+    manifest_fingerprint: manifest.integrity.fingerprint,
+    completion_status: compatible
+      ? "compatible"
+      : "not_compatible_or_incomplete",
+    planned_shapes: 6,
+    terminal_shape_records: 6,
+    attempted_provider_calls: attemptedProviderCalls,
+    retries: 0,
+    replacements: 0,
+    behavioral_replication: false,
+  };
+  const { integrity: _reportIntegrity, ...reportPayload } = report;
   if (
     canonicalizeProtocolValueV01(shapes.map((shape) => shape.shape_label)) !==
       canonicalizeProtocolValueV01(expectedOrder) ||
     manifest.authorization_fingerprint !== authorization.integrity.fingerprint ||
     manifest.plan_fingerprint !== plan.integrity.fingerprint ||
-    report.manifest_fingerprint !== manifest.integrity.fingerprint ||
+    manifest.pricing_fingerprint !== pricing.integrity.fingerprint ||
+    manifest.route_fingerprint !== context.route.integrity_fingerprint ||
+    manifest.provider_contract_fingerprint !==
+      context.route.provider_contract_fingerprint ||
+    canonicalizeProtocolValueV01(reportPayload) !==
+      canonicalizeProtocolValueV01(expectedReport) ||
     terminal.report_fingerprint !== report.integrity.fingerprint ||
+    terminal.terminal !== true ||
     index.report_fingerprint !== report.integrity.fingerprint ||
     index.terminal_fingerprint !== terminal.integrity.fingerprint ||
     index.shape_record_count !== 6 ||
@@ -141,13 +224,121 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityArtifa
     canonicalizeProtocolValueV01(globalMarker) !==
       canonicalizeProtocolValueV01(localMarker)
   ) fail("cross_case_compatibility_semantic_cross_link_drift");
+  exactKeys(manifest, [
+    "compatibility_version", "probe_id", "future_compatibility_issue_number",
+    "source_repository_head_sha", "authorization_fingerprint", "plan_fingerprint",
+    "provider_contract_fingerprint", "route_fingerprint", "route",
+    "pricing_fingerprint", "behavioral_replication",
+    "raw_or_private_material_persisted", "integrity",
+  ]);
+  exactKeys(terminal, ["report_fingerprint", "terminal", "integrity"]);
+  exactKeys(index, [
+    "report_fingerprint", "terminal_fingerprint", "shape_record_count",
+    "integrity",
+  ]);
+  exactKeys(globalMarker, [
+    "marker_version", "authorization_fingerprint", "probe_id",
+    "future_compatibility_issue_number", "consumed_at", "single_use",
+    "integrity",
+  ]);
+  if (
+    manifest.compatibility_version !==
+      "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.1" ||
+    manifest.future_compatibility_issue_number !==
+      authorization.future_compatibility_issue_number ||
+    manifest.source_repository_head_sha !==
+      authorization.exact_merged_source_head ||
+    manifest.probe_id !== globalMarker.probe_id ||
+    manifest.behavioral_replication !== false ||
+    manifest.raw_or_private_material_persisted !== false ||
+    globalMarker.marker_version !==
+      "operational_reentry_stale_reset_cross_case_compatibility_consumption.v0.1" ||
+    globalMarker.future_compatibility_issue_number !==
+      authorization.future_compatibility_issue_number ||
+    globalMarker.single_use !== true
+  ) fail("cross_case_compatibility_semantic_cross_link_drift");
   return Object.freeze({
     valid: true as const,
     shape_records: 6 as const,
     authorization_fingerprint: authorization.integrity.fingerprint,
     report_fingerprint: report.integrity.fingerprint,
     artifact_index_fingerprint: index.integrity.fingerprint,
+    attempted_provider_calls: attemptedProviderCalls,
   });
+}
+
+function validateShapeTerminal(
+  shape: Record<string, unknown> & {
+    integrity: OperationalReentryStaleResetCrossCaseIntegrityV01;
+  },
+  entry: {
+    invocation: Parameters<
+      typeof createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01
+    >[0];
+  },
+): void {
+  exactKeys(shape, [
+    "call_order", "repeat_block", "arm", "case_id", "call_id",
+    "terminal_category", "normalized_output", "model_invocation_receipt",
+    "receipt_fingerprint", "egress_attempted", "provider_calls_used",
+    "failure_code", "raw_prompt_persisted", "raw_request_body_persisted",
+    "raw_provider_response_persisted", "raw_provider_error_persisted",
+    "hidden_reasoning_persisted", "shape_label", "manifest_fingerprint",
+    "integrity",
+  ]);
+  const receipt = shape.model_invocation_receipt === null
+    ? null
+    : validateModelInvocationReceiptV02(shape.model_invocation_receipt);
+  const output = shape.normalized_output as
+    | OperationalReentryStaleResetCrossCaseModelOutputV01
+    | null;
+  if (output !== null) {
+    validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
+      entry.invocation,
+      output,
+    );
+  }
+  const category = shape.terminal_category;
+  const expectedLocalIdentity =
+    createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
+      entry.invocation,
+    );
+  if (
+    (receipt === null
+      ? shape.receipt_fingerprint !== null ||
+        shape.egress_attempted !== false ||
+        shape.provider_calls_used !== 0
+      : shape.receipt_fingerprint !== hash(receipt) ||
+        shape.egress_attempted !== receipt.egress_attempted ||
+        shape.provider_calls_used !== receipt.budget.provider_calls_used ||
+        receipt.purpose !==
+          "operational_reentry_stale_reset_cross_case_replication_v01" ||
+        receipt.invocation_id !==
+          entry.invocation.local_invocation_context.call_slot_id ||
+        receipt.local_invocation_identity_fingerprint !== expectedLocalIdentity ||
+        (output !== null &&
+          receipt.normalized_output_fingerprint !== hash(output))) ||
+    (category === "completed_live" &&
+      (output === null ||
+        receipt === null ||
+        receipt.status !== "completed" ||
+        receipt.outcome !== "live_success" ||
+        receipt.execution_mode !== "live" ||
+        shape.failure_code !== null ||
+        receipt.budget.provider_calls_used !== 1)) ||
+    (category === "terminal_failure" &&
+      (output !== null || shape.failure_code === null || receipt?.status === "completed")) ||
+    (category === "not_attempted_after_hard_stop" &&
+      (output !== null || receipt !== null || shape.failure_code === null)) ||
+    !["completed_live", "terminal_failure", "not_attempted_after_hard_stop"].includes(
+      String(category),
+    ) ||
+    shape.raw_prompt_persisted !== false ||
+    shape.raw_request_body_persisted !== false ||
+    shape.raw_provider_response_persisted !== false ||
+    shape.raw_provider_error_persisted !== false ||
+    shape.hidden_reasoning_persisted !== false
+  ) fail("cross_case_compatibility_shape_terminal_invalid");
 }
 
 export async function appendOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01(input: {

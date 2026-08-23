@@ -73,6 +73,7 @@ async function main(): Promise<void> {
     pricing_fingerprint: (pricing as { integrity: { fingerprint: string } }).integrity.fingerprint,
     route_fingerprint: route.integrity_fingerprint,
     provider_contract_fingerprint: route.provider_contract_fingerprint,
+    route: structuredClone(route),
     request_family: plan.request_family_kind,
     public_safe: true as const,
     raw_or_private_material_persisted: false as const,
@@ -87,7 +88,7 @@ async function main(): Promise<void> {
   const callRecords: unknown[] = [];
   const blockRecords: unknown[] = [];
   const result = await runOperationalReentryStaleResetCrossCaseReplicationV01(
-    { authorization, admission, route },
+    { authorization, admission, route, pricing },
     {
       assert_execution_state() {
         assertCrossCaseLiveExecutionStateV01(root, authorization as unknown as Record<string, unknown>);
@@ -160,7 +161,7 @@ async function main(): Promise<void> {
     block_records: blockRecords, case_status: caseStatus, report, terminal,
     artifact_index: index, global_consumption_marker: finalConsumption.marker,
     run_local_consumption_marker: structuredClone(finalConsumption.marker),
-  });
+  }, { admission, route });
   console.log(JSON.stringify({ status: "operational_reentry_stale_reset_cross_case_replication_terminal", case_id: authorization.case_id, case_status: caseStatus.status, attempted_provider_calls: result.attempted_provider_calls, retries: 0, replacements: 0, artifact_validation: validation, run_root: path.relative(root, finalConsumption.run_root) }));
 }
 
