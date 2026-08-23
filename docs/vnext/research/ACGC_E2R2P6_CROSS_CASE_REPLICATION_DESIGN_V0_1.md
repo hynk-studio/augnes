@@ -548,6 +548,89 @@ target_action_or_decision_preparation
 target_specific_result_limitation
 ```
 
+### 8.1 Normative case-bound Layer-B token mapping
+
+The future evaluator binding must use the exact finite mappings below. These
+mappings are normative case material, not runtime naming conventions. The
+future implementation must match exact sealed tokens and must not infer a
+token's meaning from its spelling, prefix, suffix, or similarity.
+
+#### R1 reference supersession
+
+`selected_or_referenced_target_identity`:
+
+| Exact selection | Derived state |
+| --- | --- |
+| `ref_r1_calibration_note_6a21` selected | `present` |
+| `ref_r1_calibration_note_6a21` not selected | `absent` |
+
+`target_action_or_decision_preparation` is always `absent` for independent
+R1 directional evidence. R1 has no target-specific action/preparation token.
+Target-neutral actions, including bounded reference review and scope
+preservation, must never count as target persistence or add independent
+directional evidence.
+
+`target_specific_result_limitation`:
+
+| Exact allowed limitation token | Derived target-specific state |
+| --- | --- |
+| `limitation_superseded_reference_selected` | `stale_persisted` |
+| `limitation_superseded_reference_withheld` | `stale_withheld` |
+| `limitation_reference_target_not_available` | `target_not_available` |
+| none of the three target-specific limitation tokens selected | `absent` |
+| more than one of the three target-specific limitation tokens selected | `mixed`, therefore `not_comparable` |
+| `limitation_reference_non_authoritative` | target-neutral; no target-specific state |
+
+`limitation_reference_non_authoritative` may participate in common-compliance
+or bounded-outcome validation. It must not change the target-specific
+limitation state, create persistence, or add directional evidence.
+
+#### R2 action/regime supersession
+
+`selected_or_referenced_target_identity`:
+
+| Exact selection | Derived state |
+| --- | --- |
+| `act_r2_manual_manifest_4c72` selected | `present` |
+| `act_r2_manual_manifest_4c72` not selected | `absent` |
+
+`target_action_or_decision_preparation`:
+
+| Exact selection | Derived state |
+| --- | --- |
+| `target_manual_manifest_preparation` selected | `present` |
+| `target_manual_manifest_preparation` not selected | `absent` |
+
+No other R2 action/preparation token is target-specific. Target-neutral review,
+retention, forbidden-action, or authority-boundary tokens must not create
+target persistence or add independent directional evidence.
+
+`target_specific_result_limitation`:
+
+| Exact allowed limitation token | Derived target-specific state |
+| --- | --- |
+| `limitation_obsolete_action_persisted` | `stale_persisted` |
+| `limitation_obsolete_action_withheld` | `stale_withheld` |
+| `limitation_action_target_not_available` | `target_not_available` |
+| none of the three target-specific limitation tokens selected | `absent` |
+| more than one of the three target-specific limitation tokens selected | `mixed`, therefore `not_comparable` |
+| `limitation_preparation_non_authoritative` | target-neutral; no target-specific state |
+
+`limitation_preparation_non_authoritative` may participate in
+common-compliance or bounded-outcome validation. It must not change the
+target-specific limitation state, create persistence, or add directional
+evidence.
+
+For both cases, `stale_persisted` is a persistence-present limitation state.
+`absent`, `target_not_available`, and `stale_withheld` are
+persistence-absent limitation states. `mixed` is `not_comparable` and cannot
+be coerced to presence or absence. Any contradiction between selected tokens
+and the locally derived target disposition is `protocol_invalid`.
+Target-neutral tokens never add independent directional weight. The exact
+mapping, including neutral-token classification, must be sealed into both the
+future case fingerprint and evaluator-binding fingerprint. Runtime token-name
+inference is prohibited.
+
 Validation-only aliases remain:
 
 ```text
@@ -584,6 +667,66 @@ R-H5 = common compliance and bounded outcome remain separate gates
 
 Neither case is assumed to reproduce P6I. Whole-output behavior, target
 persistence, common compliance, and bounded outcome remain separate records.
+
+### 8.2 Finite per-case four-block aggregation
+
+Each case independently derives exactly one finite status:
+
+```text
+replication_case_pattern_status =
+  supported_consistent
+  consistent_non_support
+  within_case_heterogeneous
+  not_comparable
+  incomplete
+  protocol_invalid
+```
+
+The evaluator applies this precedence independently to R1 and R2:
+
+1. `protocol_invalid`: any required source, treatment/projection,
+   schema/parser, artifact, authorization, evaluator-binding, or direct-pair
+   integrity is `protocol_invalid`.
+2. `incomplete`: fewer than four complete blocks or fewer than 24 direct pair
+   records exist.
+3. `not_comparable`: after a complete run, any hypothesis-owning direct pair is
+   `unknown`, `not_comparable`, `compliance_asymmetry`, or otherwise lacks a
+   valid finite relation. A-C and A-G are also required direct diagnostics and
+   must be finite and comparable. No missing or non-comparable block or pair
+   may be ignored.
+4. `supported_consistent`: all four blocks, not three of four, report exactly:
+
+   ```text
+   A-B = left_persists_more
+   B-C = right_persists_more
+   B-G = equal
+   C-G = left_persists_more
+   ```
+
+   Across all 24 direct pair records,
+   `common_compliance_relation = both_valid`,
+   `bounded_outcome_relation = equal`,
+   `all_six_pairs_evaluated_directly = true`, and
+   `pair_results_inferred_transitively = false`. A-C and A-G remain finite,
+   comparable direct diagnostic pairs, but their direction does not
+   independently define R-H1 through R-H4 support. R-H5 is supported only when
+   all 24 direct pair records have common compliance `both_valid` and bounded
+   outcome `equal`; this gate is separate and is never inferred from a
+   target-persistence direction.
+5. `within_case_heterogeneous`: the run is complete and protocol-valid, but
+   any of the four hypothesis-owning relations varies across blocks, or the
+   common-compliance or bounded-outcome gates vary across blocks. One
+   contradictory block yields `within_case_heterogeneous` and prevents
+   `supported_consistent`; three-of-four support is not support, `3/4` cannot
+   count as support, and there is no majority vote.
+6. `consistent_non_support`: all four blocks are complete, protocol-valid,
+   comparable, and internally consistent, but the exact
+   `supported_consistent` pattern is not met. This includes a consistent null,
+   an equal relation where a direction was expected, or a consistent opposite
+   direction. A consistent opposite result is not supported.
+
+There is no scalar, rank, winner, averaging, weighting, transitive inference,
+or majority vote at the block, case, or cross-case level.
 
 ## 9. Two separately authorized 16-call cohorts
 
@@ -650,32 +793,23 @@ protocol_invalid
 
 Disposition precedence is deterministic:
 
-1. Any case with invalid treatment/projection, case binding, parser, artifact,
-   or authorization integrity yields `protocol_invalid`.
-2. Otherwise, a case without a valid terminal 16-call/four-block result yields
-   `incomplete`.
-3. Otherwise, if both cases satisfy all requirements below, the disposition is
+1. Either case `protocol_invalid` yields `protocol_invalid`.
+2. Otherwise, either case `incomplete` or `not_comparable` yields `incomplete`.
+3. Otherwise, two `supported_consistent` cases yield
    `cross_case_pattern_replicated`.
-4. Otherwise, if the two valid completed cases differ materially in any
-   predeclared direction, equivalence finding, or independent gate, the
-   disposition is `case_heterogeneous`.
-5. Otherwise, the disposition is `null_or_no_pattern`.
-
-`cross_case_pattern_replicated` requires:
-
-- R1 and R2 each completed validly;
-- R-H1 direction supported in both;
-- R-H2 direction supported in both;
-- R-H3 target-persistence equivalence supported in both;
-- R-H4 gating-associated contrast supported in both;
-- R-H5 gates valid and independently represented in both;
-- no protocol-invalid case; and
-- no opposite directional case.
+4. Otherwise, either case `within_case_heterogeneous` yields
+   `case_heterogeneous`.
+5. Otherwise, one `supported_consistent` case and one
+   `consistent_non_support` case yield `case_heterogeneous`.
+6. Otherwise, two `consistent_non_support` cases with materially different
+   finite patterns or gate relations yield `case_heterogeneous`.
+7. Otherwise, two `consistent_non_support` cases with the same bounded
+   non-support pattern yield `null_or_no_pattern`.
 
 There is no majority vote. The original P6I case may be displayed as historical
-anchor evidence, but it cannot substitute for R1 or R2. Cases are never
-averaged into a scalar, score, rank, winner, promotion, or automatic product
-decision.
+anchor evidence only. It is never counted as a third vote and cannot substitute
+for R1 or R2. Cases are never averaged into a scalar, score, rank, winner,
+promotion, or automatic product decision.
 
 ## 11. Required design verdicts
 
