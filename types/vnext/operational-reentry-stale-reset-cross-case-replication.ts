@@ -6,24 +6,40 @@ import type {
 
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_replication.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_replication.v0.2" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_replication_codec.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_replication_codec.v0.2" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_replication_provider_contract.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_replication_provider_contract.v0.2" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_replication_response_schema.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_replication_response_schema.v0.2" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_replication_parser.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_replication_parser.v0.2" as const;
 export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01 =
   "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.1" as const;
+export const OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02 =
+  "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.2" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_CASE_VERSION_V01 =
   "operational_reentry_v04_stale_reset_replication_case.v0.1" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V01 =
   "operational_reentry_v04_stale_reset_replication_plan.v0.1" as const;
+export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V02 =
+  "operational_reentry_v04_stale_reset_replication_plan.v0.2" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_EVALUATOR_VERSION_V01 =
   "operational_reentry_v04_stale_reset_replication_evaluator.v0.1" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01 =
   "operational_reentry_v04_stale_reset_replication_authorization.v0.1" as const;
+export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02 =
+  "operational_reentry_v04_stale_reset_replication_authorization.v0.2" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_MANIFEST_VERSION_V01 =
   "operational_reentry_v04_stale_reset_replication_manifest.v0.1" as const;
 export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_REPORT_VERSION_V01 =
@@ -32,8 +48,12 @@ export const OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_ARTIFACT_INDEX_VERS
   "operational_reentry_v04_stale_reset_replication_artifact_index.v0.1" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.2" as const;
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01 =
   "operational_reentry_stale_reset_cross_case_compatibility_probe_authorization.v0.1" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V02 =
+  "operational_reentry_stale_reset_cross_case_compatibility_probe_authorization.v0.2" as const;
 
 export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 =
   "operational_reentry_stale_reset_cross_case_replication_v01" as const;
@@ -125,7 +145,7 @@ export interface OperationalReentryStaleResetCrossCaseProviderMaterialV01 {
 
 export interface OperationalReentryStaleResetCrossCaseInvocationV01 {
   input_kind: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01;
-  codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01;
+  codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02;
   local_invocation_context: {
     case_id: OperationalReentryStaleResetCrossCaseIdV01;
     cohort_ref: string;
@@ -210,8 +230,8 @@ export interface OperationalReentryStaleResetCrossCaseRouteV01 {
   provider_ref: ExternalRefV01;
   model_ref: ExternalRefV01;
   adapter_implementation_id: "openai_responses.operational_reentry_stale_reset_cross_case_replication";
-  adapter_implementation_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01;
-  provider_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01;
+  adapter_implementation_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02;
+  provider_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02;
   provider_contract_fingerprint: string;
   maximum_canonical_wire_response_bytes: number;
   response_bytes: 1168;
@@ -221,12 +241,12 @@ export interface OperationalReentryStaleResetCrossCaseRouteV01 {
 }
 
 export interface OperationalReentryStaleResetCrossCaseProviderContractV01 {
-  provider_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01;
-  input_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_VERSION_V01;
-  input_codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01;
-  response_schema_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01;
-  parser_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01;
-  openai_adapter_implementation_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01;
+  provider_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02;
+  input_contract_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_VERSION_V02;
+  input_codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02;
+  response_schema_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02;
+  parser_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02;
+  openai_adapter_implementation_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02;
   route_purpose: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01;
   strict_structured_output_supported_subset_required: true;
   parser_closed_wire_contract: true;
@@ -317,7 +337,7 @@ export interface OperationalReentryStaleResetCrossCaseBlockEvaluationV01 {
 }
 
 export interface OperationalReentryStaleResetCrossCaseAuthorizationV01 {
-  authorization_version: typeof OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01;
+  authorization_version: typeof OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02;
   authorization_kind: "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication";
   authorization_id: string;
   future_live_issue_number: number;
@@ -342,10 +362,10 @@ export interface OperationalReentryStaleResetCrossCaseAuthorizationV01 {
   route_fingerprint: string;
   provider_contract_fingerprint: string;
   adapter_request_route_fingerprint: string;
-  codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01;
-  response_schema_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01;
-  parser_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01;
-  adapter_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01;
+  codec_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02;
+  response_schema_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02;
+  parser_version: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02;
+  adapter_version: typeof OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02;
   request_family: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01;
   provider: "openai";
   model: "gpt-4.1-mini-2025-04-14";

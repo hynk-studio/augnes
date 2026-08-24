@@ -148,8 +148,8 @@ import {
   type OperationalReentryMatchedCohortRouteV04,
 } from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
 import {
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02,
   type OperationalReentryStaleResetCrossCaseInvocationV01,
   type OperationalReentryStaleResetCrossCaseProviderContractV01,
   type OperationalReentryStaleResetCrossCaseProviderMaterialV01,
@@ -933,7 +933,7 @@ export async function prepareOperationalReentryStaleResetCrossCaseModelGatewayRo
     session.implementation_id !==
       "openai_responses.operational_reentry_stale_reset_cross_case_replication" ||
     session.implementation_version !==
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02
   ) throw gatewayFailure("model_gateway_provider_response_invalid");
   const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
   const withoutFingerprint = {
@@ -945,9 +945,9 @@ export async function prepareOperationalReentryStaleResetCrossCaseModelGatewayRo
     adapter_implementation_id:
       "openai_responses.operational_reentry_stale_reset_cross_case_replication" as const,
     adapter_implementation_version:
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02,
     provider_contract_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01,
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02,
     provider_contract_fingerprint: contract.integrity.fingerprint,
     maximum_canonical_wire_response_bytes:
       contract.maximum_canonical_wire_response_bytes,
@@ -975,9 +975,9 @@ function operationalReentryStaleResetCrossCaseRouteMatchesSessionV01(
     expected.adapter_implementation_id ===
       "openai_responses.operational_reentry_stale_reset_cross_case_replication" &&
     expected.adapter_implementation_version ===
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01 &&
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02 &&
     expected.provider_contract_version ===
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V01 &&
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02 &&
     expected.provider_contract_fingerprint ===
       buildOperationalReentryStaleResetCrossCaseProviderContractV01().integrity
         .fingerprint &&

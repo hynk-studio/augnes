@@ -42,7 +42,7 @@ export function buildOperationalReentryStaleResetCrossCaseReplicationArtifactFam
     "cross_case_replication_artifact_family_without_integrity_fingerprint",
     {
       artifact_family_version:
-        "operational_reentry_v04_stale_reset_replication_artifact_family.v0.1" as const,
+        "operational_reentry_v04_stale_reset_replication_artifact_family.v0.2" as const,
       namespace: `.augnes-lab/${NAMESPACE}/` as const,
       candidate_authorization_namespace:
         "candidate-authorizations/issue-<future-live-issue>/" as const,
@@ -59,6 +59,8 @@ export function buildOperationalReentryStaleResetCrossCaseReplicationArtifactFam
       append_only: true as const,
       canonical_json: true as const,
       integrity_sealed: true as const,
+      post_invoke_local_failure_terminalized: true as const,
+      hard_stop_suffix_complete: true as const,
       one_case_per_candidate_authorization_marker_and_run_root: true as const,
       historical_namespace_reuse: false as const,
       raw_prompt_persisted: false as const,
@@ -257,6 +259,14 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationArtifact
           | null,
         recordValue.model_invocation_receipt,
         recordValue.failure_code as string | null,
+        recordValue.terminal_stage === "post_invoke_local_acceptance"
+          ? {
+              rejected_normalized_output_fingerprint:
+                recordValue.rejected_normalized_output_fingerprint as
+                  | string
+                  | null,
+            }
+          : null,
       );
     const { integrity: _terminalIntegrity, ...terminalPayload } = expectedTerminal;
     const {

@@ -352,6 +352,19 @@ export function buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(
     : spec.allowed_output.referenced_continuation_tokens.filter(
         (token) => token !== spec.target.context_token,
       );
+  const actionTokens = targetVisible
+    ? [...spec.allowed_output.operation_action_class_tokens]
+    : spec.allowed_output.operation_action_class_tokens.filter(
+        (token) => token !== spec.evaluator_binding.target_action_token,
+      );
+  const targetSpecificLimitations = new Set(
+    Object.keys(spec.evaluator_binding.target_specific_limitations),
+  );
+  const limitationTokens = targetVisible
+    ? [...spec.allowed_output.result_limitation_tokens]
+    : spec.allowed_output.result_limitation_tokens.filter(
+        (token) => !targetSpecificLimitations.has(token),
+      );
   return structuredClone({
     task: spec.task,
     common_task_evidence: spec.common_task_evidence,
@@ -369,6 +382,8 @@ export function buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(
     allowed_output: {
       ...spec.allowed_output,
       referenced_continuation_tokens: referenceTokens,
+      operation_action_class_tokens: actionTokens,
+      result_limitation_tokens: limitationTokens,
     },
     authority_notice: spec.authority_notice,
   });

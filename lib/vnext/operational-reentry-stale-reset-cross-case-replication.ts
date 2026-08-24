@@ -29,18 +29,18 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V02,
   OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01,
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V01,
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01,
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V02,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02,
   OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01,
   OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01,
-  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
-  OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02,
+  OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02,
   OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_EVALUATOR_VERSION_V01,
-  OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V01,
-  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01,
+  OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V02,
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02,
   type OperationalReentryStaleResetCrossCaseArmV01,
   type OperationalReentryStaleResetCrossCaseAuthorizationV01,
   type OperationalReentryStaleResetCrossCaseBlockEvaluationV01,
@@ -59,6 +59,7 @@ import {
   type OperationalReentryStaleResetCrossCaseRouteV01,
   type OperationalReentryStaleResetCrossCaseTargetRelationV01,
 } from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
+import type { ModelInvocationReceiptV02 } from "@/types/vnext/model-invocation-receipt";
 import type { ModelGatewayCostBudgetV01 } from "@/types/vnext/model-invocation-receipt";
 
 const MODEL = "gpt-4.1-mini-2025-04-14" as const;
@@ -138,7 +139,7 @@ export function buildOperationalReentryStaleResetCrossCaseInvocationV01(input: {
     input_kind:
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01,
     codec_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01,
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02,
     local_invocation_context: {
       case_id: input.case_id,
       cohort_ref: input.cohort_ref,
@@ -396,7 +397,7 @@ export function buildOperationalReentryStaleResetCrossCasePlanV01(
     buildBgWitness(block, entries),
   );
   return seal("cross_case_replication_plan_without_integrity_fingerprint", {
-    plan_version: OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V01,
+    plan_version: OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_PLAN_VERSION_V02,
     request_family_kind:
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01,
     case_id: caseId,
@@ -702,6 +703,9 @@ export function buildOperationalReentryStaleResetCrossCaseLayerBV01(
   const selectedLimitations = Object.entries(
     spec.evaluator_binding.target_specific_limitations,
   ).filter(([token]) => output.result_limitation_tokens.includes(token));
+  const stalePersistedLimitationSelected = selectedLimitations.some(
+    ([, state]) => state === "stale_persisted",
+  );
   const limitation: OperationalReentryStaleResetCrossCaseLimitationV01 =
     selectedLimitations.length > 1
       ? "mixed"
@@ -715,7 +719,7 @@ export function buildOperationalReentryStaleResetCrossCaseLayerBV01(
     output.target_disposition,
     referenced,
     action,
-    limitation,
+    stalePersistedLimitationSelected,
   );
   const state = !dispositionValid
     ? "protocol_invalid" as const
@@ -1043,7 +1047,7 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01(
   );
   return seal("cross_case_compatibility_plan_without_integrity_fingerprint", {
     compatibility_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V01,
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V02,
     request_family_kind:
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_REQUEST_FAMILY_V01,
     canonical_order: ["R1-A", "R1-B", "R1-C", "R2-A", "R2-B", "R2-C"] as const,
@@ -1202,17 +1206,17 @@ export function buildOperationalReentryStaleResetReplicationAuthorizationV01(
   return validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(
     seal("cross_case_replication_authorization_without_integrity_fingerprint", {
       authorization_version:
-        OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
+        OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02,
       authorization_kind:
         "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication" as const,
       ...input,
       case_version: spec.case_version,
       codec_version:
-        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01,
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02,
       response_schema_version:
-        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01,
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02,
       parser_version:
-        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01,
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02,
       request_family:
         OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01,
       provider: "openai" as const,
@@ -1244,7 +1248,7 @@ export function buildOperationalReentryStaleResetReplicationAuthorizationV01(
 export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContractV01() {
   return seal("cross_case_compatibility_authorization_contract_without_integrity_fingerprint", {
     authorization_version:
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01,
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V02,
     future_compatibility_issue_number_required: true as const,
     exact_merged_source_required: true as const,
     both_case_fingerprints_required: true as const,
@@ -1331,7 +1335,7 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthoriza
   return validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(
     seal("cross_case_compatibility_authorization_without_integrity_fingerprint", {
       authorization_version:
-        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01,
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V02,
       authorization_kind:
         "one_bounded_operational_reentry_stale_reset_cross_case_compatibility_probe" as const,
       ...input,
@@ -1386,7 +1390,7 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationAuthoriz
     !sealedIntegrityValid(authorization) ||
     integrity?.fingerprint !== fingerprint(withoutIntegrity) ||
     authorization.authorization_version !==
-      OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01 ||
+      OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02 ||
     authorization.authorization_kind !==
       "one_bounded_operational_reentry_v04_stale_reset_cross_case_replication" ||
     !SAFE_ID.test(authorization.authorization_id) ||
@@ -1419,13 +1423,13 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationAuthoriz
       authorization.pricing_authority_fingerprint,
     ].every((item) => SHA256.test(item)) ||
     authorization.codec_version !==
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V01 ||
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_CODEC_VERSION_V02 ||
     authorization.response_schema_version !==
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V01 ||
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_RESPONSE_SCHEMA_VERSION_V02 ||
     authorization.parser_version !==
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V01 ||
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PARSER_VERSION_V02 ||
     authorization.adapter_version !==
-      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V01 ||
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02 ||
     authorization.request_family !==
       OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_REQUEST_FAMILY_V01 ||
     authorization.provider !== "openai" ||
@@ -1583,7 +1587,7 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthor
     !sealedIntegrityValid(authorization) ||
     integrity?.fingerprint !== fingerprint(withoutIntegrity) ||
     authorization.authorization_version !==
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V01 ||
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_AUTHORIZATION_VERSION_V02 ||
     authorization.authorization_kind !==
       "one_bounded_operational_reentry_stale_reset_cross_case_compatibility_probe" ||
     typeof authorization.authorization_id !== "string" ||
@@ -1716,7 +1720,7 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthor
 export function buildOperationalReentryStaleResetCrossCaseAuthorizationContractV01() {
   return seal("cross_case_replication_authorization_contract_without_integrity_fingerprint", {
     authorization_version:
-      OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V01,
+      OPERATIONAL_REENTRY_V04_STALE_RESET_REPLICATION_AUTHORIZATION_VERSION_V02,
     one_case_only: true as const,
     future_live_issue_number_required: true as const,
     exact_merged_source_required: true as const,
@@ -1832,20 +1836,25 @@ export async function runOperationalReentryStaleResetCrossCaseReplicationV01(inp
         { ...dependencies.gateway_dependencies, expected_operational_reentry_stale_reset_cross_case_route: input.route },
       );
     } catch (error) {
-      const receipt = isModelGatewayInvocationErrorV01(error) ? error.receipt : null;
-      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "terminal_failure", null, receipt, boundedFailure(error));
+      const terminal = buildGatewayFailureTerminal(entry, error);
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       hardStop = true;
       continue;
     }
-    const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
-      entry,
-      "completed_live",
-      result.output,
-      result.model_invocation_receipt,
-      null,
-    );
+    let terminal;
+    try {
+      terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+        entry,
+        "completed_live",
+        result.output,
+        result.model_invocation_receipt,
+        null,
+      );
+    } catch (error) {
+      terminal = buildPostInvokeFailureTerminal(entry, result, error);
+      hardStop = true;
+    }
     calls.push(terminal);
     await dependencies.on_call_terminal?.(terminal);
   }
@@ -1930,20 +1939,25 @@ export async function runOperationalReentryStaleResetCrossCaseCompatibilityV01(i
         { ...dependencies.gateway_dependencies, expected_operational_reentry_stale_reset_cross_case_route: input.route },
       );
     } catch (error) {
-      const receipt = isModelGatewayInvocationErrorV01(error) ? error.receipt : null;
-      const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(entry, "terminal_failure", null, receipt, boundedFailure(error));
+      const terminal = buildGatewayFailureTerminal(entry, error);
       calls.push(terminal);
       await dependencies.on_call_terminal?.(terminal);
       hardStop = true;
       continue;
     }
-    const terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
-      entry,
-      "completed_live",
-      result.output,
-      result.model_invocation_receipt,
-      null,
-    );
+    let terminal;
+    try {
+      terminal = buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+        entry,
+        "completed_live",
+        result.output,
+        result.model_invocation_receipt,
+        null,
+      );
+    } catch (error) {
+      terminal = buildPostInvokeFailureTerminal(entry, result, error);
+      hardStop = true;
+    }
     calls.push(terminal);
     await dependencies.on_call_terminal?.(terminal);
   }
@@ -1993,6 +2007,9 @@ export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
   output: OperationalReentryStaleResetCrossCaseModelOutputV01 | null,
   receipt: unknown,
   failureCode: string | null,
+  postInvokeFailure: null | {
+    rejected_normalized_output_fingerprint: string | null;
+  } = null,
 ) {
   if (output !== null) {
     validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
@@ -2006,20 +2023,54 @@ export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
   const egressAttempted = validatedReceipt?.egress_attempted ?? false;
   const providerCallsUsed = validatedReceipt?.budget.provider_calls_used ?? 0;
   const outputFingerprint = output === null ? null : fingerprint(output);
+  const rejectedOutputFingerprint =
+    postInvokeFailure?.rejected_normalized_output_fingerprint ?? null;
+  if (
+    rejectedOutputFingerprint !== null &&
+    !SHA256.test(rejectedOutputFingerprint)
+  ) fail("cross_case_replication_call_terminal_invalid");
+  const receiptIdentityBound = validatedReceipt === null || (
+    validatedReceipt.purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 &&
+    validatedReceipt.invocation_id === entry.call_slot_id &&
+    validatedReceipt.local_invocation_identity_fingerprint ===
+      entry.local_invocation_identity_fingerprint
+  );
+  const receiptOutputBound =
+    validatedReceipt === null ||
+    outputFingerprint === null ||
+    validatedReceipt.normalized_output_fingerprint === outputFingerprint;
+  const rejectedOutputBound =
+    validatedReceipt === null ||
+    rejectedOutputFingerprint === null ||
+    validatedReceipt.normalized_output_fingerprint ===
+      rejectedOutputFingerprint;
   if (
     validatedReceipt !== null &&
-    (validatedReceipt.purpose !==
-      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 ||
-      validatedReceipt.invocation_id !== entry.call_slot_id ||
-      validatedReceipt.local_invocation_identity_fingerprint !==
-        entry.local_invocation_identity_fingerprint ||
-      (output !== null &&
-        validatedReceipt.normalized_output_fingerprint !== outputFingerprint))
+    terminalCategory === "completed_live" &&
+    (!receiptIdentityBound || !receiptOutputBound)
   ) fail("cross_case_replication_receipt_binding_invalid");
+  const terminalStage = terminalCategory === "completed_live"
+    ? "completed_live"
+    : terminalCategory === "not_attempted_after_hard_stop"
+      ? "hard_stop_suffix"
+      : postInvokeFailure === null
+        ? "gateway_invoke"
+        : "post_invoke_local_acceptance";
+  const postInvokeTerminalValid = postInvokeFailure !== null &&
+    (validatedReceipt === null
+      ? failureCode === "cross_case_replication_receipt_invalid"
+      : rejectedOutputFingerprint !== null &&
+        (failureCode === "cross_case_replication_normalized_output_invalid"
+          ? receiptIdentityBound && rejectedOutputBound
+          : failureCode === "cross_case_replication_receipt_binding_invalid"
+            ? !receiptIdentityBound || !rejectedOutputBound
+            : receiptIdentityBound));
   if (
     (terminalCategory === "completed_live" &&
       (output === null ||
         failureCode !== null ||
+        postInvokeFailure !== null ||
         validatedReceipt === null ||
         validatedReceipt.status !== "completed" ||
         validatedReceipt.outcome !== "live_success" ||
@@ -2028,11 +2079,17 @@ export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
         providerCallsUsed !== 1)) ||
     (terminalCategory === "terminal_failure" &&
       (output !== null || failureCode === null ||
-        validatedReceipt?.status === "completed")) ||
+        (postInvokeFailure === null
+          ? validatedReceipt?.status === "completed" ||
+            !receiptIdentityBound ||
+            rejectedOutputFingerprint !== null
+          : !postInvokeTerminalValid))) ||
     (terminalCategory === "not_attempted_after_hard_stop" &&
       (output !== null ||
         validatedReceipt !== null ||
-        failureCode === null))
+        failureCode === null ||
+        postInvokeFailure !== null ||
+        rejectedOutputFingerprint !== null))
   ) fail("cross_case_replication_call_terminal_invalid");
   return seal("cross_case_replication_call_terminal_without_integrity_fingerprint", {
     call_order: entry.call_order,
@@ -2041,7 +2098,9 @@ export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
     case_id: entry.case_id,
     call_id: entry.call_slot_id,
     terminal_category: terminalCategory,
+    terminal_stage: terminalStage,
     normalized_output: output === null ? null : structuredClone(output),
+    rejected_normalized_output_fingerprint: rejectedOutputFingerprint,
     model_invocation_receipt:
       validatedReceipt === null ? null : structuredClone(validatedReceipt),
     receipt_fingerprint:
@@ -2055,6 +2114,79 @@ export function buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
     raw_provider_error_persisted: false as const,
     hidden_reasoning_persisted: false as const,
   });
+}
+
+function buildPostInvokeFailureTerminal(
+  entry: ReturnType<typeof buildPlanEntry>,
+  result: {
+    output: OperationalReentryStaleResetCrossCaseModelOutputV01;
+    model_invocation_receipt: unknown;
+  },
+  error: unknown,
+) {
+  let receipt: unknown = null;
+  let failureCode = boundedFailure(error);
+  try {
+    receipt = validateModelInvocationReceiptV02(result.model_invocation_receipt);
+  } catch {
+    failureCode = "cross_case_replication_receipt_invalid";
+  }
+  let rejectedOutputFingerprint: string | null = null;
+  try {
+    rejectedOutputFingerprint = fingerprint(result.output);
+  } catch {
+    // The rejected body is never persisted; an unhashable body adds no claim.
+  }
+  if (receipt !== null && rejectedOutputFingerprint !== null) {
+    const validatedReceipt = receipt as ModelInvocationReceiptV02;
+    const receiptIdentityBound =
+      validatedReceipt.purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PURPOSE_V01 &&
+      validatedReceipt.invocation_id === entry.call_slot_id &&
+      validatedReceipt.local_invocation_identity_fingerprint ===
+        entry.local_invocation_identity_fingerprint;
+    const receiptOutputBound =
+      validatedReceipt.normalized_output_fingerprint ===
+        rejectedOutputFingerprint;
+    if (!receiptIdentityBound || !receiptOutputBound) {
+      failureCode = "cross_case_replication_receipt_binding_invalid";
+    }
+  }
+  return buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+    entry,
+    "terminal_failure",
+    null,
+    receipt,
+    failureCode,
+    {
+      rejected_normalized_output_fingerprint: rejectedOutputFingerprint,
+    },
+  );
+}
+
+function buildGatewayFailureTerminal(
+  entry: ReturnType<typeof buildPlanEntry>,
+  error: unknown,
+) {
+  const candidate = isModelGatewayInvocationErrorV01(error)
+    ? error.receipt
+    : null;
+  let receipt: unknown = null;
+  let failureCode = boundedFailure(error);
+  if (candidate !== null) {
+    try {
+      receipt = validateModelInvocationReceiptV02(candidate);
+    } catch {
+      failureCode = "cross_case_replication_receipt_invalid";
+    }
+  }
+  return buildOperationalReentryStaleResetCrossCaseCallTerminalV01(
+    entry,
+    "terminal_failure",
+    null,
+    receipt,
+    failureCode,
+  );
 }
 
 export function validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
@@ -2196,12 +2328,12 @@ function targetDispositionConsistent(
   disposition: OperationalReentryStaleResetCrossCaseModelOutputV01["target_disposition"],
   reference: OperationalReentryStaleResetCrossCasePresenceV01,
   action: OperationalReentryStaleResetCrossCasePresenceV01,
-  limitation: OperationalReentryStaleResetCrossCaseLimitationV01,
+  stalePersistedLimitationSelected: boolean,
 ): boolean {
   const persistencePresent =
     reference === "present" ||
     action === "present" ||
-    limitation === "stale_persisted";
+    stalePersistedLimitationSelected;
   if (disposition === "not_available") return !persistencePresent;
   if (disposition === "not_referenced") return !persistencePresent;
   if (disposition === "withheld_stale") return !persistencePresent;

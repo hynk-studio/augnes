@@ -36,7 +36,7 @@ export class OperationalReentryStaleResetCrossCaseCompatibilityArtifactErrorV01 
 export function buildOperationalReentryStaleResetCrossCaseCompatibilityArtifactFamilyContractV01() {
   return seal("cross_case_compatibility_artifact_family_without_integrity_fingerprint", {
     artifact_family_version:
-      "operational_reentry_stale_reset_cross_case_compatibility_artifact_family.v0.1" as const,
+      "operational_reentry_stale_reset_cross_case_compatibility_artifact_family.v0.2" as const,
     namespace: `.augnes-lab/${NAMESPACE}/` as const,
     candidate_authorizations:
       "candidate-authorizations/issue-<future-compatibility-issue>/" as const,
@@ -46,6 +46,8 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityArtifactF
     append_only: true as const,
     canonical_json: true as const,
     integrity_sealed: true as const,
+    post_invoke_local_failure_terminalized: true as const,
+    hard_stop_suffix_complete: true as const,
     replication_authorization_substitution: false as const,
     historical_v04_compatibility_namespace_reuse: false as const,
     raw_or_private_material_persisted: false as const,
@@ -243,7 +245,7 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityArtifa
   ]);
   if (
     manifest.compatibility_version !==
-      "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.1" ||
+      "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.2" ||
     manifest.future_compatibility_issue_number !==
       authorization.future_compatibility_issue_number ||
     manifest.source_repository_head_sha !==
@@ -279,7 +281,8 @@ function validateShapeTerminal(
 ): void {
   exactKeys(shape, [
     "call_order", "repeat_block", "arm", "case_id", "call_id",
-    "terminal_category", "normalized_output", "model_invocation_receipt",
+    "terminal_category", "terminal_stage", "normalized_output",
+    "rejected_normalized_output_fingerprint", "model_invocation_receipt",
     "receipt_fingerprint", "egress_attempted", "provider_calls_used",
     "failure_code", "raw_prompt_persisted", "raw_request_body_persisted",
     "raw_provider_response_persisted", "raw_provider_error_persisted",
@@ -299,10 +302,42 @@ function validateShapeTerminal(
     );
   }
   const category = shape.terminal_category;
+  const terminalStage = shape.terminal_stage;
+  const rejectedOutputFingerprint =
+    shape.rejected_normalized_output_fingerprint;
   const expectedLocalIdentity =
     createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
       entry.invocation,
     );
+  const receiptIdentityBound = receipt === null ||
+    (receipt.purpose ===
+      "operational_reentry_stale_reset_cross_case_replication_v01" &&
+      receipt.invocation_id ===
+        entry.invocation.local_invocation_context.call_slot_id &&
+      receipt.local_invocation_identity_fingerprint === expectedLocalIdentity);
+  const outputFingerprint = output === null ? null : hash(output);
+  const receiptOutputBound = receipt === null || outputFingerprint === null ||
+    receipt.normalized_output_fingerprint === outputFingerprint;
+  const rejectedOutputBound = receipt === null ||
+    rejectedOutputFingerprint === null ||
+    receipt.normalized_output_fingerprint === rejectedOutputFingerprint;
+  const postInvokeValid = terminalStage === "post_invoke_local_acceptance" &&
+    output === null &&
+    typeof shape.failure_code === "string" &&
+    (receipt === null
+      ? shape.failure_code === "cross_case_replication_receipt_invalid" &&
+        (rejectedOutputFingerprint === null ||
+          typeof rejectedOutputFingerprint === "string" &&
+            SHA256.test(rejectedOutputFingerprint))
+      : typeof rejectedOutputFingerprint === "string" &&
+        SHA256.test(rejectedOutputFingerprint) &&
+        (shape.failure_code ===
+          "cross_case_replication_normalized_output_invalid"
+          ? receiptIdentityBound && rejectedOutputBound
+          : shape.failure_code ===
+              "cross_case_replication_receipt_binding_invalid"
+            ? !receiptIdentityBound || !rejectedOutputBound
+            : receiptIdentityBound));
   if (
     (receipt === null
       ? shape.receipt_fingerprint !== null ||
@@ -311,15 +346,14 @@ function validateShapeTerminal(
       : shape.receipt_fingerprint !== hash(receipt) ||
         shape.egress_attempted !== receipt.egress_attempted ||
         shape.provider_calls_used !== receipt.budget.provider_calls_used ||
-        receipt.purpose !==
-          "operational_reentry_stale_reset_cross_case_replication_v01" ||
-        receipt.invocation_id !==
-          entry.invocation.local_invocation_context.call_slot_id ||
-        receipt.local_invocation_identity_fingerprint !== expectedLocalIdentity ||
-        (output !== null &&
-          receipt.normalized_output_fingerprint !== hash(output))) ||
+        (category !== "terminal_failure" ||
+          terminalStage !== "post_invoke_local_acceptance") &&
+          !receiptIdentityBound ||
+        (category === "completed_live" && !receiptOutputBound)) ||
     (category === "completed_live" &&
       (output === null ||
+        terminalStage !== "completed_live" ||
+        rejectedOutputFingerprint !== null ||
         receipt === null ||
         receipt.status !== "completed" ||
         receipt.outcome !== "live_success" ||
@@ -327,9 +361,19 @@ function validateShapeTerminal(
         shape.failure_code !== null ||
         receipt.budget.provider_calls_used !== 1)) ||
     (category === "terminal_failure" &&
-      (output !== null || shape.failure_code === null || receipt?.status === "completed")) ||
+      (terminalStage === "gateway_invoke"
+        ? output !== null ||
+          rejectedOutputFingerprint !== null ||
+          shape.failure_code === null ||
+          receipt?.status === "completed" ||
+          !receiptIdentityBound
+        : !postInvokeValid)) ||
     (category === "not_attempted_after_hard_stop" &&
-      (output !== null || receipt !== null || shape.failure_code === null)) ||
+      (terminalStage !== "hard_stop_suffix" ||
+        output !== null ||
+        rejectedOutputFingerprint !== null ||
+        receipt !== null ||
+        shape.failure_code === null)) ||
     !["completed_live", "terminal_failure", "not_attempted_after_hard_stop"].includes(
       String(category),
     ) ||

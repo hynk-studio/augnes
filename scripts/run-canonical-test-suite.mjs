@@ -702,7 +702,7 @@ const suites = {
     },
     {
       label:
-        "ACGC-E2R2P6L cross-case replication provider contract and evaluator harness (zero egress)",
+        "ACGC-E2R2P6N cross-case semantic closure and terminalization harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-stale-reset-cross-case-replication.ts",
       ),
@@ -710,7 +710,7 @@ const suites = {
     },
     {
       label:
-        "ACGC-E2R2P6L cross-case six-shape compatibility harness (zero egress)",
+        "ACGC-E2R2P6N corrected cross-case six-shape compatibility harness (zero egress)",
       ...rootNode(
         "scripts/test-operational-reentry-stale-reset-cross-case-compatibility.ts",
       ),
