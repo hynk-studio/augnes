@@ -37,7 +37,8 @@ async function main(): Promise<void> {
   const authorizationUnknown = readCrossCaseLiveJsonV01(options.authorization_file);
   const pricing = readCrossCaseLiveJsonV01(options.pricing_file);
   const authorization = validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01(authorizationUnknown);
-  const admission = preflightCrossCaseLiveRepositoryV01({
+  const { admission, source_attestation: sourceAttestation } =
+    await preflightCrossCaseLiveRepositoryV01({
     repository_root: root, authorization, authorization_file: options.authorization_file,
     pricing, candidate_namespace: "operational-reentry-stale-reset-cross-case-compatibility-probes",
     issue_field: "future_compatibility_issue_number",
@@ -66,7 +67,13 @@ async function main(): Promise<void> {
   const result = await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
     { authorization, admission, route, pricing },
     {
-      assert_execution_state() { assertCrossCaseLiveExecutionStateV01(root, authorization); },
+      assert_execution_state() {
+        assertCrossCaseLiveExecutionStateV01(
+          root,
+          authorization,
+          sourceAttestation,
+        );
+      },
       async consume_authorization() {
         consumption = await consumeOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01({
           lab_root: path.join(root, ".augnes-lab"), authorization,

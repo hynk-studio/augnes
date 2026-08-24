@@ -12,12 +12,48 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateOperationalReentryStaleResetCrossCasePricingV01 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
+import { createGitHubTransport } from "@/scripts/local-canonical-github-transport.mjs";
 
 const REPOSITORY = "hynk-studio/augnes-perspective-lab" as const;
 const ORIGINS = new Set([
   "https://github.com/hynk-studio/augnes-perspective-lab.git",
   "git@github.com:hynk-studio/augnes-perspective-lab.git",
 ]);
+const GIT_SHA = /^[0-9a-f]{40}$/u;
+
+export type CrossCaseSourceReadinessStatusV01 =
+  | "ready"
+  | "repository_or_origin_mismatch"
+  | "authentication_unavailable"
+  | "transport_timeout"
+  | "transport_unavailable_or_failed"
+  | "fresh_remote_identity_invalid"
+  | "fresh_remote_source_mismatch";
+
+export type CrossCaseSourceReadinessV01 = Readonly<{
+  source_readiness_version: "operational_reentry_source_readiness.v0.1";
+  status: CrossCaseSourceReadinessStatusV01;
+  repository_id: typeof REPOSITORY;
+  branch: "main";
+  expected_origin: string | null;
+  expected_source_sha: string | null;
+  fresh_remote_main_sha: string | null;
+  local_head_sha: string | null;
+  local_head_matches_fresh_remote_main: boolean;
+  observation_transport: "authenticated_github_api";
+  observed_at: string;
+  live_authority: false;
+  real_provider_calls: 0;
+}>;
+
+type CrossCaseSourceReadinessDependenciesV01 = {
+  transport?: {
+    fetchBranchHead(branch: "main"): Promise<unknown>;
+  };
+  git?: (repositoryRoot: string, args: string[]) => string;
+  realpath?: (value: string) => string;
+  now?: () => Date;
+};
 
 export function readCrossCaseLiveJsonV01(filePath: string): unknown {
   const text = readFileSync(filePath, "utf8");
@@ -28,33 +64,24 @@ export function readCrossCaseLiveJsonV01(filePath: string): unknown {
   return value;
 }
 
-export function preflightCrossCaseLiveRepositoryV01(input: {
+export async function preflightCrossCaseLiveRepositoryV01(input: {
   repository_root: string;
   authorization: Record<string, unknown>;
   authorization_file: string;
   pricing: unknown;
   candidate_namespace: string;
   issue_field: "future_live_issue_number" | "future_compatibility_issue_number";
-}): ModelGatewayInteractiveAdmissionV01 {
+}): Promise<{
+  admission: ModelGatewayInteractiveAdmissionV01;
+  source_attestation: CrossCaseSourceReadinessV01;
+}> {
   const root = realpathSync(input.repository_root);
-  if (realpathSync(git(root, ["rev-parse", "--show-toplevel"])) !== root) {
-    fail("cross_case_live_repository_root_mismatch");
-  }
-  if (input.authorization.repository_slug !== REPOSITORY ||
-      typeof input.authorization.authorized_origin !== "string" ||
-      !ORIGINS.has(input.authorization.authorized_origin)) {
-    fail("cross_case_live_repository_identity_invalid");
-  }
-  const observedOrigin = git(root, ["remote", "get-url", "origin"]);
-  if (observedOrigin !== input.authorization.authorized_origin) {
-    fail("cross_case_live_repository_origin_mismatch");
-  }
-  refreshOriginMain(root);
-  const head = git(root, ["rev-parse", "HEAD"]);
-  const originMain = git(root, ["rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
-  if (head !== input.authorization.exact_merged_source_head || head !== originMain) {
-    fail("cross_case_live_source_drift");
-  }
+  const sourceAttestation = await requireCrossCaseLiveSourceAttestationV01({
+    repository_root: root,
+    repository_id: input.authorization.repository_slug,
+    expected_origin: input.authorization.authorized_origin,
+    expected_source_sha: input.authorization.exact_merged_source_head,
+  });
   if (git(root, ["status", "--porcelain", "--untracked-files=all"]) !== "") {
     fail("cross_case_live_worktree_not_clean");
   }
@@ -84,7 +111,136 @@ export function preflightCrossCaseLiveRepositoryV01(input: {
     input.pricing,
     input.issue_field === "future_live_issue_number" ? 16 : 6,
   );
-  return admission;
+  return { admission, source_attestation: sourceAttestation };
+}
+
+export async function attestCrossCaseSourceReadinessV01(
+  input: {
+    repository_root: string;
+    repository_id: unknown;
+    expected_origin: unknown;
+    expected_source_sha: unknown;
+  },
+  dependencies: CrossCaseSourceReadinessDependenciesV01 = {},
+): Promise<CrossCaseSourceReadinessV01> {
+  const observedAt = (dependencies.now ?? (() => new Date()))().toISOString();
+  const expectedOrigin =
+    typeof input.expected_origin === "string" && ORIGINS.has(input.expected_origin)
+      ? input.expected_origin
+      : null;
+  const expectedSourceSha =
+    typeof input.expected_source_sha === "string" &&
+    GIT_SHA.test(input.expected_source_sha)
+      ? input.expected_source_sha
+      : null;
+  const result = (
+    status: CrossCaseSourceReadinessStatusV01,
+    localHeadSha: string | null = null,
+    freshRemoteMainSha: string | null = null,
+  ): CrossCaseSourceReadinessV01 => Object.freeze({
+    source_readiness_version: "operational_reentry_source_readiness.v0.1",
+    status,
+    repository_id: REPOSITORY,
+    branch: "main",
+    expected_origin: expectedOrigin,
+    expected_source_sha: expectedSourceSha,
+    fresh_remote_main_sha: freshRemoteMainSha,
+    local_head_sha: localHeadSha,
+    local_head_matches_fresh_remote_main:
+      localHeadSha !== null && localHeadSha === freshRemoteMainSha,
+    observation_transport: "authenticated_github_api",
+    observed_at: observedAt,
+    live_authority: false,
+    real_provider_calls: 0,
+  });
+
+  if (input.repository_id !== REPOSITORY || expectedOrigin === null) {
+    return result("repository_or_origin_mismatch");
+  }
+  if (expectedSourceSha === null) {
+    return result("fresh_remote_identity_invalid");
+  }
+
+  const readGit = dependencies.git ?? git;
+  const resolveRealpath = dependencies.realpath ?? realpathSync;
+  let root: string;
+  let localHead: string;
+  try {
+    root = resolveRealpath(input.repository_root);
+    if (resolveRealpath(readGit(root, ["rev-parse", "--show-toplevel"])) !== root) {
+      return result("repository_or_origin_mismatch");
+    }
+    if (readGit(root, ["remote", "get-url", "origin"]) !== expectedOrigin) {
+      return result("repository_or_origin_mismatch");
+    }
+    localHead = readGit(root, ["rev-parse", "HEAD"]);
+  } catch {
+    return result("repository_or_origin_mismatch");
+  }
+  if (!GIT_SHA.test(localHead)) {
+    return result("fresh_remote_identity_invalid");
+  }
+
+  let remote: unknown;
+  try {
+    remote = await (dependencies.transport ?? createGitHubTransport())
+      .fetchBranchHead("main");
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : "";
+    if (code === "github_authentication_unavailable") {
+      return result("authentication_unavailable", localHead);
+    }
+    if (code === "github_transport_timeout") {
+      return result("transport_timeout", localHead);
+    }
+    if (code === "github_branch_head_response_invalid") {
+      return result("fresh_remote_identity_invalid", localHead);
+    }
+    return result("transport_unavailable_or_failed", localHead);
+  }
+
+  if (
+    !remote ||
+    typeof remote !== "object" ||
+    !("repository_id" in remote) ||
+    remote.repository_id !== REPOSITORY ||
+    !("branch" in remote) ||
+    remote.branch !== "main" ||
+    !("sha" in remote) ||
+    typeof remote.sha !== "string" ||
+    !GIT_SHA.test(remote.sha)
+  ) {
+    return result("fresh_remote_identity_invalid", localHead);
+  }
+  if (remote.sha !== expectedSourceSha || localHead !== remote.sha) {
+    return result("fresh_remote_source_mismatch", localHead, remote.sha);
+  }
+  return result("ready", localHead, remote.sha);
+}
+
+export async function requireCrossCaseLiveSourceAttestationV01(
+  input: Parameters<typeof attestCrossCaseSourceReadinessV01>[0],
+  dependencies: CrossCaseSourceReadinessDependenciesV01 = {},
+): Promise<CrossCaseSourceReadinessV01> {
+  const result = await attestCrossCaseSourceReadinessV01(input, dependencies);
+  if (result.status !== "ready") {
+    fail({
+      repository_or_origin_mismatch:
+        "cross_case_live_repository_or_origin_mismatch",
+      authentication_unavailable:
+        "cross_case_live_source_authentication_unavailable",
+      transport_timeout: "cross_case_live_source_transport_timeout",
+      transport_unavailable_or_failed:
+        "cross_case_live_source_transport_unavailable_or_failed",
+      fresh_remote_identity_invalid:
+        "cross_case_live_fresh_remote_identity_invalid",
+      fresh_remote_source_mismatch:
+        "cross_case_live_fresh_remote_source_mismatch",
+    }[result.status]);
+  }
+  return result;
 }
 
 export function validateCrossCaseLiveAdmissionBindingV01(
@@ -104,18 +260,17 @@ export function validateCrossCaseLiveAdmissionBindingV01(
   ) fail("cross_case_live_gateway_admission_drift");
 }
 
-export function refreshOriginMainV01(repositoryRoot: string): string {
-  refreshOriginMain(repositoryRoot);
-  return git(repositoryRoot, ["rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
-}
-
 export function assertCrossCaseLiveExecutionStateV01(
   repositoryRoot: string,
   authorization: Record<string, unknown>,
+  sourceAttestation: CrossCaseSourceReadinessV01,
 ): void {
   const head = git(repositoryRoot, ["rev-parse", "HEAD"]);
-  const originMain = git(repositoryRoot, ["rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
-  if (head !== authorization.exact_merged_source_head || head !== originMain ||
+  if (sourceAttestation.status !== "ready" ||
+      sourceAttestation.repository_id !== REPOSITORY ||
+      sourceAttestation.fresh_remote_main_sha !== authorization.exact_merged_source_head ||
+      head !== authorization.exact_merged_source_head ||
+      head !== sourceAttestation.fresh_remote_main_sha ||
       git(repositoryRoot, ["status", "--porcelain", "--untracked-files=all"]) !== "") {
     fail("cross_case_live_execution_state_drift");
   }
@@ -142,17 +297,6 @@ function validatePricing(
     canonicalizeProtocolValueV01(pricing.gateway_cost_budget) !==
       canonicalizeProtocolValueV01(authorization.gateway_cost_budget)
   ) fail("cross_case_live_pricing_fingerprint_mismatch");
-}
-
-function refreshOriginMain(repositoryRoot: string): void {
-  try {
-    execFileSync("git", ["-C", repositoryRoot, "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head", "origin", "+refs/heads/main:refs/remotes/origin/main"], {
-      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000,
-      maxBuffer: 1024 * 1024,
-    });
-  } catch {
-    fail("cross_case_live_origin_main_refresh_failed");
-  }
 }
 
 function git(repositoryRoot: string, args: string[]): string {

@@ -76,7 +76,11 @@ import {
   validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01,
   type OperationalReentryStaleResetCrossCaseObservedArmV01,
 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
-import { validateCrossCaseLiveAdmissionBindingV01 } from "@/scripts/operational-reentry-stale-reset-cross-case-live-common";
+import {
+  attestCrossCaseSourceReadinessV01,
+  requireCrossCaseLiveSourceAttestationV01,
+  validateCrossCaseLiveAdmissionBindingV01,
+} from "@/scripts/operational-reentry-stale-reset-cross-case-live-common";
 import {
   buildOperationalReentryStaleResetCrossCaseReplicationArtifactFamilyContractV01,
   consumeOperationalReentryStaleResetCrossCaseAuthorizationV01,
@@ -119,6 +123,191 @@ const route = await prepareOperationalReentryStaleResetCrossCaseModelGatewayRout
 assert.ok(route);
 if (!route) throw new Error("cross_case_test_route_unavailable");
 const exactRoute = route;
+
+const sourceHead = "a".repeat(40);
+const otherSourceHead = "b".repeat(40);
+const sourceReadinessInput = {
+  repository_root: "/fixture/augnes-perspective-lab",
+  repository_id: "hynk-studio/augnes-perspective-lab",
+  expected_origin:
+    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  expected_source_sha: sourceHead,
+};
+const sourceReadinessGitCalls: string[][] = [];
+const sourceReadinessGit = (_repositoryRoot: string, args: string[]) => {
+  sourceReadinessGitCalls.push([...args]);
+  if (args.join(" ") === "rev-parse --show-toplevel") {
+    return sourceReadinessInput.repository_root;
+  }
+  if (args.join(" ") === "remote get-url origin") {
+    return sourceReadinessInput.expected_origin;
+  }
+  if (args.join(" ") === "rev-parse HEAD") return sourceHead;
+  if (args.join(" ").includes("refs/remotes/origin/main")) {
+    return otherSourceHead;
+  }
+  throw new Error("unexpected_source_readiness_git_read");
+};
+const sourceReadinessDependencies = (transport: {
+  fetchBranchHead(branch: "main"): Promise<unknown>;
+}) => ({
+  transport,
+  git: sourceReadinessGit,
+  realpath: (value: string) => value,
+  now: () => new Date("2026-08-25T00:00:00.000Z"),
+});
+const freshMainTransport = {
+  async fetchBranchHead(branch: "main") {
+    return {
+      repository_id: sourceReadinessInput.repository_id,
+      branch,
+      sha: sourceHead,
+    };
+  },
+};
+const readySource = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies(freshMainTransport),
+);
+check("1 source readiness exact authenticated main ready", readySource.status === "ready");
+check("2 source readiness binds fresh main to local head", readySource.fresh_remote_main_sha === sourceHead && readySource.local_head_matches_fresh_remote_main);
+check("3 source readiness creates no provider authority", readySource.real_provider_calls === 0 && readySource.live_authority === false);
+
+const wrongRepository = await attestCrossCaseSourceReadinessV01(
+  { ...sourceReadinessInput, repository_id: "hynk-studio/other" },
+  sourceReadinessDependencies(freshMainTransport),
+);
+check("4 wrong source repository fails closed", wrongRepository.status === "repository_or_origin_mismatch");
+const wrongOrigin = await attestCrossCaseSourceReadinessV01(
+  { ...sourceReadinessInput, expected_origin: "https://github.com/hynk-studio/other.git" },
+  sourceReadinessDependencies(freshMainTransport),
+);
+check("5 wrong source origin fails closed", wrongOrigin.status === "repository_or_origin_mismatch");
+
+const sourceMismatch = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies({
+    async fetchBranchHead(branch: "main") {
+      return {
+        repository_id: sourceReadinessInput.repository_id,
+        branch,
+        sha: otherSourceHead,
+      };
+    },
+  }),
+);
+check("6 fresh main mismatch is source mismatch", sourceMismatch.status === "fresh_remote_source_mismatch");
+
+const codedTransportError = (code: string, message: string) =>
+  Object.assign(new Error(message), { code });
+const authenticationUnavailable = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies({
+    async fetchBranchHead() {
+      throw codedTransportError(
+        "github_authentication_unavailable",
+        "secret-bearing authentication detail",
+      );
+    },
+  }),
+);
+check("7 unavailable authentication is bounded", authenticationUnavailable.status === "authentication_unavailable");
+check("8 authentication result excludes raw error", !JSON.stringify(authenticationUnavailable).includes("secret-bearing"));
+const transportTimeout = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies({
+    async fetchBranchHead() {
+      throw codedTransportError("github_transport_timeout", "private timeout detail");
+    },
+  }),
+);
+check("9 source transport timeout is bounded", transportTimeout.status === "transport_timeout");
+const transportFailure = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies({
+    async fetchBranchHead() {
+      throw codedTransportError("github_transport_failed", "token=private-value");
+    },
+  }),
+);
+check("10 generic source transport failure is bounded", transportFailure.status === "transport_unavailable_or_failed");
+check("11 generic source failure excludes raw secret", !JSON.stringify(transportFailure).includes("private-value"));
+const invalidRemoteIdentity = await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies({
+    async fetchBranchHead(branch: "main") {
+      return {
+        repository_id: sourceReadinessInput.repository_id,
+        branch,
+        sha: "malformed",
+      };
+    },
+  }),
+);
+check("12 malformed fresh branch identity fails closed", invalidRemoteIdentity.status === "fresh_remote_identity_invalid");
+check("13 stale tracking ref is never queried", sourceReadinessGitCalls.every((args) => !args.join(" ").includes("refs/remotes/origin/main")));
+
+let repeatedFreshReads = 0;
+const repeatedTransport = {
+  async fetchBranchHead(branch: "main") {
+    repeatedFreshReads += 1;
+    return {
+      repository_id: sourceReadinessInput.repository_id,
+      branch,
+      sha: sourceHead,
+    };
+  },
+};
+await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies(repeatedTransport),
+);
+await attestCrossCaseSourceReadinessV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies(repeatedTransport),
+);
+check("14 repeated readiness performs independent fresh reads", repeatedFreshReads === 2);
+check("15 readiness git seam is read only", sourceReadinessGitCalls.every((args) => ["rev-parse --show-toplevel", "remote get-url origin", "rev-parse HEAD"].includes(args.join(" "))));
+
+let liveFreshReads = 0;
+const liveTransport = {
+  async fetchBranchHead(branch: "main") {
+    liveFreshReads += 1;
+    return {
+      repository_id: sourceReadinessInput.repository_id,
+      branch,
+      sha: liveFreshReads === 1 ? sourceHead : otherSourceHead,
+    };
+  },
+};
+await requireCrossCaseLiveSourceAttestationV01(
+  sourceReadinessInput,
+  sourceReadinessDependencies(liveTransport),
+);
+await assert.rejects(
+  () => requireCrossCaseLiveSourceAttestationV01(
+    sourceReadinessInput,
+    sourceReadinessDependencies(liveTransport),
+  ),
+  /cross_case_live_fresh_remote_source_mismatch/u,
+);
+assertions.push("16 Gate B re-attests fresh main instead of caching readiness");
+check("17 Gate B made two independent fresh observations", liveFreshReads === 2);
+
+const liveCommonSource = await readFile(
+  path.join(process.cwd(), "scripts/operational-reentry-stale-reset-cross-case-live-common.ts"),
+  "utf8",
+);
+check("18 readiness owner has no stale origin-main fallback", !liveCommonSource.includes("refs/remotes/origin/main"));
+check("19 readiness owner has no Git fetch fallback", !liveCommonSource.includes("fetch --no-tags"));
+for (const runnerPath of [
+  "scripts/operational-reentry-stale-reset-cross-case-compatibility.ts",
+  "scripts/operational-reentry-stale-reset-cross-case-replication.ts",
+]) {
+  const runnerSource = await readFile(path.join(process.cwd(), runnerPath), "utf8");
+  check(`20 ${runnerPath} awaits fresh Gate B preflight`, runnerSource.includes("await preflightCrossCaseLiveRepositoryV01"));
+  check(`21 ${runnerPath} binds execution state to fresh attestation`, runnerSource.includes("sourceAttestation"));
+}
 
 const r1 = readOperationalReentryStaleResetCrossCaseV01(
   OPERATIONAL_REENTRY_STALE_RESET_R1_CASE_ID_V01,

@@ -44,7 +44,8 @@ async function main(): Promise<void> {
   const pricing = readCrossCaseLiveJsonV01(options.pricing_file);
   const authorization = validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01(authorizationUnknown);
   if (authorization.case_id !== options.case_id) fail("cross_case_replication_cli_case_mismatch");
-  const admission = preflightCrossCaseLiveRepositoryV01({
+  const { admission, source_attestation: sourceAttestation } =
+    await preflightCrossCaseLiveRepositoryV01({
     repository_root: root,
     authorization: authorization as unknown as Record<string, unknown>,
     authorization_file: options.authorization_file,
@@ -91,7 +92,11 @@ async function main(): Promise<void> {
     { authorization, admission, route, pricing },
     {
       assert_execution_state() {
-        assertCrossCaseLiveExecutionStateV01(root, authorization as unknown as Record<string, unknown>);
+        assertCrossCaseLiveExecutionStateV01(
+          root,
+          authorization as unknown as Record<string, unknown>,
+          sourceAttestation,
+        );
       },
       async consume_authorization() {
         consumption = await consumeOperationalReentryStaleResetCrossCaseAuthorizationV01({

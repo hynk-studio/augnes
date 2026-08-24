@@ -44,8 +44,13 @@ const commentResponse = {
   created_at: timestamp,
   updated_at: timestamp,
 };
+const branchResponse = {
+  name: "main",
+  commit: { sha: "3".repeat(40) },
+};
 const runner = async (request) => {
   requests.push(structuredClone(request));
+  if (request.operation === "fetch_branch_head") return branchResponse;
   if (request.operation === "fetch_pull_request") return pullResponse;
   if (request.operation === "list_pull_request_comments") {
     return [[commentResponse]];
@@ -74,6 +79,12 @@ assert.equal((await transport.listPullRequestComments(77)).length, 1);
 assert.equal((await transport.fetchIssueComment(7001)).id, 7001);
 assert.equal((await transport.createIssueComment(77, "created")).body, "created");
 assert.equal((await transport.updateIssueComment(7001, "updated")).body, "updated");
+const branchHead = await transport.fetchBranchHead("main");
+assert.deepEqual(branchHead, {
+  repository_id: AUTHORIZED_GITHUB_REPOSITORY,
+  branch: "main",
+  sha: "3".repeat(40),
+});
 
 for (const request of requests) {
   assert.equal(Array.isArray(request.args), true);
@@ -122,6 +133,23 @@ assert.deepEqual(requests[4].args, [
   "--input",
   "-",
 ]);
+assert.deepEqual(requests[5].args, [
+  "api",
+  `repos/${AUTHORIZED_GITHUB_REPOSITORY}/branches/main`,
+  "--method",
+  "GET",
+]);
+
+await assert.rejects(
+  transport.fetchBranchHead("develop"),
+  hasCode("invalid_github_branch"),
+);
+await assert.rejects(
+  createGitHubTransport({
+    runner: async () => ({ name: "main", commit: { sha: "invalid" } }),
+  }).fetchBranchHead("main"),
+  hasCode("github_branch_head_response_invalid"),
+);
 
 const failingTransport = createGitHubTransport({
   runner: async () => {
@@ -132,6 +160,10 @@ const failingTransport = createGitHubTransport({
 });
 await assert.rejects(
   failingTransport.fetchPullRequest(77),
+  hasCode("github_transport_failed"),
+);
+await assert.rejects(
+  failingTransport.fetchBranchHead("main"),
   hasCode("github_transport_failed"),
 );
 await assert.rejects(
@@ -310,6 +342,8 @@ const source = readFileSync(
 );
 assert.match(source, /spawnSync\("gh", args/u);
 assert.match(source, /shell: false/u);
+assert.match(source, /result\.status === 4/u);
+assert.match(source, /github_authentication_unavailable/u);
 assert.doesNotMatch(
   source,
   /repos\/\$\{[^}]*\}\/(?:statuses|check-runs|deployments|actions\/workflows)/u,
@@ -324,6 +358,8 @@ console.log(
       status: "pass",
       fixed_repository_endpoints: true,
       argument_safe_gh_spawn: true,
+      exact_main_branch_read_bounded: true,
+      authentication_unavailable_normalized: true,
       token_and_auth_output_not_logged: true,
       transport_errors_fail_closed: true,
       write_responses_confirmed: true,
