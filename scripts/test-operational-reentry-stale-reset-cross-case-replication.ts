@@ -37,6 +37,7 @@ import {
   createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
   prepareOperationalReentryStaleResetCrossCaseModelGatewayRouteV01,
   projectOperationalReentryStaleResetCrossCaseProviderRequestV01,
+  readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import {
   buildModelGatewayCostAuthorityV01,
@@ -72,6 +73,7 @@ import {
   validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01,
   validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationV01,
   validateOperationalReentryStaleResetCrossCaseReplicationAuthorizationContextV01,
+  validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01,
   type OperationalReentryStaleResetCrossCaseObservedArmV01,
 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
 import { validateCrossCaseLiveAdmissionBindingV01 } from "@/scripts/operational-reentry-stale-reset-cross-case-live-common";
@@ -172,6 +174,22 @@ expectThrow("23 target fingerprint drift fails", () => buildOperationalReentrySt
 expectThrow("24 relation fingerprint drift fails", () => buildOperationalReentryStaleResetCrossCaseGatedInvocationV01({ case_id: r2.case_id, cohort_ref: "ccr_test_relation", call_slot_id: "ccr_test_slot_relation", repeat_block: 0, declared_stale_relation_fingerprint: `sha256:${"2".repeat(64)}` }));
 expectThrow("25 G visible metadata fails", () => validateOperationalReentryStaleResetCrossCaseProviderMaterialV01({ ...r1Gate.invocation.provider_material, gate: "G" }));
 check("26 local G provenance does not change body", projectOperationalReentryStaleResetCrossCaseProviderRequestV01(r1Gate.invocation).request_body === projectOperationalReentryStaleResetCrossCaseProviderRequestV01({ ...r1Gate.invocation, local_invocation_context: { ...r1Gate.invocation.local_invocation_context, cohort_ref: "ccr_changed_local_only" } }).request_body);
+const r1A = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r1.case_id, "A");
+const r1B = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r1.case_id, "B");
+const r1C = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r1.case_id, "C");
+const r2A = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r2.case_id, "A");
+const r2B = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r2.case_id, "B");
+const r2C = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r2.case_id, "C");
+check("26a R1 B target reference removed", !r1B.allowed_output.referenced_continuation_tokens.includes(r1.target.context_token));
+check("26b R1 B target-specific limitations removed", Object.keys(r1.evaluator_binding.target_specific_limitations).every((token) => !r1B.allowed_output.result_limitation_tokens.includes(token)));
+check("26c R1 B target-neutral limitation retained", r1B.allowed_output.result_limitation_tokens.includes(r1.evaluator_binding.target_neutral_limitation));
+check("26d R1 B target-neutral actions retained", canonicalizeProtocolValueV01(r1B.allowed_output.operation_action_class_tokens) === canonicalizeProtocolValueV01(r1.allowed_output.operation_action_class_tokens));
+check("26e R2 B target reference removed", !r2B.allowed_output.referenced_continuation_tokens.includes(r2.target.context_token));
+check("26f R2 B target action removed", r2.evaluator_binding.target_action_token !== null && !r2B.allowed_output.operation_action_class_tokens.includes(r2.evaluator_binding.target_action_token));
+check("26g R2 B target-specific limitations removed", Object.keys(r2.evaluator_binding.target_specific_limitations).every((token) => !r2B.allowed_output.result_limitation_tokens.includes(token)));
+check("26h R2 B target-neutral limitation retained", r2B.allowed_output.result_limitation_tokens.includes(r2.evaluator_binding.target_neutral_limitation));
+check("26i R2 B neutral review and boundary actions retained", r2B.allowed_output.operation_action_class_tokens.includes("bounded_archive_readiness_review") && r2B.allowed_output.operation_action_class_tokens.includes("retain_signed_bundle_review_only") && r2B.allowed_output.operation_action_class_tokens.includes("upload_archive_without_authority"));
+check("26j A and C target-specific lanes unchanged", canonicalizeProtocolValueV01(r1A.allowed_output) === canonicalizeProtocolValueV01(r1.allowed_output) && canonicalizeProtocolValueV01(r1C.allowed_output) === canonicalizeProtocolValueV01(r1.allowed_output) && canonicalizeProtocolValueV01(r2A.allowed_output) === canonicalizeProtocolValueV01(r2.allowed_output) && canonicalizeProtocolValueV01(r2C.allowed_output) === canonicalizeProtocolValueV01(r2.allowed_output));
 
 // B/G parity (27-36).
 for (const [caseLabel, plan, start] of [["R1", r1Plan, 27], ["R2", r2Plan, 32]] as const) {
@@ -187,9 +205,18 @@ check("37 six provider shapes", Object.keys(OPERATIONAL_REENTRY_STALE_RESET_CROS
 check("38 per-shape closure finite", Object.values(OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_PER_SHAPE_PARSER_CLOSURE_V01).every((value) => Number.isSafeInteger(value) && value > 0));
 let exhaustiveParsed = 0;
 for (const shape of buildOperationalReentryStaleResetCrossCaseRepresentativeMaterialsV01()) {
-  exhaustiveParsed += enumeratePermitted(shape.material);
+  exhaustiveParsed += enumeratePermitted(shape);
 }
-check("39 every permitted output parses", exhaustiveParsed === OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_AGGREGATE_PARSER_CLOSURE_V01);
+check("39 every permitted output parses and normalized-validates", exhaustiveParsed === OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_AGGREGATE_PARSER_CLOSURE_V01);
+check("39a corrected per-shape semantic closure exact", canonicalizeProtocolValueV01(OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_PER_SHAPE_PARSER_CLOSURE_V01) === canonicalizeProtocolValueV01({
+  [`${r1.case_id}:A`]: 65_536,
+  [`${r1.case_id}:B`]: 4_096,
+  [`${r1.case_id}:C`]: 65_536,
+  [`${r2.case_id}:A`]: 65_536,
+  [`${r2.case_id}:B`]: 2_048,
+  [`${r2.case_id}:C`]: 65_536,
+}));
+check("39b corrected aggregate semantic closure exact", OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_AGGREGATE_PARSER_CLOSURE_V01 === 268_288);
 const sampleMaterial = buildOperationalReentryStaleResetCrossCaseProviderMaterialV01(r1.case_id, "A");
 const sampleWire = buildOperationalReentryStaleResetCrossCaseMaximalWireOutputV01(sampleMaterial);
 expectThrow("40 forbidden outputs reject", () => parseOperationalReentryStaleResetCrossCaseOutputV01(JSON.stringify({ ...sampleWire, extra: false }), sampleMaterial));
@@ -329,11 +356,19 @@ for (const [label, change] of [
   );
 }
 check("99 authorization builder creates no candidate", buildOperationalReentryStaleResetCrossCaseAuthorizationContractV01().creates_candidate === false);
-const tempRoot = await mkdtemp(path.join(os.tmpdir(), "augnes-cross-case-"));
+expectThrow("99a historical Issue #246 artifact namespace rejected as a test root", () =>
+  assertIsolatedCrossCaseTestRoot(
+    path.resolve(
+      process.cwd(),
+      ".augnes-lab/operational-reentry-stale-reset-cross-case-compatibility-probes/candidate-authorizations/issue-246",
+    ),
+  ),
+);
+const tempRoot = await createIsolatedCrossCaseTestRoot("augnes-cross-case-");
 const firstConsumption = await consumeOperationalReentryStaleResetCrossCaseAuthorizationV01({ lab_root: tempRoot, authorization: r1Authorization, cohort_id: "cohort-test-one", consumed_at: "2026-08-23T01:00:00.000Z" });
 check("100 first consumption atomic temp", (await readFile(firstConsumption.global_marker_path, "utf8")).length > 0 && (await readFile(firstConsumption.local_marker_path, "utf8")).length > 0);
 await expectReject("101 duplicate consumption fails", () => consumeOperationalReentryStaleResetCrossCaseAuthorizationV01({ lab_root: tempRoot, authorization: r1Authorization, cohort_id: "cohort-test-two", consumed_at: "2026-08-23T01:01:00.000Z" }));
-const partialRoot = await mkdtemp(path.join(os.tmpdir(), "augnes-cross-case-partial-"));
+const partialRoot = await createIsolatedCrossCaseTestRoot("augnes-cross-case-partial-");
 const partialRun = path.join(partialRoot, "operational-reentry-v04-stale-reset-cross-case-replications", r1.case_id, "cohort-partial", `issue-${r1Authorization.future_live_issue_number}`);
 await mkdir(partialRun, { recursive: true });
 await expectReject("102 partial marker remains consumed", () => consumeOperationalReentryStaleResetCrossCaseAuthorizationV01({ lab_root: partialRoot, authorization: r1Authorization, cohort_id: "cohort-partial", consumed_at: "2026-08-23T01:02:00.000Z" }));
@@ -391,7 +426,7 @@ for (const [label, change] of [
     ),
   );
 }
-const compatTemp = await mkdtemp(path.join(os.tmpdir(), "augnes-cross-case-compat-"));
+const compatTemp = await createIsolatedCrossCaseTestRoot("augnes-cross-case-compat-");
 const compatConsumption = await consumeOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationV01({ lab_root: compatTemp, authorization: compatibilityAuthorization, probe_id: "cross-case-probe-test", consumed_at: "2026-08-23T01:05:00.000Z" });
 check("117 compatibility marker temp only", compatConsumption.run_root.startsWith(compatTemp));
 const compatibilityBundle = buildCompatibilityBundle(compatibilityAuthorization, compatibilityPlan, compatibilityPricing);
@@ -410,6 +445,22 @@ check("118d compatibility stop-after-first bundle reconstructs", validateOperati
 check("119 historical route fingerprint preserved", ACGC_E2R2P6H_ROUTE_FINGERPRINT_V01 === "sha256:1d53d6d1b8ae9480542284718e662cb164cfb49284d6be20230b233c5d1d625f");
 check("120 historical provider fingerprint preserved", ACGC_E2R2P6H_PROVIDER_CONTRACT_FINGERPRINT_V01 === "sha256:1ca7da7cf3870de67fdbe36f1a6bf9d67a3a50accbd8f7daf147e424901eda52");
 check("121 historical adapter fingerprint preserved", ACGC_E2R2P6H_ADAPTER_REQUEST_ROUTE_FINGERPRINT_V01 === "sha256:7418f3ace51f53a8089c33392dc00d697f21ab383a4c4442fc4ffdc39efea0fa");
+const correctedBindings =
+  readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01();
+check("121a corrected provider contract fingerprint exact", exactRoute.provider_contract_fingerprint === "sha256:8f3ca3852ba92af1da46eab5dcf1d0bfb67a62c5fbaa4647ef00c2ef7b371394");
+check("121b corrected route fingerprint exact", exactRoute.integrity_fingerprint === "sha256:a375bd9ef2d8c847e81d36eea9b829106ceba5a72e04528efde92b0e948f2bd7");
+check("121c corrected adapter route fingerprint exact", compatibilityPlan.entries.every((entry) => entry.adapter_request_route_fingerprint === "sha256:1a9b3eee37310241f3e5c281bb20f6dce8a5a528b1ba1da54e188456a28fecd3"));
+check("121d corrected compatibility plan fingerprint exact", compatibilityPlan.integrity.fingerprint === "sha256:b053fd22ceebb7c171b298a965df04b8eafb4b13162384abf6f036ab5f24b60c");
+check("121e corrected R1 B/G witness exact", r1Plan.bg_conformance_witnesses[0]!.integrity.fingerprint === "sha256:5a66772d8f3cedfc9d06cf225c9f42dc37d9a5bddc250ffef0a56a0fc6b0e1bf");
+check("121f corrected R2 B/G witness exact", r2Plan.bg_conformance_witnesses[0]!.integrity.fingerprint === "sha256:490c144148e8ecccbaaf916df414d1f05ea4bf51430ef9e7b1eab5a06622813b");
+check("121g corrected parser closure fingerprint exact", correctedBindings.parser_closure_fingerprint === "sha256:c12bdf89837a01f12357e93b246b243003f2ab7867198c78f3c5b7c021b2ec16");
+check("121h corrected request response bounds fingerprint exact", correctedBindings.request_response_bounds_fingerprint === "sha256:6dd47c59384797f2099d5bcf84d2354d839d93dc0372d9efc0aa2f02576874d2");
+check("121i corrected compatibility authorization contract exact", buildOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContractV01().integrity.fingerprint === "sha256:d235ffc1141604a0a3b8226d1d2cd0b58d3bb3a84efa19b78ade391c19facbe2");
+check("121j corrected compatibility artifact family exact", buildOperationalReentryStaleResetCrossCaseCompatibilityArtifactFamilyContractV01().integrity.fingerprint === "sha256:5d5f16243a6cbba98d99c7e6945c38285fd40181b6ec316dae40c75ce1ebc929");
+check("121k R1 evaluator fingerprint preserved", buildOperationalReentryStaleResetCrossCaseEvaluatorBindingV01(r1.case_id).integrity.fingerprint === "sha256:813f0cf908f1f930ec75b6576d32ad390b8b4a81f11263d525a888d0aeb32f9a");
+check("121l R2 evaluator fingerprint preserved", buildOperationalReentryStaleResetCrossCaseEvaluatorBindingV01(r2.case_id).integrity.fingerprint === "sha256:c987d55ab2db587fc3df51f651bae92f7f5eb345ab8e358b4d0d2b5a5da6c63b");
+check("121m R1 gate fingerprint preserved", buildOperationalReentryStaleResetCrossCaseGateContractV01(r1.case_id).integrity.fingerprint === "sha256:7b14e199ac1ef71aaf4b3e9b2d3d611e60c0a780a21cc98df9b38295f8fd72b2");
+check("121n R2 gate fingerprint preserved", buildOperationalReentryStaleResetCrossCaseGateContractV01(r2.case_id).integrity.fingerprint === "sha256:7e46c7b59b2931ec15c62e054a2a6cc1adfc18cfe9b6d0fcbec52ca9db8f177e");
 check("122 authority remains zero", operationalReentryStaleResetCrossCaseStaticAuthorityV01.real_provider_calls === 0 && operationalReentryStaleResetCrossCaseStaticAuthorityV01.replication_live_GO === false && operationalReentryStaleResetCrossCaseStaticAuthorityV01.product_transfer_GO === false && operationalReentryStaleResetCrossCaseStaticAuthorityV01.policy_GO === false && operationalReentryStaleResetCrossCaseStaticAuthorityV01.stage_7_GO === false);
 
 let fakeReplicationCalls = 0;
@@ -573,6 +624,206 @@ const failedCompatibility = await runOperationalReentryStaleResetCrossCaseCompat
   },
 );
 check("127c compatibility failure aggregation uses receipt budget", failedCompatibility.attempted_provider_calls === 1 && failedCompatibility.calls.slice(1).every((call) => call.provider_calls_used === 0));
+for (const [outcome, code, expectedCalls] of [
+  ["provider_rejected", "model_gateway_provider_rejected", 1],
+  ["provider_response_invalid", "model_gateway_provider_response_invalid", 1],
+  ["transport_failed", "model_gateway_transport_failed", 1],
+  ["timeout", "model_gateway_timeout", 1],
+  ["cancelled", "model_gateway_cancelled", 1],
+  ["pre_egress_refusal", "model_gateway_egress_refused", 0],
+] as const) {
+  const terminalRun =
+    await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
+      { authorization: compatibilityAuthorization, admission, route, pricing: compatibilityPricing },
+      {
+        invoke_gateway: (async (envelope: any) => {
+          throw new ModelGatewayInvocationErrorV01(
+            code,
+            buildReceipt(
+              envelope.input,
+              null,
+              compatibilityPricing.gateway_cost_budget,
+              outcome,
+            ),
+          );
+        }) as any,
+        assert_execution_state() {},
+        consume_authorization() {},
+      },
+    );
+  check(`127c ${outcome} terminal failure plus hard-stop suffix`, terminalRun.calls.length === 6 && terminalRun.calls[0]!.terminal_category === "terminal_failure" && terminalRun.calls[0]!.terminal_stage === "gateway_invoke" && terminalRun.calls.slice(1).every((call) => call.terminal_category === "not_attempted_after_hard_stop"));
+  check(`127c ${outcome} accounting exact`, terminalRun.attempted_provider_calls === expectedCalls);
+}
+
+const postInvokeNormalizedInvalidCompatibility =
+  await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
+    { authorization: compatibilityAuthorization, admission, route, pricing: compatibilityPricing },
+    {
+      invoke_gateway: (async (envelope: any) => {
+        const valid = normalizedFor(
+          envelope.input.local_invocation_context.case_id,
+          inferArm(
+            envelope.input.provider_material,
+            readOperationalReentryStaleResetCrossCaseV01(
+              envelope.input.local_invocation_context.case_id,
+            ),
+          ),
+          false,
+        );
+        const rejected = { ...valid, target_disposition: "stale_persisted" as const };
+        return {
+          generator: "openai" as const,
+          output: rejected,
+          model_invocation_receipt: buildReceipt(
+            envelope.input,
+            rejected,
+            compatibilityPricing.gateway_cost_budget,
+            "live_success",
+          ),
+        };
+      }) as any,
+      assert_execution_state() {},
+      consume_authorization() {},
+    },
+  );
+const normalizedInvalidTerminal = postInvokeNormalizedInvalidCompatibility.calls[0]!;
+check("127d post-invoke normalized invalid terminalized", normalizedInvalidTerminal.terminal_category === "terminal_failure" && normalizedInvalidTerminal.terminal_stage === "post_invoke_local_acceptance" && normalizedInvalidTerminal.failure_code === "cross_case_replication_normalized_output_invalid");
+check("127e post-invoke normalized invalid preserves receipt egress", normalizedInvalidTerminal.egress_attempted === true && normalizedInvalidTerminal.provider_calls_used === 1 && normalizedInvalidTerminal.model_invocation_receipt !== null);
+check("127f rejected normalized body not persisted", normalizedInvalidTerminal.normalized_output === null && normalizedInvalidTerminal.rejected_normalized_output_fingerprint !== null);
+check("127g normalized-invalid compatibility has six terminal slots", postInvokeNormalizedInvalidCompatibility.calls.length === 6 && postInvokeNormalizedInvalidCompatibility.calls.slice(1).every((call) => call.terminal_category === "not_attempted_after_hard_stop" && call.terminal_stage === "hard_stop_suffix" && call.egress_attempted === false && call.provider_calls_used === 0));
+
+const postInvokeReceiptBindingInvalidCompatibility =
+  await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
+    { authorization: compatibilityAuthorization, admission, route, pricing: compatibilityPricing },
+    {
+      invoke_gateway: (async (envelope: any) => {
+        const spec = readOperationalReentryStaleResetCrossCaseV01(
+          envelope.input.local_invocation_context.case_id,
+        );
+        const output = normalizedFor(
+          spec.case_id,
+          inferArm(envelope.input.provider_material, spec),
+          false,
+        );
+        return {
+          generator: "openai" as const,
+          output,
+          model_invocation_receipt: {
+            ...buildReceipt(
+              envelope.input,
+              output,
+              compatibilityPricing.gateway_cost_budget,
+              "live_success",
+            ),
+            normalized_output_fingerprint: hash("receipt-output-binding-drift"),
+          },
+        };
+      }) as any,
+      assert_execution_state() {},
+      consume_authorization() {},
+    },
+  );
+const receiptBindingInvalidTerminal = postInvokeReceiptBindingInvalidCompatibility.calls[0]!;
+check("127h post-invoke receipt binding invalid terminalized", receiptBindingInvalidTerminal.terminal_category === "terminal_failure" && receiptBindingInvalidTerminal.terminal_stage === "post_invoke_local_acceptance" && receiptBindingInvalidTerminal.failure_code === "cross_case_replication_receipt_binding_invalid");
+check("127i receipt-binding failure preserves truthful egress", receiptBindingInvalidTerminal.egress_attempted === true && receiptBindingInvalidTerminal.provider_calls_used === 1 && receiptBindingInvalidTerminal.model_invocation_receipt !== null && receiptBindingInvalidTerminal.normalized_output === null);
+check("127j receipt-binding failure has complete hard-stop suffix", postInvokeReceiptBindingInvalidCompatibility.calls.length === 6 && postInvokeReceiptBindingInvalidCompatibility.calls.slice(1).every((call) => call.terminal_category === "not_attempted_after_hard_stop"));
+
+const postInvokeCombinedInvalidCompatibility =
+  await runOperationalReentryStaleResetCrossCaseCompatibilityV01(
+    { authorization: compatibilityAuthorization, admission, route, pricing: compatibilityPricing },
+    {
+      invoke_gateway: (async (envelope: any) => {
+        const spec = readOperationalReentryStaleResetCrossCaseV01(
+          envelope.input.local_invocation_context.case_id,
+        );
+        const rejected = {
+          ...normalizedFor(
+            spec.case_id,
+            inferArm(envelope.input.provider_material, spec),
+            false,
+          ),
+          target_disposition: "stale_persisted" as const,
+        };
+        return {
+          generator: "openai" as const,
+          output: rejected,
+          model_invocation_receipt: {
+            ...buildReceipt(
+              envelope.input,
+              rejected,
+              compatibilityPricing.gateway_cost_budget,
+              "live_success",
+            ),
+            normalized_output_fingerprint: hash("combined-binding-drift"),
+          },
+        };
+      }) as any,
+      assert_execution_state() {},
+      consume_authorization() {},
+    },
+  );
+const combinedInvalidTerminal = postInvokeCombinedInvalidCompatibility.calls[0]!;
+check("127j2 combined normalized and receipt-binding invalid terminalized", combinedInvalidTerminal.terminal_category === "terminal_failure" && combinedInvalidTerminal.terminal_stage === "post_invoke_local_acceptance" && combinedInvalidTerminal.failure_code === "cross_case_replication_receipt_binding_invalid" && combinedInvalidTerminal.provider_calls_used === 1);
+check("127j3 combined post-invoke failure has complete suffix", postInvokeCombinedInvalidCompatibility.calls.length === 6 && postInvokeCombinedInvalidCompatibility.calls.slice(1).every((call) => call.terminal_category === "not_attempted_after_hard_stop"));
+
+const postInvokeNormalizedInvalidReplication =
+  await runOperationalReentryStaleResetCrossCaseReplicationV01(
+    { authorization: r1Authorization, admission, route, pricing: replicationPricing },
+    {
+      invoke_gateway: (async (envelope: any) => {
+        const output = {
+          ...normalizedFor(r1.case_id, inferArm(envelope.input.provider_material, r1), false),
+          target_disposition: "stale_persisted" as const,
+        };
+        return {
+          generator: "openai" as const,
+          output,
+          model_invocation_receipt: buildReceipt(
+            envelope.input,
+            output,
+            replicationPricing.gateway_cost_budget,
+            "live_success",
+          ),
+        };
+      }) as any,
+      assert_execution_state() {},
+      consume_authorization() {},
+    },
+  );
+check("127k replication post-invoke failure returns sixteen terminals", postInvokeNormalizedInvalidReplication.calls.length === 16 && postInvokeNormalizedInvalidReplication.calls[0]!.terminal_stage === "post_invoke_local_acceptance" && postInvokeNormalizedInvalidReplication.calls.slice(1).every((call) => call.terminal_category === "not_attempted_after_hard_stop"));
+check("127l replication post-invoke attempted calls reconstructed", postInvokeNormalizedInvalidReplication.attempted_provider_calls === 1);
+const postInvokeCompatibilityBundle = buildCompatibilityBundleFromCalls(
+  compatibilityBundle,
+  postInvokeNormalizedInvalidCompatibility.calls,
+);
+check("127m post-invoke incomplete compatibility artifact family validates", validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postInvokeCompatibilityBundle, { admission, route }).attempted_provider_calls === 1);
+const missingFailedShape = structuredClone(postInvokeCompatibilityBundle) as any;
+missingFailedShape.shape_records.shift();
+expectThrow("127n missing failed shape rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(missingFailedShape, { admission, route }));
+const missingHardStopSuffix = structuredClone(postInvokeCompatibilityBundle) as any;
+missingHardStopSuffix.shape_records.pop();
+expectThrow("127o missing hard-stop suffix rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(missingHardStopSuffix, { admission, route }));
+const duplicatedShape = structuredClone(postInvokeCompatibilityBundle) as any;
+duplicatedShape.shape_records[1] = structuredClone(duplicatedShape.shape_records[0]);
+expectThrow("127p duplicate shape rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(duplicatedShape, { admission, route }));
+const postReceiptAccountingDrift = structuredClone(postInvokeCompatibilityBundle) as any;
+postReceiptAccountingDrift.shape_records[0] = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-receipt-accounting-drift", { ...withoutIntegrity(postReceiptAccountingDrift.shape_records[0]), provider_calls_used: 0 });
+expectThrow("127q post-invoke receipt accounting drift rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postReceiptAccountingDrift, { admission, route }));
+const postCompletionDrift = structuredClone(postInvokeCompatibilityBundle) as any;
+postCompletionDrift.report = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-completion-drift", { ...withoutIntegrity(postCompletionDrift.report), completion_status: "compatible" });
+expectThrow("127r completion status drift rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postCompletionDrift, { admission, route }));
+const postTerminalLinkDrift = structuredClone(postInvokeCompatibilityBundle) as any;
+postTerminalLinkDrift.terminal = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-terminal-link-drift", { ...withoutIntegrity(postTerminalLinkDrift.terminal), report_fingerprint: hash("wrong-report") });
+expectThrow("127s terminal linkage drift rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postTerminalLinkDrift, { admission, route }));
+const postMarkerDrift = structuredClone(postInvokeCompatibilityBundle) as any;
+postMarkerDrift.run_local_consumption_marker = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-marker-drift", { ...withoutIntegrity(postMarkerDrift.run_local_consumption_marker), probe_id: "different-probe" });
+expectThrow("127t marker disagreement rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postMarkerDrift, { admission, route }));
+const postPrivacyDrift = structuredClone(postInvokeCompatibilityBundle) as any;
+postPrivacyDrift.shape_records[0] = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-privacy-drift", { ...withoutIntegrity(postPrivacyDrift.shape_records[0]), raw_provider_response_persisted: true });
+expectThrow("127u privacy drift rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postPrivacyDrift, { admission, route }));
+const postCoherentStageReseal = structuredClone(postInvokeCompatibilityBundle) as any;
+postCoherentStageReseal.shape_records[0] = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("post-coherent-stage-reseal", { ...withoutIntegrity(postCoherentStageReseal.shape_records[0]), terminal_stage: "gateway_invoke", rejected_normalized_output_fingerprint: null });
+expectThrow("127v coherent terminal-stage reseal rejects", () => validateOperationalReentryStaleResetCrossCaseCompatibilityArtifactsV01(postCoherentStageReseal, { admission, route }));
 
 console.log(JSON.stringify({
   status: "operational_reentry_stale_reset_cross_case_replication_test_passed",
@@ -655,7 +906,15 @@ function multipleLimitationsState(spec: typeof r1) {
   return buildOperationalReentryStaleResetCrossCaseLayerBV01(spec.case_id, { ...base, result_limitation_tokens: tokens }).target_specific_result_limitation;
 }
 
-function enumeratePermitted(material: ReturnType<typeof buildOperationalReentryStaleResetCrossCaseProviderMaterialV01>): number {
+function enumeratePermitted(shape: ReturnType<typeof buildOperationalReentryStaleResetCrossCaseRepresentativeMaterialsV01>[number]): number {
+  const material = shape.material;
+  const invocation = buildOperationalReentryStaleResetCrossCaseInvocationV01({
+    case_id: shape.case_id,
+    arm: shape.provider_shape,
+    cohort_ref: "ccr_semantic_closure",
+    call_slot_id: `ccr_semantic_closure_${shape.provider_shape}_${shape.case_id.includes(":r1-") ? "r1" : "r2"}`,
+    repeat_block: 0,
+  });
   let count = 0;
   for (const result of material.allowed_output.result_statuses) {
     for (const checkDisposition of material.allowed_output.required_check_dispositions) {
@@ -671,7 +930,11 @@ function enumeratePermitted(material: ReturnType<typeof buildOperationalReentryS
                 result_limitation_selections: mask(material.allowed_output.result_limitation_tokens, limitations),
                 abstention,
               };
-              parseOperationalReentryStaleResetCrossCaseOutputV01(JSON.stringify(wire), material);
+              const parsed = parseOperationalReentryStaleResetCrossCaseOutputV01(JSON.stringify(wire), material);
+              validateOperationalReentryStaleResetCrossCaseNormalizedOutputV01(
+                invocation,
+                parsed,
+              );
               count += 1;
             }
           }
@@ -750,13 +1013,13 @@ function buildReceipt(
     attempted_implementation_id:
       "openai_responses.operational_reentry_stale_reset_cross_case_replication",
     attempted_implementation_version:
-      "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.1",
+      "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.2",
     attempted_provider_ref: egressAttempted ? exactRoute.provider_ref : null,
     attempted_model_ref: egressAttempted ? exactRoute.model_ref : null,
     final_implementation_id:
       "openai_responses.operational_reentry_stale_reset_cross_case_replication",
     final_implementation_version:
-      "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.1",
+      "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.2",
     requested_mode: "live",
     execution_mode: "live",
     selection_reason: "requested_live",
@@ -881,7 +1144,7 @@ function buildAuthorization(
     route_fingerprint: routeValue.integrity_fingerprint,
     provider_contract_fingerprint: plan.provider_contract_fingerprint,
     adapter_request_route_fingerprint: plan.entries[0]!.adapter_request_route_fingerprint,
-    adapter_version: "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.1",
+    adapter_version: "openai_responses_operational_reentry_stale_reset_cross_case_replication_adapter.v0.2",
     pricing_snapshot_fingerprint: pricing.integrity.fingerprint,
     pricing_authority_fingerprint: pricing.pricing_authority_fingerprint,
     pricing_authority_expires_at: pricing.pricing_authority_expires_at,
@@ -1048,7 +1311,7 @@ function buildCompatibilityBundle(
 ) {
   const probeId = "cross-case-compatibility-test-probe";
   const manifest = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("compat-manifest", {
-    compatibility_version: "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.1",
+    compatibility_version: "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.2",
     probe_id: probeId,
     future_compatibility_issue_number: authorization.future_compatibility_issue_number,
     source_repository_head_sha: authorization.exact_merged_source_head,
@@ -1078,7 +1341,9 @@ function buildCompatibilityBundle(
         case_id: entry.case_id,
         call_id: entry.invocation.local_invocation_context.call_slot_id,
         terminal_category: "completed_live",
+        terminal_stage: "completed_live",
         normalized_output: output,
+        rejected_normalized_output_fingerprint: null,
         model_invocation_receipt: receipt,
         receipt_fingerprint: hash(receipt),
         egress_attempted: true,
@@ -1137,7 +1402,9 @@ function buildStoppedCompatibilityBundle(
         {
           ...prior,
           terminal_category: "terminal_failure",
+          terminal_stage: "gateway_invoke",
           normalized_output: null,
+          rejected_normalized_output_fingerprint: null,
           model_invocation_receipt: receipt,
           receipt_fingerprint: hash(receipt),
           egress_attempted: true,
@@ -1151,7 +1418,9 @@ function buildStoppedCompatibilityBundle(
       {
         ...prior,
         terminal_category: "not_attempted_after_hard_stop",
+        terminal_stage: "hard_stop_suffix",
         normalized_output: null,
+        rejected_normalized_output_fingerprint: null,
         model_invocation_receipt: null,
         receipt_fingerprint: null,
         egress_attempted: false,
@@ -1184,7 +1453,69 @@ function buildStoppedCompatibilityBundle(
   return bundle;
 }
 
+function buildCompatibilityBundleFromCalls(
+  source: ReturnType<typeof buildCompatibilityBundle>,
+  calls: readonly ReturnType<typeof buildOperationalReentryStaleResetCrossCaseCallTerminalV01>[],
+) {
+  const bundle = structuredClone(source) as any;
+  bundle.shape_records = calls.map((call, index) =>
+    sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01(
+      `runtime-shape-${index}`,
+      {
+        ...withoutIntegrity(call),
+        shape_label: source.shape_records[index]!.shape_label,
+        manifest_fingerprint: source.manifest.integrity.fingerprint,
+      },
+    ),
+  );
+  bundle.report = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01(
+    "runtime-report",
+    {
+      ...withoutIntegrity(source.report),
+      completion_status: calls.every(
+        (call) => call.terminal_category === "completed_live",
+      )
+        ? "compatible"
+        : "not_compatible_or_incomplete",
+      attempted_provider_calls: calls.reduce(
+        (total, call) => total + call.provider_calls_used,
+        0,
+      ),
+    },
+  );
+  bundle.terminal = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01(
+    "runtime-terminal",
+    { report_fingerprint: bundle.report.integrity.fingerprint, terminal: true },
+  );
+  bundle.artifact_index =
+    sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01(
+      "runtime-index",
+      {
+        report_fingerprint: bundle.report.integrity.fingerprint,
+        terminal_fingerprint: bundle.terminal.integrity.fingerprint,
+        shape_record_count: 6,
+      },
+    );
+  return bundle;
+}
+
 function withoutIntegrity(value: any) { const { integrity: _ignored, ...rest } = value; return rest; }
+async function createIsolatedCrossCaseTestRoot(prefix: string): Promise<string> {
+  return assertIsolatedCrossCaseTestRoot(
+    path.resolve(await mkdtemp(path.join(os.tmpdir(), prefix))),
+  );
+}
+function assertIsolatedCrossCaseTestRoot(root: string): string {
+  const repositoryLabRoot = path.resolve(process.cwd(), ".augnes-lab");
+  const relation = path.relative(repositoryLabRoot, root);
+  if (
+    relation === "" ||
+    (!relation.startsWith(`..${path.sep}`) && relation !== "..")
+  ) {
+    throw new Error("cross_case_test_root_must_not_use_repository_lab_artifacts");
+  }
+  return root;
+}
 function reseal<T extends { integrity: { fingerprint: string } }>(value: T, changes: Record<string, unknown>): T {
   const payload = { ...withoutIntegrity(value), ...changes };
   return {

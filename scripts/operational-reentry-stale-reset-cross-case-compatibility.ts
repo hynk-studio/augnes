@@ -21,6 +21,7 @@ import {
   preflightCrossCaseLiveRepositoryV01,
   readCrossCaseLiveJsonV01,
 } from "@/scripts/operational-reentry-stale-reset-cross-case-live-common";
+import { OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V02 } from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
 
 if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url) {
   void main().catch((error) => {
@@ -46,7 +47,8 @@ async function main(): Promise<void> {
   const plan = buildOperationalReentryStaleResetCrossCaseCompatibilityPlanV01(route);
   const probeId = `cross-case-compatibility-${authorization.integrity.fingerprint.slice(7, 39)}`;
   const manifest = sealOperationalReentryStaleResetCrossCaseCompatibilityArtifactV01("cross_case_compatibility_manifest_without_integrity_fingerprint", {
-    compatibility_version: "operational_reentry_stale_reset_cross_case_compatibility_probe.v0.1" as const,
+    compatibility_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_COMPATIBILITY_VERSION_V02,
     probe_id: probeId,
     future_compatibility_issue_number: authorization.future_compatibility_issue_number,
     source_repository_head_sha: authorization.exact_merged_source_head,
