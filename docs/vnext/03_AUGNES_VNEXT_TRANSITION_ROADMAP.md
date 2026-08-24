@@ -595,7 +595,8 @@ truth:
 | ACGC-E2R2P6R | [#254](https://github.com/hynk-studio/augnes-perspective-lab/issues/254) | One consumed local R1 cohort, closed by [PR #256](https://github.com/hynk-studio/augnes-perspective-lab/pull/256) | **Completed historical closeout.** The cohort ended after `6/16` attempted calls and `5/16` completed live calls; ten suffix calls were not attempted, retry/replacement was `0/0`, and the valid terminal artifact family derives `case_status=incomplete`. One completed block matched R-H1 through R-H5, but no R1 support result is established. |
 | ACGC-E2R2P6S | [#255](https://github.com/hynk-studio/augnes-perspective-lab/issues/255) | [PR #256](https://github.com/hynk-studio/augnes-perspective-lab/pull/256), `60cb7b5e` | **Completed** at merge `60cb7b5e6e80b5e7c34bd614d361153ff55c60a1` with the documentation-only bounded Issue #254 closeout. |
 | ACGC-E2R2P6T | [#257](https://github.com/hynk-studio/augnes-perspective-lab/issues/257) | One owner-authorized Gate B CLI invocation | **Blocked before authorization consumption.** The CLI exited `1` with `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, the behavioral result and P6T case status are both `none`, and no run root or artifact family exists. |
-| ACGC-E2R2P6U | [#258](https://github.com/hynk-studio/augnes-perspective-lab/issues/258) | [Draft PR #259](https://github.com/hynk-studio/augnes-perspective-lab/pull/259) | **Current while Draft.** This documentation-only phase closes out the P6T pre-consumption source-attestation failure without creating successor live authority. |
+| ACGC-E2R2P6U | [#258](https://github.com/hynk-studio/augnes-perspective-lab/issues/258) | [PR #259](https://github.com/hynk-studio/augnes-perspective-lab/pull/259), `66fa9ee3` | **Completed** at merge `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5` with the documentation-only P6T pre-consumption source-attestation closeout. |
+| ACGC-E2R2P6V | [#260](https://github.com/hynk-studio/augnes-perspective-lab/issues/260) | Source-readiness implementation and review | **Current.** This zero-provider reliability slice adds fresh authenticated remote-main readiness before a future candidate is relied on and preserves an independent fresh Gate-B source attestation. It creates no candidate or live authority. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1498,9 +1499,10 @@ result is established. P6S Issue #255 / PR #256 completed at merge
 Gate B CLI invocation, which stopped before authorization consumption at
 `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, its
 behavioral result and P6T case status are `none`, and no run root or artifact
-family exists. P6U Issue #258 / Draft PR #259 is Current while Draft for its
-documentation-only closeout. The next candidate after P6U merge is source-attestation reliability
-and hardening. No fresh R1 successor live issue or R2 live issue exists, and
+family exists. P6U Issue #258 / PR #259 is Completed at merge
+`66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`. P6V Issue #260 is Current for
+source-attestation reliability and hardening. No fresh R1 successor live issue
+or R2 live issue exists, and
 replication live, product transfer, policy, and Stage 7 remain false.
 
 ### ACGC-E2R2P5C documentation closeout — Completed
@@ -1911,16 +1913,46 @@ authorization consumption. Provider calls were `0`; no run root or artifact
 family was created; and P6T behavioral result and P6T case status are both
 `none`. This was not an incomplete behavioral cohort.
 
-### ACGC-E2R2P6U pre-consumption closeout — Current
+### ACGC-E2R2P6U pre-consumption closeout — Completed
 
 ACGC-E2R2P6U [Issue
-#258](https://github.com/hynk-studio/augnes-perspective-lab/issues/258) / [Draft
-PR #259](https://github.com/hynk-studio/augnes-perspective-lab/pull/259) is
-**Current while Draft**. Its versioned
+#258](https://github.com/hynk-studio/augnes-perspective-lab/issues/258) / [PR
+#259](https://github.com/hynk-studio/augnes-perspective-lab/pull/259) is
+**Completed** at merge `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`. Its versioned
 [preflight closeout](./research/ACGC_E2R2P6_R1_REPLACEMENT_PREFLIGHT_CLOSEOUT_V0_1.md)
 records the source-attestation boundary without modifying the live-preflight
-owner or renewing live authority. After P6U merge, the next candidate is a
-separately authorized source-attestation reliability and hardening phase.
+owner or renewing live authority.
+
+### ACGC-E2R2P6V live source readiness — Current
+
+ACGC-E2R2P6V [Issue
+#260](https://github.com/hynk-studio/augnes-perspective-lab/issues/260) is the
+current zero-provider research-instrument reliability slice. It requires one
+bounded authenticated GitHub `main` observation for candidate-time readiness,
+rejects repository/origin, authentication, timeout, transport, invalid fresh
+identity, and valid-but-different source failures without stale tracking-ref
+fallback, and preserves an independent fresh observation in Gate B immediately
+before execution. Candidate-time readiness is not live authority and creates
+no candidate, authorization, consumption marker, run root, provider call, or
+product/Core state.
+
+The narrowed sequence after P6V is:
+
+```text
+P6V
+-> separately authorized exactly one fresh R1 successor
+-> terminal R1 closeout
+-> mandatory program-level checkpoint
+```
+
+At that checkpoint, no third or successor R1, R2, Stage 7, policy, product
+transfer, or automatic context behavior is automatic. The default next
+research candidate is a separately designed Real-Work Continuity Benefit Pilot
+over representative Resume / Verify / Decide work and later usefulness,
+burden, and harm. R2 action/regime supersession remains deferred unless a later
+explicit reviewed decision establishes that it answers a material question
+more directly than real-work evaluation. This sequence creates no future live
+authority.
 
 ```text
 P6I / Issue #239 = Completed
@@ -1935,13 +1967,17 @@ P6Q / Issue #252 / PR #253 = Completed at merge 0875125ce57f6999d05271872295ea68
 P6R / Issue #254 = terminal R1 status incomplete; planned/attempted/completed/unattempted 16/6/5/10; retry/replacement 0/0; artifact validation valid; one complete block matched R-H1 through R-H5; no R1 support result; closeout completed with P6S merge
 P6S / Issue #255 / PR #256 = Completed at merge 60cb7b5e6e80b5e7c34bd614d361153ff55c60a1
 P6T / Issue #257 = one Gate B CLI invocation; exit 1; blocked before authorization consumption at cross_case_live_origin_main_refresh_failed; provider calls 0; behavioral result none; case status none; no run root or artifact family
-P6U / Issue #258 / Draft PR #259 = Current while Draft
-next candidate after P6U merge = source-attestation reliability/hardening
+P6U / Issue #258 / PR #259 = Completed at merge 66fa9ee3dc20ceaf6054ea4afa445fce20c190f5
+P6V / Issue #260 = Current source-attestation reliability/hardening
 fresh R1 successor live issue = not created
 R2 live issue = not created
 R2 result = none
 cross-case disposition = incomplete
 P6U closeout real provider calls = 0
+P6V real provider calls = 0
+post-fresh-R1 checkpoint = mandatory
+automatic successor R1 = false
+automatic R2 = false
 replication_live_GO = false
 product_transfer_GO = false
 policy_GO = false
@@ -2123,9 +2159,10 @@ support result is established. P6S Issue #255 / PR #256 is Completed at merge
 Gate B CLI invocation that exited before authorization consumption with
 `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, P6T
 behavioral result and case status are `none`, and no run root or artifact family
-exists. P6U Issue #258 / Draft PR #259 is Current while Draft. After P6U
-merge, the next candidate is source-attestation reliability and hardening. No fresh R1
-successor live issue or R2 live issue exists, and replication live, product
+exists. P6U Issue #258 / PR #259 is Completed at merge
+`66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`; P6V Issue #260 is Current for
+source-attestation reliability and hardening. No fresh R1 successor live issue
+or R2 live issue exists, and replication live, product
 transfer, policy, and Stage 7 remain false.
 
 The supporting
@@ -2268,7 +2305,9 @@ surface, or user experience.
 | Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
 
 For current sequencing, the ACGC summary row's earlier “preferred next”
-wording is historical pre-Issue-#212 context. E2R2P3H Issue #212 / PR #213 is
+wording is historical pre-Issue-#212 context, and its P6U-Current wording is
+superseded by P6U's merge at `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`
+and the P6V Current section above. E2R2P3H Issue #212 / PR #213 is
 Completed at `8fb239d05d0839e64c7975539dd4c5bdcea8d772`. E2R2P4H Issue #214 /
 PR #215 is Completed at `9d82daf9b393cb13843809d5d94c0c33a008b05c`
 for the zero-real-egress parser-closed v0.3 compatibility harness. E2R2P4L
@@ -2311,9 +2350,10 @@ support result is established. P6S Issue #255 / PR #256 is Completed at merge
 Gate B CLI invocation that exited before authorization consumption at
 `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, P6T
 behavioral result and case status are `none`, and no run root or artifact family
-exists. P6U Issue #258 / Draft PR #259 is Current while Draft. After P6U
-merge, the next candidate is source-attestation reliability and hardening. No fresh R1
-successor live issue or R2 live issue exists, and replication live, product
+exists. P6U Issue #258 / PR #259 is Completed at merge
+`66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`; P6V Issue #260 is Current for
+source-attestation reliability and hardening. No fresh R1 successor live issue
+or R2 live issue exists, and replication live, product
 transfer, policy, Stage 7, and automatic successor authority remain false.
 
 Research engines may explore, compare, challenge, infer, predict, and propose.

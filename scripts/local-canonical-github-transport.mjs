@@ -7,6 +7,20 @@ export const GITHUB_TRANSPORT_MAX_BYTES = 2 * 1024 * 1024;
 
 export function createGitHubTransport({ runner = runGhApi } = {}) {
   return Object.freeze({
+    async fetchBranchHead(branch) {
+      assertBranch(branch);
+      const value = await invoke(runner, {
+        operation: "fetch_branch_head",
+        args: [
+          "api",
+          `repos/${AUTHORIZED_GITHUB_REPOSITORY}/branches/${branch}`,
+          "--method",
+          "GET",
+        ],
+      });
+      return normalizeBranchHead(value, branch);
+    },
+
     async fetchPullRequest(prNumber) {
       assertPrNumber(prNumber);
       const value = await invoke(runner, {
@@ -130,6 +144,12 @@ export function runGhApi({ operation, args, input = undefined }) {
       `GitHub ${safeOperation(operation)} request timed out`,
     );
   }
+  if (result.status === 4) {
+    throw transportError(
+      "github_authentication_unavailable",
+      `GitHub ${safeOperation(operation)} authentication is unavailable`,
+    );
+  }
   if (result.error || result.status !== 0) {
     throw transportError(
       "github_transport_failed",
@@ -163,6 +183,15 @@ export function assertPrNumber(value) {
     );
   }
   return value;
+}
+
+function assertBranch(value) {
+  if (value !== "main") {
+    throw transportError(
+      "invalid_github_branch",
+      "GitHub branch must be the exact authorized main branch",
+    );
+  }
 }
 
 async function invoke(runner, request) {
@@ -217,6 +246,30 @@ function normalizePullRequest(value) {
     throw transportError(
       "github_pull_request_response_invalid",
       "GitHub pull request identity response is invalid",
+    );
+  }
+  return normalized;
+}
+
+function normalizeBranchHead(value, expectedBranch) {
+  if (!value || typeof value !== "object") {
+    throw transportError(
+      "github_branch_head_response_invalid",
+      "GitHub branch-head response is invalid",
+    );
+  }
+  const normalized = {
+    repository_id: AUTHORIZED_GITHUB_REPOSITORY,
+    branch: value.name ?? null,
+    sha: value.commit?.sha ?? null,
+  };
+  if (
+    normalized.branch !== expectedBranch ||
+    !isSha(normalized.sha)
+  ) {
+    throw transportError(
+      "github_branch_head_response_invalid",
+      "GitHub branch-head identity response is invalid",
     );
   }
   return normalized;
