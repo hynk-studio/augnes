@@ -587,9 +587,9 @@ truth:
 | ACGC-E2R2P6J | [#240](https://github.com/hynk-studio/augnes-perspective-lab/issues/240) | [PR #241](https://github.com/hynk-studio/augnes-perspective-lab/pull/241), `0c6fb961` | **Completed** at merge `0c6fb9615bb904781aba1eb323038440678bad5c` with the documentation-only P6I closeout. |
 | ACGC-E2R2P6K | [#242](https://github.com/hynk-studio/augnes-perspective-lab/issues/242) | [PR #243](https://github.com/hynk-studio/augnes-perspective-lab/pull/243), `6d6ed687` | **Completed** at merge `6d6ed687fd93888ed54e40ca80f99edb2fafc61c` with the cross-case replication design freeze only. |
 | ACGC-E2R2P6L | [#244](https://github.com/hynk-studio/augnes-perspective-lab/issues/244) | [PR #245](https://github.com/hynk-studio/augnes-perspective-lab/pull/245), `13011ea6` | **Completed** at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3` with the cross-case provider contract and zero-egress shape-conformance harness. |
-| ACGC-E2R2P6M | [#246](https://github.com/hynk-studio/augnes-perspective-lab/issues/246) | One consumed local compatibility attempt | **Protocol-invalid/incomplete.** Five provider calls were attempted with retry/replacement `0/0`; R1-A, R1-B, R1-C, and R2-A completed live, R2-B ended in post-invoke local normalized-output rejection, and R2-C was not attempted. Formal closeout remains pending the P6O Draft PR. |
+| ACGC-E2R2P6M | [#246](https://github.com/hynk-studio/augnes-perspective-lab/issues/246) | One consumed local compatibility attempt | **Protocol-invalid/incomplete.** Five provider calls were attempted with retry/replacement `0/0`; R1-A, R1-B, R1-C, and R2-A completed live, R2-B ended in post-invoke local normalized-output rejection, and R2-C was not attempted. Formal closeout remains pending [P6O Draft PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250). |
 | ACGC-E2R2P6N | [#247](https://github.com/hynk-studio/augnes-perspective-lab/issues/247) | [PR #248](https://github.com/hynk-studio/augnes-perspective-lab/pull/248), `a88a1ee4` | **Completed** at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3` with the zero-provider B/G semantic-closure and post-invoke terminalization correction. It establishes no v0.2 live compatibility. |
-| ACGC-E2R2P6O | [#249](https://github.com/hynk-studio/augnes-perspective-lab/issues/249) | Draft PR pending | **Current while Draft.** This documentation-only phase records the immutable consumed v0.1 protocol-invalid/incomplete attempt. It creates no replacement compatibility or downstream live authority. |
+| ACGC-E2R2P6O | [#249](https://github.com/hynk-studio/augnes-perspective-lab/issues/249) | [Draft PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250) | **Current while Draft.** This documentation-only phase records the immutable consumed v0.1 protocol-invalid/incomplete attempt. It creates no replacement compatibility or downstream live authority. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1476,10 +1476,10 @@ completed at merge `6d6ed687fd93888ed54e40ca80f99edb2fafc61c`. E2R2P6L Issue #24
 completed at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3`. E2R2P6M Issue #246 consumed
 one live compatibility authorization and ended protocol-invalid/incomplete after
 five provider calls, with retry/replacement `0/0`; formal closeout remains
-pending the P6O Draft PR. E2R2P6N Issue #247 / PR #248 is Completed at merge
+pending [P6O Draft PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250). E2R2P6N Issue #247 / PR #248 is Completed at merge
 `a88a1ee4b969f20b150b10eab5556ada6769e4c3` with the zero-provider
-semantic-closure and terminalization correction. E2R2P6O Issue #249 is Current
-while its Draft PR is pending. No replacement compatibility,
+semantic-closure and terminalization correction. E2R2P6O Issue #249 / Draft PR
+#250 is Current while Draft. No replacement compatibility,
 R1, or R2 live issue exists, and replication live, product transfer, policy,
 and Stage 7 remain false.
 
@@ -1813,8 +1813,8 @@ consumed one live authorization. Five provider calls were attempted with
 retry/replacement `0/0`; four shapes completed live, R2-B reached provider
 egress but failed local normalized-output acceptance, and R2-C was not
 attempted. The result remains `not_compatible_or_incomplete`, the artifacts
-remain historical and immutable, and formal closeout remains pending the P6O
-Draft PR.
+remain historical and immutable, and formal closeout remains pending [P6O
+Draft PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250).
 
 ### ACGC-E2R2P6N semantic-closure correction — Completed
 
@@ -1830,8 +1830,9 @@ compatibility.
 ### ACGC-E2R2P6O compatibility-attempt closeout — Current
 
 ACGC-E2R2P6O [Issue
-#249](https://github.com/hynk-studio/augnes-perspective-lab/issues/249) is
-**Current while Draft** with its Draft PR pending. The versioned
+#249](https://github.com/hynk-studio/augnes-perspective-lab/issues/249) / [Draft
+PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250) is
+**Current while Draft**. The versioned
 [compatibility-attempt closeout](./research/ACGC_E2R2P6_CROSS_CASE_COMPATIBILITY_ATTEMPT_CLOSEOUT_V0_1.md)
 records the consumed v0.1 attempt as protocol-invalid/incomplete without
 repairing historical artifacts or establishing v0.2 compatibility. Issue #205
@@ -1844,7 +1845,7 @@ P6K / Issue #242 / PR #243 = Completed at merge 6d6ed687fd93888ed54e40ca80f99edb
 P6L / Issue #244 / PR #245 = Completed at merge 13011ea65e1b0b7a743fa2be61985b52dc5cf9c3
 P6M / Issue #246 = one consumed protocol-invalid/incomplete v0.1 compatibility attempt; 5 attempted; 4 completed live; R2-B post-invoke local rejection; R2-C unattempted; retry/replacement 0/0; formal closeout pending P6O merge
 P6N / Issue #247 / PR #248 = Completed at merge a88a1ee4b969f20b150b10eab5556ada6769e4c3
-P6O / Issue #249 / Draft PR pending = Current while Draft
+P6O / Issue #249 / Draft PR #250 = Current while Draft
 replacement compatibility issue = not created
 R1 live issue = not created
 R2 live issue = not created
@@ -2014,10 +2015,10 @@ and one validated `16/16` cohort with retry/replacement `0/0`. E2R2P6K Issue
 `6d6ed687fd93888ed54e40ca80f99edb2fafc61c`. E2R2P6L Issue #244 / PR #245 is
 Completed at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3`. E2R2P6M Issue #246 ended one
 consumed compatibility attempt protocol-invalid/incomplete after five provider
-calls, with retry/replacement `0/0`; formal closeout remains pending the P6O
-Draft PR. E2R2P6N Issue #247 / PR #248 is Completed at merge
-`a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6O Issue #249 is Current
-while its Draft PR is pending. No
+calls, with retry/replacement `0/0`; formal closeout remains pending [P6O Draft
+PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250). E2R2P6N Issue #247 / PR #248 is Completed at merge
+`a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6O Issue #249 / Draft PR
+#250 is Current while Draft. No
 replacement compatibility, R1, or R2 live issue exists, and replication live,
 product transfer, policy, and Stage 7 remain false.
 
@@ -2189,10 +2190,11 @@ validated `16/16` cohort. E2R2P6K Issue #242 / PR #243 is Completed at merge
 `6d6ed687fd93888ed54e40ca80f99edb2fafc61c`. E2R2P6L Issue #244 / PR #245 is
 Completed at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3`. E2R2P6M Issue #246 remains
 one consumed, protocol-invalid/incomplete five-call compatibility attempt with
-retry/replacement `0/0` and formal closeout pending the P6O Draft PR. E2R2P6N
+retry/replacement `0/0` and formal closeout pending [P6O Draft PR
+#250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250). E2R2P6N
 Issue #247 / PR #248 is Completed at merge
-`a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6O Issue #249 is Current
-while its Draft PR is pending; no replacement compatibility, R1, or R2 live
+`a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6O Issue #249 / Draft PR
+#250 is Current while Draft; no replacement compatibility, R1, or R2 live
 issue exists, and replication live, product transfer, policy, Stage 7, and
 automatic successor authority remain false.
 
