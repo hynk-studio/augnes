@@ -591,7 +591,7 @@ truth:
 | ACGC-E2R2P6N | [#247](https://github.com/hynk-studio/augnes-perspective-lab/issues/247) | [PR #248](https://github.com/hynk-studio/augnes-perspective-lab/pull/248), `a88a1ee4` | **Completed** at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3` with the zero-provider B/G semantic-closure and post-invoke terminalization correction. It establishes no v0.2 live compatibility. |
 | ACGC-E2R2P6O | [#249](https://github.com/hynk-studio/augnes-perspective-lab/issues/249) | [PR #250](https://github.com/hynk-studio/augnes-perspective-lab/pull/250), `746b00c5` | **Completed** at merge `746b00c5baf90c39614b3878609cde5718a9d7c4` with the documentation-only closeout of the immutable consumed v0.1 attempt. |
 | ACGC-E2R2P6P | [#251](https://github.com/hynk-studio/augnes-perspective-lab/issues/251) | One consumed local v0.2 compatibility probe | **Compatible; closeout pending.** All `6/6` fresh planned shapes completed live in one serial authorization-consumed run with retry/replacement `0/0`; the complete v0.2 artifact family validates. This is provider-contract compatibility only. |
-| ACGC-E2R2P6Q | [#252](https://github.com/hynk-studio/augnes-perspective-lab/issues/252) | Draft PR pending assignment | **Current while Draft.** This documentation-only phase records the bounded Issue #251 result and creates no R1, R2, replication, product, policy, or Stage 7 authority. |
+| ACGC-E2R2P6Q | [#252](https://github.com/hynk-studio/augnes-perspective-lab/issues/252) | [Draft PR #253](https://github.com/hynk-studio/augnes-perspective-lab/pull/253) | **Current while Draft.** This documentation-only phase records the bounded Issue #251 result and creates no R1, R2, replication, product, policy, or Stage 7 authority. |
 
 ACGC Stages 0–6 are **Completed**. The Stage 6 closeout merged at main
 `cfcf0674ca682fd647fe166b23e47bcb511a62bf`.
@@ -1856,7 +1856,8 @@ probe. Formal closeout remains pending P6Q merge.
 ### ACGC-E2R2P6Q corrected v0.2 compatibility closeout — Current
 
 ACGC-E2R2P6Q [Issue
-#252](https://github.com/hynk-studio/augnes-perspective-lab/issues/252) is
+#252](https://github.com/hynk-studio/augnes-perspective-lab/issues/252) / [Draft
+PR #253](https://github.com/hynk-studio/augnes-perspective-lab/pull/253) is
 **Current while Draft**. Its versioned
 [v0.2 compatibility closeout](./research/ACGC_E2R2P6_CROSS_CASE_COMPATIBILITY_V0_2_CLOSEOUT.md)
 records the bounded Issue #251 result without creating R1, R2, replication,
@@ -1872,7 +1873,7 @@ P6M / Issue #246 = historical consumed protocol-invalid/incomplete v0.1 compatib
 P6N / Issue #247 / PR #248 = Completed at merge a88a1ee4b969f20b150b10eab5556ada6769e4c3
 P6O / Issue #249 / PR #250 = Completed at merge 746b00c5baf90c39614b3878609cde5718a9d7c4
 P6P / Issue #251 = compatible; planned/attempted/completed 6/6/6; retry/replacement 0/0; artifact validation valid; provider-contract compatibility only; formal closeout pending P6Q merge
-P6Q / Issue #252 / Draft PR pending assignment = Current while Draft
+P6Q / Issue #252 / Draft PR #253 = Current while Draft
 R1 live issue = not created
 R2 live issue = not created
 P6Q closeout real provider calls = 0
