@@ -98,6 +98,13 @@ export const QUICK_PHASE_IDS = Object.freeze([
   "local-pr-evidence-transport-contract",
   "local-canonical-contract",
 ]);
+export const OPERATING_POLICY_PHASE_IDS = Object.freeze([
+  "operating-policy-validator",
+  "operating-policy-planner-contract",
+  "operating-policy-executor-contract",
+  "operating-policy-receipt-contract",
+  "operating-policy-verification-contract",
+]);
 export const FULL_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
@@ -202,7 +209,7 @@ export function resolveVerificationPlan({
       selected_plan: mode === "full" ? "full-canonical" : result.plan,
       planner_reason:
         mode === "full" && result.plan !== "full-canonical"
-          ? "full_mode_explicitly_expands_documentation_plan"
+          ? "full_mode_explicitly_expands_narrow_plan"
           : result.reason,
       planner_change_count: result.change_count,
       planner_changed_paths: result.changed_paths,
@@ -253,6 +260,9 @@ export function buildPhasePlan({
         timeoutMs: 120_000,
       }),
     ];
+  }
+  if (selectedPlan === "operating-policy-only") {
+    return operatingPolicyPhases({ baseSha, headSha });
   }
   if (selectedPlan !== "full-canonical") {
     const error = new Error("unsupported local canonical selected plan");
@@ -695,6 +705,8 @@ export async function executeLocalCanonicalVerification({
       policy:
         plan.selected_plan === "full-canonical"
           ? "clean_npm_ci_root_and_nested"
+          : plan.selected_plan === "operating-policy-only"
+            ? "operating_policy_only_no_dependency_install"
           : mode === "quick"
             ? "existing_installed_trees_feedback_only"
             : "documentation_only_no_dependency_install",
@@ -900,6 +912,60 @@ function quickPhases() {
     phaseDefinition({
       id: "local-canonical-contract",
       label: "existing local Canonical contract",
+      command: process.execPath,
+      args: ["scripts/test-local-canonical-verification-contract.mjs"],
+      display: "node scripts/test-local-canonical-verification-contract.mjs",
+      timeoutMs: 60_000,
+    }),
+  ];
+}
+
+function operatingPolicyPhases({ baseSha, headSha }) {
+  return [
+    phaseDefinition({
+      id: "operating-policy-validator",
+      label: "exact-head operating-policy Markdown validator",
+      command: process.execPath,
+      args: [
+        "scripts/validate-canonical-docs-change.mjs",
+        "--base",
+        baseSha,
+        "--head",
+        headSha,
+        "--plan",
+        "operating-policy-only",
+      ],
+      display:
+        `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan operating-policy-only`,
+      timeoutMs: 120_000,
+    }),
+    phaseDefinition({
+      id: "operating-policy-planner-contract",
+      label: "operating-policy planner contract",
+      command: process.execPath,
+      args: ["scripts/test-canonical-change-planner.mjs"],
+      display: "node scripts/test-canonical-change-planner.mjs",
+      timeoutMs: 60_000,
+    }),
+    phaseDefinition({
+      id: "operating-policy-executor-contract",
+      label: "operating-policy local executor contract",
+      command: process.execPath,
+      args: ["scripts/test-local-canonical-executor.mjs"],
+      display: "node scripts/test-local-canonical-executor.mjs",
+      timeoutMs: 60_000,
+    }),
+    phaseDefinition({
+      id: "operating-policy-receipt-contract",
+      label: "operating-policy local receipt contract",
+      command: process.execPath,
+      args: ["scripts/test-local-canonical-receipt.mjs"],
+      display: "node scripts/test-local-canonical-receipt.mjs",
+      timeoutMs: 60_000,
+    }),
+    phaseDefinition({
+      id: "operating-policy-verification-contract",
+      label: "repository operating-policy verification contract",
       command: process.execPath,
       args: ["scripts/test-local-canonical-verification-contract.mjs"],
       display: "node scripts/test-local-canonical-verification-contract.mjs",

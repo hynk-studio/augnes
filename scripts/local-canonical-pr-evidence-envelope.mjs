@@ -38,10 +38,32 @@ export const PUBLIC_PHASE_COMMANDS = Object.freeze({
   "e2e-golden": "npm run test:e2e:golden",
 });
 
+export const OPERATING_POLICY_PUBLIC_PHASE_COMMANDS = Object.freeze({
+  "operating-policy-planner-contract":
+    "node scripts/test-canonical-change-planner.mjs",
+  "operating-policy-executor-contract":
+    "node scripts/test-local-canonical-executor.mjs",
+  "operating-policy-receipt-contract":
+    "node scripts/test-local-canonical-receipt.mjs",
+  "operating-policy-verification-contract":
+    "node scripts/test-local-canonical-verification-contract.mjs",
+});
+
+const OPERATING_POLICY_PHASE_IDS = Object.freeze([
+  "operating-policy-validator",
+  ...Object.keys(OPERATING_POLICY_PUBLIC_PHASE_COMMANDS),
+]);
+
 const PHASE_LABELS = Object.freeze({
   "dependencies-root": "Root dependencies",
   "dependencies-nested": "Nested dependencies",
   "documentation-validator": "Documentation validator",
+  "operating-policy-validator": "Operating-policy Markdown validator",
+  "operating-policy-planner-contract": "Operating-policy planner contract",
+  "operating-policy-executor-contract": "Operating-policy executor contract",
+  "operating-policy-receipt-contract": "Operating-policy receipt contract",
+  "operating-policy-verification-contract":
+    "Repository operating-policy verification contract",
   typecheck: "Typecheck",
   build: "Build",
   unit: "Unit",
@@ -276,7 +298,11 @@ export function assertValidPublicationEnvelope(envelope) {
     );
   }
   if (
-    !["documentation-only", "full-canonical"].includes(
+    ![
+      "documentation-only",
+      "operating-policy-only",
+      "full-canonical",
+    ].includes(
       envelope.verification?.selected_plan,
     ) ||
     envelope.verification?.planner_event !== "pull_request" ||
@@ -534,7 +560,11 @@ function assertReceiptProjectionEligible(receipt) {
   }
   if (
     !["changed", "full"].includes(receipt.evidence?.mode) ||
-    !["documentation-only", "full-canonical"].includes(
+    ![
+      "documentation-only",
+      "operating-policy-only",
+      "full-canonical",
+    ].includes(
       receipt.evidence?.selected_plan,
     ) ||
     receipt.evidence?.planner_event !== "pull_request" ||
@@ -659,6 +689,17 @@ function assertPhases(envelope) {
       "documentation-only publication must contain only its validator",
     );
   }
+  if (envelope.verification.selected_plan === "operating-policy-only") {
+    if (
+      canonicalSerialize(envelope.phases.map((phase) => phase.id)) !==
+      canonicalSerialize(OPERATING_POLICY_PHASE_IDS)
+    ) {
+      throw evidenceError(
+        "invalid_operating_policy_publication_phases",
+        "operating-policy-only publication must preserve its bounded ordered phase inventory",
+      );
+    }
+  }
   if (envelope.verification.selected_plan === "full-canonical") {
     const expected = Object.keys(PUBLIC_PHASE_COMMANDS);
     if (
@@ -686,7 +727,21 @@ function expectedPublicCommand(phaseId, receipt) {
     }
     return expected;
   }
-  const expected = PUBLIC_PHASE_COMMANDS[phaseId];
+  if (phaseId === "operating-policy-validator") {
+    const expected =
+      `node scripts/validate-canonical-docs-change.mjs --base ${receipt.repository.base_sha} --head ${receipt.repository.head_sha} --plan operating-policy-only`;
+    const actual = receipt.phases.find((phase) => phase.id === phaseId)?.command;
+    if (actual !== expected) {
+      throw evidenceError(
+        "untrusted_publication_phase_command",
+        "operating-policy validator command does not match its exact receipt identity",
+      );
+    }
+    return expected;
+  }
+  const expected =
+    OPERATING_POLICY_PUBLIC_PHASE_COMMANDS[phaseId] ??
+    PUBLIC_PHASE_COMMANDS[phaseId];
   const actual = receipt.phases.find((phase) => phase.id === phaseId)?.command;
   if (!expected || actual !== expected) {
     throw evidenceError(
@@ -701,7 +756,14 @@ function expectedPublicCommandForEnvelope(phase, envelope) {
   if (phase.id === "documentation-validator") {
     return `node scripts/validate-canonical-docs-change.mjs --base ${envelope.repository.base_sha} --head ${envelope.repository.head_sha}`;
   }
-  return PUBLIC_PHASE_COMMANDS[phase.id] ?? null;
+  if (phase.id === "operating-policy-validator") {
+    return `node scripts/validate-canonical-docs-change.mjs --base ${envelope.repository.base_sha} --head ${envelope.repository.head_sha} --plan operating-policy-only`;
+  }
+  return (
+    OPERATING_POLICY_PUBLIC_PHASE_COMMANDS[phase.id] ??
+    PUBLIC_PHASE_COMMANDS[phase.id] ??
+    null
+  );
 }
 
 function assertSafeScalar(value, label) {

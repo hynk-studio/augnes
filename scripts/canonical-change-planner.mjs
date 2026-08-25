@@ -98,24 +98,34 @@ export function planCanonicalChange({
     });
   }
 
+  const operatingPolicyOnly =
+    changes.length === 1 && isSafeOperatingPolicyModification(changes[0]);
   const fullReasons = [];
-  for (const change of changes) {
-    const reason = classifyFullReason(change);
-    if (reason) fullReasons.push(reason);
+  if (!operatingPolicyOnly) {
+    for (const change of changes) {
+      const reason = classifyFullReason(change);
+      if (reason) fullReasons.push(reason);
+    }
   }
   const uniqueReasons = [...new Set(fullReasons)].sort();
-  const documentationOnly = uniqueReasons.length === 0;
-  const browserPhaseIds = documentationOnly
+  const documentationOnly = !operatingPolicyOnly && uniqueReasons.length === 0;
+  const browserPhaseIds = operatingPolicyOnly || documentationOnly
     ? []
     : selectCanonicalBrowserPhasesForChanges(changes);
 
   return boundedSummary({
     schema_version: 1,
     event: "pull_request",
-    plan: documentationOnly ? "documentation-only" : "full-canonical",
-    reason: documentationOnly
-      ? "all_changes_match_documentation_allowlist"
-      : "one_or_more_changes_require_full_canonical",
+    plan: operatingPolicyOnly
+      ? "operating-policy-only"
+      : documentationOnly
+        ? "documentation-only"
+        : "full-canonical",
+    reason: operatingPolicyOnly
+      ? "exact_safe_agents_operating_policy_change"
+      : documentationOnly
+        ? "all_changes_match_documentation_allowlist"
+        : "one_or_more_changes_require_full_canonical",
     base_sha: baseSha,
     head_sha: headSha,
     change_count: changes.length,
@@ -295,6 +305,16 @@ function classifyFullReason(change) {
     return `path_requires_full:${change.newPath}`;
   }
   return null;
+}
+
+function isSafeOperatingPolicyModification(change) {
+  return (
+    change.status === "M" &&
+    change.oldPath === "AGENTS.md" &&
+    change.newPath === "AGENTS.md" &&
+    isSafeRegularMode(change.oldMode) &&
+    isSafeRegularMode(change.newMode)
+  );
 }
 
 function requiresFullByPath(relativePath) {

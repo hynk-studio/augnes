@@ -18,6 +18,7 @@ import {
 } from "./local-canonical-environment.mjs";
 import {
   FULL_PHASE_IDS,
+  OPERATING_POLICY_PHASE_IDS,
   QUICK_PHASE_IDS,
   RESOURCE_EXCLUSIVE_PHASE_IDS,
   buildPhasePlan,
@@ -184,6 +185,45 @@ assert.equal(
     headSha,
   }).some((phase) => phase.id.startsWith("dependencies-")),
   false,
+);
+
+const operatingPolicyPlan = resolveVerificationPlan({
+  mode: "changed",
+  baseSha,
+  headSha,
+  planner: () => ({
+    event: "pull_request",
+    plan: "operating-policy-only",
+    reason: "exact_safe_agents_operating_policy_change",
+    change_count: 1,
+    changed_paths: ["AGENTS.md"],
+    full_reasons: [],
+    browser_phase_ids: [],
+  }),
+});
+assert.equal(operatingPolicyPlan.selected_plan, "operating-policy-only");
+const operatingPolicyPhases = buildPhasePlan({
+  mode: "changed",
+  selectedPlan: operatingPolicyPlan.selected_plan,
+  baseSha,
+  headSha,
+});
+assert.deepEqual(
+  operatingPolicyPhases.map((phase) => phase.id),
+  OPERATING_POLICY_PHASE_IDS,
+);
+assert.equal(
+  operatingPolicyPhases.some((phase) =>
+    phase.id.startsWith("dependencies-") ||
+    phase.id.startsWith("e2e-") ||
+    phase.id === "build" ||
+    phase.id === "operability"
+  ),
+  false,
+);
+assert.match(
+  operatingPolicyPhases[0].display,
+  /--plan operating-policy-only$/u,
 );
 
 const failClosedPlan = resolveVerificationPlan({
@@ -408,6 +448,7 @@ console.log(
       next_env_generated_and_ignored: true,
       typecheck_runs_next_typegen: true,
       documentation_selection_dependency_light: true,
+      operating_policy_selection_static_and_maintenance_free: true,
       full_phase_inventory_complete: true,
       browser_lanes_sequential: true,
       maximum_outer_phase_concurrency: maximumActive,

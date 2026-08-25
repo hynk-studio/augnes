@@ -120,13 +120,24 @@ node scripts/validate-canonical-docs-change.mjs \
 
 It does not install dependencies or run unrelated runtime suites. A planner
 classification failure or ambiguous/unsupported change fails closed to the
-complete surface. Invalid or unavailable SHAs and identical base/head are
-identity failures, not permission to run another plan.
+complete surface.
+
+An `operating-policy-only` result is available only for one safe regular-file
+modification of the root `AGENTS.md`. It runs the exact-head Markdown/private-
+path/link validator plus the planner, local executor, receipt, and repository
+verification-policy contracts. It installs no dependencies, acquires no
+production Companion maintenance, and runs no product runtime, integration,
+operability, package, provider, or browser qualification. `AGENTS.md` combined
+with any other path, or an `AGENTS.md` deletion, rename, copy, mode change,
+nested path, or unsafe/unknown status, selects `full-canonical`.
+
+Invalid or unavailable SHAs and identical base/head are identity failures, not
+permission to run another plan.
 
 ### Full
 
 `full` invokes the exact planner for recorded context and deliberately selects
-`full-canonical` even if the planner reports documentation-only. It runs:
+`full-canonical` even if the planner reports a narrower plan. It runs:
 
 ```bash
 npm ci --no-audit --no-fund
@@ -164,9 +175,9 @@ npm run test:operability:package
 ## Dependency and generated-state policy
 
 Quick treats installed dependencies as feedback inputs only. Documentation-only
-changed execution does not consult or replace them. A full surface replaces
-both installed `node_modules` trees through sequential `npm ci` operations
-bound to the committed lockfiles.
+and operating-policy-only changed execution do not consult or replace them. A
+full surface replaces both installed `node_modules` trees through sequential
+`npm ci` operations bound to the committed lockfiles.
 
 npm download-cache reuse is permitted to avoid unnecessary transfer, but the
 cache and pre-existing installed trees are not deciding authority. Dependency
@@ -216,8 +227,9 @@ deterministic ownership over throughput:
   by the current runners.
 
 The full surface requires at least two logical CPUs, 8 GiB physical memory, and
-15 GiB free repository-volume disk before long phases. Quick and
-documentation-only execution require at least 1 GiB. The receipt records
+15 GiB free repository-volume disk before long phases. Quick,
+documentation-only, and operating-policy-only execution require at least 1 GiB.
+The receipt records
 logical CPUs, physical and observed free memory, and disk before and after.
 Resource, thermal, process, memory, disk, or cleanup failure is not suppressed.
 
