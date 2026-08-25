@@ -215,6 +215,41 @@ assert.deepEqual(inspectReceiptForDecision(finalized, validContext), {
   content_fingerprint: finalized.integrity.content_fingerprint,
 });
 
+const operatingPolicyReceipt = structuredClone(baseReceipt);
+operatingPolicyReceipt.evidence.planner_plan = "operating-policy-only";
+operatingPolicyReceipt.evidence.planner_reason =
+  "exact_safe_agents_operating_policy_change";
+operatingPolicyReceipt.evidence.planner_changed_paths = ["AGENTS.md"];
+operatingPolicyReceipt.evidence.selected_plan = "operating-policy-only";
+operatingPolicyReceipt.dependencies.policy =
+  "operating_policy_only_no_dependency_install";
+const operatingPolicyPhaseIds = [
+  "operating-policy-validator",
+  "operating-policy-planner-contract",
+  "operating-policy-executor-contract",
+  "operating-policy-receipt-contract",
+  "operating-policy-verification-contract",
+];
+operatingPolicyReceipt.phases = operatingPolicyPhaseIds.map((id) => ({
+  ...structuredClone(baseReceipt.phases[0]),
+  id,
+}));
+const finalizedOperatingPolicyReceipt = finalizeReceipt(operatingPolicyReceipt);
+assert.deepEqual(
+  inspectReceiptForDecision(finalizedOperatingPolicyReceipt, {
+    ...validContext,
+    expectedSelectedPlan: "operating-policy-only",
+    expectedPhaseIds: operatingPolicyPhaseIds,
+  }),
+  {
+    valid_deciding_evidence: true,
+    status: "valid",
+    issues: [],
+    content_fingerprint:
+      finalizedOperatingPolicyReceipt.integrity.content_fingerprint,
+  },
+);
+
 const browserReceipt = structuredClone(baseReceipt);
 browserReceipt.phases = [
   {
@@ -492,6 +527,7 @@ console.log(
       required_fields_verified: true,
       private_material_excluded: true,
       stale_head_lock_executor_and_plan_refused: true,
+      operating_policy_plan_deciding_and_validated: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,

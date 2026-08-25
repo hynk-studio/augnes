@@ -21,7 +21,10 @@ import {
   planCanonicalChange,
   selectCanonicalBrowserPhasesForChanges,
 } from "./canonical-change-planner.mjs";
-import { validateCanonicalDocumentationChange } from "./validate-canonical-docs-change.mjs";
+import {
+  validateCanonicalDocumentationChange,
+  validateCanonicalOperatingPolicyChange,
+} from "./validate-canonical-docs-change.mjs";
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
 const results = [];
@@ -40,8 +43,21 @@ try {
     write("docs/submission/entry.md", "![Preview](preview.png)\n");
     write("docs/submission/preview.png", Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   });
-  runPlanCase("AGENTS.md", "full-canonical", ({ write }) => {
+  runPlanCase("AGENTS.md", "operating-policy-only", ({ write }) => {
     write("AGENTS.md", "# Changed instructions\n");
+  });
+  runPlanCase("AGENTS-plus-documentation", "full-canonical", ({ write }) => {
+    write("AGENTS.md", "# Changed instructions\n");
+    write("README.md", "# Updated with policy\n");
+  });
+  runPlanCase("nested-AGENTS", "full-canonical", ({ write }) => {
+    write("docs/AGENTS.md", "# Nested instructions\n");
+  });
+  runPlanCase("AGENTS-deletion", "full-canonical", ({ remove }) => {
+    remove("AGENTS.md");
+  });
+  runPlanCase("AGENTS-rename", "full-canonical", ({ rename }) => {
+    rename("AGENTS.md", "docs/OPERATING_POLICY.md");
   });
   runPlanCase("workflow", "full-canonical", ({ write }) => {
     write(".github/workflows/new.yml", "name: test\n");
@@ -77,9 +93,13 @@ try {
     write("docs/unknown.payload", "unknown\n");
   });
   if (process.platform === "win32") {
+    results.push("AGENTS-mode-change:posix_mode_unavailable_on_windows_ntfs");
     results.push("executable-mode-change:posix_mode_unavailable_on_windows_ntfs");
     results.push("symlink:windows_symlink_privilege_unavailable");
   } else {
+    runPlanCase("AGENTS-mode-change", "full-canonical", ({ chmod }) => {
+      chmod("AGENTS.md", 0o755);
+    });
     runPlanCase("executable-mode-change", "full-canonical", ({ chmod }) => {
       chmod("README.md", 0o755);
     });
@@ -206,6 +226,11 @@ function runPlanCase(name, expectedPlan, mutate) {
     cwd: repository.cwd,
   });
   assert.equal(plan.plan, expectedPlan, name);
+  if (expectedPlan === "operating-policy-only") {
+    assert.equal(plan.reason, "exact_safe_agents_operating_policy_change", name);
+    assert.deepEqual(plan.full_reasons, [], name);
+    assert.deepEqual(plan.browser_phase_ids, [], name);
+  }
   results.push(name);
 }
 
@@ -300,6 +325,23 @@ function runDocumentationValidatorCases() {
     /private absolute filesystem path/u,
   );
   results.push("documentation-private-path-refused");
+
+  const operatingPolicy = createRepository("operating-policy-validator-valid");
+  operatingPolicy.write(
+    "AGENTS.md",
+    "# Instructions\n\n[Repository guide](README.md#fixture)\n",
+  );
+  commitAll(operatingPolicy.cwd, "valid operating policy");
+  headSha = git(operatingPolicy.cwd, ["rev-parse", "HEAD"]).trim();
+  const operatingPolicyResult = validateCanonicalOperatingPolicyChange({
+    baseSha: operatingPolicy.baseSha,
+    headSha,
+    cwd: operatingPolicy.cwd,
+  });
+  assert.equal(operatingPolicyResult.status, "pass");
+  assert.equal(operatingPolicyResult.plan, "operating-policy-only");
+  assert.equal(operatingPolicyResult.markdown_files_checked, 1);
+  results.push("operating-policy-links-and-anchors");
 }
 
 function write(cwd, relativePath, content) {

@@ -11,6 +11,7 @@ import {
   LOCAL_CANONICAL_PR_EVIDENCE_SCHEMA,
   LOCAL_CANONICAL_PR_EVIDENCE_START_MARKER,
   MAX_PUBLICATION_COMMENT_BYTES,
+  OPERATING_POLICY_PUBLIC_PHASE_COMMANDS,
   PUBLIC_PHASE_COMMANDS,
   assertValidPublicationEnvelope,
   buildPublicationEnvelope,
@@ -228,6 +229,36 @@ assert.deepEqual(
   ["documentation-validator"],
 );
 
+const operatingPolicyReceipt = buildReceipt({
+  mode: "changed",
+  selectedPlan: "operating-policy-only",
+  phases: [
+    buildPhase(
+      "operating-policy-validator",
+      `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan operating-policy-only`,
+    ),
+    ...Object.entries(OPERATING_POLICY_PUBLIC_PHASE_COMMANDS).map(
+      ([id, command]) => buildPhase(id, command),
+    ),
+  ],
+});
+const operatingPolicyEnvelope = buildPublicationEnvelope({
+  receipt: operatingPolicyReceipt,
+  pullRequest,
+  publicationCreatedAt,
+});
+assert.equal(
+  operatingPolicyEnvelope.verification.selected_plan,
+  "operating-policy-only",
+);
+assert.deepEqual(
+  operatingPolicyEnvelope.phases.map((phase) => phase.id),
+  [
+    "operating-policy-validator",
+    ...Object.keys(OPERATING_POLICY_PUBLIC_PHASE_COMMANDS),
+  ],
+);
+
 const replacementEnvelope = buildPublicationEnvelope({
   receipt,
   pullRequest,
@@ -427,7 +458,7 @@ console.log(
       deterministic_projection: true,
       deterministic_canonical_serialization: true,
       deterministic_fingerprint: true,
-      full_and_changed_receipts_supported: true,
+      full_documentation_and_operating_policy_receipts_supported: true,
       non_deciding_receipts_refused: true,
       private_material_excluded: true,
       bounded_deterministic_markdown: true,

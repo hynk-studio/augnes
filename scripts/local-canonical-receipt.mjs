@@ -175,7 +175,11 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     !["quick", "changed", "full"].includes(mode) ||
     (mode === "quick" && selectedPlan !== "quick-feedback") ||
     (mode === "changed" &&
-      !["documentation-only", "full-canonical"].includes(selectedPlan)) ||
+      ![
+        "documentation-only",
+        "operating-policy-only",
+        "full-canonical",
+      ].includes(selectedPlan)) ||
     (mode === "full" && selectedPlan !== "full-canonical")
   ) {
     issues.push("receipt_mode_or_plan_invalid");

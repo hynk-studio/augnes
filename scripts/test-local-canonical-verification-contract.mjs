@@ -468,6 +468,7 @@ assert.doesNotMatch(
 
 for (const fragment of [
   `export const QUICK_PHASE_IDS`,
+  `export const OPERATING_POLICY_PHASE_IDS`,
   `export const FULL_PHASE_IDS`,
   `export const RESOURCE_EXCLUSIVE_PHASE_IDS`,
   `"dependencies-root"`,
@@ -491,6 +492,12 @@ for (const fragment of [
   `intended_head_mismatch`,
   `planner_failure_requires_full_canonical`,
   `documentation-validator`,
+  `operating-policy-validator`,
+  `operating-policy-planner-contract`,
+  `operating-policy-executor-contract`,
+  `operating-policy-receipt-contract`,
+  `operating-policy-verification-contract`,
+  `operating_policy_only_no_dependency_install`,
   `runPhasesSequentially`,
   `for (const phase of phases)`,
   `canonical_node_mismatch`,
@@ -586,6 +593,7 @@ for (const fragment of [
   `receipt_canonical_node_mismatch`,
   `receipt_non_deciding`,
   `receipt_dirty_worktree`,
+  `operating-policy-only`,
 ]) {
   requireText(
     localReceipt,
@@ -601,6 +609,7 @@ for (const fragment of [
   `quick_dirty_non_deciding`,
   `deciding_dirty_refused`,
   `documentation_selection_dependency_light`,
+  `operating_policy_selection_static_and_maintenance_free`,
   `full_phase_inventory_complete`,
   `browser_lanes_sequential`,
   `maximum_outer_phase_concurrency`,
@@ -624,6 +633,7 @@ for (const fragment of [
   `stale_head_lock_executor_and_plan_refused`,
   `incomplete_failed_timed_out_and_cleanup_incomplete_refused`,
   `quick_dirty_explicitly_non_deciding`,
+  `operating_policy_plan_deciding_and_validated`,
   `canonical_node_mismatch_refused`,
   `{ private_path: "/Users/private/project/file" }`,
   `{ username: "private-user" }`,
@@ -669,6 +679,8 @@ for (const fragment of [
   `duplicate_publication_comments`,
   `not a signature or independent attestation`,
   `GitHub did not run these tests`,
+  `OPERATING_POLICY_PUBLIC_PHASE_COMMANDS`,
+  `operating-policy-only`,
 ]) {
   requireText(
     localPrEvidenceEnvelope,
@@ -734,6 +746,7 @@ assert.doesNotMatch(
 for (const fragment of [
   `deterministic_projection`,
   `non_deciding_receipts_refused`,
+  `full_documentation_and_operating_policy_receipts_supported`,
   `private_material_excluded`,
   `duplicate_and_malformed_comments_refused`,
   `dirty_stale_fork_closed_merged_and_non_draft_refused`,
@@ -812,6 +825,9 @@ for (const fragment of [
   `--find-renames=50%`,
   `unsupported canonical diff status`,
   `mode_change:`,
+  `isSafeOperatingPolicyModification`,
+  `exact_safe_agents_operating_policy_change`,
+  `operating-policy-only`,
 ]) {
   requireText(
     plannerSource,
@@ -830,6 +846,11 @@ for (const regression of [
   "research-only",
   "submission-image-plus-markdown",
   "AGENTS.md",
+  "AGENTS-plus-documentation",
+  "nested-AGENTS",
+  "AGENTS-deletion",
+  "AGENTS-rename",
+  "AGENTS-mode-change",
   "workflow",
   "composite-action",
   "source-file",
@@ -855,11 +876,27 @@ for (const fragment of [
   `unresolved relative Markdown link`,
   `unresolved local Markdown anchor`,
   `private absolute filesystem path`,
+  `validateCanonicalOperatingPolicyChange`,
+  `operating-policy validator requires one safe AGENTS.md modification`,
 ]) {
   requireText(
     documentationValidator,
     fragment,
     `documentation fast-path validation is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `operating-policy-only`,
+  `acquires no`,
+  `production Companion maintenance`,
+  `\`AGENTS.md\` combined`,
+  `with any other path`,
+  `deletion, rename, copy, mode change`,
+]) {
+  requireText(
+    localPolicy,
+    fragment,
+    `operating-policy verification policy is missing: ${fragment}`,
   );
 }
 
