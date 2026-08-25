@@ -1089,6 +1089,20 @@ export async function acquireCompanionServiceMaintenance({
       reason: "companion_service_maintenance_joined_ancestor",
     };
   }
+  if (
+    before.status === "service_update_required" &&
+    await exactStoppedStaleSourceMaintenanceNotRequired({
+      observation: before,
+      launchctl,
+    })
+  ) {
+    return {
+      acquired: false,
+      lease: null,
+      before: boundedLifecycleState(before),
+      reason: "companion_service_maintenance_not_required",
+    };
+  }
   if (!["live", "starting", "installed_stopped"].includes(before.status)) {
     throw new PublicCompanionServiceError(
       before.status === "service_update_required"
@@ -2947,6 +2961,184 @@ function exactManagerStateExplicitlyStopped({ layout, configuration }) {
     state.value?.supervisor_pid === null &&
     state.value?.supervisor_process_identity === null &&
     state.value?.runtime_ownership === null
+  );
+}
+
+async function exactStoppedStaleSourceMaintenanceNotRequired({
+  observation,
+  launchctl,
+}) {
+  if (
+    observation?.status !== "service_update_required" ||
+    !exactSourceUpdateProjection(observation) ||
+    observation.checkout_relation !== "exact" ||
+    !observation.configuration ||
+    !replaceableInstalledConfiguration(
+      observation.configuration,
+      observation.layout,
+    ) ||
+    !installedConfigurationOwnershipStillExact(observation) ||
+    readExactDesiredState(
+      observation.layout,
+      observation.configuration,
+    ).desired_state !== "stopped" ||
+    observation.loaded !== false ||
+    launchctlLoaded(observation.layout, launchctl) ||
+    observation.runtime?.verified !== false ||
+    observation.runtime?.supervisor_pid !== null ||
+    !stoppedInertManagerOwnershipExact({
+      layout: observation.layout,
+      configuration: observation.configuration,
+    })
+  ) return false;
+
+  const maintenance = classifyMaintenanceLease({
+    leasePath: observation.layout.maintenance_lease_path,
+    configuration: observation.configuration,
+  });
+  if (maintenance.status !== "none") return false;
+  if (!(await waitForRuntimeGenerationMaterialMissing(observation.layout, 2_000))) {
+    return false;
+  }
+
+  const currentRuntime = await inspectVerifiedRuntime({
+    layout: observation.layout,
+    configuration: observation.configuration,
+  });
+  const currentMaintenance = classifyMaintenanceLease({
+    leasePath: observation.layout.maintenance_lease_path,
+    configuration: observation.configuration,
+  });
+  return (
+    exactSourceUpdateProjection(observation) &&
+    installedConfigurationOwnershipStillExact(observation) &&
+    readExactDesiredState(
+      observation.layout,
+      observation.configuration,
+    ).desired_state === "stopped" &&
+    !launchctlLoaded(observation.layout, launchctl) &&
+    currentRuntime.verified === false &&
+    currentRuntime.supervisor_pid === null &&
+    stoppedInertManagerOwnershipExact({
+      layout: observation.layout,
+      configuration: observation.configuration,
+    }) &&
+    currentMaintenance.status === "none"
+  );
+}
+
+function stoppedInertManagerOwnershipExact({
+  layout,
+  configuration,
+}) {
+  if (!managerLockAllowsStoppedInertness({ layout, configuration })) {
+    return false;
+  }
+  const state = readRegularJson(layout.manager_state_path);
+  if (state.state === "missing") return true;
+  if (
+    state.state !== "valid" ||
+    !structurallyExactManagerState(state.value, configuration) ||
+    !recordedProcessProvenAbsent(
+      state.value.manager_pid,
+      state.value.manager_process_identity,
+    )
+  ) return false;
+  if (exactManagerStateExplicitlyStopped({ layout, configuration })) {
+    return (
+      state.value.reason === "companion_service_explicitly_stopped" &&
+      state.value.restart_after === null
+    );
+  }
+  if (
+    state.value.status !== "live" ||
+    state.value.reason !== "companion_service_live" ||
+    !Number.isInteger(state.value.supervisor_pid) ||
+    state.value.supervisor_pid <= 0 ||
+    !/^[a-f0-9]{64}$/u.test(
+      state.value.supervisor_process_identity ?? "",
+    ) ||
+    !recordedProcessProvenAbsent(
+      state.value.supervisor_pid,
+      state.value.supervisor_process_identity,
+    ) ||
+    !validManagerRuntimeOwnership(state.value.runtime_ownership) ||
+    state.value.restart_after !== null
+  ) return false;
+  const staleRuntimeOwnership = readStaleManagerRuntimeOwnership({
+    layout,
+    configuration,
+  });
+  return staleRuntimeOwnership?.has_live_members === false;
+}
+
+function managerLockAllowsStoppedInertness({ layout, configuration }) {
+  const lock = readRegularJson(layout.manager_lock_path);
+  if (lock.state === "missing") return true;
+  return (
+    lock.state === "valid" &&
+    validManagerLock(lock.value, configuration) &&
+    recordedProcessProvenAbsent(
+      lock.value.owner_pid,
+      lock.value.owner_process_identity,
+    )
+  );
+}
+
+function structurallyExactManagerState(value, configuration) {
+  return (
+    isObject(value) &&
+    value.contract === COMPANION_SERVICE_CONTRACT &&
+    value.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    value.service_identity === configuration.service_identity &&
+    value.repository_fingerprint === configuration.repository_fingerprint &&
+    Number.isInteger(value.manager_pid) &&
+    value.manager_pid > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.manager_process_identity ?? "") &&
+    Number.isInteger(value.restart_count) &&
+    value.restart_count >= 0 &&
+    (value.restart_after === null || isIsoTimestamp(value.restart_after)) &&
+    isIsoTimestamp(value.updated_at)
+  );
+}
+
+function recordedProcessProvenAbsent(pid, identity) {
+  if (
+    !Number.isInteger(pid) ||
+    pid <= 0 ||
+    !/^[a-f0-9]{64}$/u.test(identity ?? "")
+  ) return false;
+  const current = readProcessBirthIdentity(pid);
+  return (
+    current.state === "missing" ||
+    (current.state === "present" && current.identity !== identity)
+  );
+}
+
+function exactSourceUpdateProjection(observation) {
+  const node = inspectNodeBinary(observation.configuration?.node_path);
+  return (
+    observation?.reason === "companion_service_configuration_stale" &&
+    node.valid &&
+    node.version === observation.configuration?.node_version &&
+    computeServiceSourceFingerprint(observation.layout.repository.realpath) !==
+      observation.configuration?.service_source_fingerprint
+  );
+}
+
+function installedConfigurationOwnershipStillExact(observation) {
+  const configuration = readRegularJson(observation.layout.configuration_path);
+  const plist = readRegularText(observation.layout.launch_agent_path);
+  return (
+    configuration.state === "valid" &&
+    JSON.stringify(configuration.value) ===
+      JSON.stringify(observation.configuration) &&
+    plist.state === "valid" &&
+    validateInstalledConfiguration({
+      configuration: configuration.value,
+      plist: plist.contents,
+      layout: observation.layout,
+    }).valid
   );
 }
 
