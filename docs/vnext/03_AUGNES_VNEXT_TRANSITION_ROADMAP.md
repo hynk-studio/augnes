@@ -1923,36 +1923,56 @@ ACGC-E2R2P6U [Issue
 records the source-attestation boundary without modifying the live-preflight
 owner or renewing live authority.
 
-### ACGC-E2R2P6V live source readiness — Current
+### ACGC-E2R2P6V live source readiness — Completed
 
 ACGC-E2R2P6V [Issue
-#260](https://github.com/hynk-studio/augnes-perspective-lab/issues/260) is the
-current zero-provider research-instrument reliability slice. It requires one
-bounded authenticated GitHub `main` observation for candidate-time readiness,
-rejects repository/origin, authentication, timeout, transport, invalid fresh
-identity, and valid-but-different source failures without stale tracking-ref
-fallback, and preserves an independent fresh observation in Gate B immediately
-before execution. Candidate-time readiness is not live authority and creates
-no candidate, authorization, consumption marker, run root, provider call, or
-product/Core state.
+#260](https://github.com/hynk-studio/augnes-perspective-lab/issues/260) / [PR
+#261](https://github.com/hynk-studio/augnes-perspective-lab/pull/261) is
+**Completed** at merge `f611bea5a44eb90f6739a27d704953abe2d3c464`.
+It requires one bounded authenticated GitHub `main` observation for
+candidate-time readiness, rejects repository/origin, authentication, timeout,
+transport, invalid fresh identity, and valid-but-different source failures
+without stale tracking-ref fallback, and preserves an independent fresh
+observation in Gate B immediately before execution. Candidate-time readiness
+is not live authority and creates no candidate, authorization, consumption
+marker, run root, provider call, or product/Core state.
 
-The narrowed sequence after P6V is:
+### ACGC-E2R2P6W fresh R1 successor — Terminally stopped before candidate creation
+
+ACGC-E2R2P6W [Issue
+#262](https://github.com/hynk-studio/augnes-perspective-lab/issues/262) stopped
+terminally at Gate A before candidate creation. Provider calls were `0`, the R1
+behavioral result is `none`, and the synthetic P6 live lane is stopped by
+default at the program checkpoint. The attempt-scoped request-identity
+limitation remains dormant and unrepaired.
+
+### ACGC-RW1 real-work continuity benefit pilot — Current
+
+ACGC-RW1 [Issue
+#263](https://github.com/hynk-studio/augnes-perspective-lab/issues/263) / [Draft
+PR #264](https://github.com/hynk-studio/augnes-perspective-lab/pull/264) is
+**Current** for a bounded local measurement harness over authentic Resume,
+Verify, and Decide work. Authentic RW1 episode collection has not started. R2
+remains deferred, and policy, Stage 7, product transfer, and automatic
+promotion remain false.
+
+The narrowed sequence after P6W is:
 
 ```text
-P6V
--> separately authorized exactly one fresh R1 successor
--> terminal R1 closeout
--> mandatory program-level checkpoint
+P6V completed
+-> P6W terminally stopped at Gate A before candidate creation
+-> program-level checkpoint stops the synthetic P6 live lane by default
+-> RW1 bounded measurement harness
+-> separately authorized authentic real-work episode collection, if any
 ```
 
-At that checkpoint, no third or successor R1, R2, Stage 7, policy, product
-transfer, or automatic context behavior is automatic. The default next
-research candidate is a separately designed Real-Work Continuity Benefit Pilot
-over representative Resume / Verify / Decide work and later usefulness,
-burden, and harm. R2 action/regime supersession remains deferred unless a later
-explicit reviewed decision establishes that it answers a material question
-more directly than real-work evaluation. This sequence creates no future live
-authority.
+At that checkpoint, no successor R1, R2, Stage 7, policy, product transfer,
+automatic promotion, or automatic context behavior is authorized. RW1 measures
+representative Resume / Verify / Decide work and later usefulness, burden, and
+harm without starting authentic collection. R2 action/regime supersession
+remains deferred unless a later explicit reviewed decision establishes that it
+answers a material question more directly than real-work evaluation. This
+sequence creates no future live authority.
 
 ```text
 P6I / Issue #239 = Completed
@@ -1968,20 +1988,27 @@ P6R / Issue #254 = terminal R1 status incomplete; planned/attempted/completed/un
 P6S / Issue #255 / PR #256 = Completed at merge 60cb7b5e6e80b5e7c34bd614d361153ff55c60a1
 P6T / Issue #257 = one Gate B CLI invocation; exit 1; blocked before authorization consumption at cross_case_live_origin_main_refresh_failed; provider calls 0; behavioral result none; case status none; no run root or artifact family
 P6U / Issue #258 / PR #259 = Completed at merge 66fa9ee3dc20ceaf6054ea4afa445fce20c190f5
-P6V / Issue #260 = Current source-attestation reliability/hardening
-fresh R1 successor live issue = not created
+P6V / Issue #260 / PR #261 = Completed at merge f611bea5a44eb90f6739a27d704953abe2d3c464
+P6W / Issue #262 = terminally stopped at Gate A before candidate creation; provider calls 0; R1 behavioral result none
+ACGC-RW1 / Issue #263 / Draft PR #264 = Current
+authentic RW1 episode collection = not started
+synthetic P6 live lane = stopped by default at program checkpoint
+attempt-scoped request-identity limitation = dormant/unrepaired
 R2 live issue = not created
 R2 result = none
+R2 = deferred
 cross-case disposition = incomplete
 P6U closeout real provider calls = 0
 P6V real provider calls = 0
-post-fresh-R1 checkpoint = mandatory
+P6W real provider calls = 0
+program-level checkpoint = active
 automatic successor R1 = false
 automatic R2 = false
 replication_live_GO = false
 product_transfer_GO = false
 policy_GO = false
 stage_7_GO = false
+automatic_promotion_GO = false
 scalar/rank/winner = false
 Issue #205 = separate/open
 PR #186 = historical Draft HOLD
