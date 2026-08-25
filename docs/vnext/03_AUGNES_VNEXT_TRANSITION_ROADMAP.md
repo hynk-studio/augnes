@@ -1946,15 +1946,27 @@ behavioral result is `none`, and the synthetic P6 live lane is stopped by
 default at the program checkpoint. The attempt-scoped request-identity
 limitation remains dormant and unrepaired.
 
-### ACGC-RW1 real-work continuity benefit pilot — Current
+### ACGC-RW1 real-work continuity benefit pilot — Completed
 
 ACGC-RW1 [Issue
-#263](https://github.com/hynk-studio/augnes-perspective-lab/issues/263) / [Draft
-PR #264](https://github.com/hynk-studio/augnes-perspective-lab/pull/264) is
-**Current** for a bounded local measurement harness over authentic Resume,
-Verify, and Decide work. Authentic RW1 episode collection has not started. R2
-remains deferred, and policy, Stage 7, product transfer, and automatic
-promotion remain false.
+#263](https://github.com/hynk-studio/augnes-perspective-lab/issues/263) / [PR
+#264](https://github.com/hynk-studio/augnes-perspective-lab/pull/264) is
+**Completed** at merge `44557e353bb7a949457abafcbd8a37f221a29f1f` for
+the bounded local measurement harness over authentic Resume, Verify, and Decide
+work. The post-RW1 research-obligation classification in [PR
+#265](https://github.com/hynk-studio/augnes-perspective-lab/pull/265) is
+**Completed** at merge `1a1aa94abe31a4335858bffe2a7bc4938bec66a6`.
+
+### ACGC-RW1A pre-action condition integrity overlay — Current
+
+ACGC-RW1A [Issue
+#266](https://github.com/hynk-studio/augnes-perspective-lab/issues/266) / [Draft
+PR #267](https://github.com/hynk-studio/augnes-perspective-lab/pull/267) is
+**Current** for one additive pre-action condition-integrity and work-context
+overlay over merged RW1 v0.1. Authentic RW1 episode collection has not started.
+The long-term post-RW1 obligations remain problem-level research obligations,
+not a pre-approved implementation backlog. R2 remains deferred, and policy,
+Stage 7, product transfer, and automatic promotion remain false.
 
 The narrowed sequence after P6W is:
 
@@ -1962,7 +1974,9 @@ The narrowed sequence after P6W is:
 P6V completed
 -> P6W terminally stopped at Gate A before candidate creation
 -> program-level checkpoint stops the synthetic P6 live lane by default
--> RW1 bounded measurement harness
+-> RW1 bounded measurement harness completed
+-> post-RW1 research-obligation classification completed
+-> RW1A pre-action condition-integrity overlay
 -> separately authorized authentic real-work episode collection, if any
 ```
 
@@ -1990,7 +2004,9 @@ P6T / Issue #257 = one Gate B CLI invocation; exit 1; blocked before authorizati
 P6U / Issue #258 / PR #259 = Completed at merge 66fa9ee3dc20ceaf6054ea4afa445fce20c190f5
 P6V / Issue #260 / PR #261 = Completed at merge f611bea5a44eb90f6739a27d704953abe2d3c464
 P6W / Issue #262 = terminally stopped at Gate A before candidate creation; provider calls 0; R1 behavioral result none
-ACGC-RW1 / Issue #263 / Draft PR #264 = Current
+ACGC-RW1 / Issue #263 / PR #264 = Completed at merge 44557e353bb7a949457abafcbd8a37f221a29f1f
+post-RW1 research-obligation classification / PR #265 = Completed at merge 1a1aa94abe31a4335858bffe2a7bc4938bec66a6
+ACGC-RW1A / Issue #266 / Draft PR #267 = Current
 authentic RW1 episode collection = not started
 synthetic P6 live lane = stopped by default at program checkpoint
 attempt-scoped request-identity limitation = dormant/unrepaired
