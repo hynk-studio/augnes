@@ -192,25 +192,45 @@ capability, compatibility, or deferred work rather than default product UI.
   claim by CAS, while durable lost-controller cancellation forbids later
   reacquisition without claiming provider stop. Generic historical interactive/policy resume
   keeps its existing owner. Companion startup never resumes automatically.
-- For a fresh Codex request to resume, continue, or inspect the current local
-  repository, first call `augnes_companion_lifecycle_status` for the exact
-  root. If live, call `augnes_resume_repository` once. If one exact installed
-  service start is offered, call `augnes_start_companion_service` once, require
-  live verification, then call `augnes_resume_repository` once. Never loop or
-  retry. `not_installed` requires the explicit checkout service setup action;
+- For a fresh Codex request whose user intent is materially to resume or
+  continue current or previous work, recover what was being worked on, obtain
+  the current Augnes project or work state, or recover current work coordinates
+  before continuing, first call `augnes_companion_lifecycle_status` for the
+  exact root. This includes requests such as "What was I working on here?" or
+  explicit requests to show the current Augnes project state. If live, call
+  `augnes_resume_repository` once. If one exact installed service start is
+  offered, call `augnes_start_companion_service` once, require live
+  verification, then call `augnes_resume_repository` once. Never loop or retry.
+  `not_installed` requires the explicit checkout service setup action;
   lifecycle state never substitutes for canonical continuity. Resume authority
   may start an already-installed exact service as a reversible prerequisite,
   but does not install or modify it. Explicit Stop remains stopped across
   login or LaunchAgent reload until an explicit Start or Install. Only one
   production Companion service may be installed per local user session; a
   different checkout fails closed without mutating the existing service.
-  `augnes_resume_repository` must still
-  resolve one verified live supervised Companion and one registered physical
-  project root through the narrow generation-bound Companion channel; never
-  substitute docs, seeds, GuideBrief, legacy Work Brief, mock data, repository
-  reconstruction, or Browser active selection for project identity. The nested
-  CDX2A projection still truthfully reports active-selection status and
-  eligibility.
+  `augnes_resume_repository` must still resolve one verified live supervised
+  Companion and one registered physical project root through the narrow
+  generation-bound Companion channel; never substitute docs, seeds,
+  GuideBrief, legacy Work Brief, mock data, repository reconstruction, or
+  Browser active selection for project identity. The nested CDX2A projection
+  still truthfully reports active-selection status and eligibility.
+- Do not automatically invoke `augnes_resume_repository` merely because a
+  fresh task reads or inspects the current local repository. For tasks
+  materially intended as independent source-first verification, audit,
+  pull-request or change review, investigation, historical-issue
+  requalification, or claim checking against current repository or source
+  evidence, establish ordinary repository identity from the supplied root and
+  Git state under the existing repository and workspace rules, then inspect
+  the required source and evidence without mandatory continuity priming.
+  Repository inspection by itself is not resumption intent. If the user
+  explicitly asks to use Augnes continuity, or the task later genuinely
+  changes into resuming or continuing canonical current work, run the existing
+  lifecycle and resume path at that point. Continuity already exposed in the
+  current session must not be hidden, erased, or pretended unknown, and do not
+  claim a blinded or independent review when continuity materially primed the
+  session. When a request genuinely mixes independent inspection with explicit
+  continuation intent, preserve the continuation and resumption semantics
+  rather than suppressing continuity for methodological convenience.
 - Prefer a working vertical slice with a real producer, consumer, behavior
   test, and later-use signal over planning, preview, boundary, or presence-only
   work.
