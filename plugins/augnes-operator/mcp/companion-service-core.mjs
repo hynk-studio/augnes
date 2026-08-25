@@ -1089,6 +1089,20 @@ export async function acquireCompanionServiceMaintenance({
       reason: "companion_service_maintenance_joined_ancestor",
     };
   }
+  if (
+    before.status === "service_update_required" &&
+    await exactStoppedStaleSourceMaintenanceNotRequired({
+      observation: before,
+      launchctl,
+    })
+  ) {
+    return {
+      acquired: false,
+      lease: null,
+      before: boundedLifecycleState(before),
+      reason: "companion_service_maintenance_not_required",
+    };
+  }
   if (!["live", "starting", "installed_stopped"].includes(before.status)) {
     throw new PublicCompanionServiceError(
       before.status === "service_update_required"
@@ -2947,6 +2961,115 @@ function exactManagerStateExplicitlyStopped({ layout, configuration }) {
     state.value?.supervisor_pid === null &&
     state.value?.supervisor_process_identity === null &&
     state.value?.runtime_ownership === null
+  );
+}
+
+async function exactStoppedStaleSourceMaintenanceNotRequired({
+  observation,
+  launchctl,
+}) {
+  if (
+    observation?.status !== "service_update_required" ||
+    !exactSourceUpdateProjection(observation) ||
+    observation.checkout_relation !== "exact" ||
+    !observation.configuration ||
+    !replaceableInstalledConfiguration(
+      observation.configuration,
+      observation.layout,
+    ) ||
+    !installedConfigurationOwnershipStillExact(observation) ||
+    readExactDesiredState(
+      observation.layout,
+      observation.configuration,
+    ).desired_state !== "stopped" ||
+    observation.loaded !== false ||
+    launchctlLoaded(observation.layout, launchctl) ||
+    observation.runtime?.verified !== false ||
+    observation.runtime?.supervisor_pid !== null ||
+    !exactManagerStateExplicitlyStoppedForMaintenance({
+      layout: observation.layout,
+      configuration: observation.configuration,
+    })
+  ) return false;
+
+  const maintenance = classifyMaintenanceLease({
+    leasePath: observation.layout.maintenance_lease_path,
+    configuration: observation.configuration,
+  });
+  if (!["none", "stale"].includes(maintenance.status)) return false;
+  if (!(await waitForRuntimeGenerationMaterialMissing(observation.layout, 2_000))) {
+    return false;
+  }
+
+  const currentRuntime = await inspectVerifiedRuntime({
+    layout: observation.layout,
+    configuration: observation.configuration,
+  });
+  const currentMaintenance = classifyMaintenanceLease({
+    leasePath: observation.layout.maintenance_lease_path,
+    configuration: observation.configuration,
+  });
+  return (
+    exactSourceUpdateProjection(observation) &&
+    installedConfigurationOwnershipStillExact(observation) &&
+    readExactDesiredState(
+      observation.layout,
+      observation.configuration,
+    ).desired_state === "stopped" &&
+    !launchctlLoaded(observation.layout, launchctl) &&
+    currentRuntime.verified === false &&
+    currentRuntime.supervisor_pid === null &&
+    exactManagerStateExplicitlyStoppedForMaintenance({
+      layout: observation.layout,
+      configuration: observation.configuration,
+    }) &&
+    ["none", "stale"].includes(currentMaintenance.status)
+  );
+}
+
+function exactManagerStateExplicitlyStoppedForMaintenance({
+  layout,
+  configuration,
+}) {
+  const state = readRegularJson(layout.manager_state_path);
+  return (
+    exactManagerStateExplicitlyStopped({ layout, configuration }) &&
+    state.state === "valid" &&
+    state.value?.reason === "companion_service_explicitly_stopped" &&
+    Number.isInteger(state.value?.manager_pid) &&
+    state.value.manager_pid > 0 &&
+    /^[a-f0-9]{64}$/u.test(state.value?.manager_process_identity ?? "") &&
+    Number.isInteger(state.value?.restart_count) &&
+    state.value.restart_count >= 0 &&
+    state.value?.restart_after === null &&
+    isIsoTimestamp(state.value?.updated_at)
+  );
+}
+
+function exactSourceUpdateProjection(observation) {
+  const node = inspectNodeBinary(observation.configuration?.node_path);
+  return (
+    observation?.reason === "companion_service_configuration_stale" &&
+    node.valid &&
+    node.version === observation.configuration?.node_version &&
+    computeServiceSourceFingerprint(observation.layout.repository.realpath) !==
+      observation.configuration?.service_source_fingerprint
+  );
+}
+
+function installedConfigurationOwnershipStillExact(observation) {
+  const configuration = readRegularJson(observation.layout.configuration_path);
+  const plist = readRegularText(observation.layout.launch_agent_path);
+  return (
+    configuration.state === "valid" &&
+    JSON.stringify(configuration.value) ===
+      JSON.stringify(observation.configuration) &&
+    plist.state === "valid" &&
+    validateInstalledConfiguration({
+      configuration: configuration.value,
+      plist: plist.contents,
+      layout: observation.layout,
+    }).valid
   );
 }
 

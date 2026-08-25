@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -180,6 +182,184 @@ try {
   assert.equal(stoppedMaintenance.reason, "companion_service_maintenance_not_required");
   assert.equal(existsSync(stoppedFixture.layout.maintenance_lease_path), false);
 
+  const exactStoppedManagerState = writeExplicitStoppedManagerState(
+    stoppedFixture,
+  );
+  const staleConfiguration = {
+    ...stoppedFixture.configuration,
+    service_source_fingerprint: "f".repeat(64),
+  };
+  writeJson(stoppedFixture.layout.configuration_path, staleConfiguration);
+  const staleStopped = await inspectCompanionService({ ...options, launchctl });
+  assert.equal(staleStopped.status, "service_update_required");
+  assert.equal(staleStopped.reason, "companion_service_configuration_stale");
+  assert.equal(staleStopped.checkout_relation, "exact");
+  assert.equal(staleStopped.desired_state, "stopped");
+  assert.equal(staleStopped.loaded, false);
+  assert.equal(staleStopped.runtime.verified, false);
+  const staleStoppedProjection = publicCompanionServiceProjection(staleStopped);
+  assert.equal(staleStoppedProjection.status, "service_update_required");
+  assert.equal(staleStoppedProjection.reason, "companion_service_configuration_stale");
+  assert.equal(staleStoppedProjection.checkout_relation, "exact");
+  const staleStoppedSerialized = JSON.stringify(staleStoppedProjection);
+  for (const forbidden of [
+    repositoryRoot,
+    root,
+    "desired_state",
+    "loaded",
+    "manager_pid",
+    "supervisor_pid",
+    "runtime_ownership",
+    "maintenance_lease",
+    "OPENAI_API_KEY",
+    "provider_response",
+    "model_output",
+    "stdout",
+    "stderr",
+  ]) assert.equal(staleStoppedSerialized.includes(forbidden), false, forbidden);
+  const staleStoppedMaintenance = await acquireCompanionServiceMaintenance({
+    ...options,
+    launchctl,
+    operationId: "contract:stale-stopped-service",
+  });
+  assert.equal(staleStoppedMaintenance.acquired, false);
+  assert.equal(staleStoppedMaintenance.lease, null);
+  assert.equal(
+    staleStoppedMaintenance.reason,
+    "companion_service_maintenance_not_required",
+  );
+  assert.deepEqual(staleStoppedMaintenance.before, {
+    status: "service_update_required",
+    checkout_relation: "exact",
+    service_identity: `sha256:${stoppedFixture.layout.service_identity}`,
+  });
+  assert.equal(existsSync(stoppedFixture.layout.maintenance_lease_path), false);
+
+  writeJson(stoppedFixture.layout.configuration_path, {
+    ...stoppedFixture.configuration,
+    node_version: node.version === "v24.0.0" ? "v24.0.1" : "v24.0.0",
+  });
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stopped-node-binding-stale",
+  });
+  writeJson(stoppedFixture.layout.configuration_path, staleConfiguration);
+
+  writeDesiredState(stoppedFixture, "running");
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-running-service",
+  });
+  writeDesiredState(stoppedFixture, "stopped");
+
+  loaded = true;
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-loaded-service",
+  });
+  loaded = false;
+
+  const verifiedRuntime = await writeVerifiedRuntimeFixture(stoppedFixture);
+  try {
+    const staleStoppedWithRuntime = await inspectCompanionService({
+      ...options,
+      launchctl,
+    });
+    assert.equal(staleStoppedWithRuntime.runtime.verified, true);
+    await assertMaintenanceUpdateRequired({
+      options,
+      launchctl,
+      operationId: "contract:stale-stopped-verified-runtime",
+    });
+  } finally {
+    await verifiedRuntime.close();
+  }
+
+  writeJson(stoppedFixture.layout.runtime_manifest_path, {});
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-runtime-generation-residue",
+  });
+  rmSync(stoppedFixture.layout.runtime_manifest_path, { force: true });
+
+  rmSync(stoppedFixture.layout.manager_state_path, { force: true });
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-manager-missing",
+  });
+  writeJson(stoppedFixture.layout.manager_state_path, {
+    ...exactStoppedManagerState,
+    status: "starting",
+  });
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-manager-invalid",
+  });
+  const { manager_process_identity: _omittedIdentity, ...ownershipIncomplete } =
+    exactStoppedManagerState;
+  writeJson(stoppedFixture.layout.manager_state_path, ownershipIncomplete);
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-manager-ownership-incomplete",
+  });
+  writeJson(stoppedFixture.layout.manager_state_path, exactStoppedManagerState);
+
+  writeJson(stoppedFixture.layout.maintenance_lease_path, {});
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-maintenance-ambiguous",
+  });
+  const maintenanceLease = {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: stoppedFixture.configuration.service_identity,
+    repository_fingerprint:
+      stoppedFixture.configuration.repository_fingerprint,
+    operation_id: "contract:stale-stopped-active-maintenance",
+    owner_pid: process.pid,
+    owner_process_identity: currentProcessIdentity(),
+    pre_maintenance_desired_state: "stopped",
+    acquired_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+  };
+  writeJson(stoppedFixture.layout.maintenance_lease_path, maintenanceLease);
+  await assertMaintenanceUpdateRequired({
+    options,
+    launchctl,
+    operationId: "contract:stale-stopped-maintenance-active",
+  });
+  writeJson(stoppedFixture.layout.maintenance_lease_path, {
+    ...maintenanceLease,
+    operation_id: "contract:stale-stopped-maintenance-stale",
+    owner_pid: 2_147_483_647,
+    owner_process_identity: "a".repeat(64),
+  });
+  const staleLeaseMaintenance = await acquireCompanionServiceMaintenance({
+    ...options,
+    launchctl,
+    operationId: "contract:stale-stopped-stale-lease-noop",
+  });
+  assert.equal(staleLeaseMaintenance.acquired, false);
+  assert.equal(staleLeaseMaintenance.lease, null);
+  assert.equal(
+    staleLeaseMaintenance.reason,
+    "companion_service_maintenance_not_required",
+  );
+  rmSync(stoppedFixture.layout.maintenance_lease_path, { force: true });
+
+  writeJson(
+    stoppedFixture.layout.configuration_path,
+    stoppedFixture.configuration,
+  );
+
   rmSync(stoppedFixture.layout.desired_state_path);
   const missingDesired = await inspectCompanionService({ ...options, launchctl });
   assert.equal(missingDesired.status, "ambiguous");
@@ -338,6 +518,11 @@ try {
     durable_stop_loaded_projection: true,
     desired_state_missing_malformed_and_foreign_refused: true,
     stopped_maintenance_noop: true,
+    stale_source_exact_stopped_maintenance_noop: true,
+    stale_node_binding_maintenance_refused: true,
+    stale_source_running_loaded_runtime_and_residue_refused: true,
+    stale_source_manager_and_maintenance_ambiguity_refused: true,
+    stale_source_public_projection_unchanged: true,
     desired_state_exact_uninstall_cleanup: true,
     production_singleton_foreign_install_and_start_refused: true,
     production_singleton_zero_foreign_mutation: true,
@@ -438,4 +623,194 @@ function serviceMaterialFingerprint(layout) {
     layout.launch_agent_path,
   ].map((file) => readFileSync(file, "utf8"));
   return material.join("\0");
+}
+
+function writeExplicitStoppedManagerState(fixture) {
+  const state = {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: fixture.configuration.service_identity,
+    repository_fingerprint: fixture.configuration.repository_fingerprint,
+    status: "installed_stopped",
+    reason: "companion_service_explicitly_stopped",
+    manager_pid: 2_147_483_647,
+    manager_process_identity: "b".repeat(64),
+    supervisor_pid: null,
+    supervisor_process_identity: null,
+    runtime_ownership: null,
+    restart_count: 0,
+    restart_after: null,
+    updated_at: new Date().toISOString(),
+  };
+  writeJson(fixture.layout.manager_state_path, state);
+  return state;
+}
+
+function writeDesiredState(fixture, desiredState) {
+  const record = {
+    ...fixture.desiredState,
+    desired_state: desiredState,
+    updated_at: new Date().toISOString(),
+  };
+  writeJson(fixture.layout.desired_state_path, record);
+}
+
+function writeJson(file, value) {
+  mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  writeFileSync(file, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+}
+
+async function assertMaintenanceUpdateRequired({
+  options: fixtureOptions,
+  launchctl,
+  operationId,
+}) {
+  await assert.rejects(
+    acquireCompanionServiceMaintenance({
+      ...fixtureOptions,
+      launchctl,
+      operationId,
+    }),
+    (error) => error?.code === "companion_service_update_required",
+  );
+}
+
+function currentProcessIdentity() {
+  const result = spawnSync(
+    "/bin/ps",
+    ["-o", "lstart=", "-o", "command=", "-p", String(process.pid)],
+    {
+      encoding: "utf8",
+      timeout: 1_500,
+      env: { PATH: "/usr/bin:/bin" },
+    },
+  );
+  assert.equal(result.status, 0);
+  const birthMaterial = result.stdout.trim();
+  assert.notEqual(birthMaterial, "");
+  return createHash("sha256")
+    .update(`${process.platform}:${process.pid}:${birthMaterial}`)
+    .digest("hex");
+}
+
+async function writeVerifiedRuntimeFixture(fixture) {
+  const generationId = "contract-generation";
+  const instanceId = "contract-instance";
+  const uiPort = 19_001;
+  const bridgePort = 19_002;
+  const uiOwnershipPort = 19_003;
+  const bridgeOwnershipPort = 19_004;
+  const runtime = {
+    contract: "augnes-local-runtime-supervisor-v1",
+    schema_version: 2,
+    generation_version: 1,
+    generation_id: generationId,
+    instance_id: instanceId,
+    repository_fingerprint: fixture.configuration.repository_fingerprint,
+    supervisor_pid: process.pid,
+    lifecycle_state: "ready",
+    database_state: "ready",
+    effective_url: `http://127.0.0.1:${uiPort}`,
+    ui_port: uiPort,
+    bridge_port: bridgePort,
+    children: [
+      {
+        role: "ui",
+        state: "ready",
+        port: uiPort,
+        ownership_port: uiOwnershipPort,
+        pid: process.pid,
+      },
+      {
+        role: "bridge",
+        state: "ready",
+        port: bridgePort,
+        ownership_port: bridgeOwnershipPort,
+        pid: process.pid,
+      },
+    ],
+  };
+  const generation = {
+    contract: runtime.contract,
+    schema_version: runtime.schema_version,
+    generation_version: runtime.generation_version,
+    generation_id: generationId,
+    instance_id: instanceId,
+    repository_fingerprint: runtime.repository_fingerprint,
+  };
+  writeJson(fixture.layout.runtime_manifest_path, runtime);
+  writeJson(fixture.layout.runtime_token_path, {
+    ...generation,
+    token: "t".repeat(32),
+    child_ownership_token: "o".repeat(32),
+  });
+  writeJson(fixture.layout.runtime_access_path, {
+    ...generation,
+    access_version: "augnes-companion-proxy-access.v0.1",
+    proxy_token: "p".repeat(32),
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    let value;
+    if (url.pathname === "/api/healthz") {
+      value = {
+        ok: true,
+        service: "augnes-ui",
+        status: "ready",
+        recovery_mode: false,
+        runtime_instance_id: instanceId,
+        runtime_generation_id: generationId,
+        runtime_repository_fingerprint: runtime.repository_fingerprint,
+      };
+    } else if (url.pathname === "/healthz") {
+      value = {
+        ok: true,
+        name: "augnes-console",
+        mode: "http",
+        live_core_status: "ready",
+        runtime_instance_id: instanceId,
+        runtime_generation_id: generationId,
+        runtime_repository_fingerprint: runtime.repository_fingerprint,
+      };
+    } else {
+      const child = Number(url.port) === uiOwnershipPort
+        ? runtime.children[0]
+        : runtime.children[1];
+      value = runtimeChildOwnership(child, fixture, {
+        generationId,
+        instanceId,
+      });
+    }
+    return new Response(JSON.stringify(value), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  return {
+    close: async () => {
+      for (const file of [
+        fixture.layout.runtime_manifest_path,
+        fixture.layout.runtime_token_path,
+        fixture.layout.runtime_access_path,
+      ]) rmSync(file, { force: true });
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
+
+function runtimeChildOwnership(child, fixture, { generationId, instanceId }) {
+  return {
+    ownership_verified: true,
+    contract: "augnes-local-runtime-supervisor-v1",
+    schema_version: 2,
+    generation_version: 1,
+    generation_id: generationId,
+    repository_fingerprint: fixture.configuration.repository_fingerprint,
+    instance_id: instanceId,
+    role: child.role,
+    child_root_pid: child.pid,
+    process_pid: child.pid,
+    loopback_port: child.port,
+  };
 }
