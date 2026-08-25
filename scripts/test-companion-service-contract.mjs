@@ -23,15 +23,20 @@ import {
   COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
   COMPANION_SERVICE_DESIRED_STATE_SCHEMA_VERSION,
   COMPANION_SERVICE_PUBLIC_STATES,
+  appendCompanionSupervisorAttemptOutput,
   acquireCompanionServiceMaintenance,
   buildLaunchAgentPlist,
   computeServiceSourceFingerprint,
+  createCompanionSupervisorAttemptDiagnostics,
   installCompanionService,
   inspectCompanionService,
   lifecycleAuthority,
+  observeCompanionSupervisorAttemptExit,
   publicCompanionServiceProjection,
+  readCompanionSupervisorFailureProvenance,
   resolveCompanionServiceLayout,
   selectSupportedNode24Binary,
+  snapshotCompanionSupervisorFailureProvenance,
   startCompanionService,
   stopCompanionService,
   uninstallCompanionService,
@@ -632,6 +637,122 @@ try {
     assert.equal(plist.includes(secretName), false);
   }
 
+  const birthAttempt = createCompanionSupervisorAttemptDiagnostics();
+  appendCompanionSupervisorAttemptOutput(birthAttempt, "birth-attempt-output");
+  const birthFailure = snapshotCompanionSupervisorFailureProvenance({
+    attempt: birthAttempt,
+    failureOrigin: "child_birth_identity_unavailable",
+    restartCount: 1,
+  });
+  assert.deepEqual(birthFailure, {
+    failure_origin: "child_birth_identity_unavailable",
+    child_exit_status: null,
+    child_exit_signal_present: false,
+    restart_count: 1,
+    restart_reason: "companion_service_restart_backoff",
+    attempt_tail_sha256: tailFingerprint("birth-attempt-output"),
+  });
+
+  const observedExitAttempt = createCompanionSupervisorAttemptDiagnostics();
+  appendCompanionSupervisorAttemptOutput(observedExitAttempt, "observed-exit-output");
+  observeCompanionSupervisorAttemptExit(observedExitAttempt, 17, null);
+  const observedExitFailure = snapshotCompanionSupervisorFailureProvenance({
+    attempt: observedExitAttempt,
+    failureOrigin: "managed_child_exit_observed",
+    restartCount: 2,
+  });
+  assert.equal(observedExitFailure.failure_origin, "managed_child_exit_observed");
+  assert.equal(observedExitFailure.child_exit_status, 17);
+  assert.equal(observedExitFailure.child_exit_signal_present, false);
+
+  const observedSignalAttempt = createCompanionSupervisorAttemptDiagnostics();
+  observeCompanionSupervisorAttemptExit(observedSignalAttempt, null, "SIGTERM");
+  const observedSignalFailure = snapshotCompanionSupervisorFailureProvenance({
+    attempt: observedSignalAttempt,
+    failureOrigin: "managed_child_exit_observed",
+    restartCount: 3,
+  });
+  assert.equal(observedSignalFailure.child_exit_status, null);
+  assert.equal(observedSignalFailure.child_exit_signal_present, true);
+
+  const identityLostAttempt = createCompanionSupervisorAttemptDiagnostics();
+  const privateAttemptOutput = [
+    "OPENAI_API_KEY=not-a-real-secret",
+    "/private/example/home",
+    "raw supervisor failure",
+  ].join("\n");
+  appendCompanionSupervisorAttemptOutput(identityLostAttempt, privateAttemptOutput);
+  const identityLostFailure = snapshotCompanionSupervisorFailureProvenance({
+    attempt: identityLostAttempt,
+    failureOrigin: "managed_child_identity_lost",
+    restartCount: 4,
+  });
+  assert.equal(identityLostFailure.child_exit_status, null);
+  assert.equal(identityLostFailure.child_exit_signal_present, false);
+  assert.equal(identityLostFailure.attempt_tail_sha256, tailFingerprint(privateAttemptOutput));
+  const persistedFailure = JSON.stringify(identityLostFailure);
+  for (const forbidden of [
+    "OPENAI_API_KEY",
+    "not-a-real-secret",
+    "/private/example/home",
+    "raw supervisor failure",
+    "output_tail",
+    "exit_observation",
+  ]) assert.equal(persistedFailure.includes(forbidden), false, forbidden);
+
+  const separateAttempt = createCompanionSupervisorAttemptDiagnostics();
+  appendCompanionSupervisorAttemptOutput(separateAttempt, "separate-attempt-output");
+  const separateFailure = snapshotCompanionSupervisorFailureProvenance({
+    attempt: separateAttempt,
+    failureOrigin: "managed_child_identity_lost",
+    restartCount: 5,
+  });
+  assert.equal(
+    separateFailure.attempt_tail_sha256,
+    tailFingerprint("separate-attempt-output"),
+  );
+  assert.notEqual(
+    separateFailure.attempt_tail_sha256,
+    identityLostFailure.attempt_tail_sha256,
+  );
+  assert.deepEqual(
+    readCompanionSupervisorFailureProvenance({
+      unrelated_manager_state_field: true,
+      supervisor_failure_provenance: observedExitFailure,
+    }),
+    observedExitFailure,
+  );
+  assert.equal(
+    readCompanionSupervisorFailureProvenance({
+      supervisor_failure_provenance: {
+        ...observedExitFailure,
+        raw_tail: "forbidden",
+      },
+    }),
+    null,
+  );
+
+  const healthyObservation = {
+    status: "live",
+    checkout_relation: "exact",
+    service_identity: "a".repeat(64),
+    start_available: false,
+    resume_available: true,
+    reason: "companion_service_live",
+  };
+  assert.deepEqual(
+    publicCompanionServiceProjection({
+      ...healthyObservation,
+      supervisor_failure_provenance: observedExitFailure,
+    }),
+    publicCompanionServiceProjection(healthyObservation),
+  );
+  assert.equal(
+    JSON.stringify(publicCompanionServiceProjection(healthyObservation))
+      .includes("supervisor_failure_provenance"),
+    false,
+  );
+
   console.log(JSON.stringify({
     status: "pass",
     contract: COMPANION_SERVICE_CONTRACT,
@@ -658,6 +779,11 @@ try {
     public_projection_private_fields: 0,
     arbitrary_command_or_label_inputs: 0,
     manager_node_module_imports: 0,
+    supervisor_failure_origins_bounded: true,
+    supervisor_failure_exit_observation_bounded: true,
+    supervisor_failure_attempt_tail_isolated: true,
+    supervisor_failure_raw_output_persisted: false,
+    supervisor_failure_public_projection_fields: 0,
     lifecycle_authority_flags_false: true,
     real_provider_calls: 0,
   }, null, 2));
@@ -1031,4 +1157,8 @@ function runtimeChildOwnership(child, fixture, { generationId, instanceId }) {
     process_pid: child.pid,
     loopback_port: child.port,
   };
+}
+
+function tailFingerprint(value) {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
