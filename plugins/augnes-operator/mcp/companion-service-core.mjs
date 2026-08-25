@@ -2986,7 +2986,7 @@ async function exactStoppedStaleSourceMaintenanceNotRequired({
     launchctlLoaded(observation.layout, launchctl) ||
     observation.runtime?.verified !== false ||
     observation.runtime?.supervisor_pid !== null ||
-    !exactManagerStateExplicitlyStoppedForMaintenance({
+    !stoppedInertManagerOwnershipExact({
       layout: observation.layout,
       configuration: observation.configuration,
     })
@@ -2996,7 +2996,7 @@ async function exactStoppedStaleSourceMaintenanceNotRequired({
     leasePath: observation.layout.maintenance_lease_path,
     configuration: observation.configuration,
   });
-  if (!["none", "stale"].includes(maintenance.status)) return false;
+  if (maintenance.status !== "none") return false;
   if (!(await waitForRuntimeGenerationMaterialMissing(observation.layout, 2_000))) {
     return false;
   }
@@ -3019,30 +3019,99 @@ async function exactStoppedStaleSourceMaintenanceNotRequired({
     !launchctlLoaded(observation.layout, launchctl) &&
     currentRuntime.verified === false &&
     currentRuntime.supervisor_pid === null &&
-    exactManagerStateExplicitlyStoppedForMaintenance({
+    stoppedInertManagerOwnershipExact({
       layout: observation.layout,
       configuration: observation.configuration,
     }) &&
-    ["none", "stale"].includes(currentMaintenance.status)
+    currentMaintenance.status === "none"
   );
 }
 
-function exactManagerStateExplicitlyStoppedForMaintenance({
+function stoppedInertManagerOwnershipExact({
   layout,
   configuration,
 }) {
+  if (!managerLockAllowsStoppedInertness({ layout, configuration })) {
+    return false;
+  }
   const state = readRegularJson(layout.manager_state_path);
+  if (state.state === "missing") return true;
+  if (
+    state.state !== "valid" ||
+    !structurallyExactManagerState(state.value, configuration) ||
+    !recordedProcessProvenAbsent(
+      state.value.manager_pid,
+      state.value.manager_process_identity,
+    )
+  ) return false;
+  if (exactManagerStateExplicitlyStopped({ layout, configuration })) {
+    return (
+      state.value.reason === "companion_service_explicitly_stopped" &&
+      state.value.restart_after === null
+    );
+  }
+  if (
+    state.value.status !== "live" ||
+    state.value.reason !== "companion_service_live" ||
+    !Number.isInteger(state.value.supervisor_pid) ||
+    state.value.supervisor_pid <= 0 ||
+    !/^[a-f0-9]{64}$/u.test(
+      state.value.supervisor_process_identity ?? "",
+    ) ||
+    !recordedProcessProvenAbsent(
+      state.value.supervisor_pid,
+      state.value.supervisor_process_identity,
+    ) ||
+    !validManagerRuntimeOwnership(state.value.runtime_ownership) ||
+    state.value.restart_after !== null
+  ) return false;
+  const staleRuntimeOwnership = readStaleManagerRuntimeOwnership({
+    layout,
+    configuration,
+  });
+  return staleRuntimeOwnership?.has_live_members === false;
+}
+
+function managerLockAllowsStoppedInertness({ layout, configuration }) {
+  const lock = readRegularJson(layout.manager_lock_path);
+  if (lock.state === "missing") return true;
   return (
-    exactManagerStateExplicitlyStopped({ layout, configuration }) &&
-    state.state === "valid" &&
-    state.value?.reason === "companion_service_explicitly_stopped" &&
-    Number.isInteger(state.value?.manager_pid) &&
-    state.value.manager_pid > 0 &&
-    /^[a-f0-9]{64}$/u.test(state.value?.manager_process_identity ?? "") &&
-    Number.isInteger(state.value?.restart_count) &&
-    state.value.restart_count >= 0 &&
-    state.value?.restart_after === null &&
-    isIsoTimestamp(state.value?.updated_at)
+    lock.state === "valid" &&
+    validManagerLock(lock.value, configuration) &&
+    recordedProcessProvenAbsent(
+      lock.value.owner_pid,
+      lock.value.owner_process_identity,
+    )
+  );
+}
+
+function structurallyExactManagerState(value, configuration) {
+  return (
+    isObject(value) &&
+    value.contract === COMPANION_SERVICE_CONTRACT &&
+    value.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    value.service_identity === configuration.service_identity &&
+    value.repository_fingerprint === configuration.repository_fingerprint &&
+    Number.isInteger(value.manager_pid) &&
+    value.manager_pid > 0 &&
+    /^[a-f0-9]{64}$/u.test(value.manager_process_identity ?? "") &&
+    Number.isInteger(value.restart_count) &&
+    value.restart_count >= 0 &&
+    (value.restart_after === null || isIsoTimestamp(value.restart_after)) &&
+    isIsoTimestamp(value.updated_at)
+  );
+}
+
+function recordedProcessProvenAbsent(pid, identity) {
+  if (
+    !Number.isInteger(pid) ||
+    pid <= 0 ||
+    !/^[a-f0-9]{64}$/u.test(identity ?? "")
+  ) return false;
+  const current = readProcessBirthIdentity(pid);
+  return (
+    current.state === "missing" ||
+    (current.state === "present" && current.identity !== identity)
   );
 }
 
