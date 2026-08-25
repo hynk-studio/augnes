@@ -39,6 +39,11 @@ export const COMPANION_SERVICE_PUBLIC_STATES = Object.freeze([
   "recovery_required",
   "ambiguous",
 ]);
+export const COMPANION_SUPERVISOR_FAILURE_ORIGINS = Object.freeze([
+  "child_birth_identity_unavailable",
+  "managed_child_exit_observed",
+  "managed_child_identity_lost",
+]);
 
 const SERVICE_LABEL_PREFIX = "com.augnes.companion";
 const SERVICE_SOURCE_FILES = Object.freeze([
@@ -65,6 +70,66 @@ export class PublicCompanionServiceError extends Error {
     this.name = "PublicCompanionServiceError";
     this.code = code;
   }
+}
+
+export function createCompanionSupervisorAttemptDiagnostics() {
+  return {
+    output_tail: "",
+    exit_observation: null,
+  };
+}
+
+export function appendCompanionSupervisorAttemptOutput(attempt, chunk) {
+  if (!validSupervisorAttemptDiagnostics(attempt)) {
+    throw new Error("companion supervisor attempt diagnostics invalid");
+  }
+  attempt.output_tail = boundedTail(attempt.output_tail + String(chunk));
+}
+
+export function observeCompanionSupervisorAttemptExit(attempt, code, signal) {
+  if (!validSupervisorAttemptDiagnostics(attempt)) {
+    throw new Error("companion supervisor attempt diagnostics invalid");
+  }
+  attempt.exit_observation = {
+    status: Number.isInteger(code) && code >= 0 ? code : null,
+    signal_present: typeof signal === "string" && signal.length > 0,
+  };
+}
+
+export function snapshotCompanionSupervisorFailureProvenance({
+  attempt,
+  failureOrigin,
+  restartCount,
+}) {
+  if (
+    !validSupervisorAttemptDiagnostics(attempt) ||
+    !COMPANION_SUPERVISOR_FAILURE_ORIGINS.includes(failureOrigin) ||
+    !Number.isInteger(restartCount) ||
+    restartCount < 1
+  ) {
+    throw new Error("companion supervisor failure provenance invalid");
+  }
+  const observedExit = failureOrigin === "managed_child_exit_observed"
+    ? attempt.exit_observation
+    : null;
+  if (failureOrigin === "managed_child_exit_observed" && observedExit === null) {
+    throw new Error("observed companion supervisor exit missing");
+  }
+  return {
+    failure_origin: failureOrigin,
+    child_exit_status: observedExit?.status ?? null,
+    child_exit_signal_present: observedExit?.signal_present === true,
+    restart_count: restartCount,
+    restart_reason: "companion_service_restart_backoff",
+    attempt_tail_sha256: `sha256:${sha256(attempt.output_tail)}`,
+  };
+}
+
+export function readCompanionSupervisorFailureProvenance(managerState) {
+  const provenance = managerState?.supervisor_failure_provenance;
+  return validCompanionSupervisorFailureProvenance(provenance)
+    ? { ...provenance }
+    : null;
 }
 
 export function resolveCompanionServiceLayout({
@@ -1409,10 +1474,13 @@ export async function runCompanionServiceManager({
   let shutdown = false;
   let child = null;
   let childIdentity = null;
+  let childAttempt = null;
   let adoptedPid = null;
   let runtimeOwnership = null;
   let failures = 0;
-  let lastTail = "";
+  let lastFailureProvenance = recoverableManagerState.state === "valid"
+    ? readCompanionSupervisorFailureProvenance(recoverableManagerState.value)
+    : null;
   let shutdownSignal = null;
 
   const requestShutdown = (signal) => {
@@ -1428,6 +1496,7 @@ export async function runCompanionServiceManager({
       reason: "companion_service_manager_started",
       supervisor_pid: null,
       restart_count: 0,
+      supervisor_failure_provenance: lastFailureProvenance,
     });
     while (!shutdown) {
       if (!installedManagerMaterialStillExact(configuration, layout)) {
@@ -1450,8 +1519,10 @@ export async function runCompanionServiceManager({
         });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         adoptedPid = null;
         runtimeOwnership = null;
+        lastFailureProvenance = null;
         writeManagerState(layout, configuration, {
           status: "recovery_required",
           reason: currentDesiredState.reason,
@@ -1467,8 +1538,10 @@ export async function runCompanionServiceManager({
         });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         adoptedPid = null;
         runtimeOwnership = null;
+        lastFailureProvenance = null;
         writeManagerState(layout, configuration, {
           status: "installed_stopped",
           reason: "companion_service_explicitly_stopped",
@@ -1490,8 +1563,10 @@ export async function runCompanionServiceManager({
         });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         adoptedPid = null;
         runtimeOwnership = null;
+        lastFailureProvenance = null;
         writeManagerState(layout, configuration, {
           status: "recovery_required",
           reason: "companion_service_maintenance_desired_state_conflict",
@@ -1507,8 +1582,10 @@ export async function runCompanionServiceManager({
         });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         adoptedPid = null;
         runtimeOwnership = null;
+        lastFailureProvenance = null;
         writeManagerState(layout, configuration, {
           status: "recovery_required",
           reason: "companion_service_maintenance_ambiguous",
@@ -1524,8 +1601,10 @@ export async function runCompanionServiceManager({
         });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         adoptedPid = null;
         runtimeOwnership = null;
+        lastFailureProvenance = null;
         writeManagerState(layout, configuration, {
           status: "maintenance",
           reason: "companion_service_maintenance_active",
@@ -1560,6 +1639,7 @@ export async function runCompanionServiceManager({
             runtime,
             previous: runtimeOwnership,
           });
+          lastFailureProvenance = null;
         }
         writeManagerState(layout, configuration, {
           status: runtime.verified ? "live" : "starting",
@@ -1569,6 +1649,7 @@ export async function runCompanionServiceManager({
           supervisor_pid: child.pid,
           runtime_ownership: runtime.verified ? runtimeOwnership : null,
           restart_count: failures,
+          supervisor_failure_provenance: lastFailureProvenance,
         });
         if (runtime.verified) failures = 0;
         await delay(MANAGER_POLL_MS);
@@ -1577,8 +1658,16 @@ export async function runCompanionServiceManager({
 
       if (child) {
         failures += 1;
+        lastFailureProvenance = snapshotCompanionSupervisorFailureProvenance({
+          attempt: childAttempt ?? createCompanionSupervisorAttemptDiagnostics(),
+          failureOrigin: childAttempt?.exit_observation
+            ? "managed_child_exit_observed"
+            : "managed_child_identity_lost",
+          restartCount: failures,
+        });
         child = null;
         childIdentity = null;
+        childAttempt = null;
         runtimeOwnership = null;
       }
 
@@ -1591,6 +1680,7 @@ export async function runCompanionServiceManager({
             runtime,
             previous: runtimeOwnership,
           });
+          lastFailureProvenance = null;
         }
         writeManagerState(layout, configuration, {
           status: runtime.verified ? "live" : "starting",
@@ -1600,6 +1690,7 @@ export async function runCompanionServiceManager({
           supervisor_pid: adoptedPid.pid,
           runtime_ownership: runtime.verified ? runtimeOwnership : null,
           restart_count: failures,
+          supervisor_failure_provenance: lastFailureProvenance,
         });
         await delay(MANAGER_POLL_MS);
         continue;
@@ -1627,6 +1718,7 @@ export async function runCompanionServiceManager({
           reason: "companion_service_foreign_runtime_conflict",
           supervisor_pid: null,
           restart_count: failures,
+          supervisor_failure_provenance: lastFailureProvenance,
         });
         await delay(MANAGER_POLL_MS);
         continue;
@@ -1642,6 +1734,7 @@ export async function runCompanionServiceManager({
           supervisor_pid: null,
           restart_count: failures,
           restart_after: new Date(Date.now() + backoff).toISOString(),
+          supervisor_failure_provenance: lastFailureProvenance,
         });
         await delay(backoff);
         if (shutdown) break;
@@ -1667,28 +1760,39 @@ export async function runCompanionServiceManager({
           detached: true,
         },
       );
-      childIdentity = await waitForProcessIdentity(child.pid);
-      if (!childIdentity) {
-        child.kill("SIGTERM");
-        child = null;
-        childIdentity = null;
-        failures += 1;
-        continue;
-      }
+      childAttempt = createCompanionSupervisorAttemptDiagnostics();
+      const currentAttempt = childAttempt;
       for (const stream of [child.stdout, child.stderr]) {
         stream.setEncoding("utf8");
         stream.on("data", (chunk) => {
-          lastTail = boundedTail(lastTail + String(chunk));
+          appendCompanionSupervisorAttemptOutput(currentAttempt, chunk);
         });
       }
       child.once("error", () => {});
-      child.once("exit", () => {});
+      child.once("exit", (code, signal) => {
+        observeCompanionSupervisorAttemptExit(currentAttempt, code, signal);
+      });
+      childIdentity = await waitForProcessIdentity(child.pid);
+      if (!childIdentity) {
+        child.kill("SIGTERM");
+        failures += 1;
+        lastFailureProvenance = snapshotCompanionSupervisorFailureProvenance({
+          attempt: currentAttempt,
+          failureOrigin: "child_birth_identity_unavailable",
+          restartCount: failures,
+        });
+        child = null;
+        childIdentity = null;
+        childAttempt = null;
+        continue;
+      }
       writeManagerState(layout, configuration, {
         status: "starting",
         reason: "companion_service_supervisor_started",
         supervisor_pid: child.pid,
         supervisor_process_identity: childIdentity,
         restart_count: failures,
+        supervisor_failure_provenance: lastFailureProvenance,
       });
       await delay(MANAGER_POLL_MS);
     }
@@ -1706,7 +1810,6 @@ export async function runCompanionServiceManager({
     for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
       process.removeAllListeners(signal);
     }
-    void lastTail;
   }
   return shutdownSignal ? 1 : 0;
 }
@@ -3203,6 +3306,12 @@ function writeManagerState(layout, configuration, state) {
     runtime_ownership: state.runtime_ownership ?? null,
     restart_count: state.restart_count ?? 0,
     restart_after: state.restart_after ?? null,
+    supervisor_failure_provenance:
+      validCompanionSupervisorFailureProvenance(
+        state.supervisor_failure_provenance,
+      )
+        ? state.supervisor_failure_provenance
+        : null,
     updated_at: new Date().toISOString(),
   }, 0o600);
 }
@@ -3921,6 +4030,52 @@ function xml(value) {
 
 function boundedTail(value) {
   return Buffer.from(value, "utf8").subarray(-MAX_CHILD_TAIL_BYTES).toString("utf8");
+}
+
+function validSupervisorAttemptDiagnostics(value) {
+  return (
+    isObject(value) &&
+    typeof value.output_tail === "string" &&
+    (
+      value.exit_observation === null ||
+      (
+        isObject(value.exit_observation) &&
+        (
+          value.exit_observation.status === null ||
+          (
+            Number.isInteger(value.exit_observation.status) &&
+            value.exit_observation.status >= 0
+          )
+        ) &&
+        typeof value.exit_observation.signal_present === "boolean"
+      )
+    )
+  );
+}
+
+function validCompanionSupervisorFailureProvenance(value) {
+  if (!isObject(value)) return false;
+  const expectedKeys = [
+    "attempt_tail_sha256",
+    "child_exit_signal_present",
+    "child_exit_status",
+    "failure_origin",
+    "restart_count",
+    "restart_reason",
+  ];
+  return (
+    JSON.stringify(Object.keys(value).sort()) === JSON.stringify(expectedKeys) &&
+    COMPANION_SUPERVISOR_FAILURE_ORIGINS.includes(value.failure_origin) &&
+    (
+      value.child_exit_status === null ||
+      (Number.isInteger(value.child_exit_status) && value.child_exit_status >= 0)
+    ) &&
+    typeof value.child_exit_signal_present === "boolean" &&
+    Number.isInteger(value.restart_count) &&
+    value.restart_count >= 1 &&
+    value.restart_reason === "companion_service_restart_backoff" &&
+    /^sha256:[a-f0-9]{64}$/u.test(value.attempt_tail_sha256)
+  );
 }
 
 function sha256(value) {
