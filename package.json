@@ -67,6 +67,8 @@
     "test:codex-repository-continuity": "node --import tsx scripts/test-codex-repository-continuity.ts",
     "test:real-work-continuity-benefit-pilot": "node --import tsx scripts/test-real-work-continuity-benefit-pilot.ts",
     "real-work-continuity-benefit-pilot": "node --import tsx scripts/real-work-continuity-benefit-pilot.ts",
+    "test:real-work-continuity-pre-action-overlay": "node --import tsx scripts/test-real-work-continuity-pre-action-overlay.ts",
+    "real-work-continuity-pre-action-overlay": "node --import tsx scripts/real-work-continuity-pre-action-overlay.ts",
     "test:repository-execution-attachment": "node --import tsx scripts/test-repository-execution-attachment.ts",
     "test:windows-physical-root-identity": "node --import tsx scripts/test-windows-physical-root-identity.ts",
     "test:repository-managed-delegation": "node --import tsx scripts/test-repository-managed-delegation.ts",
