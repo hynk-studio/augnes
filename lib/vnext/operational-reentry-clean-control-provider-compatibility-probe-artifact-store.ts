@@ -21,6 +21,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  projectArtifactEvidenceReadPathV01,
+  type ArtifactEvidenceReadScopeV01,
+} from "@/lib/vnext/migrated-historical-evidence";
 import type {
   OperationalReentryCleanControlProviderCompatibilityProbeExecutionResultV02,
   OperationalReentryCleanControlProviderCompatibilityProbePreparedV02,
@@ -388,16 +392,25 @@ export function assertOperationalReentryCleanControlProviderCompatibilityProbeAr
 }
 
 export function validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02(
-  input: { repository_root: string; run_root: string },
+  input: {
+    repository_root: string;
+    run_root: string;
+    read_scope?: ArtifactEvidenceReadScopeV01;
+  },
 ): OperationalReentryCleanControlProviderCompatibilityProbeArtifactSummaryV02 {
   const repositoryRoot = requireRepositoryRootV02(input.repository_root);
   const runRoot = realpathSync(input.run_root);
   assertContainedV02(repositoryRoot, runRoot);
-  const relativeRunRoot = path
+  const physicalRelativeRunRoot = path
     .relative(repositoryRoot, runRoot)
     .split(path.sep)
     .join("/");
-  if (!relativeRunRoot.startsWith(PROBE_ARTIFACT_PREFIX_V02)) {
+  const relativeRunRoot = projectArtifactEvidenceReadPathV01({
+    relative_path: physicalRelativeRunRoot,
+    active_prefix: PROBE_ARTIFACT_PREFIX_V02,
+    read_scope: input.read_scope,
+  });
+  if (!relativeRunRoot) {
     failV02("clean_control_probe_artifact_root_invalid");
   }
   const authorizationFingerprint = readAuthorizationFingerprintV02(runRoot);
@@ -690,9 +703,10 @@ function assertAuthorizationConsumptionHistoryCompleteV02(input: {
   authorization_fingerprint: string;
 }): boolean {
   const globalMarker = readConsumptionRecordV02(
-    authorizationConsumptionPathV02(
-      input.repository_root,
-      input.authorization_fingerprint,
+    path.join(
+      path.dirname(path.dirname(input.run_root)),
+      AUTHORIZATION_CONSUMPTION_DIRECTORY_V02,
+      `${safeSegmentV02(input.authorization_fingerprint)}.json`,
     ),
   );
   const runLocalRecord = readConsumptionRecordV02(

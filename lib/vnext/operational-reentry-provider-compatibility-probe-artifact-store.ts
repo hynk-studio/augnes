@@ -25,6 +25,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  projectArtifactEvidenceReadPathV01,
+  type ArtifactEvidenceReadScopeV01,
+} from "@/lib/vnext/migrated-historical-evidence";
 import type {
   OperationalReentryProviderCompatibilityProbeExecutionResultV01,
   OperationalReentryProviderCompatibilityProbeShapeTerminalV01,
@@ -354,16 +358,22 @@ export function validateOperationalReentryProviderCompatibilityProbeArtifactsV01
   input: {
     repository_root: string;
     run_root: string;
+    read_scope?: ArtifactEvidenceReadScopeV01;
   },
 ): OperationalReentryProviderCompatibilityProbeArtifactSummaryV01 {
   const repositoryRoot = requireRepositoryRootV01(input.repository_root);
   const runRoot = realpathSync(input.run_root);
   assertContainedV01(repositoryRoot, runRoot);
-  const relativeRunRoot = path
+  const physicalRelativeRunRoot = path
     .relative(repositoryRoot, runRoot)
     .split(path.sep)
     .join("/");
-  if (!relativeRunRoot.startsWith(PROBE_ARTIFACT_PREFIX_V01)) {
+  const relativeRunRoot = projectArtifactEvidenceReadPathV01({
+    relative_path: physicalRelativeRunRoot,
+    active_prefix: PROBE_ARTIFACT_PREFIX_V01,
+    read_scope: input.read_scope,
+  });
+  if (!relativeRunRoot) {
     failV01("operational_reentry_probe_artifact_root_invalid");
   }
   const indexPath = path.join(runRoot, "artifact-index.json");

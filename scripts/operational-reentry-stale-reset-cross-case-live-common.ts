@@ -13,11 +13,11 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateOperationalReentryStaleResetCrossCasePricingV01 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
 import { createGitHubTransport } from "@/scripts/local-canonical-github-transport.mjs";
+import { matchCanonicalRepositoryIdentity } from "./canonical-repository-identity.mjs";
 
-const REPOSITORY = "hynk-studio/augnes-perspective-lab" as const;
+const REPOSITORY = "hynk-studio/augnes" as const;
 const ORIGINS = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 const GIT_SHA = /^[0-9a-f]{40}$/u;
 
@@ -52,6 +52,10 @@ type CrossCaseSourceReadinessDependenciesV01 = {
   };
   git?: (repositoryRoot: string, args: string[]) => string;
   realpath?: (value: string) => string;
+  matchIdentity?: (input: {
+    resolvedRoot: string;
+    originUrl: string;
+  }) => unknown;
   now?: () => Date;
 };
 
@@ -170,7 +174,12 @@ export async function attestCrossCaseSourceReadinessV01(
     if (resolveRealpath(readGit(root, ["rev-parse", "--show-toplevel"])) !== root) {
       return result("repository_or_origin_mismatch");
     }
-    if (readGit(root, ["remote", "get-url", "origin"]) !== expectedOrigin) {
+    const observedOrigin = readGit(root, ["remote", "get-url", "origin"]);
+    (dependencies.matchIdentity ?? matchCanonicalRepositoryIdentity)({
+      resolvedRoot: root,
+      originUrl: observedOrigin,
+    });
+    if (observedOrigin !== expectedOrigin) {
       return result("repository_or_origin_mismatch");
     }
     localHead = readGit(root, ["rev-parse", "HEAD"]);

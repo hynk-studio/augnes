@@ -17,10 +17,10 @@ import {
   readModelGatewayInteractiveAdmissionForRootV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import { matchCanonicalRepositoryIdentity } from "./canonical-repository-identity.mjs";
 
 const AUTHORIZED_ORIGINS = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 const AUTHORIZED_BRANCH = "codex/acgc-e2-live-matched-reentry-cohort";
 
@@ -33,6 +33,10 @@ void main().catch((error) => {
 async function main() {
   const options = parseArgumentsV01(process.argv.slice(2));
   const repositoryRoot = realpathSync(options.repositoryRoot ?? process.cwd());
+  matchCanonicalRepositoryIdentity({
+    resolvedRoot: repositoryRoot,
+    originUrl: gitV01(repositoryRoot, ["remote", "get-url", "origin"]),
+  });
   preflightRepositoryV01(repositoryRoot, options.sourceHead);
   const capability = readDefaultModelGatewayLocalCapabilityV01();
   if (capability.status !== "available") {

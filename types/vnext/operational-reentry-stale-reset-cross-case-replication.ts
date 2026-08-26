@@ -342,8 +342,8 @@ export interface OperationalReentryStaleResetCrossCaseAuthorizationV01 {
   authorization_id: string;
   future_live_issue_number: number;
   exact_merged_source_head: string;
-  repository_slug: "hynk-studio/augnes-perspective-lab";
-  authorized_origin: "https://github.com/hynk-studio/augnes-perspective-lab.git" | "git@github.com:hynk-studio/augnes-perspective-lab.git";
+  repository_slug: "hynk-studio/augnes";
+  authorized_origin: "https://github.com/hynk-studio/augnes.git";
   workspace_id: string;
   project_id: string;
   expected_active_selection_revision: number;

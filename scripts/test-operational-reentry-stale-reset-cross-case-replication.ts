@@ -127,10 +127,10 @@ const exactRoute = route;
 const sourceHead = "a".repeat(40);
 const otherSourceHead = "b".repeat(40);
 const sourceReadinessInput = {
-  repository_root: "/fixture/augnes-perspective-lab",
-  repository_id: "hynk-studio/augnes-perspective-lab",
+  repository_root: "/fixture/augnes",
+  repository_id: "hynk-studio/augnes",
   expected_origin:
-    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    "https://github.com/hynk-studio/augnes.git",
   expected_source_sha: sourceHead,
 };
 const sourceReadinessGitCalls: string[][] = [];
@@ -154,6 +154,13 @@ const sourceReadinessDependencies = (transport: {
   transport,
   git: sourceReadinessGit,
   realpath: (value: string) => value,
+  matchIdentity: ({ resolvedRoot, originUrl }: {
+    resolvedRoot: string;
+    originUrl: string;
+  }) => {
+    assert.equal(resolvedRoot, sourceReadinessInput.repository_root);
+    assert.equal(originUrl, sourceReadinessInput.expected_origin);
+  },
   now: () => new Date("2026-08-25T00:00:00.000Z"),
 });
 const freshMainTransport = {
@@ -1314,8 +1321,8 @@ function buildAuthorization(
     authorization_id: "p6l-test-authorization",
     future_live_issue_number: 999001,
     exact_merged_source_head: "1".repeat(40),
-    repository_slug: "hynk-studio/augnes-perspective-lab",
-    authorized_origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    repository_slug: "hynk-studio/augnes",
+    authorized_origin: "https://github.com/hynk-studio/augnes.git",
     workspace_id: "workspace:00000000-0000-4000-8000-000000000001",
     project_id: "project:00000000-0000-4000-8000-000000000001",
     expected_active_selection_revision: 1,
@@ -1352,8 +1359,8 @@ function buildCompatibilityAuthorization(
     authorization_id: "p6l-test-compatibility-authorization",
     future_compatibility_issue_number: 999002,
     exact_merged_source_head: "2".repeat(40),
-    repository_slug: "hynk-studio/augnes-perspective-lab",
-    authorized_origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    repository_slug: "hynk-studio/augnes",
+    authorized_origin: "https://github.com/hynk-studio/augnes.git",
     workspace_id: "workspace:00000000-0000-4000-8000-000000000001",
     project_id: "project:00000000-0000-4000-8000-000000000001",
     expected_active_selection_revision: 1,

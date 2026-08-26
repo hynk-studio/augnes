@@ -59,10 +59,9 @@ export interface OperationalReentryCleanControlProviderCompatibilityProbeAuthori
   request_family_kind: "clean_control_compatibility_probe";
   future_live_issue_number: number;
   exact_merged_source_head: string;
-  repository_slug: "hynk-studio/augnes-perspective-lab";
+  repository_slug: "hynk-studio/augnes";
   authorized_origin:
-    | "https://github.com/hynk-studio/augnes-perspective-lab.git"
-    | "git@github.com:hynk-studio/augnes-perspective-lab.git";
+    "https://github.com/hynk-studio/augnes.git";
   issued_at: string;
   expires_at: string;
   workspace_id: string;

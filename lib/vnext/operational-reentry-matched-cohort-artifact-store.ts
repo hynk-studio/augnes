@@ -20,6 +20,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  projectArtifactEvidenceReadPathV01,
+  type ArtifactEvidenceReadScopeV01,
+} from "@/lib/vnext/migrated-historical-evidence";
 import type {
   OperationalReentryMatchedCohortBlockEvaluationV01,
   OperationalReentryMatchedCohortCallPlanV01,
@@ -247,11 +251,18 @@ export function assertOperationalReentryMatchedCohortReplacementIdentityAvailabl
 export function validateOperationalReentryMatchedCohortArtifactsV01(input: {
   repository_root: string;
   run_root: string;
+  read_scope?: ArtifactEvidenceReadScopeV01;
 }): OperationalReentryMatchedCohortArtifactSummaryV01 {
   const repositoryRoot = requireRepositoryRootV01(input.repository_root);
   const runRoot = realpathSync(input.run_root);
   assertContainedV01(repositoryRoot, runRoot);
-  if (!runRoot.includes(`${path.sep}.augnes-lab${path.sep}operational-reentry-matched-cohorts${path.sep}`)) {
+  const relativeRunRoot = path.relative(repositoryRoot, runRoot).split(path.sep).join("/");
+  const logicalRunRoot = projectArtifactEvidenceReadPathV01({
+    relative_path: relativeRunRoot,
+    active_prefix: ".augnes-lab/operational-reentry-matched-cohorts/",
+    read_scope: input.read_scope,
+  });
+  if (!logicalRunRoot) {
     failV01("operational_reentry_artifact_root_invalid");
   }
   const indexPath = path.join(runRoot, "artifact-index.json");
@@ -293,7 +304,7 @@ export function validateOperationalReentryMatchedCohortArtifactsV01(input: {
     integrity: { fingerprint: string };
   };
   return {
-    relative_run_root: path.relative(repositoryRoot, runRoot).split(path.sep).join("/"),
+    relative_run_root: logicalRunRoot,
     result_kind: index.result_kind,
     artifact_count: actual.length + 1,
     artifact_index_fingerprint: createProtocolSha256V01(indexText),

@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { resolveMigratedHistoricalEvidencePath } from "@/scripts/canonical-historical-evidence.mjs";
+
 import Database from "better-sqlite3";
 
 import { ModelEgressBoundaryError } from "@/lib/model-egress/bounded-model-payload";
@@ -31,6 +33,7 @@ import {
 import { validateOperationalReentryMatchedCohortArtifactsV01 } from "@/lib/vnext/operational-reentry-matched-cohort-artifact-store";
 import { validateOperationalReentryProviderCompatibilityProbeArtifactsV01 } from "@/lib/vnext/operational-reentry-provider-compatibility-probe-artifact-store";
 import { validateOperationalReentryMatchedCohortReplacementArtifactsV01 } from "@/lib/vnext/operational-reentry-matched-cohort-replacement-artifact-store";
+import { projectArtifactEvidenceReadPathV01 } from "@/lib/vnext/migrated-historical-evidence";
 import {
   buildOperationalReentryMatchedCohortProviderContractV02,
   buildOperationalReentryMatchedCohortSystemPromptV02,
@@ -151,6 +154,23 @@ async function main(): Promise<void> {
 
 function testHistoricalIdentityPreservationV02(): void {
   assert.equal(
+    projectArtifactEvidenceReadPathV01({
+      relative_path: ".augnes-lab/example/run",
+      active_prefix: ".augnes-lab/example/",
+      read_scope: "migrated_historical",
+    }),
+    null,
+  );
+  assert.equal(
+    projectArtifactEvidenceReadPathV01({
+      relative_path:
+        ".augnes-history/perspective-lab-cutover/historical-evidence/.augnes-lab/example/run",
+      active_prefix: ".augnes-lab/example/",
+      read_scope: "active",
+    }),
+    null,
+  );
+  assert.equal(
     operationalReentryMatchedCohortCaseFixtureV01.integrity.fingerprint,
     "sha256:de6326bcd9411507790a271e57d09e7442018a22509d211a95f81dcc9f55b4d6",
   );
@@ -174,10 +194,12 @@ function testHistoricalIdentityPreservationV02(): void {
 
   const issue185 = validateOperationalReentryMatchedCohortArtifactsV01({
     repository_root: repositoryRoot,
-    run_root: path.join(
+    read_scope: "migrated_historical",
+    run_root: resolveMigratedHistoricalEvidencePath({
       repositoryRoot,
+      legacyRelativePath:
       ".augnes-lab/operational-reentry-matched-cohorts/operational-reentry-cohort_48331280ed7ead6dbad2d12105208dfb/issue-185",
-    ),
+    }),
   });
   assert.equal(issue185.result_kind, "incomplete");
   assert.equal(
@@ -189,10 +211,12 @@ function testHistoricalIdentityPreservationV02(): void {
   const issue193 =
     validateOperationalReentryProviderCompatibilityProbeArtifactsV01({
       repository_root: repositoryRoot,
-      run_root: path.join(
+      read_scope: "migrated_historical",
+      run_root: resolveMigratedHistoricalEvidencePath({
         repositoryRoot,
+        legacyRelativePath:
         ".augnes-lab/operational-reentry-provider-probes/operational-reentry-provider-probe_724ed8fce6d30d0979efd6bf837a3edc/issue-193",
-      ),
+      }),
     });
   assert.equal(issue193.outcome, "accepted_all_shapes");
   assert.equal(
@@ -207,10 +231,12 @@ function testHistoricalIdentityPreservationV02(): void {
   const issue199 =
     validateOperationalReentryMatchedCohortReplacementArtifactsV01({
       repository_root: repositoryRoot,
-      run_root: path.join(
+      read_scope: "migrated_historical",
+      run_root: resolveMigratedHistoricalEvidencePath({
         repositoryRoot,
+        legacyRelativePath:
         ".augnes-lab/operational-reentry-matched-cohort-replacements/operational-reentry-replacement-cohort_d3136fe392e130ba74f67349686a91d9/issue-199",
-      ),
+      }),
     });
   assert.equal(issue199.result_kind, "incomplete");
   assert.equal(

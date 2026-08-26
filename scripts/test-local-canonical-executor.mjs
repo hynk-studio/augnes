@@ -15,13 +15,10 @@ import {
   evaluateNodePolicy,
 } from "./local-canonical-environment.mjs";
 import {
-  LEGACY_MIGRATION_ORIGIN_URL,
-  LEGACY_MIGRATION_REPOSITORY_ID,
-  LEGACY_MIGRATION_REPOSITORY_ROOT,
-  TARGET_CANONICAL_ORIGIN_URL,
-  TARGET_CANONICAL_REPOSITORY_ID,
-  TARGET_CANONICAL_REPOSITORY_ROOT,
-} from "./canonical-repository-migration-bridge.mjs";
+  CANONICAL_DARWIN_REPOSITORY_ROOT,
+  CANONICAL_ORIGIN_URL,
+  CANONICAL_REPOSITORY_ID,
+} from "./canonical-repository-identity.mjs";
 import {
   FULL_PHASE_IDS,
   OPERATING_POLICY_PHASE_IDS,
@@ -53,36 +50,28 @@ const executorSource = readFileSync(
   "utf8",
 );
 
-for (const expected of [
-  {
-    repository_id: LEGACY_MIGRATION_REPOSITORY_ID,
-    root: LEGACY_MIGRATION_REPOSITORY_ROOT,
-    origin: LEGACY_MIGRATION_ORIGIN_URL,
-  },
-  {
-    repository_id: TARGET_CANONICAL_REPOSITORY_ID,
-    root: TARGET_CANONICAL_REPOSITORY_ROOT,
-    origin: TARGET_CANONICAL_ORIGIN_URL,
-  },
-]) {
-  const authorizedIdentity = assertAuthorizedRepositoryIdentity({
-    resolvedRoot: expected.root,
-    originUrl: expected.origin,
-  });
-  assert.deepEqual(authorizedIdentity, { role: authorizedIdentity.role, ...expected });
-}
+const authorizedIdentity = assertAuthorizedRepositoryIdentity({
+  resolvedRoot: CANONICAL_DARWIN_REPOSITORY_ROOT,
+  originUrl: CANONICAL_ORIGIN_URL,
+});
+assert.deepEqual(authorizedIdentity, {
+  role: "canonical",
+  repository_id: CANONICAL_REPOSITORY_ID,
+  root: CANONICAL_DARWIN_REPOSITORY_ROOT,
+  origin: CANONICAL_ORIGIN_URL,
+});
 assert.throws(
   () =>
     assertAuthorizedRepositoryIdentity({
       resolvedRoot: "/Users/example/another-repository",
-      originUrl: TARGET_CANONICAL_ORIGIN_URL,
+      originUrl: CANONICAL_ORIGIN_URL,
     }),
   (error) => error?.code === "unauthorized_repository_root",
 );
 assert.throws(
   () =>
     assertAuthorizedRepositoryIdentity({
-      resolvedRoot: TARGET_CANONICAL_REPOSITORY_ROOT,
+      resolvedRoot: CANONICAL_DARWIN_REPOSITORY_ROOT,
       originUrl: "https://github.com/example/another-repository.git",
     }),
   (error) => error?.code === "unauthorized_repository_origin",
@@ -435,6 +424,23 @@ assert.doesNotMatch(
   "the executor must not special-case or mask generated next-env state",
 );
 
+const maintenanceAcquireIndex = executorSource.indexOf(
+  "operationId: `local-canonical-full:${runId}`",
+);
+const generatedNextRemovalIndex = executorSource.indexOf(
+  "rmSync(generatedNextRoot, { recursive: true, force: true })",
+);
+const phaseExecutionIndex = executorSource.indexOf(
+  "const completed = await runPhasesSequentially",
+);
+const maintenanceReleaseIndex = executorSource.indexOf(
+  "dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance",
+);
+assert.ok(maintenanceAcquireIndex >= 0);
+assert.ok(generatedNextRemovalIndex > maintenanceAcquireIndex);
+assert.ok(phaseExecutionIndex > generatedNextRemovalIndex);
+assert.ok(maintenanceReleaseIndex > phaseExecutionIndex);
+
 assert.deepEqual(listWorkflowFiles(), []);
 for (const forbiddenPath of [
   ".gitlab-ci.yml",
@@ -467,6 +473,7 @@ console.log(
       documentation_selection_dependency_light: true,
       operating_policy_selection_static_and_maintenance_free: true,
       full_phase_inventory_complete: true,
+      full_maintenance_precedes_generated_mutation_and_spans_all_phases: true,
       browser_lanes_sequential: true,
       maximum_outer_phase_concurrency: maximumActive,
       canonical_node_mismatch_explicit: true,

@@ -16,19 +16,19 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import {
-  TARGET_CANONICAL_ORIGIN_URL,
-  TARGET_CANONICAL_REPOSITORY_ID,
-  TARGET_CANONICAL_REPOSITORY_ROOT,
-  matchCanonicalMigrationBridgeIdentity,
-} from "./canonical-repository-migration-bridge.mjs";
+  CANONICAL_DARWIN_REPOSITORY_ROOT,
+  CANONICAL_ORIGIN_URL,
+  CANONICAL_REPOSITORY_ID,
+  matchCanonicalRepositoryIdentity,
+} from "./canonical-repository-identity.mjs";
 
 export const WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =
   "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT";
 export const AUTHORIZED_REPOSITORY_ROOT = process.platform === "win32"
   ? process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""
-  : TARGET_CANONICAL_REPOSITORY_ROOT;
-export const AUTHORIZED_REPOSITORY_ID = TARGET_CANONICAL_REPOSITORY_ID;
-export const AUTHORIZED_ORIGIN_URL = TARGET_CANONICAL_ORIGIN_URL;
+  : CANONICAL_DARWIN_REPOSITORY_ROOT;
+export const AUTHORIZED_REPOSITORY_ID = CANONICAL_REPOSITORY_ID;
+export const AUTHORIZED_ORIGIN_URL = CANONICAL_ORIGIN_URL;
 export const CANONICAL_NODE_VERSION = "24.18.0";
 export const CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0";
 export const LOCAL_ARTIFACT_DIRECTORY = ".augnes-local-verification";
@@ -67,7 +67,7 @@ export function assertAuthorizedRepositoryIdentity({
   resolvedRoot,
   originUrl,
 }) {
-  return matchCanonicalMigrationBridgeIdentity({ resolvedRoot, originUrl });
+  return matchCanonicalRepositoryIdentity({ resolvedRoot, originUrl });
 }
 
 export function assertExactSha(value, label) {

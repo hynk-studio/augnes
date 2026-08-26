@@ -20,10 +20,10 @@ import {
   readDefaultModelGatewayLocalCapabilityV01,
   readModelGatewayInteractiveAdmissionForRootV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import { matchCanonicalRepositoryIdentity } from "./canonical-repository-identity.mjs";
 
 const AUTHORIZED_ORIGINS_V01 = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 
 if (
@@ -42,6 +42,10 @@ async function main(): Promise<void> {
   const repositoryRoot = realpathSync(
     options.repository_root ?? process.cwd(),
   );
+  matchCanonicalRepositoryIdentity({
+    resolvedRoot: repositoryRoot,
+    originUrl: gitV01(repositoryRoot, ["remote", "get-url", "origin"]),
+  });
   const authorization = JSON.parse(
     readFileSync(options.authorization_file, "utf8"),
   ) as unknown;

@@ -157,10 +157,9 @@ export const operationalReentryV04StaleResetIsolationHarnessAuthorityV01 =
   });
 
 const AUTHORIZED_REPOSITORY_SLUG_V01 =
-  "hynk-studio/augnes-perspective-lab" as const;
+  "hynk-studio/augnes" as const;
 const AUTHORIZED_ORIGINS_V01 = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 const SHA256_V01 = /^sha256:[0-9a-f]{64}$/u;
 const GIT_SHA_V01 = /^[0-9a-f]{40}$/u;

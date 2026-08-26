@@ -11,6 +11,8 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { resolveMigratedHistoricalEvidencePath } from "@/scripts/canonical-historical-evidence.mjs";
+
 import Database from "better-sqlite3";
 
 import {
@@ -82,8 +84,8 @@ const projectRoot = path.join(testRoot, "project");
 const databasePath = path.join(testRoot, "gateway.db");
 const evaluatedAt = "2026-08-20T10:00:00.000Z";
 const repositoryIdentity = {
-  repository_slug: "hynk-studio/augnes-perspective-lab" as const,
-  origin: "https://github.com/hynk-studio/augnes-perspective-lab.git" as const,
+  repository_slug: "hynk-studio/augnes" as const,
+  origin: "https://github.com/hynk-studio/augnes.git" as const,
 };
 const originalFetch = globalThis.fetch;
 let fakeTransportCalls = 0;
@@ -725,10 +727,12 @@ function verifyHistoricalIssue216PreservedV01(): void {
   const issue216 =
     validateOperationalReentryParserClosedProviderCompatibilityProbeArtifactsV01({
       repository_root: repositoryRoot,
-      run_root: path.join(
+      read_scope: "migrated_historical",
+      run_root: resolveMigratedHistoricalEvidencePath({
         repositoryRoot,
+        legacyRelativePath:
         ".augnes-lab/operational-reentry-parser-closed-provider-probes/operational-reentry-parser-closed-provider-probe_154650381bef68202a998f1b6770513c/issue-216",
-      ),
+      }),
     });
   assert.equal(issue216.outcome, "accepted_all_shapes");
   assert.equal(issue216.authorization_consumed, true);

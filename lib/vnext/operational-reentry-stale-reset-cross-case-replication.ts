@@ -63,10 +63,9 @@ import type { ModelInvocationReceiptV02 } from "@/types/vnext/model-invocation-r
 import type { ModelGatewayCostBudgetV01 } from "@/types/vnext/model-invocation-receipt";
 
 const MODEL = "gpt-4.1-mini-2025-04-14" as const;
-const REPOSITORY = "hynk-studio/augnes-perspective-lab" as const;
+const REPOSITORY = "hynk-studio/augnes" as const;
 const ORIGINS = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const GIT_SHA = /^[0-9a-f]{40}$/u;
@@ -1278,8 +1277,8 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthoriza
     authorization_id: string;
     future_compatibility_issue_number: number;
     exact_merged_source_head: string;
-    repository_slug: "hynk-studio/augnes-perspective-lab";
-    authorized_origin: "https://github.com/hynk-studio/augnes-perspective-lab.git" | "git@github.com:hynk-studio/augnes-perspective-lab.git";
+    repository_slug: "hynk-studio/augnes";
+    authorized_origin: "https://github.com/hynk-studio/augnes.git";
     workspace_id: string;
     project_id: string;
     expected_active_selection_revision: number;

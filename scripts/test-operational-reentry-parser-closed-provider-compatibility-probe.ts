@@ -15,6 +15,8 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { resolveMigratedHistoricalEvidencePath } from "@/scripts/canonical-historical-evidence.mjs";
+
 import Database from "better-sqlite3";
 
 import {
@@ -110,8 +112,8 @@ const databasePath = path.join(root, "gateway.db");
 const evaluatedAt = "2026-08-19T08:00:00.000Z";
 const futureMergedSourceHead = "c".repeat(40);
 const repositoryIdentity = {
-  repository_slug: "hynk-studio/augnes-perspective-lab" as const,
-  origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  repository_slug: "hynk-studio/augnes" as const,
+  origin: "https://github.com/hynk-studio/augnes.git",
 };
 const originalFetch = globalThis.fetch;
 let fetchCalls = 0;
@@ -207,10 +209,12 @@ function verifyHistoricalPreservationV01(): void {
   const issue193 =
     validateOperationalReentryProviderCompatibilityProbeArtifactsV01({
       repository_root: repositoryRoot,
-      run_root: path.join(
+      read_scope: "migrated_historical",
+      run_root: resolveMigratedHistoricalEvidencePath({
         repositoryRoot,
+        legacyRelativePath:
         ".augnes-lab/operational-reentry-provider-probes/operational-reentry-provider-probe_724ed8fce6d30d0979efd6bf837a3edc/issue-193",
-      ),
+      }),
     });
   assert.equal(
     issue193.report_fingerprint,
@@ -223,10 +227,12 @@ function verifyHistoricalPreservationV01(): void {
   const issue199 =
     validateOperationalReentryMatchedCohortReplacementArtifactsV01({
       repository_root: repositoryRoot,
-      run_root: path.join(
+      read_scope: "migrated_historical",
+      run_root: resolveMigratedHistoricalEvidencePath({
         repositoryRoot,
+        legacyRelativePath:
         ".augnes-lab/operational-reentry-matched-cohort-replacements/operational-reentry-replacement-cohort_d3136fe392e130ba74f67349686a91d9/issue-199",
-      ),
+      }),
     });
   assert.equal(
     issue199.replacement_cohort_fingerprint,
@@ -240,13 +246,18 @@ function verifyHistoricalPreservationV01(): void {
     issue199.artifact_index_fingerprint,
     "sha256:14296adcac5b81308a11a0761ac39ce77a4ba0c56ddf2cbf6e7e998f33415755",
   );
-  const issue208Root = path.join(
+  const issue208Root = resolveMigratedHistoricalEvidencePath({
     repositoryRoot,
-    ".augnes-lab/operational-reentry-clean-control-provider-probes/operational-reentry-clean-control-provider-probe_9b197e054fab24139b511d4a1e6a4bde/issue-208",
-  );
+    legacyRelativePath:
+      ".augnes-lab/operational-reentry-clean-control-provider-probes/operational-reentry-clean-control-provider-probe_9b197e054fab24139b511d4a1e6a4bde/issue-208",
+  });
   const issue208 =
     validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02(
-      { repository_root: repositoryRoot, run_root: issue208Root },
+      {
+        repository_root: repositoryRoot,
+        read_scope: "migrated_historical",
+        run_root: issue208Root,
+      },
     );
   assert.equal(issue208.outcome, "provider_response_invalid");
   assert.equal(
@@ -299,10 +310,12 @@ function verifyHistoricalPreservationV01(): void {
   );
   const issue185 = validateOperationalReentryMatchedCohortArtifactsV01({
     repository_root: repositoryRoot,
-    run_root: path.join(
+    read_scope: "migrated_historical",
+    run_root: resolveMigratedHistoricalEvidencePath({
       repositoryRoot,
+      legacyRelativePath:
       ".augnes-lab/operational-reentry-matched-cohorts/operational-reentry-cohort_48331280ed7ead6dbad2d12105208dfb/issue-185",
-    ),
+    }),
   });
   assert.equal(issue185.result_kind, "incomplete");
   const packageJson = JSON.parse(

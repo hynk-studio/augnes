@@ -598,8 +598,8 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "canonical repository migration bridge identity contract",
-      ...rootNode("scripts/test-canonical-repository-migration-bridge.mjs"),
+      label: "canonical repository identity contract",
+      ...rootNode("scripts/test-canonical-repository-identity.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -656,6 +656,11 @@ const suites = {
         "ACGC-E2 historical compatibility and provider-contract hardening (zero egress)",
       ...rootNode("scripts/test-operational-reentry-matched-cohort.ts"),
       timeoutMs: 60_000,
+    },
+    {
+      label: "canonical migrated historical evidence isolation",
+      ...rootNode("scripts/test-canonical-migrated-historical-evidence.mjs"),
+      timeoutMs: 30_000,
     },
     {
       label:
@@ -1031,6 +1036,7 @@ try {
     serviceMaintenance = await acquireCompanionServiceMaintenance({
       repositoryRoot: repoRoot,
       operationId: `canonical-suite:${suiteName}:${process.pid}`,
+      joinAncestorLease: true,
     });
   }
 

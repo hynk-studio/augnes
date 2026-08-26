@@ -19,19 +19,22 @@ interface. The product is continuous work, not a collection of surfaces.
 
 ## Canonical repository migration
 
-`hynk-studio/augnes` is the target canonical repository and
-`/Users/hynk/code/augnes` is the target canonical macOS root. The complete
+`hynk-studio/augnes` is the canonical repository and
+`/Users/hynk/code/augnes` is the canonical macOS root. The complete
 perspective-lab Git history through the migration point remains ancestry and
 historical provenance; historical Issue, PR, release, receipt, and research
 links stay bound to `hynk-studio/augnes-perspective-lab`.
 
-This exact migration bridge temporarily recognizes only the legacy
-perspective-lab/root pair and the target augnes/root pair. It does not create a
-general multi-repository or configurable-root mode. The installed Companion,
-local database, project root binding, RW1/RW1A artifacts, and other local state
-remain pre-cutover until the user merges the bridge and separately authorizes
-the local cutover. A second hardening PR must then remove legacy execution
-authority. This bridge does not claim that local cutover is complete.
+The local cutover is complete: the existing workspace/project identity,
+database, project-root binding, Companion, Codex operator plugin, and active
+RW1/RW1A artifacts now continue at the canonical root. [Augnes Issue
+#1130](https://github.com/hynk-studio/augnes/issues/1130) is the Current RW1B
+owner; perspective-lab Issue #268 is historical/migrated, not completed
+research. Completed perspective-lab artifacts remain readable only as isolated
+historical evidence. Neither the legacy repository/root nor historical
+readability grants current execution, Local Canonical, project, Companion,
+provider, or GitHub transport authority. No general multi-repository or
+configurable-root mode exists.
 
 ## Quickstart
 

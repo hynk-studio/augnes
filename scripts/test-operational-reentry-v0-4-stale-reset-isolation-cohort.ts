@@ -936,9 +936,9 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
       authorization_id: "p6h-future-static-test-authorization",
       future_live_issue_number: 238,
       exact_merged_source_head: "a".repeat(40),
-      repository_slug: "hynk-studio/augnes-perspective-lab",
+      repository_slug: "hynk-studio/augnes",
       authorized_origin:
-        "https://github.com/hynk-studio/augnes-perspective-lab.git",
+        "https://github.com/hynk-studio/augnes.git",
       issued_at: "2026-09-01T00:05:00.000Z",
       expires_at: "2026-09-01T01:00:00.000Z",
       workspace_id: admission.workspace_id,
@@ -1013,9 +1013,9 @@ async function verifyFutureAuthorizationAndArtifactsV01() {
     admission,
     route,
     repository_identity: {
-      repository_slug: "hynk-studio/augnes-perspective-lab" as const,
+      repository_slug: "hynk-studio/augnes" as const,
       origin:
-        "https://github.com/hynk-studio/augnes-perspective-lab.git" as const,
+        "https://github.com/hynk-studio/augnes.git" as const,
     },
     evaluated_at: evaluatedAt,
   };
@@ -1544,7 +1544,7 @@ function verifyFutureRunnerPreflightV01(): void {
     "remote",
     "add",
     "origin",
-    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    "https://github.com/hynk-studio/augnes.git",
   ]);
   writeFileSync(path.join(repository, "baseline.txt"), "future merged source\n");
   git(["add", "baseline.txt"]);
@@ -1554,9 +1554,9 @@ function verifyFutureRunnerPreflightV01(): void {
   git(["update-ref", "refs/remotes/origin/main", oldHead]);
   const oldIdentity = {
     exact_merged_source_head: oldHead,
-    repository_slug: "hynk-studio/augnes-perspective-lab",
+    repository_slug: "hynk-studio/augnes",
     authorized_origin:
-      "https://github.com/hynk-studio/augnes-perspective-lab.git",
+      "https://github.com/hynk-studio/augnes.git",
   };
   let localRefreshes = 0;
   const localRefresh = {

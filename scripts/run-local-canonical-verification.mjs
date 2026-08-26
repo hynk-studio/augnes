@@ -77,7 +77,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-change-planner.mjs",
   "scripts/canonical-child-runner.mjs",
   "scripts/canonical-test-environment.mjs",
-  "scripts/canonical-repository-migration-bridge.mjs",
+  "scripts/canonical-repository-identity.mjs",
   "scripts/local-canonical-environment.mjs",
   "scripts/local-canonical-receipt.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
@@ -426,6 +426,12 @@ export async function executeLocalCanonicalVerification({
   try {
     if (!executionFailure) {
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
+      if (plan.selected_plan === "full-canonical") {
+        dependencyMaintenance = await acquireCompanionServiceMaintenance({
+          repositoryRoot,
+          operationId: `local-canonical-full:${runId}`,
+        });
+      }
       if (plan.selected_plan === "full-canonical" && nextState.present_before) {
         rmSync(generatedNextRoot, { recursive: true, force: true });
         nextState.removed_before_execution = true;
@@ -446,39 +452,12 @@ export async function executeLocalCanonicalVerification({
       }
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
-        execute: async (phase) => {
-          if (phase.id === "dependencies-root") {
-            dependencyMaintenance = await acquireCompanionServiceMaintenance({
-              repositoryRoot,
-              operationId: `local-canonical-dependencies:${runId}`,
-            });
-          }
-          let result;
-          try {
-            result = await executePhase({
-              phase,
-              mode,
-              runLogRoot,
-              browserExecutablePath: hostResult.browserExecutablePath,
-            });
-            return result;
-          } finally {
-            const dependenciesComplete =
-              phase.id === "dependencies-nested" ||
-              (phase.id === "dependencies-root" && result?.status !== "pass");
-            if (
-              dependenciesComplete &&
-              dependencyMaintenance &&
-              !dependencyMaintenanceRelease
-            ) {
-              dependencyMaintenanceRelease =
-                await releaseCompanionServiceMaintenance({
-                  repositoryRoot,
-                  lease: dependencyMaintenance.lease,
-                });
-            }
-          }
-        },
+        execute: (phase) => executePhase({
+          phase,
+          mode,
+          runLogRoot,
+          browserExecutablePath: hostResult.browserExecutablePath,
+        }),
         onStart: (phase) => {
           console.log(
             `[local-canonical] phase_start id=${phase.id} timeout_ms=${phase.timeoutMs}`,
@@ -511,17 +490,6 @@ export async function executeLocalCanonicalVerification({
       `[local-canonical] failure phase=executor code=${cleanupReason}`,
     );
   } finally {
-    if (dependencyMaintenance && !dependencyMaintenanceRelease) {
-      try {
-        dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
-          repositoryRoot,
-          lease: dependencyMaintenance.lease,
-        });
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
     console.log("[local-canonical] cleanup_start");
     if (
       plan.selected_plan === "full-canonical" &&
@@ -531,6 +499,17 @@ export async function executeLocalCanonicalVerification({
       try {
         rmSync(generatedNextRoot, { recursive: true, force: true });
         nextState.removed_after_execution = true;
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+    }
+    if (dependencyMaintenance && !dependencyMaintenanceRelease) {
+      try {
+        dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
+          repositoryRoot,
+          lease: dependencyMaintenance.lease,
+        });
       } catch (error) {
         cleanupComplete = false;
         cleanupReason = safeErrorCode(error);
