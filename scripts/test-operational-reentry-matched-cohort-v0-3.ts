@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { resolveMigratedHistoricalEvidencePath } from "@/scripts/canonical-historical-evidence.mjs";
+
 import Database from "better-sqlite3";
 
 import {
@@ -159,22 +161,25 @@ function testHistoricalIdentitiesV03(): void {
 
   const issue193 = validateOperationalReentryProviderCompatibilityProbeArtifactsV01({
     repository_root: repositoryRoot,
-    run_root: path.join(repositoryRoot, ".augnes-lab/operational-reentry-provider-probes/operational-reentry-provider-probe_724ed8fce6d30d0979efd6bf837a3edc/issue-193"),
+    read_scope: "migrated_historical",
+    run_root: resolveMigratedHistoricalEvidencePath({ repositoryRoot, legacyRelativePath: ".augnes-lab/operational-reentry-provider-probes/operational-reentry-provider-probe_724ed8fce6d30d0979efd6bf837a3edc/issue-193" }),
   });
   assert.equal(issue193.report_fingerprint, "sha256:1ef3f21894272f390fcdacce80226383ae6d921c43712c3736a18843a8b08eb2");
   assert.equal(issue193.artifact_index_fingerprint, "sha256:19bc10cb3f9cbd6d2a0fb2b4df9fca6728c4bb4e571255e52f3c2d0fd7a6bd76");
 
   const issue199 = validateOperationalReentryMatchedCohortReplacementArtifactsV01({
     repository_root: repositoryRoot,
-    run_root: path.join(repositoryRoot, ".augnes-lab/operational-reentry-matched-cohort-replacements/operational-reentry-replacement-cohort_d3136fe392e130ba74f67349686a91d9/issue-199"),
+    read_scope: "migrated_historical",
+    run_root: resolveMigratedHistoricalEvidencePath({ repositoryRoot, legacyRelativePath: ".augnes-lab/operational-reentry-matched-cohort-replacements/operational-reentry-replacement-cohort_d3136fe392e130ba74f67349686a91d9/issue-199" }),
   });
   assert.equal(issue199.replacement_cohort_fingerprint, "sha256:e23a70a7e7d9a136b1133c0683db46723ba5d2ec93dc4bf029caf9b7c64612a9");
   assert.equal(issue199.report_fingerprint, "sha256:a3cdf87b2d85bb40d577f4e324ac058652c41414f6fbc26dc21b4ef51e8afa73");
   assert.equal(issue199.artifact_index_fingerprint, "sha256:14296adcac5b81308a11a0761ac39ce77a4ba0c56ddf2cbf6e7e998f33415755");
 
-  const issue208Root = path.join(repositoryRoot, ".augnes-lab/operational-reentry-clean-control-provider-probes/operational-reentry-clean-control-provider-probe_9b197e054fab24139b511d4a1e6a4bde/issue-208");
+  const issue208Root = resolveMigratedHistoricalEvidencePath({ repositoryRoot, legacyRelativePath: ".augnes-lab/operational-reentry-clean-control-provider-probes/operational-reentry-clean-control-provider-probe_9b197e054fab24139b511d4a1e6a4bde/issue-208" });
   const issue208 = validateOperationalReentryCleanControlProviderCompatibilityProbeArtifactsV02({
     repository_root: repositoryRoot,
+    read_scope: "migrated_historical",
     run_root: issue208Root,
   });
   assert.equal(issue208.outcome, "provider_response_invalid");

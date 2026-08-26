@@ -30,21 +30,25 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
-## Current repository migration bridge
+## Canonical repository migration and local cutover
 
-The target canonical repository/root pair is `hynk-studio/augnes` and
-`/Users/hynk/code/augnes`. Perspective-lab history remains direct Git ancestry
-and historical provenance. The migration bridge temporarily admits the exact
-legacy pair only for verification and the bounded local cutover; it grants no
-generic multi-repository mode and no new product, research, provider, policy,
-actor, or Stage 7 authority.
+The sole current repository/root pair is `hynk-studio/augnes` and
+`/Users/hynk/code/augnes`. The user-authorized local cutover preserved the same
+workspace/project identity while migrating the database, project-root binding,
+Companion, Codex operator plugin, and active RW1/RW1A artifacts. Perspective-lab
+history remains direct Git ancestry and historical provenance.
 
-The local database, current project/root binding, installed Companion, and
-RW1/RW1A artifacts have not moved. A user-authorized local cutover must follow
-the bridge merge, then a hardening PR must remove legacy execution authority.
-ACGC-RW1B Issue #268 remains open in perspective-lab until a later cutover phase
-creates its target successor; this bridge does not close or reinterpret it.
-All existing perspective-lab links below remain historical by design.
+The migration bridge no longer grants execution or verification admission.
+The exact legacy repository/root pair and cross/third pairs are rejected for
+current execution. Completed research artifacts are isolated from active
+discovery and remain readable only through explicit historical validation.
+[Augnes Issue #1130](https://github.com/hynk-studio/augnes/issues/1130) is the
+Current ACGC-RW1B owner. Perspective-lab Issue #268 is closed `not_planned`
+only because work is not continued in the historical repository; the pilot is
+not completed or abandoned, and no artifact or conclusion changed. All
+existing perspective-lab links below remain historical by design. This
+cutover grants no new product, research, provider, policy, actor, Stage 7, or
+automatic execution authority.
 
 ## Completed
 
@@ -1528,7 +1532,7 @@ family exists. P6U Issue #258 / PR #259 is Completed at merge
 Completed at merge `f611bea5a44eb90f6739a27d704953abe2d3c464`. P6W Issue #262
 stopped terminally at Gate A before candidate creation, and the synthetic P6
 live lane stopped by default at the program checkpoint. RW1 and RW1A are
-Completed; Issue #268 is the Current/open authentic real-work collection lane.
+Completed; Augnes Issue #1130 is the Current/open authentic real-work collection lane.
 No fresh R1 successor live issue or R2 live issue exists, and
 replication live, product transfer, policy, and Stage 7 remain false.
 
@@ -2000,8 +2004,11 @@ pre-action condition-integrity and work-context overlay over merged RW1 v0.1.
 
 ### ACGC-RW1B authentic real-work collection — Current
 
-[Issue #268](https://github.com/hynk-studio/augnes-perspective-lab/issues/268)
+[Augnes Issue #1130](https://github.com/hynk-studio/augnes/issues/1130)
 is **OPEN / Current** as the operational authentic real-work collection lane.
+[Perspective-lab Issue #268](https://github.com/hynk-studio/augnes-perspective-lab/issues/268)
+is closed as historical/migrated; its `not_planned` reason means only that the
+work is not continued in the historical repository.
 The merged RW1/RW1A protocol remains frozen for this pilot. The first reported
 authentic Verify B0 attempt observed the exact same C1 continuity snapshot
 before its first meaningful source-first action; RW1A therefore preserves its
@@ -2031,13 +2038,14 @@ P6V completed
 -> RW1 bounded measurement harness completed
 -> post-RW1 research-obligation classification completed
 -> RW1A pre-action condition-integrity overlay completed
--> Issue #268 authentic real-work collection is Current
+-> canonical migration preserves the pilot without a migration episode
+-> Augnes Issue #1130 authentic real-work collection is Current
 ```
 
 At that checkpoint, no successor R1, R2, Stage 7, policy, product transfer,
 automatic promotion, or automatic context behavior is authorized. RW1 measures
 representative Resume / Verify / Decide work and later usefulness, burden, and
-harm; #268 owns the bounded authentic collection lane. R2 action/regime
+harm; Augnes #1130 owns the bounded authentic collection lane. R2 action/regime
 supersession remains deferred unless a later explicit reviewed decision
 establishes that it answers a material question more directly than real-work
 evaluation. This sequence creates no future live authority.
@@ -2061,7 +2069,7 @@ P6W / Issue #262 = terminally stopped at Gate A before candidate creation; provi
 ACGC-RW1 / Issue #263 / PR #264 = Completed at merge 44557e353bb7a949457abafcbd8a37f221a29f1f
 post-RW1 research-obligation classification / PR #265 = Completed at merge 1a1aa94abe31a4335858bffe2a7bc4938bec66a6
 ACGC-RW1A / Issue #266 / PR #267 = Completed at merge b45e73bb3513472af0592742d7e62039f63cf95a
-ACGC-RW1B / Issue #268 = OPEN / Current authentic real-work collection; merged RW1/RW1A protocol frozen
+ACGC-RW1B / Augnes Issue #1130 = OPEN / Current authentic real-work collection; perspective-lab Issue #268 = historical/migrated; merged RW1/RW1A protocol frozen
 first reported authentic Verify B0 = condition-confounded by exact C1 continuity before first meaningful source-first action; no comparison-valid B0/C1 pair
 Issue #269 / PR #276 = Completed at merge 5e2c9c382f4cf5643f2ec75b393455f26a34599b; future resumption-versus-independent-source-first admission corrected
 synthetic P6 live lane = stopped by default at program checkpoint
@@ -2267,7 +2275,8 @@ exists. P6U Issue #258 / PR #259 is Completed at merge
 `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`; P6V Issue #260 / PR #261 is
 Completed at merge `f611bea5a44eb90f6739a27d704953abe2d3c464`; P6W Issue
 #262 stopped terminally at Gate A before candidate creation; RW1 and RW1A are
-Completed; and Issue #268 is the Current/open authentic collection lane. No
+Completed; perspective-lab Issue #268 is historical/migrated, and Augnes Issue
+#1130 is the Current/open authentic collection lane. No
 fresh R1 successor live issue or R2 live issue exists, and replication live, product
 transfer, policy, and Stage 7 remain false.
 
@@ -2400,7 +2409,7 @@ surface, or user experience.
 | Program | Current classification | Sequencing boundary |
 |---|---|---|
 | Personal Perspective | Limited project-scoped controls are implemented; broader Vault, identity, and cross-project substrate remain deferred research. | Preserve explicit scope, consent, source, revision, and no automatic injection. |
-| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains v0.3 provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit result. E2R2P6B Issue #227 / PR #228 is Completed at `e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C Issue #229 / PR #230 is Completed at `b11af64b91fb361279b30f53cd4eb3f1645739a3`. E2R2P6D Issue #232 completed exactly one authorization-consumed v0.4 compatibility probe with provider-contract-only `accepted_all_shapes`, A -> B -> C -> D `4/4`, and retry/replacement `0/0`. E2R2P6E Issue #233 / PR #234 is Completed at `9ff7edaff3dd09fc36ee3b74b8a241cac6c9e2f0`. E2R2P6F Issue #235 / PR #236 is Completed at `32cc6e6de753cee84bef5d923fab341503bf22c9`. E2R2P6H Issue #237 / PR #238 is Completed at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d`. E2R2P6I Issue #239 and E2R2P6J Issue #240 / PR #241 are Completed at merge `0c6fb9615bb904781aba1eb323038440678bad5c`; P6I used one authorization-consumed validated `16/16` cohort with retry/replacement `0/0`. E2R2P6K Issue #242 / PR #243 is Completed at merge `6d6ed687fd93888ed54e40ca80f99edb2fafc61c`. E2R2P6L Issue #244 / PR #245 is Completed at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3`. E2R2P6M Issue #246 remains one consumed protocol-invalid/incomplete five-call compatibility attempt with retry/replacement `0/0`; E2R2P6O Issue #249 / PR #250 completed its historical closeout at merge `746b00c5baf90c39614b3878609cde5718a9d7c4`. E2R2P6N Issue #247 / PR #248 is Completed at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6P Issue #251 completed one fresh corrected v0.2 compatibility probe with `6/6` completed live, retry/replacement `0/0`, and valid artifacts; this is provider-contract compatibility only. E2R2P6Q Issue #252 / PR #253 is Completed at merge `0875125ce57f6999d05271872295ea684d85d20b`. E2R2P6R Issue #254 ended one consumed R1 cohort `incomplete` with planned/attempted/completed/unattempted `16/6/5/10`, retry/replacement `0/0`, and valid artifacts; its one complete block matched R-H1 through R-H5, but no R1 support result is established. E2R2P6S Issue #255 / PR #256 is Completed at merge `60cb7b5e6e80b5e7c34bd614d361153ff55c60a1`. E2R2P6T Issue #257 exercised one Gate B CLI invocation that exited before authorization consumption at `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, P6T behavioral result and case status are `none`, and no run root or artifact family exists. E2R2P6U Issue #258 / PR #259 is Completed at merge 66fa9ee3dc20ceaf6054ea4afa445fce20c190f5; P6V Issue #260 / PR #261 is Completed at merge f611bea5a44eb90f6739a27d704953abe2d3c464; P6W Issue #262 stopped at Gate A before candidate creation; RW1 and RW1A are Completed; and Issue #268 is the Current/open authentic collection lane. Issue #205 is closed NOT_PLANNED as unresolved/superseded historical infrastructure, Issue #185 is closed terminal history, and PR #186 is closed unmerged terminal history. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A failed closed because exact full G/B provider-request equality conflicted with provider-visible distinct `call_slot_id` under v0.3. E2R2P6B addresses that contract blocker prospectively through a new v0.4 identity separation; it does not retroactively alter P6A or v0.3 and by itself established no compatibility result. E2R2P6C defines the zero-egress compatibility harness, and E2R2P6D establishes provider-contract compatibility only for that exact v0.4 contract. E2R2P6F resolves the design blocker over exact v0.4 with `reuse_v04_exact`: G is local provider-invisible provenance over exact B wire material, A remains the positive control, and direct C↔B plus all six A/B/C/G pairs are frozen with target persistence separated from whole output, compliance, and bounded outcome. P6H completed the zero-egress harness at the exact merged v0.4 contract. P6I then established only bounded exact-intervention evidence: A persisted more than B in `4/4`, C persisted more than B in `4/4`, B/G target persistence was equal in `4/4`, and C persisted more than G in `4/4`; B/G whole output was equal once and distinct three times. P6K froze the cross-case design only. P6L completed the provider contract and zero-egress harness. P6M exposed a provider-schema semantic-closure and post-invoke terminalization defect in one consumed, terminal-incomplete attempt; it created no behavioral evidence. P6N corrected only those defects with zero provider calls at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3`. P6O completed the immutable v0.1 attempt closeout, P6P established only the exact v0.2 provider-contract compatibility result, and P6Q completed the provider-contract-only closeout, P6R is terminal `incomplete`, P6S completed the Issue #254 documentation-only closeout, P6T stopped at the pre-consumption source-attestation boundary with no behavioral case status, and P6U and P6V are Completed, P6W stopped before candidate creation, and Issue #268 is Current for authentic collection. Replication live authority is false, and product transfer, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, deployment, Ready, merge, and auto-merge remain separately unauthorized. |
+| [Adaptive Continuity and Governed Compounding](./research/AUGNES_ADAPTIVE_CONTINUITY_AND_GOVERNED_COMPOUNDING_RND_PROGRAM_V0_1.md) | Stages 0–6 are Completed; Stage 5 actual use, support validation, outcome association, and causal contribution remain `unknown`, and the exact historical case remains `inconclusive`. ACGC6B retains no live operational policy. Issue #199 remains the immutable terminal-incomplete replacement cohort; Issue #202 remains its read-only dimension audit; Issue #208 remains immutable `provider_response_invalid` v0.2 history with exact cause unclassified; and Issue #216 remains v0.3 provider-contract compatibility evidence whose normalized outputs were not reused behaviorally. E2R2P5H Issue #219 / PR #220 is Completed at `e5a030f19faf45f34bf52410520d290b7da32f7c`. E2R2P5L Issue #221 completed exactly one authorization-consumed parser-closed v0.3 clean-control cohort: `16/16` completed live calls, four common-compliance-valid blocks, conditioning `structured_delta_observed` in `4/4`, reset `stale_persistence_candidate` in `4/4`, `20` `comparable:distinct:equal` pairs, and repeatable exact-cohort relations without a scalar, rank, or winner. E2R2P5A2 Issue #222 was only a zero-egress expired-candidate refresh. E2R2P5C Issue #223 / PR #224 is Completed at `e62606704edf1103390f3c067401a2cb853741b5`. E2R2P6A Issue #225 / PR #226 is Completed at `9b24e5d783d2741a00a2c91490feafcac0531de5` with its fail-closed audit result. E2R2P6B Issue #227 / PR #228 is Completed at `e1c6aa46960bf3d983818faba0d9531d3e3333fa`. E2R2P6C Issue #229 / PR #230 is Completed at `b11af64b91fb361279b30f53cd4eb3f1645739a3`. E2R2P6D Issue #232 completed exactly one authorization-consumed v0.4 compatibility probe with provider-contract-only `accepted_all_shapes`, A -> B -> C -> D `4/4`, and retry/replacement `0/0`. E2R2P6E Issue #233 / PR #234 is Completed at `9ff7edaff3dd09fc36ee3b74b8a241cac6c9e2f0`. E2R2P6F Issue #235 / PR #236 is Completed at `32cc6e6de753cee84bef5d923fab341503bf22c9`. E2R2P6H Issue #237 / PR #238 is Completed at merge `858e06d210d4be7de6f0300adad15fd4d9e9015d`. E2R2P6I Issue #239 and E2R2P6J Issue #240 / PR #241 are Completed at merge `0c6fb9615bb904781aba1eb323038440678bad5c`; P6I used one authorization-consumed validated `16/16` cohort with retry/replacement `0/0`. E2R2P6K Issue #242 / PR #243 is Completed at merge `6d6ed687fd93888ed54e40ca80f99edb2fafc61c`. E2R2P6L Issue #244 / PR #245 is Completed at merge `13011ea65e1b0b7a743fa2be61985b52dc5cf9c3`. E2R2P6M Issue #246 remains one consumed protocol-invalid/incomplete five-call compatibility attempt with retry/replacement `0/0`; E2R2P6O Issue #249 / PR #250 completed its historical closeout at merge `746b00c5baf90c39614b3878609cde5718a9d7c4`. E2R2P6N Issue #247 / PR #248 is Completed at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3`. E2R2P6P Issue #251 completed one fresh corrected v0.2 compatibility probe with `6/6` completed live, retry/replacement `0/0`, and valid artifacts; this is provider-contract compatibility only. E2R2P6Q Issue #252 / PR #253 is Completed at merge `0875125ce57f6999d05271872295ea684d85d20b`. E2R2P6R Issue #254 ended one consumed R1 cohort `incomplete` with planned/attempted/completed/unattempted `16/6/5/10`, retry/replacement `0/0`, and valid artifacts; its one complete block matched R-H1 through R-H5, but no R1 support result is established. E2R2P6S Issue #255 / PR #256 is Completed at merge `60cb7b5e6e80b5e7c34bd614d361153ff55c60a1`. E2R2P6T Issue #257 exercised one Gate B CLI invocation that exited before authorization consumption at `cross_case_live_origin_main_refresh_failed`; provider calls were `0`, P6T behavioral result and case status are `none`, and no run root or artifact family exists. E2R2P6U Issue #258 / PR #259 is Completed at merge 66fa9ee3dc20ceaf6054ea4afa445fce20c190f5; P6V Issue #260 / PR #261 is Completed at merge f611bea5a44eb90f6739a27d704953abe2d3c464; P6W Issue #262 stopped at Gate A before candidate creation; RW1 and RW1A are Completed; perspective-lab Issue #268 is historical/migrated, and Augnes Issue #1130 is the Current/open authentic collection lane. Issue #205 is closed NOT_PLANNED as unresolved/superseded historical infrastructure, Issue #185 is closed terminal history, and PR #186 is closed unmerged terminal history. | Fresh-target bounded conditioning is established only for the exact frozen synthetic cohort; every recorded pair remained equal in bounded outcome. Stale relinquishment/reset, general benefit or harm, provider/model superiority, policy fitness, and Stage 7 readiness are not established. E2R2P6A failed closed because exact full G/B provider-request equality conflicted with provider-visible distinct `call_slot_id` under v0.3. E2R2P6B addresses that contract blocker prospectively through a new v0.4 identity separation; it does not retroactively alter P6A or v0.3 and by itself established no compatibility result. E2R2P6C defines the zero-egress compatibility harness, and E2R2P6D establishes provider-contract compatibility only for that exact v0.4 contract. E2R2P6F resolves the design blocker over exact v0.4 with `reuse_v04_exact`: G is local provider-invisible provenance over exact B wire material, A remains the positive control, and direct C↔B plus all six A/B/C/G pairs are frozen with target persistence separated from whole output, compliance, and bounded outcome. P6H completed the zero-egress harness at the exact merged v0.4 contract. P6I then established only bounded exact-intervention evidence: A persisted more than B in `4/4`, C persisted more than B in `4/4`, B/G target persistence was equal in `4/4`, and C persisted more than G in `4/4`; B/G whole output was equal once and distinct three times. P6K froze the cross-case design only. P6L completed the provider contract and zero-egress harness. P6M exposed a provider-schema semantic-closure and post-invoke terminalization defect in one consumed, terminal-incomplete attempt; it created no behavioral evidence. P6N corrected only those defects with zero provider calls at merge `a88a1ee4b969f20b150b10eab5556ada6769e4c3`. P6O completed the immutable v0.1 attempt closeout, P6P established only the exact v0.2 provider-contract compatibility result, and P6Q completed the provider-contract-only closeout, P6R is terminal `incomplete`, P6S completed the Issue #254 documentation-only closeout, P6T stopped at the pre-consumption source-attestation boundary with no behavioral case status, and P6U and P6V are Completed, P6W stopped before candidate creation, perspective-lab Issue #268 is historical/migrated, and Augnes Issue #1130 is Current for authentic collection. Replication live authority is false, and product transfer, policy, Stage 7, live policy, automatic context injection/fallback/rollback/Start/Resume/retry/scheduling, actor/winner/population promotion, C9, remote nodes, Linux rollout, orchestration, publication, deployment, Ready, merge, and auto-merge remain separately unauthorized. |
 | Strategic advantage transfer | Bounded source-linked capability inside the non-authoritative assessment path. | No separate authority, winner, actor population, or automatic application. |
 | `ContextUseReview` and feedback | Bounded current capability. | Feedback may inform later review; it does not mutate state automatically. |
 | Temporal, metacognitive, retrieval, and candidate diagnostics | Mixed active, paused, and unresolved research families. | Assign an owner and outcome test before productization or retirement. |
@@ -2460,7 +2469,8 @@ exists. P6U Issue #258 / PR #259 is Completed at merge
 `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`; P6V Issue #260 / PR #261 is
 Completed at merge `f611bea5a44eb90f6739a27d704953abe2d3c464`; P6W Issue
 #262 stopped terminally at Gate A before candidate creation; RW1 and RW1A are
-Completed; and Issue #268 is the Current/open authentic collection lane. No
+Completed; perspective-lab Issue #268 is historical/migrated, and Augnes Issue
+#1130 is the Current/open authentic collection lane. No
 fresh R1 successor live issue or R2 live issue exists, and replication live, product
 transfer, policy, Stage 7, and automatic successor authority remain false.
 

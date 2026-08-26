@@ -85,10 +85,9 @@ export const ACGC_E2R2P5H_DEFAULT_AUTHORIZATION_CEILING_NANO_USD_V01 =
 export const ACGC_E2R2P5H_SEALED_ORDER_V01 = ACGC_E2_V02_SEALED_ORDER;
 
 const AUTHORIZED_REPOSITORY_SLUG_V01 =
-  "hynk-studio/augnes-perspective-lab" as const;
+  "hynk-studio/augnes" as const;
 const AUTHORIZED_ORIGINS_V01 = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 const COHORT_REF_V01 = "acgc-e2r2p5h-parser-closed-clean-control-v03";
 const SHA256_V01 = /^sha256:[0-9a-f]{64}$/u;

@@ -12,15 +12,14 @@ does not merge, mark ready, enable auto-merge, or claim user decisions.
 
 ## Repository and workspace boundary
 
-- `hynk-studio/augnes` and `/Users/hynk/code/augnes` are the target canonical
+- `hynk-studio/augnes` and `/Users/hynk/code/augnes` are the sole current
   repository and local root.
-- The migration bridge is explicitly transitional. Until the local cutover and
-  follow-up hardening are complete, only the exact legacy pair
-  `hynk-studio/augnes-perspective-lab` + `/Users/hynk/code/augnes-temp` remains
-  admitted for inventory, verification, and the bounded cutover procedure.
-- The two repository/root pairs are not interchangeable. Cross-paired or third
-  repositories, origins, roots, clones, mirrors, worktrees, and folders remain
-  unauthorized for Local Canonical execution.
+- `hynk-studio/augnes-perspective-lab` and `/Users/hynk/code/augnes-temp` are
+  historical provenance and rollback material only. They grant no current
+  development, Local Canonical, project, Companion, research-runner, provider,
+  or repository-execution authority.
+- Cross-paired or third repositories, origins, roots, clones, mirrors,
+  worktrees, and folders remain unauthorized for Local Canonical execution.
 - GitHub evidence transport and new Issue/PR work target only
   `hynk-studio/augnes`. The legacy repository remains historical provenance and
   receives no new development Issue, PR, evidence publication, tag, or release.
@@ -30,9 +29,11 @@ does not merge, mark ready, enable auto-merge, or claim user decisions.
 - Product, Core, protocol, UI, and documentation use **Augnes**. Historical
   perspective-lab Issue, PR, release, and evidence links remain historical and
   must not be blanket-retargeted.
-- A follow-up hardening PR must remove the legacy execution pair after the user
-  completes the local cutover. Do not extend this bridge into generic
-  multi-repository or configurable-root behavior.
+- No future Issue, PR, development, verification publication, or execution may
+  originate in perspective-lab. Explicit historical readers may preserve and
+  validate frozen provenance without making it current input or authority.
+- Do not recreate the migration bridge or extend the canonical identity into
+  generic multi-repository or configurable-root behavior.
 
 Stop on any repository, root, branch, baseline, or remote mismatch.
 

@@ -770,7 +770,7 @@ function verifyRepositoryPreflightV01(): void {
     "remote",
     "add",
     "origin",
-    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    "https://github.com/hynk-studio/augnes.git",
   ]);
   writeFileSync(path.join(repository, "fixture.txt"), "fixture\n");
   gitV01(repository, ["add", "fixture.txt"]);

@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 
-import { matchCanonicalMigrationBridgeIdentity } from "./canonical-repository-migration-bridge.mjs";
+import { matchCanonicalRepositoryIdentity } from "./canonical-repository-identity.mjs";
 import { governedActorLabLiveCasebookFixture } from "@/fixtures/vnext/protocol/governed-actor-lab-live-v0-1";
 import { createGovernedActorLabManifestV01 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import {
@@ -33,7 +33,7 @@ async function main() {
     failV01("live_cohort_repository_root_mismatch");
   }
   try {
-    matchCanonicalMigrationBridgeIdentity({
+    matchCanonicalRepositoryIdentity({
       resolvedRoot: repositoryRoot,
       originUrl: gitV01(repositoryRoot, ["remote", "get-url", "origin"]),
     });

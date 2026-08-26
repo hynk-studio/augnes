@@ -117,8 +117,8 @@ const databasePath = path.join(root, "gateway.db");
 const evaluatedAt = "2026-08-22T08:00:00.000Z";
 const futureMergedSourceHead = "c".repeat(40);
 const repositoryIdentity = {
-  repository_slug: "hynk-studio/augnes-perspective-lab" as const,
-  origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  repository_slug: "hynk-studio/augnes" as const,
+  origin: "https://github.com/hynk-studio/augnes.git",
 };
 const originalFetch = globalThis.fetch;
 let fetchCalls = 0;

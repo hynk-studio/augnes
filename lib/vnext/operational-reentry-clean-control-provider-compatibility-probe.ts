@@ -116,10 +116,9 @@ const GIT_SHA_V02 = /^[0-9a-f]{40}$/u;
 const SHA256_V02 = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_AUTHORIZATION_ID_V02 = /^[A-Za-z0-9:._-]{1,200}$/u;
 const AUTHORIZED_REPOSITORY_SLUG_V02 =
-  "hynk-studio/augnes-perspective-lab" as const;
+  "hynk-studio/augnes" as const;
 const AUTHORIZED_ORIGINS_V02 = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
+  "https://github.com/hynk-studio/augnes.git",
 ]);
 
 export class OperationalReentryCleanControlProviderCompatibilityProbeErrorV02 extends Error {
@@ -160,8 +159,7 @@ export interface RunOperationalReentryCleanControlProviderCompatibilityProbeDepe
 export interface OperationalReentryCleanControlProviderCompatibilityProbeAuthorizationExpectationsV02 {
   repository_slug: typeof AUTHORIZED_REPOSITORY_SLUG_V02;
   authorized_origin:
-    | "https://github.com/hynk-studio/augnes-perspective-lab.git"
-    | "git@github.com:hynk-studio/augnes-perspective-lab.git";
+    "https://github.com/hynk-studio/augnes.git";
   workspace_id: string;
   project_id: string;
   expected_active_selection_revision: number;

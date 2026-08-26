@@ -25,6 +25,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  projectArtifactEvidenceReadPathV01,
+  type ArtifactEvidenceReadScopeV01,
+} from "@/lib/vnext/migrated-historical-evidence";
 import type {
   OperationalReentryMatchedCohortBlockEvaluationV01,
   OperationalReentryMatchedCohortCallTerminalV01,
@@ -352,19 +356,26 @@ export function beginOperationalReentryMatchedCohortReplacementAttemptV01(
 }
 
 export function validateOperationalReentryMatchedCohortReplacementArtifactsV01(
-  input: { repository_root: string; run_root: string },
+  input: {
+    repository_root: string;
+    run_root: string;
+    read_scope?: ArtifactEvidenceReadScopeV01;
+  },
 ): OperationalReentryMatchedCohortReplacementArtifactSummaryV01 {
   const repositoryRoot = requireRepositoryRootV01(input.repository_root);
   const runRoot = realpathSync(input.run_root);
   assertContainedV01(repositoryRoot, runRoot);
-  const relativeRunRoot = path
+  const physicalRelativeRunRoot = path
     .relative(repositoryRoot, runRoot)
     .split(path.sep)
     .join("/");
+  const relativeRunRoot = projectArtifactEvidenceReadPathV01({
+    relative_path: physicalRelativeRunRoot,
+    active_prefix: ACGC_E2R1_REPLACEMENT_ARTIFACT_NAMESPACE_V01,
+    read_scope: input.read_scope,
+  });
   if (
-    !relativeRunRoot.startsWith(
-      ACGC_E2R1_REPLACEMENT_ARTIFACT_NAMESPACE_V01,
-    ) ||
+    !relativeRunRoot ||
     relativeRunRoot.endsWith("/issue-185") ||
     relativeRunRoot.includes("operational-reentry-provider-probes")
   ) {

@@ -989,7 +989,7 @@ function verifyExactOriginMainPreflightV01(): void {
     "remote",
     "add",
     "origin",
-    "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    "https://github.com/hynk-studio/augnes.git",
   ]);
   writeFileSync(path.join(repository, "baseline.txt"), "merged main\n");
   git(["add", "baseline.txt"]);

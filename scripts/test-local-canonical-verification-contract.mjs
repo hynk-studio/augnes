@@ -92,8 +92,8 @@ const localExecutor = readRepositoryFile(
 const localEnvironment = readRepositoryFile(
   "scripts/local-canonical-environment.mjs",
 );
-const migrationBridge = readRepositoryFile(
-  "scripts/canonical-repository-migration-bridge.mjs",
+const repositoryIdentity = readRepositoryFile(
+  "scripts/canonical-repository-identity.mjs",
 );
 const localReceipt = readRepositoryFile(
   "scripts/local-canonical-receipt.mjs",
@@ -446,7 +446,7 @@ for (const fragment of [
   `process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""`,
   `AUTHORIZED_REPOSITORY_ID =`,
   `AUTHORIZED_ORIGIN_URL =`,
-  `matchCanonicalMigrationBridgeIdentity`,
+  `matchCanonicalRepositoryIdentity`,
   `CANONICAL_NODE_VERSION = "24.18.0"`,
   `CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0"`,
   `missing_\${safeLabel(label)}_commit`,
@@ -460,10 +460,6 @@ for (const fragment of [
   );
 }
 for (const fragment of [
-  `"perspective-lab-to-augnes.v0.1"`,
-  `"/Users/hynk/code/augnes-temp"`,
-  `"hynk-studio/augnes-perspective-lab"`,
-  `"https://github.com/hynk-studio/augnes-perspective-lab.git"`,
   `"/Users/hynk/code/augnes"`,
   `"hynk-studio/augnes"`,
   `"https://github.com/hynk-studio/augnes.git"`,
@@ -471,9 +467,9 @@ for (const fragment of [
   `unauthorized_repository_origin`,
 ]) {
   requireText(
-    migrationBridge,
+    repositoryIdentity,
     fragment,
-    `migration bridge identity contract is missing: ${fragment}`,
+    `canonical repository identity contract is missing: ${fragment}`,
   );
 }
 assert.doesNotMatch(
@@ -527,7 +523,7 @@ for (const fragment of [
   `LOG_RUN_RETENTION = 5`,
   `buildLocalPhaseEnvironment`,
   `CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST`,
-  `scripts/canonical-repository-migration-bridge.mjs`,
+  `scripts/canonical-repository-identity.mjs`,
   `writeReceipt`,
   `validateReceiptAgainstCurrentRepository`,
   `isPostExecutionIdentityValid`,
@@ -929,6 +925,7 @@ for (const fragment of [
   `{ id: "operator-process", children:`,
   `{ id: "supporting-serial", children:`,
   `new Set(preparedSteps.map((step) => step.resourceRoot)).size`,
+  `joinAncestorLease: true`,
   `const temporaryRoot = realpathSync(`,
   `mkdtempSync(`,
   `ownedResourceRoots.push(resourceRoot)`,
