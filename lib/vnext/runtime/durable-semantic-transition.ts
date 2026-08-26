@@ -1086,6 +1086,38 @@ export function assertProjectVerifyLifecycleProposalFullSourceBoundV01(
   );
 }
 
+/**
+ * Source-authenticates one Project Verify lifecycle proposal through an
+ * existing creator-issued, scope- and database-bound Transition read session.
+ * This lets projection readers validate a set of immutable lifecycle chains
+ * without replaying common prior Transition ancestry for every decision.
+ */
+export function assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+  db: Database.Database,
+  proposal: EpisodeDeltaProposalV01,
+  readSession: VNextSemanticTransitionRelationReadSessionV01,
+): ProjectVerifyLifecycleStructuralSourceV01 {
+  const registration =
+    vNextSemanticTransitionRelationReadSessionRegistryV01.get(readSession);
+  if (!registration) {
+    throw new Error("project_verify_lifecycle_read_session_invalid");
+  }
+  if (
+    registration.db !== db ||
+    proposal.workspace_id !== registration.workspace_id ||
+    proposal.project_id !== registration.project_id
+  ) {
+    throw new Error("project_verify_lifecycle_read_session_scope_mismatch");
+  }
+  return structuredClone(
+    assertProjectVerifyLifecycleProposalFullSourceBoundWithContextV01(
+      registration.db,
+      proposal,
+      registration.validation_context,
+    ),
+  );
+}
+
 export function assertProjectVerifyLifecycleProposalFullCurrentHeadV01(
   db: Database.Database,
   proposal: EpisodeDeltaProposalV01,

@@ -403,6 +403,25 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "reconstruction-conformance",
+      group: "supporting-serial",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "backup-restore",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "zero-model portable reconstruction and exact/relational conformance",
+      ...rootNode("scripts/test-reconstruction-conformance.ts"),
+      // Production-shaped fixture construction, full lifecycle source replay,
+      // portable import, and two independent owner reads measured about 420s
+      // on exact local Node 24 arm64 during RC1 implementation. Bound at 600s.
+      timeoutMs: 600_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],

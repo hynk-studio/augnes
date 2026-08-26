@@ -51,7 +51,12 @@ import {
   validateReviewDecisionV01,
 } from "@/lib/vnext/review-decision";
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
-import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
+import {
+  assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01,
+  createValidatedVNextSemanticTransitionRelationReadSessionV01,
+  loadValidatedVNextSemanticTransitionRelationV01,
+  type VNextSemanticTransitionRelationReadSessionV01,
+} from "@/lib/vnext/runtime/durable-semantic-transition";
 import { inspectVNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
@@ -896,6 +901,12 @@ function readPendingAttention(
   if (proposalRecords.length > PROPOSAL_SCAN_LIMIT) {
     throw new Error("project_home_proposal_scan_bound_exceeded");
   }
+  const proposals = proposalRecords.map((record) =>
+    validatedProposal(record, input),
+  );
+  const proposalsById = new Map(
+    proposals.map((proposal) => [proposal.proposal_id, proposal]),
+  );
   const decisionRecords = listVNextCoreRecordsV01(db, {
     ...input,
     record_kinds: ["review_decision"],
@@ -905,7 +916,15 @@ function readPendingAttention(
     throw new Error("project_home_decision_scan_bound_exceeded");
   }
   const decisions = decisionRecords.map((record) => validatedDecision(record, input));
-  validateDecisionLineageForProjection(decisions);
+  const transitionReadSession =
+    createValidatedVNextSemanticTransitionRelationReadSessionV01(db, input);
+  validateDecisionLineageForProjection(
+    db,
+    input,
+    decisions,
+    proposalsById,
+    transitionReadSession,
+  );
   const transitionRecords = listVNextCoreRecordsV01(db, {
     ...input,
     record_kinds: ["state_transition_receipt"],
@@ -916,8 +935,7 @@ function readPendingAttention(
   }
   const appliedDecisionKeys = new Set(
     transitionRecords.map((record) => {
-      const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-        ...input,
+      const transition = transitionReadSession({
         transition_receipt_id: record.record_id,
         transition_receipt_fingerprint: record.fingerprint,
       });
@@ -927,8 +945,7 @@ function readPendingAttention(
       );
     }),
   );
-  const evaluated = proposalRecords
-    .map((record) => validatedProposal(record, input))
+  const evaluated = proposals
     .filter((proposal) => proposal.status === "pending_review")
     .map((proposal) => {
       const proposalDecisions = decisions.filter(
@@ -1190,7 +1207,11 @@ function compareEffectiveDecisions(
 }
 
 function validateDecisionLineageForProjection(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
   decisions: ReviewDecisionV01[],
+  proposalsById: Map<string, EpisodeDeltaProposalV01>,
+  transitionReadSession: VNextSemanticTransitionRelationReadSessionV01,
 ): void {
   const byId = new Map(decisions.map((decision) => [decision.decision_id, decision]));
   for (const decision of decisions) {
@@ -1200,15 +1221,38 @@ function validateDecisionLineageForProjection(
     );
     for (const binding of decision.lineage.prior_decisions) {
       const prior = byId.get(binding.decision_id);
+      const priorTimestamp = prior
+        ? requireStrictTimestamp(
+            prior.decided_at,
+            "project_home_prior_decision_timestamp_invalid",
+          )
+        : null;
+      const sameCandidateLineage =
+        prior?.source_proposal.proposal_id ===
+          decision.source_proposal.proposal_id &&
+        prior?.candidate.candidate_id === decision.candidate.candidate_id;
+      const proposal = resolveDecisionSourceProposalV01(
+        db,
+        input,
+        decision,
+        proposalsById,
+      );
+      const validLineage = proposal.project_verify_lifecycle
+        ? prior !== undefined &&
+          projectVerifyLifecycleDecisionReferencesPriorV01(
+            db,
+            proposal,
+            decision,
+            prior,
+            transitionReadSession,
+          )
+        : sameCandidateLineage;
       if (
         !prior ||
         prior.integrity.fingerprint !== binding.decision_fingerprint ||
-        prior.source_proposal.proposal_id !== decision.source_proposal.proposal_id ||
-        prior.candidate.candidate_id !== decision.candidate.candidate_id ||
-        requireStrictTimestamp(
-          prior.decided_at,
-          "project_home_prior_decision_timestamp_invalid",
-        ) > decidedAt
+        !validLineage ||
+        priorTimestamp === null ||
+        priorTimestamp > decidedAt
       ) {
         throw new Error("project_home_decision_lineage_invalid");
       }
@@ -1229,6 +1273,95 @@ function validateDecisionLineageForProjection(
     visited.add(decision.decision_id);
   };
   decisions.forEach(visit);
+}
+
+function resolveDecisionSourceProposalV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  decision: ReviewDecisionV01,
+  proposalsById: Map<string, EpisodeDeltaProposalV01>,
+): EpisodeDeltaProposalV01 {
+  const cached = proposalsById.get(decision.source_proposal.proposal_id);
+  const proposal = cached ?? (() => {
+    const record = readVNextCoreRecordV01(db, {
+      ...input,
+      record_kind: "episode_delta_proposal",
+      record_id: decision.source_proposal.proposal_id,
+    });
+    if (!record) throw new Error("project_home_decision_proposal_missing");
+    const loaded = validatedProposal(record, input);
+    proposalsById.set(loaded.proposal_id, loaded);
+    return loaded;
+  })();
+  if (
+    proposal.integrity.fingerprint !==
+    decision.source_proposal.proposal_fingerprint
+  ) {
+    throw new Error("project_home_decision_proposal_conflict");
+  }
+  return proposal;
+}
+
+function projectVerifyLifecycleDecisionReferencesPriorV01(
+  db: Database.Database,
+  proposal: EpisodeDeltaProposalV01,
+  decision: ReviewDecisionV01,
+  prior: ReviewDecisionV01,
+  transitionReadSession: VNextSemanticTransitionRelationReadSessionV01,
+): boolean {
+  try {
+    if (
+      proposal.integrity.fingerprint !==
+        decision.source_proposal.proposal_fingerprint ||
+      validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+        .status !== "valid"
+    ) {
+      return false;
+    }
+    assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+      db,
+      proposal,
+      transitionReadSession,
+    );
+    const profile = proposal.project_verify_lifecycle;
+    const head = profile?.current_head_expectation;
+    const operation = profile?.lifecycle_binding.selected_record_operation_intent;
+    const applyingDecision =
+      operation === "supersede"
+        ? "supersede"
+        : operation === "retract"
+          ? "retract"
+          : "accept";
+    if (
+      !profile ||
+      profile.lifecycle_binding.selected_record_revision < 2 ||
+      decision.decision !== applyingDecision ||
+      decision.lineage.prior_decisions.length !== 1 ||
+      head?.presence !== "present" ||
+      !head.source_transition_receipt_id ||
+      !head.source_transition_receipt_fingerprint
+    ) {
+      return false;
+    }
+    const priorTransition = transitionReadSession({
+      transition_receipt_id: head.source_transition_receipt_id,
+      transition_receipt_fingerprint:
+        head.source_transition_receipt_fingerprint,
+    });
+    return (
+      priorTransition.decision.decision_id === prior.decision_id &&
+        priorTransition.decision.integrity.fingerprint ===
+          prior.integrity.fingerprint &&
+        canonicalizeProtocolValueV01(priorTransition.decision) ===
+          canonicalizeProtocolValueV01(prior) &&
+        priorTransition.proposal.proposal_id ===
+          prior.source_proposal.proposal_id &&
+        priorTransition.proposal.integrity.fingerprint ===
+          prior.source_proposal.proposal_fingerprint
+    );
+  } catch {
+    return false;
+  }
 }
 
 function decisionReferences(

@@ -945,6 +945,7 @@ const integrationChildren = [
   "project-verify-lifecycle",
   "project-verify-production-lifecycle",
   "project-verify-operator-adapter",
+  "reconstruction-conformance",
   "project-controls",
   "policy-triggered-model-run",
   "project-home",
