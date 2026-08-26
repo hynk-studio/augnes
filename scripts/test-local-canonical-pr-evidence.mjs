@@ -82,7 +82,7 @@ assert.equal(body.includes("machine_fingerprint"), false);
 const unrelated = {
   id: 1,
   body: "ordinary review discussion",
-  url: "https://github.com/hynk-studio/augnes-perspective-lab/pull/1#issuecomment-1",
+  url: "https://github.com/hynk-studio/augnes/pull/1#issuecomment-1",
   created_at: publicationCreatedAt,
   updated_at: publicationCreatedAt,
 };
@@ -356,8 +356,8 @@ for (const [mutation, code] of [
 }
 
 const identity = {
-  repository_id: "hynk-studio/augnes-perspective-lab",
-  origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+  repository_id: "hynk-studio/augnes",
+  origin: "https://github.com/hynk-studio/augnes.git",
   head_sha: headSha,
   branch,
   detached: false,
@@ -487,9 +487,9 @@ function buildReceipt({
     schema: "augnes.local-canonical-receipt.v1",
     receipt_version: 1,
     repository: {
-      repository_id: "hynk-studio/augnes-perspective-lab",
+      repository_id: "hynk-studio/augnes",
       origin:
-        "https://github.com/hynk-studio/augnes-perspective-lab.git",
+        "https://github.com/hynk-studio/augnes.git",
       base_sha: baseSha,
       head_sha: headSha,
       branch,
@@ -559,7 +559,7 @@ function buildPhase(id, command) {
 
 function buildPullRequest() {
   return {
-    repository_id: "hynk-studio/augnes-perspective-lab",
+    repository_id: "hynk-studio/augnes",
     number: 66,
     state: "open",
     draft: true,
@@ -568,9 +568,9 @@ function buildPullRequest() {
     base_sha: baseSha,
     head_branch: branch,
     head_sha: headSha,
-    head_repository_id: "hynk-studio/augnes-perspective-lab",
+    head_repository_id: "hynk-studio/augnes",
     url:
-      "https://github.com/hynk-studio/augnes-perspective-lab/pull/66",
+      "https://github.com/hynk-studio/augnes/pull/66",
   };
 }
 

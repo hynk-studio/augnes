@@ -598,6 +598,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "canonical repository migration bridge identity contract",
+      ...rootNode("scripts/test-canonical-repository-migration-bridge.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "local Canonical verification and lifecycle guardrails",
       ...rootNode(
         "scripts/test-local-canonical-verification-contract.mjs",

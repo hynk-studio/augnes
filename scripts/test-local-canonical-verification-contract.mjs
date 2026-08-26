@@ -92,6 +92,9 @@ const localExecutor = readRepositoryFile(
 const localEnvironment = readRepositoryFile(
   "scripts/local-canonical-environment.mjs",
 );
+const migrationBridge = readRepositoryFile(
+  "scripts/canonical-repository-migration-bridge.mjs",
+);
 const localReceipt = readRepositoryFile(
   "scripts/local-canonical-receipt.mjs",
 );
@@ -441,15 +444,11 @@ for (const fragment of [
   `WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =`,
   `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
   `process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""`,
-  `"/Users/hynk/code/augnes-temp"`,
   `AUTHORIZED_REPOSITORY_ID =`,
-  `"hynk-studio/augnes-perspective-lab"`,
   `AUTHORIZED_ORIGIN_URL =`,
-  `"https://github.com/hynk-studio/augnes-perspective-lab.git"`,
+  `matchCanonicalMigrationBridgeIdentity`,
   `CANONICAL_NODE_VERSION = "24.18.0"`,
   `CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0"`,
-  `unauthorized_repository_root`,
-  `unauthorized_repository_origin`,
   `missing_\${safeLabel(label)}_commit`,
   `ensureBoundedLocalDirectory`,
   `unsafe_local_artifact_directory`,
@@ -458,6 +457,23 @@ for (const fragment of [
     localEnvironment,
     fragment,
     `local environment identity contract is missing: ${fragment}`,
+  );
+}
+for (const fragment of [
+  `"perspective-lab-to-augnes.v0.1"`,
+  `"/Users/hynk/code/augnes-temp"`,
+  `"hynk-studio/augnes-perspective-lab"`,
+  `"https://github.com/hynk-studio/augnes-perspective-lab.git"`,
+  `"/Users/hynk/code/augnes"`,
+  `"hynk-studio/augnes"`,
+  `"https://github.com/hynk-studio/augnes.git"`,
+  `unauthorized_repository_root`,
+  `unauthorized_repository_origin`,
+]) {
+  requireText(
+    migrationBridge,
+    fragment,
+    `migration bridge identity contract is missing: ${fragment}`,
   );
 }
 assert.doesNotMatch(
@@ -511,6 +527,7 @@ for (const fragment of [
   `LOG_RUN_RETENTION = 5`,
   `buildLocalPhaseEnvironment`,
   `CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST`,
+  `scripts/canonical-repository-migration-bridge.mjs`,
   `writeReceipt`,
   `validateReceiptAgainstCurrentRepository`,
   `isPostExecutionIdentityValid`,
@@ -711,7 +728,7 @@ for (const fragment of [
 }
 for (const fragment of [
   `AUTHORIZED_GITHUB_REPOSITORY`,
-  `"hynk-studio/augnes-perspective-lab"`,
+  `"hynk-studio/augnes"`,
   `spawnSync("gh", args`,
   `shell: false`,
   `GITHUB_TRANSPORT_TIMEOUT_MS = 30_000`,

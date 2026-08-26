@@ -12,22 +12,27 @@ does not merge, mark ready, enable auto-merge, or claim user decisions.
 
 ## Repository and workspace boundary
 
-- `hynk-studio/augnes-perspective-lab` is the sole repository target authorized
-  by this policy.
-- Work only in the exact local repository path supplied by the current task.
-  Resolve `git rev-parse --show-toplevel`, branch, `HEAD`, clean/dirty state, and
-  `origin` before reading or changing repository material.
-- Do not interact with `hynk-studio/augnes` or any other repository, checkout,
-  clone, mirror, worktree, or folder. This includes reading, searching,
-  fetching, comparing, pushing, opening or editing GitHub items, reviewing,
-  merging, tagging, releasing, dispatching workflows, or changing settings.
-- Do not configure remotes, scripts, connectors, automation, or CI that contact
-  another repository.
-- The repository name is a temporary development location, not a separate
-  `Perspective Lab` product identity. Product, Core, protocol, UI, and
-  documentation use **Augnes**.
-- Existing textual references to another repository are historical context and
-  do not grant access.
+- `hynk-studio/augnes` and `/Users/hynk/code/augnes` are the target canonical
+  repository and local root.
+- The migration bridge is explicitly transitional. Until the local cutover and
+  follow-up hardening are complete, only the exact legacy pair
+  `hynk-studio/augnes-perspective-lab` + `/Users/hynk/code/augnes-temp` remains
+  admitted for inventory, verification, and the bounded cutover procedure.
+- The two repository/root pairs are not interchangeable. Cross-paired or third
+  repositories, origins, roots, clones, mirrors, worktrees, and folders remain
+  unauthorized for Local Canonical execution.
+- GitHub evidence transport and new Issue/PR work target only
+  `hynk-studio/augnes`. The legacy repository remains historical provenance and
+  receives no new development Issue, PR, evidence publication, tag, or release.
+- Resolve `git rev-parse --show-toplevel`, branch, `HEAD`, clean/dirty state, and
+  `origin` before reading or changing repository material. Preserve user work
+  in both existing roots.
+- Product, Core, protocol, UI, and documentation use **Augnes**. Historical
+  perspective-lab Issue, PR, release, and evidence links remain historical and
+  must not be blanket-retargeted.
+- A follow-up hardening PR must remove the legacy execution pair after the user
+  completes the local cutover. Do not extend this bridge into generic
+  multi-repository or configurable-root behavior.
 
 Stop on any repository, root, branch, baseline, or remote mismatch.
 

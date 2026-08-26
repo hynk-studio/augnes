@@ -610,8 +610,7 @@ function assertReceiptProjectionEligible(receipt) {
 function assertPullRequestProjection(pullRequest) {
   const prNumber = pullRequest?.number ?? pullRequest?.pr_number;
   if (
-    pullRequest?.repository_id !==
-      "hynk-studio/augnes-perspective-lab" ||
+    pullRequest?.repository_id !== "hynk-studio/augnes" ||
     !Number.isSafeInteger(prNumber) ||
     prNumber <= 0 ||
     (pullRequest?.number !== undefined &&

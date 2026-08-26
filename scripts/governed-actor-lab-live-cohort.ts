@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 
+import { matchCanonicalMigrationBridgeIdentity } from "./canonical-repository-migration-bridge.mjs";
 import { governedActorLabLiveCasebookFixture } from "@/fixtures/vnext/protocol/governed-actor-lab-live-v0-1";
 import { createGovernedActorLabManifestV01 } from "@/fixtures/vnext/protocol/governed-actor-lab-v0-1";
 import {
@@ -19,11 +20,6 @@ import {
   readModelGatewayInteractiveAdmissionForRootV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
 
-const AUTHORIZED_ORIGINS = new Set([
-  "https://github.com/hynk-studio/augnes-perspective-lab.git",
-  "git@github.com:hynk-studio/augnes-perspective-lab.git",
-]);
-
 void main().catch((error) => {
   console.error("governed_actor_lab_live_cohort_failed");
   console.error(error instanceof Error ? error.message : String(error));
@@ -36,8 +32,13 @@ async function main() {
   if (realpathSync(gitV01(repositoryRoot, ["rev-parse", "--show-toplevel"])) !== repositoryRoot) {
     failV01("live_cohort_repository_root_mismatch");
   }
-  if (!AUTHORIZED_ORIGINS.has(gitV01(repositoryRoot, ["remote", "get-url", "origin"]))) {
-    failV01("live_cohort_repository_origin_mismatch");
+  try {
+    matchCanonicalMigrationBridgeIdentity({
+      resolvedRoot: repositoryRoot,
+      originUrl: gitV01(repositoryRoot, ["remote", "get-url", "origin"]),
+    });
+  } catch {
+    failV01("live_cohort_repository_identity_mismatch");
   }
   if (!/^[0-9a-f]{40}$/u.test(options.sourceHead)) {
     failV01("live_cohort_source_head_invalid");

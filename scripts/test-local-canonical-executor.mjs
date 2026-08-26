@@ -7,8 +7,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  AUTHORIZED_ORIGIN_URL,
-  AUTHORIZED_REPOSITORY_ROOT,
   CANONICAL_NODE_COMPATIBILITY,
   CANONICAL_NODE_VERSION,
   assertAuthorizedRepositoryIdentity,
@@ -16,6 +14,14 @@ import {
   assertExactSha,
   evaluateNodePolicy,
 } from "./local-canonical-environment.mjs";
+import {
+  LEGACY_MIGRATION_ORIGIN_URL,
+  LEGACY_MIGRATION_REPOSITORY_ID,
+  LEGACY_MIGRATION_REPOSITORY_ROOT,
+  TARGET_CANONICAL_ORIGIN_URL,
+  TARGET_CANONICAL_REPOSITORY_ID,
+  TARGET_CANONICAL_REPOSITORY_ROOT,
+} from "./canonical-repository-migration-bridge.mjs";
 import {
   FULL_PHASE_IDS,
   OPERATING_POLICY_PHASE_IDS,
@@ -47,25 +53,36 @@ const executorSource = readFileSync(
   "utf8",
 );
 
-assert.equal(repositoryRoot, AUTHORIZED_REPOSITORY_ROOT);
-assert.doesNotThrow(() =>
-  assertAuthorizedRepositoryIdentity({
-    resolvedRoot: AUTHORIZED_REPOSITORY_ROOT,
-    originUrl: AUTHORIZED_ORIGIN_URL,
-  }),
-);
+for (const expected of [
+  {
+    repository_id: LEGACY_MIGRATION_REPOSITORY_ID,
+    root: LEGACY_MIGRATION_REPOSITORY_ROOT,
+    origin: LEGACY_MIGRATION_ORIGIN_URL,
+  },
+  {
+    repository_id: TARGET_CANONICAL_REPOSITORY_ID,
+    root: TARGET_CANONICAL_REPOSITORY_ROOT,
+    origin: TARGET_CANONICAL_ORIGIN_URL,
+  },
+]) {
+  const authorizedIdentity = assertAuthorizedRepositoryIdentity({
+    resolvedRoot: expected.root,
+    originUrl: expected.origin,
+  });
+  assert.deepEqual(authorizedIdentity, { role: authorizedIdentity.role, ...expected });
+}
 assert.throws(
   () =>
     assertAuthorizedRepositoryIdentity({
       resolvedRoot: "/Users/example/another-repository",
-      originUrl: AUTHORIZED_ORIGIN_URL,
+      originUrl: TARGET_CANONICAL_ORIGIN_URL,
     }),
   (error) => error?.code === "unauthorized_repository_root",
 );
 assert.throws(
   () =>
     assertAuthorizedRepositoryIdentity({
-      resolvedRoot: AUTHORIZED_REPOSITORY_ROOT,
+      resolvedRoot: TARGET_CANONICAL_REPOSITORY_ROOT,
       originUrl: "https://github.com/example/another-repository.git",
     }),
   (error) => error?.code === "unauthorized_repository_origin",
@@ -461,7 +478,11 @@ console.log(
 );
 
 function gitHead() {
-  const result = spawnSync("git", ["rev-parse", "HEAD"], {
+  return gitValue(["rev-parse", "HEAD"]);
+}
+
+function gitValue(args) {
+  const result = spawnSync("git", args, {
     cwd: repositoryRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 
 export const AUTHORIZED_GITHUB_REPOSITORY =
-  "hynk-studio/augnes-perspective-lab";
+  "hynk-studio/augnes";
 export const GITHUB_TRANSPORT_TIMEOUT_MS = 30_000;
 export const GITHUB_TRANSPORT_MAX_BYTES = 2 * 1024 * 1024;
 

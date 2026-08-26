@@ -15,8 +15,8 @@ const baseReceipt = {
   schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
   receipt_version: 1,
   repository: {
-    repository_id: "hynk-studio/augnes-perspective-lab",
-    origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    repository_id: "hynk-studio/augnes",
+    origin: "https://github.com/hynk-studio/augnes.git",
     base_sha: "1".repeat(40),
     head_sha: "2".repeat(40),
     branch: "codex/local-canonical-harness",
@@ -181,7 +181,7 @@ assert(
 const validContext = {
   currentIdentity: {
     head_sha: "2".repeat(40),
-    origin: "https://github.com/hynk-studio/augnes-perspective-lab.git",
+    origin: "https://github.com/hynk-studio/augnes.git",
     branch: "codex/local-canonical-harness",
     detached: false,
     worktree_dirty: false,

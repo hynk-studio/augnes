@@ -27,7 +27,6 @@ import {
   CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
 } from "./canonical-test-environment.mjs";
 import {
-  AUTHORIZED_REPOSITORY_ID,
   CANONICAL_NODE_COMPATIBILITY,
   CANONICAL_NODE_VERSION,
   FULL_MINIMUM_DISK_BYTES,
@@ -78,6 +77,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-change-planner.mjs",
   "scripts/canonical-child-runner.mjs",
   "scripts/canonical-test-environment.mjs",
+  "scripts/canonical-repository-migration-bridge.mjs",
   "scripts/local-canonical-environment.mjs",
   "scripts/local-canonical-receipt.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
@@ -170,6 +170,8 @@ export function isPostExecutionIdentityValid({
     mode === "quick" ||
     (identityAfter.head_sha === expectedHeadSha &&
       identityAfter.worktree_dirty === false &&
+      identityAfter.repository_id === identityBefore.repository_id &&
+      identityAfter.origin === identityBefore.origin &&
       identityAfter.branch === identityBefore.branch &&
       identityAfter.detached === identityBefore.detached)
   );
@@ -649,7 +651,7 @@ export async function executeLocalCanonicalVerification({
     schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
     receipt_version: 1,
     repository: {
-      repository_id: AUTHORIZED_REPOSITORY_ID,
+      repository_id: identityBefore.repository_id,
       origin: identityBefore.origin,
       base_sha: baseSha,
       head_sha: headSha,

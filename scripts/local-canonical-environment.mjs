@@ -15,15 +15,20 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+import {
+  TARGET_CANONICAL_ORIGIN_URL,
+  TARGET_CANONICAL_REPOSITORY_ID,
+  TARGET_CANONICAL_REPOSITORY_ROOT,
+  matchCanonicalMigrationBridgeIdentity,
+} from "./canonical-repository-migration-bridge.mjs";
+
 export const WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =
   "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT";
 export const AUTHORIZED_REPOSITORY_ROOT = process.platform === "win32"
   ? process.env[WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV] ?? ""
-  : "/Users/hynk/code/augnes-temp";
-export const AUTHORIZED_REPOSITORY_ID =
-  "hynk-studio/augnes-perspective-lab";
-export const AUTHORIZED_ORIGIN_URL =
-  "https://github.com/hynk-studio/augnes-perspective-lab.git";
+  : TARGET_CANONICAL_REPOSITORY_ROOT;
+export const AUTHORIZED_REPOSITORY_ID = TARGET_CANONICAL_REPOSITORY_ID;
+export const AUTHORIZED_ORIGIN_URL = TARGET_CANONICAL_ORIGIN_URL;
 export const CANONICAL_NODE_VERSION = "24.18.0";
 export const CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0";
 export const LOCAL_ARTIFACT_DIRECTORY = ".augnes-local-verification";
@@ -62,16 +67,7 @@ export function assertAuthorizedRepositoryIdentity({
   resolvedRoot,
   originUrl,
 }) {
-  if (resolvedRoot !== AUTHORIZED_REPOSITORY_ROOT) {
-    const error = new Error("local canonical repository root is unauthorized");
-    error.code = "unauthorized_repository_root";
-    throw error;
-  }
-  if (originUrl !== AUTHORIZED_ORIGIN_URL) {
-    const error = new Error("local canonical repository origin is unauthorized");
-    error.code = "unauthorized_repository_origin";
-    throw error;
-  }
+  return matchCanonicalMigrationBridgeIdentity({ resolvedRoot, originUrl });
 }
 
 export function assertExactSha(value, label) {
@@ -88,7 +84,10 @@ export function assertExactSha(value, label) {
 export function collectRepositoryIdentity(repositoryRoot) {
   const resolvedRoot = realpathSync(repositoryRoot);
   const origin = runGit(resolvedRoot, ["remote", "get-url", "origin"]).trim();
-  assertAuthorizedRepositoryIdentity({ resolvedRoot, originUrl: origin });
+  const authorizedIdentity = assertAuthorizedRepositoryIdentity({
+    resolvedRoot,
+    originUrl: origin,
+  });
 
   const headSha = runGit(resolvedRoot, ["rev-parse", "HEAD"]).trim();
   assertExactSha(headSha, "head");
@@ -105,7 +104,7 @@ export function collectRepositoryIdentity(repositoryRoot) {
   ]);
 
   return {
-    repository_id: AUTHORIZED_REPOSITORY_ID,
+    repository_id: authorizedIdentity.repository_id,
     origin,
     head_sha: headSha,
     branch,

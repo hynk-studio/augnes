@@ -34,13 +34,13 @@ const pullResponse = {
     repo: { full_name: AUTHORIZED_GITHUB_REPOSITORY },
   },
   html_url:
-    "https://github.com/hynk-studio/augnes-perspective-lab/pull/77",
+    "https://github.com/hynk-studio/augnes/pull/77",
 };
 const commentResponse = {
   id: 7001,
   body: "fixture body",
   html_url:
-    "https://github.com/hynk-studio/augnes-perspective-lab/pull/77#issuecomment-7001",
+    "https://github.com/hynk-studio/augnes/pull/77#issuecomment-7001",
   created_at: timestamp,
   updated_at: timestamp,
 };
@@ -414,7 +414,7 @@ function fixtureComment(id, body, updatedAt) {
     id,
     body,
     url:
-      `https://github.com/hynk-studio/augnes-perspective-lab/pull/77#issuecomment-${id}`,
+      `https://github.com/hynk-studio/augnes/pull/77#issuecomment-${id}`,
     created_at: timestamp,
     updated_at: updatedAt,
   };
@@ -445,7 +445,7 @@ function buildReceipt() {
     repository: {
       repository_id: AUTHORIZED_GITHUB_REPOSITORY,
       origin:
-        "https://github.com/hynk-studio/augnes-perspective-lab.git",
+        "https://github.com/hynk-studio/augnes.git",
       base_sha: pullRequest.base_sha,
       head_sha: pullRequest.head_sha,
       branch: pullRequest.head_branch,

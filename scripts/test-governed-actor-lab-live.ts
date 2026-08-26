@@ -1358,8 +1358,8 @@ function runRunnerAuthorizationCliCasesV01(sourceHead: string): void {
   assert.notEqual(validReplacementPreparation.status, 0);
   assert.match(
     validReplacementPreparation.stderr,
-    /live_cohort_source_head_mismatch/u,
-    "valid replacement lineage must pass parsing and stop before provider preparation on source mismatch",
+    /live_cohort_(?:repository_identity|source_head)_mismatch/u,
+    "valid replacement lineage must pass parsing and stop before provider preparation at the first repository or source mismatch",
   );
   assert.doesNotMatch(
     validReplacementPreparation.stderr,

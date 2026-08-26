@@ -185,6 +185,6 @@ Recommended fields:
 CODEX_WORK_ID=AG-___
 CODEX_RESULT_STATUS=completed
 CODEX_RESULT_KIND=documentation
-CODEX_RELATED_PR=https://github.com/hynk-studio/augnes-perspective-lab/pull/___
+CODEX_RELATED_PR=https://github.com/hynk-studio/augnes/pull/___
 CODEX_RELATED_STATE_KEYS="state.key,another.state.key"
 ```

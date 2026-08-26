@@ -17,6 +17,22 @@ interface. The product is continuous work, not a collection of surfaces.
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
+## Canonical repository migration
+
+`hynk-studio/augnes` is the target canonical repository and
+`/Users/hynk/code/augnes` is the target canonical macOS root. The complete
+perspective-lab Git history through the migration point remains ancestry and
+historical provenance; historical Issue, PR, release, receipt, and research
+links stay bound to `hynk-studio/augnes-perspective-lab`.
+
+This exact migration bridge temporarily recognizes only the legacy
+perspective-lab/root pair and the target augnes/root pair. It does not create a
+general multi-repository or configurable-root mode. The installed Companion,
+local database, project root binding, RW1/RW1A artifacts, and other local state
+remain pre-cutover until the user merges the bridge and separately authorizes
+the local cutover. A second hardening PR must then remove legacy execution
+authority. This bridge does not claim that local cutover is complete.
+
 ## Quickstart
 
 The source checkout supports maintained even-numbered Node.js 22 and 24 lines

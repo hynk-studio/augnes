@@ -30,6 +30,22 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Current repository migration bridge
+
+The target canonical repository/root pair is `hynk-studio/augnes` and
+`/Users/hynk/code/augnes`. Perspective-lab history remains direct Git ancestry
+and historical provenance. The migration bridge temporarily admits the exact
+legacy pair only for verification and the bounded local cutover; it grants no
+generic multi-repository mode and no new product, research, provider, policy,
+actor, or Stage 7 authority.
+
+The local database, current project/root binding, installed Companion, and
+RW1/RW1A artifacts have not moved. A user-authorized local cutover must follow
+the bridge merge, then a hardening PR must remove legacy execution authority.
+ACGC-RW1B Issue #268 remains open in perspective-lab until a later cutover phase
+creates its target successor; this bridge does not close or reinterpret it.
+All existing perspective-lab links below remain historical by design.
+
 ## Completed
 
 ### Operational Core and reference implementation
