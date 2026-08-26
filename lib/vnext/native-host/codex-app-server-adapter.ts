@@ -507,7 +507,12 @@ class CodexAppServerInvocationV01 {
     );
     await this.reportLifecycle({
       event_kind: "thread_bound",
-      state: "starting",
+      // A successful resume response binds an already-active turn. Terminal
+      // and status notifications may have arrived in the same stdout batch
+      // before this response continuation runs, so never regress that valid
+      // running projection back to starting. New-thread binding keeps its
+      // existing starting semantics.
+      state: source === "thread_resumed" ? "running" : "starting",
       coverage: "observed",
       host_refs: this.currentHostRefs(),
       bounded_metadata: { resumed: source === "thread_resumed" },
