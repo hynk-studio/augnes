@@ -18,6 +18,10 @@ export const COMMISSIONED_WORK_ARTIFACT_INDEX_VERSION_V01 =
   "commissioned_controlled_work_artifact_index.v0.1" as const;
 export const COMMISSIONED_WORK_CANONICALIZATION_V01 =
   "augnes-json-c14n-v0_1" as const;
+export const COMMISSIONED_WORK_EXPERIMENT_CLASS_V01 =
+  "commissioned_controlled_work" as const;
+export const COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 =
+  "synthetic_deterministic" as const;
 
 export const COMMISSIONED_WORK_CONDITIONS_V01 = [
   "exact_current_continuity",
@@ -197,11 +201,22 @@ export interface CommissionedWorkRequiredCheckSourceV01 {
   oracle_relative_path: string;
 }
 
+export interface CommissionedWorkEpisodeOperationContractV01 {
+  allowed_operation_categories: ["repository_file_edit"];
+  allowed_repository_relative_paths: string[];
+  max_changed_files: number;
+  max_commands: number;
+  provider_authority_source: "separate_live_authorization_required";
+  provider_calls_authorized_by_operation_contract: false;
+  external_network_call_limit: 0;
+  outside_root_write_allowed: false;
+  github_mutation_allowed: false;
+  semantic_authority_allowed: false;
+}
+
 export interface CommissionedWorkEpisodePlanSourceV01 {
   executor_role_id: string;
-  claimed_complete: boolean;
-  writes: CommissionedWorkRepositoryWriteSourceV01[];
-  referenced_material_ids: string[];
+  operation_contract: CommissionedWorkEpisodeOperationContractV01;
 }
 
 export interface CommissionedWorkSuccessorPlanSourceV01
@@ -213,6 +228,31 @@ export interface CommissionedWorkSuccessorPlanSourceV01
   excluded_material_ids: string[];
   stale_relation_material_id: string | null;
   intervention_provenance_material_id: string;
+}
+
+/**
+ * Synthetic-only output used to exercise deterministic mechanics in CI. It is
+ * not task evidence, executor guidance, commissioned behavior, or candidate
+ * derivation evidence, and a future live executor does not consume it.
+ */
+export interface CommissionedWorkSyntheticFixtureOutputV01 {
+  output_version: "commissioned_work_synthetic_fixture_output.v0.1";
+  output_id: string;
+  case_id: string;
+  executor_role_id: string;
+  episode_role: CommissionedWorkEpisodeRoleV01;
+  condition: CommissionedWorkConditionV01 | null;
+  holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
+  writes: CommissionedWorkRepositoryWriteSourceV01[];
+  terminal_outcome: "completed" | "blocked";
+  executor_claimed_complete: boolean;
+  experiment_class: typeof COMMISSIONED_WORK_EXPERIMENT_CLASS_V01;
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+  expected_mechanics_response: true;
+  commissioned_behavioral_evidence: false;
+  part_of_task_context_packet: false;
+  part_of_candidate_derivation_evidence: false;
+  required_by_live_executor_path: false;
 }
 
 export interface CommissionedWorkCaseSourceV01 {
@@ -241,8 +281,8 @@ export interface CommissionedWorkCaseSourceV01 {
     max_changed_files: number;
     max_checks: number;
     max_processes: number;
-    provider_call_limit: 0;
-    network_call_limit: 0;
+    provider_calls_authorized_by_family_manifest: false;
+    external_network_call_limit: 0;
   };
 }
 
@@ -291,8 +331,9 @@ export interface CommissionedWorkCaseCommitmentV01 {
 export interface CommissionedWorkFamilyManifestV01 {
   family_version: typeof COMMISSIONED_WORK_FAMILY_VERSION_V01;
   family_id: string;
-  evidence_class: "commissioned_controlled_work";
-  execution_mode: "deterministic_zero_provider_faithful_adapter";
+  experiment_class: typeof COMMISSIONED_WORK_EXPERIMENT_CLASS_V01;
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+  execution_mode: "zero_provider_synthetic_fixture_adapter";
   workspace_id: string;
   task_family_key: string;
   sealed_at: string;
@@ -433,7 +474,10 @@ export interface CommissionedWorkEvaluationVectorV01 {
     action_kind: "file_add" | "file_modify" | "file_delete" | "none";
     repository_path_fingerprint: string | null;
   };
-  condition_sensitive_structured_behavior: "observed" | "not_observed" | "unknown";
+  synthetic_cross_condition_output_difference:
+    | "observed"
+    | "not_observed"
+    | "unknown";
   harmful_transfer: "observed" | "not_observed" | "unknown";
   source_currentness_failure: boolean | null;
   authority_violation: boolean | null;
@@ -480,7 +524,11 @@ export interface CommissionedWorkEpisodeArtifactV01 {
     disposable_fixture_admission_fingerprint: string;
     live_authorization_created: false;
     fixture_admission_reused: false;
-    fixture_episode_policy_fingerprint: string;
+    synthetic_fixture_binding_fingerprint: string;
+    synthetic_fixture_output_fingerprint: string;
+    execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+    synthetic_fixture_output_applied: true;
+    solution_write_plan_checked_during_result_admission: false;
     new_run_for_cold_episode: true;
     predecessor_run_reused: false;
     predecessor_transcript_inherited: false;
@@ -488,9 +536,9 @@ export interface CommissionedWorkEpisodeArtifactV01 {
     executor_completion_is_outcome_truth: false;
     product_execution_grant_created: false;
     packet_material_set_fingerprint: string;
-    consumed_material_set_fingerprint: string;
-    continuation_materials_consumed: number;
-    candidate_components_consumed: number;
+    delivered_material_set_fingerprint: string;
+    continuation_materials_delivered: number;
+    candidate_components_delivered: number;
     candidate_component_delivery_fingerprints: string[];
   };
   chronology: {
@@ -554,7 +602,8 @@ export interface CommissionedWorkConsolidationCandidateV01 {
       source_episode_refs: CommissionedWorkRecordRefV01[];
       source_evaluation_refs: CommissionedWorkRecordRefV01[];
       independent_origin_group_ids: string[];
-      opposing_or_counterexample_episode_refs: CommissionedWorkRecordRefV01[];
+      independent_support_established: false;
+      synthetic_contrast_episode_refs: CommissionedWorkRecordRefV01[];
       whole_bundle_credit_applied: false;
     }>;
     ordered_components: [
@@ -563,8 +612,8 @@ export interface CommissionedWorkConsolidationCandidateV01 {
       "separate_execution_completion_from_verified_success",
     ];
   };
-  supporting_case_ids: string[];
-  opposing_or_counterexample_episode_refs: CommissionedWorkRecordRefV01[];
+  mechanics_source_case_ids: string[];
+  synthetic_contrast_episode_refs: CommissionedWorkRecordRefV01[];
   negative_transfer: {
     status: "observed" | "not_observed" | "unknown";
     source_refs: CommissionedWorkRecordRefV01[];
@@ -586,9 +635,22 @@ export interface CommissionedWorkConsolidationCandidateV01 {
   ];
   strongest_simpler_baseline: {
     variant: "strongest_equal_budget_baseline";
+    selection_rule_version: "commissioned_work_pre_outcome_baseline_selection.v0.1";
+    selection_status: "predeclared_designated_comparator";
+    strongest_claim_status: "unresolved";
+    eligible_no_candidate_variants: [
+      "strongest_equal_budget_baseline",
+      "stale_or_reset",
+    ];
+    selected_before_holdout_outcomes: true;
+    outcome_data_used: false;
     selection_fingerprint: string;
     source_episode_refs: CommissionedWorkRecordRefV01[];
   };
+  candidate_evidence_class: "synthetic_mechanics_template";
+  evidence_supported_procedural_knowledge: false;
+  independently_learned: false;
+  validated_for_transfer: false;
   holdout_included_in_derivation: false;
   repeated_same_origin_counted_as_independent: false;
   accepted_semantic_state_created: false;
@@ -603,9 +665,27 @@ export interface CommissionedWorkHoldoutComparisonV01 {
   right_variant: CommissionedWorkHoldoutVariantV01;
   relation: CommissionedWorkHoldoutRelationV01;
   objective_basis_only: true;
-  behaviorally_distinct: boolean | null;
+  synthetic_output_distinct: boolean | null;
   behavioral_distinction_is_benefit: false;
   hard_failure_non_compensation_applied: boolean;
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+}
+
+export interface CommissionedWorkCandidateSpecificTransferConclusionV01 {
+  status: "not_established";
+  designated_baseline_relation: CommissionedWorkHoldoutRelationV01;
+  component_ablation_relation: CommissionedWorkHoldoutRelationV01;
+  no_candidate_arm_relations: Array<{
+    variant:
+      | "strongest_equal_budget_baseline"
+      | "stale_or_reset";
+    relation_to_candidate_present: CommissionedWorkHoldoutRelationV01;
+  }>;
+  comparable_no_candidate_equal: boolean;
+  strongest_no_candidate_selection: "unresolved";
+  hard_failure_or_unknown_lanes_present: boolean;
+  behavioral_benefit_established: false;
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
 }
 
 export interface CommissionedWorkHoldoutEvaluationV01 {
@@ -626,7 +706,7 @@ export interface CommissionedWorkHoldoutEvaluationV01 {
     CommissionedWorkEpisodeArtifactV01,
   ];
   comparisons: CommissionedWorkHoldoutComparisonV01[];
-  transfer_result: CommissionedWorkHoldoutRelationV01;
+  candidate_specific_transfer_conclusion: CommissionedWorkCandidateSpecificTransferConclusionV01;
   general_benefit_claimed: false;
   general_harm_claimed: false;
   policy_fitness_claimed: false;
@@ -691,7 +771,8 @@ export interface CommissionedWorkMaterialBoundaryV01 {
 export interface CommissionedWorkFinalReportV01 {
   report_version: typeof COMMISSIONED_WORK_REPORT_VERSION_V01;
   report_id: string;
-  evidence_class: "commissioned_controlled_work";
+  experiment_class: typeof COMMISSIONED_WORK_EXPERIMENT_CLASS_V01;
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
   family: CommissionedWorkFamilyManifestV01;
   training: CommissionedWorkTrainingResultV01;
   consolidation_candidate: CommissionedWorkConsolidationCandidateV01;

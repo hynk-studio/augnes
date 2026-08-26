@@ -1,8 +1,14 @@
 import type { BuildCommissionedWorkFamilyManifestInputV01 } from "@/lib/vnext/commissioned-controlled-workbench";
 import type {
   CommissionedWorkCaseSourceV01,
+  CommissionedWorkEpisodePlanSourceV01,
   CommissionedWorkSourceMaterialV01,
   CommissionedWorkSuccessorPlanSourceV01,
+  CommissionedWorkSyntheticFixtureOutputV01,
+} from "@/types/vnext/commissioned-controlled-workbench";
+import {
+  COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
 } from "@/types/vnext/commissioned-controlled-workbench";
 
 export const COMMISSIONED_WORKBENCH_FIXTURE_FAMILY_ID_V01 =
@@ -14,8 +20,8 @@ const SHARED_BUDGET = {
   max_changed_files: 2,
   max_checks: 2,
   max_processes: 1,
-  provider_call_limit: 0,
-  network_call_limit: 0,
+  provider_calls_authorized_by_family_manifest: false,
+  external_network_call_limit: 0,
 } as const;
 
 function material(
@@ -27,25 +33,112 @@ function material(
   return { material_id, material_kind, lifecycle_status, content };
 }
 
+const syntheticFixtureOutputsV01: CommissionedWorkSyntheticFixtureOutputV01[] = [];
+
+function fixtureCaseIdV01(executorRoleId: string): string {
+  if (executorRoleId.startsWith("executor-amber-")) return "case-amber-17";
+  if (executorRoleId.startsWith("executor-cobalt-")) return "case-cobalt-29";
+  if (executorRoleId.startsWith("executor-cedar-")) return "case-cedar-41";
+  if (executorRoleId.startsWith("executor-quartz-")) return "case-quartz-83";
+  throw new Error("commissioned_work_fixture_executor_case_unknown");
+}
+
+function operationContract(
+  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"],
+): CommissionedWorkEpisodePlanSourceV01["operation_contract"] {
+  return {
+    allowed_operation_categories: ["repository_file_edit"],
+    allowed_repository_relative_paths: writes.map(
+      (write) => write.repository_relative_path,
+    ),
+    max_changed_files: writes.length,
+    max_commands: 8,
+    provider_authority_source: "separate_live_authorization_required",
+    provider_calls_authorized_by_operation_contract: false,
+    external_network_call_limit: 0,
+    outside_root_write_allowed: false,
+    github_mutation_allowed: false,
+    semantic_authority_allowed: false,
+  };
+}
+
+function registerSyntheticFixtureOutputV01(input: {
+  executor: string;
+  episode_role: "predecessor" | "successor";
+  condition: CommissionedWorkSuccessorPlanSourceV01["condition"] | null;
+  holdout_variant: CommissionedWorkSuccessorPlanSourceV01["holdout_variant"];
+  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
+  claimed_complete: boolean;
+}): void {
+  const caseId = fixtureCaseIdV01(input.executor);
+  syntheticFixtureOutputsV01.push({
+    output_version: "commissioned_work_synthetic_fixture_output.v0.1",
+    output_id: `synthetic-output-${input.executor}`,
+    case_id: caseId,
+    executor_role_id: input.executor,
+    episode_role: input.episode_role,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    writes: input.writes,
+    terminal_outcome:
+      input.episode_role === "predecessor" ? "blocked" : "completed",
+    executor_claimed_complete: input.claimed_complete,
+    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
+    execution_evidence_class:
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+    expected_mechanics_response: true,
+    commissioned_behavioral_evidence: false,
+    part_of_task_context_packet: false,
+    part_of_candidate_derivation_evidence: false,
+    required_by_live_executor_path: false,
+  });
+}
+
+function predecessorPlan(input: {
+  executor: string;
+  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
+  claimed_complete: boolean;
+}): CommissionedWorkEpisodePlanSourceV01 {
+  registerSyntheticFixtureOutputV01({
+    ...input,
+    episode_role: "predecessor",
+    condition: null,
+    holdout_variant: null,
+  });
+  return {
+    executor_role_id: input.executor,
+    operation_contract: operationContract(input.writes),
+  };
+}
+
 function trainingPlan(input: {
   condition: CommissionedWorkSuccessorPlanSourceV01["condition"];
   executor: string;
-  writes: CommissionedWorkSuccessorPlanSourceV01["writes"];
+  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
   selected: string[];
   excluded: string[];
   stale: string | null;
   intervention: string;
-  referenced: string[];
+  holdout_variant?: CommissionedWorkSuccessorPlanSourceV01["holdout_variant"];
+  candidate_intervention_mode?: CommissionedWorkSuccessorPlanSourceV01["candidate_intervention_mode"];
   claimed_complete?: boolean;
 }): CommissionedWorkSuccessorPlanSourceV01 {
+  const holdoutVariant = input.holdout_variant ?? null;
+  registerSyntheticFixtureOutputV01({
+    executor: input.executor,
+    episode_role: "successor",
+    condition: input.condition,
+    holdout_variant: holdoutVariant,
+    writes: input.writes,
+    claimed_complete: input.claimed_complete ?? true,
+  });
   return {
     executor_role_id: input.executor,
-    claimed_complete: input.claimed_complete ?? true,
-    writes: input.writes,
-    referenced_material_ids: input.referenced,
+    operation_contract: operationContract(input.writes),
     condition: input.condition,
-    holdout_variant: null,
-    candidate_intervention_mode: "not_applicable",
+    holdout_variant: holdoutVariant,
+    candidate_intervention_mode:
+      input.candidate_intervention_mode ?? "not_applicable",
     selected_material_ids: input.selected,
     excluded_material_ids: input.excluded,
     stale_relation_material_id: input.stale,
@@ -79,8 +172,8 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
         'import assert from "node:assert/strict";\nimport { routeToken } from "../src/route-token.mjs";\nassert.equal(routeToken("alpha", "7"), "alpha:7");\n',
     },
   ],
-  predecessor_plan: {
-    executor_role_id: "executor-amber-p0",
+  predecessor_plan: predecessorPlan({
+    executor: "executor-amber-p0",
     claimed_complete: false,
     writes: [
       {
@@ -89,8 +182,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
           'export function routeToken(key, id) { return `${key}:${id}`; }\n',
       },
     ],
-    referenced_material_ids: ["amber-common"],
-  },
+  }),
   source_drift_writes: [
     {
       repository_relative_path: "src/channel.mjs",
@@ -117,7 +209,6 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["amber-old"],
       stale: null,
       intervention: "amber-intervention-exact",
-      referenced: ["amber-common", "amber-current"],
     }),
     trainingPlan({
       condition: "matched_ablation",
@@ -133,7 +224,6 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["amber-current", "amber-old"],
       stale: null,
       intervention: "amber-intervention-ablation",
-      referenced: ["amber-common"],
     }),
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
@@ -149,7 +239,6 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["amber-current"],
       stale: "amber-old",
       intervention: "amber-intervention-stale",
-      referenced: ["amber-common", "amber-old"],
     }),
     trainingPlan({
       condition: "zero_continuation_control",
@@ -165,7 +254,6 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["amber-current", "amber-old"],
       stale: null,
       intervention: "amber-intervention-zero",
-      referenced: ["amber-common"],
     }),
   ],
   current_source_relative_paths: ["checks/route.mjs", "src/channel.mjs"],
@@ -255,8 +343,8 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
         'import assert from "node:assert/strict";\nimport { accepts } from "../lib/quota-window.mjs";\nassert.equal(accepts(10), true);\n',
     },
   ],
-  predecessor_plan: {
-    executor_role_id: "executor-cobalt-p0",
+  predecessor_plan: predecessorPlan({
+    executor: "executor-cobalt-p0",
     claimed_complete: true,
     writes: [
       {
@@ -264,8 +352,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
         content: "export function accepts(value) { return value < 10; }\n",
       },
     ],
-    referenced_material_ids: ["cobalt-common", "cobalt-implemented"],
-  },
+  }),
   source_drift_writes: [
     {
       repository_relative_path: "config/window.mjs",
@@ -297,7 +384,6 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cobalt-implemented"],
       stale: null,
       intervention: "cobalt-intervention-exact",
-      referenced: ["cobalt-common", "cobalt-current", "cobalt-incomplete"],
     }),
     trainingPlan({
       condition: "matched_ablation",
@@ -313,7 +399,6 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cobalt-incomplete", "cobalt-implemented"],
       stale: null,
       intervention: "cobalt-intervention-ablation",
-      referenced: ["cobalt-common", "cobalt-current"],
     }),
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
@@ -328,7 +413,6 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cobalt-current", "cobalt-incomplete"],
       stale: "cobalt-implemented",
       intervention: "cobalt-intervention-stale",
-      referenced: ["cobalt-common", "cobalt-implemented"],
     }),
     trainingPlan({
       condition: "zero_continuation_control",
@@ -343,7 +427,6 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cobalt-current", "cobalt-incomplete", "cobalt-implemented"],
       stale: null,
       intervention: "cobalt-intervention-zero",
-      referenced: ["cobalt-common"],
     }),
   ],
   current_source_relative_paths: [
@@ -436,8 +519,8 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
         'import assert from "node:assert/strict";\nimport { resolveMode } from "../engine/resolve-mode.mjs";\nassert.equal(resolveMode("hot"), "fast");\nassert.throws(() => resolveMode("other"));\n',
     },
   ],
-  predecessor_plan: {
-    executor_role_id: "executor-cedar-p0",
+  predecessor_plan: predecessorPlan({
+    executor: "executor-cedar-p0",
     claimed_complete: false,
     writes: [
       {
@@ -446,8 +529,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
           'export function resolveMode(name) { if (name === "hot") return "fast"; throw new Error("unknown"); }\n',
       },
     ],
-    referenced_material_ids: ["cedar-common", "cedar-rejection"],
-  },
+  }),
   source_drift_writes: [
     {
       repository_relative_path: "engine/mode-catalog.mjs",
@@ -474,7 +556,6 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cedar-fallback"],
       stale: null,
       intervention: "cedar-intervention-exact",
-      referenced: ["cedar-common", "cedar-current", "cedar-rejection"],
     }),
     trainingPlan({
       condition: "matched_ablation",
@@ -490,7 +571,6 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cedar-rejection", "cedar-fallback"],
       stale: null,
       intervention: "cedar-intervention-ablation",
-      referenced: ["cedar-common", "cedar-current"],
     }),
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
@@ -506,7 +586,6 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cedar-current", "cedar-rejection"],
       stale: "cedar-fallback",
       intervention: "cedar-intervention-stale",
-      referenced: ["cedar-common", "cedar-fallback"],
     }),
     trainingPlan({
       condition: "zero_continuation_control",
@@ -522,7 +601,6 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
       excluded: ["cedar-current", "cedar-rejection", "cedar-fallback"],
       stale: null,
       intervention: "cedar-intervention-zero",
-      referenced: ["cedar-common"],
     }),
   ],
   current_source_relative_paths: ["engine/mode-catalog.mjs", "spec/table-check.mjs"],
@@ -618,8 +696,8 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
         'const assert = require("node:assert/strict");\nconst { normalizeLabel } = require("../modules/ledger/normalize.cjs");\nassert.throws(() => normalizeLabel());\n',
     },
   ],
-  predecessor_plan: {
-    executor_role_id: "executor-quartz-p0",
+  predecessor_plan: predecessorPlan({
+    executor: "executor-quartz-p0",
     claimed_complete: false,
     writes: [
       {
@@ -628,8 +706,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
           'exports.normalizeLabel = function (value) { return "+" + (value ?? "UNKNOWN").toUpperCase(); };\n',
       },
     ],
-    referenced_material_ids: ["quartz-common", "quartz-old"],
-  },
+  }),
   source_drift_writes: [
     {
       repository_relative_path: "inventory/marks.cjs",
@@ -647,9 +724,8 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     },
   ],
   successor_plans: [
-    {
-      executor_role_id: "executor-quartz-s1",
-      claimed_complete: true,
+    trainingPlan({
+      executor: "executor-quartz-s1",
       writes: [
         {
           repository_relative_path: "modules/ledger/normalize.cjs",
@@ -657,23 +733,16 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
             'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { return mark + (value ?? "UNKNOWN").trim().toUpperCase(); };\n',
         },
       ],
-      referenced_material_ids: [
-        "quartz-common",
-        "quartz-current",
-        "quartz-incomplete",
-        "quartz-old",
-      ],
       condition: "exact_current_continuity",
       holdout_variant: "strongest_equal_budget_baseline",
       candidate_intervention_mode: "no_candidate",
-      selected_material_ids: ["quartz-current", "quartz-incomplete", "quartz-old"],
-      excluded_material_ids: ["quartz-regime"],
-      stale_relation_material_id: null,
-      intervention_provenance_material_id: "quartz-intervention-baseline",
-    },
-    {
-      executor_role_id: "executor-quartz-s2",
-      claimed_complete: true,
+      selected: ["quartz-current", "quartz-incomplete", "quartz-old"],
+      excluded: ["quartz-regime"],
+      stale: null,
+      intervention: "quartz-intervention-baseline",
+    }),
+    trainingPlan({
+      executor: "executor-quartz-s2",
       writes: [
         {
           repository_relative_path: "modules/ledger/normalize.cjs",
@@ -681,23 +750,16 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
             'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
         },
       ],
-      referenced_material_ids: [
-        "quartz-common",
-        "quartz-current",
-        "quartz-incomplete",
-        "quartz-old",
-      ],
       condition: "exact_current_continuity",
       holdout_variant: "candidate_present",
       candidate_intervention_mode: "all_frozen_candidate_components",
-      selected_material_ids: ["quartz-current", "quartz-incomplete", "quartz-old"],
-      excluded_material_ids: ["quartz-regime"],
-      stale_relation_material_id: null,
-      intervention_provenance_material_id: "quartz-intervention-candidate",
-    },
-    {
-      executor_role_id: "executor-quartz-s3",
-      claimed_complete: true,
+      selected: ["quartz-current", "quartz-incomplete", "quartz-old"],
+      excluded: ["quartz-regime"],
+      stale: null,
+      intervention: "quartz-intervention-candidate",
+    }),
+    trainingPlan({
+      executor: "executor-quartz-s3",
       writes: [
         {
           repository_relative_path: "modules/ledger/normalize.cjs",
@@ -705,23 +767,16 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
             'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string") throw new Error("label required"); return mark + value.toUpperCase(); };\n',
         },
       ],
-      referenced_material_ids: [
-        "quartz-common",
-        "quartz-current",
-        "quartz-incomplete",
-        "quartz-old",
-      ],
       condition: "exact_current_continuity",
       holdout_variant: "candidate_component_ablation",
       candidate_intervention_mode: "frozen_candidate_minus_last_component",
-      selected_material_ids: ["quartz-current", "quartz-incomplete", "quartz-old"],
-      excluded_material_ids: ["quartz-regime"],
-      stale_relation_material_id: null,
-      intervention_provenance_material_id: "quartz-intervention-ablation",
-    },
-    {
-      executor_role_id: "executor-quartz-s4",
-      claimed_complete: true,
+      selected: ["quartz-current", "quartz-incomplete", "quartz-old"],
+      excluded: ["quartz-regime"],
+      stale: null,
+      intervention: "quartz-intervention-ablation",
+    }),
+    trainingPlan({
+      executor: "executor-quartz-s4",
       writes: [
         {
           repository_relative_path: "modules/ledger/normalize.cjs",
@@ -729,15 +784,14 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
             'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
         },
       ],
-      referenced_material_ids: ["quartz-common", "quartz-current", "quartz-regime"],
       condition: "stale_or_regime_shift_continuity",
       holdout_variant: "stale_or_reset",
       candidate_intervention_mode: "no_candidate",
-      selected_material_ids: ["quartz-current", "quartz-regime"],
-      excluded_material_ids: ["quartz-old", "quartz-incomplete"],
-      stale_relation_material_id: "quartz-regime",
-      intervention_provenance_material_id: "quartz-intervention-reset",
-    },
+      selected: ["quartz-current", "quartz-regime"],
+      excluded: ["quartz-old", "quartz-incomplete"],
+      stale: "quartz-regime",
+      intervention: "quartz-intervention-reset",
+    }),
   ],
   current_source_relative_paths: [
     "inventory/marks.cjs",
@@ -825,4 +879,8 @@ export function createCommissionedControlledWorkFamilySourceV01(): BuildCommissi
     training_cases: [amberCase, cobaltCase, cedarCase],
     holdout_case: quartzCase,
   });
+}
+
+export function createCommissionedControlledWorkSyntheticFixtureOutputsV01(): CommissionedWorkSyntheticFixtureOutputV01[] {
+  return structuredClone(syntheticFixtureOutputsV01);
 }

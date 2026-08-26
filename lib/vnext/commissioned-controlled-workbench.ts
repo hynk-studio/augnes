@@ -38,6 +38,8 @@ import {
   COMMISSIONED_WORK_EPISODE_VERSION_V01,
   COMMISSIONED_WORK_EVALUATION_VERSION_V01,
   COMMISSIONED_WORK_EVIDENCE_LADDER_STAGES_V01,
+  COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
   COMMISSIONED_WORK_FAMILY_VERSION_V01,
   COMMISSIONED_WORK_HOLDOUT_VERSION_V01,
   COMMISSIONED_WORK_REPORT_VERSION_V01,
@@ -162,6 +164,13 @@ const REPORT_SAFE_FALSE_INVARIANTS_V01 = new Set([
   "general_harm_claimed",
   "policy_fitness_claimed",
   "behavioral_distinction_is_benefit",
+  "solution_write_plan_checked_during_result_admission",
+  "evidence_supported_procedural_knowledge",
+  "independently_learned",
+  "validated_for_transfer",
+  "independent_support_established",
+  "behavioral_benefit_established",
+  "outcome_data_used",
   "report_claims_cleanup_completion",
   "raw_prompt_persisted",
   "raw_transcript_persisted",
@@ -223,10 +232,6 @@ export interface BuildCommissionedWorkEpisodeArtifactInputV01 {
   first_material_action_at: string | null;
   finished_at: string;
   candidate_frozen_before_start: boolean | null;
-  condition_sensitive_structured_behavior: "observed" | "not_observed" | "unknown";
-  repeatable: boolean | null;
-  held_out_transfer: boolean | null;
-  harmful_transfer: "observed" | "not_observed" | "unknown";
   repository_action_trace_fingerprint: string;
 }
 
@@ -504,8 +509,10 @@ export function buildCommissionedWorkFamilyManifestV01(
   const manifestWithoutIntegrity = {
     family_version: COMMISSIONED_WORK_FAMILY_VERSION_V01,
     family_id: input.family_id,
-    evidence_class: "commissioned_controlled_work" as const,
-    execution_mode: "deterministic_zero_provider_faithful_adapter" as const,
+    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
+    execution_evidence_class:
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+    execution_mode: "zero_provider_synthetic_fixture_adapter" as const,
     workspace_id: input.workspace_id,
     task_family_key: input.task_family_key,
     sealed_at: input.sealed_at,
@@ -650,7 +657,7 @@ export function buildCommissionedWorkTaskContextPacketV01(input: {
     constraints: {
       required_checks: input.source.required_checks.map((check) => check.check_id),
       forbidden_actions: [
-        "Do not use a provider or model.",
+        "Do not treat this packet as provider or execution authorization.",
         "Do not use external network access.",
         "Do not write outside the assigned disposable repository root.",
       ],
@@ -841,10 +848,12 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
     mode: "interactive",
     root_scope: rootScope,
     requested_capability: "bounded_commissioned_repository_edit",
-    allowed_operation_categories: ["repository_file_edit"],
+    allowed_operation_categories: [
+      ...input.plan.operation_contract.allowed_operation_categories,
+    ],
     forbidden_operation_categories: [
       "external_network",
-      "provider_or_model",
+      "provider_or_model_without_separate_live_authorization",
       "outside_root_write",
       "github_mutation",
       "semantic_authority",
@@ -855,12 +864,12 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
     policy: {
       filesystem: "selected_project_root_only",
       network: "forbidden",
-      commands: "forbidden_in_deterministic_adapter",
-      model: "forbidden_in_deterministic_adapter",
-      host_egress: "forbidden",
-      max_changed_files: input.source.budget.max_changed_files,
+      commands: "approval_required",
+      model: "native_host_managed",
+      host_egress: "explicit_interactive_start",
+      max_changed_files: input.plan.operation_contract.max_changed_files,
       max_artifacts: 0,
-      max_commands: 0,
+      max_commands: input.plan.operation_contract.max_commands,
       max_checks: input.source.budget.max_checks + 1,
       timeout_ms: 30_000,
       stop_settle_timeout_ms: 5_000,
@@ -880,8 +889,51 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
   };
 }
 
+/**
+ * Admit one executor-produced result against the sealed live-capable operation
+ * contract. This deliberately checks only identity, bounds, and allowed
+ * repository paths; expected solution content remains evaluator-only.
+ */
+export function admitCommissionedWorkExecutorResultV01(input: {
+  source: CommissionedWorkCaseSourceV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  request: NativeHostRequestV01;
+  result: NativeHostResultV01;
+}): NativeHostResultV01 {
+  assertExactPlanMembershipV01(input.source, input.plan);
+  const contract = input.plan.operation_contract;
+  if (
+    canonicalizeProtocolValueV01(input.request.allowed_operation_categories) !==
+      canonicalizeProtocolValueV01(contract.allowed_operation_categories) ||
+    input.request.policy.max_changed_files !== contract.max_changed_files ||
+    input.request.policy.max_commands !== contract.max_commands
+  ) {
+    failV01("commissioned_work_executor_result_operation_contract_invalid");
+  }
+  const asserted = assertNativeHostResultV01(input.request, input.result);
+  const normalized = normalizeNativeHostResultResidueV01({
+    result: asserted,
+    required_check_ids: ["validated_packet_delivery"],
+  }).result;
+  const allowedPaths = new Set(contract.allowed_repository_relative_paths);
+  const changedPaths = normalized.changed_files.map((changed) =>
+    canonicalizeRepositoryRelativePathV01(changed.repository_relative_path),
+  );
+  if (
+    changedPaths.length > contract.max_changed_files ||
+    normalized.commands.length > contract.max_commands ||
+    new Set(changedPaths).size !== changedPaths.length ||
+    changedPaths.some((changedPath) => !allowedPaths.has(changedPath))
+  ) {
+    failV01("commissioned_work_executor_result_operation_contract_invalid");
+  }
+  return normalized;
+}
+
 export async function invokeCommissionedWorkAdapterV01(input: {
   adapter: NativeHostAdapterV01;
+  source: CommissionedWorkCaseSourceV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
   request: NativeHostRequestV01;
 }): Promise<NativeHostResultV01> {
   if (
@@ -914,11 +966,12 @@ export async function invokeCommissionedWorkAdapterV01(input: {
     result,
     adapter_invocation_started: true,
   });
-  const asserted = assertNativeHostResultV01(input.request, delivered);
-  const normalized = normalizeNativeHostResultResidueV01({
-    result: asserted,
-    required_check_ids: ["validated_packet_delivery"],
-  }).result;
+  const normalized = admitCommissionedWorkExecutorResultV01({
+    source: input.source,
+    plan: input.plan,
+    request: input.request,
+    result: delivered,
+  });
   if (
     normalized.model_invocation_receipt_refs.length !== 0 ||
     normalized.host_refs.length !== 1 ||
@@ -1282,14 +1335,19 @@ export function buildCommissionedWorkRunReceiptV01(input: {
       host_ref: hostRef,
       worker_ref: null,
       operating_system: null,
-      runtime_labels: ["commissioned_work", "deterministic_zero_model"],
+      runtime_labels: [
+        "commissioned_work_experiment",
+        "synthetic_deterministic_execution",
+        "zero_model",
+      ],
       source_refs: [reporterRef],
     },
     observations: [
       {
         observation_id: mainObservationId,
-        observation_kind: "structured_fixture_adapter_result",
-        summary: "The local orchestrator received one bounded structured adapter result.",
+        observation_kind: "synthetic_structured_fixture_adapter_result",
+        summary:
+          "The local orchestrator received one bounded synthetic mechanics result.",
         event_at: input.result.finished_at,
         observed_at: input.result.finished_at,
         observer_ref: reporterRef,
@@ -1348,7 +1406,8 @@ export function buildCommissionedWorkRunReceiptV01(input: {
     host_approvals: [],
     external_refs: [packetRef, runRef, reporterRef, evaluatorRef, hostRef],
     result_summary: {
-      summary: "One bounded commissioned-work episode was observed.",
+      summary:
+        "One bounded synthetic commissioned-work mechanics episode was observed.",
       outcome: input.result.outcome,
       limitations: [
         "Executor completion is not task success.",
@@ -1420,7 +1479,9 @@ export function buildCommissionedWorkRunReceiptV01(input: {
         capability: "bounded_repository_file_edit",
         coverage_level: "enforced",
         source_ref: reporterRef,
-        notes: ["The fixture adapter accepts only sealed in-root writes."],
+        notes: [
+          "The synthetic fixture adapter accepts only output paths allowed by the sealed live-capable operation contract.",
+        ],
       },
       {
         capability: "objective_repository_evaluation",
@@ -1573,15 +1634,17 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     result: input.result,
     observation: input.observation,
     executor_role: executorRole,
-    executor_claimed_complete: input.plan.claimed_complete,
-    condition_sensitive_structured_behavior:
-      input.condition_sensitive_structured_behavior,
-    harmful_transfer: input.harmful_transfer,
+    executor_claimed_complete: requireResultBooleanMetadataV01(
+      input.result,
+      "executor_claimed_complete",
+    ),
+    synthetic_cross_condition_output_difference: "unknown",
+    harmful_transfer: "unknown",
   });
   const packetMaterialSetFingerprint = packetMaterialSetFingerprintV01(input.packet);
-  const consumedMaterialSetFingerprint = requireResultFingerprintMetadataV01(
+  const deliveredMaterialSetFingerprint = requireResultFingerprintMetadataV01(
     input.result,
-    "consumed_material_set_fingerprint",
+    "delivered_material_set_fingerprint",
   );
   const reportedPacketMaterialSetFingerprint = requireResultFingerprintMetadataV01(
     input.result,
@@ -1591,17 +1654,21 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     input.result,
     "fixture_admission_fingerprint",
   );
-  const fixtureEpisodePolicyFingerprint = requireResultFingerprintMetadataV01(
+  const syntheticFixtureBindingFingerprint = requireResultFingerprintMetadataV01(
     input.result,
-    "fixture_episode_policy_fingerprint",
+    "synthetic_fixture_binding_fingerprint",
   );
-  const continuationMaterialsConsumed = requireResultCountMetadataV01(
+  const syntheticFixtureOutputFingerprint = requireResultFingerprintMetadataV01(
     input.result,
-    "continuation_materials_consumed",
+    "synthetic_fixture_output_fingerprint",
   );
-  const candidateComponentsConsumed = requireResultCountMetadataV01(
+  const continuationMaterialsDelivered = requireResultCountMetadataV01(
     input.result,
-    "candidate_components_consumed",
+    "continuation_materials_delivered",
+  );
+  const candidateComponentsDelivered = requireResultCountMetadataV01(
+    input.result,
+    "candidate_components_delivered",
   );
   const candidateComponentDeliveryFingerprints = input.packet.selected_context
     .filter(
@@ -1614,18 +1681,22 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     .sort(compareProtocolCodeUnitsV01);
   if (
     packetMaterialSetFingerprint !== reportedPacketMaterialSetFingerprint ||
-    packetMaterialSetFingerprint !== consumedMaterialSetFingerprint ||
+    packetMaterialSetFingerprint !== deliveredMaterialSetFingerprint ||
     input.result.adapter_extension.bounded_metadata.fixture_admission_consumed !== true ||
-    candidateComponentsConsumed !== candidateComponentDeliveryFingerprints.length
+    input.result.adapter_extension.bounded_metadata.execution_evidence_class !==
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
+    input.result.adapter_extension.bounded_metadata.synthetic_fixture_output_applied !==
+      true ||
+    input.result.adapter_extension.bounded_metadata
+      .solution_write_plan_checked_during_result_admission !== false ||
+    candidateComponentsDelivered !== candidateComponentDeliveryFingerprints.length
   ) {
-    failV01("commissioned_work_executor_consumption_binding_invalid");
+    failV01("commissioned_work_executor_delivery_binding_invalid");
   }
   const evidenceLadder = episodeEvidenceLadderV01({
     episode_role: input.episode_role,
     condition: input.condition,
     selected_count: successorPlan?.selected_material_ids.length ?? 0,
-    referenced_count:
-      continuationMaterialsConsumed + candidateComponentsConsumed,
     delivery_before_action:
       input.first_material_action_at !== null &&
       input.result.checks.some(
@@ -1633,8 +1704,6 @@ export function buildCommissionedWorkEpisodeArtifactV01(
           check.check_id === "validated_packet_delivery" &&
           check.status === "passed",
       ),
-    repeatable: input.repeatable,
-    held_out_transfer: input.held_out_transfer,
     packet_ref: createCommissionedWorkRecordRefV01({
       record_version: input.packet.packet_version,
       record_id: input.packet.packet_id,
@@ -1651,8 +1720,7 @@ export function buildCommissionedWorkEpisodeArtifactV01(
         case_commitment: commitment.integrity.fingerprint,
         condition_binding: conditionBinding.binding_fingerprint,
         packet: input.packet.integrity.fingerprint,
-        consumed_material_set: consumedMaterialSetFingerprint,
-        repository_action_trace: input.repository_action_trace_fingerprint,
+        delivered_material_set: deliveredMaterialSetFingerprint,
       })
     : null;
   const artifactWithoutIntegrity = {
@@ -1714,7 +1782,14 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       disposable_fixture_admission_fingerprint: fixtureAdmissionFingerprint,
       live_authorization_created: false as const,
       fixture_admission_reused: false as const,
-      fixture_episode_policy_fingerprint: fixtureEpisodePolicyFingerprint,
+      synthetic_fixture_binding_fingerprint:
+        syntheticFixtureBindingFingerprint,
+      synthetic_fixture_output_fingerprint:
+        syntheticFixtureOutputFingerprint,
+      execution_evidence_class:
+        COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+      synthetic_fixture_output_applied: true as const,
+      solution_write_plan_checked_during_result_admission: false as const,
       new_run_for_cold_episode: true as const,
       predecessor_run_reused: false as const,
       predecessor_transcript_inherited: false as const,
@@ -1722,9 +1797,9 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       executor_completion_is_outcome_truth: false as const,
       product_execution_grant_created: false as const,
       packet_material_set_fingerprint: packetMaterialSetFingerprint,
-      consumed_material_set_fingerprint: consumedMaterialSetFingerprint,
-      continuation_materials_consumed: continuationMaterialsConsumed,
-      candidate_components_consumed: candidateComponentsConsumed,
+      delivered_material_set_fingerprint: deliveredMaterialSetFingerprint,
+      continuation_materials_delivered: continuationMaterialsDelivered,
+      candidate_components_delivered: candidateComponentsDelivered,
       candidate_component_delivery_fingerprints:
         candidateComponentDeliveryFingerprints,
     },
@@ -1735,7 +1810,10 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       candidate_frozen_before_start: input.candidate_frozen_before_start,
     },
     repository_state: input.repository_state,
-    executor_claimed_complete: input.plan.claimed_complete,
+    executor_claimed_complete: requireResultBooleanMetadataV01(
+      input.result,
+      "executor_claimed_complete",
+    ),
     repository_action_trace_fingerprint: input.repository_action_trace_fingerprint,
     objective_observation_ref: createCommissionedWorkRecordRefV01({
       record_version: input.observation.observation_version,
@@ -1891,7 +1969,7 @@ export function buildCommissionedWorkConsolidationCandidateV01(input: {
       (episode) => !episode.evaluation.deterministic_repository_task_success,
     )
   ) {
-    failV01("commissioned_work_candidate_support_invalid");
+    failV01("commissioned_work_candidate_mechanics_source_invalid");
   }
   const independentOrigins = new Set(
     exactEpisodes.map((episode) => episode.independent_origin_group_id),
@@ -1946,10 +2024,10 @@ export function buildCommissionedWorkConsolidationCandidateV01(input: {
       components: componentSources,
       ordered_components: [...COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01] as CommissionedWorkConsolidationCandidateV01["minimal_generalized_rule"]["ordered_components"],
     },
-    supporting_case_ids: exactEpisodes
+    mechanics_source_case_ids: exactEpisodes
       .map((episode) => episode.case_id)
       .sort(compareProtocolCodeUnitsV01),
-    opposing_or_counterexample_episode_refs: contrastingEpisodes
+    synthetic_contrast_episode_refs: contrastingEpisodes
       .filter((episode) => episode.evaluation.hard_failures.length > 0)
       .map(episodeRefV01)
       .sort(compareCanonicalV01),
@@ -1965,9 +2043,20 @@ export function buildCommissionedWorkConsolidationCandidateV01(input: {
       "required_check_not_performed",
       "objective_oracle_failed",
     ] as CommissionedWorkHardFailureCodeV01[],
-    uncertainty_codes: ["single_deterministic_family"],
+    uncertainty_codes: [
+      "single_deterministic_family",
+      "synthetic_output_authored_outside_executor",
+      "candidate_not_independently_learned",
+    ],
     missing_evidence_codes: [
       "live_provider_episode_unavailable",
+      "executor_reference_observation_unavailable",
+      "behavioral_conditioning_unestablished",
+      "support_validation_unestablished",
+      "outcome_association_unestablished",
+      "intervention_sensitivity_unestablished",
+      "repeatability_unestablished",
+      "held_out_transfer_unestablished",
       ...(componentSources.some(
         (component) => component.independent_origin_group_ids.length < 2,
       )
@@ -1986,9 +2075,27 @@ export function buildCommissionedWorkConsolidationCandidateV01(input: {
     ] as CommissionedWorkConsolidationCandidateV01["stale_or_reset_conditions"],
     strongest_simpler_baseline: {
       variant: "strongest_equal_budget_baseline" as const,
+      selection_rule_version:
+        "commissioned_work_pre_outcome_baseline_selection.v0.1" as const,
+      selection_status: "predeclared_designated_comparator" as const,
+      strongest_claim_status: "unresolved" as const,
+      eligible_no_candidate_variants: [
+        "strongest_equal_budget_baseline",
+        "stale_or_reset",
+      ] as CommissionedWorkConsolidationCandidateV01["strongest_simpler_baseline"]["eligible_no_candidate_variants"],
+      selected_before_holdout_outcomes: true as const,
+      outcome_data_used: false as const,
       selection_fingerprint: fingerprintV01({
         family: input.manifest.integrity.fingerprint,
-        baseline_condition: "exact_current_continuity",
+        selection_rule_version:
+          "commissioned_work_pre_outcome_baseline_selection.v0.1",
+        designated_variant: "strongest_equal_budget_baseline",
+        eligible_no_candidate_variants: [
+          "strongest_equal_budget_baseline",
+          "stale_or_reset",
+        ],
+        selection_basis:
+          "equal_budget_maximal_common_evidence_primary_regime_before_outcomes",
         candidate_components_present: [],
         equal_budget: input.manifest.equal_budget_fingerprint,
       }),
@@ -1997,6 +2104,10 @@ export function buildCommissionedWorkConsolidationCandidateV01(input: {
         .map(episodeRefV01)
         .sort(compareCanonicalV01),
     },
+    candidate_evidence_class: "synthetic_mechanics_template" as const,
+    evidence_supported_procedural_knowledge: false as const,
+    independently_learned: false as const,
+    validated_for_transfer: false as const,
     holdout_included_in_derivation: false as const,
     repeated_same_origin_counted_as_independent: false as const,
     accepted_semantic_state_created: false as const,
@@ -2040,6 +2151,15 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
   if (
     input.candidate.family_ref.record_fingerprint !==
       input.manifest.integrity.fingerprint ||
+    input.candidate.strongest_simpler_baseline.selection_rule_version !==
+      "commissioned_work_pre_outcome_baseline_selection.v0.1" ||
+    input.candidate.strongest_simpler_baseline.selection_status !==
+      "predeclared_designated_comparator" ||
+    input.candidate.strongest_simpler_baseline.strongest_claim_status !==
+      "unresolved" ||
+    input.candidate.strongest_simpler_baseline.selected_before_holdout_outcomes !==
+      true ||
+    input.candidate.strongest_simpler_baseline.outcome_data_used !== false ||
     Date.parse(input.candidate.frozen_at) >= Date.parse(input.holdout_materialized_at) ||
     Date.parse(input.holdout_materialized_at) > Date.parse(input.holdout_started_at)
   ) {
@@ -2193,16 +2313,16 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
       canonicalizeProtocolValueV01(presentBinding.excluded_material_refs) ||
     canonicalizeProtocolValueV01(baselineBinding.excluded_material_refs) !==
       canonicalizeProtocolValueV01(ablationBinding.excluded_material_refs) ||
-    baseline.execution_binding.continuation_materials_consumed !==
-      present.execution_binding.continuation_materials_consumed ||
-    baseline.execution_binding.continuation_materials_consumed !==
-      ablation.execution_binding.continuation_materials_consumed ||
-    baseline.execution_binding.candidate_components_consumed !== 0 ||
-    present.execution_binding.candidate_components_consumed !==
+    baseline.execution_binding.continuation_materials_delivered !==
+      present.execution_binding.continuation_materials_delivered ||
+    baseline.execution_binding.continuation_materials_delivered !==
+      ablation.execution_binding.continuation_materials_delivered ||
+    baseline.execution_binding.candidate_components_delivered !== 0 ||
+    present.execution_binding.candidate_components_delivered !==
       expectedComponentDeliveryFingerprints.length ||
-    ablation.execution_binding.candidate_components_consumed !==
+    ablation.execution_binding.candidate_components_delivered !==
       expectedComponentDeliveryFingerprints.length - 1 ||
-    staleReset.execution_binding.candidate_components_consumed !== 0 ||
+    staleReset.execution_binding.candidate_components_delivered !== 0 ||
     canonicalizeProtocolValueV01(
       present.execution_binding.candidate_component_delivery_fingerprints,
     ) !== canonicalizeProtocolValueV01(expectedComponentDeliveryFingerprints) ||
@@ -2232,6 +2352,31 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
     holdoutComparisonV01(present, ablation),
     holdoutComparisonV01(present, staleReset),
   ];
+  const designatedBaselineRelation = holdoutRelationV01(baseline, present);
+  const componentAblationRelation = holdoutRelationV01(ablation, present);
+  const staleResetRelation = holdoutRelationV01(staleReset, present);
+  const noCandidateArmRelations = [
+    {
+      variant: "strongest_equal_budget_baseline" as const,
+      relation_to_candidate_present: designatedBaselineRelation,
+    },
+    {
+      variant: "stale_or_reset" as const,
+      relation_to_candidate_present: staleResetRelation,
+    },
+  ];
+  const comparableNoCandidateEqual = noCandidateArmRelations.some(
+    (comparison) => comparison.relation_to_candidate_present === "equal",
+  );
+  const hardFailureOrUnknownLanesPresent =
+    [baseline, present, ablation, staleReset].some(
+      (episode) => episode.evaluation.hard_failures.length > 0,
+    ) ||
+    comparisons.some(
+      (comparison) =>
+        comparison.relation === "incomplete" ||
+        comparison.relation === "non_comparable",
+    );
   const holdoutWithoutIntegrity = {
     holdout_version: COMMISSIONED_WORK_HOLDOUT_VERSION_V01,
     holdout_id: input.holdout_id,
@@ -2245,7 +2390,19 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
     predecessor_episode: input.predecessor_episode,
     arms: [baseline, present, ablation, staleReset] as CommissionedWorkHoldoutEvaluationV01["arms"],
     comparisons,
-    transfer_result: comparisons[0]!.relation,
+    candidate_specific_transfer_conclusion: {
+      status: "not_established" as const,
+      designated_baseline_relation: designatedBaselineRelation,
+      component_ablation_relation: componentAblationRelation,
+      no_candidate_arm_relations: noCandidateArmRelations,
+      comparable_no_candidate_equal: comparableNoCandidateEqual,
+      strongest_no_candidate_selection: "unresolved" as const,
+      hard_failure_or_unknown_lanes_present:
+        hardFailureOrUnknownLanesPresent,
+      behavioral_benefit_established: false as const,
+      execution_evidence_class:
+        COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+    },
     general_benefit_claimed: false as const,
     general_harm_claimed: false as const,
     policy_fitness_claimed: false as const,
@@ -2316,7 +2473,9 @@ export function buildCommissionedWorkFinalReportV01(input: {
   const reportWithoutIntegrity = {
     report_version: COMMISSIONED_WORK_REPORT_VERSION_V01,
     report_id: input.report_id,
-    evidence_class: "commissioned_controlled_work" as const,
+    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
+    execution_evidence_class:
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
     family: input.family,
     training: input.training,
     consolidation_candidate: input.consolidation_candidate,
@@ -2365,7 +2524,12 @@ export function assertValidCommissionedWorkFinalReportV01(
   );
   if (
     report.report_version !== COMMISSIONED_WORK_REPORT_VERSION_V01 ||
-    report.evidence_class !== "commissioned_controlled_work" ||
+    report.experiment_class !== COMMISSIONED_WORK_EXPERIMENT_CLASS_V01 ||
+    report.execution_evidence_class !==
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
+    report.family.experiment_class !== COMMISSIONED_WORK_EXPERIMENT_CLASS_V01 ||
+    report.family.execution_evidence_class !==
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
     report.family.training_cases.length !== 3 ||
     report.family.condition_order.length !== 4 ||
     report.training.predecessor_episodes.length !== 3 ||
@@ -2471,6 +2635,25 @@ export function assertValidCommissionedWorkFinalReportV01(
     canonicalizeProtocolValueV01(report.holdout)
   ) {
     failV01("commissioned_work_report_holdout_binding_invalid");
+  }
+  if (
+    report.consolidation_candidate.candidate_evidence_class !==
+      "synthetic_mechanics_template" ||
+    report.consolidation_candidate.evidence_supported_procedural_knowledge !==
+      false ||
+    report.consolidation_candidate.independently_learned !== false ||
+    report.consolidation_candidate.validated_for_transfer !== false ||
+    report.consolidation_candidate.minimal_generalized_rule.components.some(
+      (component) => component.independent_support_established !== false,
+    ) ||
+    report.holdout.candidate_specific_transfer_conclusion.status !==
+      "not_established" ||
+    report.holdout.candidate_specific_transfer_conclusion
+      .behavioral_benefit_established !== false ||
+    report.holdout.candidate_specific_transfer_conclusion
+      .strongest_no_candidate_selection !== "unresolved"
+  ) {
+    failV01("commissioned_work_behavioral_evidence_classification_invalid");
   }
   if (
     report.consolidation_candidate.holdout_included_in_derivation !== false ||
@@ -2591,8 +2774,8 @@ function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
     source.expected_success_writes.length === 0 ||
     source.expected_success_writes.length > MAX_REPOSITORY_FILES_V01 ||
     source.successor_plans.length !== MAX_SUCCESSOR_ARMS_V01 ||
-    source.budget.provider_call_limit !== 0 ||
-    source.budget.network_call_limit !== 0 ||
+    source.budget.provider_calls_authorized_by_family_manifest !== false ||
+    source.budget.external_network_call_limit !== 0 ||
     source.budget.max_changed_files < 1 ||
     source.budget.max_changed_files > MAX_REPOSITORY_FILES_V01 ||
     source.budget.max_checks < source.required_checks.length ||
@@ -2635,9 +2818,9 @@ function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
   const allPaths = [
     ...source.repository_fixture.map((item) => item.repository_relative_path),
     ...source.source_drift_writes.map((item) => item.repository_relative_path),
-    ...source.predecessor_plan.writes.map((item) => item.repository_relative_path),
+    ...source.predecessor_plan.operation_contract.allowed_repository_relative_paths,
     ...source.successor_plans.flatMap((plan) =>
-      plan.writes.map((item) => item.repository_relative_path),
+      plan.operation_contract.allowed_repository_relative_paths,
     ),
     ...source.current_source_relative_paths,
     ...source.required_checks.map((check) => check.oracle_relative_path),
@@ -2748,7 +2931,7 @@ function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
   if (new Set(executorIds).size !== executorIds.length) {
     failV01("commissioned_work_cold_executor_identity_reused");
   }
-  validateEpisodePlanV01(source.predecessor_plan, materialIds, null);
+  validateEpisodePlanV01(source, source.predecessor_plan, materialIds);
   source.successor_plans.forEach((plan) =>
     validateEpisodePlanV01(source, plan, materialIds),
   );
@@ -2756,42 +2939,44 @@ function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
 }
 
 function validateEpisodePlanV01(
-  sourceOrPlan: CommissionedWorkCaseSourceV01 | CommissionedWorkEpisodePlanSourceV01,
-  planOrMaterialIds: CommissionedWorkEpisodePlanSourceV01 | Set<string>,
-  maybeMaterialIds: Set<string> | null,
+  source: CommissionedWorkCaseSourceV01,
+  plan: CommissionedWorkEpisodePlanSourceV01,
+  materialIds: Set<string>,
 ): void {
-  const plan =
-    maybeMaterialIds === null
-      ? (sourceOrPlan as CommissionedWorkEpisodePlanSourceV01)
-      : (planOrMaterialIds as CommissionedWorkEpisodePlanSourceV01);
-  const materialIds =
-    maybeMaterialIds === null
-      ? (planOrMaterialIds as Set<string>)
-      : maybeMaterialIds;
-  if (plan.writes.length === 0 || plan.writes.length > MAX_REPOSITORY_FILES_V01) {
-    failV01("commissioned_work_episode_write_bound_invalid");
-  }
-  if (new Set(plan.writes.map((item) => item.repository_relative_path)).size !== plan.writes.length) {
-    failV01("commissioned_work_episode_write_path_duplicate");
-  }
+  const contract = plan.operation_contract;
   if (
-    plan.referenced_material_ids.some((id) => !materialIds.has(id)) ||
-    new Set(plan.referenced_material_ids).size !== plan.referenced_material_ids.length
+    canonicalizeProtocolValueV01(contract.allowed_operation_categories) !==
+      canonicalizeProtocolValueV01(["repository_file_edit"]) ||
+    contract.allowed_repository_relative_paths.length === 0 ||
+    contract.allowed_repository_relative_paths.length > MAX_REPOSITORY_FILES_V01 ||
+    new Set(contract.allowed_repository_relative_paths).size !==
+      contract.allowed_repository_relative_paths.length ||
+    contract.max_changed_files < 1 ||
+    contract.max_changed_files >
+      contract.allowed_repository_relative_paths.length ||
+    contract.max_changed_files > source.budget.max_changed_files ||
+    contract.max_commands < 0 ||
+    contract.max_commands > 32 ||
+    contract.provider_authority_source !==
+      "separate_live_authorization_required" ||
+    contract.provider_calls_authorized_by_operation_contract !== false ||
+    contract.external_network_call_limit !== 0 ||
+    contract.outside_root_write_allowed !== false ||
+    contract.github_mutation_allowed !== false ||
+    contract.semantic_authority_allowed !== false
   ) {
-    failV01("commissioned_work_episode_material_ref_invalid");
+    failV01("commissioned_work_episode_operation_contract_invalid");
   }
+  contract.allowed_repository_relative_paths.forEach(
+    requireCanonicalRepositoryPathV01,
+  );
   if (isSuccessorPlanV01(plan)) {
     const selected = new Set(plan.selected_material_ids);
     const excluded = new Set(plan.excluded_material_ids);
     if (
       [...selected, ...excluded].some((id) => !materialIds.has(id)) ||
       [...selected].some((id) => excluded.has(id)) ||
-      plan.referenced_material_ids.some(
-        (id) => !selected.has(id) && !materialKindIsCommonV01(sourceOrPlan, id),
-      ) ||
-      [...selected].some((id) => !plan.referenced_material_ids.includes(id)) ||
       selected.has(plan.intervention_provenance_material_id) ||
-      plan.referenced_material_ids.includes(plan.intervention_provenance_material_id) ||
       !materialIds.has(plan.intervention_provenance_material_id) ||
       (plan.stale_relation_material_id !== null &&
         !materialIds.has(plan.stale_relation_material_id))
@@ -2815,10 +3000,7 @@ function validateTreatmentPlanV01(source: CommissionedWorkCaseSourceV01): void {
   if (
     zero &&
     (zero.selected_material_ids.length !== 0 ||
-      zero.stale_relation_material_id !== null ||
-      zero.referenced_material_ids.some(
-        (id) => !materialKindIsCommonV01(source, id),
-      ))
+      zero.stale_relation_material_id !== null)
   ) {
     failV01("commissioned_work_zero_control_continuation_invalid");
   }
@@ -2906,11 +3088,7 @@ function validateTreatmentPlanV01(source: CommissionedWorkCaseSourceV01): void {
     canonicalizeProtocolValueV01(baseline.excluded_material_ids) !==
       canonicalizeProtocolValueV01(present.excluded_material_ids) ||
     canonicalizeProtocolValueV01(baseline.excluded_material_ids) !==
-      canonicalizeProtocolValueV01(ablation.excluded_material_ids) ||
-    canonicalizeProtocolValueV01(baseline.referenced_material_ids) !==
-      canonicalizeProtocolValueV01(present.referenced_material_ids) ||
-    canonicalizeProtocolValueV01(baseline.referenced_material_ids) !==
-      canonicalizeProtocolValueV01(ablation.referenced_material_ids)
+      canonicalizeProtocolValueV01(ablation.excluded_material_ids)
   ) {
     failV01("commissioned_work_holdout_candidate_intervention_invalid");
   }
@@ -2961,9 +3139,9 @@ function repositoryPathSetV01(source: CommissionedWorkCaseSourceV01): string[] {
     ...new Set([
       ...source.repository_fixture.map((item) => item.repository_relative_path),
       ...source.source_drift_writes.map((item) => item.repository_relative_path),
-      ...source.predecessor_plan.writes.map((item) => item.repository_relative_path),
+      ...source.predecessor_plan.operation_contract.allowed_repository_relative_paths,
       ...source.successor_plans.flatMap((plan) =>
-        plan.writes.map((item) => item.repository_relative_path),
+        plan.operation_contract.allowed_repository_relative_paths,
       ),
       ...source.current_source_relative_paths,
       ...source.required_checks.map((check) => check.oracle_relative_path),
@@ -2975,10 +3153,7 @@ function repositoryPathSetV01(source: CommissionedWorkCaseSourceV01): string[] {
 
 function operationShapeV01(source: CommissionedWorkCaseSourceV01): unknown {
   return {
-    predecessor: source.predecessor_plan.writes.map((write) => ({
-      repository_relative_path: write.repository_relative_path,
-      content_bytes: Buffer.byteLength(write.content, "utf8"),
-    })),
+    predecessor: source.predecessor_plan.operation_contract,
     drift: source.source_drift_writes.map((write) => ({
       repository_relative_path: write.repository_relative_path,
       content_bytes: Buffer.byteLength(write.content, "utf8"),
@@ -2986,10 +3161,7 @@ function operationShapeV01(source: CommissionedWorkCaseSourceV01): unknown {
     successors: source.successor_plans.map((plan) => ({
       condition: plan.condition,
       holdout_variant: plan.holdout_variant,
-      writes: plan.writes.map((write) => ({
-        repository_relative_path: write.repository_relative_path,
-        content_bytes: Buffer.byteLength(write.content, "utf8"),
-      })),
+      operation_contract: plan.operation_contract,
     })),
   };
 }
@@ -3048,7 +3220,7 @@ function requireResultFingerprintMetadataV01(
 ): string {
   const value = result.adapter_extension.bounded_metadata[key];
   if (typeof value !== "string" || !FINGERPRINT_V01.test(value)) {
-    failV01("commissioned_work_executor_consumption_metadata_invalid");
+    failV01("commissioned_work_executor_delivery_metadata_invalid");
   }
   return value;
 }
@@ -3059,7 +3231,18 @@ function requireResultCountMetadataV01(
 ): number {
   const value = result.adapter_extension.bounded_metadata[key];
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    failV01("commissioned_work_executor_consumption_metadata_invalid");
+    failV01("commissioned_work_executor_delivery_metadata_invalid");
+  }
+  return value;
+}
+
+function requireResultBooleanMetadataV01(
+  result: NativeHostResultV01,
+  key: string,
+): boolean {
+  const value = result.adapter_extension.bounded_metadata[key];
+  if (typeof value !== "boolean") {
+    failV01("commissioned_work_executor_delivery_metadata_invalid");
   }
   return value;
 }
@@ -3482,7 +3665,10 @@ function evaluationVectorV01(input: {
   observation: CommissionedWorkObjectiveObservationV01;
   executor_role: CommissionedWorkRoleRefV01;
   executor_claimed_complete: boolean;
-  condition_sensitive_structured_behavior: "observed" | "not_observed" | "unknown";
+  synthetic_cross_condition_output_difference:
+    | "observed"
+    | "not_observed"
+    | "unknown";
   harmful_transfer: "observed" | "not_observed" | "unknown";
 }): CommissionedWorkEvaluationVectorV01 {
   const hardFailures = new Set<CommissionedWorkHardFailureCodeV01>();
@@ -3560,8 +3746,8 @@ function evaluationVectorV01(input: {
           repository_path_fingerprint: firstActionPathFingerprint,
         }
       : { action_kind: "none", repository_path_fingerprint: null },
-    condition_sensitive_structured_behavior:
-      input.condition_sensitive_structured_behavior,
+    synthetic_cross_condition_output_difference:
+      input.synthetic_cross_condition_output_difference,
     harmful_transfer: input.harmful_transfer,
     source_currentness_failure:
       input.observation.source_currentness === "unknown"
@@ -3590,10 +3776,7 @@ function episodeEvidenceLadderV01(input: {
   episode_role: "predecessor" | "successor";
   condition: CommissionedWorkConditionV01 | null;
   selected_count: number;
-  referenced_count: number;
   delivery_before_action: boolean;
-  repeatable: boolean | null;
-  held_out_transfer: boolean | null;
   packet_ref: CommissionedWorkRecordRefV01;
   observation_ref: CommissionedWorkRecordRefV01;
 }): CommissionedWorkEvidenceLadderRowV01[] {
@@ -3649,14 +3832,14 @@ function episodeEvidenceLadderV01(input: {
       "referenced",
       !continuationApplicable
         ? "not_applicable"
-        : input.referenced_count > 0
-          ? "established"
-          : "not_established",
+        : input.selected_count === 0
+          ? "not_established"
+          : "unknown",
       !continuationApplicable
         ? "not_applicable"
-        : input.referenced_count > 0
-          ? "exact_executor_reference"
-          : "explicit_absence",
+        : input.selected_count === 0
+          ? "explicit_absence"
+          : "instrumentation_unavailable",
       directRefs,
     ),
     ladderRowV01(
@@ -3673,14 +3856,8 @@ function episodeEvidenceLadderV01(input: {
     ),
     ladderRowV01(
       "outcome_associated",
-      continuationApplicable && input.referenced_count > 0
-        ? "established"
-        : continuationApplicable
-          ? "not_established"
-          : "not_applicable",
-      continuationApplicable
-        ? "objective_repository_observation"
-        : "not_applicable",
+      continuationApplicable ? "unknown" : "not_applicable",
+      continuationApplicable ? "instrumentation_unavailable" : "not_applicable",
       outcomeRefs,
     ),
     ladderRowV01(
@@ -3691,30 +3868,14 @@ function episodeEvidenceLadderV01(input: {
     ),
     ladderRowV01(
       "repeatable",
-      input.repeatable === null
-        ? "unknown"
-        : input.repeatable
-          ? "established"
-          : "not_established",
-      input.repeatable === null
-        ? "instrumentation_unavailable"
-        : "independent_origin_recurrence",
+      continuationApplicable ? "unknown" : "not_applicable",
+      continuationApplicable ? "instrumentation_unavailable" : "not_applicable",
       outcomeRefs,
     ),
     ladderRowV01(
       "held_out_transfer",
-      input.held_out_transfer === null
-        ? input.episode_role === "predecessor"
-          ? "not_applicable"
-          : "unknown"
-        : input.held_out_transfer
-          ? "established"
-          : "not_established",
-      input.held_out_transfer === null
-        ? input.episode_role === "predecessor"
-          ? "not_applicable"
-          : "instrumentation_unavailable"
-        : "frozen_holdout_observation",
+      continuationApplicable ? "unknown" : "not_applicable",
+      continuationApplicable ? "instrumentation_unavailable" : "not_applicable",
       outcomeRefs,
     ),
   ];
@@ -3730,20 +3891,12 @@ function familyEvidenceLadderV01(input: {
   const exactEpisodeRefs = input.training.successor_episodes
     .filter((episode) => episode.condition === "exact_current_continuity")
     .map(episodeRefV01);
-  const allSuccessorRefs = input.training.successor_episodes.map(episodeRefV01);
   const candidateRef = candidateRefV01(input.consolidation_candidate);
   const holdoutRef = createCommissionedWorkRecordRefV01({
     record_version: input.holdout.holdout_version,
     record_id: input.holdout.holdout_id,
     record_fingerprint: input.holdout.integrity.fingerprint,
   });
-  const transferStatus =
-    input.holdout.transfer_result === "improved"
-      ? "established"
-      : input.holdout.transfer_result === "incomplete" ||
-          input.holdout.transfer_result === "non_comparable"
-        ? "unknown"
-        : "not_established";
   const exactEpisodes = input.training.successor_episodes.filter(
     (episode) => episode.condition === "exact_current_continuity",
   );
@@ -3754,7 +3907,7 @@ function familyEvidenceLadderV01(input: {
     episode.evidence_ladder.find((row) => row.stage === stage)?.status ===
     "established";
   const availableEstablished = exactEpisodes.some(
-    (episode) => episode.execution_binding.continuation_materials_consumed > 0,
+    (episode) => episode.execution_binding.continuation_materials_delivered > 0,
   );
   const selectedEstablished = exactEpisodes.every((episode) =>
     stageEstablished(episode, "selected"),
@@ -3762,40 +3915,6 @@ function familyEvidenceLadderV01(input: {
   const presentedEstablished = exactEpisodes.every((episode) =>
     stageEstablished(episode, "presented_before_first_meaningful_action"),
   );
-  const referencedEstablished = exactEpisodes.every((episode) =>
-    stageEstablished(episode, "referenced"),
-  );
-  const behaviorallyConditioned = input.family.training_cases.every(
-    (commitment) =>
-      new Set(
-        input.training.successor_episodes
-          .filter((episode) => episode.case_id === commitment.case_id)
-          .map((episode) => episode.repository_action_trace_fingerprint),
-      ).size > 1,
-  );
-  const supportValidated =
-    input.consolidation_candidate.minimal_generalized_rule.components.every(
-      (component) =>
-        component.source_episode_refs.length > 0 &&
-        component.source_evaluation_refs.length > 0 &&
-        component.opposing_or_counterexample_episode_refs.length > 0,
-    );
-  const outcomeAssociated = exactEpisodes.every((episode) =>
-    stageEstablished(episode, "outcome_associated"),
-  );
-  const interventionSensitive = input.holdout.comparisons.some(
-    (comparison) =>
-      comparison.left_variant === "strongest_equal_budget_baseline" &&
-      comparison.right_variant === "candidate_present" &&
-      comparison.behaviorally_distinct &&
-      comparison.relation !== "equal" &&
-      comparison.relation !== "incomplete" &&
-      comparison.relation !== "non_comparable",
-  );
-  const repeatable =
-    input.consolidation_candidate.minimal_generalized_rule.components.every(
-      (component) => component.independent_origin_group_ids.length >= 2,
-    );
   return [
     ladderRowV01(
       "available",
@@ -3817,44 +3936,44 @@ function familyEvidenceLadderV01(input: {
     ),
     ladderRowV01(
       "referenced",
-      referencedEstablished ? "established" : "not_established",
-      referencedEstablished ? "exact_executor_reference" : "instrumentation_unavailable",
+      "unknown",
+      "instrumentation_unavailable",
       exactEpisodeRefs,
     ),
     ladderRowV01(
       "behaviorally_conditioned",
-      behaviorallyConditioned ? "established" : "not_established",
-      "cross_condition_difference",
-      allSuccessorRefs,
+      "unknown",
+      "instrumentation_unavailable",
+      exactEpisodeRefs,
     ),
     ladderRowV01(
       "support_validated",
-      supportValidated ? "established" : "not_established",
-      "objective_repository_observation",
+      "unknown",
+      "instrumentation_unavailable",
       [candidateRef],
     ),
     ladderRowV01(
       "outcome_associated",
-      outcomeAssociated ? "established" : "not_established",
-      "objective_repository_observation",
+      "unknown",
+      "instrumentation_unavailable",
       exactEpisodeRefs,
     ),
     ladderRowV01(
       "intervention_sensitive",
-      interventionSensitive ? "established" : "not_established",
-      "cross_condition_difference",
+      "unknown",
+      "instrumentation_unavailable",
       [holdoutRef],
     ),
     ladderRowV01(
       "repeatable",
-      repeatable ? "established" : "not_established",
-      "independent_origin_recurrence",
+      "unknown",
+      "instrumentation_unavailable",
       [candidateRef],
     ),
     ladderRowV01(
       "held_out_transfer",
-      transferStatus,
-      "frozen_holdout_observation",
+      "not_established",
+      "instrumentation_unavailable",
       [holdoutRef],
     ),
   ];
@@ -3939,7 +4058,7 @@ function componentSourcesV01(
   return selections.map((selection) => {
     const sources = selection.sources;
     if (sources.length === 0) {
-      failV01("commissioned_work_component_support_missing");
+      failV01("commissioned_work_component_mechanics_source_missing");
     }
     const verificationPredecessors =
       selection.component ===
@@ -3961,7 +4080,8 @@ function componentSourcesV01(
         ),
       ]
         .sort(compareProtocolCodeUnitsV01),
-      opposing_or_counterexample_episode_refs: contrastingEpisodes
+      independent_support_established: false as const,
+      synthetic_contrast_episode_refs: contrastingEpisodes
         .filter(
           (episode) =>
             sources.some((source) => source.case_id === episode.case_id) &&
@@ -3990,7 +4110,7 @@ function holdoutComparisonV01(
     right_variant: right.holdout_variant,
     relation,
     objective_basis_only: true,
-    behaviorally_distinct:
+    synthetic_output_distinct:
       left.repository_action_trace_fingerprint ===
       right.repository_action_trace_fingerprint
         ? false
@@ -3999,6 +4119,8 @@ function holdoutComparisonV01(
     hard_failure_non_compensation_applied:
       left.evaluation.hard_failures.length > 0 ||
       right.evaluation.hard_failures.length > 0,
+    execution_evidence_class:
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
   };
 }
 
@@ -4143,6 +4265,11 @@ function validateEpisodeIntegrityV01(
     episode.execution_binding.hidden_reasoning_inherited !== false ||
     episode.execution_binding.predecessor_run_reused !== false ||
     episode.execution_binding.new_run_for_cold_episode !== true ||
+    episode.execution_binding.execution_evidence_class !==
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
+    episode.execution_binding.synthetic_fixture_output_applied !== true ||
+    episode.execution_binding.solution_write_plan_checked_during_result_admission !==
+      false ||
     episode.evaluation.model_identity !== "zero_model" ||
     episode.evaluation.resources.provider_calls.provenance !== "observed" ||
     episode.evaluation.resources.provider_calls.value !== 0 ||
@@ -4157,8 +4284,12 @@ function validateEpisodeIntegrityV01(
     failV01("commissioned_work_episode_authority_or_cold_boundary_invalid");
   }
   requireFingerprintV01(
-    episode.execution_binding.fixture_episode_policy_fingerprint,
-    "commissioned_work_episode_policy_fingerprint_invalid",
+    episode.execution_binding.synthetic_fixture_binding_fingerprint,
+    "commissioned_work_synthetic_fixture_binding_fingerprint_invalid",
+  );
+  requireFingerprintV01(
+    episode.execution_binding.synthetic_fixture_output_fingerprint,
+    "commissioned_work_synthetic_fixture_output_fingerprint_invalid",
   );
   validateResourceVectorV01(episode.evaluation.resources);
 }
@@ -4198,7 +4329,7 @@ function assertEpisodeManifestBindingV01(
       (episode.existing_reentry_role !== null ||
         episode.continuation_binding_fingerprint !== null ||
         episode.intervention_provenance_fingerprint !== null ||
-        episode.execution_binding.continuation_materials_consumed !== 0)) ||
+        episode.execution_binding.continuation_materials_delivered !== 0)) ||
     (episode.condition !== null &&
       (!treatmentBinding ||
         episode.existing_reentry_role !==
@@ -4207,7 +4338,7 @@ function assertEpisodeManifestBindingV01(
           treatmentBinding.binding_fingerprint ||
         episode.intervention_provenance_fingerprint !==
           treatmentBinding.intervention_provenance_ref.content_fingerprint ||
-        episode.execution_binding.continuation_materials_consumed !==
+        episode.execution_binding.continuation_materials_delivered !==
           treatmentBinding.continuation_material_refs.length))
   ) {
     failV01("commissioned_work_episode_manifest_binding_invalid");

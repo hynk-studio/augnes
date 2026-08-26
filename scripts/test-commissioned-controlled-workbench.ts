@@ -15,6 +15,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
+  admitCommissionedWorkExecutorResultV01,
   assertCommissionedWorkFamilySourceBindingV01,
   assertSafeCommissionedWorkOutputV01,
   assertValidCommissionedWorkFinalReportV01,
@@ -43,16 +44,19 @@ import {
 import {
   createCommissionedWorkbenchFixtureAdapterV01,
   createCommissionedWorkbenchFixtureAdmissionV01,
-  createCommissionedWorkbenchFixtureEpisodePolicyV01,
+  createCommissionedWorkbenchSyntheticFixtureBindingV01,
   type CommissionedWorkbenchFixtureAdmissionV01,
-  type CommissionedWorkbenchFixtureEpisodePolicyV01,
+  type CommissionedWorkbenchSyntheticFixtureBindingV01,
 } from "@/lib/vnext/native-host/commissioned-workbench-fixture-adapter";
 import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { createCommissionedControlledWorkFamilySourceV01 } from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
+import {
+  createCommissionedControlledWorkFamilySourceV01,
+  createCommissionedControlledWorkSyntheticFixtureOutputsV01,
+} from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
 import {
   COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
   type CommissionedWorkArtifactIndexV01,
@@ -69,6 +73,7 @@ import {
   type CommissionedWorkResourceVectorV01,
   type CommissionedWorkRuntimeBindingV01,
   type CommissionedWorkSuccessorPlanSourceV01,
+  type CommissionedWorkSyntheticFixtureOutputV01,
 } from "@/types/vnext/commissioned-controlled-workbench";
 import type {
   NativeHostRequestV01,
@@ -84,6 +89,7 @@ let ownedSynchronousProcessesV01 = 0;
 type EpisodeBundle = {
   source: CommissionedWorkCaseSourceV01;
   plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   packet: TaskContextPacketV01;
   request: NativeHostRequestV01;
   fixture_admission: CommissionedWorkbenchFixtureAdmissionV01;
@@ -154,6 +160,30 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   const roots = createDisposableRootsV01(root);
   assertHermeticGitEnvironmentV01(roots);
   const familySource = createCommissionedControlledWorkFamilySourceV01();
+  const syntheticFixtureOutputs =
+    createCommissionedControlledWorkSyntheticFixtureOutputsV01();
+  assert.equal(syntheticFixtureOutputs.length, 20);
+  assert.equal(
+    syntheticFixtureOutputs.every(
+      (output) =>
+        output.execution_evidence_class === "synthetic_deterministic" &&
+        output.commissioned_behavioral_evidence === false &&
+        output.part_of_task_context_packet === false &&
+        output.part_of_candidate_derivation_evidence === false &&
+        output.required_by_live_executor_path === false,
+    ),
+    true,
+  );
+  for (const source of [
+    ...familySource.training_cases,
+    familySource.holdout_case,
+  ]) {
+    for (const plan of [source.predecessor_plan, ...source.successor_plans]) {
+      assert.equal("writes" in plan, false);
+      assert.equal("claimed_complete" in plan, false);
+      assert.equal("referenced_material_ids" in plan, false);
+    }
+  }
   const manifest = buildCommissionedWorkFamilyManifestV01(familySource);
   const trainingRuns: CaseRun[] = [];
   for (const [index, source] of familySource.training_cases.entries()) {
@@ -162,6 +192,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
         roots,
         manifest,
         source,
+        synthetic_fixture_outputs: syntheticFixtureOutputs,
         case_index: index,
         consolidation_candidate: null,
       }),
@@ -185,6 +216,15 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     frozen_at: candidate.frozen_at,
   });
   assert.deepEqual(candidateReplay, candidate);
+  assert.equal(
+    candidate.strongest_simpler_baseline.selected_before_holdout_outcomes,
+    true,
+  );
+  assert.equal(candidate.strongest_simpler_baseline.outcome_data_used, false);
+  assert.equal(
+    candidate.strongest_simpler_baseline.strongest_claim_status,
+    "unresolved",
+  );
   const holdoutRootBeforeFreeze = path.join(
     roots.runtime,
     familySource.holdout_case.case_id,
@@ -198,6 +238,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     roots,
     manifest,
     source: familySource.holdout_case,
+    synthetic_fixture_outputs: syntheticFixtureOutputs,
     case_index: 3,
     consolidation_candidate: candidate,
   });
@@ -215,7 +256,25 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
       CommissionedWorkEpisodeArtifactV01,
     ],
   });
-  assert.equal(holdout.transfer_result, "improved");
+  assert.equal(
+    holdout.candidate_specific_transfer_conclusion.status,
+    "not_established",
+  );
+  assert.equal(
+    holdout.candidate_specific_transfer_conclusion
+      .designated_baseline_relation,
+    "improved",
+  );
+  assert.equal(
+    holdout.candidate_specific_transfer_conclusion
+      .comparable_no_candidate_equal,
+    true,
+  );
+  assert.equal(
+    holdout.candidate_specific_transfer_conclusion
+      .strongest_no_candidate_selection,
+    "unresolved",
+  );
   assert.equal(
     holdout.arms.find((episode) => episode.holdout_variant === "candidate_present")
       ?.evaluation.deterministic_repository_task_success,
@@ -236,17 +295,35 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   const holdoutAblation = holdout.arms.find(
     (episode) => episode.holdout_variant === "candidate_component_ablation",
   )!;
-  assert.equal(
-    holdoutBaseline.execution_binding.continuation_materials_consumed,
-    holdoutCandidate.execution_binding.continuation_materials_consumed,
+  const holdoutStaleReset = holdout.arms.find(
+    (episode) => episode.holdout_variant === "stale_or_reset",
+  )!;
+  assert.notEqual(holdoutCandidate.condition, holdoutStaleReset.condition);
+  assert.notEqual(
+    holdoutCandidate.task_context_packet_ref.record_fingerprint,
+    holdoutStaleReset.task_context_packet_ref.record_fingerprint,
   );
   assert.equal(
-    holdoutBaseline.execution_binding.continuation_materials_consumed,
-    holdoutAblation.execution_binding.continuation_materials_consumed,
+    holdoutCandidate.repository_action_trace_fingerprint,
+    holdoutStaleReset.repository_action_trace_fingerprint,
   );
-  assert.equal(holdoutBaseline.execution_binding.candidate_components_consumed, 0);
-  assert.equal(holdoutCandidate.execution_binding.candidate_components_consumed, 3);
-  assert.equal(holdoutAblation.execution_binding.candidate_components_consumed, 2);
+  assert.equal(
+    holdoutCandidate.evidence_ladder.find(
+      (row) => row.stage === "behaviorally_conditioned",
+    )?.status,
+    "unknown",
+  );
+  assert.equal(
+    holdoutBaseline.execution_binding.continuation_materials_delivered,
+    holdoutCandidate.execution_binding.continuation_materials_delivered,
+  );
+  assert.equal(
+    holdoutBaseline.execution_binding.continuation_materials_delivered,
+    holdoutAblation.execution_binding.continuation_materials_delivered,
+  );
+  assert.equal(holdoutBaseline.execution_binding.candidate_components_delivered, 0);
+  assert.equal(holdoutCandidate.execution_binding.candidate_components_delivered, 3);
+  assert.equal(holdoutAblation.execution_binding.candidate_components_delivered, 2);
   const report = buildCommissionedWorkFinalReportV01({
     report_id: "cw1-report-four-case-01",
     family: manifest,
@@ -255,11 +332,18 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     holdout,
     limitations: [
       "deterministic_fixture_adapters_only",
+      "synthetic_execution_not_commissioned_behavioral_evidence",
+      "candidate_not_evidence_supported_procedural_knowledge",
+      "candidate_not_independently_learned",
+      "candidate_transfer_not_validated",
+      "candidate_specific_held_out_transfer_not_established",
+      "strongest_no_candidate_baseline_unresolved",
       "single_local_platform",
       "no_live_cohort",
       "no_policy_fitness_claim",
       "no_stage_7_claim",
       "no_rw1_conclusion",
+      "no_user_or_product_usefulness_claim",
     ],
   });
   const replay = buildCommissionedWorkFinalReportV01({
@@ -272,6 +356,12 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   });
   assert.deepEqual(replay, report);
   assertValidCommissionedWorkFinalReportV01(report);
+  const reportText = canonicalizeProtocolValueV01(report);
+  for (const syntheticOutput of syntheticFixtureOutputs) {
+    for (const write of syntheticOutput.writes) {
+      assert.equal(reportText.includes(write.content), false);
+    }
+  }
   assert.equal(report.counts.total_episode_artifacts, 20);
   assert.equal(report.counts.independent_training_origins, 3);
   assert.equal(report.authority_summary.creates_live_cohort, false);
@@ -279,11 +369,18 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   assert.equal(report.authority_summary.mutates_rw1_or_rw1a_material, false);
   assert.equal(report.authority_summary.claims_rw1_conclusion, false);
   assert.equal(report.consolidation_candidate.policy_created, false);
-  assert.equal(report.family_evidence_ladder.at(-1)?.status, "established");
+  assert.equal(report.family_evidence_ladder.at(-1)?.status, "not_established");
+  assert.equal(
+    report.consolidation_candidate.evidence_supported_procedural_knowledge,
+    false,
+  );
+  assert.equal(report.consolidation_candidate.independently_learned, false);
+  assert.equal(report.consolidation_candidate.validated_for_transfer, false);
   assertTrainingContrastsV01(report);
   runNegativeContractCasesV01({
     roots,
     familySource,
+    syntheticFixtureOutputs,
     manifest,
     report,
     candidate,
@@ -459,8 +556,21 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     holdout_case_count: 1,
     predecessor_episode_count: 4,
     successor_episode_count: 16,
+    experiment_class: report.experiment_class,
+    execution_evidence_class: report.execution_evidence_class,
+    live_capable_result_admission_without_solution_plan: true,
     candidate_fingerprint: candidate.integrity.fingerprint,
-    holdout_transfer_result: holdout.transfer_result,
+    candidate_specific_transfer_result:
+      holdout.candidate_specific_transfer_conclusion.status,
+    candidate_present_vs_designated_baseline:
+      holdout.candidate_specific_transfer_conclusion
+        .designated_baseline_relation,
+    comparable_no_candidate_equal:
+      holdout.candidate_specific_transfer_conclusion
+        .comparable_no_candidate_equal,
+    strongest_no_candidate_selection:
+      holdout.candidate_specific_transfer_conclusion
+        .strongest_no_candidate_selection,
     report_fingerprint: report.integrity.fingerprint,
     artifact_index_fingerprint: index.integrity.fingerprint,
     artifact_relative_root: writeSummary.relative_run_root,
@@ -578,6 +688,7 @@ async function runCaseV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   source: CommissionedWorkCaseSourceV01;
+  synthetic_fixture_outputs: CommissionedWorkSyntheticFixtureOutputV01[];
   case_index: number;
   consolidation_candidate: CommissionedWorkConsolidationCandidateV01 | null;
 }): Promise<CaseRun> {
@@ -605,6 +716,10 @@ async function runCaseV01(input: {
     manifest: input.manifest,
     source: input.source,
     plan: input.source.predecessor_plan,
+    synthetic_fixture_output: requireSyntheticFixtureOutputV01(
+      input.synthetic_fixture_outputs,
+      input.source.predecessor_plan.executor_role_id,
+    ),
     repository_root: predecessorRoot,
     episode_id: `${input.source.case_id}-episode-1`,
     episode_role: "predecessor",
@@ -624,7 +739,6 @@ async function runCaseV01(input: {
     interruption_ref: null,
     candidate_fingerprint:
       input.consolidation_candidate?.integrity.fingerprint ?? null,
-    condition_sensitive: "unknown",
   });
   const predecessorRef = episodeRefV01(predecessor);
   const interruptionRef =
@@ -659,6 +773,10 @@ async function runCaseV01(input: {
         manifest: input.manifest,
         source: input.source,
         plan,
+        synthetic_fixture_output: requireSyntheticFixtureOutputV01(
+          input.synthetic_fixture_outputs,
+          plan.executor_role_id,
+        ),
         repository_root: successorRoot,
         episode_id: `${input.source.case_id}-episode-2-${armKey}`,
         episode_role: "successor",
@@ -673,7 +791,7 @@ async function runCaseV01(input: {
       }),
     );
   }
-  const outcomeShapes = new Set(
+  const syntheticOutputShapes = new Set(
     successorBundles.map((bundle) =>
       canonicalizeProtocolValueV01({
         checks: bundle.observation.required_checks.map((check) => check.disposition),
@@ -683,8 +801,7 @@ async function runCaseV01(input: {
       }),
     ),
   );
-  const interventionSensitive = outcomeShapes.size > 1;
-  assert.equal(interventionSensitive, true);
+  assert.equal(syntheticOutputShapes.size > 1, true);
   const successors = successorBundles.map((bundle) =>
     buildEpisodeArtifactFromBundleV01({
       manifest: input.manifest,
@@ -693,7 +810,6 @@ async function runCaseV01(input: {
       interruption_ref: interruptionRef,
       candidate_fingerprint:
         input.consolidation_candidate?.integrity.fingerprint ?? null,
-      condition_sensitive: "observed",
     }),
   );
   return {
@@ -710,6 +826,7 @@ async function executeEpisodeV01(input: {
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   source: CommissionedWorkCaseSourceV01;
   plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   repository_root: string;
   episode_id: string;
   episode_role: "predecessor" | "successor";
@@ -764,6 +881,13 @@ async function executeEpisodeV01(input: {
     requested_at: startedAt,
   });
   const executorVisibleRequest = canonicalizeProtocolValueV01(request);
+  for (const expectedWrite of input.source.expected_success_writes) {
+    assert.equal(
+      executorVisibleRequest.includes(expectedWrite.content),
+      false,
+      "executor-visible request leaked evaluator-only expected output",
+    );
+  }
   for (const treatmentLabel of [
     "exact_current_continuity",
     "matched_ablation",
@@ -791,9 +915,10 @@ async function executeEpisodeV01(input: {
     executor_role_fingerprint: executorRole.role_fingerprint,
   });
   const commitment = findCommitmentV01(input.manifest, input.source.case_id);
-  const episodePolicy = buildFixtureEpisodePolicyV01({
+  const syntheticFixtureBinding = buildSyntheticFixtureBindingV01({
     source: input.source,
     actual_plan: input.plan,
+    synthetic_fixture_output: input.synthetic_fixture_output,
     packet,
     commitment,
   });
@@ -804,7 +929,7 @@ async function executeEpisodeV01(input: {
         ? COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01.slice(0, -1)
         : [];
   assert.deepEqual(
-    episodePolicy.candidate_component_ids,
+    syntheticFixtureBinding.candidate_component_ids,
     expectedCandidateComponentIds,
   );
   if (input.case_index === 0 && input.phase_index === 1) {
@@ -818,49 +943,51 @@ async function executeEpisodeV01(input: {
     });
     const mismatchedAdapter = createCommissionedWorkbenchFixtureAdapterV01({
       exact_repository_root: input.repository_root,
-      episode_policy: episodePolicy,
+      synthetic_fixture_binding: syntheticFixtureBinding,
       fixture_admission: mismatchedAdmission,
       started_at: startedAt,
       first_material_action_at: firstActionAt,
       finished_at: finishedAt,
-      terminal_outcome: "blocked",
     });
     await assert.rejects(
       () =>
         invokeCommissionedWorkAdapterV01({
           adapter: mismatchedAdapter,
+          source: input.source,
+          plan: input.plan,
           request,
         }),
       /commissioned_workbench_adapter_request_refused/u,
     );
   }
   if (input.holdout_variant === "candidate_present") {
-    const candidateMismatchedPolicy = structuredClone(episodePolicy);
-    candidateMismatchedPolicy.candidate_component_ids =
-      candidateMismatchedPolicy.candidate_component_ids.slice(0, -1);
+    const candidateMismatchedBinding = structuredClone(syntheticFixtureBinding);
+    candidateMismatchedBinding.candidate_component_ids =
+      candidateMismatchedBinding.candidate_component_ids.slice(0, -1);
     const {
-      policy_fingerprint: _priorPolicyFingerprint,
-      ...candidateMismatchedPolicyWithoutFingerprint
-    } = candidateMismatchedPolicy;
-    candidateMismatchedPolicy.policy_fingerprint = createProtocolSha256V01(
+      binding_fingerprint: _priorBindingFingerprint,
+      ...candidateMismatchedBindingWithoutFingerprint
+    } = candidateMismatchedBinding;
+    candidateMismatchedBinding.binding_fingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01(
-        candidateMismatchedPolicyWithoutFingerprint,
+        candidateMismatchedBindingWithoutFingerprint,
       ),
     );
     const candidateMismatchedAdapter =
       createCommissionedWorkbenchFixtureAdapterV01({
         exact_repository_root: input.repository_root,
-        episode_policy: candidateMismatchedPolicy,
+        synthetic_fixture_binding: candidateMismatchedBinding,
         fixture_admission: fixtureAdmission,
         started_at: startedAt,
         first_material_action_at: firstActionAt,
         finished_at: finishedAt,
-        terminal_outcome: "completed",
       });
     await assert.rejects(
       () =>
         invokeCommissionedWorkAdapterV01({
           adapter: candidateMismatchedAdapter,
+          source: input.source,
+          plan: input.plan,
           request,
         }),
       /commissioned_workbench_adapter_request_refused/u,
@@ -868,20 +995,33 @@ async function executeEpisodeV01(input: {
   }
   const adapter = createCommissionedWorkbenchFixtureAdapterV01({
     exact_repository_root: input.repository_root,
-    episode_policy: episodePolicy,
+    synthetic_fixture_binding: syntheticFixtureBinding,
     fixture_admission: fixtureAdmission,
     started_at: startedAt,
     first_material_action_at: firstActionAt,
     finished_at: finishedAt,
-    terminal_outcome: input.episode_role === "predecessor" ? "blocked" : "completed",
   });
-  const result = await invokeCommissionedWorkAdapterV01({ adapter, request });
+  const result = await invokeCommissionedWorkAdapterV01({
+    adapter,
+    source: input.source,
+    plan: input.plan,
+    request,
+  });
   assert.equal(result.model_invocation_receipt_refs.length, 0);
   assert.equal(result.host_refs.length, 1);
   assert.equal(
     result.adapter_extension.bounded_metadata
-      .fixture_episode_policy_fingerprint,
-    episodePolicy.policy_fingerprint,
+      .synthetic_fixture_binding_fingerprint,
+    syntheticFixtureBinding.binding_fingerprint,
+  );
+  assert.deepEqual(
+    admitCommissionedWorkExecutorResultV01({
+      source: input.source,
+      plan: input.plan,
+      request,
+      result,
+    }),
+    result,
   );
   gitV01(input.repository_root, ["add", "--all"]);
   gitV01(
@@ -945,6 +1085,7 @@ async function executeEpisodeV01(input: {
     packet,
     request,
     fixture_admission: fixtureAdmission,
+    synthetic_fixture_output: input.synthetic_fixture_output,
     result,
     receipt,
     observation,
@@ -970,18 +1111,23 @@ async function executeEpisodeV01(input: {
   };
 }
 
-function buildFixtureEpisodePolicyV01(input: {
+function buildSyntheticFixtureBindingV01(input: {
   source: CommissionedWorkCaseSourceV01;
   actual_plan:
     | CommissionedWorkEpisodePlanSourceV01
     | CommissionedWorkSuccessorPlanSourceV01;
+  synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   packet: TaskContextPacketV01;
   commitment: CommissionedWorkCaseCommitmentV01;
-}): CommissionedWorkbenchFixtureEpisodePolicyV01 {
+}): CommissionedWorkbenchSyntheticFixtureBindingV01 {
   const successor = "condition" in input.actual_plan ? input.actual_plan : null;
-  return createCommissionedWorkbenchFixtureEpisodePolicyV01({
+  assert.equal(
+    input.synthetic_fixture_output.executor_role_id,
+    input.actual_plan.executor_role_id,
+  );
+  return createCommissionedWorkbenchSyntheticFixtureBindingV01({
     packet: input.packet,
-    writes: input.actual_plan.writes,
+    synthetic_fixture_output: input.synthetic_fixture_output,
     expected_current_source_fingerprint:
       successor === null
         ? null
@@ -1222,7 +1368,6 @@ function buildEpisodeArtifactFromBundleV01(input: {
   predecessor_ref: CommissionedWorkRecordRefV01 | null;
   interruption_ref: CommissionedWorkRecordRefV01 | null;
   candidate_fingerprint: string | null;
-  condition_sensitive: "observed" | "not_observed" | "unknown";
 }): CommissionedWorkEpisodeArtifactV01 {
   const buildInput: BuildCommissionedWorkEpisodeArtifactInputV01 = {
     manifest: input.manifest,
@@ -1247,17 +1392,6 @@ function buildEpisodeArtifactFromBundleV01(input: {
       input.bundle.source.case_role === "holdout"
         ? true
         : null,
-    condition_sensitive_structured_behavior: input.condition_sensitive,
-    repeatable: null,
-    held_out_transfer: null,
-    harmful_transfer:
-      input.bundle.holdout_variant === "candidate_present"
-        ? input.bundle.observation.required_checks.every(
-            (check) => check.disposition === "passed",
-          )
-          ? "not_observed"
-          : "observed"
-        : "unknown",
     repository_action_trace_fingerprint:
       input.bundle.action_trace_fingerprint,
   };
@@ -1309,6 +1443,19 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
       )?.status,
       "unknown",
     );
+    if (episode.execution_binding.continuation_materials_delivered > 0) {
+      assert.equal(
+        episode.evidence_ladder.find((row) => row.stage === "referenced")
+          ?.status,
+        "unknown",
+      );
+    }
+    assert.equal(
+      episode.evidence_ladder.find(
+        (row) => row.stage === "outcome_associated",
+      )?.status,
+      "unknown",
+    );
   }
   const zeroControl = report.training.successor_episodes.find(
     (episode) => episode.condition === "zero_continuation_control",
@@ -1334,11 +1481,40 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
       "component_independent_recurrence_incomplete",
     ),
   );
+  assert.equal(
+    report.consolidation_candidate.minimal_generalized_rule.components.every(
+      (component) =>
+        component.source_episode_refs.length > 0 &&
+        component.source_evaluation_refs.length > 0 &&
+        component.independent_support_established === false,
+    ),
+    true,
+  );
+  for (const stage of [
+    "referenced",
+    "behaviorally_conditioned",
+    "support_validated",
+    "outcome_associated",
+    "intervention_sensitive",
+    "repeatable",
+  ] as const) {
+    assert.equal(
+      report.family_evidence_ladder.find((row) => row.stage === stage)?.status,
+      "unknown",
+    );
+  }
+  assert.equal(
+    report.family_evidence_ladder.find(
+      (row) => row.stage === "held_out_transfer",
+    )?.status,
+    "not_established",
+  );
 }
 
 function runNegativeContractCasesV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
   familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
+  syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   report: CommissionedWorkFinalReportV01;
   candidate: CommissionedWorkFinalReportV01["consolidation_candidate"];
@@ -1370,18 +1546,19 @@ function runNegativeContractCasesV01(input: {
     /commissioned_work_task_or_rubric_mutated_after_seal/u,
   );
   const sameLengthPlanMutation = structuredClone(input.familySource);
-  const originalPlanContent =
-    sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!
-      .content;
-  sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!.content =
-    `${originalPlanContent[0] === "a" ? "b" : "a"}${originalPlanContent.slice(1)}`;
+  const originalAllowedPath =
+    sameLengthPlanMutation.training_cases[0].successor_plans[1]!
+      .operation_contract.allowed_repository_relative_paths[0]!;
+  sameLengthPlanMutation.training_cases[0].successor_plans[1]!
+    .operation_contract.allowed_repository_relative_paths[0] =
+    `${originalAllowedPath[0] === "a" ? "b" : "a"}${originalAllowedPath.slice(1)}`;
   assert.equal(
     Buffer.byteLength(
-      sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!
-        .content,
+      sameLengthPlanMutation.training_cases[0].successor_plans[1]!
+        .operation_contract.allowed_repository_relative_paths[0]!,
       "utf8",
     ),
-    Buffer.byteLength(originalPlanContent, "utf8"),
+    Buffer.byteLength(originalAllowedPath, "utf8"),
   );
   assert.throws(
     () =>
@@ -1425,7 +1602,6 @@ function runNegativeContractCasesV01(input: {
   )!;
   zeroLeakPlan.selected_material_ids = ["amber-current"];
   zeroLeakPlan.excluded_material_ids = ["amber-old"];
-  zeroLeakPlan.referenced_material_ids.push("amber-current");
   assert.throws(
     () => buildCommissionedWorkFamilyManifestV01(zeroLeak),
     /commissioned_work_zero_control_continuation_invalid/u,
@@ -1436,7 +1612,6 @@ function runNegativeContractCasesV01(input: {
   )!;
   exactStalePlan.selected_material_ids.push("amber-old");
   exactStalePlan.excluded_material_ids = [];
-  exactStalePlan.referenced_material_ids.push("amber-old");
   assert.throws(
     () => buildCommissionedWorkFamilyManifestV01(exactStale),
     /commissioned_work_exact_current_stale_material_invalid/u,
@@ -1450,7 +1625,6 @@ function runNegativeContractCasesV01(input: {
   )!;
   unmatchedPlan.selected_material_ids = [...unmatchedExact.selected_material_ids];
   unmatchedPlan.excluded_material_ids = [...unmatchedExact.excluded_material_ids];
-  unmatchedPlan.referenced_material_ids = [...unmatchedExact.referenced_material_ids];
   assert.throws(
     () => buildCommissionedWorkFamilyManifestV01(unmatchedAblation),
     /commissioned_work_matched_ablation_relation_invalid/u,
@@ -1471,6 +1645,13 @@ function runNegativeContractCasesV01(input: {
     () => buildCommissionedWorkFamilyManifestV01(invalidHoldoutMode),
     /commissioned_work_holdout_candidate_intervention_invalid/u,
   );
+  assertSyntheticOutputSeparationV01({
+    roots: input.roots,
+    familySource: input.familySource,
+    syntheticFixtureOutputs: input.syntheticFixtureOutputs,
+    manifest: input.manifest,
+    bundle: input.receipt_probe_bundle,
+  });
   const caseCommitment = input.manifest.training_cases[0];
   const baseObservation = negativeObservationInputV01(
     input.manifest,
@@ -1573,7 +1754,7 @@ function runNegativeContractCasesV01(input: {
     /commissioned_work_cross_project_source_refused/u,
   );
   const forgedPlan = structuredClone(crossProjectPlan);
-  forgedPlan.writes[0]!.content += "\n// forged after seal\n";
+  forgedPlan.operation_contract.max_commands += 1;
   assert.throws(
     () =>
       buildCommissionedWorkTaskContextPacketV01({
@@ -1626,7 +1807,6 @@ function runNegativeContractCasesV01(input: {
         predecessor_ref: sourceBoundEpisode.predecessor_episode_ref,
         interruption_ref: sourceBoundEpisode.sealed_interruption_ref,
         candidate_fingerprint: null,
-        condition_sensitive: "observed",
       }),
     /commissioned_work_episode_execution_chronology_binding_invalid/u,
   );
@@ -1656,10 +1836,10 @@ function runNegativeContractCasesV01(input: {
       }),
     /commissioned_work_training_case_slots_invalid/u,
   );
-  const consumptionTampered = structuredClone(sourceBoundEpisode);
-  consumptionTampered.execution_binding.continuation_materials_consumed += 1;
+  const deliveryTampered = structuredClone(sourceBoundEpisode);
+  deliveryTampered.execution_binding.continuation_materials_delivered += 1;
   resealV01(
-    consumptionTampered,
+    deliveryTampered,
     "commissioned_work_episode_without_integrity_fingerprint",
   );
   assert.throws(
@@ -1668,8 +1848,8 @@ function runNegativeContractCasesV01(input: {
         manifest: input.manifest,
         predecessor_episodes: input.training.predecessor_episodes,
         successor_episodes: input.training.successor_episodes.map((episode) =>
-          episode.episode_id === consumptionTampered.episode_id
-            ? consumptionTampered
+          episode.episode_id === deliveryTampered.episode_id
+            ? deliveryTampered
             : episode,
         ),
       }),
@@ -1934,6 +2114,169 @@ function runNegativeContractCasesV01(input: {
   assertChildNetworkGuardV01(input.roots);
 }
 
+function assertSyntheticOutputSeparationV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
+  syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  bundle: EpisodeBundle;
+}): void {
+  assert.equal("writes" in input.bundle.plan, false);
+  const replacementOutputs = structuredClone(input.syntheticFixtureOutputs);
+  const replacement = replacementOutputs.find(
+    (output) =>
+      output.executor_role_id === input.bundle.plan.executor_role_id,
+  );
+  assert.ok(replacement);
+  replacement.writes[0]!.content += "// replacement synthetic mechanics output\n";
+  const originalBinding = buildSyntheticFixtureBindingV01({
+    source: input.bundle.source,
+    actual_plan: input.bundle.plan,
+    synthetic_fixture_output: input.bundle.synthetic_fixture_output,
+    packet: input.bundle.packet,
+    commitment: findCommitmentV01(
+      input.manifest,
+      input.bundle.source.case_id,
+    ),
+  });
+  const replacementBinding = buildSyntheticFixtureBindingV01({
+    source: input.bundle.source,
+    actual_plan: input.bundle.plan,
+    synthetic_fixture_output: replacement,
+    packet: input.bundle.packet,
+    commitment: findCommitmentV01(
+      input.manifest,
+      input.bundle.source.case_id,
+    ),
+  });
+  assert.notEqual(
+    replacementBinding.synthetic_fixture_output_fingerprint,
+    originalBinding.synthetic_fixture_output_fingerprint,
+  );
+  const unsafeSyntheticOutput = structuredClone(replacement);
+  unsafeSyntheticOutput.writes[0]!.content =
+    "C:\\repo\\private\\synthetic-output.txt";
+  assert.throws(
+    () =>
+      buildSyntheticFixtureBindingV01({
+        source: input.bundle.source,
+        actual_plan: input.bundle.plan,
+        synthetic_fixture_output: unsafeSyntheticOutput,
+        packet: input.bundle.packet,
+        commitment: findCommitmentV01(
+          input.manifest,
+          input.bundle.source.case_id,
+        ),
+      }),
+    /commissioned_workbench_synthetic_fixture_output_invalid/u,
+  );
+  assert.deepEqual(
+    buildCommissionedWorkFamilyManifestV01(input.familySource),
+    input.manifest,
+  );
+  const replayPacket = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source: input.bundle.source,
+    plan: input.bundle.plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    generated_at: input.bundle.packet.generated_at,
+  });
+  const replayRequest = buildCommissionedWorkNativeHostRequestV01({
+    manifest: input.manifest,
+    source: input.bundle.source,
+    plan: input.bundle.plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    packet: replayPacket,
+    runtime: {
+      report_included: false,
+      case_id: input.bundle.source.case_id,
+      condition: input.bundle.condition,
+      holdout_variant: input.bundle.holdout_variant,
+      workspace_id: input.manifest.workspace_id,
+      project_id: input.bundle.source.project_id,
+      repository_root: input.bundle.request.root_scope.canonical_root,
+      database_path: path.join(input.roots.database, "separation-probe.sqlite"),
+      home_root: input.roots.home,
+      data_root: input.roots.data,
+      config_root: input.roots.config,
+      runtime_root: input.roots.runtime,
+      artifact_root: input.roots.artifacts,
+    },
+    episode_id: input.bundle.episode_id,
+    requested_at: input.bundle.started_at,
+  });
+  assert.deepEqual(replayPacket, input.bundle.packet);
+  assert.deepEqual(replayRequest, input.bundle.request);
+  assert.equal(
+    canonicalizeProtocolValueV01(replayRequest).includes(
+      replacement.writes[0]!.content,
+    ),
+    false,
+  );
+  const executorProducedResult = structuredClone(input.bundle.result);
+  executorProducedResult.observed_actions = [
+    "executor_produced_repository_diff",
+  ];
+  executorProducedResult.summary =
+    "The executor returned one bounded structured repository diff.";
+  executorProducedResult.adapter_extension.adapter_kind =
+    "commissioned_work_live_capable_result_probe";
+  for (const fixtureOnlyKey of [
+    "synthetic_fixture_binding_fingerprint",
+    "synthetic_fixture_output_fingerprint",
+    "execution_evidence_class",
+    "synthetic_fixture_output_applied",
+    "solution_write_plan_checked_during_result_admission",
+    "executor_claimed_complete",
+  ]) {
+    delete executorProducedResult.adapter_extension.bounded_metadata[
+      fixtureOnlyKey
+    ];
+  }
+  assert.deepEqual(
+    admitCommissionedWorkExecutorResultV01({
+      source: input.bundle.source,
+      plan: input.bundle.plan,
+      request: input.bundle.request,
+      result: executorProducedResult,
+    }),
+    executorProducedResult,
+  );
+  const executorResultObservation = evaluateRepositoryEpisodeV01({
+    source: input.bundle.source,
+    commitment: findCommitmentV01(
+      input.manifest,
+      input.bundle.source.case_id,
+    ),
+    repository_root: input.bundle.request.root_scope.canonical_root,
+    episode_start_commit: input.bundle.repository_state.episode_start_commit,
+    episode_role: input.bundle.episode_role,
+    condition: input.bundle.condition,
+    holdout_variant: input.bundle.holdout_variant,
+    run_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(executorProducedResult.run_id),
+    ),
+    evaluator_role: input.manifest.outcome_evaluator,
+    evaluator_version: input.manifest.evaluator_version,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.bundle.source.project_id,
+    run_oracles: true,
+    result: executorProducedResult,
+    oracle_guard_path: input.roots.oracle_guard_path,
+    network_attempt_log: input.roots.network_attempt_log,
+  });
+  assert.equal(executorResultObservation.repository_diff_correctness, "passed");
+  assert.equal(executorResultObservation.verification_completeness, "complete");
+  assert.equal(
+    executorResultObservation.required_checks.every(
+      (check) => check.disposition === "passed",
+    ),
+    true,
+  );
+}
+
 function assertChildNetworkGuardV01(
   roots: ReturnType<typeof createDisposableRootsV01>,
 ): void {
@@ -2048,6 +2391,17 @@ function findCommitmentV01(
   ].find((item) => item.case_id === caseId);
   assert.ok(commitment);
   return commitment;
+}
+
+function requireSyntheticFixtureOutputV01(
+  outputs: CommissionedWorkSyntheticFixtureOutputV01[],
+  executorRoleId: string,
+): CommissionedWorkSyntheticFixtureOutputV01 {
+  const matches = outputs.filter(
+    (output) => output.executor_role_id === executorRoleId,
+  );
+  assert.equal(matches.length, 1);
+  return structuredClone(matches[0]!);
 }
 
 function episodeRefV01(

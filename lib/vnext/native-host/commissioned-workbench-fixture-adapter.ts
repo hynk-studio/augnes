@@ -18,15 +18,19 @@ import path from "node:path";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
+  scanForbiddenProtocolMaterialV01,
 } from "@/lib/vnext/protocol-primitives";
 import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
 import {
   COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
+  COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
   type CommissionedWorkCandidateComponentIdV01,
-  type CommissionedWorkRepositoryWriteSourceV01,
+  type CommissionedWorkSyntheticFixtureOutputV01,
 } from "@/types/vnext/commissioned-controlled-workbench";
 import type {
   NativeHostAdapterV01,
+  NativeHostRequestV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -38,6 +42,8 @@ export const COMMISSIONED_WORKBENCH_FIXTURE_CAPABILITY_VERSION_V01 =
 
 const SAFE_SEGMENT_V01 = /^[A-Za-z0-9._-]{1,200}$/u;
 const FINGERPRINT_V01 = /^sha256:[a-f0-9]{64}$/u;
+const PRIVATE_ABSOLUTE_PATH_V01 =
+  /(?:^|[\s"'`(])(?:\/Users\/|\/home\/|[A-Za-z]:[\\/]|\\\\)/u;
 
 export interface CommissionedWorkbenchFixtureAdmissionV01 {
   admission_version: "commissioned_workbench_fixture_admission.v0.1";
@@ -51,15 +57,16 @@ export interface CommissionedWorkbenchFixtureAdmissionV01 {
   integrity_fingerprint: string;
 }
 
-export interface CommissionedWorkbenchFixtureEpisodePolicyV01 {
-  policy_version: "commissioned_workbench_fixture_episode_policy.v0.1";
+export interface CommissionedWorkbenchSyntheticFixtureBindingV01 {
+  binding_version: "commissioned_workbench_synthetic_fixture_binding.v0.1";
   packet_material_set_fingerprint: string;
-  writes: CommissionedWorkRepositoryWriteSourceV01[];
+  synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
+  synthetic_fixture_output_fingerprint: string;
   expected_current_source_fingerprint: string | null;
   current_source_relative_paths: string[];
   continuation_material_count: number;
   candidate_component_ids: CommissionedWorkCandidateComponentIdV01[];
-  policy_fingerprint: string;
+  binding_fingerprint: string;
 }
 
 export class CommissionedWorkbenchFixtureAdapterErrorV01 extends Error {
@@ -130,17 +137,20 @@ export function createCommissionedWorkbenchFixtureAdmissionV01(input: {
   };
 }
 
-export function createCommissionedWorkbenchFixtureEpisodePolicyV01(input: {
+export function createCommissionedWorkbenchSyntheticFixtureBindingV01(input: {
   packet: TaskContextPacketV01;
-  writes: CommissionedWorkRepositoryWriteSourceV01[];
+  synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   expected_current_source_fingerprint: string | null;
   current_source_relative_paths: string[];
   continuation_material_count: number;
-}): CommissionedWorkbenchFixtureEpisodePolicyV01 {
-  const normalizedMaterial = normalizeEpisodePolicyMaterialV01({
+}): CommissionedWorkbenchSyntheticFixtureBindingV01 {
+  const normalizedMaterial = normalizeSyntheticFixtureBindingMaterialV01({
     packet_material_set_fingerprint:
       createCommissionedWorkbenchPacketMaterialSetFingerprintV01(input.packet),
-    writes: input.writes,
+    synthetic_fixture_output: input.synthetic_fixture_output,
+    synthetic_fixture_output_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.synthetic_fixture_output),
+    ),
     expected_current_source_fingerprint:
       input.expected_current_source_fingerprint,
     current_source_relative_paths: input.current_source_relative_paths,
@@ -148,12 +158,12 @@ export function createCommissionedWorkbenchFixtureEpisodePolicyV01(input: {
     candidate_component_ids: candidateComponentIdsFromPacketV01(input.packet),
   });
   const withoutFingerprint = {
-    policy_version: "commissioned_workbench_fixture_episode_policy.v0.1" as const,
+    binding_version: "commissioned_workbench_synthetic_fixture_binding.v0.1" as const,
     ...normalizedMaterial,
   };
   return {
     ...withoutFingerprint,
-    policy_fingerprint: createProtocolSha256V01(
+    binding_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(withoutFingerprint),
     ),
   };
@@ -161,12 +171,11 @@ export function createCommissionedWorkbenchFixtureEpisodePolicyV01(input: {
 
 export function createCommissionedWorkbenchFixtureAdapterV01(input: {
   exact_repository_root: string;
-  episode_policy: CommissionedWorkbenchFixtureEpisodePolicyV01;
+  synthetic_fixture_binding: CommissionedWorkbenchSyntheticFixtureBindingV01;
   fixture_admission: CommissionedWorkbenchFixtureAdmissionV01;
   started_at: string;
   first_material_action_at: string;
   finished_at: string;
-  terminal_outcome: "completed" | "blocked";
 }): NativeHostAdapterV01 {
   if (!path.isAbsolute(input.exact_repository_root)) {
     failV01("commissioned_workbench_adapter_root_must_be_absolute");
@@ -206,7 +215,11 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
   ) {
     failV01("commissioned_workbench_fixture_admission_invalid");
   }
-  const episodePolicy = normalizeEpisodePolicyV01(input.episode_policy);
+  const syntheticFixtureBinding = normalizeSyntheticFixtureBindingV01(
+    input.synthetic_fixture_binding,
+  );
+  const syntheticFixtureOutput =
+    syntheticFixtureBinding.synthetic_fixture_output;
   let admissionConsumed = false;
   return {
     adapter_version: COMMISSIONED_WORKBENCH_FIXTURE_ADAPTER_VERSION_V01,
@@ -247,9 +260,9 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
         request.root_scope.root_kind !== "git_repository" ||
         request.policy.filesystem !== "selected_project_root_only" ||
         request.policy.network !== "forbidden" ||
-        request.policy.commands !== "forbidden_in_deterministic_adapter" ||
-        request.policy.model !== "forbidden_in_deterministic_adapter" ||
-        request.policy.host_egress !== "forbidden" ||
+        request.policy.commands !== "approval_required" ||
+        request.policy.model !== "native_host_managed" ||
+        request.policy.host_egress !== "explicit_interactive_start" ||
         request.execution_grant_ref !== null ||
         request.automation_context !== null ||
         request.repository_delegation_context != null ||
@@ -261,12 +274,19 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
           input.fixture_admission.packet_fingerprint ||
         admissionConsumed ||
         packetMaterialSetFingerprint !==
-          episodePolicy.packet_material_set_fingerprint ||
+          syntheticFixtureBinding.packet_material_set_fingerprint ||
         canonicalizeProtocolValueV01(deliveredCandidateComponentIds) !==
           canonicalizeProtocolValueV01(
-            episodePolicy.candidate_component_ids,
+            syntheticFixtureBinding.candidate_component_ids,
           ) ||
-        episodePolicy.writes.length > request.policy.max_changed_files
+        syntheticFixtureOutput.case_id !== fixtureCaseIdFromWorkRefV01(request) ||
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            role_kind: "executor",
+            role_id: syntheticFixtureOutput.executor_role_id,
+          }),
+        ) !== input.fixture_admission.executor_role_fingerprint ||
+        syntheticFixtureOutput.writes.length > request.policy.max_changed_files
       ) {
         failV01("commissioned_workbench_adapter_request_refused");
       }
@@ -276,19 +296,19 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
         if (stopRequested || control.cancellation_signal.aborted) {
           failV01("commissioned_workbench_adapter_cancelled_before_write");
         }
-        if (episodePolicy.expected_current_source_fingerprint !== null) {
+        if (syntheticFixtureBinding.expected_current_source_fingerprint !== null) {
           const observedCurrentSource = currentSourceFingerprintV01(
             exactRoot,
-            episodePolicy.current_source_relative_paths,
+            syntheticFixtureBinding.current_source_relative_paths,
           );
           if (
             observedCurrentSource !==
-            episodePolicy.expected_current_source_fingerprint
+            syntheticFixtureBinding.expected_current_source_fingerprint
           ) {
             failV01("commissioned_workbench_adapter_current_source_drift");
           }
         }
-        const changedFiles = episodePolicy.writes.map((write) => {
+        const changedFiles = syntheticFixtureOutput.writes.map((write) => {
           const target = resolveTargetV01(exactRoot, write.repository_relative_path);
           const existed = existsSync(target);
           if (existed && (lstatSync(target).isSymbolicLink() || !lstatSync(target).isFile())) {
@@ -313,9 +333,11 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
           result_version: "native_host_result.v0.1",
           request_id: request.request_id,
           run_id: request.run_id,
-          outcome: input.terminal_outcome,
+          outcome: syntheticFixtureOutput.terminal_outcome,
           public_stop_reason:
-            input.terminal_outcome === "blocked" ? "sealed_interruption" : null,
+            syntheticFixtureOutput.terminal_outcome === "blocked"
+              ? "sealed_interruption"
+              : null,
           started_at: input.started_at,
           finished_at: input.finished_at,
           host_refs: [
@@ -336,18 +358,18 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
             COMMISSIONED_WORKBENCH_FIXTURE_CAPABILITY_VERSION_V01,
           changed_files: changedFiles,
           artifacts: [],
-          observed_actions: ["applied_sealed_in_root_repository_write_plan"],
+          observed_actions: ["applied_synthetic_fixture_output"],
           commands: [],
           checks: [],
           skipped_checks: [],
           model_invocation_receipt_refs: [],
           summary:
-            input.terminal_outcome === "blocked"
-              ? "The predecessor applied bounded work and stopped at the sealed interruption."
-              : "The cold successor applied one bounded sealed repository edit plan.",
+            syntheticFixtureOutput.terminal_outcome === "blocked"
+              ? "The synthetic predecessor output was applied before the sealed interruption."
+              : "The cold synthetic successor output was applied for mechanics evaluation.",
           uncertainty: [],
           gaps:
-            input.terminal_outcome === "blocked"
+            syntheticFixtureOutput.terminal_outcome === "blocked"
               ? ["Required objective verification remains for the cold successor."]
               : [],
           proposed_next_steps: [],
@@ -357,7 +379,7 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
               coverage: "enforced",
               source_ref: request.root_scope.root_scope_ref,
               notes: [
-                "Only the sealed repository-relative write plan may touch the exact disposable root.",
+                "Only the synthetic fixture output may touch paths permitted by the live-capable operation contract.",
               ],
             },
             {
@@ -375,7 +397,7 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
             adapter_kind: "commissioned_workbench_fixture_adapter",
             bounded_metadata: {
               packet_delivery_initiated: true,
-              sealed_write_count: changedFiles.length,
+              synthetic_fixture_write_count: changedFiles.length,
               provider_calls: 0,
               model_calls: 0,
               external_network_calls: 0,
@@ -385,15 +407,23 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
               fixture_admission_fingerprint:
                 input.fixture_admission.integrity_fingerprint,
               fixture_admission_consumed: true,
-              fixture_episode_policy_fingerprint:
-                episodePolicy.policy_fingerprint,
+              synthetic_fixture_binding_fingerprint:
+                syntheticFixtureBinding.binding_fingerprint,
+              synthetic_fixture_output_fingerprint:
+                syntheticFixtureBinding.synthetic_fixture_output_fingerprint,
+              execution_evidence_class:
+                COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+              synthetic_fixture_output_applied: true,
+              solution_write_plan_checked_during_result_admission: false,
+              executor_claimed_complete:
+                syntheticFixtureOutput.executor_claimed_complete,
               first_material_action_at: input.first_material_action_at,
               packet_material_set_fingerprint: packetMaterialSetFingerprint,
-              consumed_material_set_fingerprint:
+              delivered_material_set_fingerprint:
                 packetMaterialSetFingerprint,
-              continuation_materials_consumed:
-                episodePolicy.continuation_material_count,
-              candidate_components_consumed:
+              continuation_materials_delivered:
+                syntheticFixtureBinding.continuation_material_count,
+              candidate_components_delivered:
                 deliveredCandidateComponentIds.length,
               first_action_path_fingerprint:
                 changedFiles[0] === undefined
@@ -419,62 +449,60 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
   };
 }
 
-type CommissionedWorkbenchFixtureEpisodePolicyMaterialV01 = Omit<
-  CommissionedWorkbenchFixtureEpisodePolicyV01,
-  "policy_version" | "policy_fingerprint"
+type CommissionedWorkbenchSyntheticFixtureBindingMaterialV01 = Omit<
+  CommissionedWorkbenchSyntheticFixtureBindingV01,
+  "binding_version" | "binding_fingerprint"
 >;
 
-function normalizeEpisodePolicyV01(
-  policy: CommissionedWorkbenchFixtureEpisodePolicyV01,
-): CommissionedWorkbenchFixtureEpisodePolicyV01 {
+function normalizeSyntheticFixtureBindingV01(
+  binding: CommissionedWorkbenchSyntheticFixtureBindingV01,
+): CommissionedWorkbenchSyntheticFixtureBindingV01 {
   const {
-    policy_version: policyVersion,
-    policy_fingerprint: policyFingerprint,
+    binding_version: bindingVersion,
+    binding_fingerprint: bindingFingerprint,
     ...material
-  } = policy;
-  const normalizedMaterial = normalizeEpisodePolicyMaterialV01(material);
+  } = binding;
+  const normalizedMaterial = normalizeSyntheticFixtureBindingMaterialV01(material);
   const normalizedWithoutFingerprint = {
-    policy_version: "commissioned_workbench_fixture_episode_policy.v0.1" as const,
+    binding_version: "commissioned_workbench_synthetic_fixture_binding.v0.1" as const,
     ...normalizedMaterial,
   };
   if (
-    policyVersion !== normalizedWithoutFingerprint.policy_version ||
-    !FINGERPRINT_V01.test(policyFingerprint) ||
-    policyFingerprint !==
+    bindingVersion !== normalizedWithoutFingerprint.binding_version ||
+    !FINGERPRINT_V01.test(bindingFingerprint) ||
+    bindingFingerprint !==
       createProtocolSha256V01(
         canonicalizeProtocolValueV01(normalizedWithoutFingerprint),
       ) ||
     canonicalizeProtocolValueV01({
-      policy_version: policyVersion,
+      binding_version: bindingVersion,
       ...material,
     }) !== canonicalizeProtocolValueV01(normalizedWithoutFingerprint)
   ) {
-    failV01("commissioned_workbench_adapter_episode_policy_invalid");
+    failV01("commissioned_workbench_synthetic_fixture_binding_invalid");
   }
   return {
     ...normalizedWithoutFingerprint,
-    policy_fingerprint: policyFingerprint,
+    binding_fingerprint: bindingFingerprint,
   };
 }
 
-function normalizeEpisodePolicyMaterialV01(
-  material: CommissionedWorkbenchFixtureEpisodePolicyMaterialV01,
-): CommissionedWorkbenchFixtureEpisodePolicyMaterialV01 {
+function normalizeSyntheticFixtureBindingMaterialV01(
+  material: CommissionedWorkbenchSyntheticFixtureBindingMaterialV01,
+): CommissionedWorkbenchSyntheticFixtureBindingMaterialV01 {
   if (
     !FINGERPRINT_V01.test(material.packet_material_set_fingerprint) ||
+    !FINGERPRINT_V01.test(material.synthetic_fixture_output_fingerprint) ||
     (material.expected_current_source_fingerprint !== null &&
       !FINGERPRINT_V01.test(material.expected_current_source_fingerprint)) ||
     !Number.isInteger(material.continuation_material_count) ||
     material.continuation_material_count < 0
   ) {
-    failV01("commissioned_workbench_adapter_episode_policy_invalid");
+    failV01("commissioned_workbench_synthetic_fixture_binding_invalid");
   }
-  const writes = material.writes.map((write) => ({
-    repository_relative_path: canonicalizeRepositoryRelativePathV01(
-      write.repository_relative_path,
-    ),
-    content: write.content,
-  }));
+  const syntheticFixtureOutput = normalizeSyntheticFixtureOutputV01(
+    material.synthetic_fixture_output,
+  );
   const currentSourcePaths = material.current_source_relative_paths
     .map(canonicalizeRepositoryRelativePathV01)
     .sort();
@@ -482,21 +510,89 @@ function normalizeEpisodePolicyMaterialV01(
     material.candidate_component_ids,
   );
   if (
-    writes.length === 0 ||
-    new Set(writes.map((write) => write.repository_relative_path)).size !==
-      writes.length ||
+    material.synthetic_fixture_output_fingerprint !==
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(syntheticFixtureOutput),
+      ) ||
     new Set(currentSourcePaths).size !== currentSourcePaths.length ||
     (material.expected_current_source_fingerprint !== null &&
       currentSourcePaths.length === 0)
   ) {
-    failV01("commissioned_workbench_adapter_episode_policy_invalid");
+    failV01("commissioned_workbench_synthetic_fixture_binding_invalid");
   }
   return {
     ...material,
-    writes,
+    synthetic_fixture_output: syntheticFixtureOutput,
     current_source_relative_paths: currentSourcePaths,
     candidate_component_ids: candidateComponentIds,
   };
+}
+
+function normalizeSyntheticFixtureOutputV01(
+  output: CommissionedWorkSyntheticFixtureOutputV01,
+): CommissionedWorkSyntheticFixtureOutputV01 {
+  const writes = output.writes.map((write) => ({
+    repository_relative_path: canonicalizeRepositoryRelativePathV01(
+      write.repository_relative_path,
+    ),
+    content: write.content,
+  }));
+  const forbiddenIssues = new Set<string>();
+  scanForbiddenProtocolMaterialV01(
+    output,
+    "$synthetic_fixture_output",
+    {
+      error: (code) => forbiddenIssues.add(code),
+      warning: () => {},
+    },
+    {
+      secret_material_message:
+        "Secret-shaped material is forbidden in synthetic CW1 fixture output.",
+      provider_specific_field_message:
+        "Provider-specific identity is forbidden in synthetic CW1 fixture output.",
+    },
+  );
+  if (valueContainsPrivateAbsolutePathV01(output)) {
+    forbiddenIssues.add("private_absolute_path");
+  }
+  if (
+    output.output_version !== "commissioned_work_synthetic_fixture_output.v0.1" ||
+    !SAFE_SEGMENT_V01.test(output.output_id) ||
+    !SAFE_SEGMENT_V01.test(output.case_id) ||
+    !SAFE_SEGMENT_V01.test(output.executor_role_id) ||
+    output.experiment_class !== COMMISSIONED_WORK_EXPERIMENT_CLASS_V01 ||
+    output.execution_evidence_class !==
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
+    output.expected_mechanics_response !== true ||
+    output.commissioned_behavioral_evidence !== false ||
+    output.part_of_task_context_packet !== false ||
+    output.part_of_candidate_derivation_evidence !== false ||
+    output.required_by_live_executor_path !== false ||
+    forbiddenIssues.size > 0 ||
+    writes.length === 0 ||
+    new Set(writes.map((write) => write.repository_relative_path)).size !==
+      writes.length ||
+    (output.episode_role === "predecessor" &&
+      (output.condition !== null ||
+        output.holdout_variant !== null ||
+        output.terminal_outcome !== "blocked")) ||
+    (output.episode_role === "successor" &&
+      (output.condition === null || output.terminal_outcome !== "completed"))
+  ) {
+    failV01("commissioned_workbench_synthetic_fixture_output_invalid");
+  }
+  return { ...output, writes };
+}
+
+function valueContainsPrivateAbsolutePathV01(value: unknown): boolean {
+  if (typeof value === "string") return PRIVATE_ABSOLUTE_PATH_V01.test(value);
+  if (Array.isArray(value)) {
+    return value.some(valueContainsPrivateAbsolutePathV01);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some(valueContainsPrivateAbsolutePathV01);
+  }
+  return false;
 }
 
 function candidateComponentIdsFromPacketV01(
@@ -542,6 +638,15 @@ function normalizeCandidateComponentIdsV01(
   return COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01.filter((componentId) =>
     componentIds.includes(componentId),
   );
+}
+
+function fixtureCaseIdFromWorkRefV01(request: NativeHostRequestV01): string {
+  const prefix = "work:";
+  const externalId = request.work_ref.external_id;
+  if (!externalId.startsWith(prefix) || externalId.length <= prefix.length) {
+    failV01("commissioned_workbench_synthetic_fixture_case_binding_invalid");
+  }
+  return externalId.slice(prefix.length);
 }
 
 function currentSourceFingerprintV01(root: string, relativePaths: string[]): string {

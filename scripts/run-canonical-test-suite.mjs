@@ -431,10 +431,10 @@ const suites = {
         "mutable-module-state",
       ],
       label:
-        "sealed four-case commissioned work, cold succession, consolidation freeze, and holdout transfer",
+        "sealed four-case commissioned-work mechanics, synthetic output, candidate freeze, and holdout comparison",
       ...rootNode("scripts/test-commissioned-controlled-workbench.ts"),
-      // Twenty cold Git episodes, objective local check programs, append-only
-      // artifact validation, adversarial gates, and cleanup measured 7.0s on
+      // Twenty cold Git episodes, synthetic fixture output, objective local
+      // checks, append-only artifact validation, adversarial gates, and cleanup measured 7.0s on
       // local arm64. Keep the bounded child at 30s without a retry path.
       timeoutMs: 30_000,
     },
