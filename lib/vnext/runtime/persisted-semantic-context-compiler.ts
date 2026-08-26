@@ -75,6 +75,61 @@ export const VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 =
 export const VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01 =
   "vnext_bounded_automation_context_compiler.v0.1" as const;
 
+/**
+ * Resolves the immediate prior packet from the compiler's cumulative exact-ref
+ * ancestry. The compiler copies every prior source ref and adds exactly one
+ * new prior-packet ref, so only the immediate prior can reproduce the target
+ * packet's complete compiler-namespace packet-ref set.
+ */
+export function resolveImmediatePersistedSemanticPriorPacketV01(input: {
+  packet: TaskContextPacketV01;
+  prior_packets: TaskContextPacketV01[];
+}):
+  | { status: "resolved"; prior_packet: TaskContextPacketV01 }
+  | { status: "ambiguous"; prior_packet: null } {
+  const targetRefs = persistedSemanticPriorPacketRefsV01(input.packet);
+  const matches = input.prior_packets.filter((candidate) => {
+    if (
+      candidate.workspace_id !== input.packet.workspace_id ||
+      candidate.project_id !== input.packet.project_id
+    ) {
+      return false;
+    }
+    const candidateRef = createPriorPacketLineageRef(candidate);
+    const candidateHistory = persistedSemanticPriorPacketRefsV01(candidate);
+    if (
+      candidateHistory.some(
+        (ref) =>
+          canonicalizeProtocolValueV01(ref) ===
+          canonicalizeProtocolValueV01(candidateRef),
+      )
+    ) {
+      return false;
+    }
+    return (
+      canonicalizeProtocolValueV01(
+        normalizeRefs([...candidateHistory, candidateRef]),
+      ) === canonicalizeProtocolValueV01(targetRefs)
+    );
+  });
+  return matches.length === 1
+    ? { status: "resolved", prior_packet: matches[0]! }
+    : { status: "ambiguous", prior_packet: null };
+}
+
+function persistedSemanticPriorPacketRefsV01(
+  packet: TaskContextPacketV01,
+): ExternalRefV01[] {
+  return normalizeRefs(
+    packet.compatibility.source_refs.filter(
+      (ref) =>
+        ref.ref_type === "task_context_packet" &&
+        ref.compatibility_namespace ===
+          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    ),
+  );
+}
+
 export type VNextTaskContextPacketExpiryPolicyV01 =
   { mode: "explicit"; expires_at: string | null } | { mode: "reuse_prior" };
 

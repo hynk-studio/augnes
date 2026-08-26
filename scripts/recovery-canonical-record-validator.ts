@@ -77,7 +77,10 @@ import {
 } from "../lib/vnext/runtime/project-managed-run-history";
 import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
-import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
+import {
+  VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+  resolveImmediatePersistedSemanticPriorPacketV01,
+} from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
 import {
   assertOperationalContinuationAdmissionV01,
@@ -952,17 +955,20 @@ function validateCompiledTaskContextPacketRelationV01(
     }
     return transition;
   });
-  const validRelations = priorPackets.flatMap((priorPacket) =>
-    transitions.flatMap((transition) => {
-      const relation = validateSemanticTransitionFullChainV01({
-        ...transition.eligibility_input,
-        receipt: transition.receipt,
-        prior_packet: priorPacket,
-        later_packet: packet,
-      });
-      return relation.status === "valid" ? [relation] : [];
-    }),
-  );
+  const immediatePrior = resolveImmediatePersistedSemanticPriorPacketV01({
+    packet,
+    prior_packets: priorPackets,
+  });
+  if (immediatePrior.status !== "resolved") refuseV01();
+  const validRelations = transitions.flatMap((transition) => {
+    const relation = validateSemanticTransitionFullChainV01({
+      ...transition.eligibility_input,
+      receipt: transition.receipt,
+      prior_packet: immediatePrior.prior_packet,
+      later_packet: packet,
+    });
+    return relation.status === "valid" ? [relation] : [];
+  });
   if (validRelations.length !== 1) refuseV01();
 }
 

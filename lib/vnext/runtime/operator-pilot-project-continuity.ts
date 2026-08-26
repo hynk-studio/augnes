@@ -20,6 +20,8 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "@/lib/vnext/operational-friction-proposal";
+import { deriveProjectVerifyLifecycleProposalAdmissionIdentityV01 } from "@/lib/vnext/project-verify-lifecycle";
+import { assertPersistedProjectVerifyLifecycleProposalSourceBoundV01 } from "@/lib/vnext/persistence/project-verify-lifecycle-admission";
 import {
   deriveContextUseReviewPresentationProvenanceV01,
   validateContextUseReviewRelationsV01,
@@ -41,6 +43,7 @@ import {
 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+  resolveImmediatePersistedSemanticPriorPacketV01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
   INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
@@ -671,6 +674,9 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
       throw continuityError("operator_pilot_continuity_proposal_invalid", 422);
     }
     const proposal = record.payload as EpisodeDeltaProposalV01;
+    if (proposal.project_verify_lifecycle) {
+      assertPersistedProjectVerifyLifecycleProposalSourceBoundV01(db, proposal);
+    }
     assertEnvelope(
       record,
       proposal.workspace_id,
@@ -686,6 +692,21 @@ function loadProposals(db: Database.Database, config: VNextLocalOperatorPilotCon
               project_id: proposal.project_id,
               proposal,
             }).idempotency_key
+          : null) ??
+        (proposal.project_verify_lifecycle
+          ? deriveProjectVerifyLifecycleProposalAdmissionIdentityV01({
+              workspace_id:
+                proposal.project_verify_lifecycle.lifecycle_binding.workspace_id,
+              project_id:
+                proposal.project_verify_lifecycle.lifecycle_binding.project_id,
+              entity_kind:
+                proposal.project_verify_lifecycle.lifecycle_binding.entity_kind,
+              family_id:
+                proposal.project_verify_lifecycle.lifecycle_binding.family_id,
+              selected_record_ref:
+                proposal.project_verify_lifecycle.lifecycle_binding
+                  .selected_record_ref,
+            }).admission_idempotency_key
           : null) ??
         (proposal.strategic_advantage_transfer
           ? createProtocolSha256V01(
@@ -966,6 +987,13 @@ function validateCompiledPacketLineage(
     }
     return priorPacket;
   });
+  const immediatePrior = resolveImmediatePersistedSemanticPriorPacketV01({
+    packet,
+    prior_packets: priorCandidates,
+  });
+  if (immediatePrior.status !== "resolved") {
+    throw continuityError("operator_pilot_compiled_packet_lineage_ambiguous", 422);
+  }
   const transitionCandidates = receiptRefs.map((receiptRef) => {
     if (!receiptRef.source_ref) {
       throw continuityError("operator_pilot_compiled_packet_lineage_invalid", 422);
@@ -986,17 +1014,17 @@ function validateCompiledPacketLineage(
     }
     return transition;
   });
-  const relations = priorCandidates.flatMap((priorPacket) =>
-    transitionCandidates.flatMap((transition) => {
+  const relations = transitionCandidates.flatMap((transition) => {
       const relation = validateSemanticTransitionFullChainV01({
         ...transition.eligibility_input,
         receipt: transition.receipt,
-        prior_packet: priorPacket,
+        prior_packet: immediatePrior.prior_packet,
         later_packet: packet,
       });
-      return relation.status === "valid" ? [{ priorPacket, transition }] : [];
-    }),
-  );
+      return relation.status === "valid"
+        ? [{ priorPacket: immediatePrior.prior_packet, transition }]
+        : [];
+    });
   if (relations.length !== 1) {
     throw continuityError("operator_pilot_compiled_packet_lineage_ambiguous", 422);
   }

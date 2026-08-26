@@ -69,6 +69,7 @@ import {
   type ReviewDecisionBuilderInputV01,
 } from "@/lib/vnext/review-decision";
 import {
+  assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01,
   assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01,
   commitVNextSemanticTransitionV01,
   createValidatedVNextSemanticTransitionRelationReadSessionV01,
@@ -990,6 +991,15 @@ function assertTransitionReadSessionBoundaryV01(
   };
   const first = loadTransition(source);
   assert.deepEqual(first.receipt, applied.commit.transition_receipt);
+  assert.deepEqual(
+    assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+      db,
+      applied.proposal,
+      loadTransition,
+    ).proposal,
+    applied.proposal,
+    "the read-session proposal validator preserves exact source authentication",
+  );
   const persistedState = assertPresentV01(applied.commit.semantic_state);
   assert.deepEqual(
     assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
@@ -1006,6 +1016,16 @@ function assertTransitionReadSessionBoundaryV01(
   const fakeReadSession = (_input: typeof source) => structuredClone(first);
   assert.throws(
     () =>
+      assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+        db,
+        applied.proposal,
+        fakeReadSession,
+      ),
+    /project_verify_lifecycle_read_session_invalid/,
+    "an arbitrary callable cannot forge a proposal source-authentication session",
+  );
+  assert.throws(
+    () =>
       assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
         db,
         { state: persistedState, ...source },
@@ -1016,6 +1036,18 @@ function assertTransitionReadSessionBoundaryV01(
   );
   const crossScopeState = structuredClone(persistedState);
   crossScopeState.project_id = OTHER_PROJECT_ID;
+  const crossScopeProposal = structuredClone(applied.proposal);
+  crossScopeProposal.project_id = OTHER_PROJECT_ID;
+  assert.throws(
+    () =>
+      assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+        db,
+        crossScopeProposal,
+        loadTransition,
+      ),
+    /project_verify_lifecycle_read_session_scope_mismatch/,
+    "a creator-issued session cannot authenticate a proposal from another scope",
+  );
   assert.throws(
     () =>
       assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
@@ -1043,6 +1075,16 @@ function assertTransitionReadSessionBoundaryV01(
         ),
       /persisted_project_verify_lifecycle_read_session_scope_mismatch/,
       "a same-scope session issued for another database cannot be reused",
+    );
+    assert.throws(
+      () =>
+        assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
+          db,
+          applied.proposal,
+          otherDatabaseSession,
+        ),
+      /project_verify_lifecycle_read_session_scope_mismatch/,
+      "a proposal cannot reuse a same-scope session issued for another database",
     );
   } finally {
     otherDb.close();
