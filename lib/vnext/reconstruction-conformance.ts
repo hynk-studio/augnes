@@ -3,6 +3,7 @@ import {
   compareProtocolCodeUnitsV01,
   createProtocolSha256V01,
   parseStrictIsoTimestampV01,
+  scanForbiddenProtocolMaterialV01,
 } from "./protocol-primitives";
 import {
   CODEX_CURRENT_CONTINUITY_VERSION_V01,
@@ -50,6 +51,17 @@ const MAX_SOURCE_RECORDS_V01 = 4_096;
 const MAX_LINEAGES_V01 = 64;
 const MAX_NORMALIZED_RELATIONS_V01 = 16_384;
 const MAX_REPORT_BYTES_V01 = 8 * 1_024 * 1_024;
+const PRIVATE_ABSOLUTE_PATH_V01 = /^(?:\/Users\/|\/home\/|[A-Za-z]:[\\/]|\\\\)/u;
+const REPORT_SAFE_OUTPUT_FALSE_INVARIANTS_V01 = new Set([
+  "raw_prompts_persisted",
+  "transcripts_persisted",
+  "hidden_reasoning_persisted",
+  "provider_payloads_persisted",
+  "credentials_persisted",
+  "operator_session_credentials_copied",
+  "private_paths_persisted",
+  "projection_or_rendering_copied",
+]);
 
 /** Presence requirements for this RC1 fixture, not the full portable contract. */
 const RC1_FIXTURE_REQUIRED_SOURCE_KINDS_V01 = Object.freeze([
@@ -66,6 +78,7 @@ const RC1_FIXTURE_REQUIRED_SOURCE_KINDS_V01 = Object.freeze([
 ]);
 const EXACT_CHECK_IDS_V01 = Object.freeze([
   "portable_contract_and_rc1_rebuild_binding",
+  "source_bound_work_and_rule_identity",
   "workspace_project_and_root_binding_identity",
   "reconstruction_input_portable_content_and_integrity",
   "canonical_source_record_manifest",
@@ -138,8 +151,13 @@ const CROSSING_MATERIAL_V01 = Object.freeze([
     crosses_boundary: true as const,
   },
   {
-    material: "portable_contract_and_rc1_rebuild_binding",
+    material: "portable_contract_and_rc1_research_method_binding",
     classification: "versioned_rebuild_rule" as const,
+    crosses_boundary: true as const,
+  },
+  {
+    material: "current_packet_source_bound_work_and_rule_identity",
+    classification: "exact_identity_source_metadata" as const,
     crosses_boundary: true as const,
   },
   {
@@ -211,6 +229,8 @@ const MATERIAL_BOUNDARY_V01 = Object.freeze({
 });
 
 const METHOD_BOUNDARY_V01 = Object.freeze({
+  portable_rebuild_binding_version:
+    RECONSTRUCTION_CONFORMANCE_PORTABLE_REBUILD_BINDING_VERSION_V01,
   exact_and_relational_lanes_separate: true as const,
   hard_failures_non_compensable: true as const,
   deterministic_replay_required: true as const,
@@ -438,12 +458,32 @@ function assertSafeReportOutputV01(
   report: ReconstructionConformanceReportV01,
 ): void {
   const serialized = canonicalizeProtocolValueV01(report);
-  if (
-    Buffer.byteLength(serialized, "utf8") > MAX_REPORT_BYTES_V01 ||
-    /(?:\/Users\/|\/home\/|\\Users\\|\bBearer\s+|\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{12,})/u.test(
-      serialized,
-    )
-  ) {
+  if (Buffer.byteLength(serialized, "utf8") > MAX_REPORT_BYTES_V01) {
+    failV01("reconstruction_conformance_report_safe_output_invalid");
+  }
+  const issues = new Set<string>();
+  scanForbiddenProtocolMaterialV01(
+    report,
+    "$",
+    {
+      error: (code) => issues.add(code),
+      warning: () => {},
+    },
+    {
+      secret_material_message:
+        "Secret-shaped material is forbidden in reconstruction conformance output.",
+      provider_specific_field_message:
+        "Provider-specific identity is forbidden in reconstruction conformance output.",
+      allowed_false_invariant_fields:
+        REPORT_SAFE_OUTPUT_FALSE_INVARIANTS_V01,
+    },
+  );
+  scanStringValuesV01(report, (value) => {
+    if (PRIVATE_ABSOLUTE_PATH_V01.test(value)) {
+      issues.add("private_absolute_path");
+    }
+  });
+  if (issues.size > 0) {
     failV01("reconstruction_conformance_report_safe_output_invalid");
   }
 }
@@ -554,6 +594,71 @@ function validateEnvironmentV01(
     if (lookupKeys.has(key)) failV01(`${label}_lineage_lookup_duplicate`);
     lookupKeys.add(key);
   }
+  assertCurrentPacketSourceBindingsV01(environment, label);
+}
+
+function assertCurrentPacketSourceBindingsV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+  label: "baseline" | "reconstructed",
+): void {
+  const packet = environment.current_packet;
+  const source = environment.source_boundary;
+  const packetWorkId = exactPacketWorkIdV01(packet);
+  if (
+    packetWorkId === null ||
+    source.work_id === null ||
+    source.work_id !== packetWorkId
+  ) {
+    failV01(`${label}_current_packet_work_binding_invalid`);
+  }
+
+  const verificationPlan = packet.criterion_verification_plan;
+  if (
+    verificationPlan === undefined ||
+    source.criterion_evaluator_version !== verificationPlan.evaluator_version
+  ) {
+    failV01(`${label}_current_packet_evaluator_binding_invalid`);
+  }
+
+  const compilerVersion = source.semantic_context_compiler_version;
+  const compilerLineageRefs = packet.compatibility.source_refs.filter(
+    (ref) =>
+      ref.ref_type === "task_context_packet" &&
+      ref.compatibility_namespace === compilerVersion,
+  );
+  if (
+    compilerVersion !== VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 ||
+    !packet.compatibility.source_contracts.includes(compilerVersion) ||
+    compilerLineageRefs.length === 0 ||
+    compilerLineageRefs.some(
+      (ref) =>
+        ref.trust_class !== "derived_interpretation" ||
+        typeof ref.source_ref !== "string" ||
+        !SHA256_V01.test(ref.source_ref) ||
+        !source.source_records.some(
+          (record) =>
+            record.record_kind === "task_context_packet" &&
+            record.record_id === ref.external_id &&
+            record.record_fingerprint === ref.source_ref,
+        ),
+    )
+  ) {
+    failV01(`${label}_current_packet_compiler_binding_invalid`);
+  }
+}
+
+function exactPacketWorkIdV01(packet: TaskContextPacketV01): string | null {
+  if (typeof packet.work_ref === "string") {
+    return packet.work_ref.trim().length > 0 ? packet.work_ref : null;
+  }
+  if (
+    packet.work_ref === null ||
+    typeof packet.work_ref.external_id !== "string" ||
+    packet.work_ref.external_id.trim().length === 0
+  ) {
+    return null;
+  }
+  return packet.work_ref.external_id;
 }
 
 function validateFeedbackStateV01(
@@ -658,25 +763,36 @@ function buildExactChecksV01(
 
   push(
     "portable_contract_and_rc1_rebuild_binding",
-    sourceRuleMaterialV01(baseline),
-    sourceRuleMaterialV01(reconstructed),
+    portableRebuildMethodMaterialV01(baseline),
+    portableRebuildMethodMaterialV01(reconstructed),
     {
       valid:
-        validSourceRuleV01(baseline) && validSourceRuleV01(reconstructed),
+        validPortableRebuildMethodV01(baseline) &&
+        validPortableRebuildMethodV01(reconstructed),
+    },
+  );
+  push(
+    "source_bound_work_and_rule_identity",
+    sourceBoundWorkAndRuleMaterialV01(baseline),
+    sourceBoundWorkAndRuleMaterialV01(reconstructed),
+    {
+      valid:
+        currentPacketSourceBindingsValidV01(baseline) &&
+        currentPacketSourceBindingsValidV01(reconstructed),
     },
   );
   push(
     "workspace_project_and_root_binding_identity",
     {
       ...scopeMaterialV01(baseline),
-      work_id: baseline.source_boundary.work_id,
+      work_id: exactPacketWorkIdV01(baseline.current_packet),
       current_packet_ref: baseline.source_boundary.current_packet_ref,
       root_binding_fingerprint:
         baseline.source_boundary.root_binding_fingerprint,
     },
     {
       ...scopeMaterialV01(reconstructed),
-      work_id: reconstructed.source_boundary.work_id,
+      work_id: exactPacketWorkIdV01(reconstructed.current_packet),
       current_packet_ref: reconstructed.source_boundary.current_packet_ref,
       root_binding_fingerprint:
         reconstructed.source_boundary.root_binding_fingerprint,
@@ -822,32 +938,96 @@ function buildExactChecksV01(
   return checks;
 }
 
-function sourceRuleMaterialV01(environment: ReconstructionConformanceEnvironmentV01) {
+function portableRebuildMethodMaterialV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+) {
   return {
     portable_contract: environment.source_boundary.portable_contract,
     portable_contract_version:
       environment.source_boundary.portable_contract_version,
     portable_rebuild_binding_version:
       environment.source_boundary.portable_rebuild_binding_version,
-    criterion_evaluator_version:
-      environment.source_boundary.criterion_evaluator_version,
-    semantic_context_compiler_version:
-      environment.source_boundary.semantic_context_compiler_version,
   };
 }
 
-function validSourceRuleV01(environment: ReconstructionConformanceEnvironmentV01) {
+function validPortableRebuildMethodV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+) {
   return (
     environment.source_boundary.portable_contract ===
       PORTABLE_PROJECT_CONTRACT_V01 &&
     environment.source_boundary.portable_contract_version ===
       PORTABLE_PROJECT_CONTRACT_VERSION_V01 &&
     environment.source_boundary.portable_rebuild_binding_version ===
-      RECONSTRUCTION_CONFORMANCE_PORTABLE_REBUILD_BINDING_VERSION_V01 &&
-    environment.source_boundary.criterion_evaluator_version ===
+      RECONSTRUCTION_CONFORMANCE_PORTABLE_REBUILD_BINDING_VERSION_V01
+  );
+}
+
+function sourceBoundWorkAndRuleMaterialV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+) {
+  const packet = environment.current_packet;
+  const compilerVersion = environment.source_boundary
+    .semantic_context_compiler_version;
+  return {
+    work_id: exactPacketWorkIdV01(packet),
+    criterion_evaluator_version:
+      packet.criterion_verification_plan?.evaluator_version ?? null,
+    semantic_context_compiler_version: compilerVersion,
+    semantic_context_compiler_lineage_refs: packet.compatibility.source_refs
+      .filter(
+        (ref) =>
+          ref.ref_type === "task_context_packet" &&
+          ref.compatibility_namespace === compilerVersion,
+      )
+      .map((ref) => ({
+        record_kind: "task_context_packet",
+        record_id: ref.external_id,
+        record_fingerprint: ref.source_ref,
+      }))
+      .sort((left, right) =>
+        compareProtocolCodeUnitsV01(
+          canonicalizeProtocolValueV01(left),
+          canonicalizeProtocolValueV01(right),
+        )),
+  };
+}
+
+function currentPacketSourceBindingsValidV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+): boolean {
+  const packet = environment.current_packet;
+  const source = environment.source_boundary;
+  const packetWorkId = exactPacketWorkIdV01(packet);
+  const compilerVersion = source.semantic_context_compiler_version;
+  const compilerLineageRefs = packet.compatibility.source_refs.filter(
+    (ref) =>
+      ref.ref_type === "task_context_packet" &&
+      ref.compatibility_namespace === compilerVersion,
+  );
+  return (
+    packetWorkId !== null &&
+    source.work_id === packetWorkId &&
+    packet.criterion_verification_plan !== undefined &&
+    source.criterion_evaluator_version ===
+      packet.criterion_verification_plan.evaluator_version &&
+    source.criterion_evaluator_version ===
       CRITERION_VERIFICATION_EVALUATOR_VERSION_V01 &&
-    environment.source_boundary.semantic_context_compiler_version ===
-      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01
+    compilerVersion === VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 &&
+    packet.compatibility.source_contracts.includes(compilerVersion) &&
+    compilerLineageRefs.length > 0 &&
+    compilerLineageRefs.every(
+      (ref) =>
+        ref.trust_class === "derived_interpretation" &&
+        typeof ref.source_ref === "string" &&
+        SHA256_V01.test(ref.source_ref) &&
+        source.source_records.some(
+          (record) =>
+            record.record_kind === "task_context_packet" &&
+            record.record_id === ref.external_id &&
+            record.record_fingerprint === ref.source_ref,
+        ),
+    )
   );
 }
 
@@ -1422,16 +1602,24 @@ function normalizeRelationsV01(
     verification_status: continuity.latest_result.verification_status,
   });
   for (const check of continuity.latest_result.checks) {
-    add("performed_check", check.check, {
-      required: check.required,
-      status: check.status,
-    });
+    add(
+      "performed_check",
+      opaqueRelationIdentityV01("execution_check", check.check),
+      {
+        required: check.required,
+        status: check.status,
+      },
+    );
   }
   for (const skipped of continuity.latest_result.skipped_checks) {
-    add("check_not_performed", skipped.check, {
-      required: skipped.required,
-      status: "skipped",
-    });
+    add(
+      "check_not_performed",
+      opaqueRelationIdentityV01("execution_check", skipped.check),
+      {
+        required: skipped.required,
+        status: "skipped",
+      },
+    );
   }
   add("review_and_transition", "review_continuity", {
     review_state: continuity.review_continuity.state,
@@ -1454,23 +1642,37 @@ function normalizeRelationsV01(
     gap_count: packet.gaps.length,
   });
   for (const selected of packet.selected_context) {
-    add("packet_selected_context", selected.entry_id, {
-      entry_kind: selected.entry_kind,
-      source_ref: selected.source_ref,
-      external_ref_fingerprint: fingerprintV01(selected.external_ref),
-      currentness: selected.currentness.status,
-      trust_class: selected.trust_class,
-    });
+    add(
+      "packet_selected_context",
+      opaqueRelationIdentityV01("packet_context_entry", selected.entry_id),
+      {
+        entry_kind: selected.entry_kind,
+        source_ref_fingerprint: nullableOpaqueSourceFingerprintV01(
+          "packet_context_source_ref",
+          selected.source_ref,
+        ),
+        external_ref_fingerprint: fingerprintV01(selected.external_ref),
+        currentness: selected.currentness.status,
+        trust_class: selected.trust_class,
+      },
+    );
   }
   for (const excluded of packet.excluded_context) {
-    add("packet_excluded_context", excluded.entry_id, {
-      source_ref: excluded.source_ref,
-      external_ref_fingerprint: fingerprintV01(excluded.external_ref),
-      currentness: excluded.currentness.status,
-    });
+    add(
+      "packet_excluded_context",
+      opaqueRelationIdentityV01("packet_context_entry", excluded.entry_id),
+      {
+        source_ref_fingerprint: nullableOpaqueSourceFingerprintV01(
+          "packet_context_source_ref",
+          excluded.source_ref,
+        ),
+        external_ref_fingerprint: fingerprintV01(excluded.external_ref),
+        currentness: excluded.currentness.status,
+      },
+    );
   }
   for (const gap of packet.gaps) {
-    add("packet_gap", gap.code, {
+    add("packet_gap", opaqueRelationIdentityV01("packet_gap", gap.code), {
       severity: gap.severity,
       blocks_action: gap.severity === "blocking",
       missing_fields_fingerprint: fingerprintV01(
@@ -1485,16 +1687,24 @@ function normalizeRelationsV01(
   for (const requiredCheck of [...packet.constraints.required_checks].sort(
     compareProtocolCodeUnitsV01,
   )) {
-    add("packet_required_check", requiredCheck, {
-      blocks_completion_until_performed: true,
-    });
+    add(
+      "packet_required_check",
+      opaqueRelationIdentityV01("packet_required_check", requiredCheck),
+      {
+        blocks_completion_until_performed: true,
+      },
+    );
   }
   for (const forbiddenAction of [...packet.constraints.forbidden_actions].sort(
     compareProtocolCodeUnitsV01,
   )) {
-    add("packet_forbidden_action", forbiddenAction, {
-      blocks_action: true,
-    });
+    add(
+      "packet_forbidden_action",
+      opaqueRelationIdentityV01("packet_forbidden_action", forbiddenAction),
+      {
+        blocks_action: true,
+      },
+    );
   }
   add("packet_constraint_boundary", "packet_constraints", {
     data_classification: packet.constraints.data_classification,
@@ -1799,6 +2009,39 @@ function sortedLineagesV01(
 
 function fingerprintV01(value: unknown): string {
   return createProtocolSha256V01(canonicalizeProtocolValueV01(value));
+}
+
+function opaqueRelationIdentityV01(
+  identityKind: string,
+  sourceValue: string,
+): string {
+  return `${identityKind}:${fingerprintV01({
+    normalization_version: RECONSTRUCTION_CONFORMANCE_NORMALIZATION_VERSION_V01,
+    identity_kind: identityKind,
+    source_value: sourceValue,
+  })}`;
+}
+
+function nullableOpaqueSourceFingerprintV01(
+  identityKind: string,
+  sourceValue: string | null,
+): string | null {
+  return sourceValue === null
+    ? null
+    : opaqueRelationIdentityV01(identityKind, sourceValue);
+}
+
+function scanStringValuesV01(
+  value: unknown,
+  visit: (value: string) => void,
+): void {
+  if (typeof value === "string") {
+    visit(value);
+  } else if (Array.isArray(value)) {
+    value.forEach((item) => scanStringValuesV01(item, visit));
+  } else if (value !== null && typeof value === "object") {
+    Object.values(value).forEach((item) => scanStringValuesV01(item, visit));
+  }
 }
 
 function requireTextV01(value: unknown, code: string): asserts value is string {

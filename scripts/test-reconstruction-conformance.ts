@@ -51,8 +51,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
+import { createLocalProjectRootCriterionVerificationPlanV01 } from "../lib/vnext/automation/local-project-root-verification-profile";
 import {
   buildTaskContextPacketV01,
+  validateTaskContextPacketV01,
   type TaskContextPacketBuilderInputV01,
 } from "../lib/vnext/task-context-packet";
 import {
@@ -107,6 +109,7 @@ import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { ProjectVerifyLineageV01 } from "../types/vnext/project-verify-lineage";
 import type { ProjectVerifyReconciliationV01 } from "../types/vnext/project-verify-reconciliation";
 import {
+  RECONSTRUCTION_CONFORMANCE_NORMALIZATION_VERSION_V01,
   RECONSTRUCTION_CONFORMANCE_PORTABLE_REBUILD_BINDING_VERSION_V01,
   type ReconstructionConformanceEnvironmentV01,
   type ReconstructionConformanceInputV01,
@@ -527,6 +530,7 @@ async function main(): Promise<void> {
     assert.equal(replay.integrity.fingerprint, validReport.integrity.fingerprint);
     record("valid_report_is_two_lane_bounded_safe_and_deterministically_replayable");
 
+    verifySourceBoundaryBindingsV01(validInput);
     verifySourceAndRuleDriftV01(validInput);
     verifyAuthorityFarSubstitutionsV01(validInput);
     verifyNegativeSpaceV01(
@@ -536,6 +540,7 @@ async function main(): Promise<void> {
     );
     verifyRelationVocabularyV01(validReport);
     verifyCrossProjectRefusalV01(validInput);
+    verifyReportPrivacyBoundaryV01(validInput, validReport);
     verifyReportTamperRefusalV01(validInput, validReport);
 
     assert.equal(network.attempts.length, 0);
@@ -626,6 +631,23 @@ async function augmentRc1SourceLifecycleV01(
   let priorPacket = structuredClone(
     sourcePacketRecord.payload as TaskContextPacketV01,
   );
+  priorPacket = withRc1CriterionVerificationPlanV01(priorPacket);
+  assert.equal(
+    validateTaskContextPacketV01(priorPacket, {
+      evaluated_at: priorPacket.generated_at,
+    }).status,
+    "valid",
+  );
+  insertVNextCoreRecordV01(db, {
+    record_kind: "task_context_packet",
+    record_id: priorPacket.packet_id,
+    workspace_id: priorPacket.workspace_id,
+    project_id: priorPacket.project_id,
+    fingerprint: priorPacket.integrity.fingerprint,
+    idempotency_key: null,
+    payload: priorPacket,
+    created_at: priorPacket.generated_at,
+  });
 
   const initialReconciliation = readProjectVerifyReconciliationV01(db, {
     workspace_id: manifest.workspace_id,
@@ -954,6 +976,57 @@ async function augmentRc1SourceLifecycleV01(
     provider_calls: 0,
     external_network_calls: 0,
   };
+}
+
+function withRc1CriterionVerificationPlanV01(
+  packet: TaskContextPacketV01,
+): TaskContextPacketV01 {
+  const plan = createLocalProjectRootCriterionVerificationPlanV01({
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+  });
+  const requiredChecks = plan.criteria.flatMap((criterion) =>
+    criterion.obligations.map((obligation) => obligation.check_id),
+  );
+  const {
+    packet_version: _packetVersion,
+    packet_id: _packetId,
+    authority_summary: authoritySummary,
+    integrity: _integrity,
+    ...builderInput
+  } = packet;
+  return buildTaskContextPacketV01({
+    ...builderInput,
+    task: {
+      ...packet.task,
+      success_criteria: [
+        ...new Set([
+          ...packet.task.success_criteria,
+          ...plan.criteria.map((criterion) => criterion.criterion),
+        ]),
+      ],
+    },
+    constraints: {
+      ...packet.constraints,
+      required_checks: [
+        ...new Set([
+          ...packet.constraints.required_checks,
+          ...requiredChecks,
+        ]),
+      ],
+    },
+    criterion_verification_plan: plan,
+    return_contract: {
+      ...packet.return_contract,
+      required_checks: [
+        ...new Set([
+          ...packet.return_contract.required_checks,
+          ...requiredChecks,
+        ]),
+      ],
+    },
+    authority_notes: [...authoritySummary.notes],
+  } satisfies TaskContextPacketBuilderInputV01);
 }
 
 function buildRelationRevisionV01(
@@ -1500,7 +1573,10 @@ async function readCurrentOwnersV01(
       lineage.completeness.status,
     ) ||
     ["source_missing", "bounded_incomplete"].includes(lineage.stop.reason);
-  const excludedIncompleteLineages = projectedLineages.filter(incompleteLineage);
+  const excludedIncompleteLineages = [
+    missingLineage,
+    ...projectedLineages.filter(incompleteLineage),
+  ];
   const exactLineages = projectedLineages.filter(
     (lineage) => !incompleteLineage(lineage),
   );
@@ -1834,6 +1910,163 @@ function assertOwnerShapedLifecycleMatrixV01(owners: CurrentOwnersV01): void {
   }
 }
 
+function verifySourceBoundaryBindingsV01(
+  validInput: ReconstructionConformanceInputV01,
+): void {
+  for (const environment of [
+    validInput.baseline,
+    validInput.reconstructed,
+  ]) {
+    const workRef = environment.current_packet.work_ref;
+    const exactWorkId = typeof workRef === "string"
+      ? workRef
+      : workRef?.external_id ?? null;
+    assert(exactWorkId);
+    assert.equal(environment.source_boundary.work_id, exactWorkId);
+    assert(environment.current_packet.criterion_verification_plan);
+    assert.equal(
+      environment.source_boundary.criterion_evaluator_version,
+      environment.current_packet.criterion_verification_plan.evaluator_version,
+    );
+    const compilerVersion =
+      environment.source_boundary.semantic_context_compiler_version;
+    assert.equal(
+      compilerVersion,
+      VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    );
+    assert.equal(
+      environment.current_packet.compatibility.source_contracts.includes(
+        compilerVersion,
+      ),
+      true,
+    );
+    const compilerLineage = environment.current_packet.compatibility.source_refs
+      .filter(
+        (ref) =>
+          ref.ref_type === "task_context_packet" &&
+          ref.compatibility_namespace === compilerVersion,
+      );
+    assert.equal(compilerLineage.length > 0, true);
+    assert.equal(
+      compilerLineage.every(
+        (ref) =>
+          typeof ref.source_ref === "string" &&
+          environment.source_boundary.source_records.some(
+            (record) =>
+              record.record_kind === "task_context_packet" &&
+              record.record_id === ref.external_id &&
+              record.record_fingerprint === ref.source_ref,
+          ),
+      ),
+      true,
+    );
+  }
+  assert.equal(
+    buildReconstructionConformanceReportV01(validInput).exact_integrity.status,
+    "conformant",
+  );
+
+  const forgedWork = cloneInputV01(validInput);
+  for (const environment of [forgedWork.baseline, forgedWork.reconstructed]) {
+    environment.source_boundary.work_id = "work:forged-matching-assertion";
+  }
+  assertSourceBindingRefusalV01(
+    forgedWork,
+    "baseline_current_packet_work_binding_invalid",
+  );
+  const reconstructedForgedWork = cloneInputV01(validInput);
+  reconstructedForgedWork.reconstructed.source_boundary.work_id =
+    "work:forged-reconstructed-assertion";
+  assertSourceBindingRefusalV01(
+    reconstructedForgedWork,
+    "reconstructed_current_packet_work_binding_invalid",
+  );
+
+  const forgedEvaluator = cloneInputV01(validInput);
+  for (const environment of [
+    forgedEvaluator.baseline,
+    forgedEvaluator.reconstructed,
+  ]) {
+    environment.source_boundary.criterion_evaluator_version =
+      "criterion_exact_check_evaluator.v9.9";
+  }
+  assertSourceBindingRefusalV01(
+    forgedEvaluator,
+    "baseline_current_packet_evaluator_binding_invalid",
+  );
+
+  const unsupportedCompiler = cloneInputV01(validInput);
+  for (const environment of [
+    unsupportedCompiler.baseline,
+    unsupportedCompiler.reconstructed,
+  ]) {
+    const rebuilt = rebuildCurrentPacketV01(
+      environment.current_packet,
+      (packetInput) => {
+        packetInput.compatibility.source_contracts =
+          packetInput.compatibility.source_contracts.filter(
+            (contract) =>
+              contract !==
+                VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+          );
+        packetInput.compatibility.source_refs =
+          packetInput.compatibility.source_refs.filter(
+            (ref) =>
+              ref.compatibility_namespace !==
+                VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+          );
+      },
+    );
+    assert.equal(
+      validateTaskContextPacketV01(rebuilt, {
+        evaluated_at: rebuilt.generated_at,
+      }).status,
+      "valid",
+    );
+    rebindEnvironmentCurrentPacketV01(environment, rebuilt);
+  }
+  assertSourceBindingRefusalV01(
+    unsupportedCompiler,
+    "baseline_current_packet_compiler_binding_invalid",
+  );
+
+  const absentPlan = cloneInputV01(validInput);
+  const planlessPacket = rebuildCurrentPacketV01(
+    absentPlan.reconstructed.current_packet,
+    (packetInput) => {
+      delete packetInput.criterion_verification_plan;
+    },
+  );
+  assert.equal(
+    validateTaskContextPacketV01(planlessPacket, {
+      evaluated_at: planlessPacket.generated_at,
+    }).status,
+    "valid",
+  );
+  rebindEnvironmentCurrentPacketV01(
+    absentPlan.reconstructed,
+    planlessPacket,
+  );
+  assertSourceBindingRefusalV01(
+    absentPlan,
+    "reconstructed_current_packet_evaluator_binding_invalid",
+  );
+
+  record("work_evaluator_and_compiler_assertions_are_exactly_source_bound_per_environment");
+}
+
+function assertSourceBindingRefusalV01(
+  input: ReconstructionConformanceInputV01,
+  expectedCode: string,
+): void {
+  assert.throws(
+    () => buildReconstructionConformanceReportV01(input),
+    (error: unknown) =>
+      error instanceof ReconstructionConformanceErrorV01 &&
+      error.code === expectedCode,
+  );
+}
+
 function verifySourceAndRuleDriftV01(
   validInput: ReconstructionConformanceInputV01,
 ): void {
@@ -1910,14 +2143,7 @@ function verifySourceAndRuleDriftV01(
     "non_conformant",
   );
 
-  const evaluatorDrift = cloneInputV01(validInput);
-  evaluatorDrift.reconstructed.source_boundary.criterion_evaluator_version =
-    "criterion_exact_check_evaluator.v0.2";
-  assert.equal(
-    buildReconstructionConformanceReportV01(evaluatorDrift).exact_integrity.status,
-    "non_conformant",
-  );
-  record("source_cutoff_rebuild_rule_and_evaluator_drift_are_non_compensable");
+  record("source_cutoff_and_rc1_research_method_drift_are_non_compensable");
 }
 
 function verifyAuthorityFarSubstitutionsV01(
@@ -2186,14 +2412,19 @@ function verifyNegativeSpaceV01(
     ),
     false,
   );
+  const retiredRelationIdentity = opaqueReportIdentityV01(
+    "packet_context_entry",
+    baselineRetired.entry_id,
+  );
   assert.equal(
     validReport.relational_semantic.baseline_relations.some(
       (relation) =>
         relation.relation_kind === "packet_excluded_context" &&
-        relation.identity === baselineRetired.entry_id,
+        relation.identity === retiredRelationIdentity,
     ),
     true,
   );
+  assert.equal(JSON.stringify(validReport).includes(baselineRetired.entry_id), false);
   const retiredRevived = cloneInputV01(validInput);
   const retired = retiredRevived.reconstructed.current_packet.excluded_context.find(
     (entry) => entry.entry_id === baselineRetired.entry_id,
@@ -2203,17 +2434,10 @@ function verifyNegativeSpaceV01(
     retiredRevived.reconstructed.current_packet,
     retired,
   );
-  retiredRevived.reconstructed.current_packet = rebuiltPacket;
-  retiredRevived.reconstructed.source_boundary.current_packet_ref = {
-    record_kind: "task_context_packet",
-    record_id: rebuiltPacket.packet_id,
-    record_fingerprint: rebuiltPacket.integrity.fingerprint,
-  };
-  retiredRevived.reconstructed.source_boundary.source_records.push({
-    record_kind: "task_context_packet",
-    record_id: rebuiltPacket.packet_id,
-    record_fingerprint: rebuiltPacket.integrity.fingerprint,
-  });
+  rebindEnvironmentCurrentPacketV01(
+    retiredRevived.reconstructed,
+    rebuiltPacket,
+  );
   const retiredReport = buildReconstructionConformanceReportV01(retiredRevived);
   assert.equal(retiredReport.exact_integrity.status, "non_conformant");
   assert.equal(retiredReport.relational_semantic.status, "non_conformant");
@@ -2222,7 +2446,7 @@ function verifyNegativeSpaceV01(
       (difference) =>
         difference.difference_kind === "missing_from_reconstruction" &&
         difference.relation.relation_kind === "packet_excluded_context" &&
-        difference.relation.identity === baselineRetired.entry_id,
+        difference.relation.identity === retiredRelationIdentity,
     ),
     true,
   );
@@ -2231,7 +2455,7 @@ function verifyNegativeSpaceV01(
       (difference) =>
         difference.difference_kind === "added_by_reconstruction" &&
         difference.relation.relation_kind === "packet_selected_context" &&
-        difference.relation.identity === baselineRetired.entry_id,
+        difference.relation.identity === retiredRelationIdentity,
     ),
     true,
   );
@@ -2345,32 +2569,169 @@ function rebuildPacketForProjectV01(
   return buildTaskContextPacketV01({
     ...input,
     project_id: projectId,
+    criterion_verification_plan: packet.criterion_verification_plan
+      ? createLocalProjectRootCriterionVerificationPlanV01({
+          workspace_id: packet.workspace_id,
+          project_id: projectId,
+        })
+      : undefined,
     authority_notes: [...authoritySummary.notes],
   } satisfies TaskContextPacketBuilderInputV01);
+}
+
+function verifyReportPrivacyBoundaryV01(
+  validInput: ReconstructionConformanceInputV01,
+  validReport: ReconstructionConformanceReportV01,
+): void {
+  const safeRequiredCheck =
+    "Verify one ordinary bounded reconstruction result locally.";
+  const windowsPath = "C:\\repo\\private\\file.txt";
+  const uncPath = "\\\\server\\share\\private.txt";
+  const sourcePathInput = cloneInputV01(validInput);
+  for (const environment of [
+    sourcePathInput.baseline,
+    sourcePathInput.reconstructed,
+  ]) {
+    const rebuilt = rebuildCurrentPacketV01(
+      environment.current_packet,
+      (packetInput) => {
+        packetInput.constraints.required_checks = [
+          ...packetInput.constraints.required_checks,
+          safeRequiredCheck,
+          windowsPath,
+        ];
+        packetInput.constraints.forbidden_actions = [
+          ...packetInput.constraints.forbidden_actions,
+          uncPath,
+        ];
+        packetInput.return_contract.required_checks = [
+          ...packetInput.return_contract.required_checks,
+          safeRequiredCheck,
+          windowsPath,
+        ];
+        const selected = packetInput.selected_context[0];
+        assert(selected);
+        selected.entry_id = windowsPath;
+        selected.source_ref = uncPath;
+        const excluded = packetInput.excluded_context?.[0];
+        assert(excluded);
+        excluded.entry_id = uncPath;
+        excluded.source_ref = windowsPath;
+      },
+    );
+    assert.equal(
+      validateTaskContextPacketV01(rebuilt, {
+        evaluated_at: rebuilt.generated_at,
+      }).status,
+      "valid",
+    );
+    rebindEnvironmentCurrentPacketV01(environment, rebuilt);
+  }
+  const safelyRedacted = buildReconstructionConformanceReportV01(
+    sourcePathInput,
+  );
+  assert.equal(safelyRedacted.relational_semantic.status, "conformant");
+  assert.deepEqual(safelyRedacted.relational_semantic.differences, []);
+  const serializedSafelyRedacted = JSON.stringify(safelyRedacted);
+  for (const sourceValue of [safeRequiredCheck, windowsPath, uncPath]) {
+    assert.equal(serializedSafelyRedacted.includes(sourceValue), false);
+  }
+  const expectedRequiredCheckIdentity = opaqueReportIdentityV01(
+    "packet_required_check",
+    safeRequiredCheck,
+  );
+  for (const relations of [
+    safelyRedacted.relational_semantic.baseline_relations,
+    safelyRedacted.relational_semantic.reconstructed_relations,
+  ]) {
+    assert.equal(
+      relations.some(
+        (relation) =>
+          relation.relation_kind === "packet_required_check" &&
+          relation.identity === expectedRequiredCheckIdentity,
+      ),
+      true,
+    );
+    assert.equal(
+      relations.some(
+        (relation) =>
+          relation.relation_kind === "packet_selected_context" &&
+          relation.identity ===
+            opaqueReportIdentityV01("packet_context_entry", windowsPath) &&
+          relation.dimensions.source_ref_fingerprint ===
+            opaqueReportIdentityV01("packet_context_source_ref", uncPath),
+      ),
+      true,
+    );
+  }
+
+  const nestedSecret = `sk-proj-${"s".repeat(48)}`;
+  for (const field of ["required_checks", "forbidden_actions"] as const) {
+    const unsafePacketInput = cloneInputV01(validInput);
+    const rebuilt = rebuildCurrentPacketV01(
+      unsafePacketInput.baseline.current_packet,
+      (packetInput) => {
+        packetInput.constraints[field] = [
+          ...packetInput.constraints[field],
+          `nested source material ${nestedSecret}`,
+        ];
+      },
+    );
+    assert.notEqual(
+      validateTaskContextPacketV01(rebuilt, {
+        evaluated_at: rebuilt.generated_at,
+      }).status,
+      "valid",
+    );
+    rebindEnvironmentCurrentPacketV01(
+      unsafePacketInput.baseline,
+      rebuilt,
+    );
+    assert.throws(
+      () => buildReconstructionConformanceReportV01(unsafePacketInput),
+      (error: unknown) =>
+        error instanceof ReconstructionConformanceErrorV01 &&
+        error.code === "baseline_current_packet_binding_invalid" &&
+        !error.message.includes(nestedSecret),
+    );
+  }
+
+  const unsafeReportValues = [
+    windowsPath,
+    uncPath,
+    `sk-proj-${"x".repeat(48)}`,
+    `xoxb-${"A".repeat(32)}`,
+    `AKIA${"A".repeat(16)}`,
+    "-----BEGIN PRIVATE KEY-----",
+  ];
+  for (const unsafeValue of unsafeReportValues) {
+    const unsafeReport = structuredClone(validReport);
+    const relation = unsafeReport.relational_semantic.baseline_relations[0];
+    assert(relation);
+    relation.identity = unsafeValue;
+    const { integrity: _integrity, ...withoutIntegrity } = unsafeReport;
+    unsafeReport.integrity.fingerprint = fingerprintV01(withoutIntegrity);
+    assert.throws(
+      () => assertReconstructionConformanceReportV01(unsafeReport, validInput),
+      (error: unknown) =>
+        error instanceof ReconstructionConformanceErrorV01 &&
+        error.code === "reconstruction_conformance_report_safe_output_invalid" &&
+        !error.message.includes(unsafeValue),
+    );
+  }
+  assert.equal(
+    unsafeReportValues.every(
+      (unsafeValue) => !JSON.stringify(validReport).includes(unsafeValue),
+    ),
+    true,
+  );
+  record("report_privacy_boundary_fingerprints_free_form_identity_and_refuses_secrets_or_absolute_paths");
 }
 
 function verifyReportTamperRefusalV01(
   validInput: ReconstructionConformanceInputV01,
   validReport: ReconstructionConformanceReportV01,
 ): void {
-  const unsafeOutput = cloneInputV01(validInput);
-  for (const environment of [
-    unsafeOutput.baseline,
-    unsafeOutput.reconstructed,
-  ]) {
-    const criterion = environment.reconciliation.criteria[0]?.criterion;
-    assert(criterion);
-    criterion.criterion_id = "/Users/rc1-private-output-should-not-cross";
-    refingerprintReconciliationV01(environment.reconciliation);
-  }
-  assert.throws(
-    () => buildReconstructionConformanceReportV01(unsafeOutput),
-    (error: unknown) =>
-      error instanceof ReconstructionConformanceErrorV01 &&
-      error.code === "reconstruction_conformance_report_safe_output_invalid",
-  );
-  record("report_builder_refuses_private_path_shaped_output");
-
   const tampered = structuredClone(validReport);
   tampered.exact_integrity.status = "non_conformant";
   const { integrity: _integrity, ...withoutIntegrity } = tampered;
@@ -2402,6 +2763,59 @@ function cloneInputV01(
   input: ReconstructionConformanceInputV01,
 ): ReconstructionConformanceInputV01 {
   return structuredClone(input);
+}
+
+function rebuildCurrentPacketV01(
+  packet: TaskContextPacketV01,
+  mutate: (input: TaskContextPacketBuilderInputV01) => void,
+): TaskContextPacketV01 {
+  const {
+    packet_version: _packetVersion,
+    packet_id: _packetId,
+    authority_summary: authoritySummary,
+    integrity: _integrity,
+    ...packetInput
+  } = structuredClone(packet);
+  const builderInput = {
+    ...packetInput,
+    authority_notes: [...authoritySummary.notes],
+  } satisfies TaskContextPacketBuilderInputV01;
+  mutate(builderInput);
+  return buildTaskContextPacketV01(builderInput);
+}
+
+function rebindEnvironmentCurrentPacketV01(
+  environment: ReconstructionConformanceEnvironmentV01,
+  packet: TaskContextPacketV01,
+): void {
+  const currentRef = environment.source_boundary.current_packet_ref;
+  assert(currentRef);
+  const sourceIndex = environment.source_boundary.source_records.findIndex(
+    (record) =>
+      record.record_kind === currentRef.record_kind &&
+      record.record_id === currentRef.record_id &&
+      record.record_fingerprint === currentRef.record_fingerprint,
+  );
+  assert.notEqual(sourceIndex, -1);
+  const replacement = {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    record_fingerprint: packet.integrity.fingerprint,
+  };
+  environment.source_boundary.source_records[sourceIndex] = replacement;
+  environment.source_boundary.current_packet_ref = replacement;
+  environment.current_packet = packet;
+}
+
+function opaqueReportIdentityV01(
+  identityKind: string,
+  sourceValue: string,
+): string {
+  return `${identityKind}:${fingerprintV01({
+    normalization_version: RECONSTRUCTION_CONFORMANCE_NORMALIZATION_VERSION_V01,
+    identity_kind: identityKind,
+    source_value: sourceValue,
+  })}`;
 }
 
 function idleLiveProjectionV01(): LiveNativeHostRunProjectionV01 {

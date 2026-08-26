@@ -172,6 +172,8 @@ export interface ReconstructionConformanceReportV01 {
     projection_or_rendering_copied: false;
   };
   method_boundary: {
+    portable_rebuild_binding_version:
+      typeof RECONSTRUCTION_CONFORMANCE_PORTABLE_REBUILD_BINDING_VERSION_V01;
     exact_and_relational_lanes_separate: true;
     hard_failures_non_compensable: true;
     deterministic_replay_required: true;
