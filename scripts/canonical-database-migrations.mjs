@@ -41,8 +41,10 @@ import {
   migrateVNextDurableSemanticStoreV01,
   migrateVNextLocalOperatorSessionsV01,
   migrateVNextProjectIdentityRegistryV01,
+  migrateVNextRepositoryExecutionStoreV01,
   migrateVNextProjectLifecycleV01,
   migrateVNextProjectControlsV01,
+  migrateVNextProjectContinuityPinsV01,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -65,6 +67,56 @@ export const CANONICAL_DATABASE_RECORD_CONTRACT_VERSION = 1;
 export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
   Object.freeze([
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
+    // Exact CUX1 pre-Pinned schema. CUX2 migrates it additively.
+    "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
+    // Exact CUX2 structural predecessor used by the ledgerless recovery lane.
+    "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
+    // Exact CDX2B2A structural predecessor used by the ledgerless recovery
+    // lane. The migration ledger and package identity guard are both absent;
+    // arbitrary partial schemas remain fail-closed.
+    "cdc300623c2a79fadba08eb452d34aeb3a009ae15c4e45737e5edc7e004bdd53",
+    // Exact corrected CDX2B2A structural contract with the migration ledger
+    // and package identity guard removed by the bounded recovery fixture.
+    // This admits only that complete ledgerless contract for one-way repair;
+    // arbitrary partial schemas remain fail-closed.
+    "e218d8bc2c60b991c50f1b0982abb74361ca0e38bccaa28e6ec43d18165132b0",
+    // Exact Browser decision-session CDX2B2A structural contract with the
+    // migration ledger and package identity guard removed by the bounded
+    // recovery fixture. Only this complete ledgerless contract is accepted.
+    "94b48f5951c32e4ffc27578970e08bda305e332f102ee54c3bd798fd9bad2b46",
+    // Exact CDX2B2B structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. The start/run
+    // migration remains one-way and arbitrary partial schemas still refuse.
+    "d28eb1500f9cd646cb3979d6a499745cb79e4448c7ba36d7990090594e26a7c3",
+    // Exact merged CDX2B2B schema. CDX2B3A rebuilds only the physical-root
+    // baseline constraint/columns and preserves every valid prior row.
+    "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
+    // Exact CDX2B3A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture.
+    "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
+    // Exact CDX2B4A structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. The checkpoint
+    // table remains machine-local run history; only this complete ledgerless
+    // contract is accepted for one-way repair.
+    "4fcaf45675a2a4604fa5c2a0b545366621dca967dce33bd6bab0759ee3c18db4",
+    // Exact CDX2B4B structural contract with the migration ledger and package
+    // identity guard removed by the bounded recovery fixture. Resume attempts
+    // remain private machine-local history and arbitrary partial stores fail.
+    "0bbd52cf5430bce8102865ea347b15aa90341e60d822b2000282080018698d8a",
+    // Exact corrected CDX2B4B structural contract with the migration ledger
+    // and package identity guard removed by the bounded recovery fixture.
+    // Runtime claims, their stale-claim history, and cancellation intent stay
+    // private machine-local history; partial stores remain unsupported.
+    "6ba9e92e9632a88373805fa6c123d24b5fbd3e311052a76be953815e8e98190f",
+    // Exact integrated CDX2B3A + CDX2B4B structural contract with only the
+    // migration ledger and package identity guard removed. Windows baseline
+    // identity and private resume history are both complete; arbitrary
+    // partial combinations remain unsupported.
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
+    // Exact ACGC5B structural contract with only the migration ledger and
+    // package identity guard removed. The continuation-admission record kind
+    // is present; arbitrary partial schemas remain unsupported.
+    "542b04dcf26b7fc95480438e8ac4fe2e60e29817fce07b2af141def313eab2e5",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",
@@ -84,8 +136,12 @@ export function applyCanonicalDatabaseMigrations(db) {
   const vNextLocalOperatorSessionResult = migrateVNextLocalOperatorSessionsV01(db);
   const vNextProjectIdentityRegistryResult =
     migrateVNextProjectIdentityRegistryV01(db);
+  const vNextRepositoryExecutionStoreResult =
+    migrateVNextRepositoryExecutionStoreV01(db);
   const vNextProjectLifecycleResult = migrateVNextProjectLifecycleV01(db);
   const vNextProjectControlResult = migrateVNextProjectControlsV01(db);
+  const vNextProjectContinuityPinResult =
+    migrateVNextProjectContinuityPinsV01(db);
 
   db.exec(schema);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
@@ -152,8 +208,10 @@ export function applyCanonicalDatabaseMigrations(db) {
     vNextDurableSemanticStoreResult,
     vNextLocalOperatorSessionResult,
     vNextProjectIdentityRegistryResult,
+    vNextRepositoryExecutionStoreResult,
     vNextProjectLifecycleResult,
     vNextProjectControlResult,
+    vNextProjectContinuityPinResult,
     mailboxResult,
     sessionBindingResult,
     deliveryArtifactsResult,

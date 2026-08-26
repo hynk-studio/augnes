@@ -5131,7 +5131,7 @@ function assertStructuralSourceImportBoundaryV01(): void {
         'from "@/lib/vnext/persistence/project-verify-lifecycle-source"',
       ),
     )
-    .map((path) => path.slice(repositoryRoot.length + 1))
+    .map((path) => path.slice(repositoryRoot.length + 1).replaceAll("\\", "/"))
     .sort();
   assert.deepEqual(importers, [
     "lib/vnext/persistence/project-verify-lifecycle-admission.ts",
@@ -5141,14 +5141,14 @@ function assertStructuralSourceImportBoundaryV01(): void {
   const locatorImporters = files
     .filter(
       (path) =>
-        !path.endsWith(
+        !path.replaceAll("\\", "/").endsWith(
           "lib/vnext/persistence/project-verify-lifecycle-source.ts",
         ) &&
         readFileSync(path, "utf8").includes(
           "readProjectVerifyLifecycleProposalLocatorOnlyV01",
         ),
     )
-    .map((path) => path.slice(repositoryRoot.length + 1))
+    .map((path) => path.slice(repositoryRoot.length + 1).replaceAll("\\", "/"))
     .sort();
   assert.deepEqual(locatorImporters, [
     "lib/vnext/persistence/project-verify-lifecycle-admission.ts",
@@ -5158,14 +5158,14 @@ function assertStructuralSourceImportBoundaryV01(): void {
   const structuralReaderImporters = files
     .filter(
       (path) =>
-        !path.endsWith(
+        !path.replaceAll("\\", "/").endsWith(
           "lib/vnext/persistence/project-verify-lifecycle-source.ts",
         ) &&
         readFileSync(path, "utf8").includes(
           "readProjectVerifyLifecycleProposalStructuralOnlyV01",
         ),
     )
-    .map((path) => path.slice(repositoryRoot.length + 1))
+    .map((path) => path.slice(repositoryRoot.length + 1).replaceAll("\\", "/"))
     .sort();
   assert.deepEqual(structuralReaderImporters, []);
   const reconciliationSource = readFileSync(

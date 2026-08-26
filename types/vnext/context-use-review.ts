@@ -1,4 +1,8 @@
 import type { ExternalRefV01 } from "./external-ref";
+import {
+  OPERATIONAL_CONTINUATION_ADMISSION_VERSION_V01,
+  SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01,
+} from "./operational-continuation-admission";
 import { RUN_RECEIPT_VERSION_V01 } from "./run-receipt";
 import { STATE_TRANSITION_RECEIPT_VERSION_V01 } from "./state-transition-receipt";
 import { TASK_CONTEXT_PACKET_VERSION_V01 } from "./task-context-packet";
@@ -57,6 +61,17 @@ export interface ContextUseReviewTransitionReceiptBindingV01 {
   transition_receipt_version: typeof STATE_TRANSITION_RECEIPT_VERSION_V01;
   transition_receipt_id: string;
   transition_receipt_fingerprint: string;
+}
+
+export interface ContextUseReviewOperationalContinuationBindingV01 {
+  lineage_kind: typeof SOURCE_LINKED_OPERATIONAL_CONTINUATION_LINEAGE_V01;
+  admission_version: typeof OPERATIONAL_CONTINUATION_ADMISSION_VERSION_V01;
+  admission_id: string;
+  admission_fingerprint: string;
+  materialization_id: string;
+  materialization_fingerprint: string;
+  selection_id: string;
+  selection_fingerprint: string;
 }
 
 export interface ContextUseReviewRunReceiptBindingV01 {
@@ -157,7 +172,16 @@ export interface ContextUseReviewV01 {
   project_id: string;
   prior_packet: ContextUseReviewPacketBindingV01;
   later_packet: ContextUseReviewPacketBindingV01;
-  source_transition_receipt: ContextUseReviewTransitionReceiptBindingV01;
+  /**
+   * Exactly one lineage relation is present. Historical semantic-transition
+   * reviews retain this field and their serialized bytes unchanged.
+   */
+  source_transition_receipt?: ContextUseReviewTransitionReceiptBindingV01;
+  /**
+   * Additive ACGC5C relation for one admitted source-linked operational
+   * continuation. It is not a semantic Transition or accepted-state relation.
+   */
+  source_operational_continuation?: ContextUseReviewOperationalContinuationBindingV01;
   later_task_run_receipt: ContextUseReviewRunReceiptBindingV01;
   reviewer_ref: ExternalRefV01;
   reviewer_authentication_basis_refs: ExternalRefV01[];

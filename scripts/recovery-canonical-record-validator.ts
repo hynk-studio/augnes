@@ -15,6 +15,7 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
+import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "../lib/vnext/operational-friction-proposal";
 import {
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
   validateReviewDecisionV01,
@@ -37,7 +38,24 @@ import {
   validateVNextPersistedSemanticStateV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
-import { assertPersistedRunAssessmentProposalSourceBoundV01 } from "../lib/vnext/persistence/episode-delta-proposal-admission";
+import {
+  assertVNextRepositoryExecutionStoreSchemaV01,
+  listAllRepositoryManagedResumeAttemptsForRecoveryV01,
+  listAllRepositoryRunResumeCheckpointsForRecoveryV01,
+} from "../lib/vnext/persistence/repository-execution-store";
+import {
+  validateRepositoryManagedResumeAttemptRelationsV01,
+  validateRepositoryManagedResumeAttemptV01,
+} from "../lib/vnext/repository-execution/repository-managed-resume";
+import {
+  validateRepositoryRunResumeCheckpointRelationsV01,
+  validateRepositoryRunResumeCheckpointV01,
+} from "../lib/vnext/repository-execution/repository-run-resume";
+import {
+  assertOperationalFrictionProposalRelationV01,
+  assertPersistedRunAssessmentProposalSourceBoundV01,
+  readOperationalFrictionProposalByIdentityV01,
+} from "../lib/vnext/persistence/episode-delta-proposal-admission";
 import {
   readClaimEvidenceRelationV01,
   readClaimRecordV01,
@@ -49,16 +67,30 @@ import {
   loadValidatedVNextSemanticTransitionRelationV01,
 } from "../lib/vnext/runtime/durable-semantic-transition";
 import type { VNextLocalOperatorPilotConfigV01 } from "../lib/vnext/runtime/local-operator-session";
+import { initialProjectWorkIdempotencyKeyV01 } from "../lib/vnext/runtime/initial-project-work-context";
+import {
+  inspectPreExecutionProjectWorkRevisionChainV01,
+  preExecutionProjectWorkRevisionIdempotencyKeyV01,
+} from "../lib/vnext/runtime/pre-execution-project-work-revision";
+import {
+  inspectProjectManagedRunHistoryV01,
+} from "../lib/vnext/runtime/project-managed-run-history";
 import { createVNextOperatorPilotContextUseReviewLogicalIdentityV01 } from "../lib/vnext/runtime/operator-pilot-context-use-contract";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
+import {
+  assertOperationalContinuationAdmissionV01,
+  readOperationalContinuationLineageStateV01,
+} from "../lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
+import type { OperationalContinuationAdmissionV01 } from "../types/vnext/operational-continuation-admission";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "../types/vnext/operational-context-selection";
 
 export const RECOVERY_CANONICAL_RECORD_VALIDATOR_CONTRACT_V01 =
   "augnes.recovery-canonical-record-validator.v1" as const;
@@ -82,6 +114,7 @@ const RECORD_KINDS_V01 = [
   "task_context_packet",
   "run_receipt",
   "context_use_review",
+  "operational_continuation_admission",
 ] as const;
 
 type CanonicalRecordKindV01 = (typeof RECORD_KINDS_V01)[number];
@@ -281,6 +314,14 @@ function capabilityGrantIdempotencyV01(
 function proposalIdempotencyV01(
   payload: Record<string, unknown>,
 ): string | null {
+  const operational = payload.operational_friction_proposal;
+  if (isRecordV01(operational)) {
+    return deriveOperationalFrictionProposalAdmissionIdentityV01({
+      workspace_id: requiredStringV01(payload.workspace_id),
+      project_id: requiredStringV01(payload.project_id),
+      proposal: payload as unknown as EpisodeDeltaProposalV01,
+    }).idempotency_key;
+  }
   const revision = payload.operation_revision;
   if (isRecordV01(revision)) {
     return requiredStringV01(revision.admission_idempotency_key);
@@ -540,7 +581,18 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         workspace_id: payload.workspace_id,
         project_id: payload.project_id,
         fingerprint: exactFingerprintV01(payload),
-        idempotency_key: null,
+        idempotency_key:
+          initialProjectWorkIdempotencyKeyV01(
+            payload as unknown as TaskContextPacketV01,
+          ) ??
+          preExecutionProjectWorkRevisionIdempotencyKeyV01(
+            payload as unknown as TaskContextPacketV01,
+          ) ??
+          ((payload as unknown as TaskContextPacketV01).compatibility.source_contracts.includes(
+            SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+          )
+            ? record.idempotency_key
+            : null),
         created_at: payload.generated_at,
       });
       return;
@@ -571,6 +623,19 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
       });
       return;
     }
+    case "operational_continuation_admission": {
+      assertOperationalContinuationAdmissionV01(payload);
+      const admission = payload as unknown as OperationalContinuationAdmissionV01;
+      exactEnvelopeV01(record, {
+        record_id: admission.admission_id,
+        workspace_id: admission.workspace_id,
+        project_id: admission.project_id,
+        fingerprint: admission.integrity.fingerprint,
+        idempotency_key: admission.idempotency_key,
+        created_at: admission.authenticated_action.admitted_at,
+      });
+      return;
+    }
   }
 }
 
@@ -580,6 +645,23 @@ function validateProposalRelationsV01(
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
   const proposal = record.payload as unknown as EpisodeDeltaProposalV01;
+  if (proposal.operational_friction_proposal) {
+    const identity =
+      deriveOperationalFrictionProposalAdmissionIdentityV01({
+        workspace_id: record.workspace_id,
+        project_id: record.project_id,
+        proposal,
+      });
+    assertOperationalFrictionProposalRelationV01(proposal, identity);
+    const durable = readOperationalFrictionProposalByIdentityV01(db, identity);
+    if (
+      !durable ||
+      durable.record.record_id !== record.record_id ||
+      durable.record.fingerprint !== record.fingerprint
+    ) {
+      refuseV01();
+    }
+  }
   if (
     proposal.source_assessment?.comparison
       .criterion_specific_relations_available === true
@@ -681,6 +763,7 @@ function relationBindingV01(
 }
 
 function validateContextUseReviewRelationV01(
+  db: Database.Database,
   record: ParsedCanonicalRecordV01,
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
@@ -694,11 +777,6 @@ function validateContextUseReviewRelationV01(
     review.later_packet,
     "packet_id",
     "packet_fingerprint",
-  );
-  const transitionBinding = relationBindingV01(
-    review.source_transition_receipt,
-    "transition_receipt_id",
-    "transition_receipt_fingerprint",
   );
   const runBinding = relationBindingV01(
     review.later_task_run_receipt,
@@ -717,24 +795,58 @@ function validateContextUseReviewRelationV01(
     workspace_id: record.workspace_id,
     project_id: record.project_id,
   });
-  const transition = requireRelatedRecordV01(byIdentity, {
-    kind: "state_transition_receipt",
-    ...transitionBinding,
-    workspace_id: record.workspace_id,
-    project_id: record.project_id,
-  });
   const run = requireRelatedRecordV01(byIdentity, {
     kind: "run_receipt",
     ...runBinding,
     workspace_id: record.workspace_id,
     project_id: record.project_id,
   });
+  let lineageSource: StateTransitionReceiptV01 | OperationalContinuationAdmissionV01;
+  if (review.source_transition_receipt !== undefined) {
+    const transitionBinding = relationBindingV01(
+      review.source_transition_receipt,
+      "transition_receipt_id",
+      "transition_receipt_fingerprint",
+    );
+    const transition = requireRelatedRecordV01(byIdentity, {
+      kind: "state_transition_receipt",
+      ...transitionBinding,
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    lineageSource = transition.payload as unknown as StateTransitionReceiptV01;
+  } else {
+    const admissionBinding = relationBindingV01(
+      review.source_operational_continuation,
+      "admission_id",
+      "admission_fingerprint",
+    );
+    const admissionRecord = requireRelatedRecordV01(byIdentity, {
+      kind: "operational_continuation_admission",
+      ...admissionBinding,
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    assertOperationalContinuationAdmissionV01(admissionRecord.payload);
+    const lineage = readOperationalContinuationLineageStateV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    if (
+      !lineage ||
+      lineage.record.record_id !== admissionRecord.record_id ||
+      lineage.record.fingerprint !== admissionRecord.fingerprint
+    ) {
+      refuseV01();
+    }
+    lineageSource = lineage.admission;
+  }
   if (
     validateContextUseReviewRelationsV01(
       review,
       prior.payload as unknown as TaskContextPacketV01,
       later.payload as unknown as TaskContextPacketV01,
-      transition.payload as unknown as StateTransitionReceiptV01,
+      lineageSource,
       run.payload as unknown as RunReceiptV01,
     ).status !== "valid"
   ) {
@@ -748,6 +860,24 @@ function validateCompiledTaskContextPacketRelationV01(
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
   const packet = record.payload as unknown as TaskContextPacketV01;
+  if (
+    packet.compatibility.source_contracts.includes(
+      SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+    )
+  ) {
+    const lineage = readOperationalContinuationLineageStateV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    if (
+      !lineage ||
+      lineage.packet_b.packet_id !== record.record_id ||
+      lineage.packet_b.integrity.fingerprint !== record.fingerprint
+    ) {
+      refuseV01();
+    }
+    return;
+  }
   if (
     !packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -1007,8 +1137,60 @@ function validateDatabaseRelationsV01(
         });
         break;
       case "context_use_review":
-        validateContextUseReviewRelationV01(record, byIdentity);
+        validateContextUseReviewRelationV01(db, record, byIdentity);
         break;
+      case "operational_continuation_admission": {
+        const lineage = readOperationalContinuationLineageStateV01(db, {
+          workspace_id: record.workspace_id,
+          project_id: record.project_id,
+        });
+        if (
+          !lineage ||
+          lineage.record.record_id !== record.record_id ||
+          lineage.record.fingerprint !== record.fingerprint
+        ) {
+          refuseV01();
+        }
+        break;
+      }
+    }
+  }
+}
+
+function validateInitialProjectWorkGenesisV01(
+  db: Database.Database,
+  records: ParsedCanonicalRecordV01[],
+): void {
+  const scopes = new Map<
+    string,
+    { workspace_id: string; project_id: string }
+  >();
+  for (const record of records) {
+    if (record.record_kind !== "task_context_packet") continue;
+    const packet = record.payload as unknown as TaskContextPacketV01;
+    if (
+      initialProjectWorkIdempotencyKeyV01(packet) === null &&
+      preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) === null
+    ) {
+      continue;
+    }
+    scopes.set(`${record.workspace_id}\0${record.project_id}`, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+    });
+    if (initialProjectWorkIdempotencyKeyV01(packet) === null) continue;
+    const history = inspectProjectManagedRunHistoryV01(db, {
+      workspace_id: record.workspace_id,
+      project_id: record.project_id,
+      created_at_lte: packet.generated_at,
+    });
+    if (history.status !== "none") refuseV01();
+  }
+  for (const scope of scopes.values()) {
+    try {
+      inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    } catch {
+      refuseV01("database_canonical_invariant_failed");
     }
   }
 }
@@ -1294,6 +1476,79 @@ export function validateRecoveryCanonicalDatabaseV01(
   db: Database.Database,
 ): RecoveryCanonicalRecordValidationResultV01 {
   try {
+    const repositoryExecutionTables = [
+      "vnext_physical_root_baselines",
+      "vnext_repository_execution_attachments",
+      "vnext_repository_run_resume_checkpoints",
+      "vnext_repository_managed_resume_attempts",
+      "vnext_repository_managed_resume_runtime_claims",
+      "vnext_repository_managed_resume_runtime_claim_history",
+      "vnext_repository_managed_resume_cancellations",
+      "vnext_repository_root_rebind_receipts",
+      "vnext_repository_execution_decision_requests",
+    ];
+    if (
+      repositoryExecutionTables.some((tableName) =>
+        databaseTableExistsV01(db, tableName),
+      )
+    ) {
+      // Exact supported predecessor signatures may predate CDX2B2A. If any
+      // table in the new store is present, however, the complete current
+      // schema must validate; partial stores are never accepted.
+      assertVNextRepositoryExecutionStoreSchemaV01(db);
+      if (
+        listAllRepositoryRunResumeCheckpointsForRecoveryV01(db).some(
+          (checkpoint) =>
+            !validateRepositoryRunResumeCheckpointV01(checkpoint) ||
+            !validateRepositoryRunResumeCheckpointRelationsV01(db, checkpoint),
+        )
+      ) refuseV01();
+      if (
+        listAllRepositoryManagedResumeAttemptsForRecoveryV01(db).some(
+          (attempt) =>
+            !validateRepositoryManagedResumeAttemptV01(attempt) ||
+            !validateRepositoryManagedResumeAttemptRelationsV01(db, attempt),
+        )
+      ) refuseV01();
+      const invalidRuntimeClaims = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claims claim
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = claim.attempt_fingerprint
+          LEFT JOIN vnext_repository_managed_resume_runtime_claim_history history
+            ON history.attempt_fingerprint = claim.attempt_fingerprint
+           AND history.claim_revision = claim.claim_revision
+           AND history.runtime_instance_fingerprint = claim.runtime_instance_fingerprint
+           AND history.runtime_generation_fingerprint = claim.runtime_generation_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR history.attempt_fingerprint IS NULL
+            OR claim.claim_revision < 1
+            OR (claim.claim_lifecycle = 'claimed'
+                AND attempt.attempt_state <> 'admitted_not_invoked')
+      `).get() as { count: number }).count);
+      const invalidCancellations = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_cancellations cancellation
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = cancellation.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL
+            OR cancellation.workspace_id <> attempt.workspace_id
+            OR cancellation.project_id <> attempt.project_id
+            OR cancellation.run_id <> attempt.run_id
+            OR cancellation.attachment_id <> attempt.attachment_id
+            OR cancellation.controller_generation <> attempt.resumed_controller_generation
+            OR cancellation.provider_stop_confirmed <> 0
+            OR cancellation.resume_reacquisition_forbidden <> 1
+      `).get() as { count: number }).count);
+      const invalidClaimHistory = Number((db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM vnext_repository_managed_resume_runtime_claim_history history
+          LEFT JOIN vnext_repository_managed_resume_attempts attempt
+            ON attempt.attempt_fingerprint = history.attempt_fingerprint
+         WHERE attempt.attempt_fingerprint IS NULL OR history.claim_revision < 1
+      `).get() as { count: number }).count);
+      if (invalidRuntimeClaims > 0 || invalidClaimHistory > 0 || invalidCancellations > 0) refuseV01();
+    }
     const records = readCanonicalRecordsV01(db);
     const byIdentity = new Map<string, ParsedCanonicalRecordV01>();
     for (const record of records) {
@@ -1302,6 +1557,7 @@ export function validateRecoveryCanonicalDatabaseV01(
       byIdentity.set(key, record);
       validatePayloadAndEnvelopeV01(record);
     }
+    validateInitialProjectWorkGenesisV01(db, records);
     validateDatabaseRelationsV01(db, records, byIdentity);
     validateProductReaderCompatibilityV01(db, records);
     return validResultV01(records.length);

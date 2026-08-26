@@ -1,296 +1,315 @@
-# Augnes vNext Evaluation and Maturity
+# Augnes evaluation and maturity
 
-## Purpose
+## Role
 
-Separate development correctness from post-Alpha usefulness validation.
+This is the sole active owner of product-continuity, correctness, maturity,
+outcome, and usefulness evaluation.
 
-During R2–R8, Augnes is judged by whether the interactive flow, bounded automation path, and any active Personal Perspective slice are implemented, operable, and mechanically safe. After feature completion, Augnes is judged by whether it is genuinely more useful than coordinating ChatGPT or Codex directly.
+It does not define product doctrine, Core/protocol meaning, implementation
+sequence, or C9 scope. It records evaluation requirements, not measured
+baselines or success claims. A document, type, fixture, panel, schema, record,
+engine, test, or pull request does not advance maturity by existing.
 
-## Development maturity
+## Maturity model
 
-| Level | Name | Requirement |
+| Level | Name | Required evidence |
 |---:|---|---|
-| 0 | Intent | problem or design only |
-| 1 | Tested component | implementation with focused behavior tests |
-| 2 | Integrated path | real producer and consumer are connected, not fixture-only |
-| 3 | Operable flow | decision and authorized Transition work without internal operator procedures |
-| 4 | Feature-complete flow | interactive, policy-triggered, and later-feedback R2–R8 paths work end to end |
-| 5 | Useful product | repeated real tasks show measurable reviewed benefit |
-
-A document, type, fixture, panel, table, preview, smoke, or PR does not advance maturity by itself.
-
-## R2–R8 merge gates
-
-Normal development PRs require only the checks appropriate to the changed path:
-
-- type and build correctness
-- focused unit or integration tests
-- disposable-database migration, writer, readback, and recovery tests when persistence changes
-- automated browser/CDP coverage when user flows change
-- shared lifecycle tests when interactive and policy-triggered runs are affected
-- no unauthorized durable write
-- no automation authority expansion beyond policy/grant
-- no cross-project leakage or conflicting replay
-- no unbounded provider egress or credential leakage
-
-The following are not ordinary merge gates during R2–R8:
-
-- long manual operator runbooks
-- broad real-project dogfood
-- usefulness scores
-- every-platform visual review
-- long-running evidence-chain qualification
-- multiple-provider or multiple-host proof
-- proof that advanced Autohunt heuristics are useful
-- proof that Personal Perspective improves every task
-
-## Semantic authority guardrails
-
-The following are zero-tolerance correctness guardrails for any implemented path
-that can produce, reuse, export, or restore structured semantic material:
-
-- `semantic_layer_collapse_incidents = 0`: a Receipt is not treated as accepted
-  Evidence; a Claim does not become state without Decision and Transition; a
-  Decision is not applied as Transition; an assessment is not persisted as
-  project truth.
-- `unreviewed_structured_context_injection = 0`: an unreviewed host result,
-  assessment, or pending proposal does not enter a later `TaskContextPacket` as
-  durable reviewed context.
-- `authority_drift_after_export_restore = 0`: each implemented record's exact
-  lifecycle values and epistemic/authority classification do not change through
-  export/import or restore; candidate, reviewed, accepted, rejected, deferred,
-  retracted, superseded, and applied are illustrative distinctions, not a new
-  universal lifecycle enum.
-- `source_less_advantage_transfer = 0`: no strategic transfer candidate is
-  admitted without concrete source-strategy and base-strategy refs.
-- `unbound_base_strategy_use = 0`: no patch uses a base that is unbound to the
-  exact project, packet, applicable receipt, source fingerprint, and working frame.
-- `insufficient_basis_direct_strategy_apply = 0`: insufficient support remains
-  `unknown` and cannot directly apply a plan or Perspective change.
-- `model_consensus_authority_incidents = 0`: confidence, agreement, agent count,
-  provider count, or strategic score never creates semantic authority.
-- `unreviewed_strategic_context_injection = 0`: candidate strategic material
-  never enters later context as reviewed/accepted material.
-- `strategic_patch_without_authorized_transition = 0`: a patch cannot mutate
-  durable strategy or later reviewed context without Decision and Transition.
-- `cross_project_strategy_lineage = 0`: base, source, proposal, decision,
-  transition, packet, and feedback refs remain project-isolated.
-- `raw_strategic_reasoning_persistence = 0`: raw prompts, debate turns, hidden
-  reasoning, and raw provider/challenger output are not persisted.
-
-Focused quality measures, where the corresponding path exists, are:
-
-- success-criterion assessment source coverage
-- semantic-delta item source coverage
-- preservation of `unknown` when support is insufficient
-- proposal → decision → transition → later-context traceability
-- projection rebuild consistency against restored canonical records
-
-Criterion-assessment quality additionally tracks:
-
-- criterion source-ref and assessment-basis coverage
-- `unknown` preservation under insufficient support
-- completed-only false-success count
-- observed/attested provenance or basis misclassification
-- skipped-check false-satisfaction count
-
-For each strategic transfer candidate, structural completeness tracks exact base
-binding, source strategy, target/base strategy, applicability condition, expected
-effect, transfer cost, falsifier, uncertainty, introduced/transferred risk, and
-regression status. Completeness is a reviewability check, not evidence that the
-advantage is beneficial.
-
-Semantic object count, edge count, graph density, schema count, and panel count
-are not quality metrics. These correctness measures belong to R2–R8 merge
-verification for the changed path; long dogfood and demonstrated usefulness
-remain post-Alpha evidence.
-
-## Operability criteria
-
-Feature completion requires the normal path to avoid making the user act as a database, process, security, scheduler, or integration operator.
-
-Target budgets:
-
-- normal startup environment variables: 0
-- user-managed long-running processes: 0
-- user-selected ports or internal URLs: 0
-- manual DB and migration commands: 0
-- TaskContextPacket or result copy/paste: 0
-- internal ID, nonce, fingerprint, TTL, or checksum handling: 0
-- ordinary durable semantic change approval: one meaningful user decision
-- ordinary automation control: visible enable/pause/cancel, not internal policy editing
+| 0 | Direction | Product or research direction only; no implementation claim |
+| 1 | Tested component | Bounded implementation with focused behavior tests |
+| 2 | Integrated path | Real producer and consumer are connected, not fixture-only |
+| 3 | Operable flow | A user can complete the intended bounded flow without internal operator procedures |
+| 4 | Continuous product path | Interactive, policy-triggered, cross-surface, recovery, and later-feedback behavior are coherent for the owned scope |
+| 5 | Demonstrated usefulness | Repeated real work shows reviewed later-outcome benefit without unacceptable burden or authority drift |
+
+Maturity is assigned per bounded capability. One mature component does not make
+the whole product mature.
+
+## Evaluation principles
+
+1. Evaluate the continuity of meaning, not interface sameness.
+2. Evaluate whether a user can Resume, Verify, and Decide, not how many
+   protocol stages or records are visible.
+3. Preserve verified fact, bounded inference, uncertainty, candidate, user
+   decision, and authorized change as distinct states.
+4. Evaluate later outcomes before claiming research usefulness.
+5. Treat metrics as guardrails and diagnostic evidence, not objectives.
+6. Give no product credit for more cards, panels, schemas, records, engines,
+   models, routes, graph edges, or surfaces alone.
+7. Do not invent measured baselines, pass rates, user comprehension, or
+   usefulness from fixtures or self-evaluation.
+
+## Product-continuity merge gates
+
+These are blocking correctness requirements for any affected product change.
+They apply before broad Alpha or post-Alpha usefulness studies.
+
+### Cross-surface meaning
+
+There must be zero material contradiction among Browser, ChatGPT Apps, Codex,
+and other affected host-native projections about:
+
+- work identity and scope;
+- goal and important constraints;
+- current meaningful situation and last meaningful change;
+- verified observation or result;
+- uncertainty, conflict, risk, and staleness;
+- pending user judgment;
+- next meaningful action;
+- authority and execution boundary;
+- relevant source anchors.
+
+Different wording, density, and interaction grammar are allowed. Materially
+different product meaning is not.
+
+### Attention precision
+
+Blank State and any attention queue must prioritize consequential human
+intervention, not engine activity. Evaluation checks:
+
+- false human alarms;
+- missing consequential attention;
+- stale or already-resolved attention;
+- duplicated attention across surfaces;
+- whether the next meaningful action is actionable and authority-correct.
+
+A new event, model result, candidate, warning, or possible action is not
+automatically attention-worthy.
+
+### Fast orientation
+
+Where the product state calls for human orientation, a new user should be able
+to identify the current meaningful situation and next action quickly—roughly
+ten seconds is a qualitative review target, not a fabricated metric.
+
+The evaluation must identify the actual state tested and may not generalize one
+prepared fixture to the whole product.
+
+### Complexity compression
+
+The normal path must preserve:
+
+- zero required internal-ID, fingerprint, nonce, TTL, checksum, or database-path
+  entry;
+- no required Inspector use for resumption, progress, result review, or the
+  important decision;
+- protocol vocabulary hidden by default unless each unavoidable term is
+  explained and helps a consequential decision;
+- one primary action when a user action is actually required;
+- result and change summaries that lead with meaning, verification,
+  uncertainty/risk, and the next decision before exact detail.
+
+Internal research complexity may increase; default user complexity must not
+increase with it.
+
+### GuideBrief
+
+GuideBrief evaluation checks that it is:
+
+- contextual and cross-surface consistent;
+- source-anchored;
+- clear about observed fact, bounded inference, uncertainty, recommendation,
+  and unresolved judgment;
+- conversational in the product responsibility being evaluated;
+- non-authoritative and separate from exact task/run context.
+
+GuideBrief consistency does not turn its explanation into truth, accepted
+state, user decision, execution authority, or Transition. A recommendation is
+not a decision.
+
+### Timeline, relationship exploration, and Inspector
+
+- Timeline is evaluated on whether it explains meaningful sequence and change,
+  not exhaustive log coverage.
+- Relationship exploration is evaluated on whether it answers a bounded
+  connection question without becoming an exhaustive graph-management task.
+- Inspector is evaluated on exactness, neutrality, source/lineage integrity,
+  project scope, read-only behavior, and optionality.
+
+The three responsibilities are complementary. Duplicating the same information
+across all three is not continuity.
+
+## Semantic and execution guardrails
+
+The following are zero-tolerance correctness boundaries for implemented paths:
+
+- recommendation is not decision;
+- execution completion is not verified success;
+- candidate is not accepted state;
+- assessment is not truth or durable state;
+- `ReviewDecision` is not an applied Transition;
+- a product projection does not create a Core record or authority;
+- model confidence or agreement does not create Evidence or authority;
+- research output does not create accepted Perspective, user decision,
+  Transition, execution authority, or authority expansion;
+- unreviewed material does not enter later context as accepted material;
+- export, import, restore, replay, or projection rebuild does not change
+  lifecycle or authority classification;
+- project scope and lineage remain isolated;
+- unknown or insufficient support remains uncertainty.
 
-A feature is not operable when its safety depends on the user correctly performing an internal protocol.
+Focused verification must cover the exact boundary affected by the change.
+Counts should remain diagnostic names only; a zero count is meaningful only
+when the tested path could actually have violated the boundary.
+
+## Operability evaluation
+
+The normal product path must not make the user act as a database, process,
+security, scheduler, protocol, or integration operator.
+
+Guardrail targets for applicable flows:
+
+- normal startup environment variables: 0;
+- user-managed long-running processes: 0;
+- user-selected ports or internal URLs: 0;
+- manual database or migration commands: 0;
+- task-context or result copy/paste: 0;
+- internal ID or security-token handling: 0;
+- ordinary durable semantic change: one meaningful user decision plus the
+  separately enforced Transition boundary;
+- automation control: understandable enable, pause, cancel, resume, and
+  review-needed behavior rather than internal policy editing.
+
+These are product constraints, not proof that a flow is useful.
 
-## Automation maturity
+## Implementation correctness
 
-Bounded automation is part of feature completion, not a post-Alpha experiment.
+Use the checks proportionate to the changed path:
 
-Minimum R2–R8 evidence:
+- type and build correctness;
+- focused unit, authority, integration, operability, or browser behavior tests;
+- disposable-database migration, writer, readback, backup, restore, and
+  recovery tests when persistence changes;
+- project isolation, idempotency, replay conflict, stale-state, and
+  authorization refusal;
+- bounded provider egress and credential protection;
+- shared interactive and policy-triggered lifecycle where applicable;
+- exact cleanup of owned processes, ports, temporary databases, and files.
 
-- policy-triggered and interactive work share the same project scope and Core contracts
-- a bounded grant controls budget, capability, timeout, retry eligibility, and stop conditions
-- run start, completion, failure, cancellation, and orphan reconciliation are observable
-- returned work produces a `RunReceipt`
-- automated work can create reviewable proposals but cannot silently commit semantic state
-- restart and exact replay do not duplicate or lose a run
+The repository-owned planner and Local Canonical policy determine the exact
+verification lane for a pull-request head. Passing implementation tests is
+necessary but does not waive product-continuity gates.
 
-Advanced hunt quality, self-prioritization, long-horizon autonomy, and scheduler optimization remain post-feature-completion evaluation topics.
+## Target-direction evaluation
 
-## Strategic advantage-transfer maturity
+The following are product directions unless the roadmap and runtime evidence
+show a bounded implementation:
 
-The optional profile advances only inside the required R6 assessment path. A
-component test is Level 1; Level 2 requires a real packet/receipt/base producer
-and proposal consumer; Level 3 requires candidate-level review and authorized
-Transition closure; Level 4 requires interactive/policy-triggered parity and a
-traceable later `ContextUseReview`; Level 5 requires repeated real-task benefit.
-Model output volume, number of lenses, or apparent consensus does not increase maturity.
+- mature attention queue;
+- timeline-first detail;
+- bounded relationship exploration;
+- fully conversational GuideBrief;
+- fuller long-horizon temporal, perspective, evidence, falsification,
+  strategic-transfer, outcome-learning, context-feedback, and metacognitive
+  research substrate.
 
-## Personal Perspective maturity
+Directional documentation receives no maturity credit. When a bounded slice is
+implemented, evaluation must name its producer, consumer, user question,
+authority boundary, later-outcome hypothesis, and actual evidence.
 
-Personal Perspective may progress in parallel without becoming a prerequisite for unrelated R2–R8 work.
+## Research evaluation
 
-A bounded slice is integrated when:
+Research engines may explore, compare, challenge, infer, predict, and propose.
+Their formal completeness is a reviewability check, not evidence of benefit.
 
-- the user can create, review, revise, remove, and scope the material
-- project inclusion is explicit
-- context selection records `why_included`
-- it uses the same `TaskContextPacket`, `RunReceipt`, lineage, and feedback paths as other context
-- hidden or automatic cross-project injection is absent
+Evaluate a research capability by:
 
-Its usefulness can be evaluated as soon as the slice is operable, but lack of outcome evidence does not block unrelated mainline PRs.
+- exact source and working-frame binding;
+- preservation of uncertainty, opposition, limitations, and falsifiers;
+- user edit, reject, defer, or correction behavior;
+- later helpful, stale, misleading, or harmful outcome;
+- prevented failure versus review burden;
+- cost, latency, privacy, and operational burden;
+- comparison with a simpler baseline where appropriate;
+- absence of authority expansion or automatic promotion.
 
-## Alpha verification
+Do not claim usefulness from one synthetic fixture, one model judgment, one
+feedback record, or apparent consensus. Persistent actors, debate turns, graph
+structure, model count, and strategy volume receive no credit by themselves.
 
-Run after the core R2–R8 flow is feature-complete.
+## Alpha and release evaluation
 
-Purpose:
+### Alpha
 
-- find critical workflow breaks missed by automation
-- confirm that a user can complete one real interactive task without learning internal architecture
-- confirm that one bounded automated task starts, returns, stops, and reaches review coherently
-- after the profile is feature-complete, run one source-bound strategic-review
-  task through candidate review, transition, later packet, and feedback
-- verify that setup, task execution, result return, semantic approval, and later reuse form one coherent flow
-- try one Personal Perspective-assisted task when that bounded lane is ready
+After an integrated bounded product path exists, use short real-work sessions
+to test:
 
-This should be a short product-use session, not a forensic operator qualification.
+- resumption without repeated explanation;
+- one interactive and one bounded policy-triggered task where applicable;
+- coherent result, verification, uncertainty, and decision;
+- later-context reuse and feedback;
+- recovery from ordinary interruption without internal procedures.
 
-## Release-candidate verification
+Alpha broadens evidence; it does not introduce basic UX correctness for the
+first time.
 
-Add bounded real-world checks for:
+### Release candidate
 
-- provider and Codex/native-host round trips
-- automation pause, cancel, budget, stop, and reconciliation
-- migration, backup, restore, and failed-upgrade recovery
-- secret and private-data handling
-- durable semantic transition correctness
-- bounded strategic base binding, patch/regression review, and model-unavailable fallback
-- packaged startup and shutdown
+Add bounded environment-dependent checks for:
 
-Manual qualification is justified here when automation cannot establish the final environment-dependent property.
+- real provider and native-host round trips;
+- package startup, shutdown, update, and recovery;
+- automation pause, cancel, budget, stop, and reconciliation;
+- migration, backup, restore, and failed-upgrade preservation;
+- secret and private-data handling;
+- durable decision/Transition and later-context lineage.
 
-## Post-Alpha usefulness evaluation
+Manual qualification is justified only for properties automation cannot
+establish.
 
-The core hypothesis is:
+## Post-Alpha outcome evaluation
 
-> Reviewed temporal context, evidence lineage, explicit decisions, and bounded automation reduce repeated explanation, wrong-context correction, coordination burden, and time to the first correct action.
+Evaluate repeated representative work against the simplest credible baseline,
+including direct host use where appropriate.
 
-Primary metrics:
+### Resume outcomes
 
-### Resume
+- time to first correct action;
+- repeated explanation;
+- wrong-context correction;
+- stale or missing critical context;
+- false versus missed attention.
 
-- time to first correct action
-- repeated explanation amount
-- wrong-context corrections
-- stale or missing critical context
+### Verify outcomes
 
-### Verify
+- source and lineage coverage;
+- skipped-check visibility;
+- false success from execution completion;
+- contradiction and staleness detection;
+- correction caused by missing or misclassified evidence.
 
-- receipt completeness
-- source and lineage coverage
-- skipped-check visibility
-- contradiction and stale-state detection
+### Decide outcomes
 
-### Decide
+- time and burden per material decision;
+- decision correction or reversal caused by missing context;
+- duplicate or ignored proposals;
+- traceability from candidate through decision, Transition, and later outcome.
 
-- review time and material decision corrections, tracked together
-- decision debt
-- duplicate or ignored proposals
-- transition traceability
-- decision reversal caused by missing context
+### Research outcomes
 
-### Strategic advantage transfer
+- helpful versus misleading later use;
+- prevented failure versus harmful transfer;
+- edit, rejection, and correction rate;
+- goal-drift or uncertainty-preservation quality;
+- review burden, cost, and latency.
 
-- valid advantage capture rate
-- harmful transfer rate and regression escape rate
-- transfer rejection and edit rates
-- review time and review burden per prevented material failure
-- goal-drift detection
-- later helpful versus misleading transfer ratio
-- provider cost and latency
+### Product-continuity outcomes
 
-### Operability
+- cross-surface contradiction incidents;
+- user preference after repeated use;
+- total effort versus the comparison path;
+- whether continuous work survives host and session changes without meaning
+  loss.
 
-- setup actions
-- manual copy/paste actions
-- recovery actions requiring internal knowledge
-- user-visible failure recovery time
-
-### Automation
-
-- user interventions per completed automated run
-- pause/cancel success
-- duplicate or orphan run count
-- policy/budget violation count
-- reviewable-result return rate
-- useful work completed without semantic-authority overreach
-
-### Personal Perspective
-
-- scoped inclusion rate
-- helpful versus misleading context feedback
-- removal or correction rate
-- cross-project leakage count
-- whether the user prefers it enabled for representative tasks
-
-### Comparative value
-
-Compare representative tasks against direct ChatGPT or Codex use:
-
-- total user effort
-- repeated context explanation
-- successful task completion
-- correction rate
-- preference after repeated use
-
-For source-bound strategic tasks, compare all three after feature completion:
-
-- single-strategy baseline
-- ordinary critique/debate baseline
-- Augnes advantage-transfer loop
-
-Use the same source frame and assess downstream correction, prevented failure,
-harmful transfer, review burden, cost, and latency. More strategy changes are not
-inherently better.
-
-## Outcome claims
-
-Do not claim usefulness from one fixture, one synthetic run, one self-evaluation, or the existence of a feedback record.
-
-Usefulness requires repeated real tasks and user review. Product development should not be blocked waiting for that evidence before the complete product flow and minimal Automation Spine exist.
+Metrics are interpreted together. Optimizing a metric while increasing user
+confusion, false alarms, review burden, or authority drift is failure.
 
 ## Go, narrow, or stop
 
-After post-Alpha evaluation:
-
-- **Go** when Augnes reduces effort or errors without excessive review burden;
-  for strategic transfer, valid condition-bound advantages improve downstream
-  outcomes over both simpler baselines with acceptably low harm and cost.
-- **Narrow** when only a subset such as continuity, bounded automation, criterion
-  assessment, regression review, semantic review, Personal Perspective, or
-  cross-host lineage provides value. Criterion assessment or regression review
-  may remain even when full advantage transfer does not justify its burden.
-- **Stop or redesign** when Augnes remains harder to use than direct host use
-  without compensating benefit, or strategic transfer causes repeated harmful
-  patches, goal drift, authority violations, or review burden above prevented harm.
+- **Go** when repeated real work improves continuity or outcomes without
+  unacceptable burden, harm, or authority drift.
+- **Narrow** when only a bounded responsibility—such as continuity,
+  verification, recovery, feedback, or a specific research capability—earns
+  its burden.
+- **Stop or redesign** when Augnes remains harder than the comparison path
+  without compensating benefit, produces false attention or harmful context,
+  obscures uncertainty, or violates user/semantic/execution authority.

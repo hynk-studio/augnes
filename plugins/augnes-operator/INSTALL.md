@@ -1,69 +1,229 @@
-# Augnes Operator Plugin Install Guide
+# Augnes Operator plugin install
 
-This guide explains how to review and install the repo-local `augnes-operator`
-plugin scaffold for Codex. The plugin packages Augnes operating instructions,
-skills, and optional hook guardrails. It does not grant Codex runtime authority,
-state commit/reject authority, merge authority, provider authority, or GitHub
-mutation authority.
+## One ordinary local setup path
 
-## Local Scaffold
+1. From this repository root, register the repo-local marketplace and install
+   the reviewed plugin once:
 
-- Plugin root: `plugins/augnes-operator`
-- Plugin manifest: `plugins/augnes-operator/.codex-plugin/plugin.json`
-- Local marketplace entry: `.agents/plugins/marketplace.json`
-- Skills directory: `plugins/augnes-operator/skills/`
-- Optional hooks directory: `plugins/augnes-operator/hooks/`
+   ```bash
+   npm run augnes:plugin:install
+   ```
 
-The marketplace entry points at this repo-local plugin path. Review the manifest
-and skill files before enabling the plugin in a local Codex installation.
+2. Explicitly install the Companion service for this checkout once on macOS:
 
-## Install Modes
+   ```bash
+   npm install
+   npm --prefix apps/augnes_apps install
+   npm run augnes:service:install
+   ```
 
-### Repo-native use
+   After connecting the exact local project in the Browser, work-definition
+   and Browser decision surfaces in a source checkout use the existing local
+   review session owner. From another terminal in this repository, run
+   `npm run augnes -- access`; it restarts the one supervised runtime and
+   prints one expiring token for the visible Browser unlock form. The token is
+   local review access, not execution or semantic authority. Do not place it
+   in project files, prompts, issue comments, or verification evidence.
 
-Codex can work from the repository without installing the plugin by reading
-`AGENTS.md`, `README.md`, and the relevant npm scripts. This is the safest
-default for ordinary PR work.
+3. From Codex in a registered local repository, ask:
 
-### Local plugin use
+   ```text
+   Resume this repository with Augnes.
+   ```
 
-Install the plugin through the local Codex plugin flow or local marketplace
-mechanism supported by your Codex build. Use the repo-local path:
+The service setup is local user-session infrastructure for this exact physical
+checkout. It starts only the existing supervised UI/Core and bridge, contains
+no secret, grants no repository execution or semantic authority, and never
+starts or resumes a managed run. Explicit stop and uninstall are reversible:
 
-```text
-plugins/augnes-operator
+```bash
+npm run augnes:service:stop
+npm run augnes:service:uninstall
 ```
 
-Do not add secrets to plugin files. Do not add MCP server config or app mappings
-inside this plugin unless a future PR explicitly scopes that work.
+Explicit Stop is durable across login and LaunchAgent reload; only an explicit
+Start or Install returns the exact service to running. Augnes permits one
+production Companion service per local user session. Installing or starting a
+different checkout refuses without stopping, adopting, rewriting, or removing
+the existing checkout service.
 
-### Optional hook use
+The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
+surface; that build uses `plugin add`, not a nonexistent `plugin install`
+command. It refreshes an already-installed local plugin, requires effective
+version 0.4.0, verifies the cached manifest/proxy/service core/skill/hook as one
+reviewed copy, and refuses any silently retained 0.3.0 cache. The
+plugin and checkout service installs are explicit setup actions. No fixed bridge URL or copied
+user-level MCP config is required. The plugin manifest points to `.mcp.json`,
+which starts `mcp/companion-proxy.mjs` as a per-session stdio server. Current
+Codex plugin/MCP support recognizes the reviewed `mcpServers` manifest pointer
+and the standard `command`, `args`, and `cwd` server fields used here.
 
-The hook scaffold under `plugins/augnes-operator/hooks/` is a guardrail layer,
-not an authority layer. Review `docs/CODEX_AUGNES_OPERATOR_HOOKS_V0_1.md` before
-enabling hooks in a local Codex installation.
+Plugin version 0.4.0 replaces stale 0.3.0 Resume-first behavior. Start a new
+Codex conversation after refreshing the repo-local marketplace and plugin so
+the proxy, skill, hook, and default prompt all come from the same reviewed
+version; setup verification fails closed if 0.3.0 remains effective.
 
-Hooks can remind Codex about Augnes boundaries, but they do not approve work,
-merge pull requests, write Augnes state, create proof/evidence records, call
-providers, or call GitHub.
+## What the proxy does
+
+The per-session proxy exposes `augnes_companion_lifecycle_status` even when no
+Companion exists. It returns bounded service and exact-checkout relation state.
+For one already-installed exact startable service,
+`augnes_start_companion_service` may perform one reversible runtime start and
+wait for exactly one verified Companion. It cannot install or rewrite a
+service, accept a command/label/executable, run repository commands, write
+project files, create work, start or resume a managed run, call a provider, or
+change semantic state. The fresh flow is status, at most one start, then at
+most one `augnes_resume_repository` call; no loop or fallback reconstruction is
+allowed.
+
+The proxy scans only application-owned Augnes runtime-manifest locations (or a
+single explicit test manifest), then verifies:
+
+- a regular bounded manifest and its separate generation-bound
+  `companion-access.json` channel record;
+- supervisor and child process liveness;
+- runtime contract, generation, instance, and repository/application identity;
+- bridge `mode=http` and `live_core_status=ready`.
+
+Exactly one verified live Companion is required. Zero or multiple candidates,
+stale/foreign identity, recovery mode, mock mode, or a changed port/owner fails
+closed. Mutating Operator tools additionally require public UI health outside
+recovery mode before using their exact route. For the read-only
+`augnes_resume_repository` tool, the proxy instead calls the strict UI/Core
+repository-continuity route directly; that route owns UI identity and recovery
+validation. The proxy validates its runtime identity headers and exact response
+contract and formats the MCP tool result. It does not act as a partial HTTP MCP
+client or treat a temporarily busy redundant health preflight as continuity
+unavailability. The supported supervisor
+`AUGNES_RUNTIME_STATE_DIR` override is
+forwarded as a path hint and receives the same verification. The proxy is not a
+daemon, supervisor, database owner, or fallback data source.
+
+The same verified Companion exposes the CDX2B2A tools
+`augnes_prepare_repository_execution`,
+`augnes_validate_repository_execution_attachment`,
+`augnes_adopt_repository_execution_root`,
+`augnes_preview_repository_execution_root_rebind`,
+`augnes_rebind_repository_execution_root`, and
+`augnes_preview_repository_execution_attachment_revocation`,
+`augnes_revoke_repository_execution_attachment`. They persist only node-local
+trust and attachment metadata. They never Start a host, create or consume a
+managed run, run repository commands as product behavior, or write project
+files. Legacy adoption, root rebind, and revocation require exact expected
+state and a one-time grant produced by an explicit same-origin Augnes Browser
+confirmation. The Browser uses a bootstrap-derived HttpOnly decision session
+and an exact request-bound one-time nonce; the MCP proxy, runtime manifest, and
+Companion access record do not expose either capability. Forged Browser-shaped
+headers, a model-supplied literal, or a tool annotation cannot issue a grant.
+
+CDX2B2B adds `augnes_request_repository_delegation`,
+`augnes_start_repository_delegation`, and
+`augnes_cancel_repository_delegation`. Request creates one exact start decision
+but no run. The user confirms it in the same Browser-only decision session.
+Start atomically consumes that grant and one prepared attachment into one
+managed run, then rechecks physical root, worktree, database state, adapter,
+capability, and execution envelope before the first worker invocation. Exact
+replay returns the same run and launches nothing twice. Cancellation is bound
+to the exact attachment/run and creates no semantic decision. Use
+`augnes_resume_repository` for current status, result, receipt, and review
+continuity. For attachment-backed runs it also returns the one canonical
+read-only resume-eligibility projection and last confirmed operation summary.
+`resume_ready` means a later explicit same-run resume could be safe; it does
+not itself resume, launch, call a provider, or create a controller. To continue,
+call `augnes_request_repository_resume`, have the user confirm the exact Resume
+card in Browser, then submit the returned grant with
+`augnes_resume_repository_delegation`. The MCP proxy cannot issue or confirm
+that grant. The request preserves the same run, consumed attachment, execution
+envelope, and provider thread; it uses `thread/resume`, never `thread/start`.
+Exact replay starts no second controller. Pending approval remains
+`approval_pending`, and uncertain effects remain `reconciliation_required`.
+
+The start decision permits bounded reversible local work inside the exact
+repository root. It does not grant arbitrary command network access,
+dependency downloads, push/GitHub, injected Browser/Companion/provider/
+database/runtime/OS credentials, outside-root secret material,
+release/deployment, publication, or semantic result acceptance. Files already
+inside the repository remain in repository read scope; no content-based secret
+unreadability is claimed. A later NativeHost operation
+approval is separate from Start; ReviewDecision and Transition are separate
+from both.
+
+Cancellation uses the immutable consumed attachment/run binding rather than
+current execution eligibility. It can still signal the exact owned controller
+after packet, work, root, baseline, worktree, or Browser-selection drift. If
+the controller is absent it reports disconnected reconciliation and does not
+start or resume anything. Exact Start replay reports the run's actual state;
+`worker_started` is true only when that specific request started the worker.
+
+## Supported and unsupported surfaces
+
+Supported: local Codex, local filesystem checkout, installed Augnes Operator,
+and the existing local supervised Companion.
+
+Not claimed: automatic plugin installation, remote Codex filesystem access,
+ChatGPT/mobile repository attachment, remote nodes, current-session workers,
+automatic resume after controller loss or Companion startup,
+continuous/multi-agent automation,
+Linux product filesystem/runtime proof, Windows 10 managed delegation, or Windows
+packaging. PR #117 is filesystem-verified on macOS; Linux has adapter contract
+coverage only. CDX2B3A source-runtime attachment admission has exact Windows 10
+proof at checkpoint `374a582b` and exact Windows 11 proof at pre-integration
+checkpoint `567c9bbb`, both on x64 local fixed NTFS. The integrated head is not
+claimed as Windows 10 exact-head verified without a rerun there. The current
+package builder refuses Windows, so packaged Windows preparation remains
+fail-closed. CDX2B3B enables CDX2B2B Start and CDX2B4B explicit same-run Resume
+on the verified Windows 11 x64 source-runtime lane only. A Codex
+build without plugin `mcpServers` support
+must be upgraded or use an explicitly configured direct test connection; the
+product docs do not pretend that limitation is solved.
+
+CDX2B2A's node-local baseline detects same-path directory replacement, and its
+separate admission/attachment remain bound to repository A when Browser selects
+B. The unchanged CDX2A projection still reports A inactive and closes its own
+Start eligibility. The Windows candidate never turns a path-only or mocked
+observation into readiness and does not expose volume serials or file IDs.
+Windows 10 and packaged Windows managed Start remain unavailable.
+
+## Security and authority
+
+Do not add secrets to plugin files. The narrow proxy credential is generated by
+the existing supervisor, is not a supervisor control or child-ownership token,
+and is never returned by the tool. Results exclude database
+paths, ownership tokens, credentials, cookies, provider configuration, private
+controller material, and unrelated projects.
+
+Continuity is read-only. Attachment preparation writes only canonical local
+metadata. An explicitly Browser-confirmed CDX2B2B Start may create/control one
+exact managed run and its envelope-bounded local repository effects. It cannot
+change Browser selection, call GitHub, push, merge, release, deploy, publish,
+create semantic approval/Decision/Transition, accept state, or close work.
 
 ## Verification
 
-Run these checks after editing the plugin scaffold, skills, or hooks:
-
 ```bash
-npm run smoke:augnes-operator-plugin-scaffold
-npm run smoke:augnes-operator-plugin-hooks
+npm run test:codex-companion-discovery
+npm run test:codex-repository-continuity
+npm run test:windows-physical-root-identity
+npm run test:repository-managed-delegation
+npm run test:operability:supervisor
+npm --prefix apps/augnes_apps run typecheck
 ```
 
-The scaffold smoke verifies that the plugin remains local, contains no MCP
-server config, contains no app mappings, preserves proof/evidence boundaries,
-and avoids active external call configuration.
-
-## Boundary
-
-This install guide is documentation only. It does not write user-level Codex
-configuration, read secrets, install packages, start a bridge, call providers,
-call GitHub, mutate the Augnes DB, create proof/evidence rows, approve or reject
-Augnes state, merge, publish, retry, replay, enable auto-merge, or launch hidden
-background work.
+`test:windows-physical-root-identity` is platform-neutral parser, native-source,
+failure, migration, and privacy coverage; it explicitly is not deciding
+Windows filesystem evidence. `test:codex-companion-discovery` is a synthetic
+discovery/contract harness.
+`test:operability:supervisor` is the real source-runtime test: it starts the
+actual supervised UI/Core and bridge, invokes the actual stdio proxy with the
+official MCP stdio client, registers disposable repositories through canonical
+onboarding, defines and revises work through the production work owners, and
+uses the real Browser session/challenge/grant routes. It proves the revised
+binding refreshes, consumes one exact attachment, starts one managed
+deterministic worker while Browser selects B, performs one bounded fixture edit
+and check in A, records the RunReceipt and pending-review proposal, returns the
+same run on exact replay, and cleans every owned process and port. Provider and
+proxy request counts remain zero. Neither test is described as a genuine
+model-mediated Codex conversation. The current
+Codex CLI has no provider-free direct `tools/call` command, so automating that
+final conversation would require a separately configured model/provider
+invocation.

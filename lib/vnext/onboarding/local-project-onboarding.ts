@@ -1,6 +1,15 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
+import {
+  constants,
+  existsSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { access, open as openFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -17,7 +26,8 @@ import {
   normalizeLocalProjectRootRefV01,
   readDefaultWorkspaceIdentityV01,
   readCanonicalProjectWithRootV01,
-  rebindCanonicalProjectLocalRootV01,
+  renameCanonicalProjectDisplayNameV01,
+  normalizeProjectDisplayNameV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   ensureVNextProjectLifecycleSchemaV01,
@@ -27,18 +37,36 @@ import {
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import {
+  insertPhysicalRootBaselineIfAbsentInsideTransactionV01,
+  listPhysicalRootBaselinesByIdentityV01,
+} from "@/lib/vnext/persistence/repository-execution-store";
+import { readPhysicalRootBaselineV01 } from "@/lib/vnext/persistence/repository-execution-store";
+import {
+  baselineMatchesObservation,
+  buildPhysicalRootBaselineV01,
+  fingerprintProjectRootBindingV01,
+  inspectPhysicalRootForExecutionV01,
+  previewRepositoryExecutionRootRebindV01,
+  readOpenRepositoryExecutionDecisionProjectionV01,
+  rebindRepositoryExecutionRootV01,
+  type RepositoryExecutionDependenciesV01,
+} from "@/lib/vnext/repository-execution/repository-execution";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   LOCAL_PROJECT_INSPECTION_VERSION_V01,
   RECENT_PROJECT_ENTRY_VERSION_V01,
   type LocalFolderPickerOutcomeV01,
   type LocalProjectInspectionV01,
+  type LocalProjectRecoverySelectionOutcomeV01,
+  type LocalProjectSelectionOriginV01,
   type ProjectOnboardingConfirmationV01,
   type ProjectOnboardingErrorCodeV01,
   type ProjectRootRebindResultV01,
   type ProjectRootAvailabilityV01,
   type RecentProjectEntryV01,
 } from "@/types/vnext/project-onboarding";
+import type { PhysicalRootObservationV01 } from "@/types/vnext/repository-execution";
 
 const execFileAsync = promisify(execFile);
 const MAX_PICKER_OUTPUT = 16 * 1024;
@@ -46,6 +74,12 @@ const MAX_GIT_CONFIG_BYTES = 64 * 1024;
 const SELECTION_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_SELECTIONS = 64;
 const SYSTEM_LOCAL_PROJECT_FILESYSTEM = { stat, access };
+const CANONICAL_PICKER_SEQUENCE_VERSION =
+  "augnes_canonical_folder_picker_sequence.v0.1";
+type CanonicalFolderPickerOutcomeV01 =
+  | { status: "selected"; absolute_path: string }
+  | Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>
+  | { status: "pending_until_abort" };
 
 export interface LocalProjectMetadataFileHandleV01 {
   read(buffer: Buffer, offset: number, length: number, position: number | null): Promise<{ bytesRead: number }>;
@@ -77,17 +111,23 @@ export class ProjectOnboardingErrorV01 extends Error {
 }
 
 export interface FolderPickerProcessV01 {
-  run(command: string, args: readonly string[], timeoutMs: number): Promise<{ stdout: string }>;
+  run(
+    command: string,
+    args: readonly string[],
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<{ stdout: string }>;
 }
 
 const SYSTEM_PICKER_PROCESS: FolderPickerProcessV01 = {
-  async run(command, args, timeoutMs) {
+  async run(command, args, timeoutMs, signal) {
     const result = await execFileAsync(command, [...args], {
       timeout: timeoutMs,
       killSignal: "SIGKILL",
       maxBuffer: MAX_PICKER_OUTPUT,
       encoding: "utf8",
       windowsHide: true,
+      signal,
     });
     return { stdout: result.stdout };
   },
@@ -98,6 +138,7 @@ export async function chooseLocalProjectFolderV01(options: {
   process?: FolderPickerProcessV01;
   timeout_ms?: number;
   environment?: NodeJS.ProcessEnv;
+  signal?: AbortSignal;
 } = {}): Promise<{ status: "selected"; absolute_path: string } | Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>> {
   const environment = options.environment ?? process.env;
   const injected = environment.AUGNES_TEST_FOLDER_PICKER_PATH;
@@ -105,6 +146,18 @@ export async function chooseLocalProjectFolderV01(options: {
   const canonicalTestRoot = environment.AUGNES_CANONICAL_TEST_MODE === "1" && canonicalTempRoot
     ? canonicalTempRoot
     : null;
+  const sequencePath = environment.AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH;
+  if (canonicalTestRoot && sequencePath) {
+    const canonical = consumeCanonicalFolderPickerSequence(
+      sequencePath,
+      canonicalTestRoot,
+    );
+    if (canonical.status !== "pending_until_abort") return canonical;
+    return waitForCanonicalPickerAbortV01(
+      options.signal,
+      options.timeout_ms ?? 120_000,
+    );
+  }
   if (canonicalTestRoot && environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME === "cancelled") {
     return { status: "cancelled" };
   }
@@ -120,22 +173,25 @@ export async function chooseLocalProjectFolderV01(options: {
   const runner = options.process ?? SYSTEM_PICKER_PROCESS;
   const timeout = options.timeout_ms ?? 120_000;
   const commands = platform === "darwin"
-    ? [["/usr/bin/osascript", ["-e", "POSIX path of (choose folder with prompt \"Choose an Augnes project folder\")"]]] as const
+    ? [["/usr/bin/osascript", ["-e", "POSIX path of (choose folder with prompt \"Open a local project folder\")"]]] as const
     : platform === "win32"
       ? [["powershell.exe", ["-NoProfile", "-NonInteractive", "-STA", "-Command", "Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; if($d.ShowDialog() -eq 'OK'){[Console]::Out.Write($d.SelectedPath)}else{exit 2}"]]] as const
       : platform === "linux"
-        ? [["zenity", ["--file-selection", "--directory", "--title=Choose an Augnes project folder"]], ["kdialog", ["--getexistingdirectory", ".", "--title", "Choose an Augnes project folder"]]] as const
+        ? [["zenity", ["--file-selection", "--directory", "--title=Open a local project folder"]], ["kdialog", ["--getexistingdirectory", ".", "--title", "Open a local project folder"]]] as const
         : [];
   if (commands.length === 0) return { status: "unavailable", reason: "unsupported_platform" };
   for (const [command, args] of commands) {
     try {
-      const result = await runner.run(command, args, timeout);
+      const result = await runner.run(command, args, timeout, options.signal);
       const selected = result.stdout.trim();
       if (!selected) return { status: "cancelled" };
       if (!path.isAbsolute(selected)) return { status: "error", error_code: "picker_failed" };
       return { status: "selected", absolute_path: path.resolve(selected) };
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      if (code === "ABORT_ERR" || options.signal?.aborted) {
+        return { status: "cancelled" };
+      }
       if (code === "ENOENT") continue;
       const killedOnTimeout = Boolean(
         typeof error === "object" && error && "killed" in error && error.killed === true &&
@@ -152,12 +208,207 @@ export async function chooseLocalProjectFolderV01(options: {
   return { status: "unavailable", reason: "picker_not_installed" };
 }
 
+function consumeCanonicalFolderPickerSequence(
+  configuredPath: string,
+  configuredRoot: string,
+): CanonicalFolderPickerOutcomeV01 {
+  const sequencePath = path.resolve(configuredPath);
+  const claimPath = `${sequencePath}.claim`;
+  const nextPath = `${sequencePath}.next-${process.pid}`;
+  try {
+    const physicalRoot = realpathSync(configuredRoot);
+    assertCanonicalOwnedRegularFile(sequencePath, physicalRoot);
+    if (existsSync(claimPath) || existsSync(nextPath)) {
+      throw new Error("sequence_claim_ambiguous");
+    }
+    renameSync(sequencePath, claimPath);
+    try {
+      const sequence = parseCanonicalFolderPickerSequence(
+        readFileSync(claimPath, "utf8"),
+        physicalRoot,
+      );
+      if (sequence.next_index >= sequence.entries.length) {
+        throw new Error("sequence_exhausted");
+      }
+      const entry = sequence.entries[sequence.next_index];
+      writeFileSync(
+        nextPath,
+        `${JSON.stringify({ ...sequence, next_index: sequence.next_index + 1 })}\n`,
+        { encoding: "utf8", flag: "wx", mode: 0o600 },
+      );
+      renameSync(nextPath, sequencePath);
+      unlinkSync(claimPath);
+      return entry.outcome === "cancelled"
+        ? { status: "cancelled" }
+        : entry.outcome === "pending_until_abort"
+          ? { status: "pending_until_abort" }
+          : { status: "selected", absolute_path: entry.absolute_path };
+    } catch (error) {
+      if (existsSync(nextPath)) unlinkSync(nextPath);
+      if (!existsSync(sequencePath) && existsSync(claimPath)) {
+        renameSync(claimPath, sequencePath);
+      }
+      throw error;
+    }
+  } catch {
+    return { status: "error", error_code: "picker_failed" };
+  }
+}
+
+function parseCanonicalFolderPickerSequence(serialized: string, physicalRoot: string): {
+  sequence_version: typeof CANONICAL_PICKER_SEQUENCE_VERSION;
+  next_index: number;
+  entries: Array<
+    | { id: string; outcome: "cancelled" }
+    | { id: string; outcome: "pending_until_abort" }
+    | { id: string; outcome: "selected"; absolute_path: string }
+  >;
+} {
+  const value = JSON.parse(serialized) as Record<string, unknown>;
+  if (
+    value?.sequence_version !== CANONICAL_PICKER_SEQUENCE_VERSION ||
+    !Number.isSafeInteger(value.next_index) ||
+    Number(value.next_index) < 0 ||
+    !Array.isArray(value.entries) ||
+    value.entries.length < 1 ||
+    value.entries.length > 16
+  ) {
+    throw new Error("sequence_invalid");
+  }
+  const ids = new Set<string>();
+  const entries = value.entries.map((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      throw new Error("sequence_entry_invalid");
+    }
+    const entry = candidate as Record<string, unknown>;
+    if (
+      typeof entry.id !== "string" ||
+      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(entry.id) ||
+      ids.has(entry.id)
+    ) {
+      throw new Error("sequence_entry_id_invalid");
+    }
+    ids.add(entry.id);
+    if (entry.outcome === "cancelled" && Object.keys(entry).length === 2) {
+      return { id: entry.id, outcome: "cancelled" as const };
+    }
+    if (
+      entry.outcome === "pending_until_abort" &&
+      Object.keys(entry).length === 2
+    ) {
+      return { id: entry.id, outcome: "pending_until_abort" as const };
+    }
+    if (
+      entry.outcome !== "selected" ||
+      typeof entry.absolute_path !== "string" ||
+      Object.keys(entry).length !== 3
+    ) {
+      throw new Error("sequence_entry_invalid");
+    }
+    const selected = path.resolve(entry.absolute_path);
+    if (!path.isAbsolute(entry.absolute_path)) throw new Error("sequence_path_invalid");
+    const selectedEntry = lstatSync(selected);
+    const physicalSelected = realpathSync(selected);
+    if (
+      selectedEntry.isSymbolicLink() ||
+      !selectedEntry.isDirectory() ||
+      !isPathInsideOrEqual(physicalRoot, physicalSelected)
+    ) {
+      throw new Error("sequence_path_invalid");
+    }
+    return {
+      id: entry.id,
+      outcome: "selected" as const,
+      absolute_path: selected,
+    };
+  });
+  return {
+    sequence_version: CANONICAL_PICKER_SEQUENCE_VERSION,
+    next_index: Number(value.next_index),
+    entries,
+  };
+}
+
+async function waitForCanonicalPickerAbortV01(
+  signal: AbortSignal | undefined,
+  timeoutMs: number,
+): Promise<Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>> {
+  if (signal?.aborted) return { status: "cancelled" };
+  return new Promise((resolve) => {
+    const finish = (outcome: Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>) => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      resolve(outcome);
+    };
+    const onAbort = () => finish({ status: "cancelled" });
+    const timer = setTimeout(
+      () => finish({ status: "error", error_code: "picker_timeout" }),
+      timeoutMs,
+    );
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+function assertCanonicalOwnedRegularFile(file: string, physicalRoot: string): void {
+  if (!path.isAbsolute(file)) throw new Error("sequence_path_invalid");
+  const entry = lstatSync(file);
+  const physicalFile = realpathSync(file);
+  if (
+    entry.isSymbolicLink() ||
+    !entry.isFile() ||
+    !isPathInsideOrEqual(physicalRoot, physicalFile)
+  ) {
+    throw new Error("sequence_path_invalid");
+  }
+}
+
+function isPathInsideOrEqual(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
+}
+
+function readCanonicalProjectForPhysicalObservationV01(
+  db: Database.Database,
+  workspaceId: string,
+  observation: Extract<PhysicalRootObservationV01, { status: "exact" }>,
+) {
+  const baselines = listPhysicalRootBaselinesByIdentityV01(db, {
+    workspace_id: workspaceId,
+    node_scope_fingerprint: observation.node_scope_fingerprint,
+    identity_version: observation.identity.identity_version,
+    filesystem_volume_identity: observation.platform === "win32"
+      ? observation.identity.volume_serial_identity
+      : observation.identity.device,
+    filesystem_object_identity: observation.platform === "win32"
+      ? observation.identity.file_id
+      : observation.identity.inode,
+  });
+  if (baselines.length > 1) {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 409);
+  }
+  const baseline = baselines[0] ?? null;
+  if (!baseline) return null;
+  const registration = readCanonicalProjectWithRootV01(db, {
+    workspace_id: workspaceId,
+    project_id: baseline.project_id,
+  });
+  if (
+    !registration ||
+    fingerprintProjectRootBindingV01(registration.root_binding) !==
+      baseline.root_binding_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 422);
+  }
+  return registration;
+}
+
 export async function inspectLocalProjectRootV01(absolutePath: string, options: {
   now?: () => string;
   db?: Database.Database;
   workspace_id?: string;
   filesystem?: Partial<typeof SYSTEM_LOCAL_PROJECT_FILESYSTEM>;
   metadata_reader?: LocalProjectMetadataFileReaderV01;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 } = {}): Promise<LocalProjectInspectionV01> {
   if (!path.isAbsolute(absolutePath)) throw new ProjectOnboardingErrorV01("selection_invalid");
   const localRoot = normalizeLocalProjectRootRefV01(absolutePath, { base_path: path.parse(absolutePath).root });
@@ -174,6 +425,12 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
   catch { throw new ProjectOnboardingErrorV01("selection_inaccessible", 403); }
 
   const inspectedAt = (options.now ?? (() => new Date().toISOString()))();
+  const physical = options.db
+    ? await inspectPhysicalRootForExecutionV01(options.db, localRoot.normalized_path, {
+        ...options.repository_execution_dependencies,
+        now: () => inspectedAt,
+      })
+    : null;
   let git;
   try {
     git = await inspectGitMetadata(
@@ -188,10 +445,33 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     root: localRoot,
     displayName,
     repository: { is_repository: git.isRepository, display: git.display },
+    physical_identity_status: physical?.status ?? "identity_unavailable",
+    physical_root_observation_fingerprint:
+      physical?.status === "exact" ? physical.observation_fingerprint : null,
   });
-  const alreadyAdded = Boolean(options.db && options.workspace_id && findCanonicalProjectByLocalRootV01(options.db, {
-    workspace_id: options.workspace_id, local_root: localRoot,
-  }));
+  const lexicalRegistration = options.db && options.workspace_id
+    ? findCanonicalProjectByLocalRootV01(options.db, {
+      workspace_id: options.workspace_id,
+      local_root: localRoot,
+    })
+    : null;
+  const physicalRegistration =
+    options.db && options.workspace_id && physical?.status === "exact"
+      ? readCanonicalProjectForPhysicalObservationV01(
+          options.db,
+          options.workspace_id,
+          physical,
+        )
+      : null;
+  if (
+    lexicalRegistration &&
+    physicalRegistration &&
+    lexicalRegistration.project.project_id !==
+      physicalRegistration.project.project_id
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_failed", 409);
+  }
+  const existingRegistration = lexicalRegistration ?? physicalRegistration;
   return {
     inspection_version: LOCAL_PROJECT_INSPECTION_VERSION_V01,
     display_name: displayName,
@@ -202,14 +482,49 @@ export async function inspectLocalProjectRootV01(absolutePath: string, options: 
     repository_status: !git.isRepository ? "not_repository" : git.ref ? "configured" : "no_remote",
     inspected_at: inspectedAt,
     inspection_fingerprint: `sha256:${createHash("sha256").update(fingerprintPayload).digest("hex")}`,
-    already_added: alreadyAdded,
+    physical_identity_status: physical?.status ?? "identity_unavailable",
+    physical_root_observation_fingerprint:
+      physical?.status === "exact" ? physical.observation_fingerprint : null,
+    already_added: existingRegistration !== null,
+    existing_project: existingRegistration?.project ?? null,
   };
 }
 
+export interface LocalProjectRecoveryScopeInputV01 {
+  project_id: string;
+  expected_old_root_binding_fingerprint: string;
+  expected_old_baseline_fingerprint: string | null;
+  expected_active_project_id: string | null;
+  expected_active_selection_revision: number | null;
+}
+
+type ConnectNewProjectSelectionPurposeV01 = {
+  kind: "connect_new_project";
+};
+
+type RecoverExistingProjectSelectionPurposeV01 = {
+  kind: "recover_existing_project";
+  workspace_id: string;
+  project_id: string;
+  expected_old_root_binding_fingerprint: string;
+  expected_old_baseline_fingerprint: string;
+  recovery_action: "open_project" | "rebind";
+};
+
+type SelectionPurposeV01 =
+  | ConnectNewProjectSelectionPurposeV01
+  | RecoverExistingProjectSelectionPurposeV01;
+
 type SelectionRecord = {
+  selection_origin: LocalProjectSelectionOriginV01;
+  selection_purpose: SelectionPurposeV01;
+  selection_binding_fingerprint: string;
   absolute_path: string;
-  fingerprint: string;
+  normalized_path_fingerprint: string;
+  inspection_fingerprint: string;
+  physical_root_observation_fingerprint: string | null;
   expires_at: number;
+  expected_workspace_id: string | null;
   expected_active_project_id: string | null;
   expected_active_revision: number | null;
 };
@@ -221,19 +536,124 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
   now_ms?: () => number;
   create_token?: () => string;
   metadata_reader?: LocalProjectMetadataFileReaderV01;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
 } = {}): Promise<LocalFolderPickerOutcomeV01> {
   const picked = await chooseLocalProjectFolderV01(options);
   if (picked.status !== "selected") return picked;
+  const prepared = await prepareLocalProjectSelectionV01(
+    "native_picker",
+    picked.absolute_path,
+    options,
+  );
+  if (options.signal?.aborted) {
+    selections.delete(prepared.selection_token);
+    return { status: "cancelled" };
+  }
+  return prepared;
+}
+
+export async function declareAndInspectLocalProjectV01(
+  absolutePath: string,
+  options: {
+    open_database?: () => Database.Database;
+    now?: () => string;
+    now_ms?: () => number;
+    create_token?: () => string;
+    metadata_reader?: LocalProjectMetadataFileReaderV01;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+  } = {},
+): Promise<Extract<LocalFolderPickerOutcomeV01, { status: "selected" }>> {
+  return prepareLocalProjectSelectionV01("declared_path", absolutePath, options);
+}
+
+export async function pickAndInspectLocalProjectRecoveryV01(
+  scope: LocalProjectRecoveryScopeInputV01,
+  options: Parameters<typeof chooseLocalProjectFolderV01>[0] & {
+    open_database?: () => Database.Database;
+    now?: () => string;
+    now_ms?: () => number;
+    create_token?: () => string;
+    metadata_reader?: LocalProjectMetadataFileReaderV01;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+  } = {},
+): Promise<
+  LocalProjectRecoverySelectionOutcomeV01 |
+  Exclude<LocalFolderPickerOutcomeV01, { status: "selected" }>
+> {
+  const picked = await chooseLocalProjectFolderV01(options);
+  if (picked.status !== "selected") return picked;
+  const prepared = await prepareLocalProjectSelectionV01(
+    "native_picker",
+    picked.absolute_path,
+    { ...options, recovery_scope: scope },
+  ) as LocalProjectRecoverySelectionOutcomeV01;
+  if (options.signal?.aborted) {
+    selections.delete(prepared.selection_token);
+    return { status: "cancelled" };
+  }
+  return prepared;
+}
+
+export async function declareAndInspectLocalProjectRecoveryV01(
+  absolutePath: string,
+  scope: LocalProjectRecoveryScopeInputV01,
+  options: {
+    open_database?: () => Database.Database;
+    now?: () => string;
+    now_ms?: () => number;
+    create_token?: () => string;
+    metadata_reader?: LocalProjectMetadataFileReaderV01;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+  } = {},
+): Promise<LocalProjectRecoverySelectionOutcomeV01> {
+  return prepareLocalProjectSelectionV01(
+    "declared_path",
+    absolutePath,
+    { ...options, recovery_scope: scope },
+  ) as Promise<LocalProjectRecoverySelectionOutcomeV01>;
+}
+
+async function prepareLocalProjectSelectionV01(
+  selectionOrigin: LocalProjectSelectionOriginV01,
+  absolutePath: string,
+  options: {
+    open_database?: () => Database.Database;
+    now?: () => string;
+    now_ms?: () => number;
+    create_token?: () => string;
+    metadata_reader?: LocalProjectMetadataFileReaderV01;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+    recovery_scope?: LocalProjectRecoveryScopeInputV01;
+  },
+): Promise<
+  Extract<LocalFolderPickerOutcomeV01, { status: "selected" }> |
+  LocalProjectRecoverySelectionOutcomeV01
+> {
   const db = (options.open_database ?? openDatabase)();
   try {
     const workspace = readDefaultWorkspaceIdentityV01(db);
-    const inspection = await inspectLocalProjectRootV01(picked.absolute_path, {
+    const inspection = await inspectLocalProjectRootV01(absolutePath, {
       now: options.now,
       metadata_reader: options.metadata_reader,
-      ...(workspace ? { db, workspace_id: workspace.workspace_id } : {}),
+      repository_execution_dependencies:
+        options.repository_execution_dependencies,
+      db,
+      ...(workspace ? { workspace_id: workspace.workspace_id } : {}),
     });
+    assertExactPreparedPhysicalIdentityV01(inspection);
     const active = workspace
       ? readActiveProjectSelectionV01(db, workspace.workspace_id)
+      : null;
+    const recovery = options.recovery_scope
+      ? await inspectRecoverySelectionScopeV01(db, {
+          scope: options.recovery_scope,
+          inspection,
+          active,
+          workspace_id: workspace?.workspace_id ?? null,
+          now: options.now,
+          repository_execution_dependencies:
+            options.repository_execution_dependencies,
+        })
       : null;
     const nowMs = (options.now_ms ?? Date.now)();
     for (const [token, record] of selections) {
@@ -243,36 +663,371 @@ export async function pickAndInspectLocalProjectV01(options: Parameters<typeof c
       selections.delete(selections.keys().next().value as string);
     }
     const token = (options.create_token ?? randomUUID)();
-    selections.set(token, {
-      absolute_path: picked.absolute_path,
-      fingerprint: inspection.inspection_fingerprint,
+    const selectionPurpose: SelectionPurposeV01 = recovery
+      ? {
+          kind: "recover_existing_project",
+          workspace_id: recovery.workspace_id,
+          project_id: recovery.project_id,
+          expected_old_root_binding_fingerprint:
+            recovery.expected_old_root_binding_fingerprint,
+          expected_old_baseline_fingerprint:
+            recovery.expected_old_baseline_fingerprint,
+          recovery_action: recovery.recovery_action,
+        }
+      : { kind: "connect_new_project" };
+    const baseRecord = {
+      selection_origin: selectionOrigin,
+      selection_purpose: selectionPurpose,
+      absolute_path: absolutePath,
+      normalized_path_fingerprint: `sha256:${createHash("sha256")
+        .update(JSON.stringify(inspection.local_root))
+        .digest("hex")}`,
+      inspection_fingerprint: inspection.inspection_fingerprint,
+      physical_root_observation_fingerprint:
+        inspection.physical_root_observation_fingerprint,
       expires_at: nowMs + SELECTION_TTL_MS,
+      expected_workspace_id: workspace?.workspace_id ?? null,
       expected_active_project_id: active?.project_id ?? null,
       expected_active_revision: active?.selection_revision ?? null,
-    });
-    return { status: "selected", selection_token: token, inspection };
+    };
+    const record: SelectionRecord = {
+      ...baseRecord,
+      selection_binding_fingerprint: createSelectionBindingFingerprintV01(
+        token,
+        baseRecord,
+      ),
+    };
+    selections.set(token, record);
+    const selected = {
+      status: "selected" as const,
+      selection_token: token,
+      selection_origin: selectionOrigin,
+      inspection,
+    };
+    return recovery
+      ? { ...selected, recovery_action: recovery.recovery_action }
+      : selected;
   } finally { db.close(); }
 }
 
+async function inspectRecoverySelectionScopeV01(
+  db: Database.Database,
+  input: {
+    scope: LocalProjectRecoveryScopeInputV01;
+    inspection: LocalProjectInspectionV01;
+    active: ReturnType<typeof readActiveProjectSelectionV01>;
+    workspace_id: string | null;
+    now?: () => string;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+  },
+): Promise<RecoverExistingProjectSelectionPurposeV01> {
+  if (!input.workspace_id) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  const registration = readCanonicalProjectWithRootV01(db, {
+    workspace_id: input.workspace_id,
+    project_id: input.scope.project_id,
+  });
+  if (!registration) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  if (
+    (input.active?.project_id ?? null) !==
+      input.scope.expected_active_project_id ||
+    (input.active?.selection_revision ?? null) !==
+      input.scope.expected_active_selection_revision
+  ) {
+    throw new ProjectOnboardingErrorV01("active_selection_conflict", 409);
+  }
+  const oldRootFingerprint = fingerprintProjectRootBindingV01(
+    registration.root_binding,
+  );
+  if (
+    oldRootFingerprint !==
+      input.scope.expected_old_root_binding_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  if (
+    input.inspection.existing_project &&
+    input.inspection.existing_project.project_id !== input.scope.project_id
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  const selectedPhysical = await inspectPhysicalRootForExecutionV01(
+    db,
+    input.inspection.local_root.normalized_path,
+    { ...input.repository_execution_dependencies, now: input.now },
+  );
+  if (
+    selectedPhysical.status !== "exact" ||
+    selectedPhysical.observation_fingerprint !==
+      input.inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const baseline = readPhysicalRootBaselineV01(db, {
+    workspace_id: input.workspace_id,
+    project_id: input.scope.project_id,
+    node_scope_fingerprint: selectedPhysical.node_scope_fingerprint,
+  });
+  if (
+    !baseline ||
+    !input.scope.expected_old_baseline_fingerprint ||
+    baseline.baseline_fingerprint !==
+      input.scope.expected_old_baseline_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const currentRootAvailability = await readRootAvailabilityV01(
+    registration.root_binding.local_root.normalized_path,
+  );
+  const currentPhysical = currentRootAvailability === "available"
+    ? await inspectPhysicalRootForExecutionV01(
+        db,
+        registration.root_binding.local_root.normalized_path,
+        { ...input.repository_execution_dependencies, now: input.now },
+      )
+    : null;
+  const currentBindingIsExact =
+    currentPhysical?.status === "exact" &&
+    baselineMatchesObservation(baseline, currentPhysical);
+  const selectedIsCurrentPhysicalRoot = baselineMatchesObservation(
+    baseline,
+    selectedPhysical,
+  );
+  return {
+    kind: "recover_existing_project",
+    workspace_id: input.workspace_id,
+    project_id: input.scope.project_id,
+    expected_old_root_binding_fingerprint: oldRootFingerprint,
+    expected_old_baseline_fingerprint: baseline.baseline_fingerprint,
+    recovery_action:
+      currentBindingIsExact && selectedIsCurrentPhysicalRoot
+        ? "open_project"
+        : "rebind",
+  };
+}
+
+function createSelectionBindingFingerprintV01(
+  selectionToken: string,
+  record: Omit<SelectionRecord, "selection_binding_fingerprint">,
+): string {
+  return `sha256:${createHash("sha256").update(JSON.stringify({
+    binding_version: "local_project_selection_binding.v0.1",
+    selection_token: selectionToken,
+    selection_origin: record.selection_origin,
+    selection_purpose: record.selection_purpose,
+    normalized_path_fingerprint: record.normalized_path_fingerprint,
+    inspection_fingerprint: record.inspection_fingerprint,
+    physical_root_observation_fingerprint:
+      record.physical_root_observation_fingerprint,
+    expires_at: record.expires_at,
+    expected_workspace_id: record.expected_workspace_id,
+    expected_active_project_id: record.expected_active_project_id,
+    expected_active_revision: record.expected_active_revision,
+  })).digest("hex")}`;
+}
+
+function assertExactPreparedPhysicalIdentityV01(
+  inspection: LocalProjectInspectionV01,
+): void {
+  if (inspection.physical_identity_status === "exact") return;
+  throw new ProjectOnboardingErrorV01(
+    inspection.physical_identity_status === "identity_unsupported"
+      ? "physical_identity_unsupported"
+      : inspection.physical_identity_status === "identity_ambiguous"
+        ? "physical_identity_ambiguous"
+        : "physical_identity_unavailable",
+    422,
+  );
+}
+
+export function readPreparedLocalProjectSelectionBindingV01(
+  selectionToken: string,
+  options: { now_ms?: () => number } = {},
+) {
+  const record = selections.get(selectionToken);
+  if (!record || record.expires_at < (options.now_ms ?? Date.now)()) {
+    selections.delete(selectionToken);
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  return {
+    selection_origin: record.selection_origin,
+    selection_purpose: record.selection_purpose.kind,
+    recovery_project_id:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.project_id
+        : null,
+    recovery_action:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.recovery_action
+        : null,
+    expected_old_root_binding_fingerprint:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.expected_old_root_binding_fingerprint
+        : null,
+    expected_old_baseline_fingerprint:
+      record.selection_purpose.kind === "recover_existing_project"
+        ? record.selection_purpose.expected_old_baseline_fingerprint
+        : null,
+    selection_binding_fingerprint: record.selection_binding_fingerprint,
+    normalized_path_fingerprint: record.normalized_path_fingerprint,
+    inspection_fingerprint: record.inspection_fingerprint,
+    physical_root_observation_fingerprint:
+      record.physical_root_observation_fingerprint,
+    expires_at: new Date(record.expires_at).toISOString(),
+    expected_workspace_id: record.expected_workspace_id,
+    expected_active_project_id: record.expected_active_project_id,
+    expected_active_selection_revision: record.expected_active_revision,
+  };
+}
+
+export function abandonPreparedLocalProjectSelectionV01(
+  selectionToken: string,
+): void {
+  selections.delete(selectionToken);
+}
+
+export function abandonPreparedLocalProjectOnboardingSelectionV01(
+  selectionToken: string,
+): boolean {
+  const record = selections.get(selectionToken);
+  if (record?.selection_purpose.kind !== "connect_new_project") return false;
+  return selections.delete(selectionToken);
+}
+
+export function abandonPreparedLocalProjectRecoverySelectionV01(
+  selectionToken: string,
+  projectId: string,
+): boolean {
+  const record = selections.get(selectionToken);
+  if (
+    record?.selection_purpose.kind !== "recover_existing_project" ||
+    record.selection_purpose.project_id !== projectId
+  ) {
+    return false;
+  }
+  return selections.delete(selectionToken);
+}
+
 export async function confirmLocalProjectOnboardingV01(db: Database.Database, input: {
-  selection_token: string; inspection_fingerprint: string;
-}, options: { now?: () => string; now_ms?: () => number; create_uuid?: () => string } = {}): Promise<ProjectOnboardingConfirmationV01> {
-  const record = consumeSelection(input.selection_token, options.now_ms);
-  if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
-  const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
+  selection_token: string;
+  inspection_fingerprint: string;
+  display_name?: string;
+  selection_origin?: LocalProjectSelectionOriginV01;
+}, options: {
+  now?: () => string;
+  now_ms?: () => number;
+  create_uuid?: () => string;
+  before_baseline_insert_inside_transaction?: () => void;
+  repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+} = {}): Promise<ProjectOnboardingConfirmationV01> {
+  const record = consumeSelectionForPurposeV01(
+    input.selection_token,
+    "connect_new_project",
+    options.now_ms,
+  );
+  if (record.selection_origin !== (input.selection_origin ?? "native_picker")) {
+    throw new ProjectOnboardingErrorV01("selection_origin_mismatch", 409);
+  }
+  if (record.inspection_fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
+  const existingWorkspace = readDefaultWorkspaceIdentityV01(db);
+  if (
+    (existingWorkspace?.workspace_id ?? null) !== record.expected_workspace_id
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
+    now: options.now,
+    repository_execution_dependencies:
+      options.repository_execution_dependencies,
+    db,
+    ...(existingWorkspace
+      ? { workspace_id: existingWorkspace.workspace_id }
+      : {}),
+  });
+  if (
+    inspection.inspection_fingerprint !== record.inspection_fingerprint ||
+    inspection.physical_root_observation_fingerprint !==
+      record.physical_root_observation_fingerprint
+  ) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  if (inspection.physical_identity_status !== "exact") {
+    throw new ProjectOnboardingErrorV01(
+      inspection.physical_identity_status === "identity_unsupported"
+        ? "physical_identity_unsupported"
+        : inspection.physical_identity_status === "identity_ambiguous"
+          ? "physical_identity_ambiguous"
+          : "physical_identity_unavailable",
+      409,
+    );
+  }
+  const physical = await inspectPhysicalRootForExecutionV01(
+    db,
+    inspection.local_root.normalized_path,
+    { ...options.repository_execution_dependencies, now: options.now },
+  );
+  if (
+    physical.status !== "exact" ||
+    physical.observation_fingerprint !== inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const displayName = inspection.already_added
+    ? undefined
+    : normalizeProjectDisplayNameV01(
+      input.display_name === undefined
+        ? inspection.display_name
+        : input.display_name,
+    );
+  const workspace = existingWorkspace ?? getOrCreateDefaultWorkspaceIdentityV01(db, {
     now: options.now,
     create_uuid: options.create_uuid,
   });
-  const inspection = await inspectLocalProjectRootV01(record.absolute_path, { now: options.now, db, workspace_id: workspace.workspace_id });
-  if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
     ensureVNextProjectLifecycleSchemaV01(db);
-    const registration = getOrCreateCanonicalProjectForLocalRootV01(db, {
+    const physicalRegistration =
+      readCanonicalProjectForPhysicalObservationV01(
+          db,
+          workspace.workspace_id,
+          physical,
+        );
+    const lexicalRegistration = findCanonicalProjectByLocalRootV01(db, {
       workspace_id: workspace.workspace_id,
       local_root: inspection.local_root,
-      ...(inspection.already_added ? {} : { display_name: inspection.display_name }),
-    }, { now: options.now, create_uuid: options.create_uuid });
+    });
+    if (
+      lexicalRegistration &&
+      physicalRegistration &&
+      lexicalRegistration.project.project_id !==
+        physicalRegistration.project.project_id
+    ) {
+      throw new ProjectOnboardingErrorV01("inspection_failed", 409);
+    }
+    const registration = physicalRegistration
+      ? { status: "exact_replay" as const, ...physicalRegistration }
+      : getOrCreateCanonicalProjectForLocalRootV01(db, {
+          workspace_id: workspace.workspace_id,
+          local_root: inspection.local_root,
+          ...(displayName === undefined ? {} : { display_name: displayName }),
+        }, { now: options.now, create_uuid: options.create_uuid });
+    if (registration.status === "inserted") {
+      options.before_baseline_insert_inside_transaction?.();
+      const insertion = insertPhysicalRootBaselineIfAbsentInsideTransactionV01(
+        db,
+        buildPhysicalRootBaselineV01({
+          workspace_id: workspace.workspace_id,
+          project_id: registration.project.project_id,
+          root_binding: registration.root_binding,
+          observation: physical,
+          provenance: "canonical_new_project_onboarding",
+        }),
+      );
+      if (insertion.status !== "inserted") {
+        throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+      }
+    }
     const existingRepositoryRefs = listProjectExternalRefsV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: registration.project.project_id,
@@ -304,36 +1059,298 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   }).immediate();
 }
 
+export function renameActiveProjectDisplayNameV01(
+  db: Database.Database,
+  input: {
+    project_id: string;
+    expected_active_project_id: string;
+    expected_active_selection_revision: number;
+    expected_current_display_name: string | null;
+    requested_display_name: string;
+  },
+) {
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  return db.transaction(() => {
+    const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    if (
+      !active ||
+      input.project_id !== input.expected_active_project_id ||
+      active.project_id !== input.project_id ||
+      active.project_id !== input.expected_active_project_id ||
+      active.selection_revision !== input.expected_active_selection_revision
+    ) {
+      throw new ProjectOnboardingErrorV01("active_selection_conflict", 409);
+    }
+    return renameCanonicalProjectDisplayNameV01(db, {
+      workspace_id: workspace.workspace_id,
+      project_id: input.project_id,
+      requested_display_name: input.requested_display_name,
+      expected_current_display_name: input.expected_current_display_name,
+    });
+  }).immediate();
+}
+
+export async function previewLocalProjectRootRebindFromSelectionV01(
+  db: Database.Database,
+  input: {
+    project_id: string;
+    selection_token: string;
+    inspection_fingerprint: string;
+    expected_old_root_binding_fingerprint: string;
+    expected_old_baseline_fingerprint: string | null;
+  },
+  options: { now?: () => string; now_ms?: () => number } = {},
+) {
+  const record = readSelectionForPurposeV01(
+    input.selection_token,
+    "recover_existing_project",
+    options.now_ms,
+  );
+  const recovery = assertRecoverySelectionInputV01(record, input, "rebind");
+  if (record.inspection_fingerprint !== input.inspection_fingerprint) {
+    throw new ProjectOnboardingErrorV01("selection_tampered", 409);
+  }
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  assertRecoverySelectionStateV01(db, workspace.workspace_id, record, recovery);
+  const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
+    now: options.now,
+    db,
+    workspace_id: workspace.workspace_id,
+  });
+  if (
+    inspection.inspection_fingerprint !== record.inspection_fingerprint ||
+    inspection.physical_root_observation_fingerprint !==
+      record.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const preview = await previewRepositoryExecutionRootRebindV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+    expected_selection_binding_fingerprint:
+      record.selection_binding_fingerprint,
+  }, { now: options.now });
+  if (
+    preview.status !== "ready" ||
+    !preview.decision_request ||
+    preview.expected_old_root_binding_fingerprint !==
+      input.expected_old_root_binding_fingerprint ||
+    preview.expected_old_root_binding_fingerprint !==
+      recovery.expected_old_root_binding_fingerprint ||
+    preview.expected_old_baseline_fingerprint !==
+      input.expected_old_baseline_fingerprint ||
+    preview.expected_old_baseline_fingerprint !==
+      recovery.expected_old_baseline_fingerprint ||
+    preview.expected_new_observation_fingerprint !==
+      inspection.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  return preview;
+}
+
 export async function rebindLocalProjectRootFromSelectionV01(db: Database.Database, input: {
-  project_id: string; selection_token: string; inspection_fingerprint: string;
-}, options: { now?: () => string; now_ms?: () => number } = {}): Promise<ProjectRootRebindResultV01> {
-  const record = consumeSelection(input.selection_token, options.now_ms);
-  if (record.fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
+  project_id: string;
+  selection_token: string;
+  inspection_fingerprint: string;
+  expected_old_root_binding_fingerprint: string;
+  expected_old_baseline_fingerprint: string | null;
+  decision_request_fingerprint: string;
+}, options: {
+  now?: () => string;
+  now_ms?: () => number;
+  decision_grant_fingerprint?: string;
+  authorize_decision_inside_transaction?:
+    RepositoryExecutionDependenciesV01["authorize_decision_inside_transaction"];
+} = {}): Promise<ProjectRootRebindResultV01> {
+  const record = readSelectionForPurposeV01(
+    input.selection_token,
+    "recover_existing_project",
+    options.now_ms,
+  );
+  const recovery = assertRecoverySelectionInputV01(record, input, "rebind");
+  selections.delete(input.selection_token);
+  if (record.inspection_fingerprint !== input.inspection_fingerprint) throw new ProjectOnboardingErrorV01("selection_tampered", 409);
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  assertRecoverySelectionStateV01(db, workspace.workspace_id, record, recovery);
   const project = readCanonicalProjectWithRootV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id });
   if (!project) throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
   const inspection = await inspectLocalProjectRootV01(record.absolute_path, { now: options.now, db, workspace_id: workspace.workspace_id });
-  if (inspection.inspection_fingerprint !== record.fingerprint) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  if (
+    inspection.inspection_fingerprint !== record.inspection_fingerprint ||
+    inspection.physical_root_observation_fingerprint !==
+      record.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
   const now = (options.now ?? (() => new Date().toISOString()))();
-  return db.transaction(() => {
-    rebindCanonicalProjectLocalRootV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, local_root: inspection.local_root }, { now: () => now });
-    touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
-    selectActiveProjectV01(db, {
-      workspace_id: workspace.workspace_id,
-      project_id: input.project_id,
-      now,
-      expected_project_id: record.expected_active_project_id,
-      expected_revision: record.expected_active_revision,
-    });
-    return { status: "rebound" as const, project: project.project, local_root: inspection.local_root, destination: projectDestination(input.project_id) };
-  }).immediate();
+  if (!inspection.physical_root_observation_fingerprint) {
+    throw new ProjectOnboardingErrorV01("physical_identity_unavailable", 409);
+  }
+  if (!input.expected_old_baseline_fingerprint) {
+    throw new ProjectOnboardingErrorV01("physical_identity_unavailable", 409);
+  }
+  const preview = await previewRepositoryExecutionRootRebindV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+    expected_selection_binding_fingerprint:
+      record.selection_binding_fingerprint,
+  }, { now: () => now });
+  if (
+    preview.status !== "ready" ||
+    !preview.decision_request ||
+    preview.expected_old_root_binding_fingerprint !==
+      input.expected_old_root_binding_fingerprint ||
+    preview.expected_old_baseline_fingerprint !==
+      input.expected_old_baseline_fingerprint ||
+    preview.expected_new_observation_fingerprint !==
+      inspection.physical_root_observation_fingerprint ||
+    preview.decision_request.request_fingerprint !==
+      input.decision_request_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  await rebindRepositoryExecutionRootV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    new_local_root: inspection.local_root,
+    expected_old_root_binding_fingerprint: input.expected_old_root_binding_fingerprint,
+    expected_old_baseline_fingerprint: input.expected_old_baseline_fingerprint,
+    expected_new_observation_fingerprint: inspection.physical_root_observation_fingerprint,
+    expected_selection_binding_fingerprint:
+      record.selection_binding_fingerprint,
+    decision_request_fingerprint: preview.decision_request.request_fingerprint,
+    decision_grant_fingerprint: options.decision_grant_fingerprint,
+  }, {
+    now: () => now,
+    authorize_decision_inside_transaction:
+      options.authorize_decision_inside_transaction,
+    after_rebind_inside_transaction: () => {
+      touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
+      selectActiveProjectV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: input.project_id,
+        now,
+        expected_project_id: record.expected_active_project_id,
+        expected_revision: record.expected_active_revision,
+      });
+    },
+  });
+  return {
+    status: "rebound" as const,
+    project: project.project,
+    local_root: inspection.local_root,
+    destination: projectDestination(input.project_id),
+  };
+}
+
+export async function openRecoveredLocalProjectFromSelectionV01(
+  db: Database.Database,
+  input: {
+    project_id: string;
+    selection_token: string;
+    inspection_fingerprint: string;
+    expected_old_root_binding_fingerprint: string;
+    expected_old_baseline_fingerprint: string | null;
+  },
+  options: {
+    now?: () => string;
+    now_ms?: () => number;
+    repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
+  } = {},
+) {
+  const record = readSelectionForPurposeV01(
+    input.selection_token,
+    "recover_existing_project",
+    options.now_ms,
+  );
+  const recovery = assertRecoverySelectionInputV01(
+    record,
+    input,
+    "open_project",
+  );
+  selections.delete(input.selection_token);
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  const registration = assertRecoverySelectionStateV01(
+    db,
+    workspace.workspace_id,
+    record,
+    recovery,
+  );
+  const inspection = await inspectLocalProjectRootV01(record.absolute_path, {
+    now: options.now,
+    db,
+    workspace_id: workspace.workspace_id,
+    repository_execution_dependencies:
+      options.repository_execution_dependencies,
+  });
+  if (
+    inspection.inspection_fingerprint !== record.inspection_fingerprint ||
+    inspection.physical_root_observation_fingerprint !==
+      record.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const selectedPhysical = await inspectPhysicalRootForExecutionV01(
+    db,
+    inspection.local_root.normalized_path,
+    { ...options.repository_execution_dependencies, now: options.now },
+  );
+  const currentPhysical = await inspectPhysicalRootForExecutionV01(
+    db,
+    registration.root_binding.local_root.normalized_path,
+    { ...options.repository_execution_dependencies, now: options.now },
+  );
+  if (
+    selectedPhysical.status !== "exact" ||
+    currentPhysical.status !== "exact" ||
+    selectedPhysical.observation_fingerprint !==
+      record.physical_root_observation_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  const baseline = readPhysicalRootBaselineV01(db, {
+    workspace_id: workspace.workspace_id,
+    project_id: input.project_id,
+    node_scope_fingerprint: selectedPhysical.node_scope_fingerprint,
+  });
+  if (
+    !baseline ||
+    baseline.baseline_fingerprint !==
+      recovery.expected_old_baseline_fingerprint ||
+    !baselineMatchesObservation(baseline, selectedPhysical) ||
+    !baselineMatchesObservation(baseline, currentPhysical)
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  return openRecentProjectV01(db, {
+    project_id: input.project_id,
+    expected_project_id: record.expected_active_project_id,
+    expected_revision: record.expected_active_revision,
+    now: (options.now ?? (() => new Date().toISOString()))(),
+  });
 }
 
 export async function listRecentProjectsV01(db: Database.Database): Promise<RecentProjectEntryV01[]> {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) return [];
   const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+  const nodeObservation = await inspectPhysicalRootForExecutionV01(
+    db,
+    path.dirname(path.resolve(db.name)),
+  );
   const rows = listRecentProjectRowsV01(db, workspace.workspace_id);
   return Promise.all(rows.map(async (row) => {
     const registration = readCanonicalProjectWithRootV01(db, row)!;
@@ -347,6 +1364,19 @@ export async function listRecentProjectsV01(db: Database.Database): Promise<Rece
       is_active: active?.project_id === row.project_id,
       active_project_id: active?.project_id ?? null,
       active_selection_revision: active?.selection_revision ?? null,
+      root_binding_fingerprint: fingerprintProjectRootBindingV01(registration.root_binding),
+      physical_root_baseline_fingerprint: nodeObservation.status === "exact"
+        ? readPhysicalRootBaselineV01(db, {
+            workspace_id: workspace.workspace_id,
+            project_id: row.project_id,
+            node_scope_fingerprint: nodeObservation.node_scope_fingerprint,
+          })?.baseline_fingerprint ?? null
+        : null,
+      repository_execution_decision:
+        readOpenRepositoryExecutionDecisionProjectionV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: row.project_id,
+        }),
     };
   }));
 }
@@ -417,11 +1447,98 @@ export async function readProjectDestinationV01(db: Database.Database, projectId
   };
 }
 
-function consumeSelection(token: string, nowMs: (() => number) | undefined): SelectionRecord {
+type SelectionRecordForPurposeV01<
+  Kind extends SelectionPurposeV01["kind"],
+> = SelectionRecord & {
+  selection_purpose: Extract<SelectionPurposeV01, { kind: Kind }>;
+};
+
+function readSelectionForPurposeV01<
+  Kind extends SelectionPurposeV01["kind"],
+>(
+  token: string,
+  purpose: Kind,
+  nowMs: (() => number) | undefined,
+): SelectionRecordForPurposeV01<Kind> {
   const record = selections.get(token);
+  if (!record || record.expires_at < (nowMs ?? Date.now)()) {
+    selections.delete(token);
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  if (record.selection_purpose.kind !== purpose) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  return record as SelectionRecordForPurposeV01<Kind>;
+}
+
+function consumeSelectionForPurposeV01<
+  Kind extends SelectionPurposeV01["kind"],
+>(
+  token: string,
+  purpose: Kind,
+  nowMs: (() => number) | undefined,
+): SelectionRecordForPurposeV01<Kind> {
+  const record = readSelectionForPurposeV01(token, purpose, nowMs);
   selections.delete(token);
-  if (!record || record.expires_at < (nowMs ?? Date.now)()) throw new ProjectOnboardingErrorV01("inspection_stale", 409);
   return record;
+}
+
+function assertRecoverySelectionInputV01(
+  record: SelectionRecordForPurposeV01<"recover_existing_project">,
+  input: {
+    project_id: string;
+    expected_old_root_binding_fingerprint: string;
+    expected_old_baseline_fingerprint: string | null;
+  },
+  expectedAction: RecoverExistingProjectSelectionPurposeV01["recovery_action"],
+): RecoverExistingProjectSelectionPurposeV01 {
+  const recovery = record.selection_purpose;
+  if (
+    recovery.project_id !== input.project_id ||
+    recovery.recovery_action !== expectedAction ||
+    recovery.expected_old_root_binding_fingerprint !==
+      input.expected_old_root_binding_fingerprint ||
+    recovery.expected_old_baseline_fingerprint !==
+      input.expected_old_baseline_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  return recovery;
+}
+
+function assertRecoverySelectionStateV01(
+  db: Database.Database,
+  workspaceId: string,
+  record: SelectionRecordForPurposeV01<"recover_existing_project">,
+  recovery: RecoverExistingProjectSelectionPurposeV01,
+) {
+  if (
+    recovery.workspace_id !== workspaceId ||
+    record.expected_workspace_id !== workspaceId
+  ) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  }
+  const active = readActiveProjectSelectionV01(db, workspaceId);
+  if (
+    (active?.project_id ?? null) !== record.expected_active_project_id ||
+    (active?.selection_revision ?? null) !== record.expected_active_revision
+  ) {
+    throw new ProjectOnboardingErrorV01("active_selection_conflict", 409);
+  }
+  const registration = readCanonicalProjectWithRootV01(db, {
+    workspace_id: workspaceId,
+    project_id: recovery.project_id,
+  });
+  if (!registration) {
+    throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
+  }
+  if (
+    fingerprintProjectRootBindingV01(registration.root_binding) !==
+      recovery.expected_old_root_binding_fingerprint
+  ) {
+    throw new ProjectOnboardingErrorV01("inspection_stale", 409);
+  }
+  return registration;
 }
 
 class GitMetadataTooLargeError extends Error {}

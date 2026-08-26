@@ -48,6 +48,7 @@ import {
   formatDistributablePlatformLabel,
   validateDistributableManifest,
 } from "./distributable-package-contract.mjs";
+import { normalizedDependencyLock } from "./dependency-lock-compatibility.mjs";
 import { resolveAugnesLocalPaths } from "./augnes-local-paths.mjs";
 import {
   bootstrapJournalPath,
@@ -107,6 +108,30 @@ const PACKAGE_PLATFORM = detectDistributablePlatform();
 const PACKAGE_PLATFORM_LABEL = formatDistributablePlatformLabel(
   PACKAGE_PLATFORM,
 );
+const packageSupported = DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(
+  process.platform,
+);
+if (!packageSupported) {
+  console.log(
+    JSON.stringify(
+      {
+        test: "distributable-package-and-packaged-runtime",
+        status: "unsupported",
+        package_supported: false,
+        platform: process.platform,
+        skip_reason: "package_build_runtime_unsupported",
+        source_runtime_support_affected: false,
+        owned_processes_after: 0,
+        owned_ports_after: 0,
+        package_test_roots_after: 0,
+        build_temp_roots_after: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 const artifactName =
   `augnes-${APPLICATION_VERSION}-${PACKAGE_PLATFORM_LABEL}.tar.gz`;
 const canonicalTemporaryRoot = canonicalRootFromEnvironment();
@@ -172,10 +197,6 @@ if (
 }
 
 try {
-  assert(
-    DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(process.platform),
-    `distributable package test is unsupported on ${process.platform}`,
-  );
   assertContractRejectsForbiddenPayloads();
   const packageStartedAt = Date.now();
   const packageResult = await runCapturedProcess({
@@ -642,6 +663,13 @@ function validatePackageContents(root) {
   ]);
   assert.deepEqual(manifest.database?.supported_source_schema_signatures, [
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
+    "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
+    "a6fb21f4cf5a33df52d130f4b05b9b26094ac151afff274592979f9fe535d302",
+    "cdc300623c2a79fadba08eb452d34aeb3a009ae15c4e45737e5edc7e004bdd53",
+    "96d291d31d72154309598d4a308f8c9c8bd5182dbbcdb39ab51239e39a2355f3",
+    "b6a39ad73850ab0839e2f41975e61966d1a23f260cc09bf90ae5c9a877230e79",
+    "0bbd52cf5430bce8102865ea347b15aa90341e60d822b2000282080018698d8a",
+    "b784b2bd6da466388c1a1c6f639f9f4bdb128c3fb6cda0d4b50e85b006cca477",
   ]);
   assert(Array.isArray(manifest.files) && manifest.files.length > 0);
 
@@ -1282,7 +1310,8 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     const bridgeHealth = await fetchJson(`http://127.0.0.1:${ready.bridge_port}/healthz`);
     assert.equal(bridgeHealth.status, 200);
     assert.equal(bridgeHealth.body.ok, true);
-    assert.equal(bridgeHealth.body.mode, "mock");
+    assert.equal(bridgeHealth.body.mode, "http");
+    assert.equal(bridgeHealth.body.live_core_status, "ready");
     assert.equal(bridgeHealth.body.runtime_instance_id, ready.instance_id);
     assertDistributionMetadata(bridgeHealth.body, manifest);
 
@@ -1312,17 +1341,19 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
     assert.equal(managed.child.exitCode, null);
 
     await onboardDisposableProject(ready.effective_url, scenario);
-    const projectHome = await fetchText(`${ready.effective_url}/`);
-    assert.equal(projectHome.status, 200);
-    assert.match(projectHome.body, /Project Home|Choose a project/);
-    assert.match(projectHome.body, /No local OpenAI credential is configured/);
-    assert.match(projectHome.body, /No trusted local Codex or native-host readiness status is available/);
+    const blankState = await fetchText(`${ready.effective_url}/`);
+    assert.equal(blankState.status, 200);
+    assert.match(blankState.body, /Continuities/);
+    assert.match(blankState.body, /data-primary-product-zone="blank-state"/);
+    assert.match(blankState.body, /No local OpenAI credential is configured/);
+    assert.match(blankState.body, /No trusted local Codex or native-host readiness status is available/);
     const workbench = await fetchText(`${ready.effective_url}/workbench/semantic-review`);
     assert.equal(workbench.status, 200);
-    assert.match(workbench.body, /Semantic Workbench|Semantic Review Workbench/);
+    assert.match(workbench.body, /AI Workplane/);
+    assert.match(workbench.body, /data-primary-product-zone="ai-workplane"/);
     const inspector = await fetchText(`${ready.effective_url}/workbench/inspector`);
     assert.equal(inspector.status, 200);
-    assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
+    assert.match(inspector.body, /Exact details|Checking exact details/);
     assert.equal(existsSync(scenario.projectExecutionSentinel), false);
 
     const stop = await runPackagedCli(root, ["stop"], environment, "stop fresh package");
@@ -1350,7 +1381,8 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assertDistributionMetadata(current, manifest);
   const homeAfterRestart = await fetchText(`${current.effective_url}/`);
   assert.equal(homeAfterRestart.status, 200);
-  assert.match(homeAfterRestart.body, /Project Home/);
+  assert.match(homeAfterRestart.body, /Continuities/);
+  assert.match(homeAfterRestart.body, /data-primary-product-zone="blank-state"/);
   const currentLocalPaths = packagedLocalPaths(
     root,
     manifest,
@@ -2020,18 +2052,17 @@ function assertDependencyLockCompatibility(legacyRoot, currentRoot) {
     path.join("apps", "augnes_apps", "package-lock.json"),
   ]) {
     assert.deepEqual(
-      normalizedDependencyLock(path.join(legacyRoot, relativePath)),
-      normalizedDependencyLock(path.join(currentRoot, relativePath)),
+      normalizedDependencyLockFromFile(path.join(legacyRoot, relativePath)),
+      normalizedDependencyLockFromFile(path.join(currentRoot, relativePath)),
       `${relativePath} dependency graph changed since merged #1118`,
     );
   }
 }
 
-function normalizedDependencyLock(filePath) {
-  const lock = JSON.parse(readFileSync(filePath, "utf8"));
-  delete lock.version;
-  if (lock.packages?.[""]) delete lock.packages[""].version;
-  return lock;
+function normalizedDependencyLockFromFile(filePath) {
+  return normalizedDependencyLock(
+    JSON.parse(readFileSync(filePath, "utf8")),
+  );
 }
 
 function copyIsolatedPackageDependencies(legacyRoot, currentRoot) {
@@ -2132,11 +2163,13 @@ async function testV1ContractMigrationHandoff(root, manifest) {
   const projectSelection = await onboardDisposableProject(
     legacyReady.effective_url,
     scenario,
+    "legacy-project-home",
   );
   await assertProductReaders(
     legacyReady.effective_url,
     scenario,
     projectSelection,
+    "legacy-project-home",
   );
   const marker = "agent:v1-contract-migration-handoff";
   writeAgentMarker(scenario.databasePath, marker);
@@ -3808,7 +3841,11 @@ function assertDistributionMetadata(value, manifest) {
   assert.equal(value.database_schema_compatibility, manifest.database.schema_compatibility);
 }
 
-async function onboardDisposableProject(origin, scenario) {
+async function onboardDisposableProject(
+  origin,
+  scenario,
+  expectedSurface = "blank-state",
+) {
   const headers = {
     "content-type": "application/json",
     origin,
@@ -3834,6 +3871,7 @@ async function onboardDisposableProject(origin, scenario) {
       action: "confirm",
       selection_token: selected.picker.selection_token,
       inspection_fingerprint: selected.picker.inspection.inspection_fingerprint,
+      display_name: selected.picker.inspection.display_name,
     }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -3843,7 +3881,7 @@ async function onboardDisposableProject(origin, scenario) {
   assert.match(confirmed.result.destination, /^\/projects\//);
   const destination = await fetchText(`${origin}${confirmed.result.destination}`);
   assert.equal(destination.status, 200);
-  assert.match(destination.body, /Project Home/);
+  assertPackagedProjectSurface(destination.body, expectedSurface);
   assert.equal(existsSync(scenario.projectExecutionSentinel), false);
   return {
     destination: confirmed.result.destination,
@@ -3851,16 +3889,21 @@ async function onboardDisposableProject(origin, scenario) {
   };
 }
 
-async function assertProductReaders(origin, scenario, projectSelection = null) {
+async function assertProductReaders(
+  origin,
+  scenario,
+  projectSelection = null,
+  expectedSurface = "blank-state",
+) {
   const home = await fetchText(`${origin}/`);
   assert.equal(home.status, 200);
-  assert.match(home.body, /Project Home/);
+  assertPackagedProjectSurface(home.body, expectedSurface);
   if (projectSelection) {
-    const projectHome = await fetchText(
+    const projectView = await fetchText(
       `${origin}${projectSelection.destination}`,
     );
-    assert.equal(projectHome.status, 200);
-    assert.match(projectHome.body, /Project Home/);
+    assert.equal(projectView.status, 200);
+    assertPackagedProjectSurface(projectView.body, expectedSurface);
     const projectRead = await fetchJson(
       `${origin}/api/vnext/projects?project_id=${encodeURIComponent(projectSelection.projectId)}`,
     );
@@ -3880,11 +3923,31 @@ async function assertProductReaders(origin, scenario, projectSelection = null) {
     `${origin}/workbench/semantic-review`,
   );
   assert.equal(workbench.status, 200);
-  assert.match(workbench.body, /Semantic Workbench|Semantic Review Workbench/);
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(workbench.body, /Semantic Review Workbench/);
+    assert.match(workbench.body, /data-semantic-workbench-shell/);
+  } else {
+    assert.match(workbench.body, /AI Workplane/);
+    assert.match(workbench.body, /data-primary-product-zone="ai-workplane"/);
+  }
   const inspector = await fetchText(`${origin}/workbench/inspector`);
   assert.equal(inspector.status, 200);
-  assert.match(inspector.body, /Shared Inspector|Private Inspector locked/);
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(inspector.body, /Shared Inspector|Validating exact Inspector target/);
+  } else {
+    assert.match(inspector.body, /Exact details|Checking exact details/);
+  }
   assert.equal(existsSync(scenario.projectExecutionSentinel), false);
+}
+
+function assertPackagedProjectSurface(body, expectedSurface) {
+  if (expectedSurface === "legacy-project-home") {
+    assert.match(body, /Project Home/);
+    return;
+  }
+  assert.equal(expectedSurface, "blank-state");
+  assert.match(body, /Continuities/);
+  assert.match(body, /data-primary-product-zone="blank-state"/);
 }
 
 function packagedLocalPaths(root, manifest, environment) {

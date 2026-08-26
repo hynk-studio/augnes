@@ -1,82 +1,93 @@
 import type { ReactNode } from "react";
 
-export type ProductSurface =
-  | "projects"
-  | "home"
-  | "workbench"
-  | "inspector"
+import { ProjectSettingsLink } from "@/components/project-settings-link";
+
+export type PrimaryProductZone = "blank-state" | "ai-workplane";
+
+export type ProductUtilityContext =
+  | "project-management"
   | "portability"
   | "recovery";
 
 export interface ProductProjectContext {
   label: "Current project" | "Viewed project";
   name: string;
+  managementHref?: string;
 }
 
-const NAVIGATION: Array<{
+const PRIMARY_NAVIGATION: Array<{
   href: string;
   label: string;
   role: string;
-  surface: ProductSurface;
+  zone: PrimaryProductZone;
 }> = [
-  { href: "/projects", label: "Projects", role: "Open work", surface: "projects" },
-  { href: "/", label: "Home", role: "Resume", surface: "home" },
+  {
+    href: "/",
+    label: "Continuities",
+    role: "Carry · Resume",
+    zone: "blank-state",
+  },
   {
     href: "/workbench/semantic-review",
-    label: "Workbench",
-    role: "Verify · Decide",
-    surface: "workbench",
+    label: "AI Workplane",
+    role: "Work · Review",
+    zone: "ai-workplane",
   },
-  {
-    href: "/workbench/inspector?target=project_coordination",
-    label: "Inspector",
-    role: "Exact lineage",
-    surface: "inspector",
-  },
-  { href: "/portability", label: "Portability", role: "Transfer", surface: "portability" },
-  { href: "/recovery", label: "Recovery", role: "Protect", surface: "recovery" },
 ];
 
 export function ProductShell({
-  surface,
+  primaryZone,
+  utilityContext = null,
   projectContext,
+  secondaryNavigation = null,
+  railSupport = null,
   children,
 }: {
-  surface: ProductSurface;
+  primaryZone: PrimaryProductZone | null;
+  utilityContext?: ProductUtilityContext | null;
   projectContext?: ProductProjectContext | null;
+  secondaryNavigation?: ReactNode;
+  railSupport?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="product-shell" data-product-surface={surface}>
+    <div
+      className="product-shell"
+      data-primary-product-zone={primaryZone ?? "none"}
+      data-product-utility-context={utilityContext ?? "none"}
+    >
       <a className="product-skip-link" href="#augnes-main-content">
         Skip to content
       </a>
       <header className="product-shell-header">
         <div className="product-shell-bar">
           <a className="product-brand" href="/" aria-label="Augnes home">
-            <span className="product-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 32 32" focusable="false">
-                <path d="M7 24V9l9-4 9 4v14" />
-                <path d="m7 13 9 4 9-4M16 17v10" />
-                <circle cx="7" cy="24" r="2.25" />
-                <circle cx="16" cy="27" r="2.25" />
-                <circle cx="25" cy="23" r="2.25" />
-              </svg>
-            </span>
             <span>
               <strong>Augnes</strong>
               <small>Local project continuity</small>
             </span>
           </a>
           {projectContext ? (
-            <p
-              className="product-project-context"
-              title={projectContext.name}
-              data-project-context-label={projectContext.label}
-            >
-              <span>{projectContext.label}</span>
-              <strong>{projectContext.name}</strong>
-            </p>
+            projectContext.label === "Current project" &&
+            projectContext.managementHref ? (
+              <ProjectSettingsLink
+                href={projectContext.managementHref}
+                name={projectContext.name}
+                label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </ProjectSettingsLink>
+            ) : (
+              <p
+                className="product-project-context"
+                title={projectContext.name}
+                data-project-context-label={projectContext.label}
+              >
+                <span>{projectContext.label}</span>
+                <strong>{projectContext.name}</strong>
+              </p>
+            )
           ) : (
             <p className="product-project-context product-project-context--neutral">
               <span>Workspace</span>
@@ -84,21 +95,25 @@ export function ProductShell({
             </p>
           )}
         </div>
-        <nav className="product-navigation" aria-label="Augnes navigation">
-          {NAVIGATION.map((item) => (
-            <a
-              href={item.href}
-              key={item.surface}
-              aria-current={item.surface === surface ? "page" : undefined}
-            >
-              <span aria-hidden="true" className="product-navigation-node" />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.role}</small>
-              </span>
-            </a>
-          ))}
-        </nav>
+        <div className="product-navigation-rail">
+          <nav className="product-navigation" aria-label="Primary navigation">
+            {PRIMARY_NAVIGATION.map((item) => (
+              <a
+                href={item.href}
+                key={item.zone}
+                aria-current={item.zone === primaryZone ? "page" : undefined}
+              >
+                <span aria-hidden="true" className="product-navigation-node" />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.role}</small>
+                </span>
+              </a>
+            ))}
+          </nav>
+          {secondaryNavigation}
+          {railSupport}
+        </div>
       </header>
       <div id="augnes-main-content" className="product-shell-content" tabIndex={-1}>
         {children}

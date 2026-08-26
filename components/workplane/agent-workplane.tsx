@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { ProjectGuideBriefRail } from "@/components/guide/project-guide-brief-rail";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
+import type { GuideBriefAIWorkplaneProjectionV02 } from "@/types/vnext/guide-brief";
 
 const surfaceStyle: CSSProperties = {
   minHeight: "100vh",
@@ -31,16 +33,17 @@ const linkStyle: CSSProperties = {
   fontWeight: 750,
 };
 
-export function AgentWorkplane() {
+export function AgentWorkplane({ guide }: { guide?: GuideBriefAIWorkplaneProjectionV02 }) {
   return (
     <main aria-label="Agent Workplane" style={surfaceStyle}>
       <section style={cardStyle}>
+        <ProjectGuideBriefRail guide={guide} />
         <p style={{ margin: 0, fontWeight: 800, color: "#0f766e" }}>
           Augnes Workbench
         </p>
         <h1 style={{ margin: 0 }}>Review project-scoped native-host results</h1>
         <p style={{ margin: 0, lineHeight: 1.6 }}>
-          Start from the active Project Home. Augnes admits the exact persisted
+          Start from the current Continuities view. Augnes admits the exact persisted
           task context, supervises the native-host lifecycle, and returns one
           structured result automatically. The Semantic Workbench and shared
           Inspector then separate responsibility: Workbench owns explicit
@@ -49,7 +52,7 @@ export function AgentWorkplane() {
         </p>
         <div style={linkRowStyle}>
           <Link href="/" style={linkStyle}>
-            Open Project Home
+            Open Continuities
           </Link>
           <Link href="/workbench/semantic-review" style={linkStyle}>
             Open Semantic Workbench

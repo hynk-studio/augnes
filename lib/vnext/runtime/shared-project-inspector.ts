@@ -67,6 +67,11 @@ import {
 import { validateRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import {
+  assertOperationalContinuationAdmissionV01,
+  readOperationalContinuationLineageStateV01,
+} from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
 import { validateContextUseReviewV01 } from "@/lib/vnext/context-use-review";
 import {
   validateClaimEvidenceRelationV01,
@@ -1333,7 +1338,13 @@ function laterContextSectionV01(
     "Later context and feedback",
     packet ? "available" : input.continuity ? "pending" : exactTargetPacket ? "unavailable" : "missing",
     packet
-      ? "The later packet is compiler-produced after an applied Transition. Presentation, actual use, and usefulness remain separate."
+      ? packet.lineage_kind === "pre_execution_user_revision"
+        ? "The current packet is an append-only user revision saved before execution. Presentation, actual use, and usefulness remain separate."
+        : packet.lineage_kind === "initial_user_defined"
+          ? "The current packet is the user's initial work definition. Presentation, actual use, and usefulness remain separate."
+          : packet.lineage_kind === "source_linked_operational_continuation"
+            ? "The current packet is explicitly admitted source-linked operational continuation context. It is non-semantic working context and grants no execution authority."
+            : "The later packet is compiler-produced after an applied Transition. Presentation, actual use, and usefulness remain separate."
       : input.continuity
         ? "No compiler-produced later packet is available; decision-only and gate-only material did not change context."
         : exactTargetPacket
@@ -1349,7 +1360,13 @@ function laterContextSectionV01(
     packet
       ? [itemV01(
           packet.packet_id,
-          "Compiler-produced TaskContextPacket",
+          packet.lineage_kind === "pre_execution_user_revision"
+            ? "Pre-execution revised TaskContextPacket"
+            : packet.lineage_kind === "initial_user_defined"
+              ? "Initial user-defined TaskContextPacket"
+              : packet.lineage_kind === "source_linked_operational_continuation"
+                ? "Source-linked operational continuation TaskContextPacket"
+                : "Compiler-produced TaskContextPacket",
           `${packet.accepted_state_count} accepted state refs · ${input.continuity?.packet_currentness ?? "unavailable"}`,
           feedback ? "feedback_recorded" : "feedback_pending",
           packet.generated_at,
@@ -1565,13 +1582,15 @@ function validateAndDescribeCoreRecordV01(
           packet_id: packet.packet_id,
           packet_fingerprint: packet.integrity.fingerprint,
         });
-        const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
-          workspace_id: config.workspace_id,
-          project_id: config.project_id,
-          transition_receipt_id: packetLineage.source_transition_receipt.transition_receipt_id,
-          transition_receipt_fingerprint: packetLineage.source_transition_receipt.transition_receipt_fingerprint,
-        });
-        proposalId = transition.proposal.proposal_id;
+        if (packetLineage.lineage_kind === "semantic_transition") {
+          const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+            workspace_id: config.workspace_id,
+            project_id: config.project_id,
+            transition_receipt_id: packetLineage.source_transition_receipt.transition_receipt_id,
+            transition_receipt_fingerprint: packetLineage.source_transition_receipt.transition_receipt_fingerprint,
+          });
+          proposalId = transition.proposal.proposal_id;
+        }
       } catch (error) {
         if (
           !(error instanceof VNextOperatorPilotContinuityErrorV01) ||
@@ -1724,6 +1743,40 @@ function validateAndDescribeCoreRecordV01(
     case "context_use_review": {
       if (validateContextUseReviewV01(record.payload).status !== "valid") refuseV01("shared_inspector_context_use_review_conflict");
       const review = record.payload as ContextUseReviewV01;
+      if (review.source_operational_continuation) {
+        const lineage = readOperationalContinuationLineageStateV01(db, {
+          workspace_id: config.workspace_id,
+          project_id: config.project_id,
+        });
+        if (
+          !lineage ||
+          lineage.admission.admission_id !==
+            review.source_operational_continuation.admission_id ||
+          lineage.admission.integrity.fingerprint !==
+            review.source_operational_continuation.admission_fingerprint ||
+          lineage.packet_a.packet_id !== review.prior_packet.packet_id ||
+          lineage.packet_a.integrity.fingerprint !==
+            review.prior_packet.packet_fingerprint ||
+          lineage.packet_b.packet_id !== review.later_packet.packet_id ||
+          lineage.packet_b.integrity.fingerprint !==
+            review.later_packet.packet_fingerprint
+        ) {
+          refuseV01("shared_inspector_context_use_review_continuation_conflict");
+        }
+        return {
+          ...focusV01(
+            "ContextUseReview",
+            `${review.assessment}; actual use ${review.usage.actually_used}`,
+            "packet-level feedback, not item-level truth",
+            review.reviewed_at,
+          ),
+          receipt_id: review.later_task_run_receipt.receipt_id,
+          packet: lineage.packet_b,
+        };
+      }
+      if (!review.source_transition_receipt) {
+        refuseV01("shared_inspector_context_use_review_lineage_missing");
+      }
       const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
         workspace_id: config.workspace_id,
         project_id: config.project_id,
@@ -1739,6 +1792,31 @@ function validateAndDescribeCoreRecordV01(
         gate_id: transition.gate_record.gate_record_id,
         transition_receipt_id: transition.receipt.transition_receipt_id,
         lineage_lookup: { lookup_kind: "transition_receipt", transition_receipt_id: review.source_transition_receipt.transition_receipt_id, expected_fingerprint: review.source_transition_receipt.transition_receipt_fingerprint },
+      };
+    }
+    case "operational_continuation_admission": {
+      assertOperationalContinuationAdmissionV01(record.payload);
+      const admission = record.payload as OperationalContinuationAdmissionV01;
+      const lineage = readOperationalContinuationLineageStateV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+      });
+      if (
+        !lineage ||
+        lineage.admission.admission_id !== admission.admission_id ||
+        lineage.admission.integrity.fingerprint !==
+          admission.integrity.fingerprint
+      ) {
+        refuseV01("shared_inspector_operational_continuation_conflict");
+      }
+      return {
+        ...focusV01(
+          "Operational continuation admission",
+          "Authenticated Packet A to Packet B working-context admission; it is not a semantic Transition and grants no execution authority.",
+          "non-semantic current context, not policy or approval",
+          admission.authenticated_action.admitted_at,
+        ),
+        packet: lineage.packet_b,
       };
     }
     case "automation_work_item": {
@@ -1816,6 +1894,7 @@ function coreRecordKindV01(
     "state_transition_receipt",
     "semantic_state",
     "context_use_review",
+    "operational_continuation_admission",
     "capability_grant",
   ];
   if (allowed.includes(targetKind as VNextCoreRecordKindV01)) {

@@ -134,6 +134,57 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
         const { AUGNES_BRIDGE_TOOL_NAMES, createMcpAppServer, WIDGET_URI } = await import('./src/server.ts');
         const server = createMcpAppServer(new MockAugnesCoreAdapter(), new MockStateRuntimeBridgeAdapter(), { enableAgentBridge: true });
         const args = {
+          augnes_resume_repository: { repositoryRoot: process.cwd() },
+          augnes_prepare_repository_execution: { repositoryRoot: process.cwd() },
+          augnes_adopt_repository_execution_root: {
+            repositoryRoot: process.cwd(), expectedAdmissionFingerprint: 'sha256:admission',
+            expectedObservationFingerprint: 'sha256:observation',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
+          augnes_rebind_repository_execution_root: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke',
+            newRepositoryRoot: process.cwd(), expectedOldRootBindingFingerprint: 'sha256:root',
+            expectedOldBaselineFingerprint: 'sha256:baseline', expectedNewObservationFingerprint: 'sha256:observation',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
+          augnes_preview_repository_execution_root_rebind: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', newRepositoryRoot: process.cwd(),
+          },
+          augnes_validate_repository_execution_attachment: { attachmentId: 'sha256:attachment' },
+          augnes_preview_repository_execution_attachment_revocation: {
+            attachmentId: 'sha256:attachment', expectedBindingFingerprint: 'sha256:binding',
+          },
+          augnes_revoke_repository_execution_attachment: {
+            attachmentId: 'sha256:attachment', expectedBindingFingerprint: 'sha256:binding',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
+          augnes_request_repository_delegation: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', attachmentId: 'sha256:attachment',
+          },
+          augnes_start_repository_delegation: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', attachmentId: 'sha256:attachment',
+            expectedAttachmentBindingFingerprint: 'sha256:binding',
+            expectedExecutionEnvelopeFingerprint: 'sha256:envelope',
+            decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
+          augnes_cancel_repository_delegation: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', attachmentId: 'sha256:attachment',
+            expectedAttachmentBindingFingerprint: 'sha256:binding', runId: 'host-run:smoke', controlRevision: 1,
+          },
+          augnes_request_repository_resume: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke',
+          },
+          augnes_resume_repository_delegation: {
+            workspaceId: 'workspace:smoke', projectId: 'project:smoke', runId: 'host-run:smoke',
+            attachmentId: 'sha256:attachment', expectedAttachmentBindingFingerprint: 'sha256:binding',
+            expectedStateFingerprint: 'sha256:expected-state', expectedControllerGeneration: 2,
+            expectedRunControlRevision: 1, decisionRequestFingerprint: 'sha256:decision-request',
+            decisionGrantFingerprint: 'sha256:decision-grant',
+          },
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
           augnes_get_guide_brief: {},
@@ -252,12 +303,17 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           resultStatus: 'blocked',
           resultKind: 'verification',
         });
+        const explicitGuideResult = await server._registeredTools.augnes_get_guide_brief.handler({
+          projectId: 'project:00000000-0000-4000-8000-000000000002',
+          compact: false,
+        });
         server.close();
         console.log(JSON.stringify({
           widgetUri: WIDGET_URI,
           profiles,
           richRecord: richRecordResult.structuredContent?.actionRecord,
           richRecordText: richRecordResult.content?.[0]?.text,
+          explicitGuide: explicitGuideResult.structuredContent?.guideBrief,
           toolNames: Object.keys(server._registeredTools)
         }));
       `,
@@ -651,7 +707,7 @@ async function main() {
   const envBridgeSnapshot = JSON.parse(envBridgeToolProfiles.stdout);
   assert.deepEqual(
     envBridgeSnapshot.toolNames,
-    [...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 13), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(13)],
     "AUGNES_ENABLE_AGENT_BRIDGE=true should expose bridge tools in addition to the public tools"
   );
 
@@ -674,7 +730,7 @@ async function main() {
   assert.equal(bridgeSnapshot.widgetUri, WIDGET_URI, "bridge child snapshot should use the versioned widget URI");
   assert.deepEqual(
     bridgeSnapshot.toolNames,
-    [...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES],
+    [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 13), ...intendedPublicToolNames, ...AUGNES_BRIDGE_TOOL_NAMES.slice(13)],
     "bridge-enabled snapshot should expose public tools plus the explicit Augnes bridge tools"
   );
   for (const toolName of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -693,7 +749,7 @@ async function main() {
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.guide_version,
-    "guide_brief.v0.1",
+    "guide_brief.v0.2",
     "augnes_get_guide_brief should return GuideBrief structured content"
   );
   assert.equal(
@@ -702,17 +758,17 @@ async function main() {
     "augnes_get_guide_brief should summarize observed items"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_execute_codex,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority.can_execute_codex,
     false,
     "augnes_get_guide_brief should not expose Codex execution authority"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_call_openai_or_provider,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority.can_call_openai_or_provider,
     false,
     "augnes_get_guide_brief should preserve guideBrief OpenAI/provider denial"
   );
   assert.equal(
-    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSnake.authority_boundary.can_call_openai_or_provider,
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSnake.authority.can_call_openai_or_provider,
     false,
     "augnes_get_guide_brief should preserve guide_brief OpenAI/provider denial"
   );
@@ -738,18 +794,43 @@ async function main() {
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Suggestions are not actions/i,
-    "augnes_get_guide_brief should state suggestions are not actions"
+    /Suggestions are not instructions/i,
+    "augnes_get_guide_brief should state suggestions are not instructions"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Needs user judgment items are not decided by the guide/i,
+    /Unresolved user judgment:/i,
     "augnes_get_guide_brief should state user judgment items are not decided"
   );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.source_status,
+    "live_current_project",
+    "augnes_get_guide_brief should expose current-project source status"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.coordinate.delegated_work.stage,
+    "result_ready",
+    "augnes_get_guide_brief should preserve the bounded delegated-work stage"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSummary.delegated_work.latest_checkpoint,
+    "Result saved",
+    "augnes_get_guide_brief should summarize the latest bounded checkpoint"
+  );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
-    /Handoff candidates are preview-only/i,
-    "augnes_get_guide_brief should state handoff candidates are preview-only"
+    /Delegated Codex work: result_ready/i,
+    "augnes_get_guide_brief narrative should include bounded delegated progress"
+  );
+  assert.equal(
+    bridgeSnapshot.explicitGuide.identity.project_id,
+    "project:00000000-0000-4000-8000-000000000002",
+    "augnes_get_guide_brief should preserve an explicitly requested exact project"
+  );
+  assert.equal(
+    bridgeSnapshot.explicitGuide.identity.project_context,
+    "viewed",
+    "an explicit GuideBrief project read must not silently switch active context"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.contract_version,

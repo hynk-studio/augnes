@@ -1,0 +1,1212 @@
+{
+  "schema": "augnes.browser-verification-owners.v1",
+  "version": 1,
+  "invariant_contract": {
+    "required_resources": [
+      "writable_database",
+      "runtime_state_directory",
+      "runtime_supervisor_process_tree",
+      "application_listener_port",
+      "bridge_debug_ports",
+      "browser_process",
+      "cdp_session",
+      "browser_profile",
+      "temporary_root",
+      "project_roots",
+      "download_directory",
+      "shard_local_credentials",
+      "file_signal_barriers",
+      "request_response_console_page_ledgers",
+      "owned_streams_and_cleanup"
+    ],
+    "success_requires": [
+      "exit_code_zero",
+      "natural_exit",
+      "exit_observed",
+      "streams_closed",
+      "cleanup_complete",
+      "zero_owned_process_residue",
+      "zero_listener_residue",
+      "zero_unexpected_external_requests",
+      "zero_unexpected_console_page_request_failures",
+      "credential_private_material_boundary"
+    ],
+    "shared_mutable_resources": "forbidden",
+    "provider_or_external_network": "forbidden"
+  },
+  "owners": {
+    "project_experience": {
+      "command": "npm run test:e2e:project-experience",
+      "canonical_suite": "e2e-project-experience",
+      "canonical_phase_id": "e2e-project-experience",
+      "executable_source": "scripts/browser-validate-project-experience-v1.mjs",
+      "families": [
+        {
+          "id": "project_onboarding_and_naming",
+          "fields": [
+            "declared_path_existing_project_reopen",
+            "declared_path_invalid_retained",
+            "declared_path_keyboard_focus",
+            "declared_path_non_exact_refused_retained",
+            "declared_path_public_copy",
+            "declared_path_responsive_review",
+            "declared_path_shared_review",
+            "folder_onboarding_destination",
+            "folder_onboarding_restart_reopen",
+            "folder_onboarding_stale_active_conflict",
+            "folder_picker_cancelled_usable",
+            "picker_pending_path_switch",
+            "project_context_keyboard_activation",
+            "project_context_opens_settings",
+            "project_context_repeat_activation",
+            "project_name_invalid_blocked",
+            "project_name_long_korean_propagated",
+            "project_name_onboarding_prefill_and_edit",
+            "project_name_stale_conflict_visible",
+            "stale_abandonment_new_session_preserved"
+          ],
+          "markers": [
+            "declared_path_fallback_review_connect_and_existing_reopen",
+            "folder_onboarding_confirmation_refresh_restart_and_reopen"
+          ]
+        },
+        {
+          "id": "project_home_lifecycle_presentation",
+          "fields": [
+            "guide_brief_blank_state_v0_2",
+            "guide_brief_model_interpretation_browser",
+            "minimum_project_home_empty_state",
+            "minimum_project_home_expired_context_withheld",
+            "minimum_project_home_explicit_activation",
+            "minimum_project_home_non_active_deep_link_read_only",
+            "minimum_project_home_project_isolation",
+            "minimum_project_home_refresh_read_only",
+            "minimum_project_home_unknown_project_safe_not_found",
+            "minimum_project_home_unknown_project_status",
+            "project_home_coordination_visible",
+            "project_recovery_cancel_and_retry",
+            "project_recovery_context_passive",
+            "project_recovery_declared_path_retained",
+            "project_recovery_entry_parity",
+        "project_recovery_fresh_rebind_completed",
+        "project_recovery_fresh_session_established",
+        "project_recovery_same_candidate_prepare_reordering_safe",
+        "project_recovery_terminal_cookie_cleared",
+        "project_recovery_retry_cookie_budget_bounded",
+        "project_recovery_final_after_retry_stress",
+        "project_recovery_general_decision_cookie_preserved",
+        "project_recovery_native_and_declared_review",
+            "project_recovery_no_mutation_before_confirmation",
+            "project_recovery_non_exact_refused",
+            "project_recovery_no_plaintext_bootstrap_exposed",
+            "project_recovery_pending_path_switch",
+            "project_recovery_public_copy",
+            "project_recovery_request_scoped_authority_only",
+            "project_recovery_responsive_review",
+            "project_recovery_same_project_rebind"
+          ],
+          "markers": [
+            "minimum_project_home_empty_refresh_restart_isolation_and_explicit_switch",
+            "guidebrief_model_interpretation_preserves_deterministic_ownership",
+            "verified_folder_path_recovery_preserves_project_continuity"
+          ]
+        },
+        {
+          "id": "project_shell_and_locked_entry",
+          "fields": [
+            "ai_workplane_project_context_opens_settings",
+            "guide_brief_ai_workplane_v0_2",
+            "guide_brief_cross_surface_consistency",
+            "workbench_compatibility_redirect"
+          ],
+          "markers": [
+            "locked_workbench_renders_no_private_material"
+          ]
+        },
+        {
+          "id": "retired_route_safety",
+          "fields": [
+            "retired_route_statuses",
+            "retired_routes_non_mutating"
+          ],
+          "markers": [
+            "retired_native_host_transport_routes_return_non_mutating_404"
+          ]
+        },
+        {
+          "id": "responsive_product_shell",
+          "fields": [
+            "delegated_work_narrow_viewport_no_overflow",
+            "first_work_browser_viewports",
+            "management_safety_keyboard_navigation",
+            "minimum_project_home_narrow_viewport_no_overflow",
+            "product_shell_responsive_results",
+            "product_shell_route_classifications",
+            "project_context_emphasized_owner",
+            "proposal_review_narrow_viewport_no_overflow",
+            "shared_inspector_narrow_viewport_no_overflow",
+            "viewport_results",
+            "viewport_warnings",
+            "workbench_result_narrow_viewport_no_overflow"
+          ],
+          "markers": [
+            "management_safety_reaches_visible_project_management_without_switching"
+          ]
+        }
+      ],
+      "value_contracts": {
+        "boolean_true": [
+          "ai_workplane_project_context_opens_settings",
+          "declared_path_existing_project_reopen",
+          "declared_path_invalid_retained",
+          "declared_path_keyboard_focus",
+          "declared_path_non_exact_refused_retained",
+          "declared_path_public_copy",
+          "declared_path_responsive_review",
+          "declared_path_shared_review",
+          "delegated_work_narrow_viewport_no_overflow",
+          "first_work_browser_viewports",
+          "folder_onboarding_restart_reopen",
+          "folder_onboarding_stale_active_conflict",
+          "folder_picker_cancelled_usable",
+          "guide_brief_ai_workplane_v0_2",
+          "guide_brief_blank_state_v0_2",
+          "guide_brief_model_interpretation_browser",
+          "guide_brief_cross_surface_consistency",
+          "management_safety_keyboard_navigation",
+          "minimum_project_home_empty_state",
+          "minimum_project_home_expired_context_withheld",
+          "minimum_project_home_explicit_activation",
+          "minimum_project_home_narrow_viewport_no_overflow",
+          "minimum_project_home_non_active_deep_link_read_only",
+          "minimum_project_home_project_isolation",
+          "minimum_project_home_refresh_read_only",
+          "minimum_project_home_unknown_project_safe_not_found",
+          "picker_pending_path_switch",
+          "project_context_emphasized_owner",
+          "project_context_keyboard_activation",
+          "project_context_opens_settings",
+          "project_context_repeat_activation",
+          "project_home_coordination_visible",
+          "project_name_invalid_blocked",
+          "project_name_long_korean_propagated",
+          "project_name_onboarding_prefill_and_edit",
+          "project_name_stale_conflict_visible",
+          "project_recovery_cancel_and_retry",
+          "project_recovery_context_passive",
+          "project_recovery_declared_path_retained",
+          "project_recovery_entry_parity",
+      "project_recovery_fresh_rebind_completed",
+      "project_recovery_fresh_session_established",
+      "project_recovery_same_candidate_prepare_reordering_safe",
+      "project_recovery_terminal_cookie_cleared",
+      "project_recovery_retry_cookie_budget_bounded",
+      "project_recovery_final_after_retry_stress",
+      "project_recovery_general_decision_cookie_preserved",
+      "project_recovery_native_and_declared_review",
+          "project_recovery_no_mutation_before_confirmation",
+          "project_recovery_non_exact_refused",
+          "project_recovery_no_plaintext_bootstrap_exposed",
+          "project_recovery_pending_path_switch",
+          "project_recovery_public_copy",
+          "project_recovery_request_scoped_authority_only",
+          "project_recovery_responsive_review",
+          "project_recovery_same_project_rebind",
+          "proposal_review_narrow_viewport_no_overflow",
+          "retired_routes_non_mutating",
+          "shared_inspector_narrow_viewport_no_overflow",
+          "stale_abandonment_new_session_preserved",
+          "workbench_compatibility_redirect",
+          "workbench_result_narrow_viewport_no_overflow"
+        ],
+        "canonical_project_route": [
+          "folder_onboarding_destination"
+        ],
+        "minimum_project_home_unknown_status": [
+          "minimum_project_home_unknown_project_status"
+        ],
+        "retired_route_status_matrix": [
+          "retired_route_statuses"
+        ],
+        "product_shell_route_matrix": [
+          "product_shell_route_classifications"
+        ],
+        "product_shell_responsive_matrix": [
+          "product_shell_responsive_results"
+        ],
+        "viewport_surface_matrix": [
+          "viewport_results"
+        ],
+        "empty_array": [
+          "viewport_warnings"
+        ],
+        "matrices": {
+          "minimum_project_home_unknown_status": {
+            "accepted_statuses": [
+              200
+            ]
+          },
+          "retired_route_status_matrix": {
+            "accepted_statuses": [
+              404,
+              405
+            ],
+            "route_ids": [
+              "packet_handoff_api",
+              "later_result_api",
+              "result_report_api",
+              "handoff_capsule_api",
+              "launch_card_api",
+              "handoff_generate_api",
+              "handoff_review_api",
+              "packet_export_api",
+              "packet_handoff_page"
+            ]
+          },
+          "product_shell_route_matrix": {
+            "entries": [
+              {
+                "route": "/projects/[projectId]",
+                "primary_zone": "blank-state",
+                "utility_context": "none",
+                "project_context_label": "Current project"
+              },
+              {
+                "route": "/workbench/semantic-review",
+                "primary_zone": "ai-workplane",
+                "utility_context": "none",
+                "project_context_label": "Current project"
+              },
+              {
+                "route": "/workbench/inspector",
+                "primary_zone": "ai-workplane",
+                "utility_context": "none",
+                "project_context_label": null
+              },
+              {
+                "route": "/projects",
+                "primary_zone": "blank-state",
+                "utility_context": "none",
+                "project_context_label": "Current project"
+              }
+            ]
+          },
+          "product_shell_responsive_matrix": {
+            "entries": [
+              {
+                "route": "/projects/[projectId]",
+                "width": 390
+              },
+              {
+                "route": "/projects/[projectId]",
+                "width": 430
+              },
+              {
+                "route": "/workbench/semantic-review",
+                "width": 390
+              },
+              {
+                "route": "/workbench/semantic-review",
+                "width": 430
+              },
+              {
+                "route": "/workbench/inspector",
+                "width": 390
+              },
+              {
+                "route": "/workbench/inspector",
+                "width": 430
+              },
+              {
+                "route": "/projects",
+                "width": 390
+              },
+              {
+                "route": "/projects",
+                "width": 430
+              }
+            ]
+          },
+          "viewport_surface_matrix": {
+            "entries": [
+              {
+                "surface": "first_work_composer",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "first_work_composer",
+                "width": 1280,
+                "height": 900
+              },
+              {
+                "surface": "first_work_composer",
+                "width": 430,
+                "height": 932
+              },
+              {
+                "surface": "first_work_composer",
+                "width": 390,
+                "height": 844
+              },
+              {
+                "surface": "project_home_first-work-not-defined",
+                "width": 390,
+                "height": 844
+              },
+              {
+                "surface": "project_home_first-work-not-defined",
+                "width": 430,
+                "height": 932
+              },
+              {
+                "surface": "project_home_first-work-not-defined",
+                "width": 1280,
+                "height": 900
+              },
+              {
+                "surface": "project_home_first-work-not-defined",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "project_home_viewed-inactive-project",
+                "width": 390,
+                "height": 844
+              },
+              {
+                "surface": "project_home_viewed-inactive-project",
+                "width": 430,
+                "height": 932
+              },
+              {
+                "surface": "project_home_viewed-inactive-project",
+                "width": 1280,
+                "height": 900
+              },
+              {
+                "surface": "project_home_viewed-inactive-project",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 390,
+                "height": 844
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 430,
+                "height": 932
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 1280,
+                "height": 900
+              },
+              {
+                "surface": "project_recovery_review",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "delegated_work",
+                "width": 390,
+                "height": 1000
+              },
+              {
+                "surface": "delegated_work",
+                "width": 430,
+                "height": 1000
+              },
+              {
+                "surface": "workbench_run_result",
+                "width": 390,
+                "height": 1000
+              },
+              {
+                "surface": "workbench_run_result",
+                "width": 430,
+                "height": 1000
+              },
+              {
+                "surface": "workbench_run_result",
+                "width": 768,
+                "height": 1000
+              },
+              {
+                "surface": "workbench_run_result",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "proposal_review",
+                "width": 390,
+                "height": 1000
+              },
+              {
+                "surface": "proposal_review",
+                "width": 430,
+                "height": 1000
+              },
+              {
+                "surface": "proposal_review",
+                "width": 768,
+                "height": 1000
+              },
+              {
+                "surface": "proposal_review",
+                "width": 1440,
+                "height": 1000
+              },
+              {
+                "surface": "shared_project_inspector",
+                "width": 390,
+                "height": 1000
+              },
+              {
+                "surface": "shared_project_inspector",
+                "width": 430,
+                "height": 1000
+              },
+              {
+                "surface": "shared_project_inspector",
+                "width": 768,
+                "height": 1000
+              },
+              {
+                "surface": "shared_project_inspector",
+                "width": 1440,
+                "height": 1000
+              }
+            ]
+          }
+        }
+      }
+    },
+    "operator_execution": {
+      "command": "npm run test:e2e:operator-execution",
+      "canonical_suite": "e2e-operator-execution",
+      "children": [
+        {
+          "id": "operator-review-control",
+          "canonical_suite": "e2e-operator-review-control",
+          "canonical_phase_id": "e2e-operator-review-control",
+          "executable_source": "scripts/browser-validate-operator-review-control-v1.mjs",
+          "fixture_profile": "review_control",
+          "families": [
+            {
+              "id": "project_controls_and_automation",
+              "fields": [
+                "control_mutation_grants_created",
+                "control_mutation_personal_content_created",
+                "control_mutation_runs_created",
+                "control_mutation_semantic_rows_created",
+                "project_automation_default_not_configured",
+                "project_automation_enabled",
+                "project_automation_paused",
+                "project_automation_policy_summary_visible",
+                "project_automation_resumed",
+                "project_automation_stale_conflict_visible",
+                "project_controls_two_project_isolation"
+              ],
+              "markers": [
+                "project_controls_enable_pause_resume_scope_restart_conflict_and_isolation"
+              ]
+            },
+            {
+              "id": "operator_session_bootstrap",
+              "fields": [
+                "credential_material_in_dom",
+                "credential_material_in_server_log"
+              ],
+              "markers": [
+                "bootstrap_token_absent_from_dom_and_server_log"
+              ]
+            },
+            {
+              "id": "strategic_analysis_and_proposal_review",
+              "fields": [
+                "strategic_candidate_defer_no_transition",
+                "strategic_model_gateway_fake_transport_calls",
+                "strategic_profile_explicit_request",
+                "strategic_proposal_material_visible",
+                "strategic_proposal_pending_unknown_non_authoritative",
+                "strategic_proposal_reload_idempotent",
+                "strategic_shared_inspector_complete",
+                "strategic_source_to_proposal_navigation"
+              ],
+              "markers": [
+                "strategic_candidate_defer_records_decision_without_transition_or_packet_change",
+                "strategic_proposal_full_material_lineage_and_non_authority_render",
+                "strategic_proposal_reload_creates_no_model_or_semantic_write",
+                "strategic_source_explicitly_admits_exact_pending_unknown_proposal_without_internal_input"
+              ]
+            },
+            {
+              "id": "result_review_and_inspector",
+              "fields": [
+                "applied_inspector_lineage_complete",
+                "canonical_reconciliation_visible",
+                "core_handoff_copy_actions",
+                "decision_centered_workbench",
+                "execution_task_success_separated",
+                "handoff_capsule_copy_actions",
+                "internal_id_entry_actions",
+                "launch_card_copy_actions",
+                "native_host_clipboard_calls",
+                "packet_copy_actions",
+                "proposal_verify_summary",
+                "protocol_details_progressively_disclosed",
+                "result_inspector_complete",
+                "result_paste_actions",
+                "result_report_textarea_interactions",
+                "result_review_semantic_authority_unchanged",
+                "result_to_proposal_navigation",
+                "review_decisions_created",
+                "selected_work_timeline_first",
+                "selected_work_timeline_state_coverage",
+                "semantic_proposals_created",
+                "semantic_transitions_created",
+                "shared_inspector_read_only",
+                "shared_inspector_reload_idempotent",
+                "shared_inspector_server_scoped",
+                "shared_semantic_workbench_shell",
+                "strategic_profile_no_analysis_on_load",
+                "strategic_profile_no_internal_id_input",
+                "strategic_profile_optional_unavailable",
+                "strategic_profile_zero_model_review_preserved",
+                "task_success_criterion_assessment",
+                "work_closures_created",
+                "workbench_result_reload_durable",
+                "workbench_result_review_read_only"
+              ],
+              "markers": [
+                "contextual_inspector_exact_status_remains_primary_for_inactive_projects",
+                "contextual_inspector_route_errors_preserve_missing_conflict_and_unavailable",
+                "optional_strategic_profile_load_is_read_only_unavailable_and_zero_model_safe",
+                "result_links_to_exact_pending_run_assessment_proposal_without_manual_ids",
+                "result_review_creates_no_proposal_decision_transition_evidence_or_work_closure",
+                "workbench_result_review_and_inspector_reload_from_immutable_durable_state"
+              ]
+            },
+            {
+              "id": "review_decision_and_transition",
+              "fields": [
+                "explicit_review_decision_created",
+                "guide_brief_post_application_consistent",
+                "guide_brief_transition_request_counts",
+                "later_packet_compiled",
+                "operation_aware_revision_created",
+                "semantic_gate_separate_from_transition",
+                "semantic_transition_applied",
+                "semantic_transition_reload_idempotent",
+                "transition_preview_read_only"
+              ],
+              "markers": [
+                "reviewed_create_transition_receipt_and_later_packet_apply_atomically",
+                "selected_work_relationship_explains_awaiting_application_decision",
+                "selected_work_relationship_explains_exact_project_update",
+                "semantic_gate_persists_without_transition_state_or_packet",
+                "workbench_creates_immutable_operation_aware_revision_without_internal_ids",
+                "workbench_records_explicit_decision_without_applying_transition",
+                "workbench_reload_reads_durable_lineage_without_duplicate_writes"
+              ]
+            },
+            {
+              "id": "operator_session_refusal_recovery",
+              "fields": [
+                "authenticated_session_recovery_response_count",
+                "expected_refusal_accounting_complete",
+                "expected_refusal_accounting_summary",
+                "expected_refusal_duplicate_delivery_count",
+                "expected_stale_session_refusal_log_count",
+                "expected_stale_session_refusal_response_count"
+              ],
+              "markers": [
+                "expected_refusal_accounting_tracks_exact_request_identity",
+                "raw_console_events_preserved_for_global_audit",
+                "stale_session_refusal_recovers_as_separate_authenticated_request"
+              ]
+            }
+          ],
+          "value_contracts": {
+            "boolean_true": [
+              "applied_inspector_lineage_complete",
+              "canonical_reconciliation_visible",
+              "decision_centered_workbench",
+              "execution_task_success_separated",
+              "expected_refusal_accounting_complete",
+              "explicit_review_decision_created",
+              "guide_brief_post_application_consistent",
+              "later_packet_compiled",
+              "operation_aware_revision_created",
+              "project_automation_default_not_configured",
+              "project_automation_enabled",
+              "project_automation_paused",
+              "project_automation_policy_summary_visible",
+              "project_automation_resumed",
+              "project_automation_stale_conflict_visible",
+              "project_controls_two_project_isolation",
+              "proposal_verify_summary",
+              "protocol_details_progressively_disclosed",
+              "result_inspector_complete",
+              "result_review_semantic_authority_unchanged",
+              "result_to_proposal_navigation",
+              "selected_work_timeline_first",
+              "semantic_gate_separate_from_transition",
+              "semantic_transition_applied",
+              "semantic_transition_reload_idempotent",
+              "shared_inspector_read_only",
+              "shared_inspector_reload_idempotent",
+              "shared_inspector_server_scoped",
+              "shared_semantic_workbench_shell",
+              "strategic_candidate_defer_no_transition",
+              "strategic_profile_explicit_request",
+              "strategic_profile_no_analysis_on_load",
+              "strategic_profile_no_internal_id_input",
+              "strategic_profile_optional_unavailable",
+              "strategic_profile_zero_model_review_preserved",
+              "strategic_proposal_material_visible",
+              "strategic_proposal_pending_unknown_non_authoritative",
+              "strategic_proposal_reload_idempotent",
+              "strategic_shared_inspector_complete",
+              "strategic_source_to_proposal_navigation",
+              "task_success_criterion_assessment",
+              "transition_preview_read_only",
+              "workbench_result_reload_durable",
+              "workbench_result_review_read_only"
+            ],
+            "exact_integer": {
+              "authenticated_session_recovery_response_count": 1,
+              "control_mutation_grants_created": 0,
+              "control_mutation_personal_content_created": 0,
+              "control_mutation_runs_created": 0,
+              "control_mutation_semantic_rows_created": 0,
+              "core_handoff_copy_actions": 0,
+              "expected_refusal_duplicate_delivery_count": 0,
+              "expected_stale_session_refusal_log_count": 1,
+              "expected_stale_session_refusal_response_count": 1,
+              "handoff_capsule_copy_actions": 0,
+              "internal_id_entry_actions": 0,
+              "launch_card_copy_actions": 0,
+              "native_host_clipboard_calls": 0,
+              "packet_copy_actions": 0,
+              "result_paste_actions": 0,
+              "result_report_textarea_interactions": 0,
+              "review_decisions_created": 1,
+              "semantic_proposals_created": 3,
+              "semantic_transitions_created": 1,
+              "strategic_model_gateway_fake_transport_calls": 1,
+              "work_closures_created": 0
+            },
+            "boolean_false": [
+              "credential_material_in_dom",
+              "credential_material_in_server_log"
+            ],
+            "exact_json": {
+              "selected_work_timeline_state_coverage": [
+                "result_ready",
+                "proposal_pending",
+                "decision_recorded",
+                "transition_applied"
+              ]
+            },
+            "guide_brief_transition_request_counts": [
+              "guide_brief_transition_request_counts"
+            ],
+            "expected_refusal_accounting_summary": [
+              "expected_refusal_accounting_summary"
+            ]
+          }
+        },
+        {
+          "id": "operator-native-host-execution",
+          "canonical_suite": "e2e-operator-native-host-execution",
+          "canonical_phase_id": "e2e-operator-native-host-execution",
+          "executable_source": "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+          "fixture_profile": "native_host_execution",
+          "families": [
+            {
+              "id": "first_work_definition_and_start",
+              "fields": [
+                "first_work_composer_validation",
+                "first_work_explicit_start_admitted",
+                "first_work_goal_cross_surface",
+                "first_work_locked_operator_state",
+                "first_work_reload_persisted",
+                "first_work_saved_without_execution",
+                "first_work_setup_state",
+                "first_work_start_eligible",
+                "work_revision_append_only_and_replay",
+                "work_revision_browser_viewports",
+                "work_revision_cancel_zero_write",
+                "work_revision_definition_label_truthful",
+                "work_revision_editor_source_bound",
+                "work_revision_exact_successor_after_history_refused",
+                "work_revision_explicit_start_uses_revision",
+                "work_revision_hidden_after_start",
+                "work_revision_no_protocol_leakage",
+                "work_revision_saved_without_execution",
+                "work_revision_stale_cas_refused"
+              ],
+              "markers": []
+            },
+            {
+              "id": "direct_native_host_round_trip",
+              "fields": [
+                "direct_host_no_copy_paste",
+                "direct_host_packet_bound",
+                "direct_host_project_home_active",
+                "direct_host_receipt_persisted",
+                "direct_host_request_body_empty",
+                "direct_host_status"
+              ],
+              "markers": [
+                "active_project_direct_host_round_trip_persists_exact_packet_receipt",
+                "direct_host_round_trip_has_zero_copy_paste_or_internal_id_input"
+              ]
+            },
+            {
+              "id": "live_native_host_approval_lifecycle",
+              "fields": [
+                "ai_workplane_approval_refresh_count",
+                "approval_barrier_timing",
+                "delegated_work_single_initial_read",
+                "delegated_work_timeline_public_safe",
+                "live_codex_approved_once",
+                "live_codex_leave_return_no_new_turn",
+                "live_codex_leave_return_same_run",
+                "live_codex_no_internal_id_input",
+                "live_codex_receipt_persisted",
+                "live_codex_second_approval",
+                "live_codex_status",
+                "live_codex_untouched_approval_polling_stopped",
+                "live_codex_waiting_for_approval",
+                "project_home_current_run_visible",
+                "project_home_latest_result_visible"
+              ],
+              "markers": [
+                "active_project_live_codex_refreshes_two_approval_boundaries_and_persists_one_receipt",
+                "live_codex_product_path_uses_zero_copy_paste_or_internal_id_entry",
+                "project_home_distinguishes_latest_terminal_result_with_server_generated_review_link"
+              ]
+            },
+            {
+              "id": "bounded_automation_execution",
+              "fields": [
+                "bounded_automation_context_feedback_recorded",
+                "bounded_automation_cycle_started",
+                "bounded_automation_exact_relation_readback",
+                "bounded_automation_reload_idempotent",
+                "bounded_automation_review_needed",
+                "bounded_automation_shared_inspector_complete"
+              ],
+              "markers": [
+                "bounded_policy_cycle_stops_at_one_pending_review_proposal",
+                "policy_triggered_exact_criterion_relations_render_and_reload_read_only",
+                "policy_triggered_later_receipt_uses_explicit_non_authoritative_feedback",
+                "selected_work_relationship_keeps_mismatched_packet_feedback_out_of_selected_timeline",
+                "selected_work_relationship_suppresses_newer_packet_without_exact_transition_lineage"
+              ]
+            }
+          ],
+          "value_contracts": {
+            "boolean_true": [
+              "bounded_automation_context_feedback_recorded",
+              "bounded_automation_cycle_started",
+              "bounded_automation_exact_relation_readback",
+              "bounded_automation_reload_idempotent",
+              "bounded_automation_review_needed",
+              "bounded_automation_shared_inspector_complete",
+              "delegated_work_single_initial_read",
+              "delegated_work_timeline_public_safe",
+              "direct_host_no_copy_paste",
+              "direct_host_packet_bound",
+              "direct_host_project_home_active",
+              "direct_host_receipt_persisted",
+              "direct_host_request_body_empty",
+              "first_work_composer_validation",
+              "first_work_explicit_start_admitted",
+              "first_work_goal_cross_surface",
+              "first_work_locked_operator_state",
+              "first_work_reload_persisted",
+              "first_work_saved_without_execution",
+              "first_work_setup_state",
+              "first_work_start_eligible",
+              "work_revision_append_only_and_replay",
+              "work_revision_browser_viewports",
+              "work_revision_cancel_zero_write",
+              "work_revision_definition_label_truthful",
+              "work_revision_editor_source_bound",
+              "work_revision_exact_successor_after_history_refused",
+              "work_revision_explicit_start_uses_revision",
+              "work_revision_hidden_after_start",
+              "work_revision_no_protocol_leakage",
+              "work_revision_saved_without_execution",
+              "work_revision_stale_cas_refused",
+              "live_codex_approved_once",
+              "live_codex_leave_return_no_new_turn",
+              "live_codex_leave_return_same_run",
+              "live_codex_no_internal_id_input",
+              "live_codex_receipt_persisted",
+              "live_codex_second_approval",
+              "live_codex_untouched_approval_polling_stopped",
+              "live_codex_waiting_for_approval",
+              "project_home_current_run_visible",
+              "project_home_latest_result_visible"
+            ],
+            "exact_integer": {
+              "ai_workplane_approval_refresh_count": 2,
+              "direct_host_status": 201
+            },
+            "exact_string": {
+              "live_codex_status": "completed"
+            },
+            "approval_barrier_timing": [
+              "approval_barrier_timing"
+            ]
+          }
+        },
+        {
+          "id": "operator-multi-candidate",
+          "canonical_suite": "e2e-operator-multi-candidate",
+          "canonical_phase_id": "e2e-operator-multi-candidate",
+          "executable_source": "scripts/browser-validate-operator-multi-candidate-v1.mjs",
+          "fixture_profile": "multi_candidate",
+          "families": [
+            {
+              "id": "multi_candidate_and_guidebrief_semantic_scope",
+              "fields": [
+                "applying_decision_wording_truthful",
+                "candidate_switch_mutation_locking",
+                "exact_ready_to_complete_navigation",
+                "guide_brief_advanced_owner_handoff",
+                "guide_brief_current_action_focus_only",
+                "guide_brief_decision_preparation_zero_write",
+                "guide_brief_exact_inspector_registered_destination",
+                "guide_brief_highlighted_relationship_agreement",
+                "guide_brief_mutation_refusal",
+                "guide_brief_next_candidate_owner_reused",
+                "guide_brief_relationship_selection_owner_reused",
+                "guide_brief_same_candidate_material_reset",
+                "guide_brief_transition_preview_double_activation_count",
+                "guide_brief_transition_preview_get_count",
+                "guide_brief_transition_preview_post_count",
+                "guide_brief_unavailable_relationship_refusal",
+                "late_preview_response_discarded",
+                "multi_candidate_transition_scope",
+                "pending_applying_candidate_default_selection",
+                "selected_work_timeline_candidate_switching"
+              ],
+              "markers": [
+                "ai_workplane_home_binds_completion_to_exact_proposal_and_candidate",
+                "applying_decision_wording_and_exact_values_remain_truthful",
+                "gate_and_apply_mutations_lock_candidate_and_proposal_local_controls",
+                "generic_validation_proposal_excluded_as_return_target",
+                "guidebrief_advanced_review_uses_existing_disclosure_owner",
+                "guidebrief_candidate_selection_current_action_focus_only",
+                "guidebrief_current_action_focus_does_not_activate_owner",
+                "guidebrief_decision_preparation_has_zero_submit_and_zero_network",
+                "guidebrief_host_single_flight_survives_snapshot_change",
+                "guidebrief_inspector_uses_registered_exact_destination_only",
+                "guidebrief_next_candidate_selection_reuses_pc2_owner",
+                "guidebrief_partial_utterance_does_not_invoke_supported_owner",
+                "guidebrief_post_confirmation_current_action_focus_only",
+                "guidebrief_post_preview_current_action_focuses_owner_prerequisite",
+                "guidebrief_pre_preview_current_action_focus_only",
+                "guidebrief_relationship_answer_matches_pc3_highlight",
+                "guidebrief_relationship_selection_reuses_pc3_owner",
+                "guidebrief_same_candidate_material_change_clears_stale_answer",
+                "guidebrief_transition_preview_duplicate_activation_executes_once",
+                "guidebrief_transition_preview_one_get_zero_post",
+                "guidebrief_unavailable_relationship_question_is_refused",
+                "guidebrief_unsupported_mutation_command_is_refused",
+                "late_preview_response_is_discarded_after_candidate_switch",
+                "mixed_return_target_captured_from_exact_mutated_proposal",
+                "multi_candidate_transition_state_is_bound_to_exact_candidate_and_decision",
+                "selected_work_candidate_selection_owner_renders_exact_action",
+                "selected_work_relationship_explains_exact_transition_blocker",
+                "selected_work_relationship_questions_remain_candidate_local",
+                "selected_work_relationship_questions_remain_exact_proposal_local",
+                "selected_work_relationship_return_navigation_rebuilds_default",
+                "selected_work_timeline_exposes_exact_post_decision_application_blocker"
+              ]
+            }
+          ],
+          "value_contracts": {
+            "boolean_true": [
+              "applying_decision_wording_truthful",
+              "candidate_switch_mutation_locking",
+              "exact_ready_to_complete_navigation",
+              "guide_brief_advanced_owner_handoff",
+              "guide_brief_current_action_focus_only",
+              "guide_brief_decision_preparation_zero_write",
+              "guide_brief_exact_inspector_registered_destination",
+              "guide_brief_highlighted_relationship_agreement",
+              "guide_brief_mutation_refusal",
+              "guide_brief_next_candidate_owner_reused",
+              "guide_brief_relationship_selection_owner_reused",
+              "guide_brief_same_candidate_material_reset",
+              "guide_brief_unavailable_relationship_refusal",
+              "late_preview_response_discarded",
+              "multi_candidate_transition_scope",
+              "pending_applying_candidate_default_selection",
+              "selected_work_timeline_candidate_switching"
+            ],
+            "exact_integer": {
+              "guide_brief_transition_preview_double_activation_count": 1,
+              "guide_brief_transition_preview_get_count": 1,
+              "guide_brief_transition_preview_post_count": 0
+            }
+          }
+        }
+      ]
+    },
+    "continuity": {
+      "command": "npm run test:e2e:continuity",
+      "canonical_suite": "e2e-continuity",
+      "canonical_phase_id": "e2e-continuity",
+      "executable_source": "scripts/browser-validate-continuity-v1.mjs",
+      "families": [
+        {
+          "id": "long_term_lineage_and_cross_project_isolation",
+          "fields": [
+            "bounded_automation_packet_excluded_from_workbench_lineage",
+            "context_use_feedback_waits_for_real_later_run",
+            "positive_and_mixed_projects_remain_isolated",
+            "positive_bootstrap_proposal_admitted",
+            "positive_first_real_host_action_used_latest_packet",
+            "positive_generic_prior_packet_seeded",
+            "positive_later_outcome_relationship_is_exact",
+            "positive_latest_compiled_packet_precondition_passed",
+            "positive_latest_packet_bound_result_recognized",
+            "positive_proposal_has_one_packet_compiled_chain",
+            "positive_transition_compiled_eligible_packet"
+          ],
+          "markers": [
+            "bounded_automation_packet_excluded_from_workbench_lineage",
+            "mixed_applied_candidate_survives_session_restart",
+            "mixed_prior_session_decision_remains_visible",
+            "mixed_project_active_readback_confirmed",
+            "mixed_project_detail_reloaded_after_activation",
+            "mixed_project_open_mutation_succeeded",
+            "mixed_return_relationships_rebuilt_without_positive_leak",
+            "mixed_unapplied_candidate_loses_current_session_actionability",
+            "older_packet_bound_later_result_is_not_latest_continuity",
+            "positive_and_mixed_projects_remain_isolated",
+            "positive_bootstrap_proposal_admitted",
+            "positive_first_real_host_action_used_latest_packet",
+            "positive_generic_prior_packet_seeded",
+            "positive_later_outcome_relationship_is_exact",
+            "positive_latest_compiled_packet_precondition_passed",
+            "positive_latest_packet_bound_result_recognized",
+            "positive_project_active_snapshot_read",
+            "positive_proposal_has_one_packet_compiled_chain",
+            "positive_transition_compiled_eligible_packet",
+            "selected_work_relationship_exposes_exact_later_feedback_review"
+          ]
+        },
+        {
+          "id": "personal_perspective_continuity",
+          "fields": [
+            "personal_perspective_default_excluded",
+            "personal_perspective_included",
+            "personal_perspective_project_b_excluded",
+            "personal_perspective_shared_inspector_exact"
+          ],
+          "markers": [
+            "personal_perspective_appears_only_through_exact_compiler_packet_inclusion",
+            "personal_perspective_shared_inspector_is_read_only_and_project_scoped"
+          ]
+        },
+        {
+          "id": "portability_restart_and_recovery",
+          "fields": [
+            "continuity_diagnostics_visible",
+            "imported_inspector_reader_verified",
+            "imported_project_home_reader_verified",
+            "imported_workbench_reader_verified",
+            "minimum_project_home_restart_root_resolution",
+            "portable_export_created",
+            "portable_export_preview_visible",
+            "portable_import_clean_destination",
+            "project_automation_restart_persisted",
+            "project_controls_restart_persisted",
+            "restart_run_reconciliation_review_needed",
+            "restart_terminal_receipt_exact_replay",
+            "support_report_exported_after_preview",
+            "support_report_previewed"
+          ],
+          "markers": [
+            "authoritative_recovery_refusal_preserves_confirmed_controls",
+            "classified_portability_refusal_replaces_prior_success_history",
+            "final_r8_imported_home_workbench_and_inspector_readers_agree",
+            "final_r8_portable_project_round_trip_uses_clean_isolated_destination",
+            "final_r8_public_diagnostics_preview_before_redacted_report_export",
+            "final_r8_restart_reconciliation_reuses_exact_receipt_without_retry",
+            "recovery_mode_and_database_safety_remain_orthogonal",
+            "uncertain_and_scheduled_recovery_actions_lock_until_refresh"
+          ]
+        }
+      ],
+      "value_contracts": {
+        "boolean_true": [
+          "bounded_automation_packet_excluded_from_workbench_lineage",
+          "context_use_feedback_waits_for_real_later_run",
+          "continuity_diagnostics_visible",
+          "imported_inspector_reader_verified",
+          "imported_project_home_reader_verified",
+          "imported_workbench_reader_verified",
+          "minimum_project_home_restart_root_resolution",
+          "personal_perspective_default_excluded",
+          "personal_perspective_included",
+          "personal_perspective_project_b_excluded",
+          "personal_perspective_shared_inspector_exact",
+          "portable_export_created",
+          "portable_export_preview_visible",
+          "portable_import_clean_destination",
+          "positive_and_mixed_projects_remain_isolated",
+          "positive_bootstrap_proposal_admitted",
+          "positive_first_real_host_action_used_latest_packet",
+          "positive_generic_prior_packet_seeded",
+          "positive_later_outcome_relationship_is_exact",
+          "positive_latest_compiled_packet_precondition_passed",
+          "positive_latest_packet_bound_result_recognized",
+          "positive_proposal_has_one_packet_compiled_chain",
+          "positive_transition_compiled_eligible_packet",
+          "project_automation_restart_persisted",
+          "project_controls_restart_persisted",
+          "restart_run_reconciliation_review_needed",
+          "restart_terminal_receipt_exact_replay",
+          "support_report_exported_after_preview",
+          "support_report_previewed"
+        ]
+      }
+    },
+    "cross_boundary_golden": {
+      "command": "npm run test:e2e:golden",
+      "canonical_suite": "e2e-golden",
+      "canonical_phase_id": "e2e-golden",
+      "executable_source": "scripts/browser-validate-cross-boundary-golden-v1.mjs",
+      "composition_steps": [
+        "project_connection",
+        "first_work_definition",
+        "explicit_deterministic_local_start",
+        "one_admitted_result_receipt",
+        "one_proposal_visible_for_review"
+      ],
+      "detailed_fields": [],
+      "forbidden_detailed_matrices": [
+        "onboarding_naming",
+        "responsive_viewports",
+        "approval_cancel_resume",
+        "inspector",
+        "review_decision_transition",
+        "multi_candidate",
+        "portability_restart",
+        "broad_refusal"
+      ]
+    }
+  },
+  "canonical_phase_order": [
+    "e2e-project-experience",
+    "e2e-operator-review-control",
+    "e2e-operator-native-host-execution",
+    "e2e-operator-multi-candidate",
+    "e2e-continuity",
+    "e2e-golden"
+  ],
+  "changed_file_selection": {
+    "project_experience": {
+      "path_fragments": [
+        "project-onboarding",
+        "project-identity",
+        "project-lifecycle",
+        "project-home",
+        "blank-state",
+        "product-shell",
+        "responsive",
+        "retired-route",
+        "project-experience"
+      ]
+    },
+    "operator_review_control": {
+      "path_fragments": [
+        "operator-session",
+        "semantic-review",
+        "inspector",
+        "review-decision",
+        "semantic-transition",
+        "project-controls",
+        "operator-review-control"
+      ]
+    },
+    "operator_native_host_execution": {
+      "path_fragments": [
+        "native-host",
+        "host-round-trip",
+        "delegated-work",
+        "automation",
+        "first-work",
+        "run-receipt",
+        "operator-native-host-execution"
+      ]
+    },
+    "operator_multi_candidate": {
+      "path_fragments": [
+        "multi-candidate",
+        "candidate",
+        "guide-brief",
+        "selected-work",
+        "operator-multi-candidate"
+      ]
+    },
+    "continuity": {
+      "path_fragments": [
+        "continuity",
+        "portable",
+        "portability",
+        "recovery",
+        "reconciliation",
+        "persistent",
+        "perspective",
+        "continuity-pin"
+      ]
+    },
+    "shared_cross_boundary": {
+      "exact_paths": [
+        "package.json",
+        "package-lock.json"
+      ],
+      "path_fragments": [
+        "browser-verification-owners",
+        "browser-e2e-timing",
+        "browser-supervisor",
+        "test-harness-process-lifecycle",
+        "canonical-child-runner",
+        "canonical-change-planner",
+        "run-canonical-test-suite",
+        "run-local-canonical-verification",
+        "local-canonical-receipt",
+        "local-canonical-pr-evidence",
+        "browser-lifecycle",
+        "browser-fixture",
+        "result-contract",
+        "effect-ledger"
+      ]
+    },
+    "project_composition": {
+      "path_fragments": [
+        "project-work-initialization",
+        "project-continuity",
+        "direct-native-host-round-trip",
+        "structured-run-receipt-admission",
+        "episode-delta-proposal-admission"
+      ]
+    },
+    "full_canonical": "all_permanent_browser_phases",
+    "unknown_or_ambiguous": "all_permanent_browser_phases",
+    "shared_or_cross_boundary": "golden_plus_all_affected_detailed_owners"
+  }
+}

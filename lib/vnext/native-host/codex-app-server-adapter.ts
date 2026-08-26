@@ -16,7 +16,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
+import {
+  RepositoryRelativePathErrorV01,
+  canonicalizeRepositoryRelativePathV01,
+} from "@/lib/vnext/repository-relative-path";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
@@ -63,6 +66,8 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "deprecationNotice",
   "error",
   "guardianWarning",
+  "hook/completed",
+  "hook/started",
   "item/agentMessage/delta",
   "item/autoApprovalReview/completed",
   "item/autoApprovalReview/started",
@@ -77,6 +82,9 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "model/rerouted",
   "model/safetyBuffering/updated",
   "model/verification",
+  "mcpServer/startupStatus/updated",
+  "remoteControl/status/changed",
+  "thread/name/updated",
   "thread/tokenUsage/updated",
   "turn/diff/updated",
   "turn/moderationMetadata",
@@ -131,6 +139,10 @@ export function createCodexAppServerAdapterV01(
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
     execution_profile: "native_host_managed_model",
     provider_egress: "native_host_managed",
+    resume_capability: {
+      binding_version: "native_host_resume_binding.v0.1",
+      resumable_after_detach: true,
+    },
     invoke(request, control) {
       return new CodexAppServerInvocationV01(request, control, options).public;
     },
@@ -231,11 +243,11 @@ class CodexAppServerInvocationV01 {
           closed,
         })),
       ]);
-      // JSONL dispatch deliberately avoids blocking the stdout reader. Let
-      // notification/server-request rejection handlers run before accepting a
-      // terminal message that may have been followed by conflicting material
-      // in the same chunk.
-      await Promise.resolve();
+      // JSONL dispatch deliberately avoids blocking the stdout reader. Settle
+      // every notification already admitted from the same stdout batch before
+      // accepting its terminal message, so an earlier path or identity failure
+      // cannot race a later turn/completed notification into a receipt.
+      await this.transport!.settleNotifications();
       if (this.transport!.failure) throw this.transport!.failure;
       if (terminalOrDisconnect.kind === "disconnect") {
         if (this.terminalObserved) {
@@ -468,11 +480,14 @@ class CodexAppServerInvocationV01 {
       thread.sessionId,
       "codex_session_id_invalid",
     );
-    if (
-      existing &&
-      (threadId !== this.threadId ||
-        (this.sessionId !== null && sessionId !== this.sessionId))
-    ) {
+    if (this.threadId !== null && threadId !== this.threadId) {
+      throw this.reconciliationError(
+        existing
+          ? "codex_thread_resume_identity_mismatch"
+          : "codex_thread_identity_mismatch",
+      );
+    }
+    if (existing && this.sessionId !== null && sessionId !== this.sessionId) {
       throw this.reconciliationError("codex_thread_resume_identity_mismatch");
     }
     this.threadId = threadId;
@@ -621,7 +636,10 @@ class CodexAppServerInvocationV01 {
         status.type,
         "codex_thread_status_invalid",
       );
-      const state = ["active", "idle"].includes(statusType)
+      // App Server may project systemError before the exact turn's terminal
+      // turn/completed notification. The turn remains the completion owner;
+      // interrupting here would discard its truthful failed or retried result.
+      const state = ["active", "idle", "systemError"].includes(statusType)
         ? "running"
         : "paused";
       await this.reportLifecycle({
@@ -648,7 +666,11 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "item/started" || method === "item/completed") {
-      this.observeItem(value.item, method === "item/completed", value);
+      await this.observeItem(
+        value.item,
+        method === "item/completed",
+        value,
+      );
       return;
     }
     if (method === "serverRequest/resolved") {
@@ -840,6 +862,7 @@ class CodexAppServerInvocationV01 {
       "decline",
       "cancel_run",
     ];
+    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] = null;
 
     if (method === "item/commandExecution/requestApproval") {
       const cwd = stringV01(source.cwd);
@@ -857,15 +880,24 @@ class CodexAppServerInvocationV01 {
         const protocol = canonicalNetworkProtocolV01(network.protocol);
         resources = [`${protocol}://${host}`];
         operation = "network_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "refused"
+          : null;
         resourceSummary = `Network access to ${resources[0]}.`;
       } else {
         operation = "command_execution";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? classifyRepositoryEnvelopeCommandV01(command)
+          : null;
         resourceSummary = paths.length
           ? `Command scoped to ${paths.join(", ")}.`
           : "Command scoped to the selected project root.";
       }
     } else if (method === "item/fileChange/requestApproval") {
       operation = "file_change";
+      repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+        ? "preauthorized"
+        : null;
       const grantRoot = stringV01(source.grantRoot);
       if (grantRoot) paths = relativeScopeForHostPathV01(this.request, grantRoot);
       resourceSummary = paths.length
@@ -884,11 +916,17 @@ class CodexAppServerInvocationV01 {
         : null;
       if (network?.enabled === true) {
         operation = "network_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "refused"
+          : null;
         resourceSummary =
           "Network permission requested without an exact destination in the stable payload.";
         available = ["decline", "cancel_run"];
       } else {
         operation = "filesystem_permission";
+        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
+          ? "preauthorized"
+          : null;
         paths = uniqueSortedV01([
           ...paths,
           ...repositoryPathsFromPermissionProfileV01(this.request, permissions),
@@ -917,6 +955,7 @@ class CodexAppServerInvocationV01 {
       paths,
       resources,
       command_fingerprint: commandFingerprint,
+      repository_envelope_classification: repositoryEnvelopeClassification,
       public_reason: reason,
       resource_summary: resourceSummary,
     };
@@ -949,6 +988,7 @@ class CodexAppServerInvocationV01 {
       issued_at: observedAt,
       expires_at: new Date(Date.parse(observedAt) + APPROVAL_TTL_MS).toISOString(),
       coverage: "observed",
+      repository_envelope_classification: repositoryEnvelopeClassification,
     };
     return approval;
   }
@@ -991,11 +1031,11 @@ class CodexAppServerInvocationV01 {
     return decision;
   }
 
-  private observeItem(
+  private async observeItem(
     itemValue: unknown,
     completed: boolean,
     envelope: Record<string, unknown>,
-  ): void {
+  ): Promise<void> {
     const item = objectV01(itemValue, "codex_item_invalid");
     const itemId = requiredOpaqueIdV01(item.id, "codex_item_id_invalid");
     const fingerprint = createProtocolSha256V01(
@@ -1008,6 +1048,12 @@ class CodexAppServerInvocationV01 {
     }
     if (existing === fingerprint) return;
     this.completedMessageFingerprints.set(key, fingerprint);
+    if (
+      item.type === "commandExecution" ||
+      item.type === "fileChange"
+    ) {
+      await this.reportCheckpointV01(item, completed);
+    }
     if (!completed) return;
 
     if (item.type === "commandExecution") {
@@ -1035,9 +1081,21 @@ class CodexAppServerInvocationV01 {
     if (item.type === "fileChange" && Array.isArray(item.changes)) {
       for (const change of item.changes.slice(0, this.request.policy.max_changed_files)) {
         if (!isObjectV01(change)) continue;
-        const relative = canonicalizeRepositoryRelativePathV01(
-          requiredStringV01(change.path, "codex_file_change_path_invalid"),
-        );
+        let relative: string;
+        try {
+          relative = repositoryRelativeFileChangePathV01(
+            this.request,
+            requiredStringV01(change.path, "codex_file_change_path_invalid"),
+          );
+        } catch (error) {
+          if (
+            error instanceof CodexProtocolErrorV01 &&
+            error.code === "codex_file_change_path_outside_root"
+          ) {
+            throw this.reconciliationError(error.code);
+          }
+          throw error;
+        }
         this.observedChangedFiles.push({
           repository_relative_path: relative,
           change_kind: changeKindV01(change.kind),
@@ -1046,6 +1104,77 @@ class CodexAppServerInvocationV01 {
         });
       }
       this.observedActions.push("host_file_change_item_completed");
+    }
+  }
+
+  private async reportCheckpointV01(
+    item: Record<string, unknown>,
+    completed: boolean,
+  ): Promise<void> {
+    const checkpointKind =
+      item.type === "commandExecution"
+        ? "command_execution"
+        : item.type === "fileChange"
+          ? "file_change"
+          : null;
+    if (!checkpointKind) return;
+    const itemId = requiredOpaqueIdV01(item.id, "codex_item_id_invalid");
+    const operationRef = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        operation_identity_version: "native_host_operation_identity.v0.1",
+        run_id: this.request.run_id,
+        item_id: itemId,
+        operation_class: checkpointKind,
+      }),
+    );
+    const status =
+      !completed
+        ? "active"
+        : item.status === "completed"
+          ? "completed"
+          : item.status === "failed"
+            ? "failed"
+            : item.status === "declined"
+              ? "blocked"
+              : "unknown";
+    const changeCount =
+      checkpointKind === "file_change" && Array.isArray(item.changes)
+        ? Math.min(
+            item.changes.length,
+            this.request.policy.max_changed_files,
+          )
+        : null;
+    try {
+      await this.reportLifecycle({
+        event_kind: "work_checkpoint",
+        state: "running",
+        coverage: "observed",
+        host_refs: this.currentHostRefs(),
+        bounded_metadata: {
+          checkpoint_kind: checkpointKind,
+          phase: completed ? "completed" : "started",
+          status,
+          operation_ref: operationRef,
+          certainty: !completed
+            ? "started"
+            : status === "completed"
+              ? "completed"
+              : status === "failed"
+                ? "failed"
+                : status === "blocked"
+                  ? "cancelled"
+                  : "started",
+          change_count: changeCount,
+        },
+      });
+    } catch (error) {
+      const code =
+        error instanceof Error ? `${error.name}:${error.message}` : String(error);
+      if (/conflict|binding|reconciliation|mismatch/u.test(code)) {
+        throw error;
+      }
+      // Timeline checkpoints are optional observations. A transient ledger
+      // failure must not rewrite or invalidate the exact terminal result path.
     }
   }
 
@@ -1364,6 +1493,21 @@ class CodexAppServerInvocationV01 {
 
   private assertThreadIdentity(value: unknown): void {
     const observed = requiredOpaqueIdV01(value, "codex_thread_id_invalid");
+    // App Server may emit a thread-bound notification in the same stdout
+    // chunk as thread/start's response. The response continuation cannot bind
+    // the new thread until the current JSONL dispatch returns, so bind the
+    // first observed ID only after the exact start request was sent. The
+    // response must still match this binding before turn/start can proceed.
+    if (!this.threadId && this.threadStartSent) {
+      this.threadId = observed;
+      this.threadRef = externalRefV01(
+        "host_thread",
+        observed,
+        this.now(),
+        "direct_local_observation",
+      );
+      return;
+    }
     if (!this.threadId || observed !== this.threadId) {
       throw this.reconciliationError("codex_thread_identity_mismatch");
     }
@@ -1446,6 +1590,30 @@ class CodexAppServerInvocationV01 {
   }
 }
 
+export function classifyRepositoryEnvelopeCommandV01(
+  command: string | null,
+): NativeHostApprovalRequestV01["repository_envelope_classification"] {
+  if (!command) return "approval_required";
+  const normalized = command.trim().toLowerCase();
+  if (!normalized || /[\n\r]/u.test(normalized)) return "approval_required";
+  if (
+    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(normalized) ||
+    /(^|\s)git\s+(push|fetch|pull|clone|remote)(\s|$)/u.test(normalized) ||
+    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(normalized) ||
+    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(normalized) ||
+    /(^|\s)(deploy|release|publish)(\s|$)/u.test(normalized)
+  ) {
+    return "refused";
+  }
+  if (/[;&|`]|\$\(|>|</u.test(normalized)) return "approval_required";
+  if (
+    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(normalized)
+  ) {
+    return "preauthorized";
+  }
+  return "approval_required";
+}
+
 class CodexStdioJsonRpcTransportV01 {
   readonly started: Promise<void>;
   readonly closed: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
@@ -1459,6 +1627,7 @@ class CodexStdioJsonRpcTransportV01 {
   private readonly pending = new Map<string, PendingRpcV01>();
   private readonly recentResponses = new Map<string, string>();
   private readonly serverTasks = new Set<Promise<void>>();
+  private readonly notificationTasks = new Set<Promise<void>>();
   // This is a transport-task guard. The invocation's activeServerRequests map
   // remains authoritative for the longer approval lifecycle through the
   // matching serverRequest/resolved notification.
@@ -1575,6 +1744,12 @@ class CodexStdioJsonRpcTransportV01 {
     this.write({ method, params });
   }
 
+  async settleNotifications(): Promise<void> {
+    while (this.notificationTasks.size > 0) {
+      await Promise.allSettled([...this.notificationTasks]);
+    }
+  }
+
   shutdown(): Promise<boolean> {
     this.shutdownPromise ??= this.performShutdown();
     return this.shutdownPromise;
@@ -1675,7 +1850,11 @@ class CodexStdioJsonRpcTransportV01 {
     const task = handlers
       .onNotification(method, message.params)
       .catch((error) => this.fail(asErrorV01(error)))
-      .finally(() => this.serverTasks.delete(task));
+      .finally(() => {
+        this.notificationTasks.delete(task);
+        this.serverTasks.delete(task);
+      });
+    this.notificationTasks.add(task);
     this.serverTasks.add(task);
   }
 
@@ -1786,6 +1965,7 @@ class CodexStdioJsonRpcTransportV01 {
       this.pending.clear();
       this.recentResponses.clear();
       this.serverTasks.clear();
+      this.notificationTasks.clear();
       this.inFlightServerRequestHandlerCount = 0;
     }
   }
@@ -1871,7 +2051,7 @@ class CodexRpcErrorV01 extends Error {
   }
 }
 
-const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
+export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -1888,7 +2068,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
     "proposed_next_steps",
   ],
   properties: {
-    result_version: { const: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 },
+    result_version: {
+      type: "string",
+      const: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
+    },
     summary: { type: "string", maxLength: 4096 },
     changed_files: {
       type: "array",
@@ -1905,6 +2088,7 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         properties: {
           repository_relative_path: { type: "string", minLength: 1, maxLength: 4096 },
           change_kind: {
+            type: "string",
             enum: ["added", "modified", "deleted", "renamed", "unknown"],
           },
           before_hash: {
@@ -1941,11 +2125,17 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
               "trust_class",
             ],
             properties: {
-              ref_version: { const: "external_ref.v0.1" },
+              ref_version: {
+                type: "string",
+                const: "external_ref.v0.1",
+              },
               ref_type: { type: "string", minLength: 1, maxLength: 512 },
               external_id: { type: "string", minLength: 1, maxLength: 4096 },
               observed_at: { type: "string", minLength: 1, maxLength: 64 },
-              trust_class: { const: "host_attestation" },
+              trust_class: {
+                type: "string",
+                const: "host_attestation",
+              },
             },
           },
           summary: { type: "string", minLength: 1, maxLength: 1024 },
@@ -1988,7 +2178,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
             anyOf: [{ type: "null" }, { type: "string", maxLength: 64 }],
           },
           exit_code: { anyOf: [{ type: "null" }, { type: "integer" }] },
-          status: { enum: ["completed", "failed", "blocked", "unknown"] },
+          status: {
+            type: "string",
+            enum: ["completed", "failed", "blocked", "unknown"],
+          },
         },
       },
     },
@@ -2002,7 +2195,10 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         properties: {
           check_id: { type: "string", minLength: 1, maxLength: 512 },
           required: { type: "boolean" },
-          status: { enum: ["passed", "failed", "blocked", "unknown"] },
+          status: {
+            type: "string",
+            enum: ["passed", "failed", "blocked", "unknown"],
+          },
           summary: { type: "string", minLength: 1, maxLength: 1024 },
         },
       },
@@ -2040,13 +2236,42 @@ const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
 } as const;
 
 function renderPacketV01(request: NativeHostRequestV01): string {
+  const guide = request.guide_brief;
+  const renderedGuide = guide
+    ? canonicalizeProtocolValueV01(guide)
+    : canonicalizeProtocolValueV01({
+        projection_version: "guide_brief_codex_projection.v0.2",
+        status: "unavailable",
+        unavailable_reason: "current_project_guide_unavailable",
+      });
   const rendered = [
-    "Augnes native-host task. Treat this TaskContextPacket as selected working context, not project truth.",
+    "## GuideBrief — non-authoritative task-start guidance",
+    "This section explains current project context and attention. It is not the execution contract and does not override the TaskContextPacket. Unresolved judgment remains unresolved; suggestions are not commands; authority remains with the user and Core gates.",
+    renderedGuide,
+    "## TaskContextPacket — exact bounded execution contract",
+    "Augnes native-host task. Treat this exact TaskContextPacket as selected working context, not project truth.",
     "Stay inside the supplied cwd and sandbox. Ask through the host approval protocol when required.",
+    "Before editing, inspect the bounded repository enough to identify task-relevant repository instructions and existing local validation. Run relevant repository-provided validation when present; do not replace it with an ad hoc substitute. An empty required_checks list does not waive this discovery step or authorize inventing a check.",
     "Return only JSON matching the supplied output schema. Do not return a transcript, hidden reasoning, credentials, environment data, or raw command output.",
     `Request binding: ${request.request_id}`,
     `Packet fingerprint: ${request.packet.integrity.fingerprint}`,
     canonicalizeProtocolValueV01(request.packet),
+    ...(request.mode === "repository_attachment"
+      ? [
+          "## Repository execution envelope — exact start authority",
+          "This one-time Browser-confirmed start permits broad local reversible work only inside the exact repository root. Ordinary reads, edits, bounded checks/builds, and local Git inspection/branch/commit work are permitted through the host sandbox. Networked project commands, downloads, push, GitHub, release, deployment, publication, Browser/Companion/provider/database/runtime/OS credential access, outside-root secret material or writes, destructive changes to pre-existing untracked data, semantic approval, Decision, Transition, accepted-state mutation, and another run remain forbidden or require their separate existing approval boundary. Files already inside the exact repository remain within repository read scope; Augnes does not claim content-based secret unreadability for those files, and their contents must not be exposed through the bounded result surface.",
+          canonicalizeProtocolValueV01({
+            attachment_id: request.repository_delegation_context?.attachment_id,
+            attachment_binding_fingerprint:
+              request.repository_delegation_context?.attachment_binding_fingerprint,
+            execution_envelope_fingerprint:
+              request.repository_delegation_context?.execution_envelope_fingerprint,
+            allowed_operation_categories: request.allowed_operation_categories,
+            forbidden_operation_categories: request.forbidden_operation_categories,
+            policy: request.policy,
+          }),
+        ]
+      : []),
   ].join("\n\n");
   if (Buffer.byteLength(rendered, "utf8") > MAX_PROMPT_BYTES) {
     throw new NativeHostContractErrorV01("codex_rendered_packet_bound_exceeded");
@@ -2348,6 +2573,30 @@ function relativeScopeForHostPathV01(
       : [canonicalizeRepositoryRelativePathV01(relative.replaceAll("\\", "/"))];
   }
   throw new CodexProtocolErrorV01("codex_approval_path_outside_root");
+}
+
+function repositoryRelativeFileChangePathV01(
+  request: NativeHostRequestV01,
+  candidate: string,
+): string {
+  try {
+    const relative = relativeScopeForHostPathV01(request, candidate);
+    if (relative.length !== 1) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_invalid");
+    }
+    return relative[0]!;
+  } catch (error) {
+    if (
+      error instanceof CodexProtocolErrorV01 &&
+      error.code === "codex_approval_path_outside_root"
+    ) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_outside_root");
+    }
+    if (error instanceof RepositoryRelativePathErrorV01) {
+      throw new CodexProtocolErrorV01("codex_file_change_path_invalid");
+    }
+    throw error;
+  }
 }
 
 function physicalizePosixPathV01(candidate: string): string {

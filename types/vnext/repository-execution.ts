@@ -1,0 +1,275 @@
+import type {
+  NativeHostPosixPhysicalRootIdentityV01,
+  NativeHostWindowsPhysicalRootIdentityV01,
+} from "./native-host-adapter";
+
+export const PHYSICAL_ROOT_BASELINE_VERSION_V01 =
+  "physical_root_baseline.v0.1" as const;
+export const REPOSITORY_WORKTREE_OBSERVATION_VERSION_V01 =
+  "repository_worktree_observation.v0.1" as const;
+export const PROJECT_EXECUTION_ADMISSION_VERSION_V01 =
+  "project_execution_admission.v0.1" as const;
+export const REPOSITORY_EXECUTION_ATTACHMENT_VERSION_V01 =
+  "repository_execution_attachment.v0.1" as const;
+export const REPOSITORY_EXECUTION_FRESHNESS_POLICY_VERSION_V01 =
+  "repository_execution_freshness_policy.v0.1" as const;
+export const REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01 =
+  "repository_execution_decision_request.v0.1" as const;
+
+export type PhysicalRootObservationV01 =
+  | {
+      status: "exact";
+      platform: "darwin" | "linux";
+      node_scope_fingerprint: string;
+      identity: NativeHostPosixPhysicalRootIdentityV01;
+      observation_fingerprint: string;
+      observed_at: string;
+    }
+  | {
+      status: "exact";
+      platform: "win32";
+      architecture: "x64";
+      node_scope_fingerprint: string;
+      identity: NativeHostWindowsPhysicalRootIdentityV01;
+      observation_fingerprint: string;
+      observed_at: string;
+    }
+  | {
+      status: "identity_unavailable" | "identity_unsupported" | "identity_ambiguous";
+      platform: NodeJS.Platform;
+      node_scope_fingerprint: string | null;
+      reason: string;
+      observed_at: string;
+    };
+
+interface PhysicalRootBaselineBaseV01 {
+  baseline_version: typeof PHYSICAL_ROOT_BASELINE_VERSION_V01;
+  workspace_id: string;
+  project_id: string;
+  node_scope_fingerprint: string;
+  root_binding_fingerprint: string;
+  filesystem_volume_identity: string;
+  filesystem_object_identity: string;
+  observed_at: string;
+  provenance: "canonical_new_project_onboarding" | "explicit_legacy_adoption" | "explicit_root_rebind";
+  baseline_fingerprint: string;
+}
+
+export interface PosixPhysicalRootBaselineV01
+  extends PhysicalRootBaselineBaseV01 {
+  identity_version: NativeHostPosixPhysicalRootIdentityV01["identity_version"];
+  canonical_realpath_fingerprint: string;
+}
+
+export interface WindowsPhysicalRootBaselineV01
+  extends PhysicalRootBaselineBaseV01 {
+  identity_version: NativeHostWindowsPhysicalRootIdentityV01["identity_version"];
+  identity_platform: "win32";
+  canonical_final_path_fingerprint: string;
+  supported_filesystem_family: "NTFS";
+}
+
+export type PhysicalRootBaselineV01 =
+  | PosixPhysicalRootBaselineV01
+  | WindowsPhysicalRootBaselineV01;
+
+export type RepositoryWorktreeObservationV01 =
+  | {
+      observation_version: typeof REPOSITORY_WORKTREE_OBSERVATION_VERSION_V01;
+      status: "exact";
+      repository_kind: "git_repository" | "git_worktree";
+      git_common_dir_fingerprint: string;
+      head_commit: string | null;
+      head_state: "branch" | "detached" | "unborn";
+      branch_name: string | null;
+      index_fingerprint: string;
+      staged_content_fingerprint: string;
+      tracked_dirty_paths_fingerprint: string;
+      unstaged_tracked_content_fingerprint: string;
+      relevant_untracked_paths_fingerprint: string;
+      relevant_untracked_content_fingerprint: string;
+      submodule_state_fingerprint: string;
+      inspected_path_count: number;
+      inspected_content_bytes: number;
+      limits: {
+        maximum_path_count: number;
+        maximum_individual_file_bytes: number;
+        maximum_total_inspected_bytes: number;
+      };
+      observed_at: string;
+      observation_fingerprint: string;
+    }
+  | {
+      observation_version: typeof REPOSITORY_WORKTREE_OBSERVATION_VERSION_V01;
+      status: "non_git";
+      repository_kind: "plain_folder";
+      observed_at: string;
+      observation_fingerprint: string;
+    }
+  | {
+      observation_version: typeof REPOSITORY_WORKTREE_OBSERVATION_VERSION_V01;
+      status: "unavailable" | "ambiguous";
+      repository_kind: "unknown";
+      reason: string;
+      observed_at: string;
+      observation_fingerprint: string;
+    };
+
+export type ProjectExecutionAdmissionReasonV01 =
+  | "ready"
+  | "project_unavailable"
+  | "root_unavailable"
+  | "baseline_adoption_required"
+  | "physical_root_mismatch"
+  | "identity_unavailable"
+  | "identity_unsupported"
+  | "identity_ambiguous"
+  | "current_work_unavailable"
+  | "admission_state_changed"
+  | "worktree_unavailable"
+  | "worktree_ambiguous"
+  | "non_git_execution_unsupported"
+  | "managed_run_conflict";
+
+export interface ProjectExecutionAdmissionV01 {
+  admission_version: typeof PROJECT_EXECUTION_ADMISSION_VERSION_V01;
+  workspace_id: string;
+  project_id: string;
+  readiness: "ready" | "decision_required" | "blocked";
+  reason: ProjectExecutionAdmissionReasonV01;
+  node_scope_fingerprint: string | null;
+  physical_root_observation_fingerprint: string | null;
+  root_binding_fingerprint: string | null;
+  physical_root_baseline_fingerprint: string | null;
+  task_context_packet_id: string | null;
+  task_context_packet_fingerprint: string | null;
+  current_work_fingerprint: string | null;
+  managed_run_state_fingerprint: string;
+  expected_database_state_fingerprint: string | null;
+  worktree_observation: RepositoryWorktreeObservationV01 | null;
+  admission_fingerprint: string;
+  browser_observation: {
+    active_project_id: string | null;
+    selected_project_is_target: boolean;
+  };
+  projection_only: true;
+  execution_authority_granted: false;
+  semantic_authority_granted: false;
+}
+
+export type RepositoryExecutionAttachmentLifecycleV01 =
+  | "prepared"
+  | "stale"
+  | "superseded"
+  | "revoked"
+  | "consumed";
+
+export type RepositoryExecutionAttachmentStaleReasonV01 =
+  | "physical_root_mismatch"
+  | "root_binding_changed"
+  | "packet_changed"
+  | "current_work_changed"
+  | "project_unavailable"
+  | "managed_run_conflict"
+  | "worktree_changed"
+  | "freshness_expired"
+  | "explicitly_revoked"
+  | "superseded";
+
+export interface RepositoryExecutionAttachmentV01 {
+  attachment_version: typeof REPOSITORY_EXECUTION_ATTACHMENT_VERSION_V01;
+  attachment_id: string;
+  workspace_id: string;
+  project_id: string;
+  node_scope_fingerprint: string;
+  physical_root_baseline_fingerprint: string;
+  root_binding_fingerprint: string;
+  task_context_packet_id: string;
+  task_context_packet_fingerprint: string;
+  current_work_fingerprint: string;
+  project_execution_admission_fingerprint: string;
+  worktree_observation_fingerprint: string;
+  managed_run_state_fingerprint: string;
+  binding_fingerprint: string;
+  prepared_at: string;
+  freshness_policy: {
+    policy_version: typeof REPOSITORY_EXECUTION_FRESHNESS_POLICY_VERSION_V01;
+    max_age_ms: number;
+    expires_at: string;
+  };
+  lifecycle: RepositoryExecutionAttachmentLifecycleV01;
+  stale_reason: RepositoryExecutionAttachmentStaleReasonV01 | null;
+  lifecycle_updated_at: string;
+  consumed_run_id: string | null;
+}
+
+export interface RepositoryExecutionAuthorityBoundaryV01 {
+  project_files_written: false;
+  project_commands_executed: false;
+  managed_run_created: false;
+  execution_started: false;
+  provider_called: false;
+  branch_or_commit_created: false;
+  github_called: false;
+  semantic_authority_granted: false;
+  execution_authority_granted: false;
+  external_effect_authority_granted: false;
+}
+
+export interface RepositoryExecutionPreparationV01 {
+  preparation_version: "repository_execution_preparation.v0.1";
+  status: "prepared" | "baseline_adoption_required" | "blocked";
+  reason: ProjectExecutionAdmissionReasonV01;
+  project: { project_id: string; display_name: string | null } | null;
+  ordinary_text: string;
+  attachment: RepositoryExecutionAttachmentV01 | null;
+  admission: ProjectExecutionAdmissionV01 | null;
+  decision_request: RepositoryExecutionDecisionRequestProjectionV01 | null;
+  authority: RepositoryExecutionAuthorityBoundaryV01;
+}
+
+export type RepositoryExecutionDecisionActionV01 =
+  | "adopt_legacy_baseline"
+  | "rebind_root"
+  | "revoke_attachment"
+  | "start_repository_managed_delegation"
+  | "resume_repository_managed_delegation";
+
+export type RepositoryExecutionDecisionStatusV01 =
+  | "pending"
+  | "granted"
+  | "consumed"
+  | "expired"
+  | "superseded";
+
+export interface RepositoryExecutionDecisionRequestV01 {
+  decision_request_version: typeof REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01;
+  request_fingerprint: string;
+  action: RepositoryExecutionDecisionActionV01;
+  workspace_id: string;
+  project_id: string;
+  expected_state_fingerprint: string;
+  expected_state_json: string;
+  requested_at: string;
+  expires_at: string;
+  status: RepositoryExecutionDecisionStatusV01;
+  grant_fingerprint: string | null;
+  confirmation_source: "browser_same_origin_button" | null;
+  granted_at: string | null;
+  consumed_at: string | null;
+  result_fingerprint: string | null;
+}
+
+export interface RepositoryExecutionDecisionRequestProjectionV01 {
+  decision_request_version: typeof REPOSITORY_EXECUTION_DECISION_REQUEST_VERSION_V01;
+  request_fingerprint: string;
+  action: RepositoryExecutionDecisionActionV01;
+  workspace_id: string;
+  project_id: string;
+  expected_state_fingerprint: string;
+  requested_at: string;
+  expires_at: string;
+  status: RepositoryExecutionDecisionStatusV01;
+  grant_fingerprint: string | null;
+  ordinary_text: string;
+}

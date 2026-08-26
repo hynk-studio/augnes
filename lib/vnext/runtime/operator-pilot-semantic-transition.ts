@@ -721,6 +721,12 @@ function requirePilotAcceptedOperationMaterial(
   if (detail.proposal_fingerprint !== binding.proposal_fingerprint) {
     throw transitionError("operator_pilot_proposal_fingerprint_mismatch", 409);
   }
+  if (detail.operational_friction_review) {
+    throw transitionError(
+      "operator_pilot_operational_transition_not_applicable",
+      409,
+    );
+  }
   const decision = detail.decisions.find(
     (item) =>
       item.decision_id === binding.decision_id &&

@@ -1,12 +1,21 @@
 # Augnes vNext Architecture and Protocol
-## Technical Meaning Contract for Core, Adapters, Receipts, Decisions and Temporal Lineage
+## Sole Semantic Authority for Core, Protocol, Persistence, Decisions, and Temporal Lineage
 
-> **문서 지위:** Masterplan 하위의 활성 기술 기준
-> **버전:** v0.1
-> **기준일:** 2026-07-10 KST
-> **상위 문서:** `01_AUGNES_VNEXT_MASTERPLAN.md`
-> **스키마 권위:** 실제 필드·enum·validation schema는 `SSOT_SCHEMA_BUNDLE` 및 이후 versioned schema 파일이 최종 권위를 가진다.
-> **주의:** 이 문서는 의미 계약을 정의하며, 곧바로 DB migration이나 API surface를 승인하지 않는다.
+> **Document status:** Sole active repository authority for Core and protocol
+> semantics.
+>
+> **Product authority:** Product identity, continuity, and surface
+> responsibilities belong to
+> [`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md).
+>
+> **Implementation truth:** Checked-in schemas, migrations, types, validators,
+> and runtime behavior determine what is implemented. Older SSOT bundles and
+> schema archives are compatibility/history unless an active versioned
+> implementation contract explicitly consumes them.
+>
+> **Change boundary:** This document defines meaning. It does not itself
+> authorize a schema, migration, API, route, product projection, or runtime
+> behavior change.
 
 ---
 
@@ -79,77 +88,58 @@ Transport Bindings
 
 Integration Kit는 Core approval을 우회하지 않는다.
 
-### 1.4 Product Surfaces, Projections and Inspector
+### 1.4 Product projections do not create Core authority
+
+Product responsibilities, navigation, and cross-surface meaning belong to
+[`01_AUGNES_VNEXT_MASTERPLAN.md`](./01_AUGNES_VNEXT_MASTERPLAN.md). Current
+implementation and compatibility names belong to the roadmap and checked-in
+runtime. This section owns only their Core/protocol boundary.
+
+A Blank State projection, AI Workplane projection, timeline, relationship view,
+GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
+trace, or integration-health view is a client or rebuildable projection over
+Core meaning. Its presence does not create a new Core object, lifecycle,
+current-head selector, persistence requirement, or authority principal.
+
+Product projections may:
+
+- read project-scoped Core records;
+- compose source-linked, time-bounded views;
+- present uncertainty, candidate material, and exact lineage;
+- submit bounded intent to an existing decision, grant, execution, or
+  Transition gate.
+
+They may not:
+
+- establish truth or accept Evidence, Claim, Perspective, or state;
+- turn recommendation into `ReviewDecision`;
+- turn execution completion into verified task success;
+- turn a candidate into accepted state;
+- apply a Transition, authorize execution, expand a capability grant, or select
+  later context merely by rendering or recommending;
+- create a new protocol record because product doctrine names a responsibility.
+
+GuideBrief remains contextual, source-anchored, conversational, and
+non-authoritative. Inspector remains read-only exact detail. Research engines
+may explore, compare, challenge, infer, predict, and propose, but their output
+is not truth, accepted Perspective, user decision, Transition, execution
+authority, or authority expansion.
+
+The canonical interaction meaning remains:
 
 ```text
-Augnes Project Home
-Augnes Semantic Workbench
-Augnes Inspector
-Host-native compact cards
-Current Working Perspective
-Context Compiler
-Attention Queue
-Evidence Pack
-Run Trace
-Project Timeline
-Lineage Explorer
-Integration Health
-```
-
-Project Home은 work를 frame/resume하고 durable current coordination을 보여 주는
-인간 front door다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
-reconciliation, reviewable semantic delta와 decision consequence composition,
-ReviewDecision 준비와 next-context composition을 위한 능동 semantic work
-surface다. `/workbench`는 compatibility entry이고
-`/workbench/semantic-review`가 canonical Workbench다. Workbench의 책임은 provider
-제품의 일시적 기능 공백이 아니라 cross-host·cross-time canonical project
-semantics로 정의한다.
-
-Inspector는 Home과 Workbench가 공유하는 read-heavy source map, epistemic basis,
-authority lineage, audit와 drill-down surface다. 현재 shared route는
-`/workbench/inspector`, authenticated read route는
-`GET /api/vnext/operator/inspector`, rebuildable composition contract는
-`shared_project_inspector.v0.1`이다. 이 contract는 Core record, table, current-head
-selector 또는 durable authority가 아니며 project scope를 client에서 받지 않는다.
-Inspector GET/render는 semantic/control write, model/provider call, external action,
-filesystem mutation 또는 historical repair를 수행하지 않는다. host-native compact
-card는 bounded context와 review intent를 native UX에 표시한다. compact card와
-Inspector 어느 것도 Home과 Workbench를 단독 대체하지 않는다.
-
-모든 surface는 Core record를 소비하는 projection 또는 client다. UI 이름은
-authority를 부여하지 않으며, surface가 낸 review/decision intent도 explicit Core
-decision/transition path가 적용하기 전에는 durable state가 아니다. Home과
-Workbench는 projection을 조합하고 bounded review 또는 decision intent를 Core
-gate로 보낼 수 있지만 source of truth가 아니다. workflow-stage마다 전용 table과
-panel을 만드는 방식은 계속 금지한다.
-
-Strategic review가 해당 task에서 활성화되면 Project Home은 pending
-attention과 durable coordination만 요약한다. Workbench는 base-versus-challenger,
-condition-bound advantage, transfer cost, falsifier, patch, regression과 decision/later-context
-consequence를 candidate 단위로 구성한다. Inspector는 exact packet, receipt,
-base-source fingerprint, supporting/opposing refs와 proposal → decision → Transition →
-later packet → feedback lineage를 drill down한다. 이 책임은 Arena page나 새 UI
-권한을 승인하지 않는다.
-
-Canonical interaction loop:
-
-```text
-Project Home frames or resumes work
-→ TaskContextPacket intent
-→ native host execution
-→ RunReceipt operational residue
+bounded task context
+→ native-host execution
+→ operational receipt
 → source-linked, non-authoritative assessment/comparison
-→ EpisodeDeltaProposal
-→ ReviewDecision
-→ authorized transition
-→ changed later TaskContextPacket selection
-→ later RunReceipt / ContextUseReview feedback
-→ updated Project Home projection
+→ proposal candidate
+→ user or explicitly authorized decision
+→ separately authorized Transition
+→ later context and outcome feedback
 ```
 
-Inspector drill-down은 이 loop 전 구간에서 source, artifact, run, decision과
-Perspective lineage를 열 수 있어야 한다. 이 loop는 새 protocol type, DB schema,
-API, route 또는 UI implementation plan을 승인하지 않는다.
+This meaning does not require every stage to appear in the UI and does not
+authorize a new schema, API, route, surface, or implementation plan.
 
 ### 1.5 Augnes Lab
 
@@ -236,6 +226,55 @@ Repository
 - cross-project reuse는 explicit source project와 policy를 기록한다.
 - grant와 automation policy는 project 범위를 벗어나지 않는다.
 - export, archive, restore와 delete rehearsal은 project별로 검증한다.
+
+### 2.5 canonical project identity and mutable display label
+
+`ProjectIdentityV01`의 canonical identity는 `workspace_id`, `project_id`,
+`project_identity_version`, `identity_kind`, `identity_source`, `created_at`으로
+구성되며 이 필드들은 immutable이다. 기존
+`vnext_project_identities.display_name`은 같은 project를 사용자가 알아보기 쉽게
+부르는 mutable local label이다. Label 변경은 새 project, profile, semantic record,
+activity event, Decision 또는 Transition을 만들지 않는다.
+
+Display-name 변경은 exact workspace/project, expected current display name과 current
+active-project selection revision에 bind된 명시적 compare-and-set operation으로만
+수행한다. 같은 normalized name은 exact replay이고 stale name 또는 active-selection
+drift는 fail closed한다. 변경은 project ID, local root/folder, external refs, recent 또는
+active selection, continuity/Pinned/Core record, TaskContextPacket, RunReceipt, Evidence,
+Claim, proposal, ReviewDecision, Transition, feedback와 어떤 authority도 수정하지 않는다.
+
+Local root registration replay는 root binding으로 기존 project를 식별하고 저장된 local
+display name을 유지한다. Portable package는 export 시 현재 display name을 포함하고 새
+import의 초기 label로 사용하지만, 이미 존재하는 project의 package replay는 immutable
+identity와 project-scoped record/integrity 검증을 exact하게 유지하면서 local mutable
+label 차이만 conflict 또는 overwrite로 취급하지 않는다.
+
+Native folder picker와 사용자가 직접 선언한 absolute local path는 서로 다른 selection
+origin을 유지한 채 하나의 process-local prepared selection owner와 하나의 canonical
+onboarding transaction으로 수렴한다. 선언 문자열은 shell, provider, model, MCP 또는
+외부 서비스에 전달하지 않으며 expansion이나 command 해석을 하지 않는다. Canonical
+path normalizer와 physical-root identity owner가 inspection 및 confirmation 시점마다 실제
+지원 여부와 동일 물리 객체를 다시 판정한다. Pending selection은 project truth가 아니며
+process restart 후 다시 review해야 한다.
+
+Project 생성 전 declared-path confirmation은 project-scoped repository execution decision이
+아닌 `local_project_onboarding_decision.v0.1` 경계가 소유한다. 이 경계는 loopback
+same-origin Browser, HttpOnly 및 SameSite=Strict cookie, server-side credential hash,
+candidate/display-name/expected-selection bound one-time challenge를 함께 요구한다. 성공한
+동일 transport replay는 process-local committed result를 반환하고 두 번째 project,
+baseline 또는 active-selection mutation을 만들지 않는다. 실패, expiry, abandonment 또는
+process loss는 fresh inspection과 confirmation material을 요구한다. Candidate, credential,
+nonce, private fingerprint와 raw path는 portable export나 public protocol output이 아니다.
+
+Unavailable local root recovery는 같은 picker/declared-path parser와 process-local prepared
+selection owner를 재사용하되 candidate purpose를 exact target project와 old root/baseline,
+active-selection expected state에 server-side로 bind한다. New-project candidate는 rebind
+preview/commit에 사용할 수 없고 recovery candidate는 onboarding confirmation에 사용할 수
+없다. Recovery inspection은 pre-project onboarding decision을 만들지 않는다. Consequential
+**Use this folder** activation은 기존 project-scoped `rebind_root` Browser decision과 atomic
+root/baseline rebind transaction만 사용하며 prepared attachment staleness와 durable
+run/result/semantic history 보존도 그 기존 owner를 따른다. Exact current root 또는 그 물리
+alias는 root/baseline을 rewrite하지 않고 active-selection CAS로 기존 project만 연다.
 
 ---
 
@@ -415,6 +454,294 @@ GuideBrief
 These are data-mapping inputs only. They are not packet export/copy surfaces or
 native-host transport paths. The normal R5 path admits the exact persisted
 `TaskContextPacket` server-side.
+
+#### Initial-work packet and lineage boundary
+
+`project_work_initialization.v0.1` is the shared deterministic, project-scoped,
+zero-model read owner for a project's work-initialization status. It returns
+`not_defined` only when the registered active project has an available local
+root and exact reads prove that no TaskContextPacket, managed delegated run,
+RunReceipt, EpisodeDeltaProposal, ReviewDecision, StateTransitionReceipt,
+semantic-state projection, semantic target head, or other owned current
+run/result source exists. Durable history without a usable current packet is
+`existing_history_without_current_packet`; a failed source read or unavailable
+project/root is `unavailable`. Neither state permits genesis creation.
+
+`defineInitialProjectWorkV01` is the authenticated operator mutation for the
+one allowed genesis definition. Its bounded request binds the exact workspace,
+project, active project, active-selection revision, expected `not_defined`
+state, normalized user goal, success criteria, and optional non-goals. The
+owner revalidates those facts in one immediate transaction and inserts exactly
+one existing `task_context_packet` Core record. The same normalized logical
+definition is `exact_replay`; a different later definition or concurrent state
+change refuses. Validation, session, root, database, or packet failure leaves
+no partial record.
+
+The compiler contract
+`augnes.vnext.initial-work-context-compiler.v0.1` uses the canonical
+TaskContextPacket builder and validator. It maps only the authenticated user
+declaration into task fields and a projection-only active-goal summary. Its
+selected context contains exact `user_declaration` and admitted
+`direct_local_observation` provenance, no accepted-state refs, no fabricated
+Evidence, Claim, risk, check, artifact, permission, or semantic state. The
+packet remains private user-authored project context, has a null capability
+grant, carries no absolute root, credential, transcript, provider material, or
+automatic expiry, and grants no execution, semantic, or external-effect
+authority.
+
+Executable packet lineage is an explicit union:
+
+```text
+initial_user_defined
+  → exact first-work definition ref
+  → exact authenticated operator-action provenance
+  → no prior packet and no StateTransitionReceipt
+
+semantic_transition
+  → exact prior TaskContextPacket
+  → exact applied StateTransitionReceipt
+  → existing full-chain and semantic-currentness validation
+```
+
+NativeHostRequest v0.1 admits this additive lineage union without overloading a
+transition-named field. Initial lineage must omit a source Transition receipt;
+transition lineage retains its existing exact relation unchanged. The initial
+packet is current only while it is the one genesis packet, no later
+transition-compiled packet supersedes it, and no semantic state/head drift
+requires a later compiler result. A later normal semantic Transition may use
+the initial packet as its prior packet, after which the existing persisted
+compiler produces the successor and full-chain validation remains exact.
+
+Saving first work does not start a host run, invoke a provider/model, write the
+project root, or create a proposal, ReviewDecision, Transition, semantic state,
+or RunReceipt. The existing separately authenticated `Start Codex work`
+activation supplies execution authority and may admit a current initial packet
+through the same active-project, selection, root, packet-fingerprint,
+approval, idempotency, cancellation, reconciliation, and cleanup gates used by
+transition-compiled packets. Result and proposal lineage may reference the
+initial definition truthfully; they may not fabricate a Transition receipt.
+
+Portable project v0.1 preserves the existing TaskContextPacket plus the exact
+initial-definition and operator-action provenance rows. A new import remains
+`defined_initial_work`, requires a new local operator action before execution,
+and transports no source-machine root or credentials. This additive
+interpretation requires neither a schema migration nor a TaskContextPacket,
+NativeHostRequest, or portable-project version bump.
+
+#### Pre-execution user revision boundary
+
+`project_work_revision_eligibility.v0.1` is the single deterministic owner for
+revising defined work before execution. It binds the exact current packet ID
+and fingerprint, current lineage kind, linear revision count, active selection,
+root availability, and a bounded eligibility reason. It composes the existing
+initialization owner with the fail-closed managed-run-history owner. Any exact
+project run row, Core work history outside the valid packet chain, semantic
+state/head, semantic successor, ambiguous or invalid lineage, unavailable
+source, inactive project, unavailable root, or the fixed 32-revision bound
+blocks revision.
+
+`revisePreExecutionProjectWorkV01` is an authenticated compare-and-set mutation.
+It reuses the initial-work normalizer and all code-point, list, control-character,
+UTF-8, and packet-budget limits. In one immediate transaction it revalidates
+session admission, project/selection/root scope, exact current packet identity,
+lineage, zero execution/work history, and revision count. An unchanged
+normalized definition is `exact_replay` with no write. An identical concurrent
+successor may replay; any different stale request refuses.
+
+The append-only compiler contract
+`augnes.vnext.pre-execution-work-revision-compiler.v0.1` creates one ordinary
+`task_context_packet` record. It never updates or replaces a prior packet. The
+packet carries the revised task, a projection-only current summary, exact
+revision-definition/request/operator-action refs, the immediate prior packet
+binding, and the one initial-definition origin. It has no accepted-state ref,
+capability grant, Evidence, Claim, proposal, Decision, Transition, semantic
+state, execution authority, or external-effect authority.
+
+Executable packet lineage therefore also includes:
+
+```text
+pre_execution_user_revision
+  → exact revision definition and request refs
+  → exact authenticated operator-action provenance
+  → exact immediate prior packet ID and fingerprint
+  → linear ancestry to exactly one initial_user_defined packet
+  → no StateTransitionReceipt
+```
+
+The latest valid linear revision tip is current until work/history appears or a
+later normal semantic Transition compiles its successor. Branches, cycles,
+missing packets, fingerprint drift, duplicate revision identity, timestamp
+inversion, invalid provenance, and ambiguous tips fail closed. NativeHostRequest
+uses an additive revision lineage branch and a new packet-bound run identity;
+the historical semantic-transition shape and semantic/initial identities remain
+unchanged. Portable project v0.1, backup, restore, and recovery preserve and
+canonically revalidate the entire chain without a schema or portable-contract
+version bump.
+
+#### RepositoryExecutionAttachment and managed delegation v0.1
+
+Repository identity, local root binding, node-local physical-root baseline,
+Browser active selection, execution attachment, and managed-run binding are
+independent meanings. `repository_execution_attachment.v0.1` immutably binds
+the canonical workspace/project, node scope, baseline/root binding, current
+TaskContextPacket and work semantics, project-scoped admission, bounded Git
+worktree, managed-run absence, and freshness. Browser project ID and selection
+revision are excluded.
+
+The physical observation is a versioned platform union. Existing Darwin/Linux
+records retain `native_host_physical_root_identity.v0.1` realpath/device/inode
+semantics and serialization. The CDX2B3A Windows candidate uses
+`physical_root_identity.windows.v0.1`: canonical final-target-path fingerprint,
+volume serial identity, stable file ID, and supported filesystem family. Its
+node scope binds installation identity, platform, x64 architecture, and the
+physical-identity contract version. Machine-local POSIX or Windows identifiers
+never become canonical project identity or portable truth.
+
+The Windows owner obtains final target, volume serial, and file ID from one
+opened directory target handle through a narrow reviewed Win32 helper, then
+admits Windows 10 Pro 22H2 build 19045 or newer and Windows 11 build 22000 or
+newer on x64 local fixed NTFS. It has no shell, network, runtime download,
+elevation, or path-only fallback. The source-runtime owner has exact Windows 10
+Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there. Packaged Windows remains unsupported. Unsupported platforms and package modes remain fail-closed even
+though the parser, schema, and attachment contracts have platform-neutral
+coverage. Windows package support is not claimed.
+
+CDX2B2B adds `repository_execution_envelope.v0.1` and the explicit
+`repository_attachment` NativeHost run mode. One Browser-confirmed start grant
+is bound to one prepared attachment, its complete expected database state, the
+physical/worktree fingerprints, adapter/capability versions, timeout/budgets,
+and envelope fingerprint. An immediate transaction validates and consumes the
+grant, prepares and admits one existing NativeHost claim, changes the
+attachment to `consumed` with its exact run ID, and creates one queued managed
+run. These writes commit all or none. Post-commit physical/worktree observation
+precedes the final database read, and NativeHost delivery repeats the gate
+before invocation. Drift blocks the same run and never un-consumes the
+attachment. Exact replay returns the same run and creates no duplicate
+controller or effect.
+
+The execution envelope pre-authorizes bounded reversible work inside the exact
+verified macOS Git root or verified Windows 11 x64 source-runtime Git root on
+local fixed NTFS: reads, file creation/edit, tracked deletion, local
+repository checks/builds, Git inspection, and bounded local branch/commit work.
+Arbitrary command network, dependency downloads, push/GitHub, external posting,
+release/deploy/publish, injected Browser/Companion/provider/database/runtime
+or OS credentials, outside-root secret material or writes, OS persistence,
+destructive pre-existing untracked-data mutation, semantic
+approval, Decision, Transition, accepted state, and work closure are not
+pre-authorized. Existing run-operation approval, cancellation, result
+normalization, RunReceipt, and proposal review owners remain authoritative and
+separate from Start.
+
+Repository read scope is path-based, not content-classified: a potentially
+sensitive file already inside the exact root can be read as repository
+material. The protocol therefore does not claim arbitrary in-repository secret
+content is unreadable. It continues to omit Browser/Companion/provider/runtime
+credentials from delegated inputs, block system and other outside-root secret
+sources, minimize the child environment, refuse command-network egress, and
+keep file contents and secret-detection results out of MCP projections.
+
+Repository-delegation cancellation is a separate risk-reducing control. It
+validates only the immutable consumed attachment/run binding and exact live
+controller ownership, never current packet/work/root/baseline/worktree or
+Browser selection. Queued cancellation atomically cancels the planned step and
+run. An owned active or approval-waiting controller receives one signal.
+Missing ownership projects paused/disconnected reconciliation and never
+launches or resumes a worker. Exact terminal/cancelling replay performs no new
+signal. Exact Start replay likewise uses the exact run projection for ordinary
+state text; `worker_started` records only a worker newly started by that
+specific request.
+
+The managed-Start product boundary covers a verified local macOS filesystem
+and the verified Windows 11 x64 source-runtime lane on local fixed NTFS. Linux
+has no separate product filesystem/runtime proof in v0.1. Windows 10,
+packaged Windows, non-Git, remote, network, virtual, unsupported, unavailable,
+and ambiguous roots create no start decision consumption, attachment
+consumption, or run. CDX2B3B changes only the Windows platform admission gate;
+the attachment, envelope, run, explicit Resume, cancellation, result, and
+semantic authority owners remain unchanged.
+A durable nonterminal run without its exact live controller projects
+disconnected/paused and is never automatically resumed in this phase.
+
+CDX2B4A adds one private node-local
+`repository_run_resume_checkpoint.v0.1` history owner. It does not redefine the
+consumed attachment: that record remains the immutable start snapshot. A safe
+checkpoint instead binds one exact declared-not-started boundary or one exact
+terminal operation observation (`completed`, `failed`, or `cancelled`) to the
+same run, step, controller generation, attachment, execution envelope,
+provider resume binding, monotonic event/step/effect high-water marks, and a
+fresh post-boundary physical-root and bounded-worktree observation. Raw command
+text/output, provider bodies, environment, credentials, absolute paths,
+transcripts, and unbounded file lists are excluded.
+
+Admission follows terminal event persistence, physical-root observation,
+bounded-worktree observation, then one immediate compare-and-swap transaction
+and final consistency read. A later start, conflicting terminal, old
+controller generation, high-water regression, approval ambiguity, or expected
+state drift refuses the checkpoint. Event or result persistence remains
+truthful if checkpoint persistence fails, but the run cannot become
+resume-ready.
+
+`repository_run_resume_eligibility.v0.1` is the single pure read projection for
+`active_owned`, `terminal`, `approval_pending`, `resume_ready`,
+`reconciliation_required`, `stale`, `unsupported`, or `unavailable`. It
+compares the current repository with the latest safe checkpoint rather than
+the consumed attachment, excludes Browser selection from binding material,
+and exposes only bounded ordinary language plus all-false mutation authority.
+CDX2B4A never calls `thread/resume`, creates a controller generation, or changes
+the existing attachment-backed resume refusal. Historical interactive and
+policy-triggered resume remain on their existing owner.
+
+CDX2B4B adds `repository_managed_resume_preparation.v0.1` and one Browser-only
+`resume_repository_managed_delegation` decision. Resume eligibility is not
+Resume authority: only exact `resume_ready` material produces a request, and
+the Start grant cannot be reused. Resume decision is not operation approval.
+MCP may request the decision and submit its already issued exact grant, but it
+cannot bootstrap the HttpOnly decision session or obtain/issue the Browser
+challenge, nonce, cookie, or grant.
+
+`repository_managed_resume_attempt.v0.1` is private machine-local history. One
+immediate transaction consumes the exact grant, rechecks the selected run,
+consumed attachment, latest checkpoint/high-water marks, packet/current work,
+root/baseline, bounded worktree, execution envelope, adapter/capability,
+provider binding, approval absence, and controller absence; preserves the run,
+attachment, envelope, and provider thread; and advances the controller
+generation exactly once. Same run does not mean new run.
+
+The immutable attempt is distinct from the mutable
+`repository_managed_resume_runtime_claim.v0.1`. A verified replacement
+Companion runtime may transfer that claim with one immediate exact CAS only
+while the attempt is `admitted_not_invoked`, the invocation marker is absent,
+and every admission relation still matches. Transfer changes only the claim
+revision and supervised runtime binding; it cannot consume the decision again
+or create another attempt, run, attachment, controller generation, event
+lifecycle, or provider thread. A stale claimant fails closed, and a surviving
+invocation marker forbids transfer.
+
+After commit, the launch gate observes physical root, bounded worktree,
+adapter/capability, controller absence, then canonical database state. It
+durably changes the attempt from `admitted_not_invoked` to
+`provider_resume_invocation_started` before adapter delivery. A crash before
+that marker can replay the same admitted attempt and launch once. A surviving
+marker without controller/result is conservatively reconciliation-required
+and cannot call the provider again. `thread/resume` is not `thread/start`.
+Later operations use the resumed generation and the existing checkpoint owner;
+old-generation lifecycle events fail closed.
+
+Cancellation remains risk-reducing and attachment/run bound. It may cancel an
+admitted-not-invoked attempt atomically with zero provider calls or signal only
+the exact resumed controller after invocation. When the controller is lost or
+provider stop cannot be confirmed,
+`repository_managed_resume_cancellation.v0.1` records the exact intent and
+forbids later claim reacquisition without pretending that the provider stopped.
+Result normalization,
+RunReceipt, and at-most-one proposal remain shared owners. Run completion is
+not semantic acceptance. Historical interactive and policy-triggered resume
+retain their existing identity and active-selection compatibility contract.
 
 ---
 

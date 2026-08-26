@@ -10,6 +10,9 @@ import type {
   CodexHandoffDraftSectionKind,
   CodexHandoffDraftValidationPolicy,
 } from "@/types/codex-handoff-draft-contract";
+import {
+  containsAbsoluteUserHomePath,
+} from "@/lib/research-candidate-review/operator-bound-checkout";
 
 type JsonRecord = Record<string, unknown>;
 type CodexHandoffDraftContractWithFingerprint =
@@ -1127,6 +1130,10 @@ function validateReferences(
   }
   if (!hasText(draft.canonical_checkout)) {
     failureCodes.add("canonical_checkout_missing");
+  } else if (
+    containsAbsoluteUserHomePath(asString(draft.canonical_checkout))
+  ) {
+    failureCodes.add("canonical_checkout_private_path");
   }
   const expectedFiles = asArray(draft.expected_files).map(asRecord);
   if (

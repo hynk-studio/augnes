@@ -1,43 +1,159 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+
+import type { BrowserOwnerCurrentFocusCapabilityV01 } from "@/types/vnext/guide-brief-interaction";
 
 import type {
   SemanticReviewCandidateReadV01,
   SemanticReviewDecisionRequestV01,
 } from "./semantic-review-types";
+import {
+  applyReviewDecisionSelectionV01,
+  canSubmitReviewDecisionFormV01,
+  DEFAULT_DEFER_RATIONALE_V01,
+  type ReviewDecisionFormOwnerStateV01,
+} from "./review-decision-form-state";
 import styles from "./semantic-review.module.css";
 
 type SupportedDecision = SemanticReviewDecisionRequestV01["decision"];
+const DEFAULT_REVISIT_CONDITION =
+  "Review again when the missing verification or current project information is available.";
 
-export function ReviewDecisionForm({
+export interface ReviewDecisionPreparationHandleV01 {
+  prepareApplying: (
+    applyingDecision: "accept" | "supersede" | "retract",
+  ) => boolean;
+  getCurrentFocusCapability: () => BrowserOwnerCurrentFocusCapabilityV01;
+  focusOwner: () => boolean;
+}
+
+export const ReviewDecisionForm = forwardRef<
+  ReviewDecisionPreparationHandleV01,
+  {
+    proposalId: string;
+    proposalFingerprint: string;
+    candidateRead: SemanticReviewCandidateReadV01;
+    applyingDecision?: "accept" | "supersede" | "retract";
+    primary?: boolean;
+    busy: boolean;
+    onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
+    onCurrentFocusCapabilityChange?: (
+      capability: BrowserOwnerCurrentFocusCapabilityV01,
+    ) => void;
+  }
+>(function ReviewDecisionForm({
   proposalId,
   proposalFingerprint,
   candidateRead,
   applyingDecision = "accept",
+  primary = true,
   busy,
   onSubmit,
-}: {
-  proposalId: string;
-  proposalFingerprint: string;
-  candidateRead: SemanticReviewCandidateReadV01;
-  applyingDecision?: "accept" | "supersede" | "retract";
-  busy: boolean;
-  onSubmit: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
-}) {
+  onCurrentFocusCapabilityChange,
+}, ref) {
   const [decision, setDecision] = useState<SupportedDecision>("defer");
-  const [rationaleSummary, setRationaleSummary] = useState("");
-  const [revisitCondition, setRevisitCondition] = useState("");
+  const [rationaleSummary, setRationaleSummary] = useState(
+    DEFAULT_DEFER_RATIONALE_V01,
+  );
+  const [rationaleBoundDecision, setRationaleBoundDecision] =
+    useState<SupportedDecision | null>("defer");
+  const [revisitCondition, setRevisitCondition] = useState(
+    DEFAULT_REVISIT_CONDITION,
+  );
+  const decisionControlRef = useRef<HTMLSelectElement | null>(null);
 
   const applyAllowed = candidateRead.pilot_admission.decision_allowed.accept;
+  const proposalOnly =
+    candidateRead.pilot_admission.review_mode ===
+    "proposal_only_no_activation";
   const selectedDecisionAllowed =
     decision !== applyingDecision || applyAllowed;
-  const canSubmit =
-    !busy &&
-    selectedDecisionAllowed &&
-    rationaleSummary.trim().length > 0 &&
-    (decision !== "defer" || revisitCondition.trim().length > 0);
+  const ownerState: ReviewDecisionFormOwnerStateV01 = {
+    decision,
+    rationale_summary: rationaleSummary,
+    rationale_bound_decision: rationaleBoundDecision,
+    revisit_condition: revisitCondition,
+  };
+  const canSubmit = canSubmitReviewDecisionFormV01(ownerState, {
+    busy,
+    selected_decision_allowed: selectedDecisionAllowed,
+  });
+  const currentFocusCapability: BrowserOwnerCurrentFocusCapabilityV01 = {
+    available: !busy,
+    owner_focus_identity: [
+      "decision-control",
+      candidateRead.candidate.candidate_id,
+      candidateRead.candidate_fingerprint,
+      applyingDecision,
+      busy ? "busy" : "available",
+    ].join(":"),
+    unavailable_reason: busy
+      ? "The current decision control is busy."
+      : null,
+  };
+
+  useEffect(() => {
+    onCurrentFocusCapabilityChange?.(currentFocusCapability);
+  }, [
+    currentFocusCapability.available,
+    currentFocusCapability.owner_focus_identity,
+    currentFocusCapability.unavailable_reason,
+    onCurrentFocusCapabilityChange,
+  ]);
+
+  function selectDecision(nextDecision: SupportedDecision): void {
+    const nextState = applyReviewDecisionSelectionV01(
+      ownerState,
+      nextDecision,
+    );
+    setDecision(nextState.decision);
+    setRationaleSummary(nextState.rationale_summary);
+    setRationaleBoundDecision(nextState.rationale_bound_decision);
+    setRevisitCondition(nextState.revisit_condition);
+  }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      prepareApplying: (requestedDecision) => {
+        if (
+          busy ||
+          !applyAllowed ||
+          requestedDecision !== applyingDecision
+        ) {
+          return false;
+        }
+        selectDecision(applyingDecision);
+        decisionControlRef.current?.focus();
+        return true;
+      },
+      getCurrentFocusCapability: () => currentFocusCapability,
+      focusOwner: () => {
+        if (
+          !currentFocusCapability.available ||
+          !decisionControlRef.current
+        ) {
+          return false;
+        }
+        decisionControlRef.current.focus();
+        return true;
+      },
+    }),
+    [
+      applyAllowed,
+      applyingDecision,
+      currentFocusCapability,
+      ownerState,
+    ],
+  );
 
   async function submitDecision(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,30 +179,39 @@ export function ReviewDecisionForm({
       data-vnext-operator-decision-form="v0.1"
       data-vnext-operator-decision-candidate={candidateRead.candidate.candidate_id}
       data-vnext-proposal-local-controls-busy={String(busy)}
+      data-vnext-default-decision-path-interactions="2"
+      data-vnext-review-mode={candidateRead.pilot_admission.review_mode}
       onSubmit={submitDecision}
     >
       <label htmlFor={`decision-${candidateRead.candidate.candidate_id}`}>
-        Explicit ReviewDecision
+        Decision
       </label>
       <select
+        ref={decisionControlRef}
         id={`decision-${candidateRead.candidate.candidate_id}`}
         value={decision}
         disabled={busy}
-        onChange={(event) => setDecision(event.target.value as SupportedDecision)}
+        onChange={(event) =>
+          selectDecision(event.target.value as SupportedDecision)
+        }
       >
-        <option value="defer">Defer for later review</option>
-        <option value="reject">Reject this candidate</option>
+        <option value="defer">Decide later</option>
+        <option value="reject">
+          {proposalOnly ? "Reject this proposal" : "Reject this change"}
+        </option>
         <option value={applyingDecision} disabled={!applyAllowed}>
           {applyingDecision === "accept"
-            ? "Accept"
+            ? proposalOnly
+              ? "Accept this operational hypothesis"
+              : "Accept this change"
             : applyingDecision === "supersede"
-              ? "Supersede"
-              : "Retract"} for {candidateRead.pilot_admission.accept_operation ?? "eligible operation"} intent
+              ? "Replace the current saved state"
+              : "Remove the current saved state"}
         </option>
       </select>
 
       <label htmlFor={`rationale-${candidateRead.candidate.candidate_id}`}>
-        Bounded rationale
+        Decision note (editable suggested wording)
       </label>
       <textarea
         id={`rationale-${candidateRead.candidate.candidate_id}`}
@@ -94,13 +219,21 @@ export function ReviewDecisionForm({
         required
         value={rationaleSummary}
         disabled={busy}
-        onChange={(event) => setRationaleSummary(event.target.value)}
+        onChange={(event) => {
+          setRationaleSummary(event.target.value);
+          setRationaleBoundDecision(decision);
+        }}
       />
+      {rationaleBoundDecision !== decision ? (
+        <p className={styles.notice}>
+          Edit this decision note for the selected choice before saving.
+        </p>
+      ) : null}
 
       {decision === "defer" ? (
         <>
           <label htmlFor={`revisit-${candidateRead.candidate.candidate_id}`}>
-            Required revisit condition
+            Review again when… (editable suggested wording)
           </label>
           <textarea
             id={`revisit-${candidateRead.candidate.candidate_id}`}
@@ -112,47 +245,46 @@ export function ReviewDecisionForm({
             placeholder="Describe what new information should trigger another review."
           />
           <p className={styles.muted}>
-            This form submits only the explicit bounded revisit condition. It does not
-            submit caller-controlled timestamps.
+            Describe what would make another review useful. The system records no
+            caller-provided decision time.
           </p>
         </>
       ) : null}
 
       {decision === applyingDecision ? (
         <p className={styles.notice}>
-          {applyingDecision === "accept"
-            ? "Accept"
-            : applyingDecision === "supersede"
-              ? "Supersede"
-              : "Retract"} records a ReviewDecision and an exact transition intent. It does not
-          confirm a gate, apply semantic state, create a StateTransitionReceipt, or
-          compile later context.
+          {proposalOnly
+            ? "Saving records this proposal-only review judgment. The project is not changed, no semantic Transition follows, and no operational activation follows in ACGC4B. Any later activation requires a separately authorized owner and stage."
+            : "Saving this decision does not change the project yet. Applying the reviewed change remains a separate confirmed action."}
         </p>
       ) : (
         <p className={styles.copy}>
-          Reject and defer record no transition intent and apply no state.
+          Rejecting or deciding later does not change the project.
         </p>
       )}
 
       {!applyAllowed ? (
         <p className={styles.muted}>
-          The applying decision is unavailable under the real-pilot policy: this selected candidate
-          must declare an explicit add, revise, supersede, or retract operation whose
-          exact target state satisfies its current-state precondition. Unknown and
-          no-change candidates require a separate immutable operation-aware revision.
-          Reject and defer remain available.
+          This suggested change needs clearer change semantics or current project
+          information before it can be accepted. Reject and Decide later remain
+          available.
         </p>
       ) : null}
 
       <p className={styles.muted}>
-        The server binds the actor, authorization and decision basis, target set, and
-        decision time from the authenticated session and persisted proposal. This form
-        does not submit those authority-shaped fields.
+        Augnes binds this decision to the protected current review. This form does
+        not ask you to enter internal identifiers or authority fields.
       </p>
 
-      <button className={styles.button} type="submit" disabled={!canSubmit}>
-        {busy ? "Recording decision…" : `Record ${decision} decision`}
+      <button
+        className={primary ? styles.button : styles.secondaryButton}
+        type="submit"
+        data-ai-workplane-primary-action={primary ? "save-decision" : undefined}
+        data-augnes-primary-action={primary ? "save-decision" : undefined}
+        disabled={!canSubmit}
+      >
+        {busy ? "Saving decision…" : "Save decision"}
       </button>
     </form>
   );
-}
+});

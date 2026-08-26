@@ -1,15 +1,16 @@
 {
   "name": "augnes-operator",
-  "version": "0.2.0",
-  "description": "Augnes workflow harness for Codex preflight, bounded implementation, evidence reporting, proof-only closeout, and authority audit; v0.2 aligns adjacent ChatGPT Apps and Codex Plugin surface operations while preserving Augnes authority boundaries.",
+  "version": "0.4.0",
+  "description": "Augnes workflow harness plus a fail-closed macOS Companion service lifecycle and exact canonical repository continuity.",
   "author": {
     "name": "Aurna-code"
   },
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Augnes Operator",
     "shortDescription": "Use Augnes workflow skills inside Codex.",
-    "longDescription": "Packages approved Augnes workflow skills for Codex context intake, bounded implementation, surface-operation guidance, capsule handoff guidance, evidence-aware reporting, proof-only closeout, and authority audit. This v0.2 metadata alignment does not add hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
+    "longDescription": "Packages Augnes workflow skills, bounded status and start controls for an explicitly installed checkout-bound macOS Companion service, and exact canonical continuity through one verified live Companion without mock or fallback state.",
     "developerName": "Aurna-code",
     "category": "Productivity",
     "capabilities": [
@@ -17,8 +18,10 @@
       "preflight",
       "surface-ops-guidance",
       "capsule-handoff-guidance",
-      "authority-audit"
+      "authority-audit",
+      "companion-service-lifecycle",
+      "live-repository-continuity"
     ],
-    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, capsule-handoff-aware, evidence-aware, surface-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
+    "defaultPrompt": "For fresh repository continuation, call augnes_companion_lifecycle_status for the exact current root; if startable, call augnes_start_companion_service once; after live verification, call augnes_resume_repository once."
   }
 }

@@ -30,6 +30,7 @@ import {
 } from "@/lib/vnext/task-context-packet";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { runContextUseAttributionConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-attribution-projection";
 import { runContextUseReviewConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-review";
 import { runCriterionAssessmentConformanceV01 } from "@/scripts/vnext-protocol-conformance/criterion-assessment";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
@@ -41,8 +42,26 @@ import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-co
 import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
 import { runStrategicAdvantageTransferConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategic-advantage-transfer";
+import { runStrategyCompositionCaseConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-case";
+import { runStrategyCompositionComparisonConformanceV01 } from "@/scripts/vnext-protocol-conformance/strategy-composition-comparison";
+import { runGovernedActorLabConformanceV01 } from "@/scripts/vnext-protocol-conformance/governed-actor-lab";
+import { runGovernedActorLabLiveConformanceV01 } from "@/scripts/vnext-protocol-conformance/governed-actor-lab-live";
 import { runBoundedAutomationCycleConformanceV01 } from "@/scripts/vnext-protocol-conformance/bounded-automation-cycle";
 import { runProjectVerifyMaterialConformanceV01 } from "@/scripts/vnext-protocol-conformance/project-verify-material";
+import { runModelHostSuccessionBenchmarkConformanceV01 } from "@/scripts/vnext-protocol-conformance/model-host-succession-benchmark";
+import { runOperationalReentryPerturbationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-perturbation";
+import { runOperationalReentryMatchedCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort";
+import { runOperationalReentryMatchedCohortConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-2";
+import { runOperationalReentryMatchedCohortConformanceV03 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-3";
+import { runOperationalReentryMatchedCohortConformanceV04 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-v0-4";
+import { runOperationalReentryProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-provider-compatibility-probe";
+import { runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02 } from "@/scripts/vnext-protocol-conformance/operational-reentry-clean-control-provider-compatibility-probe";
+import { runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-provider-compatibility-probe";
+import { runOperationalReentryV04ProviderCompatibilityProbeConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-provider-compatibility-probe";
+import { runOperationalReentryV04StaleResetIsolationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-v0-4-stale-reset-isolation-cohort";
+import { runOperationalReentryStaleResetCrossCaseReplicationConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-stale-reset-cross-case-replication";
+import { runOperationalReentryParserClosedCleanControlCohortConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-parser-closed-clean-control-cohort";
+import { runOperationalReentryMatchedCohortReplacementConformanceV01 } from "@/scripts/vnext-protocol-conformance/operational-reentry-matched-cohort-replacement";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
@@ -60,6 +79,18 @@ const sourcePaths = [
   "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/state-transition-eligibility.ts",
   "lib/vnext/context-use-review.ts",
+  "lib/vnext/context-use-attribution-projection.ts",
+  "lib/vnext/context-shadow-navigation.ts",
+  "lib/vnext/continuity-dynamics.ts",
+  "lib/vnext/operational-friction-proposal-profile.ts",
+  "lib/vnext/operational-friction-proposal.ts",
+  "lib/vnext/operational-context-selection.ts",
+  "lib/vnext/operational-continuation-comparison.ts",
+  "lib/vnext/model-host-succession-benchmark.ts",
+  "lib/vnext/operational-reentry-perturbation.ts",
+  "lib/vnext/strategy-composition-case.ts",
+  "lib/vnext/strategy-composition-comparison.ts",
+  "lib/vnext/governed-actor-lab.ts",
   "lib/vnext/strategic-advantage-transfer-protocol.ts",
   "lib/vnext/compat/legacy-result-mapping-primitives.ts",
   "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
@@ -590,6 +621,43 @@ try {
   const stateTransitionReceiptSummary =
     runStateTransitionReceiptConformanceV01();
   const contextUseReviewSummary = runContextUseReviewConformanceV01();
+  const contextUseAttributionSummary =
+    runContextUseAttributionConformanceV01();
+  const strategyCompositionCaseSummary =
+    runStrategyCompositionCaseConformanceV01();
+  const strategyCompositionComparisonSummary =
+    runStrategyCompositionComparisonConformanceV01();
+  const governedActorLabSummary = runGovernedActorLabConformanceV01();
+  const governedActorLabLiveSummary =
+    runGovernedActorLabLiveConformanceV01();
+  const modelHostSuccessionBenchmarkSummary =
+    runModelHostSuccessionBenchmarkConformanceV01();
+  const operationalReentryPerturbationSummary =
+    runOperationalReentryPerturbationConformanceV01();
+  const operationalReentryMatchedCohortSummary =
+    runOperationalReentryMatchedCohortConformanceV01();
+  const operationalReentryMatchedCohortV02Summary =
+    runOperationalReentryMatchedCohortConformanceV02();
+  const operationalReentryMatchedCohortV03Summary =
+    runOperationalReentryMatchedCohortConformanceV03();
+  const operationalReentryMatchedCohortV04Summary =
+    runOperationalReentryMatchedCohortConformanceV04();
+  const operationalReentryProviderCompatibilityProbeSummary =
+    runOperationalReentryProviderCompatibilityProbeConformanceV01();
+  const operationalReentryCleanControlProviderCompatibilityProbeSummary =
+    runOperationalReentryCleanControlProviderCompatibilityProbeConformanceV02();
+  const operationalReentryParserClosedProviderCompatibilityProbeSummary =
+    runOperationalReentryParserClosedProviderCompatibilityProbeConformanceV01();
+  const operationalReentryV04ProviderCompatibilityProbeSummary =
+    runOperationalReentryV04ProviderCompatibilityProbeConformanceV01();
+  const operationalReentryV04StaleResetIsolationSummary =
+    runOperationalReentryV04StaleResetIsolationConformanceV01();
+  const operationalReentryStaleResetCrossCaseReplicationSummary =
+    runOperationalReentryStaleResetCrossCaseReplicationConformanceV01();
+  const operationalReentryParserClosedCleanControlCohortSummary =
+    runOperationalReentryParserClosedCleanControlCohortConformanceV01();
+  const operationalReentryMatchedCohortReplacementSummary =
+    runOperationalReentryMatchedCohortReplacementConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
   const semanticTransitionLoopSummary =
     runSemanticTransitionLoopConformanceV01();
@@ -660,6 +728,39 @@ try {
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,
         context_use_review: contextUseReviewSummary,
+        context_use_attribution_projection: contextUseAttributionSummary,
+        strategy_composition_case: strategyCompositionCaseSummary,
+        strategy_composition_comparison: strategyCompositionComparisonSummary,
+        governed_actor_lab: governedActorLabSummary,
+        governed_actor_lab_live: governedActorLabLiveSummary,
+        model_host_succession_benchmark:
+          modelHostSuccessionBenchmarkSummary,
+        operational_reentry_perturbation:
+          operationalReentryPerturbationSummary,
+        operational_reentry_matched_cohort:
+          operationalReentryMatchedCohortSummary,
+        operational_reentry_matched_cohort_v02:
+          operationalReentryMatchedCohortV02Summary,
+        operational_reentry_matched_cohort_v03:
+          operationalReentryMatchedCohortV03Summary,
+        operational_reentry_matched_cohort_v04:
+          operationalReentryMatchedCohortV04Summary,
+        operational_reentry_provider_compatibility_probe:
+          operationalReentryProviderCompatibilityProbeSummary,
+        operational_reentry_clean_control_provider_compatibility_probe:
+          operationalReentryCleanControlProviderCompatibilityProbeSummary,
+        operational_reentry_parser_closed_provider_compatibility_probe:
+          operationalReentryParserClosedProviderCompatibilityProbeSummary,
+        operational_reentry_v04_provider_compatibility_probe:
+          operationalReentryV04ProviderCompatibilityProbeSummary,
+        operational_reentry_v04_stale_reset_isolation_cohort:
+          operationalReentryV04StaleResetIsolationSummary,
+        operational_reentry_stale_reset_cross_case_replication:
+          operationalReentryStaleResetCrossCaseReplicationSummary,
+        operational_reentry_parser_closed_clean_control_cohort:
+          operationalReentryParserClosedCleanControlCohortSummary,
+        operational_reentry_matched_cohort_replacement:
+          operationalReentryMatchedCohortReplacementSummary,
         semantic_review_loop: semanticReviewLoopSummary,
         semantic_transition_loop: semanticTransitionLoopSummary,
         autohunt_result_intake_run_receipt_compatibility:

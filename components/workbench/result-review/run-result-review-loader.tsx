@@ -7,9 +7,11 @@ import {
   type OperatorSessionStateV01,
   type OperatorSessionViewV01,
 } from "@/components/workbench/semantic-review/operator-session-panel";
-import { SemanticWorkbenchShell } from "@/components/workbench/semantic-workbench-shell";
+import { AIWorkplaneShell } from "@/components/workbench/ai-workplane/ai-workplane-shell";
+import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-brief-v0-2";
 import { ProductShell } from "@/components/product-shell";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
+import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 
 import { RunResultReviewSurface } from "./run-result-review-surface";
 import styles from "@/components/workbench/semantic-review/semantic-review.module.css";
@@ -19,7 +21,14 @@ const RESULT_ROUTE = "/api/vnext/operator/run-results";
 const PROPOSAL_SETTLEMENT_POLL_MS = 250;
 const MAX_PROPOSAL_SETTLEMENT_POLLS = 40;
 
-export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
+export function RunResultReviewLoader({
+  receiptId,
+  guide: initialGuide,
+}: {
+  receiptId: string;
+  guide?: ProjectGuideBriefV02;
+}) {
+  const guideState = useProjectGuideBriefV02(initialGuide);
   const [session, setSession] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
@@ -157,39 +166,45 @@ export function RunResultReviewLoader({ receiptId }: { receiptId: string }) {
       <RunResultReviewSurface
         result={result}
         accessBoundary={accessBoundary}
+        guidePacket={guideState.guide}
+        guideLoading={guideState.status === "loading"}
+        guideRequestCount={guideState.requestCountRef.current}
       />
     );
   }
   return (
-    <ProductShell surface="workbench">
+    <ProductShell primaryZone="ai-workplane">
       <main className={styles.page} data-run-result-review="locked">
-      <SemanticWorkbenchShell
-        title="Verify run result"
-        description="Private result material is loaded only after the existing local operator session is validated. Opening this entry performs no semantic write."
-        entryState={
+      <AIWorkplaneShell
+        guide={guideState.projection}
+        guideLoading={guideState.status === "loading"}
+        guideRequestCount={guideState.requestCountRef.current}
+        title="Review result"
+        description="Protected result material is loaded only after local review access is validated."
+        state={
           session.status === "authenticated" || session.status === "checking"
             ? "loading"
-            : "locked"
+            : "access_required"
         }
-        entryLabel={
+        stateLabel={
           session.status === "authenticated"
             ? "Loading result"
             : session.status === "checking"
-              ? "Validating local access"
-              : "Private result locked"
+              ? "Checking local review access"
+              : "Local review access required"
         }
         projectHref="/"
       >
         {accessBoundary}
         {session.status === "authenticated" && !errorCode ? (
           <section className={styles.panel} aria-live="polite">
-            <p className={styles.copy}>Loading immutable result detail…</p>
+            <p className={styles.copy}>Loading protected result detail…</p>
           </section>
         ) : null}
         {errorCode ? (
           <p className={styles.error} role="alert">{errorCode}</p>
         ) : null}
-      </SemanticWorkbenchShell>
+      </AIWorkplaneShell>
       </main>
     </ProductShell>
   );

@@ -29,12 +29,32 @@ read-only discovery fallback; it does not export or transport that packet.
 From the repo root:
 
 ```sh
+npm run codex:current-continuity
+```
+
+Use this command when the running local Augnes instance is the required source
+of exact active-project state. It reports the current work, managed execution,
+canonical result, review continuity, one next consequential action, and an
+opaque snapshot binding. It has no repository or documentation fallback and
+returns `0` only for an exact projection with an exact snapshot, `2` for local
+runtime transport unavailability, and `3` for partial/unavailable continuity
+or an invalid route response. It still prints a valid bounded partial result
+before returning `3`. It performs no execution, Start, approval, Decision, Transition,
+persistence, provider, or GitHub action.
+
+For legacy work-item discovery with an explicitly reported repository fallback:
+
+```sh
 npm run codex:next-work -- --scope project:augnes
 ```
 
 The helper prints a short human summary and a bounded JSON block. The JSON
 block is the machine-readable result Codex should use to decide the next safe
 step.
+
+The two commands are not interchangeable. `codex:current-continuity` is the
+exact runtime-only continuity reader. `codex:next-work` is a legacy discovery
+helper that may report a repository-backed fallback.
 
 ## Recommended Command
 

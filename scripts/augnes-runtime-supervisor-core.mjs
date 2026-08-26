@@ -225,9 +225,113 @@ export async function runRuntimeSupervisorCli(
   if (options.command === "stop") {
     return runStopCommand({ paths, repositoryFingerprint });
   }
+  if (options.command === "access") {
+    return runLocalReviewAccessCommand({
+      environment,
+      options,
+      paths,
+      repositoryFingerprint,
+      runtimeDistribution,
+      dependencies,
+    });
+  }
   return runStartCommand({
     environment,
     options,
+    paths,
+    repositoryFingerprint,
+    runtimeDistribution,
+    dependencies,
+  });
+}
+
+async function runLocalReviewAccessCommand({
+  environment,
+  options,
+  paths,
+  repositoryFingerprint,
+  runtimeDistribution,
+  dependencies,
+}) {
+  if (runtimeDistribution.mode !== "source") {
+    emitResult({
+      command: "access",
+      result: "refused",
+      state: "unavailable",
+      reason: "local_review_access_source_runtime_required",
+    });
+    return 2;
+  }
+  const stopResult = await runStopCommand({ paths, repositoryFingerprint });
+  if (stopResult !== 0) return stopResult;
+
+  const issuerPath = path.join(
+    repositoryRoot,
+    "scripts",
+    "issue-vnext-local-review-access.ts",
+  );
+  const issued = spawnSync(
+    process.execPath,
+    ["--import", "tsx", issuerPath],
+    {
+      cwd: repositoryRoot,
+      env: {
+        ...environment,
+        AUGNES_DB_PATH: paths.local.database_path,
+      },
+      encoding: "utf8",
+      maxBuffer: 64 * 1024,
+    },
+  );
+  let access;
+  try {
+    access = JSON.parse(issued.stdout.trim());
+  } catch {
+    access = null;
+  }
+  if (
+    issued.status !== 0 ||
+    access?.ok !== true ||
+    !validDiagnosticString(access.workspace_id) ||
+    !validDiagnosticString(access.project_id) ||
+    !validDiagnosticString(access.operator_id) ||
+    !validDiagnosticString(access.bootstrap_token) ||
+    !validDiagnosticString(access.expires_at)
+  ) {
+    let failure;
+    try {
+      failure = JSON.parse(issued.stderr.trim());
+    } catch {
+      failure = null;
+    }
+    emitResult({
+      command: "access",
+      result: "failed",
+      state: "stopped",
+      reason: validDiagnosticString(failure?.error_code)
+        ? failure.error_code
+        : "local_review_access_unavailable",
+    });
+    return 2;
+  }
+
+  emitResult({
+    command: "access",
+    result: "issued",
+    state: "restarting",
+    one_time_local_review_token: access.bootstrap_token,
+    expires_at: access.expires_at,
+    next_action: "paste_the_token_into_the_visible_augnes_browser",
+  });
+  return runStartCommand({
+    environment: {
+      ...environment,
+      AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+      AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: access.workspace_id,
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: access.project_id,
+      AUGNES_VNEXT_OPERATOR_ID: access.operator_id,
+    },
+    options: { ...options, command: "start" },
     paths,
     repositoryFingerprint,
     runtimeDistribution,
@@ -308,6 +412,7 @@ export function resolveRuntimePaths({
     manifest: path.join(directory, "runtime.json"),
     lock: path.join(directory, "owner.lock"),
     token: path.join(directory, "control-token.json"),
+    companionAccess: path.join(directory, "companion-access.json"),
     bridgeEnvironment: path.join(directory, "bridge-supervisor.env"),
     local: localPaths,
   });
@@ -1114,6 +1219,7 @@ async function runStartCommand({
     repositoryFingerprint,
     generationId: generation.generationId,
     childOwnershipToken: generation.childOwnershipToken,
+    companionProxyToken: generation.companionProxyToken,
     instanceId,
     supervisorPid: process.pid,
     controlPort: null,
@@ -1210,6 +1316,16 @@ async function runStartCommand({
       repository_fingerprint: runtime.repositoryFingerprint,
       token: runtime.controlToken,
       child_ownership_token: runtime.childOwnershipToken,
+    });
+    atomicWriteJson(paths.companionAccess, {
+      schema_version: RUNTIME_SCHEMA_VERSION,
+      contract: RUNTIME_CONTRACT,
+      generation_version: RUNTIME_GENERATION_VERSION,
+      generation_id: runtime.generationId,
+      instance_id: instanceId,
+      repository_fingerprint: runtime.repositoryFingerprint,
+      access_version: "augnes-companion-proxy-access.v0.1",
+      proxy_token: runtime.companionProxyToken,
     });
     atomicWriteText(paths.bridgeEnvironment, "");
     writeRuntimeManifest(runtime);
@@ -1415,8 +1531,11 @@ async function runStartCommand({
       isReady: (body) =>
         body?.ok === true &&
         body?.name === "augnes-console" &&
-        body?.mode === "mock" &&
-        body?.runtime_instance_id === runtime.instanceId,
+        body?.mode === "http" &&
+        body?.live_core_status === "ready" &&
+        body?.runtime_instance_id === runtime.instanceId &&
+        body?.runtime_generation_id === runtime.generationId &&
+        body?.runtime_repository_fingerprint === runtime.repositoryFingerprint,
     });
     runtime.bridgePort = bridge.port;
 
@@ -1643,6 +1762,7 @@ export function buildSupervisorChildValues({
   repositoryFingerprint = null,
   generationId = null,
   childOwnershipToken = null,
+  companionProxyToken = null,
   effectiveUrl = null,
   controlPort = null,
   recoveryMode = false,
@@ -1668,6 +1788,7 @@ export function buildSupervisorChildValues({
         }
       : {}),
     AUGNES_RUNTIME_OWNERSHIP_TOKEN: childOwnershipToken,
+    AUGNES_COMPANION_PROXY_TOKEN: companionProxyToken,
   };
   const diagnosticValues = runtimeDiagnosticEnvironmentValues(
     runtimeDistribution,
@@ -1726,10 +1847,40 @@ export function buildSupervisorChildValues({
         environment.AUGNES_CANONICAL_TEST_MODE === "1"
           ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_OUTCOME)
           : null,
+      AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1"
+          ? nonEmptyString(environment.AUGNES_TEST_FOLDER_PICKER_SEQUENCE_PATH)
+          : null,
       AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER:
         environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
         environment.AUGNES_VNEXT_BOUNDED_CYCLE_DETERMINISTIC_ADAPTER === "1"
           ? "1"
+          : null,
+      AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
+          ? "1"
+          : null,
+      AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_HOLD === "1"
+          ? "1"
+          : null,
+      AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1" &&
+        environment.AUGNES_CANONICAL_RESUME_FAIL_AFTER_ADMISSION === "1"
+          ? "1"
+          : null,
+      AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO:
+        environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+        environment.AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER === "1"
+          ? ["safe", "incomplete", "approval"].includes(
+              environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO,
+            )
+            ? environment.AUGNES_VNEXT_REPOSITORY_CHECKPOINT_TEST_SCENARIO
+            : null
           : null,
     };
   }
@@ -1740,15 +1891,13 @@ export function buildSupervisorChildValues({
       NODE_OPTIONS: canonicalNodeOptions,
       PORT: String(port),
       DOTENV_CONFIG_PATH: paths.bridgeEnvironment,
-      AUGNES_CORE_MODE: "mock",
+      AUGNES_CORE_MODE: "http",
       AUGNES_API_BASE_URL: effectiveUrl,
       AUGNES_ENABLE_AGENT_BRIDGE: "true",
       ...ownershipValues,
       ...diagnosticValues,
       AUGNES_APP_PROFILE: nonEmptyString(environment.AUGNES_APP_PROFILE),
-      AUGNES_APP_TOOL_SURFACE: nonEmptyString(
-        environment.AUGNES_APP_TOOL_SURFACE,
-      ),
+      AUGNES_APP_TOOL_SURFACE: "companion_repository_attachment",
       AUGNES_APP_DOMAIN: nonEmptyString(environment.AUGNES_APP_DOMAIN),
       AUGNES_CONNECT_DOMAIN: nonEmptyString(environment.AUGNES_CONNECT_DOMAIN),
       AUGNES_RESOURCE_DOMAIN: nonEmptyString(environment.AUGNES_RESOURCE_DOMAIN),
@@ -1768,6 +1917,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
     repositoryFingerprint: runtime.repositoryFingerprint,
     generationId: runtime.generationId,
     childOwnershipToken: runtime.childOwnershipToken,
+    companionProxyToken: runtime.companionProxyToken,
     effectiveUrl: runtime.effectiveUrl,
     controlPort: runtime.controlPort,
     recoveryMode: runtime.recoveryMode,
@@ -3696,6 +3846,7 @@ async function cleanupOwnedRuntime(runtime) {
   if (ownsLock(runtime.paths.lock, runtime)) {
     removeOwnedGenerationJson(runtime.paths.manifest, runtime);
     removeOwnedGenerationJson(runtime.paths.token, runtime);
+    removeOwnedGenerationJson(runtime.paths.companionAccess, runtime);
     removeRegularFile(runtime.paths.bridgeEnvironment);
     removeOwnedGenerationJson(runtime.paths.lock, runtime);
     removeDirectoryIfEmpty(runtime.paths.directory);
@@ -3717,8 +3868,19 @@ async function stopOwnedChild(record) {
     return;
   }
 
+  if (process.platform === "win32") {
+    // Windows console children do not have a dependable graceful-signal
+    // equivalent. Use the bounded owned-tree forced stop directly so two
+    // sequential children cannot exceed the public Stop command deadline.
+    await signalOwnedProcessTree(record, "SIGKILL");
+    if (await waitForProcessTreeExit(record, FORCED_CHILD_STOP_MS)) return;
+    throw new PublicRuntimeError("owned_child_stop_timeout");
+  }
+
   await signalOwnedProcessTree(record, "SIGTERM");
-  if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) return;
+  if (await waitForProcessTreeExit(record, GRACEFUL_CHILD_STOP_MS)) {
+    return;
+  }
 
   await signalOwnedProcessTree(record, "SIGKILL");
   if (await waitForProcessTreeExit(record, FORCED_CHILD_STOP_MS)) return;
@@ -4563,7 +4725,7 @@ function respondJson(response, statusCode, value) {
 function parseCli(argv, environment) {
   const args = [...argv];
   let command = "start";
-  if (["start", "status", "stop", "diagnostics"].includes(args[0])) {
+  if (["start", "status", "stop", "diagnostics", "access"].includes(args[0])) {
     command = args.shift();
   } else if (args[0] && !args[0].startsWith("-")) {
     throw new PublicRuntimeError("unknown_subcommand");
@@ -4583,7 +4745,9 @@ function parseCli(argv, environment) {
 
   while (args.length > 0) {
     const argument = args.shift();
-    if (command !== "start") throw new PublicRuntimeError("unexpected_arguments");
+    if (!["start", "access"].includes(command)) {
+      throw new PublicRuntimeError("unexpected_arguments");
+    }
     if (["--port", "--ui-port", "-p"].includes(argument)) {
       uiPreferredPort = parsePreferredPort(args.shift(), null, "ui_port_invalid");
       continue;

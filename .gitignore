@@ -3,12 +3,14 @@ node_modules/
 
 # Next.js
 .next/
+/next-env.d.ts
 out/
 *.tsbuildinfo
 
 # production
 build/
 /dist/
+native/windows-x64/
 
 # local environment
 .env
@@ -25,6 +27,8 @@ pnpm-debug.log*
 .DS_Store
 
 # generated local artifacts
+.augnes-local-verification/
+.augnes-lab/
 data/*.db
 data/*.db-*
 outputs/*

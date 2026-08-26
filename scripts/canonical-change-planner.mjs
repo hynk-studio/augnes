@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { appendFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(
@@ -16,6 +16,12 @@ const MAX_CHANGED_PATHS = 5_000;
 const MAX_PATH_BYTES = 4_096;
 const MAX_SUMMARY_PATHS = 200;
 const MAX_SUMMARY_BYTES = 64 * 1024;
+const browserOwnerManifest = JSON.parse(
+  readFileSync(new URL("./browser-verification-owners.v1.json", import.meta.url), "utf8"),
+);
+export const PERMANENT_BROWSER_PHASE_IDS = Object.freeze([
+  ...browserOwnerManifest.canonical_phase_order,
+]);
 
 const FULL_PATH_PREFIXES = [
   ".github/workflows/",
@@ -58,6 +64,7 @@ export function planCanonicalChange({
       change_count: null,
       changed_paths: [],
       full_reasons: ["main_push_always_full"],
+      browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       changes: [],
     });
   }
@@ -86,25 +93,39 @@ export function planCanonicalChange({
       change_count: changes.length,
       changed_paths: [],
       full_reasons: ["change_count_exceeds_documentation_bound"],
+      browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       changes,
     });
   }
 
+  const operatingPolicyOnly =
+    changes.length === 1 && isSafeOperatingPolicyModification(changes[0]);
   const fullReasons = [];
-  for (const change of changes) {
-    const reason = classifyFullReason(change);
-    if (reason) fullReasons.push(reason);
+  if (!operatingPolicyOnly) {
+    for (const change of changes) {
+      const reason = classifyFullReason(change);
+      if (reason) fullReasons.push(reason);
+    }
   }
   const uniqueReasons = [...new Set(fullReasons)].sort();
-  const documentationOnly = uniqueReasons.length === 0;
+  const documentationOnly = !operatingPolicyOnly && uniqueReasons.length === 0;
+  const browserPhaseIds = operatingPolicyOnly || documentationOnly
+    ? []
+    : selectCanonicalBrowserPhasesForChanges(changes);
 
   return boundedSummary({
     schema_version: 1,
     event: "pull_request",
-    plan: documentationOnly ? "documentation-only" : "full-canonical",
-    reason: documentationOnly
-      ? "all_changes_match_documentation_allowlist"
-      : "one_or_more_changes_require_full_canonical",
+    plan: operatingPolicyOnly
+      ? "operating-policy-only"
+      : documentationOnly
+        ? "documentation-only"
+        : "full-canonical",
+    reason: operatingPolicyOnly
+      ? "exact_safe_agents_operating_policy_change"
+      : documentationOnly
+        ? "all_changes_match_documentation_allowlist"
+        : "one_or_more_changes_require_full_canonical",
     base_sha: baseSha,
     head_sha: headSha,
     change_count: changes.length,
@@ -113,8 +134,63 @@ export function planCanonicalChange({
       .filter(Boolean)
       .slice(0, MAX_SUMMARY_PATHS),
     full_reasons: uniqueReasons,
+    browser_phase_ids: browserPhaseIds,
     changes,
   });
+}
+
+export function selectCanonicalBrowserPhasesForChanges(changes) {
+  if (!Array.isArray(changes) || changes.length === 0) {
+    throw new Error("canonical browser ownership requires changed paths");
+  }
+  const rules = browserOwnerManifest.changed_file_selection;
+  const selected = new Set();
+  let matchedAny = false;
+  let shared = false;
+  let composition = false;
+  const add = (phaseId) => selected.add(phaseId);
+  for (const change of changes) {
+    const changedPaths = [change.oldPath, change.newPath].filter(Boolean);
+    let matchedPath = false;
+    for (const changedPath of changedPaths) {
+      const normalized = normalizeRepositoryPath(changedPath).toLowerCase();
+      if (matchesOwnershipRule(normalized, rules.project_experience)) {
+        add("e2e-project-experience");
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.operator_review_control)) {
+        add("e2e-operator-review-control");
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.operator_native_host_execution)) {
+        add("e2e-operator-native-host-execution");
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.operator_multi_candidate)) {
+        add("e2e-operator-multi-candidate");
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.continuity)) {
+        add("e2e-continuity");
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.project_composition)) {
+        add("e2e-project-experience");
+        add("e2e-operator-native-host-execution");
+        composition = true;
+        matchedPath = true;
+      }
+      if (matchesOwnershipRule(normalized, rules.shared_cross_boundary)) {
+        shared = true;
+        matchedPath = true;
+      }
+    }
+    matchedAny ||= matchedPath;
+    if (!matchedPath) return [...PERMANENT_BROWSER_PHASE_IDS];
+  }
+  if (!matchedAny || shared) return [...PERMANENT_BROWSER_PHASE_IDS];
+  if (composition || selected.size > 1) add("e2e-golden");
+  return PERMANENT_BROWSER_PHASE_IDS.filter((phaseId) => selected.has(phaseId));
 }
 
 export function parseNameStatus(buffer) {
@@ -231,6 +307,16 @@ function classifyFullReason(change) {
   return null;
 }
 
+function isSafeOperatingPolicyModification(change) {
+  return (
+    change.status === "M" &&
+    change.oldPath === "AGENTS.md" &&
+    change.newPath === "AGENTS.md" &&
+    isSafeRegularMode(change.oldMode) &&
+    isSafeRegularMode(change.newMode)
+  );
+}
+
 function requiresFullByPath(relativePath) {
   const lower = relativePath.toLowerCase();
   const basename = path.posix.basename(relativePath);
@@ -323,6 +409,14 @@ function normalizeOptionalSha(sha) {
   return SHA_PATTERN.test(sha ?? "") ? sha : null;
 }
 
+function matchesOwnershipRule(relativePath, rule) {
+  return (
+    rule.exact_paths?.some((candidate) => candidate.toLowerCase() === relativePath) ||
+    rule.path_fragments?.some((fragment) => relativePath.includes(fragment.toLowerCase())) ||
+    false
+  );
+}
+
 function boundedSummary(summary) {
   const publicSummary = { ...summary };
   delete publicSummary.changes;
@@ -362,17 +456,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     });
     const summary = cliSummary(plan);
     console.log(JSON.stringify(summary));
-    if (args.get("write-github-output") === "true") {
-      const githubOutput = process.env.GITHUB_OUTPUT;
-      if (!githubOutput) {
-        throw new Error("GITHUB_OUTPUT is required when writing planner outputs");
-      }
-      appendFileSync(
-        githubOutput,
-        `plan=${summary.plan}\nchange_count=${summary.change_count ?? 0}\n`,
-        "utf8",
-      );
-    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

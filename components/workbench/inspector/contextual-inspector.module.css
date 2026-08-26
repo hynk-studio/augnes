@@ -1,0 +1,255 @@
+.page {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.shell {
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 52rem);
+  margin: 0 auto;
+}
+
+.returnLink {
+  width: fit-content;
+  color: var(--color-link, #315f85);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+.header {
+  display: grid;
+  gap: 0.55rem;
+  padding-block: 0.5rem;
+}
+
+.header h1,
+.status h2,
+.context h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.header h1:focus {
+  outline: 2px solid currentColor;
+  outline-offset: 0.25rem;
+}
+
+.eyebrow,
+.sectionLabel {
+  margin: 0;
+  color: var(--color-muted, #526273);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary,
+.status p,
+.context p,
+.notice {
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.activityNotice {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-inline-start: 0.25rem solid currentColor;
+  background: var(--panel-subtle);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.status,
+.context {
+  display: grid;
+  gap: 0.45rem;
+  padding: .85rem 0 .85rem 1rem;
+  border: 0;
+  border-left: 2px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.observed {
+  color: var(--color-muted, #526273);
+  font-size: 0.9rem;
+}
+
+.notice {
+  padding: 0.85rem 1rem;
+  border-inline-start: 0.25rem solid currentColor;
+  background: var(--panel-subtle);
+}
+
+.primarySections,
+.additionalBody {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.inspectorSection,
+.additionalRecords,
+.protectionDisclosure {
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.inspectorSection > summary,
+.additionalRecords > summary,
+.protectionDisclosure > summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem .25rem;
+  cursor: pointer;
+}
+
+.inspectorSection > summary > span:first-child,
+.additionalRecords > summary > span:first-child {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.inspectorSection summary small,
+.additionalRecords summary span,
+.statusLabel {
+  color: var(--color-muted, #526273);
+  line-height: 1.4;
+}
+
+.statusLabel {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sectionBody,
+.additionalBody,
+.protectionDisclosure > div {
+  padding: 0 .25rem 1rem;
+}
+
+.factList {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.factList > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.4fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.factList dt {
+  color: var(--color-muted, #526273);
+}
+
+.factList dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.itemList,
+.identityDisclosure ul,
+.protectionDisclosure ul {
+  display: grid;
+  gap: 0.75rem;
+  padding-inline-start: 1.25rem;
+}
+
+.itemList li {
+  min-width: 0;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.itemList p,
+.itemList time {
+  display: block;
+  margin: 0.3rem 0 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.itemHeader span {
+  color: var(--color-muted, #526273);
+  font-size: 0.82rem;
+}
+
+.identityDisclosure {
+  margin-top: 0.75rem;
+}
+
+.identityDisclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.identityDisclosure li {
+  min-width: 0;
+}
+
+.identityDisclosure strong,
+.identityDisclosure code {
+  display: block;
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.emptySection {
+  color: var(--color-muted, #526273);
+}
+
+.statePage {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.stateShell {
+  display: grid;
+  gap: 1.25rem;
+  width: min(100%, 46rem);
+  margin: 0 auto;
+}
+
+.diagnosticDisclosure code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 32rem) {
+  .page,
+  .statePage {
+    padding-inline: 0.8rem;
+  }
+
+  .inspectorSection > summary,
+  .additionalRecords > summary,
+  .protectionDisclosure > summary,
+  .itemHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .factList > div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+}

@@ -13,6 +13,10 @@ export const CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "WINDIR",
   "COMSPEC",
   "PATHEXT",
+  // vswhere reads its installed-instance catalog beneath this standard,
+  // non-secret Windows location. Developer-shell INCLUDE/LIB/PATH additions
+  // remain excluded and the helper constructs those values from discovered SDKs.
+  "ProgramData",
   "LANG",
   "LANGUAGE",
   "LC_ALL",
@@ -25,9 +29,11 @@ export const CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "CI",
 ]);
 
-// The browser test may need an operator-selected installed browser binary.
+// These inputs are explicitly selected by the local operator and remain
+// subject to their owning browser or repository-identity validation.
 export const CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "AUGNES_BROWSER_EXECUTABLE_PATH",
+  "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT",
 ]);
 
 // These values are authored by the canonical suite, never copied from ambient state.
@@ -44,8 +50,6 @@ export const CANONICAL_STEP_ENVIRONMENT_ALLOWLIST = Object.freeze({
     "injects a non-path picker outcome inside a suite-owned runtime",
   AUGNES_RUNTIME_STATE_DIR:
     "binds runtime state to a child-owned disposable directory",
-  AUGNES_BROWSER_E2E_SCOPE:
-    "selects one repository-owned browser lifecycle lane without changing product state",
 });
 
 const CANONICAL_STEP_PATH_KEYS = new Set([
@@ -56,9 +60,11 @@ const CANONICAL_STEP_PATH_KEYS = new Set([
 ]);
 
 const CANONICAL_CHILD_OWNED_ENVIRONMENT_KEYS = new Set([
+  "APPDATA",
   "AUGNES_CANONICAL_TEMP_ROOT",
   "AUGNES_DB_PATH",
   "AUGNES_RUNTIME_STATE_DIR",
+  "LOCALAPPDATA",
 ]);
 
 export function buildCanonicalChildEnvironment({
@@ -99,6 +105,8 @@ export function buildCanonicalChildEnvironment({
   const processTempRoot = resourceRoot;
   environment.HOME = homeRoot;
   environment.USERPROFILE = homeRoot;
+  environment.LOCALAPPDATA = path.join(homeRoot, "AppData", "Local");
+  environment.APPDATA = path.join(homeRoot, "AppData", "Roaming");
   environment.TMPDIR = processTempRoot;
   environment.TMP = processTempRoot;
   environment.TEMP = processTempRoot;

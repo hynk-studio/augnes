@@ -11,13 +11,14 @@ export const VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_CONTRACT_V01 =
 export const VNEXT_OPERATOR_PILOT_CONTEXT_USE_REVIEW_NAMESPACE_V01 =
   "augnes.vnext.operator-pilot-context-use-review.v0.1" as const;
 
-type ContextUseReviewIdentityMaterialV01 = Pick<
+export type ContextUseReviewIdentityMaterialV01 = Pick<
   ContextUseReviewV01,
   | "workspace_id"
   | "project_id"
   | "prior_packet"
   | "later_packet"
   | "source_transition_receipt"
+  | "source_operational_continuation"
   | "later_task_run_receipt"
   | "reviewer_ref"
 >;
@@ -31,6 +32,27 @@ type ContextUseReviewRequestMaterialV01 = ContextUseReviewIdentityMaterialV01 &
 export function createVNextOperatorPilotContextUseReviewLogicalIdentityV01(
   review: ContextUseReviewIdentityMaterialV01,
 ): string {
+  const lineageIdentity = review.source_transition_receipt
+    ? {
+        transition_receipt_id:
+          review.source_transition_receipt.transition_receipt_id,
+        transition_receipt_fingerprint:
+          review.source_transition_receipt.transition_receipt_fingerprint,
+      }
+    : {
+        operational_continuation_admission_id:
+          review.source_operational_continuation?.admission_id,
+        operational_continuation_admission_fingerprint:
+          review.source_operational_continuation?.admission_fingerprint,
+        operational_continuation_materialization_id:
+          review.source_operational_continuation?.materialization_id,
+        operational_continuation_materialization_fingerprint:
+          review.source_operational_continuation?.materialization_fingerprint,
+        operational_context_selection_id:
+          review.source_operational_continuation?.selection_id,
+        operational_context_selection_fingerprint:
+          review.source_operational_continuation?.selection_fingerprint,
+      };
   const fingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       workspace_id: review.workspace_id,
@@ -39,10 +61,7 @@ export function createVNextOperatorPilotContextUseReviewLogicalIdentityV01(
       prior_packet_fingerprint: review.prior_packet.packet_fingerprint,
       later_packet_id: review.later_packet.packet_id,
       later_packet_fingerprint: review.later_packet.packet_fingerprint,
-      transition_receipt_id:
-        review.source_transition_receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        review.source_transition_receipt.transition_receipt_fingerprint,
+      ...lineageIdentity,
       later_task_run_receipt_id: review.later_task_run_receipt.receipt_id,
       later_task_run_receipt_fingerprint:
         review.later_task_run_receipt.receipt_fingerprint,
@@ -55,6 +74,27 @@ export function createVNextOperatorPilotContextUseReviewLogicalIdentityV01(
 export function createVNextOperatorPilotContextUseReviewRequestFingerprintV01(
   review: ContextUseReviewRequestMaterialV01,
 ): string {
+  const lineageIdentity = review.source_transition_receipt
+    ? {
+        transition_receipt_id:
+          review.source_transition_receipt.transition_receipt_id,
+        transition_receipt_fingerprint:
+          review.source_transition_receipt.transition_receipt_fingerprint,
+      }
+    : {
+        operational_continuation_admission_id:
+          review.source_operational_continuation?.admission_id,
+        operational_continuation_admission_fingerprint:
+          review.source_operational_continuation?.admission_fingerprint,
+        operational_continuation_materialization_id:
+          review.source_operational_continuation?.materialization_id,
+        operational_continuation_materialization_fingerprint:
+          review.source_operational_continuation?.materialization_fingerprint,
+        operational_context_selection_id:
+          review.source_operational_continuation?.selection_id,
+        operational_context_selection_fingerprint:
+          review.source_operational_continuation?.selection_fingerprint,
+      };
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       workspace_id: review.workspace_id,
@@ -63,10 +103,7 @@ export function createVNextOperatorPilotContextUseReviewRequestFingerprintV01(
       prior_packet_fingerprint: review.prior_packet.packet_fingerprint,
       later_packet_id: review.later_packet.packet_id,
       later_packet_fingerprint: review.later_packet.packet_fingerprint,
-      transition_receipt_id:
-        review.source_transition_receipt.transition_receipt_id,
-      transition_receipt_fingerprint:
-        review.source_transition_receipt.transition_receipt_fingerprint,
+      ...lineageIdentity,
       later_task_run_receipt_id: review.later_task_run_receipt.receipt_id,
       later_task_run_receipt_fingerprint:
         review.later_task_run_receipt.receipt_fingerprint,

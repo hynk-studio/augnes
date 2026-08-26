@@ -23,14 +23,61 @@ export function validateCanonicalDocumentationChange({
   headSha,
   cwd = repositoryRoot,
 }) {
+  return validateCanonicalMarkdownChange({
+    baseSha,
+    headSha,
+    cwd,
+    expectedPlan: "documentation-only",
+    test: "canonical-documentation-change",
+  });
+}
+
+export function validateCanonicalOperatingPolicyChange({
+  baseSha,
+  headSha,
+  cwd = repositoryRoot,
+}) {
+  return validateCanonicalMarkdownChange({
+    baseSha,
+    headSha,
+    cwd,
+    expectedPlan: "operating-policy-only",
+    test: "canonical-operating-policy-change",
+  });
+}
+
+function validateCanonicalMarkdownChange({
+  baseSha,
+  headSha,
+  cwd,
+  expectedPlan,
+  test,
+}) {
   const plan = planCanonicalChange({
     eventName: "pull_request",
     baseSha,
     headSha,
     cwd,
   });
-  if (plan.plan !== "documentation-only") {
-    throw new Error(`documentation validator requires documentation-only plan, received ${plan.plan}`);
+  if (plan.plan !== expectedPlan) {
+    throw new Error(
+      `Markdown validator requires ${expectedPlan} plan, received ${plan.plan}`,
+    );
+  }
+  if (
+    expectedPlan === "operating-policy-only" &&
+    !(
+      plan.changes.length === 1 &&
+      plan.changes[0].status === "M" &&
+      plan.changes[0].oldPath === "AGENTS.md" &&
+      plan.changes[0].newPath === "AGENTS.md" &&
+      plan.changes[0].oldMode === "100644" &&
+      plan.changes[0].newMode === "100644"
+    )
+  ) {
+    throw new Error(
+      "operating-policy validator requires one safe AGENTS.md modification",
+    );
   }
 
   runGit(cwd, ["diff", "--check", baseSha, headSha]);
@@ -57,7 +104,7 @@ export function validateCanonicalDocumentationChange({
 
   return {
     schema_version: 1,
-    test: "canonical-documentation-change",
+    test,
     status: "pass",
     plan: plan.plan,
     base_sha: baseSha,
@@ -225,10 +272,21 @@ function parseCliArguments(argv) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const args = parseCliArguments(process.argv.slice(2));
-    const result = validateCanonicalDocumentationChange({
-      baseSha: args.get("base"),
-      headSha: args.get("head"),
-    });
+    const expectedPlan = args.get("plan") ?? "documentation-only";
+    let result;
+    if (expectedPlan === "documentation-only") {
+      result = validateCanonicalDocumentationChange({
+        baseSha: args.get("base"),
+        headSha: args.get("head"),
+      });
+    } else if (expectedPlan === "operating-policy-only") {
+      result = validateCanonicalOperatingPolicyChange({
+        baseSha: args.get("base"),
+        headSha: args.get("head"),
+      });
+    } else {
+      throw new Error(`unsupported Markdown validator plan: ${expectedPlan}`);
+    }
     console.log(JSON.stringify(result));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

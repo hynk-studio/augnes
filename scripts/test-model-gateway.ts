@@ -95,6 +95,7 @@ import {
   strategicModelInputFixtureV01,
   strategicModelOutputFixtureV01,
 } from "./vnext-protocol-conformance/strategic-advantage-transfer";
+import { runOperationalReentryMatchedCohortConformanceV02 } from "./vnext-protocol-conformance/operational-reentry-matched-cohort-v0-2";
 
 const WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_A_UUID = "22222222-2222-4222-8222-222222222222";
@@ -944,6 +945,13 @@ async function main() {
     assert.equal(staleProjectAFailure.code, "model_gateway_scope_refused");
     assert.equal(metrics.live_transport_calls, 1);
 
+    const cleanControlMatchedCohortV02 =
+      runOperationalReentryMatchedCohortConformanceV02();
+    assert.equal(cleanControlMatchedCohortV02.provider_calls, 0);
+    assert.equal(
+      cleanControlMatchedCohortV02.issue_193_establishes_v02_compatibility,
+      false,
+    );
     assert.equal(undiciRequests, 0);
     assert.equal(
       JSON.stringify({
@@ -980,6 +988,7 @@ async function main() {
         {
           test: "model_gateway",
           status: "pass",
+          real_provider_calls: 0,
           production_entry_paths: [
             "POST /api/observe",
             "POST /api/plan",
@@ -1015,6 +1024,8 @@ async function main() {
           canonical_projects_checked: 2,
           semantic_receipt_contradictions_rejected:
             semanticReceiptContradictions,
+          clean_control_matched_cohort_v02:
+            cleanControlMatchedCohortV02,
         },
         null,
         2,

@@ -8,6 +8,7 @@ try {
     result,
     vNextDurableSemanticStoreResult,
     vNextLocalOperatorSessionResult,
+    vNextProjectContinuityPinResult,
     mailboxResult,
     sessionBindingResult,
     deliveryArtifactsResult,
@@ -41,6 +42,15 @@ try {
     perspectiveMemoryBoundaryResult,
     perspectiveMemoryItemsResult,
   } = applyCanonicalDatabaseMigrations(db);
+  const vNextProjectContinuityPinArtifacts = [
+    ...vNextProjectContinuityPinResult.created_tables,
+    ...vNextProjectContinuityPinResult.created_indexes,
+  ];
+  console.log(
+    vNextProjectContinuityPinArtifacts.length === 0
+      ? `vNext project continuity pin migration no-op: schema is current at ${dbPath}`
+      : `Migrated vNext project continuity pin store at ${dbPath}: ${vNextProjectContinuityPinArtifacts.join(", ")}`,
+  );
   const vNextCreatedArtifacts = [
     ...vNextDurableSemanticStoreResult.created_tables,
     ...vNextDurableSemanticStoreResult.created_indexes,

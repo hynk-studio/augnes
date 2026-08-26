@@ -27,6 +27,7 @@ const FINGERPRINT_TARGETS_V01 = new Set<
   "semantic_state",
   "later_task_context_packet",
   "context_use_review",
+  "operational_continuation_admission",
   "capability_grant",
 ]);
 

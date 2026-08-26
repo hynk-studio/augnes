@@ -31,10 +31,12 @@ export function OperatorSessionPanel({
   state,
   onAuthenticated,
   onLocked,
+  context = "review",
 }: {
   state: OperatorSessionStateV01;
   onAuthenticated: (session: OperatorSessionViewV01) => void;
   onLocked: (errorCode?: string) => void;
+  context?: "review" | "exact-details";
 }) {
   const [bootstrapToken, setBootstrapToken] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,7 +67,7 @@ export function OperatorSessionPanel({
         onLocked(body.error_code ?? "operator_bootstrap_invalid");
         return;
       }
-      setStatusMessage("Local session established. No external identity was verified.");
+      setStatusMessage("Local review access established for this project.");
       onAuthenticated(body.session);
     } catch {
       setStatusMessage("operator_session_request_failed");
@@ -92,7 +94,7 @@ export function OperatorSessionPanel({
         setStatusMessage(publicErrorCode(body.error_code));
         return;
       }
-      setStatusMessage("Local operator session revoked.");
+      setStatusMessage("Local review access ended.");
       onLocked();
     } catch {
       setStatusMessage("operator_session_request_failed");
@@ -102,29 +104,46 @@ export function OperatorSessionPanel({
   }
 
   if (state.status === "checking") {
+    const exactDetails = context === "exact-details";
     return (
       <section className={styles.lockedPanel} data-vnext-operator-session="checking">
         <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Local operator session</p>
-          <h2>Checking opt-in access</h2>
+          <p className={styles.kicker}>Local review access</p>
+          <h2>
+            {exactDetails
+              ? "Checking access to exact details"
+              : "Checking protected project review"}
+          </h2>
         </div>
         <p className={styles.copy} role="status">
-          No proposal or decision material is loaded before local session validation.
+          {exactDetails
+            ? "Exact project material is not loaded before local access is validated."
+            : "Protected project review is not loaded before local access is validated."}
         </p>
       </section>
     );
   }
 
   if (state.status === "disabled") {
+    const exactDetails = context === "exact-details";
     return (
       <section className={styles.lockedPanel} data-vnext-operator-session="disabled">
         <div className={styles.panelHeader}>
-          <p className={styles.kicker}>Operator pilot disabled</p>
-          <h2>Semantic review is not exposed</h2>
+          <p className={styles.kicker}>Local review access</p>
+          <h2>
+            {exactDetails
+              ? "Exact details are unavailable"
+              : "Protected project review is unavailable"}
+          </h2>
         </div>
         <p className={styles.notice}>
-          The local operator pilot is disabled. This page loaded no private proposal,
-          decision, state, or session material.
+          Local review is disabled. This page loaded no protected project
+          material.
+        </p>
+        <p className={styles.copy}>
+          From the Augnes source checkout, run <code>npm run augnes -- access</code>
+          {" "}to restart the supervised runtime and issue one expiring local
+          review token for the current project.
         </p>
       </section>
     );
@@ -134,8 +153,8 @@ export function OperatorSessionPanel({
     return (
       <details className={styles.sessionDisclosure} data-vnext-operator-session="authenticated">
         <summary>
-          <span><strong>Local review access established</strong><small>Possession-authenticated for this project</small></span>
-          <span>Session details</span>
+          <span><strong>Local review access established</strong><small>Limited to this project</small></span>
+          <span>Security details</span>
         </summary>
         <dl className={styles.statusGrid}>
           <div>
@@ -179,18 +198,23 @@ export function OperatorSessionPanel({
     );
   }
 
+  const exactDetails = context === "exact-details";
   return (
     <section className={styles.lockedPanel} data-vnext-operator-session="locked">
       <div className={styles.panelHeader}>
-        <p className={styles.kicker}>Opt-in local access</p>
-        <h2>Enter the one-time bootstrap token</h2>
+          <p className={styles.kicker}>Local review access</p>
+          <h2>
+            {exactDetails
+              ? "Unlock exact details"
+              : "Unlock protected project review"}
+          </h2>
       </div>
       <p className={styles.copy}>
-        The token is accepted only through this local POST form. It is not placed in a
-        URL, server-rendered HTML, log message, or persisted plaintext field.
+        Enter the one-time local token. It is submitted only to this local form
+        and is not placed in the URL or rendered back into the page.
       </p>
       <form className={styles.form} onSubmit={submitBootstrap}>
-        <label htmlFor="vnext-operator-bootstrap-token">One-time bootstrap token</label>
+        <label htmlFor="vnext-operator-bootstrap-token">One-time local review token</label>
         <input
           id="vnext-operator-bootstrap-token"
           type="password"
@@ -202,14 +226,20 @@ export function OperatorSessionPanel({
         <button
           className={styles.button}
           type="submit"
+          data-ai-workplane-primary-action="unlock"
+          data-augnes-primary-action="unlock"
           disabled={busy || bootstrapToken.length === 0}
         >
-          {busy ? "Establishing local session…" : "Establish local session"}
+          {busy
+            ? "Unlocking review…"
+            : exactDetails
+              ? "Unlock exact details"
+              : "Unlock project review"}
         </button>
       </form>
       <p className={styles.notice}>
-        Local secret possession is not external identity proof and grants no semantic
-        transition authority by itself.
+        Local review access does not approve or apply any project change and is
+        not an external identity claim.
       </p>
       {statusMessage || state.error_code ? (
         <p className={styles.error} role="alert">

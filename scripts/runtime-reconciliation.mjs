@@ -46,6 +46,8 @@ export class PublicRuntimeReconciliationError extends Error {
 export function withRuntimeReconciliationPath(paths) {
   return {
     ...paths,
+    companionAccess:
+      paths.companionAccess ?? path.join(paths.directory, "companion-access.json"),
     reconciliationLease: path.join(paths.directory, "reconciliation.lock"),
   };
 }
@@ -95,7 +97,12 @@ export async function classifyRuntimeState({
     });
   }
 
-  const records = [bundle.lock.value, bundle.manifest.value, bundle.token.value].filter(
+  const records = [
+    bundle.lock.value,
+    bundle.manifest.value,
+    bundle.token.value,
+    bundle.companionAccess.value,
+  ].filter(
     Boolean,
   );
   if (records.length === 0) {
@@ -141,6 +148,17 @@ export async function classifyRuntimeState({
     });
   }
   if (bundle.token.state === "valid" && !isRuntimeToken(bundle.token.value)) {
+    return classification("ownership_unverifiable", {
+      reason: "runtime_ownership_unverifiable",
+      recoverable: false,
+      bundle,
+      generation,
+    });
+  }
+  if (
+    bundle.companionAccess.state === "valid" &&
+    !isCompanionAccess(bundle.companionAccess.value)
+  ) {
     return classification("ownership_unverifiable", {
       reason: "runtime_ownership_unverifiable",
       recoverable: false,
@@ -405,7 +423,12 @@ export function cleanupRuntimeOwnershipBundle({ paths, classified }) {
     throw new PublicRuntimeReconciliationError("runtime_ownership_unverifiable");
   }
   const current = readOwnershipBundle(paths);
-  const records = [current.lock.value, current.manifest.value, current.token.value].filter(
+  const records = [
+    current.lock.value,
+    current.manifest.value,
+    current.token.value,
+    current.companionAccess.value,
+  ].filter(
     Boolean,
   );
   if (
@@ -420,13 +443,22 @@ export function cleanupRuntimeOwnershipBundle({ paths, classified }) {
   if (current.bridgeEnvironment.state === "valid") {
     removeRegularFile(paths.bridgeEnvironment);
   }
+  if (current.companionAccess.state === "valid") {
+    removeGenerationJson(paths.companionAccess, classified.generation);
+  }
   removeGenerationJson(paths.manifest, classified.generation);
   removeGenerationJson(paths.token, classified.generation);
   removeGenerationJson(paths.lock, classified.generation);
 }
 
 export function hasRuntimeOwnershipMaterial(paths) {
-  return [paths.manifest, paths.lock, paths.token, paths.bridgeEnvironment].some(
+  return [
+    paths.manifest,
+    paths.lock,
+    paths.token,
+    paths.companionAccess,
+    paths.bridgeEnvironment,
+  ].some(
     existsSync,
   );
 }
@@ -435,6 +467,7 @@ export function createRuntimeGeneration() {
   return {
     generationId: randomUUID(),
     childOwnershipToken: randomBytes(32).toString("hex"),
+    companionProxyToken: randomBytes(32).toString("hex"),
   };
 }
 
@@ -446,12 +479,14 @@ function readOwnershipBundle(paths) {
   const lock = readRegularJson(paths.lock);
   const manifest = readRegularJson(paths.manifest);
   const token = readRegularJson(paths.token);
+  const companionAccess = readRegularJson(paths.companionAccess);
   const bridgeEnvironment = readRegularFile(paths.bridgeEnvironment);
-  const members = [lock, manifest, token, bridgeEnvironment];
+  const members = [lock, manifest, token, companionAccess, bridgeEnvironment];
   return {
     lock,
     manifest,
     token,
+    companionAccess,
     bridgeEnvironment,
     presentCount: members.filter((member) => member.state !== "missing").length,
     invalid: members.some((member) => member.state === "invalid"),
@@ -507,6 +542,15 @@ function isRuntimeToken(value) {
     value.token.length >= 32 &&
     typeof value.child_ownership_token === "string" &&
     value.child_ownership_token.length >= 32
+  );
+}
+
+function isCompanionAccess(value) {
+  return (
+    isObject(value) &&
+    value.access_version === "augnes-companion-proxy-access.v0.1" &&
+    typeof value.proxy_token === "string" &&
+    value.proxy_token.length >= 32
   );
 }
 

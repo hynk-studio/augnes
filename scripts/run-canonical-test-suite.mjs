@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  canonicalChildFailure,
+  canonicalChildAcceptanceFailure,
   DEFAULT_CANONICAL_CHILD_TIMEOUT_MS,
   runCanonicalChild,
   runCanonicalChildGroups,
@@ -15,6 +15,11 @@ import {
   buildCanonicalChildEnvironment,
   findForbiddenAmbientKeysForwarded,
 } from "./canonical-test-environment.mjs";
+import { buildRuntimeOperabilityCanonicalSteps } from "./runtime-operability-ownership.mjs";
+import {
+  acquireCompanionServiceMaintenance,
+  releaseCompanionServiceMaintenance,
+} from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -39,11 +44,140 @@ const nestedNode = (...args) => ({
   cwd: nestedAppRoot,
 });
 
+const operatorExecutionRequirements = [
+  "database",
+  "migrations",
+  "filesystem",
+  "project-root",
+  "process-owning",
+  "listener-port-owning",
+  "browser-profile-owning",
+  "cdp-session-owning",
+  "immutable-fixture-input",
+  "operator-session-owning",
+];
+const operatorReviewControlStep = {
+  id: "operator-review-control",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator review and control Browser child",
+  ...rootNode("scripts/browser-validate-operator-review-control-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const operatorNativeHostExecutionStep = {
+  id: "operator-native-host-execution",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator native-host execution Browser child",
+  ...rootNode("scripts/browser-validate-operator-native-host-execution-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const operatorMultiCandidateStep = {
+  id: "operator-multi-candidate",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator multi-candidate semantic Browser child",
+  ...rootNode("scripts/browser-validate-operator-multi-candidate-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const projectExperienceStep = {
+  id: "project-experience",
+  group: "project-experience",
+  requirements: [
+    "database", "migrations", "filesystem", "project-root", "process-owning",
+    "listener-port-owning", "browser-profile-owning", "cdp-session-owning",
+    "immutable-fixture-input",
+  ],
+  label: "independent project experience Browser owner",
+  ...rootNode("scripts/browser-validate-project-experience-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+const continuityStep = {
+  id: "continuity",
+  group: "continuity",
+  requirements: [
+    "database", "migrations", "filesystem", "backup-restore", "project-root",
+    "process-owning", "listener-port-owning", "browser-profile-owning",
+    "cdp-session-owning", "immutable-fixture-input",
+  ],
+  label: "independent continuity Browser owner",
+  ...rootNode("scripts/browser-validate-continuity-v1.mjs"),
+  timeoutMs: 480_000,
+  requireNaturalExit: true,
+};
+const goldenStep = {
+  id: "golden",
+  group: "cross-boundary-golden",
+  requirements: operatorExecutionRequirements,
+  label: "thin cross-boundary Browser golden path",
+  ...rootNode("scripts/browser-validate-cross-boundary-golden-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
+
 const suites = {
   unit: [
     {
       label: "vNext provider-neutral protocol conformance",
       ...rootNode("scripts/vnext-protocol-conformance.ts"),
+    },
+    {
+      label: "context-use attribution persisted read-model contract",
+      ...rootNode("scripts/test-context-use-attribution-read-model.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "Personal Perspective bounded shadow-navigation contract",
+      ...rootNode("scripts/test-context-shadow-navigation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "read-only Continuity Dynamics Observer contract",
+      ...rootNode("scripts/test-continuity-dynamics.ts"),
+      timeoutMs: 45_000,
+    },
+    {
+      label: "source-bound operational friction proposal contract",
+      ...rootNode("scripts/test-operational-friction-proposal.ts"),
+      timeoutMs: 45_000,
+    },
+    {
+      label: "canonical operational proposal admission and proposal-only review",
+      ...rootNode("scripts/test-vnext-operational-proposal-review.ts"),
+      timeoutMs: 45_000,
+    },
+    {
+      label: "source-linked operational continuation candidate contract",
+      ...rootNode("scripts/test-operational-continuation.ts"),
+      timeoutMs: 45_000,
+    },
+    {
+      label:
+        "authenticated source-linked continuation admission and fresh managed Start contract",
+      ...rootNode("scripts/test-operational-continuation-admission.ts"),
+      timeoutMs: 45_000,
+    },
+    {
+      label:
+        "terminal continuation attribution and exact-case equal-ceiling comparison contract",
+      ...rootNode("scripts/test-operational-continuation-comparison.ts"),
+      timeoutMs: 90_000,
+    },
+    {
+      label:
+        "deterministic model and host succession portability and fallback benchmark contract",
+      ...rootNode("scripts/test-model-host-succession-benchmark.ts"),
+      timeoutMs: 90_000,
+    },
+    {
+      label:
+        "deterministic matched re-entry perturbation and reset evidence contract",
+      ...rootNode("scripts/test-operational-reentry-perturbation.ts"),
+      timeoutMs: 30_000,
     },
     {
       label: "operator review-window policy",
@@ -63,8 +197,137 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
-      label: "decision-centered Semantic Workbench presentation contract",
+      label: "project experience immutable Browser fixture contract",
+      ...rootNode("scripts/test-project-experience-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "project experience keyed result and finalization contract",
+      ...rootNode("scripts/test-project-experience-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "continuity keyed result and finalization contract",
+      ...rootNode("scripts/test-continuity-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution immutable Browser fixture profiles",
+      ...rootNode("scripts/test-operator-execution-browser-fixture-v1.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution keyed result effect and finalization contract",
+      ...rootNode("scripts/test-operator-execution-result-contract-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "operator execution exact structural effect ledger contract",
+      ...rootNode("scripts/test-operator-execution-effect-ledger-v1.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "AI Workplane human projection and exact-detail contract",
       ...rootNode("scripts/test-vnext-decision-centered-workbench.tsx"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded conversation routing, scope, meaning, and authority contract",
+      ...rootNode("scripts/test-vnext-guide-brief-conversation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded conversation Browser composition contract",
+      ...rootNode(
+        "scripts/test-vnext-guide-brief-conversation-component.ts",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded model-assisted question interpretation contract",
+      ...rootNode("scripts/test-vnext-guide-brief-interpretation.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded Browser interaction registry, plan, and execution contract",
+      ...rootNode("scripts/test-vnext-guide-brief-interaction.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label:
+        "GuideBrief bounded Browser interaction component and owner contract",
+      ...rootNode(
+        "scripts/test-vnext-guide-brief-interaction-component.ts",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "C8 semantic visual hierarchy and regression contract",
+      ...rootNode("scripts/test-c8-semantic-visual-contract.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "contextual exact-details presentation contract",
+      ...rootNode("scripts/test-vnext-contextual-inspector.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "delegated Codex work projection and polling contract",
+      ...rootNode("scripts/test-vnext-delegated-work.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "exact read-only Codex current continuity contract",
+      ...rootNode("scripts/test-vnext-codex-current-continuity.ts"),
+      // The complete twelve-database continuity matrix measured 68.26s on the
+      // verified Windows 10 NTFS lane. Keep a bounded 90s owner timeout.
+      timeoutMs: 90_000,
+    },
+    {
+      label: "exact repository-scoped Codex continuity contract",
+      ...rootNode("scripts/test-codex-repository-continuity.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "Windows physical-root identity adapter contract",
+      ...rootNode("scripts/test-windows-physical-root-identity.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "trusted repository execution admission and attachment contract",
+      ...rootNode("scripts/test-repository-execution-attachment.ts"),
+      timeoutMs: 60_000,
+    },
+    {
+      label: "managed repository delegation contract",
+      ...rootNode("scripts/test-repository-managed-delegation.ts"),
+      // The full race, cancellation, replay, and lifecycle matrix measured
+      // 124.7s on the verified Windows 10 NTFS lane. Keep a bounded 180s owner
+      // timeout without retries.
+      timeoutMs: 180_000,
+    },
+    {
+      label: "live Companion discovery and dynamic bridge-port contract",
+      ...rootNode("scripts/test-codex-companion-discovery.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "machine-owned Companion service and public lifecycle contract",
+      ...rootNode("scripts/test-companion-service-contract.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "Augnes Operator reviewed plugin install and cache contract",
+      ...rootNode("scripts/test-augnes-operator-plugin-setup.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "private live Companion Host, Origin, CORS, and proxy-channel contract",
+      ...rootNode("scripts/test-codex-companion-privacy.mjs"),
       timeoutMs: 30_000,
     },
     {
@@ -72,6 +335,22 @@ const suites = {
       ...rootNode("scripts/test-local-project-verification-adapter.ts"),
       // Incremental-bound, root-drift, and terminal-residue coverage measured 0.4s locally.
       timeoutMs: 30_000,
+    },
+    {
+      label: "browser E2E timing and lifecycle contracts",
+      ...rootNode("scripts/test-browser-e2e-timing.mjs"),
+    },
+    {
+      label: "browser expected-refusal accounting",
+      ...rootNode("scripts/test-browser-expected-refusal-accounting.mjs"),
+    },
+    {
+      label: "race-safe browser file-signal observation",
+      ...rootNode("scripts/test-bounded-file-signal.mjs"),
+    },
+    {
+      label: "permanent Browser verification owner manifest contract",
+      ...rootNode("scripts/test-browser-verification-owners.mjs"),
     },
   ],
   integration: [
@@ -92,8 +371,8 @@ const suites = {
         "project Verify lifecycle, exact Transition, reconciliation, and lineage",
       ...rootNode("scripts/test-vnext-project-verify-lifecycle.ts"),
       // Current-head exact lifecycle, rollback, bounded-read, source-chain, and
-      // restore coverage measured 43.55s locally; bound it with a 60s margin.
-      timeoutMs: 60_000,
+      // restore coverage measured 71.2s on the exact Windows source lane.
+      timeoutMs: 90_000,
     },
     {
       id: "project-verify-production-lifecycle",
@@ -132,13 +411,29 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-controls.ts"),
     },
     {
+      id: "continuity-pins",
+      group: "supporting-serial",
+      requirements: [
+        "database",
+        "migrations",
+        "filesystem",
+        "mutable-module-state",
+      ],
+      label:
+        "project-scoped Continuities pins, CAS, unresolved retention, recovery, portability, and authority isolation",
+      ...rootNode("scripts/test-vnext-continuity-pins.ts"),
+      timeoutMs: 120_000,
+    },
+    {
       id: "policy-triggered-model-run",
       group: "supporting-serial",
       requirements: ["database", "migrations", "deterministic-fake-transport"],
       label:
         "policy-triggered Planner grant, Model Gateway, and RunReceipt lifecycle",
       ...rootNode("scripts/test-policy-triggered-model-run.ts"),
-      timeoutMs: 30_000,
+      // Exact Windows source-lane lifecycle measured 30.1s after transport
+      // admission; keep a bounded 45s owner rather than racing the measurement.
+      timeoutMs: 45_000,
     },
     {
       id: "project-home",
@@ -147,6 +442,42 @@ const suites = {
       label:
         "Minimum Project Home projection, lineage, isolation, and read-only routing",
       ...rootNode("scripts/test-vnext-project-home.ts"),
+    },
+    {
+      id: "project-work-initialization",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label:
+        "authenticated first-work initialization, packet lineage, and separate native-host start",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      id: "blank-state",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label:
+        "Blank State focus, route source, project choice, and read-only projection",
+      ...rootNode("scripts/test-vnext-blank-state.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      id: "guide-brief-current-project",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "route-transport"],
+      label:
+        "GuideBrief v0.2 current-project source, projections, bounds, safety, and packet separation",
+      ...rootNode("scripts/test-vnext-guide-brief.ts"),
+      timeoutMs: 30_000,
+    },
+    {
+      id: "codex-read-guide-brief",
+      group: "supporting-serial",
+      requirements: ["route-transport", "deterministic-fake-transport"],
+      label:
+        "Codex current-project GuideBrief marker, bounded sections, and fail-closed parsing",
+      ...nestedNode("scripts/test-codex-read-brief.ts"),
+      timeoutMs: 30_000,
     },
     {
       id: "project-onboarding",
@@ -237,11 +568,21 @@ const suites = {
         "portable project contract, atomic round trip, reader fidelity, and authority isolation",
       ...rootNode("scripts/test-portable-project-continuity.ts"),
       // Production-equivalent fixture, validation, round trip, replay, and
-      // adversarial cases measured 13.41s locally.
-      timeoutMs: 45_000,
+      // adversarial cases measured 65.6s on the exact Windows source lane.
+      timeoutMs: 90_000,
     },
   ],
   authority: [
+    {
+      label: "canonical change planner and documentation validator",
+      ...rootNode("scripts/test-canonical-change-planner.mjs"),
+      timeoutMs: 60_000,
+    },
+    {
+      label: "dependency-lock graph compatibility normalization",
+      ...rootNode("scripts/test-dependency-lock-compatibility.mjs"),
+      timeoutMs: 30_000,
+    },
     {
       label: "canonical child environment isolation",
       ...rootNode("scripts/test-canonical-environment-isolation.mjs"),
@@ -252,8 +593,42 @@ const suites = {
       timeoutMs: 60_000,
     },
     {
-      label: "canonical CI workflow and lifecycle guardrails",
-      ...rootNode("scripts/test-canonical-ci-contract.mjs"),
+      label: "runtime operability ownership and fail-closed split contract",
+      ...rootNode("scripts/test-runtime-operability-ownership.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "canonical repository migration bridge identity contract",
+      ...rootNode("scripts/test-canonical-repository-migration-bridge.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical verification and lifecycle guardrails",
+      ...rootNode(
+        "scripts/test-local-canonical-verification-contract.mjs",
+      ),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical executor identity and scheduling contract",
+      ...rootNode("scripts/test-local-canonical-executor.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical receipt integrity and staleness contract",
+      ...rootNode("scripts/test-local-canonical-receipt.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical PR evidence projection and policy contract",
+      ...rootNode("scripts/test-local-canonical-pr-evidence.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "local Canonical PR evidence GitHub transport contract",
+      ...rootNode(
+        "scripts/test-local-canonical-pr-evidence-transport.mjs",
+      ),
       timeoutMs: 30_000,
     },
     {
@@ -269,6 +644,114 @@ const suites = {
       label:
         "project-scoped Model Gateway and all production model transport authority",
       ...rootNode("scripts/test-model-gateway.ts"),
+    },
+    {
+      label:
+        "ACGC3C2 bounded live Governed Actor Lab Gateway and cohort contract",
+      ...rootNode("scripts/test-governed-actor-lab-live.ts"),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2 historical compatibility and provider-contract hardening (zero egress)",
+      ...rootNode("scripts/test-operational-reentry-matched-cohort.ts"),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2H clean-control v0.2 shared-Gateway harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-2.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P3H parser-closed v0.3 provider contract and response-invalid attribution (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-3.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6B invocation-identity-separated parser-closed v0.4 contract (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-v0-4.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P4H parser-closed v0.3 successor compatibility-probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-parser-closed-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6C identity-separated v0.4 compatibility-probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-v0-4-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6H v0.4 stale-reset isolation behavioral harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-v0-4-stale-reset-isolation-cohort.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6N cross-case semantic closure and terminalization harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-stale-reset-cross-case-replication.ts",
+      ),
+      timeoutMs: 90_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P6N corrected cross-case six-shape compatibility harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-stale-reset-cross-case-compatibility.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P5H parser-closed v0.3 clean-control behavioral cohort harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-parser-closed-clean-control-cohort.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2P1 bounded provider compatibility probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R2P1 clean-control v0.2 compatibility probe harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-clean-control-provider-compatibility-probe.ts",
+      ),
+      timeoutMs: 60_000,
+    },
+    {
+      label:
+        "ACGC-E2R1H replacement matched-cohort harness (zero egress)",
+      ...rootNode(
+        "scripts/test-operational-reentry-matched-cohort-replacement.ts",
+      ),
+      timeoutMs: 60_000,
     },
     {
       label: "root runtime authority invariants",
@@ -304,10 +787,9 @@ const suites = {
       label: "production canonical record recovery validation",
       ...rootNode("scripts/test-recovery-canonical-record-validator.ts"),
       // The production 30-record backup/restore fixture, real product readers,
-      // and adversarial mutations measured 83.72s locally after the recovery
-      // privacy boundary. Comparable canonical process children have measured
-      // up to 1.87x local duration in CI, so retain a bounded 180s limit.
-      timeoutMs: 180_000,
+      // and adversarial mutations measured 236.1s on the exact Windows source
+      // lane, so retain a bounded 300s owner.
+      timeoutMs: 300_000,
     },
     {
       id: "recovery-backup",
@@ -316,10 +798,9 @@ const suites = {
       label: "versioned recovery backup and atomic restore contract",
       ...rootNode("scripts/test-recovery-backup.mjs"),
       // The complete backup, hard-crash ownership, adoption, and restore matrix
-      // measured 37.62s locally. Comparable canonical process children have
-      // measured up to 1.87x locally observed duration in CI, so retain a
-      // bounded 75s child limit without retrying.
-      timeoutMs: 75_000,
+      // measured 253.7s on the exact Windows source lane, so retain a bounded
+      // 330s child owner without retrying.
+      timeoutMs: 330_000,
     },
     {
       id: "runtime-database-bootstrap",
@@ -328,22 +809,29 @@ const suites = {
       label:
         "platform local paths, first-run database, migration, and recovery",
       ...rootNode("scripts/test-runtime-database-bootstrap.mjs"),
-      timeoutMs: 120_000,
+      // Real first/current/old starts plus recovery and rollback measured
+      // 327.8s on the exact Windows source lane.
+      timeoutMs: 390_000,
     },
-    {
-      id: "runtime-supervisor",
-      shard: "operability-supervisor",
-      requirements: [
-        "process-owning",
-        "listener-port-owning",
-        "filesystem",
-        "nested-app-runtime",
-      ],
-      label:
-        "canonical supervisor lifecycle, ownership, collision, and cleanup",
-      ...rootNode("scripts/test-runtime-operability.mjs"),
-      timeoutMs: 120_000,
-    },
+    ...buildRuntimeOperabilityCanonicalSteps(rootNode),
+    ...(process.platform === "darwin"
+      ? [{
+          id: "companion-service-native",
+          shard: "operability-supervisor",
+          requirements: [
+            "database",
+            "process-owning",
+            "listener-port-owning",
+            "filesystem",
+            "nested-app-runtime",
+            "launch-agent-owning",
+          ],
+          label: "machine-owned macOS Companion service lifecycle and cleanup",
+          ...rootNode("scripts/test-companion-service-native.mjs"),
+          timeoutMs: 240_000,
+          requireNaturalExit: true,
+        }]
+      : []),
     {
       id: "runtime-reconciliation",
       shard: "operability-runtime-reconciliation",
@@ -357,11 +845,10 @@ const suites = {
       ],
       label: "runtime crash, orphan, stale-state, and database reconciliation",
       ...rootNode("scripts/test-runtime-reconciliation.mjs"),
-      // The complete update/restore journal, legacy-v3, active-WAL, and crash
-      // reconciliation matrix measured 234.45s locally. Existing canonical CI
-      // process suites have measured up to 1.87x local duration, so keep a
-      // bounded 480s child limit with a small scheduling margin.
-      timeoutMs: 480_000,
+      // The complete update/restore journal, legacy-v3, and available crash
+      // reconciliation matrix measured 614.1s on the exact Windows source
+      // lane, so keep a bounded 720s child owner without retrying.
+      timeoutMs: 720_000,
     },
     {
       id: "distributable-package",
@@ -386,35 +873,26 @@ const suites = {
     },
   ],
   e2e: [
-    {
-      label: "Resume, Verify, and Decide browser golden path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
-      timeoutMs: 480_000,
-    },
-    {
-      label: "portable continuity and restart reconciliation browser path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
-      timeoutMs: 480_000,
-    },
+    { ...projectExperienceStep },
+    { ...operatorReviewControlStep },
+    { ...operatorNativeHostExecutionStep },
+    { ...operatorMultiCandidateStep },
+    { ...continuityStep },
+    { ...goldenStep },
   ],
-  "e2e-core": [
-    {
-      label: "Resume, Verify, and Decide browser golden path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "core" },
-      timeoutMs: 480_000,
-    },
+  "e2e-project-experience": [{ ...projectExperienceStep }],
+  "e2e-operator-review-control": [{ ...operatorReviewControlStep }],
+  "e2e-operator-native-host-execution": [
+    { ...operatorNativeHostExecutionStep },
   ],
-  "e2e-continuity": [
-    {
-      label: "portable continuity and restart reconciliation browser path",
-      ...rootNode("scripts/browser-validate-vnext-native-host-result-v0-1.mjs"),
-      env: { AUGNES_BROWSER_E2E_SCOPE: "continuity" },
-      timeoutMs: 480_000,
-    },
+  "e2e-operator-multi-candidate": [{ ...operatorMultiCandidateStep }],
+  "e2e-operator-execution": [
+    { ...operatorReviewControlStep },
+    { ...operatorNativeHostExecutionStep },
+    { ...operatorMultiCandidateStep },
   ],
+  "e2e-continuity": [{ ...continuityStep }],
+  "e2e-golden": [{ ...goldenStep }],
 };
 
 const integrationInventory = suites.integration;
@@ -467,6 +945,8 @@ if (!(suiteName in suites)) {
 const results = [];
 let forbiddenEnvironmentKeysForwarded = 0;
 let canonicalChildrenChecked = 0;
+let serviceMaintenance = null;
+let serviceMaintenanceRelease = null;
 
 try {
   const preparedSteps = suites[suiteName].map((step, index) => {
@@ -478,6 +958,8 @@ try {
     ownedResourceRoots.push(resourceRoot);
     for (const directory of [
       path.join(resourceRoot, "home"),
+      path.join(resourceRoot, "home", "AppData", "Local"),
+      path.join(resourceRoot, "home", "AppData", "Roaming"),
       path.join(resourceRoot, "runtime-state"),
     ]) {
       mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -514,6 +996,7 @@ try {
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
+      requireNaturalExit: step.requireNaturalExit === true,
       resourceRoot,
     };
   });
@@ -537,6 +1020,18 @@ try {
     throw new Error(
       "canonical child ownership or resource isolation is duplicated",
     );
+  }
+
+  const requiresServiceMaintenance = preparedSteps.some((step) =>
+    step.requirements.includes("process-owning") ||
+    step.requirements.includes("listener-port-owning") ||
+    step.requirements.includes("browser-profile-owning"),
+  );
+  if (requiresServiceMaintenance) {
+    serviceMaintenance = await acquireCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      operationId: `canonical-suite:${suiteName}:${process.pid}`,
+    });
   }
 
   let completedResults;
@@ -569,16 +1064,12 @@ try {
       console.log();
       const result = await runCanonicalChild(step);
       completedResults.push(result);
-      if (
-        result.timed_out ||
-        result.spawn_error_code ||
-        result.exit_code !== 0
-      ) {
-        throw canonicalChildFailure(result, {
-          suite: suiteName,
-          timeoutMs: step.timeoutMs,
-        });
-      }
+      const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
+        suite: suiteName,
+        timeoutMs: step.timeoutMs,
+        requireNaturalExit: step.requireNaturalExit,
+      });
+      if (acceptanceFailure) throw acceptanceFailure;
     }
   }
 
@@ -605,6 +1096,13 @@ try {
     });
   }
 
+  if (serviceMaintenance) {
+    serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      lease: serviceMaintenance.lease,
+    });
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -620,6 +1118,8 @@ try {
               child_resource_isolation: [
                 "HOME",
                 "USERPROFILE",
+                "LOCALAPPDATA",
+                "APPDATA",
                 "TMPDIR",
                 "TMP",
                 "TEMP",
@@ -630,12 +1130,28 @@ try {
             }
           : {}),
         results,
+        companion_service_maintenance: serviceMaintenance
+          ? {
+              before: serviceMaintenance.before,
+              after: serviceMaintenanceRelease.after,
+              acquired: serviceMaintenance.acquired,
+              release_completed:
+                serviceMaintenance.acquired === false ||
+                serviceMaintenanceRelease.released === true,
+            }
+          : null,
       },
       null,
       2,
     ),
   );
 } finally {
+  if (serviceMaintenance && !serviceMaintenanceRelease) {
+    serviceMaintenanceRelease = await releaseCompanionServiceMaintenance({
+      repositoryRoot: repoRoot,
+      lease: serviceMaintenance.lease,
+    });
+  }
   for (const resourceRoot of ownedResourceRoots) {
     rmSync(resourceRoot, { recursive: true, force: true });
   }

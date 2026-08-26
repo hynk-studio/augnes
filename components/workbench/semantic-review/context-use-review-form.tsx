@@ -52,16 +52,16 @@ export function ContextUseReviewForm({
   return (
     <form className={styles.form} data-vnext-context-use-review-form="v0.1" onSubmit={submit}>
       <label>
-        User-declared later-context use
+        Did this project context help?
         <select value={actuallyUsed} onChange={(event) => setActuallyUsed(event.target.value as typeof actuallyUsed)}>
-          <option value="unknown">Unknown</option>
-          <option value="yes">Yes</option>
-          <option value="partial">Partial</option>
-          <option value="no">No</option>
+          <option value="unknown">Not sure</option>
+          <option value="yes">Helpful</option>
+          <option value="partial">Partly helpful</option>
+          <option value="no">Not helpful</option>
         </select>
       </label>
       <label>
-        User assessment
+        What should Augnes know?
         <select value={assessment} onChange={(event) => setAssessment(event.target.value as typeof assessment)}>
           <option value="not_applicable">Not applicable</option>
           <option value="helpful">Helpful</option>
@@ -72,25 +72,22 @@ export function ContextUseReviewForm({
         </select>
       </label>
       <label>
-        Optional bounded correction summary
+        What should be corrected?
         <textarea maxLength={2000} value={correction} onChange={(event) => setCorrection(event.target.value)} />
       </label>
       <label>
-        Optional bounded notes
+        Optional note
         <textarea maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </label>
       {!semanticallyAllowed ? (
         <p className={styles.error}>Helpful requires actual use yes or partial.</p>
       ) : null}
       <p className={styles.notice}>
-        Packet presentation is derived server-side from the real later receipt. This
-        form records actual use and usefulness as user declarations; receipt-wide
-        trust counts do not upgrade them to observation or attestation. This
-        declaration creates no proposal, decision, Transition, semantic state, policy,
-        Perspective, memory, or packet.
+        Feedback is recorded separately. It does not immediately change saved
+        project context or approve another action.
       </p>
       <button className={styles.button} type="submit" disabled={busy || !semanticallyAllowed}>
-        {busy ? "Recording feedback…" : "Record context-use review"}
+        {busy ? "Saving feedback…" : "Save feedback"}
       </button>
     </form>
   );

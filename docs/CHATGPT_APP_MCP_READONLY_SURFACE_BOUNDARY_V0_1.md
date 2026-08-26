@@ -190,24 +190,26 @@ tool here adds only a read-only consumer path.
 
 ## GuideBrief read-only tool
 
-Phase 6D adds one additional read-only App/MCP tool:
+The stable read-only App/MCP tool is:
 
 ```text
 augnes_get_guide_brief
 ```
 
 `augnes_get_guide_brief` is read-only and local-route backed. It consumes the
-existing Phase 6B GuideBrief route through the state-runtime HTTP adapter:
+current-project GuideBrief v0.2 route through the state-runtime HTTP adapter:
 
 ```text
 GET /api/augnes/read/guide-brief?scope=project:augnes
-x-augnes-local-readonly: guide-brief-v0.1
+x-augnes-local-readonly: guide-brief-v0.2
 ```
 
-The tool returns GuideBrief structured content and a compact summary for
-ChatGPT. It preserves Observed/Inferred/Suggested/Needs user judgment
-separation, states that suggestions are not actions, and states that
-needs_user_judgment is not decided by the tool.
+The tool returns GuideBrief v0.2 structured content and a compact summary for
+ChatGPT. It defaults to the current project, optionally reads one exact project
+without switching it, preserves Observed/Inferred/Suggested/Needs user judgment
+separation, states that suggestions are not instructions, and retains source
+status, material risk, unresolved judgment and the all-false authority boundary
+in compact output.
 
 The tool does not expose a write surface. It does not add Codex execution,
 GitHub/OpenAI/provider calls, proof/evidence writes, state mutation, memory

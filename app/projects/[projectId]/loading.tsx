@@ -1,12 +1,12 @@
 import { ProductShell } from "@/components/product-shell";
 
-export default function ProjectHomeLoading() {
+export default function BlankStateProjectLoading() {
   return (
-    <ProductShell surface="home">
-      <main className="project-home-shell product-route-state" aria-busy="true" aria-live="polite">
-        <p className="project-selector-eyebrow">Project Home</p>
-        <h1>Loading this project…</h1>
-        <p>Reading project-scoped state and lineage from local storage.</p>
+    <ProductShell primaryZone="blank-state">
+      <main className="blank-state-shell product-route-state" aria-busy="true" aria-live="polite">
+        <p className="blank-state-eyebrow">Continuities</p>
+        <h1>Opening this project…</h1>
+        <p>Reading the current situation without changing the current project.</p>
       </main>
     </ProductShell>
   );

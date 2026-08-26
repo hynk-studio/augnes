@@ -64,6 +64,7 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 
+const fileSymlinkRefusalVerified = process.platform !== "win32";
 const repositoryRoot = realpathSync(process.cwd());
 const repositoryFingerprint = createHash("sha256")
   .update(repositoryRoot)
@@ -93,7 +94,10 @@ if (process.argv[2] === "--bootstrap-crash-helper") {
 
 async function runReconciliationSuite() {
   const temporaryRoot = mkdtempSync(
-    path.join(tmpdir(), "augnes-runtime-reconciliation-"),
+    path.join(
+      tmpdir(),
+      process.platform === "win32" ? "ag-rr-" : "augnes-runtime-reconciliation-",
+    ),
   );
   const repositoryDatabasePath = path.join(repositoryRoot, "data", "augnes.db");
   const repositoryDatabaseBefore = snapshotDatabaseFamily(repositoryDatabasePath);
@@ -219,6 +223,10 @@ async function runReconciliationSuite() {
       database_restore_failure_retried: true,
       active_wal_recovered: process.platform !== "win32",
       legacy_journal_refused: true,
+      file_symlink_refusal_verified: fileSymlinkRefusalVerified,
+      file_symlink_refusal_skip_reason: fileSymlinkRefusalVerified
+        ? null
+        : "windows_symlink_privilege_unavailable",
       repository_database_unchanged: true,
       provider_or_external_requests: proxyRequests,
       owned_processes_after: 0,
@@ -756,12 +764,14 @@ async function testUnverifiableRuntimeState({ temporaryRoot, proxyPort }) {
   assert.equal(malformed.state, "ownership_unverifiable");
 
   unlinkSync(scenario.paths.token);
-  symlinkSync(scenario.paths.lock, scenario.paths.token);
-  const symlinked = await classifyRuntimeState({
-    paths: scenario.paths,
-    repositoryFingerprint,
-  });
-  assert.equal(symlinked.state, "ownership_unverifiable");
+  if (fileSymlinkRefusalVerified) {
+    symlinkSync(scenario.paths.lock, scenario.paths.token);
+    const symlinked = await classifyRuntimeState({
+      paths: scenario.paths,
+      repositoryFingerprint,
+    });
+    assert.equal(symlinked.state, "ownership_unverifiable");
+  }
 
   signalProcessTree(unrelated.pid, "SIGTERM");
   await waitForExit(unrelated, 5_000);
@@ -1894,7 +1904,10 @@ function spawnBootstrapHelper(scenario, options) {
 }
 
 async function createRuntimeScenario(temporaryRoot, name, proxyPort) {
-  const root = path.join(temporaryRoot, name);
+  const scenarioDirectory = process.platform === "win32"
+    ? `rr-${createHash("sha256").update(name).digest("hex").slice(0, 8)}`
+    : name;
+  const root = path.join(temporaryRoot, scenarioDirectory);
   const stateDirectory = path.join(root, "runtime");
   const databasePath = path.join(root, "database", "augnes.db");
   const home = path.join(root, "home");
@@ -1902,6 +1915,8 @@ async function createRuntimeScenario(temporaryRoot, name, proxyPort) {
   const xdgState = path.join(root, "xdg-state");
   const xdgConfig = path.join(root, "xdg-config");
   const xdgRuntime = path.join(root, "xdg-runtime");
+  const localAppData = path.join(root, "local");
+  const appData = path.join(root, "roaming");
   const temporary = path.join(root, "tmp");
   for (const directory of [
     home,
@@ -1909,6 +1924,8 @@ async function createRuntimeScenario(temporaryRoot, name, proxyPort) {
     xdgState,
     xdgConfig,
     xdgRuntime,
+    localAppData,
+    appData,
     temporary,
   ]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -1923,6 +1940,8 @@ async function createRuntimeScenario(temporaryRoot, name, proxyPort) {
     XDG_STATE_HOME: xdgState,
     XDG_CONFIG_HOME: xdgConfig,
     XDG_RUNTIME_DIR: xdgRuntime,
+    LOCALAPPDATA: localAppData,
+    APPDATA: appData,
     TMPDIR: temporary,
     TMP: temporary,
     TEMP: temporary,

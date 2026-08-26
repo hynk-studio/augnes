@@ -1,5 +1,11 @@
 # Codex GuideBrief Handoff v0.1
 
+Status: historical alignment document. The active current-project contract is
+`docs/GUIDEBRIEF_CONTRACT_V0_2.md`. C3 now supplies a bounded v0.2 Codex
+projection automatically to each newly started native Codex turn as a section
+separate from the exact `TaskContextPacket`; the v0.1 packet shape below remains
+compatibility history.
+
 ## 1. Purpose
 
 Codex GuideBrief alignment defines how a Codex worker may consume a
@@ -19,7 +25,7 @@ scheduler/autonomy runner, no handoff execution, and no external side effects.
 
 ## 2. Relationship To GuideBrief
 
-The source GuideBrief contract is `docs/GUIDEBRIEF_CONTRACT_V0_1.md`.
+The historical source GuideBrief contract is `docs/GUIDEBRIEF_CONTRACT_V0_1.md`.
 GuideBrief supplies:
 
 - Observed source-backed read-model observations.
@@ -42,14 +48,15 @@ Phase 6A added GuideBrief contract, types, helper, fixture, and smoke.
 Phase 6B added the GET-only marker-gated local read route.
 Phase 6C added read-only Web Guide display.
 Phase 6D added the ChatGPT App/MCP read-only GuideBrief tool.
-Phase 6E adds Codex GuideBrief alignment as docs, skill guidance, and static
-smoke only.
+Phase 6E added Codex GuideBrief alignment as docs, skill guidance, and static
+smoke only. C3 supersedes that active-path limitation with the v0.2
+current-project contract.
 
 Manual Handoff Capsule / Codex Launch Card transport was retired in R5. The
-automatic Project Home native-host path consumes persisted
-`TaskContextPacket` records and does not use this GuideBrief alignment packet.
-GuideBrief work may be consumed only as separately scoped, read-only task-start
-context.
+native-host path still consumes the exact persisted `TaskContextPacket`. C3
+also supplies GuideBrief v0.2 as separate non-authoritative task-start guidance.
+The guide remains outside packet integrity, cannot override it, and is not
+re-injected when an existing turn is resumed.
 
 ## 4. GuideBrief-To-Codex Packet Shape
 

@@ -8,6 +8,10 @@ import type {
   CandidateToCodexHandoffDraftReviewLineage,
   CandidateToCodexHandoffDraftReviewValidationResult,
 } from "@/types/candidate-to-codex-handoff-draft-review";
+import {
+  containsAbsoluteUserHomePath,
+  RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
+} from "@/lib/research-candidate-review/operator-bound-checkout";
 
 type JsonRecord = Record<string, unknown>;
 type ReviewSection = Record<string, boolean>;
@@ -294,10 +298,11 @@ function buildPromptReview(draft: CandidateToCodexHandoffDraft): ReviewSection {
     prompt_is_plain_text: typeof prompt === "string" && prompt.length > 0,
     prompt_not_markdown_fenced: !/```/.test(prompt),
     prompt_includes_repo: prompt.includes("Repo: hynk-studio/augnes"),
-    prompt_includes_checkout: prompt.includes("/Users/hynk/code/augnes"),
-    prompt_includes_do_not_touch_path: prompt.includes(
-      "/Users/hynk/Documents/augnes",
+    prompt_checkout_is_operator_bound: prompt.includes(
+      RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
     ),
+    prompt_excludes_private_checkout_paths:
+      !containsAbsoluteUserHomePath(prompt),
     prompt_includes_source_packet_fingerprint: prompt.includes(
       draft.source_ai_context_packet_fingerprint,
     ),

@@ -22,6 +22,12 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { CANONICAL_DATABASE_MIGRATION_IDS } from "./canonical-database-migrations.mjs";
 import { inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
+import { buildBlankStateContinuityV01 } from "../lib/vnext/blank-state/blank-state-continuity";
+import { readBlankStateSourceV01 } from "../lib/vnext/blank-state/blank-state-source";
+import {
+  selectActiveProjectV01,
+  touchRecentProjectV01,
+} from "../lib/vnext/persistence/project-lifecycle-registry";
 
 import {
   buildVNextOperatorBrowserFixtureV01,
@@ -36,6 +42,7 @@ import {
   type VNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import {
+  SharedProjectInspectorReadErrorV01,
   buildBoundedSharedProjectInspectorSectionV01,
   classifySharedProjectInspectorStrategicMaterialV01,
   readSharedProjectInspectorV01,
@@ -278,6 +285,96 @@ try {
     manifestSource,
   ) as VNextOperatorBrowserFixtureManifestV01;
   const databasePath = path.join(fixtureDirectory, typedManifest.database_file);
+  const continuityDb = new Database(databasePath, { fileMustExist: true });
+  continuityDb.pragma("foreign_keys = ON");
+  touchRecentProjectV01(continuityDb, {
+    workspace_id: typedManifest.workspace_id,
+    project_id: typedManifest.project_id,
+    now: "2026-07-17T12:05:00.000Z",
+  });
+  selectActiveProjectV01(continuityDb, {
+    workspace_id: typedManifest.workspace_id,
+    project_id: typedManifest.project_id,
+    now: "2026-07-17T12:05:00.000Z",
+    expected_project_id: null,
+    expected_revision: null,
+  });
+  const continuityEnvironment = {
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:
+      process.env.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED,
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID:
+      process.env.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID:
+      process.env.AUGNES_VNEXT_OPERATOR_PROJECT_ID,
+    AUGNES_VNEXT_OPERATOR_ID: process.env.AUGNES_VNEXT_OPERATOR_ID,
+    AUGNES_DB_PATH: process.env.AUGNES_DB_PATH,
+  };
+  Object.assign(process.env, {
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+    AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: typedManifest.workspace_id,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: typedManifest.project_id,
+    AUGNES_VNEXT_OPERATOR_ID: typedManifest.operator_id,
+    AUGNES_DB_PATH: databasePath,
+  });
+  let continuitySource: Awaited<
+    ReturnType<typeof readBlankStateSourceV01>
+  >;
+  try {
+    continuitySource = await readBlankStateSourceV01(continuityDb, {
+      route_mode: "canonical",
+    });
+  } finally {
+    continuityDb.close();
+    for (const [key, value] of Object.entries(continuityEnvironment)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+  const continuityFixture = buildBlankStateContinuityV01(continuitySource);
+  const continuityFamilies = new Set([
+    continuityFixture.highlighted_item.source_family,
+    ...continuityFixture.continuity_items.map((item) => item.source_family),
+  ]);
+  assert.equal(
+    continuityFixture.known_continuity_item_count >= 3,
+    true,
+    "browser fixture must project several source-backed continuities",
+  );
+  assert.equal(
+    continuityFamilies.has("saved_result") ||
+      continuityFamilies.has("recent_change"),
+    true,
+    "browser fixture must include result or recent-change continuity",
+  );
+  assert.equal(
+    continuityFixture.highlighted_item.projection_only,
+    true,
+  );
+  assert.equal(
+    continuityFixture.highlighted_item.semantic_authority_granted,
+    false,
+  );
+  const pinnableContinuities = [
+    continuityFixture.highlighted_item,
+    ...continuityFixture.continuity_items,
+  ].filter((item) => item.pinning.status === "eligible");
+  assert.equal(
+    pinnableContinuities.length >= 3,
+    true,
+    "browser fixture must expose at least three source-backed durable pin targets",
+  );
+  assert.equal(
+    pinnableContinuities.every(
+      (item) =>
+        item.pinning.status === "eligible" &&
+        item.pinning.target.project_id === typedManifest.project_id &&
+        item.pinning.target.workspace_id === typedManifest.workspace_id,
+    ),
+    true,
+    "browser fixture pin targets must remain scoped to the current project and workspace",
+  );
+  record("browser_fixture_projects_multiple_source_backed_continuities");
+  record("browser_fixture_projects_three_durable_pin_targets");
   const inspectorObservedAt = "2026-07-17T13:00:00.000Z";
   const inspectorConfig: VNextLocalOperatorPilotConfigV01 = {
     enabled: true,
@@ -575,6 +672,17 @@ try {
       error instanceof SharedProjectInspectorTargetErrorV01 &&
       error.code === "shared_inspector_query_size_invalid",
   );
+  assert.throws(
+    () =>
+      parseSharedInspectorTargetV01(
+        new URLSearchParams(
+          "target=project_coordination&return_to=https%3A%2F%2Fevil.example",
+        ),
+    ),
+    (error: unknown) =>
+      error instanceof SharedProjectInspectorTargetErrorV01 &&
+      error.code === "shared_inspector_target_fields_invalid",
+  );
   record("shared_inspector_href_and_strict_target_parser_fail_closed");
 
   const networkGuard = installZeroNetworkGuard({ allowLoopback: false });
@@ -782,6 +890,67 @@ try {
     );
     assert.equal(responseBody.semantic_mutation_available, false);
     assert.equal(responseBody.model_or_provider_call_performed, false);
+
+    for (const routeErrorCase of [
+      {
+        error: new SharedProjectInspectorReadErrorV01(
+          "shared_inspector_target_missing",
+          404,
+        ),
+        status: 404,
+        code: "shared_inspector_target_missing",
+      },
+      {
+        error: new SharedProjectInspectorReadErrorV01(
+          "shared_inspector_candidate_source_conflict",
+          409,
+        ),
+        status: 409,
+        code: "shared_inspector_candidate_source_conflict",
+      },
+      {
+        error: new Error(
+          "private read failure at /tmp/inspector.db with hidden material",
+        ),
+        status: 500,
+        code: "shared_inspector_read_failed",
+      },
+    ] as const) {
+      let readCount = 0;
+      const errorHandler =
+        createVNextOperatorSharedInspectorReadHandlerV01({
+          environment: inspectorEnvironment,
+          clock: { now: () => inspectorObservedAt },
+          read_inspector: () => {
+            readCount += 1;
+            throw routeErrorCase.error;
+          },
+        });
+      const errorResponse = await errorHandler(
+        new Request(
+          `http://127.0.0.1:3000/api/vnext/operator/inspector${query}`,
+          {
+            method: "GET",
+            headers: { host: "127.0.0.1:3000", cookie },
+          },
+        ),
+      );
+      const errorText = await errorResponse.text();
+      const errorBody = JSON.parse(errorText) as {
+        ok?: boolean;
+        error_code?: string;
+      };
+      assert.equal(readCount, 1);
+      assert.equal(errorResponse.status, routeErrorCase.status);
+      assert.deepEqual(errorBody, {
+        ok: false,
+        error_code: routeErrorCase.code,
+      });
+      assert.doesNotMatch(
+        errorText,
+        /\/tmp\/inspector\.db|hidden material|private read failure/u,
+      );
+    }
     assert.deepEqual(networkGuard.attempts, []);
   } finally {
     networkGuard.restore();
@@ -815,6 +984,29 @@ try {
   assert.equal(inspectorRouteSource.includes("export const PATCH"), false);
   assert.equal(inspectorRouteSource.includes("export const DELETE"), false);
   assert.equal(inspectorSurfaceSource.includes("data-shared-project-inspector"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact details"), true);
+  assert.equal(inspectorSurfaceSource.includes("Additional exact records"), true);
+  assert.equal(inspectorSurfaceSource.includes("Exact record identity"), true);
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-exact-status",
+    ),
+    true,
+  );
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-project-activity",
+    ),
+    true,
+  );
+  assert.equal(
+    inspectorSurfaceSource.includes(
+      "data-contextual-inspector-activity-notice",
+    ),
+    true,
+  );
+  assert.equal(inspectorSurfaceSource.includes("Shared Inspector ·"), false);
+  assert.equal(inspectorSurfaceSource.includes("twoColumnGrid"), false);
   assert.equal(inspectorSurfaceSource.includes("<form"), false);
   assert.equal(inspectorSurfaceSource.includes('type="submit"'), false);
   assert.equal(inspectorSurfaceSource.includes("Create ReviewDecision"), false);

@@ -3,12 +3,14 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
+import { ProductShell } from "../components/product-shell";
 import {
-  semanticReviewDetailEntryPresentationV01,
-  type SemanticReviewEntryPresentationInputV01,
-} from "../components/workbench/semantic-review/semantic-review-entry-presentation";
-import { publicSafeCommandSummaryV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
+  CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
+  publicSafeCommandSummaryV01,
+} from "../lib/vnext/native-host/codex-app-server-adapter";
 import {
   MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
   buildProjectHomeRefreshProjectionKeyV01,
@@ -21,8 +23,41 @@ import {
   createProposalWorkbenchEntryV01,
   createRunResultWorkbenchEntryV01,
 } from "../lib/vnext/runtime/semantic-workbench-entry";
+import { buildManagementSafetyViewV01 } from "../lib/vnext/management-safety/management-safety-view";
 
 const assertions: string[] = [];
+
+assertTypedStructuredOutputLiteralsV01(
+  CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
+);
+record("live_codex_structured_output_literals_declare_json_schema_types");
+
+function assertTypedStructuredOutputLiteralsV01(
+  value: unknown,
+  pathSegments: string[] = [],
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertTypedStructuredOutputLiteralsV01(item, [
+        ...pathSegments,
+        String(index),
+      ]),
+    );
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const schema = value as Record<string, unknown>;
+  if ("const" in schema || "enum" in schema) {
+    assert.equal(
+      typeof schema.type,
+      "string",
+      `${pathSegments.join(".") || "schema"} must declare a JSON Schema type`,
+    );
+  }
+  for (const [key, child] of Object.entries(schema)) {
+    assertTypedStructuredOutputLiteralsV01(child, [...pathSegments, key]);
+  }
+}
 
 for (const [command, secret] of [
   ["tool --client-secret super-secret-value", "super-secret-value"],
@@ -107,6 +142,9 @@ const removedPaths = [
   "lib/handoff/handoff-capsule-source.ts",
   "scripts/vnext-operator-pilot.ts",
   "scripts/browser-validate-vnext-task-context-packet-handoff-v0-1.mjs",
+  "components/project-home.tsx",
+  "components/project-onboarding-home.tsx",
+  "components/project-destination-actions.tsx",
 ] as const;
 for (const relativePath of removedPaths) {
   assert.equal(exists(relativePath), false, `${relativePath} must be retired`);
@@ -133,6 +171,326 @@ for (const forbidden of [
   assert.equal(productionSources.includes(forbidden), false, forbidden);
 }
 record("production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols");
+
+const blankStateShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "blank-state",
+      utilityContext: "project-management",
+      projectContext: { label: "Current project", name: "Shell contract project" },
+      children: createElement("main", null, "Blank State route"),
+    },
+  ),
+);
+const actionableProjectContextShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "blank-state",
+      projectContext: {
+        label: "Current project",
+        name: "Shell contract project",
+        managementHref: "#project-settings",
+      },
+      children: createElement("main", null, "Managed Blank State route"),
+    },
+  ),
+);
+const aiWorkplaneShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: "ai-workplane",
+      children: createElement("main", null, "AI Workplane route"),
+    },
+  ),
+);
+const portabilityShell = renderToStaticMarkup(
+  createElement(
+    ProductShell,
+    {
+      primaryZone: null,
+      utilityContext: "portability",
+      children: createElement("main", null, "Portability route"),
+    },
+  ),
+);
+const blankPrimaryNavigation = labeledNavigationMarkup(
+  blankStateShell,
+  "Primary navigation",
+);
+const aiPrimaryNavigation = labeledNavigationMarkup(
+  aiWorkplaneShell,
+  "Primary navigation",
+);
+const portabilityPrimaryNavigation = labeledNavigationMarkup(
+  portabilityShell,
+  "Primary navigation",
+);
+for (const primaryNavigation of [
+  blankPrimaryNavigation,
+  aiPrimaryNavigation,
+  portabilityPrimaryNavigation,
+]) {
+  assert.equal(count(primaryNavigation, /<a /gu), 2);
+  assert.equal(primaryNavigation.includes("<strong>Continuities</strong>"), true);
+  assert.equal(primaryNavigation.includes("<strong>AI Workplane</strong>"), true);
+  assert.equal(primaryNavigation.includes('href="/"'), true);
+  assert.equal(
+    primaryNavigation.includes('href="/workbench/semantic-review"'),
+    true,
+  );
+  for (const rejectedPeer of [
+    "Projects",
+    "Home",
+    "Workbench",
+    "Inspector",
+    "Portability",
+    "Recovery",
+  ]) {
+    assert.equal(
+      primaryNavigation.includes(`<strong>${rejectedPeer}</strong>`),
+      false,
+    );
+  }
+}
+assert.equal(count(blankPrimaryNavigation, /aria-current="page"/gu), 1);
+assert.match(blankPrimaryNavigation, /href="\/" aria-current="page"/u);
+assert.equal(count(aiPrimaryNavigation, /aria-current="page"/gu), 1);
+assert.match(
+  aiPrimaryNavigation,
+  /href="\/workbench\/semantic-review" aria-current="page"/u,
+);
+assert.equal(count(portabilityPrimaryNavigation, /aria-current="page"/gu), 0);
+for (const shell of [blankStateShell, aiWorkplaneShell, portabilityShell]) {
+  assert.equal(shell.includes("Project tools"), false);
+  assert.equal(shell.includes('href="/projects"'), false);
+  assert.equal(shell.includes('href="/portability"'), false);
+  assert.equal(shell.includes('href="/recovery"'), false);
+}
+assert.match(blankStateShell, /data-primary-product-zone="blank-state"/u);
+assert.match(blankStateShell, /data-product-utility-context="project-management"/u);
+assert.match(aiWorkplaneShell, /data-primary-product-zone="ai-workplane"/u);
+assert.match(portabilityShell, /data-primary-product-zone="none"/u);
+assert.match(portabilityShell, /data-product-utility-context="portability"/u);
+record("product_shell_has_only_two_primary_zones_and_no_global_project_tools");
+
+assert.match(
+  blankStateShell,
+  /<p class="product-project-context"[^>]*data-project-context-label="Current project"/u,
+);
+assert.doesNotMatch(
+  blankStateShell,
+  /product-project-context--action|href="[^"]*#project-settings"/u,
+);
+assert.match(
+  actionableProjectContextShell,
+  /<a class="product-project-context product-project-context--action" href="#project-settings"[^>]*data-project-context-label="Current project"/u,
+);
+record("current_project_context_requires_explicit_management_destination");
+
+const activeManagement = buildManagementSafetyViewV01({
+  project_context: "active_project",
+});
+const noProjectManagement = buildManagementSafetyViewV01({
+  project_context: "no_active_project",
+});
+const inactiveManagement = buildManagementSafetyViewV01({
+  project_context: "viewed_inactive_project",
+});
+assert.equal(
+  activeManagement.project_management.href,
+  "/projects#project-management",
+);
+assert.equal(
+  noProjectManagement.project_management.href,
+  "/projects#project-management",
+);
+assert.equal(
+  inactiveManagement.project_management.href,
+  "/projects#project-management",
+);
+assert.equal(activeManagement.project_transfer.href, "/portability");
+assert.equal(activeManagement.local_recovery.href, "/recovery");
+assert.match(activeManagement.project_transfer.summary, /Export the current project/u);
+assert.match(noProjectManagement.project_transfer.summary, /Import a local project package/u);
+assert.doesNotMatch(noProjectManagement.project_transfer.summary, /Export/u);
+assert.match(inactiveManagement.project_transfer.summary, /current project/u);
+assert.deepEqual(
+  buildManagementSafetyViewV01({ project_context: "active_project" }),
+  activeManagement,
+);
+assert.equal(Object.values(activeManagement.authority).every((value) => value === false), true);
+record("management_safety_navigation_is_fixed_deterministic_and_non_authoritative");
+
+const portabilityPageSource = source("app/portability/page.tsx");
+const recoveryPageSource = source("app/recovery/page.tsx");
+const blankStateClientSource = source("components/blank-state/blank-state-client.tsx");
+assert.equal(blankStateClientSource.includes("Manage and protect"), true);
+assert.equal(blankStateClientSource.includes('href={item.href}'), true);
+assert.equal(blankStateClientSource.includes("/api/vnext/portability"), false);
+assert.equal(blankStateClientSource.includes("/api/recovery"), false);
+assert.equal(portabilityPageSource.includes("Move or import a project"), true);
+assert.equal(portabilityPageSource.includes("Back to Continuities"), true);
+assert.equal(portabilityPageSource.includes("Open imported project"), true);
+assert.equal(portabilityPageSource.includes("Open imported Project Home"), false);
+assert.equal(portabilityPageSource.includes("Export current project"), true);
+assert.equal(portabilityPageSource.includes("Review package contents"), true);
+assert.equal(recoveryPageSource.includes("buildRecoverySafetyViewV01"), true);
+assert.equal(recoveryPageSource.includes("Backups and recovery"), false);
+assert.equal(recoveryPageSource.includes("Advanced diagnostics"), true);
+assert.equal(recoveryPageSource.includes("Product tools"), false);
+record("management_and_safety_surfaces_use_contextual_human_hierarchy");
+
+const workbenchRouteSource = source("app/workbench/page.tsx");
+const semanticReviewSurfaceSource = source(
+  "components/workbench/semantic-review/semantic-review-surface.tsx",
+);
+const aiWorkplaneShellSource = source(
+  "components/workbench/ai-workplane/ai-workplane-shell.tsx",
+);
+const changeReviewSource = source(
+  "components/workbench/semantic-review/decision-centered-proposal-detail.tsx",
+);
+const transitionActionsSource = source(
+  "components/workbench/semantic-review/semantic-transition-actions.tsx",
+);
+const resultReviewSource = source(
+  "components/workbench/result-review/run-result-review-surface.tsx",
+);
+assert.match(
+  workbenchRouteSource,
+  /redirect\("\/workbench\/semantic-review"\)/u,
+);
+assert.equal(workbenchRouteSource.includes("AgentWorkplane"), false);
+assert.equal(semanticReviewSurfaceSource.includes("AIWorkplaneShell"), true);
+assert.equal(semanticReviewSurfaceSource.includes("SemanticWorkbenchShell"), false);
+assert.equal(
+  count(semanticReviewSurfaceSource, /useProjectGuideBriefV02\(/gu),
+  1,
+);
+assert.equal(aiWorkplaneShellSource.includes("AI Workplane"), true);
+assert.equal(aiWorkplaneShellSource.includes("How decisions are protected"), true);
+assert.equal(changeReviewSource.includes("What would change"), true);
+assert.equal(changeReviewSource.includes("Meaningful timeline"), true);
+assert.equal(changeReviewSource.includes("What happens next"), true);
+assert.equal(changeReviewSource.includes("Verification and uncertainty"), true);
+assert.equal(changeReviewSource.includes("Your decision"), true);
+assert.equal(changeReviewSource.includes("Advanced review"), true);
+assert.equal(resultReviewSource.includes("Outcome"), true);
+assert.equal(
+  resultReviewSource.includes(
+    'data-ai-workplane-result-section="verification"',
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes(
+    "data-ai-workplane-verification={view.verification.status}",
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("SEMANTIC_VISUAL_PRIORITY.aiSummary"),
+  true,
+);
+assert.match(
+  resultReviewSource,
+  /<p className=\{styles\.kicker\}>AI summary<\/p>[\s\S]*<h2 id="result-verification-title">\{view\.verification\.label\}<\/h2>/u,
+);
+for (const verificationField of [
+  "passed",
+  "failed",
+  "skipped",
+  "satisfied",
+  "unsatisfied",
+  "unknown",
+]) {
+  assert.equal(
+    resultReviewSource.includes(`view.verification.${verificationField}`),
+    true,
+    `result review preserves the ${verificationField} verification metric`,
+  );
+}
+assert.equal(
+  resultReviewSource.includes("view.verification.blockers.length > 0"),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("view.verification.blockers.map"),
+  true,
+);
+assert.equal(resultReviewSource.includes("What remains unresolved"), true);
+assert.equal(
+  resultReviewSource.includes(
+    'data-ai-workplane-result-section="unresolved"',
+  ),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("SEMANTIC_VISUAL_PRIORITY.risk"),
+  true,
+);
+assert.equal(resultReviewSource.includes("data-result-review-read-only"), true);
+assert.equal(
+  resultReviewSource.includes('data-result-to-shared-inspector="true"'),
+  true,
+);
+assert.equal(
+  resultReviewSource.includes("href={result.summary.inspector_href}"),
+  true,
+);
+record("ai_workplane_replaces_active_agent_and_semantic_workbench_presentations");
+
+const confirmationCallbackSource = transitionActionsSource.slice(
+  transitionActionsSource.indexOf("async function confirmGate"),
+  transitionActionsSource.indexOf(
+    "async function applyTransitionAndCompile",
+  ),
+);
+const applicationCallbackSource = transitionActionsSource.slice(
+  transitionActionsSource.indexOf(
+    "async function applyTransitionAndCompile",
+  ),
+  transitionActionsSource.indexOf("function handleRouteError"),
+);
+assert.equal(
+  confirmationCallbackSource.includes(
+    "await onExactReviewMaterialChanged()",
+  ),
+  true,
+);
+assert.equal(
+  confirmationCallbackSource.includes(
+    "onProjectApplicationCompleted",
+  ),
+  false,
+);
+assert.equal(
+  applicationCallbackSource.includes(
+    "await onProjectApplicationCompleted()",
+  ),
+  true,
+);
+assert.match(
+  applicationCallbackSource,
+  /body\.status !== "applied"[\s\S]*body\.status !== "exact_replay"/u,
+);
+assert.equal(
+  applicationCallbackSource.includes(
+    "onExactReviewMaterialChanged",
+  ),
+  false,
+);
+assert.equal(
+  count(
+    semanticReviewSurfaceSource,
+    /onProjectApplicationCompleted=\{refreshAfterProjectApplication\}/gu,
+  ),
+  1,
+);
+record("ai_workplane_application_refreshes_exact_state_and_guide_once");
 
 const directSource = source("lib/vnext/runtime/direct-native-host-round-trip.ts");
 const routeSource = source("app/api/vnext/operator/host-round-trip/route.ts");
@@ -176,211 +534,6 @@ assert.equal(sharedInspectorSurface.includes("fetch("), false);
 assert.equal(sharedInspectorSurface.includes("<form"), false);
 assert.equal(sharedInspectorSurface.includes("semantic mutation"), false);
 record("packet_identity_is_absorbed_and_shared_inspector_is_read_only");
-
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({ decision_count: 0 }),
-  ).state,
-  "pending_proposal",
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decisions: [
-        semanticReviewDecision("candidate:a", "defer", {
-          revisit_at: "2026-07-20T10:00:00Z",
-        }),
-      ],
-      projection_observed_at: "2026-07-20T19:00:00+09:00",
-    }),
-  ).state,
-  "pending_proposal",
-);
-const partiallyAppliedDecision = semanticReviewDecision("candidate:a", "accept");
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      candidates: ["candidate:a", "candidate:b"],
-      decisions: [partiallyAppliedDecision],
-      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
-        packet_id: "task-context-packet:partial",
-        packet_fingerprint: "packet-fingerprint:partial",
-      }),
-    }),
-  ).state,
-  "pending_proposal",
-);
-const awaitingSecondTransition = semanticReviewDecision("candidate:b", "accept");
-assert.deepEqual(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      candidates: ["candidate:a", "candidate:b"],
-      decisions: [partiallyAppliedDecision, awaitingSecondTransition],
-      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
-        packet_id: "task-context-packet:partial",
-        packet_fingerprint: "packet-fingerprint:partial",
-      }),
-    }),
-  ),
-  {
-    state: "decided_proposal",
-    label: "Decision recorded · another Transition remains",
-  },
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      candidates: ["candidate:a", "candidate:b"],
-      decisions: [partiallyAppliedDecision, awaitingSecondTransition],
-      blocked_candidates: ["candidate:b"],
-      chain: semanticReviewChain("packet_compiled", partiallyAppliedDecision, {
-        packet_id: "task-context-packet:partial",
-        packet_fingerprint: "packet-fingerprint:partial",
-      }),
-    }),
-  ).state,
-  "transition_blocked",
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({ decision_count: 1 }),
-  ).state,
-  "decided_proposal",
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      candidates: ["candidate:a", "candidate:b"],
-      decisions: [semanticReviewDecision("candidate:a", "accept")],
-    }),
-  ).state,
-  "pending_proposal",
-);
-const acceptedDecision = semanticReviewDecision("candidate:a", "accept");
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decisions: [
-        acceptedDecision,
-        semanticReviewDecision("candidate:a", "retract", {
-          prior: acceptedDecision,
-          decided_at: "2026-07-19T10:01:00.000Z",
-        }),
-      ],
-    }),
-  ).state,
-  "pending_proposal",
-);
-const deferredDecision = semanticReviewDecision("candidate:a", "defer", {
-  revisit_at: "2026-07-20T10:00:00.000Z",
-});
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({ decisions: [deferredDecision] }),
-  ).state,
-  "decided_proposal",
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decisions: [deferredDecision],
-      projection_observed_at: "2026-07-20T10:00:00.000Z",
-    }),
-  ).state,
-  "pending_proposal",
-);
-assert.deepEqual(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decision_count: 1,
-      chain: semanticReviewChain(
-        "applied_awaiting_packet",
-        semanticReviewDecision("candidate:a", "accept"),
-        null,
-      ),
-      receipt: semanticReviewLaterReceipt("task-context-packet:prior", "packet-fingerprint:prior"),
-      review: semanticReviewLaterReview("later-receipt:prior", "later-receipt-fingerprint:prior"),
-    }),
-  ),
-  {
-    state: "transition_applied",
-    label: "Transition applied · later packet pending",
-  },
-);
-const exactPacket = {
-  packet_id: "task-context-packet:current",
-  packet_fingerprint: "packet-fingerprint:current",
-};
-const exactReceipt = semanticReviewLaterReceipt(
-  exactPacket.packet_id,
-  exactPacket.packet_fingerprint,
-);
-const compiledWithoutReview = semanticReviewEntryRead({
-  decision_count: 1,
-  chain: semanticReviewChain(
-    "packet_compiled",
-    semanticReviewDecision("candidate:a", "accept"),
-    exactPacket,
-  ),
-  receipt: exactReceipt,
-});
-assert.deepEqual(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decision_count: 1,
-      chain: semanticReviewChain(
-        "packet_compiled",
-        semanticReviewDecision("candidate:a", "accept"),
-        exactPacket,
-      ),
-    }),
-  ),
-  {
-    state: "transition_applied",
-    label: "Transition applied · later packet compiled",
-  },
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(compiledWithoutReview).state,
-  "feedback_needed",
-);
-assert.equal(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decision_count: 1,
-      chain: semanticReviewChain(
-        "packet_compiled",
-        semanticReviewDecision("candidate:a", "accept"),
-        exactPacket,
-      ),
-      receipt: exactReceipt,
-      review: semanticReviewLaterReview(
-        exactReceipt.receipt_id,
-        "later-receipt-fingerprint:mismatch",
-      ),
-    }),
-  ).state,
-  "feedback_needed",
-);
-assert.deepEqual(
-  semanticReviewDetailEntryPresentationV01(
-    semanticReviewEntryRead({
-      decision_count: 1,
-      chain: semanticReviewChain(
-        "packet_compiled",
-        semanticReviewDecision("candidate:a", "accept"),
-        exactPacket,
-      ),
-      receipt: exactReceipt,
-      review: semanticReviewLaterReview(
-        exactReceipt.receipt_id,
-        exactReceipt.receipt_fingerprint,
-      ),
-    }),
-  ),
-  { state: "transition_applied", label: "Later-context feedback recorded" },
-);
-record("semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage");
 
 const optionalProjectReviewEntry = createProjectReviewWorkbenchEntryV01({
   workspace_id: "workspace:semantic-workbench-contract",
@@ -453,8 +606,18 @@ for (const retiredCommand of [
 const canonicalSuite = source("scripts/run-canonical-test-suite.mjs");
 assert.equal(
   canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
-  true,
+  false,
 );
+for (const permanentBrowserSource of [
+  "browser-validate-project-experience-v1.mjs",
+  "browser-validate-operator-review-control-v1.mjs",
+  "browser-validate-operator-native-host-execution-v1.mjs",
+  "browser-validate-operator-multi-candidate-v1.mjs",
+  "browser-validate-continuity-v1.mjs",
+  "browser-validate-cross-boundary-golden-v1.mjs",
+]) {
+  assert.equal(canonicalSuite.includes(permanentBrowserSource), true);
+}
 assert.equal(
   canonicalSuite.includes("browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
   false,
@@ -612,132 +775,6 @@ function source(relativePath: string): string {
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
-function semanticReviewEntryRead(
-  input: {
-    decision_count?: number;
-    projection_observed_at?: string;
-    candidates?: string[];
-    decisions?: SemanticReviewEntryPresentationInputV01["decisions"];
-    blocked_candidates?: string[];
-    chain?: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number] | null;
-    receipt?: SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_receipt"];
-    review?: SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_review_status"];
-    durable_lineage?: SemanticReviewEntryPresentationInputV01["durable_lineage"];
-    project_continuity?: SemanticReviewEntryPresentationInputV01["project_continuity"];
-  } = {},
-): SemanticReviewEntryPresentationInputV01 {
-  const candidates = input.candidates ?? ["candidate:a"];
-  return {
-    projection_observed_at:
-      input.projection_observed_at ?? "2026-07-19T10:00:00.000Z",
-    proposal: {
-      proposed_deltas: candidates.map((candidate_id) => ({ candidate_id })),
-    },
-    decisions:
-      input.decisions ??
-      (input.decision_count
-        ? [semanticReviewDecision(candidates[0]!, "accept")]
-        : []),
-    candidate_admissions: candidates.map((candidate_id) => ({
-      candidate_id,
-      decision_allowed: {
-        accept: !(input.blocked_candidates ?? []).includes(candidate_id),
-      },
-      blocking_reasons: (input.blocked_candidates ?? []).includes(candidate_id)
-        ? ["current_state_drifted"]
-        : [],
-    })),
-    durable_lineage:
-      input.durable_lineage ?? {
-        chains: input.chain ? [input.chain] : [],
-      },
-    project_continuity:
-      input.project_continuity ?? {
-        latest_context_use_receipt: input.receipt ?? null,
-        latest_context_use_review_status: input.review ?? null,
-      },
-  };
-}
-
-function semanticReviewDecision(
-  candidateId: string,
-  decision: SemanticReviewEntryPresentationInputV01["decisions"][number]["decision"],
-  options: {
-    prior?: SemanticReviewEntryPresentationInputV01["decisions"][number];
-    decided_at?: string;
-    revisit_at?: string | null;
-    expires_at?: string | null;
-  } = {},
-): SemanticReviewEntryPresentationInputV01["decisions"][number] {
-  const decisionId = `review-decision:${candidateId}:${decision}:${options.decided_at ?? "base"}`;
-  return {
-    decision_id: decisionId,
-    decision,
-    decided_at: options.decided_at ?? "2026-07-19T09:00:00.000Z",
-    candidate: { candidate_id: candidateId },
-    revisit:
-      decision === "defer"
-        ? {
-            revisit_at: options.revisit_at ?? null,
-            expires_at: options.expires_at ?? null,
-          }
-        : null,
-    lineage: {
-      prior_decisions: options.prior
-        ? [
-            {
-              decision_id: options.prior.decision_id,
-              decision_fingerprint: options.prior.integrity.fingerprint,
-            },
-          ]
-        : [],
-    },
-    integrity: { fingerprint: `fingerprint:${decisionId}` },
-  };
-}
-
-function semanticReviewChain(
-  stageStatus: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number]["stage_status"],
-  decision: SemanticReviewEntryPresentationInputV01["decisions"][number],
-  packet: SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number]["compiled_packet"],
-): SemanticReviewEntryPresentationInputV01["durable_lineage"]["chains"][number] {
-  return {
-    stage_status: stageStatus,
-    transition: {
-      candidate_id: decision.candidate.candidate_id,
-      decision_id: decision.decision_id,
-      decision_fingerprint: decision.integrity.fingerprint,
-    },
-    compiled_packet: packet,
-  };
-}
-
-function semanticReviewLaterReceipt(
-  packetId: string,
-  packetFingerprint: string,
-): NonNullable<
-  SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_receipt"]
-> {
-  return {
-    receipt_id: "later-receipt:current",
-    receipt_fingerprint: "later-receipt-fingerprint:current",
-    task_context_packet_id: packetId,
-    task_context_packet_fingerprint: packetFingerprint,
-  };
-}
-
-function semanticReviewLaterReview(
-  receiptId: string,
-  receiptFingerprint: string,
-): NonNullable<
-  SemanticReviewEntryPresentationInputV01["project_continuity"]["latest_context_use_review_status"]
-> {
-  return {
-    later_task_run_receipt_id: receiptId,
-    later_task_run_receipt_fingerprint: receiptFingerprint,
-  };
-}
-
 function exists(relativePath: string): boolean {
   try {
     readFileSync(path.join(repositoryRoot, relativePath));
@@ -773,6 +810,15 @@ function count(value: string, pattern: RegExp): number {
   return [...value.matchAll(pattern)].length;
 }
 
+function labeledNavigationMarkup(markup: string, label: string): string {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = markup.match(
+    new RegExp(`<nav(?: class="[^"]+")? aria-label="${escapedLabel}">([\\s\\S]*?)<\\/nav>`, "u"),
+  );
+  assert(match, `missing ${label}`);
+  return match[1];
+}
+
 function refreshProjection(
   overrides: Partial<ProjectHomeRefreshProjectionV01> = {},
 ): ProjectHomeRefreshProjectionV01 {
@@ -796,13 +842,19 @@ function requireRefreshKey(
 
 assert.equal(new Set(assertions).size, assertions.length);
 assert.deepEqual(assertions, [
+  "live_codex_structured_output_literals_declare_json_schema_types",
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
   "live_codex_public_command_summary_preserves_safe_relative_commands",
   "retired_native_host_transport_modules_and_routes_are_absent",
   "production_graph_has_zero_manual_native_host_copy_or_result_paste_symbols",
+  "product_shell_has_only_two_primary_zones_and_no_global_project_tools",
+  "current_project_context_requires_explicit_management_destination",
+  "management_safety_navigation_is_fixed_deterministic_and_non_authoritative",
+  "management_and_safety_surfaces_use_contextual_human_hierarchy",
+  "ai_workplane_replaces_active_agent_and_semantic_workbench_presentations",
+  "ai_workplane_application_refreshes_exact_state_and_guide_once",
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
-  "semantic_workbench_entry_requires_exact_proposal_packet_feedback_lineage",
   "semantic_workbench_entry_source_and_state_are_consistent",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
   "project_home_refresh_exact_projection_replay_is_idempotent",

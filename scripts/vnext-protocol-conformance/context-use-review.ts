@@ -350,7 +350,7 @@ function buildRelationCases(review: ContextUseReviewV01) {
   cases.push({ ...base, name: "prior_binding", code: "prior_packet_binding_mismatch", review: priorBinding });
   const laterBinding = clone(review); laterBinding.later_packet.packet_fingerprint = `sha256:${"c".repeat(64)}`; resign(laterBinding);
   cases.push({ ...base, name: "later_binding", code: "later_packet_binding_mismatch", review: laterBinding });
-  const transitionBinding = clone(review); transitionBinding.source_transition_receipt.transition_receipt_id = "state-transition-receipt:foreign"; resign(transitionBinding);
+  const transitionBinding = clone(review); transitionBinding.source_transition_receipt!.transition_receipt_id = "state-transition-receipt:foreign"; resign(transitionBinding);
   cases.push({ ...base, name: "transition_binding", code: "transition_receipt_binding_mismatch", review: transitionBinding });
   const runBinding = clone(review); runBinding.later_task_run_receipt.receipt_id = "run-receipt:foreign"; resign(runBinding);
   cases.push({ ...base, name: "run_binding", code: "run_receipt_binding_mismatch", review: runBinding });

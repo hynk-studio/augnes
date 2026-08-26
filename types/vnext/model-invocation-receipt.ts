@@ -50,13 +50,22 @@ export type ModelInvocationReceiptPurposeV02 =
   | "observe_delta_compile"
   | "planner_plan"
   | "temporal_interpretation"
-  | "strategic_advantage_transfer";
+  | "strategic_advantage_transfer"
+  | "guidebrief_interpretation"
+  | "governed_actor_lab"
+  | "operational_reentry_matched_cohort"
+  | "operational_reentry_matched_cohort_v02"
+  | "operational_reentry_matched_cohort_v03"
+  | "operational_reentry_matched_cohort_v04"
+  | "operational_reentry_stale_reset_cross_case_replication_v01";
 
 export interface ModelInvocationReceiptUsageV02 {
   basis: "provider_report";
   quality: "reported";
   source: "provider_response";
   input_tokens: number;
+  /** Provider-reported cached subset when the provider exposes it. */
+  cached_input_tokens?: number;
   output_tokens: number;
   total_tokens: number;
 }
@@ -70,6 +79,8 @@ export interface ModelInvocationReceiptV02 {
   work_id: string | null;
   run_id: string | null;
   purpose: ModelInvocationReceiptPurposeV02;
+  /** Local-only binding for invocation-identity-separated contracts. */
+  local_invocation_identity_fingerprint?: string;
   invocation_origin: "interactive" | "policy_triggered";
   attempted_implementation_id: string | null;
   attempted_implementation_version: string | null;

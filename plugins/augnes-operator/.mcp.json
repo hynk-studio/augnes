@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "augnes-live-companion": {
+      "cwd": ".",
+      "command": "node",
+      "args": ["./mcp/companion-proxy.mjs"],
+      "env_vars": [
+        "AUGNES_RUNTIME_STATE_DIR",
+        "LOCALAPPDATA",
+        "XDG_RUNTIME_DIR",
+        "XDG_STATE_HOME"
+      ]
+    }
+  }
+}

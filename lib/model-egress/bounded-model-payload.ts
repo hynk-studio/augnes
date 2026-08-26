@@ -3,6 +3,13 @@ export const MODEL_EGRESS_PURPOSES = [
   "planner_plan",
   "temporal_interpretation",
   "strategic_advantage_transfer",
+  "guidebrief_interpretation",
+  "governed_actor_lab",
+  "operational_reentry_matched_cohort",
+  "operational_reentry_matched_cohort_v02",
+  "operational_reentry_matched_cohort_v03",
+  "operational_reentry_matched_cohort_v04",
+  "operational_reentry_stale_reset_cross_case_replication_v01",
 ] as const;
 
 export type ModelEgressPurpose = (typeof MODEL_EGRESS_PURPOSES)[number];
@@ -28,6 +35,10 @@ export type ModelEgressJsonValue =
 export type ModelTransportResponse = {
   ok: boolean;
   status: number;
+  headers?: {
+    get(name: string): string | null;
+  };
+  text?(): Promise<string>;
   json(): Promise<unknown>;
 };
 

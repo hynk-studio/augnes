@@ -3,9 +3,9 @@
   "review_version": "candidate_to_codex_handoff_draft_review.v0.1",
   "scope": "project:augnes",
   "as_of": "fixture:research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1",
-  "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
-  "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
-  "review_fingerprint": "fnv1a32:d9d0275e",
+  "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:61db15e4",
+  "source_handoff_draft_fingerprint": "fnv1a32:61db15e4",
+  "review_fingerprint": "fnv1a32:fb5518e5",
   "fingerprint_algorithm": "fnv1a32_canonical_json",
   "review_status": "candidate_to_codex_handoff_draft_review_passed",
   "recommendation_status": "ready_for_human_operator_handoff_decision",
@@ -13,8 +13,8 @@
   "source_summary": {
     "source_draft_kind": "candidate_to_codex_handoff_draft",
     "source_draft_version": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1",
-    "source_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
-    "source_draft_fingerprint": "fnv1a32:e0fed350",
+    "source_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:61db15e4",
+    "source_draft_fingerprint": "fnv1a32:61db15e4",
     "source_draft_fingerprint_present": true,
     "source_draft_validation_passed": true,
     "source_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
@@ -37,8 +37,8 @@
     "prompt_is_plain_text": true,
     "prompt_not_markdown_fenced": true,
     "prompt_includes_repo": true,
-    "prompt_includes_checkout": true,
-    "prompt_includes_do_not_touch_path": true,
+    "prompt_checkout_is_operator_bound": true,
+    "prompt_excludes_private_checkout_paths": true,
     "prompt_includes_source_packet_fingerprint": true,
     "prompt_includes_task_title": true,
     "prompt_includes_expected_files": true,
@@ -194,7 +194,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -213,7 +213,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -232,7 +232,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -251,7 +251,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -270,7 +270,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -289,7 +289,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -308,7 +308,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -327,7 +327,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -346,7 +346,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -365,7 +365,7 @@
         "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
         "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
-        "fnv1a32:e0fed350",
+        "fnv1a32:61db15e4",
         "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
         "source_ref_manual_notes_001"
       ],
@@ -380,7 +380,7 @@
       "label": "source draft fingerprint present",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -391,7 +391,7 @@
       "label": "source draft validation passed",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -402,7 +402,7 @@
       "label": "copyable prompt plain text",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -413,7 +413,7 @@
       "label": "copyable prompt forbids Codex execution",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -424,7 +424,7 @@
       "label": "copyable prompt forbids branch/PR/GitHub automation",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -435,7 +435,7 @@
       "label": "copyable prompt forbids external handoff send",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -446,7 +446,7 @@
       "label": "copyable prompt forbids provider/OpenAI",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -457,7 +457,7 @@
       "label": "copyable prompt forbids retrieval/RAG",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -468,7 +468,7 @@
       "label": "copyable prompt forbids DB/SQL/transaction",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -479,7 +479,7 @@
       "label": "copyable prompt forbids proof/evidence/work/Perspective write",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -490,7 +490,7 @@
       "label": "copyable prompt forbids product write/product IDs",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -501,7 +501,7 @@
       "label": "manual lineage preserved",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -512,7 +512,7 @@
       "label": "unresolved tensions preserved",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -523,7 +523,7 @@
       "label": "source refs preserved",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -534,7 +534,7 @@
       "label": "product-write stopline preserved",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -545,7 +545,7 @@
       "label": "next slice is operator decision, not execution",
       "passed": true,
       "source_refs": [
-        "fnv1a32:e0fed350"
+        "fnv1a32:61db15e4"
       ],
       "authority_boundary_notes": [
         "Checklist is deterministic review output only and grants no execution or durable authority."
@@ -586,8 +586,8 @@
     "operator_decision_satisfied_now": false
   },
   "lineage": {
-    "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
-    "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
+    "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:61db15e4",
+    "source_handoff_draft_fingerprint": "fnv1a32:61db15e4",
     "upgraded_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
     "upgraded_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
     "ai_context_packet_base_refs": [

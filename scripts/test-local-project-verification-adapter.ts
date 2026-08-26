@@ -672,11 +672,19 @@ async function assertRootAndResidueOutcomesV01(): Promise<void> {
   const linkedRoot = path.join(root, "linked-root");
   await mkdir(linkTargetA);
   await mkdir(linkTargetB);
-  await symlink(linkTargetA, linkedRoot);
+  await symlink(
+    linkTargetA,
+    linkedRoot,
+    process.platform === "win32" ? "junction" : "dir",
+  );
   const linkedIdentity =
     await inspectNativeHostPhysicalRootIdentityV01(linkedRoot);
   await rm(linkedRoot);
-  await symlink(linkTargetB, linkedRoot);
+  await symlink(
+    linkTargetB,
+    linkedRoot,
+    process.platform === "win32" ? "junction" : "dir",
+  );
   assertNegativeResidueV01(
     await invokeV01(requestV01(linkedRoot, linkedIdentity)),
     "blocked",

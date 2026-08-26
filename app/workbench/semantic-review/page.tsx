@@ -5,9 +5,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = {
-  title: "Augnes Semantic Review Workbench",
-  description:
-    "Opt-in local review of EpisodeDeltaProposal candidates and explicit ReviewDecision preparation.",
+  title: "Augnes AI Workplane",
+  description: "Review current work, results, suggested changes, and protected project decisions.",
 };
 
 export default function SemanticReviewPage() {

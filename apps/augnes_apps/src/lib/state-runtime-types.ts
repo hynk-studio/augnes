@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProjectionSchema as CodexCurrentContinuityProjectionSchema } from "../../scripts/codex-current-continuity.js";
 
 export const StateRuntimeScopeSchema = z.string().min(1);
 export const StateRuntimeLimitSchema = z.number().int().min(1).max(50);
@@ -986,6 +987,7 @@ export const ConstellationPreviewResultSchema = z
 export const GuideBriefToolInputSchema = z
   .object({
     scope: z.string().min(1).optional(),
+    projectId: z.string().regex(/^project:[0-9a-f-]{36}$/iu).optional(),
     compact: z.boolean().optional(),
   })
   .strip();
@@ -999,34 +1001,99 @@ export const GuideBriefAuthorityBoundarySchema = z
     can_update_work: z.literal(false),
     can_mutate_memory: z.literal(false),
     can_apply_project_perspective: z.literal(false),
+    can_approve: z.literal(false),
+    can_transition: z.literal(false),
     can_publish_external: z.literal(false),
     can_merge: z.literal(false),
-    can_retry_replay_deploy: z.literal(false),
+    can_retry: z.literal(false),
     can_call_github: z.literal(false),
     can_call_openai_or_provider: z.literal(false),
     can_execute_codex: z.literal(false),
     can_create_branch_or_pr: z.literal(false),
     can_send_handoff: z.literal(false),
     can_launch_autonomy: z.literal(false),
-    can_create_mcp_tool: z.literal(false),
+    can_write_db: z.literal(false),
     can_create_ui_action: z.literal(false),
+    can_grant_host_permission: z.literal(false),
+    notes: z.array(z.string()),
   })
   .passthrough();
 
 export const GuideBriefResultSchema = z
   .object({
-    runtime: z.literal("augnes"),
-    guide_version: z.string(),
-    scope: z.string(),
-    observed: z.array(z.unknown()),
-    inferred: z.array(z.unknown()),
-    suggested: z.array(z.unknown()),
-    needs_user_judgment: z.array(z.unknown()),
-    authority_boundary: GuideBriefAuthorityBoundarySchema,
-    surface_rendering_notes: z.record(z.unknown()).optional(),
-    source_refs: z.record(z.unknown()).optional(),
-    staleness_warnings: z.array(z.unknown()).optional(),
-    handoff_candidates: z.array(z.unknown()).optional(),
+    runtime: z.literal("augnes_current_project"),
+    guide_version: z.literal("guide_brief.v0.2"),
+    generated_at: z.string(),
+    request: z.object({ scope: z.literal("project:augnes") }).passthrough(),
+    identity: z.object({
+      workspace_id: z.string().nullable(),
+      project_id: z.string().nullable(),
+      project_display_name: z.string().nullable(),
+      project_context: z.enum(["none", "current", "viewed"]),
+      active_project_id: z.string().nullable(),
+      root_resolution: z.enum(["none", "available", "unavailable", "not_found"]),
+    }),
+    source_status: z.enum(["live_current_project", "project_choice", "viewed_project", "partial", "unavailable"]),
+    gaps: z.array(z.string()),
+    coordinate: z.object({
+      focus: z.string(),
+      goal: z.string().nullable(),
+      work_status: z.string(),
+      result_available: z.boolean(),
+      result_summary: z.string().nullable(),
+      verification: z.object({ passed: z.number(), failed: z.number(), skipped: z.number() }).nullable(),
+      material_blocker_or_uncertainty: z.string().nullable(),
+      unresolved_user_judgment: z.string().nullable(),
+      recent_meaningful_change: z.string().nullable(),
+      delegated_work: z
+        .object({
+          stage: z.enum([
+            "not_started",
+            "preparing",
+            "working",
+            "waiting_for_approval",
+            "cancelling",
+            "resume_required",
+            "result_ready",
+            "blocked",
+            "failed",
+            "cancelled",
+            "timed_out",
+            "unavailable",
+          ]),
+          latest_checkpoint: z.string().nullable(),
+          needs_user: z.boolean(),
+          trusted_result_available: z.boolean(),
+          next_action: z.enum([
+            "open_ai_workplane",
+            "start_codex_work",
+            "review_requested_access",
+            "resume_codex_work",
+            "view_progress",
+            "review_result",
+            "return_to_blank_state",
+            "none",
+          ]),
+        })
+        .nullable(),
+    }),
+    observed: z.array(z.object({ item_id: z.string(), statement: z.string(), source_refs: z.array(z.string()) })),
+    inferred: z.array(z.object({ item_id: z.string(), statement: z.string(), supporting_observation_ids: z.array(z.string()), confidence: z.enum(["high", "medium", "low"]), caveats: z.array(z.string()) })),
+    suggested: z.array(z.object({ item_id: z.string(), label: z.string(), reason: z.string(), href: z.string().nullable(), action_ref: z.string().nullable(), blockers: z.array(z.string()), source_refs: z.array(z.string()), executes: z.literal(false) })),
+    needs_user_judgment: z.array(z.object({ item_id: z.string(), question: z.string(), why_it_matters: z.string(), blocked: z.array(z.string()), source_refs: z.array(z.string()), resolved: z.literal(false) })),
+    primary_guidance: z.object({ label: z.string(), reason: z.string(), href: z.string().nullable(), action_ref: z.string().nullable(), requires_user_judgment: z.boolean(), source_refs: z.array(z.string()), executes: z.literal(false) }).passthrough(),
+    source_refs: z.array(z.object({ ref_id: z.string(), kind: z.string(), label: z.string(), href: z.string().nullable() })),
+    projections: z.object({ chatgpt: z.record(z.unknown()), codex: z.record(z.unknown()) }).passthrough(),
+    authority: GuideBriefAuthorityBoundarySchema,
+    safety: z.object({
+      contains_private_absolute_paths: z.literal(false),
+      contains_credentials: z.literal(false),
+      contains_raw_provider_output: z.literal(false),
+      contains_hidden_reasoning: z.literal(false),
+      contains_raw_transcripts: z.literal(false),
+      provider_or_network_calls: z.literal(false),
+      persisted: z.literal(false),
+    }),
   })
   .passthrough();
 
@@ -1566,10 +1633,504 @@ export interface StateRuntimeWorkEventInput {
   relatedStateKeys?: string[];
 }
 
+const CodexRepositoryAuthoritySchema = z.object({
+  writes_database: z.literal(false),
+  writes_project_files: z.literal(false),
+  changes_project_selection: z.literal(false),
+  changes_operator_session: z.literal(false),
+  creates_run: z.literal(false),
+  starts_codex_or_native_host: z.literal(false),
+  calls_provider: z.literal(false),
+  approves_host_action: z.literal(false),
+  cancels_or_resumes_run: z.literal(false),
+  creates_or_admits_result: z.literal(false),
+  creates_proof_or_evidence: z.literal(false),
+  creates_proposal: z.literal(false),
+  creates_review_decision: z.literal(false),
+  creates_or_applies_transition: z.literal(false),
+  mutates_accepted_state: z.literal(false),
+  retries_or_replays: z.literal(false),
+  calls_github: z.literal(false),
+  creates_branch_or_pr: z.literal(false),
+  merges_releases_or_deploys: z.literal(false),
+  starts_background_work: z.literal(false),
+}).strict();
+
+export const CodexRepositoryContinuityResultSchema = z.object({
+  projection_version: z.literal("codex_repository_continuity.v0.1"),
+  generated_at: z.string().datetime(),
+  repository_resolution: z.object({
+    status: z.enum([
+      "resolved_exact",
+      "project_not_registered",
+      "project_ambiguous",
+      "root_unavailable",
+      "repository_input_invalid",
+      "companion_unavailable",
+    ]),
+    project_key: z.string().nullable(),
+    display_name: z.string().nullable(),
+    message: z.string(),
+  }).strict(),
+  continuity: CodexCurrentContinuityProjectionSchema.nullable(),
+  resume_eligibility: z.object({
+    projection_version: z.literal("repository_run_resume_eligibility.v0.1"),
+    generated_at: z.string().datetime(),
+    status: z.enum([
+      "active_owned",
+      "terminal",
+      "approval_pending",
+      "resume_ready",
+      "reconciliation_required",
+      "stale",
+      "unsupported",
+      "unavailable",
+    ]),
+    summary: z.string().max(640),
+    run_state: z.enum([
+      "active",
+      "paused_or_disconnected",
+      "terminal",
+      "not_available",
+    ]),
+    last_confirmed_operation: z.object({
+      operation_class: z.enum(["command_execution", "file_change"]),
+      certainty: z.enum(["not_started", "completed", "failed", "cancelled"]),
+      summary: z.string().max(640),
+      observed_at: z.string().datetime(),
+    }).strict().nullable(),
+    pending_approval: z.object({
+      operation_class: z.enum([
+        "command_execution",
+        "file_change",
+        "filesystem_permission",
+        "network_permission",
+      ]),
+      title: z.string().max(640),
+      reason: z.string().max(640),
+      risk: z.string().max(640),
+      resource_summary: z.string().max(640),
+      available_decisions: z.array(z.enum([
+        "approve_once",
+        "decline",
+        "cancel_run",
+      ])).max(3),
+      expires_at: z.string().datetime().nullable(),
+    }).strict().nullable(),
+    next_action: z.object({
+      kind: z.enum([
+        "view_progress",
+        "review_result",
+        "review_approval",
+        "explicit_resume_not_yet_available",
+        "review_uncertain_operation",
+        "restore_checkpoint_state",
+        "restore_resume_support",
+        "restore_continuity",
+      ]),
+      label: z.string().max(640),
+      reason: z.string().max(640),
+      executes: z.literal(false),
+    }).strict(),
+    gaps: z.array(z.string()).max(12),
+    authority: z.object({
+      writes_database: z.literal(false),
+      writes_project_files: z.literal(false),
+      creates_run_or_attachment: z.literal(false),
+      creates_controller_generation: z.literal(false),
+      starts_or_resumes_worker: z.literal(false),
+      calls_provider_or_thread_resume: z.literal(false),
+      executes_command: z.literal(false),
+      consumes_grant: z.literal(false),
+      issues_or_decides_approval: z.literal(false),
+      creates_result_or_proposal: z.literal(false),
+      creates_review_decision_or_transition: z.literal(false),
+      mutates_accepted_state_or_closes_work: z.literal(false),
+      calls_github_or_external_network: z.literal(false),
+    }).strict(),
+  }).strict().nullable(),
+  current_situation: z.string(),
+  next_meaningful_action: z.object({
+    label: z.string(),
+    reason: z.string(),
+    executes: z.literal(false),
+  }).strict(),
+  browser_deep_link: z.string().url().nullable(),
+  authority: CodexRepositoryAuthoritySchema,
+}).strict();
+
+export type CodexRepositoryContinuityResult = z.infer<typeof CodexRepositoryContinuityResultSchema>;
+
+const RepositoryExecutionAuthoritySchema = z.object({
+  project_files_written: z.literal(false),
+  project_commands_executed: z.literal(false),
+  managed_run_created: z.literal(false),
+  execution_started: z.literal(false),
+  provider_called: z.literal(false),
+  branch_or_commit_created: z.literal(false),
+  github_called: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  execution_authority_granted: z.literal(false),
+  external_effect_authority_granted: z.literal(false),
+}).strict();
+
+const RepositoryWorktreeObservationSchema = z.union([
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.literal("exact"),
+    repository_kind: z.enum(["git_repository", "git_worktree"]),
+    git_common_dir_fingerprint: z.string(),
+    head_commit: z.string().nullable(),
+    head_state: z.enum(["branch", "detached", "unborn"]),
+    branch_name: z.string().nullable(),
+    index_fingerprint: z.string(),
+    staged_content_fingerprint: z.string(),
+    tracked_dirty_paths_fingerprint: z.string(),
+    unstaged_tracked_content_fingerprint: z.string(),
+    relevant_untracked_paths_fingerprint: z.string(),
+    relevant_untracked_content_fingerprint: z.string(),
+    submodule_state_fingerprint: z.string(),
+    inspected_path_count: z.number().int().nonnegative(),
+    inspected_content_bytes: z.number().int().nonnegative(),
+    limits: z.object({
+      maximum_path_count: z.number().int().positive(),
+      maximum_individual_file_bytes: z.number().int().positive(),
+      maximum_total_inspected_bytes: z.number().int().positive(),
+    }).strict(),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.literal("non_git"),
+    repository_kind: z.literal("plain_folder"),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+  z.object({
+    observation_version: z.literal("repository_worktree_observation.v0.1"),
+    status: z.enum(["unavailable", "ambiguous"]),
+    repository_kind: z.literal("unknown"),
+    reason: z.string(),
+    observed_at: z.string().datetime(),
+    observation_fingerprint: z.string(),
+  }).strict(),
+]);
+
+const RepositoryExecutionAttachmentSchema = z.object({
+  attachment_version: z.literal("repository_execution_attachment.v0.1"),
+  attachment_id: z.string(),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  node_scope_fingerprint: z.string(),
+  physical_root_baseline_fingerprint: z.string(),
+  root_binding_fingerprint: z.string(),
+  task_context_packet_id: z.string(),
+  task_context_packet_fingerprint: z.string(),
+  current_work_fingerprint: z.string(),
+  project_execution_admission_fingerprint: z.string(),
+  worktree_observation_fingerprint: z.string(),
+  managed_run_state_fingerprint: z.string(),
+  binding_fingerprint: z.string(),
+  prepared_at: z.string().datetime(),
+  freshness_policy: z.object({
+    policy_version: z.literal("repository_execution_freshness_policy.v0.1"),
+    max_age_ms: z.number().int().positive(),
+    expires_at: z.string().datetime(),
+  }).strict(),
+  lifecycle: z.enum(["prepared", "stale", "superseded", "revoked", "consumed"]),
+  stale_reason: z.enum([
+    "physical_root_mismatch",
+    "root_binding_changed",
+    "packet_changed",
+    "current_work_changed",
+    "project_unavailable",
+    "managed_run_conflict",
+    "worktree_changed",
+    "freshness_expired",
+    "explicitly_revoked",
+    "superseded",
+  ]).nullable(),
+  lifecycle_updated_at: z.string().datetime(),
+  consumed_run_id: z.string().nullable(),
+}).strict();
+
+const ProjectExecutionAdmissionSchema = z.object({
+  admission_version: z.literal("project_execution_admission.v0.1"),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  readiness: z.enum(["ready", "decision_required", "blocked"]),
+  reason: z.enum([
+    "ready",
+    "project_unavailable",
+    "root_unavailable",
+    "baseline_adoption_required",
+    "physical_root_mismatch",
+    "identity_unavailable",
+    "identity_unsupported",
+    "identity_ambiguous",
+    "current_work_unavailable",
+    "admission_state_changed",
+    "worktree_unavailable",
+    "worktree_ambiguous",
+    "non_git_execution_unsupported",
+    "managed_run_conflict",
+  ]),
+  node_scope_fingerprint: z.string().nullable(),
+  physical_root_observation_fingerprint: z.string().nullable(),
+  root_binding_fingerprint: z.string().nullable(),
+  physical_root_baseline_fingerprint: z.string().nullable(),
+  task_context_packet_id: z.string().nullable(),
+  task_context_packet_fingerprint: z.string().nullable(),
+  current_work_fingerprint: z.string().nullable(),
+  managed_run_state_fingerprint: z.string(),
+  expected_database_state_fingerprint: z.string().nullable(),
+  worktree_observation: RepositoryWorktreeObservationSchema.nullable(),
+  admission_fingerprint: z.string(),
+  browser_observation: z.object({
+    active_project_id: z.string().nullable(),
+    selected_project_is_target: z.boolean(),
+  }).strict(),
+  projection_only: z.literal(true),
+  execution_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+}).strict();
+
+const RepositoryExecutionDecisionRequestSchema = z.object({
+  decision_request_version: z.literal("repository_execution_decision_request.v0.1"),
+  request_fingerprint: z.string(),
+  action: z.enum(["adopt_legacy_baseline", "rebind_root", "revoke_attachment", "start_repository_managed_delegation", "resume_repository_managed_delegation"]),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  expected_state_fingerprint: z.string(),
+  requested_at: z.string().datetime(),
+  expires_at: z.string().datetime(),
+  status: z.enum(["pending", "granted", "consumed", "expired", "superseded"]),
+  grant_fingerprint: z.string().nullable(),
+  ordinary_text: z.string(),
+}).strict();
+
+const RepositoryExecutionPreparationSchema = z.object({
+  preparation_version: z.literal("repository_execution_preparation.v0.1"),
+  status: z.enum(["prepared", "baseline_adoption_required", "blocked"]),
+  reason: ProjectExecutionAdmissionSchema.shape.reason,
+  project: z.object({
+    project_id: z.string(),
+    display_name: z.string().nullable(),
+  }).strict().nullable(),
+  ordinary_text: z.string(),
+  attachment: RepositoryExecutionAttachmentSchema.nullable(),
+  admission: ProjectExecutionAdmissionSchema.nullable(),
+  decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const PhysicalRootMutationProjectionSchema = z.object({
+  status: z.enum(["adopted", "rebound", "exact_replay"]),
+  project_id: z.string(),
+  baseline_fingerprint: z.string(),
+  ordinary_text: z.string(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const RepositoryRootRebindPreviewSchema = z.object({
+  preview_version: z.literal("repository_execution_root_rebind_preview.v0.1"),
+  status: z.enum(["ready", "blocked"]),
+  reason: z.enum([
+    "ready",
+    "project_unavailable",
+    "baseline_adoption_required",
+    "identity_unavailable",
+    "identity_unsupported",
+    "identity_ambiguous",
+  ]),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  expected_old_root_binding_fingerprint: z.string().nullable(),
+  expected_old_baseline_fingerprint: z.string().nullable(),
+  expected_new_observation_fingerprint: z.string().nullable(),
+  decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+  ordinary_text: z.string(),
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const RepositoryAttachmentRevocationPreviewSchema = z.object({
+  preview_version: z.literal("repository_execution_attachment_revocation_preview.v0.1"),
+  status: z.literal("ready"),
+  ordinary_text: z.string(),
+  decision_request: RepositoryExecutionDecisionRequestSchema,
+  authority: RepositoryExecutionAuthoritySchema,
+}).strict();
+
+const RepositoryManagedDelegationAuthoritySchema = z.object({
+  attachment_consumed: z.boolean(),
+  managed_run_created: z.boolean(),
+  worker_started: z.boolean(),
+  project_files_may_be_written: z.boolean(),
+  project_commands_may_be_executed: z.boolean(),
+  provider_egress_may_occur: z.boolean(),
+  arbitrary_network_access_granted: z.literal(false),
+  github_authority_granted: z.literal(false),
+  release_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  decision_created: z.literal(false),
+  transition_created: z.literal(false),
+  accepted_state_mutated: z.literal(false),
+  work_closed: z.literal(false),
+}).strict();
+
+const RepositoryManagedResumeAuthoritySchema = z.object({
+  decision_request_created: z.boolean(),
+  decision_grant_consumed: z.boolean(),
+  resume_attempt_created: z.boolean(),
+  controller_generation_created: z.boolean(),
+  worker_started: z.boolean(),
+  provider_resume_may_occur: z.boolean(),
+  provider_thread_start_allowed: z.literal(false),
+  new_run_or_attachment_allowed: z.literal(false),
+  arbitrary_network_access_granted: z.literal(false),
+  github_authority_granted: z.literal(false),
+  release_authority_granted: z.literal(false),
+  semantic_authority_granted: z.literal(false),
+  approval_decided: z.literal(false),
+  review_decision_created: z.literal(false),
+  transition_created: z.literal(false),
+  accepted_state_mutated: z.literal(false),
+  work_closed: z.literal(false),
+}).strict();
+
+const RepositoryExecutionEnvelopeSchema = z.object({
+  envelope_version: z.literal("repository_execution_envelope.v0.1"),
+  platform: z.enum(["darwin", "win32"]),
+  run_mode: z.literal("repository_attachment"),
+  filesystem_scope: z.literal("exact_repository_root"),
+  network_scope: z.literal("provider_egress_only"),
+  provider_egress: z.enum(["forbidden", "native_host_managed"]),
+  timeout_ms: z.number().int().positive(),
+  stop_settle_timeout_ms: z.number().int().positive(),
+  budgets: z.object({
+    max_changed_files: z.number().int().positive(),
+    max_artifacts: z.number().int().positive(),
+    max_commands: z.number().int().positive(),
+    max_checks: z.number().int().positive(),
+    max_correction_attempts: z.literal(1),
+  }).strict(),
+  allowed_operation_categories: z.array(z.string()),
+  forbidden_operation_categories: z.array(z.string()),
+  protected_untracked_paths_fingerprint: z.string(),
+  adapter_version: z.string(),
+  capability_version: z.string(),
+  envelope_fingerprint: z.string(),
+}).strict();
+
+const LiveRepositoryRunProjectionSchema = z.object({
+  service_version: z.literal("live_native_host_run_service.v0.1"),
+  status: z.enum(["idle", "queued", "starting", "running", "waiting_for_approval", "cancelling", "paused", "blocked", "completed", "failed", "cancelled", "timed_out"]),
+  run_ref: z.string().nullable(),
+  mode: z.enum(["interactive", "policy_triggered", "repository_attachment"]).nullable(),
+  control_revision: z.number().int().nonnegative(),
+  reconciliation_required: z.boolean(),
+  public_reason: z.string().nullable(),
+  capability: z.object({
+    status: z.enum(["not_checked", "checking", "available", "unavailable", "disconnected"]),
+    adapter_version: z.string().nullable(),
+    capability_version: z.string().nullable(),
+    cli_version: z.string().nullable(),
+    public_reason: z.string().nullable(),
+  }).strict(),
+  pending_approval: z.unknown().nullable(),
+  receipt: z.unknown().nullable(),
+  packet_copy_actions: z.literal(0),
+  handoff_paste_actions: z.literal(0),
+  result_paste_actions: z.literal(0),
+  internal_id_entry_actions: z.literal(0),
+  semantic_authority_granted: z.literal(false),
+}).strict();
+
+export const RepositoryExecutionResultSchema = z.union([
+  RepositoryExecutionPreparationSchema,
+  PhysicalRootMutationProjectionSchema,
+  RepositoryRootRebindPreviewSchema,
+  RepositoryAttachmentRevocationPreviewSchema,
+  z.object({
+    preparation_version: z.literal("repository_managed_resume_preparation.v0.1"),
+    status: z.enum(["decision_required", "active_owned", "approval_pending", "terminal", "reconciliation_required", "stale", "unsupported", "blocked"]),
+    ordinary_text: z.string(),
+    project: z.object({ project_id: z.string(), display_name: z.string().nullable() }).strict().nullable(),
+    run_id: z.string().nullable(),
+    attachment_id: z.string().nullable(),
+    attachment_binding_fingerprint: z.string().nullable(),
+    expected_controller_generation: z.number().int().positive().nullable(),
+    expected_run_control_revision: z.number().int().nonnegative().nullable(),
+    expected_state_fingerprint: z.string().nullable(),
+    decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+    expires_at: z.string().datetime().nullable(),
+    authority: RepositoryManagedResumeAuthoritySchema,
+  }).strict(),
+  z.object({
+    resume_version: z.literal("repository_managed_resume.v0.1"),
+    status: z.enum(["accepted", "exact_replay", "active_owned", "approval_pending", "blocked", "reconciliation_required"]),
+    ordinary_text: z.string(),
+    run_id: z.string(),
+    attachment_id: z.string(),
+    controller_generation: z.number().int().positive(),
+    projection: LiveRepositoryRunProjectionSchema.nullable(),
+    authority: RepositoryManagedResumeAuthoritySchema,
+  }).strict(),
+  z.object({
+    status: z.literal("validated"),
+    attachment: RepositoryExecutionAttachmentSchema.nullable(),
+  }).strict(),
+  z.object({
+    status: z.literal("revoked"),
+    attachment: RepositoryExecutionAttachmentSchema,
+  }).strict(),
+  z.object({
+    preparation_version: z.literal("repository_managed_delegation_preparation.v0.1"),
+    status: z.enum(["decision_required", "blocked"]),
+    ordinary_text: z.string(),
+    project: z.object({ project_id: z.string(), display_name: z.string().nullable() }).strict().nullable(),
+    attachment_id: z.string().nullable(),
+    execution_envelope: RepositoryExecutionEnvelopeSchema.nullable(),
+    decision_request: RepositoryExecutionDecisionRequestSchema.nullable(),
+    authority: RepositoryManagedDelegationAuthoritySchema,
+  }).strict(),
+  z.object({
+    start_version: z.literal("repository_managed_delegation_start.v0.1"),
+    status: z.enum(["accepted", "exact_replay", "blocked"]),
+    ordinary_text: z.string(),
+    attachment_id: z.string(),
+    run_id: z.string(),
+    attachment_binding_fingerprint: z.string(),
+    execution_envelope_fingerprint: z.string(),
+    projection: LiveRepositoryRunProjectionSchema,
+    authority: RepositoryManagedDelegationAuthoritySchema,
+  }).strict(),
+  z.object({
+    status: z.enum([
+      "cancel_requested",
+      "cancelled",
+      "exact_replay",
+      "reconciliation_required",
+    ]),
+    ordinary_text: z.string(),
+    attachment_id: z.string(),
+    run_id: z.string(),
+    projection: LiveRepositoryRunProjectionSchema,
+    semantic_authority_granted: z.literal(false),
+    decision_created: z.literal(false),
+    transition_created: z.literal(false),
+    work_closed: z.literal(false),
+  }).strict(),
+]);
+export type RepositoryExecutionResult = z.infer<typeof RepositoryExecutionResultSchema>;
+
 export interface StateRuntimeBridgeAdapter {
+  getRepositoryContinuity(input: { repositoryRoot: string }): Promise<CodexRepositoryContinuityResult>;
+  callRepositoryExecution(input: Record<string, unknown>): Promise<RepositoryExecutionResult>;
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
-  getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
+  getGuideBrief(input: { scope: StateRuntimeScope; projectId?: string }): Promise<GuideBriefResult>;
   getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult>;
   getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;

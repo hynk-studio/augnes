@@ -494,7 +494,7 @@ function stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage) {
   );
 }
 
-function sanitizePrivateBuildPaths(stagingRoot, sourceRoot, environment) {
+export function sanitizePrivateBuildPaths(stagingRoot, sourceRoot, environment) {
   const sourceRootVariants = privatePathVariants(sourceRoot);
   const privateVariants = Array.from(
     new Set(

@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -13,6 +21,10 @@ import {
   previewActivePortableProjectV01,
 } from "../lib/vnext/portability/portable-project";
 import { mutateProjectControlV01 } from "../lib/vnext/persistence/project-control-store";
+import {
+  readCanonicalProjectIdentityV01,
+  renameCanonicalProjectDisplayNameV01,
+} from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectHomeDatabaseCompatibilityV01, readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
@@ -26,6 +38,7 @@ import { validateRecoveryBackup } from "./recovery-backup.mjs";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { buildVNextOperatorBrowserFixtureV01 } from "./vnext-operator-browser-fixture-builder-v0-1";
 import { GET as portabilityGet, POST as portabilityPost } from "../app/api/vnext/portability/route";
+import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-portable-project-test-"));
 const sourceRoot = path.join(root, "source-fixture");
@@ -78,6 +91,21 @@ try {
       expected_revision: null,
     });
   }
+  const projectBeforePortableRename = readCanonicalProjectIdentityV01(source, {
+    workspace_id: fixtureManifest.workspace_id,
+    project_id: fixtureManifest.project_id,
+  });
+  assert(projectBeforePortableRename?.display_name);
+  const exportedProjectName = "포터블 프로젝트 Current 2026";
+  assert.equal(
+    renameCanonicalProjectDisplayNameV01(source, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      requested_display_name: exportedProjectName,
+      expected_current_display_name: projectBeforePortableRename.display_name,
+    }).status,
+    "updated",
+  );
   mutateProjectControlV01(source, {
     workspace_id: fixtureManifest.workspace_id,
     project_id: fixtureManifest.project_id,
@@ -107,6 +135,8 @@ try {
     include_personal_perspective: true,
     exported_at: observedAt,
   });
+  assert.equal(exported.package.manifest.project.display_name, exportedProjectName);
+  assert.equal(exported.filename, "포터블-프로젝트-current-2026.augnes-project.json");
   assert.equal(exported.package.personal_perspective_scope?.selection, "included");
   assert.deepEqual(parseAndValidatePortableProjectV01(exported.bytes), exported.package);
   assert.equal(new TextDecoder().decode(exported.bytes).includes(sourceRoot), false);
@@ -124,6 +154,14 @@ try {
   assert.equal(imported.semantic_authority_created, false);
   assert.equal(imported.automation_authority_created, false);
   assert.equal(imported.external_action_created, false);
+  assert.equal(
+    readCanonicalProjectIdentityV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+    })?.display_name,
+    exportedProjectName,
+    "new import must use the exported display name",
+  );
 
   const replay = importPortableProjectV01(destination, {
     bytes: exported.bytes,
@@ -199,6 +237,31 @@ try {
   assert.equal(inspector.authority.creates_review_decision, false);
   assert.equal(inspector.authority.applies_transition, false);
 
+  const localCurrentName = "Local newer project name";
+  assert.equal(
+    renameCanonicalProjectDisplayNameV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      requested_display_name: localCurrentName,
+      expected_current_display_name: exportedProjectName,
+    }).status,
+    "updated",
+  );
+  const replayWithOlderPortableName = importPortableProjectV01(destination, {
+    bytes: exported.bytes,
+    destination_root_base: destinationProjects,
+    imported_at: "2026-07-21T03:08:00.000Z",
+  });
+  assert.equal(replayWithOlderPortableName.status, "exact_replay");
+  assert.equal(
+    readCanonicalProjectIdentityV01(destination, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+    })?.display_name,
+    localCurrentName,
+    "existing replay must preserve the newer local mutable name",
+  );
+
   initializeDatabase(rollbackDbPath);
   const rollback = new Database(rollbackDbPath, { fileMustExist: true });
   rollback.pragma("foreign_keys = ON");
@@ -273,6 +336,89 @@ try {
     const routePreview = await routeGet.json() as { contract: string; project_id: string };
     assert.equal(routePreview.contract, "augnes.portable-project-preview.v1");
     assert.equal(routePreview.project_id, fixtureManifest.project_id);
+
+    const headerCases = [
+      {
+        projectName: "한글 전용 프로젝트",
+        unicodeFilename: "한글-전용-프로젝트.augnes-project.json",
+        asciiFallback: "project.augnes-project.json",
+      },
+      {
+        projectName: "🚀✨",
+        unicodeFilename: "project.augnes-project.json",
+        asciiFallback: "project.augnes-project.json",
+      },
+      {
+        projectName: "한글 Mixed Project",
+        unicodeFilename: "한글-mixed-project.augnes-project.json",
+        asciiFallback: "mixed-project.augnes-project.json",
+      },
+      {
+        projectName: "Ordinary ASCII Project",
+        unicodeFilename: "ordinary-ascii-project.augnes-project.json",
+        asciiFallback: "ordinary-ascii-project.augnes-project.json",
+      },
+      {
+        projectName: "Header\r\nInjected\"/Path",
+        unicodeFilename: "header-injected-path.augnes-project.json",
+        asciiFallback: "header-injected-path.augnes-project.json",
+      },
+    ] as const;
+    let headerCurrentName = exportedProjectName;
+    for (const headerCase of headerCases) {
+      const renamed = renameCanonicalProjectDisplayNameV01(source, {
+        workspace_id: fixtureManifest.workspace_id,
+        project_id: fixtureManifest.project_id,
+        requested_display_name: headerCase.projectName,
+        expected_current_display_name: headerCurrentName,
+      });
+      assert.equal(renamed.status, "updated");
+      headerCurrentName = headerCase.projectName.trim();
+      const namedExport = exportActivePortableProjectV01(source, {
+        include_personal_perspective: true,
+        exported_at: observedAt,
+      });
+      assert.equal(namedExport.filename, headerCase.unicodeFilename);
+      const namedResponse = await portabilityPost(localRequestV01("POST", {
+        contentType: "application/json",
+        body: JSON.stringify({
+          action: "export",
+          include_personal_perspective: true,
+        }),
+      }));
+      assert.equal(namedResponse.status, 200);
+      const disposition = namedResponse.headers.get("content-disposition") ?? "";
+      const expectedEncodedFilename = encodeURIComponent(
+        headerCase.unicodeFilename,
+      ).replace(
+        /['()*]/gu,
+        (character) =>
+          `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+      );
+      assert.equal(
+        disposition,
+        `attachment; filename="${headerCase.asciiFallback}"; filename*=UTF-8''${expectedEncodedFilename}`,
+      );
+      const fallback = /filename="([^"]+)"/u.exec(disposition)?.[1] ?? "";
+      const encoded = /filename\*=UTF-8''([^;]+)/u.exec(disposition)?.[1] ?? "";
+      assert.match(
+        fallback,
+        /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.augnes-project\.json$/u,
+      );
+      assert.equal(fallback.startsWith("."), false);
+      assert.equal(decodeURIComponent(encoded), headerCase.unicodeFilename);
+      assert.equal(/["\\/\r\n]/u.test(fallback), false);
+      assert.equal(/[\r\n]/u.test(disposition), false);
+    }
+    assert.equal(
+      renameCanonicalProjectDisplayNameV01(source, {
+        workspace_id: fixtureManifest.workspace_id,
+        project_id: fixtureManifest.project_id,
+        requested_display_name: exportedProjectName,
+        expected_current_display_name: headerCurrentName,
+      }).status,
+      "updated",
+    );
     const routeExport = await portabilityPost(localRequestV01("POST", {
       contentType: "application/json",
       body: JSON.stringify({
@@ -282,6 +428,10 @@ try {
     }));
     assert.equal(routeExport.status, 200);
     assert.match(routeExport.headers.get("content-disposition") ?? "", /\.augnes-project\.json/u);
+    assert.match(
+      routeExport.headers.get("content-disposition") ?? "",
+      /filename\*=UTF-8''/u,
+    );
     const routeBytes = new Uint8Array(await routeExport.arrayBuffer());
     assert.equal(parseAndValidatePortableProjectV01(routeBytes).contract, "augnes.portable-project.v1");
     const routeImport = await portabilityPost(localRequestV01("POST", {
@@ -292,6 +442,165 @@ try {
     const routeImportResult = await routeImport.json() as { status: string; project_home_href: string };
     assert.equal(routeImportResult.status, "exact_replay");
     assert.equal(routeImportResult.project_home_href, imported.project_home_href);
+
+    const canonicalRecordCountBeforeRefusal = count(
+      source,
+      "vnext_core_records",
+      fixtureManifest.workspace_id,
+      fixtureManifest.project_id,
+    );
+    const refusedBytes = Uint8Array.from(routeBytes);
+    refusedBytes[Math.floor(refusedBytes.length / 2)]! ^= 1;
+    const refusedImport = await portabilityPost(localRequestV01("POST", {
+      contentType: "application/vnd.augnes.portable-project+json",
+      body: refusedBytes.buffer as ArrayBuffer,
+    }));
+    assert.equal(refusedImport.status, 422);
+    const refusedImportBody = await refusedImport.json() as {
+      outcome: string;
+      reason_code: string;
+      next_action: string;
+    };
+    assert.equal(refusedImportBody.outcome, "refused");
+    const refusedImportHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedImportHistory?.operation, "import");
+    assert.equal(refusedImportHistory?.outcome, "refused");
+    assert.equal(
+      refusedImportHistory?.reason_code,
+      refusedImportBody.reason_code,
+    );
+    assert.equal(refusedImportHistory?.reader_verification, "refused");
+    assert.equal(refusedImportHistory?.data_preserved, true);
+    assert.equal(
+      count(
+        source,
+        "vnext_core_records",
+        fixtureManifest.workspace_id,
+        fixtureManifest.project_id,
+      ),
+      canonicalRecordCountBeforeRefusal,
+    );
+
+    const legitimateHistoryBeforeHostileRequests = structuredClone(
+      refusedImportHistory,
+    );
+    for (const hostileRequest of [
+      new Request("http://127.0.0.1:3100/api/vnext/portability", {
+        method: "POST",
+        headers: {
+          host: "127.0.0.1:3100",
+          origin: "http://attacker.invalid",
+          "content-type": "application/vnd.augnes.portable-project+json",
+        },
+        body: routeBytes,
+      }),
+      new Request("http://127.0.0.1:3100/api/vnext/portability", {
+        method: "POST",
+        headers: {
+          host: "attacker.invalid",
+          origin: "http://attacker.invalid",
+          "content-type": "application/vnd.augnes.portable-project+json",
+        },
+        body: routeBytes,
+      }),
+      new Request("http://127.0.0.1:3100/api/vnext/portability?inject=1", {
+        method: "GET",
+        headers: { host: "127.0.0.1:3100" },
+      }),
+      localRequestV01("POST", {
+        contentType: "text/plain",
+        body: "not a classified project operation",
+      }),
+      localRequestV01("POST", {
+        contentType: "application/json",
+        body: JSON.stringify({
+          action: "unknown",
+          include_personal_perspective: false,
+        }),
+      }),
+    ]) {
+      const hostileResponse =
+        hostileRequest.method === "GET"
+          ? portabilityGet(hostileRequest)
+          : await portabilityPost(hostileRequest);
+      assert.equal(hostileResponse.status, 400);
+      assert.deepEqual(
+        readContinuityOperationalStatus({ databasePath: sourceDbPath })
+          .portability,
+        legitimateHistoryBeforeHostileRequests,
+      );
+    }
+
+    source
+      .prepare(
+        "DELETE FROM vnext_active_project_selections WHERE workspace_id = ?",
+      )
+      .run(fixtureManifest.workspace_id);
+    const refusedExport = await portabilityPost(localRequestV01("POST", {
+      contentType: "application/json",
+      body: JSON.stringify({
+        action: "export",
+        include_personal_perspective: false,
+      }),
+    }));
+    assert.equal(refusedExport.status, 409);
+    const refusedExportBody = await refusedExport.json() as {
+      reason_code: string;
+    };
+    const refusedExportHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedExportHistory?.operation, "export");
+    assert.equal(refusedExportHistory?.outcome, "refused");
+    assert.equal(
+      refusedExportHistory?.reason_code,
+      refusedExportBody.reason_code,
+    );
+    assert.equal(refusedExportHistory?.reader_verification, "not_applicable");
+
+    const refusedPreview = portabilityGet(localRequestV01("GET"));
+    assert.equal(refusedPreview.status, 409);
+    const refusedPreviewBody = await refusedPreview.json() as {
+      reason_code: string;
+    };
+    const refusedPreviewHistory = readContinuityOperationalStatus({
+      databasePath: sourceDbPath,
+    }).portability;
+    assert.equal(refusedPreviewHistory?.operation, "preview");
+    assert.equal(refusedPreviewHistory?.outcome, "refused");
+    assert.equal(
+      refusedPreviewHistory?.reason_code,
+      refusedPreviewBody.reason_code,
+    );
+
+    const continuityPath = path.join(
+      sourceRoot,
+      "augnes-continuity-operations.json",
+    );
+    const continuityBackupPath = `${continuityPath}.test-backup`;
+    renameSync(continuityPath, continuityBackupPath);
+    mkdirSync(continuityPath, { mode: 0o700 });
+    try {
+      const sidecarFailureResponse = portabilityGet(localRequestV01("GET"));
+      assert.equal(sidecarFailureResponse.status, refusedPreview.status);
+      assert.deepEqual(
+        await sidecarFailureResponse.json(),
+        refusedPreviewBody,
+      );
+    } finally {
+      rmSync(continuityPath, { recursive: true, force: true });
+      renameSync(continuityBackupPath, continuityPath);
+    }
+
+    active = selectActiveProjectV01(source, {
+      workspace_id: fixtureManifest.workspace_id,
+      project_id: fixtureManifest.project_id,
+      now: "2026-07-21T03:20:00.000Z",
+      expected_project_id: null,
+      expected_revision: null,
+    });
   } finally {
     if (previousDatabasePath === undefined) delete process.env.AUGNES_DB_PATH;
     else process.env.AUGNES_DB_PATH = previousDatabasePath;
@@ -308,6 +617,13 @@ try {
     exported_records: exported.package.records.length,
     imported_records: imported.record_count,
     exact_replay: true,
+    export_current_display_name: true,
+    safe_display_name_filename: true,
+    safe_ascii_content_disposition_fallback: true,
+    unicode_content_disposition_filename: true,
+    content_disposition_header_injection_refused: true,
+    new_import_display_name: true,
+    existing_replay_preserves_local_display_name: true,
     atomic_rollback: true,
     project_home_fidelity: true,
     workbench_fidelity: true,
@@ -316,6 +632,9 @@ try {
     personal_perspective_explicit_consent: true,
     recovery_contract_separation: true,
     product_route_round_trip: true,
+    classified_refusal_replaces_prior_success: true,
+    hostile_request_history_writes: 0,
+    sidecar_failure_response_preserved: true,
     external_network_calls: network.attempts.length,
     residue_after_cleanup: 0,
   }, null, 2));

@@ -22,9 +22,12 @@ import {
   type VNextLocalRuntimeClockV01,
 } from "@/lib/vnext/runtime/local-runtime-clock";
 import type { VNextLocalOperatorPilotConfigV01 } from "@/lib/vnext/runtime/local-operator-session";
+import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { readOperationalContinuationLineageStateV01 } from "@/lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
-  type VNextOperatorPilotPacketLineageInspectionV01,
+  type VNextOperatorPilotTransitionPacketLineageInspectionV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
@@ -38,6 +41,7 @@ import {
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 
 export const VNEXT_OPERATOR_PILOT_WORKBENCH_LINEAGE_VERSION_V01 =
   "vnext_operator_pilot_workbench_lineage.v0.1" as const;
@@ -105,7 +109,7 @@ export interface VNextOperatorPilotProposalDurableLineageChainV01 {
 }
 
 interface ValidatedCompiledPacketV01 {
-  inspection: VNextOperatorPilotPacketLineageInspectionV01;
+  inspection: VNextOperatorPilotTransitionPacketLineageInspectionV01;
 }
 
 export function readVNextOperatorPilotProposalDurableLineageV01(
@@ -140,6 +144,19 @@ function readProposalDurableLineage(
     input.clock,
     "operator_pilot_workbench_lineage_observed_at",
   );
+  if (input.proposal.operational_friction_proposal) {
+    return {
+      lineage_version: VNEXT_OPERATOR_PILOT_WORKBENCH_LINEAGE_VERSION_V01,
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      proposal_id: input.proposal.proposal_id,
+      proposal_fingerprint: input.proposal.integrity.fingerprint,
+      overall_status: "not_applied",
+      chains: [],
+      read_only: true,
+      semantic_authority_granted: false,
+    };
+  }
   const transitions = loadValidatedTransitions(
     db,
     input.config,
@@ -265,10 +282,35 @@ function loadValidatedCompiledPackets(
     ) {
       throw lineageError("operator_pilot_workbench_lineage_packet_invalid");
     }
+    if (
+      packet.compatibility.source_contracts.includes(
+        SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+      )
+    ) {
+      const continuation = readOperationalContinuationLineageStateV01(db, {
+        workspace_id: config.workspace_id,
+        project_id: config.project_id,
+      });
+      if (
+        !continuation ||
+        continuation.packet_b.packet_id !== packet.packet_id ||
+        continuation.packet_b.integrity.fingerprint !==
+          packet.integrity.fingerprint ||
+        continuation.record.record_id !==
+          continuation.admission.admission_id
+      ) {
+        throw lineageError(
+          "operator_pilot_workbench_lineage_continuation_packet_invalid",
+        );
+      }
+      continue;
+    }
     assertRecordEnvelope(record, {
       record_id: packet.packet_id,
       fingerprint: packet.integrity.fingerprint,
-      idempotency_key: null,
+      idempotency_key:
+        initialProjectWorkIdempotencyKeyV01(packet) ??
+        preExecutionProjectWorkRevisionIdempotencyKeyV01(packet),
       created_at: packet.generated_at,
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,
@@ -283,13 +325,17 @@ function loadValidatedCompiledPackets(
     ) {
       continue;
     }
-    compiled.push({
-      inspection: inspectVNextOperatorPilotPacketLineageV01(db, {
+    const inspection = inspectVNextOperatorPilotPacketLineageV01(db, {
         config,
         packet_id: packet.packet_id,
         packet_fingerprint: packet.integrity.fingerprint,
-      }),
-    });
+      });
+    if (inspection.lineage_kind !== "semantic_transition") {
+      throw lineageError(
+        "operator_pilot_workbench_lineage_packet_kind_invalid",
+      );
+    }
+    compiled.push({ inspection });
   }
   return compiled;
 }
@@ -343,7 +389,7 @@ function buildLineageChain(input: {
 }
 
 function summarizePacket(
-  inspection: VNextOperatorPilotPacketLineageInspectionV01,
+  inspection: VNextOperatorPilotTransitionPacketLineageInspectionV01,
   observedAt: string,
 ): NonNullable<
   VNextOperatorPilotProposalDurableLineageChainV01["compiled_packet"]

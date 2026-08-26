@@ -12,11 +12,18 @@ import type { TemporalInterpretationPreview } from "@/lib/temporal-interpretatio
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import {
   findCanonicalProjectByLocalRootV01,
+  normalizeLocalProjectRootRefV01,
+  readDefaultWorkspaceIdentityV01,
   readCanonicalProjectWithRootV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   createOpenAIResponsesAdapterV01,
+  projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01,
+  projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02,
+  projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03,
+  projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04,
+  projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01,
   readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
@@ -28,6 +35,41 @@ import { OBSERVE_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/ob
 import { PLANNER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/planner-codec";
 import { TEMPORAL_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/temporal-codec";
 import { STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS } from "@/lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec";
+import { GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01 } from "@/lib/vnext/model-gateway/openai/guide-brief-interpretation-codec";
+import {
+  GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
+  validateGovernedActorLabModelInputV01,
+} from "@/lib/vnext/model-gateway/openai/governed-actor-lab-codec";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
+  validateOperationalReentryMatchedCohortModelInputV01,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-codec";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
+  validateOperationalReentryMatchedCohortModelInputV02,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec";
+import {
+  buildOperationalReentryMatchedCohortProviderContractV03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V03,
+  validateOperationalReentryMatchedCohortModelInputV03,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec";
+import {
+  buildOperationalReentryMatchedCohortProviderContractV04,
+  createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04 as createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04,
+  createOperationalReentryMatchedCohortProviderMaterialFingerprintV04 as createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V04,
+  validateOperationalReentryMatchedCohortInvocationV04,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-4-codec";
+import {
+  buildOperationalReentryStaleResetCrossCaseProviderContractV01,
+  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01 as createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintCodecV01,
+  createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01 as createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintCodecV01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01,
+  validateOperationalReentryStaleResetCrossCaseInvocationV01,
+} from "@/lib/vnext/model-gateway/openai/operational-reentry-stale-reset-cross-case-replication-v0-1-codec";
 import {
   MODEL_GATEWAY_PURPOSES_V01,
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
@@ -36,6 +78,13 @@ import {
   MODEL_INVOCATION_RECEIPT_VERSION_V02,
   ModelGatewayAdapterFailureV01,
   ModelGatewayInvocationErrorV01,
+  GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+  GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
@@ -49,6 +98,20 @@ import {
   type ModelGatewayFailureCodeV01,
   type ModelGatewayPolicyAuthorizationV01,
   type ModelGatewayPurposeV01,
+  type GuideBriefInterpretationModelGatewayResultV01,
+  type GuideBriefInterpretationModelInvocationEnvelopeV01,
+  type GovernedActorLabModelGatewayResultV01,
+  type GovernedActorLabModelInvocationEnvelopeV01,
+  type OperationalReentryMatchedCohortModelGatewayResultV01,
+  type OperationalReentryMatchedCohortModelInvocationEnvelopeV01,
+  type OperationalReentryMatchedCohortModelGatewayResultV02,
+  type OperationalReentryMatchedCohortModelInvocationEnvelopeV02,
+  type OperationalReentryMatchedCohortModelGatewayResultV03,
+  type OperationalReentryMatchedCohortModelInvocationEnvelopeV03,
+  type OperationalReentryMatchedCohortModelGatewayResultV04,
+  type OperationalReentryMatchedCohortModelInvocationEnvelopeV04,
+  type OperationalReentryStaleResetCrossCaseModelGatewayResultV01,
+  type OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01,
   type ModelInvocationEnvelopeV01,
   type ModelInvocationReceiptV02,
   type ObserveModelGatewayResultV01,
@@ -61,11 +124,169 @@ import {
   type TemporalModelGatewayResultV01,
   type TemporalModelInvocationEnvelopeV01,
 } from "@/lib/vnext/model-gateway/contracts";
+import type { GovernedActorLabLiveRouteV01 } from "@/types/vnext/governed-actor-lab-live";
+import type {
+  OperationalReentryMatchedCohortModelInputV01,
+  OperationalReentryMatchedCohortRouteV01,
+} from "@/types/vnext/operational-reentry-matched-cohort";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
+  type OperationalReentryMatchedCohortModelInputV02,
+  type OperationalReentryMatchedCohortRouteV02,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-2";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+  type OperationalReentryMatchedCohortModelInputV03,
+  type OperationalReentryMatchedCohortProviderContractV03,
+  type OperationalReentryMatchedCohortRouteV03,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
+import {
+  OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04,
+  type OperationalReentryMatchedCohortInvocationV04,
+  type OperationalReentryMatchedCohortProviderMaterialV04,
+  type OperationalReentryMatchedCohortProviderContractV04,
+  type OperationalReentryMatchedCohortRouteV04,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
+import {
+  OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02,
+  type OperationalReentryStaleResetCrossCaseInvocationV01,
+  type OperationalReentryStaleResetCrossCaseProviderContractV01,
+  type OperationalReentryStaleResetCrossCaseProviderMaterialV01,
+  type OperationalReentryStaleResetCrossCaseRouteV01,
+} from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
 import { LOCAL_PROJECT_ROOT_REF_VERSION_V01 } from "@/types/vnext/project-identity";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+
+export {
+  GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01,
+  validateGovernedActorLabModelInputV01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01,
+  validateOperationalReentryMatchedCohortModelInputV01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02,
+  validateOperationalReentryMatchedCohortModelInputV02,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03,
+  validateOperationalReentryMatchedCohortModelInputV03,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04,
+  validateOperationalReentryMatchedCohortInvocationV04,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01,
+  validateOperationalReentryStaleResetCrossCaseInvocationV01,
+};
+
+/** Exposes the frozen v0.3 contract through the shared Gateway ownership boundary. */
+export function readOperationalReentryMatchedCohortProviderContractV03():
+  OperationalReentryMatchedCohortProviderContractV03 {
+  return structuredClone(
+    buildOperationalReentryMatchedCohortProviderContractV03(),
+  );
+}
+
+/** Exposes the identity-separated v0.4 contract without provider egress. */
+export function readOperationalReentryMatchedCohortProviderContractV04():
+  OperationalReentryMatchedCohortProviderContractV04 {
+  return structuredClone(
+    buildOperationalReentryMatchedCohortProviderContractV04(),
+  );
+}
+
+/** Exposes the new cross-case contract through the shared Gateway boundary. */
+export function readOperationalReentryStaleResetCrossCaseProviderContractV01(): OperationalReentryStaleResetCrossCaseProviderContractV01 {
+  return structuredClone(
+    buildOperationalReentryStaleResetCrossCaseProviderContractV01(),
+  );
+}
+
+/** Exposes exact zero-egress compatibility bindings through the Gateway owner. */
+export function readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01() {
+  const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
+  return Object.freeze({
+    parser_closure_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(contract.per_shape_parser_closure),
+    ),
+    request_response_bounds_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01,
+      ),
+    ),
+  });
+}
+
+export function createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+): string {
+  return createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintCodecV01(
+    invocation,
+  );
+}
+
+export function createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01(
+  material: OperationalReentryStaleResetCrossCaseProviderMaterialV01,
+): string {
+  return createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintCodecV01(
+    material,
+  );
+}
+
+/** Preserves codec-owned v0.4 local invocation identity through the shared Gateway. */
+export function createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04(
+  invocation: OperationalReentryMatchedCohortInvocationV04,
+): string {
+  return createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintCodecV04(
+    invocation,
+  );
+}
+
+/** Preserves codec-owned v0.4 provider material identity through the shared Gateway. */
+export function createOperationalReentryMatchedCohortProviderMaterialFingerprintV04(
+  material: OperationalReentryMatchedCohortProviderMaterialV04,
+): string {
+  return createOperationalReentryMatchedCohortProviderMaterialFingerprintCodecV04(
+    material,
+  );
+}
+
+export function projectOperationalReentryMatchedCohortProviderRequestV01(
+  input: OperationalReentryMatchedCohortModelInputV01,
+) {
+  return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV01(
+    input,
+  );
+}
+
+export function projectOperationalReentryMatchedCohortProviderRequestV02(
+  input: OperationalReentryMatchedCohortModelInputV02,
+) {
+  return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV02(
+    input,
+  );
+}
+
+export function projectOperationalReentryMatchedCohortProviderRequestV03(
+  input: OperationalReentryMatchedCohortModelInputV03,
+) {
+  return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03(
+    input,
+  );
+}
+
+export function projectOperationalReentryMatchedCohortProviderRequestV04(
+  invocation: OperationalReentryMatchedCohortInvocationV04,
+) {
+  return projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04(
+    invocation,
+  );
+}
+
+export function projectOperationalReentryStaleResetCrossCaseProviderRequestV01(
+  invocation: OperationalReentryStaleResetCrossCaseInvocationV01,
+) {
+  return projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01(
+    invocation,
+  );
+}
 
 export const DETERMINISTIC_OBSERVE_IMPLEMENTATION_ID_V01 =
   "deterministic.observe" as const;
@@ -83,6 +304,18 @@ export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_ID_V01 =
   "deterministic.strategic-unavailable" as const;
 export const DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01 =
   "deterministic_strategic_unavailable.v0.1" as const;
+export const DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_ID_V01 =
+  "deterministic.guidebrief-interpretation-unavailable" as const;
+export const DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_VERSION_V01 =
+  "deterministic_guidebrief_interpretation_unavailable.v0.1" as const;
+export const DETERMINISTIC_GOVERNED_ACTOR_LAB_IMPLEMENTATION_ID_V01 =
+  "deterministic.governed-actor-lab-unavailable" as const;
+export const DETERMINISTIC_GOVERNED_ACTOR_LAB_IMPLEMENTATION_VERSION_V01 =
+  "deterministic_governed_actor_lab_unavailable.v0.1" as const;
+export const DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_ID_V01 =
+  "deterministic.operational-reentry-matched-cohort-unavailable" as const;
+export const DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_VERSION_V01 =
+  "deterministic_operational_reentry_matched_cohort_unavailable.v0.1" as const;
 
 export interface ModelGatewayLocalCapabilityDiagnosticV01 {
   status:
@@ -128,6 +361,27 @@ const PROVIDER_CONTROL_KEYS = new Set([
   "tools",
 ]);
 
+function isOperationalReentryMatchedCohortPurposeV01(
+  purpose: unknown,
+): purpose is
+  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  | typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  | typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 {
+  return (
+    purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  );
+}
+
 interface SharedModelGatewayDependenciesV01 {
   open_database?: () => Database.Database;
   adapter?: ModelAdapterV01;
@@ -136,6 +390,13 @@ interface SharedModelGatewayDependenciesV01 {
   authorize_policy_invocation?: (
     envelope: ModelInvocationEnvelopeV01,
   ) => ModelGatewayPolicyAuthorizationV01;
+  expected_governed_actor_lab_route?: GovernedActorLabLiveRouteV01;
+  expected_operational_reentry_matched_cohort_route?: OperationalReentryMatchedCohortRouteV01;
+  expected_operational_reentry_matched_cohort_v02_route?: OperationalReentryMatchedCohortRouteV02;
+  expected_operational_reentry_matched_cohort_v03_route?: OperationalReentryMatchedCohortRouteV03;
+  expected_operational_reentry_matched_cohort_v04_route?: OperationalReentryMatchedCohortRouteV04;
+  expected_operational_reentry_stale_reset_cross_case_route?: OperationalReentryStaleResetCrossCaseRouteV01;
+  on_provider_egress_attempt?: () => void;
 }
 
 export interface ObserveModelGatewayDependenciesV01
@@ -167,6 +428,578 @@ export interface TemporalModelGatewayDependenciesV01
 export interface StrategicAdvantageTransferModelGatewayDependenciesV01
   extends SharedModelGatewayDependenciesV01 {}
 
+export interface GuideBriefInterpretationModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface GovernedActorLabModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryMatchedCohortModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryMatchedCohortModelGatewayDependenciesV02
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryMatchedCohortModelGatewayDependenciesV03
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryMatchedCohortModelGatewayDependenciesV04
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01
+  extends SharedModelGatewayDependenciesV01 {}
+
+export interface ModelGatewayInteractiveAdmissionV01 {
+  workspace_id: string;
+  project_id: string;
+  expected_active_selection_revision: number;
+  project_root: {
+    path_flavor: "posix" | "win32";
+    normalized_path: string;
+  };
+  gateway_authorization_project_is_lab_experiment_meaning: false;
+}
+
+/**
+ * Read-only admission material for a local interactive Gateway caller. The
+ * returned identity authorizes Gateway scope only and must never be projected
+ * into governed-actor model material.
+ */
+export function readModelGatewayInteractiveAdmissionForRootV01(
+  projectRoot: string,
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "open_database"> = {},
+): ModelGatewayInteractiveAdmissionV01 {
+  const db = (dependencies.open_database ?? openDatabase)();
+  try {
+    const workspace = readDefaultWorkspaceIdentityV01(db);
+    if (!workspace) throw gatewayFailure("model_gateway_scope_refused");
+    const localRoot = normalizeLocalProjectRootRefV01(projectRoot, {
+      base_path: projectRoot,
+    });
+    const registration = findCanonicalProjectByLocalRootV01(db, {
+      workspace_id: workspace.workspace_id,
+      local_root: localRoot,
+    });
+    if (!registration) throw gatewayFailure("model_gateway_scope_refused");
+    const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    if (!active || active.project_id !== registration.project.project_id) {
+      throw gatewayFailure("model_gateway_scope_refused");
+    }
+    return {
+      workspace_id: workspace.workspace_id,
+      project_id: registration.project.project_id,
+      expected_active_selection_revision: active.selection_revision,
+      project_root: {
+        path_flavor: registration.root_binding.local_root.path_flavor,
+        normalized_path: registration.root_binding.local_root.normalized_path,
+      },
+      gateway_authorization_project_is_lab_experiment_meaning: false,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/** Prepares and freezes the production route without invoking provider egress. */
+export async function prepareGovernedActorLabModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<GovernedActorLabLiveRouteV01 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (session.purpose !== GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose: GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id: session.implementation_id,
+    adapter_implementation_version: session.implementation_version,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function governedActorLabRouteMatchesSessionV01(
+  expected: GovernedActorLabLiveRouteV01,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const withoutFingerprint = {
+    gateway_version: expected.gateway_version,
+    purpose: expected.purpose,
+    provider_ref: expected.provider_ref,
+    model_ref: expected.model_ref,
+    adapter_implementation_id: expected.adapter_implementation_id,
+    adapter_implementation_version: expected.adapter_implementation_version,
+    prepared_without_provider_egress: expected.prepared_without_provider_egress,
+  };
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(withoutFingerprint),
+      ) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
+/** Freezes the one E2 provider/model/adapter route without provider egress. */
+export async function prepareOperationalReentryMatchedCohortModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryMatchedCohortRouteV01 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose: OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id: session.implementation_id,
+    adapter_implementation_version: session.implementation_version,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryMatchedCohortRouteMatchesSessionV01(
+  expected: OperationalReentryMatchedCohortRouteV01,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const withoutFingerprint = {
+    gateway_version: expected.gateway_version,
+    purpose: expected.purpose,
+    provider_ref: expected.provider_ref,
+    model_ref: expected.model_ref,
+    adapter_implementation_id: expected.adapter_implementation_id,
+    adapter_implementation_version: expected.adapter_implementation_version,
+    prepared_without_provider_egress: expected.prepared_without_provider_egress,
+  };
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(withoutFingerprint),
+      ) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
+/** Freezes the corrected E2R2H provider/model/adapter route without egress. */
+export async function prepareOperationalReentryMatchedCohortModelGatewayRouteV02(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryMatchedCohortRouteV02 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+    session.implementation_id !==
+      "openai_responses.operational_reentry_matched_cohort" ||
+    session.implementation_version !==
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.4"
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id:
+      "openai_responses.operational_reentry_matched_cohort" as const,
+    adapter_implementation_version:
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.4" as const,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryMatchedCohortRouteMatchesSessionV02(
+  expected: OperationalReentryMatchedCohortRouteV02,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const withoutFingerprint = {
+    gateway_version: expected.gateway_version,
+    purpose: expected.purpose,
+    provider_ref: expected.provider_ref,
+    model_ref: expected.model_ref,
+    adapter_implementation_id: expected.adapter_implementation_id,
+    adapter_implementation_version: expected.adapter_implementation_version,
+    provider_contract_version: expected.provider_contract_version,
+    prepared_without_provider_egress: expected.prepared_without_provider_egress,
+  };
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.adapter_implementation_id ===
+      "openai_responses.operational_reentry_matched_cohort" &&
+    expected.adapter_implementation_version ===
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.4" &&
+    expected.provider_contract_version ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02 &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(withoutFingerprint),
+      ) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
+/** Freezes the parser-closed E2R2P3H provider/model/adapter route without egress. */
+export async function prepareOperationalReentryMatchedCohortModelGatewayRouteV03(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryMatchedCohortRouteV03 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+    session.implementation_id !==
+      "openai_responses.operational_reentry_matched_cohort" ||
+    session.implementation_version !==
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.5"
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const providerContract =
+    buildOperationalReentryMatchedCohortProviderContractV03();
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id:
+      "openai_responses.operational_reentry_matched_cohort" as const,
+    adapter_implementation_version:
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.5" as const,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03,
+    provider_contract_fingerprint: providerContract.integrity.fingerprint,
+    maximum_canonical_wire_response_bytes:
+      providerContract.maximum_canonical_wire_response_bytes,
+    response_safety_margin_bytes:
+      providerContract.response_safety_margin_bytes,
+    response_bytes: providerContract.response_bytes,
+    max_output_tokens: providerContract.max_output_tokens,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryMatchedCohortRouteMatchesSessionV03(
+  expected: OperationalReentryMatchedCohortRouteV03,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const withoutFingerprint = {
+    gateway_version: expected.gateway_version,
+    purpose: expected.purpose,
+    provider_ref: expected.provider_ref,
+    model_ref: expected.model_ref,
+    adapter_implementation_id: expected.adapter_implementation_id,
+    adapter_implementation_version: expected.adapter_implementation_version,
+    provider_contract_version: expected.provider_contract_version,
+    provider_contract_fingerprint: expected.provider_contract_fingerprint,
+    maximum_canonical_wire_response_bytes:
+      expected.maximum_canonical_wire_response_bytes,
+    response_safety_margin_bytes: expected.response_safety_margin_bytes,
+    response_bytes: expected.response_bytes,
+    max_output_tokens: expected.max_output_tokens,
+    prepared_without_provider_egress: expected.prepared_without_provider_egress,
+  };
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.adapter_implementation_id ===
+      "openai_responses.operational_reentry_matched_cohort" &&
+    expected.adapter_implementation_version ===
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.5" &&
+    expected.provider_contract_version ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V03 &&
+    expected.provider_contract_fingerprint ===
+      buildOperationalReentryMatchedCohortProviderContractV03().integrity
+        .fingerprint &&
+    expected.maximum_canonical_wire_response_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V03.maximum_canonical_wire_response_bytes &&
+    expected.response_safety_margin_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V03.safety_margin_bytes &&
+    expected.response_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.responseBytes &&
+    expected.max_output_tokens ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.maxOutputTokens &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(
+        canonicalizeProtocolValueV01(withoutFingerprint),
+      ) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
+/** Freezes the invocation-identity-separated v0.4 route without egress. */
+export async function prepareOperationalReentryMatchedCohortModelGatewayRouteV04(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryMatchedCohortRouteV04 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+    session.implementation_id !==
+      "openai_responses.operational_reentry_matched_cohort" ||
+    session.implementation_version !==
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.6"
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const providerContract =
+    buildOperationalReentryMatchedCohortProviderContractV04();
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id:
+      "openai_responses.operational_reentry_matched_cohort" as const,
+    adapter_implementation_version:
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.6" as const,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04,
+    provider_contract_fingerprint: providerContract.integrity.fingerprint,
+    maximum_canonical_wire_response_bytes:
+      providerContract.maximum_canonical_wire_response_bytes,
+    response_safety_margin_bytes:
+      providerContract.response_safety_margin_bytes,
+    response_bytes: providerContract.response_bytes,
+    max_output_tokens: providerContract.max_output_tokens,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryMatchedCohortRouteMatchesSessionV04(
+  expected: OperationalReentryMatchedCohortRouteV04,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const withoutFingerprint = {
+    gateway_version: expected.gateway_version,
+    purpose: expected.purpose,
+    provider_ref: expected.provider_ref,
+    model_ref: expected.model_ref,
+    adapter_implementation_id: expected.adapter_implementation_id,
+    adapter_implementation_version: expected.adapter_implementation_version,
+    provider_contract_version: expected.provider_contract_version,
+    provider_contract_fingerprint: expected.provider_contract_fingerprint,
+    maximum_canonical_wire_response_bytes:
+      expected.maximum_canonical_wire_response_bytes,
+    response_safety_margin_bytes: expected.response_safety_margin_bytes,
+    response_bytes: expected.response_bytes,
+    max_output_tokens: expected.max_output_tokens,
+    prepared_without_provider_egress: expected.prepared_without_provider_egress,
+  };
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.adapter_implementation_id ===
+      "openai_responses.operational_reentry_matched_cohort" &&
+    expected.adapter_implementation_version ===
+      "openai_responses_operational_reentry_matched_cohort_adapter.v0.6" &&
+    expected.provider_contract_version ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V04 &&
+    expected.provider_contract_fingerprint ===
+      buildOperationalReentryMatchedCohortProviderContractV04().integrity
+        .fingerprint &&
+    expected.maximum_canonical_wire_response_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V04.maximum_canonical_wire_response_bytes &&
+    expected.response_safety_margin_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_WIRE_BUDGET_PROOF_V04.safety_margin_bytes &&
+    expected.response_bytes ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.responseBytes &&
+    expected.max_output_tokens ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.maxOutputTokens &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(canonicalizeProtocolValueV01(withoutFingerprint)) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
+/** Freezes the new cross-case route without provider egress. */
+export async function prepareOperationalReentryStaleResetCrossCaseModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<OperationalReentryStaleResetCrossCaseRouteV01 | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const controller = new AbortController();
+  const session = await adapter.prepare(
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    controller.signal,
+  );
+  if (!session) return null;
+  if (
+    session.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
+    session.implementation_id !==
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" ||
+    session.implementation_version !==
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  const contract = buildOperationalReentryStaleResetCrossCaseProviderContractV01();
+  const withoutFingerprint = {
+    gateway_version: MODEL_GATEWAY_VERSION_V01,
+    purpose:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+    adapter_implementation_id:
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" as const,
+    adapter_implementation_version:
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02,
+    provider_contract_version:
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02,
+    provider_contract_fingerprint: contract.integrity.fingerprint,
+    maximum_canonical_wire_response_bytes:
+      contract.maximum_canonical_wire_response_bytes,
+    response_bytes: contract.response_bytes,
+    max_output_tokens: contract.max_output_tokens,
+    prepared_without_provider_egress: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    integrity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
+
+function operationalReentryStaleResetCrossCaseRouteMatchesSessionV01(
+  expected: OperationalReentryStaleResetCrossCaseRouteV01,
+  session: ModelAdapterSessionV01,
+): boolean {
+  const { integrity_fingerprint: _ignored, ...withoutFingerprint } = expected;
+  return (
+    expected.gateway_version === MODEL_GATEWAY_VERSION_V01 &&
+    expected.purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 &&
+    expected.adapter_implementation_id ===
+      "openai_responses.operational_reentry_stale_reset_cross_case_replication" &&
+    expected.adapter_implementation_version ===
+      OPENAI_RESPONSES_OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_ADAPTER_VERSION_V02 &&
+    expected.provider_contract_version ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_PROVIDER_CONTRACT_VERSION_V02 &&
+    expected.provider_contract_fingerprint ===
+      buildOperationalReentryStaleResetCrossCaseProviderContractV01().integrity
+        .fingerprint &&
+    expected.maximum_canonical_wire_response_bytes ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_WIRE_BUDGET_PROOF_V01.maximum_canonical_wire_response_bytes &&
+    expected.response_bytes ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.responseBytes &&
+    expected.max_output_tokens ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens &&
+    expected.prepared_without_provider_egress === true &&
+    expected.integrity_fingerprint ===
+      createProtocolSha256V01(canonicalizeProtocolValueV01(withoutFingerprint)) &&
+    session.purpose === expected.purpose &&
+    session.implementation_id === expected.adapter_implementation_id &&
+    session.implementation_version === expected.adapter_implementation_version &&
+    canonicalizeProtocolValueV01(session.provider_ref) ===
+      canonicalizeProtocolValueV01(expected.provider_ref) &&
+    canonicalizeProtocolValueV01(session.model_ref) ===
+      canonicalizeProtocolValueV01(expected.model_ref)
+  );
+}
+
 type DeterministicOutputV01 =
   | {
       purpose: typeof OBSERVE_MODEL_GATEWAY_PURPOSE_V01;
@@ -179,6 +1012,14 @@ type DeterministicOutputV01 =
   | {
       purpose: typeof TEMPORAL_MODEL_GATEWAY_PURPOSE_V01;
       preview: TemporalInterpretationPreview;
+    }
+  | {
+      purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01;
+      output: {
+        coverage: "none";
+        classification: "unsupported";
+        candidate_tokens: [];
+      };
     };
 
 interface InternalModelGatewayDependenciesV01
@@ -320,6 +1161,188 @@ export async function invokeStrategicAdvantageTransferModelGatewayV01(
   };
 }
 
+export async function invokeGuideBriefInterpretationModelGatewayV01(
+  input: unknown,
+  dependencies: GuideBriefInterpretationModelGatewayDependenciesV01 = {},
+): Promise<GuideBriefInterpretationModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute(purposeInput) {
+      if (
+        purposeInput.input_kind !==
+        GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+      ) {
+        throw new Error("purpose_mismatch");
+      }
+      return {
+        purpose: GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+        output: {
+          coverage: "none",
+          classification: "unsupported",
+          candidate_tokens: [],
+        },
+      };
+    },
+  });
+  if (
+    result.output.purpose !==
+    GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    interpreter: result.execution === "live" ? "openai" : "unavailable",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeGovernedActorLabModelGatewayV01(
+  input: unknown,
+  dependencies: GovernedActorLabModelGatewayDependenciesV01 = {},
+): Promise<GovernedActorLabModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error("governed_actor_lab_live_model_required");
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !== GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeOperationalReentryMatchedCohortModelGatewayV01(
+  input: unknown,
+  dependencies: OperationalReentryMatchedCohortModelGatewayDependenciesV01 = {},
+): Promise<OperationalReentryMatchedCohortModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error("operational_reentry_matched_cohort_live_model_required");
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeOperationalReentryMatchedCohortModelGatewayV02(
+  input: unknown,
+  dependencies: OperationalReentryMatchedCohortModelGatewayDependenciesV02 = {},
+): Promise<OperationalReentryMatchedCohortModelGatewayResultV02> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error(
+        "operational_reentry_matched_cohort_v02_live_model_required",
+      );
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeOperationalReentryMatchedCohortModelGatewayV03(
+  input: unknown,
+  dependencies: OperationalReentryMatchedCohortModelGatewayDependenciesV03 = {},
+): Promise<OperationalReentryMatchedCohortModelGatewayResultV03> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error(
+        "operational_reentry_matched_cohort_v03_live_model_required",
+      );
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeOperationalReentryMatchedCohortModelGatewayV04(
+  input: unknown,
+  dependencies: OperationalReentryMatchedCohortModelGatewayDependenciesV04 = {},
+): Promise<OperationalReentryMatchedCohortModelGatewayResultV04> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error(
+        "operational_reentry_matched_cohort_v04_live_model_required",
+      );
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
+export async function invokeOperationalReentryStaleResetCrossCaseModelGatewayV01(
+  input: unknown,
+  dependencies: OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01 = {},
+): Promise<OperationalReentryStaleResetCrossCaseModelGatewayResultV01> {
+  const result = await invokeModelGatewayV01(input, {
+    ...dependencies,
+    provider_failure_fallback: false,
+    deterministic_execute() {
+      throw new Error("cross_case_replication_live_model_required");
+    },
+  });
+  if (
+    result.execution !== "live" ||
+    result.output.purpose !==
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return {
+    generator: "openai",
+    output: result.output.output,
+    model_invocation_receipt: result.model_invocation_receipt,
+  };
+}
+
 async function invokeModelGatewayV01(
   input: unknown,
   dependencies: InternalModelGatewayDependenciesV01,
@@ -433,6 +1456,38 @@ async function invokeModelGatewayV01(
     }
 
     if (!adapterSession) {
+      if (
+        envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+        envelope.purpose ===
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+      ) {
+        throw gatewayFailure(
+          "model_gateway_transport_failed",
+          buildReceipt({
+            ...base,
+            ...adapterImplementation,
+            execution_mode: "live",
+            selection_reason: "requested_live",
+            status: "failed",
+            outcome: "provider_failure",
+            egress_attempted: false,
+            egress_status: "did_not_occur",
+            usage: null,
+            budget_decision: "not_used",
+            input_bytes_used: null,
+            provider_calls_used: 0,
+            failure_code: "model_gateway_transport_failed",
+          }),
+        );
+      }
       return await executeDeterministically(
         envelope,
         dependencies,
@@ -443,8 +1498,191 @@ async function invokeModelGatewayV01(
     }
 
     if (
+      envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_governed_actor_lab_route &&
+      !governedActorLabRouteMatchesSessionV01(
+        dependencies.expected_governed_actor_lab_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure(
+        "model_gateway_budget_refused",
+        buildReceipt({
+          ...base,
+          implementation_id: adapterSession.implementation_id,
+          implementation_version: adapterSession.implementation_version,
+          attempted_provider_ref: adapterSession.provider_ref,
+          attempted_model_ref: adapterSession.model_ref,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "blocked",
+          outcome: "refused",
+          egress_attempted: false,
+          egress_status: "blocked",
+          usage: null,
+          budget_decision: "refused",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_budget_refused",
+        }),
+      );
+    }
+
+    if (
       envelope.purpose ===
-      STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_matched_cohort_route &&
+      !operationalReentryMatchedCohortRouteMatchesSessionV01(
+        dependencies.expected_operational_reentry_matched_cohort_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure(
+        "model_gateway_budget_refused",
+        buildReceipt({
+          ...base,
+          implementation_id: adapterSession.implementation_id,
+          implementation_version: adapterSession.implementation_version,
+          attempted_provider_ref: adapterSession.provider_ref,
+          attempted_model_ref: adapterSession.model_ref,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "blocked",
+          outcome: "refused",
+          egress_attempted: false,
+          egress_status: "blocked",
+          usage: null,
+          budget_decision: "refused",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_budget_refused",
+        }),
+      );
+    }
+
+    if (
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_matched_cohort_v02_route &&
+      !operationalReentryMatchedCohortRouteMatchesSessionV02(
+        dependencies.expected_operational_reentry_matched_cohort_v02_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure(
+        "model_gateway_budget_refused",
+        buildReceipt({
+          ...base,
+          implementation_id: adapterSession.implementation_id,
+          implementation_version: adapterSession.implementation_version,
+          attempted_provider_ref: adapterSession.provider_ref,
+          attempted_model_ref: adapterSession.model_ref,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "blocked",
+          outcome: "refused",
+          egress_attempted: false,
+          egress_status: "blocked",
+          usage: null,
+          budget_decision: "refused",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_budget_refused",
+        }),
+      );
+    }
+
+    if (
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_matched_cohort_v03_route &&
+      !operationalReentryMatchedCohortRouteMatchesSessionV03(
+        dependencies.expected_operational_reentry_matched_cohort_v03_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure(
+        "model_gateway_budget_refused",
+        buildReceipt({
+          ...base,
+          implementation_id: adapterSession.implementation_id,
+          implementation_version: adapterSession.implementation_version,
+          attempted_provider_ref: adapterSession.provider_ref,
+          attempted_model_ref: adapterSession.model_ref,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "blocked",
+          outcome: "refused",
+          egress_attempted: false,
+          egress_status: "blocked",
+          usage: null,
+          budget_decision: "refused",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_budget_refused",
+        }),
+      );
+    }
+
+    if (
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_matched_cohort_v04_route &&
+      !operationalReentryMatchedCohortRouteMatchesSessionV04(
+        dependencies.expected_operational_reentry_matched_cohort_v04_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure(
+        "model_gateway_budget_refused",
+        buildReceipt({
+          ...base,
+          implementation_id: adapterSession.implementation_id,
+          implementation_version: adapterSession.implementation_version,
+          attempted_provider_ref: adapterSession.provider_ref,
+          attempted_model_ref: adapterSession.model_ref,
+          execution_mode: "live",
+          selection_reason: "requested_live",
+          status: "blocked",
+          outcome: "refused",
+          egress_attempted: false,
+          egress_status: "blocked",
+          usage: null,
+          budget_decision: "refused",
+          input_bytes_used: null,
+          provider_calls_used: 0,
+          failure_code: "model_gateway_budget_refused",
+        }),
+      );
+    }
+
+    if (
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 &&
+      dependencies.expected_operational_reentry_stale_reset_cross_case_route &&
+      !operationalReentryStaleResetCrossCaseRouteMatchesSessionV01(
+        dependencies.expected_operational_reentry_stale_reset_cross_case_route,
+        adapterSession,
+      )
+    ) {
+      throw gatewayFailure("model_gateway_budget_refused");
+    }
+
+    if (
+      envelope.purpose ===
+        STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+      envelope.purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
+      (envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+        envelope.budget.cost_budget !== undefined)
     ) {
       const costBudget = envelope.budget.cost_budget;
       if (!costBudget) {
@@ -475,10 +1713,12 @@ async function invokeModelGatewayV01(
         throw gatewayFailure("model_gateway_budget_refused");
       }
       if (
-        envelope.input.budget.model.cost.status !== "available" ||
-        canonicalizeProtocolValueV01(
-          envelope.input.budget.model.cost.budget,
-        ) !== canonicalizeProtocolValueV01(costBudget)
+        envelope.purpose ===
+          STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 &&
+        (envelope.input.budget.model.cost.status !== "available" ||
+          canonicalizeProtocolValueV01(
+            envelope.input.budget.model.cost.budget,
+          ) !== canonicalizeProtocolValueV01(costBudget))
       ) {
         throw gatewayFailure("model_gateway_budget_refused");
       }
@@ -491,6 +1731,7 @@ async function invokeModelGatewayV01(
         adapterSession,
         base,
         lifecycle,
+        dependencies.on_provider_egress_attempt,
       );
     } catch (error) {
       if (
@@ -550,6 +1791,84 @@ export function validateStrategicAdvantageTransferModelInvocationEnvelopeV01(
   return envelope;
 }
 
+export function validateGuideBriefInterpretationModelInvocationEnvelopeV01(
+  input: unknown,
+): GuideBriefInterpretationModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    invalid();
+  }
+  return envelope;
+}
+
+export function validateGovernedActorLabModelInvocationEnvelopeV01(
+  input: unknown,
+): GovernedActorLabModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (envelope.purpose !== GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    invalid();
+  }
+  return envelope;
+}
+
+export function validateOperationalReentryMatchedCohortModelInvocationEnvelopeV01(
+  input: unknown,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
+export function validateOperationalReentryMatchedCohortModelInvocationEnvelopeV02(
+  input: unknown,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV02 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
+export function validateOperationalReentryMatchedCohortModelInvocationEnvelopeV03(
+  input: unknown,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV03 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
+export function validateOperationalReentryMatchedCohortModelInvocationEnvelopeV04(
+  input: unknown,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV04 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
+export function validateOperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01(
+  input: unknown,
+): OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01 {
+  const envelope = validateModelInvocationEnvelopeV01(input);
+  if (
+    envelope.purpose !==
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) invalid();
+  return envelope;
+}
+
 export function validateModelInvocationEnvelopeV01(
   input: unknown,
 ): ModelInvocationEnvelopeV01 {
@@ -573,7 +1892,7 @@ export function validateModelInvocationEnvelopeV01(
         "policy",
         "input",
       ],
-      ["project_root"],
+      ["project_root", "provider_request_trace_id"],
     );
     if (
       readOwn(record, "envelope_version") !==
@@ -583,6 +1902,18 @@ export function validateModelInvocationEnvelopeV01(
     }
     const purpose = readOwn(record, "purpose");
     if (!isOneOf(purpose, MODEL_GATEWAY_PURPOSES_V01)) invalid();
+    const providerRequestTraceId = Object.hasOwn(
+      record,
+      "provider_request_trace_id",
+    )
+      ? requireSafeIdentifier(readOwn(record, "provider_request_trace_id"))
+      : null;
+    if (
+      (isOperationalReentryMatchedCohortPurposeV01(purpose)) !==
+      (providerRequestTraceId !== null)
+    ) {
+      invalid();
+    }
     const invocationId = requireSafeIdentifier(readOwn(record, "invocation_id"));
     const workspaceId = requireCanonicalId(
       readOwn(record, "workspace_id"),
@@ -622,7 +1953,13 @@ export function validateModelInvocationEnvelopeV01(
       provenance_refs: validateProvenance(readOwn(record, "provenance_refs")),
       privacy: validatePrivacy(readOwn(record, "privacy"), executionMode),
       budget: validateBudget(readOwn(record, "budget"), executionMode, purpose),
-      timeout_ms: requireInteger(readOwn(record, "timeout_ms"), 1, MAX_TIMEOUT_MS),
+      timeout_ms: requireInteger(
+        readOwn(record, "timeout_ms"),
+        1,
+        purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+          ? 8_000
+          : MAX_TIMEOUT_MS,
+      ),
       cancellation: validateCancellation(readOwn(record, "cancellation")),
       execution_mode: executionMode,
       policy: validatePolicy(readOwn(record, "policy")),
@@ -638,6 +1975,194 @@ export function validateModelInvocationEnvelopeV01(
     }
     if (purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
       const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return { ...common, purpose, input: purposeInput };
+    }
+    if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.timeoutMs
+      ) {
+        invalid();
+      }
+      const purposeInput = validatePurposeInput(
+        rawPurposeInput,
+        purpose,
+        projectId,
+      );
+      validatePurposeInputSafety(purpose, purposeInput);
+      return { ...common, purpose, input: purposeInput };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose ===
+      OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        dataClassification !== "public_safe" ||
+        common.privacy.provider_egress !== "allow" ||
+        common.privacy.retention_class !== "none" ||
+        common.budget.max_input_bytes !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !==
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.timeoutMs ||
+        common.budget.cost_budget === undefined
+      ) invalid();
+      const purposeInput = validatePurposeInput(rawPurposeInput, purpose, projectId);
+      validatePurposeInputSafety(purpose, purposeInput);
+      return {
+        ...common,
+        purpose,
+        provider_request_trace_id: providerRequestTraceId!,
+        input: purposeInput,
+      };
+    }
+    if (
+      purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+    ) {
+      if (
+        executionMode !== "live" ||
+        common.policy.invocation_origin !== "interactive" ||
+        !["public_safe", "private"].includes(dataClassification) ||
+        common.budget.max_input_bytes !==
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.finalRequestBytes ||
+        common.budget.max_output_tokens !== 256 ||
+        common.budget.max_provider_calls !== 1 ||
+        common.timeout_ms !== 8_000
+      ) {
+        invalid();
+      }
+      const purposeInput = validatePurposeInput(
+        rawPurposeInput,
+        purpose,
+        projectId,
+      );
       validatePurposeInputSafety(purpose, purposeInput);
       return { ...common, purpose, input: purposeInput };
     }
@@ -904,6 +2429,7 @@ async function invokeLiveAdapter(
   adapterSession: ModelAdapterSessionV01,
   base: ReceiptBase,
   lifecycle: GatewayInvocationLifecycle,
+  onProviderEgressAttempt?: () => void,
 ): Promise<InternalGatewayResultV01> {
   let egressAttempted = false;
   let inputBytesUsed: number | null = null;
@@ -920,11 +2446,18 @@ async function invokeLiveAdapter(
           signal: lifecycle.signal,
           budget: envelope.budget,
           retention_class: envelope.privacy.retention_class,
+          ...(isOperationalReentryMatchedCohortPurposeV01(envelope.purpose)
+            ? {
+                provider_request_trace_id:
+                  envelope.provider_request_trace_id,
+              }
+            : {}),
           mark_egress_attempted() {
             lifecycle.throwIfStopped();
             if (egressAttempted) {
               throw gatewayFailure("model_gateway_budget_refused");
             }
+            onProviderEgressAttempt?.();
             egressAttempted = true;
           },
           report_input_bytes(bytes) {
@@ -970,7 +2503,18 @@ async function invokeLiveAdapter(
         failure_code: null,
         normalized_output_fingerprint:
           result.purpose ===
-          STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+            STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+          result.purpose ===
+            OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
             ? createProtocolSha256V01(
                 canonicalizeProtocolValueV01(result.output),
               )
@@ -979,6 +2523,14 @@ async function invokeLiveAdapter(
     };
   } catch (error) {
     const failureCode = normalizeFailureCode(error);
+    const providerRejectionObservation =
+      error instanceof ModelGatewayAdapterFailureV01
+        ? error.provider_rejection_observation
+        : null;
+    const providerResponseInvalidObservation =
+      error instanceof ModelGatewayAdapterFailureV01
+        ? error.provider_response_invalid_observation
+        : null;
     const cancelled =
       failureCode === "model_gateway_cancelled" ||
       failureCode === "model_gateway_timeout";
@@ -1028,6 +2580,8 @@ async function invokeLiveAdapter(
         provider_calls_used: egressAttempted ? 1 : 0,
         failure_code: failureCode,
       }),
+      providerRejectionObservation,
+      providerResponseInvalidObservation,
     );
   }
 }
@@ -1197,6 +2751,23 @@ function buildReceipt(
     work_id: policy.invocation_origin === "policy_triggered" ? policy.work_id : null,
     run_id: policy.invocation_origin === "policy_triggered" ? policy.run_id : null,
     purpose: input.envelope.purpose,
+    ...(input.envelope.purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+      ? {
+          local_invocation_identity_fingerprint:
+            createOperationalReentryMatchedCohortLocalInvocationIdentityFingerprintV04(
+              input.envelope.input,
+            ),
+        }
+      : input.envelope.purpose ===
+          OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+        ? {
+            local_invocation_identity_fingerprint:
+              createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01(
+                input.envelope.input,
+              ),
+          }
+      : {}),
     invocation_origin: policy.invocation_origin,
     attempted_implementation_id: attemptedImplementation
       ? boundedReceiptIdentifier(attemptedImplementation.implementation_id)
@@ -1350,6 +2921,30 @@ function deterministicImplementation(
         DETERMINISTIC_STRATEGIC_IMPLEMENTATION_VERSION_V01,
     };
   }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    return {
+      implementation_id:
+        DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_ID_V01,
+      implementation_version:
+        DETERMINISTIC_GUIDE_BRIEF_INTERPRETATION_IMPLEMENTATION_VERSION_V01,
+    };
+  }
+  if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    return {
+      implementation_id:
+        DETERMINISTIC_GOVERNED_ACTOR_LAB_IMPLEMENTATION_ID_V01,
+      implementation_version:
+        DETERMINISTIC_GOVERNED_ACTOR_LAB_IMPLEMENTATION_VERSION_V01,
+    };
+  }
+  if (isOperationalReentryMatchedCohortPurposeV01(purpose)) {
+    return {
+      implementation_id:
+        DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_ID_V01,
+      implementation_version:
+        DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_VERSION_V01,
+    };
+  }
   return {
     implementation_id: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_ID_V01,
     implementation_version: DETERMINISTIC_TEMPORAL_IMPLEMENTATION_VERSION_V01,
@@ -1385,7 +2980,9 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01
+  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+    purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
+    isOperationalReentryMatchedCohortPurposeV01(purpose)
     ? ["cost_budget"]
     : []);
   const maxInputBytes = requireInteger(
@@ -1396,7 +2993,26 @@ function validateBudget(
   const maxOutputTokens = requireInteger(
     readOwn(record, "max_output_tokens"),
     1,
-    MAX_OUTPUT_TOKENS,
+    purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01
+      ? 256
+      : purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01
+        ? GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.maxOutputTokens
+        : purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+          ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.maxOutputTokens
+        : purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+          ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.maxOutputTokens
+        : purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+          ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.maxOutputTokens
+        : purpose ===
+            OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+            ? OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.maxOutputTokens
+          : purpose ===
+              OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+            ? OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.maxOutputTokens
+            : MAX_OUTPUT_TOKENS,
   );
   const maxProviderCalls = readOwn(record, "max_provider_calls");
   if (maxProviderCalls !== (mode === "live" ? 1 : 0)) invalid();
@@ -1404,7 +3020,17 @@ function validateBudget(
     ? validateModelGatewayCostBudgetV01(readOwn(record, "cost_budget"))
     : undefined;
   if (
-    purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 &&
+    (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
+      purpose ===
+        OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01) &&
     !costBudget
   ) {
     invalid();
@@ -1426,6 +3052,41 @@ function maximumInputBytesForPurpose(purpose: ModelGatewayPurposeV01) {
   }
   if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
     return STRATEGIC_ADVANTAGE_TRANSFER_MODEL_EGRESS_LIMITS.finalRequestBytes;
+  }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    return GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
+  }
+  if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    return GOVERNED_ACTOR_LAB_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
+  }
+  if (
+    purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V02.finalRequestBytes;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V03.finalRequestBytes;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_EGRESS_LIMITS_V04.finalRequestBytes;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    return OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_MODEL_EGRESS_LIMITS_V01.finalRequestBytes;
   }
   return TEMPORAL_MODEL_EGRESS_LIMITS.finalRequestBytes;
 }
@@ -1532,10 +3193,92 @@ function validatePurposeInput(
 ): StrategicAdvantageTransferModelInvocationEnvelopeV01["input"];
 function validatePurposeInput(
   value: unknown,
+  purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): GuideBriefInterpretationModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): GovernedActorLabModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV02["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV03["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryMatchedCohortModelInvocationEnvelopeV04["input"];
+function validatePurposeInput(
+  value: unknown,
+  purpose: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+  projectId: string,
+): OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01["input"];
+function validatePurposeInput(
+  value: unknown,
   purpose: ModelGatewayPurposeV01,
   projectId: string,
 ): ModelInvocationEnvelopeV01["input"] {
   const record = requirePlainRecord(value);
+  if (purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01) {
+    const validated = validateGovernedActorLabModelInputV01(record);
+    assertNoProviderControlFields(validated);
+    return validated;
+  }
+  if (
+    purpose === OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated = validateOperationalReentryMatchedCohortModelInputV01(record);
+    assertNoProviderControlFields(validated);
+    return validated;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated = validateOperationalReentryMatchedCohortModelInputV02(record);
+    assertNoOperationalReentryMatchedCohortV02ProviderControlFields(validated);
+    return validated;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated = validateOperationalReentryMatchedCohortModelInputV03(record);
+    assertNoOperationalReentryMatchedCohortProviderControlFieldsV03(validated);
+    return validated;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated = validateOperationalReentryMatchedCohortInvocationV04(record);
+    assertNoOperationalReentryMatchedCohortProviderControlFieldsV04(validated);
+    return validated;
+  }
+  if (
+    purpose ===
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01
+  ) {
+    const validated =
+      validateOperationalReentryStaleResetCrossCaseInvocationV01(record);
+    assertNoOperationalReentryStaleResetCrossCaseProviderControlFieldsV01(
+      validated,
+    );
+    return validated;
+  }
   if (purpose === OBSERVE_MODEL_GATEWAY_PURPOSE_V01) {
     requireExactKeys(record, ["input_kind", "message", "current_state"]);
     if (readOwn(record, "input_kind") !== purpose) invalid();
@@ -1572,6 +3315,81 @@ function validatePurposeInput(
       input_kind: purpose,
       message,
       brief: brief as PlannerModelInvocationEnvelopeV01["input"]["brief"],
+    };
+  }
+  if (purpose === GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01) {
+    requireExactKeys(record, [
+      "input_kind",
+      "utterance",
+      "candidates",
+      "previous_answer_anchor",
+    ]);
+    if (readOwn(record, "input_kind") !== purpose) invalid();
+    const utterance = readOwn(record, "utterance");
+    const candidates = readOwn(record, "candidates");
+    const previousAnswerAnchor = readOwn(record, "previous_answer_anchor");
+    if (
+      typeof utterance !== "string" ||
+      utterance.trim().length === 0 ||
+      Buffer.byteLength(utterance, "utf8") >
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.utteranceBytes ||
+      !Array.isArray(candidates) ||
+      candidates.length < 1 ||
+      candidates.length >
+        GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateItems
+    ) {
+      invalid();
+    }
+    const tokens = new Set<string>();
+    for (const candidate of candidates) {
+      const candidateRecord = requirePlainRecord(candidate);
+      requireExactKeys(candidateRecord, [
+        "candidate_token",
+        "public_meaning",
+        "semantic_description",
+        "currently_available",
+      ]);
+      const token = readOwn(candidateRecord, "candidate_token");
+      if (
+        typeof token !== "string" ||
+        !/^c_[a-f0-9]{32}$/u.test(token) ||
+        tokens.has(token) ||
+        readOwn(candidateRecord, "currently_available") !== true ||
+        !boundedProviderSafeTextV01(
+          readOwn(candidateRecord, "public_meaning"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        ) ||
+        !boundedProviderSafeTextV01(
+          readOwn(candidateRecord, "semantic_description"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        )
+      ) {
+        invalid();
+      }
+      tokens.add(token);
+    }
+    if (previousAnswerAnchor !== null) {
+      const anchor = requirePlainRecord(previousAnswerAnchor);
+      requireExactKeys(anchor, ["anchor_kind", "public_subject"]);
+      if (
+        readOwn(anchor, "anchor_kind") !==
+          "immediately_previous_successful_guidebrief_answer" ||
+        !boundedProviderSafeTextV01(
+          readOwn(anchor, "public_subject"),
+          GUIDE_BRIEF_INTERPRETATION_MODEL_EGRESS_LIMITS_V01.candidateTextBytes,
+        )
+      ) {
+        invalid();
+      }
+    }
+    if (!boundedGuideBriefUtteranceV01(utterance)) invalid();
+    return {
+      input_kind: purpose,
+      utterance,
+      candidates:
+        candidates as GuideBriefInterpretationModelInvocationEnvelopeV01["input"]["candidates"],
+      previous_answer_anchor:
+        previousAnswerAnchor as GuideBriefInterpretationModelInvocationEnvelopeV01["input"]["previous_answer_anchor"],
     };
   }
   if (purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01) {
@@ -1665,6 +3483,27 @@ function validatePurposeInputSafety(
   assertModelEgressTextIsSafe(purpose, serialized);
 }
 
+function boundedProviderSafeTextV01(
+  value: unknown,
+  maximumBytes: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    Buffer.byteLength(value, "utf8") <= maximumBytes &&
+    boundedGuideBriefUtteranceV01(value)
+  );
+}
+
+function boundedGuideBriefUtteranceV01(value: string): boolean {
+  return ![
+    /(?:https?:\/\/|file:\/\/|\/Users\/|\/home\/|[A-Za-z]:\\)/u,
+    /\b(?:workspace|project|candidate|proposal|request|receipt|run|work):[A-Za-z0-9:._-]+\b/u,
+    /\b(?:sha256:)?[a-f0-9]{64}\b/iu,
+    /\b(?:endpoint|route|selector|cookie|nonce|fingerprint|source[_ -]?ref|api[_ -]?key|authorization)\b/iu,
+  ].some((pattern) => pattern.test(value));
+}
+
 function validateProjectScopedStateInput(state: StateEntry[], projectId: string) {
   for (let index = 0; index < state.length; index += 1) {
     const descriptor = Object.getOwnPropertyDescriptor(state, String(index));
@@ -1722,6 +3561,120 @@ function assertNoProviderControlFields(value: unknown) {
     }
   };
   visit(cloned);
+}
+
+function assertNoOperationalReentryMatchedCohortV02ProviderControlFields(
+  value: unknown,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+    value,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) {
+        invalid();
+      }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
+}
+
+function assertNoOperationalReentryMatchedCohortProviderControlFieldsV03(
+  value: unknown,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+    value,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) {
+        invalid();
+      }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
+}
+
+function assertNoOperationalReentryMatchedCohortProviderControlFieldsV04(
+  value: OperationalReentryMatchedCohortInvocationV04,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+    value.provider_material,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) {
+        invalid();
+      }
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
+}
+
+function assertNoOperationalReentryStaleResetCrossCaseProviderControlFieldsV01(
+  value: OperationalReentryStaleResetCrossCaseInvocationV01,
+): void {
+  const cloned = cloneBoundedModelEgressJson(
+    OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
+    value.provider_material,
+    { maximumDepth: 12, maximumNodes: 4_096 },
+  );
+  const visit = (node: unknown, path: string) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, `${path}[]`);
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    for (const [key, child] of Object.entries(node)) {
+      const allowedContinuationSemanticRole =
+        path === "$.continuation_context[]" && key === "role";
+      if (
+        PROVIDER_CONTROL_KEYS.has(key.toLowerCase()) &&
+        !allowedContinuationSemanticRole
+      ) invalid();
+      visit(child, `${path}.${key}`);
+    }
+  };
+  visit(cloned, "$");
 }
 
 function validateStrategicProfileBudget(budget: Record<string, unknown>): void {
@@ -1906,8 +3859,15 @@ function boundedReceiptIdentifier(value: string) {
 function gatewayFailure(
   code: ModelGatewayFailureCodeV01,
   receipt: ModelInvocationReceiptV02 | null = null,
+  providerRejectionObservation: ModelGatewayInvocationErrorV01["provider_rejection_observation"] = null,
+  providerResponseInvalidObservation: ModelGatewayInvocationErrorV01["provider_response_invalid_observation"] = null,
 ) {
-  return new ModelGatewayInvocationErrorV01(code, receipt);
+  return new ModelGatewayInvocationErrorV01(
+    code,
+    receipt,
+    providerRejectionObservation,
+    providerResponseInvalidObservation,
+  );
 }
 
 function invalid(): never {

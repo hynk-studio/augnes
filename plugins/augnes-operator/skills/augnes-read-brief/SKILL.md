@@ -1,6 +1,6 @@
 ---
 name: augnes-read-brief
-description: Read Augnes state and work context before implementation using existing Codex brief helpers while preserving missing-runtime gaps.
+description: Read the current-project GuideBrief v0.2 and optional work context before implementation while preserving source gaps and TaskContextPacket separation.
 ---
 
 # Augnes Read Brief
@@ -21,17 +21,24 @@ is set.
   `http://localhost:3000`.
 - `CODEX_SCOPE`: Augnes scope. Existing helpers default to `project:augnes`
   where supported.
+- `CODEX_PROJECT_ID`: optional exact project ID supplied only by an authorized
+  host/operator path. The active project is used by default.
 - `CODEX_WORK_ID`: optional work trace anchor. When set, `codex:read-brief`
-  reads Work Brief context after the state brief.
+  reads Work Brief context after GuideBrief.
 
 ## Procedure
 
 1. Read repo instructions and task-relevant docs first.
-2. Check whether the local Augnes runtime is available.
-3. Run `npm run codex:read-brief` when runtime context is available.
-4. If `CODEX_WORK_ID` is set, keep it in the environment so the helper reads
+2. For a fresh local repository resume/continue/current-state request, invoke
+   `augnes_resume_repository` with the current physical repository root first.
+3. Check whether the local Augnes runtime is available.
+4. Run `npm run codex:read-brief` only when GuideBrief conversation context is
+   separately useful; it is not a fallback for repository continuity.
+5. If `CODEX_WORK_ID` is set, keep it in the environment so the helper reads
    the Work Brief context.
-5. Preserve helper output as context. Do not reconstruct missing runtime output.
+6. Preserve observed, inferred, suggested and unresolved-judgment separation.
+   GuideBrief does not override an exact `TaskContextPacket`.
+7. Do not reconstruct missing runtime output.
 
 ## Commands
 
@@ -50,7 +57,9 @@ npm run codex:read-brief
 
 ## Expected Output
 
-- State brief summary when runtime is reachable.
+- Current coordinate, Observed, Inferred with caveats, Suggested, Needs user
+  judgment, Constraints, Required checks, Authority boundary, and Source status
+  from GuideBrief v0.2 when runtime is reachable.
 - Work Brief context when `CODEX_WORK_ID` is set and valid.
 - Concrete skipped reason when runtime or work context is unavailable.
 
@@ -60,7 +69,7 @@ npm run codex:read-brief
 - Missing work ID: report `missing CODEX_WORK_ID` when work-linked context is
   required.
 - Unknown work ID: report the helper's unknown-work failure.
-- Do not fabricate state brief, work brief, work IDs, evidence IDs, action IDs,
+- Do not fabricate GuideBrief, work brief, work IDs, evidence IDs, action IDs,
   session IDs, or PR refs.
 
 ## Authority Boundaries

@@ -5,7 +5,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import type { NativeHostPhysicalRootIdentityV01 } from "@/types/vnext/native-host-adapter";
+import type {
+  NativeHostPhysicalRootIdentityV01,
+  NativeHostPosixPhysicalRootIdentityV01,
+} from "@/types/vnext/native-host-adapter";
 
 export class NativeHostProjectRootIdentityErrorV01 extends Error {
   constructor(readonly code: string) {
@@ -32,7 +35,7 @@ export async function inspectNativeHostPhysicalRootIdentityV01(
   canonicalRoot: string,
   filesystem: ProjectRootIdentityFilesystemV01 =
     SYSTEM_PROJECT_ROOT_IDENTITY_FILESYSTEM_V01,
-): Promise<NativeHostPhysicalRootIdentityV01> {
+): Promise<NativeHostPosixPhysicalRootIdentityV01> {
   if (!path.isAbsolute(canonicalRoot) || canonicalRoot.includes("\0")) {
     throw new NativeHostProjectRootIdentityErrorV01(
       "native_host_project_root_identity_invalid",

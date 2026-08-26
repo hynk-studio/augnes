@@ -16,6 +16,10 @@ import type {
   SourceReferencePreview,
   TensionCandidate,
 } from "@/types/research-candidate-review";
+import {
+  containsAbsoluteUserHomePath,
+  RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
+} from "@/lib/research-candidate-review/operator-bound-checkout";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -183,6 +187,10 @@ export function validateResearchCandidateManualNoteHandoffSeed(
 
   for (const [label, expectedText] of [
     ["mission", "Mission brief:"],
+    [
+      "operator_bound_checkout",
+      RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
+    ],
     ["source_refs", "Selected source refs:"],
     ["candidate_claims", "Candidate claims summary:"],
     ["tensions", "Unresolved tensions:"],
@@ -217,6 +225,9 @@ export function validateResearchCandidateManualNoteHandoffSeed(
     if (!prompt.includes(expectedText)) {
       failureCodes.push(`copyable_prompt_${label}_missing`);
     }
+  }
+  if (containsAbsoluteUserHomePath(prompt)) {
+    failureCodes.push("copyable_prompt_private_checkout_path_present");
   }
 
   return {
@@ -290,7 +301,7 @@ function buildCopyablePrompt({
   return [
     "Research Candidate Manual Note Handoff Seed Preview",
     "Repo: hynk-studio/augnes",
-    "Canonical checkout: /Users/hynk/code/augnes",
+    RESEARCH_CANDIDATE_OPERATOR_BOUND_CHECKOUT_INSTRUCTION,
     `Target label: ${input.target_label ?? "manual Research Candidate Review follow-up"}`,
     `Source result: ${input.source_metadata?.result_source ?? "visible_manual_note_preview"}`,
     `Source preview session: ${session.session_id}`,

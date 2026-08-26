@@ -41,9 +41,20 @@ import {
 } from "../lib/vnext/episode-delta-proposal";
 import {
   confirmLocalProjectOnboardingV01,
+  listRecentProjectsV01,
+  pickAndInspectLocalProjectRecoveryV01,
   pickAndInspectLocalProjectV01,
+  previewLocalProjectRootRebindFromSelectionV01,
   rebindLocalProjectRootFromSelectionV01,
 } from "../lib/vnext/onboarding/local-project-onboarding";
+import {
+  authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01,
+} from "../lib/vnext/repository-execution/repository-execution";
+import {
+  consumeVNextLocalOperatorBootstrapV01,
+  issueVNextLocalOperatorBootstrapV01,
+  issueVNextRepositoryDecisionChallengeV01,
+} from "../lib/vnext/runtime/local-operator-session";
 import {
   insertVNextCoreRecordV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -71,6 +82,9 @@ import {
   readProjectHomeEntryDestinationV01,
   readProjectHomeProjectionV01,
 } from "../lib/vnext/project-home/project-home-projection";
+import {
+  buildProjectGuideBriefV02,
+} from "../lib/vnext/guide-brief/project-guide-brief";
 import {
   buildReviewDecisionV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
@@ -156,6 +170,77 @@ function openDatabase() {
   return database;
 }
 
+async function rebindWithBrowserDecisionV01(
+  db: Database.Database,
+  input: Omit<
+    Parameters<typeof rebindLocalProjectRootFromSelectionV01>[1],
+    "decision_request_fingerprint"
+  >,
+  options: { now?: () => string; now_ms?: () => number } = {},
+) {
+  const preview = await previewLocalProjectRootRebindFromSelectionV01(
+    db,
+    input,
+    options,
+  );
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const config = {
+    enabled: true as const,
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    operator_id: "operator:project-home-rebind",
+    database_path: dbPath,
+  };
+  const base = Date.parse(now);
+  const bootstrap = issueVNextLocalOperatorBootstrapV01(db, {
+    config,
+    clock: { now: () => new Date(base - 2_000).toISOString() },
+  });
+  const session = consumeVNextLocalOperatorBootstrapV01(db, {
+    config,
+    bootstrap_token: bootstrap.bootstrap_token,
+    clock: { now: () => new Date(base - 1_000).toISOString() },
+  });
+  const decisionSession = session.repository_decision_session;
+  const challenge = issueVNextRepositoryDecisionChallengeV01(db, {
+    workspace_id: preview.workspace_id,
+    project_id: preview.project_id,
+    request_fingerprint: preview.decision_request!.request_fingerprint,
+    credential: decisionSession.credential,
+    clock: { now: () => now },
+  });
+  return rebindLocalProjectRootFromSelectionV01(
+    db,
+    {
+      ...input,
+      decision_request_fingerprint:
+        preview.decision_request!.request_fingerprint,
+    },
+    {
+      ...options,
+      authorize_decision_inside_transaction: () => {
+        const authorized =
+          authorizeRepositoryExecutionDecisionFromBrowserSessionInsideTransactionV01(
+            db,
+            {
+              workspace_id: preview.workspace_id,
+              project_id: preview.project_id,
+              request_fingerprint:
+                preview.decision_request!.request_fingerprint,
+              challenge_fingerprint: challenge.challenge_fingerprint,
+              credential: decisionSession.credential,
+            },
+            { now: () => now },
+          );
+        assert(authorized.decision.grant_fingerprint);
+        return {
+          grant_fingerprint: authorized.decision.grant_fingerprint,
+        };
+      },
+    },
+  );
+}
+
 function pickerProcess() {
   return {
     async run() {
@@ -171,6 +256,22 @@ async function inspectSelection(folder: string, inspectedAt: string) {
     open_database: openDatabase,
     now: () => inspectedAt,
     create_token: () => `selection:${path.basename(folder)}:${inspectedAt}`,
+    process: pickerProcess(),
+  });
+  assert.equal(selection.status, "selected");
+  return selection;
+}
+
+async function inspectRecoverySelection(
+  folder: string,
+  inspectedAt: string,
+  scope: Parameters<typeof pickAndInspectLocalProjectRecoveryV01>[0],
+) {
+  process.env.AUGNES_TEST_FOLDER_PICKER_PATH = folder;
+  const selection = await pickAndInspectLocalProjectRecoveryV01(scope, {
+    open_database: openDatabase,
+    now: () => inspectedAt,
+    create_token: () => `recovery-selection:${path.basename(folder)}:${inspectedAt}`,
     process: pickerProcess(),
   });
   assert.equal(selection.status, "selected");
@@ -1276,6 +1377,63 @@ async function main() {
     assert.equal(JSON.stringify(beforeAccepted).includes(expiringPerspectiveMarker), false);
     assert.equal(beforeAccepted.attention.total_count, 7);
     assert.equal(beforeAccepted.attention.items.length, 5, "pending attention is bounded");
+    const currentActiveSelection =
+      beforeAccepted.project_summary.active_selection;
+    assert(currentActiveSelection);
+    const currentProjectBoundedAttention = {
+      ...beforeAccepted,
+      project_summary: {
+        ...beforeAccepted.project_summary,
+        is_active: true,
+        active_selection: {
+          ...currentActiveSelection,
+          project_id: beforeAccepted.project_id,
+        },
+      },
+    };
+    const boundedAttentionGuide = buildProjectGuideBriefV02({
+      source: {
+        route_mode: "canonical",
+        requested_project_id: null,
+        active_project_id: beforeAccepted.project_id,
+        recent_projects: [],
+        projection: currentProjectBoundedAttention,
+        project_resolution: "resolved",
+        direct_host_round_trip_available: false,
+        delegated_work: null,
+      },
+      generated_at: fixedGeneratedAt,
+    });
+    const boundedAttentionBlankState =
+      boundedAttentionGuide.projections.blank_state;
+    assert.equal(boundedAttentionBlankState.known_attention_count, 5);
+    assert.equal(
+      boundedAttentionBlankState.attention_count_status,
+      "lower_bound",
+    );
+    assert.equal(
+      boundedAttentionBlankState.source_omitted_attention_count,
+      2,
+    );
+    assert.match(
+      boundedAttentionBlankState.continuity_summary,
+      /at least 5 known items genuinely need you/u,
+    );
+    assert.equal(
+      1 + boundedAttentionBlankState.continuity_items.length,
+      5,
+    );
+    assert.equal(
+      boundedAttentionBlankState.continuity_items.some(
+        (item) =>
+          item.item_id === boundedAttentionBlankState.highlighted_item.item_id,
+      ),
+      false,
+    );
+    assert.equal(
+      (boundedAttentionBlankState.primary_action === null ? 0 : 1) <= 1,
+      true,
+    );
     assert.equal(beforeAccepted.attention.decision_debt.pending_candidate_count, 6);
     const blockedResultAttention = beforeAccepted.attention.items.find(
       (item) => item.attention_id === `result:${latestFailedReceipt.receipt_id}`,
@@ -1621,17 +1779,38 @@ async function main() {
     assert.equal(missingHome.project_summary.root_availability, "missing");
     assert.equal(missingHome.accepted_state.items[0]?.summary, acceptedMarker);
     assert.equal(missingHome.next_moves[0]?.move_id, "recover_root");
-    const recoverySelection = await inspectSelection(
+    const recoveryExpected = (await listRecentProjectsV01(db)).find(
+      (entry) => entry.project.project_id === confirmedA.project.project_id,
+    )!;
+    const activeRecoveryExpected = readActiveProjectSelectionV01(
+      db,
+      workspace.workspace_id,
+    );
+    const recoverySelection = await inspectRecoverySelection(
       recoveredProjectARoot,
       "2026-07-15T09:04:00.000Z",
+      {
+        project_id: confirmedA.project.project_id,
+        expected_old_root_binding_fingerprint:
+          recoveryExpected.root_binding_fingerprint,
+        expected_old_baseline_fingerprint:
+          recoveryExpected.physical_root_baseline_fingerprint,
+        expected_active_project_id:
+          activeRecoveryExpected?.project_id ?? null,
+        expected_active_selection_revision:
+          activeRecoveryExpected?.selection_revision ?? null,
+      },
     );
     assert.equal(recoverySelection.status, "selected");
-    const rebound = await rebindLocalProjectRootFromSelectionV01(
+    assert.equal(recoverySelection.recovery_action, "rebind");
+    const rebound = await rebindWithBrowserDecisionV01(
       db,
       {
         project_id: confirmedA.project.project_id,
         selection_token: recoverySelection.selection_token,
         inspection_fingerprint: recoverySelection.inspection.inspection_fingerprint,
+        expected_old_root_binding_fingerprint: recoveryExpected.root_binding_fingerprint,
+        expected_old_baseline_fingerprint: recoveryExpected.physical_root_baseline_fingerprint,
       },
       { now: () => "2026-07-15T09:04:00.000Z" },
     );

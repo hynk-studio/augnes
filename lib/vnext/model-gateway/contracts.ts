@@ -11,10 +11,40 @@ import type {
   StrategicAdvantageTransferModelOutputV01,
 } from "@/types/vnext/strategic-advantage-transfer";
 import type {
+  GuideBriefInterpretationModelInputV01,
+  GuideBriefInterpretationModelOutputV01,
+} from "@/types/vnext/guide-brief-interpretation";
+import type {
+  GovernedActorLabLiveModelInputV01,
+  GovernedActorLabLiveModelOutputV01,
+} from "@/types/vnext/governed-actor-lab-live";
+import type {
+  OperationalReentryMatchedCohortModelInputV01,
+  OperationalReentryMatchedCohortModelOutputV01,
+} from "@/types/vnext/operational-reentry-matched-cohort";
+import type {
+  OperationalReentryMatchedCohortModelInputV02,
+  OperationalReentryMatchedCohortModelOutputV02,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-2";
+import type {
+  OperationalReentryMatchedCohortModelInputV03,
+  OperationalReentryMatchedCohortModelOutputV03,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-3";
+import type {
+  OperationalReentryMatchedCohortInvocationV04,
+  OperationalReentryMatchedCohortModelOutputV04,
+} from "@/types/vnext/operational-reentry-matched-cohort-v0-4";
+import type {
+  OperationalReentryStaleResetCrossCaseInvocationV01,
+  OperationalReentryStaleResetCrossCaseModelOutputV01,
+} from "@/types/vnext/operational-reentry-stale-reset-cross-case-replication";
+import type {
   ModelGatewayCostBudgetV01,
   ModelInvocationReceiptUsageV02,
   ModelInvocationReceiptV02,
 } from "@/types/vnext/model-invocation-receipt";
+import type { ModelProviderRejectionObservationV01 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
+import type { ModelProviderResponseInvalidObservationV01 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
 export {
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
   MODEL_INVOCATION_RECEIPT_VERSION_V02,
@@ -32,11 +62,32 @@ export const TEMPORAL_MODEL_GATEWAY_PURPOSE_V01 =
   "temporal_interpretation" as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 =
   "strategic_advantage_transfer" as const;
+export const GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01 =
+  "guidebrief_interpretation" as const;
+export const GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 =
+  "governed_actor_lab" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_matched_cohort" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_matched_cohort_v02" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_matched_cohort_v03" as const;
+export const OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_matched_cohort_v04" as const;
+export const OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 =
+  "operational_reentry_stale_reset_cross_case_replication_v01" as const;
 export const MODEL_GATEWAY_PURPOSES_V01 = [
   OBSERVE_MODEL_GATEWAY_PURPOSE_V01,
   PLANNER_MODEL_GATEWAY_PURPOSE_V01,
   TEMPORAL_MODEL_GATEWAY_PURPOSE_V01,
   STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01,
+  GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01,
+  GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01,
+  OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01,
 ] as const;
 
 export type ModelGatewayPurposeV01 =
@@ -111,6 +162,9 @@ interface ModelInvocationEnvelopeBaseV01 {
     path_flavor: "posix" | "win32";
     normalized_path: string;
   };
+  /** Transport-only trace identity. Runtime validation permits this only for
+   * matched-cohort purposes. */
+  provider_request_trace_id?: string;
 }
 
 export interface ObserveModelInvocationEnvelopeV01
@@ -150,11 +204,65 @@ export interface StrategicAdvantageTransferModelInvocationEnvelopeV01
   input: StrategicAdvantageTransferModelInputV01;
 }
 
+export interface GuideBriefInterpretationModelInvocationEnvelopeV01
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01;
+  input: GuideBriefInterpretationModelInputV01;
+}
+
+export interface GovernedActorLabModelInvocationEnvelopeV01
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01;
+  input: GovernedActorLabLiveModelInputV01;
+}
+
+export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV01
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryMatchedCohortModelInputV01;
+}
+
+export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV02
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryMatchedCohortModelInputV02;
+}
+
+export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV03
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryMatchedCohortModelInputV03;
+}
+
+export interface OperationalReentryMatchedCohortModelInvocationEnvelopeV04
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryMatchedCohortInvocationV04;
+}
+
+export interface OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01
+  extends ModelInvocationEnvelopeBaseV01 {
+  purpose: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01;
+  provider_request_trace_id: string;
+  input: OperationalReentryStaleResetCrossCaseInvocationV01;
+}
+
 export type ModelInvocationEnvelopeV01 =
   | ObserveModelInvocationEnvelopeV01
   | PlannerModelInvocationEnvelopeV01
   | TemporalModelInvocationEnvelopeV01
-  | StrategicAdvantageTransferModelInvocationEnvelopeV01;
+  | StrategicAdvantageTransferModelInvocationEnvelopeV01
+  | GuideBriefInterpretationModelInvocationEnvelopeV01
+  | GovernedActorLabModelInvocationEnvelopeV01
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV01
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV02
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV03
+  | OperationalReentryMatchedCohortModelInvocationEnvelopeV04
+  | OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01;
 
 export interface ModelGatewayPolicyAuthorizationV01 {
   workspace_id: string;
@@ -201,16 +309,66 @@ export interface StrategicAdvantageTransferModelGatewayResultV01 {
   model_invocation_receipt: ModelInvocationReceiptV02;
 }
 
+export interface GuideBriefInterpretationModelGatewayResultV01 {
+  interpreter: "openai" | "unavailable";
+  output: GuideBriefInterpretationModelOutputV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface GovernedActorLabModelGatewayResultV01 {
+  generator: "openai";
+  output: GovernedActorLabLiveModelOutputV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface OperationalReentryMatchedCohortModelGatewayResultV01 {
+  generator: "openai";
+  output: OperationalReentryMatchedCohortModelOutputV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface OperationalReentryMatchedCohortModelGatewayResultV02 {
+  generator: "openai";
+  output: OperationalReentryMatchedCohortModelOutputV02;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface OperationalReentryMatchedCohortModelGatewayResultV03 {
+  generator: "openai";
+  output: OperationalReentryMatchedCohortModelOutputV03;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface OperationalReentryMatchedCohortModelGatewayResultV04 {
+  generator: "openai";
+  output: OperationalReentryMatchedCohortModelOutputV04;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
+export interface OperationalReentryStaleResetCrossCaseModelGatewayResultV01 {
+  generator: "openai";
+  output: OperationalReentryStaleResetCrossCaseModelOutputV01;
+  model_invocation_receipt: ModelInvocationReceiptV02;
+}
+
 export type ModelAdapterInputV01 =
   | ({ canonical_project_id: string } & ObserveModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & PlannerModelInvocationEnvelopeV01["input"])
   | ({ canonical_project_id: string } & TemporalModelInvocationEnvelopeV01["input"])
-  | ({ canonical_project_id: string } & StrategicAdvantageTransferModelInvocationEnvelopeV01["input"]);
+  | ({ canonical_project_id: string } & StrategicAdvantageTransferModelInvocationEnvelopeV01["input"])
+  | ({ canonical_project_id: string } & GuideBriefInterpretationModelInvocationEnvelopeV01["input"])
+  | ({ canonical_project_id: string } & GovernedActorLabModelInvocationEnvelopeV01["input"])
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV01["input"])
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV02["input"])
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV03["input"])
+  | ({ canonical_project_id: string } & OperationalReentryMatchedCohortModelInvocationEnvelopeV04["input"])
+  | ({ canonical_project_id: string } & OperationalReentryStaleResetCrossCaseModelInvocationEnvelopeV01["input"]);
 
 export interface ModelAdapterLifecycleV01 {
   signal: AbortSignal;
   budget: ModelGatewayBudgetV01;
   retention_class: "none";
+  provider_request_trace_id?: string;
   mark_egress_attempted(): void;
   report_input_bytes(bytes: number): void;
 }
@@ -236,6 +394,41 @@ export type ModelAdapterInvocationResultV01 =
       purpose: typeof STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01;
       output: StrategicAdvantageTransferModelOutputV01;
       model_identifier: string;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof GUIDE_BRIEF_INTERPRETATION_MODEL_GATEWAY_PURPOSE_V01;
+      output: GuideBriefInterpretationModelOutputV01;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01;
+      output: GovernedActorLabLiveModelOutputV01;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryMatchedCohortModelOutputV01;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V02_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryMatchedCohortModelOutputV02;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V03_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryMatchedCohortModelOutputV03;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryMatchedCohortModelOutputV04;
+      usage: ModelGatewayNormalizedUsageV01 | null;
+    }
+  | {
+      purpose: typeof OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01;
+      output: OperationalReentryStaleResetCrossCaseModelOutputV01;
       usage: ModelGatewayNormalizedUsageV01 | null;
     };
 
@@ -268,7 +461,11 @@ export type ModelGatewayAdapterFailureCodeV01 =
   | "adapter_transport_failed";
 
 export class ModelGatewayAdapterFailureV01 extends Error {
-  constructor(readonly code: ModelGatewayAdapterFailureCodeV01) {
+  constructor(
+    readonly code: ModelGatewayAdapterFailureCodeV01,
+    readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
+    readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
+  ) {
     super("Model adapter invocation failed.");
     this.name = "ModelGatewayAdapterFailureV01";
   }
@@ -278,6 +475,8 @@ export class ModelGatewayInvocationErrorV01 extends Error {
   constructor(
     readonly code: ModelGatewayFailureCodeV01,
     readonly receipt: ModelInvocationReceiptV02 | null = null,
+    readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
+    readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
   ) {
     super("Model gateway invocation failed.");
     this.name = "ModelGatewayInvocationErrorV01";

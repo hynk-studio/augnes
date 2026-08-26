@@ -151,6 +151,7 @@ export interface RunReceiptHostApprovalV01 {
   decision_source:
     | "explicit_local_operator"
     | "bounded_capability_grant"
+    | "repository_execution_envelope"
     | "run_cancellation"
     | null;
   decision_fingerprint: string | null;

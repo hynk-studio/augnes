@@ -50,6 +50,9 @@ import { applyCanonicalDatabaseMigrations } from "@/scripts/canonical-database-m
 import type { VNextSemanticCommitGateRecordV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { OperationalContinuationAdmissionV01 } from "@/types/vnext/operational-continuation-admission";
+import { initialProjectWorkIdempotencyKeyV01 } from "@/lib/vnext/runtime/initial-project-work-context";
+import { preExecutionProjectWorkRevisionIdempotencyKeyV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
   PORTABLE_PROJECT_CANONICALIZATION_V01,
   PORTABLE_PROJECT_CONTRACT_V01,
@@ -70,6 +73,7 @@ export const PORTABLE_PROJECT_SUPPORTED_RECORD_KINDS_V01 = Object.freeze([
   "task_context_packet",
   "run_receipt",
   "context_use_review",
+  "operational_continuation_admission",
 ] as const satisfies readonly VNextCoreRecordKindV01[]);
 
 export const PORTABLE_PROJECT_EXCLUDED_CATEGORIES_V01 = Object.freeze([
@@ -78,6 +82,10 @@ export const PORTABLE_PROJECT_EXCLUDED_CATEGORIES_V01 = Object.freeze([
   "raw_prompts_transcripts_reasoning_and_provider_payloads",
   "terminal_output_unbounded_logs_and_ephemeral_host_state",
   "absolute_local_paths_and_unrelated_projects",
+  "machine_local_physical_root_baselines_and_execution_attachments",
+  "machine_local_repository_execution_decision_requests_and_grants",
+  "machine_local_repository_run_resume_checkpoints_and_provider_bindings",
+  "machine_local_repository_resume_attempts_and_controller_identity",
   "rebuildable_layout_ranking_cache_and_diagnostics",
 ] as const);
 
@@ -430,14 +438,26 @@ export function parseAndValidatePortableProjectV01(
         ),
       ) ||
     candidate.records
-      .filter((record) => record.record_kind === "review_decision")
+      .filter(
+        (record) =>
+          record.record_kind === "review_decision" ||
+          record.record_kind === "operational_continuation_admission",
+      )
       .some((record) => {
-        const decision = record.payload as {
-          authorization_basis_refs?: Array<{ ref_type?: string; external_id?: string }>;
-        };
-        const refs = decision.authorization_basis_refs?.filter(
-          (ref) => ref.ref_type === "local_operator_session_action",
-        ) ?? [];
+        const refs =
+          record.record_kind === "review_decision"
+            ? ((record.payload as {
+                authorization_basis_refs?: Array<{
+                  ref_type?: string;
+                  external_id?: string;
+                }>;
+              }).authorization_basis_refs?.filter(
+                (ref) => ref.ref_type === "local_operator_session_action",
+              ) ?? [])
+            : [
+                (record.payload as OperationalContinuationAdmissionV01)
+                  .authenticated_action?.local_session_action_ref,
+              ].filter(Boolean);
         return refs.length !== 1 || !provenanceIds.has(refs[0]!.external_id ?? "");
       })
   ) {
@@ -1014,13 +1034,38 @@ function readPortableOperatorProvenanceSessionsV01(
 ): PortableProjectV01["operator_provenance_sessions"] {
   const ids = new Set<string>();
   for (const record of records) {
-    if (record.record_kind !== "review_decision") continue;
-    const decision = record.payload as {
-      authorization_basis_refs?: Array<{ ref_type?: string; external_id?: string }>;
-    };
-    const refs = decision.authorization_basis_refs?.filter(
-      (ref) => ref.ref_type === "local_operator_session_action",
-    ) ?? [];
+    let refs: Array<{ ref_type?: string; external_id?: string }> = [];
+    let provenanceRequired = false;
+    if (record.record_kind === "review_decision") {
+      provenanceRequired = true;
+      const decision = record.payload as {
+        authorization_basis_refs?: Array<{
+          ref_type?: string;
+          external_id?: string;
+        }>;
+      };
+      refs = decision.authorization_basis_refs?.filter(
+        (ref) => ref.ref_type === "local_operator_session_action",
+      ) ?? [];
+    } else if (record.record_kind === "operational_continuation_admission") {
+      provenanceRequired = true;
+      const admission = record.payload as OperationalContinuationAdmissionV01;
+      refs = [admission.authenticated_action?.local_session_action_ref].filter(
+        (ref): ref is NonNullable<typeof ref> => Boolean(ref),
+      );
+    } else if (record.record_kind === "task_context_packet") {
+      const packet = record.payload as TaskContextPacketV01;
+      if (
+        initialProjectWorkIdempotencyKeyV01(packet) !== null ||
+        preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) !== null
+      ) {
+        provenanceRequired = true;
+        refs = packet.compatibility.source_refs.filter(
+          (ref) => ref.ref_type === "local_operator_session_action",
+        );
+      }
+    }
+    if (!provenanceRequired) continue;
     if (refs.length !== 1 || typeof refs[0]!.external_id !== "string") {
       refuseV01("portable_project_provenance_invalid");
     }
@@ -1200,8 +1245,12 @@ function validSha256V01(value: unknown): value is string {
 }
 
 function portableFilenameSegmentV01(value: string): string {
-  const normalized = value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-+|-+$/gu, "");
-  return (normalized || "project").slice(0, 80);
+  const normalized = value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+    .replace(/^-+|-+$/gu, "");
+  return [...(normalized || "project")].slice(0, 80).join("");
 }
 
 function ensureSafeExistingDirectoryV01(directory: string, code: string): void {

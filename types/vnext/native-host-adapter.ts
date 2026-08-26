@@ -1,6 +1,7 @@
 import type { ExternalRefV01 } from "./external-ref";
 import type { TaskContextPacketV01 } from "./task-context-packet";
 import type { BoundedAutomationCapabilityGrantV01 } from "./bounded-automation-cycle";
+import type { GuideBriefCodexProjectionV02 } from "./guide-brief";
 
 export const NATIVE_HOST_REQUEST_VERSION_V01 =
   "native_host_request.v0.1" as const;
@@ -11,7 +12,10 @@ export const NATIVE_HOST_RESULT_RETURN_VERSION_V01 =
 export const NATIVE_HOST_APPROVAL_VERSION_V01 =
   "native_host_approval.v0.1" as const;
 
-export type NativeHostRunModeV01 = "interactive" | "policy_triggered";
+export type NativeHostRunModeV01 =
+  | "interactive"
+  | "policy_triggered"
+  | "repository_attachment";
 export type NativeHostRootKindV01 =
   | "plain_folder"
   | "git_repository"
@@ -49,12 +53,30 @@ export type NativeHostExecutionProfileV01 =
   | "native_host_managed_model";
 export type NativeHostProviderEgressV01 = "forbidden" | "native_host_managed";
 
-export interface NativeHostPhysicalRootIdentityV01 {
+export interface NativeHostPosixPhysicalRootIdentityV01 {
   identity_version: "native_host_physical_root_identity.v0.1";
   canonical_realpath_fingerprint: string;
   device: string;
   inode: string;
 }
+
+export interface NativeHostWindowsPhysicalRootIdentityV01 {
+  identity_version: "physical_root_identity.windows.v0.1";
+  canonical_final_path_fingerprint: string;
+  volume_serial_identity: string;
+  file_id: string;
+  filesystem_family: "NTFS";
+  drive_type: "fixed";
+}
+
+/**
+ * The historical POSIX member intentionally retains its exact v0.1 field
+ * names and serialization. Windows volume/file identity is a distinct
+ * contract and is never presented as POSIX device/inode identity.
+ */
+export type NativeHostPhysicalRootIdentityV01 =
+  | NativeHostPosixPhysicalRootIdentityV01
+  | NativeHostWindowsPhysicalRootIdentityV01;
 
 export interface NativeHostRootScopeV01 {
   canonical_root: string;
@@ -82,6 +104,40 @@ export interface NativeHostAutomationContextV01 {
   };
 }
 
+export type NativeHostPacketLineageV01 =
+  | {
+      /** Historical v0.1 transition-derived shape remains byte-compatible. */
+      source_transition_receipt_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "initial_user_defined";
+      first_work_definition_ref: ExternalRefV01;
+      first_work_request_ref: ExternalRefV01;
+      operator_action_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "pre_execution_user_revision";
+      work_definition_revision_ref: ExternalRefV01;
+      work_revision_request_ref: ExternalRefV01;
+      operator_action_ref: ExternalRefV01;
+      immediate_prior_packet_ref: ExternalRefV01;
+      origin_first_work_definition_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    }
+  | {
+      lineage_kind: "source_linked_operational_continuation";
+      operational_continuation_admission_ref: ExternalRefV01;
+      operational_continuation_materialization_ref: ExternalRefV01;
+      immediate_prior_packet_ref: ExternalRefV01;
+      packet_source_refs: ExternalRefV01[];
+      selected_context_refs: ExternalRefV01[];
+    };
+
 export interface NativeHostRequestV01 {
   request_version: typeof NATIVE_HOST_REQUEST_VERSION_V01;
   request_id: string;
@@ -93,11 +149,9 @@ export interface NativeHostRequestV01 {
   task_ref: ExternalRefV01;
   task_context_packet_ref: ExternalRefV01;
   packet: TaskContextPacketV01;
-  packet_lineage: {
-    source_transition_receipt_ref: ExternalRefV01;
-    packet_source_refs: ExternalRefV01[];
-    selected_context_refs: ExternalRefV01[];
-  };
+  /** Non-authoritative in-memory guidance; excluded from packet integrity. */
+  guide_brief?: GuideBriefCodexProjectionV02;
+  packet_lineage: NativeHostPacketLineageV01;
   mode: NativeHostRunModeV01;
   root_scope: NativeHostRootScopeV01;
   requested_capability: string;
@@ -106,6 +160,8 @@ export interface NativeHostRequestV01 {
   packet_capability_grant: TaskContextPacketV01["capability_grant"];
   execution_grant_ref: ExternalRefV01 | null;
   automation_context: NativeHostAutomationContextV01 | null;
+  repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
+  repository_resume_context?: NativeHostRepositoryResumeContextV01 | null;
   policy: {
     filesystem: "selected_project_root_only";
     network: "forbidden" | "exact_grant_only";
@@ -134,6 +190,28 @@ export interface NativeHostRequestV01 {
     raw_output_allowed: false;
     max_result_bytes: number;
   };
+}
+
+export interface NativeHostRepositoryDelegationContextV01 {
+  context_version: "native_host_repository_delegation_context.v0.1";
+  attachment_id: string;
+  attachment_binding_fingerprint: string;
+  execution_envelope_fingerprint: string;
+  start_decision_request_fingerprint: string;
+  protected_untracked_paths_fingerprint: string;
+  protected_untracked_paths: string[];
+}
+
+/** Private exact claim for one admitted repository resume attempt. */
+export interface NativeHostRepositoryResumeContextV01 {
+  context_version: "native_host_repository_resume_context.v0.1";
+  attempt_fingerprint: string;
+  checkpoint_fingerprint: string;
+  expected_state_fingerprint: string;
+  prior_controller_generation: number;
+  resumed_controller_generation: number;
+  admitted_run_control_revision: number;
+  admitted_step_control_revision: number;
 }
 
 export interface NativeHostChangedFileV01 {
@@ -235,6 +313,7 @@ export interface NativeHostLifecycleEventV01 {
     | "thread_bound"
     | "thread_status_changed"
     | "turn_started"
+    | "work_checkpoint"
     | "approval_resolved"
     | "stop_requested"
     | "transport_disconnected"
@@ -271,6 +350,11 @@ export interface NativeHostApprovalRequestV01 {
   issued_at: string;
   expires_at: string | null;
   coverage: NativeHostCoverageClassV01;
+  repository_envelope_classification?:
+    | "preauthorized"
+    | "approval_required"
+    | "refused"
+    | null;
 }
 
 export interface NativeHostApprovalDecisionV01 {
@@ -280,6 +364,7 @@ export interface NativeHostApprovalDecisionV01 {
   decision_source:
     | "explicit_local_operator"
     | "bounded_capability_grant"
+    | "repository_execution_envelope"
     | "run_cancellation";
   decided_at: string;
   control_revision: number;
@@ -311,6 +396,14 @@ export interface NativeHostAdapterV01 {
   readonly capability_version: string;
   readonly execution_profile: NativeHostExecutionProfileV01;
   readonly provider_egress: NativeHostProviderEgressV01;
+  /**
+   * Private capability declaration only. CDX2B4A reads this flag but never
+   * invokes resume. Adapters that omit it are deliberately unsupported.
+   */
+  readonly resume_capability?: {
+    binding_version: "native_host_resume_binding.v0.1";
+    resumable_after_detach: boolean;
+  };
   invoke(
     request: NativeHostRequestV01,
     control: NativeHostInvocationControlV01,

@@ -2,16 +2,24 @@
 
 import { ProductShell } from "@/components/product-shell";
 
-export default function ProjectHomeError({ reset }: { reset: () => void }) {
+export default function BlankStateProjectError({ reset }: { reset: () => void }) {
   return (
-    <ProductShell surface="home">
-      <main className="project-home-shell product-route-state product-route-state--danger" role="alert">
-        <p className="project-selector-eyebrow">Project Home</p>
-        <h1>Project Home could not be read</h1>
-        <p>The project remains stored. Retry the local read or return to project selection.</p>
-        <div className="project-home-actions">
-          <button type="button" onClick={reset}>Retry</button>
-          <a href="/projects">Project selection</a>
+    <ProductShell primaryZone="blank-state">
+      <main className="blank-state-shell product-route-state product-route-state--danger" role="alert">
+        <p className="blank-state-eyebrow">Continuities</p>
+        <h1>This project could not be opened</h1>
+        <p>No project data was changed. Retry the read or choose another project.</p>
+        <div className="blank-state-error-actions">
+          <button
+            type="button"
+            className="blank-state-primary-action"
+            data-blank-state-primary-action="retry"
+            data-augnes-primary-action="retry"
+            onClick={reset}
+          >
+            Retry
+          </button>
+          <a className="blank-state-secondary-link" href="/projects">Choose another project</a>
         </div>
       </main>
     </ProductShell>

@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = {
-  title: "Run result review | Augnes",
-  description: "Read-only inspection of one immutable project-scoped RunReceipt.",
+  title: "Result review | Augnes",
+  description: "Review a project result, its verification, open questions, and next action.",
 };
 
 export default async function RunResultReviewPage({

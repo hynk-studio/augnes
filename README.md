@@ -1,311 +1,328 @@
 # Augnes
 
-*Continuous perspective for AI-assisted projects.*
+*Continuous perspective for long-horizon, AI-assisted work.*
 
-Augnes is a local-first continuity engine for AI-assisted projects. It helps a
-project carry goals, relevant context, evidence, decisions, uncertainty, and
-accepted changes across tasks, tools, and sessions.
+Augnes maintains the state, temporal lineage, evidence, perspectives,
+unresolved judgments, and next meaningful actions of long-horizon work, and
+projects the same product meaning into the host-native interfaces where the
+user is already working.
 
-ChatGPT, Codex, and other native hosts perform tasks. Augnes preserves and
-reviews the project context around that work so that later tasks can begin from
-an explicit, source-linked state.
+The product invariant is the continuity of meaning, not the replication of one
+interface. The product is continuous work, not a collection of surfaces.
 
-This repository demonstrates the operational Core and a reference operator
-interface. It demonstrates the full continuity loop; a simpler user-facing
-workspace will be developed on top of this engine.
+**Resume / Verify / Decide.**
 
-```text
-Project context
-→ Codex or another native host
-→ RunReceipt
-→ criterion verification
-→ reviewable proposal
-→ user decision
-→ authorized Transition
-→ later project context
-```
-
-[Judge Quickstart](#judge-quickstart) · [What works today](#what-works-today) ·
-[How GPT-5.6 and Codex were used](#how-gpt-56-and-codex-were-used) ·
-[Architecture and roadmap](#architecture-and-roadmap) ·
+[Quickstart](#quickstart) · [What works today](#what-works-today) ·
+[Product direction](#product-direction) ·
+[Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
-## Judge Quickstart
+## Canonical repository migration
 
-The source checkout requires Node.js 20.9 or newer and npm. On a supported
-Linux or macOS development host, the minimal local start is:
+`hynk-studio/augnes` is the target canonical repository and
+`/Users/hynk/code/augnes` is the target canonical macOS root. The complete
+perspective-lab Git history through the migration point remains ancestry and
+historical provenance; historical Issue, PR, release, receipt, and research
+links stay bound to `hynk-studio/augnes-perspective-lab`.
+
+This exact migration bridge temporarily recognizes only the legacy
+perspective-lab/root pair and the target augnes/root pair. It does not create a
+general multi-repository or configurable-root mode. The installed Companion,
+local database, project root binding, RW1/RW1A artifacts, and other local state
+remain pre-cutover until the user merges the bridge and separately authorizes
+the local cutover. A second hardening PR must then remove legacy execution
+authority. This bridge does not claim that local cutover is complete.
+
+## Quickstart
+
+The source checkout supports maintained even-numbered Node.js 22 and 24 lines
+with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
+npm 11.16.0.
+
+On a supported macOS development host, install the exact checkout-bound local
+Companion service once:
 
 ```bash
 npm install
 npm --prefix apps/augnes_apps install
-npm run augnes
+npm run augnes:service:install
 ```
 
-Augnes prepares its application-owned local database, starts the supervised UI
-and bridge, waits for both to become ready, and prints the effective loopback UI
-URL. No private credentials are required for this startup path.
+This explicit action installs a user-session LaunchAgent for this physical
+checkout, selects and pins one Node 24 binary, and starts the existing
+supervised UI/Core and bridge. It stores no secret in the service definition,
+survives the installing terminal, starts at login, and recovers unexpected
+runtime failure. It grants no repository execution, managed-run Resume,
+provider, semantic, external-effect, publication, or merge authority. Stop or
+remove it reversibly with `npm run augnes:service:stop` or
+`npm run augnes:service:uninstall`. Linux and Windows service installation are
+unsupported; their source development flow remains foreground-only.
+Explicit Stop remains stopped across a later login or LaunchAgent reload; only
+an explicit Start or Install returns that exact service to running. One
+production Companion service may be installed per local user session, so setup
+or Start for another checkout refuses without changing the existing service.
 
-### Fresh-checkout evaluation
+Normal startup prepares the application-owned local database and does not
+reset or seed operator data. `npm run augnes:service:status` returns bounded
+lifecycle state without exposing service paths, Node paths, PIDs, ports,
+tokens, manifests, or database paths.
 
-Open the printed URL, choose a folder, inspect it, and confirm it to create the
-first project. This path demonstrates installation, project onboarding, Project
-Home, and supervised local runtime behavior. Normal startup does not seed or
-reset operator data, and it does not create the review history needed for the
-full continuity walkthrough.
+Open the URL and connect a local project. The primary path uses **Choose a
+folder**. If the native picker is unavailable, remains invisible, is cancelled,
+or does not return, **Enter the folder path instead** accepts one exact absolute
+path from the computer running Augnes. Both paths converge on the same review
+and explicit **Connect project** action. The folder is not uploaded, and
+connecting it does not run Codex or change project files. This fresh-checkout
+path demonstrates installation, project onboarding, Blank State, and supervised
+local runtime behavior. It does not fabricate the review history needed for a
+complete continuity walkthrough.
 
-### Prepared Build Week demonstration
+To define or revise work for the connected project from a source checkout,
+open another terminal in this repository and run:
 
-The submission video and gallery show this sequence in a separately prepared
-evaluation workspace:
-
-1. Open the prepared local project in Project Home.
-2. Select **Run deterministic host round trip**.
-3. Open the returned `RunReceipt` through **Inspect exact receipt**.
-4. Compare execution completion with task outcome; a completed process does not
-   automatically establish task success.
-5. Open Semantic Workbench to inspect criteria, unresolved uncertainty, and the
-   reviewable proposal.
-6. Review the candidate, its `ReviewDecision`, and any separately authorized
-   `Transition` state.
-7. Open Inspector to trace the packet, receipt, sources, decision, and later
-   context lineage.
-
-The repository does not currently provide a supported public command that
-creates this complete workspace from a clean checkout. A final Build Week
-release will include the prepared walkthrough only if it also includes a
-reproducible evaluation workspace and instructions. Until then, the three
-startup commands above should not be read as a credential-free full continuity
-demo.
-
-`OPENAI_API_KEY` remains optional, and supported flows use deterministic local
-fallbacks when no API key is present. A locally installed and authenticated
-Codex CLI with App Server support is required only for **Start live Codex work**.
-
-See the [full judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md) for
-fresh-data behavior, the optional live path, supported platforms, and known
-limitations.
-
-## OpenAI Build Week 2026
-
-An earlier version of Augnes placed third in the OpenAI Discord community's
-“Build a System, Not a Prompt” developer challenge. During Build Week, the
-project was expanded into an operable local-first continuity system.
-
-This submission focuses on the continuity Core and its reference operator
-interface. The current UI exposes the engine's behavior for evaluation; it does
-not claim to be the finished end-user product.
-
-The repository now supports:
-
-- local project onboarding and Project Home;
-- project-scoped deterministic and live Codex/native-host round trips;
-- structured, immutable `RunReceipt` records;
-- source-linked criterion verification that preserves unresolved status;
-- reviewable proposals and explicit `ReviewDecision` records;
-- separately authorized `Transition` records and later-context reuse;
-- shared Inspector lineage across Project Home and Semantic Workbench;
-- bounded automation that stops for review; and
-- supervised local runtime, native packages, backup, restore, update, recovery,
-  and portable project continuity.
-
-## How GPT-5.6 and Codex were used
-
-GPT-5.6 in ChatGPT was used for architecture analysis, implementation planning,
-product decisions, and pull-request review. It helped preserve architectural
-and authority boundaries as the project advanced through successive phases.
-
-Codex implemented scoped vertical slices, wrote deterministic and adversarial
-tests, ran repository verification, and opened pull requests. The project used
-a PR-centered workflow so each major capability could be reviewed and tested
-separately before merge.
-
-The human developer selected goals, reviewed results, made product decisions,
-and controlled merges. ChatGPT did not directly execute Codex or create commits.
-
-## Reference operator interface
-
-The current UI is a reference operator interface for the continuity engine. It
-shows detailed verification, authority, uncertainty, and lineage state so the
-Core can be inspected directly.
-
-The planned user-facing layer will present goals, progress, pending decisions,
-and next actions more simply. Detailed records will remain available through
-Inspector when needed.
-
-## Product direction
-
-Augnes is being completed around one operability-first flow:
-
-```text
-Start Augnes
-→ select a project
-→ start or accept a task
-→ compile project context
-→ run Codex / the native host interactively or through bounded automation
-→ RunReceipt
-→ source-linked assessment/comparison
-→ reviewable semantic proposal
-→ user decision
-→ authorized Transition
-→ later context reuse
-→ later outcome feedback
+```bash
+npm run augnes -- access
 ```
 
-The active product commitments are:
+This normally stops the current supervised runtime, binds the existing local
+review session owner to the exact current project, restarts one supervised
+runtime, and prints one expiring token. Paste that token into the visible
+Browser unlock form. The token establishes local project review access only;
+it grants no execution, semantic, external-effect, or merge authority. Do not
+copy it into project files, prompts, issue comments, or verification evidence.
 
-- provider-neutral, local-first Core
-- Resume / Verify / Decide
-- project and workspace identity with isolation
-- `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, and `ReviewDecision`
-- source-linked criterion assessment that preserves `unknown` when support is insufficient
-- bounded strategic advantage transfer inside the shared R6 assessment boundary
-- candidate-level review before any strategic or semantic change can be authorized
-- later `ContextUseReview` outcome feedback for reviewed context reuse
-- a bounded Automation Spine using policy, grants, runs, receipts, stop conditions, and user control
-- minimal Model Gateway with an OpenAI reference adapter
-- adapter-backed Codex round trip for interactive and unattended runs
-- Project Home, Semantic Workbench, and shared Inspector
-- a bounded Personal Perspective lane that reuses the same review, context-selection, and feedback contracts
-- migration, backup, restore, update, and recovery
+If an existing project's saved folder later becomes unavailable, **Locate
+folder** opens the same verified folder-selection experience for that exact
+project. **Choose a folder** and **Enter the folder path instead** converge on
+one recovery review. **Use this folder** keeps the project name and stored
+history, then uses the existing Browser-confirmed project root-rebind authority
+to replace the local root and physical baseline atomically. Selecting the exact
+current folder or one of its physical aliases only opens the existing project
+and does not rewrite its saved root. Recovery does not run Codex or change
+project files.
 
-The active sequence is defined in
-[`docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
+For source-blind local Codex resumption, install the repo-local
+`plugins/augnes-operator` plugin once with
+`npm run augnes:plugin:install`. Ask “Resume this
+repository with Augnes.” Plugin version 0.4.0 first checks lifecycle status,
+starts an already-installed exact service at most once when offered, and only
+then performs one read-only canonical Resume through a verified Companion. It
+never installs the service from MCP. The plugin verifies the supervised bridge and
+calls the strict UI/Core route through a private generation-bound channel; no
+fixed `8787` configuration, Browser open page, mock, seed, docs, or legacy brief
+fallback is required.
+
+`OPENAI_API_KEY` is optional. Supported paths retain deterministic local
+fallbacks without it. A locally installed and authenticated Codex CLI with App
+Server support is required only for live Codex work.
+
+For the prepared historical Build Week evaluation path and its limitations, see
+the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
 
 ## What works today
 
-- `/` and `/projects/[projectId]` provide Project Home for Resume, current
-  coordination, attention, automation state, and the next meaningful action.
-- `/projects` onboards a local folder, preserves project identity, and reopens
-  recent projects without deleting project data.
-- `/workbench` remains a small compatibility landing page rather than a second
-  review product.
-- `/workbench/semantic-review` provides the canonical Semantic Workbench for
-  Verify and Decide, including explicit decision and Transition interactions.
-- Existing result deep links remain concise result entries into Workbench and
-  the exact receipt-focused shared Inspector.
-- `/workbench/inspector` is reached through generated exact links and provides
-  authenticated, project-scoped, read-only drill-down. It creates no semantic
-  record, decision, gate, Transition, packet, feedback, or automation work and
-  invokes no model, provider, or external action.
-- `/perspective` provides Perspective and lineage views.
-- Local SQLite persistence stores durable vNext semantic records and projections.
-- Deterministic mock paths allow local development without an OpenAI key.
-- Persisted `TaskContextPacket` input reaches deterministic or live native hosts
-  without packet copy, and structured results return through one canonical
-  `RunReceipt` authority for Project Home, Workbench, and Inspector review.
+Repository-scoped Codex continuity, trusted local execution preparation, and
+one attachment-backed managed run are
+documented in [Repository execution attachment v0.1](./docs/REPOSITORY_EXECUTION_ATTACHMENT_V0_1.md).
+Preparation binds canonical project, physical root, current work, and bounded
+Git worktree content state without starting a run or depending on Browser
+active selection. Legacy adoption, intentional rebind, and revocation use one
+same-origin Browser confirmation backed by a separate HttpOnly decision session
+and a request-bound one-time nonce; forged request headers and MCP literals are
+insufficient. Ordinary exact preparation remains silent. Starting consumes one
+exact attachment only after one Browser confirmation, then permits bounded
+reversible local repository work within its deterministic envelope. Later
+operation approval and semantic result review remain separate. The
+managed-delegation product boundary covers verified local macOS and the
+verified Windows 11 x64 source-runtime lane on local fixed NTFS. Linux has no
+separate product filesystem/runtime proof. CDX2B3A source-runtime attachment
+admission has exact Windows 10 Pro 22H2 build 19045.6456 proof at checkpoint
+`374a582b766a10616667633eb911d3df2d49b85e` and exact Windows 11 Home 25H2
+build 26200.8875 proof at pre-integration checkpoint
+`567c9bbbad5d35e6803ad740adfac1b881983912`, both x64 local fixed NTFS. A later
+integrated head is not Windows 10 exact-head verified without a fresh run
+there, so Windows 10 managed Start and Resume remain unavailable. The existing
+package builder still refuses Windows, so packaged Windows admission, Start,
+and Resume remain unavailable. CDX2B3B enables Browser-confirmed Start and
+explicit same-run Resume only through the existing attachment, run, checkpoint,
+envelope, cancellation, result, and semantic-review owners; it adds no Windows
+runner and no automatic Resume.
 
-## Source installation and local operation
+Cancellation remains available from the immutable consumed attachment/run
+binding even when current packet, work, root, baseline, worktree, or Browser
+selection has drifted. Exact Start replay reports the persisted run's actual
+queued, active, approval, disconnected, blocked, or terminal state and never
+starts another worker. Browser, Companion, provider, database, runtime, and OS
+credentials are not injected into the worker, and outside-root material stays
+blocked. Files already inside the exact repository are nevertheless within the
+repository read scope; Augnes does not claim content-based secret unreadability
+for those files.
 
-The [Judge Quickstart](#judge-quickstart) contains the canonical source install
-and start commands. The root dependency graph requires Node.js 20.9 or newer;
-the repository requires npm to run its scripts but does not declare a separate
-minimum npm version.
+The checked-in runtime currently provides:
 
-The supervised start command resolves application-owned local paths, safely
-creates or migrates the database, and supervises both the local UI and MCP
-bridge. It automatically selects another bounded loopback port when a preferred
-port is occupied. On restart it reconciles provably owned orphan children and
-interrupted database preparation; unverifiable local ownership fails closed
-without signaling processes or changing data. `npm run dev` remains a
-compatibility alias.
+- local workspace/project onboarding and project isolation;
+- supervised startup, persistence, migration, backup, restore, recovery, and
+  run reconciliation;
+- a two-zone product shell with Blank State and AI Workplane;
+- project-scoped deterministic and live native-host/Codex work;
+- structured receipts, source-linked criterion assessment, reviewable
+  proposals, explicit decisions, authorized Transitions, later context, and
+  bounded feedback;
+- GuideBrief v0.2 projections across current Browser, ChatGPT/MCP, and Codex
+  paths;
+- contextual, read-only Exact details;
+- bounded interactive and policy-triggered execution;
+- compatible portability and recovery paths;
+- limited project-scoped Personal Perspective controls and bounded research
+  capabilities where runtime/tests prove them.
 
-From another terminal, the same command surface reports or stops the verified
-owned instance:
+Execution completion is not verified success. Recommendation is not decision.
+Candidate is not accepted state. A decision is not an applied Transition.
 
-```bash
-npm run augnes -- status
-npm run augnes -- stop
-npm run augnes -- diagnostics
-```
+Exact current status and sequencing belong to the
+[current implementation roadmap](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
+Current code remains the source of truth for exact routes, schemas, commands,
+records, and behavior.
 
-`diagnostics` is an explicit, read-only local surface for resolved data,
-configuration, backup, runtime-state, and database paths. Normal start, status,
-stop, and health output omit database and backup paths. An absolute
-`AUGNES_DB_PATH` remains available as an explicit compatibility override; when
-it is absent, Augnes does not adopt `data/augnes.db` from the repository.
+## Product direction
 
-`db:migrate` and `demo:seed` remain explicit development commands and are not
-part of normal startup. Do not use `db:reset` as a normal start command. It is a
-destructive developer operation and must only be used with an absolute
-`AUGNES_DB_PATH` that targets an explicitly disposable database.
+Augnes preserves continuous work across Browser, ChatGPT Apps, Codex, and
+future hosts without forcing those hosts to look alike.
 
-`OPENAI_API_KEY` is optional. Without it, supported flows use deterministic
-local fallbacks.
+- **Blank State** focuses human attention and resumption.
+- **AI Workplane** coordinates delegation, progress, verification,
+  reconciliation, review preparation, bounded automation, later context, and
+  outcome feedback.
+- **Timeline** explains meaningful sequence.
+- **Relationship exploration** explains a bounded connection, not an exhaustive
+  graph or permanent “constellation” product.
+- **GuideBrief** explains present meaning and remains contextual,
+  source-anchored, conversational, and non-authoritative.
+- **Inspector / Exact details** exposes optional, dense, neutral, read-only
+  records.
 
-## Distributable package
+Internal research complexity may increase; default user complexity must not
+increase with it.
 
-Maintainers produce the platform-native Augnes artifact with one command:
+A mature attention queue, timeline-first work detail, bounded relationship
+exploration, fully conversational GuideBrief, and the fuller long-horizon
+research substrate remain product directions unless current runtime evidence
+proves a bounded implementation. Their documentation does not claim they are
+complete.
 
-```bash
-npm run package
-```
+The durable doctrine is
+[Augnes Product and Continuity Doctrine](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md).
+Core records and protocol semantics are defined separately in
+[Architecture and Protocol](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md).
 
-The command prints the exact artifact and package-root names and writes
-`dist/augnes-<version>-<os>-<architecture>-node<abi>[-<libc>].tar.gz`. The
-archive contains one matching versioned top-level directory with a production
-standalone UI, a compiled bridge, the supervised runtime, and a versioned
-integrity manifest. After receiving the artifact, an ordinary Unix user runs:
+## Repository authority
 
-```bash
-tar -xzf <artifact>
-cd <package-root>
-./augnes
-```
+The [authority map](docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md) assigns one
+active owner per durable topic:
 
-Package production and startup are supported on Linux and macOS build hosts.
-`Ctrl-C` performs the normal foreground shutdown; the same launcher also
-accepts the optional `status`, `stop`, and `diagnostics` actions. Startup creates
-or validates the application-owned database, chooses available loopback UI and
-bridge ports, and preserves missing provider or host capabilities as lazy,
-non-blocking status.
+- product and continuity doctrine — `01`;
+- Core and protocol semantics — `02`;
+- implementation status and sequence — `03`;
+- evaluation and maturity — `04`;
+- temporary C0–C9 correction program — `07`;
+- product entry — this README;
+- repository operating rules — `AGENTS.md`.
 
-Each artifact is native to the operating system, architecture, Linux C library
-where applicable, and Node module ABI recorded in `augnes-package.json`. The
-launcher verifies those prerequisites and every packaged file before creating
-runtime or data state. The current artifact contract requires Node.js 20.9 or
-newer with the recorded native module ABI; it does not claim cross-platform,
-cross-libc, or cross-ABI portability, bundled Node, code signing, or a remote
-update channel. A Windows package is not currently supported.
+Implementation contracts, research, operator manuals, compatibility material,
+and historical records do not silently override those owners.
+
+C0–C8 are merged. RR0 was completed in
+[issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
+and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
+RR1 is documentation authority reconciliation defined by
+[issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
+C9 remains pending separate explicit authorization.
+
+Attachment-backed managed runs retain one private exact safe-operation
+checkpoint history and expose one bounded read-only resume-eligibility status
+through repository continuity, Browser, Apps MCP, and the Augnes Operator.
+This distinguishes the immutable consumed start attachment from the latest
+confirmed post-operation repository state. Exact `resume_ready` material may
+now create one expiring Browser-only Resume decision and one atomic same-run,
+same-attachment, same-thread attempt. The provider path uses `thread/resume`,
+not `thread/start`; ambiguous effects require reconciliation and pending
+operation approval remains separate. Resume completion does not create a
+ReviewDecision, Transition, accepted state, or work closure, and Companion
+startup never resumes automatically.
 
 ## Canonical verification
 
-The supported public verification surface is:
+GitHub is used for source control, pull requests, review, and history. This
+repository has no active GitHub Actions workflow; deciding verification is
+repository-owned Local Canonical execution.
+
+Use:
 
 ```bash
-npm run typecheck
-npm run build
-npm test
-npm run test:integration
-npm run test:authority
-npm run test:operability
-npm run test:e2e
+npm run verify:local:quick
+npm run verify:local:changed -- \
+  --base <exact-40-character-base-sha> \
+  --head <exact-40-character-head-sha>
+npm run verify:local:full -- \
+  --base <exact-40-character-base-sha> \
+  --head <exact-40-character-head-sha>
+npm run verify:local:receipt -- \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
 ```
 
-## Development policy
+`quick` is non-deciding developer feedback. `changed` runs the exact-SHA
+planner-selected lane. `full` deliberately runs the complete surface. Deciding
+verification requires the exact clean head, repository-required Node/npm
+versions, planner-selected scope, successful cleanup, and a validated local
+receipt.
 
-- Advance the end-to-end product flow before adding new framework or process layers.
-- Build the minimal Automation Spine across R2–R8 instead of postponing automation until after the manual path is fixed.
-- Defer advanced hunt heuristics, generic scheduler replication, unrestricted retry, self-modification, and automatic semantic commit—not bounded automation itself.
-- Allow Personal Perspective to progress as a parallel bounded lane when it reuses existing Core contracts and does not block the mainline flow.
-- Use focused unit, integration, disposable-database, and browser tests during development.
-- Do not make long manual operator pilots a normal PR merge gate.
-- Move broad real-user usefulness validation to Alpha, after the core R2–R8 flow is feature-complete.
-- Keep irreversible external actions and durable semantic changes under explicit user control.
-- Implement strategic analysis as an optional bounded profile inside the shared R6
-  assessment → proposal → decision → Transition path, not as a separate Arena,
-  strategic engine, or multi-agent subsystem.
-- Never let assessment, strategic candidates, model agreement, or outcome feedback
-  bypass proposal, decision, or Transition gates.
-- Do not add new planning-only documents, passive workflow-stage panels, manual copy UI, feature-specific smoke commands, or separate automation/perspective subsystems by default.
+The complete surface consists of:
 
-## Architecture and roadmap
+- `npm run typecheck`
+- `npm run build`
+- `npm test`
+- `npm run test:authority`
+- `npm run test:integration`
+- `npm run test:operability`
+- `npm run test:e2e:project-experience`
+- `npm run test:e2e:operator-execution`
+- `npm run test:e2e:continuity`
+- `npm run test:e2e:golden`
+- `npm run test:e2e`
 
-- [`docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md) — product identity and north star
-- [`docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md) — Core and protocol meaning
-- [`docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) — active implementation order
-- [`docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) — development and post-Alpha evaluation
-- [`docs/REPOSITORY_REDUCTION_SCOPE.md`](docs/REPOSITORY_REDUCTION_SCOPE.md) — repository retention and deletion policy
-- [`AGENTS.md`](AGENTS.md) — Codex implementation rules
+Receipts and logs remain ignored local artifacts. Their fingerprints establish
+content integrity and local provenance only; they are not hosted reproduction,
+independent attestation, or an external status. Evidence publication is a
+separate explicit action and never follows verification automatically.
 
-Historical plans, dogfood reports, closeout records, and compatibility documents
-are not active sequencing authority.
+The explicit evidence commands are:
+
+```bash
+npm run verify:local:evidence:prepare -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+npm run verify:local:evidence:publish -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json \
+  --confirm-publish
+npm run verify:local:evidence:verify -- \
+  --pr <positive-pr-number> \
+  --receipt .augnes-local-verification/receipts/<receipt>.json
+```
+
+`prepare` is read-only. `publish` is forbidden without separate explicit
+authorization for the exact current Draft PR and receipt.
+
+See:
+
+- [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md)
+- [Local Canonical PR evidence policy](.github/LOCAL_CANONICAL_PR_EVIDENCE.md)
+- [Evaluation and maturity](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
+
+## Historical note
+
+An earlier Augnes version placed third in the OpenAI Discord community’s “Build
+a System, Not a Prompt” developer challenge. Build Week expanded the project
+into the operational local-first continuity reference implementation preserved
+in this repository. Submission material remains historical evaluation context,
+not current product authority.

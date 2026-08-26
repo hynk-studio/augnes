@@ -7,11 +7,13 @@ description: Consume GuideBrief packets as bounded Codex task-start context whil
 
 ## Purpose
 
-Use this skill when Codex receives a GuideBrief packet, GuideBrief-derived
+Use this skill when Codex receives a GuideBrief v0.2 packet, GuideBrief-derived
 handoff text, or a task prompt that explicitly asks Codex to preserve
 GuideBrief context.
 
-This skill is instruction-only workflow guidance. It does not run commands,
+This skill is instruction-only workflow guidance. C3 may deliver a bounded
+current-project GuideBrief automatically to a newly started native Codex turn,
+but the skill itself does not run commands,
 call Augnes runtime, call GitHub, call OpenAI, call providers, call MCP/App
 tools, execute Codex SDK calls, record proof, record evidence, mutate memory,
 mutate state, create branches, open PRs, merge, publish, retry, replay, deploy,
@@ -20,10 +22,13 @@ send handoffs, or post externally by itself.
 ## Operating Contract
 
 `AGENTS.md` remains the root Codex operating contract. GuideBrief is a
-read-only guide packet, not repository authority, proof, approval, readiness,
+read-only current-project View, not repository authority, proof, approval, readiness,
 merge permission, handoff execution permission, or Codex launch permission.
 
-Before editing, read the active user task and the full GuideBrief packet or
+For a native task start, preserve the two explicit sections: GuideBrief is
+non-authoritative guidance and `TaskContextPacket` is the exact bounded
+execution contract. GuideBrief cannot rewrite, broaden, remove constraints
+from, or override the packet. Before editing, read the active user task and the full GuideBrief packet or
 GuideBrief-derived handoff text. Preserve:
 
 - guide brief ref
@@ -58,9 +63,10 @@ At task start, restate or internally preserve:
 - Authority boundary and no-write/no-execution limits.
 - Handoff candidates as preview-only.
 
-If the GuideBrief is missing a required section, report the missing section or
-treat it as an assumption. Do not reconstruct hidden or missing GuideBrief
-content.
+If GuideBrief is unavailable, preserve that explicit gap and continue only from
+the exact packet when the existing Core path permits. Do not reconstruct hidden
+or missing GuideBrief content, start another turn merely to refresh it, or
+convert unresolved judgment into an instruction.
 
 ## Separation Rules
 
@@ -140,7 +146,7 @@ This skill does not add or authorize:
 - DB writes
 - provider/OpenAI calls
 - GitHub actuation from Augnes
-- Codex execution from Augnes
+- Codex execution authority granted by GuideBrief
 - proof/evidence writes
 - memory mutation
 - durable Perspective apply
