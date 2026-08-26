@@ -422,6 +422,23 @@ const suites = {
       timeoutMs: 600_000,
     },
     {
+      id: "commissioned-controlled-workbench",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "sealed four-case commissioned work, cold succession, consolidation freeze, and holdout transfer",
+      ...rootNode("scripts/test-commissioned-controlled-workbench.ts"),
+      // Twenty cold Git episodes, objective local check programs, append-only
+      // artifact validation, adversarial gates, and cleanup measured 7.0s on
+      // local arm64. Keep the bounded child at 30s without a retry path.
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],

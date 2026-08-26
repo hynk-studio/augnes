@@ -1,0 +1,2165 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+import {
+  assertCommissionedWorkFamilySourceBindingV01,
+  assertSafeCommissionedWorkOutputV01,
+  assertValidCommissionedWorkFinalReportV01,
+  buildCommissionedWorkConsolidationCandidateV01,
+  buildCommissionedWorkEpisodeArtifactV01,
+  buildCommissionedWorkFamilyManifestV01,
+  buildCommissionedWorkFinalReportV01,
+  buildCommissionedWorkHoldoutEvaluationV01,
+  buildCommissionedWorkNativeHostRequestV01,
+  buildCommissionedWorkObjectiveObservationV01,
+  buildCommissionedWorkRunReceiptV01,
+  buildCommissionedWorkTaskContextPacketV01,
+  buildCommissionedWorkTrainingResultV01,
+  createCommissionedWorkIntegrityV01,
+  createCommissionedWorkRecordRefV01,
+  createCommissionedWorkRoleRefV01,
+  createCommissionedWorkSealedInterruptionRefV01,
+  invokeCommissionedWorkAdapterV01,
+  type BuildCommissionedWorkEpisodeArtifactInputV01,
+  type BuildCommissionedWorkObjectiveObservationInputV01,
+} from "@/lib/vnext/commissioned-controlled-workbench";
+import {
+  validateCommissionedWorkArtifactsV01,
+  writeCommissionedWorkArtifactsV01,
+} from "@/lib/vnext/commissioned-controlled-workbench-artifact-store";
+import {
+  createCommissionedWorkbenchFixtureAdapterV01,
+  createCommissionedWorkbenchFixtureAdmissionV01,
+  createCommissionedWorkbenchFixtureEpisodePolicyV01,
+  type CommissionedWorkbenchFixtureAdmissionV01,
+  type CommissionedWorkbenchFixtureEpisodePolicyV01,
+} from "@/lib/vnext/native-host/commissioned-workbench-fixture-adapter";
+import {
+  canonicalizeProtocolValueV01,
+  compareProtocolCodeUnitsV01,
+  createProtocolSha256V01,
+} from "@/lib/vnext/protocol-primitives";
+import { createCommissionedControlledWorkFamilySourceV01 } from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
+import {
+  COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
+  type CommissionedWorkArtifactIndexV01,
+  type CommissionedWorkCaseCommitmentV01,
+  type CommissionedWorkCaseSourceV01,
+  type CommissionedWorkConditionV01,
+  type CommissionedWorkConsolidationCandidateV01,
+  type CommissionedWorkEpisodeArtifactV01,
+  type CommissionedWorkEpisodePlanSourceV01,
+  type CommissionedWorkFinalReportV01,
+  type CommissionedWorkHoldoutVariantV01,
+  type CommissionedWorkObjectiveObservationV01,
+  type CommissionedWorkRecordRefV01,
+  type CommissionedWorkResourceVectorV01,
+  type CommissionedWorkRuntimeBindingV01,
+  type CommissionedWorkSuccessorPlanSourceV01,
+} from "@/types/vnext/commissioned-controlled-workbench";
+import type {
+  NativeHostRequestV01,
+  NativeHostResultV01,
+} from "@/types/vnext/native-host-adapter";
+import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
+import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
+
+let hermeticProcessEnvironmentV01: NodeJS.ProcessEnv | null = null;
+let ownedSynchronousProcessesV01 = 0;
+
+type EpisodeBundle = {
+  source: CommissionedWorkCaseSourceV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  packet: TaskContextPacketV01;
+  request: NativeHostRequestV01;
+  fixture_admission: CommissionedWorkbenchFixtureAdmissionV01;
+  result: NativeHostResultV01;
+  receipt: RunReceiptV01;
+  observation: CommissionedWorkObjectiveObservationV01;
+  episode_id: string;
+  episode_role: "predecessor" | "successor";
+  condition: CommissionedWorkConditionV01 | null;
+  holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
+  repository_state: CommissionedWorkEpisodeArtifactV01["repository_state"];
+  started_at: string;
+  first_material_action_at: string;
+  finished_at: string;
+  action_trace_fingerprint: string;
+};
+
+type CaseRun = {
+  predecessor: CommissionedWorkEpisodeArtifactV01;
+  successors: CommissionedWorkEpisodeArtifactV01[];
+  predecessor_bundle: EpisodeBundle;
+  successor_bundles: EpisodeBundle[];
+  predecessor_root: string;
+};
+
+async function main(): Promise<void> {
+  const network = installZeroNetworkGuard({
+    allowLoopback: false,
+    errorPrefix: "commissioned_workbench_external_network_forbidden",
+  });
+  const disposableRoot = mkdtempSync(
+    path.join(tmpdir(), "augnes-cw1-commissioned-workbench-"),
+  );
+  let resultSummary: Record<string, unknown> | null = null;
+  try {
+    resultSummary = await runGoldenFamilyV01(disposableRoot);
+  } finally {
+    network.restore();
+    rmSync(disposableRoot, { recursive: true, force: true });
+    hermeticProcessEnvironmentV01 = null;
+  }
+  assert.equal(network.attempts.length, 0, "CW1 attempted a network call");
+  assert.equal(
+    existsSync(disposableRoot),
+    false,
+    "CW1 disposable root survived cleanup",
+  );
+  assert.ok(resultSummary);
+  assert.equal(ownedSynchronousProcessesV01, 0);
+  console.log(
+    JSON.stringify({
+      ...resultSummary,
+      real_provider_calls: 0,
+      model_calls: 0,
+      external_network_calls: 0,
+      owned_processes_remaining: ownedSynchronousProcessesV01,
+      cleanup_complete: true,
+    }),
+  );
+}
+
+void main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+
+async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>> {
+  const roots = createDisposableRootsV01(root);
+  assertHermeticGitEnvironmentV01(roots);
+  const familySource = createCommissionedControlledWorkFamilySourceV01();
+  const manifest = buildCommissionedWorkFamilyManifestV01(familySource);
+  const trainingRuns: CaseRun[] = [];
+  for (const [index, source] of familySource.training_cases.entries()) {
+    trainingRuns.push(
+      await runCaseV01({
+        roots,
+        manifest,
+        source,
+        case_index: index,
+        consolidation_candidate: null,
+      }),
+    );
+  }
+  const training = buildCommissionedWorkTrainingResultV01({
+    manifest,
+    predecessor_episodes: trainingRuns.map((run) => run.predecessor),
+    successor_episodes: trainingRuns.flatMap((run) => run.successors),
+  });
+  const candidate = buildCommissionedWorkConsolidationCandidateV01({
+    manifest,
+    training,
+    candidate_id: "cw1-candidate-training-three-01",
+    frozen_at: "2026-08-27T03:00:00.000Z",
+  });
+  const candidateReplay = buildCommissionedWorkConsolidationCandidateV01({
+    manifest,
+    training,
+    candidate_id: candidate.candidate_id,
+    frozen_at: candidate.frozen_at,
+  });
+  assert.deepEqual(candidateReplay, candidate);
+  const holdoutRootBeforeFreeze = path.join(
+    roots.runtime,
+    familySource.holdout_case.case_id,
+  );
+  assert.equal(
+    existsSync(holdoutRootBeforeFreeze),
+    false,
+    "holdout content materialized before candidate freeze",
+  );
+  const holdoutRun = await runCaseV01({
+    roots,
+    manifest,
+    source: familySource.holdout_case,
+    case_index: 3,
+    consolidation_candidate: candidate,
+  });
+  const holdout = buildCommissionedWorkHoldoutEvaluationV01({
+    manifest,
+    candidate,
+    holdout_id: "cw1-holdout-quartz-01",
+    holdout_materialized_at: "2026-08-27T04:00:00.000Z",
+    holdout_started_at: "2026-08-27T04:05:00.000Z",
+    predecessor_episode: holdoutRun.predecessor,
+    arms: holdoutRun.successors as [
+      CommissionedWorkEpisodeArtifactV01,
+      CommissionedWorkEpisodeArtifactV01,
+      CommissionedWorkEpisodeArtifactV01,
+      CommissionedWorkEpisodeArtifactV01,
+    ],
+  });
+  assert.equal(holdout.transfer_result, "improved");
+  assert.equal(
+    holdout.arms.find((episode) => episode.holdout_variant === "candidate_present")
+      ?.evaluation.deterministic_repository_task_success,
+    true,
+  );
+  assert.equal(
+    holdout.arms.find(
+      (episode) => episode.holdout_variant === "strongest_equal_budget_baseline",
+    )?.evaluation.deterministic_repository_task_success,
+    false,
+  );
+  const holdoutBaseline = holdout.arms.find(
+    (episode) => episode.holdout_variant === "strongest_equal_budget_baseline",
+  )!;
+  const holdoutCandidate = holdout.arms.find(
+    (episode) => episode.holdout_variant === "candidate_present",
+  )!;
+  const holdoutAblation = holdout.arms.find(
+    (episode) => episode.holdout_variant === "candidate_component_ablation",
+  )!;
+  assert.equal(
+    holdoutBaseline.execution_binding.continuation_materials_consumed,
+    holdoutCandidate.execution_binding.continuation_materials_consumed,
+  );
+  assert.equal(
+    holdoutBaseline.execution_binding.continuation_materials_consumed,
+    holdoutAblation.execution_binding.continuation_materials_consumed,
+  );
+  assert.equal(holdoutBaseline.execution_binding.candidate_components_consumed, 0);
+  assert.equal(holdoutCandidate.execution_binding.candidate_components_consumed, 3);
+  assert.equal(holdoutAblation.execution_binding.candidate_components_consumed, 2);
+  const report = buildCommissionedWorkFinalReportV01({
+    report_id: "cw1-report-four-case-01",
+    family: manifest,
+    training,
+    consolidation_candidate: candidate,
+    holdout,
+    limitations: [
+      "deterministic_fixture_adapters_only",
+      "single_local_platform",
+      "no_live_cohort",
+      "no_policy_fitness_claim",
+      "no_stage_7_claim",
+      "no_rw1_conclusion",
+    ],
+  });
+  const replay = buildCommissionedWorkFinalReportV01({
+    report_id: report.report_id,
+    family: manifest,
+    training,
+    consolidation_candidate: candidate,
+    holdout,
+    limitations: [...report.limitations].reverse(),
+  });
+  assert.deepEqual(replay, report);
+  assertValidCommissionedWorkFinalReportV01(report);
+  assert.equal(report.counts.total_episode_artifacts, 20);
+  assert.equal(report.counts.independent_training_origins, 3);
+  assert.equal(report.authority_summary.creates_live_cohort, false);
+  assert.equal(report.authority_summary.creates_live_authorization, false);
+  assert.equal(report.authority_summary.mutates_rw1_or_rw1a_material, false);
+  assert.equal(report.authority_summary.claims_rw1_conclusion, false);
+  assert.equal(report.consolidation_candidate.policy_created, false);
+  assert.equal(report.family_evidence_ladder.at(-1)?.status, "established");
+  assertTrainingContrastsV01(report);
+  runNegativeContractCasesV01({
+    roots,
+    familySource,
+    manifest,
+    report,
+    candidate,
+    training,
+    holdout,
+    receipt_probe_bundle: trainingRuns[0]!.successor_bundles[0]!,
+  });
+  const writeSummary = writeCommissionedWorkArtifactsV01({
+    repository_root: roots.artifact_repository,
+    run_label: "golden-four-case-01",
+    report,
+  });
+  const index = validateCommissionedWorkArtifactsV01({
+    repository_root: roots.artifact_repository,
+    relative_run_root: writeSummary.relative_run_root,
+  });
+  assert.equal(index.expected_artifact_count, 25);
+  assert.equal(index.artifacts.filter((item) => item.slot_kind === "episode").length, 20);
+  const boundaryArtifactRepository = path.join(
+    roots.artifacts,
+    "boundary-artifact-repository",
+  );
+  cpSync(roots.artifact_repository, boundaryArtifactRepository, {
+    recursive: true,
+    force: false,
+    errorOnExist: true,
+  });
+  const boundaryIndexPath = path.join(
+    boundaryArtifactRepository,
+    writeSummary.relative_run_root,
+    "artifact-index.json",
+  );
+  const boundaryIndex = JSON.parse(
+    readFileSync(boundaryIndexPath, "utf8"),
+  ) as CommissionedWorkArtifactIndexV01;
+  boundaryIndex.raw_prompt_persisted = true as false;
+  boundaryIndex.writes_outside_cw1_root = true as false;
+  boundaryIndex.product_database_writes = 1 as 0;
+  resealV01(
+    boundaryIndex,
+    "commissioned_work_artifact_index_without_integrity_fingerprint",
+  );
+  writeFileSync(
+    boundaryIndexPath,
+    canonicalizeProtocolValueV01(boundaryIndex),
+    "utf8",
+  );
+  assert.throws(
+    () =>
+      validateCommissionedWorkArtifactsV01({
+        repository_root: boundaryArtifactRepository,
+        relative_run_root: writeSummary.relative_run_root,
+      }),
+    /commissioned_work_artifact_index_boundary_invalid/u,
+  );
+  assert.throws(
+    () =>
+      writeCommissionedWorkArtifactsV01({
+        repository_root: roots.artifact_repository,
+        run_label: "golden-four-case-01",
+        report,
+      }),
+    /commissioned_work_artifact_run_root_not_clean/u,
+  );
+  const corruptedArtifactRepository = path.join(
+    roots.artifacts,
+    "corrupted-artifact-repository",
+  );
+  cpSync(roots.artifact_repository, corruptedArtifactRepository, {
+    recursive: true,
+    force: false,
+    errorOnExist: true,
+  });
+  const missingTarget = path.join(
+    corruptedArtifactRepository,
+    writeSummary.relative_run_root,
+    index.artifacts.find((item) => item.slot_kind === "episode")!.relative_path,
+  );
+  unlinkSync(missingTarget);
+  assert.throws(
+    () =>
+      validateCommissionedWorkArtifactsV01({
+        repository_root: corruptedArtifactRepository,
+        relative_run_root: writeSummary.relative_run_root,
+      }),
+    /commissioned_work_artifact_file_set_invalid/u,
+  );
+  const substitutedArtifactRepository = path.join(
+    roots.artifacts,
+    "substituted-artifact-repository",
+  );
+  cpSync(roots.artifact_repository, substitutedArtifactRepository, {
+    recursive: true,
+    force: false,
+    errorOnExist: true,
+  });
+  const substitutedRunRoot = path.join(
+    substitutedArtifactRepository,
+    writeSummary.relative_run_root,
+  );
+  const substitutedIndexPath = path.join(
+    substitutedRunRoot,
+    "artifact-index.json",
+  );
+  const substitutedIndex = JSON.parse(
+    readFileSync(substitutedIndexPath, "utf8"),
+  ) as CommissionedWorkArtifactIndexV01;
+  const episodeEntries = substitutedIndex.artifacts.filter(
+    (artifact) => artifact.slot_kind === "episode",
+  );
+  const substitutionTarget = episodeEntries[0]!;
+  const substitutionSource = episodeEntries[1]!;
+  const substitutionText = readFileSync(
+    path.join(substitutedRunRoot, substitutionSource.relative_path),
+    "utf8",
+  ).trimEnd();
+  writeFileSync(
+    path.join(substitutedRunRoot, substitutionTarget.relative_path),
+    substitutionText,
+    "utf8",
+  );
+  Object.assign(substitutionTarget, {
+    record_ref: substitutionSource.record_ref,
+    artifact_version: substitutionSource.artifact_version,
+    case_id: substitutionSource.case_id,
+    episode_id: substitutionSource.episode_id,
+    condition: substitutionSource.condition,
+    holdout_variant: substitutionSource.holdout_variant,
+    content_fingerprint: createProtocolSha256V01(substitutionText),
+  });
+  resealV01(
+    substitutedIndex,
+    "commissioned_work_artifact_index_without_integrity_fingerprint",
+  );
+  writeFileSync(
+    substitutedIndexPath,
+    canonicalizeProtocolValueV01(substitutedIndex),
+    "utf8",
+  );
+  assert.throws(
+    () =>
+      validateCommissionedWorkArtifactsV01({
+        repository_root: substitutedArtifactRepository,
+        relative_run_root: writeSummary.relative_run_root,
+      }),
+    /commissioned_work_artifact_frozen_slot_binding_invalid/u,
+  );
+  const misplacedRunRoot = path.join(
+    roots.artifact_repository,
+    "misplaced-cw1-run",
+  );
+  cpSync(
+    path.join(roots.artifact_repository, writeSummary.relative_run_root),
+    misplacedRunRoot,
+    { recursive: true, force: false, errorOnExist: true },
+  );
+  assert.throws(
+    () =>
+      validateCommissionedWorkArtifactsV01({
+        repository_root: roots.artifact_repository,
+        relative_run_root: "misplaced-cw1-run",
+      }),
+    /commissioned_work_artifact_namespace_binding_invalid/u,
+  );
+  return {
+    status: "passed",
+    family_id: manifest.family_id,
+    case_ids: [
+      ...manifest.training_cases.map((item) => item.case_id),
+      manifest.holdout_case.case_id,
+    ],
+    training_case_count: 3,
+    holdout_case_count: 1,
+    predecessor_episode_count: 4,
+    successor_episode_count: 16,
+    candidate_fingerprint: candidate.integrity.fingerprint,
+    holdout_transfer_result: holdout.transfer_result,
+    report_fingerprint: report.integrity.fingerprint,
+    artifact_index_fingerprint: index.integrity.fingerprint,
+    artifact_relative_root: writeSummary.relative_run_root,
+    raw_prompts_or_transcripts_persisted: false,
+    product_database_writes: 0,
+    core_writes: 0,
+    proposal_writes: 0,
+    review_decision_writes: 0,
+    transition_writes: 0,
+    policy_activations: 0,
+    blocked_child_network_probe_attempts: 1,
+  };
+}
+
+function assertHermeticGitEnvironmentV01(
+  roots: ReturnType<typeof createDisposableRootsV01>,
+): void {
+  const hooksRoot = path.join(roots.runtime, "host-global-hooks");
+  const markerPath = path.join(roots.runtime, "host-global-hook-ran");
+  mkdirSync(hooksRoot, { recursive: true, mode: 0o700 });
+  writeFileSync(
+    path.join(roots.home, ".gitconfig"),
+    `[core]\n\thooksPath = ${hooksRoot}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  writeFileSync(
+    path.join(hooksRoot, "pre-commit"),
+    `#!/bin/sh\n/usr/bin/touch ${JSON.stringify(markerPath)}\nexit 1\n`,
+    { encoding: "utf8", mode: 0o700 },
+  );
+  const probeRoot = path.join(roots.runtime, "hermetic-git-probe");
+  mkdirSync(probeRoot, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(probeRoot, "probe.txt"), "sealed\n", "utf8");
+  gitV01(probeRoot, ["init", "--initial-branch=main"]);
+  gitV01(probeRoot, ["add", "--all"]);
+  gitV01(
+    probeRoot,
+    ["commit", "-m", "prove host global hooks are disabled"],
+    "2026-08-27T00:00:30.000Z",
+  );
+  assert.equal(existsSync(markerPath), false);
+}
+
+function createDisposableRootsV01(root: string): {
+  home: string;
+  data: string;
+  config: string;
+  database: string;
+  runtime: string;
+  artifacts: string;
+  artifact_repository: string;
+  temp: string;
+  oracle_guard_path: string;
+  network_attempt_log: string;
+} {
+  const roots = {
+    home: path.join(root, "home"),
+    data: path.join(root, "data"),
+    config: path.join(root, "config"),
+    database: path.join(root, "database"),
+    runtime: path.join(root, "runtime"),
+    artifacts: path.join(root, "artifacts"),
+    artifact_repository: path.join(root, "artifact-repository"),
+    temp: path.join(root, "tmp"),
+    oracle_guard_path: path.join(root, "runtime", "oracle-network-guard.mjs"),
+    network_attempt_log: path.join(root, "runtime", "oracle-network-attempts.log"),
+  };
+  [
+    roots.home,
+    roots.data,
+    roots.config,
+    roots.database,
+    roots.runtime,
+    roots.artifacts,
+    roots.artifact_repository,
+    roots.temp,
+  ].forEach((directory) =>
+    mkdirSync(directory, { recursive: true, mode: 0o700 }),
+  );
+  writeFileSync(
+    path.join(roots.artifact_repository, ".gitignore"),
+    ".augnes-lab/\n",
+    "utf8",
+  );
+  const guardModuleUrl = pathToFileURL(
+    path.join(process.cwd(), "scripts", "test-harness-zero-network-guard.mjs"),
+  ).href;
+  writeFileSync(
+    roots.oracle_guard_path,
+    `import { appendFileSync } from "node:fs";\nimport { installZeroNetworkGuard } from ${JSON.stringify(guardModuleUrl)};\ninstallZeroNetworkGuard({ allowLoopback: false, errorPrefix: "commissioned_workbench_oracle_network_forbidden", onBlockedAttempt(attempt) { appendFileSync(process.env.AUGNES_CW1_NETWORK_ATTEMPT_LOG, JSON.stringify(attempt) + "\\n", "utf8"); } });\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  hermeticProcessEnvironmentV01 = {
+    PATH: "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
+    HOME: roots.home,
+    XDG_CONFIG_HOME: roots.config,
+    TMPDIR: roots.temp,
+    GIT_AUTHOR_NAME: "Augnes CW1 Fixture",
+    GIT_AUTHOR_EMAIL: "cw1-fixture@invalid.local",
+    GIT_COMMITTER_NAME: "Augnes CW1 Fixture",
+    GIT_COMMITTER_EMAIL: "cw1-fixture@invalid.local",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_SYSTEM: "/dev/null",
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_TERMINAL_PROMPT: "0",
+    LC_ALL: "C",
+    LANG: "C",
+    NODE_ENV: "test",
+    AUGNES_CW1_NETWORK_ATTEMPT_LOG: roots.network_attempt_log,
+  };
+  return roots;
+}
+
+async function runCaseV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+  case_index: number;
+  consolidation_candidate: CommissionedWorkConsolidationCandidateV01 | null;
+}): Promise<CaseRun> {
+  const caseRoot = path.join(input.roots.runtime, input.source.case_id);
+  const predecessorRoot = path.join(caseRoot, "predecessor");
+  mkdirSync(predecessorRoot, { recursive: true, mode: 0o700 });
+  for (const fixture of input.source.repository_fixture) {
+    writeRepositoryFileV01(
+      predecessorRoot,
+      fixture.repository_relative_path,
+      fixture.content,
+    );
+  }
+  gitV01(predecessorRoot, ["init", "--initial-branch=main"]);
+  gitV01(predecessorRoot, ["add", "--all"]);
+  gitV01(
+    predecessorRoot,
+    ["commit", "-m", "initial source-distinct fixture"],
+    timestampForV01(input.case_index, 0),
+  );
+  const initialCommit = gitV01(predecessorRoot, ["rev-parse", "HEAD"]);
+  const initialTree = gitV01(predecessorRoot, ["rev-parse", "HEAD^{tree}"]);
+  const predecessorBundle = await executeEpisodeV01({
+    roots: input.roots,
+    manifest: input.manifest,
+    source: input.source,
+    plan: input.source.predecessor_plan,
+    repository_root: predecessorRoot,
+    episode_id: `${input.source.case_id}-episode-1`,
+    episode_role: "predecessor",
+    condition: null,
+    holdout_variant: null,
+    initial_commit: initialCommit,
+    initial_tree: initialTree,
+    case_index: input.case_index,
+    phase_index: 1,
+    run_oracles: false,
+    consolidation_candidate: input.consolidation_candidate,
+  });
+  const predecessor = buildEpisodeArtifactFromBundleV01({
+    manifest: input.manifest,
+    bundle: predecessorBundle,
+    predecessor_ref: null,
+    interruption_ref: null,
+    candidate_fingerprint:
+      input.consolidation_candidate?.integrity.fingerprint ?? null,
+    condition_sensitive: "unknown",
+  });
+  const predecessorRef = episodeRefV01(predecessor);
+  const interruptionRef =
+    createCommissionedWorkSealedInterruptionRefV01(predecessor);
+  const successorBundles: EpisodeBundle[] = [];
+  for (const [armIndex, plan] of input.source.successor_plans.entries()) {
+    const armKey = `slot-${String(armIndex + 1).padStart(2, "0")}`;
+    const successorRoot = path.join(caseRoot, `successor-${armKey}`);
+    cpSync(predecessorRoot, successorRoot, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+      preserveTimestamps: true,
+    });
+    assert.equal(gitV01(successorRoot, ["status", "--short"]), "");
+    for (const drift of input.source.source_drift_writes) {
+      writeRepositoryFileV01(
+        successorRoot,
+        drift.repository_relative_path,
+        drift.content,
+      );
+    }
+    gitV01(successorRoot, ["add", "--all"]);
+    gitV01(
+      successorRoot,
+      ["commit", "-m", "apply sealed current-source change"],
+      timestampForV01(input.case_index, 2),
+    );
+    successorBundles.push(
+      await executeEpisodeV01({
+        roots: input.roots,
+        manifest: input.manifest,
+        source: input.source,
+        plan,
+        repository_root: successorRoot,
+        episode_id: `${input.source.case_id}-episode-2-${armKey}`,
+        episode_role: "successor",
+        condition: plan.condition,
+        holdout_variant: plan.holdout_variant,
+        initial_commit: initialCommit,
+        initial_tree: initialTree,
+        case_index: input.case_index,
+        phase_index: 3 + armIndex,
+        run_oracles: true,
+        consolidation_candidate: input.consolidation_candidate,
+      }),
+    );
+  }
+  const outcomeShapes = new Set(
+    successorBundles.map((bundle) =>
+      canonicalizeProtocolValueV01({
+        checks: bundle.observation.required_checks.map((check) => check.disposition),
+        negative_space: bundle.observation.negative_space.status,
+        source_currentness: bundle.observation.source_currentness,
+        action: bundle.action_trace_fingerprint,
+      }),
+    ),
+  );
+  const interventionSensitive = outcomeShapes.size > 1;
+  assert.equal(interventionSensitive, true);
+  const successors = successorBundles.map((bundle) =>
+    buildEpisodeArtifactFromBundleV01({
+      manifest: input.manifest,
+      bundle,
+      predecessor_ref: predecessorRef,
+      interruption_ref: interruptionRef,
+      candidate_fingerprint:
+        input.consolidation_candidate?.integrity.fingerprint ?? null,
+      condition_sensitive: "observed",
+    }),
+  );
+  return {
+    predecessor,
+    successors,
+    predecessor_bundle: predecessorBundle,
+    successor_bundles: successorBundles,
+    predecessor_root: predecessorRoot,
+  };
+}
+
+async function executeEpisodeV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  repository_root: string;
+  episode_id: string;
+  episode_role: "predecessor" | "successor";
+  condition: CommissionedWorkConditionV01 | null;
+  holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
+  initial_commit: string;
+  initial_tree: string;
+  case_index: number;
+  phase_index: number;
+  run_oracles: boolean;
+  consolidation_candidate: CommissionedWorkConsolidationCandidateV01 | null;
+}): Promise<EpisodeBundle> {
+  const startedAt = timestampForV01(input.case_index, 10 + input.phase_index);
+  const firstActionAt = addSecondsV01(startedAt, 1);
+  const finishedAt = addSecondsV01(startedAt, 2);
+  const episodeStartCommit = gitV01(input.repository_root, ["rev-parse", "HEAD"]);
+  const episodeStartTree = gitV01(input.repository_root, ["rev-parse", "HEAD^{tree}"]);
+  const packet = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan: input.plan,
+    consolidation_candidate: input.consolidation_candidate,
+    expected_candidate_freeze_fingerprint:
+      input.consolidation_candidate?.integrity.fingerprint ?? null,
+    generated_at: startedAt,
+  });
+  const runtime: CommissionedWorkRuntimeBindingV01 = {
+    report_included: false,
+    case_id: input.source.case_id,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.source.project_id,
+    repository_root: input.repository_root,
+    database_path: path.join(input.roots.database, `${input.episode_id}.sqlite`),
+    home_root: input.roots.home,
+    data_root: input.roots.data,
+    config_root: input.roots.config,
+    runtime_root: input.roots.runtime,
+    artifact_root: input.roots.artifacts,
+  };
+  const request = buildCommissionedWorkNativeHostRequestV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan: input.plan,
+    consolidation_candidate: input.consolidation_candidate,
+    expected_candidate_freeze_fingerprint:
+      input.consolidation_candidate?.integrity.fingerprint ?? null,
+    packet,
+    runtime,
+    episode_id: input.episode_id,
+    requested_at: startedAt,
+  });
+  const executorVisibleRequest = canonicalizeProtocolValueV01(request);
+  for (const treatmentLabel of [
+    "exact_current_continuity",
+    "matched_ablation",
+    "stale_or_regime_shift_continuity",
+    "zero_continuation_control",
+    "strongest_equal_budget_baseline",
+    "candidate_present",
+    "candidate_component_ablation",
+    "stale_or_reset",
+  ]) {
+    assert.equal(
+      executorVisibleRequest.includes(treatmentLabel),
+      false,
+      `executor-visible request leaked treatment label ${treatmentLabel}`,
+    );
+  }
+  const executorRole = createCommissionedWorkRoleRefV01(
+    "executor",
+    input.plan.executor_role_id,
+  );
+  const fixtureAdmission = createCommissionedWorkbenchFixtureAdmissionV01({
+    admission_id: `fixture-admission:${input.episode_id}`,
+    episode_id: input.episode_id,
+    packet_fingerprint: packet.integrity.fingerprint,
+    executor_role_fingerprint: executorRole.role_fingerprint,
+  });
+  const commitment = findCommitmentV01(input.manifest, input.source.case_id);
+  const episodePolicy = buildFixtureEpisodePolicyV01({
+    source: input.source,
+    actual_plan: input.plan,
+    packet,
+    commitment,
+  });
+  const expectedCandidateComponentIds =
+    input.holdout_variant === "candidate_present"
+      ? [...COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01]
+      : input.holdout_variant === "candidate_component_ablation"
+        ? COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01.slice(0, -1)
+        : [];
+  assert.deepEqual(
+    episodePolicy.candidate_component_ids,
+    expectedCandidateComponentIds,
+  );
+  if (input.case_index === 0 && input.phase_index === 1) {
+    const mismatchedAdmission = createCommissionedWorkbenchFixtureAdmissionV01({
+      admission_id: `fixture-admission:${input.episode_id}`,
+      episode_id: input.episode_id,
+      packet_fingerprint: packet.integrity.fingerprint,
+      executor_role_fingerprint: createProtocolSha256V01(
+        "mismatched-fixture-executor",
+      ),
+    });
+    const mismatchedAdapter = createCommissionedWorkbenchFixtureAdapterV01({
+      exact_repository_root: input.repository_root,
+      episode_policy: episodePolicy,
+      fixture_admission: mismatchedAdmission,
+      started_at: startedAt,
+      first_material_action_at: firstActionAt,
+      finished_at: finishedAt,
+      terminal_outcome: "blocked",
+    });
+    await assert.rejects(
+      () =>
+        invokeCommissionedWorkAdapterV01({
+          adapter: mismatchedAdapter,
+          request,
+        }),
+      /commissioned_workbench_adapter_request_refused/u,
+    );
+  }
+  if (input.holdout_variant === "candidate_present") {
+    const candidateMismatchedPolicy = structuredClone(episodePolicy);
+    candidateMismatchedPolicy.candidate_component_ids =
+      candidateMismatchedPolicy.candidate_component_ids.slice(0, -1);
+    const {
+      policy_fingerprint: _priorPolicyFingerprint,
+      ...candidateMismatchedPolicyWithoutFingerprint
+    } = candidateMismatchedPolicy;
+    candidateMismatchedPolicy.policy_fingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(
+        candidateMismatchedPolicyWithoutFingerprint,
+      ),
+    );
+    const candidateMismatchedAdapter =
+      createCommissionedWorkbenchFixtureAdapterV01({
+        exact_repository_root: input.repository_root,
+        episode_policy: candidateMismatchedPolicy,
+        fixture_admission: fixtureAdmission,
+        started_at: startedAt,
+        first_material_action_at: firstActionAt,
+        finished_at: finishedAt,
+        terminal_outcome: "completed",
+      });
+    await assert.rejects(
+      () =>
+        invokeCommissionedWorkAdapterV01({
+          adapter: candidateMismatchedAdapter,
+          request,
+        }),
+      /commissioned_workbench_adapter_request_refused/u,
+    );
+  }
+  const adapter = createCommissionedWorkbenchFixtureAdapterV01({
+    exact_repository_root: input.repository_root,
+    episode_policy: episodePolicy,
+    fixture_admission: fixtureAdmission,
+    started_at: startedAt,
+    first_material_action_at: firstActionAt,
+    finished_at: finishedAt,
+    terminal_outcome: input.episode_role === "predecessor" ? "blocked" : "completed",
+  });
+  const result = await invokeCommissionedWorkAdapterV01({ adapter, request });
+  assert.equal(result.model_invocation_receipt_refs.length, 0);
+  assert.equal(result.host_refs.length, 1);
+  assert.equal(
+    result.adapter_extension.bounded_metadata
+      .fixture_episode_policy_fingerprint,
+    episodePolicy.policy_fingerprint,
+  );
+  gitV01(input.repository_root, ["add", "--all"]);
+  gitV01(
+    input.repository_root,
+    [
+      "commit",
+      "-m",
+      input.episode_role === "predecessor"
+        ? "seal predecessor interruption"
+        : "apply cold successor work",
+    ],
+    timestampForV01(input.case_index, 20 + input.phase_index),
+  );
+  const episodeEndHead = gitV01(input.repository_root, ["rev-parse", "HEAD"]);
+  const episodeEndTree = gitV01(input.repository_root, ["rev-parse", "HEAD^{tree}"]);
+  assert.equal(gitV01(input.repository_root, ["status", "--short"]), "");
+  const observation = evaluateRepositoryEpisodeV01({
+    source: input.source,
+    commitment,
+    repository_root: input.repository_root,
+    episode_start_commit: episodeStartCommit,
+    episode_role: input.episode_role,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    run_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request.run_id),
+    ),
+    evaluator_role: input.manifest.outcome_evaluator,
+    evaluator_version: input.manifest.evaluator_version,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.source.project_id,
+    run_oracles: input.run_oracles,
+    result,
+    oracle_guard_path: input.roots.oracle_guard_path,
+    network_attempt_log: input.roots.network_attempt_log,
+  });
+  const receipt = buildCommissionedWorkRunReceiptV01({
+    request,
+    packet,
+    result,
+    observation,
+  });
+  const repositoryState = {
+    initial_commit: input.initial_commit,
+    initial_tree: input.initial_tree,
+    episode_start_commit: episodeStartCommit,
+    episode_start_tree: episodeStartTree,
+    episode_end_head: episodeEndHead,
+    episode_end_tree: episodeEndTree,
+    worktree_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        head: episodeEndHead,
+        tree: episodeEndTree,
+        status: "clean",
+      }),
+    ),
+  };
+  return {
+    source: input.source,
+    plan: input.plan,
+    packet,
+    request,
+    fixture_admission: fixtureAdmission,
+    result,
+    receipt,
+    observation,
+    episode_id: input.episode_id,
+    episode_role: input.episode_role,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    repository_state: repositoryState,
+    started_at: startedAt,
+    first_material_action_at: firstActionAt,
+    finished_at: finishedAt,
+    action_trace_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(
+        result.changed_files.map((changed) => ({
+          change_kind: changed.change_kind,
+          repository_path_fingerprint: createProtocolSha256V01(
+            changed.repository_relative_path,
+          ),
+          after_hash: changed.after_hash,
+        })),
+      ),
+    ),
+  };
+}
+
+function buildFixtureEpisodePolicyV01(input: {
+  source: CommissionedWorkCaseSourceV01;
+  actual_plan:
+    | CommissionedWorkEpisodePlanSourceV01
+    | CommissionedWorkSuccessorPlanSourceV01;
+  packet: TaskContextPacketV01;
+  commitment: CommissionedWorkCaseCommitmentV01;
+}): CommissionedWorkbenchFixtureEpisodePolicyV01 {
+  const successor = "condition" in input.actual_plan ? input.actual_plan : null;
+  return createCommissionedWorkbenchFixtureEpisodePolicyV01({
+    packet: input.packet,
+    writes: input.actual_plan.writes,
+    expected_current_source_fingerprint:
+      successor === null
+        ? null
+        : input.commitment.expected_current_source_fingerprint,
+    current_source_relative_paths:
+      successor === null ? [] : input.source.current_source_relative_paths,
+    continuation_material_count: successor?.selected_material_ids.length ?? 0,
+  });
+}
+
+function evaluateRepositoryEpisodeV01(input: {
+  source: CommissionedWorkCaseSourceV01;
+  commitment: CommissionedWorkCaseCommitmentV01;
+  repository_root: string;
+  episode_start_commit: string;
+  episode_role: "predecessor" | "successor";
+  condition: CommissionedWorkConditionV01 | null;
+  holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
+  run_ref_fingerprint: string;
+  evaluator_role: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>["outcome_evaluator"];
+  evaluator_version: string;
+  workspace_id: string;
+  project_id: string;
+  run_oracles: boolean;
+  result: NativeHostResultV01;
+  oracle_guard_path: string;
+  network_attempt_log: string;
+}): CommissionedWorkObjectiveObservationV01 {
+  const changedPaths = gitV01(input.repository_root, [
+    "diff",
+    "--name-only",
+    `${input.episode_start_commit}..HEAD`,
+  ])
+    .split("\n")
+    .filter(Boolean)
+    .sort(compareProtocolCodeUnitsV01);
+  const checks = input.source.required_checks.map((check) => {
+    const oraclePath = path.join(input.repository_root, check.oracle_relative_path);
+    const commandFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        runtime: process.execPath,
+        oracle_relative_path: check.oracle_relative_path,
+        oracle_content_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(readFileSync(oraclePath, "utf8")),
+        ),
+      }),
+    );
+    if (!input.run_oracles) {
+      return {
+        check_id: check.check_id,
+        disposition: "skipped" as const,
+        command_fingerprint: null,
+        exit_code: null,
+      };
+    }
+    try {
+      runOracleProcessV01({
+        repository_root: input.repository_root,
+        oracle_relative_path: check.oracle_relative_path,
+        oracle_guard_path: input.oracle_guard_path,
+        network_attempt_log: input.network_attempt_log,
+      });
+      return {
+        check_id: check.check_id,
+        disposition: "passed" as const,
+        command_fingerprint: commandFingerprint,
+        exit_code: 0,
+      };
+    } catch (error) {
+      const exitCode =
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        typeof error.status === "number"
+          ? error.status
+          : 1;
+      return {
+        check_id: check.check_id,
+        disposition: "failed" as const,
+        command_fingerprint: commandFingerprint,
+        exit_code: exitCode,
+      };
+    }
+  });
+  const guardObservations = input.source.negative_space_guards.map(
+    (guard, index) => {
+      const content = readFileSync(
+        path.join(input.repository_root, guard.repository_relative_path),
+        "utf8",
+      );
+      const status = content.includes(guard.forbidden_fragment)
+        ? ("revived" as const)
+        : ("preserved" as const);
+      return {
+        guard_ref: input.commitment.negative_space_guard_refs[index]!,
+        status,
+      };
+    },
+  );
+  const currentSourceFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(
+      [...input.source.current_source_relative_paths]
+        .sort(compareProtocolCodeUnitsV01)
+        .map((repository_relative_path) => ({
+          repository_relative_path,
+          content_fingerprint: createProtocolSha256V01(
+            canonicalizeProtocolValueV01(
+              readFileSync(
+                path.join(input.repository_root, repository_relative_path),
+                "utf8",
+              ),
+            ),
+          ),
+        })),
+    ),
+  );
+  const currentnessCheck = checks.find(
+    (check) => check.check_id === input.source.source_currentness_check_id,
+  );
+  const sourceCurrentness =
+    input.episode_role === "predecessor"
+      ? ("unknown" as const)
+      : currentnessCheck?.disposition === "passed"
+        ? ("current" as const)
+        : currentnessCheck?.disposition === "failed"
+          ? ("failed" as const)
+          : ("unknown" as const);
+  const actualDiff = changedPaths.map((repository_relative_path) => ({
+    repository_relative_path,
+    content_fingerprint: createProtocolSha256V01(
+      readFileSync(
+        path.join(input.repository_root, repository_relative_path),
+        "utf8",
+      ),
+    ),
+  }));
+  const recordedDiff = input.result.changed_files
+    .map((changed) => ({
+      repository_relative_path: changed.repository_relative_path,
+      content_fingerprint: changed.after_hash,
+    }))
+    .sort((left, right) =>
+      compareProtocolCodeUnitsV01(
+        left.repository_relative_path,
+        right.repository_relative_path,
+      ),
+    );
+  const expectedDiff =
+    input.episode_role === "predecessor"
+      ? recordedDiff
+      : input.source.expected_success_writes
+          .map((write) => ({
+            repository_relative_path: write.repository_relative_path,
+            content_fingerprint: createProtocolSha256V01(write.content),
+          }))
+          .sort((left, right) =>
+            compareProtocolCodeUnitsV01(
+              left.repository_relative_path,
+              right.repository_relative_path,
+            ),
+          );
+  const diffCorrect =
+    canonicalizeProtocolValueV01(actualDiff) ===
+      canonicalizeProtocolValueV01(expectedDiff) &&
+    canonicalizeProtocolValueV01(actualDiff) ===
+      canonicalizeProtocolValueV01(recordedDiff);
+  const resources: CommissionedWorkResourceVectorV01 = {
+    provider_calls: { provenance: "observed", value: 0 },
+    model_calls: { provenance: "observed", value: 0 },
+    external_network_calls: { provenance: "observed", value: 0 },
+    tool_calls: {
+      provenance: "observed",
+      value: input.run_oracles ? input.source.required_checks.length : 0,
+    },
+    model_usage_units: { provenance: "unknown", value: null },
+    cost_microunits: { provenance: "unknown", value: null },
+    latency_ms: { provenance: "unknown", value: null },
+    human_review_burden: { provenance: "unknown", value: null },
+  };
+  const observationInput: BuildCommissionedWorkObjectiveObservationInputV01 = {
+    case_commitment: input.commitment,
+    evaluator_version: input.evaluator_version,
+    evaluator_role: input.evaluator_role,
+    workspace_id: input.workspace_id,
+    project_id: input.project_id,
+    case_id: input.source.case_id,
+    episode_role: input.episode_role,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    run_ref_fingerprint: input.run_ref_fingerprint,
+    oracle_executed: input.run_oracles,
+    repository_state_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        head: gitV01(input.repository_root, ["rev-parse", "HEAD"]),
+        tree: gitV01(input.repository_root, ["rev-parse", "HEAD^{tree}"]),
+        changed_paths: changedPaths,
+      }),
+    ),
+    current_source_fingerprint: currentSourceFingerprint,
+    changed_path_fingerprints: changedPaths.map(createProtocolSha256V01),
+    required_checks: checks,
+    repository_diff_correctness:
+      diffCorrect ? "passed" : "failed",
+    verification_completeness: input.run_oracles ? "complete" : "incomplete",
+    negative_space: {
+      status: guardObservations.some((guard) => guard.status === "revived")
+        ? "revived"
+        : "preserved",
+      violated_guard_fingerprints: guardObservations
+        .filter((guard) => guard.status === "revived")
+        .map((guard) => guard.guard_ref.content_fingerprint),
+      guard_observations: guardObservations,
+    },
+    source_currentness: sourceCurrentness,
+    project_scope: "exact",
+    authority_effects: {
+      provider_calls: 0,
+      model_calls: 0,
+      external_network_calls: 0,
+      outside_root_writes: 0,
+      product_database_writes: 0,
+      core_writes: 0,
+      proposal_writes: 0,
+      review_decision_writes: 0,
+      transition_writes: 0,
+      policy_activations: 0,
+      active_pointer_writes: 0,
+      github_writes: 0,
+    },
+    resources,
+  };
+  return buildCommissionedWorkObjectiveObservationV01(observationInput);
+}
+
+function buildEpisodeArtifactFromBundleV01(input: {
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  bundle: EpisodeBundle;
+  predecessor_ref: CommissionedWorkRecordRefV01 | null;
+  interruption_ref: CommissionedWorkRecordRefV01 | null;
+  candidate_fingerprint: string | null;
+  condition_sensitive: "observed" | "not_observed" | "unknown";
+}): CommissionedWorkEpisodeArtifactV01 {
+  const buildInput: BuildCommissionedWorkEpisodeArtifactInputV01 = {
+    manifest: input.manifest,
+    source: input.bundle.source,
+    plan: input.bundle.plan,
+    packet: input.bundle.packet,
+    result: input.bundle.result,
+    receipt: input.bundle.receipt,
+    observation: input.bundle.observation,
+    episode_id: input.bundle.episode_id,
+    episode_role: input.bundle.episode_role,
+    condition: input.bundle.condition,
+    holdout_variant: input.bundle.holdout_variant,
+    predecessor_episode_ref: input.predecessor_ref,
+    sealed_interruption_ref: input.interruption_ref,
+    candidate_freeze_fingerprint: input.candidate_fingerprint,
+    repository_state: input.bundle.repository_state,
+    started_at: input.bundle.started_at,
+    first_material_action_at: input.bundle.first_material_action_at,
+    finished_at: input.bundle.finished_at,
+    candidate_frozen_before_start:
+      input.bundle.source.case_role === "holdout"
+        ? true
+        : null,
+    condition_sensitive_structured_behavior: input.condition_sensitive,
+    repeatable: null,
+    held_out_transfer: null,
+    harmful_transfer:
+      input.bundle.holdout_variant === "candidate_present"
+        ? input.bundle.observation.required_checks.every(
+            (check) => check.disposition === "passed",
+          )
+          ? "not_observed"
+          : "observed"
+        : "unknown",
+    repository_action_trace_fingerprint:
+      input.bundle.action_trace_fingerprint,
+  };
+  return buildCommissionedWorkEpisodeArtifactV01(buildInput);
+}
+
+function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): void {
+  for (const caseCommitment of report.family.training_cases) {
+    const episodes = report.training.successor_episodes.filter(
+      (episode) => episode.case_id === caseCommitment.case_id,
+    );
+    const exact = episodes.find(
+      (episode) => episode.condition === "exact_current_continuity",
+    );
+    assert.equal(exact?.evaluation.deterministic_repository_task_success, true);
+    assert.equal(
+      episodes.some(
+        (episode) =>
+          episode.condition !== "exact_current_continuity" &&
+          !episode.evaluation.deterministic_repository_task_success,
+      ),
+      true,
+    );
+  }
+  const cobaltPredecessor = report.training.predecessor_episodes.find(
+    (episode) => episode.case_id === "case-cobalt-29",
+  );
+  assert.equal(cobaltPredecessor?.executor_claimed_complete, true);
+  assert.equal(
+    cobaltPredecessor?.evaluation.deterministic_repository_task_success,
+    false,
+  );
+  assert.equal(cobaltPredecessor?.evaluation.false_success_behavior, "observed");
+  const cedarRevival = report.training.successor_episodes.find(
+    (episode) =>
+      episode.case_id === "case-cedar-41" &&
+      episode.condition === "stale_or_regime_shift_continuity",
+  );
+  assert.equal(cedarRevival?.evaluation.negative_space_status, "revived");
+  assert.ok(cedarRevival?.evaluation.hard_failures.includes("negative_space_revived"));
+  assert.equal(cedarRevival?.evaluation.hard_failures_non_compensable, true);
+  for (const episode of report.training.successor_episodes) {
+    assert.equal(episode.evaluation.resources.model_usage_units.value, null);
+    assert.equal(episode.evaluation.resources.cost_microunits.value, null);
+    assert.equal(episode.evaluation.resources.latency_ms.value, null);
+    assert.equal(
+      episode.evidence_ladder.find(
+        (row) => row.stage === "support_validated",
+      )?.status,
+      "unknown",
+    );
+  }
+  const zeroControl = report.training.successor_episodes.find(
+    (episode) => episode.condition === "zero_continuation_control",
+  );
+  assert.equal(
+    zeroControl?.evidence_ladder.find((row) => row.stage === "referenced")
+      ?.status,
+    "not_established",
+  );
+  const verificationComponent =
+    report.consolidation_candidate.minimal_generalized_rule.components.find(
+      (component) =>
+        component.component_ref.content_fingerprint ===
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01(
+            "separate_execution_completion_from_verified_success",
+          ),
+        ),
+    );
+  assert.equal(verificationComponent?.independent_origin_group_ids.length, 1);
+  assert.ok(
+    report.consolidation_candidate.missing_evidence_codes.includes(
+      "component_independent_recurrence_incomplete",
+    ),
+  );
+}
+
+function runNegativeContractCasesV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  report: CommissionedWorkFinalReportV01;
+  candidate: CommissionedWorkFinalReportV01["consolidation_candidate"];
+  training: CommissionedWorkFinalReportV01["training"];
+  holdout: CommissionedWorkFinalReportV01["holdout"];
+  receipt_probe_bundle: EpisodeBundle;
+}): void {
+  const taskMutation = structuredClone(input.familySource);
+  taskMutation.training_cases[0].task.goal = "Mutated after seal.";
+  assert.throws(
+    () =>
+      assertCommissionedWorkFamilySourceBindingV01({
+        manifest: input.manifest,
+        training_cases: taskMutation.training_cases,
+        holdout_case: taskMutation.holdout_case,
+      }),
+    /commissioned_work_task_or_rubric_mutated_after_seal/u,
+  );
+  const rubricMutation = structuredClone(input.familySource);
+  rubricMutation.training_cases[1].required_checks[0]!.check_id =
+    "cobalt-mutated-contract";
+  assert.throws(
+    () =>
+      assertCommissionedWorkFamilySourceBindingV01({
+        manifest: input.manifest,
+        training_cases: rubricMutation.training_cases,
+        holdout_case: rubricMutation.holdout_case,
+      }),
+    /commissioned_work_task_or_rubric_mutated_after_seal/u,
+  );
+  const sameLengthPlanMutation = structuredClone(input.familySource);
+  const originalPlanContent =
+    sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!
+      .content;
+  sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!.content =
+    `${originalPlanContent[0] === "a" ? "b" : "a"}${originalPlanContent.slice(1)}`;
+  assert.equal(
+    Buffer.byteLength(
+      sameLengthPlanMutation.training_cases[0].successor_plans[1]!.writes[0]!
+        .content,
+      "utf8",
+    ),
+    Buffer.byteLength(originalPlanContent, "utf8"),
+  );
+  assert.throws(
+    () =>
+      assertCommissionedWorkFamilySourceBindingV01({
+        manifest: input.manifest,
+        training_cases: sameLengthPlanMutation.training_cases,
+        holdout_case: sameLengthPlanMutation.holdout_case,
+      }),
+    /commissioned_work_task_or_rubric_mutated_after_seal/u,
+  );
+  const executorMutation = structuredClone(input.familySource);
+  executorMutation.training_cases[0].successor_plans[1]!.executor_role_id =
+    "executor-amber-forged";
+  assert.throws(
+    () =>
+      assertCommissionedWorkFamilySourceBindingV01({
+        manifest: input.manifest,
+        training_cases: executorMutation.training_cases,
+        holdout_case: executorMutation.holdout_case,
+      }),
+    /commissioned_work_task_or_rubric_mutated_after_seal/u,
+  );
+  const commonLeak = structuredClone(input.familySource);
+  commonLeak.training_cases[0].materials.find(
+    (item) => item.material_kind === "common_task_evidence",
+  )!.content += " exact_current_continuity";
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(commonLeak),
+    /commissioned_work_condition_common_evidence_leak/u,
+  );
+  const repeatedOrigin = structuredClone(input.familySource);
+  repeatedOrigin.training_cases[1].independent_origin_group_id =
+    repeatedOrigin.training_cases[0].independent_origin_group_id;
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(repeatedOrigin),
+    /commissioned_work_case_source_distinction_invalid:independent_origin_group_id/u,
+  );
+  const zeroLeak = structuredClone(input.familySource);
+  const zeroLeakPlan = zeroLeak.training_cases[0].successor_plans.find(
+    (plan) => plan.condition === "zero_continuation_control",
+  )!;
+  zeroLeakPlan.selected_material_ids = ["amber-current"];
+  zeroLeakPlan.excluded_material_ids = ["amber-old"];
+  zeroLeakPlan.referenced_material_ids.push("amber-current");
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(zeroLeak),
+    /commissioned_work_zero_control_continuation_invalid/u,
+  );
+  const exactStale = structuredClone(input.familySource);
+  const exactStalePlan = exactStale.training_cases[0].successor_plans.find(
+    (plan) => plan.condition === "exact_current_continuity",
+  )!;
+  exactStalePlan.selected_material_ids.push("amber-old");
+  exactStalePlan.excluded_material_ids = [];
+  exactStalePlan.referenced_material_ids.push("amber-old");
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(exactStale),
+    /commissioned_work_exact_current_stale_material_invalid/u,
+  );
+  const unmatchedAblation = structuredClone(input.familySource);
+  const unmatchedExact = unmatchedAblation.training_cases[1].successor_plans.find(
+    (plan) => plan.condition === "exact_current_continuity",
+  )!;
+  const unmatchedPlan = unmatchedAblation.training_cases[1].successor_plans.find(
+    (plan) => plan.condition === "matched_ablation",
+  )!;
+  unmatchedPlan.selected_material_ids = [...unmatchedExact.selected_material_ids];
+  unmatchedPlan.excluded_material_ids = [...unmatchedExact.excluded_material_ids];
+  unmatchedPlan.referenced_material_ids = [...unmatchedExact.referenced_material_ids];
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(unmatchedAblation),
+    /commissioned_work_matched_ablation_relation_invalid/u,
+  );
+  const staleMissing = structuredClone(input.familySource);
+  staleMissing.training_cases[2].successor_plans.find(
+    (plan) => plan.condition === "stale_or_regime_shift_continuity",
+  )!.stale_relation_material_id = null;
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(staleMissing),
+    /commissioned_work_stale_relation_binding_invalid/u,
+  );
+  const invalidHoldoutMode = structuredClone(input.familySource);
+  invalidHoldoutMode.holdout_case.successor_plans.find(
+    (plan) => plan.holdout_variant === "candidate_component_ablation",
+  )!.candidate_intervention_mode = "all_frozen_candidate_components";
+  assert.throws(
+    () => buildCommissionedWorkFamilyManifestV01(invalidHoldoutMode),
+    /commissioned_work_holdout_candidate_intervention_invalid/u,
+  );
+  const caseCommitment = input.manifest.training_cases[0];
+  const baseObservation = negativeObservationInputV01(
+    input.manifest,
+    caseCommitment,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkObjectiveObservationV01({
+        ...baseObservation,
+        current_source_fingerprint: createProtocolSha256V01(
+          "unreflected-current-source-drift",
+        ),
+      }),
+    /commissioned_work_observation_current_source_binding_invalid/u,
+  );
+  const contradictoryCurrentnessChecks = baseObservation.required_checks.map(
+    (check) =>
+      check.check_id === caseCommitment.source_currentness_check_id
+        ? {
+            ...check,
+            disposition: "failed" as const,
+            command_fingerprint: createProtocolSha256V01(
+              "contradictory-currentness-check",
+            ),
+            exit_code: 1,
+          }
+        : check,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkObjectiveObservationV01({
+        ...baseObservation,
+        required_checks: contradictoryCurrentnessChecks,
+        source_currentness: "current",
+      }),
+    /commissioned_work_observation_source_currentness_relation_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkObjectiveObservationV01({
+        ...baseObservation,
+        authority_effects: {
+          ...baseObservation.authority_effects,
+          provider_calls: 1 as 0,
+        },
+      }),
+    /commissioned_work_observation_authority_expansion/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkObjectiveObservationV01({
+        ...baseObservation,
+        resources: {
+          ...baseObservation.resources,
+          model_usage_units: {
+            provenance: "unknown",
+            value: 0,
+          } as never,
+        },
+      }),
+    /commissioned_work_resource_unknown_or_value_invalid/u,
+  );
+  const crossProjectSource = input.familySource.training_cases[0];
+  const crossProjectPlan = crossProjectSource.successor_plans[0]!;
+  const crossProjectPacket = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source: crossProjectSource,
+    plan: crossProjectPlan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    generated_at: "2026-08-27T02:40:00.000Z",
+  });
+  assert.throws(
+    () =>
+      buildCommissionedWorkNativeHostRequestV01({
+        manifest: input.manifest,
+        source: crossProjectSource,
+        plan: crossProjectPlan,
+        consolidation_candidate: null,
+        expected_candidate_freeze_fingerprint: null,
+        packet: crossProjectPacket,
+        runtime: {
+          report_included: false,
+          case_id: crossProjectSource.case_id,
+          condition: crossProjectPlan.condition,
+          holdout_variant: null,
+          workspace_id: input.manifest.workspace_id,
+          project_id: "project-cross-scope",
+          repository_root: input.roots.artifact_repository,
+          database_path: path.join(input.roots.database, "cross.sqlite"),
+          home_root: input.roots.home,
+          data_root: input.roots.data,
+          config_root: input.roots.config,
+          runtime_root: input.roots.runtime,
+          artifact_root: input.roots.artifacts,
+        },
+        episode_id: "cross-project-refusal",
+        requested_at: "2026-08-27T02:40:00.000Z",
+      }),
+    /commissioned_work_cross_project_source_refused/u,
+  );
+  const forgedPlan = structuredClone(crossProjectPlan);
+  forgedPlan.writes[0]!.content += "\n// forged after seal\n";
+  assert.throws(
+    () =>
+      buildCommissionedWorkTaskContextPacketV01({
+        manifest: input.manifest,
+        source: crossProjectSource,
+        plan: forgedPlan,
+        consolidation_candidate: null,
+        expected_candidate_freeze_fingerprint: null,
+        generated_at: "2026-08-27T02:41:00.000Z",
+      }),
+    /commissioned_work_episode_plan_not_sealed/u,
+  );
+  const inheritedEpisode = structuredClone(
+    input.training.predecessor_episodes[0]!,
+  );
+  inheritedEpisode.execution_binding.predecessor_transcript_inherited =
+    true as false;
+  resealV01(
+    inheritedEpisode,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkTrainingResultV01({
+        manifest: input.manifest,
+        predecessor_episodes: [
+          inheritedEpisode,
+          ...input.training.predecessor_episodes.slice(1),
+        ],
+        successor_episodes: input.training.successor_episodes,
+      }),
+    /commissioned_work_episode_authority_or_cold_boundary_invalid/u,
+  );
+  const sourceBoundEpisode = input.training.successor_episodes.find(
+    (episode) =>
+      episode.episode_id === input.receipt_probe_bundle.episode_id,
+  )!;
+  const chronologyTamperedBundle = structuredClone(
+    input.receipt_probe_bundle,
+  );
+  chronologyTamperedBundle.first_material_action_at = addSecondsV01(
+    chronologyTamperedBundle.first_material_action_at,
+    1,
+  );
+  assert.throws(
+    () =>
+      buildEpisodeArtifactFromBundleV01({
+        manifest: input.manifest,
+        bundle: chronologyTamperedBundle,
+        predecessor_ref: sourceBoundEpisode.predecessor_episode_ref,
+        interruption_ref: sourceBoundEpisode.sealed_interruption_ref,
+        candidate_fingerprint: null,
+        condition_sensitive: "observed",
+      }),
+    /commissioned_work_episode_execution_chronology_binding_invalid/u,
+  );
+  const interruptionTampered = structuredClone(sourceBoundEpisode);
+  interruptionTampered.sealed_interruption_ref =
+    createCommissionedWorkRecordRefV01({
+      record_version: "commissioned_work_sealed_interruption.v0.1",
+      record_id: `interruption:${interruptionTampered.case_id}`,
+      record_fingerprint: createProtocolSha256V01(
+        "tampered-sealed-interruption",
+      ),
+    });
+  resealV01(
+    interruptionTampered,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkTrainingResultV01({
+        manifest: input.manifest,
+        predecessor_episodes: input.training.predecessor_episodes,
+        successor_episodes: input.training.successor_episodes.map((episode) =>
+          episode.episode_id === interruptionTampered.episode_id
+            ? interruptionTampered
+            : episode,
+        ),
+      }),
+    /commissioned_work_training_case_slots_invalid/u,
+  );
+  const consumptionTampered = structuredClone(sourceBoundEpisode);
+  consumptionTampered.execution_binding.continuation_materials_consumed += 1;
+  resealV01(
+    consumptionTampered,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkTrainingResultV01({
+        manifest: input.manifest,
+        predecessor_episodes: input.training.predecessor_episodes,
+        successor_episodes: input.training.successor_episodes.map((episode) =>
+          episode.episode_id === consumptionTampered.episode_id
+            ? consumptionTampered
+            : episode,
+        ),
+      }),
+    /commissioned_work_episode_manifest_binding_invalid/u,
+  );
+  const mutatedCandidate = structuredClone(input.candidate);
+  mutatedCandidate.uncertainty_codes.push("post_freeze_mutation");
+  assert.throws(
+    () =>
+      buildCommissionedWorkTaskContextPacketV01({
+        manifest: input.manifest,
+        source: input.familySource.holdout_case,
+        plan: input.familySource.holdout_case.successor_plans.find(
+          (plan) => plan.holdout_variant === "candidate_present",
+        )!,
+        consolidation_candidate: mutatedCandidate,
+        expected_candidate_freeze_fingerprint:
+          input.candidate.integrity.fingerprint,
+        generated_at: "2026-08-27T04:04:00.000Z",
+      }),
+    /commissioned_work_candidate_freeze_invalid/u,
+  );
+  const resealedCandidate = structuredClone(input.candidate);
+  resealedCandidate.uncertainty_codes.push("post_freeze_resealed_mutation");
+  resealV01(
+    resealedCandidate,
+    "commissioned_work_candidate_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkTaskContextPacketV01({
+        manifest: input.manifest,
+        source: input.familySource.holdout_case,
+        plan: input.familySource.holdout_case.successor_plans.find(
+          (plan) => plan.holdout_variant === "candidate_present",
+        )!,
+        consolidation_candidate: resealedCandidate,
+        expected_candidate_freeze_fingerprint:
+          input.candidate.integrity.fingerprint,
+        generated_at: "2026-08-27T04:04:00.000Z",
+      }),
+    /commissioned_work_candidate_freeze_anchor_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkHoldoutEvaluationV01({
+        manifest: input.manifest,
+        candidate: mutatedCandidate,
+        holdout_id: input.holdout.holdout_id,
+        holdout_materialized_at: input.holdout.holdout_materialized_at,
+        holdout_started_at: input.holdout.holdout_started_at,
+        predecessor_episode: input.holdout.predecessor_episode,
+        arms: input.holdout.arms,
+      }),
+    /commissioned_work_candidate_freeze_invalid/u,
+  );
+  const holdoutDerivedCandidate = structuredClone(input.candidate);
+  holdoutDerivedCandidate.source_episode_refs.push(
+    episodeRefV01(input.holdout.arms[0]),
+  );
+  resealV01(
+    holdoutDerivedCandidate,
+    "commissioned_work_candidate_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkFinalReportV01({
+        report_id: input.report.report_id,
+        family: input.manifest,
+        training: input.training,
+        consolidation_candidate: holdoutDerivedCandidate,
+        holdout: input.holdout,
+        limitations: input.report.limitations,
+      }),
+    /commissioned_work_candidate_training_derivation_invalid/u,
+  );
+  const reusedExecutorReport = structuredClone(input.report);
+  reusedExecutorReport.holdout.arms[0]!.evaluation.executor_role =
+    reusedExecutorReport.training.successor_episodes[0]!.evaluation.executor_role;
+  resealV01(
+    reusedExecutorReport.holdout.arms[0]!,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  resealV01(
+    reusedExecutorReport.holdout,
+    "commissioned_work_holdout_without_integrity_fingerprint",
+  );
+  resealV01(
+    reusedExecutorReport,
+    "commissioned_work_report_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () => assertValidCommissionedWorkFinalReportV01(reusedExecutorReport),
+    /commissioned_work_report_executor_identity_reused/u,
+  );
+  const nonzeroCallCountReport = structuredClone(input.report);
+  nonzeroCallCountReport.counts.real_provider_calls = 1 as 0;
+  resealV01(
+    nonzeroCallCountReport,
+    "commissioned_work_report_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () => assertValidCommissionedWorkFinalReportV01(nonzeroCallCountReport),
+    /commissioned_work_report_counts_or_cleanup_invalid/u,
+  );
+  const cleanupClaimReport = structuredClone(input.report);
+  cleanupClaimReport.cleanup.requested = false as true;
+  cleanupClaimReport.cleanup.report_claims_cleanup_completion = true as false;
+  resealV01(
+    cleanupClaimReport,
+    "commissioned_work_report_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () => assertValidCommissionedWorkFinalReportV01(cleanupClaimReport),
+    /commissioned_work_report_counts_or_cleanup_invalid/u,
+  );
+  const nonzeroEpisodeResource = structuredClone(sourceBoundEpisode);
+  nonzeroEpisodeResource.evaluation.resources.provider_calls = {
+    provenance: "observed",
+    value: 1,
+  };
+  resealV01(
+    nonzeroEpisodeResource,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkTrainingResultV01({
+        manifest: input.manifest,
+        predecessor_episodes: input.training.predecessor_episodes,
+        successor_episodes: input.training.successor_episodes.map((episode) =>
+          episode.episode_id === nonzeroEpisodeResource.episode_id
+            ? nonzeroEpisodeResource
+            : episode,
+        ),
+      }),
+    /commissioned_work_episode_authority_or_cold_boundary_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkConsolidationCandidateV01({
+        manifest: input.manifest,
+        training: input.training,
+        candidate_id: "candidate-before-training-finished",
+        frozen_at: "2026-08-27T01:00:00.000Z",
+      }),
+    /commissioned_work_candidate_frozen_before_training_complete/u,
+  );
+  const predatesMaterialization = structuredClone(
+    input.holdout.predecessor_episode,
+  );
+  predatesMaterialization.chronology.started_at = "2026-08-27T03:30:00.000Z";
+  predatesMaterialization.chronology.first_material_action_at =
+    "2026-08-27T03:30:01.000Z";
+  predatesMaterialization.chronology.finished_at = "2026-08-27T03:30:02.000Z";
+  resealV01(
+    predatesMaterialization,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkHoldoutEvaluationV01({
+        manifest: input.manifest,
+        candidate: input.candidate,
+        holdout_id: input.holdout.holdout_id,
+        holdout_materialized_at: input.holdout.holdout_materialized_at,
+        holdout_started_at: input.holdout.holdout_started_at,
+        predecessor_episode: predatesMaterialization,
+        arms: input.holdout.arms,
+      }),
+    /commissioned_work_holdout_predecessor_invalid/u,
+  );
+  const hardGateObservation = structuredClone(
+    input.receipt_probe_bundle.observation,
+  );
+  hardGateObservation.negative_space.status = "revived";
+  hardGateObservation.negative_space.violated_guard_fingerprints = [
+    hardGateObservation.negative_space.guard_observations[0]!.guard_ref
+      .content_fingerprint,
+  ];
+  hardGateObservation.negative_space.guard_observations[0]!.status = "revived";
+  resealV01(
+    hardGateObservation,
+    "commissioned_work_objective_observation_without_integrity_fingerprint",
+  );
+  const hardGateReceipt = buildCommissionedWorkRunReceiptV01({
+    request: input.receipt_probe_bundle.request,
+    packet: input.receipt_probe_bundle.packet,
+    result: input.receipt_probe_bundle.result,
+    observation: hardGateObservation,
+  });
+  assert.equal(hardGateReceipt.verification.status, "failed");
+  assert.equal(
+    hardGateReceipt.checks.find(
+      (check) => check.check_id === "objective_negative_space",
+    )?.status,
+    "failed",
+  );
+  const noOracleObservation = structuredClone(
+    input.receipt_probe_bundle.observation,
+  );
+  noOracleObservation.oracle_executed = false;
+  noOracleObservation.verification_completeness = "incomplete";
+  noOracleObservation.required_checks = noOracleObservation.required_checks.map(
+    (check) => ({
+      ...check,
+      disposition: "unknown" as const,
+      command_fingerprint: null,
+      exit_code: null,
+    }),
+  );
+  resealV01(
+    noOracleObservation,
+    "commissioned_work_objective_observation_without_integrity_fingerprint",
+  );
+  const noOracleReceipt = buildCommissionedWorkRunReceiptV01({
+    request: input.receipt_probe_bundle.request,
+    packet: input.receipt_probe_bundle.packet,
+    result: input.receipt_probe_bundle.result,
+    observation: noOracleObservation,
+  });
+  assert.notEqual(noOracleReceipt.verification.status, "passed");
+  const providerResult = structuredClone(input.receipt_probe_bundle.result);
+  providerResult.model_invocation_receipt_refs.push({
+    ref_version: "external_ref.v0.1",
+    ref_type: "forbidden_model_invocation",
+    external_id: "forbidden-model-invocation",
+    observed_at: providerResult.finished_at,
+    source_ref: createProtocolSha256V01("forbidden-model-invocation"),
+    compatibility_namespace: null,
+    trust_class: "provider_report",
+  });
+  assert.throws(
+    () =>
+      buildCommissionedWorkRunReceiptV01({
+        request: input.receipt_probe_bundle.request,
+        packet: input.receipt_probe_bundle.packet,
+        result: providerResult,
+        observation: input.receipt_probe_bundle.observation,
+      }),
+    /commissioned_work_receipt_invocation_binding_invalid/u,
+  );
+  for (const unsafe of [
+    "/Users/private/work/file.txt",
+    "private source at /home/fixture-owner/work/file.txt",
+    "C:\\repo\\private\\file.txt",
+    "\\\\server\\share\\private.txt",
+    "sk-proj-1234567890abcdef",
+    "xoxb-12345678-secret",
+    "AKIA1234567890ABCD12",
+    "-----BEGIN PRIVATE KEY-----",
+  ]) {
+    assert.throws(
+      () =>
+        assertSafeCommissionedWorkOutputV01({
+          report: input.report,
+          unsafe_source_material: unsafe,
+        }),
+      /commissioned_work_safe_output_invalid/u,
+    );
+  }
+  assertChildNetworkGuardV01(input.roots);
+}
+
+function assertChildNetworkGuardV01(
+  roots: ReturnType<typeof createDisposableRootsV01>,
+): void {
+  if (hermeticProcessEnvironmentV01 === null) {
+    throw new Error("commissioned_workbench_hermetic_environment_missing");
+  }
+  const probePath = path.join(roots.runtime, "network-refusal-probe.mjs");
+  writeFileSync(
+    probePath,
+    'await fetch("https://example.invalid/cw1-network-refusal-probe");\n',
+    { encoding: "utf8", mode: 0o600 },
+  );
+  const before = existsSync(roots.network_attempt_log)
+    ? readFileSync(roots.network_attempt_log, "utf8")
+    : "";
+  ownedSynchronousProcessesV01 += 1;
+  try {
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ["--import", roots.oracle_guard_path, probePath],
+          {
+            cwd: roots.runtime,
+            env: hermeticProcessEnvironmentV01!,
+            stdio: "ignore",
+            timeout: 5_000,
+          },
+        ),
+    );
+  } finally {
+    ownedSynchronousProcessesV01 -= 1;
+  }
+  const after = readFileSync(roots.network_attempt_log, "utf8");
+  assert.equal(after.slice(before.length).trim().split("\n").length, 1);
+  assert.match(after.slice(before.length), /fetch/u);
+}
+
+function negativeObservationInputV01(
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>,
+  commitment: CommissionedWorkCaseCommitmentV01,
+): BuildCommissionedWorkObjectiveObservationInputV01 {
+  return {
+    case_commitment: commitment,
+    evaluator_version: manifest.evaluator_version,
+    evaluator_role: manifest.outcome_evaluator,
+    workspace_id: manifest.workspace_id,
+    project_id: commitment.project_id,
+    case_id: commitment.case_id,
+    episode_role: "successor",
+    condition: "exact_current_continuity",
+    holdout_variant: null,
+    run_ref_fingerprint: createProtocolSha256V01("negative-observation-run"),
+    oracle_executed: false,
+    repository_state_fingerprint: createProtocolSha256V01(
+      "negative-observation-repository-state",
+    ),
+    current_source_fingerprint: commitment.expected_current_source_fingerprint,
+    changed_path_fingerprints: [],
+    required_checks: commitment.required_check_ids.map((check_id) => ({
+      check_id,
+      disposition: "unknown",
+      command_fingerprint: null,
+      exit_code: null,
+    })),
+    repository_diff_correctness: "unknown",
+    verification_completeness: "unknown",
+    negative_space: {
+      status: "unknown",
+      violated_guard_fingerprints: [],
+      guard_observations: commitment.negative_space_guard_refs.map((guard_ref) => ({
+        guard_ref,
+        status: "unknown",
+      })),
+    },
+    source_currentness: "unknown",
+    project_scope: "exact",
+    authority_effects: {
+      provider_calls: 0,
+      model_calls: 0,
+      external_network_calls: 0,
+      outside_root_writes: 0,
+      product_database_writes: 0,
+      core_writes: 0,
+      proposal_writes: 0,
+      review_decision_writes: 0,
+      transition_writes: 0,
+      policy_activations: 0,
+      active_pointer_writes: 0,
+      github_writes: 0,
+    },
+    resources: {
+      provider_calls: { provenance: "observed", value: 0 },
+      model_calls: { provenance: "observed", value: 0 },
+      external_network_calls: { provenance: "observed", value: 0 },
+      tool_calls: { provenance: "unknown", value: null },
+      model_usage_units: { provenance: "unknown", value: null },
+      cost_microunits: { provenance: "unknown", value: null },
+      latency_ms: { provenance: "unknown", value: null },
+      human_review_burden: { provenance: "unknown", value: null },
+    },
+  };
+}
+
+function findCommitmentV01(
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>,
+  caseId: string,
+): CommissionedWorkCaseCommitmentV01 {
+  const commitment = [
+    ...manifest.training_cases,
+    manifest.holdout_case,
+  ].find((item) => item.case_id === caseId);
+  assert.ok(commitment);
+  return commitment;
+}
+
+function episodeRefV01(
+  episode: CommissionedWorkEpisodeArtifactV01,
+): CommissionedWorkRecordRefV01 {
+  return createCommissionedWorkRecordRefV01({
+    record_version: episode.episode_version,
+    record_id: episode.episode_id,
+    record_fingerprint: episode.integrity.fingerprint,
+  });
+}
+
+function resealV01(
+  value: { integrity: ReturnType<typeof createCommissionedWorkIntegrityV01> },
+  scope: string,
+): void {
+  const record = value as typeof value & Record<string, unknown>;
+  const { integrity: _prior, ...withoutIntegrity } = record;
+  value.integrity = createCommissionedWorkIntegrityV01(
+    withoutIntegrity,
+    scope,
+  );
+}
+
+function writeRepositoryFileV01(
+  root: string,
+  repositoryRelativePath: string,
+  content: string,
+): void {
+  const target = path.join(root, repositoryRelativePath);
+  const relative = path.relative(root, target);
+  assert.ok(
+    relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative),
+  );
+  mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+  writeFileSync(target, content, { encoding: "utf8", mode: 0o600 });
+}
+
+function runOracleProcessV01(input: {
+  repository_root: string;
+  oracle_relative_path: string;
+  oracle_guard_path: string;
+  network_attempt_log: string;
+}): void {
+  if (hermeticProcessEnvironmentV01 === null) {
+    throw new Error("commissioned_workbench_hermetic_environment_missing");
+  }
+  const networkLogBefore = existsSync(input.network_attempt_log)
+    ? readFileSync(input.network_attempt_log, "utf8")
+    : "";
+  ownedSynchronousProcessesV01 += 1;
+  try {
+    execFileSync(
+      process.execPath,
+      ["--import", input.oracle_guard_path, input.oracle_relative_path],
+      {
+        cwd: input.repository_root,
+        env: hermeticProcessEnvironmentV01,
+        stdio: "ignore",
+        timeout: 5_000,
+      },
+    );
+  } finally {
+    ownedSynchronousProcessesV01 -= 1;
+    const networkLogAfter = existsSync(input.network_attempt_log)
+      ? readFileSync(input.network_attempt_log, "utf8")
+      : "";
+    if (networkLogAfter !== networkLogBefore) {
+      throw new Error("commissioned_workbench_oracle_network_attempt_refused");
+    }
+  }
+}
+
+function gitV01(
+  root: string,
+  args: string[],
+  timestamp?: string,
+): string {
+  if (hermeticProcessEnvironmentV01 === null) {
+    throw new Error("commissioned_workbench_hermetic_environment_missing");
+  }
+  const environment = timestamp
+    ? {
+        ...hermeticProcessEnvironmentV01,
+        GIT_AUTHOR_DATE: timestamp,
+        GIT_COMMITTER_DATE: timestamp,
+      }
+    : hermeticProcessEnvironmentV01;
+  ownedSynchronousProcessesV01 += 1;
+  try {
+    return execFileSync("git", args, {
+      cwd: root,
+      env: environment,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 10_000,
+    }).trim();
+  } finally {
+    ownedSynchronousProcessesV01 -= 1;
+  }
+}
+
+function timestampForV01(caseIndex: number, phaseIndex: number): string {
+  const base =
+    caseIndex === 3
+      ? Date.parse("2026-08-27T04:05:00.000Z")
+      : Date.parse("2026-08-27T01:10:00.000Z") + caseIndex * 20 * 60_000;
+  return new Date(base + phaseIndex * 10_000).toISOString();
+}
+
+function addSecondsV01(timestamp: string, seconds: number): string {
+  return new Date(Date.parse(timestamp) + seconds * 1_000).toISOString();
+}
