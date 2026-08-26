@@ -10075,8 +10075,35 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
   jar: RouteCookieJar;
   packet: TaskContextPacketV01;
 }): Promise<void> {
+  await assertLiveCodexDisconnectResumeCaseOnCloneV01(
+    input,
+    "disconnect_resume",
+  );
+  await assertLiveCodexDisconnectResumeCaseOnCloneV01(
+    input,
+    "disconnect_resume_same_batch",
+  );
+  pass("live_codex_disconnect_pauses_without_receipt_and_resumes_known_thread");
+  pass("live_codex_resume_creates_no_second_thread_or_turn");
+  pass(
+    "live_codex_resume_preserves_success_cookie_when_projection_fails",
+  );
+  pass(
+    "live_codex_same_batch_resume_terminal_preserves_monotonic_lifecycle",
+  );
+  reject("live_codex_disconnected_run_cannot_claim_cancel_without_host_owner");
+}
+
+async function assertLiveCodexDisconnectResumeCaseOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    jar: RouteCookieJar;
+    packet: TaskContextPacketV01;
+  },
+  scenario: "disconnect_resume" | "disconnect_resume_same_batch",
+): Promise<void> {
   await withOperatorDatabaseCloneV01(
-    "live-codex-disconnect-resume",
+    `live-codex-${scenario}`,
     input.environment,
     async ({ config, environment }) => {
       installPublicSafeLivePacketV01(config, input.packet);
@@ -10085,7 +10112,7 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
       );
       const harness = createFakeLiveCodexHarnessV01({
         config,
-        scenario: "disconnect_resume",
+        scenario,
         now: () => clock.now(),
       });
       const secretSource = new DeterministicSecretSource();
@@ -10184,7 +10211,7 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
             config,
             (value) => value.status === "completed",
             10_000,
-            "disconnect_resume_terminal",
+            `disconnect_resume_terminal:${scenario}`,
           );
         } catch (error) {
           throw new Error(
@@ -10209,6 +10236,11 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
         assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/read"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/resume"), 1);
+        const intentionalDisconnects = trace.filter(
+          (entry) => entry.kind === "intentional_disconnect",
+        );
+        assert.equal(intentionalDisconnects.length, 1);
+        assert.equal(intentionalDisconnects[0]?.value.exit_code, 19);
         const turnStart = trace.find(
           (entry) =>
             entry.kind === "received" &&
@@ -10225,12 +10257,67 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
           config,
           projection.run_ref!,
         );
-        assert.equal(
-          resumedRun.events.some(
-            (event) => event.event_type === "run_resumed",
-          ),
-          true,
+        const resumeEventIndex = resumedRun.events.findIndex(
+          (event) => event.event_type === "run_resumed",
         );
+        assert.notEqual(resumeEventIndex, -1);
+        const threadBoundEvents = resumedRun.events.filter(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "thread_bound",
+        );
+        assert.equal(threadBoundEvents.length, 2);
+        // The intentional exit-19 disconnect creates exactly one truthful
+        // reconciliation event. A same-batch resumed binding must not invent
+        // another one.
+        assert.equal(
+          resumedRun.events.filter(
+            (event) => event.event_type === "run_reconciliation_required",
+          ).length,
+          1,
+        );
+        assert.equal(
+          harness.observations.filter(
+            (observation) => observation.kind === "thread_resumed",
+          ).length,
+          1,
+        );
+        if (scenario === "disconnect_resume_same_batch") {
+          assert.equal(
+            threadBoundEvents.filter((event) => event.status === "starting")
+              .length,
+            1,
+          );
+          assert(
+            threadBoundEvents.some((event) => event.status === "running"),
+          );
+          const sameBatch = trace.filter(
+            (entry) => entry.kind === "same_batch_emitted",
+          );
+          assert.equal(sameBatch.length, 1);
+          assert.equal(sameBatch[0]?.value.record_count, 3);
+          assert.deepEqual(sameBatch[0]?.value.methods, [
+            "thread/resume:response",
+            "turn/completed",
+            "thread/status/changed",
+          ]);
+          assert.equal(
+            sameBatch[0]?.value.thread_id,
+            (
+              resumedRun.metadata.host_thread_ref as {
+                external_id?: string;
+              }
+            ).external_id,
+          );
+          assert.equal(
+            sameBatch[0]?.value.turn_id,
+            (
+              resumedRun.metadata.host_turn_ref as {
+                external_id?: string;
+              }
+            ).external_id,
+          );
+        }
         assertObservedProcessesStoppedV01(harness.observations);
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
       } finally {
@@ -10238,12 +10325,6 @@ async function assertLiveCodexDisconnectResumeOnCloneV01(input: {
       }
     },
   );
-  pass("live_codex_disconnect_pauses_without_receipt_and_resumes_known_thread");
-  pass("live_codex_resume_creates_no_second_thread_or_turn");
-  pass(
-    "live_codex_resume_preserves_success_cookie_when_projection_fails",
-  );
-  reject("live_codex_disconnected_run_cannot_claim_cancel_without_host_owner");
 }
 
 async function assertLiveCodexFailureMatrixOnClonesV01(input: {

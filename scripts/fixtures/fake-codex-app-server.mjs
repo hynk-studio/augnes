@@ -194,6 +194,10 @@ async function handle(message) {
       return;
     }
     if (message.method === "thread/resume") {
+      if (scenario === "disconnect_resume_same_batch") {
+        respondAndCompleteSuccessInOneBatch(message.id);
+        return;
+      }
       respond(message.id, threadResponse({ includeTurns: true, turnStatus: "inProgress" }));
       if (scenario === "disconnect_resume") {
         setImmediate(() => completeSuccess());
@@ -263,7 +267,13 @@ async function handle(message) {
         else if (scenario === "structured_result_credential_text") completeUnsafeTextStructuredResult(
           "OPENAI_API_KEY=sk-not-returned-to-augnes-1234567890",
         );
-        else if (scenario === "disconnect_resume") process.exit(19);
+        else if (
+          scenario === "disconnect_resume" ||
+          scenario === "disconnect_resume_same_batch"
+        ) {
+          trace("intentional_disconnect", { exit_code: 19 });
+          process.exit(19);
+        }
         else if (scenario === "command_approval" || scenario === "delayed_cleanup" || scenario === "ignored_interrupt" || scenario === "descendant_cleanup") requestCommandApproval();
         else if (scenario === "public_safe_command_approval") requestCommandApproval({
           command: String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`,
@@ -600,6 +610,41 @@ function completeSuccess() {
     turn: turn("completed", [agentMessage(structuredResult())]),
   });
   notify("thread/status/changed", { threadId, status: { type: "idle" } });
+}
+
+function respondAndCompleteSuccessInOneBatch(id) {
+  if (completed) return;
+  completed = true;
+  turnActive = false;
+  persistState({ threadId, sessionId, turnId, status: "completed" });
+  const messages = [
+    {
+      id,
+      result: threadResponse({ includeTurns: true, turnStatus: "inProgress" }),
+    },
+    {
+      method: "turn/completed",
+      params: {
+        threadId,
+        turn: turn("completed", [agentMessage(structuredResult())]),
+      },
+    },
+    {
+      method: "thread/status/changed",
+      params: { threadId, status: { type: "idle" } },
+    },
+  ];
+  trace("terminal_state_emitted", {});
+  messages.forEach((message) => trace("sent", minimized(message)));
+  trace("same_batch_emitted", {
+    record_count: messages.length,
+    thread_id: threadId,
+    turn_id: turnId,
+    methods: ["thread/resume:response", "turn/completed", "thread/status/changed"],
+  });
+  // One pipe write forces the response and both notifications into the same
+  // transport data batch instead of relying on probabilistic stdout chunking.
+  process.stdout.write(`${messages.map((message) => JSON.stringify(message)).join("\n")}\n`);
 }
 
 function completeConflictingSuccess() {
