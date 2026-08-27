@@ -926,8 +926,16 @@ async function runStaleCheckoutDecommissionContract({
     const configuration = {
       ...fixture.configuration,
       ...(changed === "device"
-        ? { repository_device: `${fixture.configuration.repository_device}-changed` }
-        : { repository_inode: `${fixture.configuration.repository_inode}-changed` }),
+        ? {
+            repository_device: differentCanonicalStatIdentity(
+              fixture.configuration.repository_device,
+            ),
+          }
+        : {
+            repository_inode: differentCanonicalStatIdentity(
+              fixture.configuration.repository_inode,
+            ),
+          }),
       ...overrides,
     };
     writeJson(fixture.layout.configuration_path, configuration);
@@ -1045,6 +1053,20 @@ async function runStaleCheckoutDecommissionContract({
   };
 
   const inodeFixture = writeStaleFixture({ scope: "stale-inode-success" });
+  assert.match(inodeFixture.configuration.repository_device, /^(?:0|[1-9][0-9]*)$/u);
+  assert.match(inodeFixture.configuration.repository_inode, /^[1-9][0-9]*$/u);
+  assert.equal(
+    String(BigInt(inodeFixture.configuration.repository_device)),
+    inodeFixture.configuration.repository_device,
+  );
+  assert.equal(
+    String(BigInt(inodeFixture.configuration.repository_inode)),
+    inodeFixture.configuration.repository_inode,
+  );
+  assert.notEqual(
+    inodeFixture.configuration.repository_inode,
+    inodeFixture.layout.repository.inode,
+  );
   const inodeLaunchctl = makeLaunchctl();
   const unrelatedLaunchAgent = path.join(
     path.dirname(inodeFixture.layout.launch_agent_path),
@@ -1109,6 +1131,14 @@ async function runStaleCheckoutDecommissionContract({
     scope: "stale-device-success",
     changed: "device",
   });
+  assert.equal(
+    String(BigInt(deviceFixture.configuration.repository_device)),
+    deviceFixture.configuration.repository_device,
+  );
+  assert.notEqual(
+    deviceFixture.configuration.repository_device,
+    deviceFixture.layout.repository.device,
+  );
   const deviceLaunchctl = makeLaunchctl();
   await assertStaleProjection(deviceFixture, deviceLaunchctl.launchctl);
   assert.equal(
@@ -1118,6 +1148,30 @@ async function runStaleCheckoutDecommissionContract({
     })).service.status,
     "not_installed",
   );
+
+  const malformedPhysicalIdentities = [
+    ["suffix", "repository_device", "123-changed"],
+    ["negative", "repository_device", "-1"],
+    ["positive-sign", "repository_device", "+1"],
+    ["leading-space", "repository_device", " 1"],
+    ["trailing-space", "repository_device", "1 "],
+    ["nondecimal", "repository_device", "device"],
+    ["empty", "repository_device", ""],
+    ["leading-zero", "repository_device", "01"],
+    ["zero-inode", "repository_inode", "0"],
+    ["missing-device", "repository_device", undefined],
+    ["missing-inode", "repository_inode", undefined],
+  ];
+  for (const [name, field, value] of malformedPhysicalIdentities) {
+    const malformedFixture = writeStaleFixture({
+      scope: `stale-malformed-physical-${name}`,
+      overrides: { [field]: value },
+    });
+    await assertDecommissionRefused({
+      fixture: malformedFixture,
+      launchctl: makeLaunchctl().launchctl,
+    });
+  }
 
   const loadedFixture = writeStaleFixture({ scope: "stale-loaded-success" });
   writeExplicitStoppedManagerState(loadedFixture);
@@ -1139,6 +1193,70 @@ async function runStaleCheckoutDecommissionContract({
   assert.deepEqual(
     loadedLaunchctl.actions.find(([command]) => command === "bootout"),
     ["bootout", `gui/${process.getuid()}/${loadedFixture.configuration.service_label}`],
+  );
+
+  const definitionFallbackFixture = writeStaleFixture({
+    scope: "stale-loaded-definition-fd-fallback",
+  });
+  writeExplicitStoppedManagerState(definitionFallbackFixture);
+  const definitionFallbackBase = makeLaunchctl(
+    true,
+    definitionFallbackFixture.configuration,
+  );
+  const definitionFallbackLaunchctl = (args) => {
+    if (
+      args[0] === "bootout" &&
+      args[1] ===
+        `gui/${process.getuid()}/${definitionFallbackFixture.configuration.service_label}`
+    ) {
+      definitionFallbackBase.actions.push([...args]);
+      return { status: 64, stdout: "" };
+    }
+    if (
+      args[0] === "bootout" &&
+      args[1] === `gui/${process.getuid()}` &&
+      typeof args[2] === "string"
+    ) {
+      const helper = readFileSync(args[2], "utf8");
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.service_label),
+        true,
+      );
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.manager_entry_path),
+        false,
+      );
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.repository_root),
+        false,
+      );
+    }
+    return definitionFallbackBase.launchctl(args);
+  };
+  assert.equal(
+    (await uninstallCompanionService({
+      ...definitionFallbackFixture.options,
+      launchctl: definitionFallbackLaunchctl,
+    })).service.status,
+    "not_installed",
+  );
+  const definitionFallbackBootouts = definitionFallbackBase.actions.filter(
+    ([command]) => command === "bootout",
+  );
+  assert.equal(definitionFallbackBootouts.length, 2);
+  assert.deepEqual(definitionFallbackBootouts[0], [
+    "bootout",
+    `gui/${process.getuid()}/${definitionFallbackFixture.configuration.service_label}`,
+  ]);
+  assert.equal(definitionFallbackBootouts[1][0], "bootout");
+  assert.equal(definitionFallbackBootouts[1][1], `gui/${process.getuid()}`);
+  assert.equal(
+    path.dirname(definitionFallbackBootouts[1][2]),
+    definitionFallbackFixture.layout.service_directory,
+  );
+  assert.match(
+    path.basename(definitionFallbackBootouts[1][2]),
+    /^\.stale-decommission-launch-agent-[a-f0-9-]+\.plist$/u,
   );
 
   const bootoutRaceFixture = writeStaleFixture({
@@ -1705,8 +1823,49 @@ async function runStaleCheckoutDecommissionContract({
     true,
   );
 
+  const malformedParentJournalFixture = writeStaleFixture({
+    scope: "stale-malformed-parent-journal-refused",
+  });
+  await assert.rejects(
+    uninstallCompanionService({
+      ...malformedParentJournalFixture.options,
+      launchctl: makeLaunchctl().launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  const malformedParentJournal = JSON.parse(readFileSync(
+    malformedParentJournalFixture.layout.stale_decommission_path,
+    "utf8",
+  ));
+  writeJson(malformedParentJournalFixture.layout.stale_decommission_path, {
+    ...malformedParentJournal,
+    materials: {
+      ...malformedParentJournal.materials,
+      configuration: {
+        ...malformedParentJournal.materials.configuration,
+        parent: {
+          ...malformedParentJournal.materials.configuration.parent,
+          device: "01",
+        },
+      },
+    },
+  });
+  const malformedParentObservation = await inspectCompanionService({
+    ...malformedParentJournalFixture.options,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.equal(malformedParentObservation.status, "ambiguous");
+  assert.equal(
+    malformedParentObservation.reason,
+    "companion_service_stale_decommission_record_conflict",
+  );
+
   return {
     exact_uninstall_unchanged: true,
+    installed_stat_identity_shape_required: true,
+    malformed_installed_stat_identities_refused: true,
     inode_and_device_replacement_decommissioned: true,
     moved_root_refused: true,
     stale_start_stop_and_resume_authority_denied: true,
@@ -1719,6 +1878,7 @@ async function runStaleCheckoutDecommissionContract({
     matching_birth_foreign_process_untouched: true,
     loaded_job_identity_bound_beyond_label: true,
     loaded_job_bootout_uses_authenticated_label_target: true,
+    loaded_job_definition_fallback_uses_decommission_only_helper: true,
     service_runtime_and_launch_parent_symlinks_refused: true,
     interrupted_cleanup_replayable_at_every_step: true,
     incomplete_decommission_install_and_start_refused: true,
@@ -1727,6 +1887,7 @@ async function runStaleCheckoutDecommissionContract({
     descriptor_relative_ancestor_swap_contained: true,
     helper_internal_swap_foreign_replacement_survives: true,
     substituted_decommission_journal_refused: true,
+    malformed_journal_stat_identity_refused: true,
     unrelated_launch_agent_untouched: true,
     no_manager_or_runtime_spawned: true,
     exact_cleanup_and_replay: true,
@@ -2041,4 +2202,13 @@ function runtimeChildOwnership(child, fixture, { generationId, instanceId }) {
 
 function tailFingerprint(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function differentCanonicalStatIdentity(value) {
+  assert.match(value, /^(?:0|[1-9][0-9]*)$/u);
+  const changed = String(BigInt(value) + 1n);
+  assert.match(changed, /^[1-9][0-9]*$/u);
+  assert.equal(String(BigInt(changed)), changed);
+  assert.notEqual(changed, value);
+  return changed;
 }

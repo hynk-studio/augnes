@@ -1294,12 +1294,13 @@ async function decommissionStaleCheckoutCompanionService({
   try {
     record = readExistingStaleCheckoutDecommissionRecord(layout);
     if (record === null) {
-      const pending = buildStaleCheckoutDecommissionRecord({
+      const pendingSource = buildStaleCheckoutDecommissionSource({
         before,
         layout,
         configuration,
         launchctl,
       });
+      const pending = pendingSource.record;
       let currentLaunchProcess = null;
       if (pending.launch_job !== null) {
         const currentLaunchJob = assertExactLoadedLaunchJob(
@@ -1319,14 +1320,32 @@ async function decommissionStaleCheckoutCompanionService({
             };
           }
         }
-        const result = launchctl([
+        launchctl([
           "bootout",
           `gui/${currentUid()}/${configuration.service_label}`,
         ]);
-        if (result.status !== 0 && launchctlLoaded(layout, launchctl)) {
-          throw new PublicCompanionServiceError(
-            "companion_service_stale_checkout_decommission_stop_failed",
+        let unloaded = await waitForLaunchctlUnloaded(
+          layout,
+          launchctl,
+          Math.min(waitMs, 2_000),
+        );
+        if (!unloaded) {
+          assertExactLoadedLaunchJob(pending, layout, launchctl);
+          bootoutExactStaleLaunchJobDefinition(
+            pending,
+            layout,
+            launchctl,
           );
+          unloaded = await waitForLaunchctlUnloaded(
+            layout,
+            launchctl,
+            Math.min(waitMs, 2_000),
+          );
+          if (!unloaded) {
+            throw new PublicCompanionServiceError(
+              "companion_service_stale_checkout_decommission_stop_failed",
+            );
+          }
         }
       }
       maybeInjectStaleDecommissionTestFault(
@@ -1339,18 +1358,26 @@ async function decommissionStaleCheckoutCompanionService({
           "companion_service_stale_checkout_decommission_stop_failed",
         );
       }
+      await stopStaleDecommissionOwnedProcessGroups(
+        pendingSource.process_groups,
+      );
       await waitForStaleDecommissionProcessesAbsent(
         pending,
         waitMs,
         currentLaunchProcess,
       );
-      record = buildStaleCheckoutDecommissionRecord({
+      const finalSource = buildStaleCheckoutDecommissionSource({
         before,
         layout,
         configuration,
         launchctl,
       });
-      if (record.launch_job !== null || record.owned_processes.length !== 0) {
+      record = finalSource.record;
+      if (
+        record.launch_job !== null ||
+        record.owned_processes.length !== 0 ||
+        finalSource.process_groups.length !== 0
+      ) {
         throw staleCheckoutDecommissionRefused();
       }
       createExclusiveStaleDecommissionRecord(layout, record);
@@ -2646,10 +2673,11 @@ function staleCheckoutDecommissionConfigurationExact(configuration, layout) {
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
     configuration.service_label === layout.service_label &&
     configuration.service_identity === layout.service_identity &&
-    typeof configuration.repository_device === "string" &&
-    configuration.repository_device.length > 0 &&
-    typeof configuration.repository_inode === "string" &&
-    configuration.repository_inode.length > 0 &&
+    validCanonicalInstalledStatIdentity(configuration.repository_device) &&
+    validCanonicalInstalledStatIdentity(
+      configuration.repository_inode,
+      true,
+    ) &&
     typeof configuration.node_path === "string" &&
     path.isAbsolute(configuration.node_path) &&
     /^v24\.\d+\.\d+$/u.test(configuration.node_version ?? "") &&
@@ -2672,6 +2700,19 @@ function staleCheckoutDecommissionConfigurationExact(configuration, layout) {
     configuration.test_scope === (layout.test?.scope ?? null) &&
     configuration.test_root === (layout.test?.root ?? null);
   return sameLogicalCheckout && physicalIdentityChanged && exactService;
+}
+
+function validCanonicalInstalledStatIdentity(value, positive = false) {
+  if (
+    typeof value !== "string" ||
+    !/^(?:0|[1-9][0-9]*)$/u.test(value)
+  ) return false;
+  try {
+    const parsed = BigInt(value);
+    return String(parsed) === value && (!positive || parsed > 0n);
+  } catch {
+    return false;
+  }
 }
 
 function staleCheckoutDecommissionRefused() {
@@ -2755,10 +2796,8 @@ function validStaleDecommissionMaterial(value) {
 function validStaleDecommissionParent(value) {
   return isObject(value) &&
     Object.keys(value).length === 2 &&
-    typeof value.device === "string" &&
-    value.device.length > 0 &&
-    typeof value.inode === "string" &&
-    value.inode.length > 0;
+    validCanonicalInstalledStatIdentity(value.device) &&
+    validCanonicalInstalledStatIdentity(value.inode, true);
 }
 
 function validStaleDecommissionLaunchJob(value, configuration) {
@@ -2807,7 +2846,7 @@ function readExistingStaleCheckoutDecommissionRecord(layout) {
   return existing.value;
 }
 
-function buildStaleCheckoutDecommissionRecord({
+function buildStaleCheckoutDecommissionSource({
   before,
   layout,
   configuration,
@@ -2872,7 +2911,7 @@ function buildStaleCheckoutDecommissionRecord({
     configurationMaterial,
     launchctl,
   );
-  const ownedProcesses = captureStaleDecommissionOwnedProcesses({
+  const owned = captureStaleDecommissionOwnedProcesses({
     configuration: configurationMaterial,
     layout,
     launchJob,
@@ -2886,13 +2925,16 @@ function buildStaleCheckoutDecommissionRecord({
     configuration: configurationMaterial,
     materials,
     launch_job: launchJob,
-    owned_processes: ownedProcesses,
+    owned_processes: owned.processes,
     created_at: new Date().toISOString(),
   };
   if (!validStaleCheckoutDecommissionRecord(record, layout, false)) {
     throw staleCheckoutDecommissionRefused();
   }
-  return record;
+  return {
+    record,
+    process_groups: owned.process_groups,
+  };
 }
 
 function staleDecommissionMaterialPaths(layout) {
@@ -3205,7 +3247,7 @@ function captureStaleDecommissionOwnedProcesses({
     if (launchJob !== null || managerLock !== null || !runtimeMissing) {
       throw staleCheckoutDecommissionRefused();
     }
-    return [];
+    return { processes: [], process_groups: [] };
   }
   if (
     !structurallyExactManagerState(managerState, configuration) ||
@@ -3254,6 +3296,7 @@ function captureStaleDecommissionOwnedProcesses({
   }
 
   const owned = [];
+  const processGroups = [];
   if (launchJob !== null && launchJob.pid !== null) {
     const launched = readProcessBirthIdentity(launchJob.pid);
     if (launched.state === "unavailable") {
@@ -3271,6 +3314,19 @@ function captureStaleDecommissionOwnedProcesses({
     pid: supervisor.pid,
     identity: supervisor.identity,
   });
+  if (supervisor?.state === "present") {
+    const group = captureExactProcessGroup(
+      supervisor.pid,
+      supervisor.identity,
+    );
+    processGroups.push({
+      role: "supervisor",
+      pid: supervisor.pid,
+      identity: supervisor.identity,
+      process_group: group.process_group,
+      members: group.members,
+    });
+  }
 
   if (runtimeMissing && managerState.runtime_ownership !== null) {
     if (!validManagerRuntimeOwnership(managerState.runtime_ownership)) {
@@ -3332,13 +3388,25 @@ function captureStaleDecommissionOwnedProcesses({
       for (const member of captured.present_members) {
         owned.push({ pid: member.pid, identity: member.identity });
       }
+      if (captured.present_members.length > 0) {
+        processGroups.push({
+          role: group.role,
+          pid: group.pid,
+          identity: group.identity,
+          process_group: group.process_group,
+          members: captured.present_members,
+        });
+      }
     }
   }
   const unique = new Map(owned.map((entry) => [
     `${entry.pid}:${entry.identity}`,
     entry,
   ]));
-  return [...unique.values()].sort((left, right) => left.pid - right.pid);
+  return {
+    processes: [...unique.values()].sort((left, right) => left.pid - right.pid),
+    process_groups: processGroups,
+  };
 }
 
 function assertStaleCheckoutDecommissionRecordCurrent(record, layout) {
@@ -3406,6 +3474,106 @@ function assertExactLoadedLaunchJob(record, layout, launchctl) {
     current.fingerprint !== record.launch_job.fingerprint
   ) throw staleCheckoutDecommissionRefused();
   return current;
+}
+
+function bootoutExactStaleLaunchJobDefinition(record, layout, launchctl) {
+  const material = record.materials.launch_agent;
+  if (material.state !== "valid") throw staleCheckoutDecommissionRefused();
+  const expected = buildLaunchAgentPlist(record.configuration);
+  const anchor = staleDecommissionAnchorForFile(
+    layout,
+    layout.launch_agent_path,
+  );
+  const current = readBoundedRegularText(
+    layout.launch_agent_path,
+    material.parent,
+    anchor,
+  );
+  if (
+    current.state !== "valid" ||
+    current.contents !== expected ||
+    sha256(current.contents) !== material.sha256
+  ) throw staleCheckoutDecommissionRefused();
+  const helperParent = record.materials.configuration.parent;
+  if (helperParent === null) throw staleCheckoutDecommissionRefused();
+  const helperName = `.stale-decommission-launch-agent-${randomUUID()}.plist`;
+  const helperPath = path.join(layout.service_directory, helperName);
+  const helperContents = buildStaleDecommissionLaunchAgentPlist(
+    record.configuration.service_label,
+  );
+  const helperSha256 = sha256(helperContents);
+  assertStaleDecommissionPathChain(
+    staleDecommissionAnchor(layout),
+    layout.service_directory,
+    false,
+  );
+  let helperCreated = false;
+  createExclusiveStaleDecommissionMaterial(
+    layout,
+    helperParent,
+    helperPath,
+    helperContents,
+  );
+  helperCreated = true;
+  try {
+    const helper = readBoundedRegularText(
+      helperPath,
+      helperParent,
+      staleDecommissionAnchor(layout),
+    );
+    if (
+      helper.state !== "valid" ||
+      helper.contents !== helperContents ||
+      sha256(helper.contents) !== helperSha256
+    ) throw staleCheckoutDecommissionRefused();
+    return launchctl([
+      "bootout",
+      `gui/${currentUid()}`,
+      helperPath,
+    ]);
+  } finally {
+    if (helperCreated) {
+      unlinkBoundedOwnedFile(
+        helperPath,
+        helperParent,
+        staleDecommissionAnchor(layout),
+        helperSha256,
+        layout,
+        "launch_definition_helper",
+      );
+    }
+  }
+}
+
+function buildStaleDecommissionLaunchAgentPlist(serviceLabel) {
+  if (
+    typeof serviceLabel !== "string" ||
+    !serviceLabel.startsWith(`${SERVICE_LABEL_PREFIX}.`)
+  ) throw staleCheckoutDecommissionRefused();
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    "<dict>",
+    "  <key>Label</key>",
+    `  <string>${xml(serviceLabel)}</string>`,
+    "</dict>",
+    "</plist>",
+    "",
+  ].join("\n");
+}
+
+async function stopStaleDecommissionOwnedProcessGroups(processGroups) {
+  for (const group of processGroups) {
+    await stopExactProcessGroup({
+      pid: group.pid,
+      identity: group.identity,
+      processGroup: group.process_group,
+      members: group.members,
+      timeoutMs: 8_000,
+      errorPrefix: `companion_service_stale_checkout_${group.role}`,
+    });
+  }
 }
 
 async function waitForStaleDecommissionProcessesAbsent(
@@ -3549,14 +3717,35 @@ function assertTrustedStaleDecommissionUnlinkHelper() {
 
 function createExclusiveStaleDecommissionRecord(layout, record) {
   const expectedParent = record.materials.configuration.parent;
+  createExclusiveStaleDecommissionMaterial(
+    layout,
+    expectedParent,
+    layout.stale_decommission_path,
+    `${JSON.stringify(record)}\n`,
+  );
+}
+
+function createExclusiveStaleDecommissionMaterial(
+  layout,
+  expectedParent,
+  destination,
+  contents,
+) {
   const anchor = staleDecommissionAnchor(layout);
+  if (
+    expectedParent === null ||
+    !path.isAbsolute(destination) ||
+    path.dirname(destination) !== layout.service_directory ||
+    typeof contents !== "string" ||
+    contents.length > MAX_JSON_BYTES
+  ) throw staleCheckoutDecommissionRefused();
   assertStaleDecommissionPathChain(
     anchor,
-    path.dirname(layout.stale_decommission_path),
+    layout.service_directory,
     false,
   );
   const parentDescriptor = openSync(
-    path.dirname(layout.stale_decommission_path),
+    layout.service_directory,
     constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
   );
   try {
@@ -3575,10 +3764,10 @@ function createExclusiveStaleDecommissionRecord(layout, record) {
         "-c",
         STALE_DECOMMISSION_CREATE_HELPER,
         temporary,
-        path.basename(layout.stale_decommission_path),
+        path.basename(destination),
       ],
       {
-        input: `${JSON.stringify(record)}\n`,
+        input: contents,
         encoding: "utf8",
         timeout: 5_000,
         env: { PATH: "/usr/bin:/bin" },
@@ -3636,6 +3825,7 @@ function assertNoStaleDecommissionHelperResidue(record, layout) {
     ) throw staleCheckoutDecommissionRefused();
     const residue = readdirSync(directory).some((name) =>
       name.startsWith(".stale-decommission-quarantine-") ||
+      name.startsWith(".stale-decommission-launch-agent-") ||
       /^\.stale-decommission-[a-f0-9-]+\.tmp$/u.test(name)
     );
     const after = lstatSync(directory, { bigint: true });
@@ -4850,6 +5040,14 @@ function launchctlLoaded(layout, launchctl) {
     "print",
     `gui/${currentUid()}/${layout.service_label}`,
   ]).status === 0;
+}
+
+async function waitForLaunchctlUnloaded(layout, launchctl, waitMs) {
+  const deadline = Date.now() + waitMs;
+  while (launchctlLoaded(layout, launchctl) && Date.now() < deadline) {
+    await delay(25);
+  }
+  return !launchctlLoaded(layout, launchctl);
 }
 
 function defaultLaunchctl(args) {
