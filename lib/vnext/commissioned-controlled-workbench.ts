@@ -1142,6 +1142,7 @@ function validateExecutionSourceResultBindingV01(input: {
   privacy_note: string;
   model_identity: CommissionedWorkEvaluationVectorV01["model_identity"];
   model_invocations: RunReceiptBuilderInputV01["model_invocations"];
+  receipt_limitations: string[];
   data_classification: RunReceiptBuilderInputV01["privacy_egress"]["data_classification"];
   egress_status: RunReceiptBuilderInputV01["privacy_egress"]["egress_status"];
   egress_basis: RunReceiptBuilderInputV01["privacy_egress"]["basis"];
@@ -1235,6 +1236,7 @@ function validateExecutionSourceResultBindingV01(input: {
         route_ref: null,
       },
       model_invocations: [],
+      receipt_limitations: [],
       data_classification: "local_only",
       egress_status: "did_not_occur",
       egress_basis: "observed",
@@ -1342,31 +1344,12 @@ function validateExecutionSourceResultBindingV01(input: {
       model_ref: input.execution_source.model_ref,
       route_ref: input.execution_source.route_ref,
     },
-    model_invocations: input.result.model_invocation_receipt_refs.map(
-      (invocationRef) => ({
-        invocation_ref: invocationRef,
-        provider_ref: providerExternalRef,
-        model_ref: modelExternalRef,
-        started_at: input.result.started_at,
-        finished_at: input.result.finished_at,
-        input_units: null,
-        output_units: null,
-        latency_ms: null,
-        retry_count: null,
-        status: input.result.outcome === "completed" ? "completed" : "unknown",
-        retention_class: "bounded_structured_receipt_only",
-        egress_status:
-          externalNetworkCalls === null
-            ? "unknown"
-            : externalNetworkCalls === 0
-              ? "did_not_occur"
-              : "occurred",
-        raw_prompt_persisted: false,
-        raw_response_persisted: false,
-        hidden_reasoning_persisted: false,
-        source_refs: [invocationRef, ...destinationRefs],
-      }),
-    ),
+    model_invocations: [],
+    receipt_limitations: isConformance
+      ? []
+      : [
+          "Exact model invocation source refs and resource lanes are retained; no legacy invocation summary is reconstructed from a reference.",
+        ],
     data_classification: isConformance ? "local_only" : "private",
     egress_status:
       externalNetworkCalls === null
@@ -1702,6 +1685,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
       limitations: [
         "Executor completion is not task success.",
         "This receipt grants no semantic, execution, provider, network, or merge authority.",
+        ...executionBinding.receipt_limitations,
       ],
     },
     blockers: [
