@@ -436,6 +436,129 @@ try {
   await waitForProcessIdentitiesGone(observedProcesses, 10_000);
   await waitForOwnedEndpointsGone(observedEndpoints, 10_000);
 
+  uninstalled = false;
+  const staleCheckoutInstall = await runCli(["install"]);
+  assert.equal(staleCheckoutInstall.status, 0, staleCheckoutInstall.stderr);
+  const staleCheckoutLive = await waitForStatus("live", 120_000);
+  rememberRuntime(staleCheckoutLive);
+  const staleCheckoutManagerState = JSON.parse(
+    readFileSync(layout.manager_state_path, "utf8"),
+  );
+  const staleCheckoutManagerIdentity = processIdentity(
+    staleCheckoutManagerState.manager_pid,
+  );
+  assert.notEqual(staleCheckoutManagerIdentity, null);
+  const staleCheckoutSupervisorIdentity = processIdentity(
+    staleCheckoutManagerState.supervisor_pid,
+  );
+  assert.notEqual(staleCheckoutSupervisorIdentity, null);
+  const stoppedBeforeStaleCheckout = await stopCompanionService(options);
+  assert.equal(stoppedBeforeStaleCheckout.service.status, "installed_stopped");
+  await waitForProcessIdentitiesGone(
+    new Map([
+      [
+        staleCheckoutManagerState.manager_pid,
+        staleCheckoutManagerIdentity,
+      ],
+      [
+        staleCheckoutManagerState.supervisor_pid,
+        staleCheckoutSupervisorIdentity,
+      ],
+    ]),
+    10_000,
+  );
+  const staleCheckoutConfiguration = JSON.parse(
+    readFileSync(layout.configuration_path, "utf8"),
+  );
+  staleCheckoutConfiguration.repository_inode =
+    `${staleCheckoutConfiguration.repository_inode}-changed`;
+  writeFileSync(
+    layout.configuration_path,
+    `${JSON.stringify(staleCheckoutConfiguration)}\n`,
+    { mode: 0o600 },
+  );
+  const staleCheckoutReload = spawnSync("/bin/launchctl", [
+    "bootstrap",
+    `gui/${process.getuid()}`,
+    layout.launch_agent_path,
+  ]);
+  assert.equal(
+    staleCheckoutReload.status,
+    0,
+    staleCheckoutReload.stderr?.toString("utf8"),
+  );
+  const staleCheckoutObservation = await inspectCompanionService(options);
+  assert.equal(staleCheckoutObservation.status, "recovery_required");
+  assert.equal(
+    staleCheckoutObservation.checkout_relation,
+    "substituted_or_moved",
+  );
+  assert.equal(
+    staleCheckoutObservation.reason,
+    "companion_service_checkout_identity_changed",
+  );
+  await assert.rejects(
+    startCompanionService(options),
+    (error) => error?.code === "companion_service_recovery_refused",
+  );
+  const staleCheckoutDecommission = await uninstallCompanionService(options);
+  uninstalled = true;
+  assert.equal(staleCheckoutDecommission.result, "changed");
+  assert.equal(staleCheckoutDecommission.service.status, "not_installed");
+  assert.equal(
+    staleCheckoutDecommission.authority.runtime_lifecycle_effect,
+    true,
+  );
+  for (const [key, value] of Object.entries(staleCheckoutDecommission.authority)) {
+    if (key !== "runtime_lifecycle_effect") assert.equal(value, false, key);
+  }
+  assert.equal(existsSync(layout.launch_agent_path), false);
+  assert.equal(existsSync(layout.configuration_path), false);
+  assert.equal(existsSync(layout.desired_state_path), false);
+  assert.equal(existsSync(layout.manager_state_path), false);
+  assert.equal(existsSync(layout.manager_lock_path), false);
+  assert.equal(existsSync(layout.lifecycle_lock_path), false);
+  assert.equal(existsSync(layout.maintenance_lease_path), false);
+  for (const file of [
+    layout.runtime_manifest_path,
+    layout.runtime_access_path,
+    layout.runtime_token_path,
+    layout.runtime_lock_path,
+    layout.runtime_bridge_environment_path,
+  ]) assert.equal(existsSync(file), false, file);
+  assert.equal(
+    spawnSync("/bin/launchctl", [
+      "print",
+      `gui/${process.getuid()}/${layout.service_label}`,
+    ]).status,
+    113,
+  );
+  await waitForProcessIdentitiesGone(
+    new Map([[
+      staleCheckoutManagerState.manager_pid,
+      staleCheckoutManagerIdentity,
+    ]]),
+    10_000,
+  );
+  await waitForOwnedEndpointsGone(observedEndpoints, 10_000);
+  const staleCheckoutReplay = await uninstallCompanionService(options);
+  assert.equal(staleCheckoutReplay.result, "exact_replay");
+
+  uninstalled = false;
+  const freshAfterStaleDecommission = await runCli(["install"]);
+  assert.equal(
+    freshAfterStaleDecommission.status,
+    0,
+    freshAfterStaleDecommission.stderr,
+  );
+  const freshAfterStaleLive = await waitForStatus("live", 120_000);
+  rememberRuntime(freshAfterStaleLive);
+  const finalFreshUninstall = await uninstallCompanionService(options);
+  uninstalled = true;
+  assert.equal(finalFreshUninstall.service.status, "not_installed");
+  await waitForProcessIdentitiesGone(observedProcesses, 10_000);
+  await waitForOwnedEndpointsGone(observedEndpoints, 10_000);
+
   console.log(JSON.stringify({
     status: "pass",
     service_contract: "augnes-companion-service.v0.1",
@@ -463,6 +586,9 @@ try {
     nested_maintenance_joined_ancestor: true,
     stale_owner_recovery: true,
     uninstall_exact_cleanup: true,
+    stale_checkout_loaded_decommission_exact_cleanup: true,
+    stale_checkout_decommission_exact_replay: true,
+    fresh_install_after_stale_decommission: true,
     zero_process_listener_runtime_service_residue: true,
     repository_commands_from_lifecycle_tools: 0,
     project_file_writes_from_lifecycle_tools: 0,
