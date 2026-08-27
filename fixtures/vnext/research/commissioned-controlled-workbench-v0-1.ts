@@ -51,6 +51,7 @@ function taskOwnedOperationContractV01(input: {
       ...input.allowed_repository_relative_paths,
     ].sort(),
     max_changed_files: input.max_changed_files,
+    max_artifacts: 2,
     max_commands: 8,
     provider_authority_source: "separate_live_authorization_required",
     provider_calls_authorized_by_operation_contract: false,
@@ -742,8 +743,7 @@ function syntheticFixtureOutputV01(input: {
     condition: input.condition,
     holdout_variant: input.holdout_variant,
     writes: input.writes,
-    terminal_outcome:
-      input.episode_role === "predecessor" ? "blocked" : "completed",
+    terminal_outcome: "completed",
     executor_claimed_complete: input.claimed_complete,
     experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
     execution_evidence_class:

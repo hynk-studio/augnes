@@ -14,11 +14,11 @@ import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
   createProtocolSha256V01,
+  normalizeExternalRefPrimitiveV01,
   scanForbiddenProtocolMaterialV01,
 } from "@/lib/vnext/protocol-primitives";
 import { canonicalizeRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
 import { assertNativeHostResultV01 } from "@/lib/vnext/native-host/native-host-contract";
-import { normalizeNativeHostResultResidueV01 } from "@/lib/vnext/native-host/native-host-result-normalization";
 import { materializeValidatedPacketDeliveryCheckV01 } from "@/lib/vnext/runtime/direct-native-host-round-trip";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -38,27 +38,34 @@ import {
   COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01,
   COMMISSIONED_WORK_CONDITIONS_V01,
   COMMISSIONED_WORK_EPISODE_VERSION_V01,
+  COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01,
   COMMISSIONED_WORK_EVALUATION_VERSION_V01,
   COMMISSIONED_WORK_EVIDENCE_LADDER_STAGES_V01,
   COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_EXECUTION_OBSERVATION_VERSION_V01,
   COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
   COMMISSIONED_WORK_FAMILY_VERSION_V01,
   COMMISSIONED_WORK_HOLDOUT_VERSION_V01,
   COMMISSIONED_WORK_REPORT_VERSION_V01,
   COMMISSIONED_WORK_TREATMENT_ROLE_BINDINGS_V01,
   type CommissionedWorkArtifactIndexV01,
+  type CommissionedWorkAuthorizationResourceCeilingV01,
   type CommissionedWorkAuthoritySummaryV01,
   type CommissionedWorkCaseCommitmentV01,
   type CommissionedWorkCaseSourceV01,
   type CommissionedWorkConditionV01,
   type CommissionedWorkConsolidationCandidateV01,
   type CommissionedWorkEpisodeArtifactV01,
+  type CommissionedWorkEpisodeCheckpointV01,
   type CommissionedWorkEpisodeExecutionBindingV01,
   type CommissionedWorkEpisodeExecutionSourceV01,
   type CommissionedWorkEpisodePlanSourceV01,
   type CommissionedWorkEpisodeRoleV01,
+  type CommissionedWorkExecutionEvidenceClassV01,
   type CommissionedWorkEvaluationVectorV01,
   type CommissionedWorkEvidenceLadderRowV01,
+  type CommissionedWorkExecutionObservationV01,
+  type CommissionedWorkExecutionResourceBindingV01,
   type CommissionedWorkFamilyManifestV01,
   type CommissionedWorkFinalReportV01,
   type CommissionedWorkHardFailureCodeV01,
@@ -67,6 +74,7 @@ import {
   type CommissionedWorkHoldoutVariantV01,
   type CommissionedWorkIntegrityV01,
   type CommissionedWorkMaterialBoundaryV01,
+  type CommissionedWorkNativeHostRefBindingV01,
   type CommissionedWorkObjectiveObservationV01,
   type CommissionedWorkOpaqueMaterialRefV01,
   type CommissionedWorkRecordRefV01,
@@ -103,6 +111,9 @@ const HARD_FAILURE_CODES_V01 = [
   "project_scope_violation",
   "authority_expansion",
   "outside_root_effect",
+  "native_host_failed",
+  "native_host_cancelled",
+  "native_host_unavailable",
   "transcript_inherited",
   "hidden_reasoning_inherited",
 ] as const satisfies readonly CommissionedWorkHardFailureCodeV01[];
@@ -216,6 +227,35 @@ export interface BuildCommissionedWorkObjectiveObservationInputV01
   case_commitment: CommissionedWorkCaseCommitmentV01;
 }
 
+export interface BuildCommissionedWorkSyntheticExecutionObservationInputV01 {
+  packet: TaskContextPacketV01;
+  request: NativeHostRequestV01;
+  result: NativeHostResultV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+}
+
+export interface BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01 {
+  packet: TaskContextPacketV01;
+  request: NativeHostRequestV01;
+  result: NativeHostResultV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  execution_evidence_class:
+    | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
+    | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
+  packet_presentation: CommissionedWorkExecutionObservationV01["packet_presentation"];
+  continuation_materials_delivered: number | null;
+  candidate_components_delivered: number | null;
+  delivered_material_set_fingerprint: string | null;
+  first_material_action_at: string | null;
+  first_material_action_timing_provenance:
+    CommissionedWorkExecutionObservationV01["first_material_action"]["timing_provenance"];
+  executor_completion_attestation:
+    CommissionedWorkExecutionObservationV01["executor_completion_attestation"];
+  resources: CommissionedWorkResourceVectorV01;
+  resource_binding: CommissionedWorkExecutionResourceBindingV01;
+  unauthorized_effects: CommissionedWorkObjectiveObservationV01["unauthorized_effects"];
+}
+
 export interface BuildCommissionedWorkEpisodeArtifactInputV01 {
   manifest: CommissionedWorkFamilyManifestV01;
   source: CommissionedWorkCaseSourceV01;
@@ -225,18 +265,15 @@ export interface BuildCommissionedWorkEpisodeArtifactInputV01 {
   result: NativeHostResultV01;
   receipt: RunReceiptV01;
   observation: CommissionedWorkObjectiveObservationV01;
-  execution_source: CommissionedWorkEpisodeExecutionSourceV01;
+  execution_observation: CommissionedWorkExecutionObservationV01;
   episode_id: string;
   episode_role: "predecessor" | "successor";
   condition: CommissionedWorkConditionV01 | null;
   holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
   predecessor_episode_ref: CommissionedWorkRecordRefV01 | null;
-  sealed_interruption_ref: CommissionedWorkRecordRefV01 | null;
+  predecessor_checkpoint: CommissionedWorkEpisodeCheckpointV01 | null;
   candidate_freeze_fingerprint: string | null;
   repository_state: CommissionedWorkEpisodeArtifactV01["repository_state"];
-  started_at: string;
-  first_material_action_at: string | null;
-  finished_at: string;
   candidate_frozen_before_start: boolean | null;
   repository_action_trace_fingerprint: string;
 }
@@ -321,6 +358,40 @@ export function createCommissionedWorkRecordRefV01(input: {
   requireSafeCodeV01(input.record_id, "commissioned_work_record_id_invalid");
   requireFingerprintV01(input.record_fingerprint, "commissioned_work_record_fingerprint_invalid");
   return { ...input };
+}
+
+export function createCommissionedWorkAuthorizationResourceCeilingV01(input: {
+  live_authorization_ref: CommissionedWorkRecordRefV01;
+  provider_call_limit: number;
+  model_call_limit: number;
+  external_network_call_limit: number;
+}): CommissionedWorkAuthorizationResourceCeilingV01 {
+  const liveAuthorizationRef = createCommissionedWorkRecordRefV01(
+    input.live_authorization_ref,
+  );
+  for (const value of [
+    input.provider_call_limit,
+    input.model_call_limit,
+    input.external_network_call_limit,
+  ]) {
+    if (!Number.isInteger(value) || value < 0 || value > 1_000_000) {
+      failV01("commissioned_work_authorization_resource_ceiling_invalid");
+    }
+  }
+  const ceilingWithoutFingerprint = {
+    ceiling_version:
+      "commissioned_work_authorization_resource_ceiling.v0.1" as const,
+    provider_call_limit: input.provider_call_limit,
+    model_call_limit: input.model_call_limit,
+    external_network_call_limit: input.external_network_call_limit,
+  };
+  return {
+    ...ceilingWithoutFingerprint,
+    ceiling_fingerprint: fingerprintV01({
+      live_authorization_ref: liveAuthorizationRef,
+      ...ceilingWithoutFingerprint,
+    }),
+  };
 }
 
 export function buildCommissionedWorkCaseCommitmentV01(
@@ -835,8 +906,8 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
       first_work_definition_ref: firstDefinitionRef,
       first_work_request_ref: taskRef,
       operator_action_ref: localRefV01(
-        "commissioned_work_fixture_action",
-        `fixture-action:${input.episode_id}`,
+        "commissioned_work_episode_action",
+        `episode-action:${input.episode_id}`,
         input.requested_at,
         fingerprintV01({
           episode_id: input.episode_id,
@@ -873,7 +944,7 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
       model: "native_host_managed",
       host_egress: "explicit_interactive_start",
       max_changed_files: input.plan.operation_contract.max_changed_files,
-      max_artifacts: 0,
+      max_artifacts: input.plan.operation_contract.max_artifacts,
       max_commands: input.plan.operation_contract.max_commands,
       max_checks: input.source.budget.max_checks + 1,
       timeout_ms: 30_000,
@@ -911,28 +982,32 @@ export function admitCommissionedWorkExecutorResultV01(input: {
     canonicalizeProtocolValueV01(input.request.allowed_operation_categories) !==
       canonicalizeProtocolValueV01(contract.allowed_operation_categories) ||
     input.request.policy.max_changed_files !== contract.max_changed_files ||
+    input.request.policy.max_artifacts !== contract.max_artifacts ||
     input.request.policy.max_commands !== contract.max_commands
   ) {
     failV01("commissioned_work_executor_result_operation_contract_invalid");
   }
   const asserted = assertNativeHostResultV01(input.request, input.result);
-  const normalized = normalizeNativeHostResultResidueV01({
-    result: asserted,
-    required_check_ids: ["validated_packet_delivery"],
-  }).result;
+  if (
+    canonicalizeProtocolValueV01(asserted) !==
+    canonicalizeProtocolValueV01(input.result)
+  ) {
+    failV01("commissioned_work_native_host_result_identity_changed");
+  }
   const allowedPaths = new Set(contract.allowed_repository_relative_paths);
-  const changedPaths = normalized.changed_files.map((changed) =>
+  const changedPaths = input.result.changed_files.map((changed) =>
     canonicalizeRepositoryRelativePathV01(changed.repository_relative_path),
   );
   if (
     changedPaths.length > contract.max_changed_files ||
-    normalized.commands.length > contract.max_commands ||
+    input.result.artifacts.length > contract.max_artifacts ||
+    input.result.commands.length > contract.max_commands ||
     new Set(changedPaths).size !== changedPaths.length ||
     changedPaths.some((changedPath) => !allowedPaths.has(changedPath))
   ) {
     failV01("commissioned_work_executor_result_operation_contract_invalid");
   }
-  return normalized;
+  return input.result;
 }
 
 export async function invokeCommissionedWorkAdapterV01(input: {
@@ -1040,17 +1115,10 @@ export function buildCommissionedWorkObjectiveObservationV01(
     failV01("commissioned_work_observation_check_bound_exceeded");
   }
   if (
-    Object.values(input.authority_effects).some((value) => value !== 0) ||
-    input.resources.provider_calls.provenance !== "observed" ||
-    input.resources.provider_calls.value !== 0 ||
-    input.resources.model_calls.provenance !== "observed" ||
-    input.resources.model_calls.value !== 0 ||
-    input.resources.external_network_calls.provenance !== "observed" ||
-    input.resources.external_network_calls.value !== 0
+    Object.values(input.unauthorized_effects).some((value) => value !== 0)
   ) {
     failV01("commissioned_work_observation_authority_expansion");
   }
-  validateResourceVectorV01(input.resources);
   for (const check of input.required_checks) {
     requireSafeCodeV01(check.check_id, "commissioned_work_observation_check_id_invalid");
     if (check.command_fingerprint !== null) {
@@ -1112,27 +1180,589 @@ function commissionedWorkExternalRefFromRecordV01(
   );
 }
 
-function commissionedWorkRecordRefFromExternalV01(
-  externalRef: ExternalRefV01,
-): CommissionedWorkRecordRefV01 {
-  if (!externalRef.source_ref) {
+const COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01 = new Set([
+  "host_connection",
+  "host_thread",
+  "host_session",
+  "host_turn",
+]);
+const COMMISSIONED_WORK_SYNTHETIC_FIXTURE_METADATA_KEYS_V01 = [
+  "fixture_admission_fingerprint",
+  "fixture_admission_consumed",
+  "synthetic_fixture_binding_fingerprint",
+  "synthetic_fixture_output_fingerprint",
+  "execution_evidence_class",
+  "synthetic_fixture_output_applied",
+  "solution_write_plan_checked_during_result_admission",
+] as const;
+
+function exactNativeHostRefSetV01(input: {
+  result: NativeHostResultV01;
+  binding_kind: "synthetic_fixture" | "commissioned_agent";
+}): {
+  external_refs: ExternalRefV01[];
+  bindings: CommissionedWorkNativeHostRefBindingV01[];
+  set_fingerprint: string;
+  receipt_host_ref: ExternalRefV01;
+} {
+  if (input.result.host_refs.length === 0 || input.result.host_refs.length > 4) {
     failV01("commissioned_work_receipt_host_identity_missing");
   }
-  const exactExternalRefFingerprint = fingerprintV01(externalRef);
+  const exactRefs = [...input.result.host_refs].sort((left, right) =>
+    compareCanonicalV01(left, right),
+  );
+  const typeSet = new Set(exactRefs.map((ref) => ref.ref_type));
+  const refSet = new Set(exactRefs.map((ref) => canonicalizeProtocolValueV01(ref)));
+  if (typeSet.size !== exactRefs.length || refSet.size !== exactRefs.length) {
+    failV01("commissioned_work_host_ref_set_duplicate_or_conflicting");
+  }
+  if (input.binding_kind === "synthetic_fixture") {
+    if (
+      exactRefs.length !== 1 ||
+      exactRefs[0]?.ref_type !== "commissioned_workbench_fixture_host" ||
+      !exactRefs[0].source_ref
+    ) {
+      failV01("commissioned_work_synthetic_execution_binding_invalid");
+    }
+  } else {
+    if (
+      exactRefs.some(
+        (ref) =>
+          !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type) ||
+          ref.provider !== "codex" ||
+          ref.host !== "app_server" ||
+          ref.compatibility_namespace !== "codex_app_server_adapter.v0.1" ||
+          ref.trust_class !== "direct_local_observation" ||
+          typeof ref.observed_at !== "string" ||
+          Date.parse(ref.observed_at) < Date.parse(input.result.started_at) ||
+          Date.parse(ref.observed_at) > Date.parse(input.result.finished_at),
+      ) ||
+      !typeSet.has("host_thread") ||
+      !typeSet.has("host_turn")
+    ) {
+      failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
+    }
+  }
+  const bindings = exactRefs
+    .map((ref) => ({
+      ref_type:
+        ref.ref_type as CommissionedWorkNativeHostRefBindingV01["ref_type"],
+      exact_ref_fingerprint: fingerprintV01(ref),
+    }))
+    .sort(compareCanonicalV01);
+  const receiptHostRef =
+    input.binding_kind === "synthetic_fixture"
+      ? exactRefs[0]!
+      : exactRefs.find((ref) => ref.ref_type === "host_turn") ??
+        failV01("commissioned_work_receipt_host_identity_missing");
+  return {
+    external_refs: exactRefs,
+    bindings,
+    set_fingerprint: fingerprintV01(bindings),
+    receipt_host_ref: receiptHostRef,
+  };
+}
+
+function executionObservationRefV01(
+  observation: CommissionedWorkExecutionObservationV01,
+): CommissionedWorkRecordRefV01 {
   return createCommissionedWorkRecordRefV01({
-    record_version: externalRef.ref_version,
-    record_id: `host:${exactExternalRefFingerprint.slice("sha256:".length, 39)}`,
-    record_fingerprint: exactExternalRefFingerprint,
+    record_version: observation.observation_version,
+    record_id: observation.observation_id,
+    record_fingerprint: observation.integrity.fingerprint,
   });
 }
 
-function validateExecutionSourceResultBindingV01(input: {
-  execution_source: CommissionedWorkEpisodeExecutionSourceV01;
+function candidateComponentDeliveryFingerprintsV01(
+  packet: TaskContextPacketV01,
+): string[] {
+  return packet.selected_context
+    .filter(
+      (entry) =>
+        entry.external_ref?.ref_type ===
+        "commissioned_work_frozen_candidate_component",
+    )
+    .map((entry) => entry.source_ref)
+    .filter((value): value is string => value !== null)
+    .sort(compareProtocolCodeUnitsV01);
+}
+
+function firstMaterialActionObservationV01(input: {
   result: NativeHostResultV01;
-  observation: CommissionedWorkObjectiveObservationV01;
+  observed_at: string | null;
+  timing_provenance:
+    CommissionedWorkExecutionObservationV01["first_material_action"]["timing_provenance"];
+}): CommissionedWorkExecutionObservationV01["first_material_action"] {
+  const firstChanged = input.result.changed_files[0] ?? null;
+  if (firstChanged === null) {
+    if (input.observed_at !== null || input.timing_provenance !== "unknown") {
+      failV01("commissioned_work_first_action_observation_invalid");
+    }
+    return {
+      action_kind: "none",
+      repository_path_fingerprint: null,
+      observed_at: null,
+      timing_provenance: "unknown",
+    };
+  }
+  if (
+    (input.timing_provenance === "unknown" && input.observed_at !== null) ||
+    (input.timing_provenance !== "unknown" && input.observed_at === null)
+  ) {
+    failV01("commissioned_work_first_action_observation_invalid");
+  }
+  if (input.observed_at !== null) {
+    requireTimestampV01(
+      input.observed_at,
+      "commissioned_work_first_action_time_invalid",
+    );
+    if (
+      Date.parse(input.observed_at) < Date.parse(input.result.started_at) ||
+      Date.parse(input.observed_at) > Date.parse(input.result.finished_at)
+    ) {
+      failV01("commissioned_work_first_action_order_invalid");
+    }
+  }
+  return {
+    action_kind:
+      firstChanged.change_kind === "added"
+        ? "file_add"
+        : firstChanged.change_kind === "deleted"
+          ? "file_delete"
+          : "file_modify",
+    repository_path_fingerprint: fingerprintV01(
+      canonicalizeRepositoryRelativePathV01(
+        firstChanged.repository_relative_path,
+      ),
+    ),
+    observed_at: input.observed_at,
+    timing_provenance: input.timing_provenance,
+  };
+}
+
+function validateExecutionResourceBindingV01(input: {
+  execution_evidence_class: CommissionedWorkExecutionEvidenceClassV01;
+  resources: CommissionedWorkResourceVectorV01;
+  resource_binding: CommissionedWorkExecutionResourceBindingV01;
+}): void {
+  validateResourceVectorV01(input.resources);
+  const laneBindings = [
+    [
+      input.resources.provider_calls,
+      input.resource_binding.provider_calls_observation_ref,
+    ],
+    [
+      input.resources.model_calls,
+      input.resource_binding.model_calls_observation_ref,
+    ],
+    [
+      input.resources.external_network_calls,
+      input.resource_binding.external_network_calls_observation_ref,
+    ],
+  ] as const;
+  for (const [lane, sourceRef] of laneBindings) {
+    if (
+      (lane.provenance === "unknown" && sourceRef !== null) ||
+      (lane.provenance === "observed" && sourceRef === null)
+    ) {
+      failV01("commissioned_work_execution_resource_source_invalid");
+    }
+    if (sourceRef !== null) createCommissionedWorkRecordRefV01(sourceRef);
+  }
+  for (const ref of [
+    input.resource_binding.live_authorization_ref,
+    input.resource_binding.provider_ref,
+    input.resource_binding.model_ref,
+    input.resource_binding.route_ref,
+    input.resource_binding.network_destination_ref,
+  ]) {
+    if (ref !== null) createCommissionedWorkRecordRefV01(ref);
+  }
+  const providerCalls = input.resources.provider_calls.value;
+  const modelCalls = input.resources.model_calls.value;
+  const networkCalls = input.resources.external_network_calls.value;
+  const liveAuthorizationRef = input.resource_binding.live_authorization_ref;
+  const resourceCeiling = input.resource_binding.authorization_resource_ceiling;
+  if (
+    (liveAuthorizationRef === null && resourceCeiling !== null) ||
+    (liveAuthorizationRef !== null && resourceCeiling === null)
+  ) {
+    failV01("commissioned_work_authorization_resource_ceiling_missing");
+  }
+  if (liveAuthorizationRef !== null && resourceCeiling !== null) {
+    const expectedCeiling =
+      createCommissionedWorkAuthorizationResourceCeilingV01({
+        live_authorization_ref: liveAuthorizationRef,
+        provider_call_limit: resourceCeiling.provider_call_limit,
+        model_call_limit: resourceCeiling.model_call_limit,
+        external_network_call_limit:
+          resourceCeiling.external_network_call_limit,
+      });
+    if (
+      canonicalizeProtocolValueV01(resourceCeiling) !==
+        canonicalizeProtocolValueV01(expectedCeiling) ||
+      (providerCalls !== null &&
+        providerCalls > resourceCeiling.provider_call_limit) ||
+      (modelCalls !== null && modelCalls > resourceCeiling.model_call_limit) ||
+      (networkCalls !== null &&
+        networkCalls > resourceCeiling.external_network_call_limit)
+    ) {
+      failV01("commissioned_work_authorization_resource_ceiling_invalid");
+    }
+  }
+  if (
+    ((providerCalls ?? 0) > 0 &&
+      (input.resource_binding.live_authorization_ref === null ||
+        input.resource_binding.provider_ref === null)) ||
+    ((modelCalls ?? 0) > 0 &&
+      (input.resource_binding.live_authorization_ref === null ||
+        input.resource_binding.provider_ref === null ||
+        input.resource_binding.model_ref === null ||
+        input.resource_binding.route_ref === null)) ||
+    ((networkCalls ?? 0) > 0 &&
+      (input.resource_binding.live_authorization_ref === null ||
+        (input.resource_binding.route_ref === null &&
+          input.resource_binding.network_destination_ref === null)))
+  ) {
+    failV01("commissioned_work_execution_resource_identity_missing");
+  }
+  if (
+    input.execution_evidence_class ===
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01 &&
+    (input.resource_binding.live_authorization_ref !== null ||
+      (providerCalls ?? 0) > 0 ||
+      (modelCalls ?? 0) > 0 ||
+      (networkCalls ?? 0) > 0)
+  ) {
+    failV01("commissioned_work_commissioned_agent_conformance_binding_invalid");
+  }
+  if (
+    input.execution_evidence_class ===
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01 &&
+    input.resource_binding.live_authorization_ref === null
+  ) {
+    failV01("commissioned_work_commissioned_agent_observation_binding_invalid");
+  }
+}
+
+function buildExecutionObservationV01(input: {
+  packet: TaskContextPacketV01;
+  request: NativeHostRequestV01;
+  result: NativeHostResultV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  execution_source: CommissionedWorkEpisodeExecutionSourceV01;
+  packet_presentation: CommissionedWorkExecutionObservationV01["packet_presentation"];
+  continuation_materials_delivered: number | null;
+  candidate_components_delivered: number | null;
+  delivered_material_set_fingerprint: string | null;
+  first_material_action_at: string | null;
+  first_material_action_timing_provenance:
+    CommissionedWorkExecutionObservationV01["first_material_action"]["timing_provenance"];
+  executor_completion_attestation:
+    CommissionedWorkExecutionObservationV01["executor_completion_attestation"];
+  resources: CommissionedWorkResourceVectorV01;
+  resource_binding: CommissionedWorkExecutionResourceBindingV01;
+  unauthorized_effects: CommissionedWorkObjectiveObservationV01["unauthorized_effects"];
+  synthetic_fixture_fields: null | {
+    disposable_fixture_admission_fingerprint: string;
+    synthetic_fixture_binding_fingerprint: string;
+    synthetic_fixture_output_fingerprint: string;
+  };
+}): CommissionedWorkExecutionObservationV01 {
+  const asserted = assertNativeHostResultV01(input.request, input.result);
+  if (
+    canonicalizeProtocolValueV01(asserted) !==
+    canonicalizeProtocolValueV01(input.result)
+  ) {
+    failV01("commissioned_work_native_host_result_identity_changed");
+  }
+  if (
+    input.request.request_id !== input.result.request_id ||
+    input.request.run_id !== input.result.run_id ||
+    input.request.task_context_packet_ref.source_ref !==
+      input.packet.integrity.fingerprint
+  ) {
+    failV01("commissioned_work_execution_observation_source_invalid");
+  }
+  const isSynthetic = input.execution_source.binding_kind === "synthetic_fixture";
+  const hostSet = exactNativeHostRefSetV01({
+    result: input.result,
+    binding_kind: input.execution_source.binding_kind,
+  });
+  const candidateFingerprints = candidateComponentDeliveryFingerprintsV01(
+    input.packet,
+  );
+  const expectedContinuationCount = isSuccessorPlanV01(input.plan)
+    ? input.plan.selected_material_ids.length
+    : 0;
+  const packetMaterialFingerprint = packetMaterialSetFingerprintV01(input.packet);
+  const deliveryObserved =
+    input.packet_presentation.status !== "not_observed";
+  if (
+    (input.packet_presentation.status === "not_observed" &&
+      (input.packet_presentation.observed_at !== null ||
+        input.packet_presentation.provenance !== "unknown" ||
+        input.delivered_material_set_fingerprint !== null ||
+        input.continuation_materials_delivered !== null ||
+        input.candidate_components_delivered !== null)) ||
+    (deliveryObserved &&
+      (input.packet_presentation.observed_at === null ||
+        input.packet_presentation.provenance === "unknown" ||
+        input.delivered_material_set_fingerprint !== packetMaterialFingerprint ||
+        input.continuation_materials_delivered !== expectedContinuationCount ||
+        input.candidate_components_delivered !== candidateFingerprints.length ||
+        !input.result.checks.some(
+          (check) =>
+            check.check_id === "validated_packet_delivery" &&
+            check.status === "passed",
+        )))
+  ) {
+    failV01("commissioned_work_execution_delivery_observation_invalid");
+  }
+  if (input.packet_presentation.observed_at !== null) {
+    requireTimestampV01(
+      input.packet_presentation.observed_at,
+      "commissioned_work_packet_presentation_time_invalid",
+    );
+  }
+  const firstAction = firstMaterialActionObservationV01({
+    result: input.result,
+    observed_at: input.first_material_action_at,
+    timing_provenance: input.first_material_action_timing_provenance,
+  });
+  if (
+    input.packet_presentation.status ===
+      "presented_before_first_meaningful_action" &&
+    (firstAction.observed_at === null ||
+      input.packet_presentation.observed_at === null ||
+      Date.parse(input.packet_presentation.observed_at) >
+        Date.parse(firstAction.observed_at))
+  ) {
+    failV01("commissioned_work_packet_presentation_order_invalid");
+  }
+  if (Object.values(input.unauthorized_effects).some((value) => value !== 0)) {
+    failV01("commissioned_work_execution_unauthorized_effect");
+  }
+  validateExecutionResourceBindingV01({
+    execution_evidence_class: input.execution_source.execution_evidence_class,
+    resources: input.resources,
+    resource_binding: input.resource_binding,
+  });
+  const common = {
+    observation_version: COMMISSIONED_WORK_EXECUTION_OBSERVATION_VERSION_V01,
+    observation_id: `execution-observation:${fingerprintV01({
+      request_id: input.request.request_id,
+      result: fingerprintV01(input.result),
+      host_ref_set: hostSet.set_fingerprint,
+    }).slice("sha256:".length, "sha256:".length + 32)}`,
+    request_id: input.request.request_id,
+    run_id: input.request.run_id,
+    task_context_packet_ref: createCommissionedWorkRecordRefV01({
+      record_version: input.packet.packet_version,
+      record_id: input.packet.packet_id,
+      record_fingerprint: input.packet.integrity.fingerprint,
+    }),
+    native_host_request_fingerprint: fingerprintV01(input.request),
+    native_host_result_fingerprint: fingerprintV01(input.result),
+    host_ref_set: hostSet.bindings,
+    host_ref_set_fingerprint: hostSet.set_fingerprint,
+    packet_presentation: input.packet_presentation,
+    packet_material_set_fingerprint: packetMaterialFingerprint,
+    delivered_material_set_fingerprint:
+      input.delivered_material_set_fingerprint,
+    selected_material_count: input.packet.selected_context.length,
+    continuation_materials_delivered:
+      input.continuation_materials_delivered,
+    candidate_components_delivered: input.candidate_components_delivered,
+    candidate_component_delivery_fingerprints: candidateFingerprints,
+    first_material_action: firstAction,
+    executor_completion_attestation: input.executor_completion_attestation,
+    resources: input.resources,
+    resource_binding: input.resource_binding,
+    unauthorized_effects: input.unauthorized_effects,
+  };
+  if (isSynthetic) {
+    if (input.synthetic_fixture_fields === null) {
+      failV01("commissioned_work_synthetic_execution_binding_invalid");
+    }
+    return sealV01(
+      {
+        ...common,
+        binding_kind: "synthetic_fixture" as const,
+        execution_evidence_class: COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+        execution_mode: "zero_provider_synthetic_fixture_adapter" as const,
+        ...input.synthetic_fixture_fields,
+        synthetic_fixture_output_applied: true as const,
+      },
+      "commissioned_work_execution_observation_without_integrity_fingerprint",
+    );
+  }
+  if (input.synthetic_fixture_fields !== null) {
+    failV01("commissioned_work_commissioned_agent_execution_binding_invalid");
+  }
+  if (input.execution_source.binding_kind !== "commissioned_agent") {
+    failV01("commissioned_work_commissioned_agent_execution_binding_invalid");
+  }
+  return sealV01(
+    {
+      ...common,
+      binding_kind: "commissioned_agent" as const,
+      execution_evidence_class: input.execution_source.execution_evidence_class,
+      execution_mode: "commissioned_agent_native_host" as const,
+    },
+    "commissioned_work_execution_observation_without_integrity_fingerprint",
+  );
+}
+
+export function buildCommissionedWorkSyntheticExecutionObservationV01(
+  input: BuildCommissionedWorkSyntheticExecutionObservationInputV01,
+): CommissionedWorkExecutionObservationV01 {
+  const resourceObservationRef = createCommissionedWorkRecordRefV01({
+    record_version: input.result.result_version,
+    record_id: `synthetic-resource:${input.request.request_id}`,
+    record_fingerprint: fingerprintV01(input.result),
+  });
+  return buildExecutionObservationV01({
+    ...input,
+    execution_source: {
+      binding_kind: "synthetic_fixture",
+      execution_evidence_class: COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+      execution_mode: "zero_provider_synthetic_fixture_adapter",
+    },
+    packet_presentation: {
+      status: "presented_before_first_meaningful_action",
+      observed_at: input.result.started_at,
+      provenance: "synthetic_fixture_adapter",
+    },
+    continuation_materials_delivered: requireResultCountMetadataV01(
+      input.result,
+      "continuation_materials_delivered",
+    ),
+    candidate_components_delivered: requireResultCountMetadataV01(
+      input.result,
+      "candidate_components_delivered",
+    ),
+    delivered_material_set_fingerprint: requireResultFingerprintMetadataV01(
+      input.result,
+      "delivered_material_set_fingerprint",
+    ),
+    first_material_action_at:
+      requireResultStringMetadataV01(input.result, "first_material_action_at"),
+    first_material_action_timing_provenance: "synthetic_fixture_adapter",
+    executor_completion_attestation: {
+      provenance: "synthetic_fixture_adapter",
+      claimed_complete: requireResultBooleanMetadataV01(
+        input.result,
+        "executor_claimed_complete",
+      ),
+    },
+    resources: {
+      provider_calls: {
+        provenance: "observed",
+        value: requireResultCountMetadataV01(input.result, "provider_calls"),
+      },
+      model_calls: {
+        provenance: "observed",
+        value: requireResultCountMetadataV01(input.result, "model_calls"),
+      },
+      external_network_calls: {
+        provenance: "observed",
+        value: requireResultCountMetadataV01(
+          input.result,
+          "external_network_calls",
+        ),
+      },
+      tool_calls: { provenance: "observed", value: 0 },
+      model_usage_units: { provenance: "unknown", value: null },
+      cost_microunits: { provenance: "unknown", value: null },
+      latency_ms: { provenance: "unknown", value: null },
+      human_review_burden: { provenance: "unknown", value: null },
+    },
+    resource_binding: {
+      provider_calls_observation_ref: resourceObservationRef,
+      model_calls_observation_ref: resourceObservationRef,
+      external_network_calls_observation_ref: resourceObservationRef,
+      live_authorization_ref: null,
+      authorization_resource_ceiling: null,
+      provider_ref: null,
+      model_ref: null,
+      route_ref: null,
+      network_destination_ref: null,
+    },
+    unauthorized_effects: zeroUnauthorizedEffectsV01(),
+    synthetic_fixture_fields: {
+      disposable_fixture_admission_fingerprint:
+        requireResultFingerprintMetadataV01(
+          input.result,
+          "fixture_admission_fingerprint",
+        ),
+      synthetic_fixture_binding_fingerprint:
+        requireResultFingerprintMetadataV01(
+          input.result,
+          "synthetic_fixture_binding_fingerprint",
+        ),
+      synthetic_fixture_output_fingerprint:
+        requireResultFingerprintMetadataV01(
+          input.result,
+          "synthetic_fixture_output_fingerprint",
+        ),
+    },
+  });
+}
+
+export function buildCommissionedWorkCommissionedAgentExecutionObservationV01(
+  input: BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01,
+): CommissionedWorkExecutionObservationV01 {
+  const metadata = input.result.adapter_extension.bounded_metadata;
+  if (
+    COMMISSIONED_WORK_SYNTHETIC_FIXTURE_METADATA_KEYS_V01.some(
+      (key) => key in metadata,
+    )
+  ) {
+    failV01("commissioned_work_commissioned_agent_fixture_metadata_forbidden");
+  }
+  return buildExecutionObservationV01({
+    packet: input.packet,
+    request: input.request,
+    result: input.result,
+    plan: input.plan,
+    execution_source: {
+      binding_kind: "commissioned_agent",
+      execution_evidence_class: input.execution_evidence_class,
+      execution_mode: "commissioned_agent_native_host",
+      live_authorization_ref: input.resource_binding.live_authorization_ref,
+      provider_ref: input.resource_binding.provider_ref,
+      model_ref: input.resource_binding.model_ref,
+      route_ref: input.resource_binding.route_ref,
+      network_destination_ref:
+        input.resource_binding.network_destination_ref,
+    },
+    packet_presentation: input.packet_presentation,
+    continuation_materials_delivered:
+      input.continuation_materials_delivered,
+    candidate_components_delivered: input.candidate_components_delivered,
+    delivered_material_set_fingerprint:
+      input.delivered_material_set_fingerprint,
+    first_material_action_at: input.first_material_action_at,
+    first_material_action_timing_provenance:
+      input.first_material_action_timing_provenance,
+    executor_completion_attestation:
+      input.executor_completion_attestation,
+    resources: input.resources,
+    resource_binding: input.resource_binding,
+    unauthorized_effects: input.unauthorized_effects,
+    synthetic_fixture_fields: null,
+  });
+}
+
+function validateExecutionObservationResultBindingV01(input: {
+  execution_observation: CommissionedWorkExecutionObservationV01;
+  request: NativeHostRequestV01;
+  packet: TaskContextPacketV01;
+  result: NativeHostResultV01;
 }): {
-  host_external_ref: ExternalRefV01;
-  host_record_ref: CommissionedWorkRecordRefV01;
+  host_external_refs: ExternalRefV01[];
+  receipt_host_ref: ExternalRefV01;
   run_ref_type: string;
   runtime_labels: string[];
   observation_kind: string;
@@ -1149,46 +1779,41 @@ function validateExecutionSourceResultBindingV01(input: {
   destination_refs: ExternalRefV01[];
   source_external_refs: ExternalRefV01[];
 } {
-  const hostExternalRef = input.result.host_refs[0] ?? null;
-  if (hostExternalRef === null || input.result.host_refs.length !== 1) {
-    failV01("commissioned_work_receipt_host_identity_missing");
-  }
-  const hostRecordRef = commissionedWorkRecordRefFromExternalV01(hostExternalRef);
-  const executionSourceExternalRef = localRefV01(
-    "commissioned_work_execution_source",
-    `${input.execution_source.binding_kind}:${input.execution_source.execution_evidence_class}`,
-    input.result.finished_at,
-    fingerprintV01(input.execution_source),
+  validateIntegrityV01(
+    input.execution_observation,
+    "commissioned_work_execution_observation_without_integrity_fingerprint",
+    "commissioned_work_execution_observation_integrity_invalid",
   );
-  const metadata = input.result.adapter_extension.bounded_metadata;
-  const fixtureOnlyKeys = [
-    "fixture_admission_fingerprint",
-    "fixture_admission_consumed",
-    "synthetic_fixture_binding_fingerprint",
-    "synthetic_fixture_output_fingerprint",
-    "execution_evidence_class",
-    "synthetic_fixture_output_applied",
-    "solution_write_plan_checked_during_result_admission",
-  ] as const;
-  const resourceCounter = (
-    key: "provider_calls" | "model_calls" | "external_network_calls",
-  ): number | null => {
-    const lane = input.observation.resources[key];
-    const value = metadata[key];
-    if (
-      lane.provenance === "observed" &&
-      (value !== lane.value || typeof value !== "number")
-    ) {
-      failV01("commissioned_work_execution_resource_binding_invalid");
-    }
-    if (lane.provenance === "unknown" && value !== null) {
-      failV01("commissioned_work_execution_resource_binding_invalid");
-    }
-    return lane.value;
-  };
-  const providerCalls = resourceCounter("provider_calls");
-  const modelCalls = resourceCounter("model_calls");
-  const externalNetworkCalls = resourceCounter("external_network_calls");
+  const hostSet = exactNativeHostRefSetV01({
+    result: input.result,
+    binding_kind: input.execution_observation.binding_kind,
+  });
+  if (
+    input.execution_observation.request_id !== input.request.request_id ||
+    input.execution_observation.run_id !== input.request.run_id ||
+    input.execution_observation.task_context_packet_ref.record_fingerprint !==
+      input.packet.integrity.fingerprint ||
+    input.execution_observation.native_host_request_fingerprint !==
+      fingerprintV01(input.request) ||
+    input.execution_observation.native_host_result_fingerprint !==
+      fingerprintV01(input.result) ||
+    input.execution_observation.host_ref_set_fingerprint !==
+      hostSet.set_fingerprint ||
+    canonicalizeProtocolValueV01(input.execution_observation.host_ref_set) !==
+      canonicalizeProtocolValueV01(hostSet.bindings)
+  ) {
+    failV01("commissioned_work_execution_observation_source_invalid");
+  }
+  const executionSourceExternalRef = localRefV01(
+    "commissioned_work_execution_observation",
+    input.execution_observation.observation_id,
+    input.result.finished_at,
+    input.execution_observation.integrity.fingerprint,
+  );
+  const providerCalls = input.execution_observation.resources.provider_calls.value;
+  const modelCalls = input.execution_observation.resources.model_calls.value;
+  const externalNetworkCalls =
+    input.execution_observation.resources.external_network_calls.value;
   if (
     modelCalls !== null &&
     (input.result.model_invocation_receipt_refs.length > modelCalls ||
@@ -1196,24 +1821,22 @@ function validateExecutionSourceResultBindingV01(input: {
   ) {
     failV01("commissioned_work_execution_model_receipt_binding_invalid");
   }
-  if (input.execution_source.binding_kind === "synthetic_fixture") {
+  if (input.execution_observation.binding_kind === "synthetic_fixture") {
     if (
-      input.execution_source.execution_evidence_class !==
+      input.execution_observation.execution_evidence_class !==
         COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 ||
-      input.execution_source.execution_mode !==
+      input.execution_observation.execution_mode !==
         "zero_provider_synthetic_fixture_adapter" ||
-      hostExternalRef.ref_type !== "commissioned_workbench_fixture_host" ||
       providerCalls !== 0 ||
       modelCalls !== 0 ||
       externalNetworkCalls !== 0 ||
-      input.result.model_invocation_receipt_refs.length !== 0 ||
-      fixtureOnlyKeys.some((key) => !(key in metadata))
+      input.result.model_invocation_receipt_refs.length !== 0
     ) {
       failV01("commissioned_work_synthetic_execution_binding_invalid");
     }
     return {
-      host_external_ref: hostExternalRef,
-      host_record_ref: hostRecordRef,
+      host_external_refs: hostSet.external_refs,
+      receipt_host_ref: hostSet.receipt_host_ref,
       run_ref_type: "commissioned_work_fixture_run",
       runtime_labels: [
         "commissioned_work_experiment",
@@ -1244,80 +1867,58 @@ function validateExecutionSourceResultBindingV01(input: {
       source_external_refs: [executionSourceExternalRef],
     };
   }
-  if (
-    ![
-      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
-      COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01,
-    ].includes(input.execution_source.execution_evidence_class) ||
-    input.execution_source.execution_mode !== "commissioned_agent_native_host" ||
-    hostExternalRef.ref_type !== "commissioned_workbench_commissioned_agent_host" ||
-    fixtureOnlyKeys.some((key) => key in metadata)
-  ) {
+  if (input.execution_observation.execution_mode !== "commissioned_agent_native_host") {
     failV01("commissioned_work_commissioned_agent_execution_binding_invalid");
   }
   const isConformance =
-    input.execution_source.execution_evidence_class ===
+    input.execution_observation.execution_evidence_class ===
     COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01;
-  if (
-    isConformance &&
-    (input.execution_source.live_authorization_ref !== null ||
-      input.execution_source.provider_ref !== null ||
-      input.execution_source.model_ref !== null ||
-      input.execution_source.route_ref !== null ||
-      providerCalls !== 0 ||
-      modelCalls !== 0 ||
-      externalNetworkCalls !== 0 ||
-      input.result.model_invocation_receipt_refs.length !== 0)
-  ) {
-    failV01("commissioned_work_commissioned_agent_conformance_binding_invalid");
-  }
-  if (
-    !isConformance &&
-    (input.execution_source.live_authorization_ref === null ||
-      modelCalls === null ||
-      providerCalls === null ||
-      externalNetworkCalls === null ||
-      (modelCalls > 0 &&
-        (input.execution_source.provider_ref === null ||
-          input.execution_source.model_ref === null ||
-          input.execution_source.route_ref === null)))
-  ) {
-    failV01("commissioned_work_commissioned_agent_observation_binding_invalid");
-  }
-  const providerExternalRef = input.execution_source.provider_ref
+  const resourceBinding = input.execution_observation.resource_binding;
+  const providerExternalRef = resourceBinding.provider_ref
     ? commissionedWorkExternalRefFromRecordV01(
-        input.execution_source.provider_ref,
+        resourceBinding.provider_ref,
         "commissioned_work_provider",
         input.result.finished_at,
       )
     : null;
-  const modelExternalRef = input.execution_source.model_ref
+  const modelExternalRef = resourceBinding.model_ref
     ? commissionedWorkExternalRefFromRecordV01(
-        input.execution_source.model_ref,
+        resourceBinding.model_ref,
         "commissioned_work_model",
         input.result.finished_at,
       )
     : null;
-  const routeExternalRef = input.execution_source.route_ref
+  const routeExternalRef = resourceBinding.route_ref
     ? commissionedWorkExternalRefFromRecordV01(
-        input.execution_source.route_ref,
+        resourceBinding.route_ref,
         "commissioned_work_route",
         input.result.finished_at,
       )
     : null;
-  const liveAuthorizationExternalRef = input.execution_source.live_authorization_ref
+  const networkDestinationExternalRef = resourceBinding.network_destination_ref
     ? commissionedWorkExternalRefFromRecordV01(
-        input.execution_source.live_authorization_ref,
+        resourceBinding.network_destination_ref,
+        "commissioned_work_network_destination",
+        input.result.finished_at,
+      )
+    : null;
+  const liveAuthorizationExternalRef = resourceBinding.live_authorization_ref
+    ? commissionedWorkExternalRefFromRecordV01(
+        resourceBinding.live_authorization_ref,
         "commissioned_work_live_authorization",
         input.result.finished_at,
       )
     : null;
-  const destinationRefs = [providerExternalRef, routeExternalRef].filter(
+  const destinationRefs = [
+    providerExternalRef,
+    routeExternalRef,
+    networkDestinationExternalRef,
+  ].filter(
     (ref): ref is ExternalRefV01 => ref !== null,
   );
   return {
-    host_external_ref: hostExternalRef,
-    host_record_ref: hostRecordRef,
+    host_external_refs: hostSet.external_refs,
+    receipt_host_ref: hostSet.receipt_host_ref,
     run_ref_type: "commissioned_work_commissioned_agent_run",
     runtime_labels: [
       "commissioned_work_experiment",
@@ -1339,10 +1940,10 @@ function validateExecutionSourceResultBindingV01(input: {
     privacy_note:
       "No raw prompt, transcript, hidden reasoning, provider payload, credential, or absolute root is retained; exact permitted execution refs remain bounded source identity.",
     model_identity: {
-      provenance: input.execution_source.model_ref === null ? "unknown" : "observed",
-      provider_ref: input.execution_source.provider_ref,
-      model_ref: input.execution_source.model_ref,
-      route_ref: input.execution_source.route_ref,
+      provenance: resourceBinding.model_ref === null ? "unknown" : "observed",
+      provider_ref: resourceBinding.provider_ref,
+      model_ref: resourceBinding.model_ref,
+      route_ref: resourceBinding.route_ref,
     },
     model_invocations: [],
     receipt_limitations: isConformance
@@ -1365,6 +1966,7 @@ function validateExecutionSourceResultBindingV01(input: {
       providerExternalRef,
       modelExternalRef,
       routeExternalRef,
+      networkDestinationExternalRef,
       ...input.result.model_invocation_receipt_refs,
     ].filter((ref): ref is ExternalRefV01 => ref !== null),
   };
@@ -1375,17 +1977,18 @@ export function buildCommissionedWorkRunReceiptV01(input: {
   packet: TaskContextPacketV01;
   result: NativeHostResultV01;
   observation: CommissionedWorkObjectiveObservationV01;
-  execution_source: CommissionedWorkEpisodeExecutionSourceV01;
+  execution_observation: CommissionedWorkExecutionObservationV01;
 }): RunReceiptV01 {
   validateIntegrityV01(
     input.observation,
     "commissioned_work_objective_observation_without_integrity_fingerprint",
     "commissioned_work_observation_integrity_invalid",
   );
-  const executionBinding = validateExecutionSourceResultBindingV01({
-    execution_source: input.execution_source,
+  const executionBinding = validateExecutionObservationResultBindingV01({
+    execution_observation: input.execution_observation,
+    request: input.request,
+    packet: input.packet,
     result: input.result,
-    observation: input.observation,
   });
   if (
     input.request.request_id !== input.result.request_id ||
@@ -1410,6 +2013,12 @@ export function buildCommissionedWorkRunReceiptV01(input: {
     input.result.finished_at,
     input.observation.evaluator_role.role_fingerprint,
   );
+  const executionObservationExternalRef = localRefV01(
+    "commissioned_work_execution_observation",
+    input.execution_observation.observation_id,
+    input.result.finished_at,
+    input.execution_observation.integrity.fingerprint,
+  );
   const packetRef = packetExternalRefV01(input.packet);
   const runRef = localRefV01(
     executionBinding.run_ref_type,
@@ -1417,7 +2026,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
     input.result.finished_at,
     input.observation.run_ref_fingerprint,
   );
-  const hostRef = executionBinding.host_external_ref;
+  const hostRef = executionBinding.receipt_host_ref;
   const artifactRefs = input.result.changed_files.map((changed) =>
     repositoryArtifactRefV01(
       changed.repository_relative_path,
@@ -1477,7 +2086,8 @@ export function buildCommissionedWorkRunReceiptV01(input: {
             ? "failed"
             : "unknown",
       basis: "observed",
-      summary: "The evaluator checked the executor's recorded source-use relation.",
+      summary:
+        "The evaluator checked the exact repository source/currentness condition against the sealed rubric.",
       source_refs: [evaluatorRef],
     },
     {
@@ -1496,7 +2106,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
     {
       check_id: "objective_authority_boundary",
       required: true,
-      status: Object.values(input.observation.authority_effects).every(
+      status: Object.values(input.observation.unauthorized_effects).every(
         (value) => value === 0,
       )
         ? "passed"
@@ -1506,22 +2116,38 @@ export function buildCommissionedWorkRunReceiptV01(input: {
       source_refs: [evaluatorRef],
     },
   ];
-  const deliveryCheck = input.result.checks.find(
-    (check) => check.check_id === "validated_packet_delivery",
-  );
-  if (!deliveryCheck || deliveryCheck.status !== "passed") {
-    failV01("commissioned_work_packet_delivery_missing");
-  }
+  const deliveryObserved =
+    input.execution_observation.packet_presentation.status !== "not_observed";
+  const deliveryCheck: RunReceiptBuilderInputV01["checks"][number] | null =
+    deliveryObserved
+      ? {
+          check_id: "validated_packet_delivery",
+          required: true,
+          status: "passed",
+          basis: "observed",
+          summary:
+            "The separate source-bound CW1 observation established exact packet delivery without modifying the native host result.",
+          source_refs: [reporterRef],
+        }
+      : null;
   const allChecks = [
-    {
-      ...deliveryCheck,
-      basis: "observed" as const,
-      source_refs: [reporterRef],
-    },
+    ...(deliveryCheck ? [deliveryCheck] : []),
     ...objectiveChecks.filter((check) => check.status !== "unknown"),
     ...objectiveGateChecks.filter((check) => check.status !== "unknown"),
   ];
   const skippedChecks = [
+    ...(!deliveryCheck
+      ? [
+          {
+            check_id: "validated_packet_delivery",
+            required: true,
+            reason:
+              "The native host did not establish exact packet delivery before its truthful terminal result.",
+            basis: "observed" as const,
+            source_refs: [reporterRef],
+          },
+        ]
+      : []),
     ...input.observation.required_checks
       .filter(
         (check) =>
@@ -1556,6 +2182,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
   const anyUnperformed = input.observation.required_checks.some(
     (check) => check.disposition === "skipped" || check.disposition === "unknown",
   );
+  const deliveryPassed = deliveryCheck?.status === "passed";
   const anyHardGateFailed = objectiveGateChecks.some(
     (check) => check.status === "failed",
   );
@@ -1568,6 +2195,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
     !anyUnperformed &&
     !anyHardGateFailed &&
     !anyHardGateUnknown &&
+    deliveryPassed &&
     input.observation.required_checks.length > 0;
   const receiptInput: RunReceiptBuilderInputV01 = {
     workspace_id: input.packet.workspace_id,
@@ -1589,7 +2217,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
         ? "passed"
         : anyFailed || anyHardGateFailed
           ? "failed"
-          : anyUnperformed || anyHardGateUnknown
+          : anyUnperformed || anyHardGateUnknown || !deliveryPassed
             ? "partial"
             : "unknown",
       basis: "observed",
@@ -1619,7 +2247,12 @@ export function buildCommissionedWorkRunReceiptV01(input: {
         observed_at: input.result.finished_at,
         observer_ref: reporterRef,
         trust_class: "direct_local_observation",
-        source_refs: [runRef, packetRef, ...executionBinding.source_external_refs],
+        source_refs: [
+          runRef,
+          packetRef,
+          ...executionBinding.host_external_refs,
+          ...executionBinding.source_external_refs,
+        ],
         related_command_ids: [],
         related_check_ids: ["validated_packet_delivery"],
         related_artifact_refs: artifactRefs,
@@ -1676,7 +2309,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
       runRef,
       reporterRef,
       evaluatorRef,
-      hostRef,
+      ...executionBinding.host_external_refs,
       ...executionBinding.source_external_refs,
     ],
     result_summary: {
@@ -1695,7 +2328,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
             {
               code: input.result.public_stop_reason ?? "commissioned_work_episode_blocked",
               summary:
-                "The bounded predecessor stopped at its sealed interruption point.",
+                "The native host returned a truthful non-completed terminal outcome.",
               source_refs: [reporterRef],
             },
           ]),
@@ -1710,7 +2343,7 @@ export function buildCommissionedWorkRunReceiptV01(input: {
         : []),
     ],
     warnings: [],
-    gaps: anyUnperformed
+    gaps: anyUnperformed || !deliveryPassed
       ? [
           {
             code: "commissioned_work_objective_check_unperformed",
@@ -1800,34 +2433,46 @@ export function buildCommissionedWorkEpisodeArtifactV01(
   }
   validatePacketResultReceiptObservationBindingV01(input);
   requireSafeCodeV01(input.episode_id, "commissioned_work_episode_id_invalid");
-  requireTimestampV01(input.started_at, "commissioned_work_episode_start_invalid");
-  requireTimestampV01(input.finished_at, "commissioned_work_episode_finish_invalid");
-  if (Date.parse(input.finished_at) < Date.parse(input.started_at)) {
+  requireTimestampV01(
+    input.result.started_at,
+    "commissioned_work_episode_start_invalid",
+  );
+  requireTimestampV01(
+    input.result.finished_at,
+    "commissioned_work_episode_finish_invalid",
+  );
+  if (Date.parse(input.result.finished_at) < Date.parse(input.result.started_at)) {
     failV01("commissioned_work_episode_time_order_invalid");
   }
-  if (input.first_material_action_at !== null) {
+  const observedFirstActionAt =
+    input.execution_observation.first_material_action.observed_at;
+  if (observedFirstActionAt !== null) {
     requireTimestampV01(
-      input.first_material_action_at,
+      observedFirstActionAt,
       "commissioned_work_first_action_time_invalid",
     );
     if (
-      Date.parse(input.first_material_action_at) < Date.parse(input.started_at) ||
-      Date.parse(input.first_material_action_at) > Date.parse(input.finished_at) ||
-      Date.parse(input.packet.generated_at) >
-        Date.parse(input.first_material_action_at)
+      Date.parse(observedFirstActionAt) < Date.parse(input.result.started_at) ||
+      Date.parse(observedFirstActionAt) > Date.parse(input.result.finished_at) ||
+      Date.parse(input.packet.generated_at) > Date.parse(observedFirstActionAt)
     ) {
       failV01("commissioned_work_first_action_order_invalid");
     }
   }
-  const adapterFirstMaterialActionAt =
-    input.result.adapter_extension.bounded_metadata.first_material_action_at;
   if (
-    typeof adapterFirstMaterialActionAt !== "string" ||
-    input.first_material_action_at !== adapterFirstMaterialActionAt ||
-    input.started_at !== input.result.started_at ||
-    input.finished_at !== input.result.finished_at ||
+    input.execution_observation.packet_presentation.status ===
+      "presented_before_first_meaningful_action" &&
+    (input.execution_observation.packet_presentation.observed_at === null ||
+      observedFirstActionAt === null ||
+      Date.parse(input.execution_observation.packet_presentation.observed_at) >
+        Date.parse(observedFirstActionAt))
+  ) {
+    failV01("commissioned_work_packet_presentation_order_invalid");
+  }
+  if (
     input.receipt.started_at !== input.result.started_at ||
-    input.receipt.finished_at !== input.result.finished_at
+    input.receipt.finished_at !== input.result.finished_at ||
+    input.receipt.execution.status !== receiptExecutionStatusV01(input.result.outcome)
   ) {
     failV01("commissioned_work_episode_execution_chronology_binding_invalid");
   }
@@ -1837,26 +2482,15 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       (successorPlan !== null ||
         input.condition !== null ||
         input.holdout_variant !== null ||
-        input.predecessor_episode_ref !== null)) ||
+        input.predecessor_episode_ref !== null ||
+        input.predecessor_checkpoint !== null)) ||
     (input.episode_role === "successor" &&
       (successorPlan === null ||
         input.condition === null ||
         input.predecessor_episode_ref === null ||
-        input.sealed_interruption_ref === null))
+        input.predecessor_checkpoint === null))
   ) {
     failV01("commissioned_work_episode_role_binding_invalid");
-  }
-  if (
-    (input.episode_role === "predecessor" &&
-      (input.result.outcome !== "blocked" ||
-        input.result.public_stop_reason !== "sealed_interruption" ||
-        input.receipt.execution.status !== "blocked")) ||
-    (input.episode_role === "successor" &&
-      (input.result.outcome !== "completed" ||
-        input.result.public_stop_reason !== null ||
-        input.receipt.execution.status !== "completed"))
-  ) {
-    failV01("commissioned_work_episode_terminal_boundary_invalid");
   }
   if (
     successorPlan &&
@@ -1902,68 +2536,91 @@ export function buildCommissionedWorkEpisodeArtifactV01(
   ) {
     failV01("commissioned_work_episode_role_separation_invalid");
   }
-  const executionSourceBinding = validateExecutionSourceResultBindingV01({
-    execution_source: input.execution_source,
+  if (input.predecessor_checkpoint !== null) {
+    validateIntegrityV01(
+      input.predecessor_checkpoint,
+      "commissioned_work_episode_checkpoint_without_integrity_fingerprint",
+      "commissioned_work_episode_checkpoint_integrity_invalid",
+    );
+    if (
+      canonicalizeProtocolValueV01(
+        input.predecessor_checkpoint.predecessor_episode_ref,
+      ) !== canonicalizeProtocolValueV01(input.predecessor_episode_ref) ||
+      input.predecessor_checkpoint.case_id !== input.source.case_id ||
+      input.predecessor_checkpoint.workspace_id !== input.manifest.workspace_id ||
+      input.predecessor_checkpoint.project_id !== input.source.project_id ||
+      input.predecessor_checkpoint.predecessor_run_ref_fingerprint ===
+        fingerprintV01(input.result.run_id) ||
+      input.predecessor_checkpoint.predecessor_executor_role_ref.role_fingerprint ===
+        executorRole.role_fingerprint ||
+      Date.parse(input.predecessor_checkpoint.sealed_at) >
+        Date.parse(input.result.started_at) ||
+      input.request.execution_grant_ref !== null ||
+      input.request.packet_capability_grant !== null
+    ) {
+      failV01("commissioned_work_episode_checkpoint_binding_invalid");
+    }
+  }
+  const executionSourceBinding = validateExecutionObservationResultBindingV01({
+    execution_observation: input.execution_observation,
+    request: input.request,
+    packet: input.packet,
     result: input.result,
-    observation: input.observation,
   });
+  const executionObservationExternalRef = localRefV01(
+    "commissioned_work_execution_observation",
+    input.execution_observation.observation_id,
+    input.result.finished_at,
+    input.execution_observation.integrity.fingerprint,
+  );
   if (
-    input.receipt.host_ref?.ref_type !==
-      executionSourceBinding.host_external_ref.ref_type ||
-    input.receipt.host_ref.external_id !==
-      executionSourceBinding.host_external_ref.external_id ||
-    input.receipt.host_ref.source_ref !==
-      executionSourceBinding.host_external_ref.source_ref ||
-    !input.receipt.external_refs.some(
-      (externalRef) =>
-        externalRef.ref_type === "commissioned_work_execution_source" &&
-        externalRef.source_ref === fingerprintV01(input.execution_source),
+    canonicalizeProtocolValueV01(input.receipt.host_ref) !==
+    canonicalizeProtocolValueV01(
+      normalizeExternalRefPrimitiveV01(executionSourceBinding.receipt_host_ref),
     )
   ) {
-    failV01("commissioned_work_episode_receipt_execution_source_invalid");
+    failV01("commissioned_work_episode_receipt_host_ref_set_invalid");
+  }
+  const normalizedExecutionObservationExternalRef =
+    normalizeExternalRefPrimitiveV01(executionObservationExternalRef);
+  if (
+    !input.receipt.external_refs.some(
+      (externalRef) =>
+        canonicalizeProtocolValueV01(externalRef) ===
+        canonicalizeProtocolValueV01(
+          normalizedExecutionObservationExternalRef,
+        ),
+    )
+  ) {
+    failV01("commissioned_work_episode_receipt_observation_ref_missing");
   }
   const evaluation = evaluationVectorV01({
     result: input.result,
     observation: input.observation,
+    execution_observation: input.execution_observation,
     executor_role: executorRole,
-    executor_claimed_complete: requireResultBooleanMetadataV01(
-      input.result,
-      "executor_claimed_complete",
-    ),
     model_identity: executionSourceBinding.model_identity,
     synthetic_cross_condition_output_difference: "unknown",
     harmful_transfer: "unknown",
   });
-  const packetMaterialSetFingerprint = packetMaterialSetFingerprintV01(input.packet);
-  const deliveredMaterialSetFingerprint = requireResultFingerprintMetadataV01(
-    input.result,
-    "delivered_material_set_fingerprint",
+  const packetMaterialSetFingerprint = packetMaterialSetFingerprintV01(
+    input.packet,
   );
-  const reportedPacketMaterialSetFingerprint = requireResultFingerprintMetadataV01(
-    input.result,
-    "packet_material_set_fingerprint",
-  );
-  const continuationMaterialsDelivered = requireResultCountMetadataV01(
-    input.result,
-    "continuation_materials_delivered",
-  );
-  const candidateComponentsDelivered = requireResultCountMetadataV01(
-    input.result,
-    "candidate_components_delivered",
-  );
-  const candidateComponentDeliveryFingerprints = input.packet.selected_context
-    .filter(
-      (entry) =>
-        entry.external_ref?.ref_type ===
-        "commissioned_work_frozen_candidate_component",
-    )
-    .map((entry) => entry.source_ref)
-    .filter((value): value is string => value !== null)
-    .sort(compareProtocolCodeUnitsV01);
+  const deliveredMaterialSetFingerprint =
+    input.execution_observation.delivered_material_set_fingerprint;
+  const continuationMaterialsDelivered =
+    input.execution_observation.continuation_materials_delivered;
+  const candidateComponentsDelivered =
+    input.execution_observation.candidate_components_delivered;
+  const candidateComponentDeliveryFingerprints =
+    candidateComponentDeliveryFingerprintsV01(input.packet);
   if (
-    packetMaterialSetFingerprint !== reportedPacketMaterialSetFingerprint ||
-    packetMaterialSetFingerprint !== deliveredMaterialSetFingerprint ||
-    candidateComponentsDelivered !== candidateComponentDeliveryFingerprints.length
+    packetMaterialSetFingerprint !==
+      input.execution_observation.packet_material_set_fingerprint ||
+    input.execution_observation.selected_material_count !==
+      input.packet.selected_context.length ||
+    (candidateComponentsDelivered !== null &&
+      candidateComponentsDelivered !== candidateComponentDeliveryFingerprints.length)
   ) {
     failV01("commissioned_work_executor_delivery_binding_invalid");
   }
@@ -1972,8 +2629,12 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     request_id: input.result.request_id,
     native_host_request_fingerprint: fingerprintV01(input.request),
     native_host_result_fingerprint: fingerprintV01(input.result),
-    host_ref: executionSourceBinding.host_record_ref,
-    live_authorization_created: false as const,
+    execution_observation_ref: executionObservationRefV01(
+      input.execution_observation,
+    ),
+    host_ref_set: input.execution_observation.host_ref_set,
+    host_ref_set_fingerprint:
+      input.execution_observation.host_ref_set_fingerprint,
     product_execution_grant_created: false as const,
     solution_write_plan_checked_during_result_admission: false as const,
     new_run_for_cold_episode: true as const,
@@ -1989,7 +2650,7 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       candidateComponentDeliveryFingerprints,
   };
   const executionBinding: CommissionedWorkEpisodeExecutionBindingV01 =
-    input.execution_source.binding_kind === "synthetic_fixture"
+    input.execution_observation.binding_kind === "synthetic_fixture"
       ? {
           ...commonExecutionBinding,
           binding_kind: "synthetic_fixture",
@@ -1997,45 +2658,29 @@ export function buildCommissionedWorkEpisodeArtifactV01(
             COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
           execution_mode: "zero_provider_synthetic_fixture_adapter",
           disposable_fixture_admission_fingerprint:
-            requireResultFingerprintMetadataV01(
-              input.result,
-              "fixture_admission_fingerprint",
-            ),
+            input.execution_observation
+              .disposable_fixture_admission_fingerprint,
           fixture_admission_reused: false,
           synthetic_fixture_binding_fingerprint:
-            requireResultFingerprintMetadataV01(
-              input.result,
-              "synthetic_fixture_binding_fingerprint",
-            ),
+            input.execution_observation.synthetic_fixture_binding_fingerprint,
           synthetic_fixture_output_fingerprint:
-            requireResultFingerprintMetadataV01(
-              input.result,
-              "synthetic_fixture_output_fingerprint",
-            ),
+            input.execution_observation.synthetic_fixture_output_fingerprint,
           synthetic_fixture_output_applied: true,
         }
       : {
           ...commonExecutionBinding,
           binding_kind: "commissioned_agent",
           execution_evidence_class:
-            input.execution_source.execution_evidence_class,
+            input.execution_observation.execution_evidence_class,
           execution_mode: "commissioned_agent_native_host",
-          live_authorization_ref: input.execution_source.live_authorization_ref,
-          provider_ref: input.execution_source.provider_ref,
-          model_ref: input.execution_source.model_ref,
-          route_ref: input.execution_source.route_ref,
+          resource_binding: input.execution_observation.resource_binding,
         };
   const evidenceLadder = episodeEvidenceLadderV01({
     episode_role: input.episode_role,
     condition: input.condition,
     selected_count: successorPlan?.selected_material_ids.length ?? 0,
-    delivery_before_action:
-      input.first_material_action_at !== null &&
-      input.result.checks.some(
-        (check) =>
-          check.check_id === "validated_packet_delivery" &&
-          check.status === "passed",
-      ),
+    packet_presentation_status:
+      input.execution_observation.packet_presentation.status,
     packet_ref: createCommissionedWorkRecordRefV01({
       record_version: input.packet.packet_version,
       record_id: input.packet.packet_id,
@@ -2092,7 +2737,14 @@ export function buildCommissionedWorkEpisodeArtifactV01(
             delivered_component_refs: candidateComponentDeliveryFingerprints,
           }),
     predecessor_episode_ref: input.predecessor_episode_ref,
-    sealed_interruption_ref: input.sealed_interruption_ref,
+    episode_checkpoint_ref:
+      input.predecessor_checkpoint === null
+        ? null
+        : createCommissionedWorkRecordRefV01({
+            record_version: input.predecessor_checkpoint.checkpoint_version,
+            record_id: input.predecessor_checkpoint.checkpoint_id,
+            record_fingerprint: input.predecessor_checkpoint.integrity.fingerprint,
+          }),
     task_context_packet_ref: createCommissionedWorkRecordRefV01({
       record_version: input.packet.packet_version,
       record_id: input.packet.packet_id,
@@ -2110,16 +2762,15 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     }),
     execution_binding: executionBinding,
     chronology: {
-      started_at: input.started_at,
-      first_material_action_at: input.first_material_action_at,
-      finished_at: input.finished_at,
+      started_at: input.result.started_at,
+      first_material_action_at:
+        input.execution_observation.first_material_action.observed_at,
+      finished_at: input.result.finished_at,
       candidate_frozen_before_start: input.candidate_frozen_before_start,
     },
     repository_state: input.repository_state,
-    executor_claimed_complete: requireResultBooleanMetadataV01(
-      input.result,
-      "executor_claimed_complete",
-    ),
+    executor_completion_attestation:
+      input.execution_observation.executor_completion_attestation,
     repository_action_trace_fingerprint: input.repository_action_trace_fingerprint,
     objective_observation_ref: createCommissionedWorkRecordRefV01({
       record_version: input.observation.observation_version,
@@ -2143,27 +2794,66 @@ export function assertValidCommissionedWorkEpisodeArtifactV01(
   validateEpisodeIntegrityV01(episode);
 }
 
-export function createCommissionedWorkSealedInterruptionRefV01(
+export function buildCommissionedWorkEpisodeCheckpointV01(
   predecessor: CommissionedWorkEpisodeArtifactV01,
-): CommissionedWorkRecordRefV01 {
+): CommissionedWorkEpisodeCheckpointV01 {
   validateEpisodeIntegrityV01(predecessor);
   if (
     predecessor.episode_role !== "predecessor" ||
     predecessor.predecessor_episode_ref !== null ||
-    predecessor.sealed_interruption_ref !== null
+    predecessor.episode_checkpoint_ref !== null
   ) {
-    failV01("commissioned_work_sealed_interruption_source_invalid");
+    failV01("commissioned_work_episode_checkpoint_source_invalid");
   }
-  return createCommissionedWorkRecordRefV01({
-    record_version: "commissioned_work_sealed_interruption.v0.1",
-    record_id: `interruption:${predecessor.case_id}`,
-    record_fingerprint: fingerprintV01({
+  return sealV01(
+    {
+      checkpoint_version: COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01,
+      checkpoint_id: `checkpoint:${predecessor.case_id}`,
+      case_id: predecessor.case_id,
+      workspace_id: predecessor.workspace_id,
+      project_id: predecessor.project_id,
       predecessor_episode_ref: episodeRefV01(predecessor),
+      predecessor_executor_role_ref: predecessor.evaluation.executor_role,
+      predecessor_run_ref_fingerprint:
+        predecessor.execution_binding.run_ref_fingerprint,
       native_host_result_ref: predecessor.native_host_result_ref,
       run_receipt_ref: predecessor.run_receipt_ref,
-      repository_state: predecessor.repository_state,
-      terminal_boundary: "blocked_sealed_interruption",
-    }),
+      task_context_packet_ref: predecessor.task_context_packet_ref,
+      condition_scope_fingerprint: fingerprintV01({
+        case_id: predecessor.case_id,
+        condition: predecessor.condition,
+        holdout_variant: predecessor.holdout_variant,
+        packet_ref: predecessor.task_context_packet_ref,
+      }),
+      repository_state: {
+        episode_end_head: predecessor.repository_state.episode_end_head,
+        episode_end_tree: predecessor.repository_state.episode_end_tree,
+        worktree_fingerprint: predecessor.repository_state.worktree_fingerprint,
+      },
+      sealed_at: predecessor.chronology.finished_at,
+      native_host_outcome_preserved: true as const,
+      next_episode_requires_fresh_run: true as const,
+      next_episode_requires_fresh_executor: true as const,
+      continuation_grant_inheritance_allowed: false as const,
+      predecessor_transcript_inheritance_allowed: false as const,
+      hidden_reasoning_inheritance_allowed: false as const,
+    },
+    "commissioned_work_episode_checkpoint_without_integrity_fingerprint",
+  );
+}
+
+function episodeCheckpointRefV01(
+  checkpoint: CommissionedWorkEpisodeCheckpointV01,
+): CommissionedWorkRecordRefV01 {
+  validateIntegrityV01(
+    checkpoint,
+    "commissioned_work_episode_checkpoint_without_integrity_fingerprint",
+    "commissioned_work_episode_checkpoint_integrity_invalid",
+  );
+  return createCommissionedWorkRecordRefV01({
+    record_version: checkpoint.checkpoint_version,
+    record_id: checkpoint.checkpoint_id,
+    record_fingerprint: checkpoint.integrity.fingerprint,
   });
 }
 
@@ -2201,9 +2891,11 @@ export function buildCommissionedWorkTrainingResultV01(input: {
     const successors = input.successor_episodes.filter(
       (episode) => episode.case_id === commitment.case_id,
     );
-    const exactInterruption =
+    const exactCheckpoint =
       predecessor.length === 1
-        ? createCommissionedWorkSealedInterruptionRefV01(predecessor[0]!)
+        ? episodeCheckpointRefV01(
+            buildCommissionedWorkEpisodeCheckpointV01(predecessor[0]!),
+          )
         : null;
     if (
       predecessor.length !== 1 ||
@@ -2224,8 +2916,8 @@ export function buildCommissionedWorkTrainingResultV01(input: {
         (episode) =>
           episode.predecessor_episode_ref?.record_fingerprint !==
             predecessor[0]!.integrity.fingerprint ||
-          canonicalizeProtocolValueV01(episode.sealed_interruption_ref) !==
-            canonicalizeProtocolValueV01(exactInterruption),
+          canonicalizeProtocolValueV01(episode.episode_checkpoint_ref) !==
+            canonicalizeProtocolValueV01(exactCheckpoint),
       )
     ) {
       failV01("commissioned_work_training_case_slots_invalid");
@@ -2502,8 +3194,8 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
   const executorFingerprints = new Set<string>([
     input.predecessor_episode.evaluation.executor_role.role_fingerprint,
   ]);
-  const exactInterruption = createCommissionedWorkSealedInterruptionRefV01(
-    input.predecessor_episode,
+  const exactCheckpoint = episodeCheckpointRefV01(
+    buildCommissionedWorkEpisodeCheckpointV01(input.predecessor_episode),
   );
   for (const arm of input.arms) {
     validateEpisodeIntegrityV01(arm);
@@ -2523,8 +3215,8 @@ export function buildCommissionedWorkHoldoutEvaluationV01(input: {
         Date.parse(input.predecessor_episode.chronology.finished_at) ||
       arm.predecessor_episode_ref?.record_fingerprint !==
         input.predecessor_episode.integrity.fingerprint ||
-      canonicalizeProtocolValueV01(arm.sealed_interruption_ref) !==
-        canonicalizeProtocolValueV01(exactInterruption)
+      canonicalizeProtocolValueV01(arm.episode_checkpoint_ref) !==
+        canonicalizeProtocolValueV01(exactCheckpoint)
     ) {
       failV01("commissioned_work_holdout_arm_binding_invalid");
     }
@@ -3270,6 +3962,8 @@ function validateEpisodePlanV01(
     contract.max_changed_files >
       contract.allowed_repository_relative_paths.length ||
     contract.max_changed_files > source.budget.max_changed_files ||
+    contract.max_artifacts < 0 ||
+    contract.max_artifacts > 8 ||
     contract.max_commands < 0 ||
     contract.max_commands > 32 ||
     contract.provider_authority_source !==
@@ -3529,12 +4223,29 @@ function packetMaterialSetFingerprintV01(packet: TaskContextPacketV01): string {
   });
 }
 
+export function createCommissionedWorkPacketMaterialSetFingerprintV01(
+  packet: TaskContextPacketV01,
+): string {
+  return packetMaterialSetFingerprintV01(packet);
+}
+
 function requireResultFingerprintMetadataV01(
   result: NativeHostResultV01,
   key: string,
 ): string {
   const value = result.adapter_extension.bounded_metadata[key];
   if (typeof value !== "string" || !FINGERPRINT_V01.test(value)) {
+    failV01("commissioned_work_executor_delivery_metadata_invalid");
+  }
+  return value;
+}
+
+function requireResultStringMetadataV01(
+  result: NativeHostResultV01,
+  key: string,
+): string {
+  const value = result.adapter_extension.bounded_metadata[key];
+  if (typeof value !== "string") {
     failV01("commissioned_work_executor_delivery_metadata_invalid");
   }
   return value;
@@ -3560,6 +4271,23 @@ function requireResultBooleanMetadataV01(
     failV01("commissioned_work_executor_delivery_metadata_invalid");
   }
   return value;
+}
+
+function zeroUnauthorizedEffectsV01(): CommissionedWorkObjectiveObservationV01["unauthorized_effects"] {
+  return {
+    provider_calls_outside_authorization: 0,
+    model_calls_outside_authorization: 0,
+    network_calls_outside_authorization: 0,
+    outside_root_writes: 0,
+    product_database_writes: 0,
+    core_writes: 0,
+    proposal_writes: 0,
+    review_decision_writes: 0,
+    transition_writes: 0,
+    policy_activations: 0,
+    active_pointer_writes: 0,
+    github_writes: 0,
+  };
 }
 
 function candidatePacketEntryV01(
@@ -3984,8 +4712,8 @@ function deriveObjectiveSourceCurrentnessV01(input: {
 function evaluationVectorV01(input: {
   result: NativeHostResultV01;
   observation: CommissionedWorkObjectiveObservationV01;
+  execution_observation: CommissionedWorkExecutionObservationV01;
   executor_role: CommissionedWorkRoleRefV01;
-  executor_claimed_complete: boolean;
   model_identity: CommissionedWorkEvaluationVectorV01["model_identity"];
   synthetic_cross_condition_output_difference:
     | "observed"
@@ -4025,10 +4753,25 @@ function evaluationVectorV01(input: {
   if (input.observation.project_scope === "violated") {
     hardFailures.add("project_scope_violation");
   }
-  if (Object.values(input.observation.authority_effects).some((value) => value !== 0)) {
+  if (
+    Object.values(input.observation.unauthorized_effects).some(
+      (value) => value !== 0,
+    ) ||
+    Object.values(input.execution_observation.unauthorized_effects).some(
+      (value) => value !== 0,
+    )
+  ) {
     hardFailures.add("authority_expansion");
   }
+  if (input.result.outcome === "failed") hardFailures.add("native_host_failed");
+  if (input.result.outcome === "cancelled" || input.result.outcome === "timed_out") {
+    hardFailures.add("native_host_cancelled");
+  }
+  if (input.result.outcome === "unavailable") {
+    hardFailures.add("native_host_unavailable");
+  }
   const success =
+    input.result.outcome === "completed" &&
     input.observation.oracle_executed &&
     input.observation.required_checks.length > 0 &&
     input.observation.required_checks.every((check) => check.disposition === "passed") &&
@@ -4038,36 +4781,26 @@ function evaluationVectorV01(input: {
     input.observation.source_currentness === "current" &&
     input.observation.project_scope === "exact" &&
     hardFailures.size === 0;
-  const firstChanged = input.result.changed_files[0] ?? null;
-  const firstActionPathFingerprint =
-    input.result.adapter_extension.bounded_metadata.first_action_path_fingerprint;
-  if (
-    (firstChanged !== null && firstActionPathFingerprint === null) ||
-    (firstActionPathFingerprint !== null &&
-      (typeof firstActionPathFingerprint !== "string" ||
-        !FINGERPRINT_V01.test(firstActionPathFingerprint)))
-  ) {
-    failV01("commissioned_work_first_action_metadata_invalid");
-  }
+  const completionAttestation =
+    input.execution_observation.executor_completion_attestation;
   return {
     deterministic_repository_task_success: success,
     required_check_dispositions: input.observation.required_checks,
     repository_diff_correctness: input.observation.repository_diff_correctness,
     verification_completeness: input.observation.verification_completeness,
     false_success_behavior:
-      input.executor_claimed_complete && !success ? "observed" : "not_observed",
+      completionAttestation.claimed_complete === null
+        ? "unknown"
+        : completionAttestation.claimed_complete && !success
+          ? "observed"
+          : "not_observed",
     negative_space_status: input.observation.negative_space.status,
-    first_material_repository_action: firstChanged
-      ? {
-          action_kind:
-            firstChanged.change_kind === "added"
-              ? "file_add"
-              : firstChanged.change_kind === "deleted"
-                ? "file_delete"
-                : "file_modify",
-          repository_path_fingerprint: firstActionPathFingerprint,
-        }
-      : { action_kind: "none", repository_path_fingerprint: null },
+    first_material_repository_action: {
+      action_kind: input.execution_observation.first_material_action.action_kind,
+      repository_path_fingerprint:
+        input.execution_observation.first_material_action
+          .repository_path_fingerprint,
+    },
     synthetic_cross_condition_output_difference:
       input.synthetic_cross_condition_output_difference,
     harmful_transfer: input.harmful_transfer,
@@ -4075,19 +4808,22 @@ function evaluationVectorV01(input: {
       input.observation.source_currentness === "unknown"
         ? null
         : input.observation.source_currentness === "failed",
-    authority_violation: Object.values(input.observation.authority_effects).some(
-      (value) => value !== 0,
-    ),
+    authority_violation:
+      Object.values(input.observation.unauthorized_effects).some(
+        (value) => value !== 0,
+      ) ||
+      Object.values(input.execution_observation.unauthorized_effects).some(
+        (value) => value !== 0,
+      ),
     project_scope_violation:
       input.observation.project_scope === "unknown"
         ? null
         : input.observation.project_scope === "violated",
     executor_role: input.executor_role,
-    host_identity_fingerprint:
-      input.result.host_refs[0]?.source_ref ??
-      failV01("commissioned_work_host_identity_missing"),
+    host_ref_set_fingerprint:
+      input.execution_observation.host_ref_set_fingerprint,
     model_identity: input.model_identity,
-    resources: input.observation.resources,
+    resources: input.execution_observation.resources,
     hard_failures: [...hardFailures].sort(compareProtocolCodeUnitsV01),
     hard_failures_non_compensable: true,
     scalar_fitness_created: false,
@@ -4098,7 +4834,7 @@ function episodeEvidenceLadderV01(input: {
   episode_role: "predecessor" | "successor";
   condition: CommissionedWorkConditionV01 | null;
   selected_count: number;
-  delivery_before_action: boolean;
+  packet_presentation_status: CommissionedWorkExecutionObservationV01["packet_presentation"]["status"];
   packet_ref: CommissionedWorkRecordRefV01;
   observation_ref: CommissionedWorkRecordRefV01;
 }): CommissionedWorkEvidenceLadderRowV01[] {
@@ -4140,14 +4876,20 @@ function episodeEvidenceLadderV01(input: {
       "presented_before_first_meaningful_action",
       !continuationApplicable
         ? "not_applicable"
-        : input.delivery_before_action && input.selected_count > 0
+        : input.selected_count === 0
+          ? "not_established"
+          : input.packet_presentation_status ===
+              "presented_before_first_meaningful_action"
           ? "established"
-          : "not_established",
+          : "unknown",
       !continuationApplicable
         ? "not_applicable"
-        : input.delivery_before_action && input.selected_count > 0
+        : input.selected_count === 0
+          ? "explicit_absence"
+          : input.packet_presentation_status ===
+              "presented_before_first_meaningful_action"
           ? "exact_packet_delivery"
-          : "explicit_absence",
+          : "instrumentation_unavailable",
       directRefs,
     ),
     ladderRowV01(
@@ -4229,7 +4971,8 @@ function familyEvidenceLadderV01(input: {
     episode.evidence_ladder.find((row) => row.stage === stage)?.status ===
     "established";
   const availableEstablished = exactEpisodes.some(
-    (episode) => episode.execution_binding.continuation_materials_delivered > 0,
+    (episode) =>
+      (episode.execution_binding.continuation_materials_delivered ?? 0) > 0,
   );
   const selectedEstablished = exactEpisodes.every((episode) =>
     stageEstablished(episode, "selected"),
@@ -4368,7 +5111,7 @@ function componentSourcesV01(
           (episode) => episode.case_id === exact.case_id,
         );
         return (
-          predecessor?.executor_claimed_complete === true &&
+          predecessor?.executor_completion_attestation.claimed_complete === true &&
           predecessor.evaluation.verification_completeness === "incomplete" &&
           predecessor.evaluation.false_success_behavior === "observed" &&
           exact.evaluation.deterministic_repository_task_success &&
@@ -4580,7 +5323,6 @@ function validateEpisodeIntegrityV01(
       canonicalizeProtocolValueV01(createCommissionedWorkAuthoritySummaryV01()) ||
     canonicalizeProtocolValueV01(episode.material_boundary) !==
       canonicalizeProtocolValueV01(createCommissionedWorkMaterialBoundaryV01()) ||
-    episode.execution_binding.live_authorization_created !== false ||
     episode.execution_binding.product_execution_grant_created !== false ||
     episode.execution_binding.predecessor_transcript_inherited !== false ||
     episode.execution_binding.hidden_reasoning_inherited !== false ||
@@ -4606,9 +5348,40 @@ function validateEpisodeIntegrityV01(
     "commissioned_work_episode_result_fingerprint_invalid",
   );
   requireFingerprintV01(
-    episode.execution_binding.host_ref.record_fingerprint,
-    "commissioned_work_episode_host_fingerprint_invalid",
+    episode.execution_binding.execution_observation_ref.record_fingerprint,
+    "commissioned_work_episode_execution_observation_fingerprint_invalid",
   );
+  requireFingerprintV01(
+    episode.execution_binding.host_ref_set_fingerprint,
+    "commissioned_work_episode_host_ref_set_fingerprint_invalid",
+  );
+  if (
+    episode.execution_binding.host_ref_set.length === 0 ||
+    episode.execution_binding.host_ref_set.length > 4 ||
+    new Set(
+      episode.execution_binding.host_ref_set.map((binding) => binding.ref_type),
+    ).size !== episode.execution_binding.host_ref_set.length ||
+    canonicalizeProtocolValueV01(episode.execution_binding.host_ref_set) !==
+      canonicalizeProtocolValueV01(
+        [...episode.execution_binding.host_ref_set].sort(compareCanonicalV01),
+      ) ||
+    fingerprintV01(episode.execution_binding.host_ref_set) !==
+      episode.execution_binding.host_ref_set_fingerprint
+  ) {
+    failV01("commissioned_work_episode_host_ref_set_invalid");
+  }
+  episode.execution_binding.host_ref_set.forEach((binding) =>
+    requireFingerprintV01(
+      binding.exact_ref_fingerprint,
+      "commissioned_work_episode_host_ref_fingerprint_invalid",
+    ),
+  );
+  if (episode.episode_checkpoint_ref !== null) {
+    requireFingerprintV01(
+      episode.episode_checkpoint_ref.record_fingerprint,
+      "commissioned_work_episode_checkpoint_fingerprint_invalid",
+    );
+  }
   validateResourceVectorV01(episode.evaluation.resources);
   if (episode.execution_binding.binding_kind === "synthetic_fixture") {
     if (
@@ -4618,6 +5391,9 @@ function validateEpisodeIntegrityV01(
         "zero_provider_synthetic_fixture_adapter" ||
       episode.execution_binding.fixture_admission_reused !== false ||
       episode.execution_binding.synthetic_fixture_output_applied !== true ||
+      episode.execution_binding.host_ref_set.length !== 1 ||
+      episode.execution_binding.host_ref_set[0]?.ref_type !==
+        "commissioned_workbench_fixture_host" ||
       episode.evaluation.model_identity.provenance !== "unknown" ||
       episode.evaluation.model_identity.provider_ref !== null ||
       episode.evaluation.model_identity.model_ref !== null ||
@@ -4656,46 +5432,32 @@ function validateEpisodeIntegrityV01(
     canonicalizeProtocolValueV01(episode.evaluation.model_identity) !==
       canonicalizeProtocolValueV01({
         provenance:
-          episode.execution_binding.model_ref === null ? "unknown" : "observed",
-        provider_ref: episode.execution_binding.provider_ref,
-        model_ref: episode.execution_binding.model_ref,
-        route_ref: episode.execution_binding.route_ref,
-      })
+          episode.execution_binding.resource_binding.model_ref === null
+            ? "unknown"
+            : "observed",
+        provider_ref: episode.execution_binding.resource_binding.provider_ref,
+        model_ref: episode.execution_binding.resource_binding.model_ref,
+        route_ref: episode.execution_binding.resource_binding.route_ref,
+      }) ||
+    episode.execution_binding.host_ref_set.some(
+      (binding) =>
+        !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(binding.ref_type),
+    ) ||
+    !episode.execution_binding.host_ref_set.some(
+      (binding) => binding.ref_type === "host_thread",
+    ) ||
+    !episode.execution_binding.host_ref_set.some(
+      (binding) => binding.ref_type === "host_turn",
+    )
   ) {
     failV01("commissioned_work_commissioned_agent_episode_binding_invalid");
   }
-  if (
-    episode.execution_binding.execution_evidence_class ===
-      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01 &&
-    (episode.execution_binding.live_authorization_ref !== null ||
-      episode.execution_binding.provider_ref !== null ||
-      episode.execution_binding.model_ref !== null ||
-      episode.execution_binding.route_ref !== null ||
-      !resourceLaneIsObservedZeroV01(
-        episode.evaluation.resources.provider_calls,
-      ) ||
-      !resourceLaneIsObservedZeroV01(episode.evaluation.resources.model_calls) ||
-      !resourceLaneIsObservedZeroV01(
-        episode.evaluation.resources.external_network_calls,
-      ))
-  ) {
-    failV01("commissioned_work_commissioned_agent_conformance_episode_invalid");
-  }
-  if (
-    episode.execution_binding.execution_evidence_class ===
-      COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01 &&
-    episode.execution_binding.live_authorization_ref === null
-  ) {
-    failV01("commissioned_work_commissioned_agent_live_authorization_missing");
-  }
-  for (const recordRef of [
-    episode.execution_binding.live_authorization_ref,
-    episode.execution_binding.provider_ref,
-    episode.execution_binding.model_ref,
-    episode.execution_binding.route_ref,
-  ]) {
-    if (recordRef !== null) createCommissionedWorkRecordRefV01(recordRef);
-  }
+  validateExecutionResourceBindingV01({
+    execution_evidence_class:
+      episode.execution_binding.execution_evidence_class,
+    resources: episode.evaluation.resources,
+    resource_binding: episode.execution_binding.resource_binding,
+  });
 }
 
 function resourceLaneIsObservedZeroV01(

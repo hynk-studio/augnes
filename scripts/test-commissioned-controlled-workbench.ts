@@ -21,27 +21,36 @@ import {
   assertValidCommissionedWorkEpisodeArtifactV01,
   assertValidCommissionedWorkFinalReportV01,
   buildCommissionedWorkConsolidationCandidateV01,
+  buildCommissionedWorkCommissionedAgentExecutionObservationV01,
   buildCommissionedWorkEpisodeArtifactV01,
+  buildCommissionedWorkEpisodeCheckpointV01,
   buildCommissionedWorkFamilyManifestV01,
   buildCommissionedWorkFinalReportV01,
   buildCommissionedWorkHoldoutEvaluationV01,
   buildCommissionedWorkNativeHostRequestV01,
   buildCommissionedWorkObjectiveObservationV01,
   buildCommissionedWorkRunReceiptV01,
+  buildCommissionedWorkSyntheticExecutionObservationV01,
   buildCommissionedWorkTaskContextPacketV01,
   buildCommissionedWorkTrainingResultV01,
   createCommissionedWorkIntegrityV01,
+  createCommissionedWorkAuthorizationResourceCeilingV01,
+  createCommissionedWorkPacketMaterialSetFingerprintV01,
   createCommissionedWorkRecordRefV01,
   createCommissionedWorkRoleRefV01,
-  createCommissionedWorkSealedInterruptionRefV01,
   invokeCommissionedWorkAdapterV01,
   type BuildCommissionedWorkEpisodeArtifactInputV01,
+  type BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01,
   type BuildCommissionedWorkObjectiveObservationInputV01,
 } from "@/lib/vnext/commissioned-controlled-workbench";
 import {
   validateCommissionedWorkArtifactsV01,
   writeCommissionedWorkArtifactsV01,
 } from "@/lib/vnext/commissioned-controlled-workbench-artifact-store";
+import {
+  createCodexAppServerAdapterV01,
+  type CodexAppServerAdapterObservationV01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   createCommissionedWorkbenchFixtureAdapterV01,
   createCommissionedWorkbenchFixtureAdmissionV01,
@@ -61,25 +70,26 @@ import {
 import {
   COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
   COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
-  COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01,
   type CommissionedWorkArtifactIndexV01,
   type CommissionedWorkCaseCommitmentV01,
   type CommissionedWorkCaseSourceV01,
   type CommissionedWorkConditionV01,
   type CommissionedWorkConsolidationCandidateV01,
   type CommissionedWorkEpisodeArtifactV01,
-  type CommissionedWorkEpisodeExecutionSourceV01,
+  type CommissionedWorkEpisodeCheckpointV01,
+  type CommissionedWorkExecutionObservationV01,
   type CommissionedWorkEpisodePlanSourceV01,
   type CommissionedWorkFinalReportV01,
   type CommissionedWorkHoldoutVariantV01,
   type CommissionedWorkObjectiveObservationV01,
   type CommissionedWorkRecordRefV01,
-  type CommissionedWorkResourceVectorV01,
   type CommissionedWorkRuntimeBindingV01,
   type CommissionedWorkSuccessorPlanSourceV01,
   type CommissionedWorkSyntheticFixtureOutputV01,
 } from "@/types/vnext/commissioned-controlled-workbench";
 import type {
+  NativeHostLifecycleEventV01,
   NativeHostRequestV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
@@ -89,12 +99,7 @@ import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
 let hermeticProcessEnvironmentV01: NodeJS.ProcessEnv | null = null;
 let ownedSynchronousProcessesV01 = 0;
-
-const SYNTHETIC_EXECUTION_SOURCE_V01 = {
-  binding_kind: "synthetic_fixture",
-  execution_evidence_class: COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
-  execution_mode: "zero_provider_synthetic_fixture_adapter",
-} as const satisfies CommissionedWorkEpisodeExecutionSourceV01;
+let ownedNativeHostProcessesV01 = 0;
 
 type EpisodeBundle = {
   source: CommissionedWorkCaseSourceV01;
@@ -104,6 +109,7 @@ type EpisodeBundle = {
   request: NativeHostRequestV01;
   fixture_admission: CommissionedWorkbenchFixtureAdmissionV01;
   result: NativeHostResultV01;
+  execution_observation: CommissionedWorkExecutionObservationV01;
   receipt: RunReceiptV01;
   observation: CommissionedWorkObjectiveObservationV01;
   episode_id: string;
@@ -123,6 +129,16 @@ type CaseRun = {
   predecessor_bundle: EpisodeBundle;
   successor_bundles: EpisodeBundle[];
   predecessor_root: string;
+};
+
+type ProductionEpisodeProbeV01 = {
+  packet: TaskContextPacketV01;
+  request: NativeHostRequestV01;
+  result: NativeHostResultV01;
+  execution_observation: CommissionedWorkExecutionObservationV01;
+  objective_observation: CommissionedWorkObjectiveObservationV01;
+  receipt: RunReceiptV01;
+  episode: CommissionedWorkEpisodeArtifactV01;
 };
 
 async function main(): Promise<void> {
@@ -149,13 +165,15 @@ async function main(): Promise<void> {
   );
   assert.ok(resultSummary);
   assert.equal(ownedSynchronousProcessesV01, 0);
+  assert.equal(ownedNativeHostProcessesV01, 0);
   console.log(
     JSON.stringify({
       ...resultSummary,
       real_provider_calls: 0,
       model_calls: 0,
       external_network_calls: 0,
-      owned_processes_remaining: ownedSynchronousProcessesV01,
+      owned_processes_remaining:
+        ownedSynchronousProcessesV01 + ownedNativeHostProcessesV01,
       cleanup_complete: true,
     }),
   );
@@ -412,7 +430,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   assert.equal(report.consolidation_candidate.independently_learned, false);
   assert.equal(report.consolidation_candidate.validated_for_transfer, false);
   assertTrainingContrastsV01(report);
-  runNegativeContractCasesV01({
+  await runNegativeContractCasesV01({
     roots,
     familySource,
     syntheticFixtureOutputs,
@@ -597,7 +615,12 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
       manifest.host_neutral_execution_commitment,
     operation_contract_built_before_synthetic_outputs: true,
     live_capable_result_admission_without_solution_plan: true,
-    fixture_free_result_receipt_episode_artifact_path: true,
+    production_shaped_codex_result_preserved: true,
+    commissioned_agent_full_episode_artifact_path: true,
+    completed_predecessor_checkpoint_cold_successor: true,
+    commissioned_agent_provider_accounting: "unknown",
+    commissioned_agent_model_accounting: "unknown",
+    commissioned_agent_network_accounting: "observed_zero",
     candidate_fingerprint: candidate.integrity.fingerprint,
     candidate_specific_transfer_result:
       holdout.candidate_specific_transfer_conclusion.status,
@@ -775,13 +798,13 @@ async function runCaseV01(input: {
     manifest: input.manifest,
     bundle: predecessorBundle,
     predecessor_ref: null,
-    interruption_ref: null,
+    predecessor_checkpoint: null,
     candidate_fingerprint:
       input.consolidation_candidate?.integrity.fingerprint ?? null,
   });
   const predecessorRef = episodeRefV01(predecessor);
-  const interruptionRef =
-    createCommissionedWorkSealedInterruptionRefV01(predecessor);
+  const predecessorCheckpoint =
+    buildCommissionedWorkEpisodeCheckpointV01(predecessor);
   const successorBundles: EpisodeBundle[] = [];
   for (const [armIndex, plan] of input.source.successor_plans.entries()) {
     const armKey = `slot-${String(armIndex + 1).padStart(2, "0")}`;
@@ -846,7 +869,7 @@ async function runCaseV01(input: {
       manifest: input.manifest,
       bundle,
       predecessor_ref: predecessorRef,
-      interruption_ref: interruptionRef,
+      predecessor_checkpoint: predecessorCheckpoint,
       candidate_fingerprint:
         input.consolidation_candidate?.integrity.fingerprint ?? null,
     }),
@@ -1097,12 +1120,19 @@ async function executeEpisodeV01(input: {
     oracle_guard_path: input.roots.oracle_guard_path,
     network_attempt_log: input.roots.network_attempt_log,
   });
+  const executionObservation =
+    buildCommissionedWorkSyntheticExecutionObservationV01({
+      packet,
+      request,
+      result,
+      plan: input.plan,
+    });
   const receipt = buildCommissionedWorkRunReceiptV01({
     request,
     packet,
     result,
     observation,
-    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
+    execution_observation: executionObservation,
   });
   const repositoryState = {
     initial_commit: input.initial_commit,
@@ -1127,6 +1157,7 @@ async function executeEpisodeV01(input: {
     fixture_admission: fixtureAdmission,
     synthetic_fixture_output: input.synthetic_fixture_output,
     result,
+    execution_observation: executionObservation,
     receipt,
     observation,
     episode_id: input.episode_id,
@@ -1308,7 +1339,17 @@ function evaluateRepositoryEpisodeV01(input: {
   const recordedDiff = input.result.changed_files
     .map((changed) => ({
       repository_relative_path: changed.repository_relative_path,
-      content_fingerprint: changed.after_hash,
+      content_fingerprint:
+        changed.after_hash ??
+        createProtocolSha256V01(
+          readFileSync(
+            path.join(
+              input.repository_root,
+              changed.repository_relative_path,
+            ),
+            "utf8",
+          ),
+        ),
     }))
     .sort((left, right) =>
       compareProtocolCodeUnitsV01(
@@ -1335,19 +1376,6 @@ function evaluateRepositoryEpisodeV01(input: {
       canonicalizeProtocolValueV01(expectedDiff) &&
     canonicalizeProtocolValueV01(actualDiff) ===
       canonicalizeProtocolValueV01(recordedDiff);
-  const resources: CommissionedWorkResourceVectorV01 = {
-    provider_calls: { provenance: "observed", value: 0 },
-    model_calls: { provenance: "observed", value: 0 },
-    external_network_calls: { provenance: "observed", value: 0 },
-    tool_calls: {
-      provenance: "observed",
-      value: input.run_oracles ? input.source.required_checks.length : 0,
-    },
-    model_usage_units: { provenance: "unknown", value: null },
-    cost_microunits: { provenance: "unknown", value: null },
-    latency_ms: { provenance: "unknown", value: null },
-    human_review_burden: { provenance: "unknown", value: null },
-  };
   const observationInput: BuildCommissionedWorkObjectiveObservationInputV01 = {
     case_commitment: input.commitment,
     evaluator_version: input.evaluator_version,
@@ -1384,10 +1412,10 @@ function evaluateRepositoryEpisodeV01(input: {
     },
     source_currentness: sourceCurrentness,
     project_scope: "exact",
-    authority_effects: {
-      provider_calls: 0,
-      model_calls: 0,
-      external_network_calls: 0,
+    unauthorized_effects: {
+      provider_calls_outside_authorization: 0,
+      model_calls_outside_authorization: 0,
+      network_calls_outside_authorization: 0,
       outside_root_writes: 0,
       product_database_writes: 0,
       core_writes: 0,
@@ -1398,7 +1426,6 @@ function evaluateRepositoryEpisodeV01(input: {
       active_pointer_writes: 0,
       github_writes: 0,
     },
-    resources,
   };
   return buildCommissionedWorkObjectiveObservationV01(observationInput);
 }
@@ -1407,7 +1434,7 @@ function buildEpisodeArtifactFromBundleV01(input: {
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   bundle: EpisodeBundle;
   predecessor_ref: CommissionedWorkRecordRefV01 | null;
-  interruption_ref: CommissionedWorkRecordRefV01 | null;
+  predecessor_checkpoint: CommissionedWorkEpisodeCheckpointV01 | null;
   candidate_fingerprint: string | null;
 }): CommissionedWorkEpisodeArtifactV01 {
   const buildInput: BuildCommissionedWorkEpisodeArtifactInputV01 = {
@@ -1419,18 +1446,15 @@ function buildEpisodeArtifactFromBundleV01(input: {
     result: input.bundle.result,
     receipt: input.bundle.receipt,
     observation: input.bundle.observation,
-    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
+    execution_observation: input.bundle.execution_observation,
     episode_id: input.bundle.episode_id,
     episode_role: input.bundle.episode_role,
     condition: input.bundle.condition,
     holdout_variant: input.bundle.holdout_variant,
     predecessor_episode_ref: input.predecessor_ref,
-    sealed_interruption_ref: input.interruption_ref,
+    predecessor_checkpoint: input.predecessor_checkpoint,
     candidate_freeze_fingerprint: input.candidate_fingerprint,
     repository_state: input.bundle.repository_state,
-    started_at: input.bundle.started_at,
-    first_material_action_at: input.bundle.first_material_action_at,
-    finished_at: input.bundle.finished_at,
     candidate_frozen_before_start:
       input.bundle.source.case_role === "holdout"
         ? true
@@ -1462,7 +1486,10 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
   const cobaltPredecessor = report.training.predecessor_episodes.find(
     (episode) => episode.case_id === "case-cobalt-29",
   );
-  assert.equal(cobaltPredecessor?.executor_claimed_complete, true);
+  assert.equal(
+    cobaltPredecessor?.executor_completion_attestation.claimed_complete,
+    true,
+  );
   assert.equal(
     cobaltPredecessor?.evaluation.deterministic_repository_task_success,
     false,
@@ -1486,7 +1513,9 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
       )?.status,
       "unknown",
     );
-    if (episode.execution_binding.continuation_materials_delivered > 0) {
+    if (
+      (episode.execution_binding.continuation_materials_delivered ?? 0) > 0
+    ) {
       assert.equal(
         episode.evidence_ladder.find((row) => row.stage === "referenced")
           ?.status,
@@ -1554,7 +1583,7 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
   );
 }
 
-function runNegativeContractCasesV01(input: {
+async function runNegativeContractCasesV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
   familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
   syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
@@ -1564,7 +1593,7 @@ function runNegativeContractCasesV01(input: {
   training: CommissionedWorkFinalReportV01["training"];
   holdout: CommissionedWorkFinalReportV01["holdout"];
   receipt_probe_bundle: EpisodeBundle;
-}): void {
+}): Promise<void> {
   const taskMutation = structuredClone(input.familySource);
   taskMutation.training_cases[0].task.goal = "Mutated after seal.";
   assert.throws(
@@ -1688,7 +1717,7 @@ function runNegativeContractCasesV01(input: {
     () => buildCommissionedWorkFamilyManifestV01(invalidHoldoutMode),
     /commissioned_work_holdout_candidate_intervention_invalid/u,
   );
-  assertSyntheticOutputSeparationV01({
+  await assertSyntheticOutputSeparationV01({
     roots: input.roots,
     familySource: input.familySource,
     syntheticFixtureOutputs: input.syntheticFixtureOutputs,
@@ -1739,26 +1768,12 @@ function runNegativeContractCasesV01(input: {
     () =>
       buildCommissionedWorkObjectiveObservationV01({
         ...baseObservation,
-        authority_effects: {
-          ...baseObservation.authority_effects,
-          provider_calls: 1 as 0,
+        unauthorized_effects: {
+          ...baseObservation.unauthorized_effects,
+          provider_calls_outside_authorization: 1 as 0,
         },
       }),
     /commissioned_work_observation_authority_expansion/u,
-  );
-  assert.throws(
-    () =>
-      buildCommissionedWorkObjectiveObservationV01({
-        ...baseObservation,
-        resources: {
-          ...baseObservation.resources,
-          model_usage_units: {
-            provenance: "unknown",
-            value: 0,
-          } as never,
-        },
-      }),
-    /commissioned_work_resource_unknown_or_value_invalid/u,
   );
   const crossProjectSource = input.familySource.training_cases[0];
   const crossProjectPlan = crossProjectSource.successor_plans[0]!;
@@ -1841,9 +1856,20 @@ function runNegativeContractCasesV01(input: {
   const chronologyTamperedBundle = structuredClone(
     input.receipt_probe_bundle,
   );
-  chronologyTamperedBundle.first_material_action_at = addSecondsV01(
-    chronologyTamperedBundle.first_material_action_at,
-    1,
+  chronologyTamperedBundle.execution_observation.first_material_action.observed_at =
+    addSecondsV01(
+      chronologyTamperedBundle.result.finished_at,
+      1,
+    );
+  resealV01(
+    chronologyTamperedBundle.execution_observation,
+    "commissioned_work_execution_observation_without_integrity_fingerprint",
+  );
+  const sourcePredecessor = input.training.predecessor_episodes.find(
+    (episode) => episode.case_id === sourceBoundEpisode.case_id,
+  )!;
+  const sourceCheckpoint = buildCommissionedWorkEpisodeCheckpointV01(
+    sourcePredecessor,
   );
   assert.throws(
     () =>
@@ -1851,22 +1877,22 @@ function runNegativeContractCasesV01(input: {
         manifest: input.manifest,
         bundle: chronologyTamperedBundle,
         predecessor_ref: sourceBoundEpisode.predecessor_episode_ref,
-        interruption_ref: sourceBoundEpisode.sealed_interruption_ref,
+        predecessor_checkpoint: sourceCheckpoint,
         candidate_fingerprint: null,
       }),
-    /commissioned_work_episode_execution_chronology_binding_invalid/u,
+    /commissioned_work_first_action_order_invalid/u,
   );
-  const interruptionTampered = structuredClone(sourceBoundEpisode);
-  interruptionTampered.sealed_interruption_ref =
+  const checkpointTampered = structuredClone(sourceBoundEpisode);
+  checkpointTampered.episode_checkpoint_ref =
     createCommissionedWorkRecordRefV01({
-      record_version: "commissioned_work_sealed_interruption.v0.1",
-      record_id: `interruption:${interruptionTampered.case_id}`,
+      record_version: "commissioned_work_episode_checkpoint.v0.1",
+      record_id: `checkpoint:${checkpointTampered.case_id}`,
       record_fingerprint: createProtocolSha256V01(
-        "tampered-sealed-interruption",
+        "tampered-episode-checkpoint",
       ),
     });
   resealV01(
-    interruptionTampered,
+    checkpointTampered,
     "commissioned_work_episode_without_integrity_fingerprint",
   );
   assert.throws(
@@ -1875,15 +1901,17 @@ function runNegativeContractCasesV01(input: {
         manifest: input.manifest,
         predecessor_episodes: input.training.predecessor_episodes,
         successor_episodes: input.training.successor_episodes.map((episode) =>
-          episode.episode_id === interruptionTampered.episode_id
-            ? interruptionTampered
+          episode.episode_id === checkpointTampered.episode_id
+            ? checkpointTampered
             : episode,
         ),
       }),
     /commissioned_work_training_case_slots_invalid/u,
   );
   const deliveryTampered = structuredClone(sourceBoundEpisode);
-  deliveryTampered.execution_binding.continuation_materials_delivered += 1;
+  deliveryTampered.execution_binding.continuation_materials_delivered =
+    (deliveryTampered.execution_binding.continuation_materials_delivered ?? 0) +
+    1;
   resealV01(
     deliveryTampered,
     "commissioned_work_episode_without_integrity_fingerprint",
@@ -2086,7 +2114,8 @@ function runNegativeContractCasesV01(input: {
     packet: input.receipt_probe_bundle.packet,
     result: input.receipt_probe_bundle.result,
     observation: hardGateObservation,
-    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
+    execution_observation:
+      input.receipt_probe_bundle.execution_observation,
   });
   assert.equal(hardGateReceipt.verification.status, "failed");
   assert.equal(
@@ -2117,7 +2146,8 @@ function runNegativeContractCasesV01(input: {
     packet: input.receipt_probe_bundle.packet,
     result: input.receipt_probe_bundle.result,
     observation: noOracleObservation,
-    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
+    execution_observation:
+      input.receipt_probe_bundle.execution_observation,
   });
   assert.notEqual(noOracleReceipt.verification.status, "passed");
   const providerResult = structuredClone(input.receipt_probe_bundle.result);
@@ -2131,14 +2161,22 @@ function runNegativeContractCasesV01(input: {
     trust_class: "provider_report",
   });
   assert.throws(
-    () =>
-      buildCommissionedWorkRunReceiptV01({
+    () => {
+      const providerExecutionObservation =
+        buildCommissionedWorkSyntheticExecutionObservationV01({
+          packet: input.receipt_probe_bundle.packet,
+          request: input.receipt_probe_bundle.request,
+          result: providerResult,
+          plan: input.receipt_probe_bundle.plan,
+        });
+      return buildCommissionedWorkRunReceiptV01({
         request: input.receipt_probe_bundle.request,
         packet: input.receipt_probe_bundle.packet,
         result: providerResult,
         observation: input.receipt_probe_bundle.observation,
-        execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
-      }),
+        execution_observation: providerExecutionObservation,
+      });
+    },
     /commissioned_work_execution_model_receipt_binding_invalid/u,
   );
   for (const unsafe of [
@@ -2163,14 +2201,14 @@ function runNegativeContractCasesV01(input: {
   assertChildNetworkGuardV01(input.roots);
 }
 
-function assertSyntheticOutputSeparationV01(input: {
+async function assertSyntheticOutputSeparationV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
   familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
   syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   bundle: EpisodeBundle;
   predecessor: CommissionedWorkEpisodeArtifactV01;
-}): void {
+}): Promise<void> {
   assert.equal("writes" in input.bundle.plan, false);
   const replacementOutputs = structuredClone(input.syntheticFixtureOutputs);
   const replacement = replacementOutputs.find(
@@ -2345,149 +2383,427 @@ function assertSyntheticOutputSeparationV01(input: {
     ),
     false,
   );
-  const executorProducedResult = structuredClone(input.bundle.result);
-  executorProducedResult.observed_actions = [
-    "executor_produced_repository_diff",
-  ];
-  executorProducedResult.summary =
-    "The executor returned one bounded structured repository diff.";
-  executorProducedResult.host_refs = [
-    {
-      ref_version: "external_ref.v0.1",
-      ref_type: "commissioned_workbench_commissioned_agent_host",
-      external_id: "commissioned-agent-conformance-host",
-      observed_at: executorProducedResult.finished_at,
-      source_ref: createProtocolSha256V01(
-        "commissioned-agent-conformance-host",
-      ),
-      compatibility_namespace: "commissioned_work_episode.v0.1",
-      trust_class: "direct_local_observation",
-    },
-  ];
-  executorProducedResult.adapter_version =
-    "commissioned_agent_protocol_conformance_adapter.v0.1";
-  executorProducedResult.capability_version =
-    "commissioned_agent_protocol_conformance_capability.v0.1";
-  executorProducedResult.adapter_extension.adapter_kind =
-    "commissioned_work_live_capable_result_probe";
-  for (const fixtureOnlyKey of [
-    "fixture_admission_fingerprint",
-    "fixture_admission_consumed",
-    "synthetic_fixture_binding_fingerprint",
-    "synthetic_fixture_output_fingerprint",
-    "execution_evidence_class",
-    "synthetic_fixture_output_applied",
-    "solution_write_plan_checked_during_result_admission",
-  ]) {
-    delete executorProducedResult.adapter_extension.bounded_metadata[
-      fixtureOnlyKey
-    ];
+  await assertProductionShapedCommissionedAgentPathV01({
+    roots: input.roots,
+    manifest: input.manifest,
+    source: input.familySource.training_cases[0],
+  });
+}
+
+async function assertProductionShapedCommissionedAgentPathV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+}): Promise<void> {
+  const repositoryRoot = path.join(
+    input.roots.runtime,
+    "production-shaped-codex-app-server",
+  );
+  mkdirSync(repositoryRoot, { recursive: true, mode: 0o700 });
+  for (const fixture of input.source.repository_fixture) {
+    writeRepositoryFileV01(
+      repositoryRoot,
+      fixture.repository_relative_path,
+      fixture.content,
+    );
   }
-  const admittedExecutorProducedResult = admitCommissionedWorkExecutorResultV01({
-    source: input.bundle.source,
-    plan: input.bundle.plan,
-    request: input.bundle.request,
-    result: executorProducedResult,
+  gitV01(repositoryRoot, ["init", "--initial-branch=main"]);
+  gitV01(repositoryRoot, ["add", "--all"]);
+  gitV01(
+    repositoryRoot,
+    ["commit", "-m", "initialize production-shaped CW1 probe"],
+    "2026-08-27T06:00:00.000Z",
+  );
+  const initialCommit = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+  const initialTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+  const commitment = findCommitmentV01(
+    input.manifest,
+    input.source.case_id,
+  );
+
+  const execute = async (episodeInput: {
+    episode_id: string;
+    episode_role: "predecessor" | "successor";
+    plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+    scenario:
+      | "cw1_predecessor_repository_edit"
+      | "cw1_successor_repository_edit";
+    generated_at: string;
+    thread_id: string;
+    session_id: string;
+    turn_id: string;
+    predecessor_checkpoint: CommissionedWorkEpisodeCheckpointV01 | null;
+  }): Promise<ProductionEpisodeProbeV01> => {
+    const episodeStartCommit = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+    const episodeStartTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+    const successorPlan =
+      "condition" in episodeInput.plan ? episodeInput.plan : null;
+    const packet = buildCommissionedWorkTaskContextPacketV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: episodeInput.plan,
+      consolidation_candidate: null,
+      expected_candidate_freeze_fingerprint: null,
+      generated_at: episodeInput.generated_at,
+    });
+    const request = buildCommissionedWorkNativeHostRequestV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: episodeInput.plan,
+      consolidation_candidate: null,
+      expected_candidate_freeze_fingerprint: null,
+      packet,
+      runtime: {
+        report_included: false,
+        case_id: input.source.case_id,
+        condition: successorPlan?.condition ?? null,
+        holdout_variant: successorPlan?.holdout_variant ?? null,
+        workspace_id: input.manifest.workspace_id,
+        project_id: input.source.project_id,
+        repository_root: repositoryRoot,
+        database_path: path.join(
+          input.roots.database,
+          `${episodeInput.episode_id}.sqlite`,
+        ),
+        home_root: input.roots.home,
+        data_root: input.roots.data,
+        config_root: input.roots.config,
+        runtime_root: input.roots.runtime,
+        artifact_root: input.roots.artifacts,
+      },
+      episode_id: episodeInput.episode_id,
+      requested_at: episodeInput.generated_at,
+    });
+    for (const expectedWrite of input.source.expected_success_writes) {
+      assert.equal(
+        canonicalizeProtocolValueV01(request).includes(expectedWrite.content),
+        false,
+      );
+    }
+    const runRoot = path.join(input.roots.runtime, episodeInput.episode_id);
+    mkdirSync(runRoot, { recursive: true, mode: 0o700 });
+    const cleanupMarker = path.join(runRoot, "cleanup.marker");
+    const networkCountPath = path.join(runRoot, "network-count.txt");
+    const lifecycleEvents: NativeHostLifecycleEventV01[] = [];
+    let clockTick = 0;
+    const clockBase = Date.parse(episodeInput.generated_at);
+    const adapterObservations: CodexAppServerAdapterObservationV01[] = [];
+    const adapter = createCodexAppServerAdapterV01({
+      now: () => new Date(clockBase + clockTick++ * 50).toISOString(),
+      observe: (observation) => adapterObservations.push(observation),
+      launch: {
+        command: process.execPath,
+        prefix_args: [
+          path.join(
+            process.cwd(),
+            "scripts",
+            "fixtures",
+            "fake-codex-app-server.mjs",
+          ),
+        ],
+        environment: {
+          NODE_ENV: "test",
+          HOME: input.roots.home,
+          TMPDIR: input.roots.temp,
+          PATH: hermeticProcessEnvironmentV01?.PATH,
+          FAKE_CODEX_SCENARIO: episodeInput.scenario,
+          FAKE_CODEX_THREAD_ID: episodeInput.thread_id,
+          FAKE_CODEX_SESSION_ID: episodeInput.session_id,
+          FAKE_CODEX_TURN_ID: episodeInput.turn_id,
+          FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupMarker,
+          FAKE_CODEX_NETWORK_COUNT_PATH: networkCountPath,
+        },
+      },
+    });
+    const invocation = adapter.invoke(request, {
+      cancellation_signal: new AbortController().signal,
+      timeout_ms: 10_000,
+      stop_settle_timeout_ms: 3_000,
+      lifecycle_sink: {
+        async report_event(event) {
+          lifecycleEvents.push(event);
+        },
+        async request_approval() {
+          throw new Error("cw1_unexpected_native_host_approval");
+        },
+      },
+      resume_binding: null,
+    });
+    ownedNativeHostProcessesV01 += 1;
+    let result: NativeHostResultV01;
+    try {
+      result = await invocation.result;
+      await invocation.settled;
+    } catch (error) {
+      await invocation
+        .request_stop({ reason: "cancellation_requested" })
+        .catch(() => undefined);
+      await invocation.settled.catch(() => undefined);
+      throw error;
+    } finally {
+      ownedNativeHostProcessesV01 -= 1;
+    }
+    assert.equal(readFileSync(cleanupMarker, "utf8"), "settled\n");
+    assert.equal(readFileSync(networkCountPath, "utf8"), "0\n");
+    assert.equal(adapterObservations.at(-1)?.kind, "settled");
+    const exactAdapterResult = canonicalizeProtocolValueV01(result);
+    const hostRefTypes = result.host_refs.map((ref) => ref.ref_type).sort();
+    assert.deepEqual(hostRefTypes, [
+      "host_connection",
+      "host_session",
+      "host_thread",
+      "host_turn",
+    ]);
+    assert.equal(result.adapter_extension.adapter_kind, "codex_app_server");
+    assert.equal(
+      "synthetic_fixture_output_fingerprint" in
+        result.adapter_extension.bounded_metadata,
+      false,
+    );
+    assert.equal(
+      "first_material_action_at" in result.adapter_extension.bounded_metadata,
+      false,
+    );
+    const admitted = admitCommissionedWorkExecutorResultV01({
+      source: input.source,
+      plan: episodeInput.plan,
+      request,
+      result,
+    });
+    assert.deepEqual(admitted, result);
+    assert.equal(canonicalizeProtocolValueV01(result), exactAdapterResult);
+    gitV01(repositoryRoot, ["add", "--all"]);
+    gitV01(
+      repositoryRoot,
+      [
+        "commit",
+        "-m",
+        episodeInput.episode_role === "predecessor"
+          ? "record completed bounded predecessor work"
+          : "record cold successor repository work",
+      ],
+      episodeInput.generated_at,
+    );
+    const episodeEndHead = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+    const episodeEndTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+    const objectiveObservation = evaluateRepositoryEpisodeV01({
+      source: input.source,
+      commitment,
+      repository_root: repositoryRoot,
+      episode_start_commit: episodeStartCommit,
+      episode_role: episodeInput.episode_role,
+      condition: successorPlan?.condition ?? null,
+      holdout_variant: successorPlan?.holdout_variant ?? null,
+      run_ref_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(result.run_id),
+      ),
+      evaluator_role: input.manifest.outcome_evaluator,
+      evaluator_version: input.manifest.evaluator_version,
+      workspace_id: input.manifest.workspace_id,
+      project_id: input.source.project_id,
+      run_oracles: episodeInput.episode_role === "successor",
+      result,
+      oracle_guard_path: input.roots.oracle_guard_path,
+      network_attempt_log: input.roots.network_attempt_log,
+    });
+    const deliveryEvent = lifecycleEvents.find(
+      (event) =>
+        event.event_kind === "turn_started" &&
+        event.bounded_metadata.packet_delivery_initiated === true,
+    );
+    assert.ok(deliveryEvent);
+    const packetMaterialFingerprint =
+      createCommissionedWorkPacketMaterialSetFingerprintV01(packet);
+    const networkObservationRef = createCommissionedWorkRecordRefV01({
+      record_version: "commissioned_work_test_resource_observation.v0.1",
+      record_id: `network-observation:${episodeInput.episode_id}`,
+      record_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          result_fingerprint: createProtocolSha256V01(
+            canonicalizeProtocolValueV01(result),
+          ),
+          network_count: readFileSync(networkCountPath, "utf8"),
+        }),
+      ),
+    });
+    const executionObservation =
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        packet,
+        request,
+        result,
+        plan: episodeInput.plan,
+        execution_evidence_class:
+          COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+        packet_presentation: {
+          status: "delivered_action_order_unknown",
+          observed_at: deliveryEvent.observed_at,
+          provenance: "native_host_lifecycle",
+        },
+        continuation_materials_delivered:
+          successorPlan?.selected_material_ids.length ?? 0,
+        candidate_components_delivered: 0,
+        delivered_material_set_fingerprint: packetMaterialFingerprint,
+        first_material_action_at: null,
+        first_material_action_timing_provenance: "unknown",
+        executor_completion_attestation: {
+          provenance: "unknown",
+          claimed_complete: null,
+        },
+        resources: {
+          provider_calls: { provenance: "unknown", value: null },
+          model_calls: { provenance: "unknown", value: null },
+          external_network_calls: { provenance: "observed", value: 0 },
+          tool_calls: { provenance: "unknown", value: null },
+          model_usage_units: { provenance: "unknown", value: null },
+          cost_microunits: { provenance: "unknown", value: null },
+          latency_ms: { provenance: "unknown", value: null },
+          human_review_burden: { provenance: "unknown", value: null },
+        },
+        resource_binding: {
+          provider_calls_observation_ref: null,
+          model_calls_observation_ref: null,
+          external_network_calls_observation_ref: networkObservationRef,
+          live_authorization_ref: null,
+          authorization_resource_ceiling: null,
+          provider_ref: null,
+          model_ref: null,
+          route_ref: null,
+          network_destination_ref: null,
+        },
+        unauthorized_effects: zeroUnauthorizedEffectsForTestV01(),
+      });
+    const receipt = buildCommissionedWorkRunReceiptV01({
+      request,
+      packet,
+      result,
+      observation: objectiveObservation,
+      execution_observation: executionObservation,
+    });
+    const repositoryState = {
+      initial_commit: initialCommit,
+      initial_tree: initialTree,
+      episode_start_commit: episodeStartCommit,
+      episode_start_tree: episodeStartTree,
+      episode_end_head: episodeEndHead,
+      episode_end_tree: episodeEndTree,
+      worktree_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          head: episodeEndHead,
+          tree: episodeEndTree,
+          status: gitV01(repositoryRoot, ["status", "--short"]),
+        }),
+      ),
+    };
+    const episode = buildCommissionedWorkEpisodeArtifactV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: episodeInput.plan,
+      packet,
+      request,
+      result,
+      receipt,
+      observation: objectiveObservation,
+      execution_observation: executionObservation,
+      episode_id: episodeInput.episode_id,
+      episode_role: episodeInput.episode_role,
+      condition: successorPlan?.condition ?? null,
+      holdout_variant: successorPlan?.holdout_variant ?? null,
+      predecessor_episode_ref:
+        episodeInput.predecessor_checkpoint?.predecessor_episode_ref ?? null,
+      predecessor_checkpoint: episodeInput.predecessor_checkpoint,
+      candidate_freeze_fingerprint: null,
+      repository_state: repositoryState,
+      candidate_frozen_before_start: null,
+      repository_action_trace_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          changed_files: result.changed_files,
+          observed_actions: result.observed_actions,
+        }),
+      ),
+    });
+    assertValidCommissionedWorkEpisodeArtifactV01(episode);
+    const readbackPath = path.join(
+      input.roots.artifacts,
+      `${episodeInput.episode_id}.json`,
+    );
+    writeFileSync(readbackPath, canonicalizeProtocolValueV01(episode), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    const readback = JSON.parse(
+      readFileSync(readbackPath, "utf8"),
+    ) as CommissionedWorkEpisodeArtifactV01;
+    assertValidCommissionedWorkEpisodeArtifactV01(readback);
+    assert.deepEqual(readback, episode);
+    return {
+      packet,
+      request,
+      result,
+      execution_observation: executionObservation,
+      objective_observation: objectiveObservation,
+      receipt,
+      episode,
+    };
+  };
+
+  const predecessor = await execute({
+    episode_id: "case-amber-17-production-predecessor",
+    episode_role: "predecessor",
+    plan: input.source.predecessor_plan,
+    scenario: "cw1_predecessor_repository_edit",
+    generated_at: "2026-08-27T06:10:00.000Z",
+    thread_id: "01900000-0000-7000-8000-000000000101",
+    session_id: "01900000-0000-7000-8000-000000000102",
+    turn_id: "01900000-0000-7000-8000-000000000103",
+    predecessor_checkpoint: null,
   });
-  assert.deepEqual(admittedExecutorProducedResult, executorProducedResult);
-  const executorResultObservation = evaluateRepositoryEpisodeV01({
-    source: input.bundle.source,
-    commitment: findCommitmentV01(
-      input.manifest,
-      input.bundle.source.case_id,
-    ),
-    repository_root: input.bundle.request.root_scope.canonical_root,
-    episode_start_commit: input.bundle.repository_state.episode_start_commit,
-    episode_role: input.bundle.episode_role,
-    condition: input.bundle.condition,
-    holdout_variant: input.bundle.holdout_variant,
-    run_ref_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01(executorProducedResult.run_id),
-    ),
-    evaluator_role: input.manifest.outcome_evaluator,
-    evaluator_version: input.manifest.evaluator_version,
-    workspace_id: input.manifest.workspace_id,
-    project_id: input.bundle.source.project_id,
-    run_oracles: true,
-    result: admittedExecutorProducedResult,
-    oracle_guard_path: input.roots.oracle_guard_path,
-    network_attempt_log: input.roots.network_attempt_log,
+  assert.equal(predecessor.result.outcome, "completed");
+  assert.equal(predecessor.receipt.execution.status, "completed");
+  const checkpoint = buildCommissionedWorkEpisodeCheckpointV01(
+    predecessor.episode,
+  );
+  assert.equal(checkpoint.native_host_outcome_preserved, true);
+  for (const drift of input.source.source_drift_writes) {
+    writeRepositoryFileV01(
+      repositoryRoot,
+      drift.repository_relative_path,
+      drift.content,
+    );
+  }
+  gitV01(repositoryRoot, ["add", "--all"]);
+  gitV01(
+    repositoryRoot,
+    ["commit", "-m", "apply current source truth before cold successor"],
+    "2026-08-27T06:20:00.000Z",
+  );
+  const successorPlan = input.source.successor_plans.find(
+    (plan) => plan.condition === "exact_current_continuity",
+  )!;
+  const successor = await execute({
+    episode_id: "case-amber-17-production-successor",
+    episode_role: "successor",
+    plan: successorPlan,
+    scenario: "cw1_successor_repository_edit",
+    generated_at: "2026-08-27T06:30:00.000Z",
+    thread_id: "01900000-0000-7000-8000-000000000201",
+    session_id: "01900000-0000-7000-8000-000000000202",
+    turn_id: "01900000-0000-7000-8000-000000000203",
+    predecessor_checkpoint: checkpoint,
   });
-  assert.equal(executorResultObservation.repository_diff_correctness, "passed");
-  assert.equal(executorResultObservation.verification_completeness, "complete");
   assert.equal(
-    executorResultObservation.required_checks.every(
-      (check) => check.disposition === "passed",
-    ),
+    successor.episode.evaluation.deterministic_repository_task_success,
     true,
   );
-  const commissionedAgentConformanceSource = {
-    binding_kind: "commissioned_agent",
-    execution_evidence_class:
-      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
-    execution_mode: "commissioned_agent_native_host",
-    live_authorization_ref: null,
-    provider_ref: null,
-    model_ref: null,
-    route_ref: null,
-  } as const satisfies CommissionedWorkEpisodeExecutionSourceV01;
-  const executorResultReceipt = buildCommissionedWorkRunReceiptV01({
-    request: input.bundle.request,
-    packet: input.bundle.packet,
-    result: admittedExecutorProducedResult,
-    observation: executorResultObservation,
-    execution_source: commissionedAgentConformanceSource,
-  });
-  const predecessorRef = createCommissionedWorkRecordRefV01({
-    record_version: input.predecessor.episode_version,
-    record_id: input.predecessor.episode_id,
-    record_fingerprint: input.predecessor.integrity.fingerprint,
-  });
-  const fixtureFreeEpisode = buildCommissionedWorkEpisodeArtifactV01({
-    manifest: input.manifest,
-    source: input.bundle.source,
-    plan: input.bundle.plan,
-    packet: input.bundle.packet,
-    request: input.bundle.request,
-    result: admittedExecutorProducedResult,
-    receipt: executorResultReceipt,
-    observation: executorResultObservation,
-    execution_source: commissionedAgentConformanceSource,
-    episode_id: input.bundle.episode_id,
-    episode_role: input.bundle.episode_role,
-    condition: input.bundle.condition,
-    holdout_variant: input.bundle.holdout_variant,
-    predecessor_episode_ref: predecessorRef,
-    sealed_interruption_ref:
-      createCommissionedWorkSealedInterruptionRefV01(input.predecessor),
-    candidate_freeze_fingerprint: null,
-    repository_state: input.bundle.repository_state,
-    started_at: input.bundle.started_at,
-    first_material_action_at: input.bundle.first_material_action_at,
-    finished_at: input.bundle.finished_at,
-    candidate_frozen_before_start: null,
-    repository_action_trace_fingerprint:
-      input.bundle.action_trace_fingerprint,
-  });
-  assertValidCommissionedWorkEpisodeArtifactV01(fixtureFreeEpisode);
-  assert.equal(
-    fixtureFreeEpisode.execution_binding.binding_kind,
-    "commissioned_agent",
+  assert.notEqual(
+    predecessor.episode.execution_binding.host_ref_set_fingerprint,
+    successor.episode.execution_binding.host_ref_set_fingerprint,
   );
   assert.equal(
-    fixtureFreeEpisode.execution_binding.execution_evidence_class,
-    COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
-  );
-  assert.equal(
-    canonicalizeProtocolValueV01(fixtureFreeEpisode).includes(
-      "synthetic_fixture_output_fingerprint",
-    ),
+    successor.episode.execution_binding.predecessor_run_reused,
     false,
   );
   assert.equal(
-    canonicalizeProtocolValueV01(fixtureFreeEpisode).includes(
-      "synthetic_fixture_binding_fingerprint",
-    ),
+    successor.episode.execution_binding.predecessor_transcript_inherited,
     false,
   );
   for (const stage of [
@@ -2499,19 +2815,414 @@ function assertSyntheticOutputSeparationV01(input: {
     "repeatable",
   ]) {
     assert.equal(
-      fixtureFreeEpisode.evidence_ladder.find((row) => row.stage === stage)
+      successor.episode.evidence_ladder.find((row) => row.stage === stage)
         ?.status,
       "unknown",
     );
   }
-  assert.equal(executorResultReceipt.model_invocations.length, 0);
   assert.equal(
-    fixtureFreeEpisode.evaluation.resources.provider_calls.value,
-    0,
+    successor.episode.evaluation.resources.provider_calls.value,
+    null,
   );
   assert.equal(
-    fixtureFreeEpisode.evaluation.resources.external_network_calls.value,
+    successor.episode.evaluation.resources.model_calls.value,
+    null,
+  );
+  assert.equal(
+    successor.episode.evaluation.resources.external_network_calls.value,
     0,
+  );
+  assert.equal(successor.episode.evaluation.false_success_behavior, "unknown");
+
+  assertCommissionedExecutionObservationNegativeCasesV01({
+    predecessor,
+    successor,
+    plan: successorPlan,
+    checkpoint,
+    manifest: input.manifest,
+    source: input.source,
+  });
+}
+
+function zeroUnauthorizedEffectsForTestV01(): CommissionedWorkObjectiveObservationV01["unauthorized_effects"] {
+  return {
+    provider_calls_outside_authorization: 0,
+    model_calls_outside_authorization: 0,
+    network_calls_outside_authorization: 0,
+    outside_root_writes: 0,
+    product_database_writes: 0,
+    core_writes: 0,
+    proposal_writes: 0,
+    review_decision_writes: 0,
+    transition_writes: 0,
+    policy_activations: 0,
+    active_pointer_writes: 0,
+    github_writes: 0,
+  };
+}
+
+function assertCommissionedExecutionObservationNegativeCasesV01(input: {
+  predecessor: ProductionEpisodeProbeV01;
+  successor: ProductionEpisodeProbeV01;
+  plan: CommissionedWorkSuccessorPlanSourceV01;
+  checkpoint: CommissionedWorkEpisodeCheckpointV01;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+}): void {
+  const packetFingerprint =
+    createCommissionedWorkPacketMaterialSetFingerprintV01(
+      input.successor.packet,
+    );
+  const baseInput = {
+    packet: input.successor.packet,
+    request: input.successor.request,
+    result: input.successor.result,
+    plan: input.plan,
+    execution_evidence_class:
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+    packet_presentation: {
+      status: "delivered_action_order_unknown",
+      observed_at: input.successor.result.started_at,
+      provenance: "native_host_result",
+    },
+    continuation_materials_delivered: input.plan.selected_material_ids.length,
+    candidate_components_delivered: 0,
+    delivered_material_set_fingerprint: packetFingerprint,
+    first_material_action_at: null,
+    first_material_action_timing_provenance: "unknown",
+    executor_completion_attestation: {
+      provenance: "unknown",
+      claimed_complete: null,
+    },
+    resources: {
+      provider_calls: { provenance: "unknown", value: null },
+      model_calls: { provenance: "unknown", value: null },
+      external_network_calls: { provenance: "unknown", value: null },
+      tool_calls: { provenance: "unknown", value: null },
+      model_usage_units: { provenance: "unknown", value: null },
+      cost_microunits: { provenance: "unknown", value: null },
+      latency_ms: { provenance: "unknown", value: null },
+      human_review_burden: { provenance: "unknown", value: null },
+    },
+    resource_binding: {
+      provider_calls_observation_ref: null,
+      model_calls_observation_ref: null,
+      external_network_calls_observation_ref: null,
+      live_authorization_ref: null,
+      authorization_resource_ceiling: null,
+      provider_ref: null,
+      model_ref: null,
+      route_ref: null,
+      network_destination_ref: null,
+    },
+    unauthorized_effects: zeroUnauthorizedEffectsForTestV01(),
+  } as const satisfies BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01;
+
+  const contaminatedResult = structuredClone(input.successor.result);
+  contaminatedResult.adapter_extension.bounded_metadata[
+    "synthetic_fixture_output_fingerprint"
+  ] = createProtocolSha256V01("forbidden-synthetic-field");
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        result: contaminatedResult,
+      }),
+    /commissioned_work_commissioned_agent_fixture_metadata_forbidden/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkRunReceiptV01({
+        request: input.successor.request,
+        packet: input.successor.packet,
+        result: input.successor.result,
+        observation: input.successor.objective_observation,
+        execution_observation: input.predecessor.execution_observation,
+      }),
+    /commissioned_work_execution_observation_source_invalid/u,
+  );
+  const changedHostBinding = structuredClone(
+    input.successor.execution_observation,
+  );
+  changedHostBinding.host_ref_set_fingerprint = createProtocolSha256V01(
+    "changed-host-ref-set",
+  );
+  resealV01(
+    changedHostBinding,
+    "commissioned_work_execution_observation_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkRunReceiptV01({
+        request: input.successor.request,
+        packet: input.successor.packet,
+        result: input.successor.result,
+        observation: input.successor.objective_observation,
+        execution_observation: changedHostBinding,
+      }),
+    /commissioned_work_execution_observation_source_invalid/u,
+  );
+
+  const firstActionAt = new Date(
+    Date.parse(input.successor.result.started_at) + 50,
+  ).toISOString();
+  const latePresentationAt = new Date(
+    Date.parse(input.successor.result.started_at) + 100,
+  ).toISOString();
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        packet_presentation: {
+          status: "presented_before_first_meaningful_action",
+          observed_at: latePresentationAt,
+          provenance: "native_host_lifecycle",
+        },
+        first_material_action_at: firstActionAt,
+        first_material_action_timing_provenance: "native_host_lifecycle",
+      }),
+    /commissioned_work_packet_presentation_order_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        continuation_materials_delivered:
+          input.plan.selected_material_ids.length + 1,
+      }),
+    /commissioned_work_execution_delivery_observation_invalid/u,
+  );
+
+  const resultVariants: NativeHostResultV01[] = [];
+  const emptyHostResult = structuredClone(input.successor.result);
+  emptyHostResult.host_refs = [];
+  resultVariants.push(emptyHostResult);
+  const duplicateHostResult = structuredClone(input.successor.result);
+  duplicateHostResult.host_refs[3] = structuredClone(
+    duplicateHostResult.host_refs[0]!,
+  );
+  resultVariants.push(duplicateHostResult);
+  const unknownHostResult = structuredClone(input.successor.result);
+  unknownHostResult.host_refs[3]!.ref_type = "arbitrary_provider_host";
+  resultVariants.push(unknownHostResult);
+  const crossRunHostResult = structuredClone(input.successor.result);
+  crossRunHostResult.host_refs = structuredClone(
+    input.predecessor.result.host_refs,
+  );
+  resultVariants.push(crossRunHostResult);
+  for (const refusedResult of resultVariants) {
+    assert.throws(() =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        result: refusedResult,
+      }),
+    );
+  }
+
+  const missingObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+      ...baseInput,
+      packet_presentation: {
+        status: "not_observed",
+        observed_at: null,
+        provenance: "unknown",
+      },
+      continuation_materials_delivered: null,
+      candidate_components_delivered: null,
+      delivered_material_set_fingerprint: null,
+    });
+  const missingReceipt = buildCommissionedWorkRunReceiptV01({
+    request: input.successor.request,
+    packet: input.successor.packet,
+    result: input.successor.result,
+    observation: input.successor.objective_observation,
+    execution_observation: missingObservation,
+  });
+  const buildAlternateEpisode = (
+    executionObservation: CommissionedWorkExecutionObservationV01,
+    receipt: RunReceiptV01,
+  ): CommissionedWorkEpisodeArtifactV01 =>
+    buildCommissionedWorkEpisodeArtifactV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: input.plan,
+      packet: input.successor.packet,
+      request: input.successor.request,
+      result: input.successor.result,
+      receipt,
+      observation: input.successor.objective_observation,
+      execution_observation: executionObservation,
+      episode_id: input.successor.episode.episode_id,
+      episode_role: "successor",
+      condition: input.plan.condition,
+      holdout_variant: input.plan.holdout_variant,
+      predecessor_episode_ref: input.checkpoint.predecessor_episode_ref,
+      predecessor_checkpoint: input.checkpoint,
+      candidate_freeze_fingerprint: null,
+      repository_state: input.successor.episode.repository_state,
+      candidate_frozen_before_start: null,
+      repository_action_trace_fingerprint:
+        input.successor.episode.repository_action_trace_fingerprint,
+    });
+  const missingEpisode = buildAlternateEpisode(
+    missingObservation,
+    missingReceipt,
+  );
+  assert.equal(
+    missingEpisode.evidence_ladder.find(
+      (row) => row.stage === "presented_before_first_meaningful_action",
+    )?.status,
+    "unknown",
+  );
+  assert.equal(missingEpisode.evaluation.resources.provider_calls.value, null);
+  assert.equal(missingEpisode.evaluation.resources.model_calls.value, null);
+  assert.equal(
+    missingEpisode.evaluation.resources.external_network_calls.value,
+    null,
+  );
+
+  const testRef = (kind: string) =>
+    createCommissionedWorkRecordRefV01({
+      record_version: "commissioned_work_structural_resource_ref.v0.1",
+      record_id: `${kind}:test-only`,
+      record_fingerprint: createProtocolSha256V01(`cw1-${kind}-test-only`),
+    });
+  const resourceObservationRef = testRef("resource-observation");
+  const liveAuthorizationRef = testRef("authorization");
+  const positiveResourceInput = {
+    ...baseInput,
+    execution_evidence_class:
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01,
+    resources: {
+      ...baseInput.resources,
+      provider_calls: { provenance: "observed", value: 1 },
+      model_calls: { provenance: "observed", value: 1 },
+      external_network_calls: { provenance: "observed", value: 1 },
+    },
+    resource_binding: {
+      provider_calls_observation_ref: resourceObservationRef,
+      model_calls_observation_ref: resourceObservationRef,
+      external_network_calls_observation_ref: resourceObservationRef,
+      live_authorization_ref: liveAuthorizationRef,
+      authorization_resource_ceiling:
+        createCommissionedWorkAuthorizationResourceCeilingV01({
+          live_authorization_ref: liveAuthorizationRef,
+          provider_call_limit: 1,
+          model_call_limit: 1,
+          external_network_call_limit: 1,
+        }),
+      provider_ref: testRef("provider"),
+      model_ref: testRef("model"),
+      route_ref: testRef("route"),
+      network_destination_ref: testRef("destination"),
+    },
+  } as const satisfies BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01;
+  const positiveResourceObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01(
+      positiveResourceInput,
+    );
+  const positiveResourceReceipt = buildCommissionedWorkRunReceiptV01({
+    request: input.successor.request,
+    packet: input.successor.packet,
+    result: input.successor.result,
+    observation: input.successor.objective_observation,
+    execution_observation: positiveResourceObservation,
+  });
+  const positiveResourceEpisode = buildAlternateEpisode(
+    positiveResourceObservation,
+    positiveResourceReceipt,
+  );
+  assert.equal(positiveResourceEpisode.evaluation.resources.model_calls.value, 1);
+  assert.equal(positiveResourceEpisode.evaluation.authority_violation, false);
+  assert.equal(
+    positiveResourceEpisode.evidence_ladder.find(
+      (row) => row.stage === "behaviorally_conditioned",
+    )?.status,
+    "unknown",
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...positiveResourceInput,
+        resource_binding: {
+          ...positiveResourceInput.resource_binding,
+          authorization_resource_ceiling: null,
+        },
+      }),
+    /commissioned_work_authorization_resource_ceiling_missing/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...positiveResourceInput,
+        resource_binding: {
+          ...positiveResourceInput.resource_binding,
+          authorization_resource_ceiling: {
+            ...positiveResourceInput.resource_binding
+              .authorization_resource_ceiling,
+            model_call_limit: 2,
+          },
+        },
+      }),
+    /commissioned_work_authorization_resource_ceiling_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...positiveResourceInput,
+        resources: {
+          ...positiveResourceInput.resources,
+          provider_calls: { provenance: "observed", value: 2 },
+        },
+      }),
+    /commissioned_work_authorization_resource_ceiling_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...positiveResourceInput,
+        resource_binding: {
+          ...positiveResourceInput.resource_binding,
+          model_ref: null,
+        },
+      }),
+    /commissioned_work_execution_resource_identity_missing/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        resources: {
+          ...baseInput.resources,
+          external_network_calls: { provenance: "observed", value: 0 },
+        },
+      }),
+    /commissioned_work_execution_resource_source_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        resources: {
+          ...baseInput.resources,
+          model_usage_units: {
+            provenance: "unknown",
+            value: 0,
+          } as never,
+        },
+      }),
+    /commissioned_work_resource_unknown_or_value_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...baseInput,
+        unauthorized_effects: {
+          ...baseInput.unauthorized_effects,
+          github_writes: 1 as 0,
+        },
+      }),
+    /commissioned_work_execution_unauthorized_effect/u,
   );
 }
 
@@ -2592,30 +3303,7 @@ function negativeObservationInputV01(
     },
     source_currentness: "unknown",
     project_scope: "exact",
-    authority_effects: {
-      provider_calls: 0,
-      model_calls: 0,
-      external_network_calls: 0,
-      outside_root_writes: 0,
-      product_database_writes: 0,
-      core_writes: 0,
-      proposal_writes: 0,
-      review_decision_writes: 0,
-      transition_writes: 0,
-      policy_activations: 0,
-      active_pointer_writes: 0,
-      github_writes: 0,
-    },
-    resources: {
-      provider_calls: { provenance: "observed", value: 0 },
-      model_calls: { provenance: "observed", value: 0 },
-      external_network_calls: { provenance: "observed", value: 0 },
-      tool_calls: { provenance: "unknown", value: null },
-      model_usage_units: { provenance: "unknown", value: null },
-      cost_microunits: { provenance: "unknown", value: null },
-      latency_ms: { provenance: "unknown", value: null },
-      human_review_burden: { provenance: "unknown", value: null },
-    },
+    unauthorized_effects: zeroUnauthorizedEffectsForTestV01(),
   };
 }
 

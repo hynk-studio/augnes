@@ -278,6 +278,8 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
           ) ||
         request.policy.max_changed_files !==
           syntheticFixtureBinding.operation_contract.max_changed_files ||
+        request.policy.max_artifacts !==
+          syntheticFixtureBinding.operation_contract.max_artifacts ||
         request.policy.max_commands !==
           syntheticFixtureBinding.operation_contract.max_commands ||
         request.execution_grant_ref !== null ||
@@ -350,10 +352,7 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
           request_id: request.request_id,
           run_id: request.run_id,
           outcome: syntheticFixtureOutput.terminal_outcome,
-          public_stop_reason:
-            syntheticFixtureOutput.terminal_outcome === "blocked"
-              ? "sealed_interruption"
-              : null,
+          public_stop_reason: null,
           started_at: input.started_at,
           finished_at: input.finished_at,
           host_refs: [
@@ -380,12 +379,12 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
           skipped_checks: [],
           model_invocation_receipt_refs: [],
           summary:
-            syntheticFixtureOutput.terminal_outcome === "blocked"
-              ? "The synthetic predecessor output was applied before the sealed interruption."
+            syntheticFixtureOutput.episode_role === "predecessor"
+              ? "The synthetic predecessor output was applied before the separate CW1 episode checkpoint."
               : "The cold synthetic successor output was applied for mechanics evaluation.",
           uncertainty: [],
           gaps:
-            syntheticFixtureOutput.terminal_outcome === "blocked"
+            syntheticFixtureOutput.episode_role === "predecessor"
               ? ["Required objective verification remains for the cold successor."]
               : [],
           proposed_next_steps: [],
@@ -638,7 +637,7 @@ function normalizeSyntheticFixtureOutputV01(
     (output.episode_role === "predecessor" &&
       (output.condition !== null ||
         output.holdout_variant !== null ||
-        output.terminal_outcome !== "blocked")) ||
+        output.terminal_outcome !== "completed")) ||
     (output.episode_role === "successor" &&
       (output.condition === null || output.terminal_outcome !== "completed"))
   ) {
