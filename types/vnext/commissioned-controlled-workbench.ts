@@ -11,8 +11,12 @@ export const COMMISSIONED_WORK_EXECUTION_OBSERVATION_VERSION_V01 =
   "commissioned_work_execution_observation.v0.1" as const;
 export const COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 =
   "commissioned_work_same_run_resume_source.v0.1" as const;
+export const COMMISSIONED_WORK_FRESH_ORIGIN_OBSERVATION_VERSION_V01 =
+  "commissioned_work_fresh_origin_observation.v0.1" as const;
 export const COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01 =
   "commissioned_work_episode_origin_proof.v0.1" as const;
+export const COMMISSIONED_WORK_EPISODE_ORIGIN_SOURCE_CHAIN_VERSION_V01 =
+  "commissioned_work_episode_origin_source_chain.v0.1" as const;
 export const COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01 =
   "commissioned_work_episode_checkpoint.v0.1" as const;
 export const COMMISSIONED_WORK_EVALUATION_VERSION_V01 =
@@ -506,9 +510,16 @@ export interface CommissionedWorkNativeHostRefBindingV01 {
 export interface CommissionedWorkSameRunResumeSourceV01 {
   source_version: typeof COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01;
   source_id: string;
+  request_id: string;
   run_id: string;
   run_ref_fingerprint: string;
+  workspace_id: string;
+  project_id: string;
   native_host_request_fingerprint: string;
+  task_context_packet_ref_fingerprint: string;
+  task_context_packet_fingerprint: string;
+  root_scope_fingerprint: string;
+  operation_request_shape_fingerprint: string;
   repository_resume_context_fingerprint: string;
   resume_binding: NativeHostResumeBindingV01;
   resume_binding_fingerprint: string;
@@ -516,6 +527,73 @@ export interface CommissionedWorkSameRunResumeSourceV01 {
   source_host_ref_set_fingerprint: string;
   integrity: CommissionedWorkIntegrityV01;
 }
+
+export interface CommissionedWorkFreshOriginRequestBindingV01 {
+  binding_version: "codex_app_server_request_source_binding.v0.1";
+  request_id: string;
+  run_id: string;
+  run_ref_fingerprint: string;
+  native_host_request_fingerprint: string;
+  task_context_packet_ref: CommissionedWorkRecordRefV01;
+  native_host_packet_ref_fingerprint: string;
+  task_context_packet_fingerprint: string;
+  workspace_id: string;
+  project_id: string;
+  root_scope_fingerprint: string;
+  operation_request_shape_fingerprint: string;
+  operation_contract_fingerprint: string;
+  repository_resume_context_absent: true;
+  execution_grant_absent: true;
+  packet_capability_grant_absent: true;
+  binding_fingerprint: string;
+}
+
+export interface CommissionedWorkFreshOriginLifecycleBindingV01 {
+  event_id: string;
+  native_host_lifecycle_event_fingerprint: string;
+  event_kind: "turn_started";
+  state: "running";
+  coverage: "observed";
+  run_id: string;
+  observed_at: string;
+  request_source_binding_fingerprint: string;
+  admitted_host_ref_set: CommissionedWorkNativeHostRefBindingV01[];
+  admitted_host_ref_set_fingerprint: string;
+  binding_fingerprint: string;
+}
+
+interface CommissionedWorkFreshOriginObservationCommonV01 {
+  observation_version: typeof COMMISSIONED_WORK_FRESH_ORIGIN_OBSERVATION_VERSION_V01;
+  observation_id: string;
+  case_id: string;
+  workspace_id: string;
+  project_id: string;
+  origin_executor_role_ref: CommissionedWorkRoleRefV01;
+  request_binding: CommissionedWorkFreshOriginRequestBindingV01;
+  lifecycle_binding: CommissionedWorkFreshOriginLifecycleBindingV01;
+  predecessor_execution_grant_inherited: false;
+  predecessor_transcript_inherited: false;
+  hidden_reasoning_inherited: false;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export type CommissionedWorkFreshOriginObservationV01 =
+  | (CommissionedWorkFreshOriginObservationCommonV01 & {
+      episode_origin_kind: "predecessor_episode";
+      predecessor_episode_ref: null;
+      predecessor_checkpoint_ref: null;
+      predecessor_run_ref_fingerprint: null;
+      predecessor_executor_role_ref: null;
+      checkpoint_sealed_at: null;
+    })
+  | (CommissionedWorkFreshOriginObservationCommonV01 & {
+      episode_origin_kind: "cold_successor";
+      predecessor_episode_ref: CommissionedWorkRecordRefV01;
+      predecessor_checkpoint_ref: CommissionedWorkRecordRefV01;
+      predecessor_run_ref_fingerprint: string;
+      predecessor_executor_role_ref: CommissionedWorkRoleRefV01;
+      checkpoint_sealed_at: string;
+    });
 
 export type CommissionedWorkHostIdentityProvenanceV01 =
   | {
@@ -553,6 +631,7 @@ interface CommissionedWorkEpisodeOriginProofCommonV01 {
   origin_executor_role_ref: CommissionedWorkRoleRefV01;
   origin_native_host_request_fingerprint: string;
   origin_started_at: string;
+  fresh_origin_source_ref: CommissionedWorkRecordRefV01;
   admitted_resume_source_ref: CommissionedWorkRecordRefV01;
   admitted_resume_binding_fingerprint: string;
   predecessor_execution_grant_inherited: false;
@@ -579,12 +658,21 @@ export type CommissionedWorkEpisodeOriginProofV01 =
       checkpoint_sealed_at: string;
     });
 
+export interface CommissionedWorkEpisodeOriginSourceChainV01 {
+  chain_version: typeof COMMISSIONED_WORK_EPISODE_ORIGIN_SOURCE_CHAIN_VERSION_V01;
+  fresh_origin_observation: CommissionedWorkFreshOriginObservationV01;
+  resume_source: CommissionedWorkSameRunResumeSourceV01;
+  origin_proof: CommissionedWorkEpisodeOriginProofV01;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
 interface CommissionedWorkEpisodeOriginCommonV01 {
   origin_run_ref_fingerprint: string;
   origin_executor_role_ref: CommissionedWorkRoleRefV01;
   origin_started_at: string;
   origin_proof_kind: "current_invocation" | "prior_fresh_invocation";
   origin_proof_ref: CommissionedWorkRecordRefV01;
+  fresh_origin_source_ref: CommissionedWorkRecordRefV01 | null;
   admitted_resume_source_ref: CommissionedWorkRecordRefV01 | null;
 }
 
@@ -855,6 +943,7 @@ export interface CommissionedWorkEpisodeArtifactV01 {
   native_host_result_ref: CommissionedWorkRecordRefV01;
   run_receipt_ref: CommissionedWorkRecordRefV01;
   episode_origin: CommissionedWorkEpisodeOriginV01;
+  episode_origin_source_chain: CommissionedWorkEpisodeOriginSourceChainV01 | null;
   execution_binding: CommissionedWorkEpisodeExecutionBindingV01;
   chronology: {
     started_at: string;

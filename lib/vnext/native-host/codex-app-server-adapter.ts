@@ -46,6 +46,53 @@ export const CODEX_APP_SERVER_CAPABILITY_VERSION_V01 =
   "codex_app_server_stable_stdio.v0.1" as const;
 export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
+export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
+  "codex_app_server_request_source_binding.v0.1" as const;
+
+export interface CodexAppServerRequestSourceBindingV01 {
+  binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
+  request_id: string;
+  native_host_request_fingerprint: string;
+  task_context_packet_ref_fingerprint: string;
+  task_context_packet_fingerprint: string;
+  root_scope_fingerprint: string;
+  operation_request_shape_fingerprint: string;
+}
+
+export function createCodexAppServerRequestSourceBindingV01(
+  request: NativeHostRequestV01,
+): CodexAppServerRequestSourceBindingV01 {
+  return {
+    binding_version: CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01,
+    request_id: request.request_id,
+    native_host_request_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request),
+    ),
+    task_context_packet_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request.task_context_packet_ref),
+    ),
+    task_context_packet_fingerprint: request.packet.integrity.fingerprint,
+    root_scope_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request.root_scope),
+    ),
+    operation_request_shape_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        request_version: request.request_version,
+        mode: request.mode,
+        requested_capability: request.requested_capability,
+        allowed_operation_categories: request.allowed_operation_categories,
+        forbidden_operation_categories: request.forbidden_operation_categories,
+        packet_capability_grant: request.packet_capability_grant,
+        execution_grant_ref: request.execution_grant_ref,
+        automation_context: request.automation_context,
+        repository_delegation_context:
+          request.repository_delegation_context ?? null,
+        policy: request.policy,
+        result_return: request.result_return,
+      }),
+    ),
+  };
+}
 
 const MAX_JSONL_LINE_BYTES = 256 * 1024;
 const MAX_JSONL_BUFFER_BYTES = 512 * 1024;
@@ -1543,12 +1590,28 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     if (!this.control.lifecycle_sink) return;
     const observedAt = this.now();
+    const requestSourceBinding =
+      createCodexAppServerRequestSourceBindingV01(this.request);
+    const boundedMetadata = {
+      ...input.bounded_metadata,
+      request_source_binding_version: requestSourceBinding.binding_version,
+      request_id: requestSourceBinding.request_id,
+      native_host_request_fingerprint:
+        requestSourceBinding.native_host_request_fingerprint,
+      task_context_packet_ref_fingerprint:
+        requestSourceBinding.task_context_packet_ref_fingerprint,
+      task_context_packet_fingerprint:
+        requestSourceBinding.task_context_packet_fingerprint,
+      root_scope_fingerprint: requestSourceBinding.root_scope_fingerprint,
+      operation_request_shape_fingerprint:
+        requestSourceBinding.operation_request_shape_fingerprint,
+    };
     const eventMaterial = {
       run_id: this.request.run_id,
       event_kind: input.event_kind,
       state: input.state,
       host_refs: input.host_refs,
-      bounded_metadata: input.bounded_metadata,
+      bounded_metadata: boundedMetadata,
     };
     await this.control.lifecycle_sink.report_event({
       event_id: `native-host-event:${createHash("sha256")
@@ -1558,6 +1621,7 @@ class CodexAppServerInvocationV01 {
       run_id: this.request.run_id,
       observed_at: observedAt,
       ...input,
+      bounded_metadata: boundedMetadata,
     });
   }
 

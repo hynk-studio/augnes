@@ -34,7 +34,9 @@ import {
   buildCommissionedWorkTaskContextPacketV01,
   buildCommissionedWorkTrainingResultV01,
   createCommissionedWorkIntegrityV01,
+  createCommissionedWorkEpisodeOriginSourceChainV01,
   createCommissionedWorkEpisodeOriginProofV01,
+  createCommissionedWorkFreshOriginObservationV01,
   createCommissionedWorkAuthorizationResourceCeilingV01,
   createCommissionedWorkPacketMaterialSetFingerprintV01,
   createCommissionedWorkRecordRefV01,
@@ -51,6 +53,7 @@ import {
 } from "@/lib/vnext/commissioned-controlled-workbench-artifact-store";
 import {
   createCodexAppServerAdapterV01,
+  createCodexAppServerRequestSourceBindingV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
@@ -138,6 +141,7 @@ type ProductionEpisodeProbeV01 = {
   packet: TaskContextPacketV01;
   request: NativeHostRequestV01;
   result: NativeHostResultV01;
+  lifecycle_events: NativeHostLifecycleEventV01[];
   execution_observation: CommissionedWorkExecutionObservationV01;
   objective_observation: CommissionedWorkObjectiveObservationV01;
   receipt: RunReceiptV01;
@@ -1555,7 +1559,7 @@ function buildEpisodeArtifactFromBundleV01(input: {
     holdout_variant: input.bundle.holdout_variant,
     predecessor_episode_ref: input.predecessor_ref,
     predecessor_checkpoint: input.predecessor_checkpoint,
-    episode_origin_proof: null,
+    episode_origin_source_chain: null,
     candidate_freeze_fingerprint: input.candidate_fingerprint,
     repository_state: input.bundle.repository_state,
     candidate_frozen_before_start:
@@ -2828,7 +2832,7 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
       predecessor_episode_ref:
         episodeInput.predecessor_checkpoint?.predecessor_episode_ref ?? null,
       predecessor_checkpoint: episodeInput.predecessor_checkpoint,
-      episode_origin_proof: null,
+      episode_origin_source_chain: null,
       candidate_freeze_fingerprint: null,
       repository_state: repositoryState,
       candidate_frozen_before_start: null,
@@ -2857,6 +2861,7 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
       packet,
       request,
       result,
+      lifecycle_events: lifecycleEvents,
       execution_observation: executionObservation,
       objective_observation: objectiveObservation,
       receipt,
@@ -3089,15 +3094,118 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
     resume_binding: resumeBinding,
     source_host_refs: admittedLifecycle.host_refs,
   });
+  const freshOriginObservation =
+    createCommissionedWorkFreshOriginObservationV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: input.plan,
+      origin_request: originRequest,
+      packet,
+      admitted_lifecycle_event: admittedLifecycle,
+      predecessor_checkpoint: input.checkpoint,
+    });
   const originProof = createCommissionedWorkEpisodeOriginProofV01({
-    manifest: input.manifest,
-    source: input.source,
-    plan: input.plan,
-    origin_request: originRequest,
-    origin_started_at: admittedLifecycle.observed_at,
+    fresh_origin_observation: freshOriginObservation,
     resume_source: resumeSource,
-    predecessor_checkpoint: input.checkpoint,
   });
+  const originSourceChain = createCommissionedWorkEpisodeOriginSourceChainV01({
+    fresh_origin_observation: freshOriginObservation,
+    resume_source: resumeSource,
+    origin_proof: originProof,
+  });
+  const exactOriginRequestBinding =
+    createCodexAppServerRequestSourceBindingV01(originRequest);
+  assert.equal(
+    freshOriginObservation.request_binding.native_host_request_fingerprint,
+    exactOriginRequestBinding.native_host_request_fingerprint,
+  );
+  assert.equal(
+    freshOriginObservation.request_binding.native_host_packet_ref_fingerprint,
+    exactOriginRequestBinding.task_context_packet_ref_fingerprint,
+  );
+  assert.equal(
+    freshOriginObservation.request_binding.task_context_packet_fingerprint,
+    packet.integrity.fingerprint,
+  );
+  assert.equal(
+    freshOriginObservation.request_binding.root_scope_fingerprint,
+    exactOriginRequestBinding.root_scope_fingerprint,
+  );
+  assert.equal(
+    freshOriginObservation.request_binding.operation_request_shape_fingerprint,
+    exactOriginRequestBinding.operation_request_shape_fingerprint,
+  );
+  assert.equal(
+    freshOriginObservation.lifecycle_binding.observed_at,
+    admittedLifecycle.observed_at,
+  );
+  assert.deepEqual(
+    freshOriginObservation.lifecycle_binding.admitted_host_ref_set,
+    resumeSource.source_host_ref_set,
+  );
+  assert.equal(freshOriginObservation.request_binding.run_id, originRequest.run_id);
+  assert.equal(
+    freshOriginObservation.episode_origin_kind,
+    "cold_successor",
+  );
+
+  const assertFreshOriginRefused = (changedInput: {
+    origin_request?: NativeHostRequestV01;
+    packet?: TaskContextPacketV01;
+    admitted_lifecycle_event?: NativeHostLifecycleEventV01;
+  }): void => {
+    assert.throws(
+      () =>
+        createCommissionedWorkFreshOriginObservationV01({
+          manifest: input.manifest,
+          source: input.source,
+          plan: input.plan,
+          origin_request: changedInput.origin_request ?? originRequest,
+          packet: changedInput.packet ?? packet,
+          admitted_lifecycle_event:
+            changedInput.admitted_lifecycle_event ?? admittedLifecycle,
+          predecessor_checkpoint: input.checkpoint,
+        }),
+      /commissioned_work_fresh_origin_/u,
+    );
+  };
+  const wrongPacketRefRequest = structuredClone(originRequest);
+  wrongPacketRefRequest.task_context_packet_ref = structuredClone(
+    input.predecessor.request.task_context_packet_ref,
+  );
+  assertFreshOriginRefused({ origin_request: wrongPacketRefRequest });
+  const wrongRootScopeRequest = structuredClone(originRequest);
+  wrongRootScopeRequest.root_scope.root_fingerprint = createProtocolSha256V01(
+    "wrong-origin-root-scope",
+  );
+  assertFreshOriginRefused({ origin_request: wrongRootScopeRequest });
+  const wrongOperationShapeRequest = structuredClone(originRequest);
+  wrongOperationShapeRequest.allowed_operation_categories = [];
+  assertFreshOriginRefused({ origin_request: wrongOperationShapeRequest });
+  const unrepresentedFreshRequest = structuredClone(originRequest);
+  unrepresentedFreshRequest.request_id = `${originRequest.request_id}:unrepresented`;
+  assertFreshOriginRefused({ origin_request: unrepresentedFreshRequest });
+  const foreignLifecycleEvent = structuredClone(admittedLifecycle);
+  foreignLifecycleEvent.run_id = input.predecessor.result.run_id;
+  assertFreshOriginRefused({ admitted_lifecycle_event: foreignLifecycleEvent });
+  assertFreshOriginRefused({ origin_request: resumeRequest });
+  const inheritedExecutionGrantRequest = structuredClone(originRequest);
+  inheritedExecutionGrantRequest.execution_grant_ref = structuredClone(
+    originRequest.task_ref,
+  );
+  assertFreshOriginRefused({ origin_request: inheritedExecutionGrantRequest });
+  const inheritedCapabilityGrantRequest = structuredClone(originRequest);
+  inheritedCapabilityGrantRequest.packet_capability_grant = {
+    grant_ref: "cw1-test-inherited-capability-grant",
+    grant_external_ref: null,
+    allowed_capabilities: ["bounded_commissioned_repository_edit"],
+    forbidden_capabilities: [],
+    resource_scope: ["selected_project_root_only"],
+    stop_conditions: [],
+    coverage: "observed",
+    expires_at: null,
+  };
+  assertFreshOriginRefused({ origin_request: inheritedCapabilityGrantRequest });
   const resumed = await invokeProductionAppServerProbeV01({
     roots: input.roots,
     repository_root: repositoryRoot,
@@ -3230,7 +3338,7 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
     ),
   };
   const buildEpisode = (inputOverride?: {
-    origin_proof?: typeof originProof | null;
+    origin_source_chain?: typeof originSourceChain | null;
     checkpoint?: CommissionedWorkEpisodeCheckpointV01 | null;
     predecessor_episode_ref?: CommissionedWorkRecordRefV01 | null;
   }) =>
@@ -3256,10 +3364,10 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
         inputOverride?.checkpoint === undefined
           ? input.checkpoint
           : inputOverride.checkpoint,
-      episode_origin_proof:
-        inputOverride?.origin_proof === undefined
-          ? originProof
-          : inputOverride.origin_proof,
+      episode_origin_source_chain:
+        inputOverride?.origin_source_chain === undefined
+          ? originSourceChain
+          : inputOverride.origin_source_chain,
       candidate_freeze_fingerprint: null,
       repository_state: repositoryState,
       candidate_frozen_before_start: null,
@@ -3303,6 +3411,18 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
   );
   assert.equal(episode.execution_binding.predecessor_transcript_inherited, false);
   assert.equal(episode.execution_binding.hidden_reasoning_inherited, false);
+  assert.deepEqual(
+    episode.episode_origin_source_chain,
+    originSourceChain,
+  );
+  assert.equal(
+    episode.episode_origin.fresh_origin_source_ref?.record_fingerprint,
+    freshOriginObservation.integrity.fingerprint,
+  );
+  assert.equal(
+    episode.episode_origin.admitted_resume_source_ref?.record_fingerprint,
+    resumeSource.integrity.fingerprint,
+  );
   assert.equal(episode.evaluation.deterministic_repository_task_success, true);
   for (const stage of [
     "referenced",
@@ -3328,8 +3448,26 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
   assertValidCommissionedWorkEpisodeArtifactV01(readback);
   assert.deepEqual(readback, episode);
 
+  const missingOriginSourceReadback = structuredClone(episode);
+  missingOriginSourceReadback.episode_origin_source_chain = null;
+  resealV01(
+    missingOriginSourceReadback,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () => assertValidCommissionedWorkEpisodeArtifactV01(missingOriginSourceReadback),
+    /commissioned_work_episode_origin_proof_binding_invalid/u,
+  );
+
+  const predecessorOriginLifecycle =
+    input.predecessor.lifecycle_events.findLast(
+      (event) =>
+        event.event_kind === "turn_started" &&
+        event.host_refs.some((ref) => ref.ref_type === "host_turn"),
+    );
+  assert.ok(predecessorOriginLifecycle);
   const predecessorHostRef = (refType: string) => {
-    const ref = input.predecessor.result.host_refs.find(
+    const ref = predecessorOriginLifecycle.host_refs.find(
       (candidate) => candidate.ref_type === refType,
     );
     assert.ok(ref);
@@ -3350,8 +3488,16 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
       host_turn_ref: predecessorHostRef("host_turn"),
       control_revision: 11,
     },
-    source_host_refs: input.predecessor.result.host_refs,
+    source_host_refs: predecessorOriginLifecycle.host_refs,
   });
+  assert.throws(
+    () =>
+      createCommissionedWorkEpisodeOriginProofV01({
+        fresh_origin_observation: freshOriginObservation,
+        resume_source: predecessorResumeSource,
+      }),
+    /commissioned_work_episode_origin_resume_source_invalid/u,
+  );
   assert.throws(
     () =>
       buildCommissionedWorkCommissionedAgentExecutionObservationV01({
@@ -3361,7 +3507,7 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
     /commissioned_work_same_run_resume_scope_invalid/u,
   );
   assert.throws(
-    () => buildEpisode({ origin_proof: null }),
+    () => buildEpisode({ origin_source_chain: null }),
     /commissioned_work_episode_origin_proof_required/u,
   );
   assert.throws(
@@ -3381,7 +3527,15 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
       changedProof,
       "commissioned_work_episode_origin_proof_without_integrity_fingerprint",
     );
-    assert.throws(() => buildEpisode({ origin_proof: changedProof }));
+    const changedChain = structuredClone(originSourceChain);
+    changedChain.origin_proof = changedProof;
+    resealV01(
+      changedChain,
+      "commissioned_work_episode_origin_source_chain_without_integrity_fingerprint",
+    );
+    assert.throws(() =>
+      buildEpisode({ origin_source_chain: changedChain }),
+    );
   };
   assertOriginProofRefused((proof) => {
     proof.origin_run_ref_fingerprint =
@@ -3400,6 +3554,53 @@ async function assertProductionShapedResumedColdSuccessorV01(input: {
   assertOriginProofRefused((proof) => {
     proof.origin_executor_role_ref = input.checkpoint.predecessor_executor_role_ref;
   });
+  assertOriginProofRefused((proof) => {
+    proof.origin_started_at = addSecondsV01(admittedLifecycle.observed_at, 1);
+  });
+
+  const substitutedResumeSourceReadback = structuredClone(episode);
+  substitutedResumeSourceReadback.episode_origin_source_chain!.resume_source =
+    predecessorResumeSource;
+  resealV01(
+    substitutedResumeSourceReadback.episode_origin_source_chain!,
+    "commissioned_work_episode_origin_source_chain_without_integrity_fingerprint",
+  );
+  resealV01(
+    substitutedResumeSourceReadback,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      assertValidCommissionedWorkEpisodeArtifactV01(
+        substitutedResumeSourceReadback,
+      ),
+    /commissioned_work_episode_origin_source_chain_invalid/u,
+  );
+
+  const substitutedOriginProofReadback = structuredClone(episode);
+  substitutedOriginProofReadback.episode_origin_source_chain!.origin_proof =
+    structuredClone(originProof);
+  substitutedOriginProofReadback.episode_origin_source_chain!.origin_proof.origin_started_at =
+    addSecondsV01(originProof.origin_started_at, 1);
+  resealV01(
+    substitutedOriginProofReadback.episode_origin_source_chain!.origin_proof,
+    "commissioned_work_episode_origin_proof_without_integrity_fingerprint",
+  );
+  resealV01(
+    substitutedOriginProofReadback.episode_origin_source_chain!,
+    "commissioned_work_episode_origin_source_chain_without_integrity_fingerprint",
+  );
+  resealV01(
+    substitutedOriginProofReadback,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () =>
+      assertValidCommissionedWorkEpisodeArtifactV01(
+        substitutedOriginProofReadback,
+      ),
+    /commissioned_work_episode_origin_source_chain_invalid/u,
+  );
 }
 
 async function assertProductionShapedSameRunResumeV01(input: {
@@ -3521,15 +3722,26 @@ async function assertProductionShapedSameRunResumeV01(input: {
     resume_binding: resumeBinding,
     source_host_refs: admittedLifecycle.host_refs,
   });
+  const freshOriginObservation =
+    createCommissionedWorkFreshOriginObservationV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan,
+      origin_request: baseRequest,
+      packet,
+      admitted_lifecycle_event: admittedLifecycle,
+      predecessor_checkpoint: null,
+    });
   const episodeOriginProof = createCommissionedWorkEpisodeOriginProofV01({
-    manifest: input.manifest,
-    source: input.source,
-    plan,
-    origin_request: baseRequest,
-    origin_started_at: admittedLifecycle.observed_at,
+    fresh_origin_observation: freshOriginObservation,
     resume_source: resumeSource,
-    predecessor_checkpoint: null,
   });
+  const episodeOriginSourceChain =
+    createCommissionedWorkEpisodeOriginSourceChainV01({
+      fresh_origin_observation: freshOriginObservation,
+      resume_source: resumeSource,
+      origin_proof: episodeOriginProof,
+    });
   const resumed = await invokeProductionAppServerProbeV01({
     roots: input.roots,
     repository_root: repositoryRoot,
@@ -3719,7 +3931,7 @@ async function assertProductionShapedSameRunResumeV01(input: {
     holdout_variant: null,
     predecessor_episode_ref: null,
     predecessor_checkpoint: null,
-    episode_origin_proof: episodeOriginProof,
+    episode_origin_source_chain: episodeOriginSourceChain,
     candidate_freeze_fingerprint: null,
     repository_state: repositoryState,
     candidate_frozen_before_start: null,
@@ -4139,7 +4351,7 @@ async function assertProductionShapedPartialBoundaryV01(input: {
       holdout_variant: null,
       predecessor_episode_ref: null,
       predecessor_checkpoint: null,
-      episode_origin_proof: null,
+      episode_origin_source_chain: null,
       candidate_freeze_fingerprint: null,
       repository_state: repositoryState,
       candidate_frozen_before_start: null,
@@ -4456,7 +4668,7 @@ function assertCommissionedExecutionObservationNegativeCasesV01(input: {
       holdout_variant: input.plan.holdout_variant,
       predecessor_episode_ref: input.checkpoint.predecessor_episode_ref,
       predecessor_checkpoint: input.checkpoint,
-      episode_origin_proof: null,
+      episode_origin_source_chain: null,
       candidate_freeze_fingerprint: null,
       repository_state: input.successor.episode.repository_state,
       candidate_frozen_before_start: null,
