@@ -14,22 +14,15 @@ const reminder = [
   "- Proof is not approval; a PR is not merge authority.",
 ].join("\n");
 
-if (input.__malformed) {
-  writeJson({
-    systemMessage: "Augnes operator SessionStart input was malformed; continuing with safe guardrail reminders.",
-    hookSpecificOutput: {
-      hookEventName: "SessionStart",
-      additionalContext: reminder,
-    },
-  });
-} else {
-  writeJson({
-    hookSpecificOutput: {
-      hookEventName: "SessionStart",
-      additionalContext: reminder,
-    },
-  });
-}
+writeJson({
+  ...(input.__malformed
+    ? { systemMessage: "Augnes operator SessionStart input was malformed; continuing with safe guardrail reminders." }
+    : {}),
+  hookSpecificOutput: {
+    hookEventName: "SessionStart",
+    additionalContext: reminder,
+  },
+});
 
 async function readJsonFromStdin() {
   const raw = await readStdin();

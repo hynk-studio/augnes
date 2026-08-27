@@ -50,18 +50,32 @@ the existing checkout service.
 The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
 surface; that build uses `plugin add`, not a nonexistent `plugin install`
 command. It refreshes an already-installed local plugin, requires effective
-version 0.4.0, verifies the cached manifest/proxy/service core/skill/hook as one
-reviewed copy, and refuses any silently retained 0.3.0 cache. The
+version 0.4.0, verifies the cached manifest/proxy/service core/skill as one
+reviewed copy, rejects a retained default `hooks/hooks.json`, and refuses any
+silently retained 0.3.0 cache. The
 plugin and checkout service installs are explicit setup actions. No fixed bridge URL or copied
 user-level MCP config is required. The plugin manifest points to `.mcp.json`,
 which starts `mcp/companion-proxy.mjs` as a per-session stdio server. Current
 Codex plugin/MCP support recognizes the reviewed `mcpServers` manifest pointer
 and the standard `command`, `args`, and `cwd` server fields used here.
 
+The plugin intentionally bundles no automatically discovered
+`hooks/hooks.json` and declares no manifest hook entry. Installing it globally
+therefore provides only its skills, MCP server, and default prompt. The trusted
+Augnes checkout owns its operator hooks in `.codex/hooks.json`; their commands
+resolve scripts from `git rev-parse --show-toplevel` and contain no user-local
+absolute path. `PreToolUse` observes only shell commands and denies a small set
+of direct high-confidence authority violations. `PostToolUse` reviews only
+explicit structured status for known verification commands, not arbitrary
+words in command output. No `Stop` hook is registered, so an automatic
+continuation cannot replace or condense the assistant's final answer.
+
 Plugin version 0.4.0 replaces stale 0.3.0 Resume-first behavior. Start a new
 Codex conversation after refreshing the repo-local marketplace and plugin so
-the proxy, skill, hook, and default prompt all come from the same reviewed
-version; setup verification fails closed if 0.3.0 remains effective.
+the proxy, skill, and default prompt all come from the same reviewed version;
+the trusted checkout supplies project-local hooks separately. Setup
+verification fails closed if 0.3.0 or a cached default hook config remains
+effective.
 
 ## What the proxy does
 
@@ -202,6 +216,7 @@ create semantic approval/Decision/Transition, accept state, or close work.
 
 ```bash
 npm run test:codex-companion-discovery
+npm run test:augnes-operator-plugin-setup
 npm run test:codex-repository-continuity
 npm run test:windows-physical-root-identity
 npm run test:repository-managed-delegation
