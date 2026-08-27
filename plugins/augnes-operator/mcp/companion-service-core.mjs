@@ -3,7 +3,9 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   chmodSync,
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   fsyncSync,
   lstatSync,
   mkdirSync,
@@ -63,6 +65,132 @@ const DEFAULT_MAINTENANCE_TTL_MS = 6 * 60 * 60 * 1_000;
 const MAX_MAINTENANCE_TTL_MS = 12 * 60 * 60 * 1_000;
 const MAX_CHILD_TAIL_BYTES = 16 * 1024;
 const MAX_PRODUCTION_CHECKOUT_SCOPES = 512;
+const STALE_DECOMMISSION_CONTRACT =
+  "augnes-companion-service-stale-decommission.v0.1";
+const STALE_DECOMMISSION_SCHEMA_VERSION = 1;
+const STALE_DECOMMISSION_MATERIAL_KEYS = Object.freeze([
+  "configuration",
+  "desired_state",
+  "launch_agent",
+  "manager_state",
+  "manager_lock",
+  "maintenance_lease",
+  "runtime_manifest",
+  "runtime_token",
+  "runtime_access",
+  "runtime_lock",
+  "runtime_bridge_environment",
+]);
+const STALE_DECOMMISSION_IMMUTABLE_MATERIAL_KEYS = Object.freeze([
+  "configuration",
+  "desired_state",
+  "launch_agent",
+  "maintenance_lease",
+]);
+const STALE_DECOMMISSION_LIVE_MATERIAL_KEYS = Object.freeze([
+  "manager_state",
+  "manager_lock",
+  "runtime_manifest",
+  "runtime_token",
+  "runtime_access",
+  "runtime_lock",
+  "runtime_bridge_environment",
+]);
+const STALE_DECOMMISSION_LIVE_SNAPSHOT_MAX_ATTEMPTS = 3;
+const STALE_DECOMMISSION_SAFE_REFUSAL_CAUSES = Object.freeze(new Set([
+  "immutable_material_changed",
+  "live_snapshot_unstable",
+  "launch_job_changed",
+  "process_ownership_changed",
+]));
+const STALE_DECOMMISSION_UNLINK_HELPER = [
+  "import hashlib, os, stat, sys",
+  "name, expected_parent_dev, expected_parent_ino, expected_sha, inject_swap = sys.argv[1:]",
+  "parent_fd = 3",
+  "parent = os.fstat(parent_fd)",
+  "assert stat.S_ISDIR(parent.st_mode)",
+  "assert str(parent.st_dev) == expected_parent_dev",
+  "assert str(parent.st_ino) == expected_parent_ino",
+  "quarantine = '.stale-decommission-quarantine-' + os.urandom(32).hex()",
+  "os.rename(name, quarantine, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)",
+  "file_fd = os.open(quarantine, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent_fd)",
+  "try:",
+  "    opened = os.fstat(file_fd)",
+  "    linked = os.stat(quarantine, dir_fd=parent_fd, follow_symlinks=False)",
+  "    assert stat.S_ISREG(opened.st_mode) and stat.S_ISREG(linked.st_mode)",
+  "    assert opened.st_dev == linked.st_dev and opened.st_ino == linked.st_ino",
+  "    digest = hashlib.sha256()",
+  "    while True:",
+  "        chunk = os.read(file_fd, 65536)",
+  "        if not chunk: break",
+  "        digest.update(chunk)",
+  "    assert digest.hexdigest() == expected_sha",
+  "    if inject_swap == '1':",
+  "        os.rename(quarantine, quarantine + '.expected', src_dir_fd=parent_fd, dst_dir_fd=parent_fd)",
+  "        injected_fd = os.open(quarantine, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent_fd)",
+  "        os.write(injected_fd, b'foreign helper replacement\\n')",
+  "        os.close(injected_fd)",
+  "    linked_again = os.stat(quarantine, dir_fd=parent_fd, follow_symlinks=False)",
+  "    assert opened.st_dev == linked_again.st_dev and opened.st_ino == linked_again.st_ino",
+  "    os.unlink(quarantine, dir_fd=parent_fd)",
+  "    parent_after = os.fstat(parent_fd)",
+  "    assert parent_after.st_dev == parent.st_dev and parent_after.st_ino == parent.st_ino",
+  "except:",
+  "    try:",
+  "        os.stat(name, dir_fd=parent_fd, follow_symlinks=False)",
+  "    except FileNotFoundError:",
+  "        try: os.rename(quarantine, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)",
+  "        except FileNotFoundError: pass",
+  "    raise",
+  "finally:",
+  "    os.close(file_fd)",
+].join("\n");
+const STALE_DECOMMISSION_CREATE_HELPER = [
+  "import os, stat, sys",
+  "temporary, destination = sys.argv[1:]",
+  "parent_fd = 3",
+  "parent = os.fstat(parent_fd)",
+  "assert stat.S_ISDIR(parent.st_mode)",
+  "data = sys.stdin.buffer.read(1048576)",
+  "file_fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent_fd)",
+  "try:",
+  "    offset = 0",
+  "    while offset < len(data): offset += os.write(file_fd, data[offset:])",
+  "    os.fsync(file_fd)",
+  "finally:",
+  "    os.close(file_fd)",
+  "try:",
+  "    os.link(temporary, destination, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)",
+  "    os.unlink(temporary, dir_fd=parent_fd)",
+  "    os.fsync(parent_fd)",
+  "except:",
+  "    try: os.unlink(temporary, dir_fd=parent_fd)",
+  "    except FileNotFoundError: pass",
+  "    raise",
+].join("\n");
+const INSTALLED_CONFIGURATION_KEYS = Object.freeze([
+  "contract",
+  "schema_version",
+  "manager_version",
+  "service_label",
+  "service_identity",
+  "repository_root",
+  "repository_fingerprint",
+  "repository_device",
+  "repository_inode",
+  "node_path",
+  "node_version",
+  "manager_entry_path",
+  "service_source_fingerprint",
+  "runtime_state_directory",
+  "runtime_home_directory",
+  "database_path",
+  "configuration_path",
+  "launch_agent_path",
+  "installed_at",
+  "test_scope",
+  "test_root",
+]);
 
 export class PublicCompanionServiceError extends Error {
   constructor(code, cause) {
@@ -138,10 +266,17 @@ export function resolveCompanionServiceLayout({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
 } = {}) {
-  const repository = observeRepository(repositoryRoot);
+  const observedRepository = observeRepository(repositoryRoot);
   const home = resolveHome(environment, homeDirectory);
   const test = resolveTestScope({ environment, testScope });
+  const repository = applyTestRepositoryPhysicalIdentityOverride({
+    repository: observedRepository,
+    test,
+    testScope,
+    override: testRepositoryPhysicalIdentityOverride,
+  });
   const serviceSeed = JSON.stringify([
     COMPANION_SERVICE_CONTRACT,
     repository.repository_fingerprint,
@@ -198,6 +333,10 @@ export function resolveCompanionServiceLayout({
     manager_state_path: path.join(serviceDirectory, "manager-state.json"),
     manager_lock_path: path.join(serviceDirectory, "manager.lock"),
     maintenance_lease_path: path.join(serviceDirectory, "maintenance.json"),
+    stale_decommission_path: path.join(
+      serviceDirectory,
+      "stale-decommission.json",
+    ),
     runtime_directory: runtimeDirectory,
     runtime_manifest_path: path.join(runtimeDirectory, "runtime.json"),
     runtime_lock_path: path.join(runtimeDirectory, "owner.lock"),
@@ -218,6 +357,7 @@ export async function inspectCompanionService({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   now = () => Date.now(),
 } = {}) {
@@ -241,6 +381,7 @@ export async function inspectCompanionService({
       platform,
       homeDirectory,
       testScope,
+      testRepositoryPhysicalIdentityOverride,
     });
   } catch (error) {
     return serviceObservation({
@@ -249,6 +390,37 @@ export async function inspectCompanionService({
       startAvailable: false,
       resumeAvailable: false,
       reason: publicCode(error, "companion_service_repository_unverifiable"),
+    });
+  }
+
+  const staleDecommissionResult = readRegularJson(
+    layout.stale_decommission_path,
+  );
+  if (staleDecommissionResult.state !== "missing") {
+    if (
+      staleDecommissionResult.state !== "valid" ||
+      !validStaleCheckoutDecommissionRecord(
+        staleDecommissionResult.value,
+        layout,
+      )
+    ) {
+      return serviceObservation({
+        layout,
+        status: "ambiguous",
+        checkoutRelation: "conflicting",
+        startAvailable: false,
+        resumeAvailable: false,
+        reason: "companion_service_stale_decommission_record_conflict",
+      });
+    }
+    return serviceObservation({
+      layout,
+      configuration: staleDecommissionResult.value.configuration,
+      status: "recovery_required",
+      checkoutRelation: "substituted_or_moved",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: "companion_service_stale_decommission_incomplete",
     });
   }
 
@@ -568,7 +740,7 @@ export function publicCompanionServiceProjection(observation) {
     start_available: observation?.start_available === true,
     canonical_resume_available: observation?.resume_available === true,
     reason: observation?.reason ?? "companion_service_status_unavailable",
-    next_action: serviceNextAction(status),
+    next_action: serviceNextAction(status, observation?.reason),
     authority: lifecycleAuthority(false),
   };
 }
@@ -580,10 +752,16 @@ export async function installCompanionService({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
 } = {}) {
   assertSupportedServiceHost(platform);
+  if (testRepositoryPhysicalIdentityOverride !== null) {
+    throw new PublicCompanionServiceError(
+      "companion_service_test_physical_identity_override_refused",
+    );
+  }
   const layout = resolveCompanionServiceLayout({
     repositoryRoot,
     environment,
@@ -591,6 +769,11 @@ export async function installCompanionService({
     homeDirectory,
     testScope,
   });
+  if (readRegularJson(layout.stale_decommission_path).state !== "missing") {
+    throw new PublicCompanionServiceError(
+      "companion_service_stale_decommission_incomplete",
+    );
+  }
   assertNoOtherProductionCompanionService(layout);
   const node = inspectNodeBinary(nodePath);
   if (!node.valid) {
@@ -786,6 +969,7 @@ async function startCompanionServiceUnlocked({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
 } = {}) {
@@ -795,6 +979,7 @@ async function startCompanionServiceUnlocked({
     platform,
     homeDirectory,
     testScope,
+    testRepositoryPhysicalIdentityOverride,
     launchctl,
   });
   if (before.layout) assertNoOtherProductionCompanionService(before.layout);
@@ -808,6 +993,7 @@ async function startCompanionServiceUnlocked({
       platform,
       homeDirectory,
       testScope,
+      testRepositoryPhysicalIdentityOverride,
       launchctl,
       waitMs,
       accepted: new Set(["live", "recovery_required"]),
@@ -860,6 +1046,7 @@ async function startCompanionServiceUnlocked({
     platform,
     homeDirectory,
     testScope,
+    testRepositoryPhysicalIdentityOverride,
     launchctl,
     waitMs,
     accepted: new Set(["live"]),
@@ -898,6 +1085,7 @@ async function stopCompanionServiceUnlocked({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = STOP_WAIT_MS,
 } = {}) {
@@ -907,6 +1095,7 @@ async function stopCompanionServiceUnlocked({
     platform,
     homeDirectory,
     testScope,
+    testRepositoryPhysicalIdentityOverride,
     launchctl,
   });
   if (before.status === "not_installed") {
@@ -952,6 +1141,7 @@ async function stopCompanionServiceUnlocked({
         platform,
         homeDirectory,
         testScope,
+        testRepositoryPhysicalIdentityOverride,
         launchctl,
         waitMs,
         accepted: new Set(
@@ -990,6 +1180,7 @@ async function stopCompanionServiceUnlocked({
         platform,
         homeDirectory,
         testScope,
+        testRepositoryPhysicalIdentityOverride,
         launchctl,
         waitMs,
         accepted: new Set(
@@ -1040,6 +1231,7 @@ async function stopCompanionServiceUnlocked({
     platform,
     homeDirectory,
     testScope,
+    testRepositoryPhysicalIdentityOverride,
     launchctl,
     waitMs,
     accepted: new Set(
@@ -1059,6 +1251,19 @@ export async function uninstallCompanionService(options = {}) {
   const before = await inspectCompanionService(options);
   if (before.status === "not_installed") {
     return lifecycleCommandResult("uninstall", before, false);
+  }
+  if (
+    before.status === "recovery_required" &&
+    before.checkout_relation === "substituted_or_moved" &&
+    [
+      "companion_service_checkout_identity_changed",
+      "companion_service_stale_decommission_incomplete",
+    ].includes(before.reason)
+  ) {
+    return decommissionStaleCheckoutCompanionService({
+      ...options,
+      before,
+    });
   }
   if (!before.configuration || before.checkout_relation !== "exact") {
     throw new PublicCompanionServiceError("companion_service_uninstall_refused");
@@ -1102,6 +1307,186 @@ export async function uninstallCompanionService(options = {}) {
   }), true);
 }
 
+async function decommissionStaleCheckoutCompanionService({
+  before,
+  repositoryRoot,
+  environment = process.env,
+  platform = process.platform,
+  homeDirectory = null,
+  testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
+  launchctl = defaultLaunchctl,
+  waitMs = STOP_WAIT_MS,
+  testFaultAfterStep = null,
+  testBeforeUnlink = null,
+  testSwapInsideUnlinkMaterial = null,
+  testStaleDecommissionStageHook = null,
+} = {}) {
+  assertSupportedServiceHost(platform);
+  const layout = before?.layout;
+  const configuration = before?.configuration;
+  if (
+    !layout ||
+    !staleCheckoutDecommissionConfigurationExact(configuration, layout)
+  ) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  if (testStaleDecommissionStageHook !== null && !layout.test) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  assertStaleDecommissionLifecyclePaths(layout);
+  assertNoOtherProductionCompanionService(layout);
+  const lifecycleLock = await acquireLifecycleLock(
+    layout,
+    configuration,
+    waitMs,
+  );
+  let record;
+  try {
+    record = readExistingStaleCheckoutDecommissionRecord(layout);
+    if (record === null) {
+      const pendingSource = buildStaleCheckoutDecommissionSource({
+        before,
+        layout,
+        configuration,
+        launchctl,
+        testStaleDecommissionStageHook,
+      });
+      const pending = pendingSource.record;
+      assertStaleDecommissionPreEffectSource({
+        source: pendingSource,
+        before,
+        layout,
+        configuration,
+        launchctl,
+        testStaleDecommissionStageHook,
+      });
+      let currentLaunchProcess = null;
+      if (pending.launch_job !== null) {
+        const currentLaunchJob = assertExactLoadedLaunchJob(
+          pending,
+          layout,
+          launchctl,
+        );
+        if (currentLaunchJob.pid !== null) {
+          const currentIdentity = readProcessBirthIdentity(currentLaunchJob.pid);
+          if (currentIdentity.state === "unavailable") {
+            throw staleCheckoutDecommissionRefused();
+          }
+          if (currentIdentity.state === "present") {
+            currentLaunchProcess = {
+              pid: currentLaunchJob.pid,
+              identity: currentIdentity.identity,
+            };
+          }
+        }
+        launchctl([
+          "bootout",
+          `gui/${currentUid()}/${configuration.service_label}`,
+        ]);
+        let unloaded = await waitForLaunchctlUnloaded(
+          layout,
+          launchctl,
+          Math.min(waitMs, 2_000),
+        );
+        if (!unloaded) {
+          assertExactLoadedLaunchJob(pending, layout, launchctl);
+          bootoutExactStaleLaunchJobDefinition(
+            pending,
+            layout,
+            launchctl,
+          );
+          unloaded = await waitForLaunchctlUnloaded(
+            layout,
+            launchctl,
+            Math.min(waitMs, 2_000),
+          );
+          if (!unloaded) {
+            throw new PublicCompanionServiceError(
+              "companion_service_stale_checkout_decommission_stop_failed",
+            );
+          }
+        }
+      }
+      maybeInjectStaleDecommissionTestFault(
+        layout,
+        testFaultAfterStep,
+        "bootout",
+      );
+      if (launchctlLoaded(layout, launchctl)) {
+        throw new PublicCompanionServiceError(
+          "companion_service_stale_checkout_decommission_stop_failed",
+        );
+      }
+      await stopStaleDecommissionOwnedProcessGroups(
+        pendingSource.process_groups,
+      );
+      await waitForStaleDecommissionProcessesAbsent(
+        pending,
+        waitMs,
+        currentLaunchProcess,
+      );
+      const finalSource = buildStaleCheckoutDecommissionSource({
+        before,
+        layout,
+        configuration,
+        launchctl,
+        snapshotKind: "post_quiescence",
+      });
+      record = finalSource.record;
+      if (
+        record.launch_job !== null ||
+        record.owned_processes.length !== 0 ||
+        finalSource.process_groups.length !== 0
+      ) {
+        throw staleCheckoutDecommissionRefused();
+      }
+      createExclusiveStaleDecommissionRecord(layout, record);
+      maybeInjectStaleDecommissionTestFault(
+        layout,
+        testFaultAfterStep,
+        "journal",
+      );
+    }
+    assertStaleCheckoutDecommissionRecordCurrent(record, layout);
+    for (const materialKey of STALE_DECOMMISSION_MATERIAL_KEYS) {
+      removeStaleDecommissionMaterial(
+        record,
+        layout,
+        materialKey,
+        testBeforeUnlink,
+        testSwapInsideUnlinkMaterial,
+      );
+      maybeInjectStaleDecommissionTestFault(
+        layout,
+        testFaultAfterStep,
+        materialKey,
+      );
+    }
+  } finally {
+    releaseLifecycleLock(layout, lifecycleLock);
+  }
+  assertNoStaleDecommissionHelperResidue(record, layout);
+  removeStaleDecommissionRecord(record, layout);
+  removeDirectoryIfEmpty(layout.service_directory);
+  removeDirectoryIfEmpty(layout.runtime_directory);
+  const after = await inspectCompanionService({
+    repositoryRoot,
+    environment,
+    platform,
+    homeDirectory,
+    testScope,
+    testRepositoryPhysicalIdentityOverride,
+    launchctl,
+  });
+  if (after.status !== "not_installed") {
+    throw new PublicCompanionServiceError(
+      "companion_service_stale_checkout_decommission_incomplete",
+    );
+  }
+  return lifecycleCommandResult("uninstall", after, true);
+}
+
 export async function acquireCompanionServiceMaintenance({
   repositoryRoot,
   operationId,
@@ -1109,6 +1494,7 @@ export async function acquireCompanionServiceMaintenance({
   platform = process.platform,
   homeDirectory = null,
   testScope = null,
+  testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   ttlMs = DEFAULT_MAINTENANCE_TTL_MS,
   waitMs = MAINTENANCE_WAIT_MS,
@@ -1130,6 +1516,7 @@ export async function acquireCompanionServiceMaintenance({
     platform,
     homeDirectory,
     testScope,
+    testRepositoryPhysicalIdentityOverride,
     launchctl,
   });
   if (["unsupported", "not_installed"].includes(before.status)) {
@@ -2330,6 +2717,1452 @@ function replaceableInstalledConfiguration(configuration, layout) {
   );
 }
 
+function staleCheckoutDecommissionConfigurationExact(configuration, layout) {
+  if (!isObject(configuration) || !layout) return false;
+  const keys = Object.keys(configuration).sort();
+  if (
+    keys.length !== INSTALLED_CONFIGURATION_KEYS.length ||
+    !INSTALLED_CONFIGURATION_KEYS.every((key) => keys.includes(key))
+  ) return false;
+  const sameLogicalCheckout =
+    configuration.repository_root === layout.repository.realpath &&
+    configuration.repository_fingerprint ===
+      layout.repository.repository_fingerprint;
+  const physicalIdentityChanged =
+    configuration.repository_device !== layout.repository.device ||
+    configuration.repository_inode !== layout.repository.inode;
+  const exactService =
+    configuration.contract === COMPANION_SERVICE_CONTRACT &&
+    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
+    configuration.service_label === layout.service_label &&
+    configuration.service_identity === layout.service_identity &&
+    validCanonicalInstalledStatIdentity(configuration.repository_device) &&
+    validCanonicalInstalledStatIdentity(
+      configuration.repository_inode,
+      true,
+    ) &&
+    typeof configuration.node_path === "string" &&
+    path.isAbsolute(configuration.node_path) &&
+    /^v24\.\d+\.\d+$/u.test(configuration.node_version ?? "") &&
+    configuration.manager_entry_path === path.join(
+      configuration.repository_root,
+      "scripts",
+      "augnes-companion-service.mjs",
+    ) &&
+    /^[a-f0-9]{64}$/u.test(
+      configuration.service_source_fingerprint ?? "",
+    ) &&
+    configuration.runtime_state_directory === layout.runtime_directory &&
+    configuration.runtime_home_directory ===
+      (layout.test ? path.join(layout.test.root, "home") : layout.home) &&
+    configuration.database_path ===
+      (layout.test ? path.join(layout.test.root, "data", "augnes.db") : null) &&
+    configuration.configuration_path === layout.configuration_path &&
+    configuration.launch_agent_path === layout.launch_agent_path &&
+    isIsoTimestamp(configuration.installed_at) &&
+    configuration.test_scope === (layout.test?.scope ?? null) &&
+    configuration.test_root === (layout.test?.root ?? null);
+  return sameLogicalCheckout && physicalIdentityChanged && exactService;
+}
+
+function validCanonicalInstalledStatIdentity(value, positive = false) {
+  if (
+    typeof value !== "string" ||
+    !/^(?:0|[1-9][0-9]*)$/u.test(value)
+  ) return false;
+  try {
+    const parsed = BigInt(value);
+    return String(parsed) === value && (!positive || parsed > 0n);
+  } catch {
+    return false;
+  }
+}
+
+function staleCheckoutDecommissionRefused(causeCode = null) {
+  const cause = STALE_DECOMMISSION_SAFE_REFUSAL_CAUSES.has(causeCode)
+    ? Object.assign(new Error(causeCode), { code: causeCode })
+    : undefined;
+  return new PublicCompanionServiceError(
+    "companion_service_stale_checkout_decommission_refused",
+    cause,
+  );
+}
+
+function validStaleCheckoutDecommissionRecord(
+  record,
+  layout,
+  durable = true,
+) {
+  if (
+    !isObject(record) ||
+    record.contract !== STALE_DECOMMISSION_CONTRACT ||
+    record.schema_version !== STALE_DECOMMISSION_SCHEMA_VERSION ||
+    Object.keys(record).length !== 9 ||
+    ![
+      "contract",
+      "schema_version",
+      "service_identity",
+      "repository_fingerprint",
+      "configuration",
+      "materials",
+      "launch_job",
+      "owned_processes",
+      "created_at",
+    ].every((key) => Object.hasOwn(record, key)) ||
+    record.service_identity !== layout.service_identity ||
+    record.repository_fingerprint !==
+      layout.repository.repository_fingerprint ||
+    !staleCheckoutDecommissionConfigurationExact(
+      record.configuration,
+      layout,
+    ) ||
+    !isIsoTimestamp(record.created_at) ||
+    !isObject(record.materials) ||
+    Object.keys(record.materials).length !==
+      STALE_DECOMMISSION_MATERIAL_KEYS.length ||
+    !STALE_DECOMMISSION_MATERIAL_KEYS.every((key) =>
+      validStaleDecommissionMaterial(record.materials[key])
+    ) ||
+    !(record.launch_job === null || validStaleDecommissionLaunchJob(
+      record.launch_job,
+      record.configuration,
+    )) ||
+    !Array.isArray(record.owned_processes) ||
+    record.owned_processes.length > 64 ||
+    record.owned_processes.some((entry) =>
+      !isObject(entry) ||
+      !["pid", "identity"].every((key) => Object.hasOwn(entry, key)) ||
+      Object.keys(entry).length !== 2 ||
+      !Number.isInteger(entry.pid) ||
+      entry.pid <= 0 ||
+      !/^[a-f0-9]{64}$/u.test(entry.identity ?? "")
+    )
+  ) return false;
+  const processKeys = record.owned_processes.map(
+    (entry) => `${entry.pid}:${entry.identity}`,
+  );
+  return new Set(processKeys).size === processKeys.length &&
+    (!durable ||
+      record.launch_job === null && record.owned_processes.length === 0);
+}
+
+function validStaleDecommissionMaterial(value) {
+  if (!isObject(value) || !["missing", "valid"].includes(value.state)) {
+    return false;
+  }
+  if (value.state === "missing") {
+    return Object.keys(value).length === 2 &&
+      Object.hasOwn(value, "parent") &&
+      value.parent === null;
+  }
+  return Object.keys(value).length === 3 &&
+    /^[a-f0-9]{64}$/u.test(value.sha256 ?? "") &&
+    validStaleDecommissionParent(value.parent);
+}
+
+function validStaleDecommissionParent(value) {
+  return isObject(value) &&
+    Object.keys(value).length === 2 &&
+    validCanonicalInstalledStatIdentity(value.device) &&
+    validCanonicalInstalledStatIdentity(value.inode, true);
+}
+
+function validStaleDecommissionLaunchJob(value, configuration) {
+  const expectedArguments = expectedCompanionManagerArguments(configuration);
+  return isObject(value) &&
+    Object.keys(value).length === 7 &&
+    value.label === configuration.service_label &&
+    value.path === configuration.launch_agent_path &&
+    value.program === configuration.node_path &&
+    value.working_directory === configuration.repository_root &&
+    Array.isArray(value.arguments) &&
+    JSON.stringify(value.arguments) === JSON.stringify(expectedArguments) &&
+    (value.pid === null || Number.isInteger(value.pid) && value.pid > 0) &&
+    /^[a-f0-9]{64}$/u.test(value.fingerprint ?? "") &&
+    value.fingerprint === staleDecommissionLaunchJobFingerprint(value);
+}
+
+function expectedCompanionManagerArguments(configuration) {
+  return [
+    configuration.node_path,
+    configuration.manager_entry_path,
+    "run",
+    "--config",
+    configuration.configuration_path,
+  ];
+}
+
+function staleDecommissionLaunchJobFingerprint(value) {
+  return sha256(JSON.stringify({
+    label: value.label,
+    path: value.path,
+    program: value.program,
+    arguments: value.arguments,
+    working_directory: value.working_directory,
+    pid: value.pid,
+  }));
+}
+
+function readExistingStaleCheckoutDecommissionRecord(layout) {
+  const existing = readRegularJson(layout.stale_decommission_path);
+  if (existing.state === "missing") return null;
+  if (
+    existing.state !== "valid" ||
+    !validStaleCheckoutDecommissionRecord(existing.value, layout)
+  ) throw staleCheckoutDecommissionRefused();
+  return existing.value;
+}
+
+function buildStaleCheckoutDecommissionSource({
+  before,
+  layout,
+  configuration,
+  launchctl,
+  snapshotKind = "initial",
+  testStaleDecommissionStageHook = null,
+}) {
+  const immutableSnapshots = captureStaleDecommissionMaterialSnapshots(
+    layout,
+    STALE_DECOMMISSION_IMMUTABLE_MATERIAL_KEYS,
+  );
+  const configurationMaterial = parseStaleDecommissionJsonSnapshot(
+    immutableSnapshots.configuration,
+  );
+  const desiredState = parseStaleDecommissionJsonSnapshot(
+    immutableSnapshots.desired_state,
+  );
+  const plist = staleDecommissionSnapshotContents(
+    immutableSnapshots.launch_agent,
+  );
+  if (
+    JSON.stringify(configurationMaterial) !== JSON.stringify(configuration) ||
+    !staleCheckoutDecommissionConfigurationExact(
+      configurationMaterial,
+      layout,
+    ) ||
+    plist !== buildLaunchAgentPlist(configurationMaterial) ||
+    !validateDesiredStateRecord(desiredState, configurationMaterial).valid
+  ) throw staleCheckoutDecommissionRefused();
+  const validation = validateInstalledConfiguration({
+    configuration: configurationMaterial,
+    plist,
+    layout,
+  });
+  if (
+    validation.valid ||
+    validation.reason !== "companion_service_checkout_identity_changed" ||
+    validation.checkoutRelation !== "substituted_or_moved" ||
+    before?.reason !== validation.reason ||
+    before?.checkout_relation !== validation.checkoutRelation
+  ) throw staleCheckoutDecommissionRefused();
+
+  const maintenance = classifyStaleDecommissionMaintenanceSnapshot({
+    snapshot: immutableSnapshots.maintenance_lease,
+    configuration: configurationMaterial,
+  });
+  if (maintenance.status === "active") {
+    throw new PublicCompanionServiceError(
+      "companion_service_maintenance_active",
+    );
+  }
+  if (
+    maintenance.status === "ambiguous" ||
+    maintenance.lease?.pre_maintenance_desired_state !== undefined &&
+      maintenance.lease.pre_maintenance_desired_state !==
+        desiredState.desired_state
+  ) throw staleCheckoutDecommissionRefused();
+
+  const launchJob = readExactStaleDecommissionLaunchJob(
+    layout,
+    configurationMaterial,
+    launchctl,
+  );
+  const liveSnapshot = captureCoherentStaleDecommissionLiveSnapshot({
+    layout,
+    snapshotKind,
+    testStaleDecommissionStageHook,
+  });
+  let owned;
+  try {
+    owned = captureStaleDecommissionOwnedProcesses({
+      configuration: configurationMaterial,
+      launchJob,
+      snapshots: liveSnapshot.snapshots,
+      managerState: liveSnapshot.manager_state,
+    });
+  } catch (error) {
+    if (
+      error instanceof PublicCompanionServiceError &&
+      error.code === "companion_service_stale_checkout_decommission_refused"
+    ) throw staleCheckoutDecommissionRefused("process_ownership_changed");
+    throw error;
+  }
+  const materials = {
+    ...staleDecommissionMaterialsFromSnapshots(immutableSnapshots),
+    ...staleDecommissionMaterialsFromSnapshots(liveSnapshot.snapshots),
+  };
+  const record = {
+    contract: STALE_DECOMMISSION_CONTRACT,
+    schema_version: STALE_DECOMMISSION_SCHEMA_VERSION,
+    service_identity: configurationMaterial.service_identity,
+    repository_fingerprint: configurationMaterial.repository_fingerprint,
+    configuration: configurationMaterial,
+    materials,
+    launch_job: launchJob,
+    owned_processes: owned.processes,
+    created_at: new Date().toISOString(),
+  };
+  if (!validStaleCheckoutDecommissionRecord(record, layout, false)) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  return {
+    record,
+    process_groups: owned.process_groups,
+    immutable_snapshots: immutableSnapshots,
+    live_snapshots: liveSnapshot.snapshots,
+    live_critical_projection: liveSnapshot.critical_projection,
+  };
+}
+
+function classifyStaleDecommissionMaintenanceSnapshot({
+  snapshot,
+  configuration,
+}) {
+  let result;
+  if (snapshot.material.state === "missing") {
+    result = { state: "missing" };
+  } else {
+    try {
+      result = {
+        state: "valid",
+        value: JSON.parse(staleDecommissionSnapshotContents(snapshot)),
+      };
+    } catch {
+      result = { state: "invalid", value: null };
+    }
+  }
+  return classifyMaintenanceLeaseResult({ result, configuration });
+}
+
+function equalStaleDecommissionMaterial(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function assertStaleDecommissionPreEffectSource({
+  source,
+  before,
+  layout,
+  configuration,
+  launchctl,
+  testStaleDecommissionStageHook,
+}) {
+  maybeRunStaleDecommissionStageHook({
+    layout,
+    hook: testStaleDecommissionStageHook,
+    stage: "before_first_effect_revalidation",
+    snapshotKind: "pre_effect",
+  });
+  let immutableSnapshots;
+  try {
+    immutableSnapshots = captureStaleDecommissionMaterialSnapshots(
+      layout,
+      STALE_DECOMMISSION_IMMUTABLE_MATERIAL_KEYS,
+    );
+    for (const key of STALE_DECOMMISSION_IMMUTABLE_MATERIAL_KEYS) {
+      if (!equalStaleDecommissionMaterial(
+        immutableSnapshots[key].material,
+        source.immutable_snapshots[key].material,
+      )) throw staleCheckoutDecommissionRefused("immutable_material_changed");
+    }
+    const currentConfiguration = parseStaleDecommissionJsonSnapshot(
+      immutableSnapshots.configuration,
+    );
+    const currentDesiredState = parseStaleDecommissionJsonSnapshot(
+      immutableSnapshots.desired_state,
+    );
+    if (
+      JSON.stringify(currentConfiguration) !== JSON.stringify(configuration) ||
+      staleDecommissionSnapshotContents(immutableSnapshots.launch_agent) !==
+        buildLaunchAgentPlist(configuration) ||
+      !validateDesiredStateRecord(currentDesiredState, configuration).valid
+    ) throw staleCheckoutDecommissionRefused("immutable_material_changed");
+    const maintenance = classifyStaleDecommissionMaintenanceSnapshot({
+      snapshot: immutableSnapshots.maintenance_lease,
+      configuration,
+    });
+    if (
+      ["active", "ambiguous"].includes(maintenance.status) ||
+      maintenance.lease?.pre_maintenance_desired_state !== undefined &&
+        maintenance.lease.pre_maintenance_desired_state !==
+          currentDesiredState.desired_state
+    ) throw staleCheckoutDecommissionRefused("immutable_material_changed");
+  } catch (error) {
+    if (error?.cause?.code === "immutable_material_changed") throw error;
+    if (error instanceof PublicCompanionServiceError) {
+      throw staleCheckoutDecommissionRefused("immutable_material_changed");
+    }
+    throw error;
+  }
+
+  let launchJob;
+  try {
+    launchJob = readExactStaleDecommissionLaunchJob(
+      layout,
+      configuration,
+      launchctl,
+    );
+  } catch (error) {
+    if (error instanceof PublicCompanionServiceError) {
+      throw staleCheckoutDecommissionRefused("launch_job_changed");
+    }
+    throw error;
+  }
+  if (
+    JSON.stringify(launchJob) !== JSON.stringify(source.record.launch_job)
+  ) throw staleCheckoutDecommissionRefused("launch_job_changed");
+
+  const liveSnapshot = captureCoherentStaleDecommissionLiveSnapshot({
+    layout,
+    snapshotKind: "pre_effect",
+    testStaleDecommissionStageHook,
+  });
+  let owned;
+  try {
+    owned = captureStaleDecommissionOwnedProcesses({
+      configuration,
+      launchJob,
+      snapshots: liveSnapshot.snapshots,
+      managerState: liveSnapshot.manager_state,
+    });
+  } catch (error) {
+    if (error instanceof PublicCompanionServiceError) {
+      throw staleCheckoutDecommissionRefused("process_ownership_changed");
+    }
+    throw error;
+  }
+  const liveMaterialChanged = STALE_DECOMMISSION_LIVE_MATERIAL_KEYS
+    .filter((key) => key !== "manager_state")
+    .some((key) => !equalStaleDecommissionMaterial(
+      liveSnapshot.snapshots[key].material,
+      source.live_snapshots[key].material,
+    ));
+  if (
+    liveMaterialChanged ||
+    JSON.stringify(liveSnapshot.critical_projection) !==
+      JSON.stringify(source.live_critical_projection) ||
+    JSON.stringify(owned.processes) !==
+      JSON.stringify(source.record.owned_processes) ||
+    JSON.stringify(owned.process_groups) !==
+      JSON.stringify(source.process_groups) ||
+    before?.reason !== "companion_service_checkout_identity_changed" ||
+    before?.checkout_relation !== "substituted_or_moved"
+  ) throw staleCheckoutDecommissionRefused("process_ownership_changed");
+}
+
+function staleDecommissionMaterialPaths(layout) {
+  return {
+    configuration: layout.configuration_path,
+    desired_state: layout.desired_state_path,
+    launch_agent: layout.launch_agent_path,
+    manager_state: layout.manager_state_path,
+    manager_lock: layout.manager_lock_path,
+    maintenance_lease: layout.maintenance_lease_path,
+    runtime_manifest: layout.runtime_manifest_path,
+    runtime_token: layout.runtime_token_path,
+    runtime_access: layout.runtime_access_path,
+    runtime_lock: layout.runtime_lock_path,
+    runtime_bridge_environment: layout.runtime_bridge_environment_path,
+  };
+}
+
+function captureStaleDecommissionMaterialSnapshots(layout, materialKeys) {
+  const paths = staleDecommissionMaterialPaths(layout);
+  const result = {};
+  for (const key of materialKeys) {
+    result[key] = captureStaleDecommissionMaterialSnapshot(
+      paths[key],
+      staleDecommissionAnchorForFile(layout, paths[key]),
+    );
+  }
+  return result;
+}
+
+function staleDecommissionMaterialsFromSnapshots(snapshots) {
+  return Object.fromEntries(
+    Object.entries(snapshots).map(([key, snapshot]) => [
+      key,
+      snapshot.material,
+    ]),
+  );
+}
+
+function captureStaleDecommissionMaterialSnapshot(file, anchor) {
+  const parent = captureStaleDecommissionParent(path.dirname(file), anchor);
+  if (parent === null) {
+    return {
+      material: { state: "missing", parent: null },
+      contents: null,
+    };
+  }
+  const current = readBoundedRegularText(file, parent, anchor);
+  if (current.state === "missing") {
+    return {
+      material: { state: "missing", parent: null },
+      contents: null,
+    };
+  }
+  if (current.state !== "valid") throw staleCheckoutDecommissionRefused();
+  return {
+    material: {
+      state: "valid",
+      sha256: sha256(current.contents),
+      parent,
+    },
+    contents: current.contents,
+  };
+}
+
+function staleDecommissionAnchor(layout) {
+  return layout.test?.root ?? layout.home;
+}
+
+function assertStaleDecommissionLifecyclePaths(layout) {
+  assertStaleDecommissionPathChain(
+    staleDecommissionAnchor(layout),
+    layout.service_directory,
+    false,
+  );
+  assertStaleDecommissionPathChain(
+    layout.home,
+    path.dirname(layout.launch_agent_path),
+    false,
+  );
+  assertStaleDecommissionPathChain(
+    staleDecommissionAnchor(layout),
+    layout.runtime_directory,
+    true,
+  );
+}
+
+function staleDecommissionAnchorForFile(layout, file) {
+  return file === layout.launch_agent_path
+    ? layout.home
+    : staleDecommissionAnchor(layout);
+}
+
+function captureStaleDecommissionParent(directory, anchor) {
+  assertStaleDecommissionPathChain(anchor, directory, true);
+  let stats;
+  try {
+    stats = lstatSync(directory, { bigint: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw staleCheckoutDecommissionRefused();
+  }
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  return { device: String(stats.dev), inode: String(stats.ino) };
+}
+
+function assertStaleDecommissionPathChain(anchor, target, allowMissingLeaf) {
+  const relative = path.relative(anchor, target);
+  if (
+    !path.isAbsolute(anchor) ||
+    !path.isAbsolute(target) ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) throw staleCheckoutDecommissionRefused();
+  let current = anchor;
+  const entries = relative === "" ? [] : relative.split(path.sep);
+  for (let index = 0; index <= entries.length; index += 1) {
+    if (index > 0) current = path.join(current, entries[index - 1]);
+    try {
+      const stats = lstatSync(current);
+      if (!stats.isDirectory() || stats.isSymbolicLink()) {
+        throw staleCheckoutDecommissionRefused();
+      }
+    } catch (error) {
+      if (
+        error?.code === "ENOENT" &&
+        allowMissingLeaf &&
+        index === entries.length
+      ) return;
+      if (error instanceof PublicCompanionServiceError) throw error;
+      throw staleCheckoutDecommissionRefused();
+    }
+  }
+}
+
+function readBoundedRegularText(file, expectedParent, anchor) {
+  assertStaleDecommissionPathChain(anchor, path.dirname(file), false);
+  const parentDescriptor = openSync(
+    path.dirname(file),
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  );
+  let fileDescriptor = null;
+  try {
+    const parentStats = fstatSync(parentDescriptor, { bigint: true });
+    if (
+      String(parentStats.dev) !== expectedParent.device ||
+      String(parentStats.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+    try {
+      fileDescriptor = openSync(
+        file,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+    } catch (error) {
+      if (error?.code === "ENOENT") return { state: "missing", contents: null };
+      throw staleCheckoutDecommissionRefused();
+    }
+    const fileStats = fstatSync(fileDescriptor, { bigint: true });
+    const pathStats = lstatSync(file, { bigint: true });
+    if (
+      !fileStats.isFile() ||
+      pathStats.isSymbolicLink() ||
+      String(fileStats.dev) !== String(pathStats.dev) ||
+      String(fileStats.ino) !== String(pathStats.ino) ||
+      fileStats.size > BigInt(MAX_JSON_BYTES)
+    ) throw staleCheckoutDecommissionRefused();
+    const contents = readFileSync(fileDescriptor, "utf8");
+    const parentAfter = lstatSync(path.dirname(file), { bigint: true });
+    if (
+      parentAfter.isSymbolicLink() ||
+      String(parentAfter.dev) !== expectedParent.device ||
+      String(parentAfter.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+    return { state: "valid", contents };
+  } finally {
+    if (fileDescriptor !== null) closeSync(fileDescriptor);
+    closeSync(parentDescriptor);
+  }
+}
+
+function staleDecommissionSnapshotContents(snapshot) {
+  if (
+    !isObject(snapshot) ||
+    snapshot.material?.state !== "valid" ||
+    typeof snapshot.contents !== "string" ||
+    sha256(snapshot.contents) !== snapshot.material.sha256
+  ) throw staleCheckoutDecommissionRefused();
+  return snapshot.contents;
+}
+
+function parseStaleDecommissionJsonSnapshot(snapshot) {
+  try {
+    return JSON.parse(staleDecommissionSnapshotContents(snapshot));
+  } catch (error) {
+    if (error instanceof PublicCompanionServiceError) throw error;
+    throw staleCheckoutDecommissionRefused();
+  }
+}
+
+function criticalManagerStateProjection(managerState) {
+  if (managerState === null) return null;
+  if (!isObject(managerState)) throw staleCheckoutDecommissionRefused();
+  const { updated_at: ignoredUpdatedAt, ...critical } = managerState;
+  void ignoredUpdatedAt;
+  return critical;
+}
+
+function maybeRunStaleDecommissionStageHook({
+  layout,
+  hook,
+  stage,
+  snapshotKind,
+  attempt = null,
+}) {
+  if (hook === null) return;
+  if (!layout.test || typeof hook !== "function") {
+    throw staleCheckoutDecommissionRefused();
+  }
+  const result = hook(Object.freeze({
+    stage,
+    snapshot_kind: snapshotKind,
+    attempt,
+  }));
+  if (result !== undefined) throw staleCheckoutDecommissionRefused();
+}
+
+function captureCoherentStaleDecommissionLiveSnapshot({
+  layout,
+  snapshotKind,
+  testStaleDecommissionStageHook,
+}) {
+  const paths = staleDecommissionMaterialPaths(layout);
+  const maxAttempts = snapshotKind === "post_quiescence"
+    ? 1
+    : STALE_DECOMMISSION_LIVE_SNAPSHOT_MAX_ATTEMPTS;
+  for (
+    let attempt = 1;
+    attempt <= maxAttempts;
+    attempt += 1
+  ) {
+    let managerStateA;
+    let snapshots;
+    let managerStateB;
+    try {
+      managerStateA = captureStaleDecommissionMaterialSnapshot(
+        paths.manager_state,
+        staleDecommissionAnchorForFile(layout, paths.manager_state),
+      );
+      maybeRunStaleDecommissionStageHook({
+        layout,
+        hook: testStaleDecommissionStageHook,
+        stage: "live_snapshot_after_manager_state_a",
+        snapshotKind,
+        attempt,
+      });
+      snapshots = captureStaleDecommissionMaterialSnapshots(
+        layout,
+        STALE_DECOMMISSION_LIVE_MATERIAL_KEYS.filter(
+          (key) => key !== "manager_state",
+        ),
+      );
+      managerStateB = captureStaleDecommissionMaterialSnapshot(
+        paths.manager_state,
+        staleDecommissionAnchorForFile(layout, paths.manager_state),
+      );
+    } catch (error) {
+      if (
+        error instanceof PublicCompanionServiceError &&
+        error.code === "companion_service_stale_checkout_decommission_refused"
+      ) {
+        if (attempt < maxAttempts) continue;
+        throw staleCheckoutDecommissionRefused("live_snapshot_unstable");
+      }
+      throw error;
+    }
+    const parsedA = managerStateA.material.state === "valid"
+      ? parseStaleDecommissionJsonSnapshot(managerStateA)
+      : null;
+    const parsedB = managerStateB.material.state === "valid"
+      ? parseStaleDecommissionJsonSnapshot(managerStateB)
+      : null;
+    const criticalA = criticalManagerStateProjection(parsedA);
+    const criticalB = criticalManagerStateProjection(parsedB);
+    if (JSON.stringify(criticalA) === JSON.stringify(criticalB)) {
+      return {
+        snapshots: { ...snapshots, manager_state: managerStateB },
+        manager_state: parsedB,
+        critical_projection: criticalB,
+      };
+    }
+  }
+  throw staleCheckoutDecommissionRefused("live_snapshot_unstable");
+}
+
+function readExactStaleDecommissionLaunchJob(
+  layout,
+  configuration,
+  launchctl,
+) {
+  const result = launchctl([
+    "print",
+    `gui/${currentUid()}/${layout.service_label}`,
+  ]);
+  if (result.status !== 0) return null;
+  const output = typeof result.stdout === "string"
+    ? result.stdout
+    : Buffer.isBuffer(result.stdout)
+      ? result.stdout.toString("utf8")
+      : "";
+  const pathValue = launchctlPrintScalar(output, "path");
+  const program = launchctlPrintScalar(output, "program");
+  const workingDirectory = launchctlPrintScalar(output, "working directory");
+  const label = launchctlPrintLabel(output);
+  const pidText = launchctlPrintScalar(output, "pid");
+  const pid = pidText === null ? null : Number(pidText);
+  const args = launchctlPrintArguments(output);
+  const job = {
+    label,
+    path: pathValue,
+    program,
+    arguments: args,
+    working_directory: workingDirectory,
+    pid: Number.isInteger(pid) && pid > 0 ? pid : null,
+    fingerprint: "",
+  };
+  job.fingerprint = staleDecommissionLaunchJobFingerprint(job);
+  if (!validStaleDecommissionLaunchJob(job, configuration)) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  return job;
+}
+
+function launchctlPrintScalar(output, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = output.match(
+    new RegExp(`^\\s*${escaped}\\s*=\\s*(.+?)\\s*$`, "mu"),
+  );
+  return match?.[1] ?? null;
+}
+
+function launchctlPrintLabel(output) {
+  const match = output.match(/^\s*([^\s=]+)\s*=\s*\{\s*$/mu);
+  return match?.[1]?.split("/").at(-1) ?? null;
+}
+
+function launchctlPrintArguments(output) {
+  const lines = output.split("\n");
+  const start = lines.findIndex((line) => /^\s*arguments\s*=\s*\{\s*$/u.test(line));
+  if (start < 0) return null;
+  const values = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (line === "}") return values;
+    if (line.length === 0) continue;
+    values.push(line.replace(/^\d+\s*=\s*/u, ""));
+  }
+  return null;
+}
+
+function captureStaleCheckoutDecommissionProcess(pid, identity) {
+  if (
+    !Number.isInteger(pid) ||
+    pid <= 0 ||
+    !/^[a-f0-9]{64}$/u.test(identity ?? "")
+  ) throw staleCheckoutDecommissionRefused();
+  const current = readProcessBirthIdentity(pid);
+  if (current.state === "unavailable") throw staleCheckoutDecommissionRefused();
+  if (current.state === "present" && current.identity !== identity) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  return {
+    pid,
+    identity,
+    state: current.state === "present" ? "present" : "absent",
+  };
+}
+
+function captureStaleCheckoutDecommissionProcessGroup(group) {
+  const remaining = exactProcessGroupMembersStillPresent(group);
+  const current = captureProcessGroupMembers(group.process_group);
+  if (
+    current.length !== remaining.length ||
+    current.some((member, index) =>
+      member.pid !== remaining[index].pid ||
+      member.identity !== remaining[index].identity
+    )
+  ) throw staleCheckoutDecommissionRefused();
+  return { ...group, present_members: remaining };
+}
+
+function captureStaleDecommissionOwnedProcesses({
+  configuration,
+  launchJob,
+  snapshots,
+  managerState,
+}) {
+  const materials = staleDecommissionMaterialsFromSnapshots(snapshots);
+  const managerLock = materials.manager_lock.state === "valid"
+    ? parseStaleDecommissionJsonSnapshot(snapshots.manager_lock)
+    : null;
+  const runtimeKeys = [
+    "runtime_manifest",
+    "runtime_token",
+    "runtime_access",
+    "runtime_lock",
+  ];
+  const runtimeMissing = runtimeKeys.every(
+    (key) => materials[key].state === "missing",
+  ) && materials.runtime_bridge_environment.state === "missing";
+  if (managerState === null) {
+    if (launchJob !== null || managerLock !== null || !runtimeMissing) {
+      throw staleCheckoutDecommissionRefused();
+    }
+    return { processes: [], process_groups: [] };
+  }
+  if (
+    !structurallyExactManagerState(managerState, configuration) ||
+    ![
+      "installed_stopped",
+      "starting",
+      "live",
+      "maintenance",
+      "recovery_required",
+    ].includes(managerState.status) ||
+    typeof managerState.reason !== "string" ||
+    managerState.reason.length === 0
+  ) throw staleCheckoutDecommissionRefused();
+  if (
+    managerLock !== null &&
+    (!validManagerLock(managerLock, configuration) ||
+      managerLock.owner_pid !== managerState.manager_pid ||
+      managerLock.owner_process_identity !==
+        managerState.manager_process_identity)
+  ) throw staleCheckoutDecommissionRefused();
+
+  const manager = captureStaleCheckoutDecommissionProcess(
+    managerState.manager_pid,
+    managerState.manager_process_identity,
+  );
+  if (
+    manager.state === "present" &&
+    (launchJob === null || launchJob.pid !== manager.pid || managerLock === null)
+  ) throw staleCheckoutDecommissionRefused();
+  const hasSupervisor = managerState.supervisor_pid !== null ||
+    managerState.supervisor_process_identity !== null;
+  let supervisor = null;
+  if (hasSupervisor) {
+    supervisor = captureStaleCheckoutDecommissionProcess(
+      managerState.supervisor_pid,
+      managerState.supervisor_process_identity,
+    );
+    if (runtimeMissing && supervisor.state === "present") {
+      throw staleCheckoutDecommissionRefused();
+    }
+    if (
+      supervisor.state === "present" &&
+      (manager.state !== "present" ||
+        !processIsDescendantOf(supervisor.pid, manager.pid))
+    ) throw staleCheckoutDecommissionRefused();
+  }
+
+  const owned = [];
+  const processGroups = [];
+  if (launchJob !== null && launchJob.pid !== null) {
+    const launched = readProcessBirthIdentity(launchJob.pid);
+    if (launched.state === "unavailable") {
+      throw staleCheckoutDecommissionRefused();
+    }
+    if (launched.state === "present") {
+      owned.push({ pid: launchJob.pid, identity: launched.identity });
+    }
+  }
+  if (manager.state === "present") owned.push({
+    pid: manager.pid,
+    identity: manager.identity,
+  });
+  if (supervisor?.state === "present") owned.push({
+    pid: supervisor.pid,
+    identity: supervisor.identity,
+  });
+  if (supervisor?.state === "present") {
+    const group = captureExactProcessGroup(
+      supervisor.pid,
+      supervisor.identity,
+    );
+    processGroups.push({
+      role: "supervisor",
+      pid: supervisor.pid,
+      identity: supervisor.identity,
+      process_group: group.process_group,
+      members: group.members,
+    });
+  }
+
+  if (runtimeMissing && managerState.runtime_ownership !== null) {
+    if (!validManagerRuntimeOwnership(managerState.runtime_ownership)) {
+      throw staleCheckoutDecommissionRefused();
+    }
+    for (const group of managerState.runtime_ownership.process_groups) {
+      if (captureStaleCheckoutDecommissionProcessGroup(group).present_members.length > 0) {
+        throw staleCheckoutDecommissionRefused();
+      }
+    }
+  }
+
+  if (!runtimeMissing) {
+    const manifest = parseStaleDecommissionJsonSnapshot(
+      snapshots.runtime_manifest,
+    );
+    const token = parseStaleDecommissionJsonSnapshot(snapshots.runtime_token);
+    const access = parseStaleDecommissionJsonSnapshot(
+      snapshots.runtime_access,
+    );
+    const lock = parseStaleDecommissionJsonSnapshot(snapshots.runtime_lock);
+    const environmentMaterial = materials.runtime_bridge_environment;
+    if (
+      !validRuntimeManifest(manifest, configuration) ||
+      !validRuntimeToken(token, manifest) ||
+      !validRuntimeAccess(access, manifest) ||
+      !validRuntimeLock(lock, manifest) ||
+      environmentMaterial.state === "valid" &&
+        staleDecommissionSnapshotContents(
+          snapshots.runtime_bridge_environment,
+        ) !== "" ||
+      managerState.supervisor_pid !== manifest.supervisor_pid ||
+      managerState.runtime_ownership?.generation_id !== manifest.generation_id ||
+      managerState.runtime_ownership?.instance_id !== manifest.instance_id ||
+      !validManagerRuntimeOwnership(managerState.runtime_ownership)
+    ) throw staleCheckoutDecommissionRefused();
+    const children = new Map(
+      manifest.children.map((child) => [child?.role, child]),
+    );
+    for (const group of managerState.runtime_ownership.process_groups) {
+      if (children.get(group.role)?.pid !== group.pid) {
+        throw staleCheckoutDecommissionRefused();
+      }
+      const captured = captureStaleCheckoutDecommissionProcessGroup(group);
+      for (const member of captured.present_members) {
+        owned.push({ pid: member.pid, identity: member.identity });
+      }
+      if (captured.present_members.length > 0) {
+        processGroups.push({
+          role: group.role,
+          pid: group.pid,
+          identity: group.identity,
+          process_group: group.process_group,
+          members: captured.present_members,
+        });
+      }
+    }
+  }
+  const unique = new Map(owned.map((entry) => [
+    `${entry.pid}:${entry.identity}`,
+    entry,
+  ]));
+  return {
+    processes: [...unique.values()].sort((left, right) => left.pid - right.pid),
+    process_groups: processGroups,
+  };
+}
+
+function assertStaleCheckoutDecommissionRecordCurrent(record, layout) {
+  if (!validStaleCheckoutDecommissionRecord(record, layout)) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  const paths = staleDecommissionMaterialPaths(layout);
+  for (const key of STALE_DECOMMISSION_MATERIAL_KEYS) {
+    const expected = record.materials[key];
+    const current = readStaleDecommissionMaterialForReplay(
+      paths[key],
+      expected,
+      layout,
+    );
+    if (
+      current.state === "valid" &&
+      (expected.state !== "valid" || current.sha256 !== expected.sha256)
+    ) throw staleCheckoutDecommissionRefused();
+  }
+  const stored = readBoundedRegularText(
+    layout.stale_decommission_path,
+    record.materials.configuration.parent,
+    staleDecommissionAnchor(layout),
+  );
+  if (
+    stored.state !== "valid" ||
+    JSON.stringify(JSON.parse(stored.contents)) !== JSON.stringify(record)
+  ) throw staleCheckoutDecommissionRefused();
+}
+
+function readStaleDecommissionMaterialForReplay(file, expected, layout) {
+  if (expected.parent === null) {
+    const parent = captureStaleDecommissionParent(
+      path.dirname(file),
+      staleDecommissionAnchorForFile(layout, file),
+    );
+    if (parent === null) return { state: "missing" };
+    const current = readBoundedRegularText(
+      file,
+      parent,
+      staleDecommissionAnchorForFile(layout, file),
+    );
+    return current.state === "missing"
+      ? { state: "missing" }
+      : { state: "unexpected" };
+  }
+  const current = readBoundedRegularText(
+    file,
+    expected.parent,
+    staleDecommissionAnchorForFile(layout, file),
+  );
+  if (current.state === "missing") return { state: "missing" };
+  if (current.state !== "valid") throw staleCheckoutDecommissionRefused();
+  return { state: "valid", sha256: sha256(current.contents) };
+}
+
+function assertExactLoadedLaunchJob(record, layout, launchctl) {
+  const current = readExactStaleDecommissionLaunchJob(
+    layout,
+    record.configuration,
+    launchctl,
+  );
+  if (
+    current === null ||
+    current.fingerprint !== record.launch_job.fingerprint
+  ) throw staleCheckoutDecommissionRefused();
+  return current;
+}
+
+function bootoutExactStaleLaunchJobDefinition(record, layout, launchctl) {
+  const material = record.materials.launch_agent;
+  if (material.state !== "valid") throw staleCheckoutDecommissionRefused();
+  const expected = buildLaunchAgentPlist(record.configuration);
+  const anchor = staleDecommissionAnchorForFile(
+    layout,
+    layout.launch_agent_path,
+  );
+  const current = readBoundedRegularText(
+    layout.launch_agent_path,
+    material.parent,
+    anchor,
+  );
+  if (
+    current.state !== "valid" ||
+    current.contents !== expected ||
+    sha256(current.contents) !== material.sha256
+  ) throw staleCheckoutDecommissionRefused();
+  const helperParent = record.materials.configuration.parent;
+  if (helperParent === null) throw staleCheckoutDecommissionRefused();
+  const helperName = `.stale-decommission-launch-agent-${randomUUID()}.plist`;
+  const helperPath = path.join(layout.service_directory, helperName);
+  const helperContents = buildStaleDecommissionLaunchAgentPlist(
+    record.configuration.service_label,
+  );
+  const helperSha256 = sha256(helperContents);
+  assertStaleDecommissionPathChain(
+    staleDecommissionAnchor(layout),
+    layout.service_directory,
+    false,
+  );
+  let helperCreated = false;
+  createExclusiveStaleDecommissionMaterial(
+    layout,
+    helperParent,
+    helperPath,
+    helperContents,
+  );
+  helperCreated = true;
+  try {
+    const helper = readBoundedRegularText(
+      helperPath,
+      helperParent,
+      staleDecommissionAnchor(layout),
+    );
+    if (
+      helper.state !== "valid" ||
+      helper.contents !== helperContents ||
+      sha256(helper.contents) !== helperSha256
+    ) throw staleCheckoutDecommissionRefused();
+    return launchctl([
+      "bootout",
+      `gui/${currentUid()}`,
+      helperPath,
+    ]);
+  } finally {
+    if (helperCreated) {
+      unlinkBoundedOwnedFile(
+        helperPath,
+        helperParent,
+        staleDecommissionAnchor(layout),
+        helperSha256,
+        layout,
+        "launch_definition_helper",
+      );
+    }
+  }
+}
+
+function buildStaleDecommissionLaunchAgentPlist(serviceLabel) {
+  if (
+    typeof serviceLabel !== "string" ||
+    !serviceLabel.startsWith(`${SERVICE_LABEL_PREFIX}.`)
+  ) throw staleCheckoutDecommissionRefused();
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    "<dict>",
+    "  <key>Label</key>",
+    `  <string>${xml(serviceLabel)}</string>`,
+    "</dict>",
+    "</plist>",
+    "",
+  ].join("\n");
+}
+
+async function stopStaleDecommissionOwnedProcessGroups(processGroups) {
+  for (const group of processGroups) {
+    await stopExactProcessGroup({
+      pid: group.pid,
+      identity: group.identity,
+      processGroup: group.process_group,
+      members: group.members,
+      timeoutMs: 8_000,
+      errorPrefix: `companion_service_stale_checkout_${group.role}`,
+    });
+  }
+}
+
+async function waitForStaleDecommissionProcessesAbsent(
+  record,
+  waitMs,
+  additionalProcess = null,
+) {
+  const deadline = Date.now() + waitMs;
+  const processes = additionalProcess === null
+    ? record.owned_processes
+    : [...record.owned_processes, additionalProcess];
+  while (true) {
+    let active = false;
+    for (const entry of processes) {
+      const current = readProcessBirthIdentity(entry.pid);
+      if (current.state === "present" && current.identity !== entry.identity) {
+        throw staleCheckoutDecommissionRefused();
+      }
+      if (current.state === "unavailable") {
+        throw staleCheckoutDecommissionRefused();
+      }
+      if (current.state === "present") active = true;
+    }
+    if (!active) return;
+    if (Date.now() >= deadline) {
+      throw new PublicCompanionServiceError(
+        "companion_service_stale_checkout_residual_process_active",
+      );
+    }
+    await delay(25);
+  }
+}
+
+function removeStaleDecommissionMaterial(
+  record,
+  layout,
+  materialKey,
+  testBeforeUnlink,
+  testSwapInsideUnlinkMaterial,
+) {
+  const file = staleDecommissionMaterialPaths(layout)[materialKey];
+  const expected = record.materials[materialKey];
+  const current = readStaleDecommissionMaterialForReplay(
+    file,
+    expected,
+    layout,
+  );
+  if (current.state === "missing") return;
+  if (
+    current.state !== "valid" ||
+    expected.state !== "valid" ||
+    current.sha256 !== expected.sha256
+  ) throw staleCheckoutDecommissionRefused();
+  unlinkBoundedOwnedFile(
+    file,
+    expected.parent,
+    staleDecommissionAnchorForFile(layout, file),
+    expected.sha256,
+    layout,
+    materialKey,
+    testBeforeUnlink,
+    testSwapInsideUnlinkMaterial,
+  );
+}
+
+function unlinkBoundedOwnedFile(
+  file,
+  expectedParent,
+  anchor,
+  expectedSha256,
+  layout,
+  materialKey,
+  testBeforeUnlink = null,
+  testSwapInsideUnlinkMaterial = null,
+) {
+  assertStaleDecommissionPathChain(anchor, path.dirname(file), false);
+  const parentDescriptor = openSync(
+    path.dirname(file),
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  );
+  try {
+    const parentStats = fstatSync(parentDescriptor, { bigint: true });
+    if (
+      String(parentStats.dev) !== expectedParent.device ||
+      String(parentStats.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+    if (testBeforeUnlink !== null) {
+      if (!layout.test || typeof testBeforeUnlink !== "function") {
+        throw staleCheckoutDecommissionRefused();
+      }
+      testBeforeUnlink({ material_key: materialKey, file });
+    }
+    if (
+      testSwapInsideUnlinkMaterial !== null &&
+      (!layout.test ||
+        !STALE_DECOMMISSION_MATERIAL_KEYS.includes(
+          testSwapInsideUnlinkMaterial,
+        ))
+    ) throw staleCheckoutDecommissionRefused();
+    assertTrustedStaleDecommissionUnlinkHelper();
+    const result = spawnSync(
+      "/usr/bin/python3",
+      [
+        "-I",
+        "-S",
+        "-c",
+        STALE_DECOMMISSION_UNLINK_HELPER,
+        path.basename(file),
+        expectedParent.device,
+        expectedParent.inode,
+        expectedSha256,
+        testSwapInsideUnlinkMaterial === materialKey ? "1" : "0",
+      ],
+      {
+        encoding: "utf8",
+        timeout: 5_000,
+        env: { PATH: "/usr/bin:/bin" },
+        stdio: ["ignore", "ignore", "ignore", parentDescriptor],
+      },
+    );
+    if (result.status !== 0) throw staleCheckoutDecommissionRefused();
+  } finally {
+    closeSync(parentDescriptor);
+  }
+}
+
+function assertTrustedStaleDecommissionUnlinkHelper() {
+  try {
+    const stats = lstatSync("/usr/bin/python3");
+    if (
+      !stats.isFile() ||
+      stats.isSymbolicLink() ||
+      stats.uid !== 0 ||
+      (stats.mode & 0o022) !== 0
+    ) throw staleCheckoutDecommissionRefused();
+  } catch (error) {
+    if (error instanceof PublicCompanionServiceError) throw error;
+    throw staleCheckoutDecommissionRefused();
+  }
+}
+
+function createExclusiveStaleDecommissionRecord(layout, record) {
+  const expectedParent = record.materials.configuration.parent;
+  createExclusiveStaleDecommissionMaterial(
+    layout,
+    expectedParent,
+    layout.stale_decommission_path,
+    `${JSON.stringify(record)}\n`,
+  );
+}
+
+function createExclusiveStaleDecommissionMaterial(
+  layout,
+  expectedParent,
+  destination,
+  contents,
+) {
+  const anchor = staleDecommissionAnchor(layout);
+  if (
+    expectedParent === null ||
+    !path.isAbsolute(destination) ||
+    path.dirname(destination) !== layout.service_directory ||
+    typeof contents !== "string" ||
+    contents.length > MAX_JSON_BYTES
+  ) throw staleCheckoutDecommissionRefused();
+  assertStaleDecommissionPathChain(
+    anchor,
+    layout.service_directory,
+    false,
+  );
+  const parentDescriptor = openSync(
+    layout.service_directory,
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  );
+  try {
+    const parentStats = fstatSync(parentDescriptor, { bigint: true });
+    if (
+      String(parentStats.dev) !== expectedParent.device ||
+      String(parentStats.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+    assertTrustedStaleDecommissionUnlinkHelper();
+    const temporary = `.stale-decommission-${randomUUID()}.tmp`;
+    const result = spawnSync(
+      "/usr/bin/python3",
+      [
+        "-I",
+        "-S",
+        "-c",
+        STALE_DECOMMISSION_CREATE_HELPER,
+        temporary,
+        path.basename(destination),
+      ],
+      {
+        input: contents,
+        encoding: "utf8",
+        timeout: 5_000,
+        env: { PATH: "/usr/bin:/bin" },
+        stdio: ["pipe", "ignore", "ignore", parentDescriptor],
+      },
+    );
+    if (result.status !== 0) throw staleCheckoutDecommissionRefused();
+  } finally {
+    closeSync(parentDescriptor);
+  }
+}
+
+function removeStaleDecommissionRecord(record, layout) {
+  const parent = record.materials.configuration.parent;
+  const current = readBoundedRegularText(
+    layout.stale_decommission_path,
+    parent,
+    staleDecommissionAnchor(layout),
+  );
+  if (
+    current.state !== "valid" ||
+    JSON.stringify(JSON.parse(current.contents)) !== JSON.stringify(record)
+  ) throw staleCheckoutDecommissionRefused();
+  unlinkBoundedOwnedFile(
+    layout.stale_decommission_path,
+    parent,
+    staleDecommissionAnchor(layout),
+    sha256(current.contents),
+    layout,
+    "journal",
+  );
+}
+
+function assertNoStaleDecommissionHelperResidue(record, layout) {
+  const paths = staleDecommissionMaterialPaths(layout);
+  const parents = new Map();
+  for (const key of STALE_DECOMMISSION_MATERIAL_KEYS) {
+    const expectedParent = record.materials[key].parent;
+    if (expectedParent === null) continue;
+    parents.set(path.dirname(paths[key]), expectedParent);
+  }
+  for (const [directory, expectedParent] of parents) {
+    assertStaleDecommissionPathChain(
+      directory === path.dirname(layout.launch_agent_path)
+        ? layout.home
+        : staleDecommissionAnchor(layout),
+      directory,
+      false,
+    );
+    const before = lstatSync(directory, { bigint: true });
+    if (
+      before.isSymbolicLink() ||
+      String(before.dev) !== expectedParent.device ||
+      String(before.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+    const residue = readdirSync(directory).some((name) =>
+      name.startsWith(".stale-decommission-quarantine-") ||
+      name.startsWith(".stale-decommission-launch-agent-") ||
+      /^\.stale-decommission-[a-f0-9-]+\.tmp$/u.test(name)
+    );
+    const after = lstatSync(directory, { bigint: true });
+    if (
+      residue ||
+      after.isSymbolicLink() ||
+      String(after.dev) !== expectedParent.device ||
+      String(after.ino) !== expectedParent.inode
+    ) throw staleCheckoutDecommissionRefused();
+  }
+}
+
+function maybeInjectStaleDecommissionTestFault(layout, expected, step) {
+  if (expected === null) return;
+  if (!layout.test || !["journal", "bootout", ...STALE_DECOMMISSION_MATERIAL_KEYS].includes(expected)) {
+    throw staleCheckoutDecommissionRefused();
+  }
+  if (expected === step) {
+    throw new PublicCompanionServiceError(
+      "companion_service_stale_decommission_test_fault",
+    );
+  }
+}
+
 async function inspectVerifiedRuntime({ layout, configuration }) {
   const manifest = readRegularJson(layout.runtime_manifest_path);
   const token = readRegularJson(layout.runtime_token_path);
@@ -2510,7 +4343,18 @@ async function fetchBoundedJson(url, { headers = undefined } = {}) {
 }
 
 function classifyMaintenanceLease({ leasePath, configuration, now = () => Date.now() }) {
-  const result = readRegularJson(leasePath);
+  return classifyMaintenanceLeaseResult({
+    result: readRegularJson(leasePath),
+    configuration,
+    now,
+  });
+}
+
+function classifyMaintenanceLeaseResult({
+  result,
+  configuration,
+  now = () => Date.now(),
+}) {
   if (result.state === "missing") return { status: "none", lease: null };
   if (result.state !== "valid" || !validMaintenanceLease(result.value, configuration)) {
     return { status: "ambiguous", lease: result.value ?? null };
@@ -3355,6 +5199,35 @@ function observeRepository(repositoryRoot) {
   };
 }
 
+function applyTestRepositoryPhysicalIdentityOverride({
+  repository,
+  test,
+  testScope,
+  override,
+}) {
+  if (override === null) return repository;
+  if (
+    test === null ||
+    typeof testScope !== "string" ||
+    test.scope !== testScope ||
+    !isObject(override) ||
+    Object.keys(override).length !== 2 ||
+    !Object.hasOwn(override, "device") ||
+    !Object.hasOwn(override, "inode") ||
+    !validCanonicalInstalledStatIdentity(override.device) ||
+    !validCanonicalInstalledStatIdentity(override.inode, true)
+  ) {
+    throw new PublicCompanionServiceError(
+      "companion_service_test_physical_identity_override_refused",
+    );
+  }
+  return {
+    ...repository,
+    device: override.device,
+    inode: override.inode,
+  };
+}
+
 function resolveHome(environment, homeDirectory) {
   const value = homeDirectory ?? environment.HOME ?? os.homedir();
   if (typeof value !== "string" || !path.isAbsolute(value)) {
@@ -3452,7 +5325,16 @@ function lifecycleCommandResult(command, observation, changed) {
   };
 }
 
-function serviceNextAction(status) {
+function serviceNextAction(status, reason = null) {
+  if (
+    status === "recovery_required" &&
+    [
+      "companion_service_checkout_identity_changed",
+      "companion_service_stale_decommission_incomplete",
+    ].includes(reason)
+  ) {
+    return "Decommission the stale Companion service explicitly.";
+  }
   const values = {
     unsupported: "Use a supported macOS user session.",
     not_installed: "Install Augnes Companion service for this checkout.",
@@ -3511,6 +5393,14 @@ function launchctlLoaded(layout, launchctl) {
     "print",
     `gui/${currentUid()}/${layout.service_label}`,
   ]).status === 0;
+}
+
+async function waitForLaunchctlUnloaded(layout, launchctl, waitMs) {
+  const deadline = Date.now() + waitMs;
+  while (launchctlLoaded(layout, launchctl) && Date.now() < deadline) {
+    await delay(25);
+  }
+  return !launchctlLoaded(layout, launchctl);
 }
 
 function defaultLaunchctl(args) {

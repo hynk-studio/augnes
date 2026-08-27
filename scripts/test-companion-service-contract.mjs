@@ -10,9 +10,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -77,6 +80,64 @@ try {
   ]);
   const layout = resolveCompanionServiceLayout(options);
   assert.deepEqual(resolveCompanionServiceLayout(options), layout);
+  const physicalIdentityOverride = {
+    device: layout.repository.device,
+    inode: differentCanonicalStatIdentity(layout.repository.inode),
+  };
+  const overriddenLayout = resolveCompanionServiceLayout({
+    ...options,
+    testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+  });
+  assert.equal(overriddenLayout.repository.realpath, layout.repository.realpath);
+  assert.equal(
+    overriddenLayout.repository.repository_fingerprint,
+    layout.repository.repository_fingerprint,
+  );
+  assert.equal(overriddenLayout.service_identity, layout.service_identity);
+  assert.equal(overriddenLayout.service_label, layout.service_label);
+  assert.equal(overriddenLayout.repository.device, physicalIdentityOverride.device);
+  assert.equal(overriddenLayout.repository.inode, physicalIdentityOverride.inode);
+  for (const override of [
+    { device: "123-changed", inode: "1" },
+    { device: "-1", inode: "1" },
+    { device: "+1", inode: "1" },
+    { device: " 1", inode: "1" },
+    { device: "1 ", inode: "1" },
+    { device: "device", inode: "1" },
+    { device: "", inode: "1" },
+    { device: "01", inode: "1" },
+    { device: "1", inode: "0" },
+    { inode: "1" },
+    { device: "1" },
+    { device: "1", inode: "2", root: repositoryRoot },
+  ]) {
+    assert.throws(
+      () => resolveCompanionServiceLayout({
+        ...options,
+        testRepositoryPhysicalIdentityOverride: override,
+      }),
+      (error) => error?.code ===
+        "companion_service_test_physical_identity_override_refused",
+    );
+  }
+  assert.throws(
+    () => resolveCompanionServiceLayout({
+      repositoryRoot,
+      environment: { ...process.env },
+      homeDirectory: home,
+      testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+    }),
+    (error) => error?.code ===
+      "companion_service_test_physical_identity_override_refused",
+  );
+  await assert.rejects(
+    installCompanionService({
+      ...options,
+      testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+    }),
+    (error) => error?.code ===
+      "companion_service_test_physical_identity_override_refused",
+  );
   const otherScope = resolveCompanionServiceLayout({
     ...options,
     environment: {
@@ -524,6 +585,12 @@ try {
   assert.equal(uninstalledFixture.service.status, "not_installed");
   assert.equal(existsSync(stoppedFixture.layout.desired_state_path), false);
 
+  const staleDecommission = await runStaleCheckoutDecommissionContract({
+    root,
+    repositoryRoot,
+    node,
+  });
+
   const singletonRoot = path.join(root, "singleton");
   const singletonHome = path.join(singletonRoot, "home");
   const repositoryA = makeServiceRepositoryFixture({
@@ -621,6 +688,34 @@ try {
     "apps/augnes_apps",
     "node_modules",
   ]) assert.equal(coreSource.includes(forbiddenImport), false, forbiddenImport);
+  assert.equal(
+    coreSource.match(
+      /"\/usr\/bin\/python3",\s*\[\s*"-I",\s*"-S",\s*"-c"/gu,
+    )?.length,
+    2,
+  );
+  const pythonIsolationRoot = path.join(root, "python-isolation");
+  const pythonIsolationMarker = path.join(pythonIsolationRoot, "site-loaded");
+  mkdirSync(pythonIsolationRoot, { recursive: true, mode: 0o700 });
+  writeFileSync(
+    path.join(pythonIsolationRoot, "sitecustomize.py"),
+    `from pathlib import Path\nPath(${JSON.stringify(pythonIsolationMarker)}).write_text("loaded")\n`,
+    { mode: 0o600 },
+  );
+  const isolatedPython = spawnSync(
+    "/usr/bin/python3",
+    ["-I", "-S", "-c", "pass"],
+    {
+      cwd: pythonIsolationRoot,
+      encoding: "utf8",
+      env: {
+        PATH: "/usr/bin:/bin",
+        PYTHONPATH: pythonIsolationRoot,
+      },
+    },
+  );
+  assert.equal(isolatedPython.status, 0, isolatedPython.stderr);
+  assert.equal(existsSync(pythonIsolationMarker), false);
   const sampleConfiguration = {
     service_label: layout.service_label,
     node_path: node.path,
@@ -772,6 +867,7 @@ try {
     stale_source_maintenance_requires_exact_none: true,
     stale_source_public_projection_unchanged: true,
     desired_state_exact_uninstall_cleanup: true,
+    stale_checkout_decommission_cases: staleDecommission,
     production_singleton_foreign_install_and_start_refused: true,
     production_singleton_zero_foreign_mutation: true,
     test_scoped_service_singleton_exempt: true,
@@ -779,6 +875,7 @@ try {
     public_projection_private_fields: 0,
     arbitrary_command_or_label_inputs: 0,
     manager_node_module_imports: 0,
+    stale_decommission_helper_isolated_from_user_site: true,
     supervisor_failure_origins_bounded: true,
     supervisor_failure_exit_observation_bounded: true,
     supervisor_failure_attempt_tail_isolated: true,
@@ -853,6 +950,1175 @@ function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredSt
     mode: 0o600,
   });
   return { layout, configuration, desiredState: desiredStateRecord };
+}
+
+async function runStaleCheckoutDecommissionContract({
+  root: fixtureRoot,
+  repositoryRoot: fixtureRepositoryRoot,
+  node,
+}) {
+  const stateRoot = path.join(fixtureRoot, "stale-checkout-decommission");
+  const makeOptions = (scope) => ({
+    repositoryRoot: fixtureRepositoryRoot,
+    homeDirectory: path.join(stateRoot, scope, "home"),
+    environment: {
+      ...process.env,
+      AUGNES_COMPANION_SERVICE_TEST_MODE: "1",
+      AUGNES_COMPANION_SERVICE_TEST_ROOT: stateRoot,
+      AUGNES_COMPANION_SERVICE_TEST_SCOPE: scope,
+    },
+    testScope: scope,
+  });
+  const writeStaleFixture = ({
+    scope,
+    desiredState = "stopped",
+    changed = "inode",
+    overrides = {},
+  }) => {
+    const fixtureOptions = makeOptions(scope);
+    const fixture = writeInstalledServiceFixture({
+      options: fixtureOptions,
+      node,
+      desiredState,
+    });
+    const configuration = {
+      ...fixture.configuration,
+      ...(changed === "device"
+        ? {
+            repository_device: differentCanonicalStatIdentity(
+              fixture.configuration.repository_device,
+            ),
+          }
+        : {
+            repository_inode: differentCanonicalStatIdentity(
+              fixture.configuration.repository_inode,
+            ),
+          }),
+      ...overrides,
+    };
+    writeJson(fixture.layout.configuration_path, configuration);
+    return { ...fixture, options: fixtureOptions, configuration };
+  };
+  const makeLaunchctl = (
+    initiallyLoaded = false,
+    configuration = null,
+    jobOverrides = {},
+  ) => {
+    let loaded = initiallyLoaded;
+    const actions = [];
+    return {
+      actions,
+      launchctl: (args) => {
+        actions.push([...args]);
+        if (args[0] === "bootout") loaded = false;
+        if (args[0] === "bootstrap" || args[0] === "kickstart") loaded = true;
+        if (args[0] !== "print") return { status: 0, stdout: "" };
+        if (!loaded) return { status: 113, stdout: "" };
+        assert.notEqual(configuration, null);
+        const job = {
+          label: configuration.service_label,
+          path: configuration.launch_agent_path,
+          program: configuration.node_path,
+          arguments: [
+            configuration.node_path,
+            configuration.manager_entry_path,
+            "run",
+            "--config",
+            configuration.configuration_path,
+          ],
+          working_directory: configuration.repository_root,
+          ...jobOverrides,
+        };
+        return {
+          status: 0,
+          stdout: [
+            `gui/${process.getuid()}/${job.label} = {`,
+            `\tpath = ${job.path}`,
+            `\tprogram = ${job.program}`,
+            "\targuments = {",
+            ...job.arguments.map((value) => `\t\t${value}`),
+            "\t}",
+            `\tworking directory = ${job.working_directory}`,
+            "}",
+            "",
+          ].join("\n"),
+        };
+      },
+    };
+  };
+  const assertStaleProjection = async (fixture, launchctl) => {
+    const observation = await inspectCompanionService({
+      ...fixture.options,
+      launchctl,
+    });
+    assert.equal(observation.status, "recovery_required");
+    assert.equal(observation.checkout_relation, "substituted_or_moved");
+    assert.equal(
+      observation.reason,
+      "companion_service_checkout_identity_changed",
+    );
+    const projection = publicCompanionServiceProjection(observation);
+    assert.equal(projection.start_available, false);
+    assert.equal(projection.canonical_resume_available, false);
+    assert.equal(
+      projection.next_action,
+      "Decommission the stale Companion service explicitly.",
+    );
+    const serialized = JSON.stringify(projection);
+    for (const forbidden of [
+      fixtureRepositoryRoot,
+      fixtureRoot,
+      fixture.configuration.node_path,
+      fixture.configuration.manager_entry_path,
+      "repository_device",
+      "repository_inode",
+      "configuration_path",
+      "launch_agent_path",
+      "manager_pid",
+      "process_identity",
+      "proxy_token",
+      "OPENAI_API_KEY",
+      "provider_response",
+    ]) assert.equal(serialized.includes(forbidden), false, forbidden);
+  };
+  const assertDecommissionRefused = async ({
+    fixture,
+    launchctl,
+    codes = ["companion_service_stale_checkout_decommission_refused"],
+  }) => {
+    const configurationBefore = existsSync(fixture.layout.configuration_path)
+      ? readFileSync(fixture.layout.configuration_path, "utf8")
+      : null;
+    const plistBefore = existsSync(fixture.layout.launch_agent_path)
+      ? readFileSync(fixture.layout.launch_agent_path, "utf8")
+      : null;
+    await assert.rejects(
+      uninstallCompanionService({ ...fixture.options, launchctl }),
+      (error) => codes.includes(error?.code),
+    );
+    if (configurationBefore !== null) {
+      assert.equal(
+        readFileSync(fixture.layout.configuration_path, "utf8"),
+        configurationBefore,
+      );
+    }
+    if (plistBefore !== null) {
+      assert.equal(
+        readFileSync(fixture.layout.launch_agent_path, "utf8"),
+        plistBefore,
+      );
+    }
+  };
+
+  const inodeFixture = writeStaleFixture({ scope: "stale-inode-success" });
+  assert.match(inodeFixture.configuration.repository_device, /^(?:0|[1-9][0-9]*)$/u);
+  assert.match(inodeFixture.configuration.repository_inode, /^[1-9][0-9]*$/u);
+  assert.equal(
+    String(BigInt(inodeFixture.configuration.repository_device)),
+    inodeFixture.configuration.repository_device,
+  );
+  assert.equal(
+    String(BigInt(inodeFixture.configuration.repository_inode)),
+    inodeFixture.configuration.repository_inode,
+  );
+  assert.notEqual(
+    inodeFixture.configuration.repository_inode,
+    inodeFixture.layout.repository.inode,
+  );
+  const inodeLaunchctl = makeLaunchctl();
+  const unrelatedLaunchAgent = path.join(
+    path.dirname(inodeFixture.layout.launch_agent_path),
+    "com.example.unrelated.plist",
+  );
+  writeFileSync(unrelatedLaunchAgent, "unrelated\n", { mode: 0o600 });
+  await assertStaleProjection(inodeFixture, inodeLaunchctl.launchctl);
+  await assert.rejects(
+    startCompanionService({
+      ...inodeFixture.options,
+      launchctl: inodeLaunchctl.launchctl,
+      waitMs: 1,
+    }),
+    (error) => error?.code === "companion_service_recovery_refused",
+  );
+  await assert.rejects(
+    stopCompanionService({
+      ...inodeFixture.options,
+      launchctl: inodeLaunchctl.launchctl,
+      waitMs: 1,
+    }),
+    (error) => error?.code === "companion_service_stop_refused",
+  );
+  const inodeResult = await uninstallCompanionService({
+    ...inodeFixture.options,
+    launchctl: inodeLaunchctl.launchctl,
+  });
+  assert.equal(inodeResult.result, "changed");
+  assert.equal(inodeResult.service.status, "not_installed");
+  assert.equal(inodeResult.authority.runtime_lifecycle_effect, true);
+  for (const [key, value] of Object.entries(inodeResult.authority)) {
+    if (key !== "runtime_lifecycle_effect") assert.equal(value, false, key);
+  }
+  for (const file of [
+    inodeFixture.layout.configuration_path,
+    inodeFixture.layout.desired_state_path,
+    inodeFixture.layout.manager_state_path,
+    inodeFixture.layout.manager_lock_path,
+    inodeFixture.layout.lifecycle_lock_path,
+    inodeFixture.layout.maintenance_lease_path,
+    inodeFixture.layout.launch_agent_path,
+    inodeFixture.layout.runtime_manifest_path,
+    inodeFixture.layout.runtime_token_path,
+    inodeFixture.layout.runtime_access_path,
+    inodeFixture.layout.runtime_lock_path,
+    inodeFixture.layout.runtime_bridge_environment_path,
+  ]) assert.equal(existsSync(file), false, file);
+  assert.equal(readFileSync(unrelatedLaunchAgent, "utf8"), "unrelated\n");
+  assert.equal(
+    inodeLaunchctl.actions.some(([command]) =>
+      command === "bootstrap" || command === "kickstart"
+    ),
+    false,
+  );
+  const inodeReplay = await uninstallCompanionService({
+    ...inodeFixture.options,
+    launchctl: inodeLaunchctl.launchctl,
+  });
+  assert.equal(inodeReplay.result, "exact_replay");
+
+  const deviceFixture = writeStaleFixture({
+    scope: "stale-device-success",
+    changed: "device",
+  });
+  assert.equal(
+    String(BigInt(deviceFixture.configuration.repository_device)),
+    deviceFixture.configuration.repository_device,
+  );
+  assert.notEqual(
+    deviceFixture.configuration.repository_device,
+    deviceFixture.layout.repository.device,
+  );
+  const deviceLaunchctl = makeLaunchctl();
+  await assertStaleProjection(deviceFixture, deviceLaunchctl.launchctl);
+  assert.equal(
+    (await uninstallCompanionService({
+      ...deviceFixture.options,
+      launchctl: deviceLaunchctl.launchctl,
+    })).service.status,
+    "not_installed",
+  );
+
+  const unstableSnapshotFixture = writeStaleFixture({
+    scope: "stale-live-snapshot-unstable",
+  });
+  writeExplicitStoppedManagerState(unstableSnapshotFixture);
+  const unstableSnapshotLaunchctl = makeLaunchctl(
+    true,
+    unstableSnapshotFixture.configuration,
+  );
+  let unstableSnapshotAttempts = 0;
+  await assert.rejects(
+    uninstallCompanionService({
+      ...unstableSnapshotFixture.options,
+      launchctl: unstableSnapshotLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({
+        stage,
+        snapshot_kind: snapshotKind,
+      }) => {
+        if (
+          stage !== "live_snapshot_after_manager_state_a" ||
+          snapshotKind !== "initial"
+        ) return;
+        unstableSnapshotAttempts += 1;
+        const managerState = JSON.parse(readFileSync(
+          unstableSnapshotFixture.layout.manager_state_path,
+          "utf8",
+        ));
+        writeJson(unstableSnapshotFixture.layout.manager_state_path, {
+          ...managerState,
+          restart_count: managerState.restart_count + 1,
+          updated_at: new Date(Date.now() + unstableSnapshotAttempts).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "live_snapshot_unstable",
+  );
+  assert.equal(unstableSnapshotAttempts, 3);
+  assert.equal(
+    unstableSnapshotLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(
+    existsSync(unstableSnapshotFixture.layout.stale_decommission_path),
+    false,
+  );
+  assert.equal(
+    existsSync(unstableSnapshotFixture.layout.configuration_path),
+    true,
+  );
+
+  const immutableRaceFixture = writeStaleFixture({
+    scope: "stale-immutable-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(immutableRaceFixture);
+  const immutableRaceLaunchctl = makeLaunchctl(
+    true,
+    immutableRaceFixture.configuration,
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...immutableRaceFixture.options,
+      launchctl: immutableRaceLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage !== "before_first_effect_revalidation") return;
+        const desired = JSON.parse(readFileSync(
+          immutableRaceFixture.layout.desired_state_path,
+          "utf8",
+        ));
+        writeJson(immutableRaceFixture.layout.desired_state_path, {
+          ...desired,
+          updated_at: new Date(Date.now() + 1_000).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "immutable_material_changed",
+  );
+  assert.equal(
+    immutableRaceLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(immutableRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(immutableRaceFixture.layout.stale_decommission_path), false);
+
+  const launchJobRaceFixture = writeStaleFixture({
+    scope: "stale-launch-job-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(launchJobRaceFixture);
+  const launchJobRaceBase = makeLaunchctl(
+    true,
+    launchJobRaceFixture.configuration,
+  );
+  let launchJobChanged = false;
+  const launchJobRaceLaunchctl = (args) => {
+    if (launchJobChanged && args[0] === "print") {
+      return makeLaunchctl(
+        true,
+        launchJobRaceFixture.configuration,
+        { program: "/usr/bin/false" },
+      ).launchctl(args);
+    }
+    return launchJobRaceBase.launchctl(args);
+  };
+  await assert.rejects(
+    uninstallCompanionService({
+      ...launchJobRaceFixture.options,
+      launchctl: launchJobRaceLaunchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage === "before_first_effect_revalidation") {
+          launchJobChanged = true;
+        }
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "launch_job_changed",
+  );
+  assert.equal(
+    launchJobRaceBase.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(launchJobRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(launchJobRaceFixture.layout.stale_decommission_path), false);
+
+  const ownershipRaceFixture = writeStaleFixture({
+    scope: "stale-process-ownership-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(ownershipRaceFixture);
+  const ownershipRaceLaunchctl = makeLaunchctl(
+    true,
+    ownershipRaceFixture.configuration,
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...ownershipRaceFixture.options,
+      launchctl: ownershipRaceLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage !== "before_first_effect_revalidation") return;
+        const managerState = JSON.parse(readFileSync(
+          ownershipRaceFixture.layout.manager_state_path,
+          "utf8",
+        ));
+        writeJson(ownershipRaceFixture.layout.manager_state_path, {
+          ...managerState,
+          restart_count: managerState.restart_count + 1,
+          updated_at: new Date(Date.now() + 1_000).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "process_ownership_changed",
+  );
+  assert.equal(
+    ownershipRaceLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(ownershipRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(ownershipRaceFixture.layout.stale_decommission_path), false);
+
+  const malformedPhysicalIdentities = [
+    ["suffix", "repository_device", "123-changed"],
+    ["negative", "repository_device", "-1"],
+    ["positive-sign", "repository_device", "+1"],
+    ["leading-space", "repository_device", " 1"],
+    ["trailing-space", "repository_device", "1 "],
+    ["nondecimal", "repository_device", "device"],
+    ["empty", "repository_device", ""],
+    ["leading-zero", "repository_device", "01"],
+    ["zero-inode", "repository_inode", "0"],
+    ["missing-device", "repository_device", undefined],
+    ["missing-inode", "repository_inode", undefined],
+  ];
+  for (const [name, field, value] of malformedPhysicalIdentities) {
+    const malformedFixture = writeStaleFixture({
+      scope: `stale-malformed-physical-${name}`,
+      overrides: { [field]: value },
+    });
+    await assertDecommissionRefused({
+      fixture: malformedFixture,
+      launchctl: makeLaunchctl().launchctl,
+    });
+  }
+
+  const loadedFixture = writeStaleFixture({ scope: "stale-loaded-success" });
+  writeExplicitStoppedManagerState(loadedFixture);
+  const loadedLaunchctl = makeLaunchctl(
+    true,
+    loadedFixture.configuration,
+  );
+  assert.equal(
+    (await uninstallCompanionService({
+      ...loadedFixture.options,
+      launchctl: loadedLaunchctl.launchctl,
+    })).service.status,
+    "not_installed",
+  );
+  assert.equal(
+    loadedLaunchctl.actions.filter(([command]) => command === "bootout").length,
+    1,
+  );
+  assert.deepEqual(
+    loadedLaunchctl.actions.find(([command]) => command === "bootout"),
+    ["bootout", `gui/${process.getuid()}/${loadedFixture.configuration.service_label}`],
+  );
+
+  const definitionFallbackFixture = writeStaleFixture({
+    scope: "stale-loaded-definition-fd-fallback",
+  });
+  writeExplicitStoppedManagerState(definitionFallbackFixture);
+  const definitionFallbackBase = makeLaunchctl(
+    true,
+    definitionFallbackFixture.configuration,
+  );
+  const definitionFallbackLaunchctl = (args) => {
+    if (
+      args[0] === "bootout" &&
+      args[1] ===
+        `gui/${process.getuid()}/${definitionFallbackFixture.configuration.service_label}`
+    ) {
+      definitionFallbackBase.actions.push([...args]);
+      return { status: 64, stdout: "" };
+    }
+    if (
+      args[0] === "bootout" &&
+      args[1] === `gui/${process.getuid()}` &&
+      typeof args[2] === "string"
+    ) {
+      const helper = readFileSync(args[2], "utf8");
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.service_label),
+        true,
+      );
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.manager_entry_path),
+        false,
+      );
+      assert.equal(
+        helper.includes(definitionFallbackFixture.configuration.repository_root),
+        false,
+      );
+    }
+    return definitionFallbackBase.launchctl(args);
+  };
+  assert.equal(
+    (await uninstallCompanionService({
+      ...definitionFallbackFixture.options,
+      launchctl: definitionFallbackLaunchctl,
+    })).service.status,
+    "not_installed",
+  );
+  const definitionFallbackBootouts = definitionFallbackBase.actions.filter(
+    ([command]) => command === "bootout",
+  );
+  assert.equal(definitionFallbackBootouts.length, 2);
+  assert.deepEqual(definitionFallbackBootouts[0], [
+    "bootout",
+    `gui/${process.getuid()}/${definitionFallbackFixture.configuration.service_label}`,
+  ]);
+  assert.equal(definitionFallbackBootouts[1][0], "bootout");
+  assert.equal(definitionFallbackBootouts[1][1], `gui/${process.getuid()}`);
+  assert.equal(
+    path.dirname(definitionFallbackBootouts[1][2]),
+    definitionFallbackFixture.layout.service_directory,
+  );
+  assert.match(
+    path.basename(definitionFallbackBootouts[1][2]),
+    /^\.stale-decommission-launch-agent-[a-f0-9-]+\.plist$/u,
+  );
+
+  const bootoutRaceFixture = writeStaleFixture({
+    scope: "stale-loaded-plist-swap-contained",
+  });
+  writeExplicitStoppedManagerState(bootoutRaceFixture);
+  const bootoutRaceLaunchctl = makeLaunchctl(
+    true,
+    bootoutRaceFixture.configuration,
+  );
+  const foreignPlist = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    "<plist version=\"1.0\"><dict>",
+    "<key>Label</key><string>com.example.unrelated</string>",
+    "<key>ProgramArguments</key><array><string>/usr/bin/false</string></array>",
+    "</dict></plist>",
+    "",
+  ].join("\n");
+  const launchctlWithBootoutSwap = (args) => {
+    if (args[0] === "bootout") {
+      assert.deepEqual(args, [
+        "bootout",
+        `gui/${process.getuid()}/${bootoutRaceFixture.configuration.service_label}`,
+      ]);
+      writeFileSync(
+        bootoutRaceFixture.layout.launch_agent_path,
+        foreignPlist,
+        { mode: 0o600 },
+      );
+    }
+    return bootoutRaceLaunchctl.launchctl(args);
+  };
+  await assert.rejects(
+    uninstallCompanionService({
+      ...bootoutRaceFixture.options,
+      launchctl: launchctlWithBootoutSwap,
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused",
+  );
+  assert.equal(
+    readFileSync(bootoutRaceFixture.layout.launch_agent_path, "utf8"),
+    foreignPlist,
+  );
+
+  const staleMaintenanceFixture = writeStaleFixture({
+    scope: "stale-maintenance-success",
+  });
+  writeJson(staleMaintenanceFixture.layout.maintenance_lease_path, {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: staleMaintenanceFixture.configuration.service_identity,
+    repository_fingerprint:
+      staleMaintenanceFixture.configuration.repository_fingerprint,
+    operation_id: "contract:stale-decommission-expired-maintenance",
+    owner_pid: 2_147_483_647,
+    owner_process_identity: "a".repeat(64),
+    pre_maintenance_desired_state: "stopped",
+    acquired_at: new Date(Date.now() - 120_000).toISOString(),
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  });
+  assert.equal(
+    (await uninstallCompanionService({
+      ...staleMaintenanceFixture.options,
+      launchctl: makeLaunchctl().launchctl,
+    })).service.status,
+    "not_installed",
+  );
+
+  const movedRootFixture = writeStaleFixture({
+    scope: "stale-moved-root-refused",
+    overrides: {
+      repository_root: path.join(fixtureRoot, "moved-repository"),
+      manager_entry_path: path.join(
+        fixtureRoot,
+        "moved-repository",
+        "scripts",
+        "augnes-companion-service.mjs",
+      ),
+    },
+  });
+  await assertDecommissionRefused({
+    fixture: movedRootFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const foreignIdentityFixture = writeStaleFixture({
+    scope: "stale-foreign-identity-refused",
+    overrides: { service_identity: "f".repeat(64) },
+  });
+  await assertDecommissionRefused({
+    fixture: foreignIdentityFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const foreignRepositoryFixture = writeStaleFixture({
+    scope: "stale-foreign-repository-refused",
+    overrides: { repository_fingerprint: "e".repeat(64) },
+  });
+  await assertDecommissionRefused({
+    fixture: foreignRepositoryFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const modifiedPlistFixture = writeStaleFixture({
+    scope: "stale-modified-plist-refused",
+  });
+  writeFileSync(
+    modifiedPlistFixture.layout.launch_agent_path,
+    `${buildLaunchAgentPlist(modifiedPlistFixture.configuration)}<!-- changed -->\n`,
+    { mode: 0o600 },
+  );
+  await assertDecommissionRefused({
+    fixture: modifiedPlistFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const missingConfigurationFixture = writeStaleFixture({
+    scope: "stale-missing-configuration-refused",
+  });
+  rmSync(missingConfigurationFixture.layout.configuration_path);
+  await assertDecommissionRefused({
+    fixture: missingConfigurationFixture,
+    launchctl: makeLaunchctl().launchctl,
+    codes: ["companion_service_uninstall_refused"],
+  });
+
+  const missingDesiredFixture = writeStaleFixture({
+    scope: "stale-missing-desired-refused",
+  });
+  rmSync(missingDesiredFixture.layout.desired_state_path);
+  await assertDecommissionRefused({
+    fixture: missingDesiredFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const ambiguousMaintenanceFixture = writeStaleFixture({
+    scope: "stale-ambiguous-maintenance-refused",
+  });
+  writeJson(ambiguousMaintenanceFixture.layout.maintenance_lease_path, {});
+  await assertDecommissionRefused({
+    fixture: ambiguousMaintenanceFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const activeMaintenanceFixture = writeStaleFixture({
+    scope: "stale-active-maintenance-refused",
+  });
+  writeJson(activeMaintenanceFixture.layout.maintenance_lease_path, {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: activeMaintenanceFixture.configuration.service_identity,
+    repository_fingerprint:
+      activeMaintenanceFixture.configuration.repository_fingerprint,
+    operation_id: "contract:stale-decommission-active-maintenance",
+    owner_pid: process.pid,
+    owner_process_identity: currentProcessIdentity(),
+    pre_maintenance_desired_state: "stopped",
+    acquired_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  await assertDecommissionRefused({
+    fixture: activeMaintenanceFixture,
+    launchctl: makeLaunchctl().launchctl,
+    codes: ["companion_service_maintenance_active"],
+  });
+
+  const ambiguousManagerFixture = writeStaleFixture({
+    scope: "stale-ambiguous-manager-refused",
+  });
+  writeJson(ambiguousManagerFixture.layout.manager_state_path, {});
+  await assertDecommissionRefused({
+    fixture: ambiguousManagerFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const ambiguousRuntimeFixture = writeStaleFixture({
+    scope: "stale-ambiguous-runtime-refused",
+  });
+  writeJson(ambiguousRuntimeFixture.layout.runtime_manifest_path, {});
+  await assertDecommissionRefused({
+    fixture: ambiguousRuntimeFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const changedBirthFixture = writeStaleFixture({
+    scope: "stale-process-birth-refused",
+  });
+  writeJson(changedBirthFixture.layout.manager_state_path, {
+    ...writeExplicitStoppedManagerState(changedBirthFixture),
+    manager_pid: process.pid,
+    manager_process_identity: "0".repeat(64),
+  });
+  await assertDecommissionRefused({
+    fixture: changedBirthFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const matchingForeignProcessFixture = writeStaleFixture({
+    scope: "stale-matching-foreign-process-refused",
+  });
+  const matchingForeignState = writeExplicitStoppedManagerState(
+    matchingForeignProcessFixture,
+  );
+  writeJson(matchingForeignProcessFixture.layout.manager_state_path, {
+    ...matchingForeignState,
+    manager_pid: process.pid,
+    manager_process_identity: currentProcessIdentity(),
+  });
+  await assertDecommissionRefused({
+    fixture: matchingForeignProcessFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.doesNotThrow(() => process.kill(process.pid, 0));
+
+  const foreignLoadedJobFixture = writeStaleFixture({
+    scope: "stale-foreign-loaded-job-refused",
+  });
+  writeExplicitStoppedManagerState(foreignLoadedJobFixture);
+  const foreignLoadedJobLaunchctl = makeLaunchctl(
+    true,
+    foreignLoadedJobFixture.configuration,
+    { program: "/usr/bin/false" },
+  );
+  await assertDecommissionRefused({
+    fixture: foreignLoadedJobFixture,
+    launchctl: foreignLoadedJobLaunchctl.launchctl,
+  });
+  assert.equal(
+    foreignLoadedJobLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+
+  const serviceSymlinkFixture = writeStaleFixture({
+    scope: "stale-service-parent-symlink-refused",
+  });
+  const serviceSymlinkTarget = `${serviceSymlinkFixture.layout.service_directory}-target`;
+  renameSync(serviceSymlinkFixture.layout.service_directory, serviceSymlinkTarget);
+  symlinkSync(serviceSymlinkTarget, serviceSymlinkFixture.layout.service_directory);
+  await assertDecommissionRefused({
+    fixture: serviceSymlinkFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.equal(existsSync(path.join(serviceSymlinkTarget, "service.json")), true);
+
+  const runtimeSymlinkFixture = writeStaleFixture({
+    scope: "stale-runtime-parent-symlink-refused",
+  });
+  const runtimeSymlinkTarget = `${runtimeSymlinkFixture.layout.runtime_directory}-target`;
+  mkdirSync(runtimeSymlinkTarget, { recursive: true, mode: 0o700 });
+  symlinkSync(runtimeSymlinkTarget, runtimeSymlinkFixture.layout.runtime_directory);
+  await assertDecommissionRefused({
+    fixture: runtimeSymlinkFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+
+  const launchParentSymlinkFixture = writeStaleFixture({
+    scope: "stale-launch-parent-symlink-refused",
+  });
+  const launchParent = path.dirname(
+    launchParentSymlinkFixture.layout.launch_agent_path,
+  );
+  const launchParentTarget = `${launchParent}-target`;
+  renameSync(launchParent, launchParentTarget);
+  symlinkSync(launchParentTarget, launchParent);
+  await assertDecommissionRefused({
+    fixture: launchParentSymlinkFixture,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.equal(
+    existsSync(path.join(
+      launchParentTarget,
+      path.basename(launchParentSymlinkFixture.layout.launch_agent_path),
+    )),
+    true,
+  );
+
+  const replaySteps = [
+    "journal",
+    "bootout",
+    "configuration",
+    "desired_state",
+    "launch_agent",
+    "manager_state",
+    "manager_lock",
+    "maintenance_lease",
+    "runtime_manifest",
+    "runtime_token",
+    "runtime_access",
+    "runtime_lock",
+    "runtime_bridge_environment",
+  ];
+  for (const [index, step] of replaySteps.entries()) {
+    const fixture = writeStaleFixture({
+      scope: `stale-replay-${index}-${step.replaceAll("_", "-")}`,
+    });
+    const fixtureLaunchctl = makeLaunchctl();
+    await assert.rejects(
+      uninstallCompanionService({
+        ...fixture.options,
+        launchctl: fixtureLaunchctl.launchctl,
+        testFaultAfterStep: step,
+      }),
+      (error) =>
+        error?.code === "companion_service_stale_decommission_test_fault",
+    );
+    const interrupted = await inspectCompanionService({
+      ...fixture.options,
+      launchctl: fixtureLaunchctl.launchctl,
+    });
+    assert.equal(interrupted.status, "recovery_required");
+    assert.equal(
+      interrupted.reason,
+      step === "bootout"
+        ? "companion_service_checkout_identity_changed"
+        : "companion_service_stale_decommission_incomplete",
+    );
+    const interruptedProjection = JSON.stringify(
+      publicCompanionServiceProjection(interrupted),
+    );
+    for (const forbidden of [
+      fixtureRepositoryRoot,
+      fixtureRoot,
+      fixture.configuration.node_path,
+      fixture.configuration.manager_entry_path,
+      "manager_pid",
+      "process_identity",
+    ]) assert.equal(interruptedProjection.includes(forbidden), false, forbidden);
+    await assert.rejects(
+      startCompanionService({
+        ...fixture.options,
+        launchctl: fixtureLaunchctl.launchctl,
+        waitMs: 1,
+      }),
+      (error) => error?.code === "companion_service_recovery_refused",
+    );
+    const actionsBeforeInstallRefusal = fixtureLaunchctl.actions.length;
+    await assert.rejects(
+      installCompanionService({
+        ...fixture.options,
+        nodePath: node.path,
+        launchctl: fixtureLaunchctl.launchctl,
+        waitMs: 1,
+      }),
+      (error) => error?.code === (
+        step === "bootout"
+          ? "companion_service_installation_conflict"
+          : "companion_service_stale_decommission_incomplete"
+      ),
+    );
+    assert.equal(
+      fixtureLaunchctl.actions
+        .slice(actionsBeforeInstallRefusal)
+        .some(([command]) => command === "bootstrap" || command === "kickstart"),
+      false,
+      step,
+    );
+    const replayed = await uninstallCompanionService({
+      ...fixture.options,
+      launchctl: fixtureLaunchctl.launchctl,
+    });
+    assert.equal(replayed.service.status, "not_installed", step);
+  }
+
+  const liveMutationReplayFixture = writeStaleFixture({
+    scope: "stale-live-mutation-before-journal-replay",
+  });
+  writeExplicitStoppedManagerState(liveMutationReplayFixture);
+  const liveMutationLaunchctl = makeLaunchctl(
+    true,
+    liveMutationReplayFixture.configuration,
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...liveMutationReplayFixture.options,
+      launchctl: liveMutationLaunchctl.launchctl,
+      testFaultAfterStep: "bootout",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  assert.equal(
+    existsSync(liveMutationReplayFixture.layout.stale_decommission_path),
+    false,
+  );
+  writeExplicitStoppedManagerState(liveMutationReplayFixture);
+  assert.equal(
+    (await uninstallCompanionService({
+      ...liveMutationReplayFixture.options,
+      launchctl: liveMutationLaunchctl.launchctl,
+    })).service.status,
+    "not_installed",
+  );
+
+  const unlinkSwapFixture = writeStaleFixture({
+    scope: "stale-unlink-swap-refused",
+  });
+  const unlinkSwapLaunchctl = makeLaunchctl();
+  await assert.rejects(
+    uninstallCompanionService({
+      ...unlinkSwapFixture.options,
+      launchctl: unlinkSwapLaunchctl.launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  const originalConfigurationText = readFileSync(
+    unlinkSwapFixture.layout.configuration_path,
+    "utf8",
+  );
+  const displacedConfigurationPath = path.join(
+    unlinkSwapFixture.layout.service_directory,
+    "service-original.json",
+  );
+  let swapped = false;
+  await assert.rejects(
+    uninstallCompanionService({
+      ...unlinkSwapFixture.options,
+      launchctl: unlinkSwapLaunchctl.launchctl,
+      testBeforeUnlink: ({ material_key: materialKey, file }) => {
+        if (materialKey !== "configuration" || swapped) return;
+        swapped = true;
+        renameSync(file, displacedConfigurationPath);
+        writeFileSync(file, "foreign replacement\n", { mode: 0o600 });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused",
+  );
+  assert.equal(swapped, true);
+  assert.equal(
+    readFileSync(unlinkSwapFixture.layout.configuration_path, "utf8"),
+    "foreign replacement\n",
+  );
+  assert.equal(
+    readFileSync(displacedConfigurationPath, "utf8"),
+    originalConfigurationText,
+  );
+
+  const ancestorSwapFixture = writeStaleFixture({
+    scope: "stale-ancestor-swap-contained",
+  });
+  const ancestorSwapLaunchctl = makeLaunchctl();
+  await assert.rejects(
+    uninstallCompanionService({
+      ...ancestorSwapFixture.options,
+      launchctl: ancestorSwapLaunchctl.launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  const displacedServiceDirectory =
+    `${ancestorSwapFixture.layout.service_directory}-displaced`;
+  let ancestorSwapped = false;
+  await assert.rejects(
+    uninstallCompanionService({
+      ...ancestorSwapFixture.options,
+      launchctl: ancestorSwapLaunchctl.launchctl,
+      testBeforeUnlink: ({ material_key: materialKey }) => {
+        if (materialKey !== "configuration" || ancestorSwapped) return;
+        ancestorSwapped = true;
+        renameSync(
+          ancestorSwapFixture.layout.service_directory,
+          displacedServiceDirectory,
+        );
+        mkdirSync(ancestorSwapFixture.layout.service_directory, {
+          recursive: true,
+          mode: 0o700,
+        });
+        writeFileSync(
+          ancestorSwapFixture.layout.configuration_path,
+          "foreign ancestor replacement\n",
+          { mode: 0o600 },
+        );
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused",
+  );
+  assert.equal(ancestorSwapped, true);
+  assert.equal(
+    readFileSync(ancestorSwapFixture.layout.configuration_path, "utf8"),
+    "foreign ancestor replacement\n",
+  );
+  assert.equal(
+    existsSync(path.join(displacedServiceDirectory, "service.json")),
+    false,
+  );
+
+  const internalSwapFixture = writeStaleFixture({
+    scope: "stale-helper-internal-swap-refused",
+  });
+  const internalSwapLaunchctl = makeLaunchctl();
+  await assert.rejects(
+    uninstallCompanionService({
+      ...internalSwapFixture.options,
+      launchctl: internalSwapLaunchctl.launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...internalSwapFixture.options,
+      launchctl: internalSwapLaunchctl.launchctl,
+      testSwapInsideUnlinkMaterial: "configuration",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused",
+  );
+  assert.equal(
+    readFileSync(internalSwapFixture.layout.configuration_path, "utf8"),
+    "foreign helper replacement\n",
+  );
+  assert.equal(
+    readdirSync(internalSwapFixture.layout.service_directory).some((name) =>
+      name.startsWith(".stale-decommission-quarantine-") &&
+      name.endsWith(".expected")
+    ),
+    true,
+  );
+
+  const substitutedJournalFixture = writeStaleFixture({
+    scope: "stale-substituted-journal-refused",
+  });
+  await assert.rejects(
+    uninstallCompanionService({
+      ...substitutedJournalFixture.options,
+      launchctl: makeLaunchctl().launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  const substitutedJournal = JSON.parse(readFileSync(
+    substitutedJournalFixture.layout.stale_decommission_path,
+    "utf8",
+  ));
+  writeJson(substitutedJournalFixture.layout.stale_decommission_path, {
+    ...substitutedJournal,
+    repository_fingerprint: "d".repeat(64),
+  });
+  const substitutedJournalObservation = await inspectCompanionService({
+    ...substitutedJournalFixture.options,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.equal(substitutedJournalObservation.status, "ambiguous");
+  assert.equal(
+    substitutedJournalObservation.reason,
+    "companion_service_stale_decommission_record_conflict",
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...substitutedJournalFixture.options,
+      launchctl: makeLaunchctl().launchctl,
+    }),
+    (error) => error?.code === "companion_service_uninstall_refused",
+  );
+  assert.equal(
+    existsSync(substitutedJournalFixture.layout.configuration_path),
+    true,
+  );
+
+  const malformedParentJournalFixture = writeStaleFixture({
+    scope: "stale-malformed-parent-journal-refused",
+  });
+  await assert.rejects(
+    uninstallCompanionService({
+      ...malformedParentJournalFixture.options,
+      launchctl: makeLaunchctl().launchctl,
+      testFaultAfterStep: "journal",
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_decommission_test_fault",
+  );
+  const malformedParentJournal = JSON.parse(readFileSync(
+    malformedParentJournalFixture.layout.stale_decommission_path,
+    "utf8",
+  ));
+  writeJson(malformedParentJournalFixture.layout.stale_decommission_path, {
+    ...malformedParentJournal,
+    materials: {
+      ...malformedParentJournal.materials,
+      configuration: {
+        ...malformedParentJournal.materials.configuration,
+        parent: {
+          ...malformedParentJournal.materials.configuration.parent,
+          device: "01",
+        },
+      },
+    },
+  });
+  const malformedParentObservation = await inspectCompanionService({
+    ...malformedParentJournalFixture.options,
+    launchctl: makeLaunchctl().launchctl,
+  });
+  assert.equal(malformedParentObservation.status, "ambiguous");
+  assert.equal(
+    malformedParentObservation.reason,
+    "companion_service_stale_decommission_record_conflict",
+  );
+
+  return {
+    exact_uninstall_unchanged: true,
+    installed_stat_identity_shape_required: true,
+    test_only_physical_identity_override_is_closed_and_non_persistent: true,
+    malformed_installed_stat_identities_refused: true,
+    inode_and_device_replacement_decommissioned: true,
+    moved_root_refused: true,
+    stale_start_stop_and_resume_authority_denied: true,
+    foreign_identity_and_repository_refused: true,
+    modified_plist_refused: true,
+    missing_configuration_or_desired_state_refused: true,
+    active_and_ambiguous_maintenance_refused: true,
+    ambiguous_manager_and_runtime_refused: true,
+    changed_process_birth_identity_refused: true,
+    matching_birth_foreign_process_untouched: true,
+    loaded_job_identity_bound_beyond_label: true,
+    loaded_job_bootout_uses_authenticated_label_target: true,
+    loaded_job_definition_fallback_uses_decommission_only_helper: true,
+    service_runtime_and_launch_parent_symlinks_refused: true,
+    interrupted_cleanup_replayable_at_every_step: true,
+    incomplete_decommission_install_and_start_refused: true,
+    pre_journal_live_mutation_remains_replayable: true,
+    semantically_changed_live_snapshot_refused_after_three_attempts: true,
+    immutable_material_change_refused_before_effect: true,
+    launch_job_change_refused_before_effect: true,
+    process_ownership_change_refused_before_effect: true,
+    descriptor_relative_unlink_swap_refused: true,
+    descriptor_relative_ancestor_swap_contained: true,
+    helper_internal_swap_foreign_replacement_survives: true,
+    substituted_decommission_journal_refused: true,
+    malformed_journal_stat_identity_refused: true,
+    unrelated_launch_agent_untouched: true,
+    no_manager_or_runtime_spawned: true,
+    exact_cleanup_and_replay: true,
+    public_private_fields: 0,
+    execution_semantic_provider_publication_authority: 0,
+  };
 }
 
 function makeServiceRepositoryFixture({ root: fixtureRoot, name, sourceRepository }) {
@@ -1161,4 +2427,13 @@ function runtimeChildOwnership(child, fixture, { generationId, instanceId }) {
 
 function tailFingerprint(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function differentCanonicalStatIdentity(value) {
+  assert.match(value, /^(?:0|[1-9][0-9]*)$/u);
+  const changed = String(BigInt(value) + 1n);
+  assert.match(changed, /^[1-9][0-9]*$/u);
+  assert.equal(String(BigInt(changed)), changed);
+  assert.notEqual(changed, value);
+  return changed;
 }
