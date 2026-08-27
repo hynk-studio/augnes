@@ -18,6 +18,7 @@ import {
   admitCommissionedWorkExecutorResultV01,
   assertCommissionedWorkFamilySourceBindingV01,
   assertSafeCommissionedWorkOutputV01,
+  assertValidCommissionedWorkEpisodeArtifactV01,
   assertValidCommissionedWorkFinalReportV01,
   buildCommissionedWorkConsolidationCandidateV01,
   buildCommissionedWorkEpisodeArtifactV01,
@@ -59,12 +60,15 @@ import {
 } from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
 import {
   COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
+  COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+  COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
   type CommissionedWorkArtifactIndexV01,
   type CommissionedWorkCaseCommitmentV01,
   type CommissionedWorkCaseSourceV01,
   type CommissionedWorkConditionV01,
   type CommissionedWorkConsolidationCandidateV01,
   type CommissionedWorkEpisodeArtifactV01,
+  type CommissionedWorkEpisodeExecutionSourceV01,
   type CommissionedWorkEpisodePlanSourceV01,
   type CommissionedWorkFinalReportV01,
   type CommissionedWorkHoldoutVariantV01,
@@ -85,6 +89,12 @@ import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
 let hermeticProcessEnvironmentV01: NodeJS.ProcessEnv | null = null;
 let ownedSynchronousProcessesV01 = 0;
+
+const SYNTHETIC_EXECUTION_SOURCE_V01 = {
+  binding_kind: "synthetic_fixture",
+  execution_evidence_class: COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+  execution_mode: "zero_provider_synthetic_fixture_adapter",
+} as const satisfies CommissionedWorkEpisodeExecutionSourceV01;
 
 type EpisodeBundle = {
   source: CommissionedWorkCaseSourceV01;
@@ -160,6 +170,10 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   const roots = createDisposableRootsV01(root);
   assertHermeticGitEnvironmentV01(roots);
   const familySource = createCommissionedControlledWorkFamilySourceV01();
+  const manifestBuiltWithoutSyntheticOutputs =
+    buildCommissionedWorkFamilyManifestV01(familySource);
+  const familyCommitmentFingerprintBuiltWithoutSyntheticOutputs =
+    manifestBuiltWithoutSyntheticOutputs.integrity.fingerprint;
   const syntheticFixtureOutputs =
     createCommissionedControlledWorkSyntheticFixtureOutputsV01();
   assert.equal(syntheticFixtureOutputs.length, 20);
@@ -185,6 +199,27 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     }
   }
   const manifest = buildCommissionedWorkFamilyManifestV01(familySource);
+  assert.deepEqual(manifest, manifestBuiltWithoutSyntheticOutputs);
+  assert.equal(
+    manifest.integrity.fingerprint,
+    familyCommitmentFingerprintBuiltWithoutSyntheticOutputs,
+  );
+  assert.deepEqual(
+    buildCommissionedWorkFamilyManifestV01(familySource),
+    manifest,
+  );
+  assert.deepEqual(
+    [...syntheticFixtureOutputs].reverse().map((output) => output.output_id).sort(),
+    syntheticFixtureOutputs.map((output) => output.output_id).sort(),
+  );
+  const manifestTextBuiltBeforeSyntheticOutputs =
+    canonicalizeProtocolValueV01(manifestBuiltWithoutSyntheticOutputs);
+  for (const output of [...syntheticFixtureOutputs].reverse()) {
+    assert.equal(
+      manifestTextBuiltBeforeSyntheticOutputs.includes(output.output_id),
+      false,
+    );
+  }
   const trainingRuns: CaseRun[] = [];
   for (const [index, source] of familySource.training_cases.entries()) {
     trainingRuns.push(
@@ -558,7 +593,11 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
     successor_episode_count: 16,
     experiment_class: report.experiment_class,
     execution_evidence_class: report.execution_evidence_class,
+    host_neutral_family_commitment:
+      manifest.host_neutral_execution_commitment,
+    operation_contract_built_before_synthetic_outputs: true,
     live_capable_result_admission_without_solution_plan: true,
+    fixture_free_result_receipt_episode_artifact_path: true,
     candidate_fingerprint: candidate.integrity.fingerprint,
     candidate_specific_transfer_result:
       holdout.candidate_specific_transfer_conclusion.status,
@@ -1063,6 +1102,7 @@ async function executeEpisodeV01(input: {
     packet,
     result,
     observation,
+    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
   });
   const repositoryState = {
     initial_commit: input.initial_commit,
@@ -1127,6 +1167,7 @@ function buildSyntheticFixtureBindingV01(input: {
   );
   return createCommissionedWorkbenchSyntheticFixtureBindingV01({
     packet: input.packet,
+    operation_contract: input.actual_plan.operation_contract,
     synthetic_fixture_output: input.synthetic_fixture_output,
     expected_current_source_fingerprint:
       successor === null
@@ -1374,9 +1415,11 @@ function buildEpisodeArtifactFromBundleV01(input: {
     source: input.bundle.source,
     plan: input.bundle.plan,
     packet: input.bundle.packet,
+    request: input.bundle.request,
     result: input.bundle.result,
     receipt: input.bundle.receipt,
     observation: input.bundle.observation,
+    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
     episode_id: input.bundle.episode_id,
     episode_role: input.bundle.episode_role,
     condition: input.bundle.condition,
@@ -1651,6 +1694,9 @@ function runNegativeContractCasesV01(input: {
     syntheticFixtureOutputs: input.syntheticFixtureOutputs,
     manifest: input.manifest,
     bundle: input.receipt_probe_bundle,
+    predecessor: input.training.predecessor_episodes.find(
+      (episode) => episode.case_id === input.receipt_probe_bundle.source.case_id,
+    )!,
   });
   const caseCommitment = input.manifest.training_cases[0];
   const baseObservation = negativeObservationInputV01(
@@ -1986,7 +2032,7 @@ function runNegativeContractCasesV01(input: {
             : episode,
         ),
       }),
-    /commissioned_work_episode_authority_or_cold_boundary_invalid/u,
+    /commissioned_work_synthetic_episode_binding_invalid/u,
   );
   assert.throws(
     () =>
@@ -2040,6 +2086,7 @@ function runNegativeContractCasesV01(input: {
     packet: input.receipt_probe_bundle.packet,
     result: input.receipt_probe_bundle.result,
     observation: hardGateObservation,
+    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
   });
   assert.equal(hardGateReceipt.verification.status, "failed");
   assert.equal(
@@ -2070,6 +2117,7 @@ function runNegativeContractCasesV01(input: {
     packet: input.receipt_probe_bundle.packet,
     result: input.receipt_probe_bundle.result,
     observation: noOracleObservation,
+    execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
   });
   assert.notEqual(noOracleReceipt.verification.status, "passed");
   const providerResult = structuredClone(input.receipt_probe_bundle.result);
@@ -2089,8 +2137,9 @@ function runNegativeContractCasesV01(input: {
         packet: input.receipt_probe_bundle.packet,
         result: providerResult,
         observation: input.receipt_probe_bundle.observation,
+        execution_source: SYNTHETIC_EXECUTION_SOURCE_V01,
       }),
-    /commissioned_work_receipt_invocation_binding_invalid/u,
+    /commissioned_work_execution_model_receipt_binding_invalid/u,
   );
   for (const unsafe of [
     "/Users/private/work/file.txt",
@@ -2120,6 +2169,7 @@ function assertSyntheticOutputSeparationV01(input: {
   syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   bundle: EpisodeBundle;
+  predecessor: CommissionedWorkEpisodeArtifactV01;
 }): void {
   assert.equal("writes" in input.bundle.plan, false);
   const replacementOutputs = structuredClone(input.syntheticFixtureOutputs);
@@ -2152,6 +2202,86 @@ function assertSyntheticOutputSeparationV01(input: {
   assert.notEqual(
     replacementBinding.synthetic_fixture_output_fingerprint,
     originalBinding.synthetic_fixture_output_fingerprint,
+  );
+  assert.equal(
+    replacementBinding.operation_contract_fingerprint,
+    originalBinding.operation_contract_fingerprint,
+  );
+  const preauthorizedShapeReplacement = structuredClone(replacement);
+  const alternateAuthorizedPath = input.bundle.plan.operation_contract
+    .allowed_repository_relative_paths.find(
+      (repositoryRelativePath) =>
+        repositoryRelativePath !==
+        preauthorizedShapeReplacement.writes[0]!.repository_relative_path,
+    );
+  assert.ok(alternateAuthorizedPath);
+  preauthorizedShapeReplacement.writes = [
+    {
+      repository_relative_path: alternateAuthorizedPath,
+      content: "export const mechanicsProbe = true;\n",
+    },
+  ];
+  const preauthorizedShapeBinding = buildSyntheticFixtureBindingV01({
+    source: input.bundle.source,
+    actual_plan: input.bundle.plan,
+    synthetic_fixture_output: preauthorizedShapeReplacement,
+    packet: input.bundle.packet,
+    commitment: findCommitmentV01(
+      input.manifest,
+      input.bundle.source.case_id,
+    ),
+  });
+  assert.equal(
+    preauthorizedShapeBinding.operation_contract_fingerprint,
+    originalBinding.operation_contract_fingerprint,
+  );
+  assert.deepEqual(
+    buildCommissionedWorkFamilyManifestV01(input.familySource),
+    input.manifest,
+  );
+  const outOfContractOutput = structuredClone(replacement);
+  outOfContractOutput.writes[0]!.repository_relative_path =
+    "outside/preauthorized-scope.mjs";
+  assert.throws(
+    () =>
+      buildSyntheticFixtureBindingV01({
+        source: input.bundle.source,
+        actual_plan: input.bundle.plan,
+        synthetic_fixture_output: outOfContractOutput,
+        packet: input.bundle.packet,
+        commitment: findCommitmentV01(
+          input.manifest,
+          input.bundle.source.case_id,
+        ),
+      }),
+    /commissioned_workbench_synthetic_fixture_binding_invalid/u,
+  );
+  const excessiveChangedFileOutput = structuredClone(replacement);
+  excessiveChangedFileOutput.writes =
+    input.bundle.plan.operation_contract.allowed_repository_relative_paths.map(
+      (repositoryRelativePath, index) => ({
+        repository_relative_path: repositoryRelativePath,
+        content: `export const mechanicsProbe${index} = true;\n`,
+      }),
+    );
+  assert.equal(
+    excessiveChangedFileOutput.writes.length >
+      input.bundle.plan.operation_contract.max_changed_files,
+    true,
+  );
+  assert.throws(
+    () =>
+      buildSyntheticFixtureBindingV01({
+        source: input.bundle.source,
+        actual_plan: input.bundle.plan,
+        synthetic_fixture_output: excessiveChangedFileOutput,
+        packet: input.bundle.packet,
+        commitment: findCommitmentV01(
+          input.manifest,
+          input.bundle.source.case_id,
+        ),
+      }),
+    /commissioned_workbench_synthetic_fixture_binding_invalid/u,
   );
   const unsafeSyntheticOutput = structuredClone(replacement);
   unsafeSyntheticOutput.writes[0]!.content =
@@ -2221,29 +2351,45 @@ function assertSyntheticOutputSeparationV01(input: {
   ];
   executorProducedResult.summary =
     "The executor returned one bounded structured repository diff.";
+  executorProducedResult.host_refs = [
+    {
+      ref_version: "external_ref.v0.1",
+      ref_type: "commissioned_workbench_commissioned_agent_host",
+      external_id: "commissioned-agent-conformance-host",
+      observed_at: executorProducedResult.finished_at,
+      source_ref: createProtocolSha256V01(
+        "commissioned-agent-conformance-host",
+      ),
+      compatibility_namespace: "commissioned_work_episode.v0.1",
+      trust_class: "direct_local_observation",
+    },
+  ];
+  executorProducedResult.adapter_version =
+    "commissioned_agent_protocol_conformance_adapter.v0.1";
+  executorProducedResult.capability_version =
+    "commissioned_agent_protocol_conformance_capability.v0.1";
   executorProducedResult.adapter_extension.adapter_kind =
     "commissioned_work_live_capable_result_probe";
   for (const fixtureOnlyKey of [
+    "fixture_admission_fingerprint",
+    "fixture_admission_consumed",
     "synthetic_fixture_binding_fingerprint",
     "synthetic_fixture_output_fingerprint",
     "execution_evidence_class",
     "synthetic_fixture_output_applied",
     "solution_write_plan_checked_during_result_admission",
-    "executor_claimed_complete",
   ]) {
     delete executorProducedResult.adapter_extension.bounded_metadata[
       fixtureOnlyKey
     ];
   }
-  assert.deepEqual(
-    admitCommissionedWorkExecutorResultV01({
-      source: input.bundle.source,
-      plan: input.bundle.plan,
-      request: input.bundle.request,
-      result: executorProducedResult,
-    }),
-    executorProducedResult,
-  );
+  const admittedExecutorProducedResult = admitCommissionedWorkExecutorResultV01({
+    source: input.bundle.source,
+    plan: input.bundle.plan,
+    request: input.bundle.request,
+    result: executorProducedResult,
+  });
+  assert.deepEqual(admittedExecutorProducedResult, executorProducedResult);
   const executorResultObservation = evaluateRepositoryEpisodeV01({
     source: input.bundle.source,
     commitment: findCommitmentV01(
@@ -2263,7 +2409,7 @@ function assertSyntheticOutputSeparationV01(input: {
     workspace_id: input.manifest.workspace_id,
     project_id: input.bundle.source.project_id,
     run_oracles: true,
-    result: executorProducedResult,
+    result: admittedExecutorProducedResult,
     oracle_guard_path: input.roots.oracle_guard_path,
     network_attempt_log: input.roots.network_attempt_log,
   });
@@ -2274,6 +2420,98 @@ function assertSyntheticOutputSeparationV01(input: {
       (check) => check.disposition === "passed",
     ),
     true,
+  );
+  const commissionedAgentConformanceSource = {
+    binding_kind: "commissioned_agent",
+    execution_evidence_class:
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+    execution_mode: "commissioned_agent_native_host",
+    live_authorization_ref: null,
+    provider_ref: null,
+    model_ref: null,
+    route_ref: null,
+  } as const satisfies CommissionedWorkEpisodeExecutionSourceV01;
+  const executorResultReceipt = buildCommissionedWorkRunReceiptV01({
+    request: input.bundle.request,
+    packet: input.bundle.packet,
+    result: admittedExecutorProducedResult,
+    observation: executorResultObservation,
+    execution_source: commissionedAgentConformanceSource,
+  });
+  const predecessorRef = createCommissionedWorkRecordRefV01({
+    record_version: input.predecessor.episode_version,
+    record_id: input.predecessor.episode_id,
+    record_fingerprint: input.predecessor.integrity.fingerprint,
+  });
+  const fixtureFreeEpisode = buildCommissionedWorkEpisodeArtifactV01({
+    manifest: input.manifest,
+    source: input.bundle.source,
+    plan: input.bundle.plan,
+    packet: input.bundle.packet,
+    request: input.bundle.request,
+    result: admittedExecutorProducedResult,
+    receipt: executorResultReceipt,
+    observation: executorResultObservation,
+    execution_source: commissionedAgentConformanceSource,
+    episode_id: input.bundle.episode_id,
+    episode_role: input.bundle.episode_role,
+    condition: input.bundle.condition,
+    holdout_variant: input.bundle.holdout_variant,
+    predecessor_episode_ref: predecessorRef,
+    sealed_interruption_ref:
+      createCommissionedWorkSealedInterruptionRefV01(input.predecessor),
+    candidate_freeze_fingerprint: null,
+    repository_state: input.bundle.repository_state,
+    started_at: input.bundle.started_at,
+    first_material_action_at: input.bundle.first_material_action_at,
+    finished_at: input.bundle.finished_at,
+    candidate_frozen_before_start: null,
+    repository_action_trace_fingerprint:
+      input.bundle.action_trace_fingerprint,
+  });
+  assertValidCommissionedWorkEpisodeArtifactV01(fixtureFreeEpisode);
+  assert.equal(
+    fixtureFreeEpisode.execution_binding.binding_kind,
+    "commissioned_agent",
+  );
+  assert.equal(
+    fixtureFreeEpisode.execution_binding.execution_evidence_class,
+    COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(fixtureFreeEpisode).includes(
+      "synthetic_fixture_output_fingerprint",
+    ),
+    false,
+  );
+  assert.equal(
+    canonicalizeProtocolValueV01(fixtureFreeEpisode).includes(
+      "synthetic_fixture_binding_fingerprint",
+    ),
+    false,
+  );
+  for (const stage of [
+    "referenced",
+    "behaviorally_conditioned",
+    "support_validated",
+    "outcome_associated",
+    "intervention_sensitive",
+    "repeatable",
+  ]) {
+    assert.equal(
+      fixtureFreeEpisode.evidence_ladder.find((row) => row.stage === stage)
+        ?.status,
+      "unknown",
+    );
+  }
+  assert.equal(executorResultReceipt.model_invocations.length, 0);
+  assert.equal(
+    fixtureFreeEpisode.evaluation.resources.provider_calls.value,
+    0,
+  );
+  assert.equal(
+    fixtureFreeEpisode.evaluation.resources.external_network_calls.value,
+    0,
   );
 }
 

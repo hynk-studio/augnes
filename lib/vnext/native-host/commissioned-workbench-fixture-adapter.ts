@@ -26,6 +26,7 @@ import {
   COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
   COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
   type CommissionedWorkCandidateComponentIdV01,
+  type CommissionedWorkEpisodeOperationContractV01,
   type CommissionedWorkSyntheticFixtureOutputV01,
 } from "@/types/vnext/commissioned-controlled-workbench";
 import type {
@@ -60,6 +61,8 @@ export interface CommissionedWorkbenchFixtureAdmissionV01 {
 export interface CommissionedWorkbenchSyntheticFixtureBindingV01 {
   binding_version: "commissioned_workbench_synthetic_fixture_binding.v0.1";
   packet_material_set_fingerprint: string;
+  operation_contract: CommissionedWorkEpisodeOperationContractV01;
+  operation_contract_fingerprint: string;
   synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   synthetic_fixture_output_fingerprint: string;
   expected_current_source_fingerprint: string | null;
@@ -139,6 +142,7 @@ export function createCommissionedWorkbenchFixtureAdmissionV01(input: {
 
 export function createCommissionedWorkbenchSyntheticFixtureBindingV01(input: {
   packet: TaskContextPacketV01;
+  operation_contract: CommissionedWorkEpisodeOperationContractV01;
   synthetic_fixture_output: CommissionedWorkSyntheticFixtureOutputV01;
   expected_current_source_fingerprint: string | null;
   current_source_relative_paths: string[];
@@ -147,6 +151,10 @@ export function createCommissionedWorkbenchSyntheticFixtureBindingV01(input: {
   const normalizedMaterial = normalizeSyntheticFixtureBindingMaterialV01({
     packet_material_set_fingerprint:
       createCommissionedWorkbenchPacketMaterialSetFingerprintV01(input.packet),
+    operation_contract: input.operation_contract,
+    operation_contract_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.operation_contract),
+    ),
     synthetic_fixture_output: input.synthetic_fixture_output,
     synthetic_fixture_output_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(input.synthetic_fixture_output),
@@ -263,6 +271,15 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
         request.policy.commands !== "approval_required" ||
         request.policy.model !== "native_host_managed" ||
         request.policy.host_egress !== "explicit_interactive_start" ||
+        canonicalizeProtocolValueV01(request.allowed_operation_categories) !==
+          canonicalizeProtocolValueV01(
+            syntheticFixtureBinding.operation_contract
+              .allowed_operation_categories,
+          ) ||
+        request.policy.max_changed_files !==
+          syntheticFixtureBinding.operation_contract.max_changed_files ||
+        request.policy.max_commands !==
+          syntheticFixtureBinding.operation_contract.max_commands ||
         request.execution_grant_ref !== null ||
         request.automation_context !== null ||
         request.repository_delegation_context != null ||
@@ -285,8 +302,7 @@ export function createCommissionedWorkbenchFixtureAdapterV01(input: {
             role_kind: "executor",
             role_id: syntheticFixtureOutput.executor_role_id,
           }),
-        ) !== input.fixture_admission.executor_role_fingerprint ||
-        syntheticFixtureOutput.writes.length > request.policy.max_changed_files
+        ) !== input.fixture_admission.executor_role_fingerprint
       ) {
         failV01("commissioned_workbench_adapter_request_refused");
       }
@@ -492,6 +508,7 @@ function normalizeSyntheticFixtureBindingMaterialV01(
 ): CommissionedWorkbenchSyntheticFixtureBindingMaterialV01 {
   if (
     !FINGERPRINT_V01.test(material.packet_material_set_fingerprint) ||
+    !FINGERPRINT_V01.test(material.operation_contract_fingerprint) ||
     !FINGERPRINT_V01.test(material.synthetic_fixture_output_fingerprint) ||
     (material.expected_current_source_fingerprint !== null &&
       !FINGERPRINT_V01.test(material.expected_current_source_fingerprint)) ||
@@ -502,6 +519,9 @@ function normalizeSyntheticFixtureBindingMaterialV01(
   }
   const syntheticFixtureOutput = normalizeSyntheticFixtureOutputV01(
     material.synthetic_fixture_output,
+  );
+  const operationContract = normalizeOperationContractV01(
+    material.operation_contract,
   );
   const currentSourcePaths = material.current_source_relative_paths
     .map(canonicalizeRepositoryRelativePathV01)
@@ -514,6 +534,15 @@ function normalizeSyntheticFixtureBindingMaterialV01(
       createProtocolSha256V01(
         canonicalizeProtocolValueV01(syntheticFixtureOutput),
       ) ||
+    material.operation_contract_fingerprint !==
+      createProtocolSha256V01(canonicalizeProtocolValueV01(operationContract)) ||
+    syntheticFixtureOutput.writes.length > operationContract.max_changed_files ||
+    syntheticFixtureOutput.writes.some(
+      (write) =>
+        !operationContract.allowed_repository_relative_paths.includes(
+          write.repository_relative_path,
+        ),
+    ) ||
     new Set(currentSourcePaths).size !== currentSourcePaths.length ||
     (material.expected_current_source_fingerprint !== null &&
       currentSourcePaths.length === 0)
@@ -522,9 +551,43 @@ function normalizeSyntheticFixtureBindingMaterialV01(
   }
   return {
     ...material,
+    operation_contract: operationContract,
     synthetic_fixture_output: syntheticFixtureOutput,
     current_source_relative_paths: currentSourcePaths,
     candidate_component_ids: candidateComponentIds,
+  };
+}
+
+function normalizeOperationContractV01(
+  contract: CommissionedWorkEpisodeOperationContractV01,
+): CommissionedWorkEpisodeOperationContractV01 {
+  const allowedPaths = contract.allowed_repository_relative_paths
+    .map(canonicalizeRepositoryRelativePathV01)
+    .sort(compareCanonicalV01);
+  if (
+    canonicalizeProtocolValueV01(contract.allowed_operation_categories) !==
+      canonicalizeProtocolValueV01(["repository_file_edit"]) ||
+    allowedPaths.length === 0 ||
+    new Set(allowedPaths).size !== allowedPaths.length ||
+    !Number.isInteger(contract.max_changed_files) ||
+    contract.max_changed_files < 1 ||
+    contract.max_changed_files > allowedPaths.length ||
+    !Number.isInteger(contract.max_commands) ||
+    contract.max_commands < 1 ||
+    contract.provider_authority_source !==
+      "separate_live_authorization_required" ||
+    contract.provider_calls_authorized_by_operation_contract !== false ||
+    contract.external_network_call_limit !== 0 ||
+    contract.outside_root_write_allowed !== false ||
+    contract.github_mutation_allowed !== false ||
+    contract.semantic_authority_allowed !== false
+  ) {
+    failV01("commissioned_workbench_operation_contract_invalid");
+  }
+  return {
+    ...contract,
+    allowed_operation_categories: ["repository_file_edit"],
+    allowed_repository_relative_paths: allowedPaths,
   };
 }
 

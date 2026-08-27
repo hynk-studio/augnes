@@ -22,6 +22,19 @@ export const COMMISSIONED_WORK_EXPERIMENT_CLASS_V01 =
   "commissioned_controlled_work" as const;
 export const COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01 =
   "synthetic_deterministic" as const;
+export const COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01 =
+  "commissioned_agent_protocol_conformance" as const;
+export const COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01 =
+  "commissioned_agent_observation" as const;
+
+export type CommissionedWorkExecutionEvidenceClassV01 =
+  | typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01
+  | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
+  | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
+
+export type CommissionedWorkExecutionModeV01 =
+  | "zero_provider_synthetic_fixture_adapter"
+  | "commissioned_agent_native_host";
 
 export const COMMISSIONED_WORK_CONDITIONS_V01 = [
   "exact_current_continuity",
@@ -214,6 +227,24 @@ export interface CommissionedWorkEpisodeOperationContractV01 {
   semantic_authority_allowed: false;
 }
 
+export type CommissionedWorkEpisodeExecutionSourceV01 =
+  | {
+      binding_kind: "synthetic_fixture";
+      execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+      execution_mode: "zero_provider_synthetic_fixture_adapter";
+    }
+  | {
+      binding_kind: "commissioned_agent";
+      execution_evidence_class:
+        | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
+        | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
+      execution_mode: "commissioned_agent_native_host";
+      live_authorization_ref: CommissionedWorkRecordRefV01 | null;
+      provider_ref: CommissionedWorkRecordRefV01 | null;
+      model_ref: CommissionedWorkRecordRefV01 | null;
+      route_ref: CommissionedWorkRecordRefV01 | null;
+    };
+
 export interface CommissionedWorkEpisodePlanSourceV01 {
   executor_role_id: string;
   operation_contract: CommissionedWorkEpisodeOperationContractV01;
@@ -332,8 +363,8 @@ export interface CommissionedWorkFamilyManifestV01 {
   family_version: typeof COMMISSIONED_WORK_FAMILY_VERSION_V01;
   family_id: string;
   experiment_class: typeof COMMISSIONED_WORK_EXPERIMENT_CLASS_V01;
-  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
-  execution_mode: "zero_provider_synthetic_fixture_adapter";
+  host_neutral_execution_commitment: true;
+  execution_binding_scope: "cohort_run_episode";
   workspace_id: string;
   task_family_key: string;
   sealed_at: string;
@@ -484,12 +515,67 @@ export interface CommissionedWorkEvaluationVectorV01 {
   project_scope_violation: boolean | null;
   executor_role: CommissionedWorkRoleRefV01;
   host_identity_fingerprint: string;
-  model_identity: "zero_model";
+  model_identity: {
+    provenance: "observed" | "unknown";
+    provider_ref: CommissionedWorkRecordRefV01 | null;
+    model_ref: CommissionedWorkRecordRefV01 | null;
+    route_ref: CommissionedWorkRecordRefV01 | null;
+  };
   resources: CommissionedWorkResourceVectorV01;
   hard_failures: CommissionedWorkHardFailureCodeV01[];
   hard_failures_non_compensable: true;
   scalar_fitness_created: false;
 }
+
+export interface CommissionedWorkEpisodeExecutionBindingCommonV01 {
+  run_ref_fingerprint: string;
+  request_id: string;
+  native_host_request_fingerprint: string;
+  native_host_result_fingerprint: string;
+  host_ref: CommissionedWorkRecordRefV01;
+  live_authorization_created: false;
+  product_execution_grant_created: false;
+  solution_write_plan_checked_during_result_admission: false;
+  new_run_for_cold_episode: true;
+  predecessor_run_reused: false;
+  predecessor_transcript_inherited: false;
+  hidden_reasoning_inherited: false;
+  executor_completion_is_outcome_truth: false;
+  packet_material_set_fingerprint: string;
+  delivered_material_set_fingerprint: string;
+  continuation_materials_delivered: number;
+  candidate_components_delivered: number;
+  candidate_component_delivery_fingerprints: string[];
+}
+
+export interface CommissionedWorkSyntheticFixtureExecutionBindingV01
+  extends CommissionedWorkEpisodeExecutionBindingCommonV01 {
+  binding_kind: "synthetic_fixture";
+  execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
+  execution_mode: "zero_provider_synthetic_fixture_adapter";
+  disposable_fixture_admission_fingerprint: string;
+  fixture_admission_reused: false;
+  synthetic_fixture_binding_fingerprint: string;
+  synthetic_fixture_output_fingerprint: string;
+  synthetic_fixture_output_applied: true;
+}
+
+export interface CommissionedWorkCommissionedAgentExecutionBindingV01
+  extends CommissionedWorkEpisodeExecutionBindingCommonV01 {
+  binding_kind: "commissioned_agent";
+  execution_evidence_class:
+    | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
+    | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
+  execution_mode: "commissioned_agent_native_host";
+  live_authorization_ref: CommissionedWorkRecordRefV01 | null;
+  provider_ref: CommissionedWorkRecordRefV01 | null;
+  model_ref: CommissionedWorkRecordRefV01 | null;
+  route_ref: CommissionedWorkRecordRefV01 | null;
+}
+
+export type CommissionedWorkEpisodeExecutionBindingV01 =
+  | CommissionedWorkSyntheticFixtureExecutionBindingV01
+  | CommissionedWorkCommissionedAgentExecutionBindingV01;
 
 export interface CommissionedWorkEpisodeArtifactV01 {
   episode_version: typeof COMMISSIONED_WORK_EPISODE_VERSION_V01;
@@ -518,29 +604,7 @@ export interface CommissionedWorkEpisodeArtifactV01 {
   task_context_packet_ref: CommissionedWorkRecordRefV01;
   native_host_result_ref: CommissionedWorkRecordRefV01;
   run_receipt_ref: CommissionedWorkRecordRefV01;
-  execution_binding: {
-    run_ref_fingerprint: string;
-    request_id: string;
-    disposable_fixture_admission_fingerprint: string;
-    live_authorization_created: false;
-    fixture_admission_reused: false;
-    synthetic_fixture_binding_fingerprint: string;
-    synthetic_fixture_output_fingerprint: string;
-    execution_evidence_class: typeof COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01;
-    synthetic_fixture_output_applied: true;
-    solution_write_plan_checked_during_result_admission: false;
-    new_run_for_cold_episode: true;
-    predecessor_run_reused: false;
-    predecessor_transcript_inherited: false;
-    hidden_reasoning_inherited: false;
-    executor_completion_is_outcome_truth: false;
-    product_execution_grant_created: false;
-    packet_material_set_fingerprint: string;
-    delivered_material_set_fingerprint: string;
-    continuation_materials_delivered: number;
-    candidate_components_delivered: number;
-    candidate_component_delivery_fingerprints: string[];
-  };
+  execution_binding: CommissionedWorkEpisodeExecutionBindingV01;
   chronology: {
     started_at: string;
     first_material_action_at: string | null;

@@ -33,8 +33,6 @@ function material(
   return { material_id, material_kind, lifecycle_status, content };
 }
 
-const syntheticFixtureOutputsV01: CommissionedWorkSyntheticFixtureOutputV01[] = [];
-
 function fixtureCaseIdV01(executorRoleId: string): string {
   if (executorRoleId.startsWith("executor-amber-")) return "case-amber-17";
   if (executorRoleId.startsWith("executor-cobalt-")) return "case-cobalt-29";
@@ -43,15 +41,16 @@ function fixtureCaseIdV01(executorRoleId: string): string {
   throw new Error("commissioned_work_fixture_executor_case_unknown");
 }
 
-function operationContract(
-  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"],
-): CommissionedWorkEpisodePlanSourceV01["operation_contract"] {
+function taskOwnedOperationContractV01(input: {
+  allowed_repository_relative_paths: string[];
+  max_changed_files: number;
+}): CommissionedWorkEpisodePlanSourceV01["operation_contract"] {
   return {
     allowed_operation_categories: ["repository_file_edit"],
-    allowed_repository_relative_paths: writes.map(
-      (write) => write.repository_relative_path,
-    ),
-    max_changed_files: writes.length,
+    allowed_repository_relative_paths: [
+      ...input.allowed_repository_relative_paths,
+    ].sort(),
+    max_changed_files: input.max_changed_files,
     max_commands: 8,
     provider_authority_source: "separate_live_authorization_required",
     provider_calls_authorized_by_operation_contract: false,
@@ -62,79 +61,63 @@ function operationContract(
   };
 }
 
-function registerSyntheticFixtureOutputV01(input: {
-  executor: string;
-  episode_role: "predecessor" | "successor";
-  condition: CommissionedWorkSuccessorPlanSourceV01["condition"] | null;
-  holdout_variant: CommissionedWorkSuccessorPlanSourceV01["holdout_variant"];
-  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
-  claimed_complete: boolean;
-}): void {
-  const caseId = fixtureCaseIdV01(input.executor);
-  syntheticFixtureOutputsV01.push({
-    output_version: "commissioned_work_synthetic_fixture_output.v0.1",
-    output_id: `synthetic-output-${input.executor}`,
-    case_id: caseId,
-    executor_role_id: input.executor,
-    episode_role: input.episode_role,
-    condition: input.condition,
-    holdout_variant: input.holdout_variant,
-    writes: input.writes,
-    terminal_outcome:
-      input.episode_role === "predecessor" ? "blocked" : "completed",
-    executor_claimed_complete: input.claimed_complete,
-    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
-    execution_evidence_class:
-      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
-    expected_mechanics_response: true,
-    commissioned_behavioral_evidence: false,
-    part_of_task_context_packet: false,
-    part_of_candidate_derivation_evidence: false,
-    required_by_live_executor_path: false,
-  });
-}
+const AMBER_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
+  allowed_repository_relative_paths: [
+    "src/route-token.mjs",
+    "src/route-format.mjs",
+  ],
+  max_changed_files: 1,
+});
+
+const COBALT_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
+  allowed_repository_relative_paths: [
+    "lib/quota-window.mjs",
+    "lib/quota-policy.mjs",
+  ],
+  max_changed_files: 1,
+});
+
+const CEDAR_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
+  allowed_repository_relative_paths: [
+    "engine/resolve-mode.mjs",
+    "engine/mode-lookup.mjs",
+  ],
+  max_changed_files: 1,
+});
+
+const QUARTZ_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
+  allowed_repository_relative_paths: [
+    "modules/ledger/normalize.cjs",
+    "modules/ledger/format.cjs",
+  ],
+  max_changed_files: 1,
+});
 
 function predecessorPlan(input: {
   executor: string;
-  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
-  claimed_complete: boolean;
+  operation_contract: CommissionedWorkEpisodePlanSourceV01["operation_contract"];
 }): CommissionedWorkEpisodePlanSourceV01 {
-  registerSyntheticFixtureOutputV01({
-    ...input,
-    episode_role: "predecessor",
-    condition: null,
-    holdout_variant: null,
-  });
   return {
     executor_role_id: input.executor,
-    operation_contract: operationContract(input.writes),
+    operation_contract: input.operation_contract,
   };
 }
 
 function trainingPlan(input: {
   condition: CommissionedWorkSuccessorPlanSourceV01["condition"];
   executor: string;
-  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
+  operation_contract: CommissionedWorkEpisodePlanSourceV01["operation_contract"];
   selected: string[];
   excluded: string[];
   stale: string | null;
   intervention: string;
   holdout_variant?: CommissionedWorkSuccessorPlanSourceV01["holdout_variant"];
   candidate_intervention_mode?: CommissionedWorkSuccessorPlanSourceV01["candidate_intervention_mode"];
-  claimed_complete?: boolean;
 }): CommissionedWorkSuccessorPlanSourceV01 {
   const holdoutVariant = input.holdout_variant ?? null;
-  registerSyntheticFixtureOutputV01({
-    executor: input.executor,
-    episode_role: "successor",
-    condition: input.condition,
-    holdout_variant: holdoutVariant,
-    writes: input.writes,
-    claimed_complete: input.claimed_complete ?? true,
-  });
   return {
     executor_role_id: input.executor,
-    operation_contract: operationContract(input.writes),
+    operation_contract: input.operation_contract,
     condition: input.condition,
     holdout_variant: holdoutVariant,
     candidate_intervention_mode:
@@ -174,14 +157,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
   ],
   predecessor_plan: predecessorPlan({
     executor: "executor-amber-p0",
-    claimed_complete: false,
-    writes: [
-      {
-        repository_relative_path: "src/route-token.mjs",
-        content:
-          'export function routeToken(key, id) { return `${key}:${id}`; }\n',
-      },
-    ],
+    operation_contract: AMBER_OPERATION_CONTRACT_V01,
   }),
   source_drift_writes: [
     {
@@ -198,13 +174,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "exact_current_continuity",
       executor: "executor-amber-s1",
-      writes: [
-        {
-          repository_relative_path: "src/route-token.mjs",
-          content:
-            'import { separator } from "./channel.mjs";\nexport function routeToken(key, id) { return `${key}${separator}${id}`; }\n',
-        },
-      ],
+      operation_contract: AMBER_OPERATION_CONTRACT_V01,
       selected: ["amber-current"],
       excluded: ["amber-old"],
       stale: null,
@@ -213,13 +183,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "matched_ablation",
       executor: "executor-amber-s2",
-      writes: [
-        {
-          repository_relative_path: "src/route-token.mjs",
-          content:
-            'export function routeToken(key, id) { return [key, id].join(":"); }\n',
-        },
-      ],
+      operation_contract: AMBER_OPERATION_CONTRACT_V01,
       selected: [],
       excluded: ["amber-current", "amber-old"],
       stale: null,
@@ -228,13 +192,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
       executor: "executor-amber-s3",
-      writes: [
-        {
-          repository_relative_path: "src/route-token.mjs",
-          content:
-            'export function routeToken(key, id) { return [key, id].join(":"); }\n',
-        },
-      ],
+      operation_contract: AMBER_OPERATION_CONTRACT_V01,
       selected: ["amber-old"],
       excluded: ["amber-current"],
       stale: "amber-old",
@@ -243,13 +201,7 @@ const amberCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "zero_continuation_control",
       executor: "executor-amber-s4",
-      writes: [
-        {
-          repository_relative_path: "src/route-token.mjs",
-          content:
-            'export function routeToken(key, id) { return [key, id].join(":"); }\n',
-        },
-      ],
+      operation_contract: AMBER_OPERATION_CONTRACT_V01,
       selected: [],
       excluded: ["amber-current", "amber-old"],
       stale: null,
@@ -345,13 +297,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
   ],
   predecessor_plan: predecessorPlan({
     executor: "executor-cobalt-p0",
-    claimed_complete: true,
-    writes: [
-      {
-        repository_relative_path: "lib/quota-window.mjs",
-        content: "export function accepts(value) { return value < 10; }\n",
-      },
-    ],
+    operation_contract: COBALT_OPERATION_CONTRACT_V01,
   }),
   source_drift_writes: [
     {
@@ -373,13 +319,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "exact_current_continuity",
       executor: "executor-cobalt-s1",
-      writes: [
-        {
-          repository_relative_path: "lib/quota-window.mjs",
-          content:
-            'import { limit } from "../config/window.mjs";\nexport function accepts(value) { return value <= limit; }\n',
-        },
-      ],
+      operation_contract: COBALT_OPERATION_CONTRACT_V01,
       selected: ["cobalt-current", "cobalt-incomplete"],
       excluded: ["cobalt-implemented"],
       stale: null,
@@ -388,13 +328,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "matched_ablation",
       executor: "executor-cobalt-s2",
-      writes: [
-        {
-          repository_relative_path: "lib/quota-window.mjs",
-          content:
-            'import { limit } from "../config/window.mjs";\nexport function accepts(value) { return value < limit; }\n',
-        },
-      ],
+      operation_contract: COBALT_OPERATION_CONTRACT_V01,
       selected: ["cobalt-current"],
       excluded: ["cobalt-incomplete", "cobalt-implemented"],
       stale: null,
@@ -403,12 +337,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
       executor: "executor-cobalt-s3",
-      writes: [
-        {
-          repository_relative_path: "lib/quota-window.mjs",
-          content: "export function accepts(value) { return Number(value) < 10; }\n",
-        },
-      ],
+      operation_contract: COBALT_OPERATION_CONTRACT_V01,
       selected: ["cobalt-implemented"],
       excluded: ["cobalt-current", "cobalt-incomplete"],
       stale: "cobalt-implemented",
@@ -417,12 +346,7 @@ const cobaltCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "zero_continuation_control",
       executor: "executor-cobalt-s4",
-      writes: [
-        {
-          repository_relative_path: "lib/quota-window.mjs",
-          content: "export function accepts(value) { return value <= 10; }\n",
-        },
-      ],
+      operation_contract: COBALT_OPERATION_CONTRACT_V01,
       selected: [],
       excluded: ["cobalt-current", "cobalt-incomplete", "cobalt-implemented"],
       stale: null,
@@ -521,14 +445,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
   ],
   predecessor_plan: predecessorPlan({
     executor: "executor-cedar-p0",
-    claimed_complete: false,
-    writes: [
-      {
-        repository_relative_path: "engine/resolve-mode.mjs",
-        content:
-          'export function resolveMode(name) { if (name === "hot") return "fast"; throw new Error("unknown"); }\n',
-      },
-    ],
+    operation_contract: CEDAR_OPERATION_CONTRACT_V01,
   }),
   source_drift_writes: [
     {
@@ -545,13 +462,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "exact_current_continuity",
       executor: "executor-cedar-s1",
-      writes: [
-        {
-          repository_relative_path: "engine/resolve-mode.mjs",
-          content:
-            'import { catalog } from "./mode-catalog.mjs";\nexport function resolveMode(name) { if (!Object.hasOwn(catalog, name)) throw new Error("unknown"); return catalog[name]; }\n',
-        },
-      ],
+      operation_contract: CEDAR_OPERATION_CONTRACT_V01,
       selected: ["cedar-current", "cedar-rejection"],
       excluded: ["cedar-fallback"],
       stale: null,
@@ -560,13 +471,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "matched_ablation",
       executor: "executor-cedar-s2",
-      writes: [
-        {
-          repository_relative_path: "engine/resolve-mode.mjs",
-          content:
-            'import { catalog } from "./mode-catalog.mjs";\nexport function resolveMode(name) { return catalog[name] ?? "default"; }\n',
-        },
-      ],
+      operation_contract: CEDAR_OPERATION_CONTRACT_V01,
       selected: ["cedar-current"],
       excluded: ["cedar-rejection", "cedar-fallback"],
       stale: null,
@@ -575,13 +480,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "stale_or_regime_shift_continuity",
       executor: "executor-cedar-s3",
-      writes: [
-        {
-          repository_relative_path: "engine/resolve-mode.mjs",
-          content:
-            'import { catalog } from "./mode-catalog.mjs";\nexport function resolveMode(name) { return catalog[name] ?? "default"; }\n',
-        },
-      ],
+      operation_contract: CEDAR_OPERATION_CONTRACT_V01,
       selected: ["cedar-fallback"],
       excluded: ["cedar-current", "cedar-rejection"],
       stale: "cedar-fallback",
@@ -590,13 +489,7 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
     trainingPlan({
       condition: "zero_continuation_control",
       executor: "executor-cedar-s4",
-      writes: [
-        {
-          repository_relative_path: "engine/resolve-mode.mjs",
-          content:
-            'export function resolveMode(name) { switch (name) { case "hot": return "fast"; default: throw new Error("unknown"); } }\n',
-        },
-      ],
+      operation_contract: CEDAR_OPERATION_CONTRACT_V01,
       selected: [],
       excluded: ["cedar-current", "cedar-rejection", "cedar-fallback"],
       stale: null,
@@ -698,14 +591,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   ],
   predecessor_plan: predecessorPlan({
     executor: "executor-quartz-p0",
-    claimed_complete: false,
-    writes: [
-      {
-        repository_relative_path: "modules/ledger/normalize.cjs",
-        content:
-          'exports.normalizeLabel = function (value) { return "+" + (value ?? "UNKNOWN").toUpperCase(); };\n',
-      },
-    ],
+    operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
   }),
   source_drift_writes: [
     {
@@ -726,13 +612,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   successor_plans: [
     trainingPlan({
       executor: "executor-quartz-s1",
-      writes: [
-        {
-          repository_relative_path: "modules/ledger/normalize.cjs",
-          content:
-            'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { return mark + (value ?? "UNKNOWN").trim().toUpperCase(); };\n',
-        },
-      ],
+      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
       condition: "exact_current_continuity",
       holdout_variant: "strongest_equal_budget_baseline",
       candidate_intervention_mode: "no_candidate",
@@ -743,13 +623,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s2",
-      writes: [
-        {
-          repository_relative_path: "modules/ledger/normalize.cjs",
-          content:
-            'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
-        },
-      ],
+      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
       condition: "exact_current_continuity",
       holdout_variant: "candidate_present",
       candidate_intervention_mode: "all_frozen_candidate_components",
@@ -760,13 +634,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s3",
-      writes: [
-        {
-          repository_relative_path: "modules/ledger/normalize.cjs",
-          content:
-            'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string") throw new Error("label required"); return mark + value.toUpperCase(); };\n',
-        },
-      ],
+      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
       condition: "exact_current_continuity",
       holdout_variant: "candidate_component_ablation",
       candidate_intervention_mode: "frozen_candidate_minus_last_component",
@@ -777,13 +645,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s4",
-      writes: [
-        {
-          repository_relative_path: "modules/ledger/normalize.cjs",
-          content:
-            'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
-        },
-      ],
+      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
       condition: "stale_or_regime_shift_continuity",
       holdout_variant: "stale_or_reset",
       candidate_intervention_mode: "no_candidate",
@@ -863,6 +725,240 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   budget: SHARED_BUDGET,
 };
 
+function syntheticFixtureOutputV01(input: {
+  executor: string;
+  episode_role: "predecessor" | "successor";
+  condition: CommissionedWorkSuccessorPlanSourceV01["condition"] | null;
+  holdout_variant: CommissionedWorkSuccessorPlanSourceV01["holdout_variant"];
+  writes: CommissionedWorkSyntheticFixtureOutputV01["writes"];
+  claimed_complete: boolean;
+}): CommissionedWorkSyntheticFixtureOutputV01 {
+  return {
+    output_version: "commissioned_work_synthetic_fixture_output.v0.1",
+    output_id: `synthetic-output-${input.executor}`,
+    case_id: fixtureCaseIdV01(input.executor),
+    executor_role_id: input.executor,
+    episode_role: input.episode_role,
+    condition: input.condition,
+    holdout_variant: input.holdout_variant,
+    writes: input.writes,
+    terminal_outcome:
+      input.episode_role === "predecessor" ? "blocked" : "completed",
+    executor_claimed_complete: input.claimed_complete,
+    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
+    execution_evidence_class:
+      COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
+    expected_mechanics_response: true,
+    commissioned_behavioral_evidence: false,
+    part_of_task_context_packet: false,
+    part_of_candidate_derivation_evidence: false,
+    required_by_live_executor_path: false,
+  };
+}
+
+function createSyntheticFixtureOutputsV01(): CommissionedWorkSyntheticFixtureOutputV01[] {
+  return [
+    syntheticFixtureOutputV01({
+      executor: "executor-amber-p0",
+      episode_role: "predecessor",
+      condition: null,
+      holdout_variant: null,
+      claimed_complete: false,
+      writes: [{
+        repository_relative_path: "src/route-token.mjs",
+        content: 'export function routeToken(key, id) { return `${key}:${id}`; }\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-amber-s1",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "src/route-token.mjs",
+        content: 'import { separator } from "./channel.mjs";\nexport function routeToken(key, id) { return `${key}${separator}${id}`; }\n',
+      }],
+    }),
+    ...["s2", "s3", "s4"].map((slot, index) =>
+      syntheticFixtureOutputV01({
+        executor: `executor-amber-${slot}`,
+        episode_role: "successor",
+        condition: ([
+          "matched_ablation",
+          "stale_or_regime_shift_continuity",
+          "zero_continuation_control",
+        ] as const)[index]!,
+        holdout_variant: null,
+        claimed_complete: true,
+        writes: [{
+          repository_relative_path: "src/route-token.mjs",
+          content: 'export function routeToken(key, id) { return [key, id].join(":"); }\n',
+        }],
+      }),
+    ),
+    syntheticFixtureOutputV01({
+      executor: "executor-cobalt-p0",
+      episode_role: "predecessor",
+      condition: null,
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "lib/quota-window.mjs",
+        content: "export function accepts(value) { return value < 10; }\n",
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cobalt-s1",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "lib/quota-window.mjs",
+        content: 'import { limit } from "../config/window.mjs";\nexport function accepts(value) { return value <= limit; }\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cobalt-s2",
+      episode_role: "successor",
+      condition: "matched_ablation",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "lib/quota-window.mjs",
+        content: 'import { limit } from "../config/window.mjs";\nexport function accepts(value) { return value < limit; }\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cobalt-s3",
+      episode_role: "successor",
+      condition: "stale_or_regime_shift_continuity",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "lib/quota-window.mjs",
+        content: "export function accepts(value) { return Number(value) < 10; }\n",
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cobalt-s4",
+      episode_role: "successor",
+      condition: "zero_continuation_control",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "lib/quota-window.mjs",
+        content: "export function accepts(value) { return value <= 10; }\n",
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cedar-p0",
+      episode_role: "predecessor",
+      condition: null,
+      holdout_variant: null,
+      claimed_complete: false,
+      writes: [{
+        repository_relative_path: "engine/resolve-mode.mjs",
+        content: 'export function resolveMode(name) { if (name === "hot") return "fast"; throw new Error("unknown"); }\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-cedar-s1",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "engine/resolve-mode.mjs",
+        content: 'import { catalog } from "./mode-catalog.mjs";\nexport function resolveMode(name) { if (!Object.hasOwn(catalog, name)) throw new Error("unknown"); return catalog[name]; }\n',
+      }],
+    }),
+    ...["s2", "s3"].map((slot, index) =>
+      syntheticFixtureOutputV01({
+        executor: `executor-cedar-${slot}`,
+        episode_role: "successor",
+        condition: ([
+          "matched_ablation",
+          "stale_or_regime_shift_continuity",
+        ] as const)[index]!,
+        holdout_variant: null,
+        claimed_complete: true,
+        writes: [{
+          repository_relative_path: "engine/resolve-mode.mjs",
+          content: 'import { catalog } from "./mode-catalog.mjs";\nexport function resolveMode(name) { return catalog[name] ?? "default"; }\n',
+        }],
+      }),
+    ),
+    syntheticFixtureOutputV01({
+      executor: "executor-cedar-s4",
+      episode_role: "successor",
+      condition: "zero_continuation_control",
+      holdout_variant: null,
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "engine/resolve-mode.mjs",
+        content: 'export function resolveMode(name) { switch (name) { case "hot": return "fast"; default: throw new Error("unknown"); } }\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-quartz-p0",
+      episode_role: "predecessor",
+      condition: null,
+      holdout_variant: null,
+      claimed_complete: false,
+      writes: [{
+        repository_relative_path: "modules/ledger/normalize.cjs",
+        content: 'exports.normalizeLabel = function (value) { return "+" + (value ?? "UNKNOWN").toUpperCase(); };\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-quartz-s1",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: "strongest_equal_budget_baseline",
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "modules/ledger/normalize.cjs",
+        content: 'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { return mark + (value ?? "UNKNOWN").trim().toUpperCase(); };\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-quartz-s2",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: "candidate_present",
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "modules/ledger/normalize.cjs",
+        content: 'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-quartz-s3",
+      episode_role: "successor",
+      condition: "exact_current_continuity",
+      holdout_variant: "candidate_component_ablation",
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "modules/ledger/normalize.cjs",
+        content: 'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string") throw new Error("label required"); return mark + value.toUpperCase(); };\n',
+      }],
+    }),
+    syntheticFixtureOutputV01({
+      executor: "executor-quartz-s4",
+      episode_role: "successor",
+      condition: "stale_or_regime_shift_continuity",
+      holdout_variant: "stale_or_reset",
+      claimed_complete: true,
+      writes: [{
+        repository_relative_path: "modules/ledger/normalize.cjs",
+        content: 'const { mark } = require("../../inventory/marks.cjs");\nexports.normalizeLabel = function (value) { if (typeof value !== "string" || value.trim() === "") throw new Error("label required"); return mark + value.trim().toUpperCase(); };\n',
+      }],
+    }),
+  ];
+}
+
 export function createCommissionedControlledWorkFamilySourceV01(): BuildCommissionedWorkFamilyManifestInputV01 {
   return structuredClone({
     family_id: COMMISSIONED_WORKBENCH_FIXTURE_FAMILY_ID_V01,
@@ -882,5 +978,5 @@ export function createCommissionedControlledWorkFamilySourceV01(): BuildCommissi
 }
 
 export function createCommissionedControlledWorkSyntheticFixtureOutputsV01(): CommissionedWorkSyntheticFixtureOutputV01[] {
-  return structuredClone(syntheticFixtureOutputsV01);
+  return structuredClone(createSyntheticFixtureOutputsV01());
 }
