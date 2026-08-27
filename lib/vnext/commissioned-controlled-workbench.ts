@@ -38,6 +38,7 @@ import {
   COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
   COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01,
   COMMISSIONED_WORK_CONDITIONS_V01,
+  COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01,
   COMMISSIONED_WORK_EPISODE_VERSION_V01,
   COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01,
   COMMISSIONED_WORK_EVALUATION_VERSION_V01,
@@ -61,6 +62,8 @@ import {
   type CommissionedWorkEpisodeCheckpointV01,
   type CommissionedWorkEpisodeExecutionBindingV01,
   type CommissionedWorkEpisodeExecutionSourceV01,
+  type CommissionedWorkEpisodeOriginProofV01,
+  type CommissionedWorkEpisodeOriginV01,
   type CommissionedWorkEpisodePlanSourceV01,
   type CommissionedWorkEpisodeRoleV01,
   type CommissionedWorkExecutionEvidenceClassV01,
@@ -277,6 +280,7 @@ export interface BuildCommissionedWorkEpisodeArtifactInputV01 {
   holdout_variant: CommissionedWorkHoldoutVariantV01 | null;
   predecessor_episode_ref: CommissionedWorkRecordRefV01 | null;
   predecessor_checkpoint: CommissionedWorkEpisodeCheckpointV01 | null;
+  episode_origin_proof: CommissionedWorkEpisodeOriginProofV01 | null;
   candidate_freeze_fingerprint: string | null;
   repository_state: CommissionedWorkEpisodeArtifactV01["repository_state"];
   candidate_frozen_before_start: boolean | null;
@@ -1312,6 +1316,15 @@ function validateSameRunResumeSourceV01(
     source.source_host_ref_set.length > 4 ||
     new Set(source.source_host_ref_set.map((binding) => binding.ref_type)).size !==
       source.source_host_ref_set.length ||
+    new Set(
+      source.source_host_ref_set.map(
+        (binding) => binding.exact_ref_fingerprint,
+      ),
+    ).size !== source.source_host_ref_set.length ||
+    source.source_host_ref_set.some(
+      (binding) =>
+        !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(binding.ref_type),
+    ) ||
     canonicalizeProtocolValueV01(source.source_host_ref_set) !==
       canonicalizeProtocolValueV01(
         [...source.source_host_ref_set].sort(compareCanonicalV01),
@@ -1319,8 +1332,8 @@ function validateSameRunResumeSourceV01(
   ) {
     failV01("commissioned_work_same_run_resume_source_invalid");
   }
-  const sourceFingerprints = new Set(
-    source.source_host_ref_set.map((binding) => binding.exact_ref_fingerprint),
+  const sourceBindingByType = new Map(
+    source.source_host_ref_set.map((binding) => [binding.ref_type, binding]),
   );
   const exactBindingRefs = [
     source.resume_binding.host_connection_ref,
@@ -1330,9 +1343,20 @@ function validateSameRunResumeSourceV01(
   ].filter((ref): ref is ExternalRefV01 => ref !== null);
   if (
     exactBindingRefs.some(
-      (ref) =>
-        !sourceFingerprints.has(fingerprintV01(ref)) ||
-        !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type),
+      (ref) => {
+        if (!COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type)) {
+          return true;
+        }
+        const refType =
+          ref.ref_type as CommissionedWorkNativeHostRefBindingV01["ref_type"];
+        const sourceBinding = sourceBindingByType.get(refType);
+        return (
+          sourceBinding === undefined ||
+          sourceBinding.ref_type !== refType ||
+          sourceBinding.exact_ref_fingerprint !== fingerprintV01(ref) ||
+          !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(refType)
+        );
+      },
     ) ||
     source.resume_binding.host_thread_ref.ref_type !== "host_thread" ||
     source.resume_binding.host_turn_ref.ref_type !== "host_turn" ||
@@ -1406,6 +1430,250 @@ export function createCommissionedWorkSameRunResumeSourceV01(input: {
   );
   validateSameRunResumeSourceV01(source);
   return source;
+}
+
+function validateEpisodeOriginProofV01(
+  proof: CommissionedWorkEpisodeOriginProofV01,
+): void {
+  validateIntegrityV01(
+    proof,
+    "commissioned_work_episode_origin_proof_without_integrity_fingerprint",
+    "commissioned_work_episode_origin_proof_integrity_invalid",
+  );
+  requireSafeCodeV01(
+    proof.proof_id,
+    "commissioned_work_episode_origin_proof_id_invalid",
+  );
+  requireSafeCodeV01(
+    proof.case_id,
+    "commissioned_work_episode_origin_proof_case_invalid",
+  );
+  requireSafeCodeV01(
+    proof.workspace_id,
+    "commissioned_work_episode_origin_proof_workspace_invalid",
+  );
+  requireSafeCodeV01(
+    proof.project_id,
+    "commissioned_work_episode_origin_proof_project_invalid",
+  );
+  requireFingerprintV01(
+    proof.origin_run_ref_fingerprint,
+    "commissioned_work_episode_origin_run_invalid",
+  );
+  requireFingerprintV01(
+    proof.origin_native_host_request_fingerprint,
+    "commissioned_work_episode_origin_request_invalid",
+  );
+  requireFingerprintV01(
+    proof.admitted_resume_binding_fingerprint,
+    "commissioned_work_episode_origin_resume_binding_invalid",
+  );
+  requireTimestampV01(
+    proof.origin_started_at,
+    "commissioned_work_episode_origin_start_invalid",
+  );
+  createCommissionedWorkRecordRefV01(proof.admitted_resume_source_ref);
+  if (
+    proof.proof_version !== COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01 ||
+    proof.admitted_resume_source_ref.record_version !==
+      COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 ||
+    canonicalizeProtocolValueV01(proof.origin_executor_role_ref) !==
+      canonicalizeProtocolValueV01(
+        createCommissionedWorkRoleRefV01(
+          "executor",
+          proof.origin_executor_role_ref.role_id,
+        ),
+      ) ||
+    proof.predecessor_execution_grant_inherited !== false ||
+    proof.predecessor_transcript_inherited !== false ||
+    proof.hidden_reasoning_inherited !== false
+  ) {
+    failV01("commissioned_work_episode_origin_proof_invalid");
+  }
+  if (proof.episode_origin_kind === "predecessor_episode") {
+    if (
+      proof.predecessor_episode_ref !== null ||
+      proof.predecessor_checkpoint_ref !== null ||
+      proof.predecessor_run_ref_fingerprint !== null ||
+      proof.predecessor_executor_role_ref !== null ||
+      proof.checkpoint_sealed_at !== null
+    ) {
+      failV01("commissioned_work_episode_origin_proof_invalid");
+    }
+    return;
+  }
+  createCommissionedWorkRecordRefV01(proof.predecessor_episode_ref);
+  createCommissionedWorkRecordRefV01(proof.predecessor_checkpoint_ref);
+  requireFingerprintV01(
+    proof.predecessor_run_ref_fingerprint,
+    "commissioned_work_episode_origin_predecessor_run_invalid",
+  );
+  requireTimestampV01(
+    proof.checkpoint_sealed_at,
+    "commissioned_work_episode_origin_checkpoint_time_invalid",
+  );
+  if (
+    canonicalizeProtocolValueV01(proof.predecessor_executor_role_ref) !==
+      canonicalizeProtocolValueV01(
+        createCommissionedWorkRoleRefV01(
+          "executor",
+          proof.predecessor_executor_role_ref.role_id,
+        ),
+      ) ||
+    proof.predecessor_run_ref_fingerprint === proof.origin_run_ref_fingerprint ||
+    proof.predecessor_executor_role_ref.role_fingerprint ===
+      proof.origin_executor_role_ref.role_fingerprint ||
+    Date.parse(proof.checkpoint_sealed_at) > Date.parse(proof.origin_started_at)
+  ) {
+    failV01("commissioned_work_episode_origin_proof_invalid");
+  }
+}
+
+export function createCommissionedWorkEpisodeOriginProofV01(input: {
+  manifest: CommissionedWorkFamilyManifestV01;
+  source: CommissionedWorkCaseSourceV01;
+  plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
+  origin_request: NativeHostRequestV01;
+  origin_started_at: string;
+  resume_source: CommissionedWorkSameRunResumeSourceV01;
+  predecessor_checkpoint: CommissionedWorkEpisodeCheckpointV01 | null;
+}): CommissionedWorkEpisodeOriginProofV01 {
+  assertExactPlanMembershipV01(input.source, input.plan);
+  const commitment = findCaseCommitmentV01(input.manifest, input.source.case_id);
+  if (
+    canonicalizeProtocolValueV01(
+      buildCommissionedWorkCaseCommitmentV01(input.source),
+    ) !== canonicalizeProtocolValueV01(commitment)
+  ) {
+    failV01("commissioned_work_episode_origin_source_binding_invalid");
+  }
+  validateSameRunResumeSourceV01(input.resume_source);
+  requireTimestampV01(
+    input.origin_started_at,
+    "commissioned_work_episode_origin_start_invalid",
+  );
+  const isColdSuccessor = isSuccessorPlanV01(input.plan);
+  if (
+    (isColdSuccessor && input.predecessor_checkpoint === null) ||
+    (!isColdSuccessor && input.predecessor_checkpoint !== null) ||
+    input.origin_request.workspace_id !== input.manifest.workspace_id ||
+    input.origin_request.project_id !== input.source.project_id ||
+    (input.origin_request.repository_resume_context !== null &&
+      input.origin_request.repository_resume_context !== undefined) ||
+    input.origin_request.execution_grant_ref !== null ||
+    input.origin_request.packet_capability_grant !== null ||
+    input.resume_source.run_id !== input.origin_request.run_id
+  ) {
+    failV01("commissioned_work_episode_origin_source_binding_invalid");
+  }
+  const executorRole = createCommissionedWorkRoleRefV01(
+    "executor",
+    input.plan.executor_role_id,
+  );
+  let predecessorFields:
+    | {
+        episode_origin_kind: "predecessor_episode";
+        predecessor_episode_ref: null;
+        predecessor_checkpoint_ref: null;
+        predecessor_run_ref_fingerprint: null;
+        predecessor_executor_role_ref: null;
+        checkpoint_sealed_at: null;
+      }
+    | {
+        episode_origin_kind: "cold_successor";
+        predecessor_episode_ref: CommissionedWorkRecordRefV01;
+        predecessor_checkpoint_ref: CommissionedWorkRecordRefV01;
+        predecessor_run_ref_fingerprint: string;
+        predecessor_executor_role_ref: CommissionedWorkRoleRefV01;
+        checkpoint_sealed_at: string;
+      };
+  if (input.predecessor_checkpoint === null) {
+    predecessorFields = {
+      episode_origin_kind: "predecessor_episode",
+      predecessor_episode_ref: null,
+      predecessor_checkpoint_ref: null,
+      predecessor_run_ref_fingerprint: null,
+      predecessor_executor_role_ref: null,
+      checkpoint_sealed_at: null,
+    };
+  } else {
+    const checkpoint = input.predecessor_checkpoint;
+    validateIntegrityV01(
+      checkpoint,
+      "commissioned_work_episode_checkpoint_without_integrity_fingerprint",
+      "commissioned_work_episode_checkpoint_integrity_invalid",
+    );
+    if (
+      checkpoint.case_id !== input.source.case_id ||
+      checkpoint.workspace_id !== input.manifest.workspace_id ||
+      checkpoint.project_id !== input.source.project_id ||
+      checkpoint.predecessor_run_ref_fingerprint ===
+        fingerprintV01(input.origin_request.run_id) ||
+      checkpoint.predecessor_executor_role_ref.role_fingerprint ===
+        executorRole.role_fingerprint ||
+      Date.parse(checkpoint.sealed_at) > Date.parse(input.origin_started_at)
+    ) {
+      failV01("commissioned_work_episode_origin_checkpoint_binding_invalid");
+    }
+    predecessorFields = {
+      episode_origin_kind: "cold_successor",
+      predecessor_episode_ref: checkpoint.predecessor_episode_ref,
+      predecessor_checkpoint_ref: episodeCheckpointRefV01(checkpoint),
+      predecessor_run_ref_fingerprint:
+        checkpoint.predecessor_run_ref_fingerprint,
+      predecessor_executor_role_ref:
+        checkpoint.predecessor_executor_role_ref,
+      checkpoint_sealed_at: checkpoint.sealed_at,
+    };
+  }
+  const resumeSourceRef = createCommissionedWorkRecordRefV01({
+    record_version: input.resume_source.source_version,
+    record_id: input.resume_source.source_id,
+    record_fingerprint: input.resume_source.integrity.fingerprint,
+  });
+  const proofWithoutIntegrity = {
+    proof_version: COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01,
+    proof_id: `origin-proof:${fingerprintV01({
+      case_id: input.source.case_id,
+      origin_run_id: input.origin_request.run_id,
+      resume_source_ref: resumeSourceRef,
+      predecessor_checkpoint_ref:
+        predecessorFields.predecessor_checkpoint_ref,
+    }).slice("sha256:".length, "sha256:".length + 32)}`,
+    case_id: input.source.case_id,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.source.project_id,
+    origin_run_ref_fingerprint: fingerprintV01(input.origin_request.run_id),
+    origin_executor_role_ref: executorRole,
+    origin_native_host_request_fingerprint: fingerprintV01(
+      input.origin_request,
+    ),
+    origin_started_at: input.origin_started_at,
+    admitted_resume_source_ref: resumeSourceRef,
+    admitted_resume_binding_fingerprint:
+      input.resume_source.resume_binding_fingerprint,
+    predecessor_execution_grant_inherited: false as const,
+    predecessor_transcript_inherited: false as const,
+    hidden_reasoning_inherited: false as const,
+    ...predecessorFields,
+  };
+  const proof = sealV01(
+    proofWithoutIntegrity,
+    "commissioned_work_episode_origin_proof_without_integrity_fingerprint",
+  );
+  validateEpisodeOriginProofV01(proof);
+  return proof;
+}
+
+function episodeOriginProofRefV01(
+  proof: CommissionedWorkEpisodeOriginProofV01,
+): CommissionedWorkRecordRefV01 {
+  validateEpisodeOriginProofV01(proof);
+  return createCommissionedWorkRecordRefV01({
+    record_version: proof.proof_version,
+    record_id: proof.proof_id,
+    record_fingerprint: proof.integrity.fingerprint,
+  });
 }
 
 function exactNativeHostRefSetV01(input: {
@@ -1498,8 +1766,10 @@ function exactNativeHostRefSetV01(input: {
       if (
         currentConnection &&
         resume.host_connection_ref !== null &&
-        canonicalizeProtocolValueV01(currentConnection) ===
-          canonicalizeProtocolValueV01(resume.host_connection_ref)
+        sameNativeHostIdentityV01(
+          currentConnection,
+          resume.host_connection_ref,
+        )
       ) {
         failV01("commissioned_work_same_run_resume_connection_provenance_invalid");
       }
@@ -2936,6 +3206,10 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     "executor",
     input.plan.executor_role_id,
   );
+  const sameRunResume =
+    input.execution_observation.binding_kind === "commissioned_agent" &&
+    input.execution_observation.host_identity_provenance.provenance_kind ===
+      "same_run_resume";
   if (
     new Set([
       executorRole.role_fingerprint,
@@ -2969,6 +3243,58 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       input.request.packet_capability_grant !== null
     ) {
       failV01("commissioned_work_episode_checkpoint_binding_invalid");
+    }
+  }
+  if (sameRunResume !== (input.episode_origin_proof !== null)) {
+    failV01("commissioned_work_episode_origin_proof_required");
+  }
+  if (input.episode_origin_proof !== null) {
+    const proof = input.episode_origin_proof;
+    validateEpisodeOriginProofV01(proof);
+    const invocationProvenance =
+      input.execution_observation.binding_kind === "commissioned_agent"
+        ? input.execution_observation.host_identity_provenance
+        : null;
+    if (
+      invocationProvenance?.provenance_kind !== "same_run_resume" ||
+      proof.case_id !== input.source.case_id ||
+      proof.workspace_id !== input.manifest.workspace_id ||
+      proof.project_id !== input.source.project_id ||
+      proof.episode_origin_kind !==
+        (input.episode_role === "successor"
+          ? "cold_successor"
+          : "predecessor_episode") ||
+      proof.origin_run_ref_fingerprint !== fingerprintV01(input.result.run_id) ||
+      canonicalizeProtocolValueV01(proof.origin_executor_role_ref) !==
+        canonicalizeProtocolValueV01(executorRole) ||
+      Date.parse(proof.origin_started_at) > Date.parse(input.result.started_at) ||
+      canonicalizeProtocolValueV01(proof.admitted_resume_source_ref) !==
+        canonicalizeProtocolValueV01(invocationProvenance.resume_source_ref) ||
+      proof.admitted_resume_binding_fingerprint !==
+        invocationProvenance.resume_binding_fingerprint
+    ) {
+      failV01("commissioned_work_episode_origin_proof_binding_invalid");
+    }
+    if (
+      input.episode_role === "successor" &&
+      (input.predecessor_checkpoint === null ||
+        canonicalizeProtocolValueV01(proof.predecessor_episode_ref) !==
+          canonicalizeProtocolValueV01(input.predecessor_episode_ref) ||
+        canonicalizeProtocolValueV01(proof.predecessor_checkpoint_ref) !==
+          canonicalizeProtocolValueV01(
+            episodeCheckpointRefV01(input.predecessor_checkpoint),
+          ) ||
+        proof.predecessor_run_ref_fingerprint !==
+          input.predecessor_checkpoint.predecessor_run_ref_fingerprint ||
+        canonicalizeProtocolValueV01(
+          proof.predecessor_executor_role_ref,
+        ) !==
+          canonicalizeProtocolValueV01(
+            input.predecessor_checkpoint.predecessor_executor_role_ref,
+          ) ||
+        proof.checkpoint_sealed_at !== input.predecessor_checkpoint.sealed_at)
+    ) {
+      failV01("commissioned_work_episode_origin_checkpoint_binding_invalid");
     }
   }
   const executionSourceBinding = validateExecutionObservationResultBindingV01({
@@ -3028,13 +3354,6 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     input.execution_observation.candidate_components_delivered;
   const candidateComponentDeliveryFingerprints =
     candidateComponentDeliveryFingerprintsV01(input.packet);
-  const sameRunResume =
-    input.execution_observation.binding_kind === "commissioned_agent" &&
-    input.execution_observation.host_identity_provenance.provenance_kind ===
-      "same_run_resume";
-  if (sameRunResume && input.episode_role === "successor") {
-    failV01("commissioned_work_same_run_resume_cold_successor_invalid");
-  }
   if (
     packetMaterialSetFingerprint !==
       input.execution_observation.packet_material_set_fingerprint ||
@@ -3044,6 +3363,77 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       candidateComponentsDelivered !== candidateComponentDeliveryFingerprints.length)
   ) {
     failV01("commissioned_work_executor_delivery_binding_invalid");
+  }
+  const nativeHostResultRef = createCommissionedWorkRecordRefV01({
+    record_version: input.result.result_version,
+    record_id: input.result.request_id,
+    record_fingerprint: fingerprintV01(input.result),
+  });
+  let episodeOrigin: CommissionedWorkEpisodeOriginV01;
+  if (input.episode_origin_proof !== null) {
+    const proof = input.episode_origin_proof;
+    const commonOrigin = {
+      origin_run_ref_fingerprint: proof.origin_run_ref_fingerprint,
+      origin_executor_role_ref: proof.origin_executor_role_ref,
+      origin_started_at: proof.origin_started_at,
+      origin_proof_kind: "prior_fresh_invocation" as const,
+      origin_proof_ref: episodeOriginProofRefV01(proof),
+      admitted_resume_source_ref: proof.admitted_resume_source_ref,
+    };
+    episodeOrigin =
+      proof.episode_origin_kind === "predecessor_episode"
+        ? {
+            ...commonOrigin,
+            origin_kind: "predecessor_episode",
+            predecessor_episode_ref: null,
+            predecessor_checkpoint_ref: null,
+            predecessor_run_ref_fingerprint: null,
+            predecessor_executor_role_ref: null,
+            checkpoint_sealed_at: null,
+          }
+        : {
+            ...commonOrigin,
+            origin_kind: "cold_successor",
+            predecessor_episode_ref: proof.predecessor_episode_ref,
+            predecessor_checkpoint_ref: proof.predecessor_checkpoint_ref,
+            predecessor_run_ref_fingerprint:
+              proof.predecessor_run_ref_fingerprint,
+            predecessor_executor_role_ref:
+              proof.predecessor_executor_role_ref,
+            checkpoint_sealed_at: proof.checkpoint_sealed_at,
+          };
+  } else if (input.episode_role === "predecessor") {
+    episodeOrigin = {
+      origin_kind: "predecessor_episode",
+      origin_run_ref_fingerprint: fingerprintV01(input.result.run_id),
+      origin_executor_role_ref: executorRole,
+      origin_started_at: input.result.started_at,
+      origin_proof_kind: "current_invocation",
+      origin_proof_ref: nativeHostResultRef,
+      admitted_resume_source_ref: null,
+      predecessor_episode_ref: null,
+      predecessor_checkpoint_ref: null,
+      predecessor_run_ref_fingerprint: null,
+      predecessor_executor_role_ref: null,
+      checkpoint_sealed_at: null,
+    };
+  } else {
+    const checkpoint = input.predecessor_checkpoint!;
+    episodeOrigin = {
+      origin_kind: "cold_successor",
+      origin_run_ref_fingerprint: fingerprintV01(input.result.run_id),
+      origin_executor_role_ref: executorRole,
+      origin_started_at: input.result.started_at,
+      origin_proof_kind: "current_invocation",
+      origin_proof_ref: nativeHostResultRef,
+      admitted_resume_source_ref: null,
+      predecessor_episode_ref: checkpoint.predecessor_episode_ref,
+      predecessor_checkpoint_ref: episodeCheckpointRefV01(checkpoint),
+      predecessor_run_ref_fingerprint:
+        checkpoint.predecessor_run_ref_fingerprint,
+      predecessor_executor_role_ref: checkpoint.predecessor_executor_role_ref,
+      checkpoint_sealed_at: checkpoint.sealed_at,
+    };
   }
   const commonExecutionBinding = {
     run_ref_fingerprint: fingerprintV01(input.result.run_id),
@@ -3058,8 +3448,9 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       input.execution_observation.host_ref_set_fingerprint,
     product_execution_grant_created: false as const,
     solution_write_plan_checked_during_result_admission: false as const,
-    new_run_for_cold_episode: !sameRunResume,
-    predecessor_run_reused: sameRunResume,
+    new_run_for_cold_episode: episodeOrigin.origin_kind === "cold_successor",
+    predecessor_run_reused: false as const,
+    predecessor_execution_grant_inherited: false as const,
     predecessor_transcript_inherited: false as const,
     hidden_reasoning_inherited: false as const,
     executor_completion_is_outcome_truth: false as const,
@@ -3173,16 +3564,13 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       record_id: input.packet.packet_id,
       record_fingerprint: input.packet.integrity.fingerprint,
     }),
-    native_host_result_ref: createCommissionedWorkRecordRefV01({
-      record_version: input.result.result_version,
-      record_id: input.result.request_id,
-      record_fingerprint: fingerprintV01(input.result),
-    }),
+    native_host_result_ref: nativeHostResultRef,
     run_receipt_ref: createCommissionedWorkRecordRefV01({
       record_version: input.receipt.receipt_version,
       record_id: input.receipt.receipt_id,
       record_fingerprint: input.receipt.integrity.fingerprint,
     }),
+    episode_origin: episodeOrigin,
     execution_binding: executionBinding,
     chronology: {
       started_at: input.result.started_at,
@@ -5733,6 +6121,114 @@ function isSuccessorPlanV01(
   return "condition" in plan;
 }
 
+function validateEpisodeOriginV01(
+  episode: CommissionedWorkEpisodeArtifactV01,
+): void {
+  const origin = episode.episode_origin;
+  requireFingerprintV01(
+    origin.origin_run_ref_fingerprint,
+    "commissioned_work_episode_origin_run_invalid",
+  );
+  requireTimestampV01(
+    origin.origin_started_at,
+    "commissioned_work_episode_origin_start_invalid",
+  );
+  createCommissionedWorkRecordRefV01(origin.origin_proof_ref);
+  if (
+    origin.origin_run_ref_fingerprint !==
+      episode.execution_binding.run_ref_fingerprint ||
+    canonicalizeProtocolValueV01(origin.origin_executor_role_ref) !==
+      canonicalizeProtocolValueV01(episode.evaluation.executor_role) ||
+    canonicalizeProtocolValueV01(origin.origin_executor_role_ref) !==
+      canonicalizeProtocolValueV01(
+        createCommissionedWorkRoleRefV01(
+          "executor",
+          origin.origin_executor_role_ref.role_id,
+        ),
+      ) ||
+    Date.parse(origin.origin_started_at) >
+      Date.parse(episode.chronology.started_at) ||
+    episode.execution_binding.predecessor_run_reused !== false ||
+    episode.execution_binding.predecessor_execution_grant_inherited !== false
+  ) {
+    failV01("commissioned_work_episode_origin_invalid");
+  }
+  if (origin.origin_kind === "predecessor_episode") {
+    if (
+      episode.episode_role !== "predecessor" ||
+      episode.predecessor_episode_ref !== null ||
+      episode.episode_checkpoint_ref !== null ||
+      episode.execution_binding.new_run_for_cold_episode !== false ||
+      origin.predecessor_episode_ref !== null ||
+      origin.predecessor_checkpoint_ref !== null ||
+      origin.predecessor_run_ref_fingerprint !== null ||
+      origin.predecessor_executor_role_ref !== null ||
+      origin.checkpoint_sealed_at !== null
+    ) {
+      failV01("commissioned_work_episode_origin_invalid");
+    }
+  } else {
+    createCommissionedWorkRecordRefV01(origin.predecessor_episode_ref);
+    createCommissionedWorkRecordRefV01(origin.predecessor_checkpoint_ref);
+    requireFingerprintV01(
+      origin.predecessor_run_ref_fingerprint,
+      "commissioned_work_episode_origin_predecessor_run_invalid",
+    );
+    requireTimestampV01(
+      origin.checkpoint_sealed_at,
+      "commissioned_work_episode_origin_checkpoint_time_invalid",
+    );
+    if (
+      episode.episode_role !== "successor" ||
+      episode.execution_binding.new_run_for_cold_episode !== true ||
+      canonicalizeProtocolValueV01(origin.predecessor_episode_ref) !==
+        canonicalizeProtocolValueV01(episode.predecessor_episode_ref) ||
+      canonicalizeProtocolValueV01(origin.predecessor_checkpoint_ref) !==
+        canonicalizeProtocolValueV01(episode.episode_checkpoint_ref) ||
+      origin.predecessor_run_ref_fingerprint ===
+        origin.origin_run_ref_fingerprint ||
+      origin.predecessor_executor_role_ref.role_fingerprint ===
+        origin.origin_executor_role_ref.role_fingerprint ||
+      Date.parse(origin.checkpoint_sealed_at) >
+        Date.parse(origin.origin_started_at)
+    ) {
+      failV01("commissioned_work_episode_origin_invalid");
+    }
+  }
+  const sameRunResume =
+    episode.execution_binding.binding_kind === "commissioned_agent" &&
+    episode.execution_binding.host_identity_provenance.provenance_kind ===
+      "same_run_resume";
+  if (origin.origin_proof_kind === "current_invocation") {
+    if (
+      sameRunResume ||
+      origin.admitted_resume_source_ref !== null ||
+      origin.origin_started_at !== episode.chronology.started_at ||
+      canonicalizeProtocolValueV01(origin.origin_proof_ref) !==
+        canonicalizeProtocolValueV01(episode.native_host_result_ref)
+    ) {
+      failV01("commissioned_work_episode_origin_proof_binding_invalid");
+    }
+    return;
+  }
+  if (
+    !sameRunResume ||
+    origin.origin_proof_ref.record_version !==
+      COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01 ||
+    origin.admitted_resume_source_ref === null ||
+    origin.admitted_resume_source_ref.record_version !==
+      COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 ||
+    canonicalizeProtocolValueV01(origin.admitted_resume_source_ref) !==
+      canonicalizeProtocolValueV01(
+        episode.execution_binding.binding_kind === "commissioned_agent"
+          ? episode.execution_binding.host_identity_provenance.resume_source_ref
+          : null,
+      )
+  ) {
+    failV01("commissioned_work_episode_origin_proof_binding_invalid");
+  }
+}
+
 function validateEpisodeIntegrityV01(
   episode: CommissionedWorkEpisodeArtifactV01,
 ): void {
@@ -5741,25 +6237,16 @@ function validateEpisodeIntegrityV01(
     "commissioned_work_episode_without_integrity_fingerprint",
     "commissioned_work_episode_integrity_invalid",
   );
-  const sameRunResume =
-    episode.execution_binding.binding_kind === "commissioned_agent" &&
-    episode.execution_binding.host_identity_provenance.provenance_kind ===
-      "same_run_resume";
+  validateEpisodeOriginV01(episode);
   if (
     canonicalizeProtocolValueV01(episode.authority_summary) !==
       canonicalizeProtocolValueV01(createCommissionedWorkAuthoritySummaryV01()) ||
     canonicalizeProtocolValueV01(episode.material_boundary) !==
       canonicalizeProtocolValueV01(createCommissionedWorkMaterialBoundaryV01()) ||
     episode.execution_binding.product_execution_grant_created !== false ||
+    episode.execution_binding.predecessor_execution_grant_inherited !== false ||
     episode.execution_binding.predecessor_transcript_inherited !== false ||
     episode.execution_binding.hidden_reasoning_inherited !== false ||
-    (sameRunResume &&
-      (episode.episode_role !== "predecessor" ||
-        episode.execution_binding.predecessor_run_reused !== true ||
-        episode.execution_binding.new_run_for_cold_episode !== false)) ||
-    (!sameRunResume &&
-      (episode.execution_binding.predecessor_run_reused !== false ||
-        episode.execution_binding.new_run_for_cold_episode !== true)) ||
     episode.execution_binding.solution_write_plan_checked_during_result_admission !==
       false ||
     episode.evaluation.scalar_fitness_created !== false ||

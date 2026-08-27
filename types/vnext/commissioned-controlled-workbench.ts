@@ -11,6 +11,8 @@ export const COMMISSIONED_WORK_EXECUTION_OBSERVATION_VERSION_V01 =
   "commissioned_work_execution_observation.v0.1" as const;
 export const COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 =
   "commissioned_work_same_run_resume_source.v0.1" as const;
+export const COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01 =
+  "commissioned_work_episode_origin_proof.v0.1" as const;
 export const COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01 =
   "commissioned_work_episode_checkpoint.v0.1" as const;
 export const COMMISSIONED_WORK_EVALUATION_VERSION_V01 =
@@ -541,6 +543,69 @@ export type CommissionedWorkHostIdentityProvenanceV01 =
       inherited_host_ref_fingerprints: [];
     };
 
+interface CommissionedWorkEpisodeOriginProofCommonV01 {
+  proof_version: typeof COMMISSIONED_WORK_EPISODE_ORIGIN_PROOF_VERSION_V01;
+  proof_id: string;
+  case_id: string;
+  workspace_id: string;
+  project_id: string;
+  origin_run_ref_fingerprint: string;
+  origin_executor_role_ref: CommissionedWorkRoleRefV01;
+  origin_native_host_request_fingerprint: string;
+  origin_started_at: string;
+  admitted_resume_source_ref: CommissionedWorkRecordRefV01;
+  admitted_resume_binding_fingerprint: string;
+  predecessor_execution_grant_inherited: false;
+  predecessor_transcript_inherited: false;
+  hidden_reasoning_inherited: false;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export type CommissionedWorkEpisodeOriginProofV01 =
+  | (CommissionedWorkEpisodeOriginProofCommonV01 & {
+      episode_origin_kind: "predecessor_episode";
+      predecessor_episode_ref: null;
+      predecessor_checkpoint_ref: null;
+      predecessor_run_ref_fingerprint: null;
+      predecessor_executor_role_ref: null;
+      checkpoint_sealed_at: null;
+    })
+  | (CommissionedWorkEpisodeOriginProofCommonV01 & {
+      episode_origin_kind: "cold_successor";
+      predecessor_episode_ref: CommissionedWorkRecordRefV01;
+      predecessor_checkpoint_ref: CommissionedWorkRecordRefV01;
+      predecessor_run_ref_fingerprint: string;
+      predecessor_executor_role_ref: CommissionedWorkRoleRefV01;
+      checkpoint_sealed_at: string;
+    });
+
+interface CommissionedWorkEpisodeOriginCommonV01 {
+  origin_run_ref_fingerprint: string;
+  origin_executor_role_ref: CommissionedWorkRoleRefV01;
+  origin_started_at: string;
+  origin_proof_kind: "current_invocation" | "prior_fresh_invocation";
+  origin_proof_ref: CommissionedWorkRecordRefV01;
+  admitted_resume_source_ref: CommissionedWorkRecordRefV01 | null;
+}
+
+export type CommissionedWorkEpisodeOriginV01 =
+  | (CommissionedWorkEpisodeOriginCommonV01 & {
+      origin_kind: "predecessor_episode";
+      predecessor_episode_ref: null;
+      predecessor_checkpoint_ref: null;
+      predecessor_run_ref_fingerprint: null;
+      predecessor_executor_role_ref: null;
+      checkpoint_sealed_at: null;
+    })
+  | (CommissionedWorkEpisodeOriginCommonV01 & {
+      origin_kind: "cold_successor";
+      predecessor_episode_ref: CommissionedWorkRecordRefV01;
+      predecessor_checkpoint_ref: CommissionedWorkRecordRefV01;
+      predecessor_run_ref_fingerprint: string;
+      predecessor_executor_role_ref: CommissionedWorkRoleRefV01;
+      checkpoint_sealed_at: string;
+    });
+
 export interface CommissionedWorkAuthorizationResourceCeilingV01 {
   ceiling_version: "commissioned_work_authorization_resource_ceiling.v0.1";
   provider_call_limit: number;
@@ -695,7 +760,8 @@ export interface CommissionedWorkEpisodeExecutionBindingCommonV01 {
   product_execution_grant_created: false;
   solution_write_plan_checked_during_result_admission: false;
   new_run_for_cold_episode: boolean;
-  predecessor_run_reused: boolean;
+  predecessor_run_reused: false;
+  predecessor_execution_grant_inherited: false;
   predecessor_transcript_inherited: false;
   hidden_reasoning_inherited: false;
   executor_completion_is_outcome_truth: false;
@@ -788,6 +854,7 @@ export interface CommissionedWorkEpisodeArtifactV01 {
   task_context_packet_ref: CommissionedWorkRecordRefV01;
   native_host_result_ref: CommissionedWorkRecordRefV01;
   run_receipt_ref: CommissionedWorkRecordRefV01;
+  episode_origin: CommissionedWorkEpisodeOriginV01;
   execution_binding: CommissionedWorkEpisodeExecutionBindingV01;
   chronology: {
     started_at: string;
