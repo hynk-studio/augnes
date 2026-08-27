@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -523,25 +524,43 @@ try {
     "com.example.unrelated-live-stale.plist",
   );
   writeFileSync(unrelatedLaunchAgent, "unrelated\n", { mode: 0o600 });
-  const staleCheckoutConfiguration = JSON.parse(
-    readFileSync(layout.configuration_path, "utf8"),
+  const staleCheckoutConfigurationText = readFileSync(
+    layout.configuration_path,
+    "utf8",
   );
-  staleCheckoutConfiguration.repository_inode =
-    differentCanonicalStatIdentity(staleCheckoutConfiguration.repository_inode);
+  const staleCheckoutConfigurationFingerprint = createHash("sha256")
+    .update(staleCheckoutConfigurationText)
+    .digest("hex");
+  const staleCheckoutConfiguration = JSON.parse(
+    staleCheckoutConfigurationText,
+  );
+  const testRepositoryPhysicalIdentityOverride = {
+    device: staleCheckoutConfiguration.repository_device,
+    inode: differentCanonicalStatIdentity(
+      staleCheckoutConfiguration.repository_inode,
+    ),
+  };
   assert.equal(
-    String(BigInt(staleCheckoutConfiguration.repository_inode)),
-    staleCheckoutConfiguration.repository_inode,
+    String(BigInt(testRepositoryPhysicalIdentityOverride.inode)),
+    testRepositoryPhysicalIdentityOverride.inode,
   );
   assert.notEqual(
-    staleCheckoutConfiguration.repository_inode,
+    testRepositoryPhysicalIdentityOverride.inode,
     layout.repository.inode,
   );
-  writeFileSync(
-    layout.configuration_path,
-    `${JSON.stringify(staleCheckoutConfiguration)}\n`,
-    { mode: 0o600 },
+  const staleObservationOptions = {
+    ...options,
+    testRepositoryPhysicalIdentityOverride,
+  };
+  assert.equal(
+    createHash("sha256")
+      .update(readFileSync(layout.configuration_path))
+      .digest("hex"),
+    staleCheckoutConfigurationFingerprint,
   );
-  const staleCheckoutObservation = await inspectCompanionService(options);
+  const staleCheckoutObservation = await inspectCompanionService(
+    staleObservationOptions,
+  );
   assert.equal(staleCheckoutObservation.status, "recovery_required");
   assert.equal(
     staleCheckoutObservation.checkout_relation,
@@ -553,8 +572,18 @@ try {
   );
   assert.equal(staleCheckoutObservation.start_available, false);
   assert.equal(staleCheckoutObservation.resume_available, false);
+  assert.equal((await inspectCompanionService(options)).status, "live");
+  assert.equal(
+    createHash("sha256")
+      .update(readFileSync(layout.configuration_path))
+      .digest("hex"),
+    staleCheckoutConfigurationFingerprint,
+  );
   assert.deepEqual(readExactTestLaunchdJob(), staleLaunchJobBeforeDrift);
   assertProcessIdentitiesPresent(staleOwnedProcessIdentities);
+  for (const endpoint of staleOwnedEndpoints) {
+    assert.equal(await exactOwnedEndpointResponds(endpoint), true);
+  }
 
   const refusedAuthorityActions = [];
   const refusedAuthorityLaunchctl = recordingNativeLaunchctl(
@@ -562,21 +591,21 @@ try {
   );
   await assert.rejects(
     startCompanionService({
-      ...options,
+      ...staleObservationOptions,
       launchctl: refusedAuthorityLaunchctl,
     }),
     (error) => error?.code === "companion_service_recovery_refused",
   );
   await assert.rejects(
     stopCompanionService({
-      ...options,
+      ...staleObservationOptions,
       launchctl: refusedAuthorityLaunchctl,
     }),
     (error) => error?.code === "companion_service_stop_refused",
   );
   await assert.rejects(
     acquireCompanionServiceMaintenance({
-      ...options,
+      ...staleObservationOptions,
       launchctl: refusedAuthorityLaunchctl,
       operationId: `native-stale-live-maintenance:${process.pid}`,
     }),
@@ -628,7 +657,7 @@ try {
   const liveNegativeActions = [];
   await assert.rejects(
     uninstallCompanionService({
-      ...options,
+      ...staleObservationOptions,
       launchctl: recordingNativeLaunchctl(liveNegativeActions),
     }),
     (error) =>
@@ -672,21 +701,68 @@ try {
     materialFingerprints(staleRuntimeMaterialPaths),
     staleRuntimeMaterialFingerprints,
   );
+  assert.equal(
+    createHash("sha256")
+      .update(readFileSync(layout.configuration_path))
+      .digest("hex"),
+    staleCheckoutConfigurationFingerprint,
+  );
 
   const staleDecommissionActions = [];
   const staleDecommissionLaunchctlResults = [];
+  let periodicManagerStateRewriteCount = 0;
+  let periodicManagerStateGeneration = null;
+  let periodicManagerStateInstance = null;
   let staleCheckoutDecommission;
   try {
     staleCheckoutDecommission = await uninstallCompanionService({
-      ...options,
+      ...staleObservationOptions,
       launchctl: recordingNativeLaunchctl(
         staleDecommissionActions,
         staleDecommissionLaunchctlResults,
       ),
+      testStaleDecommissionStageHook: ({
+        stage,
+        snapshot_kind: snapshotKind,
+        attempt,
+      }) => {
+        if (
+          stage !== "live_snapshot_after_manager_state_a" ||
+          snapshotKind !== "initial" ||
+          attempt !== 1 ||
+          periodicManagerStateRewriteCount !== 0
+        ) return;
+        const managerStateText = readFileSync(
+          layout.manager_state_path,
+          "utf8",
+        );
+        const managerState = JSON.parse(managerStateText);
+        periodicManagerStateGeneration =
+          managerState.runtime_ownership?.generation_id ?? null;
+        periodicManagerStateInstance =
+          managerState.runtime_ownership?.instance_id ?? null;
+        const rewritten = {
+          ...managerState,
+          updated_at: new Date(
+            Math.max(Date.now(), Date.parse(managerState.updated_at) + 1),
+          ).toISOString(),
+        };
+        assert.notEqual(rewritten.updated_at, managerState.updated_at);
+        const temporaryManagerStatePath =
+          `${layout.manager_state_path}.periodic-${process.pid}`;
+        writeFileSync(
+          temporaryManagerStatePath,
+          `${JSON.stringify(rewritten)}\n`,
+          { mode: 0o600 },
+        );
+        renameSync(temporaryManagerStatePath, layout.manager_state_path);
+        periodicManagerStateRewriteCount += 1;
+      },
     });
   } catch (error) {
     throw new Error(JSON.stringify({
       stale_decommission_error: error?.code ?? "unknown",
+      stale_decommission_cause: error?.cause?.code ?? null,
       launchctl_results: Object.values(
         staleDecommissionLaunchctlResults.reduce((summary, result) => {
           const key = JSON.stringify(result);
@@ -699,6 +775,12 @@ try {
     }));
   }
   uninstalled = true;
+  assert.equal(periodicManagerStateRewriteCount, 1);
+  assert.equal(
+    periodicManagerStateGeneration,
+    staleRuntimeManifest.generation_id,
+  );
+  assert.equal(periodicManagerStateInstance, staleRuntimeManifest.instance_id);
   assert.equal(staleCheckoutDecommission.result, "changed");
   assert.equal(staleCheckoutDecommission.service.status, "not_installed");
   assert.equal(
@@ -802,6 +884,8 @@ try {
     stale_owner_recovery: true,
     uninstall_exact_cleanup: true,
     stale_checkout_physical_identity_is_install_shaped: true,
+    stale_checkout_control_observation_did_not_mutate_configuration: true,
+    stale_checkout_periodic_manager_state_rewrite_admitted: true,
     stale_checkout_live_runtime_ownership_authenticated: true,
     stale_checkout_live_child_binding_substitution_refused_before_bootout: true,
     stale_checkout_live_exact_label_bootout: true,

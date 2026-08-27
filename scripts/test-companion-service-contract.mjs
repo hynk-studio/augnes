@@ -80,6 +80,64 @@ try {
   ]);
   const layout = resolveCompanionServiceLayout(options);
   assert.deepEqual(resolveCompanionServiceLayout(options), layout);
+  const physicalIdentityOverride = {
+    device: layout.repository.device,
+    inode: differentCanonicalStatIdentity(layout.repository.inode),
+  };
+  const overriddenLayout = resolveCompanionServiceLayout({
+    ...options,
+    testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+  });
+  assert.equal(overriddenLayout.repository.realpath, layout.repository.realpath);
+  assert.equal(
+    overriddenLayout.repository.repository_fingerprint,
+    layout.repository.repository_fingerprint,
+  );
+  assert.equal(overriddenLayout.service_identity, layout.service_identity);
+  assert.equal(overriddenLayout.service_label, layout.service_label);
+  assert.equal(overriddenLayout.repository.device, physicalIdentityOverride.device);
+  assert.equal(overriddenLayout.repository.inode, physicalIdentityOverride.inode);
+  for (const override of [
+    { device: "123-changed", inode: "1" },
+    { device: "-1", inode: "1" },
+    { device: "+1", inode: "1" },
+    { device: " 1", inode: "1" },
+    { device: "1 ", inode: "1" },
+    { device: "device", inode: "1" },
+    { device: "", inode: "1" },
+    { device: "01", inode: "1" },
+    { device: "1", inode: "0" },
+    { inode: "1" },
+    { device: "1" },
+    { device: "1", inode: "2", root: repositoryRoot },
+  ]) {
+    assert.throws(
+      () => resolveCompanionServiceLayout({
+        ...options,
+        testRepositoryPhysicalIdentityOverride: override,
+      }),
+      (error) => error?.code ===
+        "companion_service_test_physical_identity_override_refused",
+    );
+  }
+  assert.throws(
+    () => resolveCompanionServiceLayout({
+      repositoryRoot,
+      environment: { ...process.env },
+      homeDirectory: home,
+      testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+    }),
+    (error) => error?.code ===
+      "companion_service_test_physical_identity_override_refused",
+  );
+  await assert.rejects(
+    installCompanionService({
+      ...options,
+      testRepositoryPhysicalIdentityOverride: physicalIdentityOverride,
+    }),
+    (error) => error?.code ===
+      "companion_service_test_physical_identity_override_refused",
+  );
   const otherScope = resolveCompanionServiceLayout({
     ...options,
     environment: {
@@ -1149,6 +1207,168 @@ async function runStaleCheckoutDecommissionContract({
     "not_installed",
   );
 
+  const unstableSnapshotFixture = writeStaleFixture({
+    scope: "stale-live-snapshot-unstable",
+  });
+  writeExplicitStoppedManagerState(unstableSnapshotFixture);
+  const unstableSnapshotLaunchctl = makeLaunchctl(
+    true,
+    unstableSnapshotFixture.configuration,
+  );
+  let unstableSnapshotAttempts = 0;
+  await assert.rejects(
+    uninstallCompanionService({
+      ...unstableSnapshotFixture.options,
+      launchctl: unstableSnapshotLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({
+        stage,
+        snapshot_kind: snapshotKind,
+      }) => {
+        if (
+          stage !== "live_snapshot_after_manager_state_a" ||
+          snapshotKind !== "initial"
+        ) return;
+        unstableSnapshotAttempts += 1;
+        const managerState = JSON.parse(readFileSync(
+          unstableSnapshotFixture.layout.manager_state_path,
+          "utf8",
+        ));
+        writeJson(unstableSnapshotFixture.layout.manager_state_path, {
+          ...managerState,
+          restart_count: managerState.restart_count + 1,
+          updated_at: new Date(Date.now() + unstableSnapshotAttempts).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "live_snapshot_unstable",
+  );
+  assert.equal(unstableSnapshotAttempts, 3);
+  assert.equal(
+    unstableSnapshotLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(
+    existsSync(unstableSnapshotFixture.layout.stale_decommission_path),
+    false,
+  );
+  assert.equal(
+    existsSync(unstableSnapshotFixture.layout.configuration_path),
+    true,
+  );
+
+  const immutableRaceFixture = writeStaleFixture({
+    scope: "stale-immutable-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(immutableRaceFixture);
+  const immutableRaceLaunchctl = makeLaunchctl(
+    true,
+    immutableRaceFixture.configuration,
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...immutableRaceFixture.options,
+      launchctl: immutableRaceLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage !== "before_first_effect_revalidation") return;
+        const desired = JSON.parse(readFileSync(
+          immutableRaceFixture.layout.desired_state_path,
+          "utf8",
+        ));
+        writeJson(immutableRaceFixture.layout.desired_state_path, {
+          ...desired,
+          updated_at: new Date(Date.now() + 1_000).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "immutable_material_changed",
+  );
+  assert.equal(
+    immutableRaceLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(immutableRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(immutableRaceFixture.layout.stale_decommission_path), false);
+
+  const launchJobRaceFixture = writeStaleFixture({
+    scope: "stale-launch-job-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(launchJobRaceFixture);
+  const launchJobRaceBase = makeLaunchctl(
+    true,
+    launchJobRaceFixture.configuration,
+  );
+  let launchJobChanged = false;
+  const launchJobRaceLaunchctl = (args) => {
+    if (launchJobChanged && args[0] === "print") {
+      return makeLaunchctl(
+        true,
+        launchJobRaceFixture.configuration,
+        { program: "/usr/bin/false" },
+      ).launchctl(args);
+    }
+    return launchJobRaceBase.launchctl(args);
+  };
+  await assert.rejects(
+    uninstallCompanionService({
+      ...launchJobRaceFixture.options,
+      launchctl: launchJobRaceLaunchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage === "before_first_effect_revalidation") {
+          launchJobChanged = true;
+        }
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "launch_job_changed",
+  );
+  assert.equal(
+    launchJobRaceBase.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(launchJobRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(launchJobRaceFixture.layout.stale_decommission_path), false);
+
+  const ownershipRaceFixture = writeStaleFixture({
+    scope: "stale-process-ownership-pre-effect-changed",
+  });
+  writeExplicitStoppedManagerState(ownershipRaceFixture);
+  const ownershipRaceLaunchctl = makeLaunchctl(
+    true,
+    ownershipRaceFixture.configuration,
+  );
+  await assert.rejects(
+    uninstallCompanionService({
+      ...ownershipRaceFixture.options,
+      launchctl: ownershipRaceLaunchctl.launchctl,
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage !== "before_first_effect_revalidation") return;
+        const managerState = JSON.parse(readFileSync(
+          ownershipRaceFixture.layout.manager_state_path,
+          "utf8",
+        ));
+        writeJson(ownershipRaceFixture.layout.manager_state_path, {
+          ...managerState,
+          restart_count: managerState.restart_count + 1,
+          updated_at: new Date(Date.now() + 1_000).toISOString(),
+        });
+      },
+    }),
+    (error) =>
+      error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "process_ownership_changed",
+  );
+  assert.equal(
+    ownershipRaceLaunchctl.actions.some(([command]) => command === "bootout"),
+    false,
+  );
+  assert.equal(existsSync(ownershipRaceFixture.layout.configuration_path), true);
+  assert.equal(existsSync(ownershipRaceFixture.layout.stale_decommission_path), false);
+
   const malformedPhysicalIdentities = [
     ["suffix", "repository_device", "123-changed"],
     ["negative", "repository_device", "-1"],
@@ -1865,6 +2085,7 @@ async function runStaleCheckoutDecommissionContract({
   return {
     exact_uninstall_unchanged: true,
     installed_stat_identity_shape_required: true,
+    test_only_physical_identity_override_is_closed_and_non_persistent: true,
     malformed_installed_stat_identities_refused: true,
     inode_and_device_replacement_decommissioned: true,
     moved_root_refused: true,
@@ -1883,6 +2104,10 @@ async function runStaleCheckoutDecommissionContract({
     interrupted_cleanup_replayable_at_every_step: true,
     incomplete_decommission_install_and_start_refused: true,
     pre_journal_live_mutation_remains_replayable: true,
+    semantically_changed_live_snapshot_refused_after_three_attempts: true,
+    immutable_material_change_refused_before_effect: true,
+    launch_job_change_refused_before_effect: true,
+    process_ownership_change_refused_before_effect: true,
     descriptor_relative_unlink_swap_refused: true,
     descriptor_relative_ancestor_swap_contained: true,
     helper_internal_swap_foreign_replacement_survives: true,
