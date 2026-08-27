@@ -44,10 +44,49 @@ function findHighConfidenceDenial(commandClause) {
 }
 
 function commandClauses(command) {
-  return command
-    .split(/(?:\r?\n|&&|\|\||;)/u)
-    .map((clause) => clause.trim())
-    .filter(Boolean);
+  const clauses = [];
+  let clauseStart = 0;
+  let quote = "";
+  let escaped = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = "";
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+
+    const separatorLength = shellSeparatorLength(command, index);
+    if (separatorLength === 0) continue;
+    clauses.push(command.slice(clauseStart, index));
+    index += separatorLength - 1;
+    clauseStart = index + 1;
+  }
+
+  clauses.push(command.slice(clauseStart));
+  return clauses.map((clause) => clause.trim()).filter(Boolean);
+}
+
+function shellSeparatorLength(command, index) {
+  const character = command[index];
+  if (character === ";" || character === "\n") return 1;
+  if (character === "\r") return command[index + 1] === "\n" ? 2 : 1;
+  if (character === "&" && command[index + 1] === "&") return 2;
+  if (character === "|" && command[index + 1] === "|") return 2;
+  return 0;
 }
 
 function commandValue(value) {

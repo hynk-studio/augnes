@@ -148,16 +148,42 @@ function verifyProjectHooks() {
     tool_name: "apply_patch",
     tool_input: { patch: "documentation containing gh pr merge" },
   }), {});
-  assert.deepEqual(runProjectHook("augnes-operator-pre-tool-use-policy.mjs", {
-    hook_event_name: "PreToolUse",
-    tool_name: "Bash",
-    tool_input: { command: "rg -n 'gh pr merge' docs" },
-  }), {});
-  assert.equal(runProjectHook("augnes-operator-pre-tool-use-policy.mjs", {
-    hook_event_name: "PreToolUse",
-    tool_name: "Bash",
-    tool_input: { command: "gh pr merge 123" },
-  }).hookSpecificOutput?.permissionDecision, "deny");
+  for (const command of [
+    "printf '%s\\n' 'example; gh pr merge 123'",
+    "printf '%s\\n' \"example && gh pr merge 123\"",
+    "printf '%s\\n' 'example || git push --force'",
+    "rg -n 'foo; gh pr merge' docs",
+    "rg -n 'gh pr merge' docs",
+    "printf '%s\\n' 'gh pr ready'",
+    "printf '%s\\n' \"example\\; gh pr merge 123\"",
+    "printf '%s\\n' example\\; gh pr merge 123",
+    "printf '%s\\n' example\\&\\& gh pr ready 123",
+    "printf '%s\\n' example\\|\\| git push --force origin HEAD",
+    "printf '%s\\n' 'quoted multiline\ngh pr merge 123'",
+    "printf '%s\\n' escaped\\\nnewline gh pr merge 123",
+  ]) {
+    assert.deepEqual(runProjectHook("augnes-operator-pre-tool-use-policy.mjs", {
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_input: { command },
+    }), {}, `quoted or escaped command text must remain advisory: ${JSON.stringify(command)}`);
+  }
+  for (const command of [
+    "gh pr merge 123",
+    "echo ok; gh pr merge 123",
+    "echo ok && gh pr ready 123",
+    "npm test || git push --force origin HEAD",
+    "echo ok\ngh pr merge 123",
+    "gh api -X POST repos/hynk-studio/augnes/pulls/123/merge",
+    "cat .env.local",
+    "printenv OPENAI_API_KEY",
+  ]) {
+    assert.equal(runProjectHook("augnes-operator-pre-tool-use-policy.mjs", {
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_input: { command },
+    }).hookSpecificOutput?.permissionDecision, "deny", `direct command must be denied: ${JSON.stringify(command)}`);
+  }
 
   assert.deepEqual(runProjectHook("augnes-operator-post-tool-use-review.mjs", {
     hook_event_name: "PostToolUse",
