@@ -1,5 +1,18 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/augnes-operator-session-start.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Load Augnes operator guardrails"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -8,6 +21,32 @@
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs\"",
             "timeout": 30,
             "statusMessage": "Preparing Augnes reuse context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/augnes-operator-pre-tool-use-policy.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Check high-confidence Augnes safety boundaries"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/augnes-operator-post-tool-use-review.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Review structured Augnes verification status"
           }
         ]
       }

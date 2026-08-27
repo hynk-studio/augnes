@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -31,23 +31,26 @@ assert.match(operatorDefaultPrompt, /augnes_resume_repository/u);
 assert.match(operatorDefaultPrompt, /exact current root/u);
 assert.match(operatorDefaultPrompt, /live verification/u);
 
+assert.equal(existsSync(path.join(operatorPluginRoot, "hooks", "hooks.json")), false);
+assert.equal(Object.hasOwn(operatorManifest, "hooks"), false);
 const operatorHooks = JSON.parse(readFileSync(
-  path.join(operatorPluginRoot, "hooks", "hooks.json"),
+  path.join(process.cwd(), ".codex", "hooks.json"),
   "utf8",
 ));
+assert.equal(Object.hasOwn(operatorHooks.hooks, "Stop"), false);
 const operatorHookCommands = Object.values(operatorHooks.hooks).flatMap((groups) =>
   groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
 );
 assert.equal(operatorHookCommands.length, 4);
 for (const command of operatorHookCommands) {
-  assert.match(command, /^node "\$PLUGIN_ROOT\/hooks\/[a-z_]+\.mjs"$/u);
-  assert.equal(command.includes("git rev-parse"), false);
+  assert.match(command, /^node "\$\(git rev-parse --show-toplevel\)\/\.codex\/hooks\/[a-z0-9-]+\.mjs"$/u);
+  assert.equal(command.includes("$PLUGIN_ROOT"), false);
   assert.equal(command.includes("/Users/"), false);
 }
 
 const repositoryResumeHook = spawnSync(
   process.execPath,
-  [path.join(operatorPluginRoot, "hooks", "session_start.mjs")],
+  [path.join(process.cwd(), ".codex", "hooks", "augnes-operator-session-start.mjs")],
   {
     encoding: "utf8",
     input: JSON.stringify({
@@ -357,7 +360,7 @@ try {
     malformed_and_infrastructure_execution_failures_remain_mcp_errors: true,
     readonly_route_owns_ui_identity_verification: true,
     plugin_default_prompt_admitted_by_codex: true,
-    plugin_hooks_resolve_from_plugin_root: true,
+    plugin_default_hooks_absent_and_project_hooks_local: true,
     synthetic_discovery_harness: true,
   }, null, 2));
 } finally {

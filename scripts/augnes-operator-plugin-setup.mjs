@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   lstatSync,
   readFileSync,
   readdirSync,
@@ -21,7 +22,6 @@ const REVIEWED_FILES = Object.freeze([
   "mcp/companion-proxy.mjs",
   "mcp/companion-service-core.mjs",
   "skills/augnes-live-repository-continuity/SKILL.md",
-  "hooks/session_start.mjs",
 ]);
 const repositoryRoot = realpathSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
@@ -54,6 +54,8 @@ export function verifyOperatorPluginCache({
   if (JSON.stringify(cachedVersions) !== JSON.stringify([REVIEWED_OPERATOR_PLUGIN_VERSION])) {
     throw setupError("operator_plugin_stale_cache_present");
   }
+  assertNoDefaultHookConfig(sourceRoot);
+  assertNoDefaultHookConfig(expectedInstalledPath);
   for (const relativePath of REVIEWED_FILES) {
     const source = safeRegularFile(sourceRoot, relativePath);
     const cached = safeRegularFile(expectedInstalledPath, relativePath);
@@ -67,6 +69,7 @@ export function verifyOperatorPluginCache({
   ));
   if (
     manifest.version !== REVIEWED_OPERATOR_PLUGIN_VERSION ||
+    Object.hasOwn(manifest, "hooks") ||
     !manifest.interface?.defaultPrompt?.includes("augnes_companion_lifecycle_status") ||
     !manifest.interface?.defaultPrompt?.includes("augnes_start_companion_service") ||
     !manifest.interface?.defaultPrompt?.includes("augnes_resume_repository")
@@ -81,6 +84,12 @@ export function verifyOperatorPluginCache({
     reviewed_files_verified: REVIEWED_FILES.length,
     stale_cache_versions: 0,
   };
+}
+
+function assertNoDefaultHookConfig(root) {
+  if (existsSync(path.join(root, "hooks", "hooks.json"))) {
+    throw setupError("operator_plugin_default_hooks_present");
+  }
 }
 
 export function runOperatorPluginSetup({
