@@ -1,4 +1,5 @@
 import type { OperationalReentryArmRoleV01 } from "./operational-reentry-perturbation";
+import type { NativeHostResumeBindingV01 } from "./native-host-adapter";
 
 export const COMMISSIONED_WORK_FAMILY_VERSION_V01 =
   "commissioned_controlled_work_family.v0.1" as const;
@@ -8,6 +9,8 @@ export const COMMISSIONED_WORK_EPISODE_VERSION_V01 =
   "commissioned_controlled_work_episode.v0.1" as const;
 export const COMMISSIONED_WORK_EXECUTION_OBSERVATION_VERSION_V01 =
   "commissioned_work_execution_observation.v0.1" as const;
+export const COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 =
+  "commissioned_work_same_run_resume_source.v0.1" as const;
 export const COMMISSIONED_WORK_EPISODE_CHECKPOINT_VERSION_V01 =
   "commissioned_work_episode_checkpoint.v0.1" as const;
 export const COMMISSIONED_WORK_EVALUATION_VERSION_V01 =
@@ -498,6 +501,46 @@ export interface CommissionedWorkNativeHostRefBindingV01 {
   exact_ref_fingerprint: string;
 }
 
+export interface CommissionedWorkSameRunResumeSourceV01 {
+  source_version: typeof COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01;
+  source_id: string;
+  run_id: string;
+  run_ref_fingerprint: string;
+  native_host_request_fingerprint: string;
+  repository_resume_context_fingerprint: string;
+  resume_binding: NativeHostResumeBindingV01;
+  resume_binding_fingerprint: string;
+  source_host_ref_set: CommissionedWorkNativeHostRefBindingV01[];
+  source_host_ref_set_fingerprint: string;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export type CommissionedWorkHostIdentityProvenanceV01 =
+  | {
+      provenance_kind: "fresh_invocation";
+      identity_coverage: "complete_turn";
+      resume_source_ref: null;
+      resume_binding_fingerprint: null;
+      resume_control_revision: null;
+      inherited_host_ref_fingerprints: [];
+    }
+  | {
+      provenance_kind: "same_run_resume";
+      identity_coverage: "complete_turn" | "connection_only" | "absent";
+      resume_source_ref: CommissionedWorkRecordRefV01;
+      resume_binding_fingerprint: string;
+      resume_control_revision: number;
+      inherited_host_ref_fingerprints: string[];
+    }
+  | {
+      provenance_kind: "boundary_partial";
+      identity_coverage: "connection_only" | "absent";
+      resume_source_ref: null;
+      resume_binding_fingerprint: null;
+      resume_control_revision: null;
+      inherited_host_ref_fingerprints: [];
+    };
+
 export interface CommissionedWorkAuthorizationResourceCeilingV01 {
   ceiling_version: "commissioned_work_authorization_resource_ceiling.v0.1";
   provider_call_limit: number;
@@ -585,6 +628,7 @@ export interface CommissionedWorkCommissionedAgentExecutionObservationV01
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
   execution_mode: "commissioned_agent_native_host";
+  host_identity_provenance: CommissionedWorkHostIdentityProvenanceV01;
 }
 
 export type CommissionedWorkExecutionObservationV01 =
@@ -650,8 +694,8 @@ export interface CommissionedWorkEpisodeExecutionBindingCommonV01 {
   host_ref_set_fingerprint: string;
   product_execution_grant_created: false;
   solution_write_plan_checked_during_result_admission: false;
-  new_run_for_cold_episode: true;
-  predecessor_run_reused: false;
+  new_run_for_cold_episode: boolean;
+  predecessor_run_reused: boolean;
   predecessor_transcript_inherited: false;
   hidden_reasoning_inherited: false;
   executor_completion_is_outcome_truth: false;
@@ -681,6 +725,7 @@ export interface CommissionedWorkCommissionedAgentExecutionBindingV01
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
   execution_mode: "commissioned_agent_native_host";
+  host_identity_provenance: CommissionedWorkHostIdentityProvenanceV01;
   resource_binding: CommissionedWorkExecutionResourceBindingV01;
 }
 

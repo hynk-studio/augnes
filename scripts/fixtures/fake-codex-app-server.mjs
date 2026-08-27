@@ -199,7 +199,11 @@ async function handle(message) {
         return;
       }
       respond(message.id, threadResponse({ includeTurns: true, turnStatus: "inProgress" }));
-      if (scenario === "disconnect_resume") {
+      if (scenario === "cw1_same_run_resume_repository_edit") {
+        applyCw1MechanicalRepositoryEdit();
+        emitObservedItems(path.join(root, "src", "route-token.mjs"));
+        setImmediate(() => completeSuccess());
+      } else if (scenario === "disconnect_resume") {
         setImmediate(() => completeSuccess());
       }
       return;
@@ -276,7 +280,8 @@ async function handle(message) {
         );
         else if (
           scenario === "disconnect_resume" ||
-          scenario === "disconnect_resume_same_batch"
+          scenario === "disconnect_resume_same_batch" ||
+          scenario === "cw1_same_run_resume_repository_edit"
         ) {
           trace("intentional_disconnect", { exit_code: 19 });
           process.exit(19);
@@ -763,7 +768,8 @@ function completeUnsafeTextStructuredResult(summary) {
 function structuredResult() {
   const changedPath =
     scenario === "cw1_predecessor_repository_edit" ||
-    scenario === "cw1_successor_repository_edit"
+    scenario === "cw1_successor_repository_edit" ||
+    scenario === "cw1_same_run_resume_repository_edit"
       ? "src/route-token.mjs"
       : "src/live-result.ts";
   return JSON.stringify({

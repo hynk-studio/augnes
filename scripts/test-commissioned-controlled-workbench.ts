@@ -38,6 +38,7 @@ import {
   createCommissionedWorkPacketMaterialSetFingerprintV01,
   createCommissionedWorkRecordRefV01,
   createCommissionedWorkRoleRefV01,
+  createCommissionedWorkSameRunResumeSourceV01,
   invokeCommissionedWorkAdapterV01,
   type BuildCommissionedWorkEpisodeArtifactInputV01,
   type BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01,
@@ -91,6 +92,7 @@ import {
 import type {
   NativeHostLifecycleEventV01,
   NativeHostRequestV01,
+  NativeHostResumeBindingV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
@@ -140,6 +142,105 @@ type ProductionEpisodeProbeV01 = {
   receipt: RunReceiptV01;
   episode: CommissionedWorkEpisodeArtifactV01;
 };
+
+type ProductionAdapterInvocationProbeV01 = {
+  result: NativeHostResultV01 | null;
+  error: unknown | null;
+  lifecycle_events: NativeHostLifecycleEventV01[];
+  adapter_observations: CodexAppServerAdapterObservationV01[];
+};
+
+async function invokeProductionAppServerProbeV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  repository_root: string;
+  request: NativeHostRequestV01;
+  invocation_id: string;
+  scenario:
+    | "cw1_same_run_resume_repository_edit"
+    | "unauthenticated";
+  generated_at: string;
+  thread_id: string;
+  session_id: string;
+  turn_id: string;
+  resume_binding: NativeHostResumeBindingV01 | null;
+  expect_reconciliation: boolean;
+}): Promise<ProductionAdapterInvocationProbeV01> {
+  const runRoot = path.join(input.roots.runtime, input.invocation_id);
+  mkdirSync(runRoot, { recursive: true, mode: 0o700 });
+  const cleanupMarker = path.join(runRoot, "cleanup.marker");
+  const networkCountPath = path.join(runRoot, "network-count.txt");
+  const lifecycleEvents: NativeHostLifecycleEventV01[] = [];
+  const adapterObservations: CodexAppServerAdapterObservationV01[] = [];
+  let clockTick = 0;
+  const clockBase = Date.parse(input.generated_at);
+  const adapter = createCodexAppServerAdapterV01({
+    now: () => new Date(clockBase + clockTick++ * 50).toISOString(),
+    observe: (observation) => adapterObservations.push(observation),
+    launch: {
+      command: process.execPath,
+      prefix_args: [
+        path.join(
+          process.cwd(),
+          "scripts",
+          "fixtures",
+          "fake-codex-app-server.mjs",
+        ),
+      ],
+      environment: {
+        NODE_ENV: "test",
+        HOME: input.roots.home,
+        TMPDIR: input.roots.temp,
+        PATH: hermeticProcessEnvironmentV01?.PATH,
+        FAKE_CODEX_SCENARIO: input.scenario,
+        FAKE_CODEX_THREAD_ID: input.thread_id,
+        FAKE_CODEX_SESSION_ID: input.session_id,
+        FAKE_CODEX_TURN_ID: input.turn_id,
+        FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupMarker,
+        FAKE_CODEX_NETWORK_COUNT_PATH: networkCountPath,
+      },
+    },
+  });
+  const invocation = adapter.invoke(input.request, {
+    cancellation_signal: new AbortController().signal,
+    timeout_ms: 10_000,
+    stop_settle_timeout_ms: 3_000,
+    lifecycle_sink: {
+      async report_event(event) {
+        lifecycleEvents.push(event);
+      },
+      async request_approval() {
+        throw new Error("cw1_unexpected_native_host_approval");
+      },
+    },
+    resume_binding: input.resume_binding,
+  });
+  ownedNativeHostProcessesV01 += 1;
+  let result: NativeHostResultV01 | null = null;
+  let error: unknown | null = null;
+  try {
+    result = await invocation.result;
+  } catch (caught) {
+    error = caught;
+  } finally {
+    await invocation.settled;
+    ownedNativeHostProcessesV01 -= 1;
+  }
+  if (input.expect_reconciliation) {
+    assert.equal(existsSync(cleanupMarker), false);
+  } else {
+    assert.equal(readFileSync(cleanupMarker, "utf8"), "settled\n");
+  }
+  assert.equal(readFileSync(networkCountPath, "utf8"), "0\n");
+  assert.equal(adapterObservations.at(-1)?.kind, "settled");
+  assert.equal(error !== null, input.expect_reconciliation);
+  assert.equal(result === null, input.expect_reconciliation);
+  return {
+    result,
+    error,
+    lifecycle_events: lifecycleEvents,
+    adapter_observations: adapterObservations,
+  };
+}
 
 async function main(): Promise<void> {
   const network = installZeroNetworkGuard({
@@ -2634,6 +2735,7 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
         plan: episodeInput.plan,
         execution_evidence_class:
           COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+        resume_source: null,
         packet_presentation: {
           status: "delivered_action_order_unknown",
           observed_at: deliveryEvent.observed_at,
@@ -2834,6 +2936,9 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
   );
   assert.equal(successor.episode.evaluation.false_success_behavior, "unknown");
 
+  await assertProductionShapedSameRunResumeV01(input);
+  await assertProductionShapedPartialBoundaryV01(input);
+
   assertCommissionedExecutionObservationNegativeCasesV01({
     predecessor,
     successor,
@@ -2842,6 +2947,758 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
     manifest: input.manifest,
     source: input.source,
   });
+}
+
+async function assertProductionShapedSameRunResumeV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+}): Promise<void> {
+  const repositoryRoot = path.join(
+    input.roots.runtime,
+    "production-shaped-same-run-resume",
+  );
+  mkdirSync(repositoryRoot, { recursive: true, mode: 0o700 });
+  for (const fixture of input.source.repository_fixture) {
+    writeRepositoryFileV01(
+      repositoryRoot,
+      fixture.repository_relative_path,
+      fixture.content,
+    );
+  }
+  gitV01(repositoryRoot, ["init", "--initial-branch=main"]);
+  gitV01(repositoryRoot, ["add", "--all"]);
+  gitV01(
+    repositoryRoot,
+    ["commit", "-m", "initialize same-run resume probe"],
+    "2026-08-27T07:00:00.000Z",
+  );
+  const initialCommit = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+  const initialTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+  const plan = input.source.predecessor_plan;
+  const episodeId = "case-amber-17-production-same-run-resume";
+  const packet = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    generated_at: "2026-08-27T07:05:00.000Z",
+  });
+  const baseRequest = buildCommissionedWorkNativeHostRequestV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    packet,
+    runtime: {
+      report_included: false,
+      case_id: input.source.case_id,
+      condition: null,
+      holdout_variant: null,
+      workspace_id: input.manifest.workspace_id,
+      project_id: input.source.project_id,
+      repository_root: repositoryRoot,
+      database_path: path.join(input.roots.database, `${episodeId}.sqlite`),
+      home_root: input.roots.home,
+      data_root: input.roots.data,
+      config_root: input.roots.config,
+      runtime_root: input.roots.runtime,
+      artifact_root: input.roots.artifacts,
+    },
+    episode_id: episodeId,
+    requested_at: "2026-08-27T07:05:00.000Z",
+  });
+  const threadId = "01900000-0000-7000-8000-000000000301";
+  const sessionId = "01900000-0000-7000-8000-000000000302";
+  const turnId = "01900000-0000-7000-8000-000000000303";
+  const interrupted = await invokeProductionAppServerProbeV01({
+    roots: input.roots,
+    repository_root: repositoryRoot,
+    request: baseRequest,
+    invocation_id: `${episodeId}-initial`,
+    scenario: "cw1_same_run_resume_repository_edit",
+    generated_at: "2026-08-27T07:10:00.000Z",
+    thread_id: threadId,
+    session_id: sessionId,
+    turn_id: turnId,
+    resume_binding: null,
+    expect_reconciliation: true,
+  });
+  assert.ok(interrupted.error);
+  const admittedLifecycle = interrupted.lifecycle_events.findLast(
+    (event) =>
+      event.event_kind === "turn_started" &&
+      event.host_refs.some((ref) => ref.ref_type === "host_turn") &&
+      event.host_refs.some((ref) => ref.ref_type === "host_session"),
+  );
+  assert.ok(admittedLifecycle);
+  const exactRef = (refType: string) => {
+    const ref = admittedLifecycle.host_refs.find(
+      (candidate) => candidate.ref_type === refType,
+    );
+    assert.ok(ref);
+    return ref;
+  };
+  const resumeBinding: NativeHostResumeBindingV01 = {
+    host_connection_ref: exactRef("host_connection"),
+    host_thread_ref: exactRef("host_thread"),
+    host_session_ref: exactRef("host_session"),
+    host_turn_ref: exactRef("host_turn"),
+    control_revision: 7,
+  };
+  const resumeRequest: NativeHostRequestV01 = {
+    ...baseRequest,
+    repository_resume_context: {
+      context_version: "native_host_repository_resume_context.v0.1",
+      attempt_fingerprint: createProtocolSha256V01("cw1-resume-attempt"),
+      checkpoint_fingerprint: createProtocolSha256V01("cw1-resume-checkpoint"),
+      expected_state_fingerprint: createProtocolSha256V01(
+        "cw1-resume-expected-state",
+      ),
+      prior_controller_generation: 1,
+      resumed_controller_generation: 2,
+      admitted_run_control_revision: 7,
+      admitted_step_control_revision: 3,
+    },
+  };
+  const resumeSource = createCommissionedWorkSameRunResumeSourceV01({
+    request: resumeRequest,
+    resume_binding: resumeBinding,
+    source_host_refs: admittedLifecycle.host_refs,
+  });
+  const resumed = await invokeProductionAppServerProbeV01({
+    roots: input.roots,
+    repository_root: repositoryRoot,
+    request: resumeRequest,
+    invocation_id: `${episodeId}-resumed`,
+    scenario: "cw1_same_run_resume_repository_edit",
+    generated_at: "2026-08-27T07:20:00.000Z",
+    thread_id: threadId,
+    session_id: sessionId,
+    turn_id: turnId,
+    resume_binding: resumeBinding,
+    expect_reconciliation: false,
+  });
+  const result = resumed.result!;
+  const exactRawResult = canonicalizeProtocolValueV01(result);
+  assert.equal(result.outcome, "completed");
+  assert.equal(result.run_id, baseRequest.run_id);
+  const resumedTurn = result.host_refs.find(
+    (ref) => ref.ref_type === "host_turn",
+  );
+  assert.deepEqual(resumedTurn, resumeBinding.host_turn_ref);
+  assert.ok(
+    Date.parse(resumedTurn!.observed_at!) < Date.parse(result.started_at),
+  );
+  assert.deepEqual(
+    admitCommissionedWorkExecutorResultV01({
+      source: input.source,
+      plan,
+      request: resumeRequest,
+      result,
+    }),
+    result,
+  );
+  assert.equal(canonicalizeProtocolValueV01(result), exactRawResult);
+  gitV01(repositoryRoot, ["add", "--all"]);
+  gitV01(
+    repositoryRoot,
+    ["commit", "-m", "record same-run resumed repository work"],
+    "2026-08-27T07:21:00.000Z",
+  );
+  const episodeEndHead = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+  const episodeEndTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+  const commitment = findCommitmentV01(input.manifest, input.source.case_id);
+  const objectiveObservation = evaluateRepositoryEpisodeV01({
+    source: input.source,
+    commitment,
+    repository_root: repositoryRoot,
+    episode_start_commit: initialCommit,
+    episode_role: "predecessor",
+    condition: null,
+    holdout_variant: null,
+    run_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(result.run_id),
+    ),
+    evaluator_role: input.manifest.outcome_evaluator,
+    evaluator_version: input.manifest.evaluator_version,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.source.project_id,
+    run_oracles: false,
+    result,
+    oracle_guard_path: input.roots.oracle_guard_path,
+    network_attempt_log: input.roots.network_attempt_log,
+  });
+  const networkObservationRef = createCommissionedWorkRecordRefV01({
+    record_version: "commissioned_work_test_resource_observation.v0.1",
+    record_id: `network-observation:${episodeId}`,
+    record_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        result: exactRawResult,
+        observed_network_calls: 0,
+      }),
+    ),
+  });
+  const observationInput = {
+    packet,
+    request: resumeRequest,
+    result,
+    plan,
+    execution_evidence_class:
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+    resume_source: resumeSource,
+    packet_presentation: {
+      status: "not_observed",
+      observed_at: null,
+      provenance: "unknown",
+    },
+    continuation_materials_delivered: null,
+    candidate_components_delivered: null,
+    delivered_material_set_fingerprint: null,
+    first_material_action_at: null,
+    first_material_action_timing_provenance: "unknown",
+    executor_completion_attestation: {
+      provenance: "unknown",
+      claimed_complete: null,
+    },
+    resources: {
+      provider_calls: { provenance: "unknown", value: null },
+      model_calls: { provenance: "unknown", value: null },
+      external_network_calls: { provenance: "observed", value: 0 },
+      tool_calls: { provenance: "unknown", value: null },
+      model_usage_units: { provenance: "unknown", value: null },
+      cost_microunits: { provenance: "unknown", value: null },
+      latency_ms: { provenance: "unknown", value: null },
+      human_review_burden: { provenance: "unknown", value: null },
+    },
+    resource_binding: {
+      provider_calls_observation_ref: null,
+      model_calls_observation_ref: null,
+      external_network_calls_observation_ref: networkObservationRef,
+      live_authorization_ref: null,
+      authorization_resource_ceiling: null,
+      provider_ref: null,
+      model_ref: null,
+      route_ref: null,
+      network_destination_ref: null,
+    },
+    unauthorized_effects: zeroUnauthorizedEffectsForTestV01(),
+  } as const satisfies BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01;
+  const executionObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01(
+      observationInput,
+    );
+  assert.equal(
+    executionObservation.binding_kind === "commissioned_agent" &&
+      executionObservation.host_identity_provenance.provenance_kind,
+    "same_run_resume",
+  );
+  const minimalResumeBinding: NativeHostResumeBindingV01 = {
+    host_connection_ref: null,
+    host_thread_ref: resumeBinding.host_thread_ref,
+    host_session_ref: null,
+    host_turn_ref: resumeBinding.host_turn_ref,
+    control_revision: resumeBinding.control_revision,
+  };
+  const minimalResumeSource = createCommissionedWorkSameRunResumeSourceV01({
+    request: resumeRequest,
+    resume_binding: minimalResumeBinding,
+    source_host_refs: admittedLifecycle.host_refs.filter((ref) =>
+      ["host_thread", "host_turn"].includes(ref.ref_type),
+    ),
+  });
+  const minimalResumeObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+      ...observationInput,
+      resume_source: minimalResumeSource,
+    });
+  assert.equal(
+    minimalResumeObservation.binding_kind === "commissioned_agent" &&
+      minimalResumeObservation.host_identity_provenance.provenance_kind,
+    "same_run_resume",
+  );
+  const receipt = buildCommissionedWorkRunReceiptV01({
+    request: resumeRequest,
+    packet,
+    result,
+    observation: objectiveObservation,
+    execution_observation: executionObservation,
+  });
+  const repositoryState = {
+    initial_commit: initialCommit,
+    initial_tree: initialTree,
+    episode_start_commit: initialCommit,
+    episode_start_tree: initialTree,
+    episode_end_head: episodeEndHead,
+    episode_end_tree: episodeEndTree,
+    worktree_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        head: episodeEndHead,
+        tree: episodeEndTree,
+        status: gitV01(repositoryRoot, ["status", "--short"]),
+      }),
+    ),
+  };
+  const episode = buildCommissionedWorkEpisodeArtifactV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan,
+    packet,
+    request: resumeRequest,
+    result,
+    receipt,
+    observation: objectiveObservation,
+    execution_observation: executionObservation,
+    episode_id: episodeId,
+    episode_role: "predecessor",
+    condition: null,
+    holdout_variant: null,
+    predecessor_episode_ref: null,
+    predecessor_checkpoint: null,
+    candidate_freeze_fingerprint: null,
+    repository_state: repositoryState,
+    candidate_frozen_before_start: null,
+    repository_action_trace_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        changed_files: result.changed_files,
+        observed_actions: result.observed_actions,
+      }),
+    ),
+  });
+  assertValidCommissionedWorkEpisodeArtifactV01(episode);
+  assert.equal(episode.execution_binding.new_run_for_cold_episode, false);
+  assert.equal(episode.execution_binding.predecessor_run_reused, true);
+  assert.equal(episode.episode_checkpoint_ref, null);
+  assert.equal(episode.evaluation.deterministic_repository_task_success, false);
+  const readbackPath = path.join(input.roots.artifacts, `${episodeId}.json`);
+  writeFileSync(readbackPath, canonicalizeProtocolValueV01(episode), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  const readback = JSON.parse(
+    readFileSync(readbackPath, "utf8"),
+  ) as CommissionedWorkEpisodeArtifactV01;
+  assertValidCommissionedWorkEpisodeArtifactV01(readback);
+  assert.deepEqual(readback, episode);
+
+  const wrongTurnResult = structuredClone(result);
+  wrongTurnResult.host_refs.find((ref) => ref.ref_type === "host_turn")!.external_id =
+    "wrong-prior-turn";
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        result: wrongTurnResult,
+      }),
+    /commissioned_work_same_run_resume_binding_invalid/u,
+  );
+  const wrongSessionResult = structuredClone(result);
+  wrongSessionResult.host_refs.find(
+    (ref) => ref.ref_type === "host_session",
+  )!.external_id = "wrong-session";
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        result: wrongSessionResult,
+      }),
+    /commissioned_work_same_run_resume_binding_invalid/u,
+  );
+  const wrongRevisionRequest: NativeHostRequestV01 = {
+    ...resumeRequest,
+    repository_resume_context: {
+      ...resumeRequest.repository_resume_context!,
+      admitted_run_control_revision: 8,
+    },
+  };
+  const wrongRevisionSource = createCommissionedWorkSameRunResumeSourceV01({
+    request: wrongRevisionRequest,
+    resume_binding: { ...resumeBinding, control_revision: 8 },
+    source_host_refs: admittedLifecycle.host_refs,
+  });
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        resume_source: wrongRevisionSource,
+      }),
+    /commissioned_work_same_run_resume_scope_invalid/u,
+  );
+  const foreignRequest: NativeHostRequestV01 = {
+    ...resumeRequest,
+    run_id: "cw1-run:foreign-resume-source",
+  };
+  const foreignSource = createCommissionedWorkSameRunResumeSourceV01({
+    request: foreignRequest,
+    resume_binding: resumeBinding,
+    source_host_refs: admittedLifecycle.host_refs,
+  });
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        resume_source: foreignSource,
+      }),
+    /commissioned_work_same_run_resume_scope_invalid/u,
+  );
+  assert.throws(
+    () =>
+      createCommissionedWorkSameRunResumeSourceV01({
+        request: resumeRequest,
+        resume_binding: resumeBinding,
+        source_host_refs: admittedLifecycle.host_refs.filter(
+          (ref) => ref.ref_type !== "host_turn",
+        ),
+      }),
+    /commissioned_work_same_run_resume_source_invalid/u,
+  );
+  const currentConnectionBinding: NativeHostResumeBindingV01 = {
+    host_connection_ref: result.host_refs.find(
+      (ref) => ref.ref_type === "host_connection",
+    )!,
+    host_thread_ref: result.host_refs.find(
+      (ref) => ref.ref_type === "host_thread",
+    )!,
+    host_session_ref: result.host_refs.find(
+      (ref) => ref.ref_type === "host_session",
+    )!,
+    host_turn_ref: result.host_refs.find(
+      (ref) => ref.ref_type === "host_turn",
+    )!,
+    control_revision: 7,
+  };
+  const currentConnectionSource = createCommissionedWorkSameRunResumeSourceV01({
+    request: resumeRequest,
+    resume_binding: currentConnectionBinding,
+    source_host_refs: result.host_refs,
+  });
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        resume_source: currentConnectionSource,
+      }),
+    /commissioned_work_same_run_resume_connection_provenance_invalid/u,
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        resume_source: null,
+      }),
+    /commissioned_work_commissioned_agent_host_ref_set_invalid/u,
+  );
+}
+
+async function assertProductionShapedPartialBoundaryV01(input: {
+  roots: ReturnType<typeof createDisposableRootsV01>;
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
+  source: CommissionedWorkCaseSourceV01;
+}): Promise<void> {
+  const repositoryRoot = path.join(
+    input.roots.runtime,
+    "production-shaped-partial-boundary",
+  );
+  mkdirSync(repositoryRoot, { recursive: true, mode: 0o700 });
+  for (const fixture of input.source.repository_fixture) {
+    writeRepositoryFileV01(
+      repositoryRoot,
+      fixture.repository_relative_path,
+      fixture.content,
+    );
+  }
+  gitV01(repositoryRoot, ["init", "--initial-branch=main"]);
+  gitV01(repositoryRoot, ["add", "--all"]);
+  gitV01(
+    repositoryRoot,
+    ["commit", "-m", "initialize partial identity probe"],
+    "2026-08-27T07:30:00.000Z",
+  );
+  const initialCommit = gitV01(repositoryRoot, ["rev-parse", "HEAD"]);
+  const initialTree = gitV01(repositoryRoot, ["rev-parse", "HEAD^{tree}"]);
+  const plan = input.source.predecessor_plan;
+  const episodeId = "case-amber-17-production-boundary-unavailable";
+  const packet = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    generated_at: "2026-08-27T07:35:00.000Z",
+  });
+  const request = buildCommissionedWorkNativeHostRequestV01({
+    manifest: input.manifest,
+    source: input.source,
+    plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    packet,
+    runtime: {
+      report_included: false,
+      case_id: input.source.case_id,
+      condition: null,
+      holdout_variant: null,
+      workspace_id: input.manifest.workspace_id,
+      project_id: input.source.project_id,
+      repository_root: repositoryRoot,
+      database_path: path.join(input.roots.database, `${episodeId}.sqlite`),
+      home_root: input.roots.home,
+      data_root: input.roots.data,
+      config_root: input.roots.config,
+      runtime_root: input.roots.runtime,
+      artifact_root: input.roots.artifacts,
+    },
+    episode_id: episodeId,
+    requested_at: "2026-08-27T07:35:00.000Z",
+  });
+  const boundary = await invokeProductionAppServerProbeV01({
+    roots: input.roots,
+    repository_root: repositoryRoot,
+    request,
+    invocation_id: episodeId,
+    scenario: "unauthenticated",
+    generated_at: "2026-08-27T07:40:00.000Z",
+    thread_id: "01900000-0000-7000-8000-000000000401",
+    session_id: "01900000-0000-7000-8000-000000000402",
+    turn_id: "01900000-0000-7000-8000-000000000403",
+    resume_binding: null,
+    expect_reconciliation: false,
+  });
+  const result = boundary.result!;
+  const exactRawResult = canonicalizeProtocolValueV01(result);
+  assert.equal(result.outcome, "unavailable");
+  assert.deepEqual(result.host_refs.map((ref) => ref.ref_type), [
+    "host_connection",
+  ]);
+  assert.deepEqual(
+    admitCommissionedWorkExecutorResultV01({
+      source: input.source,
+      plan,
+      request,
+      result,
+    }),
+    result,
+  );
+  const commitment = findCommitmentV01(input.manifest, input.source.case_id);
+  const objectiveObservation = evaluateRepositoryEpisodeV01({
+    source: input.source,
+    commitment,
+    repository_root: repositoryRoot,
+    episode_start_commit: initialCommit,
+    episode_role: "predecessor",
+    condition: null,
+    holdout_variant: null,
+    run_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(result.run_id),
+    ),
+    evaluator_role: input.manifest.outcome_evaluator,
+    evaluator_version: input.manifest.evaluator_version,
+    workspace_id: input.manifest.workspace_id,
+    project_id: input.source.project_id,
+    run_oracles: false,
+    result,
+    oracle_guard_path: input.roots.oracle_guard_path,
+    network_attempt_log: input.roots.network_attempt_log,
+  });
+  const observationInput = {
+    packet,
+    request,
+    result,
+    plan,
+    execution_evidence_class:
+      COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+    resume_source: null,
+    packet_presentation: {
+      status: "not_observed",
+      observed_at: null,
+      provenance: "unknown",
+    },
+    continuation_materials_delivered: null,
+    candidate_components_delivered: null,
+    delivered_material_set_fingerprint: null,
+    first_material_action_at: null,
+    first_material_action_timing_provenance: "unknown",
+    executor_completion_attestation: {
+      provenance: "unknown",
+      claimed_complete: null,
+    },
+    resources: {
+      provider_calls: { provenance: "unknown", value: null },
+      model_calls: { provenance: "unknown", value: null },
+      external_network_calls: { provenance: "unknown", value: null },
+      tool_calls: { provenance: "unknown", value: null },
+      model_usage_units: { provenance: "unknown", value: null },
+      cost_microunits: { provenance: "unknown", value: null },
+      latency_ms: { provenance: "unknown", value: null },
+      human_review_burden: { provenance: "unknown", value: null },
+    },
+    resource_binding: {
+      provider_calls_observation_ref: null,
+      model_calls_observation_ref: null,
+      external_network_calls_observation_ref: null,
+      live_authorization_ref: null,
+      authorization_resource_ceiling: null,
+      provider_ref: null,
+      model_ref: null,
+      route_ref: null,
+      network_destination_ref: null,
+    },
+    unauthorized_effects: zeroUnauthorizedEffectsForTestV01(),
+  } as const satisfies BuildCommissionedWorkCommissionedAgentExecutionObservationInputV01;
+  const executionObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01(
+      observationInput,
+    );
+  assert.equal(
+    executionObservation.binding_kind === "commissioned_agent" &&
+      executionObservation.host_identity_provenance.provenance_kind,
+    "boundary_partial",
+  );
+  const receipt = buildCommissionedWorkRunReceiptV01({
+    request,
+    packet,
+    result,
+    observation: objectiveObservation,
+    execution_observation: executionObservation,
+  });
+  assert.equal(receipt.host_ref?.ref_type, "host_connection");
+  const repositoryState = {
+    initial_commit: initialCommit,
+    initial_tree: initialTree,
+    episode_start_commit: initialCommit,
+    episode_start_tree: initialTree,
+    episode_end_head: initialCommit,
+    episode_end_tree: initialTree,
+    worktree_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        head: initialCommit,
+        tree: initialTree,
+        status: gitV01(repositoryRoot, ["status", "--short"]),
+      }),
+    ),
+  };
+  const buildBoundaryEpisode = (
+    boundaryResult: NativeHostResultV01,
+    boundaryObservation: CommissionedWorkExecutionObservationV01,
+    boundaryReceipt: RunReceiptV01,
+  ) =>
+    buildCommissionedWorkEpisodeArtifactV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan,
+      packet,
+      request,
+      result: boundaryResult,
+      receipt: boundaryReceipt,
+      observation: objectiveObservation,
+      execution_observation: boundaryObservation,
+      episode_id: episodeId,
+      episode_role: "predecessor",
+      condition: null,
+      holdout_variant: null,
+      predecessor_episode_ref: null,
+      predecessor_checkpoint: null,
+      candidate_freeze_fingerprint: null,
+      repository_state: repositoryState,
+      candidate_frozen_before_start: null,
+      repository_action_trace_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          changed_files: boundaryResult.changed_files,
+          observed_actions: boundaryResult.observed_actions,
+        }),
+      ),
+    });
+  const episode = buildBoundaryEpisode(result, executionObservation, receipt);
+  assertValidCommissionedWorkEpisodeArtifactV01(episode);
+  assert.equal(episode.evaluation.deterministic_repository_task_success, false);
+  assert.ok(episode.evaluation.hard_failures.includes("native_host_unavailable"));
+  assert.equal(episode.execution_binding.host_ref_set.length, 1);
+  assert.equal(canonicalizeProtocolValueV01(result), exactRawResult);
+  const readbackPath = path.join(input.roots.artifacts, `${episodeId}.json`);
+  writeFileSync(readbackPath, canonicalizeProtocolValueV01(episode), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  const readback = JSON.parse(
+    readFileSync(readbackPath, "utf8"),
+  ) as CommissionedWorkEpisodeArtifactV01;
+  assertValidCommissionedWorkEpisodeArtifactV01(readback);
+  assert.deepEqual(readback, episode);
+
+  const wrongConnection = structuredClone(result);
+  wrongConnection.host_refs[0]!.provider = "unrecognized-provider";
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        result: wrongConnection,
+      }),
+    /commissioned_work_commissioned_agent_host_ref_set_invalid/u,
+  );
+  const unavailableWithTurn = structuredClone(result);
+  const observedAt = result.host_refs[0]!.observed_at!;
+  unavailableWithTurn.host_refs.push(
+    {
+      ...result.host_refs[0]!,
+      ref_type: "host_thread",
+      external_id: "false-unavailable-thread",
+      observed_at: observedAt,
+    },
+    {
+      ...result.host_refs[0]!,
+      ref_type: "host_turn",
+      external_id: "false-unavailable-turn",
+      observed_at: observedAt,
+    },
+  );
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        result: unavailableWithTurn,
+      }),
+    /commissioned_work_commissioned_agent_host_ref_set_invalid/u,
+  );
+  const completedWithoutTurn = structuredClone(result);
+  completedWithoutTurn.outcome = "completed";
+  completedWithoutTurn.public_stop_reason = null;
+  assert.throws(
+    () =>
+      buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+        ...observationInput,
+        result: completedWithoutTurn,
+      }),
+    /commissioned_work_commissioned_agent_host_ref_set_invalid/u,
+  );
+
+  const absentResult = structuredClone(result);
+  absentResult.outcome = "failed";
+  absentResult.public_stop_reason = "codex_process_start_failed";
+  absentResult.host_refs = [];
+  const absentObservation =
+    buildCommissionedWorkCommissionedAgentExecutionObservationV01({
+      ...observationInput,
+      result: absentResult,
+    });
+  const absentReceipt = buildCommissionedWorkRunReceiptV01({
+    request,
+    packet,
+    result: absentResult,
+    observation: objectiveObservation,
+    execution_observation: absentObservation,
+  });
+  assert.equal(absentReceipt.host_ref, null);
+  const absentEpisode = buildBoundaryEpisode(
+    absentResult,
+    absentObservation,
+    absentReceipt,
+  );
+  assertValidCommissionedWorkEpisodeArtifactV01(absentEpisode);
+  assert.equal(absentEpisode.execution_binding.host_ref_set.length, 0);
+  assert.ok(absentEpisode.evaluation.hard_failures.includes("native_host_failed"));
+  assert.equal(absentEpisode.evaluation.deterministic_repository_task_success, false);
 }
 
 function zeroUnauthorizedEffectsForTestV01(): CommissionedWorkObjectiveObservationV01["unauthorized_effects"] {
@@ -2880,6 +3737,7 @@ function assertCommissionedExecutionObservationNegativeCasesV01(input: {
     plan: input.plan,
     execution_evidence_class:
       COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
+    resume_source: null,
     packet_presentation: {
       status: "delivered_action_order_unknown",
       observed_at: input.successor.result.started_at,

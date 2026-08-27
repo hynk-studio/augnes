@@ -24,6 +24,7 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   NativeHostAdapterV01,
   NativeHostRequestV01,
+  NativeHostResumeBindingV01,
   NativeHostResultV01,
   NativeHostRootScopeV01,
 } from "@/types/vnext/native-host-adapter";
@@ -47,6 +48,7 @@ import {
   COMMISSIONED_WORK_FAMILY_VERSION_V01,
   COMMISSIONED_WORK_HOLDOUT_VERSION_V01,
   COMMISSIONED_WORK_REPORT_VERSION_V01,
+  COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01,
   COMMISSIONED_WORK_TREATMENT_ROLE_BINDINGS_V01,
   type CommissionedWorkArtifactIndexV01,
   type CommissionedWorkAuthorizationResourceCeilingV01,
@@ -72,6 +74,7 @@ import {
   type CommissionedWorkHoldoutEvaluationV01,
   type CommissionedWorkHoldoutRelationV01,
   type CommissionedWorkHoldoutVariantV01,
+  type CommissionedWorkHostIdentityProvenanceV01,
   type CommissionedWorkIntegrityV01,
   type CommissionedWorkMaterialBoundaryV01,
   type CommissionedWorkNativeHostRefBindingV01,
@@ -81,6 +84,7 @@ import {
   type CommissionedWorkResourceVectorV01,
   type CommissionedWorkRoleRefV01,
   type CommissionedWorkRuntimeBindingV01,
+  type CommissionedWorkSameRunResumeSourceV01,
   type CommissionedWorkSourceMaterialV01,
   type CommissionedWorkSuccessorPlanSourceV01,
   type CommissionedWorkTrainingResultV01,
@@ -242,6 +246,7 @@ export interface BuildCommissionedWorkCommissionedAgentExecutionObservationInput
   execution_evidence_class:
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01
     | typeof COMMISSIONED_WORK_COMMISSIONED_AGENT_OBSERVATION_EVIDENCE_CLASS_V01;
+  resume_source: CommissionedWorkSameRunResumeSourceV01 | null;
   packet_presentation: CommissionedWorkExecutionObservationV01["packet_presentation"];
   continuation_materials_delivered: number | null;
   candidate_components_delivered: number | null;
@@ -1196,17 +1201,228 @@ const COMMISSIONED_WORK_SYNTHETIC_FIXTURE_METADATA_KEYS_V01 = [
   "solution_write_plan_checked_during_result_admission",
 ] as const;
 
+function nativeHostRefBindingsV01(
+  refs: ExternalRefV01[],
+): CommissionedWorkNativeHostRefBindingV01[] {
+  return refs
+    .map((ref) => ({
+      ref_type:
+        ref.ref_type as CommissionedWorkNativeHostRefBindingV01["ref_type"],
+      exact_ref_fingerprint: fingerprintV01(ref),
+    }))
+    .sort(compareCanonicalV01);
+}
+
+function assertCodexAppServerRefV01(ref: ExternalRefV01): void {
+  if (
+    !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type) ||
+    ref.provider !== "codex" ||
+    ref.host !== "app_server" ||
+    ref.compatibility_namespace !== "codex_app_server_adapter.v0.1" ||
+    ref.trust_class !== "direct_local_observation" ||
+    typeof ref.observed_at !== "string" ||
+    !Number.isFinite(Date.parse(ref.observed_at))
+  ) {
+    failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
+  }
+}
+
+function sameNativeHostIdentityV01(
+  left: ExternalRefV01,
+  right: ExternalRefV01,
+): boolean {
+  return canonicalizeProtocolValueV01({
+    ref_version: left.ref_version,
+    ref_type: left.ref_type,
+    external_id: left.external_id,
+    provider: left.provider ?? null,
+    host: left.host ?? null,
+    source_ref: left.source_ref ?? null,
+    compatibility_namespace: left.compatibility_namespace ?? null,
+    trust_class: left.trust_class,
+  }) === canonicalizeProtocolValueV01({
+    ref_version: right.ref_version,
+    ref_type: right.ref_type,
+    external_id: right.external_id,
+    provider: right.provider ?? null,
+    host: right.host ?? null,
+    source_ref: right.source_ref ?? null,
+    compatibility_namespace: right.compatibility_namespace ?? null,
+    trust_class: right.trust_class,
+  });
+}
+
+function refObservedInCurrentInvocationV01(
+  ref: ExternalRefV01,
+  result: NativeHostResultV01,
+): boolean {
+  const observedAt = Date.parse(ref.observed_at!);
+  return (
+    observedAt >= Date.parse(result.started_at) &&
+    observedAt <= Date.parse(result.finished_at)
+  );
+}
+
+function validateSameRunResumeSourceV01(
+  source: CommissionedWorkSameRunResumeSourceV01,
+): void {
+  validateIntegrityV01(
+    source,
+    "commissioned_work_same_run_resume_source_without_integrity_fingerprint",
+    "commissioned_work_same_run_resume_source_integrity_invalid",
+  );
+  requireSafeCodeV01(
+    source.source_id,
+    "commissioned_work_same_run_resume_source_id_invalid",
+  );
+  requireSafeCodeV01(
+    source.run_id,
+    "commissioned_work_same_run_resume_run_id_invalid",
+  );
+  requireFingerprintV01(
+    source.run_ref_fingerprint,
+    "commissioned_work_same_run_resume_run_ref_invalid",
+  );
+  requireFingerprintV01(
+    source.native_host_request_fingerprint,
+    "commissioned_work_same_run_resume_request_ref_invalid",
+  );
+  requireFingerprintV01(
+    source.repository_resume_context_fingerprint,
+    "commissioned_work_same_run_resume_context_ref_invalid",
+  );
+  requireFingerprintV01(
+    source.resume_binding_fingerprint,
+    "commissioned_work_same_run_resume_binding_invalid",
+  );
+  requireFingerprintV01(
+    source.source_host_ref_set_fingerprint,
+    "commissioned_work_same_run_resume_host_ref_set_invalid",
+  );
+  if (
+    source.source_version !==
+      COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 ||
+    source.run_ref_fingerprint !== fingerprintV01(source.run_id) ||
+    source.resume_binding_fingerprint !== fingerprintV01(source.resume_binding) ||
+    source.source_host_ref_set_fingerprint !==
+      fingerprintV01(source.source_host_ref_set) ||
+    !Number.isSafeInteger(source.resume_binding.control_revision) ||
+    source.resume_binding.control_revision < 0 ||
+    source.source_host_ref_set.length < 2 ||
+    source.source_host_ref_set.length > 4 ||
+    new Set(source.source_host_ref_set.map((binding) => binding.ref_type)).size !==
+      source.source_host_ref_set.length ||
+    canonicalizeProtocolValueV01(source.source_host_ref_set) !==
+      canonicalizeProtocolValueV01(
+        [...source.source_host_ref_set].sort(compareCanonicalV01),
+      )
+  ) {
+    failV01("commissioned_work_same_run_resume_source_invalid");
+  }
+  const sourceFingerprints = new Set(
+    source.source_host_ref_set.map((binding) => binding.exact_ref_fingerprint),
+  );
+  const exactBindingRefs = [
+    source.resume_binding.host_connection_ref,
+    source.resume_binding.host_thread_ref,
+    source.resume_binding.host_session_ref,
+    source.resume_binding.host_turn_ref,
+  ].filter((ref): ref is ExternalRefV01 => ref !== null);
+  if (
+    exactBindingRefs.some(
+      (ref) =>
+        !sourceFingerprints.has(fingerprintV01(ref)) ||
+        !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type),
+    ) ||
+    source.resume_binding.host_thread_ref.ref_type !== "host_thread" ||
+    source.resume_binding.host_turn_ref.ref_type !== "host_turn" ||
+    (source.resume_binding.host_connection_ref !== null &&
+      source.resume_binding.host_connection_ref.ref_type !== "host_connection") ||
+    (source.resume_binding.host_session_ref !== null &&
+      source.resume_binding.host_session_ref.ref_type !== "host_session")
+  ) {
+    failV01("commissioned_work_same_run_resume_source_invalid");
+  }
+  exactBindingRefs.forEach(assertCodexAppServerRefV01);
+  source.source_host_ref_set.forEach((binding) =>
+    requireFingerprintV01(
+      binding.exact_ref_fingerprint,
+      "commissioned_work_same_run_resume_host_ref_invalid",
+    ),
+  );
+}
+
+export function createCommissionedWorkSameRunResumeSourceV01(input: {
+  request: NativeHostRequestV01;
+  resume_binding: NativeHostResumeBindingV01;
+  source_host_refs: ExternalRefV01[];
+}): CommissionedWorkSameRunResumeSourceV01 {
+  const resumeContext = input.request.repository_resume_context;
+  requireSafeCodeV01(
+    input.request.run_id,
+    "commissioned_work_same_run_resume_run_id_invalid",
+  );
+  if (
+    resumeContext === null ||
+    resumeContext === undefined ||
+    resumeContext.context_version !==
+      "native_host_repository_resume_context.v0.1" ||
+    resumeContext.admitted_run_control_revision !==
+      input.resume_binding.control_revision
+  ) {
+    failV01("commissioned_work_same_run_resume_context_invalid");
+  }
+  const exactRefs = [...input.source_host_refs].sort(compareCanonicalV01);
+  if (
+    exactRefs.length < 2 ||
+    exactRefs.length > 4 ||
+    new Set(exactRefs.map((ref) => ref.ref_type)).size !== exactRefs.length ||
+    new Set(exactRefs.map((ref) => canonicalizeProtocolValueV01(ref))).size !==
+      exactRefs.length
+  ) {
+    failV01("commissioned_work_same_run_resume_source_invalid");
+  }
+  exactRefs.forEach(assertCodexAppServerRefV01);
+  const sourceHostRefSet = nativeHostRefBindingsV01(exactRefs);
+  const resumeBindingFingerprint = fingerprintV01(input.resume_binding);
+  const sourceWithoutIntegrity = {
+    source_version: COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01,
+    source_id: `resume-source:${fingerprintV01({
+      run_id: input.request.run_id,
+      resume_binding: resumeBindingFingerprint,
+    }).slice("sha256:".length, "sha256:".length + 32)}`,
+    run_id: input.request.run_id,
+    run_ref_fingerprint: fingerprintV01(input.request.run_id),
+    native_host_request_fingerprint: fingerprintV01(input.request),
+    repository_resume_context_fingerprint: fingerprintV01(resumeContext),
+    resume_binding: input.resume_binding,
+    resume_binding_fingerprint: resumeBindingFingerprint,
+    source_host_ref_set: sourceHostRefSet,
+    source_host_ref_set_fingerprint: fingerprintV01(sourceHostRefSet),
+  };
+  const source = sealV01(
+    sourceWithoutIntegrity,
+    "commissioned_work_same_run_resume_source_without_integrity_fingerprint",
+  );
+  validateSameRunResumeSourceV01(source);
+  return source;
+}
+
 function exactNativeHostRefSetV01(input: {
+  request: NativeHostRequestV01;
   result: NativeHostResultV01;
   binding_kind: "synthetic_fixture" | "commissioned_agent";
+  resume_source: CommissionedWorkSameRunResumeSourceV01 | null;
+  expected_provenance: CommissionedWorkHostIdentityProvenanceV01 | null;
 }): {
   external_refs: ExternalRefV01[];
   bindings: CommissionedWorkNativeHostRefBindingV01[];
   set_fingerprint: string;
-  receipt_host_ref: ExternalRefV01;
+  receipt_host_ref: ExternalRefV01 | null;
+  host_identity_provenance: CommissionedWorkHostIdentityProvenanceV01 | null;
 } {
-  if (input.result.host_refs.length === 0 || input.result.host_refs.length > 4) {
-    failV01("commissioned_work_receipt_host_identity_missing");
+  if (input.result.host_refs.length > 4) {
+    failV01("commissioned_work_host_ref_set_bound_exceeded");
   }
   const exactRefs = [...input.result.host_refs].sort((left, right) =>
     compareCanonicalV01(left, right),
@@ -1216,8 +1432,12 @@ function exactNativeHostRefSetV01(input: {
   if (typeSet.size !== exactRefs.length || refSet.size !== exactRefs.length) {
     failV01("commissioned_work_host_ref_set_duplicate_or_conflicting");
   }
+  let hostIdentityProvenance: CommissionedWorkHostIdentityProvenanceV01 | null =
+    null;
   if (input.binding_kind === "synthetic_fixture") {
     if (
+      input.resume_source !== null ||
+      input.expected_provenance !== null ||
       exactRefs.length !== 1 ||
       exactRefs[0]?.ref_type !== "commissioned_workbench_fixture_host" ||
       !exactRefs[0].source_ref
@@ -1225,41 +1445,215 @@ function exactNativeHostRefSetV01(input: {
       failV01("commissioned_work_synthetic_execution_binding_invalid");
     }
   } else {
+    exactRefs.forEach(assertCodexAppServerRefV01);
+    if (input.resume_source !== null && input.expected_provenance !== null) {
+      failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
+    }
+    const completeTurnIdentity =
+      typeSet.has("host_connection") &&
+      typeSet.has("host_thread") &&
+      typeSet.has("host_turn") &&
+      (exactRefs.length === 3 ||
+        (exactRefs.length === 4 && typeSet.has("host_session")));
+    const partialIdentity =
+      exactRefs.length === 0 ||
+      (exactRefs.length === 1 && typeSet.has("host_connection"));
     if (
-      exactRefs.some(
-        (ref) =>
-          !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(ref.ref_type) ||
-          ref.provider !== "codex" ||
-          ref.host !== "app_server" ||
-          ref.compatibility_namespace !== "codex_app_server_adapter.v0.1" ||
-          ref.trust_class !== "direct_local_observation" ||
-          typeof ref.observed_at !== "string" ||
-          Date.parse(ref.observed_at) < Date.parse(input.result.started_at) ||
-          Date.parse(ref.observed_at) > Date.parse(input.result.finished_at),
-      ) ||
-      !typeSet.has("host_thread") ||
-      !typeSet.has("host_turn")
+      (!completeTurnIdentity && !partialIdentity) ||
+      (input.result.outcome === "completed" && !completeTurnIdentity) ||
+      (input.result.outcome === "unavailable" && !partialIdentity) ||
+      (["cancelled", "timed_out", "blocked"].includes(input.result.outcome) &&
+        !completeTurnIdentity) ||
+      (partialIdentity &&
+        !["failed", "unavailable"].includes(input.result.outcome))
     ) {
       failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
     }
+    const currentConnection = exactRefs.find(
+      (ref) => ref.ref_type === "host_connection",
+    );
+    if (
+      currentConnection &&
+      !refObservedInCurrentInvocationV01(currentConnection, input.result)
+    ) {
+      failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
+    }
+    if (input.resume_source !== null) {
+      validateSameRunResumeSourceV01(input.resume_source);
+      if (
+        input.resume_source.run_id !== input.result.run_id ||
+        input.resume_source.run_id !== input.request.run_id ||
+        input.resume_source.native_host_request_fingerprint !==
+          fingerprintV01(input.request) ||
+        input.request.repository_resume_context === null ||
+        input.request.repository_resume_context === undefined ||
+        input.resume_source.repository_resume_context_fingerprint !==
+          fingerprintV01(input.request.repository_resume_context) ||
+        input.request.repository_resume_context.admitted_run_control_revision !==
+          input.resume_source.resume_binding.control_revision
+      ) {
+        failV01("commissioned_work_same_run_resume_scope_invalid");
+      }
+      const resume = input.resume_source.resume_binding;
+      if (
+        currentConnection &&
+        resume.host_connection_ref !== null &&
+        canonicalizeProtocolValueV01(currentConnection) ===
+          canonicalizeProtocolValueV01(resume.host_connection_ref)
+      ) {
+        failV01("commissioned_work_same_run_resume_connection_provenance_invalid");
+      }
+      const inherited = new Set<string>();
+      if (completeTurnIdentity) {
+        const requireResumeRelation = (
+          refType: "host_thread" | "host_session" | "host_turn",
+          admitted: ExternalRefV01 | null,
+          exactRequired: boolean,
+        ): void => {
+          const actual = exactRefs.find((ref) => ref.ref_type === refType) ?? null;
+          if (admitted === null) {
+            if (
+              actual !== null &&
+              !refObservedInCurrentInvocationV01(actual, input.result)
+            ) {
+              failV01("commissioned_work_same_run_resume_binding_invalid");
+            }
+            return;
+          }
+          if (actual === null || !sameNativeHostIdentityV01(actual, admitted)) {
+            failV01("commissioned_work_same_run_resume_binding_invalid");
+          }
+          if (
+            canonicalizeProtocolValueV01(actual) ===
+            canonicalizeProtocolValueV01(admitted)
+          ) {
+            inherited.add(fingerprintV01(actual));
+            return;
+          }
+          if (
+            exactRequired ||
+            !refObservedInCurrentInvocationV01(actual, input.result)
+          ) {
+            failV01("commissioned_work_same_run_resume_binding_invalid");
+          }
+        };
+        requireResumeRelation("host_thread", resume.host_thread_ref, false);
+        requireResumeRelation("host_session", resume.host_session_ref, false);
+        requireResumeRelation("host_turn", resume.host_turn_ref, true);
+        if (!inherited.has(fingerprintV01(resume.host_turn_ref))) {
+          failV01("commissioned_work_same_run_resume_binding_invalid");
+        }
+      }
+      hostIdentityProvenance = {
+        provenance_kind: "same_run_resume",
+        identity_coverage: completeTurnIdentity
+          ? "complete_turn"
+          : exactRefs.length === 1
+            ? "connection_only"
+            : "absent",
+        resume_source_ref: createCommissionedWorkRecordRefV01({
+          record_version: input.resume_source.source_version,
+          record_id: input.resume_source.source_id,
+          record_fingerprint: input.resume_source.integrity.fingerprint,
+        }),
+        resume_binding_fingerprint:
+          input.resume_source.resume_binding_fingerprint,
+        resume_control_revision: resume.control_revision,
+        inherited_host_ref_fingerprints: [...inherited].sort(
+          compareProtocolCodeUnitsV01,
+        ),
+      };
+    } else if (input.expected_provenance?.provenance_kind === "same_run_resume") {
+      const expected = input.expected_provenance;
+      const inherited = new Set(expected.inherited_host_ref_fingerprints);
+      if (
+        expected.resume_source_ref.record_version !==
+          COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 ||
+        !Number.isSafeInteger(expected.resume_control_revision) ||
+        expected.resume_control_revision < 0 ||
+        new Set(expected.inherited_host_ref_fingerprints).size !==
+          expected.inherited_host_ref_fingerprints.length ||
+        canonicalizeProtocolValueV01(
+          expected.inherited_host_ref_fingerprints,
+        ) !==
+          canonicalizeProtocolValueV01(
+            [...expected.inherited_host_ref_fingerprints].sort(
+              compareProtocolCodeUnitsV01,
+            ),
+          ) ||
+        (completeTurnIdentity &&
+          !exactRefs.some(
+            (ref) =>
+              ref.ref_type === "host_turn" && inherited.has(fingerprintV01(ref)),
+          )) ||
+        exactRefs.some((ref) => {
+          const refFingerprint = fingerprintV01(ref);
+          if (ref.ref_type === "host_connection" && inherited.has(refFingerprint)) {
+            return true;
+          }
+          return (
+            !inherited.has(refFingerprint) &&
+            !refObservedInCurrentInvocationV01(ref, input.result)
+          );
+        }) ||
+        expected.identity_coverage !==
+          (completeTurnIdentity
+            ? "complete_turn"
+            : exactRefs.length === 1
+              ? "connection_only"
+              : "absent")
+      ) {
+        failV01("commissioned_work_same_run_resume_provenance_invalid");
+      }
+      hostIdentityProvenance = expected;
+    } else {
+      if (
+        exactRefs.some(
+          (ref) => !refObservedInCurrentInvocationV01(ref, input.result),
+        )
+      ) {
+        failV01("commissioned_work_commissioned_agent_host_ref_set_invalid");
+      }
+      hostIdentityProvenance = completeTurnIdentity
+        ? {
+            provenance_kind: "fresh_invocation",
+            identity_coverage: "complete_turn",
+            resume_source_ref: null,
+            resume_binding_fingerprint: null,
+            resume_control_revision: null,
+            inherited_host_ref_fingerprints: [],
+          }
+        : {
+            provenance_kind: "boundary_partial",
+            identity_coverage:
+              exactRefs.length === 1 ? "connection_only" : "absent",
+            resume_source_ref: null,
+            resume_binding_fingerprint: null,
+            resume_control_revision: null,
+            inherited_host_ref_fingerprints: [],
+          };
+      if (
+        input.expected_provenance !== null &&
+        canonicalizeProtocolValueV01(input.expected_provenance) !==
+          canonicalizeProtocolValueV01(hostIdentityProvenance)
+      ) {
+        failV01("commissioned_work_host_identity_provenance_invalid");
+      }
+    }
   }
-  const bindings = exactRefs
-    .map((ref) => ({
-      ref_type:
-        ref.ref_type as CommissionedWorkNativeHostRefBindingV01["ref_type"],
-      exact_ref_fingerprint: fingerprintV01(ref),
-    }))
-    .sort(compareCanonicalV01);
+  const bindings = nativeHostRefBindingsV01(exactRefs);
   const receiptHostRef =
     input.binding_kind === "synthetic_fixture"
       ? exactRefs[0]!
       : exactRefs.find((ref) => ref.ref_type === "host_turn") ??
-        failV01("commissioned_work_receipt_host_identity_missing");
+        exactRefs.find((ref) => ref.ref_type === "host_connection") ??
+        null;
   return {
     external_refs: exactRefs,
     bindings,
     set_fingerprint: fingerprintV01(bindings),
     receipt_host_ref: receiptHostRef,
+    host_identity_provenance: hostIdentityProvenance,
   };
 }
 
@@ -1451,6 +1845,7 @@ function buildExecutionObservationV01(input: {
   result: NativeHostResultV01;
   plan: CommissionedWorkEpisodePlanSourceV01 | CommissionedWorkSuccessorPlanSourceV01;
   execution_source: CommissionedWorkEpisodeExecutionSourceV01;
+  resume_source: CommissionedWorkSameRunResumeSourceV01 | null;
   packet_presentation: CommissionedWorkExecutionObservationV01["packet_presentation"];
   continuation_materials_delivered: number | null;
   candidate_components_delivered: number | null;
@@ -1486,8 +1881,11 @@ function buildExecutionObservationV01(input: {
   }
   const isSynthetic = input.execution_source.binding_kind === "synthetic_fixture";
   const hostSet = exactNativeHostRefSetV01({
+    request: input.request,
     result: input.result,
     binding_kind: input.execution_source.binding_kind,
+    resume_source: input.resume_source,
+    expected_provenance: null,
   });
   const candidateFingerprints = candidateComponentDeliveryFingerprintsV01(
     input.packet,
@@ -1554,6 +1952,7 @@ function buildExecutionObservationV01(input: {
       request_id: input.request.request_id,
       result: fingerprintV01(input.result),
       host_ref_set: hostSet.set_fingerprint,
+      host_identity_provenance: hostSet.host_identity_provenance,
     }).slice("sha256:".length, "sha256:".length + 32)}`,
     request_id: input.request.request_id,
     run_id: input.request.run_id,
@@ -1609,6 +2008,9 @@ function buildExecutionObservationV01(input: {
       binding_kind: "commissioned_agent" as const,
       execution_evidence_class: input.execution_source.execution_evidence_class,
       execution_mode: "commissioned_agent_native_host" as const,
+      host_identity_provenance:
+        hostSet.host_identity_provenance ??
+        failV01("commissioned_work_host_identity_provenance_invalid"),
     },
     "commissioned_work_execution_observation_without_integrity_fingerprint",
   );
@@ -1629,6 +2031,7 @@ export function buildCommissionedWorkSyntheticExecutionObservationV01(
       execution_evidence_class: COMMISSIONED_WORK_EXECUTION_EVIDENCE_CLASS_V01,
       execution_mode: "zero_provider_synthetic_fixture_adapter",
     },
+    resume_source: null,
     packet_presentation: {
       status: "presented_before_first_meaningful_action",
       observed_at: input.result.started_at,
@@ -1737,6 +2140,7 @@ export function buildCommissionedWorkCommissionedAgentExecutionObservationV01(
       network_destination_ref:
         input.resource_binding.network_destination_ref,
     },
+    resume_source: input.resume_source,
     packet_presentation: input.packet_presentation,
     continuation_materials_delivered:
       input.continuation_materials_delivered,
@@ -1762,7 +2166,7 @@ function validateExecutionObservationResultBindingV01(input: {
   result: NativeHostResultV01;
 }): {
   host_external_refs: ExternalRefV01[];
-  receipt_host_ref: ExternalRefV01;
+  receipt_host_ref: ExternalRefV01 | null;
   run_ref_type: string;
   runtime_labels: string[];
   observation_kind: string;
@@ -1785,8 +2189,14 @@ function validateExecutionObservationResultBindingV01(input: {
     "commissioned_work_execution_observation_integrity_invalid",
   );
   const hostSet = exactNativeHostRefSetV01({
+    request: input.request,
     result: input.result,
     binding_kind: input.execution_observation.binding_kind,
+    resume_source: null,
+    expected_provenance:
+      input.execution_observation.binding_kind === "commissioned_agent"
+        ? input.execution_observation.host_identity_provenance
+        : null,
   });
   if (
     input.execution_observation.request_id !== input.request.request_id ||
@@ -2573,11 +2983,15 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     input.result.finished_at,
     input.execution_observation.integrity.fingerprint,
   );
+  const normalizedReceiptHostRef =
+    executionSourceBinding.receipt_host_ref === null
+      ? null
+      : normalizeExternalRefPrimitiveV01(
+          executionSourceBinding.receipt_host_ref,
+        );
   if (
     canonicalizeProtocolValueV01(input.receipt.host_ref) !==
-    canonicalizeProtocolValueV01(
-      normalizeExternalRefPrimitiveV01(executionSourceBinding.receipt_host_ref),
-    )
+    canonicalizeProtocolValueV01(normalizedReceiptHostRef)
   ) {
     failV01("commissioned_work_episode_receipt_host_ref_set_invalid");
   }
@@ -2614,6 +3028,13 @@ export function buildCommissionedWorkEpisodeArtifactV01(
     input.execution_observation.candidate_components_delivered;
   const candidateComponentDeliveryFingerprints =
     candidateComponentDeliveryFingerprintsV01(input.packet);
+  const sameRunResume =
+    input.execution_observation.binding_kind === "commissioned_agent" &&
+    input.execution_observation.host_identity_provenance.provenance_kind ===
+      "same_run_resume";
+  if (sameRunResume && input.episode_role === "successor") {
+    failV01("commissioned_work_same_run_resume_cold_successor_invalid");
+  }
   if (
     packetMaterialSetFingerprint !==
       input.execution_observation.packet_material_set_fingerprint ||
@@ -2637,8 +3058,8 @@ export function buildCommissionedWorkEpisodeArtifactV01(
       input.execution_observation.host_ref_set_fingerprint,
     product_execution_grant_created: false as const,
     solution_write_plan_checked_during_result_admission: false as const,
-    new_run_for_cold_episode: true as const,
-    predecessor_run_reused: false as const,
+    new_run_for_cold_episode: !sameRunResume,
+    predecessor_run_reused: sameRunResume,
     predecessor_transcript_inherited: false as const,
     hidden_reasoning_inherited: false as const,
     executor_completion_is_outcome_truth: false as const,
@@ -2673,6 +3094,8 @@ export function buildCommissionedWorkEpisodeArtifactV01(
           execution_evidence_class:
             input.execution_observation.execution_evidence_class,
           execution_mode: "commissioned_agent_native_host",
+          host_identity_provenance:
+            input.execution_observation.host_identity_provenance,
           resource_binding: input.execution_observation.resource_binding,
         };
   const evidenceLadder = episodeEvidenceLadderV01({
@@ -5318,6 +5741,10 @@ function validateEpisodeIntegrityV01(
     "commissioned_work_episode_without_integrity_fingerprint",
     "commissioned_work_episode_integrity_invalid",
   );
+  const sameRunResume =
+    episode.execution_binding.binding_kind === "commissioned_agent" &&
+    episode.execution_binding.host_identity_provenance.provenance_kind ===
+      "same_run_resume";
   if (
     canonicalizeProtocolValueV01(episode.authority_summary) !==
       canonicalizeProtocolValueV01(createCommissionedWorkAuthoritySummaryV01()) ||
@@ -5326,8 +5753,13 @@ function validateEpisodeIntegrityV01(
     episode.execution_binding.product_execution_grant_created !== false ||
     episode.execution_binding.predecessor_transcript_inherited !== false ||
     episode.execution_binding.hidden_reasoning_inherited !== false ||
-    episode.execution_binding.predecessor_run_reused !== false ||
-    episode.execution_binding.new_run_for_cold_episode !== true ||
+    (sameRunResume &&
+      (episode.episode_role !== "predecessor" ||
+        episode.execution_binding.predecessor_run_reused !== true ||
+        episode.execution_binding.new_run_for_cold_episode !== false)) ||
+    (!sameRunResume &&
+      (episode.execution_binding.predecessor_run_reused !== false ||
+        episode.execution_binding.new_run_for_cold_episode !== true)) ||
     episode.execution_binding.solution_write_plan_checked_during_result_admission !==
       false ||
     episode.evaluation.scalar_fitness_created !== false ||
@@ -5356,7 +5788,6 @@ function validateEpisodeIntegrityV01(
     "commissioned_work_episode_host_ref_set_fingerprint_invalid",
   );
   if (
-    episode.execution_binding.host_ref_set.length === 0 ||
     episode.execution_binding.host_ref_set.length > 4 ||
     new Set(
       episode.execution_binding.host_ref_set.map((binding) => binding.ref_type),
@@ -5442,15 +5873,100 @@ function validateEpisodeIntegrityV01(
     episode.execution_binding.host_ref_set.some(
       (binding) =>
         !COMMISSIONED_WORK_NATIVE_HOST_REF_TYPES_V01.has(binding.ref_type),
-    ) ||
-    !episode.execution_binding.host_ref_set.some(
-      (binding) => binding.ref_type === "host_thread",
-    ) ||
-    !episode.execution_binding.host_ref_set.some(
-      (binding) => binding.ref_type === "host_turn",
     )
   ) {
     failV01("commissioned_work_commissioned_agent_episode_binding_invalid");
+  }
+  const provenance = episode.execution_binding.host_identity_provenance;
+  const hostBindingTypes = new Set(
+    episode.execution_binding.host_ref_set.map((binding) => binding.ref_type),
+  );
+  const completeTurnIdentity =
+    hostBindingTypes.has("host_connection") &&
+    hostBindingTypes.has("host_thread") &&
+    hostBindingTypes.has("host_turn") &&
+    (episode.execution_binding.host_ref_set.length === 3 ||
+      (episode.execution_binding.host_ref_set.length === 4 &&
+        hostBindingTypes.has("host_session")));
+  const partialIdentity =
+    episode.execution_binding.host_ref_set.length === 0 ||
+    (episode.execution_binding.host_ref_set.length === 1 &&
+      hostBindingTypes.has("host_connection"));
+  if (!completeTurnIdentity && !partialIdentity) {
+    failV01("commissioned_work_commissioned_agent_episode_binding_invalid");
+  }
+  if (provenance.provenance_kind === "fresh_invocation") {
+    if (!completeTurnIdentity || provenance.identity_coverage !== "complete_turn") {
+      failV01("commissioned_work_host_identity_provenance_invalid");
+    }
+  } else if (provenance.provenance_kind === "boundary_partial") {
+    if (
+      !partialIdentity ||
+      provenance.identity_coverage !==
+        (episode.execution_binding.host_ref_set.length === 1
+          ? "connection_only"
+          : "absent") ||
+      !episode.evaluation.hard_failures.some((failure) =>
+        ["native_host_failed", "native_host_unavailable"].includes(failure),
+      )
+    ) {
+      failV01("commissioned_work_host_identity_provenance_invalid");
+    }
+  } else {
+    createCommissionedWorkRecordRefV01(provenance.resume_source_ref);
+    requireFingerprintV01(
+      provenance.resume_binding_fingerprint,
+      "commissioned_work_same_run_resume_binding_invalid",
+    );
+    if (
+      provenance.resume_source_ref.record_version !==
+        COMMISSIONED_WORK_SAME_RUN_RESUME_SOURCE_VERSION_V01 ||
+      !Number.isSafeInteger(provenance.resume_control_revision) ||
+      provenance.resume_control_revision < 0 ||
+      provenance.identity_coverage !==
+        (completeTurnIdentity
+          ? "complete_turn"
+          : episode.execution_binding.host_ref_set.length === 1
+            ? "connection_only"
+            : "absent") ||
+      new Set(provenance.inherited_host_ref_fingerprints).size !==
+        provenance.inherited_host_ref_fingerprints.length ||
+      canonicalizeProtocolValueV01(
+        provenance.inherited_host_ref_fingerprints,
+      ) !==
+        canonicalizeProtocolValueV01(
+          [...provenance.inherited_host_ref_fingerprints].sort(
+            compareProtocolCodeUnitsV01,
+          ),
+        )
+    ) {
+      failV01("commissioned_work_same_run_resume_provenance_invalid");
+    }
+    const inherited = new Set(provenance.inherited_host_ref_fingerprints);
+    const hostFingerprints = new Set(
+      episode.execution_binding.host_ref_set.map(
+        (binding) => binding.exact_ref_fingerprint,
+      ),
+    );
+    const connectionFingerprint = episode.execution_binding.host_ref_set.find(
+      (binding) => binding.ref_type === "host_connection",
+    )?.exact_ref_fingerprint;
+    const turnFingerprint = episode.execution_binding.host_ref_set.find(
+      (binding) => binding.ref_type === "host_turn",
+    )?.exact_ref_fingerprint;
+    if (
+      provenance.inherited_host_ref_fingerprints.some(
+        (fingerprint) => !hostFingerprints.has(fingerprint),
+      ) ||
+      (connectionFingerprint !== undefined &&
+        inherited.has(connectionFingerprint)) ||
+      (completeTurnIdentity &&
+        (turnFingerprint === undefined || !inherited.has(turnFingerprint))) ||
+      (partialIdentity &&
+        provenance.inherited_host_ref_fingerprints.length !== 0)
+    ) {
+      failV01("commissioned_work_same_run_resume_provenance_invalid");
+    }
   }
   validateExecutionResourceBindingV01({
     execution_evidence_class:
