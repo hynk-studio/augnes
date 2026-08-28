@@ -692,7 +692,8 @@ async function assertProjectionAndBrokerNegativesV01(
   expiredOwner.cleanupV01();
 
   const lookupIssuedAt = new Date(Date.now() - 1_000).toISOString();
-  const lookupExpiresAt = new Date(Date.now() + 250).toISOString();
+  const lookupExpiresAtMs = Date.now() + 60_000;
+  const lookupExpiresAt = new Date(lookupExpiresAtMs).toISOString();
   const expiresDuringLookupProjection = projectionV01({
     projection_id: "codex-isolated-auth:expires-during-lookup",
     issued_at: lookupIssuedAt,
@@ -710,9 +711,12 @@ async function assertProjectionAndBrokerNegativesV01(
         material: FAKE_LAUNCH_MATERIAL,
       },
     ],
-    async before_return() {
+    before_return() {
       delayedLookupReached = true;
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      // Advance only this isolated test process's clock after exact broker
+      // lookup. This deterministically reaches the immediate pre-spawn expiry
+      // check without depending on scheduler load or weakening the check.
+      Date.now = () => lookupExpiresAtMs;
     },
   });
   const expiresDuringLookupStateParent = path.join(
@@ -738,17 +742,22 @@ async function assertProjectionAndBrokerNegativesV01(
     ],
     base_environment: { NODE_ENV: "test", PATH: process.env.PATH },
   });
-  await assert.rejects(
-    expiresDuringLookupOwner.withSpawnMaterialV01({
-      repository_root: roots.repository,
-      async use() {
-        expiredLookupUseCalled = true;
-      },
-    }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_projection_expired",
-  );
+  const originalDateNow = Date.now;
+  try {
+    await assert.rejects(
+      expiresDuringLookupOwner.withSpawnMaterialV01({
+        repository_root: roots.repository,
+        async use() {
+          expiredLookupUseCalled = true;
+        },
+      }),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_projection_expired",
+    );
+  } finally {
+    Date.now = originalDateNow;
+  }
   assert.equal(delayedLookupReached, true);
   assert.equal(expiredLookupUseCalled, false);
   expiresDuringLookupOwner.cleanupV01();
