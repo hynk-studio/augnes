@@ -24,10 +24,12 @@ import {
   assertCommissionedLiveTrainingAttemptStartReservationV01,
   assertCommissionedLiveTrainingExecutorVisibleMaterialV01,
   assertCommissionedLiveTrainingInvocationGateV01,
+  assertCommissionedLiveTrainingNoResumeBoundaryV01,
   assertCommissionedLiveTrainingResourceCeilingsV01,
   assertSafeCommissionedLiveTrainingOutputV01,
   assertValidCommissionedLiveTrainingCohortPlanV01,
   buildCommissionedLiveTrainingAnalysisJoinV01,
+  buildCommissionedLiveTrainingApprovalObservationV01,
   buildCommissionedLiveTrainingAttemptStartV01,
   buildCommissionedLiveTrainingAttemptAdmissionV01,
   buildCommissionedLiveTrainingAttemptRegistryV01,
@@ -39,16 +41,20 @@ import {
   buildCommissionedLiveTrainingCleanupObservationV01,
   buildCommissionedLiveTrainingCloneSealV01,
   buildCommissionedLiveTrainingCohortPlanV01,
+  buildCommissionedLiveTrainingCodexEnvironmentBindingV01,
   buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+  buildCommissionedLiveTrainingIsolationObservationV01,
   buildCommissionedLiveTrainingResultV01,
   commissionedLiveTrainingDefaultAdapterRefV01,
   commissionedLiveTrainingDefaultCapabilityRefV01,
   commissionedLiveTrainingRecordRefV01,
   commissionedWorkManifestRecordRefV01,
   createCommissionedLiveTrainingAdapterBindingV01,
-  createCommissionedLiveTrainingObservedResourceLaneV01,
+  createCommissionedLiveTrainingObservedSourcedResourceLaneV01,
   createCommissionedLiveTrainingRecordRefV01,
-  createCommissionedLiveTrainingUnknownResourceLaneV01,
+  createCommissionedLiveTrainingUnknownSourcedResourceLaneV01,
+  commissionedLiveTrainingCandidateRuleTableV01,
+  evaluateCommissionedLiveTrainingComponentRuleV01,
   COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01,
 } from "@/lib/vnext/commissioned-controlled-live-training";
 import {
@@ -71,7 +77,13 @@ import {
   createCommissionedWorkRecordRefV01,
   createCommissionedWorkRoleRefV01,
 } from "@/lib/vnext/commissioned-controlled-workbench";
-import { createCodexAppServerAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import {
+  codexAppServerAccountProjectionFingerprintV01,
+  codexAppServerIsolatedConfigurationFingerprintV01,
+  codexAppServerIsolatedToolPolicyFingerprintV01,
+  createCodexAppServerAdapterV01,
+  createCodexAppServerIsolatedEnvironmentExpectationV01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -96,9 +108,30 @@ const AUTHORIZATION_NONCE = "cw1l1_test_conformance_nonce_000000000001";
 const CHECKOUT_ROOT_FINGERPRINT = createProtocolSha256V01(
   canonicalizeProtocolValueV01(realpathSync(process.cwd())),
 );
+const TEST_RESOURCE_SOURCE_REF = testRecordRefV01(
+  "credential-free-zero-provider-enforcement",
+);
+const TEST_CODEX_ENVIRONMENT_BINDING =
+  buildCommissionedLiveTrainingCodexEnvironmentBindingV01({
+    binding_id: "cw1-l1-test-isolated-codex-environment",
+    binding_class: "zero_provider_control_flow_conformance",
+    account_auth_projection_ref: testRecordRefV01(
+      "credential-free-test-account-projection",
+    ),
+    account_auth_projection_fingerprint:
+      codexAppServerAccountProjectionFingerprintV01({
+        type: "chatgpt",
+        accountId: "credential-free-test-account",
+        planType: "unknown",
+      }),
+    task_network_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
+    unauthorized_effect_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
+  });
 
 async function main(): Promise<void> {
   const root = mkdtempSync(path.join(os.tmpdir(), "augnes-cw1-l1-test-"));
+  const priorCanonicalTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
+  process.env.AUGNES_CANONICAL_TEST_MODE = "1";
   const artifactRepository = path.join(root, "artifact-repository");
   mkdirSync(artifactRepository, { recursive: true, mode: 0o700 });
   writeFileSync(path.join(artifactRepository, ".gitignore"), ".augnes-lab/\n", {
@@ -142,7 +175,7 @@ async function main(): Promise<void> {
     const nativeConfiguration = buildTestNativeConfigurationV01();
     const authorization = buildCommissionedLiveTrainingAuthorizationV01({
       authorization_id: "cw1-l1-test-authorization-01",
-      authorization_kind: "test_conformance",
+      authorization_kind: "future_live_control_flow_conformance",
       issued_at: "2026-08-28T06:01:00.000Z",
       expires_at: "2026-08-29T06:01:00.000Z",
       current_main_sha: FOUNDATION_SHA,
@@ -150,14 +183,23 @@ async function main(): Promise<void> {
       checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
       plan,
       native_execution_configuration: nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
       authorization_nonce: AUTHORIZATION_NONCE,
       artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
       replacement_invocation_limit: 3,
       native_host_invocation_limit: 18,
       provider_bearing_native_host_invocation_limit: 0,
       model_bearing_native_host_invocation_limit: 0,
-      provider_call_limit: 0,
-      model_call_limit: 0,
+      provider_call_ceiling: {
+        observability: "observed",
+        limit: 0,
+        source_ref: TEST_RESOURCE_SOURCE_REF,
+      },
+      model_call_ceiling: {
+        observability: "observed",
+        limit: 0,
+        source_ref: TEST_RESOURCE_SOURCE_REF,
+      },
       usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
       cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
       per_episode_timeout_ms: 10_000,
@@ -171,32 +213,67 @@ async function main(): Promise<void> {
       authorization,
       family: manifest,
     });
-    const result = await executeCommissionedLiveTrainingCohortV01({
-      source_repository_root: process.cwd(),
-      artifact_repository_root: artifactRepository,
-      manifest,
-      training_cases: trainingCases,
-      plan,
-      authorization,
-      authorization_nonce: AUTHORIZATION_NONCE,
-      native_execution_configuration: nativeConfiguration,
-      current_main_sha: FOUNDATION_SHA,
-      current_main_tree: FOUNDATION_TREE,
-      consumer_instance_ref: testRecordRefV01("consumer-instance-01"),
-      execution_started_at: "2026-08-28T06:02:00.000Z",
-      test_fixture_outputs: fixtureOutputs,
-      fake_app_server_path: path.join(
-        process.cwd(),
-        "scripts",
-        "fixtures",
-        "fake-codex-app-server.mjs",
-      ),
-    });
+    const sharedCodexHome = path.join(root, "seeded-shared-codex-home");
+    const sharedSqliteHome = path.join(root, "seeded-shared-sqlite-home");
+    mkdirSync(sharedCodexHome, { recursive: true, mode: 0o700 });
+    mkdirSync(sharedSqliteHome, { recursive: true, mode: 0o700 });
+    writeFileSync(
+      path.join(sharedCodexHome, "foreign-instruction.txt"),
+      "SEEDED_FOREIGN_INSTRUCTION_MUST_NOT_CROSS",
+      { encoding: "utf8", mode: 0o600 },
+    );
+    writeFileSync(
+      path.join(sharedSqliteHome, "sibling-history.txt"),
+      "SEEDED_SIBLING_TRANSCRIPT_MUST_NOT_CROSS",
+      { encoding: "utf8", mode: 0o600 },
+    );
+    const priorCodexHome = process.env.CODEX_HOME;
+    const priorCodexSqliteHome = process.env.CODEX_SQLITE_HOME;
+    let result: Awaited<ReturnType<typeof executeCommissionedLiveTrainingCohortV01>>;
+    try {
+      process.env.CODEX_HOME = sharedCodexHome;
+      process.env.CODEX_SQLITE_HOME = sharedSqliteHome;
+      result = await executeCommissionedLiveTrainingCohortV01({
+        source_repository_root: process.cwd(),
+        artifact_repository_root: artifactRepository,
+        manifest,
+        training_cases: trainingCases,
+        plan,
+        authorization,
+        authorization_nonce: AUTHORIZATION_NONCE,
+        native_execution_configuration: nativeConfiguration,
+        current_main_sha: FOUNDATION_SHA,
+        current_main_tree: FOUNDATION_TREE,
+        consumer_instance_ref: testRecordRefV01("consumer-instance-01"),
+        execution_started_at: "2026-08-28T06:02:00.000Z",
+        test_fixture_outputs: fixtureOutputs,
+        fake_app_server_path: path.join(
+          process.cwd(),
+          "scripts",
+          "fixtures",
+          "fake-codex-app-server.mjs",
+        ),
+      });
+    } finally {
+      if (priorCodexHome === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = priorCodexHome;
+      if (priorCodexSqliteHome === undefined) delete process.env.CODEX_SQLITE_HOME;
+      else process.env.CODEX_SQLITE_HOME = priorCodexSqliteHome;
+    }
     assert.equal(result.valid_predecessor_episodes, 3);
     assert.equal(result.valid_successor_episodes, 12);
-    assert.equal(result.provider_calls, 0);
-    assert.equal(result.model_calls, 0);
-    assert.equal(result.task_external_network_calls, 0);
+    assert.deepEqual(result.provider_calls, {
+      provenance: "observed",
+      value: 0,
+      source_ref: result.provider_calls.source_ref,
+    });
+    assert.deepEqual(result.model_calls, {
+      provenance: "observed",
+      value: 0,
+      source_ref: result.model_calls.source_ref,
+    });
+    assert.equal(result.task_external_network.provenance, "observed");
+    assert.equal(result.task_external_network.value, 0);
     assert.equal(result.holdout_materialized, false);
     assert.equal(result.fake_output_is_behavioral_evidence, false);
     assert.equal(result.cleanup_complete, true);
@@ -204,6 +281,49 @@ async function main(): Promise<void> {
     assert.equal(result.artifacts.attempt_admissions.length, 16);
     assert.equal(result.artifacts.attempt_starts.length, 16);
     assert.equal(result.artifacts.attempt_terminals.length, 16);
+    assert.equal(
+      new Set(
+        result.artifacts.attempt_starts.map(
+          (attempt) => attempt.attempt_state_root_fingerprint,
+        ),
+      ).size,
+      16,
+    );
+    const aggregableAdmissionFingerprints = new Set(
+      result.artifacts.attempt_terminals
+        .filter((terminal) => terminal.aggregable)
+        .map((terminal) => terminal.attempt_admission_ref.record_fingerprint),
+    );
+    assert.equal(
+      result.artifacts.attempt_admissions.every(
+        (admission) => {
+          const isolationStatus = aggregableAdmissionFingerprints.has(
+            admission.integrity.fingerprint,
+          )
+            ? "observed_exact"
+            : "not_observed_pre_spawn_failure";
+          return (
+          admission.codex_environment_binding_fingerprint ===
+            authorization.codex_environment_binding.integrity.fingerprint &&
+          admission.isolation_observation.distinct_from_prior_attempt_state_roots &&
+          admission.isolation_observation.state_root_created_empty &&
+          !admission.isolation_observation.shared_codex_home_fallback_used &&
+          !admission.isolation_observation.predecessor_history_present &&
+          !admission.isolation_observation.sibling_history_present &&
+          !admission.isolation_observation.foreign_instruction_or_config_present &&
+          admission.isolation_observation.account_projection_status ===
+            isolationStatus &&
+          admission.isolation_observation.codex_configuration_status ===
+            isolationStatus &&
+          admission.isolation_observation.tool_policy_status ===
+            isolationStatus &&
+          admission.isolation_observation.raw_auth_config_or_history_persisted ===
+            false
+          );
+        },
+      ),
+      true,
+    );
     assert.equal(result.artifacts.attempt_registry.replacement_invocation_count, 1);
     assert.equal(
       result.artifacts.attempt_terminals.filter(
@@ -288,6 +408,15 @@ async function main(): Promise<void> {
       }
     }
     assert.equal(persistedText.includes("modules/ledger/"), false);
+    assert.equal(
+      persistedText.includes("SEEDED_FOREIGN_INSTRUCTION_MUST_NOT_CROSS"),
+      false,
+    );
+    assert.equal(
+      persistedText.includes("SEEDED_SIBLING_TRANSCRIPT_MUST_NOT_CROSS"),
+      false,
+    );
+    assertCandidateRuleMatrixV01({ plan, result });
     const index = validateCommissionedLiveTrainingArtifactsV01({
       repository_root: artifactRepository,
       relative_run_root: result.artifact_summary.relative_run_root,
@@ -409,8 +538,171 @@ async function main(): Promise<void> {
       owned_repository_roots_remaining: 0,
     })}\n`);
   } finally {
+    if (priorCanonicalTestMode === undefined) {
+      delete process.env.AUGNES_CANONICAL_TEST_MODE;
+    } else {
+      process.env.AUGNES_CANONICAL_TEST_MODE = priorCanonicalTestMode;
+    }
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function assertCandidateRuleMatrixV01(input: {
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  result: Awaited<ReturnType<typeof executeCommissionedLiveTrainingCohortV01>>;
+}): void {
+  const ruleTable = commissionedLiveTrainingCandidateRuleTableV01();
+  const rules = ruleTable.rules;
+  assert.equal(rules.length, 3);
+  const buildEpisodes = (
+    rule: (typeof rules)[number],
+    originCount: 0 | 1 | 2,
+  ): CommissionedWorkEpisodeArtifactV01[] => {
+    const episodes = structuredClone(input.result.artifacts.episodes);
+    const successors = episodes.filter(
+      (episode) => episode.episode_role === "successor",
+    );
+    for (const episode of successors) {
+      episode.execution_binding.execution_evidence_class =
+        "commissioned_agent_observation";
+      episode.evaluation.deterministic_repository_task_success = false;
+      episode.evaluation.source_currentness_failure = false;
+      episode.evaluation.negative_space_status = "preserved";
+      episode.evaluation.verification_completeness = "complete";
+      episode.evaluation.hard_failures = [];
+      episode.evaluation.harmful_transfer = "not_observed";
+    }
+    for (const caseId of ["case-amber-17", "case-cobalt-29"].slice(
+      0,
+      originCount,
+    )) {
+      const target = successors.find(
+        (episode) =>
+          episode.case_id === caseId &&
+          episode.condition === "exact_current_continuity",
+      )!;
+      const comparator = successors.find(
+        (episode) =>
+          episode.case_id === caseId &&
+          episode.condition !== null &&
+          episode.condition !== "exact_current_continuity" &&
+          rule.comparable_conditions.includes(episode.condition),
+      )!;
+      switch (rule.component_id) {
+        case "reobserve_current_source_before_action":
+          target.evaluation.deterministic_repository_task_success = true;
+          target.evaluation.source_currentness_failure = false;
+          comparator.evaluation.source_currentness_failure = true;
+          break;
+        case "preserve_negative_status_without_new_support":
+          target.evaluation.negative_space_status = "preserved";
+          comparator.evaluation.negative_space_status = "revived";
+          break;
+        case "separate_execution_completion_from_verified_success":
+          target.evaluation.deterministic_repository_task_success = true;
+          target.evaluation.verification_completeness = "complete";
+          comparator.evaluation.verification_completeness = "incomplete";
+          break;
+      }
+    }
+    return episodes;
+  };
+  for (const rule of rules) {
+    const eligible = evaluateCommissionedLiveTrainingComponentRuleV01({
+      rule,
+      episodes: buildEpisodes(rule, 2),
+      plan: input.plan,
+      analysis_joins: input.result.artifacts.analysis_joins,
+    });
+    assert.equal(eligible.status, "mechanically_eligible_for_holdout");
+    assert.equal(eligible.independent_origin_count, 2);
+    assert.equal(eligible.actual_reference_status, "unknown");
+    assert.equal(eligible.actual_use_status, "unknown");
+    assert.equal(eligible.support_validated_status, "unknown");
+    assert.equal(eligible.outcome_associated_status, "unknown");
+
+    const oneOrigin = evaluateCommissionedLiveTrainingComponentRuleV01({
+      rule,
+      episodes: buildEpisodes(rule, 1),
+      plan: input.plan,
+      analysis_joins: input.result.artifacts.analysis_joins,
+    });
+    assert.equal(oneOrigin.status, "incomplete");
+    assert.equal(oneOrigin.independent_origin_count, 1);
+
+    const contradictoryEpisodes = buildEpisodes(rule, 2);
+    contradictoryEpisodes.find(
+      (episode) =>
+        episode.case_id === "case-amber-17" &&
+        episode.condition === "exact_current_continuity",
+    )!.evaluation.hard_failures = [
+      rule.contradictory_hard_failure_codes[0]!,
+    ] as never;
+    assert.equal(
+      evaluateCommissionedLiveTrainingComponentRuleV01({
+        rule,
+        episodes: contradictoryEpisodes,
+        plan: input.plan,
+        analysis_joins: input.result.artifacts.analysis_joins,
+      }).status,
+      "not_eligible",
+    );
+
+    const harmfulEpisodes = buildEpisodes(rule, 2);
+    harmfulEpisodes.find(
+      (episode) =>
+        episode.case_id === "case-amber-17" &&
+        episode.condition === "exact_current_continuity",
+    )!.evaluation.harmful_transfer = "observed";
+    assert.equal(
+      evaluateCommissionedLiveTrainingComponentRuleV01({
+        rule,
+        episodes: harmfulEpisodes,
+        plan: input.plan,
+        analysis_joins: input.result.artifacts.analysis_joins,
+      }).status,
+      "not_eligible",
+    );
+
+    const unequalEvidenceEpisodes = buildEpisodes(rule, 2);
+    unequalEvidenceEpisodes.find(
+      (episode) =>
+        episode.case_id === "case-cobalt-29" &&
+        episode.condition === "exact_current_continuity",
+    )!.common_evidence_fingerprint = createProtocolSha256V01(
+      `unequal-${rule.component_id}`,
+    );
+    const unequalEvidence = evaluateCommissionedLiveTrainingComponentRuleV01({
+      rule,
+      episodes: unequalEvidenceEpisodes,
+      plan: input.plan,
+      analysis_joins: input.result.artifacts.analysis_joins,
+    });
+    assert.equal(unequalEvidence.status, "incomplete");
+    assert.equal(
+      unequalEvidence.missing_evidence_codes.includes("common_evidence_not_equal"),
+      true,
+    );
+
+    const allArmsEqual = evaluateCommissionedLiveTrainingComponentRuleV01({
+      rule,
+      episodes: buildEpisodes(rule, 0),
+      plan: input.plan,
+      analysis_joins: input.result.artifacts.analysis_joins,
+    });
+    assert.equal(allArmsEqual.status, "incomplete");
+    assert.equal(allArmsEqual.independent_origin_count, 0);
+  }
+  assert.equal(
+    input.result.artifacts.attempt_registry.non_aggregable_failure_refs.length,
+    1,
+  );
+  assert.equal(
+    input.result.artifacts.candidate_assessment.components.every(
+      (component) => component.objective_supporting_episode_refs.length === 0,
+    ),
+    true,
+  );
 }
 
 async function assertInjectedIncompleteCloseoutV01(input: {
@@ -452,14 +744,23 @@ async function assertInjectedIncompleteCloseoutV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     plan,
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     authorization_nonce: nonce,
     artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${cohortId}`,
     replacement_invocation_limit: 3,
     native_host_invocation_limit: 18,
     provider_bearing_native_host_invocation_limit: 0,
     model_bearing_native_host_invocation_limit: 0,
-    provider_call_limit: 0,
-    model_call_limit: 0,
+    provider_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
+    model_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
     usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     per_episode_timeout_ms: 10_000,
@@ -471,8 +772,11 @@ async function assertInjectedIncompleteCloseoutV01(input: {
     authorization,
     family: input.manifest,
   });
-  await assert.rejects(
-    executeCommissionedLiveTrainingCohortV01({
+  const previousCanonicalTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
+  process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  try {
+    await assert.rejects(
+      executeCommissionedLiveTrainingCohortV01({
       source_repository_root: process.cwd(),
       artifact_repository_root: repository,
       manifest: input.manifest,
@@ -492,10 +796,17 @@ async function assertInjectedIncompleteCloseoutV01(input: {
         "fixtures",
         "fake-codex-app-server.mjs",
       ),
-      test_failure_injection_stage: input.failureStage,
-    }),
-    new RegExp(`live_training_test_failure_${input.failureStage}`, "u"),
-  );
+        test_failure_injection_stage: input.failureStage,
+      }),
+      new RegExp(`live_training_test_failure_${input.failureStage}`, "u"),
+    );
+  } finally {
+    if (previousCanonicalTestMode === undefined) {
+      delete process.env.AUGNES_CANONICAL_TEST_MODE;
+    } else {
+      process.env.AUGNES_CANONICAL_TEST_MODE = previousCanonicalTestMode;
+    }
+  }
   const index = validateCommissionedLiveTrainingIncompleteArtifactsV01({
     repository_root: repository,
     relative_run_root: store.relative_run_root,
@@ -716,46 +1027,41 @@ function runCliContractV01(input: {
   );
   assert.notEqual(leakedPlan.status, 0);
   assert.match(leakedPlan.stderr, /live_training_cli_input_schema_invalid/u);
-  const liveAuthorization = buildCommissionedLiveTrainingAuthorizationV01({
-    authorization_id: "cw1-l1-cli-future-validation",
-    authorization_kind: "future_live_execution",
-    issued_at: "2026-08-28T06:00:00.000Z",
-    expires_at: "2026-08-29T06:00:00.000Z",
-    current_main_sha: FOUNDATION_SHA,
-    current_main_tree: FOUNDATION_TREE,
-    checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
-    plan: input.plan,
-    native_execution_configuration: input.nativeConfiguration,
-    authorization_nonce: "cw1l1_cli_future_validation_nonce_000001",
-    artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
-    replacement_invocation_limit: 3,
-    native_host_invocation_limit: 15,
-    provider_bearing_native_host_invocation_limit: 18,
-    model_bearing_native_host_invocation_limit: 18,
-    provider_call_limit: 36,
-    model_call_limit: 54,
-    usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
-    cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
-    per_episode_timeout_ms: 10_000,
-    total_cohort_timeout_ms: 180_000,
-  });
-  assert.equal(liveAuthorization.native_host_invocation_limit, 15);
-  assert.equal(liveAuthorization.provider_bearing_native_host_invocation_limit, 18);
-  assert.equal(liveAuthorization.provider_call_limit, 36);
-  assert.equal(liveAuthorization.model_call_limit, 54);
-  assertCommissionedLiveTrainingResourceCeilingsV01({
-    authorization: liveAuthorization,
-    native_host_invocations_started: 15,
-    provider_calls: 19,
-    model_calls: 19,
-    token_units: null,
-    cost_microunits: null,
-    elapsed_ms: 1,
-    provider_observation_ref: testRecordRefV01("cli-future-provider-observation"),
-    model_observation_ref: testRecordRefV01("cli-future-model-observation"),
-    token_observation_ref: null,
-    cost_observation_ref: null,
-  });
+  assert.throws(
+    () => buildCommissionedLiveTrainingAuthorizationV01({
+      authorization_id: "cw1-l1-cli-future-validation",
+      authorization_kind: "future_live_execution",
+      issued_at: "2026-08-28T06:00:00.000Z",
+      expires_at: "2026-08-29T06:00:00.000Z",
+      current_main_sha: FOUNDATION_SHA,
+      current_main_tree: FOUNDATION_TREE,
+      checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+      plan: input.plan,
+      native_execution_configuration: input.nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
+      authorization_nonce: "cw1l1_cli_future_validation_nonce_000001",
+      artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
+      replacement_invocation_limit: 3,
+      native_host_invocation_limit: 15,
+      provider_bearing_native_host_invocation_limit: 15,
+      model_bearing_native_host_invocation_limit: 15,
+      provider_call_ceiling: {
+        observability: "unknown",
+        limit: null,
+        source_ref: null,
+      },
+      model_call_ceiling: {
+        observability: "unknown",
+        limit: null,
+        source_ref: null,
+      },
+      usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
+      cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
+      per_episode_timeout_ms: 10_000,
+      total_cohort_timeout_ms: 180_000,
+    }),
+    /live_training_future_execution_credential_safe_environment_unavailable/u,
+  );
   const {
     attempt_start_version: _attemptStartVersion,
     persisted_before_native_host_invocation: _persistedBeforeInvocation,
@@ -777,9 +1083,7 @@ function runCliContractV01(input: {
   assert.throws(
     () =>
       assertCommissionedLiveTrainingAttemptStartReservationV01({
-        authorization: JSON.parse(
-          canonicalizeProtocolValueV01(liveAuthorization),
-        ),
+        authorization: input.authorization,
         start: serializedSixteenthStart,
       }),
     /live_training_attempt_start_authorization_ceiling_invalid/u,
@@ -788,7 +1092,7 @@ function runCliContractV01(input: {
   writeFileSync(
     validationInput,
     canonicalizeProtocolValueV01({
-      authorization: liveAuthorization,
+      authorization: input.authorization,
       plan: input.plan,
       native_execution_configuration: input.nativeConfiguration,
       current_main_sha: FOUNDATION_SHA,
@@ -798,7 +1102,16 @@ function runCliContractV01(input: {
     }),
     { encoding: "utf8", mode: 0o600 },
   );
-  assert.equal(JSON.parse(run(["validate-authorization", validationInput])).status, "valid");
+  const validation = spawnSync(
+    process.execPath,
+    ["--import", "tsx", cli, "validate-authorization", validationInput],
+    { cwd: process.cwd(), encoding: "utf8" },
+  );
+  assert.notEqual(validation.status, 0);
+  assert.match(
+    validation.stderr,
+    /live_training_test_authorization_not_live_authority/u,
+  );
   const artifactInput = path.join(input.root, "cli-artifact-input.json");
   writeFileSync(
     artifactInput,
@@ -878,14 +1191,23 @@ async function assertIncompleteFailureArtifactsV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     plan,
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     authorization_nonce: nonce,
     artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${cohortId}`,
     replacement_invocation_limit: 3,
     native_host_invocation_limit: 18,
     provider_bearing_native_host_invocation_limit: 0,
     model_bearing_native_host_invocation_limit: 0,
-    provider_call_limit: 0,
-    model_call_limit: 0,
+    provider_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
+    model_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
     usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     per_episode_timeout_ms: 10_000,
@@ -980,6 +1302,7 @@ async function runNegativeProofMatrixV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     evaluated_at: "2026-08-28T06:03:00.000Z",
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     allow_test_conformance: true,
   };
   assert.throws(
@@ -1078,19 +1401,86 @@ async function runNegativeProofMatrixV01(input: {
       native_host_invocations_started: 0,
       provider_bearing_invocations_reserved: 0,
       model_bearing_invocations_reserved: 0,
-      task_external_network_calls_observed: 0,
+      task_external_network_observation:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
       evaluated_at: currentInput.evaluated_at,
       current_main_sha: FOUNDATION_SHA,
       current_main_tree: FOUNDATION_TREE,
       checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
       native_execution_configuration: input.nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
       authorization_consumed: false,
       provider_or_model_call_possible: false,
     }),
     /live_training_authorization_not_consumed/u,
   );
+  assert.throws(
+    () => assertCommissionedLiveTrainingInvocationGateV01({
+      authorization: input.authorization,
+      plan: input.plan,
+      slot_id: input.plan.slots[0]!.slot_id,
+      native_host_invocations_started: 0,
+      provider_bearing_invocations_reserved: 0,
+      model_bearing_invocations_reserved: 0,
+      task_external_network_observation:
+        createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      evaluated_at: currentInput.evaluated_at,
+      current_main_sha: FOUNDATION_SHA,
+      current_main_tree: FOUNDATION_TREE,
+      checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+      native_execution_configuration: input.nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
+      authorization_consumed: true,
+      provider_or_model_call_possible: false,
+    }),
+    /live_training_task_network_coverage_unknown/u,
+  );
+  const networkApproval = buildCommissionedLiveTrainingApprovalObservationV01({
+    observation_id: "network-approval-terminal-stop",
+    approval_request_fingerprint: createProtocolSha256V01(
+      "network-approval-request",
+    ),
+    operation_class: "command_execution",
+    repository_relative_path_count: 0,
+    network_resource_count: 1,
+    outside_root: false,
+    github_or_publication: false,
+    package_or_download: false,
+    credential_or_semantic: false,
+    available_decisions: ["decline", "cancel_run"],
+  });
+  assert.equal(networkApproval.classification, "network_request");
+  assert.equal(networkApproval.decision, "cancel_run");
+  assert.equal(networkApproval.terminal_cohort_stop, true);
+  assert.equal(networkApproval.approval_granted, false);
+  assert.deepEqual(
+    assertCommissionedLiveTrainingNoResumeBoundaryV01({
+      boundary_kind: "reconciliation_required",
+      authorization_consumed: true,
+      meaningful_action_status: "observed_absent",
+    }),
+    {
+      disposition: "terminal_nonreplaceable_consumed_cohort_incomplete",
+      replacement_allowed: false,
+      resume_allowed: false,
+      nonce_reusable: false,
+    },
+  );
   await assertConcurrentConsumptionV01(input);
-  assertArtifactAncestorSwapRefusalV01(input);
+  const priorArtifactHookTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
+  process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  try {
+    assertArtifactAncestorSwapRefusalV01(input);
+  } finally {
+    if (priorArtifactHookTestMode === undefined) {
+      delete process.env.AUGNES_CANONICAL_TEST_MODE;
+    } else {
+      process.env.AUGNES_CANONICAL_TEST_MODE = priorArtifactHookTestMode;
+    }
+  }
   const wrongNativeConfiguration = structuredClone(input.nativeConfiguration);
   wrongNativeConfiguration.model_id = "substituted-model";
   wrongNativeConfiguration.configuration_fingerprint = createProtocolSha256V01(
@@ -1147,12 +1537,17 @@ async function runNegativeProofMatrixV01(input: {
       native_host_invocations_started: 18,
       provider_bearing_invocations_reserved: 0,
       model_bearing_invocations_reserved: 0,
-      task_external_network_calls_observed: 0,
+      task_external_network_observation:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
       evaluated_at: currentInput.evaluated_at,
       current_main_sha: FOUNDATION_SHA,
       current_main_tree: FOUNDATION_TREE,
       checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
       native_execution_configuration: input.nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
       authorization_consumed: true,
       provider_or_model_call_possible: false,
     }),
@@ -1163,15 +1558,45 @@ async function runNegativeProofMatrixV01(input: {
     () => assertCommissionedLiveTrainingResourceCeilingsV01({
       authorization: input.authorization,
       native_host_invocations_started: 15,
-      provider_calls: 1,
-      model_calls: 0,
-      token_units: null,
-      cost_microunits: null,
+      provider_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        1,
+        observationRef,
+      ),
+      model_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        0,
+        observationRef,
+      ),
+      token_units: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      cost_microunits: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
       elapsed_ms: 1,
-      provider_observation_ref: observationRef,
-      model_observation_ref: observationRef,
-      token_observation_ref: null,
-      cost_observation_ref: null,
+    }),
+    /live_training_authorization_resource_or_time_ceiling_exceeded/u,
+  );
+  assert.throws(
+    () => assertCommissionedLiveTrainingResourceCeilingsV01({
+      authorization: {
+        ...input.authorization,
+        cost_microunit_ceiling: {
+          observability: "observed",
+          limit: 0,
+          source_ref: observationRef,
+        },
+      },
+      native_host_invocations_started: 15,
+      provider_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        0,
+        observationRef,
+      ),
+      model_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        0,
+        observationRef,
+      ),
+      token_units: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      cost_microunits: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        1,
+        observationRef,
+      ),
+      elapsed_ms: 1,
     }),
     /live_training_authorization_resource_or_time_ceiling_exceeded/u,
   );
@@ -1179,47 +1604,32 @@ async function runNegativeProofMatrixV01(input: {
     () => assertCommissionedLiveTrainingResourceCeilingsV01({
       authorization: input.authorization,
       native_host_invocations_started: 15,
-      provider_calls: 0,
-      model_calls: 0,
-      token_units: null,
-      cost_microunits: 1,
+      provider_calls: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      model_calls: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      token_units: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+      cost_microunits: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
       elapsed_ms: 1,
-      provider_observation_ref: observationRef,
-      model_observation_ref: observationRef,
-      token_observation_ref: null,
-      cost_observation_ref: observationRef,
     }),
-    /live_training_authorization_resource_or_time_ceiling_exceeded/u,
+    /live_training_numeric_ceiling_observation_unknown/u,
   );
   assert.throws(
     () => assertCommissionedLiveTrainingResourceCeilingsV01({
       authorization: input.authorization,
       native_host_invocations_started: 15,
-      provider_calls: 1,
-      model_calls: null,
-      token_units: null,
-      cost_microunits: null,
-      elapsed_ms: 1,
-      provider_observation_ref: null,
-      model_observation_ref: null,
-      token_observation_ref: null,
-      cost_observation_ref: null,
-    }),
-    /live_training_resource_observation_source_invalid/u,
-  );
-  assert.throws(
-    () => assertCommissionedLiveTrainingResourceCeilingsV01({
-      authorization: input.authorization,
-      native_host_invocations_started: 15,
-      provider_calls: 0,
-      model_calls: 0,
-      token_units: 1,
-      cost_microunits: null,
+      provider_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        0,
+        observationRef,
+      ),
+      model_calls: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        0,
+        observationRef,
+      ),
+      token_units: createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+        1,
+        observationRef,
+      ),
+      cost_microunits: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
       elapsed_ms: input.authorization.total_cohort_timeout_ms + 1,
-      provider_observation_ref: observationRef,
-      model_observation_ref: observationRef,
-      token_observation_ref: observationRef,
-      cost_observation_ref: null,
     }),
     /live_training_authorization_resource_or_time_ceiling_exceeded/u,
   );
@@ -1349,6 +1759,11 @@ async function runNegativeProofMatrixV01(input: {
     request_ref_fingerprint: createProtocolSha256V01("replacement-request-2"),
     native_execution_configuration_fingerprint:
       replacedPrimary.native_execution_configuration_fingerprint,
+    codex_environment_binding_fingerprint:
+      input.authorization.codex_environment_binding.integrity.fingerprint,
+    attempt_state_root_fingerprint: createProtocolSha256V01(
+      "replacement-attempt-state-root-2",
+    ),
     adapter_execution_binding_fingerprint:
       replacedPrimary.adapter_execution_binding_fingerprint,
     clone_baseline: secondReplacementCloneBaseline,
@@ -1368,6 +1783,41 @@ async function runNegativeProofMatrixV01(input: {
       ),
     }),
   );
+  const secondReplacementIsolation =
+    buildCommissionedLiveTrainingIsolationObservationV01({
+      observation_id: "replacement-isolation-observation-2",
+      attempt_id: secondReplacementStart.attempt_id,
+      environment_binding: input.authorization.codex_environment_binding,
+      attempt_state_root_fingerprint:
+        secondReplacementStart.attempt_state_root_fingerprint,
+      home_identity_fingerprint: createProtocolSha256V01(
+        "replacement-home-identity-2",
+      ),
+      codex_home_identity_fingerprint: createProtocolSha256V01(
+        "replacement-codex-home-identity-2",
+      ),
+      codex_sqlite_home_identity_fingerprint: createProtocolSha256V01(
+        "replacement-codex-sqlite-home-identity-2",
+      ),
+      distinct_from_prior_attempt_state_roots: true,
+      state_root_created_empty: true,
+      shared_codex_home_fallback_used: false,
+      predecessor_history_present: false,
+      sibling_history_present: false,
+      foreign_instruction_or_config_present: false,
+      account_projection_status: "observed_exact",
+      account_projection_fingerprint:
+        input.authorization.codex_environment_binding
+          .account_auth_projection_fingerprint,
+      codex_configuration_status: "observed_exact",
+      codex_configuration_fingerprint:
+        input.authorization.codex_environment_binding
+          .codex_configuration_fingerprint,
+      tool_policy_status: "observed_exact",
+      tool_policy_fingerprint:
+        input.authorization.codex_environment_binding
+          .mcp_tool_web_policy_fingerprint,
+    });
   const secondReplacement = buildCommissionedLiveTrainingAttemptAdmissionV01({
     attempt_id: `${replacedPrimary.attempt_id.slice(0, -1)}r2`,
     slot_id: replacedPrimary.slot_id,
@@ -1390,6 +1840,10 @@ async function runNegativeProofMatrixV01(input: {
     ),
     native_execution_configuration_fingerprint:
       replacedPrimary.native_execution_configuration_fingerprint,
+    codex_environment_binding_fingerprint:
+      secondReplacementStart.codex_environment_binding_fingerprint,
+    isolation_observation: secondReplacementIsolation,
+    approval_observations: [],
     adapter_execution_binding_fingerprint:
       replacedPrimary.adapter_execution_binding_fingerprint,
     native_host_result_fingerprint:
@@ -1443,14 +1897,23 @@ async function runNegativeProofMatrixV01(input: {
       checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
       plan: input.plan,
       native_execution_configuration: input.nativeConfiguration,
+      codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
       authorization_nonce: "invalid_replacement_limit_nonce_00000001",
       artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
       replacement_invocation_limit: 4,
       native_host_invocation_limit: 18,
       provider_bearing_native_host_invocation_limit: 0,
       model_bearing_native_host_invocation_limit: 0,
-      provider_call_limit: 0,
-      model_call_limit: 0,
+      provider_call_ceiling: {
+        observability: "observed",
+        limit: 0,
+        source_ref: TEST_RESOURCE_SOURCE_REF,
+      },
+      model_call_ceiling: {
+        observability: "observed",
+        limit: 0,
+        source_ref: TEST_RESOURCE_SOURCE_REF,
+      },
       usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
       cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
       per_episode_timeout_ms: 10_000,
@@ -1925,9 +2388,18 @@ async function runNegativeProofMatrixV01(input: {
       owned_runtime_roots_remaining: 0,
       owned_temporary_roots_remaining: 0,
       stale_artifact_temporaries_remaining: 0,
-      task_external_network_attempts: 0,
-      provider_calls_observed: { provenance: "unknown", value: 0 } as never,
-      model_calls_observed: createCommissionedLiveTrainingUnknownResourceLaneV01(),
+      task_external_network_observation:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
+      provider_calls_observed: {
+        provenance: "unknown",
+        value: 0,
+        source_ref: null,
+      } as never,
+      model_calls_observed:
+        createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
       cleanup_observation:
         input.result.artifacts.cleanup_report.cleanup_observation,
       cleanup_observation_ref:
@@ -1951,6 +2423,7 @@ async function runNegativeProofMatrixV01(input: {
       episodes: input.result.artifacts.episodes,
       blind_observations:
         input.result.artifacts.blind_objective_observations,
+      analysis_joins: input.result.artifacts.analysis_joins,
       attempt_registry: input.result.artifacts.attempt_registry,
       assessor_role_id: input.manifest.consolidation_assessor.role_id,
     });
@@ -1969,6 +2442,34 @@ async function runNegativeProofMatrixV01(input: {
     ),
     true,
   );
+  const selfReportOnlyEpisodes = structuredClone(
+    input.result.artifacts.episodes,
+  );
+  const selfReportRow = selfReportOnlyEpisodes[3]!.evidence_ladder.find(
+    (row) => row.stage === "referenced",
+  )!;
+  selfReportRow.status = "established";
+  selfReportRow.basis = "exact_executor_reference";
+  resealV01(
+    selfReportOnlyEpisodes[3]!,
+    "commissioned_work_episode_without_integrity_fingerprint",
+  );
+  assert.throws(
+    () => buildCommissionedLiveTrainingCandidateAssessmentV01({
+      assessment_id: "self-report-only-assessment",
+      family_manifest: input.manifest,
+      plan: input.plan,
+      authorization: input.authorization,
+      training_result: input.result.artifacts.training_result,
+      episodes: selfReportOnlyEpisodes,
+      blind_observations:
+        input.result.artifacts.blind_objective_observations,
+      analysis_joins: input.result.artifacts.analysis_joins,
+      attempt_registry: input.result.artifacts.attempt_registry,
+      assessor_role_id: input.manifest.consolidation_assessor.role_id,
+    }),
+    /commissioned_work_commissioned_agent_observation_binding_invalid|live_training_candidate_assessment_source_invalid/u,
+  );
   assert.throws(
     () => buildCommissionedLiveTrainingCandidateAssessmentV01({
       assessment_id: "missing-origin-source-assessment",
@@ -1979,6 +2480,7 @@ async function runNegativeProofMatrixV01(input: {
       episodes: input.result.artifacts.episodes.slice(1),
       blind_observations:
         input.result.artifacts.blind_objective_observations,
+      analysis_joins: input.result.artifacts.analysis_joins,
       attempt_registry: input.result.artifacts.attempt_registry,
       assessor_role_id: input.manifest.consolidation_assessor.role_id,
     }),
@@ -2016,7 +2518,11 @@ async function runNegativeProofMatrixV01(input: {
           runtime_roots_absent: true,
           temporary_roots_absent: true,
           artifact_temporaries_absent: true,
-          task_external_network_attempts: 0,
+          task_external_network_observation:
+            createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+              0,
+              TEST_RESOURCE_SOURCE_REF,
+            ),
           observed_at: "2026-08-28T08:30:00.000Z",
         });
       return buildCommissionedLiveTrainingCleanupReportV01({
@@ -2030,9 +2536,21 @@ async function runNegativeProofMatrixV01(input: {
       owned_runtime_roots_remaining: 0,
       owned_temporary_roots_remaining: 0,
       stale_artifact_temporaries_remaining: 0,
-      task_external_network_attempts: 0,
-      provider_calls_observed: createCommissionedLiveTrainingObservedResourceLaneV01(0),
-      model_calls_observed: createCommissionedLiveTrainingObservedResourceLaneV01(0),
+      task_external_network_observation:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
+      provider_calls_observed:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
+      model_calls_observed:
+        createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          TEST_RESOURCE_SOURCE_REF,
+        ),
       cleanup_observation: incompleteObservation,
       cleanup_observation_ref:
         commissionedLiveTrainingRecordRefV01(incompleteObservation),
@@ -2091,14 +2609,23 @@ function assertArtifactAncestorSwapRefusalV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     plan: input.plan,
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     authorization_nonce: nonce,
     artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
     replacement_invocation_limit: 3,
     native_host_invocation_limit: 18,
     provider_bearing_native_host_invocation_limit: 0,
     model_bearing_native_host_invocation_limit: 0,
-    provider_call_limit: 0,
-    model_call_limit: 0,
+    provider_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
+    model_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
     usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     per_episode_timeout_ms: 10_000,
@@ -2206,14 +2733,23 @@ async function assertConcurrentConsumptionV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     plan: input.plan,
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     authorization_nonce: "cw1l1_concurrent_consumption_nonce_000001",
     artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
     replacement_invocation_limit: 3,
     native_host_invocation_limit: 18,
     provider_bearing_native_host_invocation_limit: 0,
     model_bearing_native_host_invocation_limit: 0,
-    provider_call_limit: 0,
-    model_call_limit: 0,
+    provider_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
+    model_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
     usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     per_episode_timeout_ms: 10_000,
@@ -2322,14 +2858,23 @@ async function assertConcurrentConsumptionV01(input: {
     checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
     plan: input.plan,
     native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
     authorization_nonce: witnessFailureNonce,
     artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${COHORT_ID}`,
     replacement_invocation_limit: 3,
     native_host_invocation_limit: 18,
     provider_bearing_native_host_invocation_limit: 0,
     model_bearing_native_host_invocation_limit: 0,
-    provider_call_limit: 0,
-    model_call_limit: 0,
+    provider_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
+    model_call_ceiling: {
+      observability: "observed",
+      limit: 0,
+      source_ref: TEST_RESOURCE_SOURCE_REF,
+    },
     usage_unit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
     per_episode_timeout_ms: 10_000,
@@ -2355,23 +2900,33 @@ async function assertConcurrentConsumptionV01(input: {
       consumer_instance_ref: testRecordRefV01("witness-failure-consumer"),
       allow_test_conformance: true,
     });
-  assert.throws(
-    () => consumeCommissionedLiveTrainingAuthorizationV01({
-      store: witnessFailureStore,
-      authorization: witnessFailureAuthorization,
-      plan: input.plan,
-      native_execution_configuration: input.nativeConfiguration,
-      current_main_sha: FOUNDATION_SHA,
-      current_main_tree: FOUNDATION_TREE,
-      checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
-      evaluated_at: "2026-08-28T06:03:00.000Z",
-      authorization_nonce: witnessFailureNonce,
-      consumer_instance_ref: testRecordRefV01("witness-failure-consumer"),
-      allow_test_conformance: true,
-      test_fail_after_primary_before_witness: true,
-    }),
-    /live_training_test_consumption_witness_write_failed/u,
-  );
+  const priorCanonicalTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
+  process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  try {
+    assert.throws(
+      () => consumeCommissionedLiveTrainingAuthorizationV01({
+        store: witnessFailureStore,
+        authorization: witnessFailureAuthorization,
+        plan: input.plan,
+        native_execution_configuration: input.nativeConfiguration,
+        current_main_sha: FOUNDATION_SHA,
+        current_main_tree: FOUNDATION_TREE,
+        checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+        evaluated_at: "2026-08-28T06:03:00.000Z",
+        authorization_nonce: witnessFailureNonce,
+        consumer_instance_ref: testRecordRefV01("witness-failure-consumer"),
+        allow_test_conformance: true,
+        test_fail_after_primary_before_witness: true,
+      }),
+      /live_training_test_consumption_witness_write_failed/u,
+    );
+  } finally {
+    if (priorCanonicalTestMode === undefined) {
+      delete process.env.AUGNES_CANONICAL_TEST_MODE;
+    } else {
+      process.env.AUGNES_CANONICAL_TEST_MODE = priorCanonicalTestMode;
+    }
+  }
   const tombstoneRoot = path.join(
     witnessFailureStore.live_training_root,
     "authorization-consumptions",
@@ -2471,6 +3026,134 @@ async function runExactExecutionBindingRefusalsV01(input: {
         : /codex_exact_execution_model_rerouted/u,
     });
   }
+  for (const [scenario, expectedReason] of [
+    [
+      "cw1_isolated_account_drift",
+      "codex_isolated_account_projection_mismatch",
+    ],
+    [
+      "cw1_isolated_tool_drift",
+      "codex_isolated_configuration_or_tool_policy_mismatch",
+    ],
+    [
+      "cw1_isolated_unexpected_mcp",
+      "codex_isolated_unexpected_mcp_or_remote_startup",
+    ],
+  ] as const) {
+    const repositoryRoot = path.join(input.root, `isolation-refusal-${scenario}`);
+    const codexHome = path.join(repositoryRoot, "codex-home");
+    mkdirSync(codexHome, { recursive: true, mode: 0o700 });
+    input.source.repository_fixture.forEach((fixture) => {
+      const target = path.join(repositoryRoot, fixture.repository_relative_path);
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      writeFileSync(target, fixture.content, "utf8");
+    });
+    const packet = buildCommissionedWorkTaskContextPacketV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: input.source.successor_plans[0],
+      consolidation_candidate: null,
+      expected_candidate_freeze_fingerprint: null,
+      generated_at: "2026-08-28T09:10:00.000Z",
+    });
+    const request = buildCommissionedWorkNativeHostRequestV01({
+      manifest: input.manifest,
+      source: input.source,
+      plan: input.source.successor_plans[0],
+      consolidation_candidate: null,
+      expected_candidate_freeze_fingerprint: null,
+      packet,
+      runtime: {
+        report_included: false,
+        case_id: input.source.case_id,
+        condition: input.source.successor_plans[0].condition,
+        holdout_variant: null,
+        workspace_id: input.manifest.workspace_id,
+        project_id: input.source.project_id,
+        repository_root: repositoryRoot,
+        database_path: path.join(repositoryRoot, "runtime.sqlite"),
+        home_root: path.join(repositoryRoot, "home"),
+        data_root: path.join(repositoryRoot, "data"),
+        config_root: codexHome,
+        runtime_root: path.join(repositoryRoot, "runtime"),
+        artifact_root: path.join(repositoryRoot, "artifacts"),
+      },
+      episode_id: `isolation-probe-${scenario}`,
+      requested_at: "2026-08-28T09:10:00.000Z",
+    });
+    await assertIsolatedAdapterBoundaryRefusalV01({
+      request,
+      scenario,
+      expectedReason,
+      nativeConfiguration: input.nativeConfiguration,
+      codexHome: realpathSync(codexHome),
+    });
+  }
+}
+
+async function assertIsolatedAdapterBoundaryRefusalV01(input: {
+  request: NativeHostRequestV01;
+  scenario: string;
+  expectedReason: string;
+  nativeConfiguration: ReturnType<typeof buildTestNativeConfigurationV01>;
+  codexHome: string;
+}): Promise<void> {
+  const adapter = createCodexAppServerAdapterV01({
+    exact_execution_binding: createCommissionedLiveTrainingAdapterBindingV01(
+      input.nativeConfiguration,
+    ),
+    isolated_environment_expectation:
+      createCodexAppServerIsolatedEnvironmentExpectationV01({
+        state_home_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(input.codexHome),
+        ),
+        account_projection_fingerprint:
+          TEST_CODEX_ENVIRONMENT_BINDING.account_auth_projection_fingerprint!,
+        codex_configuration_fingerprint:
+          codexAppServerIsolatedConfigurationFingerprintV01(),
+        tool_policy_fingerprint:
+          codexAppServerIsolatedToolPolicyFingerprintV01(),
+      }),
+    launch: {
+      command: process.execPath,
+      prefix_args: [
+        path.join(
+          process.cwd(),
+          "scripts",
+          "fixtures",
+          "fake-codex-app-server.mjs",
+        ),
+      ],
+      environment: {
+        NODE_ENV: "test",
+        HOME: input.codexHome,
+        CODEX_HOME: input.codexHome,
+        CODEX_SQLITE_HOME: input.codexHome,
+        TMPDIR: process.env.TMPDIR,
+        PATH: process.env.PATH,
+        FAKE_CODEX_SCENARIO: input.scenario,
+      },
+    },
+  });
+  const invocation = adapter.invoke(input.request, {
+    cancellation_signal: new AbortController().signal,
+    timeout_ms: 10_000,
+    stop_settle_timeout_ms: 3_000,
+    resume_binding: null,
+  });
+  let observedReason: string | null = null;
+  try {
+    const result = await invocation.result;
+    assert.notEqual(result.outcome, "completed");
+    observedReason = result.public_stop_reason;
+  } catch (error) {
+    observedReason =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: unknown }).code)
+        : null;
+  }
+  await invocation.settled.catch(() => undefined);
+  assert.equal(observedReason, input.expectedReason);
 }
 
 async function assertAdapterFailureV01(input: {

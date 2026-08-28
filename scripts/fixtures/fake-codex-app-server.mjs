@@ -56,6 +56,7 @@ let sequentialApprovalIndex = 0;
 let completed = false;
 let descendant = null;
 let requestedThreadConfiguration = null;
+let requestedThreadEphemeral = false;
 
 installZeroNetworkGuard();
 trace("fixture_started", { scenario });
@@ -116,14 +117,14 @@ async function handle(message) {
       initialized = true;
       respond(message.id, {
         userAgent: "codex-cli/fake-0.143.0",
-        codexHome: process.env.HOME ?? root,
+        codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
         platformFamily: process.platform === "win32" ? "windows" : "unix",
         platformOs: process.platform,
       });
       if (scenario === "duplicate_response") {
         respond(message.id, {
           userAgent: "codex-cli/fake-0.143.0",
-          codexHome: process.env.HOME ?? root,
+          codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
           platformFamily: "unix",
           platformOs: process.platform,
         });
@@ -131,7 +132,7 @@ async function handle(message) {
       if (scenario === "conflicting_duplicate_response") {
         respond(message.id, {
           userAgent: "codex-cli/conflict",
-          codexHome: process.env.HOME ?? root,
+          codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
           platformFamily: "unix",
           platformOs: process.platform,
         });
@@ -154,7 +155,12 @@ async function handle(message) {
         message.id,
         scenario === "unauthenticated"
           ? { account: null, requiresOpenaiAuth: true }
-          : { account: { type: "chatgpt", email: "not-returned-to-augnes@example.invalid", planType: "unknown" }, requiresOpenaiAuth: true },
+          : {
+              account: scenario === "cw1_isolated_account_drift"
+                ? { type: "chatgpt", accountId: "substituted-test-account", planType: "unknown" }
+                : { type: "chatgpt", accountId: "credential-free-test-account", planType: "unknown" },
+              requiresOpenaiAuth: true,
+            },
       );
       return;
     }
@@ -183,6 +189,14 @@ async function handle(message) {
         });
       }
       requestedThreadConfiguration = exactThreadConfigurationFromRequest(message.params);
+      requestedThreadEphemeral = message.params?.ephemeral === true;
+      if (scenario === "cw1_isolated_unexpected_mcp") {
+        notify("mcpServer/startupStatus/updated", {
+          threadId,
+          server: "unexpected-network-capable-mcp",
+          status: "ready",
+        });
+      }
       respond(message.id, threadResponse());
       if (scenario === "crash_after_thread_id") {
         setImmediate(() => process.exit(18));
@@ -878,6 +892,12 @@ function threadResponse(options = {}) {
       excludeSlashTmp: true,
     },
     reasoningEffort: exact?.reasoningEffort ?? null,
+    availableTools:
+      scenario === "cw1_isolated_tool_drift" ? ["web_search"] : [],
+    mcpServers: [],
+    webSearchEnabled: false,
+    remoteToolsEnabled: false,
+    githubToolsEnabled: false,
   };
 }
 
@@ -908,7 +928,7 @@ function thread(options = {}) {
     forkedFromId: null,
     parentThreadId: null,
     preview: "bounded fake thread",
-    ephemeral: false,
+    ephemeral: requestedThreadEphemeral,
     modelProvider: "fake",
     createdAt: Math.floor(Date.now() / 1000),
     updatedAt: Math.floor(Date.now() / 1000),

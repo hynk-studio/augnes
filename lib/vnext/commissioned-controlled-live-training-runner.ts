@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 import {
   assertCommissionedLiveTrainingExecutableIdentityV01,
   buildCommissionedLiveTrainingAnalysisJoinV01,
+  buildCommissionedLiveTrainingApprovalObservationV01,
   buildCommissionedLiveTrainingAttemptAdmissionV01,
   buildCommissionedLiveTrainingAttemptStartV01,
   buildCommissionedLiveTrainingAttemptRegistryV01,
@@ -27,13 +28,17 @@ import {
   buildCommissionedLiveTrainingCleanupObservationV01,
   buildCommissionedLiveTrainingCloneSealV01,
   buildCommissionedLiveTrainingCohortPlanV01,
+  buildCommissionedLiveTrainingIsolationObservationV01,
   buildCommissionedLiveTrainingResultV01,
   commissionedLiveTrainingRecordRefV01,
   createCommissionedLiveTrainingAdapterBindingV01,
   createCommissionedLiveTrainingCommonRequestFingerprintV01,
   createCommissionedLiveTrainingObservedResourceLaneV01,
+  createCommissionedLiveTrainingObservedSourcedResourceLaneV01,
   createCommissionedLiveTrainingRecordRefV01,
   createCommissionedLiveTrainingUnknownResourceLaneV01,
+  createCommissionedLiveTrainingUnknownSourcedResourceLaneV01,
+  assertCommissionedLiveTrainingNoResumeBoundaryV01,
   assertCommissionedLiveTrainingAttemptIdentitiesDistinctV01,
   assertCommissionedLiveTrainingExecutorVisibleMaterialV01,
   assertCommissionedLiveTrainingInvocationGateV01,
@@ -78,8 +83,10 @@ import {
 } from "@/lib/vnext/commissioned-controlled-workbench-objective-evaluator";
 import {
   createCodexAppServerAdapterV01,
+  createCodexAppServerIsolatedEnvironmentExpectationV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import { NativeHostReconciliationRequiredErrorV01 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   canonicalizeProtocolValueV01,
   compareProtocolCodeUnitsV01,
@@ -113,6 +120,7 @@ import {
   type CommissionedLiveTrainingBlindObjectiveObservationV01,
   type CommissionedLiveTrainingCloneSealV01,
   type CommissionedLiveTrainingCohortPlanV01,
+  type CommissionedLiveTrainingSourcedResourceLaneV01,
   type CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
   type CommissionedLiveTrainingExecutableIdentityV01,
   type CommissionedLiveTrainingScheduleSlotV01,
@@ -122,6 +130,7 @@ import {
  * none of these records are inferred from an open metadata bag.
  */
 import type {
+  NativeHostApprovalRequestV01,
   NativeHostLifecycleEventV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
@@ -210,9 +219,9 @@ export interface ExecuteCommissionedLiveTrainingCohortResultV01 {
   authorization_fingerprint: string;
   valid_predecessor_episodes: 3;
   valid_successor_episodes: 12;
-  provider_calls: 0 | null;
-  model_calls: 0 | null;
-  task_external_network_calls: 0;
+  provider_calls: CommissionedLiveTrainingSourcedResourceLaneV01;
+  model_calls: CommissionedLiveTrainingSourcedResourceLaneV01;
+  task_external_network: CommissionedLiveTrainingSourcedResourceLaneV01;
   holdout_materialized: false;
   fake_output_is_behavioral_evidence: false;
   cleanup_complete: true;
@@ -259,6 +268,17 @@ interface InvocationReservationV01 {
   timeout_ms: number;
 }
 
+interface AttemptStateEnvironmentV01 {
+  attempt_state_root: string;
+  home: string;
+  codex_home: string;
+  codex_sqlite_home: string;
+  attempt_state_root_fingerprint: string;
+  home_identity_fingerprint: string;
+  codex_home_identity_fingerprint: string;
+  codex_sqlite_home_identity_fingerprint: string;
+}
+
 interface PreparedCaseV01 {
   source: CommissionedWorkCaseSourceV01;
   commitment: CommissionedWorkCaseCommitmentV01;
@@ -291,7 +311,15 @@ export async function executeCommissionedLiveTrainingCohortV01(
   ) {
     failV01("live_training_runner_training_only_source_invalid");
   }
-  const conformance = input.authorization.authorization_kind === "test_conformance";
+  const conformance = [
+    "test_conformance",
+    "future_live_control_flow_conformance",
+  ].includes(input.authorization.authorization_kind);
+  if (input.authorization.authorization_kind === "future_live_execution") {
+    failV01(
+      "live_training_future_execution_credential_safe_environment_unavailable",
+    );
+  }
   const executionStartedAt = conformance
     ? input.execution_started_at
     : new Date().toISOString();
@@ -398,7 +426,38 @@ export async function executeCommissionedLiveTrainingCohortV01(
   const prepared = new Map<string, PreparedCaseV01>();
   let nativeHostInvocationsStarted = 0;
   let replacementInvocationsStarted = 0;
-  let taskExternalNetworkCalls = 0;
+  const taskExternalNetworkObservation =
+    createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+      0,
+      input.authorization.codex_environment_binding
+        .task_network_enforcement_ref,
+    );
+  const zeroProviderObservationRef = createCommissionedWorkRecordRefV01({
+    record_version: "commissioned_live_training_zero_provider_boundary.v0.1",
+    record_id: `zero-provider-${input.plan.cohort_id}`,
+    record_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        authorization_fingerprint: input.authorization.integrity.fingerprint,
+        cli_identity:
+          input.native_execution_configuration.cli_executable_identity
+            .executable_ref,
+        provider_bearing_native_host_invocation_limit:
+          input.authorization.provider_bearing_native_host_invocation_limit,
+        model_bearing_native_host_invocation_limit:
+          input.authorization.model_bearing_native_host_invocation_limit,
+      }),
+    ),
+  });
+  const providerCallsObservation =
+    createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+      0,
+      zeroProviderObservationRef,
+    );
+  const modelCallsObservation =
+    createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+      0,
+      zeroProviderObservationRef,
+    );
   let cleaned = false;
   let tempRoot: string | null = null;
   let ownedRoots: Record<string, string> | null = null;
@@ -435,6 +494,7 @@ export async function executeCommissionedLiveTrainingCohortV01(
       runtime: path.join(tempRoot, "runtime"),
       database: path.join(tempRoot, "database"),
       artifacts: path.join(tempRoot, "protocol-artifacts"),
+      attempt_state: path.join(tempRoot, "attempt-state"),
       temp: path.join(tempRoot, "temp"),
     };
     ownedRoots = roots;
@@ -524,12 +584,15 @@ export async function executeCommissionedLiveTrainingCohortV01(
                 model_bearing_invocations_reserved: conformance
                   ? 0
                   : nativeHostInvocationsStarted,
-                task_external_network_calls_observed: taskExternalNetworkCalls,
+                task_external_network_observation:
+                  taskExternalNetworkObservation,
                 evaluated_at: clock.now(),
                 current_main_sha: input.current_main_sha,
                 current_main_tree: input.current_main_tree,
                 checkout_root_fingerprint: checkoutRootFingerprint,
                 native_execution_configuration: input.native_execution_configuration,
+                codex_environment_binding:
+                  input.authorization.codex_environment_binding,
                 authorization_consumed: true,
                 provider_or_model_call_possible: !conformance,
               });
@@ -744,12 +807,15 @@ export async function executeCommissionedLiveTrainingCohortV01(
                 model_bearing_invocations_reserved: conformance
                   ? 0
                   : nativeHostInvocationsStarted,
-                task_external_network_calls_observed: taskExternalNetworkCalls,
+                task_external_network_observation:
+                  taskExternalNetworkObservation,
                 evaluated_at: clock.now(),
                 current_main_sha: input.current_main_sha,
                 current_main_tree: input.current_main_tree,
                 checkout_root_fingerprint: checkoutRootFingerprint,
                 native_execution_configuration: input.native_execution_configuration,
+                codex_environment_binding:
+                  input.authorization.codex_environment_binding,
                 authorization_consumed: true,
                 provider_or_model_call_possible: !conformance,
               });
@@ -869,6 +935,7 @@ export async function executeCommissionedLiveTrainingCohortV01(
         (slot) => requireEpisodeV01(episodes, slot.slot_id).episode,
       ),
       blind_observations: blindObservations,
+      analysis_joins: analysisJoins,
       attempt_registry: registry,
       assessor_role_id: input.manifest.consolidation_assessor.role_id,
     });
@@ -891,7 +958,7 @@ export async function executeCommissionedLiveTrainingCohortV01(
         store.run_root,
         ".tmp",
       ).length,
-      task_external_network_attempts: taskExternalNetworkCalls,
+      task_external_network_observation: taskExternalNetworkObservation,
       observed_at: clock.now(),
     });
     const cleanupReport = buildCommissionedLiveTrainingCleanupReportV01({
@@ -905,13 +972,9 @@ export async function executeCommissionedLiveTrainingCohortV01(
       owned_runtime_roots_remaining: 0,
       owned_temporary_roots_remaining: 0,
       stale_artifact_temporaries_remaining: 0,
-      task_external_network_attempts: taskExternalNetworkCalls,
-      provider_calls_observed: conformance
-        ? createCommissionedLiveTrainingObservedResourceLaneV01(0)
-        : createCommissionedLiveTrainingUnknownResourceLaneV01(),
-      model_calls_observed: conformance
-        ? createCommissionedLiveTrainingObservedResourceLaneV01(0)
-        : createCommissionedLiveTrainingUnknownResourceLaneV01(),
+      task_external_network_observation: taskExternalNetworkObservation,
+      provider_calls_observed: providerCallsObservation,
+      model_calls_observed: modelCallsObservation,
       cleanup_observation: cleanupObservation,
       cleanup_observation_ref:
         commissionedLiveTrainingRecordRefV01(cleanupObservation),
@@ -950,9 +1013,9 @@ export async function executeCommissionedLiveTrainingCohortV01(
       authorization_fingerprint: input.authorization.integrity.fingerprint,
       valid_predecessor_episodes: 3,
       valid_successor_episodes: 12,
-      provider_calls: conformance ? 0 : null,
-      model_calls: conformance ? 0 : null,
-      task_external_network_calls: 0,
+      provider_calls: providerCallsObservation,
+      model_calls: modelCallsObservation,
+      task_external_network: taskExternalNetworkObservation,
       holdout_materialized: false,
       fake_output_is_behavioral_evidence: false,
       cleanup_complete: true,
@@ -984,7 +1047,7 @@ export async function executeCommissionedLiveTrainingCohortV01(
       runtime_roots_absent: runtimeAbsent,
       temporary_roots_absent: temporaryAbsent,
       artifact_temporaries_absent: artifactTemporariesAbsent,
-      task_external_network_attempts: taskExternalNetworkCalls,
+      task_external_network_observation: taskExternalNetworkObservation,
       observed_at: clock.now(),
     });
     const ownedProcessesRemaining = everyStartedInvocationSettled ? 0 : 1;
@@ -998,7 +1061,6 @@ export async function executeCommissionedLiveTrainingCohortV01(
       ownedRuntimeRootsRemaining,
       ownedTemporaryRootsRemaining,
       staleArtifactTemporariesRemaining,
-      taskExternalNetworkCalls,
     ].every((value) => value === 0);
     const cleanupReport = buildCommissionedLiveTrainingCleanupReportV01({
       cleanup_id: `cleanup-incomplete-${input.plan.cohort_id}`,
@@ -1011,13 +1073,9 @@ export async function executeCommissionedLiveTrainingCohortV01(
       owned_runtime_roots_remaining: ownedRuntimeRootsRemaining,
       owned_temporary_roots_remaining: ownedTemporaryRootsRemaining,
       stale_artifact_temporaries_remaining: staleArtifactTemporariesRemaining,
-      task_external_network_attempts: taskExternalNetworkCalls,
-      provider_calls_observed: conformance
-        ? createCommissionedLiveTrainingObservedResourceLaneV01(0)
-        : createCommissionedLiveTrainingUnknownResourceLaneV01(),
-      model_calls_observed: conformance
-        ? createCommissionedLiveTrainingObservedResourceLaneV01(0)
-        : createCommissionedLiveTrainingUnknownResourceLaneV01(),
+      task_external_network_observation: taskExternalNetworkObservation,
+      provider_calls_observed: providerCallsObservation,
+      model_calls_observed: modelCallsObservation,
       cleanup_observation: cleanupObservation,
       cleanup_observation_ref:
         commissionedLiveTrainingRecordRefV01(cleanupObservation),
@@ -1169,21 +1227,39 @@ function assertRunnerResourceCeilingsV01(input: {
   execution_started_at: string;
   observed_at: string;
 }): void {
+  const observationRef = createCommissionedWorkRecordRefV01({
+    record_version: "commissioned_live_training_runner_resource_observation.v0.1",
+    record_id: "runner-zero-provider-observation",
+    record_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        authorization_fingerprint: input.authorization.integrity.fingerprint,
+        native_host_invocations_started: input.native_host_invocations_started,
+        conformance: input.conformance,
+      }),
+    ),
+  });
   assertCommissionedLiveTrainingResourceCeilingsV01({
     authorization: input.authorization,
     native_host_invocations_started: input.native_host_invocations_started,
-    provider_calls: null,
-    model_calls: null,
-    token_units: null,
-    cost_microunits: null,
+    provider_calls: input.conformance
+      ? createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          observationRef,
+        )
+      : createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+    model_calls: input.conformance
+      ? createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+          0,
+          observationRef,
+        )
+      : createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+    token_units: createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
+    cost_microunits:
+      createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(),
     elapsed_ms: Math.max(
       0,
       Date.parse(input.observed_at) - Date.parse(input.execution_started_at),
     ),
-    provider_observation_ref: null,
-    model_observation_ref: null,
-    token_observation_ref: null,
-    cost_observation_ref: null,
   });
 }
 
@@ -1206,7 +1282,10 @@ async function executeEpisodeV01(input: {
   store: CommissionedLiveTrainingArtifactStoreInitializationV01;
   before_invoke(): InvocationReservationV01;
 }): Promise<EpisodeAttemptV01> {
-  const conformance = input.input.authorization.authorization_kind === "test_conformance";
+  const conformance = [
+    "test_conformance",
+    "future_live_control_flow_conformance",
+  ].includes(input.input.authorization.authorization_kind);
   const successorPlan = "condition" in input.plan ? input.plan : null;
   const generatedAt = input.clock.now();
   const episodeId = input.attempt.episode_identity;
@@ -1268,6 +1347,10 @@ async function executeEpisodeV01(input: {
     executor_role_id_override: input.attempt.executor_role_ref.role_id,
   });
   assertCommissionedLiveTrainingExecutorVisibleMaterialV01(packet);
+  const attemptState = createAttemptStateEnvironmentV01({
+    attempt_state_parent: input.roots.attempt_state!,
+    attempt_id: input.attempt.attempt_id,
+  });
   const runtime: CommissionedWorkRuntimeBindingV01 = {
     report_included: false,
     case_id: input.source.case_id,
@@ -1276,10 +1359,13 @@ async function executeEpisodeV01(input: {
     workspace_id: input.input.manifest.workspace_id,
     project_id: input.source.project_id,
     repository_root: input.repository_root,
-    database_path: path.join(input.roots.database!, `${input.slot.slot_id}.sqlite`),
-    home_root: input.roots.home!,
-    data_root: input.roots.data!,
-    config_root: input.roots.config!,
+    database_path: path.join(
+      attemptState.codex_sqlite_home,
+      `${input.slot.slot_id}.sqlite`,
+    ),
+    home_root: attemptState.home,
+    data_root: attemptState.codex_sqlite_home,
+    config_root: attemptState.codex_home,
     runtime_root: input.roots.runtime!,
     artifact_root: input.roots.artifacts!,
   };
@@ -1314,6 +1400,9 @@ async function executeEpisodeV01(input: {
   const initialTree = gitV01(input.repository_root, ["rev-parse", `${initialCommit}^{tree}`]);
   const lifecycleEvents: NativeHostLifecycleEventV01[] = [];
   const adapterObservations: CodexAppServerAdapterObservationV01[] = [];
+  const approvalObservations = [] as ReturnType<
+    typeof buildCommissionedLiveTrainingApprovalObservationV01
+  >[];
   const cleanupMarker = path.join(input.roots.runtime!, `${input.slot.slot_id}.settled`);
   const networkCount = path.join(input.roots.runtime!, `${input.slot.slot_id}.network-count`);
   const launch = conformance
@@ -1322,9 +1411,14 @@ async function executeEpisodeV01(input: {
         prefix_args: [input.input.fake_app_server_path!],
         environment: {
           NODE_ENV: "test" as const,
-          HOME: input.roots.home!,
+          HOME: attemptState.home,
+          CODEX_HOME: attemptState.codex_home,
+          CODEX_SQLITE_HOME: attemptState.codex_sqlite_home,
           TMPDIR: input.roots.temp!,
           PATH: process.env.PATH,
+          LANG: "C",
+          LC_ALL: "C",
+          NODE_OPTIONS: `--import=${input.oracle_guard_path}`,
           FAKE_CODEX_SCENARIO: input.force_pre_action_infrastructure_failure
             ? "unauthenticated"
             : "cw1_live_training_repository_edit",
@@ -1368,6 +1462,19 @@ async function executeEpisodeV01(input: {
       input.input.native_execution_configuration,
     ),
     launch,
+    isolated_environment_expectation:
+      createCodexAppServerIsolatedEnvironmentExpectationV01({
+        state_home_fingerprint: attemptState.codex_home_identity_fingerprint,
+        account_projection_fingerprint:
+          input.input.authorization.codex_environment_binding
+            .account_auth_projection_fingerprint!,
+        codex_configuration_fingerprint:
+          input.input.authorization.codex_environment_binding
+            .codex_configuration_fingerprint,
+        tool_policy_fingerprint:
+          input.input.authorization.codex_environment_binding
+            .mcp_tool_web_policy_fingerprint,
+      }),
     now: input.clock.now,
     observe: (observation) => adapterObservations.push(observation),
   });
@@ -1388,6 +1495,10 @@ async function executeEpisodeV01(input: {
     ),
     native_execution_configuration_fingerprint:
       input.input.native_execution_configuration.configuration_fingerprint,
+    codex_environment_binding_fingerprint:
+      input.input.authorization.codex_environment_binding.integrity.fingerprint,
+    attempt_state_root_fingerprint:
+      attemptState.attempt_state_root_fingerprint,
     adapter_execution_binding_fingerprint:
       createCommissionedLiveTrainingAdapterBindingV01(
         input.input.native_execution_configuration,
@@ -1435,8 +1546,47 @@ async function executeEpisodeV01(input: {
       async report_event(event) {
         lifecycleEvents.push(event);
       },
-      async request_approval() {
-        throw new Error("live_training_unexpected_native_host_approval");
+      async request_approval(request: NativeHostApprovalRequestV01) {
+        const command = request.command_summary ?? "";
+        const outsideRoot = request.repository_relative_paths.some(
+          (candidate) =>
+            path.posix.isAbsolute(candidate) ||
+            path.win32.isAbsolute(candidate) ||
+            candidate.split(/[\\/]/u).includes(".."),
+        );
+        const observation = buildCommissionedLiveTrainingApprovalObservationV01({
+          observation_id: `approval-${input.attempt.attempt_id}-${approvalObservations.length + 1}`,
+          approval_request_fingerprint: createProtocolSha256V01(
+            canonicalizeProtocolValueV01(request),
+          ),
+          operation_class: request.operation_class,
+          repository_relative_path_count:
+            request.repository_relative_paths.length,
+          network_resource_count: request.network_resources.length,
+          outside_root: outsideRoot,
+          github_or_publication:
+            /(?:^|\s)(?:gh|git\s+push|publish|release|deploy)(?:\s|$)/iu.test(
+              command,
+            ),
+          package_or_download:
+            /(?:^|\s)(?:npm|pnpm|yarn|bun)\s+(?:install|add|ci|update|upgrade)(?:\s|$)/iu.test(
+              command,
+            ),
+          credential_or_semantic:
+            /(?:credential|secret|token|reviewdecision|transition|policy)/iu.test(
+              `${command} ${request.resource_summary}`,
+            ),
+          available_decisions: request.available_decisions,
+        });
+        approvalObservations.push(observation);
+        return {
+          approval_id: request.approval_id,
+          idempotency_fingerprint: request.idempotency_fingerprint,
+          decision: observation.decision,
+          decision_source: "run_cancellation" as const,
+          decided_at: input.clock.now(),
+          control_revision: approvalObservations.length,
+        };
       },
     },
     resume_binding: null,
@@ -1448,6 +1598,20 @@ async function executeEpisodeV01(input: {
   } catch (error) {
     await invocation.request_stop({ reason: "cancellation_requested" }).catch(() => undefined);
     await invocation.settled.catch(() => undefined);
+    if (error instanceof NativeHostReconciliationRequiredErrorV01) {
+      assertCommissionedLiveTrainingNoResumeBoundaryV01({
+        boundary_kind: "reconciliation_required",
+        authorization_consumed: true,
+        meaningful_action_status: lifecycleEvents.some(
+          (event) =>
+            event.event_kind === "work_checkpoint" &&
+            event.bounded_metadata.phase === "started",
+        )
+          ? "observed_present"
+          : "observed_absent",
+      });
+      failV01("live_training_same_run_resume_unsupported_terminal_stop");
+    }
     throw error;
   }
   if (adapterObservations.at(-1)?.kind !== "settled") {
@@ -1482,6 +1646,64 @@ async function executeEpisodeV01(input: {
       failV01("live_training_runner_fake_host_cleanup_or_network_invalid");
     }
   }
+  if (
+    rawResult.outcome === "unavailable" &&
+    [
+      "codex_isolated_state_home_mismatch",
+      "codex_isolated_account_projection_mismatch",
+      "codex_isolated_configuration_or_tool_policy_mismatch",
+      "codex_isolated_unexpected_mcp_or_remote_startup",
+    ].includes(rawResult.public_stop_reason ?? "")
+  ) {
+    failV01(
+      `live_training_runner_isolated_environment_drift:${rawResult.public_stop_reason}`,
+    );
+  }
+  const exactIsolationSource = [...adapterObservations].reverse().find(
+    (observation) =>
+      observation.state_home_fingerprint ===
+        attemptState.codex_home_identity_fingerprint &&
+      observation.account_projection_fingerprint !== undefined &&
+      observation.codex_configuration_fingerprint !== undefined &&
+      observation.tool_policy_fingerprint !== undefined,
+  );
+  if (rawResult.outcome !== "unavailable" && !exactIsolationSource) {
+    failV01("live_training_runner_isolation_observation_missing");
+  }
+  const isolationObservation = buildCommissionedLiveTrainingIsolationObservationV01({
+    observation_id: `isolation-${input.attempt.attempt_id}`,
+    attempt_id: input.attempt.attempt_id,
+    environment_binding:
+      input.input.authorization.codex_environment_binding,
+    attempt_state_root_fingerprint:
+      attemptState.attempt_state_root_fingerprint,
+    home_identity_fingerprint: attemptState.home_identity_fingerprint,
+    codex_home_identity_fingerprint:
+      attemptState.codex_home_identity_fingerprint,
+    codex_sqlite_home_identity_fingerprint:
+      attemptState.codex_sqlite_home_identity_fingerprint,
+    distinct_from_prior_attempt_state_roots: true,
+    state_root_created_empty: true,
+    shared_codex_home_fallback_used: false,
+    predecessor_history_present: false,
+    sibling_history_present: false,
+    foreign_instruction_or_config_present: false,
+    account_projection_status: exactIsolationSource
+      ? "observed_exact"
+      : "not_observed_pre_spawn_failure",
+    account_projection_fingerprint:
+      exactIsolationSource?.account_projection_fingerprint ?? null,
+    codex_configuration_status: exactIsolationSource
+      ? "observed_exact"
+      : "not_observed_pre_spawn_failure",
+    codex_configuration_fingerprint:
+      exactIsolationSource?.codex_configuration_fingerprint ?? null,
+    tool_policy_status: exactIsolationSource
+      ? "observed_exact"
+      : "not_observed_pre_spawn_failure",
+    tool_policy_fingerprint:
+      exactIsolationSource?.tool_policy_fingerprint ?? null,
+  });
   const preAdmission = buildCommissionedLiveTrainingAttemptAdmissionV01({
     attempt_id: input.attempt.attempt_id,
     slot_id: input.slot.slot_id,
@@ -1505,6 +1727,8 @@ async function executeEpisodeV01(input: {
       createCommissionedWorkNativeHostRefSetFingerprintV01(rawResult.host_refs),
     native_execution_configuration_fingerprint:
       input.input.native_execution_configuration.configuration_fingerprint,
+    codex_environment_binding_fingerprint:
+      input.input.authorization.codex_environment_binding.integrity.fingerprint,
     adapter_execution_binding_fingerprint:
       exactExecutionBinding.binding_fingerprint,
     native_host_result_fingerprint: createProtocolSha256V01(
@@ -1513,6 +1737,8 @@ async function executeEpisodeV01(input: {
     clone_identity_fingerprint:
       input.clone_baseline.clone_identity_fingerprint,
     clone_baseline: input.clone_baseline,
+    isolation_observation: isolationObservation,
+    approval_observations: approvalObservations,
     admitted_at: rawResult.started_at,
   });
   appendCommissionedLiveTrainingAttemptAdmissionV01({
@@ -1528,6 +1754,38 @@ async function executeEpisodeV01(input: {
     gitV01(input.repository_root, ["rev-parse", "HEAD"]) === episodeStartCommit &&
     gitV01(input.repository_root, ["rev-parse", "HEAD^{tree}"]) === episodeStartTree &&
     gitV01(input.repository_root, ["status", "--porcelain=v1"]) === "";
+  if (approvalObservations.length > 0) {
+    const terminal = buildCommissionedLiveTrainingAttemptTerminalV01({
+      terminal_id: `${input.attempt.attempt_id}-terminal`,
+      attempt_admission_ref: commissionedLiveTrainingRecordRefV01(preAdmission),
+      slot_id: input.slot.slot_id,
+      terminal_status: "non_aggregable_failure",
+      failure_class: "authority_failure",
+      first_meaningful_action_status: noMeaningfulAction
+        ? "observed_absent"
+        : "observed_present",
+      repository_mutation_status: repositoryUnchanged
+        ? "observed_absent"
+        : "observed_present",
+      native_host_settled: true,
+      cleanup_complete: true,
+      episode_ref: null,
+      blind_observation_ref: null,
+      finished_at: rawResult.finished_at,
+    });
+    appendCommissionedLiveTrainingAttemptTerminalV01({ store: input.store, terminal });
+    return {
+      slot: input.slot,
+      source: input.source,
+      plan: input.plan,
+      repository_root: input.repository_root,
+      attempt_start: attemptStart,
+      admission: preAdmission,
+      terminal,
+      lifecycle_events: lifecycleEvents,
+      adapter_settlement_fingerprint: adapterSettlementFingerprint,
+    };
+  }
   if (rawResult.outcome === "unavailable") {
     const terminal = buildCommissionedLiveTrainingAttemptTerminalV01({
       terminal_id: `${input.attempt.attempt_id}-terminal`,
@@ -1700,11 +1958,18 @@ async function executeEpisodeV01(input: {
         model_calls_observation_ref: testResourceObservationRef,
         external_network_calls_observation_ref: testResourceObservationRef,
         live_authorization_ref: liveAuthorizationRef,
-        authorization_resource_ceiling: liveAuthorizationRef
+        authorization_resource_ceiling:
+          liveAuthorizationRef &&
+          input.input.authorization.provider_call_ceiling.observability ===
+            "observed" &&
+          input.input.authorization.model_call_ceiling.observability ===
+            "observed"
           ? createCommissionedWorkAuthorizationResourceCeilingV01({
               live_authorization_ref: liveAuthorizationRef,
-              provider_call_limit: input.input.authorization.provider_call_limit,
-              model_call_limit: input.input.authorization.model_call_limit,
+              provider_call_limit:
+                input.input.authorization.provider_call_ceiling.limit,
+              model_call_limit:
+                input.input.authorization.model_call_ceiling.limit,
               external_network_call_limit: 0,
             })
           : null,
@@ -1719,7 +1984,10 @@ async function executeEpisodeV01(input: {
           : input.input.native_execution_configuration.route_ref,
         network_destination_ref: null,
       },
-      unauthorized_effects: zeroUnauthorizedEffectsV01(),
+      unauthorized_effects: zeroUnauthorizedEffectsV01(
+        input.input.authorization.codex_environment_binding
+          .unauthorized_effect_enforcement_ref,
+      ),
     });
   const receipt = buildCommissionedWorkRunReceiptV01({
     request,
@@ -1988,6 +2256,49 @@ function deterministicOrWallClockV01(startedAt: string, deterministic: boolean):
   };
 }
 
+function createAttemptStateEnvironmentV01(input: {
+  attempt_state_parent: string;
+  attempt_id: string;
+}): AttemptStateEnvironmentV01 {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u.test(input.attempt_id)) {
+    failV01("live_training_attempt_state_identity_invalid");
+  }
+  const attemptStateRoot = path.join(
+    input.attempt_state_parent,
+    input.attempt_id,
+  );
+  if (existsSync(attemptStateRoot)) {
+    failV01("live_training_attempt_state_root_reused");
+  }
+  mkdirSync(attemptStateRoot, { recursive: false, mode: 0o700 });
+  if (readdirSync(attemptStateRoot).length !== 0) {
+    failV01("live_training_attempt_state_root_not_empty");
+  }
+  const home = path.join(attemptStateRoot, "home");
+  const codexHome = path.join(attemptStateRoot, "codex-home");
+  const codexSqliteHome = path.join(attemptStateRoot, "codex-sqlite-home");
+  for (const directory of [home, codexHome, codexSqliteHome]) {
+    mkdirSync(directory, { recursive: false, mode: 0o700 });
+  }
+  const canonicalAttemptStateRoot = realpathSync(attemptStateRoot);
+  const canonicalHome = realpathSync(home);
+  const canonicalCodexHome = realpathSync(codexHome);
+  const canonicalCodexSqliteHome = realpathSync(codexSqliteHome);
+  const fingerprintPath = (candidate: string): string =>
+    createProtocolSha256V01(canonicalizeProtocolValueV01(candidate));
+  return {
+    attempt_state_root: canonicalAttemptStateRoot,
+    home: canonicalHome,
+    codex_home: canonicalCodexHome,
+    codex_sqlite_home: canonicalCodexSqliteHome,
+    attempt_state_root_fingerprint: fingerprintPath(canonicalAttemptStateRoot),
+    home_identity_fingerprint: fingerprintPath(canonicalHome),
+    codex_home_identity_fingerprint: fingerprintPath(canonicalCodexHome),
+    codex_sqlite_home_identity_fingerprint:
+      fingerprintPath(canonicalCodexSqliteHome),
+  };
+}
+
 function gitV01(root: string, args: string[], timestamp?: string): string {
   const environment = {
     ...hermeticEnvironmentV01(),
@@ -2081,7 +2392,10 @@ function listFilesWithSuffixV01(root: string, suffix: string): string[] {
   return matches;
 }
 
-function zeroUnauthorizedEffectsV01(): CommissionedWorkObjectiveObservationV01["unauthorized_effects"] {
+function zeroUnauthorizedEffectsV01(
+  enforcementRef: CommissionedWorkRecordRefV01,
+): CommissionedWorkObjectiveObservationV01["unauthorized_effects"] {
+  createCommissionedWorkRecordRefV01(enforcementRef);
   return {
     provider_calls_outside_authorization: 0,
     model_calls_outside_authorization: 0,

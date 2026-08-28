@@ -47,6 +47,14 @@ export const COMMISSIONED_LIVE_TRAINING_ARTIFACT_INDEX_VERSION_V01 =
   "commissioned_controlled_live_training_artifact_index.v0.1" as const;
 export const COMMISSIONED_LIVE_TRAINING_COMPLETION_WITNESS_VERSION_V01 =
   "commissioned_controlled_live_training_completion_witness.v0.1" as const;
+export const COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01 =
+  "commissioned_live_training_codex_environment_binding.v0.1" as const;
+export const COMMISSIONED_LIVE_TRAINING_ISOLATION_OBSERVATION_VERSION_V01 =
+  "commissioned_live_training_isolation_observation.v0.1" as const;
+export const COMMISSIONED_LIVE_TRAINING_APPROVAL_OBSERVATION_VERSION_V01 =
+  "commissioned_live_training_approval_observation.v0.1" as const;
+export const COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01 =
+  "commissioned_live_training_component_analysis_rule_table.v0.1" as const;
 
 export const COMMISSIONED_LIVE_TRAINING_FOUNDATION_MAIN_SHA_V01 =
   "53381b1aead57554e1c5b7978050b6a3a550f78c" as const;
@@ -106,6 +114,9 @@ export interface CommissionedLiveTrainingCohortPlanV01 {
   schedule_fingerprint: string;
   replacement_policy_fingerprint: string;
   stop_condition_fingerprint: string;
+  approval_policy_fingerprint: string;
+  resume_policy_fingerprint: string;
+  candidate_analysis_rule_fingerprint: string;
   task_evidence_equal_within_case: true;
   condition_assignment_executor_visible: false;
   evaluator_condition_blind_until_observation_seal: true;
@@ -119,6 +130,7 @@ export interface CommissionedLiveTrainingCohortPlanV01 {
 
 export type CommissionedLiveTrainingAuthorizationKindV01 =
   | "test_conformance"
+  | "future_live_control_flow_conformance"
   | "future_live_execution";
 
 export type CommissionedLiveTrainingReasoningEffortV01 =
@@ -157,6 +169,58 @@ export interface CommissionedLiveTrainingExecutableIdentityV01 {
   physical_identity_fingerprint: string;
   executable_ref: CommissionedWorkRecordRefV01;
 }
+
+export interface CommissionedLiveTrainingCodexEnvironmentBindingV01 {
+  environment_binding_version: typeof COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01;
+  environment_strategy_version: "commissioned_live_training_isolated_attempt_home.v0.1";
+  binding_id: string;
+  binding_class:
+    | "zero_provider_control_flow_conformance"
+    | "future_live_execution_blocked";
+  account_auth_projection_status:
+    | "credential_free_test_projection"
+    | "credential_safe_projection_unavailable";
+  account_auth_projection_ref: CommissionedWorkRecordRefV01 | null;
+  account_auth_projection_fingerprint: string | null;
+  codex_configuration_fingerprint: string;
+  mcp_tool_web_policy_fingerprint: string;
+  expected_tool_set_fingerprint: string;
+  expected_tool_set: [];
+  state_home_isolation_strategy: "fresh_per_attempt_home_codex_home_sqlite_home";
+  history_thread_persistence_policy: "ephemeral_fresh_thread_no_shared_history";
+  per_attempt_home_identity_rule: "new_opaque_identity_per_attempt";
+  per_attempt_codex_home_identity_rule: "new_opaque_identity_per_attempt";
+  per_attempt_codex_sqlite_home_identity_rule: "new_opaque_identity_per_attempt";
+  allowed_environment_key_fingerprint: string;
+  forbidden_environment_key_fingerprint: string;
+  cleanup_policy: "remove_all_attempt_state_roots_on_success_or_failure";
+  task_network_enforcement_ref: CommissionedWorkRecordRefV01;
+  unauthorized_effect_enforcement_ref: CommissionedWorkRecordRefV01;
+  shell_network_policy: "denied";
+  network_permission_policy: "decline_and_stop";
+  mcp_policy: "empty_and_unexpected_startup_refused";
+  built_in_web_remote_policy: "disabled";
+  github_tool_policy: "disabled";
+  same_run_resume_policy: "unsupported_terminal_nonreplaceable_stop";
+  maximum_resume_count_per_attempt: 0;
+  maximum_resume_count_per_cohort: 0;
+  approval_policy: "terminal_on_any_request";
+  future_live_execution_ready: false;
+  missing_live_owner_code: "credential_safe_isolated_codex_auth_projection_unavailable";
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export type CommissionedLiveTrainingSourcedResourceLaneV01 =
+  | {
+      provenance: "observed";
+      value: number;
+      source_ref: CommissionedWorkRecordRefV01;
+    }
+  | {
+      provenance: "unknown";
+      value: null;
+      source_ref: null;
+    };
 
 export type CommissionedLiveTrainingOptionalCeilingV01 =
   | {
@@ -209,17 +273,22 @@ export interface CommissionedLiveTrainingAuthorizationV01 {
     ];
     cohort_plan_ref: CommissionedWorkRecordRefV01;
     schedule_fingerprint: string;
+    codex_environment_binding_ref: CommissionedWorkRecordRefV01;
   };
   native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+  codex_environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
   artifact_relative_root: string;
   primary_episode_limit: typeof COMMISSIONED_LIVE_TRAINING_PRIMARY_EPISODE_LIMIT_V01;
   replacement_invocation_limit: number;
   native_host_invocation_limit: number;
   provider_bearing_native_host_invocation_limit: number;
   model_bearing_native_host_invocation_limit: number;
-  provider_call_limit: number;
-  model_call_limit: number;
-  task_external_network_limit: 0;
+  provider_call_ceiling: CommissionedLiveTrainingOptionalCeilingV01;
+  model_call_ceiling: CommissionedLiveTrainingOptionalCeilingV01;
+  task_external_network_policy: {
+    limit: 0;
+    enforcement_ref: CommissionedWorkRecordRefV01;
+  };
   usage_unit_ceiling: CommissionedLiveTrainingOptionalCeilingV01;
   cost_microunit_ceiling: CommissionedLiveTrainingOptionalCeilingV01;
   per_episode_timeout_ms: number;
@@ -300,6 +369,8 @@ export interface CommissionedLiveTrainingAttemptStartV01 {
   request_ref_fingerprint: string;
   run_ref_fingerprint: string;
   native_execution_configuration_fingerprint: string;
+  codex_environment_binding_fingerprint: string;
+  attempt_state_root_fingerprint: string;
   adapter_execution_binding_fingerprint: string;
   clone_baseline: CommissionedLiveTrainingCloneBaselineV01;
   reserved_native_host_invocation_ordinal: number;
@@ -307,6 +378,56 @@ export interface CommissionedLiveTrainingAttemptStartV01 {
   model_bearing_invocation_reserved: boolean;
   started_at: string;
   persisted_before_native_host_invocation: true;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export interface CommissionedLiveTrainingIsolationObservationV01 {
+  observation_version: typeof COMMISSIONED_LIVE_TRAINING_ISOLATION_OBSERVATION_VERSION_V01;
+  observation_id: string;
+  attempt_id: string;
+  environment_binding_ref: CommissionedWorkRecordRefV01;
+  attempt_state_root_fingerprint: string;
+  home_identity_fingerprint: string;
+  codex_home_identity_fingerprint: string;
+  codex_sqlite_home_identity_fingerprint: string;
+  distinct_from_prior_attempt_state_roots: true;
+  state_root_created_empty: true;
+  shared_codex_home_fallback_used: false;
+  predecessor_history_present: false;
+  sibling_history_present: false;
+  foreign_instruction_or_config_present: false;
+  account_projection_status: "observed_exact" | "not_observed_pre_spawn_failure";
+  account_projection_fingerprint: string | null;
+  codex_configuration_status: "observed_exact" | "not_observed_pre_spawn_failure";
+  codex_configuration_fingerprint: string | null;
+  tool_policy_status: "observed_exact" | "not_observed_pre_spawn_failure";
+  tool_policy_fingerprint: string | null;
+  fresh_thread_ephemeral: true;
+  same_run_resume: false;
+  transcript_inheritance_observed_absent: true;
+  hidden_reasoning_inheritance_observed_absent: true;
+  cleanup_required: true;
+  raw_auth_config_or_history_persisted: false;
+  integrity: CommissionedWorkIntegrityV01;
+}
+
+export interface CommissionedLiveTrainingApprovalObservationV01 {
+  observation_version: typeof COMMISSIONED_LIVE_TRAINING_APPROVAL_OBSERVATION_VERSION_V01;
+  observation_id: string;
+  approval_request_fingerprint: string;
+  operation_class: string;
+  classification:
+    | "in_root_operation_request"
+    | "network_request"
+    | "outside_root_request"
+    | "github_or_publication_request"
+    | "package_or_download_request"
+    | "credential_or_semantic_request"
+    | "unclassified_request";
+  decision: "decline" | "cancel_run";
+  terminal_cohort_stop: true;
+  approval_granted: false;
+  raw_command_or_resource_persisted: false;
   integrity: CommissionedWorkIntegrityV01;
 }
 
@@ -356,10 +477,13 @@ export interface CommissionedLiveTrainingAttemptAdmissionV01 {
   host_ref_set: CommissionedWorkNativeHostRefBindingV01[];
   host_context_fingerprint: string;
   native_execution_configuration_fingerprint: string;
+  codex_environment_binding_fingerprint: string;
   adapter_execution_binding_fingerprint: string;
   native_host_result_fingerprint: string;
   clone_identity_fingerprint: string;
   clone_baseline: CommissionedLiveTrainingCloneBaselineV01;
+  isolation_observation: CommissionedLiveTrainingIsolationObservationV01;
+  approval_observations: CommissionedLiveTrainingApprovalObservationV01[];
   admitted_at: string;
   prior_attempt_material_inherited: false;
   prior_execution_grant_inherited: false;
@@ -449,6 +573,26 @@ export interface CommissionedLiveTrainingCandidateComponentAssessmentV01 {
   };
 }
 
+export interface CommissionedLiveTrainingComponentAnalysisRuleV01 {
+  component_id: CommissionedLiveTrainingCandidateComponentAssessmentV01["component_id"];
+  objective_observation_fields: string[];
+  comparable_conditions: CommissionedWorkConditionV01[];
+  equal_common_evidence_required: true;
+  independent_origin_grouping: "case_independent_origin_group_id";
+  positive_pattern_code: string;
+  opposing_pattern_code: string;
+  contradictory_hard_failure_codes: string[];
+  harmful_transfer_condition: "target_arm_harmful_transfer_observed";
+  infrastructure_invalid_attempts_excluded: true;
+  strongest_simpler_comparator: string;
+  missing_evidence_code: string;
+  mechanically_eligible_condition: "two_independent_objective_origin_patterns_no_contradiction_or_harm";
+  not_eligible_condition: "contradictory_hard_failure_or_harmful_transfer";
+  incomplete_condition: "fewer_than_two_independent_comparable_objective_patterns";
+  falsifier_codes: string[];
+  uncertainty_codes: string[];
+}
+
 export interface CommissionedLiveTrainingCandidateAssessmentV01 {
   assessment_version: typeof COMMISSIONED_LIVE_TRAINING_CANDIDATE_ASSESSMENT_VERSION_V01;
   assessment_id: string;
@@ -458,8 +602,11 @@ export interface CommissionedLiveTrainingCandidateAssessmentV01 {
   attempt_registry_ref: CommissionedWorkRecordRefV01;
   source_episode_refs: CommissionedWorkRecordRefV01[];
   source_blind_observation_refs: CommissionedWorkRecordRefV01[];
+  source_analysis_join_refs: CommissionedWorkRecordRefV01[];
   assessor_role_ref: CommissionedWorkRoleRefV01;
   eligibility_rule_version: "commissioned_live_training_mechanical_eligibility_rule.v0.1";
+  component_rule_table_version: typeof COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01;
+  component_rule_table_fingerprint: string;
   minimum_independent_origin_groups: 2;
   objective_condition_sensitive_pattern_required: true;
   contradictory_hard_failure_allowed: false;
@@ -491,9 +638,9 @@ export interface CommissionedLiveTrainingCleanupReportV01 {
   owned_runtime_roots_remaining: number;
   owned_temporary_roots_remaining: number;
   stale_artifact_temporaries_remaining: number;
-  task_external_network_attempts: number;
-  provider_calls_observed: CommissionedWorkResourceLaneV01;
-  model_calls_observed: CommissionedWorkResourceLaneV01;
+  task_external_network_observation: CommissionedLiveTrainingSourcedResourceLaneV01;
+  provider_calls_observed: CommissionedLiveTrainingSourcedResourceLaneV01;
+  model_calls_observed: CommissionedLiveTrainingSourcedResourceLaneV01;
   cleanup_observation: CommissionedLiveTrainingCleanupObservationV01;
   cleanup_observation_ref: CommissionedWorkRecordRefV01;
   integrity: CommissionedWorkIntegrityV01;
@@ -511,7 +658,7 @@ export interface CommissionedLiveTrainingCleanupObservationV01 {
   runtime_roots_absent: boolean;
   temporary_roots_absent: boolean;
   artifact_temporaries_absent: boolean;
-  task_external_network_attempts: number;
+  task_external_network_observation: CommissionedLiveTrainingSourcedResourceLaneV01;
   observed_at: string;
   integrity: CommissionedWorkIntegrityV01;
 }

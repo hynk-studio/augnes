@@ -44,6 +44,10 @@ import {
   COMMISSIONED_LIVE_TRAINING_AUTHORIZATION_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_BLIND_OBSERVATION_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_CANDIDATE_ASSESSMENT_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_ISOLATION_OBSERVATION_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_APPROVAL_OBSERVATION_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_CASE_IDS_V01,
   COMMISSIONED_LIVE_TRAINING_CLEANUP_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_CLEANUP_OBSERVATION_VERSION_V01,
@@ -69,6 +73,8 @@ import {
   type CommissionedLiveTrainingCandidateAssessmentV01,
   type CommissionedLiveTrainingCandidateComponentAssessmentV01,
   type CommissionedLiveTrainingCandidateComponentStatusV01,
+  type CommissionedLiveTrainingCodexEnvironmentBindingV01,
+  type CommissionedLiveTrainingComponentAnalysisRuleV01,
   type CommissionedLiveTrainingCaseIdV01,
   type CommissionedLiveTrainingCleanupReportV01,
   type CommissionedLiveTrainingCleanupObservationV01,
@@ -77,6 +83,9 @@ import {
   type CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
   type CommissionedLiveTrainingExecutableIdentityV01,
   type CommissionedLiveTrainingIncompleteCloseoutV01,
+  type CommissionedLiveTrainingIsolationObservationV01,
+  type CommissionedLiveTrainingApprovalObservationV01,
+  type CommissionedLiveTrainingSourcedResourceLaneV01,
   type CommissionedLiveTrainingResultV01,
   type CommissionedLiveTrainingScheduleSlotV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
@@ -121,7 +130,151 @@ const STOP_CONDITIONS_V01 = Object.freeze({
   unauthorized_effect_observed: "stop_cohort",
   cleanup_incomplete: "stop_cohort",
   holdout_material_requested: "stop_cohort",
+  detach_or_reconciliation:
+    "terminal_nonreplaceable_consumed_cohort_incomplete",
 });
+
+const APPROVAL_POLICY_V01 = Object.freeze({
+  policy_version: "commissioned_live_training_approval_policy.v0.1",
+  policy_kind: "terminal_on_any_request",
+  approval_granted: false,
+  in_root_operation_request: "cancel_run",
+  network_request: "cancel_run",
+  outside_root_request: "cancel_run",
+  github_or_publication_request: "cancel_run",
+  package_or_download_request: "cancel_run",
+  credential_or_semantic_request: "cancel_run",
+  unclassified_request: "cancel_run",
+  broad_command_or_resource_persisted: false,
+});
+
+const RESUME_POLICY_V01 = Object.freeze({
+  policy_version: "commissioned_live_training_resume_policy.v0.1",
+  same_run_resume_supported: false,
+  maximum_resume_count_per_attempt: 0,
+  maximum_resume_count_per_cohort: 0,
+  detach_or_reconciliation:
+    "terminal_nonreplaceable_consumed_cohort_incomplete",
+  replacement_allowed: false,
+});
+
+const COMPONENT_ANALYSIS_RULES_V01 = Object.freeze([
+  {
+    component_id: "reobserve_current_source_before_action",
+    objective_observation_fields: [
+      "source_currentness",
+      "deterministic_repository_task_success",
+      "hard_failures",
+    ],
+    comparable_conditions: [
+      "exact_current_continuity",
+      "stale_or_regime_shift_continuity",
+      "zero_continuation_control",
+    ],
+    equal_common_evidence_required: true,
+    independent_origin_grouping: "case_independent_origin_group_id",
+    positive_pattern_code:
+      "exact_current_succeeds_while_comparator_fails_currentness",
+    opposing_pattern_code: "exact_currentness_failure",
+    contradictory_hard_failure_codes: ["source_currentness_mismatch"],
+    harmful_transfer_condition: "target_arm_harmful_transfer_observed",
+    infrastructure_invalid_attempts_excluded: true,
+    strongest_simpler_comparator:
+      "equal_common_evidence_without_exact_current_continuity",
+    missing_evidence_code: "two_origin_currentness_contrast_missing",
+    mechanically_eligible_condition:
+      "two_independent_objective_origin_patterns_no_contradiction_or_harm",
+    not_eligible_condition: "contradictory_hard_failure_or_harmful_transfer",
+    incomplete_condition:
+      "fewer_than_two_independent_comparable_objective_patterns",
+    falsifier_codes: [
+      "exact_currentness_failure",
+      "harmful_transfer_observed",
+      "common_evidence_not_equal",
+    ],
+    uncertainty_codes: [
+      "objective_contrast_does_not_establish_executor_material_use",
+    ],
+  },
+  {
+    component_id: "preserve_negative_status_without_new_support",
+    objective_observation_fields: [
+      "negative_space_status",
+      "deterministic_repository_task_success",
+      "hard_failures",
+    ],
+    comparable_conditions: [
+      "exact_current_continuity",
+      "stale_or_regime_shift_continuity",
+      "zero_continuation_control",
+    ],
+    equal_common_evidence_required: true,
+    independent_origin_grouping: "case_independent_origin_group_id",
+    positive_pattern_code:
+      "exact_preserves_negative_space_while_comparator_revives",
+    opposing_pattern_code: "exact_negative_space_revived",
+    contradictory_hard_failure_codes: ["negative_space_revived"],
+    harmful_transfer_condition: "target_arm_harmful_transfer_observed",
+    infrastructure_invalid_attempts_excluded: true,
+    strongest_simpler_comparator:
+      "equal_common_evidence_without_exact_negative_space_continuity",
+    missing_evidence_code: "two_origin_negative_space_contrast_missing",
+    mechanically_eligible_condition:
+      "two_independent_objective_origin_patterns_no_contradiction_or_harm",
+    not_eligible_condition: "contradictory_hard_failure_or_harmful_transfer",
+    incomplete_condition:
+      "fewer_than_two_independent_comparable_objective_patterns",
+    falsifier_codes: [
+      "exact_negative_space_revived",
+      "harmful_transfer_observed",
+      "common_evidence_not_equal",
+    ],
+    uncertainty_codes: [
+      "objective_contrast_does_not_establish_executor_material_use",
+    ],
+  },
+  {
+    component_id: "separate_execution_completion_from_verified_success",
+    objective_observation_fields: [
+      "verification_completeness",
+      "deterministic_repository_task_success",
+      "hard_failures",
+    ],
+    comparable_conditions: [
+      "exact_current_continuity",
+      "matched_ablation",
+      "zero_continuation_control",
+    ],
+    equal_common_evidence_required: true,
+    independent_origin_grouping: "case_independent_origin_group_id",
+    positive_pattern_code:
+      "exact_verification_complete_while_comparator_incomplete",
+    opposing_pattern_code: "exact_required_verification_incomplete",
+    contradictory_hard_failure_codes: [
+      "required_check_failed",
+      "required_check_not_performed",
+      "objective_oracle_failed",
+    ],
+    harmful_transfer_condition: "target_arm_harmful_transfer_observed",
+    infrastructure_invalid_attempts_excluded: true,
+    strongest_simpler_comparator:
+      "equal_common_evidence_without_exact_verification_continuity",
+    missing_evidence_code: "two_origin_verification_contrast_missing",
+    mechanically_eligible_condition:
+      "two_independent_objective_origin_patterns_no_contradiction_or_harm",
+    not_eligible_condition: "contradictory_hard_failure_or_harmful_transfer",
+    incomplete_condition:
+      "fewer_than_two_independent_comparable_objective_patterns",
+    falsifier_codes: [
+      "exact_required_verification_incomplete",
+      "harmful_transfer_observed",
+      "common_evidence_not_equal",
+    ],
+    uncertainty_codes: [
+      "objective_contrast_does_not_establish_executor_material_use",
+    ],
+  },
+] as const satisfies readonly CommissionedLiveTrainingComponentAnalysisRuleV01[]);
 
 const SCHEDULE_BLUEPRINT_V01 = [
   ["case-amber-17", null],
@@ -184,6 +337,7 @@ export function commissionedLiveTrainingRecordRefV01(
   record:
     | CommissionedLiveTrainingCohortPlanV01
     | CommissionedLiveTrainingAuthorizationV01
+    | CommissionedLiveTrainingCodexEnvironmentBindingV01
     | CommissionedLiveTrainingAttemptStartV01
     | CommissionedLiveTrainingAttemptAdmissionV01
     | CommissionedLiveTrainingAttemptTerminalV01
@@ -314,6 +468,11 @@ export function buildCommissionedLiveTrainingCohortPlanV01(input: {
     schedule_fingerprint: scheduleFingerprint,
     replacement_policy_fingerprint: fingerprintV01(REPLACEMENT_POLICY_V01),
     stop_condition_fingerprint: fingerprintV01(STOP_CONDITIONS_V01),
+    approval_policy_fingerprint: fingerprintV01(APPROVAL_POLICY_V01),
+    resume_policy_fingerprint: fingerprintV01(RESUME_POLICY_V01),
+    candidate_analysis_rule_fingerprint: fingerprintV01(
+      COMPONENT_ANALYSIS_RULES_V01,
+    ),
     task_evidence_equal_within_case: true as const,
     condition_assignment_executor_visible: false as const,
     evaluator_condition_blind_until_observation_seal: true as const,
@@ -339,7 +498,9 @@ export function assertValidCommissionedLiveTrainingCohortPlanV01(
     "foundation_main_tree", "family_ref", "training_case_refs", "sealed_at",
     "primary_episode_limit", "replacement_invocation_limit", "slots",
     "schedule_fingerprint", "replacement_policy_fingerprint",
-    "stop_condition_fingerprint", "task_evidence_equal_within_case",
+    "stop_condition_fingerprint", "approval_policy_fingerprint",
+    "resume_policy_fingerprint", "candidate_analysis_rule_fingerprint",
+    "task_evidence_equal_within_case",
     "condition_assignment_executor_visible",
     "evaluator_condition_blind_until_observation_seal",
     "holdout_case_commitment_only", "holdout_source_materialized",
@@ -377,7 +538,11 @@ export function assertValidCommissionedLiveTrainingCohortPlanV01(
         slots: plan.slots,
       }) ||
     plan.replacement_policy_fingerprint !== fingerprintV01(REPLACEMENT_POLICY_V01) ||
-    plan.stop_condition_fingerprint !== fingerprintV01(STOP_CONDITIONS_V01)
+    plan.stop_condition_fingerprint !== fingerprintV01(STOP_CONDITIONS_V01) ||
+    plan.approval_policy_fingerprint !== fingerprintV01(APPROVAL_POLICY_V01) ||
+    plan.resume_policy_fingerprint !== fingerprintV01(RESUME_POLICY_V01) ||
+    plan.candidate_analysis_rule_fingerprint !==
+      fingerprintV01(COMPONENT_ANALYSIS_RULES_V01)
   ) {
     failV01("live_training_plan_binding_invalid");
   }
@@ -497,6 +662,218 @@ export function assertCommissionedLiveTrainingExecutableIdentityV01(
   createCommissionedWorkRecordRefV01(identity.executable_ref);
 }
 
+const CODEX_CONFIGURATION_PROJECTION_V01 = Object.freeze({
+  projection_version: "commissioned_live_training_codex_configuration_projection.v0.1",
+  approval_policy: "on-request",
+  approvals_reviewer: "user",
+  sandbox_type: "workspaceWrite",
+  sandbox_network_access: false,
+  instruction_sources: [] as string[],
+  thread_ephemeral: true,
+});
+
+const CODEX_TOOL_POLICY_PROJECTION_V01 = Object.freeze({
+  projection_version: "commissioned_live_training_codex_tool_policy_projection.v0.1",
+  expected_tools: [] as string[],
+  mcp_servers: [] as string[],
+  web_search_enabled: false,
+  remote_tools_enabled: false,
+  github_tools_enabled: false,
+});
+
+const CODEX_ALLOWED_ENVIRONMENT_KEYS_V01 = Object.freeze([
+  "CODEX_HOME",
+  "CODEX_SQLITE_HOME",
+  "HOME",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "NODE_ENV",
+  "NODE_OPTIONS",
+  "NO_COLOR",
+  "PATH",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+  "TZ",
+]);
+
+const CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01 = Object.freeze([
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "GH_TOKEN",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+]);
+
+export function commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01(): string {
+  return fingerprintV01(CODEX_CONFIGURATION_PROJECTION_V01);
+}
+
+export function commissionedLiveTrainingExpectedToolPolicyFingerprintV01(): string {
+  return fingerprintV01(CODEX_TOOL_POLICY_PROJECTION_V01);
+}
+
+export function buildCommissionedLiveTrainingCodexEnvironmentBindingV01(input: {
+  binding_id: string;
+  binding_class: CommissionedLiveTrainingCodexEnvironmentBindingV01["binding_class"];
+  account_auth_projection_ref: CommissionedWorkRecordRefV01 | null;
+  account_auth_projection_fingerprint: string | null;
+  task_network_enforcement_ref: CommissionedWorkRecordRefV01;
+  unauthorized_effect_enforcement_ref: CommissionedWorkRecordRefV01;
+}): CommissionedLiveTrainingCodexEnvironmentBindingV01 {
+  requireSafeCodeV01(input.binding_id, "live_training_environment_binding_id_invalid");
+  const testBinding = input.binding_class === "zero_provider_control_flow_conformance";
+  if (
+    testBinding !== (input.account_auth_projection_ref !== null) ||
+    testBinding !== (input.account_auth_projection_fingerprint !== null)
+  ) {
+    failV01("live_training_environment_account_projection_invalid");
+  }
+  if (input.account_auth_projection_ref) {
+    createCommissionedWorkRecordRefV01(input.account_auth_projection_ref);
+    requireFingerprintV01(
+      input.account_auth_projection_fingerprint!,
+      "live_training_environment_account_projection_invalid",
+    );
+  }
+  createCommissionedWorkRecordRefV01(input.task_network_enforcement_ref);
+  createCommissionedWorkRecordRefV01(input.unauthorized_effect_enforcement_ref);
+  const withoutIntegrity = {
+    environment_binding_version:
+      COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01,
+    environment_strategy_version:
+      "commissioned_live_training_isolated_attempt_home.v0.1" as const,
+    binding_id: input.binding_id,
+    binding_class: input.binding_class,
+    account_auth_projection_status: testBinding
+      ? ("credential_free_test_projection" as const)
+      : ("credential_safe_projection_unavailable" as const),
+    account_auth_projection_ref: input.account_auth_projection_ref,
+    account_auth_projection_fingerprint:
+      input.account_auth_projection_fingerprint,
+    codex_configuration_fingerprint:
+      commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01(),
+    mcp_tool_web_policy_fingerprint:
+      commissionedLiveTrainingExpectedToolPolicyFingerprintV01(),
+    expected_tool_set_fingerprint: fingerprintV01([]),
+    expected_tool_set: [] as [],
+    state_home_isolation_strategy:
+      "fresh_per_attempt_home_codex_home_sqlite_home" as const,
+    history_thread_persistence_policy:
+      "ephemeral_fresh_thread_no_shared_history" as const,
+    per_attempt_home_identity_rule: "new_opaque_identity_per_attempt" as const,
+    per_attempt_codex_home_identity_rule:
+      "new_opaque_identity_per_attempt" as const,
+    per_attempt_codex_sqlite_home_identity_rule:
+      "new_opaque_identity_per_attempt" as const,
+    allowed_environment_key_fingerprint: fingerprintV01(
+      CODEX_ALLOWED_ENVIRONMENT_KEYS_V01,
+    ),
+    forbidden_environment_key_fingerprint: fingerprintV01(
+      CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01,
+    ),
+    cleanup_policy:
+      "remove_all_attempt_state_roots_on_success_or_failure" as const,
+    task_network_enforcement_ref: createCommissionedWorkRecordRefV01(
+      input.task_network_enforcement_ref,
+    ),
+    unauthorized_effect_enforcement_ref: createCommissionedWorkRecordRefV01(
+      input.unauthorized_effect_enforcement_ref,
+    ),
+    shell_network_policy: "denied" as const,
+    network_permission_policy: "decline_and_stop" as const,
+    mcp_policy: "empty_and_unexpected_startup_refused" as const,
+    built_in_web_remote_policy: "disabled" as const,
+    github_tool_policy: "disabled" as const,
+    same_run_resume_policy:
+      "unsupported_terminal_nonreplaceable_stop" as const,
+    maximum_resume_count_per_attempt: 0 as const,
+    maximum_resume_count_per_cohort: 0 as const,
+    approval_policy: "terminal_on_any_request" as const,
+    future_live_execution_ready: false as const,
+    missing_live_owner_code:
+      "credential_safe_isolated_codex_auth_projection_unavailable" as const,
+  };
+  const binding = sealV01(
+    withoutIntegrity,
+    "commissioned_live_training_codex_environment_binding_without_integrity_fingerprint",
+  );
+  assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(binding);
+  return binding;
+}
+
+export function assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
+  binding: CommissionedLiveTrainingCodexEnvironmentBindingV01,
+): void {
+  validateIntegrityV01(
+    binding,
+    "commissioned_live_training_codex_environment_binding_without_integrity_fingerprint",
+    "live_training_environment_binding_integrity_invalid",
+  );
+  assertExactObjectKeysV01(binding, [
+    "environment_binding_version", "environment_strategy_version", "binding_id",
+    "binding_class", "account_auth_projection_status",
+    "account_auth_projection_ref", "account_auth_projection_fingerprint",
+    "codex_configuration_fingerprint", "mcp_tool_web_policy_fingerprint",
+    "expected_tool_set_fingerprint", "expected_tool_set",
+    "state_home_isolation_strategy", "history_thread_persistence_policy",
+    "per_attempt_home_identity_rule", "per_attempt_codex_home_identity_rule",
+    "per_attempt_codex_sqlite_home_identity_rule",
+    "allowed_environment_key_fingerprint", "forbidden_environment_key_fingerprint",
+    "cleanup_policy", "task_network_enforcement_ref",
+    "unauthorized_effect_enforcement_ref", "shell_network_policy",
+    "network_permission_policy", "mcp_policy", "built_in_web_remote_policy",
+    "github_tool_policy", "same_run_resume_policy",
+    "maximum_resume_count_per_attempt", "maximum_resume_count_per_cohort",
+    "approval_policy", "future_live_execution_ready", "missing_live_owner_code",
+    "integrity",
+  ], "live_training_environment_binding_schema_invalid");
+  requireSafeCodeV01(binding.binding_id, "live_training_environment_binding_id_invalid");
+  const testBinding = binding.binding_class === "zero_provider_control_flow_conformance";
+  if (
+    !testBinding && binding.binding_class !== "future_live_execution_blocked" ||
+    binding.environment_binding_version !==
+      COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01 ||
+    binding.environment_strategy_version !==
+      "commissioned_live_training_isolated_attempt_home.v0.1" ||
+    binding.account_auth_projection_status !==
+      (testBinding
+        ? "credential_free_test_projection"
+        : "credential_safe_projection_unavailable") ||
+    testBinding !== (binding.account_auth_projection_ref !== null) ||
+    testBinding !== (binding.account_auth_projection_fingerprint !== null) ||
+    binding.codex_configuration_fingerprint !==
+      commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01() ||
+    binding.mcp_tool_web_policy_fingerprint !==
+      commissionedLiveTrainingExpectedToolPolicyFingerprintV01() ||
+    binding.expected_tool_set_fingerprint !== fingerprintV01([]) ||
+    binding.expected_tool_set.length !== 0 ||
+    binding.allowed_environment_key_fingerprint !==
+      fingerprintV01(CODEX_ALLOWED_ENVIRONMENT_KEYS_V01) ||
+    binding.forbidden_environment_key_fingerprint !==
+      fingerprintV01(CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01) ||
+    binding.future_live_execution_ready !== false ||
+    binding.maximum_resume_count_per_attempt !== 0 ||
+    binding.maximum_resume_count_per_cohort !== 0 ||
+    binding.same_run_resume_policy !==
+      "unsupported_terminal_nonreplaceable_stop" ||
+    binding.approval_policy !== "terminal_on_any_request"
+  ) {
+    failV01("live_training_environment_binding_contract_invalid");
+  }
+  if (binding.account_auth_projection_ref) {
+    createCommissionedWorkRecordRefV01(binding.account_auth_projection_ref);
+    requireFingerprintV01(
+      binding.account_auth_projection_fingerprint!,
+      "live_training_environment_account_projection_invalid",
+    );
+  }
+  createCommissionedWorkRecordRefV01(binding.task_network_enforcement_ref);
+  createCommissionedWorkRecordRefV01(binding.unauthorized_effect_enforcement_ref);
+  assertSafeCommissionedLiveTrainingOutputV01(binding);
+}
+
 export function createCommissionedLiveTrainingAdapterBindingV01(
   configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
 ): CodexAppServerExactExecutionBindingV01 {
@@ -528,14 +905,15 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
   checkout_root_fingerprint: string;
   plan: CommissionedLiveTrainingCohortPlanV01;
   native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+  codex_environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
   authorization_nonce: string;
   artifact_relative_root: string;
   replacement_invocation_limit: number;
   native_host_invocation_limit: number;
   provider_bearing_native_host_invocation_limit: number;
   model_bearing_native_host_invocation_limit: number;
-  provider_call_limit: number;
-  model_call_limit: number;
+  provider_call_ceiling: CommissionedLiveTrainingAuthorizationV01["provider_call_ceiling"];
+  model_call_ceiling: CommissionedLiveTrainingAuthorizationV01["model_call_ceiling"];
   usage_unit_ceiling: CommissionedLiveTrainingAuthorizationV01["usage_unit_ceiling"];
   cost_microunit_ceiling: CommissionedLiveTrainingAuthorizationV01["cost_microunit_ceiling"];
   per_episode_timeout_ms: number;
@@ -559,12 +937,15 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
   }
   assertValidArtifactRelativeRootV01(input.artifact_relative_root, input.plan.cohort_id);
   assertValidNativeConfigurationV01(input.native_execution_configuration);
+  assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
+    input.codex_environment_binding,
+  );
   assertExactCeilingV01(input.replacement_invocation_limit, 0, 3);
   assertExactCeilingV01(input.native_host_invocation_limit, 15, 18);
   assertExactCeilingV01(input.provider_bearing_native_host_invocation_limit, 0, 18);
   assertExactCeilingV01(input.model_bearing_native_host_invocation_limit, 0, 18);
-  assertExactCeilingV01(input.provider_call_limit, 0, 1_000_000);
-  assertExactCeilingV01(input.model_call_limit, 0, 1_000_000);
+  assertOptionalCeilingV01(input.provider_call_ceiling);
+  assertOptionalCeilingV01(input.model_call_ceiling);
   if (
     input.replacement_invocation_limit !==
       COMMISSIONED_LIVE_TRAINING_REPLACEMENT_LIMIT_V01 ||
@@ -572,22 +953,22 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
   ) {
     failV01("live_training_authorization_ceiling_invalid");
   }
-  if (input.authorization_kind === "test_conformance") {
+  if (
+    input.authorization_kind === "test_conformance" ||
+    input.authorization_kind === "future_live_control_flow_conformance"
+  ) {
     if (
       input.provider_bearing_native_host_invocation_limit !== 0 ||
       input.model_bearing_native_host_invocation_limit !== 0 ||
-      input.provider_call_limit !== 0 ||
-      input.model_call_limit !== 0
+      input.codex_environment_binding.binding_class !==
+        "zero_provider_control_flow_conformance"
     ) {
       failV01("live_training_test_authorization_provider_ceiling_invalid");
     }
-  } else if (
-    input.provider_bearing_native_host_invocation_limit < COMMISSIONED_LIVE_TRAINING_PRIMARY_EPISODE_LIMIT_V01 ||
-    input.model_bearing_native_host_invocation_limit < COMMISSIONED_LIVE_TRAINING_PRIMARY_EPISODE_LIMIT_V01 ||
-    input.provider_call_limit < 1 ||
-    input.model_call_limit < 1
-  ) {
-    failV01("live_training_future_authorization_provider_ceiling_invalid");
+  } else {
+    failV01(
+      "live_training_future_execution_credential_safe_environment_unavailable",
+    );
   }
   assertOptionalCeilingV01(input.usage_unit_ceiling);
   assertOptionalCeilingV01(input.cost_microunit_ceiling);
@@ -617,8 +998,12 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
       training_case_refs: input.plan.training_case_refs,
       cohort_plan_ref: commissionedLiveTrainingRecordRefV01(input.plan),
       schedule_fingerprint: input.plan.schedule_fingerprint,
+      codex_environment_binding_ref: commissionedLiveTrainingRecordRefV01(
+        input.codex_environment_binding,
+      ),
     },
     native_execution_configuration: input.native_execution_configuration,
+    codex_environment_binding: input.codex_environment_binding,
     artifact_relative_root: input.artifact_relative_root,
     primary_episode_limit:
       COMMISSIONED_LIVE_TRAINING_PRIMARY_EPISODE_LIMIT_V01,
@@ -626,9 +1011,13 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
     native_host_invocation_limit: input.native_host_invocation_limit,
     provider_bearing_native_host_invocation_limit: input.provider_bearing_native_host_invocation_limit,
     model_bearing_native_host_invocation_limit: input.model_bearing_native_host_invocation_limit,
-    provider_call_limit: input.provider_call_limit,
-    model_call_limit: input.model_call_limit,
-    task_external_network_limit: 0 as const,
+    provider_call_ceiling: input.provider_call_ceiling,
+    model_call_ceiling: input.model_call_ceiling,
+    task_external_network_policy: {
+      limit: 0 as const,
+      enforcement_ref:
+        input.codex_environment_binding.task_network_enforcement_ref,
+    },
     usage_unit_ceiling: input.usage_unit_ceiling,
     cost_microunit_ceiling: input.cost_microunit_ceiling,
     per_episode_timeout_ms: input.per_episode_timeout_ms,
@@ -659,6 +1048,7 @@ export function assertCommissionedLiveTrainingAuthorizationCurrentV01(input: {
   checkout_root_fingerprint: string;
   evaluated_at: string;
   native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+  codex_environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
   allow_test_conformance: boolean;
 }): void {
   assertValidCommissionedLiveTrainingAuthorizationV01(
@@ -672,7 +1062,9 @@ export function assertCommissionedLiveTrainingAuthorizationCurrentV01(input: {
     input.authorization.source_binding.checkout_root_fingerprint !==
       input.checkout_root_fingerprint ||
     canonicalizeProtocolValueV01(input.authorization.native_execution_configuration) !==
-      canonicalizeProtocolValueV01(input.native_execution_configuration)
+      canonicalizeProtocolValueV01(input.native_execution_configuration) ||
+    canonicalizeProtocolValueV01(input.authorization.codex_environment_binding) !==
+      canonicalizeProtocolValueV01(input.codex_environment_binding)
   ) {
     failV01("live_training_authorization_source_or_runtime_drift");
   }
@@ -683,7 +1075,10 @@ export function assertCommissionedLiveTrainingAuthorizationCurrentV01(input: {
     failV01("live_training_authorization_expired");
   }
   if (
-    input.authorization.authorization_kind === "test_conformance" &&
+    [
+      "test_conformance",
+      "future_live_control_flow_conformance",
+    ].includes(input.authorization.authorization_kind) &&
     !input.allow_test_conformance
   ) {
     failV01("live_training_test_authorization_not_live_authority");
@@ -718,6 +1113,18 @@ export function assertValidCommissionedLiveTrainingAuthorizationV01(
   ) {
     failV01("live_training_authorization_source_or_runtime_drift");
   }
+  if (
+    canonicalizeProtocolValueV01(
+      authorization.source_binding.codex_environment_binding_ref,
+    ) !==
+      canonicalizeProtocolValueV01(
+        commissionedLiveTrainingRecordRefV01(
+          authorization.codex_environment_binding,
+        ),
+      )
+  ) {
+    failV01("live_training_authorization_environment_binding_invalid");
+  }
   assertSafeCommissionedLiveTrainingOutputV01(authorization);
 }
 
@@ -728,11 +1135,12 @@ function assertValidAuthorizationShapeV01(
   assertExactObjectKeysV01(authorization, [
     "authorization_version", "authorization_id", "authorization_kind",
     "issue_ref", "issued_at", "expires_at", "source_binding",
-    "native_execution_configuration", "artifact_relative_root",
+    "native_execution_configuration", "codex_environment_binding",
+    "artifact_relative_root",
     "primary_episode_limit", "replacement_invocation_limit",
     "native_host_invocation_limit", "provider_bearing_native_host_invocation_limit",
-    "model_bearing_native_host_invocation_limit", "provider_call_limit",
-    "model_call_limit", "task_external_network_limit", "usage_unit_ceiling",
+    "model_bearing_native_host_invocation_limit", "provider_call_ceiling",
+    "model_call_ceiling", "task_external_network_policy", "usage_unit_ceiling",
     "cost_microunit_ceiling", "per_episode_timeout_ms",
     "total_cohort_timeout_ms", "replacement_policy_fingerprint",
     "stop_condition_fingerprint", "execution_evidence_class",
@@ -742,6 +1150,7 @@ function assertValidAuthorizationShapeV01(
   assertExactObjectKeysV01(authorization.source_binding, [
     "repository_id", "main_sha", "main_tree", "checkout_root_fingerprint", "family_ref",
     "training_case_refs", "cohort_plan_ref", "schedule_fingerprint",
+    "codex_environment_binding_ref",
   ], "live_training_authorization_source_schema_invalid");
   assertExactObjectKeysV01(authorization.authority_summary, [
     "authority_kind", "authorizes_real_provider_calls",
@@ -795,10 +1204,22 @@ function assertValidAuthorizationShapeV01(
   assertValidNativeConfigurationV01(
     authorization.native_execution_configuration,
   );
+  assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
+    authorization.codex_environment_binding,
+  );
+  createCommissionedWorkRecordRefV01(
+    authorization.source_binding.codex_environment_binding_ref,
+  );
   assertOptionalCeilingV01(authorization.usage_unit_ceiling);
   assertOptionalCeilingV01(authorization.cost_microunit_ceiling);
+  assertOptionalCeilingV01(authorization.provider_call_ceiling);
+  assertOptionalCeilingV01(authorization.model_call_ceiling);
   if (
-    !["test_conformance", "future_live_execution"].includes(
+    ![
+      "test_conformance",
+      "future_live_control_flow_conformance",
+      "future_live_execution",
+    ].includes(
       authorization.authorization_kind,
     ) ||
     Date.parse(authorization.expires_at) <= Date.parse(authorization.issued_at) ||
@@ -815,23 +1236,19 @@ function assertValidAuthorizationShapeV01(
     authorization.model_bearing_native_host_invocation_limit < 0 ||
     authorization.provider_bearing_native_host_invocation_limit > MAX_NATIVE_INVOCATIONS_V01 ||
     authorization.model_bearing_native_host_invocation_limit > MAX_NATIVE_INVOCATIONS_V01 ||
-    !Number.isInteger(authorization.provider_call_limit) ||
-    !Number.isInteger(authorization.model_call_limit) ||
-    authorization.provider_call_limit < 0 ||
-    authorization.model_call_limit < 0 ||
-    authorization.provider_call_limit > 1_000_000 ||
-    authorization.model_call_limit > 1_000_000 ||
-    (authorization.authorization_kind === "test_conformance" &&
+    (["test_conformance", "future_live_control_flow_conformance"].includes(
+      authorization.authorization_kind) &&
       (authorization.provider_bearing_native_host_invocation_limit !== 0 ||
         authorization.model_bearing_native_host_invocation_limit !== 0 ||
-        authorization.provider_call_limit !== 0 ||
-        authorization.model_call_limit !== 0)) ||
-    (authorization.authorization_kind === "future_live_execution" &&
-      (authorization.provider_bearing_native_host_invocation_limit < 15 ||
-        authorization.model_bearing_native_host_invocation_limit < 15 ||
-        authorization.provider_call_limit < 1 ||
-        authorization.model_call_limit < 1)) ||
-    authorization.task_external_network_limit !== 0 ||
+        authorization.codex_environment_binding.binding_class !==
+          "zero_provider_control_flow_conformance")) ||
+    authorization.authorization_kind === "future_live_execution" ||
+    authorization.task_external_network_policy.limit !== 0 ||
+    canonicalizeProtocolValueV01(
+      authorization.task_external_network_policy.enforcement_ref,
+    ) !== canonicalizeProtocolValueV01(
+      authorization.codex_environment_binding.task_network_enforcement_ref,
+    ) ||
     !Number.isInteger(authorization.per_episode_timeout_ms) ||
     authorization.per_episode_timeout_ms < 1_000 ||
     authorization.per_episode_timeout_ms > MAX_TIMEOUT_MS_V01 ||
@@ -883,12 +1300,13 @@ export function assertCommissionedLiveTrainingInvocationGateV01(input: {
   native_host_invocations_started: number;
   provider_bearing_invocations_reserved: number;
   model_bearing_invocations_reserved: number;
-  task_external_network_calls_observed: number;
+  task_external_network_observation: CommissionedLiveTrainingSourcedResourceLaneV01;
   evaluated_at: string;
   current_main_sha: string;
   current_main_tree: string;
   checkout_root_fingerprint: string;
   native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+  codex_environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
   authorization_consumed: boolean;
   provider_or_model_call_possible: boolean;
 }): void {
@@ -900,6 +1318,7 @@ export function assertCommissionedLiveTrainingInvocationGateV01(input: {
     checkout_root_fingerprint: input.checkout_root_fingerprint,
     evaluated_at: input.evaluated_at,
     native_execution_configuration: input.native_execution_configuration,
+    codex_environment_binding: input.codex_environment_binding,
     allow_test_conformance: true,
   });
   if (!input.authorization_consumed) {
@@ -912,11 +1331,23 @@ export function assertCommissionedLiveTrainingInvocationGateV01(input: {
     input.native_host_invocations_started,
     input.provider_bearing_invocations_reserved,
     input.model_bearing_invocations_reserved,
-    input.task_external_network_calls_observed,
   ]) {
     if (!Number.isInteger(count) || count < 0) {
       failV01("live_training_observed_resource_count_invalid");
     }
+  }
+  assertSourcedResourceLaneV01(input.task_external_network_observation);
+  if (input.task_external_network_observation.provenance === "unknown") {
+    failV01("live_training_task_network_coverage_unknown");
+  }
+  if (
+    canonicalizeProtocolValueV01(
+      input.task_external_network_observation.source_ref,
+    ) !== canonicalizeProtocolValueV01(
+      input.authorization.task_external_network_policy.enforcement_ref,
+    )
+  ) {
+    failV01("live_training_task_network_enforcement_source_invalid");
   }
   if (
     input.native_host_invocations_started >=
@@ -930,7 +1361,7 @@ export function assertCommissionedLiveTrainingInvocationGateV01(input: {
         input.authorization.provider_bearing_native_host_invocation_limit ||
         input.native_host_invocations_started >=
           input.authorization.model_bearing_native_host_invocation_limit)) ||
-    input.task_external_network_calls_observed !== 0
+    input.task_external_network_observation.value !== 0
   ) {
     failV01("live_training_authorization_ceiling_reached");
   }
@@ -939,33 +1370,34 @@ export function assertCommissionedLiveTrainingInvocationGateV01(input: {
 export function assertCommissionedLiveTrainingResourceCeilingsV01(input: {
   authorization: CommissionedLiveTrainingAuthorizationV01;
   native_host_invocations_started: number;
-  provider_calls: number | null;
-  model_calls: number | null;
-  token_units: number | null;
-  cost_microunits: number | null;
+  provider_calls: CommissionedLiveTrainingSourcedResourceLaneV01;
+  model_calls: CommissionedLiveTrainingSourcedResourceLaneV01;
+  token_units: CommissionedLiveTrainingSourcedResourceLaneV01;
+  cost_microunits: CommissionedLiveTrainingSourcedResourceLaneV01;
   elapsed_ms: number;
-  provider_observation_ref: CommissionedWorkRecordRefV01 | null;
-  model_observation_ref: CommissionedWorkRecordRefV01 | null;
-  token_observation_ref: CommissionedWorkRecordRefV01 | null;
-  cost_observation_ref: CommissionedWorkRecordRefV01 | null;
 }): void {
-  const observed = [
-    [input.provider_calls, input.provider_observation_ref],
-    [input.model_calls, input.model_observation_ref],
-    [input.token_units, input.token_observation_ref],
-    [input.cost_microunits, input.cost_observation_ref],
-  ] as const;
-  for (const [value, ref] of observed) {
-    if ((value === null) !== (ref === null)) {
-      failV01("live_training_resource_observation_source_invalid");
-    }
-    if (value !== null) {
-      if (!Number.isInteger(value) || value < 0) {
-        failV01("live_training_resource_observation_invalid");
-      }
-      createCommissionedWorkRecordRefV01(ref!);
-    }
-  }
+  for (const lane of [
+    input.provider_calls,
+    input.model_calls,
+    input.token_units,
+    input.cost_microunits,
+  ]) assertSourcedResourceLaneV01(lane);
+  assertObservedOptionalCeilingV01(
+    input.provider_calls,
+    input.authorization.provider_call_ceiling,
+  );
+  assertObservedOptionalCeilingV01(
+    input.model_calls,
+    input.authorization.model_call_ceiling,
+  );
+  assertObservedOptionalCeilingV01(
+    input.token_units,
+    input.authorization.usage_unit_ceiling,
+  );
+  assertObservedOptionalCeilingV01(
+    input.cost_microunits,
+    input.authorization.cost_microunit_ceiling,
+  );
   if (
     !Number.isInteger(input.native_host_invocations_started) ||
     input.native_host_invocations_started < 0 ||
@@ -973,17 +1405,6 @@ export function assertCommissionedLiveTrainingResourceCeilingsV01(input: {
     input.elapsed_ms < 0 ||
     input.native_host_invocations_started >
       input.authorization.native_host_invocation_limit ||
-    (input.provider_calls !== null &&
-      input.provider_calls > input.authorization.provider_call_limit) ||
-    (input.model_calls !== null &&
-      input.model_calls > input.authorization.model_call_limit) ||
-    (input.token_units !== null &&
-      (input.authorization.usage_unit_ceiling.observability !== "observed" ||
-        input.token_units > input.authorization.usage_unit_ceiling.limit)) ||
-    (input.cost_microunits !== null &&
-      (input.authorization.cost_microunit_ceiling.observability !== "observed" ||
-        input.cost_microunits >
-          input.authorization.cost_microunit_ceiling.limit)) ||
     input.elapsed_ms > input.authorization.total_cohort_timeout_ms
   ) {
     failV01("live_training_authorization_resource_or_time_ceiling_exceeded");
@@ -1373,6 +1794,8 @@ export function buildCommissionedLiveTrainingAttemptStartV01(input: Omit<
     input.request_ref_fingerprint,
     input.run_ref_fingerprint,
     input.native_execution_configuration_fingerprint,
+    input.codex_environment_binding_fingerprint,
+    input.attempt_state_root_fingerprint,
     input.adapter_execution_binding_fingerprint,
   ]) {
     requireFingerprintV01(fingerprint, "live_training_attempt_start_binding_invalid");
@@ -1385,6 +1808,167 @@ export function buildCommissionedLiveTrainingAttemptStartV01(input: Omit<
       persisted_before_native_host_invocation: true as const,
     },
     "commissioned_live_training_attempt_start_without_integrity_fingerprint",
+  );
+}
+
+export function buildCommissionedLiveTrainingIsolationObservationV01(input: {
+  observation_id: string;
+  attempt_id: string;
+  environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
+  attempt_state_root_fingerprint: string;
+  home_identity_fingerprint: string;
+  codex_home_identity_fingerprint: string;
+  codex_sqlite_home_identity_fingerprint: string;
+  distinct_from_prior_attempt_state_roots: true;
+  state_root_created_empty: true;
+  shared_codex_home_fallback_used: false;
+  predecessor_history_present: false;
+  sibling_history_present: false;
+  foreign_instruction_or_config_present: false;
+  account_projection_status: CommissionedLiveTrainingIsolationObservationV01["account_projection_status"];
+  account_projection_fingerprint: string | null;
+  codex_configuration_status: CommissionedLiveTrainingIsolationObservationV01["codex_configuration_status"];
+  codex_configuration_fingerprint: string | null;
+  tool_policy_status: CommissionedLiveTrainingIsolationObservationV01["tool_policy_status"];
+  tool_policy_fingerprint: string | null;
+}): CommissionedLiveTrainingIsolationObservationV01 {
+  requireSafeCodeV01(input.observation_id, "live_training_isolation_observation_id_invalid");
+  requireSafeCodeV01(input.attempt_id, "live_training_attempt_id_invalid");
+  assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
+    input.environment_binding,
+  );
+  for (const fingerprint of [
+    input.attempt_state_root_fingerprint,
+    input.home_identity_fingerprint,
+    input.codex_home_identity_fingerprint,
+    input.codex_sqlite_home_identity_fingerprint,
+  ]) requireFingerprintV01(fingerprint, "live_training_isolation_identity_invalid");
+  if (
+    new Set([
+      input.home_identity_fingerprint,
+      input.codex_home_identity_fingerprint,
+      input.codex_sqlite_home_identity_fingerprint,
+    ]).size !== 3
+  ) {
+    failV01("live_training_isolation_state_identity_reused");
+  }
+  const observed = input.account_projection_status === "observed_exact";
+  if (
+    observed !== (input.account_projection_fingerprint !== null) ||
+    observed !== (input.codex_configuration_fingerprint !== null) ||
+    observed !== (input.tool_policy_fingerprint !== null) ||
+    input.codex_configuration_status !==
+      (observed ? "observed_exact" : "not_observed_pre_spawn_failure") ||
+    input.tool_policy_status !==
+      (observed ? "observed_exact" : "not_observed_pre_spawn_failure") ||
+    (observed &&
+      (input.account_projection_fingerprint !==
+          input.environment_binding.account_auth_projection_fingerprint ||
+        input.codex_configuration_fingerprint !==
+          input.environment_binding.codex_configuration_fingerprint ||
+        input.tool_policy_fingerprint !==
+          input.environment_binding.mcp_tool_web_policy_fingerprint))
+  ) {
+    failV01("live_training_isolation_observation_source_invalid");
+  }
+  const observation = sealV01(
+    {
+      observation_version:
+        COMMISSIONED_LIVE_TRAINING_ISOLATION_OBSERVATION_VERSION_V01,
+      observation_id: input.observation_id,
+      attempt_id: input.attempt_id,
+      environment_binding_ref: commissionedLiveTrainingRecordRefV01(
+        input.environment_binding,
+      ),
+      attempt_state_root_fingerprint: input.attempt_state_root_fingerprint,
+      home_identity_fingerprint: input.home_identity_fingerprint,
+      codex_home_identity_fingerprint: input.codex_home_identity_fingerprint,
+      codex_sqlite_home_identity_fingerprint:
+        input.codex_sqlite_home_identity_fingerprint,
+      distinct_from_prior_attempt_state_roots: true as const,
+      state_root_created_empty: true as const,
+      shared_codex_home_fallback_used: false as const,
+      predecessor_history_present: false as const,
+      sibling_history_present: false as const,
+      foreign_instruction_or_config_present: false as const,
+      account_projection_status: input.account_projection_status,
+      account_projection_fingerprint: input.account_projection_fingerprint,
+      codex_configuration_status: input.codex_configuration_status,
+      codex_configuration_fingerprint: input.codex_configuration_fingerprint,
+      tool_policy_status: input.tool_policy_status,
+      tool_policy_fingerprint: input.tool_policy_fingerprint,
+      fresh_thread_ephemeral: true as const,
+      same_run_resume: false as const,
+      transcript_inheritance_observed_absent: true as const,
+      hidden_reasoning_inheritance_observed_absent: true as const,
+      cleanup_required: true as const,
+      raw_auth_config_or_history_persisted: false as const,
+    },
+    "commissioned_live_training_isolation_observation_without_integrity_fingerprint",
+  );
+  assertSafeCommissionedLiveTrainingOutputV01(observation);
+  return observation;
+}
+
+export function buildCommissionedLiveTrainingApprovalObservationV01(input: {
+  observation_id: string;
+  approval_request_fingerprint: string;
+  operation_class: string;
+  repository_relative_path_count: number;
+  network_resource_count: number;
+  outside_root: boolean;
+  github_or_publication: boolean;
+  package_or_download: boolean;
+  credential_or_semantic: boolean;
+  available_decisions: readonly string[];
+}): CommissionedLiveTrainingApprovalObservationV01 {
+  requireSafeCodeV01(input.observation_id, "live_training_approval_observation_id_invalid");
+  requireFingerprintV01(
+    input.approval_request_fingerprint,
+    "live_training_approval_request_fingerprint_invalid",
+  );
+  requireSafeCodeV01(input.operation_class, "live_training_approval_operation_invalid");
+  for (const count of [
+    input.repository_relative_path_count,
+    input.network_resource_count,
+  ]) {
+    if (!Number.isInteger(count) || count < 0 || count > 64) {
+      failV01("live_training_approval_request_bound_invalid");
+    }
+  }
+  const classification = input.network_resource_count > 0
+    ? "network_request"
+    : input.outside_root
+      ? "outside_root_request"
+      : input.github_or_publication
+        ? "github_or_publication_request"
+        : input.package_or_download
+          ? "package_or_download_request"
+          : input.credential_or_semantic
+            ? "credential_or_semantic_request"
+            : input.repository_relative_path_count > 0
+              ? "in_root_operation_request"
+              : "unclassified_request";
+  const decision = input.available_decisions.includes("cancel_run")
+    ? "cancel_run"
+    : input.available_decisions.includes("decline")
+      ? "decline"
+      : null;
+  if (!decision) failV01("live_training_approval_terminal_decision_unavailable");
+  return sealV01(
+    {
+      observation_version:
+        COMMISSIONED_LIVE_TRAINING_APPROVAL_OBSERVATION_VERSION_V01,
+      observation_id: input.observation_id,
+      approval_request_fingerprint: input.approval_request_fingerprint,
+      operation_class: input.operation_class,
+      classification,
+      decision,
+      terminal_cohort_stop: true as const,
+      approval_granted: false as const,
+      raw_command_or_resource_persisted: false as const,
+    },
+    "commissioned_live_training_approval_observation_without_integrity_fingerprint",
   );
 }
 
@@ -1422,12 +2006,34 @@ export function buildCommissionedLiveTrainingAttemptAdmissionV01(input: Omit<
     input.request_ref_fingerprint,
     input.host_context_fingerprint,
     input.native_execution_configuration_fingerprint,
+    input.codex_environment_binding_fingerprint,
     input.adapter_execution_binding_fingerprint,
     input.native_host_result_fingerprint,
     input.clone_identity_fingerprint,
   ]) {
     requireFingerprintV01(fingerprint, "live_training_attempt_binding_invalid");
   }
+  validateIntegrityV01(
+    input.isolation_observation,
+    "commissioned_live_training_isolation_observation_without_integrity_fingerprint",
+    "live_training_isolation_observation_integrity_invalid",
+  );
+  if (
+    input.isolation_observation.attempt_id !== input.attempt_id ||
+    input.isolation_observation.environment_binding_ref.record_fingerprint !==
+      input.codex_environment_binding_fingerprint ||
+    input.isolation_observation.transcript_inheritance_observed_absent !== true ||
+    input.isolation_observation.hidden_reasoning_inheritance_observed_absent !== true ||
+    input.isolation_observation.shared_codex_home_fallback_used !== false
+  ) {
+    failV01("live_training_attempt_isolation_binding_invalid");
+  }
+  input.approval_observations.forEach((observation) =>
+    validateIntegrityV01(
+      observation,
+      "commissioned_live_training_approval_observation_without_integrity_fingerprint",
+      "live_training_approval_observation_integrity_invalid",
+    ));
   assertCommissionedLiveTrainingHostRefSetV01(
     input.host_ref_set,
     input.host_context_fingerprint,
@@ -1679,6 +2285,190 @@ export function buildCommissionedLiveTrainingAttemptRegistryV01(input: {
   );
 }
 
+export function evaluateCommissionedLiveTrainingComponentRuleV01(input: {
+  rule: CommissionedLiveTrainingComponentAnalysisRuleV01;
+  episodes: CommissionedWorkEpisodeArtifactV01[];
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  analysis_joins: CommissionedLiveTrainingAnalysisJoinV01[];
+}): CommissionedLiveTrainingCandidateComponentAssessmentV01 {
+  const sealedRule = COMPONENT_ANALYSIS_RULES_V01.find(
+    (candidate) => candidate.component_id === input.rule.component_id,
+  );
+  if (
+    !sealedRule ||
+    canonicalizeProtocolValueV01(input.rule) !==
+      canonicalizeProtocolValueV01(sealedRule)
+  ) {
+    failV01("live_training_candidate_component_rule_not_preregistered");
+  }
+  const successorEpisodes = input.episodes.filter(
+    (episode) =>
+      episode.episode_role === "successor" &&
+      episode.execution_binding.execution_evidence_class ===
+        "commissioned_agent_observation",
+  );
+  const joinBySlot = new Map(
+    input.analysis_joins.map((join) => [join.slot_id, join] as const),
+  );
+  const supportEpisodes: CommissionedWorkEpisodeArtifactV01[] = [];
+  const counterexamples: CommissionedWorkEpisodeArtifactV01[] = [];
+  const harmful: CommissionedWorkEpisodeArtifactV01[] = [];
+  const originGroups = new Set<string>();
+  const relevantHardFailures = new Set<string>();
+  let unequalCommonEvidence = false;
+  for (const caseId of COMMISSIONED_LIVE_TRAINING_CASE_IDS_V01) {
+    const caseEpisodes = successorEpisodes.filter(
+      (episode) => episode.case_id === caseId,
+    );
+    const joinedEpisodes = caseEpisodes.filter((episode) => {
+      const slot = input.plan.slots.find(
+        (candidate) =>
+          candidate.case_id === caseId &&
+          candidate.condition === episode.condition,
+      );
+      const join = slot ? joinBySlot.get(slot.slot_id) : undefined;
+      return Boolean(
+        slot && join && join.condition === episode.condition &&
+          join.observation_mutated === false,
+      );
+    });
+    const comparable = joinedEpisodes.filter(
+      (episode) =>
+        episode.condition !== null &&
+        input.rule.comparable_conditions.includes(episode.condition),
+    );
+    if (new Set(comparable.map((episode) => episode.common_evidence_fingerprint)).size > 1) {
+      unequalCommonEvidence = true;
+      continue;
+    }
+    const target = comparable.find(
+      (episode) => episode.condition === "exact_current_continuity",
+    );
+    const comparators = comparable.filter(
+      (episode) => episode.condition !== "exact_current_continuity",
+    );
+    if (!target || comparators.length === 0) continue;
+    const targetHardFailures = target.evaluation.hard_failures.filter((code) =>
+      input.rule.contradictory_hard_failure_codes.includes(code));
+    if (targetHardFailures.length > 0) {
+      counterexamples.push(target);
+      targetHardFailures.forEach((code) => relevantHardFailures.add(code));
+    }
+    if (target.evaluation.harmful_transfer === "observed") {
+      harmful.push(target);
+    }
+    const patternComparators = comparators.filter((comparator) => {
+      switch (input.rule.component_id) {
+        case "reobserve_current_source_before_action":
+          return (
+            target.evaluation.deterministic_repository_task_success &&
+            target.evaluation.source_currentness_failure === false &&
+            (comparator.evaluation.source_currentness_failure === true ||
+              comparator.evaluation.hard_failures.includes(
+                "source_currentness_mismatch",
+              ))
+          );
+        case "preserve_negative_status_without_new_support":
+          return (
+            target.evaluation.negative_space_status === "preserved" &&
+            comparator.evaluation.negative_space_status === "revived"
+          );
+        case "separate_execution_completion_from_verified_success":
+          return (
+            target.evaluation.deterministic_repository_task_success &&
+            target.evaluation.verification_completeness === "complete" &&
+            (comparator.evaluation.verification_completeness === "incomplete" ||
+              comparator.evaluation.hard_failures.some((code) =>
+                input.rule.contradictory_hard_failure_codes.includes(code)))
+          );
+      }
+    });
+    if (patternComparators.length > 0) {
+      supportEpisodes.push(target, ...patternComparators);
+      originGroups.add(target.independent_origin_group_id);
+    }
+  }
+  const uniqueSupport = uniqueEpisodeRefsV01(supportEpisodes);
+  const uniqueCounterexamples = uniqueEpisodeRefsV01(counterexamples);
+  const uniqueHarmful = uniqueEpisodeRefsV01(harmful);
+  const hasContradiction = relevantHardFailures.size > 0;
+  const hasHarm = uniqueHarmful.length > 0;
+  const status: CommissionedLiveTrainingCandidateComponentStatusV01 =
+    hasContradiction || hasHarm
+      ? "not_eligible"
+      : originGroups.size >= 2
+        ? "mechanically_eligible_for_holdout"
+        : "incomplete";
+  const missingEvidenceCodes = [
+    "live_executor_reference_not_established",
+    "live_executor_use_not_established",
+    "support_relation_not_validated",
+    "outcome_association_not_established",
+    "held_out_transfer_not_tested",
+    ...(originGroups.size < 2 ? [input.rule.missing_evidence_code] : []),
+    ...(unequalCommonEvidence ? ["common_evidence_not_equal"] : []),
+  ].sort(compareProtocolCodeUnitsV01);
+  return {
+    component_id: input.rule.component_id,
+    component_ref: createCommissionedWorkRecordRefV01({
+      record_version: "commissioned_live_training_component.v0.1",
+      record_id: input.rule.component_id,
+      record_fingerprint: fingerprintV01({ component_id: input.rule.component_id }),
+    }),
+    status,
+    independent_origin_count: originGroups.size,
+    objective_condition_sensitive_pattern_observed: originGroups.size > 0,
+    objective_supporting_episode_refs: uniqueSupport,
+    objective_supporting_evaluation_refs: uniqueRecordRefsV01(
+      supportEpisodes.map((episode) => episode.objective_observation_ref),
+    ),
+    opposing_or_counterexample_refs: uniqueCounterexamples,
+    relevant_hard_failures: [...relevantHardFailures].sort(
+      compareProtocolCodeUnitsV01,
+    ),
+    harmful_transfer_observation_refs: uniqueHarmful,
+    strongest_simpler_comparator: input.rule.strongest_simpler_comparator,
+    missing_evidence_codes: missingEvidenceCodes,
+    falsifier_codes: [...input.rule.falsifier_codes].sort(compareProtocolCodeUnitsV01),
+    uncertainty_codes: [...new Set([
+      ...input.rule.uncertainty_codes,
+      "episode_outcomes_do_not_establish_material_use_or_causal_support",
+    ])].sort(compareProtocolCodeUnitsV01),
+    actual_reference_status: "unknown",
+    actual_use_status: "unknown",
+    support_validated_status: "unknown",
+    outcome_associated_status: "unknown",
+    evidence_authority: {
+      evidence_supported_procedural_knowledge: false,
+      independently_learned: false,
+      validated_for_transfer: false,
+      active_context_created: false,
+      policy_created: false,
+    },
+  };
+}
+
+function uniqueEpisodeRefsV01(
+  episodes: readonly CommissionedWorkEpisodeArtifactV01[],
+): CommissionedWorkRecordRefV01[] {
+  return uniqueRecordRefsV01(
+    episodes.map((episode) => createCommissionedWorkRecordRefV01({
+      record_version: episode.episode_version,
+      record_id: episode.episode_id,
+      record_fingerprint: episode.integrity.fingerprint,
+    })),
+  );
+}
+
+function uniqueRecordRefsV01(
+  refs: readonly CommissionedWorkRecordRefV01[],
+): CommissionedWorkRecordRefV01[] {
+  const byFingerprint = new Map(
+    refs.map((ref) => [ref.record_fingerprint, ref] as const),
+  );
+  return [...byFingerprint.values()].sort(compareRefsV01);
+}
+
 export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
   assessment_id: string;
   family_manifest: CommissionedWorkFamilyManifestV01;
@@ -1687,6 +2477,7 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
   training_result: CommissionedWorkTrainingResultV01;
   episodes: CommissionedWorkEpisodeArtifactV01[];
   blind_observations: CommissionedLiveTrainingBlindObjectiveObservationV01[];
+  analysis_joins: CommissionedLiveTrainingAnalysisJoinV01[];
   attempt_registry: CommissionedLiveTrainingAttemptRegistryV01;
   assessor_role_id: string;
 }): CommissionedLiveTrainingCandidateAssessmentV01 {
@@ -1725,6 +2516,12 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
       failV01("live_training_candidate_blind_observation_case_binding_invalid");
     }
   });
+  input.analysis_joins.forEach((join) =>
+    validateIntegrityV01(
+      join,
+      "commissioned_live_training_analysis_join_without_integrity_fingerprint",
+      "live_training_candidate_analysis_join_integrity_invalid",
+    ));
   validateIntegrityV01(
     input.attempt_registry,
     "commissioned_live_training_attempt_registry_without_integrity_fingerprint",
@@ -1746,6 +2543,7 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
     input.training_result.successor_episodes.length !== 12 ||
     input.episodes.length !== 15 ||
     input.blind_observations.length !== 15 ||
+    input.analysis_joins.length !== 12 ||
     input.attempt_registry.every_primary_slot_resolved_exactly_once !== true ||
     input.episodes.some((episode) =>
       [
@@ -1770,6 +2568,12 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
       observation.observation.integrity.fingerprint,
     ),
   );
+  const blindBySlot = new Map(
+    input.blind_observations.map((observation) => [
+      observation.slot_id,
+      observation,
+    ] as const),
+  );
   if (
     new Set(input.blind_observations.map((observation) => observation.slot_id)).size !== 15 ||
     input.plan.slots.some((slot) => {
@@ -1784,58 +2588,29 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
     input.blind_observations.some(
       (observation) =>
         !exactObservationRefs.has(observation.observation_ref.record_fingerprint),
-    )
+    ) ||
+    new Set(input.analysis_joins.map((join) => join.slot_id)).size !== 12 ||
+    input.analysis_joins.some((join) => {
+      const slot = input.plan.slots.find((candidate) => candidate.slot_id === join.slot_id);
+      const blind = blindBySlot.get(join.slot_id);
+      return !slot || !blind || slot.condition === null ||
+        join.condition !== slot.condition ||
+        join.sealed_observation_fingerprint !==
+          blind.observation.integrity.fingerprint ||
+        join.blind_observation_ref.record_fingerprint !== blind.integrity.fingerprint ||
+        join.observation_mutated !== false ||
+        join.joined_after_observation_seal !== true;
+    })
   ) {
     failV01("live_training_candidate_assessment_source_binding_invalid");
   }
-  const components = COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01.map(
-    (componentId): CommissionedLiveTrainingCandidateComponentAssessmentV01 => ({
-      component_id: componentId,
-      component_ref: createCommissionedWorkRecordRefV01({
-        record_version: "commissioned_live_training_component.v0.1",
-        record_id: componentId,
-        record_fingerprint: fingerprintV01({ component_id: componentId }),
-      }),
-      status: "incomplete",
-      independent_origin_count: 0,
-      objective_condition_sensitive_pattern_observed: false,
-      objective_supporting_episode_refs: [],
-      objective_supporting_evaluation_refs: [],
-      opposing_or_counterexample_refs: [],
-      relevant_hard_failures: [],
-      harmful_transfer_observation_refs: [],
-      strongest_simpler_comparator:
-        "equal_common_evidence_without_candidate_component",
-      missing_evidence_codes: [
-        "live_executor_reference_not_established",
-        "live_executor_use_not_established",
-        "support_relation_not_validated",
-        "outcome_association_not_established",
-        "condition_sensitive_pattern_not_source_validated",
-        "held_out_transfer_not_tested",
-      ],
-      falsifier_codes: [
-        "contradictory_objective_hard_failure",
-        "harmful_transfer_observed",
-        "common_evidence_not_equal",
-        "support_depends_on_infrastructure_invalid_attempt",
-      ],
-      uncertainty_codes: [
-        "episode_outcomes_do_not_establish_material_use_or_causal_support",
-      ],
-      actual_reference_status: "unknown",
-      actual_use_status: "unknown",
-      support_validated_status: "unknown",
-      outcome_associated_status: "unknown",
-      evidence_authority: {
-        evidence_supported_procedural_knowledge: false,
-        independently_learned: false,
-        validated_for_transfer: false,
-        active_context_created: false,
-        policy_created: false,
-      },
-    }),
-  ) as CommissionedLiveTrainingCandidateAssessmentV01["components"];
+  const components = COMPONENT_ANALYSIS_RULES_V01.map((rule) =>
+    evaluateCommissionedLiveTrainingComponentRuleV01({
+      rule: structuredClone(rule) as CommissionedLiveTrainingComponentAnalysisRuleV01,
+      episodes: input.episodes,
+      plan: input.plan,
+      analysis_joins: input.analysis_joins,
+    })) as CommissionedLiveTrainingCandidateAssessmentV01["components"];
   const withoutIntegrity = {
     assessment_version:
       COMMISSIONED_LIVE_TRAINING_CANDIDATE_ASSESSMENT_VERSION_V01,
@@ -1860,12 +2635,20 @@ export function buildCommissionedLiveTrainingCandidateAssessmentV01(input: {
     source_blind_observation_refs: input.blind_observations
       .map(commissionedLiveTrainingRecordRefV01)
       .sort(compareRefsV01),
+    source_analysis_join_refs: input.analysis_joins
+      .map(commissionedLiveTrainingRecordRefV01)
+      .sort(compareRefsV01),
     assessor_role_ref: createCommissionedWorkRoleRefV01(
       "consolidation_assessor",
       input.assessor_role_id,
     ),
     eligibility_rule_version:
       "commissioned_live_training_mechanical_eligibility_rule.v0.1" as const,
+    component_rule_table_version:
+      COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01,
+    component_rule_table_fingerprint: fingerprintV01(
+      COMPONENT_ANALYSIS_RULES_V01,
+    ),
     minimum_independent_origin_groups: 2 as const,
     objective_condition_sensitive_pattern_required: true as const,
     contradictory_hard_failure_allowed: false as const,
@@ -1899,7 +2682,6 @@ export function buildCommissionedLiveTrainingCleanupReportV01(input: Omit<
     input.owned_runtime_roots_remaining,
     input.owned_temporary_roots_remaining,
     input.stale_artifact_temporaries_remaining,
-    input.task_external_network_attempts,
   ]) {
     if (!Number.isInteger(value) || value < 0) {
       failV01("live_training_cleanup_count_invalid");
@@ -1912,7 +2694,6 @@ export function buildCommissionedLiveTrainingCleanupReportV01(input: Omit<
     input.owned_runtime_roots_remaining,
     input.owned_temporary_roots_remaining,
     input.stale_artifact_temporaries_remaining,
-    input.task_external_network_attempts,
   ].every((value) => value === 0);
   validateIntegrityV01(
     input.cleanup_observation,
@@ -1925,8 +2706,11 @@ export function buildCommissionedLiveTrainingCleanupReportV01(input: Omit<
   if (
     canonicalizeProtocolValueV01(input.cleanup_observation_ref) !==
       canonicalizeProtocolValueV01(observationRef) ||
-    input.cleanup_observation.task_external_network_attempts !==
-      input.task_external_network_attempts ||
+    canonicalizeProtocolValueV01(
+      input.cleanup_observation.task_external_network_observation,
+    ) !== canonicalizeProtocolValueV01(
+      input.task_external_network_observation,
+    ) ||
     input.cleanup_observation.every_started_adapter_invocation_settled !==
       (input.owned_processes_remaining === 0) ||
     (input.cleanup_observation.listener_owner_kind ===
@@ -1946,14 +2730,9 @@ export function buildCommissionedLiveTrainingCleanupReportV01(input: Omit<
   if (input.completed !== zeroResidue) {
     failV01("live_training_cleanup_completion_invalid");
   }
-  if (
-    (input.provider_calls_observed.provenance === "unknown" &&
-      input.provider_calls_observed.value !== null) ||
-    (input.model_calls_observed.provenance === "unknown" &&
-      input.model_calls_observed.value !== null)
-  ) {
-    failV01("live_training_resource_unknown_zero_imputation");
-  }
+  assertSourcedResourceLaneV01(input.task_external_network_observation);
+  assertSourcedResourceLaneV01(input.provider_calls_observed);
+  assertSourcedResourceLaneV01(input.model_calls_observed);
   return sealV01(
     {
       cleanup_version: COMMISSIONED_LIVE_TRAINING_CLEANUP_VERSION_V01,
@@ -1973,8 +2752,6 @@ export function buildCommissionedLiveTrainingCleanupObservationV01(input: Omit<
   if (
     !Number.isInteger(input.native_host_invocations_started) ||
     input.native_host_invocations_started < 0 ||
-    !Number.isInteger(input.task_external_network_attempts) ||
-    input.task_external_network_attempts < 0 ||
     input.exact_adapter_settlement_fingerprints.length >
       input.native_host_invocations_started ||
     new Set(input.exact_adapter_settlement_fingerprints).size !==
@@ -1982,6 +2759,7 @@ export function buildCommissionedLiveTrainingCleanupObservationV01(input: Omit<
   ) {
     failV01("live_training_cleanup_observation_count_invalid");
   }
+  assertSourcedResourceLaneV01(input.task_external_network_observation);
   input.exact_adapter_settlement_fingerprints.forEach((fingerprint) =>
     requireFingerprintV01(
       fingerprint,
@@ -2194,7 +2972,10 @@ export function buildCommissionedLiveTrainingResultV01(input: {
     holdout_candidate_frozen: false as const,
     final_live_family_report_created: false as const,
     execution_evidence_class:
-      input.authorization.authorization_kind === "test_conformance"
+      [
+        "test_conformance",
+        "future_live_control_flow_conformance",
+      ].includes(input.authorization.authorization_kind)
         ? ("commissioned_agent_protocol_conformance" as const)
         : ("commissioned_agent_observation" as const),
     fake_output_is_behavioral_evidence: false as const,
@@ -2400,6 +3181,22 @@ export function assertSafeCommissionedLiveTrainingOutputV01(value: unknown): voi
     ) {
       allowedCanonicalIdentityPaths.add(path);
     }
+    if (
+      key !== null &&
+      [
+        "codex_environment_binding",
+        "codex_environment_binding_ref",
+        "codex_environment_binding_fingerprint",
+        "codex_configuration_status",
+        "codex_configuration_fingerprint",
+        "codex_home_identity_fingerprint",
+        "codex_sqlite_home_identity_fingerprint",
+        "per_attempt_codex_home_identity_rule",
+        "per_attempt_codex_sqlite_home_identity_rule",
+      ].includes(key)
+    ) {
+      allowedCanonicalIdentityPaths.add(path);
+    }
     if (typeof candidate === "string") {
       stringCount += 1;
       if (
@@ -2483,12 +3280,75 @@ export function createCommissionedLiveTrainingObservedResourceLaneV01(
   return { provenance: "observed", value };
 }
 
+export function createCommissionedLiveTrainingUnknownSourcedResourceLaneV01(): CommissionedLiveTrainingSourcedResourceLaneV01 {
+  return { provenance: "unknown", value: null, source_ref: null };
+}
+
+export function createCommissionedLiveTrainingObservedSourcedResourceLaneV01(
+  value: number,
+  sourceRef: CommissionedWorkRecordRefV01,
+): CommissionedLiveTrainingSourcedResourceLaneV01 {
+  if (!Number.isInteger(value) || value < 0) {
+    failV01("live_training_resource_observation_invalid");
+  }
+  return {
+    provenance: "observed",
+    value,
+    source_ref: createCommissionedWorkRecordRefV01(sourceRef),
+  };
+}
+
 export function commissionedLiveTrainingReplacementPolicyFingerprintV01(): string {
   return fingerprintV01(REPLACEMENT_POLICY_V01);
 }
 
 export function commissionedLiveTrainingStopConditionFingerprintV01(): string {
   return fingerprintV01(STOP_CONDITIONS_V01);
+}
+
+export function commissionedLiveTrainingApprovalPolicyFingerprintV01(): string {
+  return fingerprintV01(APPROVAL_POLICY_V01);
+}
+
+export function commissionedLiveTrainingResumePolicyFingerprintV01(): string {
+  return fingerprintV01(RESUME_POLICY_V01);
+}
+
+export function commissionedLiveTrainingCandidateRuleTableV01(): {
+  rule_table_version: typeof COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01;
+  rules: CommissionedLiveTrainingComponentAnalysisRuleV01[];
+  rule_table_fingerprint: string;
+} {
+  const rules = structuredClone(
+    COMPONENT_ANALYSIS_RULES_V01,
+  ) as unknown as CommissionedLiveTrainingComponentAnalysisRuleV01[];
+  return {
+    rule_table_version:
+      COMMISSIONED_LIVE_TRAINING_COMPONENT_RULE_TABLE_VERSION_V01,
+    rules,
+    rule_table_fingerprint: fingerprintV01(rules),
+  };
+}
+
+export function assertCommissionedLiveTrainingNoResumeBoundaryV01(input: {
+  boundary_kind: "detach" | "reconciliation_required";
+  authorization_consumed: boolean;
+  meaningful_action_status: "observed_absent" | "observed_present" | "unknown";
+}): {
+  disposition: "terminal_nonreplaceable_consumed_cohort_incomplete";
+  replacement_allowed: false;
+  resume_allowed: false;
+  nonce_reusable: false;
+} {
+  if (!input.authorization_consumed) {
+    failV01("live_training_no_resume_boundary_without_consumption");
+  }
+  return {
+    disposition: "terminal_nonreplaceable_consumed_cohort_incomplete",
+    replacement_allowed: false,
+    resume_allowed: false,
+    nonce_reusable: false,
+  };
 }
 
 export function commissionedLiveTrainingDefaultAdapterRefV01(): CommissionedWorkRecordRefV01 {
@@ -2675,6 +3535,39 @@ function assertOptionalCeilingV01(
   createCommissionedWorkRecordRefV01(ceiling.source_ref);
 }
 
+function assertSourcedResourceLaneV01(
+  lane: CommissionedLiveTrainingSourcedResourceLaneV01,
+): void {
+  assertExactObjectKeysV01(
+    lane,
+    ["provenance", "value", "source_ref"],
+    "live_training_resource_observation_schema_invalid",
+  );
+  if (lane.provenance === "unknown") {
+    if (lane.value !== null || lane.source_ref !== null) {
+      failV01("live_training_resource_unknown_zero_imputation");
+    }
+    return;
+  }
+  if (!Number.isInteger(lane.value) || lane.value < 0) {
+    failV01("live_training_resource_observation_invalid");
+  }
+  createCommissionedWorkRecordRefV01(lane.source_ref);
+}
+
+function assertObservedOptionalCeilingV01(
+  lane: CommissionedLiveTrainingSourcedResourceLaneV01,
+  ceiling: CommissionedLiveTrainingAuthorizationV01["provider_call_ceiling"],
+): void {
+  if (ceiling.observability === "unknown") return;
+  if (lane.provenance === "unknown") {
+    failV01("live_training_numeric_ceiling_observation_unknown");
+  }
+  if (lane.value > ceiling.limit) {
+    failV01("live_training_authorization_resource_or_time_ceiling_exceeded");
+  }
+}
+
 function assertExactCeilingV01(value: number, minimum: number, maximum: number): void {
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
     failV01("live_training_authorization_ceiling_invalid");
@@ -2720,6 +3613,7 @@ function recordVersionV01(record: object): string {
   for (const key of [
     "plan_version",
     "authorization_version",
+    "environment_binding_version",
     "attempt_start_version",
     "admission_version",
     "terminal_version",
@@ -2743,6 +3637,7 @@ function recordIdV01(record: object): string {
   for (const key of [
     "cohort_id",
     "authorization_id",
+    "binding_id",
     "attempt_start_id",
     "attempt_id",
     "terminal_id",

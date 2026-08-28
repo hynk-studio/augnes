@@ -135,6 +135,7 @@ async function main(): Promise<void> {
       ),
       evaluated_at: input.evaluated_at,
       native_execution_configuration: input.native_execution_configuration,
+      codex_environment_binding: input.authorization.codex_environment_binding,
       allow_test_conformance: false,
     });
     process.stdout.write(`${JSON.stringify({

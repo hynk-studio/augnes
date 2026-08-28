@@ -444,6 +444,7 @@ export function consumeCommissionedLiveTrainingAuthorizationV01(input: {
     checkout_root_fingerprint: input.checkout_root_fingerprint,
     evaluated_at: input.evaluated_at,
     native_execution_configuration: input.native_execution_configuration,
+    codex_environment_binding: input.authorization.codex_environment_binding,
     allow_test_conformance: input.allow_test_conformance,
   });
   createCommissionedWorkRecordRefV01(input.consumer_instance_ref);
@@ -1910,6 +1911,8 @@ function assertSerializedAttemptSourceRelationsV01(input: {
       !sameRef(start.cohort_plan_ref, planRef) ||
       start.native_execution_configuration_fingerprint !==
         input.authorization.native_execution_configuration.configuration_fingerprint ||
+      start.codex_environment_binding_fingerprint !==
+        input.authorization.codex_environment_binding.integrity.fingerprint ||
       start.adapter_execution_binding_fingerprint !==
         createCommissionedLiveTrainingAdapterBindingV01(
           input.authorization.native_execution_configuration,
@@ -1992,6 +1995,10 @@ function assertSerializedAttemptSourceRelationsV01(input: {
       start.run_ref_fingerprint !== admission.run_ref_fingerprint ||
       start.native_execution_configuration_fingerprint !==
         admission.native_execution_configuration_fingerprint ||
+      start.codex_environment_binding_fingerprint !==
+        admission.codex_environment_binding_fingerprint ||
+      start.attempt_state_root_fingerprint !==
+        admission.isolation_observation.attempt_state_root_fingerprint ||
       start.adapter_execution_binding_fingerprint !==
         admission.adapter_execution_binding_fingerprint ||
       !sameRef(
@@ -2220,7 +2227,11 @@ function assertSerializedAttemptSourceRelationsV01(input: {
     if (resourceBinding === null) {
       failV01("live_training_artifact_episode_resource_source_invalid");
     }
-    if (input.authorization.authorization_kind === "test_conformance") {
+    if (
+      input.authorization.authorization_kind === "test_conformance" ||
+      input.authorization.authorization_kind ===
+        "future_live_control_flow_conformance"
+    ) {
       if (
         resourceBinding.live_authorization_ref !== null ||
         resourceBinding.authorization_resource_ceiling !== null ||
@@ -2239,8 +2250,10 @@ function assertSerializedAttemptSourceRelationsV01(input: {
             commissionedLiveTrainingRecordRefV01(input.authorization),
           ) ||
         !ceiling ||
-        ceiling.provider_call_limit !== input.authorization.provider_call_limit ||
-        ceiling.model_call_limit !== input.authorization.model_call_limit ||
+        input.authorization.provider_call_ceiling.observability !== "observed" ||
+        input.authorization.model_call_ceiling.observability !== "observed" ||
+        ceiling.provider_call_limit !== input.authorization.provider_call_ceiling.limit ||
+        ceiling.model_call_limit !== input.authorization.model_call_ceiling.limit ||
         ceiling.external_network_call_limit !== 0 ||
         !sameRef(
           resourceBinding.provider_ref,
@@ -2384,6 +2397,9 @@ function assertSerializedIncompleteArtifactGraphV01(input: {
       run_ref_fingerprint: start.run_ref_fingerprint,
       native_execution_configuration_fingerprint:
         start.native_execution_configuration_fingerprint,
+      codex_environment_binding_fingerprint:
+        start.codex_environment_binding_fingerprint,
+      attempt_state_root_fingerprint: start.attempt_state_root_fingerprint,
       adapter_execution_binding_fingerprint:
         start.adapter_execution_binding_fingerprint,
       clone_baseline: start.clone_baseline,
@@ -2428,11 +2444,15 @@ function assertSerializedIncompleteArtifactGraphV01(input: {
       host_context_fingerprint: admission.host_context_fingerprint,
       native_execution_configuration_fingerprint:
         admission.native_execution_configuration_fingerprint,
+      codex_environment_binding_fingerprint:
+        admission.codex_environment_binding_fingerprint,
       adapter_execution_binding_fingerprint:
         admission.adapter_execution_binding_fingerprint,
       native_host_result_fingerprint: admission.native_host_result_fingerprint,
       clone_identity_fingerprint: admission.clone_identity_fingerprint,
       clone_baseline: admission.clone_baseline,
+      isolation_observation: admission.isolation_observation,
+      approval_observations: admission.approval_observations,
       admitted_at: admission.admitted_at,
     });
     if (
@@ -2521,8 +2541,8 @@ function assertSerializedIncompleteArtifactGraphV01(input: {
     runtime_roots_absent: cleanupObservation.runtime_roots_absent,
     temporary_roots_absent: cleanupObservation.temporary_roots_absent,
     artifact_temporaries_absent: cleanupObservation.artifact_temporaries_absent,
-    task_external_network_attempts:
-      cleanupObservation.task_external_network_attempts,
+    task_external_network_observation:
+      cleanupObservation.task_external_network_observation,
     observed_at: cleanupObservation.observed_at,
   });
   const rebuiltCleanup = buildCommissionedLiveTrainingCleanupReportV01({
@@ -2537,7 +2557,8 @@ function assertSerializedIncompleteArtifactGraphV01(input: {
     owned_temporary_roots_remaining: cleanup.owned_temporary_roots_remaining,
     stale_artifact_temporaries_remaining:
       cleanup.stale_artifact_temporaries_remaining,
-    task_external_network_attempts: cleanup.task_external_network_attempts,
+    task_external_network_observation:
+      cleanup.task_external_network_observation,
     provider_calls_observed: cleanup.provider_calls_observed,
     model_calls_observed: cleanup.model_calls_observed,
     cleanup_observation: rebuiltCleanupObservation,
@@ -2846,6 +2867,7 @@ function assertPartialSerializedArtifactGraphV01(input: {
       training_result: trainingResult,
       episodes: orderedEpisodes,
       blind_observations: blinds,
+      analysis_joins: joins,
       attempt_registry: registry,
       assessor_role_id: assessment.assessor_role_ref.role_id,
     });
@@ -2869,7 +2891,8 @@ function assertPartialSerializedArtifactGraphV01(input: {
       runtime_roots_absent: observation.runtime_roots_absent,
       temporary_roots_absent: observation.temporary_roots_absent,
       artifact_temporaries_absent: observation.artifact_temporaries_absent,
-      task_external_network_attempts: observation.task_external_network_attempts,
+      task_external_network_observation:
+        observation.task_external_network_observation,
       observed_at: observation.observed_at,
     });
     const rebuilt = buildCommissionedLiveTrainingCleanupReportV01({
@@ -2884,7 +2907,8 @@ function assertPartialSerializedArtifactGraphV01(input: {
       owned_temporary_roots_remaining: cleanup.owned_temporary_roots_remaining,
       stale_artifact_temporaries_remaining:
         cleanup.stale_artifact_temporaries_remaining,
-      task_external_network_attempts: cleanup.task_external_network_attempts,
+      task_external_network_observation:
+        cleanup.task_external_network_observation,
       provider_calls_observed: cleanup.provider_calls_observed,
       model_calls_observed: cleanup.model_calls_observed,
       cleanup_observation: rebuiltObservation,
@@ -3369,6 +3393,9 @@ function assertSerializedArtifactGraphV01(input: {
       run_ref_fingerprint: start.run_ref_fingerprint,
       native_execution_configuration_fingerprint:
         start.native_execution_configuration_fingerprint,
+      codex_environment_binding_fingerprint:
+        start.codex_environment_binding_fingerprint,
+      attempt_state_root_fingerprint: start.attempt_state_root_fingerprint,
       adapter_execution_binding_fingerprint:
         start.adapter_execution_binding_fingerprint,
       clone_baseline: start.clone_baseline,
@@ -3411,11 +3438,15 @@ function assertSerializedArtifactGraphV01(input: {
       host_context_fingerprint: admission.host_context_fingerprint,
       native_execution_configuration_fingerprint:
         admission.native_execution_configuration_fingerprint,
+      codex_environment_binding_fingerprint:
+        admission.codex_environment_binding_fingerprint,
       adapter_execution_binding_fingerprint:
         admission.adapter_execution_binding_fingerprint,
       native_host_result_fingerprint: admission.native_host_result_fingerprint,
       clone_identity_fingerprint: admission.clone_identity_fingerprint,
       clone_baseline: admission.clone_baseline,
+      isolation_observation: admission.isolation_observation,
+      approval_observations: admission.approval_observations,
       admitted_at: admission.admitted_at,
     });
     if (
@@ -3545,7 +3576,10 @@ function assertSerializedArtifactGraphV01(input: {
     const liveAuthorizationRef = commissionedLiveTrainingRecordRefV01(input.authorization);
     if (
       resourceBinding === null ||
-      (input.authorization.authorization_kind === "test_conformance"
+      ([
+        "test_conformance",
+        "future_live_control_flow_conformance",
+      ].includes(input.authorization.authorization_kind)
         ? resourceBinding.live_authorization_ref !== null ||
           resourceBinding.provider_ref !== null ||
           resourceBinding.model_ref !== null ||
@@ -3686,6 +3720,7 @@ function assertSerializedArtifactGraphV01(input: {
     training_result: trainingResult,
     episodes: orderedEpisodes,
     blind_observations: orderedBlinds,
+    analysis_joins: joins,
     attempt_registry: registry,
     assessor_role_id: assessment.assessor_role_ref.role_id,
   });
@@ -3706,7 +3741,8 @@ function assertSerializedArtifactGraphV01(input: {
     runtime_roots_absent: observation.runtime_roots_absent,
     temporary_roots_absent: observation.temporary_roots_absent,
     artifact_temporaries_absent: observation.artifact_temporaries_absent,
-    task_external_network_attempts: observation.task_external_network_attempts,
+    task_external_network_observation:
+      observation.task_external_network_observation,
     observed_at: observation.observed_at,
   });
   const rebuiltCleanup = buildCommissionedLiveTrainingCleanupReportV01({
@@ -3720,7 +3756,8 @@ function assertSerializedArtifactGraphV01(input: {
     owned_runtime_roots_remaining: cleanup.owned_runtime_roots_remaining,
     owned_temporary_roots_remaining: cleanup.owned_temporary_roots_remaining,
     stale_artifact_temporaries_remaining: cleanup.stale_artifact_temporaries_remaining,
-    task_external_network_attempts: cleanup.task_external_network_attempts,
+    task_external_network_observation:
+      cleanup.task_external_network_observation,
     provider_calls_observed: cleanup.provider_calls_observed,
     model_calls_observed: cleanup.model_calls_observed,
     cleanup_observation: rebuiltCleanupObservation,

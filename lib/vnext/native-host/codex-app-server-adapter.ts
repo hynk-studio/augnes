@@ -50,6 +50,8 @@ export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
   "codex_app_server_request_source_binding.v0.1" as const;
 export const CODEX_APP_SERVER_EXACT_EXECUTION_BINDING_VERSION_V01 =
   "codex_app_server_exact_execution_binding.v0.1" as const;
+export const CODEX_APP_SERVER_ISOLATED_ENVIRONMENT_EXPECTATION_VERSION_V01 =
+  "codex_app_server_isolated_environment_expectation.v0.1" as const;
 
 export interface CodexAppServerExactExecutionBindingV01 {
   binding_version: typeof CODEX_APP_SERVER_EXACT_EXECUTION_BINDING_VERSION_V01;
@@ -60,6 +62,84 @@ export interface CodexAppServerExactExecutionBindingV01 {
   expected_cli_version: string;
   source_configuration_fingerprint: string;
   binding_fingerprint: string;
+}
+
+export interface CodexAppServerIsolatedEnvironmentExpectationV01 {
+  expectation_version: typeof CODEX_APP_SERVER_ISOLATED_ENVIRONMENT_EXPECTATION_VERSION_V01;
+  state_home_fingerprint: string;
+  account_projection_fingerprint: string;
+  codex_configuration_fingerprint: string;
+  tool_policy_fingerprint: string;
+  fresh_thread_ephemeral: true;
+  unexpected_mcp_or_remote_startup_refused: true;
+  expectation_fingerprint: string;
+}
+
+const ISOLATED_CODEX_CONFIGURATION_PROJECTION_V01 = Object.freeze({
+  projection_version:
+    "commissioned_live_training_codex_configuration_projection.v0.1",
+  approval_policy: "on-request",
+  approvals_reviewer: "user",
+  sandbox_type: "workspaceWrite",
+  sandbox_network_access: false,
+  instruction_sources: [] as string[],
+  thread_ephemeral: true,
+});
+
+const ISOLATED_CODEX_TOOL_POLICY_PROJECTION_V01 = Object.freeze({
+  projection_version: "commissioned_live_training_codex_tool_policy_projection.v0.1",
+  expected_tools: [] as string[],
+  mcp_servers: [] as string[],
+  web_search_enabled: false,
+  remote_tools_enabled: false,
+  github_tools_enabled: false,
+});
+
+export function codexAppServerIsolatedConfigurationFingerprintV01(): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01(ISOLATED_CODEX_CONFIGURATION_PROJECTION_V01),
+  );
+}
+
+export function codexAppServerIsolatedToolPolicyFingerprintV01(): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01(ISOLATED_CODEX_TOOL_POLICY_PROJECTION_V01),
+  );
+}
+
+export function codexAppServerAccountProjectionFingerprintV01(
+  account: unknown,
+): string {
+  const exact = objectV01(account, "codex_account_projection_invalid");
+  return createProtocolSha256V01(canonicalizeProtocolValueV01(exact));
+}
+
+export function createCodexAppServerIsolatedEnvironmentExpectationV01(input: {
+  state_home_fingerprint: string;
+  account_projection_fingerprint: string;
+  codex_configuration_fingerprint: string;
+  tool_policy_fingerprint: string;
+}): CodexAppServerIsolatedEnvironmentExpectationV01 {
+  for (const fingerprint of Object.values(input)) {
+    if (!/^sha256:[a-f0-9]{64}$/u.test(fingerprint)) {
+      throw new NativeHostContractErrorV01(
+        "codex_isolated_environment_expectation_invalid",
+      );
+    }
+  }
+  const withoutFingerprint = {
+    expectation_version:
+      CODEX_APP_SERVER_ISOLATED_ENVIRONMENT_EXPECTATION_VERSION_V01,
+    ...input,
+    fresh_thread_ephemeral: true as const,
+    unexpected_mcp_or_remote_startup_refused: true as const,
+  };
+  return {
+    ...withoutFingerprint,
+    expectation_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
 }
 
 export function createCodexAppServerExactExecutionBindingV01(input: {
@@ -263,6 +343,10 @@ export interface CodexAppServerAdapterObservationV01 {
   active_server_request_count: number;
   recent_resolved_server_request_count: number;
   public_reason?: string;
+  state_home_fingerprint?: string;
+  account_projection_fingerprint?: string;
+  codex_configuration_fingerprint?: string;
+  tool_policy_fingerprint?: string;
 }
 
 export interface CodexAppServerAdapterOptionsV01 {
@@ -270,6 +354,7 @@ export interface CodexAppServerAdapterOptionsV01 {
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
   exact_execution_binding?: CodexAppServerExactExecutionBindingV01;
+  isolated_environment_expectation?: CodexAppServerIsolatedEnvironmentExpectationV01;
 }
 
 export function createCodexAppServerAdapterV01(
@@ -346,6 +431,10 @@ class CodexAppServerInvocationV01 {
     string,
     ResolvedCodexServerRequestV01
   >();
+  private stateHomeFingerprint: string | null = null;
+  private accountProjectionFingerprint: string | null = null;
+  private codexConfigurationFingerprint: string | null = null;
+  private toolPolicyFingerprint: string | null = null;
 
   constructor(
     private readonly request: NativeHostRequestV01,
@@ -369,6 +458,26 @@ class CodexAppServerInvocationV01 {
       ) {
         throw new NativeHostContractErrorV01(
           "codex_exact_execution_binding_integrity_invalid",
+        );
+      }
+    }
+    if (options.isolated_environment_expectation) {
+      const expected = createCodexAppServerIsolatedEnvironmentExpectationV01({
+        state_home_fingerprint:
+          options.isolated_environment_expectation.state_home_fingerprint,
+        account_projection_fingerprint:
+          options.isolated_environment_expectation.account_projection_fingerprint,
+        codex_configuration_fingerprint:
+          options.isolated_environment_expectation.codex_configuration_fingerprint,
+        tool_policy_fingerprint:
+          options.isolated_environment_expectation.tool_policy_fingerprint,
+      });
+      if (
+        canonicalizeProtocolValueV01(expected) !==
+        canonicalizeProtocolValueV01(options.isolated_environment_expectation)
+      ) {
+        throw new NativeHostContractErrorV01(
+          "codex_isolated_environment_expectation_integrity_invalid",
         );
       }
     }
@@ -518,6 +627,23 @@ class CodexAppServerInvocationV01 {
       "codex_initialize_response_invalid",
     );
     this.cliVersion = publicCliVersionV01(initialized.userAgent);
+    if (this.options.isolated_environment_expectation) {
+      const codexHome = requiredStringV01(
+        initialized.codexHome,
+        "codex_isolated_state_home_missing",
+      );
+      this.stateHomeFingerprint = createProtocolSha256V01(
+        canonicalizeProtocolValueV01(codexHome),
+      );
+      if (
+        this.stateHomeFingerprint !==
+        this.options.isolated_environment_expectation.state_home_fingerprint
+      ) {
+        throw new CodexCapabilityErrorV01(
+          "codex_isolated_state_home_mismatch",
+        );
+      }
+    }
     if (
       this.options.exact_execution_binding &&
       this.cliVersion !==
@@ -539,6 +665,19 @@ class CodexAppServerInvocationV01 {
     }
     if (account.account === null || typeof account.account !== "object") {
       throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
+    }
+    if (this.options.isolated_environment_expectation) {
+      this.accountProjectionFingerprint =
+        codexAppServerAccountProjectionFingerprintV01(account.account);
+      if (
+        this.accountProjectionFingerprint !==
+        this.options.isolated_environment_expectation
+          .account_projection_fingerprint
+      ) {
+        throw new CodexCapabilityErrorV01(
+          "codex_isolated_account_projection_mismatch",
+        );
+      }
     }
     await this.reportLifecycle({
       event_kind: "capability_confirmed",
@@ -563,7 +702,7 @@ class CodexAppServerInvocationV01 {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
         sandbox: "workspace-write",
-        ephemeral: false,
+        ephemeral: this.options.isolated_environment_expectation ? true : false,
         ...(exact
           ? {
               model: exact.model_id,
@@ -660,6 +799,9 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     this.assertExactExecutionResponseBinding(response);
     const thread = this.assertKnownThread(response.thread, existing);
+    if (this.options.isolated_environment_expectation) {
+      this.assertIsolatedThreadResponseV01(response, thread, existing);
+    }
     const cwd = stringV01(response.cwd) ?? stringV01(thread.cwd);
     if (!cwd || !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
       throw this.reconciliationError("codex_thread_root_mismatch");
@@ -706,6 +848,63 @@ class CodexAppServerInvocationV01 {
       host_refs: this.currentHostRefs(),
       bounded_metadata: { resumed: source === "thread_resumed" },
     });
+  }
+
+  private assertIsolatedThreadResponseV01(
+    response: Record<string, unknown>,
+    thread: Record<string, unknown>,
+    existing: boolean,
+  ): void {
+    if (existing) {
+      throw new NativeHostContractErrorV01(
+        "codex_isolated_resume_not_supported",
+      );
+    }
+    const sandbox = objectV01(
+      response.sandbox,
+      "codex_isolated_sandbox_projection_invalid",
+    );
+    const instructionSources = Array.isArray(response.instructionSources)
+      ? response.instructionSources
+      : null;
+    const availableTools = Array.isArray(response.availableTools)
+      ? response.availableTools
+      : null;
+    const mcpServers = Array.isArray(response.mcpServers)
+      ? response.mcpServers
+      : null;
+    if (
+      thread.ephemeral !== true ||
+      response.approvalPolicy !== "on-request" ||
+      response.approvalsReviewer !== "user" ||
+      sandbox.type !== "workspaceWrite" ||
+      sandbox.networkAccess !== false ||
+      instructionSources === null || instructionSources.length !== 0 ||
+      availableTools === null || availableTools.length !== 0 ||
+      mcpServers === null || mcpServers.length !== 0 ||
+      response.webSearchEnabled !== false ||
+      response.remoteToolsEnabled !== false ||
+      response.githubToolsEnabled !== false
+    ) {
+      throw new CodexCapabilityErrorV01(
+        "codex_isolated_configuration_or_tool_policy_mismatch",
+      );
+    }
+    this.codexConfigurationFingerprint =
+      codexAppServerIsolatedConfigurationFingerprintV01();
+    this.toolPolicyFingerprint =
+      codexAppServerIsolatedToolPolicyFingerprintV01();
+    if (
+      this.codexConfigurationFingerprint !==
+        this.options.isolated_environment_expectation!
+          .codex_configuration_fingerprint ||
+      this.toolPolicyFingerprint !==
+        this.options.isolated_environment_expectation!.tool_policy_fingerprint
+    ) {
+      throw new CodexCapabilityErrorV01(
+        "codex_isolated_configuration_or_tool_policy_mismatch",
+      );
+    }
   }
 
   private assertExactExecutionResponseBinding(
@@ -822,6 +1021,16 @@ class CodexAppServerInvocationV01 {
   private async onNotification(method: string, params: unknown): Promise<void> {
     const value = objectV01(params, "codex_notification_params_invalid");
     this.assertNotificationBinding(value);
+    if (
+      this.options.isolated_environment_expectation &&
+      ["mcpServer/startupStatus/updated", "remoteControl/status/changed"].includes(
+        method,
+      )
+    ) {
+      throw new CodexCapabilityErrorV01(
+        "codex_isolated_unexpected_mcp_or_remote_startup",
+      );
+    }
     if (method === "turn/started") {
       const turn = objectV01(value.turn, "codex_turn_started_invalid");
       this.assertTurnIdentity(turn.id);
@@ -1819,6 +2028,18 @@ class CodexAppServerInvocationV01 {
       recent_resolved_server_request_count:
         this.recentResolvedServerRequests.size,
       ...(publicReason ? { public_reason: publicReason } : {}),
+      ...(this.stateHomeFingerprint
+        ? { state_home_fingerprint: this.stateHomeFingerprint }
+        : {}),
+      ...(this.accountProjectionFingerprint
+        ? { account_projection_fingerprint: this.accountProjectionFingerprint }
+        : {}),
+      ...(this.codexConfigurationFingerprint
+        ? { codex_configuration_fingerprint: this.codexConfigurationFingerprint }
+        : {}),
+      ...(this.toolPolicyFingerprint
+        ? { tool_policy_fingerprint: this.toolPolicyFingerprint }
+        : {}),
     });
   }
 }
