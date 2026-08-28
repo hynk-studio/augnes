@@ -48,6 +48,66 @@ export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
 export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
   "codex_app_server_request_source_binding.v0.1" as const;
+export const CODEX_APP_SERVER_EXACT_EXECUTION_BINDING_VERSION_V01 =
+  "codex_app_server_exact_execution_binding.v0.1" as const;
+
+export interface CodexAppServerExactExecutionBindingV01 {
+  binding_version: typeof CODEX_APP_SERVER_EXACT_EXECUTION_BINDING_VERSION_V01;
+  provider_id: string;
+  model_id: string;
+  route_id: string;
+  reasoning_effort: "low" | "medium" | "high" | "xhigh";
+  expected_cli_version: string;
+  source_configuration_fingerprint: string;
+  binding_fingerprint: string;
+}
+
+export function createCodexAppServerExactExecutionBindingV01(input: {
+  provider_id: string;
+  model_id: string;
+  route_id: string;
+  reasoning_effort: CodexAppServerExactExecutionBindingV01["reasoning_effort"];
+  expected_cli_version: string;
+  source_configuration_fingerprint: string;
+}): CodexAppServerExactExecutionBindingV01 {
+  for (const value of [input.provider_id, input.model_id, input.route_id]) {
+    if (
+      !/^[A-Za-z0-9][A-Za-z0-9._+:/-]{0,159}$/u.test(value) ||
+      path.posix.isAbsolute(value) ||
+      path.win32.isAbsolute(value) ||
+      value.includes("\\") ||
+      value.split("/").some((segment) => segment === "..")
+    ) {
+      throw new NativeHostContractErrorV01(
+        "codex_exact_execution_binding_value_invalid",
+      );
+    }
+  }
+  if (
+    publicCliVersionV01(input.expected_cli_version) !==
+      input.expected_cli_version ||
+    input.expected_cli_version === "unknown"
+  ) {
+    throw new NativeHostContractErrorV01(
+      "codex_exact_execution_binding_value_invalid",
+    );
+  }
+  if (!/^sha256:[a-f0-9]{64}$/u.test(input.source_configuration_fingerprint)) {
+    throw new NativeHostContractErrorV01(
+      "codex_exact_execution_binding_source_invalid",
+    );
+  }
+  const withoutFingerprint = {
+    binding_version: CODEX_APP_SERVER_EXACT_EXECUTION_BINDING_VERSION_V01,
+    ...input,
+  };
+  return {
+    ...withoutFingerprint,
+    binding_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(withoutFingerprint),
+    ),
+  };
+}
 
 export interface CodexAppServerRequestSourceBindingV01 {
   binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
@@ -160,7 +220,6 @@ const KNOWN_IGNORED_NOTIFICATIONS = new Set([
   "item/reasoning/summaryPartAdded",
   "item/reasoning/summaryTextDelta",
   "item/reasoning/textDelta",
-  "model/rerouted",
   "model/safetyBuffering/updated",
   "model/verification",
   "mcpServer/startupStatus/updated",
@@ -210,6 +269,7 @@ export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
+  exact_execution_binding?: CodexAppServerExactExecutionBindingV01;
 }
 
 export function createCodexAppServerAdapterV01(
@@ -292,6 +352,26 @@ class CodexAppServerInvocationV01 {
     private readonly control: NativeHostInvocationControlV01,
     private readonly options: CodexAppServerAdapterOptionsV01,
   ) {
+    if (options.exact_execution_binding) {
+      const expected = createCodexAppServerExactExecutionBindingV01({
+        provider_id: options.exact_execution_binding.provider_id,
+        model_id: options.exact_execution_binding.model_id,
+        route_id: options.exact_execution_binding.route_id,
+        reasoning_effort: options.exact_execution_binding.reasoning_effort,
+        expected_cli_version:
+          options.exact_execution_binding.expected_cli_version,
+        source_configuration_fingerprint:
+          options.exact_execution_binding.source_configuration_fingerprint,
+      });
+      if (
+        canonicalizeProtocolValueV01(expected) !==
+        canonicalizeProtocolValueV01(options.exact_execution_binding)
+      ) {
+        throw new NativeHostContractErrorV01(
+          "codex_exact_execution_binding_integrity_invalid",
+        );
+      }
+    }
     this.now = options.now ?? (() => new Date().toISOString());
     this.startedAt = this.now();
     this.public = {
@@ -438,6 +518,15 @@ class CodexAppServerInvocationV01 {
       "codex_initialize_response_invalid",
     );
     this.cliVersion = publicCliVersionV01(initialized.userAgent);
+    if (
+      this.options.exact_execution_binding &&
+      this.cliVersion !==
+        this.options.exact_execution_binding.expected_cli_version
+    ) {
+      throw new CodexCapabilityErrorV01(
+        "codex_exact_execution_cli_identity_mismatch",
+      );
+    }
     this.transport!.notify("initialized", {});
     this.observe("initialized");
 
@@ -467,6 +556,7 @@ class CodexAppServerInvocationV01 {
 
   private async startNewThreadAndTurn(): Promise<void> {
     this.threadStartSent = true;
+    const exact = this.options.exact_execution_binding;
     const response = objectV01(
       await this.transport!.request("thread/start", {
         cwd: this.request.root_scope.canonical_root,
@@ -474,6 +564,14 @@ class CodexAppServerInvocationV01 {
         approvalsReviewer: "user",
         sandbox: "workspace-write",
         ephemeral: false,
+        ...(exact
+          ? {
+              model: exact.model_id,
+              modelProvider: exact.provider_id,
+              serviceTier: exact.route_id,
+              reasoningEffort: exact.reasoning_effort,
+            }
+          : {}),
       }),
       "codex_thread_start_response_invalid",
     );
@@ -516,6 +614,7 @@ class CodexAppServerInvocationV01 {
     if (readStatus !== "inProgress") {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     }
+    const exact = this.options.exact_execution_binding;
     const response = objectV01(
       await this.transport!.request("thread/resume", {
         threadId: this.threadId,
@@ -523,6 +622,14 @@ class CodexAppServerInvocationV01 {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
         sandbox: "workspace-write",
+        ...(exact
+          ? {
+              model: exact.model_id,
+              modelProvider: exact.provider_id,
+              serviceTier: exact.route_id,
+              reasoningEffort: exact.reasoning_effort,
+            }
+          : {}),
       }),
       "codex_thread_resume_response_invalid",
     );
@@ -551,6 +658,7 @@ class CodexAppServerInvocationV01 {
     source: "thread_started" | "thread_resumed",
     existing = false,
   ): Promise<void> {
+    this.assertExactExecutionResponseBinding(response);
     const thread = this.assertKnownThread(response.thread, existing);
     const cwd = stringV01(response.cwd) ?? stringV01(thread.cwd);
     if (!cwd || !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
@@ -598,6 +706,23 @@ class CodexAppServerInvocationV01 {
       host_refs: this.currentHostRefs(),
       bounded_metadata: { resumed: source === "thread_resumed" },
     });
+  }
+
+  private assertExactExecutionResponseBinding(
+    response: Record<string, unknown>,
+  ): void {
+    const exact = this.options.exact_execution_binding;
+    if (!exact) return;
+    if (
+      response.model !== exact.model_id ||
+      response.modelProvider !== exact.provider_id ||
+      response.serviceTier !== exact.route_id ||
+      response.reasoningEffort !== exact.reasoning_effort
+    ) {
+      throw this.reconciliationError(
+        "codex_exact_execution_response_binding_mismatch",
+      );
+    }
   }
 
   private assertKnownThread(value: unknown, existing: boolean): Record<string, unknown> {
@@ -812,6 +937,12 @@ class CodexAppServerInvocationV01 {
         );
       }
       this.observe("approval_resolved");
+      return;
+    }
+    if (method === "model/rerouted") {
+      if (this.options.exact_execution_binding) {
+        throw this.reconciliationError("codex_exact_execution_model_rerouted");
+      }
       return;
     }
     if (KNOWN_IGNORED_NOTIFICATIONS.has(method)) return;
@@ -1409,6 +1540,14 @@ class CodexAppServerInvocationV01 {
           app_server_transport: "stdio_jsonl",
           experimental_api: false,
           cli_version: this.cliVersion,
+          ...(this.options.exact_execution_binding
+            ? {
+                exact_execution_binding_version:
+                  this.options.exact_execution_binding.binding_version,
+                exact_execution_binding_fingerprint:
+                  this.options.exact_execution_binding.binding_fingerprint,
+              }
+            : {}),
           raw_provider_payload_included: false,
         },
       },
@@ -1488,6 +1627,14 @@ class CodexAppServerInvocationV01 {
           app_server_transport: "stdio_jsonl",
           experimental_api: false,
           cli_version: this.cliVersion,
+          ...(this.options.exact_execution_binding
+            ? {
+                exact_execution_binding_version:
+                  this.options.exact_execution_binding.binding_version,
+                exact_execution_binding_fingerprint:
+                  this.options.exact_execution_binding.binding_fingerprint,
+              }
+            : {}),
           raw_provider_payload_included: false,
         },
       },

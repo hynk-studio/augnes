@@ -1,4 +1,9 @@
-import type { BuildCommissionedWorkFamilyManifestInputV01 } from "@/lib/vnext/commissioned-controlled-workbench";
+import {
+  buildCommissionedWorkCaseCommitmentV01,
+  buildCommissionedWorkFamilyManifestFromCommitmentsV01,
+  type BuildCommissionedWorkFamilyManifestInputV01,
+} from "@/lib/vnext/commissioned-controlled-workbench";
+import { COMMISSIONED_WORKBENCH_HOLDOUT_COMMITMENT_V01 } from "@/fixtures/vnext/research/commissioned-controlled-workbench-holdout-commitment-v0-1";
 import type {
   CommissionedWorkCaseSourceV01,
   CommissionedWorkEpisodePlanSourceV01,
@@ -82,14 +87,6 @@ const CEDAR_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
   allowed_repository_relative_paths: [
     "engine/resolve-mode.mjs",
     "engine/mode-lookup.mjs",
-  ],
-  max_changed_files: 1,
-});
-
-const QUARTZ_OPERATION_CONTRACT_V01 = taskOwnedOperationContractV01({
-  allowed_repository_relative_paths: [
-    "modules/ledger/normalize.cjs",
-    "modules/ledger/format.cjs",
   ],
   max_changed_files: 1,
 });
@@ -556,7 +553,15 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
   budget: SHARED_BUDGET,
 };
 
-const quartzCase: CommissionedWorkCaseSourceV01 = {
+function createQuartzCaseV01(): CommissionedWorkCaseSourceV01 {
+  const quartzOperationContract = taskOwnedOperationContractV01({
+    allowed_repository_relative_paths: [
+      "modules/ledger/normalize.cjs",
+      "modules/ledger/format.cjs",
+    ],
+    max_changed_files: 1,
+  });
+  return {
   case_id: "case-quartz-83",
   case_role: "holdout",
   project_id: "project-quartz-83",
@@ -592,7 +597,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   ],
   predecessor_plan: predecessorPlan({
     executor: "executor-quartz-p0",
-    operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
+    operation_contract: quartzOperationContract,
   }),
   source_drift_writes: [
     {
@@ -613,7 +618,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   successor_plans: [
     trainingPlan({
       executor: "executor-quartz-s1",
-      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
+      operation_contract: quartzOperationContract,
       condition: "exact_current_continuity",
       holdout_variant: "strongest_equal_budget_baseline",
       candidate_intervention_mode: "no_candidate",
@@ -624,7 +629,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s2",
-      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
+      operation_contract: quartzOperationContract,
       condition: "exact_current_continuity",
       holdout_variant: "candidate_present",
       candidate_intervention_mode: "all_frozen_candidate_components",
@@ -635,7 +640,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s3",
-      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
+      operation_contract: quartzOperationContract,
       condition: "exact_current_continuity",
       holdout_variant: "candidate_component_ablation",
       candidate_intervention_mode: "frozen_candidate_minus_last_component",
@@ -646,7 +651,7 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
     }),
     trainingPlan({
       executor: "executor-quartz-s4",
-      operation_contract: QUARTZ_OPERATION_CONTRACT_V01,
+      operation_contract: quartzOperationContract,
       condition: "stale_or_regime_shift_continuity",
       holdout_variant: "stale_or_reset",
       candidate_intervention_mode: "no_candidate",
@@ -724,7 +729,8 @@ const quartzCase: CommissionedWorkCaseSourceV01 = {
   ],
   evaluator_version: COMMISSIONED_WORKBENCH_FIXTURE_EVALUATOR_VERSION_V01,
   budget: SHARED_BUDGET,
-};
+  };
+}
 
 function syntheticFixtureOutputV01(input: {
   executor: string;
@@ -973,8 +979,42 @@ export function createCommissionedControlledWorkFamilySourceV01(): BuildCommissi
     outcome_evaluator_role_id: "role-cw1-objective-evaluator",
     consolidation_assessor_role_id: "role-cw1-consolidation-assessor",
     training_cases: [amberCase, cobaltCase, cedarCase],
-    holdout_case: quartzCase,
+    holdout_case: createQuartzCaseV01(),
   });
+}
+
+export function createCommissionedControlledWorkTrainingOnlyFamilyV01(): {
+  manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestFromCommitmentsV01>;
+  training_cases: BuildCommissionedWorkFamilyManifestInputV01["training_cases"];
+} {
+  const trainingCases = structuredClone([
+    amberCase,
+    cobaltCase,
+    cedarCase,
+  ]) as BuildCommissionedWorkFamilyManifestInputV01["training_cases"];
+  const manifest = buildCommissionedWorkFamilyManifestFromCommitmentsV01({
+    family_id: COMMISSIONED_WORKBENCH_FIXTURE_FAMILY_ID_V01,
+    workspace_id: "workspace-cw1-controlled",
+    task_family_key: "repository-continuation-family-01",
+    sealed_at: "2026-08-27T00:00:00.000Z",
+    construction_cutoff: "2026-08-27T01:00:00.000Z",
+    evaluator_version: COMMISSIONED_WORKBENCH_FIXTURE_EVALUATOR_VERSION_V01,
+    hypothesis_fingerprint:
+      "sha256:be72ec1dd78456162410f9c8dbac93f76750fc65faebfc1efee3f22d8a3ff9f0",
+    task_author_role_id: "role-cw1-corpus-builder",
+    outcome_evaluator_role_id: "role-cw1-objective-evaluator",
+    consolidation_assessor_role_id: "role-cw1-consolidation-assessor",
+    training_case_commitments: trainingCases.map(
+      buildCommissionedWorkCaseCommitmentV01,
+    ) as ReturnType<typeof buildCommissionedWorkCaseCommitmentV01>[] as
+      Parameters<typeof buildCommissionedWorkFamilyManifestFromCommitmentsV01>[0]["training_case_commitments"],
+    holdout_case_commitment: structuredClone(
+      COMMISSIONED_WORKBENCH_HOLDOUT_COMMITMENT_V01,
+    ),
+    equal_budget_fingerprint:
+      "sha256:9ed5c4e5d79cd5cf9c318a6010f8afda4f2044cf117f6c3f712727f84b91a956",
+  });
+  return { manifest, training_cases: trainingCases };
 }
 
 export function createCommissionedControlledWorkSyntheticFixtureOutputsV01(): CommissionedWorkSyntheticFixtureOutputV01[] {

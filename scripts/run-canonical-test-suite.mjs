@@ -439,6 +439,26 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "commissioned-controlled-live-training",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "single-use commissioned live-training authorization, cold-clone schedule, blinded objective observation, and append-only artifact conformance",
+      ...rootNode("scripts/test-commissioned-controlled-live-training.ts"),
+      env: { AUGNES_CANONICAL_TEST_MODE: "1" },
+      // Sixteen cold fake App Server invocations (15 primary slots plus one
+      // eligible pre-action replacement), descriptor-relative artifact readback,
+      // CLI modes, and adversarial copies measured 263s on local arm64 after
+      // the fail-closed directory-identity hardening. Keep one bounded 420s
+      // child owner without a retry path.
+      timeoutMs: 420_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],

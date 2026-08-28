@@ -238,6 +238,22 @@ export interface BuildCommissionedWorkFamilyManifestInputV01 {
   holdout_case: CommissionedWorkCaseSourceV01;
 }
 
+export interface BuildCommissionedWorkFamilyManifestFromCommitmentsInputV01 {
+  family_id: string;
+  workspace_id: string;
+  task_family_key: string;
+  sealed_at: string;
+  construction_cutoff: string;
+  evaluator_version: string;
+  hypothesis_fingerprint: string;
+  task_author_role_id: string;
+  outcome_evaluator_role_id: string;
+  consolidation_assessor_role_id: string;
+  training_case_commitments: CommissionedWorkFamilyManifestV01["training_cases"];
+  holdout_case_commitment: CommissionedWorkCaseCommitmentV01;
+  equal_budget_fingerprint: string;
+}
+
 export interface BuildCommissionedWorkObjectiveObservationInputV01
   extends Omit<CommissionedWorkObjectiveObservationV01, "observation_version" | "integrity"> {
   case_commitment: CommissionedWorkCaseCommitmentV01;
@@ -294,6 +310,13 @@ export interface BuildCommissionedWorkEpisodeArtifactInputV01 {
   repository_state: CommissionedWorkEpisodeArtifactV01["repository_state"];
   candidate_frozen_before_start: boolean | null;
   repository_action_trace_fingerprint: string;
+  /**
+   * Optional sealed cohort-owned executor identity. The source plan remains
+   * authoritative for task/treatment material, while a commissioned cohort
+   * may allocate a fresh opaque executor for an individual attempt without
+   * cloning or mutating the source plan.
+   */
+  executor_role_id_override?: string;
 }
 
 export function createCommissionedWorkAuthoritySummaryV01(): CommissionedWorkAuthoritySummaryV01 {
@@ -580,6 +603,74 @@ export function buildCommissionedWorkFamilyManifestV01(
   if (new Set(budgetFingerprints).size !== 1) {
     failV01("commissioned_work_equal_budget_mismatch");
   }
+  const manifest = buildCommissionedWorkFamilyManifestFromCommitmentsV01({
+    family_id: input.family_id,
+    workspace_id: input.workspace_id,
+    task_family_key: input.task_family_key,
+    sealed_at: input.sealed_at,
+    construction_cutoff: input.construction_cutoff,
+    evaluator_version: input.evaluator_version,
+    hypothesis_fingerprint: opaqueFingerprintV01(input.hypothesis),
+    task_author_role_id: input.task_author_role_id,
+    outcome_evaluator_role_id: input.outcome_evaluator_role_id,
+    consolidation_assessor_role_id: input.consolidation_assessor_role_id,
+    training_case_commitments: commitments.slice(0, 3) as
+      CommissionedWorkFamilyManifestV01["training_cases"],
+    holdout_case_commitment: commitments[3]!,
+    equal_budget_fingerprint: budgetFingerprints[0]!,
+  });
+  assertCommissionedWorkFamilySourceBindingV01({
+    manifest,
+    training_cases: input.training_cases,
+    holdout_case: input.holdout_case,
+  });
+  return manifest;
+}
+
+/**
+ * Seal the host-neutral family from source-authenticated commitments only.
+ * Training-only experiment owners use this narrow path so the holdout source
+ * itself never needs to be constructed or inspected.
+ */
+export function buildCommissionedWorkFamilyManifestFromCommitmentsV01(
+  input: BuildCommissionedWorkFamilyManifestFromCommitmentsInputV01,
+): CommissionedWorkFamilyManifestV01 {
+  requireSafeCodeV01(input.family_id, "commissioned_work_family_id_invalid");
+  requireSafeCodeV01(input.workspace_id, "commissioned_work_workspace_id_invalid");
+  requireSafeCodeV01(input.task_family_key, "commissioned_work_task_family_key_invalid");
+  requireSafeCodeV01(input.evaluator_version, "commissioned_work_evaluator_version_invalid");
+  requireTimestampV01(input.sealed_at, "commissioned_work_sealed_at_invalid");
+  requireTimestampV01(input.construction_cutoff, "commissioned_work_cutoff_invalid");
+  if (Date.parse(input.sealed_at) > Date.parse(input.construction_cutoff)) {
+    failV01("commissioned_work_seal_after_cutoff");
+  }
+  const commitments = [
+    ...input.training_case_commitments,
+    input.holdout_case_commitment,
+  ];
+  if (
+    input.training_case_commitments.length !== 3 ||
+    input.training_case_commitments.some((item) => item.case_role !== "training") ||
+    input.holdout_case_commitment.case_role !== "holdout"
+  ) {
+    failV01("commissioned_work_commitment_role_invalid");
+  }
+  commitments.forEach((commitment) =>
+    validateIntegrityV01(
+      commitment,
+      "commissioned_work_case_commitment_without_integrity_fingerprint",
+      "commissioned_work_case_commitment_integrity_invalid",
+    ),
+  );
+  assertSourceDistinctCasesV01(commitments);
+  for (const fingerprint of [
+    input.hypothesis_fingerprint,
+    input.equal_budget_fingerprint,
+  ]) {
+    if (!/^sha256:[a-f0-9]{64}$/u.test(fingerprint)) {
+      failV01("commissioned_work_manifest_source_fingerprint_invalid");
+    }
+  }
   const taskAuthor = createCommissionedWorkRoleRefV01(
     "task_author",
     input.task_author_role_id,
@@ -601,41 +692,34 @@ export function buildCommissionedWorkFamilyManifestV01(
   ) {
     failV01("commissioned_work_role_separation_invalid");
   }
-  const manifestWithoutIntegrity = {
-    family_version: COMMISSIONED_WORK_FAMILY_VERSION_V01,
-    family_id: input.family_id,
-    experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
-    host_neutral_execution_commitment: true as const,
-    execution_binding_scope: "cohort_run_episode" as const,
-    workspace_id: input.workspace_id,
-    task_family_key: input.task_family_key,
-    sealed_at: input.sealed_at,
-    construction_cutoff: input.construction_cutoff,
-    evaluator_version: input.evaluator_version,
-    task_author: taskAuthor,
-    outcome_evaluator: outcomeEvaluator,
-    consolidation_assessor: consolidationAssessor,
-    training_cases: commitments.slice(0, 3) as CommissionedWorkFamilyManifestV01["training_cases"],
-    holdout_case: commitments[3]!,
-    condition_order: COMMISSIONED_WORK_CONDITIONS_V01,
-    equal_budget_fingerprint: budgetFingerprints[0]!,
-    hypothesis_fingerprint: opaqueFingerprintV01(input.hypothesis),
-    task_or_rubric_mutation_allowed: false as const,
-    holdout_content_in_manifest: false as const,
-    holdout_used_for_candidate_derivation: false as const,
-    material_boundary: createCommissionedWorkMaterialBoundaryV01(),
-    authority_summary: createCommissionedWorkAuthoritySummaryV01(),
-  };
-  const manifest = sealV01(
-    manifestWithoutIntegrity,
+  return sealV01(
+    {
+      family_version: COMMISSIONED_WORK_FAMILY_VERSION_V01,
+      family_id: input.family_id,
+      experiment_class: COMMISSIONED_WORK_EXPERIMENT_CLASS_V01,
+      host_neutral_execution_commitment: true as const,
+      execution_binding_scope: "cohort_run_episode" as const,
+      workspace_id: input.workspace_id,
+      task_family_key: input.task_family_key,
+      sealed_at: input.sealed_at,
+      construction_cutoff: input.construction_cutoff,
+      evaluator_version: input.evaluator_version,
+      task_author: taskAuthor,
+      outcome_evaluator: outcomeEvaluator,
+      consolidation_assessor: consolidationAssessor,
+      training_cases: input.training_case_commitments,
+      holdout_case: input.holdout_case_commitment,
+      condition_order: COMMISSIONED_WORK_CONDITIONS_V01,
+      equal_budget_fingerprint: input.equal_budget_fingerprint,
+      hypothesis_fingerprint: input.hypothesis_fingerprint,
+      task_or_rubric_mutation_allowed: false as const,
+      holdout_content_in_manifest: false as const,
+      holdout_used_for_candidate_derivation: false as const,
+      material_boundary: createCommissionedWorkMaterialBoundaryV01(),
+      authority_summary: createCommissionedWorkAuthoritySummaryV01(),
+    },
     "commissioned_work_family_manifest_without_integrity_fingerprint",
   );
-  assertCommissionedWorkFamilySourceBindingV01({
-    manifest,
-    training_cases: input.training_cases,
-    holdout_case: input.holdout_case,
-  });
-  return manifest;
 }
 
 export function assertCommissionedWorkFamilySourceBindingV01(input: {
@@ -672,6 +756,7 @@ export function buildCommissionedWorkTaskContextPacketV01(input: {
   consolidation_candidate: CommissionedWorkConsolidationCandidateV01 | null;
   expected_candidate_freeze_fingerprint: string | null;
   generated_at: string;
+  executor_role_id_override?: string;
 }): TaskContextPacketV01 {
   assertExactPlanMembershipV01(input.source, input.plan);
   const commitment = findCaseCommitmentV01(input.manifest, input.source.case_id);
@@ -690,6 +775,12 @@ export function buildCommissionedWorkTaskContextPacketV01(input: {
       input.expected_candidate_freeze_fingerprint,
   });
   requireTimestampV01(input.generated_at, "commissioned_work_packet_time_invalid");
+  const executorRoleId =
+    input.executor_role_id_override ?? input.plan.executor_role_id;
+  requireSafeCodeV01(
+    executorRoleId,
+    "commissioned_work_executor_role_id_invalid",
+  );
   const materials = new Map(
     input.source.materials.map((material) => [material.material_id, material] as const),
   );
@@ -771,7 +862,7 @@ export function buildCommissionedWorkTaskContextPacketV01(input: {
       required_checks: input.source.required_checks.map((check) => check.check_id),
       return_ref: localRefV01(
         "commissioned_work_result_return",
-        `return:${input.source.case_id}:${input.plan.executor_role_id}`,
+        `return:${input.source.case_id}:${executorRoleId}`,
         input.generated_at,
         commitment.integrity.fingerprint,
       ),
@@ -842,6 +933,7 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
   runtime: CommissionedWorkRuntimeBindingV01;
   episode_id: string;
   requested_at: string;
+  executor_role_id_override?: string;
 }): NativeHostRequestV01 {
   assertExactPlanMembershipV01(input.source, input.plan);
   if (input.runtime.report_included !== false) {
@@ -871,6 +963,7 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
     expected_candidate_freeze_fingerprint:
       input.expected_candidate_freeze_fingerprint,
     generated_at: input.packet.generated_at,
+    executor_role_id_override: input.executor_role_id_override,
   });
   if (
     canonicalizeProtocolValueV01(rebuiltPacket) !==
@@ -902,7 +995,7 @@ export function buildCommissionedWorkNativeHostRequestV01(input: {
   const runId = `cw1-run:${input.episode_id}`;
   const executorRoleFingerprint = createCommissionedWorkRoleRefV01(
     "executor",
-    input.plan.executor_role_id,
+    input.executor_role_id_override ?? input.plan.executor_role_id,
   ).role_fingerprint;
   return {
     request_version: "native_host_request.v0.1",
@@ -1184,6 +1277,26 @@ export function buildCommissionedWorkObjectiveObservationV01(
   );
 }
 
+export function assertValidCommissionedWorkObjectiveObservationV01(
+  observation: CommissionedWorkObjectiveObservationV01,
+  caseCommitment: CommissionedWorkCaseCommitmentV01,
+): void {
+  if (observation.observation_version !== "commissioned_work_objective_observation.v0.1") {
+    failV01("commissioned_work_observation_version_invalid");
+  }
+  const { observation_version: _version, integrity: _integrity, ...input } = observation;
+  const rebuilt = buildCommissionedWorkObjectiveObservationV01({
+    ...input,
+    case_commitment: caseCommitment,
+  });
+  if (
+    canonicalizeProtocolValueV01(rebuilt) !==
+    canonicalizeProtocolValueV01(observation)
+  ) {
+    failV01("commissioned_work_objective_observation_integrity_invalid");
+  }
+}
+
 function commissionedWorkExternalRefFromRecordV01(
   record: CommissionedWorkRecordRefV01,
   refType: string,
@@ -1224,6 +1337,30 @@ function nativeHostRefBindingsV01(
       exact_ref_fingerprint: fingerprintV01(ref),
     }))
     .sort(compareCanonicalV01);
+}
+
+export function createCommissionedWorkCommissionedAgentHostRefBindingsV01(
+  refs: ExternalRefV01[],
+): CommissionedWorkNativeHostRefBindingV01[] {
+  if (refs.length > 4) {
+    failV01("commissioned_work_host_ref_set_bound_exceeded");
+  }
+  const exactRefs = [...refs].sort(compareCanonicalV01);
+  if (
+    new Set(exactRefs.map((ref) => ref.ref_type)).size !== exactRefs.length ||
+    new Set(exactRefs.map((ref) => canonicalizeProtocolValueV01(ref))).size !==
+      exactRefs.length
+  ) {
+    failV01("commissioned_work_host_ref_set_duplicate_or_conflicting");
+  }
+  exactRefs.forEach(assertCodexAppServerRefV01);
+  return nativeHostRefBindingsV01(exactRefs);
+}
+
+export function createCommissionedWorkNativeHostRefSetFingerprintV01(
+  refs: ExternalRefV01[],
+): string {
+  return fingerprintV01(nativeHostRefBindingsV01(refs));
 }
 
 function assertCodexAppServerRefV01(ref: ExternalRefV01): void {
@@ -3692,7 +3829,7 @@ export function buildCommissionedWorkEpisodeArtifactV01(
   const evaluatorRole = input.manifest.outcome_evaluator;
   const executorRole = createCommissionedWorkRoleRefV01(
     "executor",
-    input.plan.executor_role_id,
+    input.executor_role_id_override ?? input.plan.executor_role_id,
   );
   const sameRunResume =
     input.execution_observation.binding_kind === "commissioned_agent" &&
@@ -5094,6 +5231,7 @@ export function assertSafeCommissionedWorkOutputV01(value: unknown): void {
 }
 
 function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
+  assertExactCaseSourceShapeV01(source);
   requireSafeCodeV01(source.case_id, "commissioned_work_case_id_invalid");
   requireSafeCodeV01(source.project_id, "commissioned_work_case_project_id_invalid");
   requireSafeCodeV01(
@@ -5274,6 +5412,113 @@ function validateCaseSourceV01(source: CommissionedWorkCaseSourceV01): void {
     validateEpisodePlanV01(source, plan, materialIds),
   );
   validateTreatmentPlanV01(source);
+}
+
+function assertExactCaseSourceShapeV01(
+  source: CommissionedWorkCaseSourceV01,
+): void {
+  const exactKeys = (
+    value: unknown,
+    expected: readonly string[],
+    code: string,
+  ): void => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      canonicalizeProtocolValueV01(Object.keys(value).sort()) !==
+        canonicalizeProtocolValueV01([...expected].sort())
+    ) {
+      failV01(code);
+    }
+  };
+  exactKeys(source, [
+    "case_id",
+    "case_role",
+    "project_id",
+    "independent_origin_group_id",
+    "task",
+    "repository_fixture",
+    "predecessor_plan",
+    "source_drift_writes",
+    "successor_plans",
+    "current_source_relative_paths",
+    "required_checks",
+    "source_currentness_check_id",
+    "expected_success_changed_paths",
+    "expected_success_writes",
+    "negative_space_guards",
+    "materials",
+    "evaluator_version",
+    "budget",
+  ], "commissioned_work_case_source_schema_invalid");
+  exactKeys(source.task, ["goal", "success_criteria", "non_goals"],
+    "commissioned_work_case_task_schema_invalid");
+  const operationContractKeys = [
+    "allowed_operation_categories",
+    "allowed_repository_relative_paths",
+    "max_changed_files",
+    "max_artifacts",
+    "max_commands",
+    "provider_authority_source",
+    "provider_calls_authorized_by_operation_contract",
+    "external_network_call_limit",
+    "outside_root_write_allowed",
+    "github_mutation_allowed",
+    "semantic_authority_allowed",
+  ] as const;
+  const planKeys = ["executor_role_id", "operation_contract"] as const;
+  exactKeys(source.predecessor_plan, planKeys,
+    "commissioned_work_predecessor_plan_schema_invalid");
+  exactKeys(source.predecessor_plan.operation_contract, operationContractKeys,
+    "commissioned_work_operation_contract_schema_invalid");
+  source.successor_plans.forEach((plan) => {
+    exactKeys(plan, [
+      "executor_role_id",
+      "operation_contract",
+      "condition",
+      "holdout_variant",
+      "candidate_intervention_mode",
+      "selected_material_ids",
+      "excluded_material_ids",
+      "stale_relation_material_id",
+      "intervention_provenance_material_id",
+    ], "commissioned_work_successor_plan_schema_invalid");
+    exactKeys(plan.operation_contract, operationContractKeys,
+      "commissioned_work_operation_contract_schema_invalid");
+  });
+  for (const file of [
+    ...source.repository_fixture,
+    ...source.source_drift_writes,
+    ...source.expected_success_writes,
+  ]) {
+    exactKeys(file, ["repository_relative_path", "content"],
+      "commissioned_work_repository_material_schema_invalid");
+  }
+  source.required_checks.forEach((check) =>
+    exactKeys(check, ["check_id", "oracle_relative_path"],
+      "commissioned_work_required_check_schema_invalid"));
+  source.negative_space_guards.forEach((guard) =>
+    exactKeys(guard, [
+      "guard_id",
+      "repository_relative_path",
+      "forbidden_fragment",
+      "guarded_status",
+    ], "commissioned_work_negative_space_guard_schema_invalid"));
+  source.materials.forEach((material) =>
+    exactKeys(material, [
+      "material_id",
+      "material_kind",
+      "lifecycle_status",
+      "content",
+    ], "commissioned_work_source_material_schema_invalid"));
+  exactKeys(source.budget, [
+    "max_changed_files",
+    "max_checks",
+    "max_processes",
+    "provider_calls_authorized_by_family_manifest",
+    "external_network_call_limit",
+  ], "commissioned_work_case_budget_schema_invalid");
 }
 
 function validateEpisodePlanV01(
