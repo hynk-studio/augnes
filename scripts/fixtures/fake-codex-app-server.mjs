@@ -199,7 +199,11 @@ async function handle(message) {
         return;
       }
       respond(message.id, threadResponse({ includeTurns: true, turnStatus: "inProgress" }));
-      if (scenario === "disconnect_resume") {
+      if (scenario === "cw1_same_run_resume_repository_edit") {
+        applyCw1MechanicalRepositoryEdit();
+        emitObservedItems(path.join(root, "src", "route-token.mjs"));
+        setImmediate(() => completeSuccess());
+      } else if (scenario === "disconnect_resume") {
         setImmediate(() => completeSuccess());
       }
       return;
@@ -253,6 +257,13 @@ async function handle(message) {
           emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
           completeSuccess();
         } else if (
+          scenario === "cw1_predecessor_repository_edit" ||
+          scenario === "cw1_successor_repository_edit"
+        ) {
+          applyCw1MechanicalRepositoryEdit();
+          emitObservedItems(path.join(root, "src", "route-token.mjs"));
+          completeSuccess();
+        } else if (
           scenario === "success" ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
@@ -269,7 +280,8 @@ async function handle(message) {
         );
         else if (
           scenario === "disconnect_resume" ||
-          scenario === "disconnect_resume_same_batch"
+          scenario === "disconnect_resume_same_batch" ||
+          scenario === "cw1_same_run_resume_repository_edit"
         ) {
           trace("intentional_disconnect", { exit_code: 19 });
           process.exit(19);
@@ -612,6 +624,15 @@ function completeSuccess() {
   notify("thread/status/changed", { threadId, status: { type: "idle" } });
 }
 
+function applyCw1MechanicalRepositoryEdit() {
+  const target = path.join(root, "src", "route-token.mjs");
+  const content =
+    scenario === "cw1_predecessor_repository_edit"
+      ? 'export function routeToken(key, id) { return `${key}:${id}`; }\n'
+      : 'import { separator } from "./channel.mjs";\nexport function routeToken(key, id) { return `${key}${separator}${id}`; }\n';
+  writeFileSync(target, content, { encoding: "utf8", mode: 0o600 });
+}
+
 function respondAndCompleteSuccessInOneBatch(id) {
   if (completed) return;
   completed = true;
@@ -745,12 +766,18 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
+  const changedPath =
+    scenario === "cw1_predecessor_repository_edit" ||
+    scenario === "cw1_successor_repository_edit" ||
+    scenario === "cw1_same_run_resume_repository_edit"
+      ? "src/route-token.mjs"
+      : "src/live-result.ts";
   return JSON.stringify({
     result_version: "codex_host_structured_result.v0.1",
     summary: "The deterministic fake App Server completed the bounded live lifecycle.",
     changed_files: [
       {
-        repository_relative_path: "src/./live-result.ts",
+        repository_relative_path: changedPath,
         change_kind: "modified",
         before_hash: null,
         after_hash: null,

@@ -46,6 +46,87 @@ export const CODEX_APP_SERVER_CAPABILITY_VERSION_V01 =
   "codex_app_server_stable_stdio.v0.1" as const;
 export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
+export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
+  "codex_app_server_request_source_binding.v0.1" as const;
+
+export interface CodexAppServerRequestSourceBindingV01 {
+  binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
+  request_id: string;
+  native_host_request_fingerprint: string;
+  task_context_packet_ref_fingerprint: string;
+  task_context_packet_fingerprint: string;
+  root_scope_fingerprint: string;
+  operation_request_shape_fingerprint: string;
+}
+
+export function createCodexAppServerRequestSourceBindingV01(
+  request: NativeHostRequestV01,
+): CodexAppServerRequestSourceBindingV01 {
+  return {
+    binding_version: CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01,
+    request_id: request.request_id,
+    native_host_request_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request),
+    ),
+    task_context_packet_ref_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request.task_context_packet_ref),
+    ),
+    task_context_packet_fingerprint: request.packet.integrity.fingerprint,
+    root_scope_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(request.root_scope),
+    ),
+    operation_request_shape_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        request_version: request.request_version,
+        mode: request.mode,
+        requested_capability: request.requested_capability,
+        allowed_operation_categories: request.allowed_operation_categories,
+        forbidden_operation_categories: request.forbidden_operation_categories,
+        packet_capability_grant: request.packet_capability_grant,
+        execution_grant_ref: request.execution_grant_ref,
+        automation_context: request.automation_context,
+        repository_delegation_context:
+          request.repository_delegation_context ?? null,
+        policy: request.policy,
+        result_return: request.result_return,
+      }),
+    ),
+  };
+}
+
+export function requestSourceBindingMetadataForLifecycleEventV01(input: {
+  event_kind: NativeHostLifecycleEventV01["event_kind"];
+  request: NativeHostRequestV01;
+  existing_metadata: NativeHostLifecycleEventV01["bounded_metadata"];
+}): NativeHostLifecycleEventV01["bounded_metadata"] {
+  if (input.event_kind !== "turn_started") return input.existing_metadata;
+  const binding = createCodexAppServerRequestSourceBindingV01(input.request);
+  const sourceBindingMetadata = {
+    request_source_binding_version: binding.binding_version,
+    request_id: binding.request_id,
+    native_host_request_fingerprint: binding.native_host_request_fingerprint,
+    task_context_packet_ref_fingerprint:
+      binding.task_context_packet_ref_fingerprint,
+    task_context_packet_fingerprint: binding.task_context_packet_fingerprint,
+    root_scope_fingerprint: binding.root_scope_fingerprint,
+    operation_request_shape_fingerprint:
+      binding.operation_request_shape_fingerprint,
+  };
+  for (const [key, value] of Object.entries(sourceBindingMetadata)) {
+    if (
+      Object.hasOwn(input.existing_metadata, key) &&
+      input.existing_metadata[key] !== value
+    ) {
+      throw new NativeHostContractErrorV01(
+        "codex_lifecycle_request_source_binding_conflict",
+      );
+    }
+  }
+  return {
+    ...input.existing_metadata,
+    ...sourceBindingMetadata,
+  };
+}
 
 const MAX_JSONL_LINE_BYTES = 256 * 1024;
 const MAX_JSONL_BUFFER_BYTES = 512 * 1024;
@@ -1149,38 +1230,32 @@ class CodexAppServerInvocationV01 {
             this.request.policy.max_changed_files,
           )
         : null;
-    try {
-      await this.reportLifecycle({
-        event_kind: "work_checkpoint",
-        state: "running",
-        coverage: "observed",
-        host_refs: this.currentHostRefs(),
-        bounded_metadata: {
-          checkpoint_kind: checkpointKind,
-          phase: completed ? "completed" : "started",
-          status,
-          operation_ref: operationRef,
-          certainty: !completed
-            ? "started"
-            : status === "completed"
-              ? "completed"
-              : status === "failed"
-                ? "failed"
-                : status === "blocked"
-                  ? "cancelled"
-                  : "started",
-          change_count: changeCount,
-        },
-      });
-    } catch (error) {
-      const code =
-        error instanceof Error ? `${error.name}:${error.message}` : String(error);
-      if (/conflict|binding|reconciliation|mismatch/u.test(code)) {
-        throw error;
-      }
-      // Timeline checkpoints are optional observations. A transient ledger
-      // failure must not rewrite or invalidate the exact terminal result path.
-    }
+    // The lifecycle sink contract exposes no closed transient-storage error
+    // class. Until it does, every checkpoint refusal is fail-visible so a
+    // malformed producer cannot yield an apparently complete result with a
+    // missing durable timeline event.
+    await this.reportLifecycle({
+      event_kind: "work_checkpoint",
+      state: "running",
+      coverage: "observed",
+      host_refs: this.currentHostRefs(),
+      bounded_metadata: {
+        checkpoint_kind: checkpointKind,
+        phase: completed ? "completed" : "started",
+        status,
+        operation_ref: operationRef,
+        certainty: !completed
+          ? "started"
+          : status === "completed"
+            ? "completed"
+            : status === "failed"
+              ? "failed"
+              : status === "blocked"
+                ? "cancelled"
+                : "started",
+        change_count: changeCount,
+      },
+    });
   }
 
   private resolveTerminalFromTurn(value: unknown): void {
@@ -1543,12 +1618,17 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     if (!this.control.lifecycle_sink) return;
     const observedAt = this.now();
+    const boundedMetadata = requestSourceBindingMetadataForLifecycleEventV01({
+      event_kind: input.event_kind,
+      request: this.request,
+      existing_metadata: input.bounded_metadata,
+    });
     const eventMaterial = {
       run_id: this.request.run_id,
       event_kind: input.event_kind,
       state: input.state,
       host_refs: input.host_refs,
-      bounded_metadata: input.bounded_metadata,
+      bounded_metadata: boundedMetadata,
     };
     await this.control.lifecycle_sink.report_event({
       event_id: `native-host-event:${createHash("sha256")
@@ -1558,6 +1638,7 @@ class CodexAppServerInvocationV01 {
       run_id: this.request.run_id,
       observed_at: observedAt,
       ...input,
+      bounded_metadata: boundedMetadata,
     });
   }
 
