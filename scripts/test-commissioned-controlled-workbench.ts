@@ -54,8 +54,12 @@ import {
 import {
   createCodexAppServerAdapterV01,
   createCodexAppServerRequestSourceBindingV01,
+  requestSourceBindingMetadataForLifecycleEventV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import {
+  NativeHostContractErrorV01,
+} from "@/lib/vnext/native-host/native-host-contract";
 import {
   createCommissionedWorkbenchFixtureAdapterV01,
   createCommissionedWorkbenchFixtureAdmissionV01,
@@ -106,6 +110,25 @@ import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 let hermeticProcessEnvironmentV01: NodeJS.ProcessEnv | null = null;
 let ownedSynchronousProcessesV01 = 0;
 let ownedNativeHostProcessesV01 = 0;
+
+const REQUEST_SOURCE_BINDING_METADATA_KEYS_V01 = [
+  "native_host_request_fingerprint",
+  "operation_request_shape_fingerprint",
+  "request_id",
+  "request_source_binding_version",
+  "root_scope_fingerprint",
+  "task_context_packet_fingerprint",
+  "task_context_packet_ref_fingerprint",
+] as const;
+
+const WORK_CHECKPOINT_METADATA_KEYS_V01 = [
+  "certainty",
+  "change_count",
+  "checkpoint_kind",
+  "operation_ref",
+  "phase",
+  "status",
+] as const;
 
 type EpisodeBundle = {
   source: CommissionedWorkCaseSourceV01;
@@ -161,6 +184,7 @@ async function invokeProductionAppServerProbeV01(input: {
   request: NativeHostRequestV01;
   invocation_id: string;
   scenario:
+    | "cw1_predecessor_repository_edit"
     | "cw1_same_run_resume_repository_edit"
     | "unauthenticated";
   generated_at: string;
@@ -169,6 +193,8 @@ async function invokeProductionAppServerProbeV01(input: {
   turn_id: string;
   resume_binding: NativeHostResumeBindingV01 | null;
   expect_reconciliation: boolean;
+  expect_cleanup_marker?: boolean;
+  reject_checkpoint_code?: "live_host_checkpoint_invalid";
 }): Promise<ProductionAdapterInvocationProbeV01> {
   const runRoot = path.join(input.roots.runtime, input.invocation_id);
   mkdirSync(runRoot, { recursive: true, mode: 0o700 });
@@ -211,6 +237,12 @@ async function invokeProductionAppServerProbeV01(input: {
     stop_settle_timeout_ms: 3_000,
     lifecycle_sink: {
       async report_event(event) {
+        if (
+          event.event_kind === "work_checkpoint" &&
+          input.reject_checkpoint_code
+        ) {
+          throw new NativeHostContractErrorV01(input.reject_checkpoint_code);
+        }
         lifecycleEvents.push(event);
       },
       async request_approval() {
@@ -230,10 +262,10 @@ async function invokeProductionAppServerProbeV01(input: {
     await invocation.settled;
     ownedNativeHostProcessesV01 -= 1;
   }
-  if (input.expect_reconciliation) {
-    assert.equal(existsSync(cleanupMarker), false);
-  } else {
+  if (input.expect_cleanup_marker ?? !input.expect_reconciliation) {
     assert.equal(readFileSync(cleanupMarker, "utf8"), "settled\n");
+  } else {
+    assert.equal(existsSync(cleanupMarker), false);
   }
   assert.equal(readFileSync(networkCountPath, "utf8"), "0\n");
   assert.equal(adapterObservations.at(-1)?.kind, "settled");
@@ -244,6 +276,159 @@ async function invokeProductionAppServerProbeV01(input: {
     error,
     lifecycle_events: lifecycleEvents,
     adapter_observations: adapterObservations,
+  };
+}
+
+function assertProductionLifecycleMetadataV01(input: {
+  request: NativeHostRequestV01;
+  repository_root: string;
+  lifecycle_events: NativeHostLifecycleEventV01[];
+}): { started: number; completed: number; total: number } {
+  const exactBinding = createCodexAppServerRequestSourceBindingV01(input.request);
+  const expectedBindingMetadata = {
+    request_source_binding_version: exactBinding.binding_version,
+    request_id: exactBinding.request_id,
+    native_host_request_fingerprint:
+      exactBinding.native_host_request_fingerprint,
+    task_context_packet_ref_fingerprint:
+      exactBinding.task_context_packet_ref_fingerprint,
+    task_context_packet_fingerprint:
+      exactBinding.task_context_packet_fingerprint,
+    root_scope_fingerprint: exactBinding.root_scope_fingerprint,
+    operation_request_shape_fingerprint:
+      exactBinding.operation_request_shape_fingerprint,
+  };
+  const turnStarted = input.lifecycle_events.filter(
+    (event) => event.event_kind === "turn_started",
+  );
+  assert.ok(turnStarted.length > 0);
+  for (const event of turnStarted) {
+    for (const [key, value] of Object.entries(expectedBindingMetadata)) {
+      assert.equal(event.bounded_metadata[key], value);
+    }
+  }
+  const identicalCollision = requestSourceBindingMetadataForLifecycleEventV01({
+    event_kind: "turn_started",
+    request: input.request,
+    existing_metadata: {
+      host_notification: true,
+      request_id: exactBinding.request_id,
+    },
+  });
+  assert.equal(identicalCollision.request_id, exactBinding.request_id);
+  assert.throws(
+    () =>
+      requestSourceBindingMetadataForLifecycleEventV01({
+        event_kind: "turn_started",
+        request: input.request,
+        existing_metadata: {
+          request_id: `${exactBinding.request_id}:conflict`,
+        },
+      }),
+    /codex_lifecycle_request_source_binding_conflict/u,
+  );
+
+  const unrelatedEvent = input.lifecycle_events.find(
+    (event) =>
+      event.event_kind !== "turn_started" &&
+      event.event_kind !== "work_checkpoint",
+  );
+  assert.ok(unrelatedEvent);
+  assert.strictEqual(
+    requestSourceBindingMetadataForLifecycleEventV01({
+      event_kind: unrelatedEvent.event_kind,
+      request: input.request,
+      existing_metadata: unrelatedEvent.bounded_metadata,
+    }),
+    unrelatedEvent.bounded_metadata,
+  );
+  for (const key of REQUEST_SOURCE_BINDING_METADATA_KEYS_V01) {
+    assert.equal(key in unrelatedEvent.bounded_metadata, false);
+  }
+
+  const checkpoints = input.lifecycle_events.filter(
+    (event) => event.event_kind === "work_checkpoint",
+  );
+  assert.equal(checkpoints.length, 3);
+  assert.strictEqual(
+    requestSourceBindingMetadataForLifecycleEventV01({
+      event_kind: "work_checkpoint",
+      request: input.request,
+      existing_metadata: checkpoints[0]!.bounded_metadata,
+    }),
+    checkpoints[0]!.bounded_metadata,
+  );
+  for (const checkpoint of checkpoints) {
+    assert.deepEqual(
+      Object.keys(checkpoint.bounded_metadata).sort(),
+      WORK_CHECKPOINT_METADATA_KEYS_V01,
+    );
+    for (const key of REQUEST_SOURCE_BINDING_METADATA_KEYS_V01) {
+      assert.equal(key in checkpoint.bounded_metadata, false);
+    }
+    const expectedEventId = `native-host-event:${createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        run_id: checkpoint.run_id,
+        event_kind: checkpoint.event_kind,
+        state: checkpoint.state,
+        host_refs: checkpoint.host_refs,
+        bounded_metadata: checkpoint.bounded_metadata,
+      }),
+    ).slice("sha256:".length, "sha256:".length + 24)}`;
+    assert.equal(checkpoint.event_id, expectedEventId);
+  }
+  const commandStarted = checkpoints.find(
+    (event) =>
+      event.bounded_metadata.checkpoint_kind === "command_execution" &&
+      event.bounded_metadata.phase === "started",
+  );
+  const commandCompleted = checkpoints.find(
+    (event) =>
+      event.bounded_metadata.checkpoint_kind === "command_execution" &&
+      event.bounded_metadata.phase === "completed",
+  );
+  const fileCompleted = checkpoints.find(
+    (event) =>
+      event.bounded_metadata.checkpoint_kind === "file_change" &&
+      event.bounded_metadata.phase === "completed",
+  );
+  assert.ok(commandStarted);
+  assert.ok(commandCompleted);
+  assert.ok(fileCompleted);
+  assert.equal(commandStarted.bounded_metadata.status, "active");
+  assert.equal(commandStarted.bounded_metadata.certainty, "started");
+  assert.equal(commandStarted.bounded_metadata.change_count, null);
+  assert.equal(commandCompleted.bounded_metadata.status, "completed");
+  assert.equal(commandCompleted.bounded_metadata.certainty, "completed");
+  assert.equal(commandCompleted.bounded_metadata.change_count, null);
+  assert.equal(
+    commandStarted.bounded_metadata.operation_ref,
+    commandCompleted.bounded_metadata.operation_ref,
+  );
+  assert.equal(fileCompleted.bounded_metadata.status, "completed");
+  assert.equal(fileCompleted.bounded_metadata.certainty, "completed");
+  assert.equal(fileCompleted.bounded_metadata.change_count, 1);
+  for (const event of input.lifecycle_events) {
+    const metadata = canonicalizeProtocolValueV01(event.bounded_metadata);
+    assert.equal(metadata.includes(input.repository_root), false);
+    for (const forbiddenKey of [
+      "prompt",
+      "transcript",
+      "hidden_reasoning",
+      "provider_payload",
+      "credential",
+    ]) {
+      assert.equal(forbiddenKey in event.bounded_metadata, false);
+    }
+  }
+  return {
+    started: checkpoints.filter(
+      (event) => event.bounded_metadata.phase === "started",
+    ).length,
+    completed: checkpoints.filter(
+      (event) => event.bounded_metadata.phase === "completed",
+    ).length,
+    total: checkpoints.length,
   };
 }
 
@@ -2666,6 +2851,14 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
     assert.equal(readFileSync(cleanupMarker, "utf8"), "settled\n");
     assert.equal(readFileSync(networkCountPath, "utf8"), "0\n");
     assert.equal(adapterObservations.at(-1)?.kind, "settled");
+    assert.deepEqual(
+      assertProductionLifecycleMetadataV01({
+        request,
+        repository_root: repositoryRoot,
+        lifecycle_events: lifecycleEvents,
+      }),
+      { started: 1, completed: 2, total: 3 },
+    );
     const exactAdapterResult = canonicalizeProtocolValueV01(result);
     const hostRefTypes = result.host_refs.map((ref) => ref.ref_type).sort();
     assert.deepEqual(hostRefTypes, [
@@ -2882,6 +3075,32 @@ async function assertProductionShapedCommissionedAgentPathV01(input: {
   });
   assert.equal(predecessor.result.outcome, "completed");
   assert.equal(predecessor.receipt.execution.status, "completed");
+  const invalidCheckpoint = await invokeProductionAppServerProbeV01({
+    roots: input.roots,
+    repository_root: repositoryRoot,
+    request: predecessor.request,
+    invocation_id: "case-amber-17-invalid-checkpoint-sink",
+    scenario: "cw1_predecessor_repository_edit",
+    generated_at: "2026-08-27T06:15:00.000Z",
+    thread_id: "01900000-0000-7000-8000-000000000111",
+    session_id: "01900000-0000-7000-8000-000000000112",
+    turn_id: "01900000-0000-7000-8000-000000000113",
+    resume_binding: null,
+    expect_reconciliation: true,
+    expect_cleanup_marker: true,
+    reject_checkpoint_code: "live_host_checkpoint_invalid",
+  });
+  assert.equal(
+    (invalidCheckpoint.error as { code?: unknown }).code,
+    "live_host_checkpoint_invalid",
+  );
+  assert.equal(invalidCheckpoint.result, null);
+  assert.equal(
+    invalidCheckpoint.lifecycle_events.some(
+      (event) => event.event_kind === "work_checkpoint",
+    ),
+    false,
+  );
   const checkpoint = buildCommissionedWorkEpisodeCheckpointV01(
     predecessor.episode,
   );

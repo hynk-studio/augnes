@@ -94,6 +94,40 @@ export function createCodexAppServerRequestSourceBindingV01(
   };
 }
 
+export function requestSourceBindingMetadataForLifecycleEventV01(input: {
+  event_kind: NativeHostLifecycleEventV01["event_kind"];
+  request: NativeHostRequestV01;
+  existing_metadata: NativeHostLifecycleEventV01["bounded_metadata"];
+}): NativeHostLifecycleEventV01["bounded_metadata"] {
+  if (input.event_kind !== "turn_started") return input.existing_metadata;
+  const binding = createCodexAppServerRequestSourceBindingV01(input.request);
+  const sourceBindingMetadata = {
+    request_source_binding_version: binding.binding_version,
+    request_id: binding.request_id,
+    native_host_request_fingerprint: binding.native_host_request_fingerprint,
+    task_context_packet_ref_fingerprint:
+      binding.task_context_packet_ref_fingerprint,
+    task_context_packet_fingerprint: binding.task_context_packet_fingerprint,
+    root_scope_fingerprint: binding.root_scope_fingerprint,
+    operation_request_shape_fingerprint:
+      binding.operation_request_shape_fingerprint,
+  };
+  for (const [key, value] of Object.entries(sourceBindingMetadata)) {
+    if (
+      Object.hasOwn(input.existing_metadata, key) &&
+      input.existing_metadata[key] !== value
+    ) {
+      throw new NativeHostContractErrorV01(
+        "codex_lifecycle_request_source_binding_conflict",
+      );
+    }
+  }
+  return {
+    ...input.existing_metadata,
+    ...sourceBindingMetadata,
+  };
+}
+
 const MAX_JSONL_LINE_BYTES = 256 * 1024;
 const MAX_JSONL_BUFFER_BYTES = 512 * 1024;
 const MAX_PENDING_REQUESTS = 32;
@@ -1196,38 +1230,32 @@ class CodexAppServerInvocationV01 {
             this.request.policy.max_changed_files,
           )
         : null;
-    try {
-      await this.reportLifecycle({
-        event_kind: "work_checkpoint",
-        state: "running",
-        coverage: "observed",
-        host_refs: this.currentHostRefs(),
-        bounded_metadata: {
-          checkpoint_kind: checkpointKind,
-          phase: completed ? "completed" : "started",
-          status,
-          operation_ref: operationRef,
-          certainty: !completed
-            ? "started"
-            : status === "completed"
-              ? "completed"
-              : status === "failed"
-                ? "failed"
-                : status === "blocked"
-                  ? "cancelled"
-                  : "started",
-          change_count: changeCount,
-        },
-      });
-    } catch (error) {
-      const code =
-        error instanceof Error ? `${error.name}:${error.message}` : String(error);
-      if (/conflict|binding|reconciliation|mismatch/u.test(code)) {
-        throw error;
-      }
-      // Timeline checkpoints are optional observations. A transient ledger
-      // failure must not rewrite or invalidate the exact terminal result path.
-    }
+    // The lifecycle sink contract exposes no closed transient-storage error
+    // class. Until it does, every checkpoint refusal is fail-visible so a
+    // malformed producer cannot yield an apparently complete result with a
+    // missing durable timeline event.
+    await this.reportLifecycle({
+      event_kind: "work_checkpoint",
+      state: "running",
+      coverage: "observed",
+      host_refs: this.currentHostRefs(),
+      bounded_metadata: {
+        checkpoint_kind: checkpointKind,
+        phase: completed ? "completed" : "started",
+        status,
+        operation_ref: operationRef,
+        certainty: !completed
+          ? "started"
+          : status === "completed"
+            ? "completed"
+            : status === "failed"
+              ? "failed"
+              : status === "blocked"
+                ? "cancelled"
+                : "started",
+        change_count: changeCount,
+      },
+    });
   }
 
   private resolveTerminalFromTurn(value: unknown): void {
@@ -1590,22 +1618,11 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     if (!this.control.lifecycle_sink) return;
     const observedAt = this.now();
-    const requestSourceBinding =
-      createCodexAppServerRequestSourceBindingV01(this.request);
-    const boundedMetadata = {
-      ...input.bounded_metadata,
-      request_source_binding_version: requestSourceBinding.binding_version,
-      request_id: requestSourceBinding.request_id,
-      native_host_request_fingerprint:
-        requestSourceBinding.native_host_request_fingerprint,
-      task_context_packet_ref_fingerprint:
-        requestSourceBinding.task_context_packet_ref_fingerprint,
-      task_context_packet_fingerprint:
-        requestSourceBinding.task_context_packet_fingerprint,
-      root_scope_fingerprint: requestSourceBinding.root_scope_fingerprint,
-      operation_request_shape_fingerprint:
-        requestSourceBinding.operation_request_shape_fingerprint,
-    };
+    const boundedMetadata = requestSourceBindingMetadataForLifecycleEventV01({
+      event_kind: input.event_kind,
+      request: this.request,
+      existing_metadata: input.bounded_metadata,
+    });
     const eventMaterial = {
       run_id: this.request.run_id,
       event_kind: input.event_kind,
