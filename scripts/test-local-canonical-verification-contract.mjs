@@ -947,6 +947,7 @@ const integrationChildren = [
   "project-verify-operator-adapter",
   "reconstruction-conformance",
   "commissioned-controlled-workbench",
+  "codex-isolated-auth-projection",
   "project-controls",
   "policy-triggered-model-run",
   "project-home",
@@ -1130,6 +1131,7 @@ requireText(
 );
 for (const [pathName, timeout] of [
   ["scripts/test-commissioned-controlled-workbench.ts", "30_000"],
+  ["scripts/test-codex-isolated-auth-projection.ts", "30_000"],
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],

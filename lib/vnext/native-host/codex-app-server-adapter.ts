@@ -21,6 +21,12 @@ import {
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
 import {
+  CodexIsolatedAuthProjectionErrorV01,
+  type CodexIsolatedAuthenticatedExecutionOwnerV01,
+  type CodexIsolatedSpawnMaterialV01,
+} from "@/lib/vnext/native-host/codex-isolated-auth-projection";
+import { CodexCredentialBrokerErrorV01 } from "@/lib/vnext/native-host/codex-credential-broker";
+import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
   type NativeHostAdapterV01,
@@ -39,6 +45,7 @@ import {
   type NativeHostStopRequestV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type { CodexIsolatedAuthObservationV01 } from "@/types/vnext/codex-isolated-auth-projection";
 
 export const CODEX_APP_SERVER_ADAPTER_VERSION_V01 =
   "codex_app_server_adapter.v0.1" as const;
@@ -208,13 +215,22 @@ export interface CodexAppServerAdapterObservationV01 {
 
 export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
+  isolated_authenticated_execution?: CodexIsolatedAuthenticatedExecutionOwnerV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
+  observe_isolated_auth?: (
+    observation: CodexIsolatedAuthObservationV01,
+  ) => void;
 }
 
 export function createCodexAppServerAdapterV01(
   options: CodexAppServerAdapterOptionsV01 = {},
 ): NativeHostAdapterV01 {
+  if (options.launch && options.isolated_authenticated_execution) {
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_parallel_launch_refused",
+    );
+  }
   return {
     adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
@@ -274,6 +290,8 @@ class CodexAppServerInvocationV01 {
   private terminalObserved: CodexTurnTerminalV01 | null = null;
   private cleanupSettled = false;
   private fatalError: Error | null = null;
+  private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null = null;
+  private isolatedInstructionSourcesObservedEmpty = false;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
   private readonly observedActions: string[] = [];
@@ -388,6 +406,15 @@ class CodexAppServerInvocationV01 {
           publicCleanupDiagnosticCodeV01(cleanupError),
         );
       }
+      try {
+        this.options.isolated_authenticated_execution?.cleanupV01();
+      } catch (error) {
+        cleanupError ??= asErrorV01(error);
+        this.observe(
+          "settlement_failed",
+          publicCleanupDiagnosticCodeV01(asErrorV01(error)),
+        );
+      }
       this.cleanupSettled = cleanupError === null;
       this.observe("settled");
       if (cleanupError) this.settledDeferred.reject(cleanupError);
@@ -396,18 +423,31 @@ class CodexAppServerInvocationV01 {
   }
 
   private async startTransport(): Promise<void> {
-    const launch = this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
-    this.transport = new CodexStdioJsonRpcTransportV01({
-      command: launch.command,
-      args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
-      cwd: this.request.root_scope.canonical_root,
-      environment:
-        launch.environment ?? boundedCodexChildEnvironmentV01(process.env, false),
-      onNotification: (method, params) => this.onNotification(method, params),
-      onServerRequest: (id, method, params) =>
-        this.onServerRequest(id, method, params),
-    });
-    await this.transport.started;
+    const isolatedOwner = this.options.isolated_authenticated_execution;
+    if (isolatedOwner) {
+      if (this.control.resume_binding) {
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_resume_refused",
+        );
+      }
+      await isolatedOwner.withSpawnMaterialV01({
+        repository_root: this.request.root_scope.canonical_root,
+        use: async (material) => this.startIsolatedTransportV01(material),
+      });
+    } else {
+      const launch = this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
+      this.transport = new CodexStdioJsonRpcTransportV01({
+        command: launch.command,
+        args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
+        cwd: this.request.root_scope.canonical_root,
+        environment:
+          launch.environment ?? boundedCodexChildEnvironmentV01(process.env, false),
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+      await this.transport.started;
+    }
     const observedAt = this.now();
     this.connectionRef = externalRefV01(
       "host_connection",
@@ -423,6 +463,25 @@ class CodexAppServerInvocationV01 {
       bounded_metadata: { transport: "stdio_jsonl", experimental_api: false },
     });
     this.observe("spawned");
+  }
+
+  private async startIsolatedTransportV01(
+    material: CodexIsolatedSpawnMaterialV01,
+  ): Promise<void> {
+    try {
+      this.transport = new CodexStdioJsonRpcTransportV01({
+        command: material.command,
+        args: material.args,
+        cwd: material.cwd,
+        environment: material.environment,
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+      await this.transport.started;
+    } finally {
+      delete material.environment[material.sensitive_environment_key];
+    }
   }
 
   private async initializeAndCheckAccount(): Promise<void> {
@@ -451,6 +510,43 @@ class CodexAppServerInvocationV01 {
     if (account.account === null || typeof account.account !== "object") {
       throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
     }
+    const isolatedOwner = this.options.isolated_authenticated_execution;
+    if (isolatedOwner) {
+      const authStatus = objectV01(
+        await this.transport!.request("getAuthStatus", {
+          includeToken: false,
+          refreshToken: false,
+        }),
+        "codex_auth_status_response_invalid",
+      );
+      const config = objectV01(
+        await this.transport!.request("config/read", {
+          includeLayers: false,
+          cwd: this.request.root_scope.canonical_root,
+        }),
+        "codex_config_response_invalid",
+      );
+      const mcpStatus = objectV01(
+        await this.transport!.request("mcpServerStatus/list", {
+          limit: 100,
+        }),
+        "codex_mcp_status_response_invalid",
+      );
+      this.isolatedAuthObservation = isolatedOwner.observeInitializedAccountV01({
+        initialized,
+        auth_status: authStatus,
+        account,
+        config,
+        mcp_status: mcpStatus,
+        observed_at: this.now(),
+      });
+      this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
+      // Account/config/MCP reads and policy notifications can share one
+      // stdout batch. Drain every already-admitted notification before any
+      // repository-bearing thread or turn request is allowed to start.
+      await this.transport!.settleNotifications();
+      if (this.transport!.failure) throw this.transport!.failure;
+    }
     await this.reportLifecycle({
       event_kind: "capability_confirmed",
       state: "starting",
@@ -460,6 +556,14 @@ class CodexAppServerInvocationV01 {
         adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
         capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
         cli_version: this.cliVersion,
+        ...(this.isolatedAuthObservation
+          ? {
+              isolated_auth_projection_fingerprint:
+                this.isolatedAuthObservation.projection_fingerprint,
+              isolated_auth_observation_fingerprint:
+                this.isolatedAuthObservation.integrity.fingerprint,
+            }
+          : {}),
       },
     });
     this.observe("account_available");
@@ -473,10 +577,28 @@ class CodexAppServerInvocationV01 {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
         sandbox: "workspace-write",
-        ephemeral: false,
+        ephemeral: this.options.isolated_authenticated_execution ? true : false,
+        ...(this.options.isolated_authenticated_execution
+          ? { allowProviderModelFallback: false }
+          : {}),
       }),
       "codex_thread_start_response_invalid",
     );
+    if (this.options.isolated_authenticated_execution) {
+      this.options.isolated_authenticated_execution.assertFreshThreadResponseV01(
+        response,
+      );
+      this.isolatedInstructionSourcesObservedEmpty = true;
+      if (
+        response.modelProvider !==
+        this.options.isolated_authenticated_execution.projection.provider_ref
+          .external_id
+      ) {
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_provider_mismatch",
+        );
+      }
+    }
     await this.bindThreadResponse(response, "thread_started");
     this.observe("thread_started");
     await this.startTurn();
@@ -695,6 +817,20 @@ class CodexAppServerInvocationV01 {
   }
 
   private async onNotification(method: string, params: unknown): Promise<void> {
+    if (
+      this.options.isolated_authenticated_execution &&
+      [
+        "account/updated",
+        "configWarning",
+        "mcpServer/startupStatus/updated",
+        "model/rerouted",
+        "remoteControl/status/changed",
+      ].includes(method)
+    ) {
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_runtime_policy_drift",
+      );
+    }
     const value = objectV01(params, "codex_notification_params_invalid");
     this.assertNotificationBinding(value);
     if (method === "turn/started") {
@@ -1410,6 +1546,24 @@ class CodexAppServerInvocationV01 {
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...(this.isolatedAuthObservation
+            ? {
+                isolated_auth_projection_fingerprint:
+                  this.isolatedAuthObservation.projection_fingerprint,
+                isolated_auth_observation_fingerprint:
+                  this.isolatedAuthObservation.integrity.fingerprint,
+                isolated_state_root_fingerprint:
+                  this.isolatedAuthObservation.state_root_fingerprint,
+                ephemeral_thread: true,
+                shared_state_observed: false,
+                attempt_auth_material_persisted: false,
+                auth_material_exposed_outside_app_server_launch_boundary:
+                  false,
+                repository_command_auth_material_inherited: false,
+                isolated_instruction_sources_empty:
+                  this.isolatedInstructionSourcesObservedEmpty,
+              }
+            : {}),
         },
       },
     };
@@ -1489,6 +1643,24 @@ class CodexAppServerInvocationV01 {
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...(this.isolatedAuthObservation
+            ? {
+                isolated_auth_projection_fingerprint:
+                  this.isolatedAuthObservation.projection_fingerprint,
+                isolated_auth_observation_fingerprint:
+                  this.isolatedAuthObservation.integrity.fingerprint,
+                isolated_state_root_fingerprint:
+                  this.isolatedAuthObservation.state_root_fingerprint,
+                ephemeral_thread: true,
+                shared_state_observed: false,
+                attempt_auth_material_persisted: false,
+                auth_material_exposed_outside_app_server_launch_boundary:
+                  false,
+                repository_command_auth_material_inherited: false,
+                isolated_instruction_sources_empty:
+                  this.isolatedInstructionSourcesObservedEmpty,
+              }
+            : {}),
         },
       },
     };
@@ -1743,6 +1915,10 @@ class CodexStdioJsonRpcTransportV01 {
       ): Promise<unknown>;
     },
   ) {
+    const handlers = {
+      onNotification: input.onNotification,
+      onServerRequest: input.onServerRequest,
+    };
     this.child = spawn(input.command, input.args, {
       cwd: input.cwd,
       env: input.environment,
@@ -1777,7 +1953,11 @@ class CodexStdioJsonRpcTransportV01 {
         );
       }
     });
-    this.child.stdout.on("data", (chunk: Buffer) => this.onStdout(chunk, input));
+    // Retain only the two bounded callbacks after spawn. In particular, the
+    // launch environment is not captured by any transport listener.
+    this.child.stdout.on("data", (chunk: Buffer) =>
+      this.onStdout(chunk, handlers),
+    );
     this.child.stdout.on("error", () => {
       if (!this.closing) {
         this.fail(new CodexProtocolErrorV01("codex_transport_read_failed"));
@@ -3285,6 +3465,8 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexCapabilityErrorV01 ||
     error instanceof CodexProtocolErrorV01 ||
     error instanceof CodexRpcErrorV01 ||
+    error instanceof CodexCredentialBrokerErrorV01 ||
+    error instanceof CodexIsolatedAuthProjectionErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01
   ) {

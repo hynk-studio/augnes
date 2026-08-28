@@ -439,6 +439,23 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "codex-isolated-auth-projection",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "credential-safe isolated Agent Identity projection and App Server launch boundary",
+      ...rootNode("scripts/test-codex-isolated-auth-projection.ts"),
+      // Broker exclusion, production-shaped fake App Server launch, account and
+      // tool-policy reobservation, replacement isolation, and cleanup measured
+      // 1.7s locally on arm64. Keep one bounded child with no retry path.
+      timeoutMs: 30_000,
+    },
+    {
       id: "project-controls",
       group: "supporting-serial",
       requirements: ["database", "migrations", "mutable-module-state"],
