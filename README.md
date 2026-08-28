@@ -60,6 +60,13 @@ provider, semantic, external-effect, publication, or merge authority. Stop or
 remove it reversibly with `npm run augnes:service:stop` or
 `npm run augnes:service:uninstall`. Linux and Windows service installation are
 unsupported; their source development flow remains foreground-only.
+Uninstall also has one destruction-only fail-closed path for an exact stored
+service whose same logical repository root has been physically replaced, as
+shown by device or inode drift. That path authenticates the stored service,
+LaunchAgent, desired state, maintenance state, and owned processes before
+removal; it never starts or resumes the stale service. A moved root or changed
+logical repository fingerprint remains refused and requires separate operator
+recovery rather than being inferred from remote equality.
 Explicit Stop remains stopped across a later login or LaunchAgent reload; only
 an explicit Start or Install returns that exact service to running. One
 production Companion service may be installed per local user session, so setup
