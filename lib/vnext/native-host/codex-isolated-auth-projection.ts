@@ -37,9 +37,14 @@ import {
   CODEX_ISOLATED_AUTH_BROKER_VERSION_V01,
   CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01,
-  CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PROVISIONING_BINDING_VERSION_V01,
   CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01,
   CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01,
   CODEX_ISOLATED_AUTH_ROUTE_V01,
@@ -47,9 +52,10 @@ import {
   type CodexIsolatedAuthConfigPolicyV01,
   type CodexIsolatedAuthCredentialAttestationV01,
   type CodexIsolatedAuthObservationV01,
-  type CodexIsolatedAuthProvisioningAuthorizationV01,
+  type CodexIsolatedAuthProvisioningBindingV01,
   type CodexIsolatedAuthProjectionSealV01,
   type CodexIsolatedAuthProjectionV01,
+  type CodexIsolatedAuthSemanticProfileV01,
   type CodexIsolatedAuthStatePolicyV01,
 } from "@/types/vnext/codex-isolated-auth-projection";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -83,7 +89,7 @@ const PROVIDER_ROUTE_MATERIAL_V01 = {
   user_env_http_headers_present: false,
 } as const;
 const SOURCE_OWNED_EXECUTION_OWNERS_V01 = new WeakSet<object>();
-const SOURCE_OWNED_PROVISIONING_AUTHORIZATIONS_V01 = new WeakSet<object>();
+const SOURCE_OWNED_PROVISIONING_BINDINGS_V01 = new WeakSet<object>();
 const PROVIDER_ROUTE_FINGERPRINT_V01 = createProtocolSha256V01(
   canonicalizeProtocolValueV01(PROVIDER_ROUTE_MATERIAL_V01),
 );
@@ -191,15 +197,7 @@ const FORBIDDEN_SURFACES_V01 = [
   "run_receipt",
   "trace",
 ] as const;
-const TEST_ENV_KEYS_V01 = new Set([
-  "AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE",
-  "FAKE_CODEX_AUTH_BOUNDARY_PATH",
-  "FAKE_CODEX_CLEANUP_MARKER_PATH",
-  "FAKE_CODEX_NETWORK_COUNT_PATH",
-  "FAKE_CODEX_SCENARIO",
-  "FAKE_CODEX_TRACE_PATH",
-]);
-const DISABLED_FEATURES_V01 = new Set([
+const DISABLED_FEATURE_NAMES_V01 = [
   "apps",
   "browser_use",
   "browser_use_external",
@@ -218,7 +216,91 @@ const DISABLED_FEATURES_V01 = new Set([
   "tool_suggest",
   "web_search_cached",
   "web_search_request",
+] as const;
+const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
+  contract_version: "codex_agent_identity_jwt_claims.rust-v0.147.0",
+  algorithm: "RS256",
+  kid_required: true,
+  issuer: "https://chatgpt.com/codex-backend/agent-identity",
+  audience: "codex-app-server",
+  required_claims: [
+    "iss",
+    "aud",
+    "iat",
+    "exp",
+    "agent_runtime_id",
+    "agent_private_key",
+    "account_id",
+    "chatgpt_user_id",
+    "plan_type",
+    "chatgpt_account_is_fedramp",
+  ],
+  optional_claims: ["email"],
+  source_expiry_safety_margin_seconds: 60,
+} as const;
+const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
+  method_profile_version: "codex_app_server_auth_preflight.rust-v0.147.0",
+  initialize: "initialize",
+  initialized: "initialized",
+  account_read: "account/read",
+  auth_status: "getAuthStatus",
+  config_read: "config/read",
+  mcp_status: "mcpServerStatus/list",
+  thread_start: "thread/start",
+  turn_start: "turn/start",
+  user_agent: "codex-cli/0.147.0",
+} as const;
+const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
+  canonicalizeProtocolValueV01({
+    config_policy: CONFIG_POLICY_BASE_V01,
+    config_override_args: CONFIG_OVERRIDE_ARGS_V01,
+    disabled_features: [...DISABLED_FEATURE_NAMES_V01],
+  }),
+);
+const REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01 =
+  createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      state_policy: STATE_POLICY_V01,
+      allowed_environment_keys: ALLOWED_ENV_KEYS_V01,
+      launch_injection_mechanism: "broker_internal_immediate_child_spawn",
+      auth_store_mode: "ephemeral",
+      auth_file_copy_forbidden: true,
+      ordinary_codex_home_fallback_forbidden: true,
+    }),
+  );
+const SEMANTIC_PROFILE_MATERIAL_V01 = {
+  semantic_profile_version: CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
+  upstream_tag: CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
+  upstream_source_commit: CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
+  supported_public_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  pinned_production_executable_fingerprint:
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  agent_identity_claim_contract_fingerprint: createProtocolSha256V01(
+    canonicalizeProtocolValueV01(AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01),
+  ),
+  effective_provider_rule_fingerprint: PROVIDER_ROUTE_FINGERPRINT_V01,
+  config_tool_feature_schema_fingerprint:
+    CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01,
+  app_server_method_profile_fingerprint: createProtocolSha256V01(
+    canonicalizeProtocolValueV01(APP_SERVER_METHOD_PROFILE_MATERIAL_V01),
+  ),
+  required_environment_auth_behavior_fingerprint:
+    REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01,
+} as const;
+export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01:
+  CodexIsolatedAuthSemanticProfileV01 = deepFreezeV01({
+  ...SEMANTIC_PROFILE_MATERIAL_V01,
+  integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_V01),
+});
+const TEST_ENV_KEYS_V01 = new Set([
+  "AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE",
+  "FAKE_CODEX_AUTH_BOUNDARY_PATH",
+  "FAKE_CODEX_CLEANUP_MARKER_PATH",
+  "FAKE_CODEX_NETWORK_COUNT_PATH",
+  "FAKE_CODEX_SCENARIO",
+  "FAKE_CODEX_TRACE_PATH",
 ]);
+const DISABLED_FEATURES_V01 = new Set<string>(DISABLED_FEATURE_NAMES_V01);
 
 export class CodexIsolatedAuthProjectionErrorV01 extends Error {
   constructor(readonly code: string) {
@@ -229,28 +311,34 @@ export class CodexIsolatedAuthProjectionErrorV01 extends Error {
 
 export interface ProvisionCodexIsolatedAuthProjectionInputV01 {
   projection_id: string;
-  provisioning_authorization: CodexIsolatedAuthProvisioningAuthorizationV01;
-  provisioning_authorization_ref: ExternalRefV01;
+  provisioning_binding: CodexIsolatedAuthProvisioningBindingV01;
+  provisioning_binding_ref: ExternalRefV01;
   provider_ref: ExternalRefV01;
   broker_binding: CodexCredentialBrokerBindingV01;
   broker: CodexCredentialBrokerV01;
   codex_executable_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
-  compatible_codex_cli_version: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  compatible_codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
   issued_at: string;
   expires_at: string;
 }
 
-export function createCodexIsolatedAuthProvisioningAuthorizationV01(input: {
-  authorization_id: string;
+export function createCodexIsolatedAuthProvisioningBindingV01(input: {
+  binding_id: string;
   auth_handle_ref: ExternalRefV01;
   broker_binding_fingerprint: string;
   provider_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
-  compatible_codex_cli_version: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  compatible_codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
   issued_at: string;
   expires_at: string;
-}): CodexIsolatedAuthProvisioningAuthorizationV01 {
+}): CodexIsolatedAuthProvisioningBindingV01 {
   validateRefV01(input.auth_handle_ref);
   validateRefV01(input.provider_ref);
   if (
@@ -261,12 +349,11 @@ export function createCodexIsolatedAuthProvisioningAuthorizationV01(input: {
     Date.parse(input.expires_at) <= Date.parse(input.issued_at)
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
-      "codex_isolated_auth_provisioning_authorization_invalid",
+      "codex_isolated_auth_provisioning_binding_invalid",
     );
   const material = {
-    authorization_version:
-      CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01,
-    authorization_id: requiredIdV01(input.authorization_id),
+    binding_version: CODEX_ISOLATED_AUTH_PROVISIONING_BINDING_VERSION_V01,
+    binding_id: requiredIdV01(input.binding_id),
     auth_handle_ref: normalizeExternalRefPrimitiveV01(input.auth_handle_ref),
     broker_binding_fingerprint: requiredSha256V01(
       input.broker_binding_fingerprint,
@@ -275,15 +362,25 @@ export function createCodexIsolatedAuthProvisioningAuthorizationV01(input: {
     codex_executable_fingerprint: requiredSha256V01(
       input.codex_executable_fingerprint,
     ),
-    compatible_codex_cli_version: requiredCliVersionV01(
+    executable_identity_class: exactExecutableIdentityClassV01(
+      input.executable_identity_class,
+      input.codex_executable_fingerprint,
+    ),
+    compatible_codex_cli_version: exactSupportedCliVersionV01(
       input.compatible_codex_cli_version,
     ),
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
     projection_mode: CODEX_ISOLATED_AUTH_ROUTE_V01,
     issued_at: input.issued_at,
     expires_at: input.expires_at,
     authority: {
       opaque_handle_attestation_read: true,
-      authenticated_child_spawn: true,
+      authenticated_child_spawn_for_preflight: true,
+      is_execution_authority: false,
+      is_provider_authority: false,
       repository_execution_granted: false,
       provider_call_granted: false,
       task_network_granted: false,
@@ -294,13 +391,13 @@ export function createCodexIsolatedAuthProvisioningAuthorizationV01(input: {
       merge_granted: false,
     },
   } as const;
-  const authorization: CodexIsolatedAuthProvisioningAuthorizationV01 = {
+  const binding: CodexIsolatedAuthProvisioningBindingV01 = {
     ...material,
     integrity: integrityV01(material),
   };
-  assertSafePublicV01(authorization);
-  SOURCE_OWNED_PROVISIONING_AUTHORIZATIONS_V01.add(authorization);
-  return deepFreezeV01(authorization);
+  assertSafePublicV01(binding);
+  SOURCE_OWNED_PROVISIONING_BINDINGS_V01.add(binding);
+  return deepFreezeV01(binding);
 }
 
 export interface ProvisionCodexIsolatedAuthProjectionResultV01 {
@@ -352,43 +449,49 @@ export async function provisionCodexIsolatedAuthProjectionV01(
   input: ProvisionCodexIsolatedAuthProjectionInputV01,
 ): Promise<ProvisionCodexIsolatedAuthProjectionResultV01> {
   validateProvisionInputV01(input);
-  const authorization = input.provisioning_authorization;
+  const binding = input.provisioning_binding;
   if (
-    !SOURCE_OWNED_PROVISIONING_AUTHORIZATIONS_V01.has(authorization) ||
-    authorization.integrity.fingerprint !==
+    !SOURCE_OWNED_PROVISIONING_BINDINGS_V01.has(binding) ||
+    binding.integrity.fingerprint !==
       integrityV01(
         Object.fromEntries(
-          Object.entries(authorization).filter(([key]) => key !== "integrity"),
+          Object.entries(binding).filter(([key]) => key !== "integrity"),
         ),
       ).fingerprint ||
-    canonicalizeProtocolValueV01(authorization.auth_handle_ref) !==
+    canonicalizeProtocolValueV01(binding.auth_handle_ref) !==
       canonicalizeProtocolValueV01(input.broker_binding.auth_handle_ref) ||
-    authorization.broker_binding_fingerprint !==
+    binding.broker_binding_fingerprint !==
       credentialBrokerBindingFingerprintV01(input.broker_binding) ||
-    canonicalizeProtocolValueV01(authorization.provider_ref) !==
+    canonicalizeProtocolValueV01(binding.provider_ref) !==
       canonicalizeProtocolValueV01(input.provider_ref) ||
-    authorization.codex_executable_fingerprint !==
+    binding.codex_executable_fingerprint !==
       input.codex_executable_fingerprint ||
-    authorization.compatible_codex_cli_version !==
+    binding.executable_identity_class !==
+      input.executable_identity_class ||
+    binding.compatible_codex_cli_version !==
       input.compatible_codex_cli_version ||
-    authorization.issued_at !== input.issued_at ||
-    authorization.expires_at !== input.expires_at
+    binding.semantic_profile_version !==
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version ||
+    binding.semantic_profile_fingerprint !==
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint ||
+    binding.issued_at !== input.issued_at ||
+    binding.expires_at !== input.expires_at
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
-      "codex_isolated_auth_provisioning_authorization_refused",
+      "codex_isolated_auth_provisioning_binding_refused",
     );
-  const authorizationRef = createRefV01(
-    "codex_auth_provisioning_authorization",
-    authorization.authorization_id,
-    authorization.issued_at,
+  const bindingRef = createRefV01(
+    "codex_auth_provisioning_binding",
+    binding.binding_id,
+    binding.issued_at,
   );
   if (
     canonicalizeProtocolValueV01(
-      normalizeExternalRefPrimitiveV01(input.provisioning_authorization_ref),
-    ) !== canonicalizeProtocolValueV01(authorizationRef)
+      normalizeExternalRefPrimitiveV01(input.provisioning_binding_ref),
+    ) !== canonicalizeProtocolValueV01(bindingRef)
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
-      "codex_isolated_auth_provisioning_authorization_refused",
+      "codex_isolated_auth_provisioning_binding_refused",
     );
   assertSourceOwnedCodexCredentialBrokerV01(
     input.broker,
@@ -412,7 +515,11 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     );
   }
   const attestation = await input.broker.provisionCredentialAttestationV01({
-    provisioning_authorization_ref: authorizationRef,
+    provisioning_binding_ref: bindingRef,
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
     attestation_id: `${requiredIdV01(input.projection_id)}:credential-attestation`,
     issued_at: input.issued_at,
     expires_at: input.expires_at,
@@ -436,13 +543,18 @@ export async function provisionCodexIsolatedAuthProjectionV01(
   const sealMaterial = {
     seal_version: CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01,
     seal_id: `${input.projection_id}:seal`,
-    provisioning_authorization_ref: authorizationRef,
+    provisioning_binding_ref: bindingRef,
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
     auth_attestation_ref: attestationRef,
     auth_attestation_fingerprint: attestation.integrity.fingerprint,
     broker_binding_fingerprint: input.broker.binding_fingerprint,
     codex_executable_fingerprint: requiredSha256V01(
       input.codex_executable_fingerprint,
     ),
+    executable_identity_class: input.executable_identity_class,
     config_policy_fingerprint: configPolicy.policy_fingerprint,
     state_policy_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(STATE_POLICY_V01),
@@ -459,7 +571,11 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     projection_version: CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01,
     projection_id: requiredIdV01(input.projection_id),
     projection_mode: CODEX_ISOLATED_AUTH_ROUTE_V01,
-    provisioning_authorization_ref: authorizationRef,
+    provisioning_binding_ref: bindingRef,
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
     auth_attestation_ref: attestationRef,
     auth_attestation_fingerprint: attestation.integrity.fingerprint,
     projection_seal_ref: sealRef,
@@ -490,7 +606,8 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     codex_executable_fingerprint: requiredSha256V01(
       input.codex_executable_fingerprint,
     ),
-    compatible_codex_cli_version: requiredCliVersionV01(
+    executable_identity_class: input.executable_identity_class,
+    compatible_codex_cli_version: exactSupportedCliVersionV01(
       input.compatible_codex_cli_version,
     ),
     state_policy: STATE_POLICY_V01,
@@ -545,6 +662,7 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
   readonly codex_sqlite_home_identity_fingerprint: string;
   readonly tmp_identity_fingerprint: string;
   readonly repository_root_fingerprint: string;
+  readonly execution_environment_fingerprint: string;
   readonly #attestation: CodexIsolatedAuthCredentialAttestationV01;
   readonly #seal: CodexIsolatedAuthProjectionSealV01;
   readonly #broker: CodexCredentialBrokerV01;
@@ -620,6 +738,23 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       canonicalizeProtocolValueV01({
         version: "codex_isolated_auth_repository_root.v0.1",
         canonical_root: this.#repositoryRoot,
+      }),
+    );
+    this.execution_environment_fingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        version: "codex_isolated_auth_execution_environment.v0.1",
+        semantic_profile_fingerprint:
+          this.projection.semantic_profile_fingerprint,
+        projection_fingerprint: this.projection.integrity.fingerprint,
+        repository_root_fingerprint: this.repository_root_fingerprint,
+        state_root_fingerprint: this.#state.root.fingerprint,
+        home_identity_fingerprint: this.#state.home.fingerprint,
+        codex_home_identity_fingerprint: this.#state.codexHome.fingerprint,
+        codex_sqlite_home_identity_fingerprint:
+          this.#state.sqliteHome.fingerprint,
+        tmp_identity_fingerprint: this.#state.tmp.fingerprint,
+        config_policy_fingerprint:
+          this.projection.config_policy.policy_fingerprint,
       }),
     );
     SOURCE_OWNED_EXECUTION_OWNERS_V01.add(this);
@@ -723,11 +858,13 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_initialize_home_mismatch",
       );
-    const cliVersion = publicCliVersionV01(input.initialized.userAgent);
-    if (cliVersion !== this.projection.compatible_codex_cli_version)
-      throw new CodexIsolatedAuthProjectionErrorV01(
-        "codex_isolated_auth_cli_version_mismatch",
-      );
+    const semanticProfile =
+      observeCodexIsolatedAuthCredentialFreeSemanticProfileV01({
+        initialized: input.initialized,
+        config: input.config,
+        codex_sqlite_home: this.#state.sqliteHome.path,
+      });
+    const cliVersion = semanticProfile.observed_cli_version;
     assertAuthStatusV01(input.auth_status);
     const accountRead = accountReadProjectionV01(input.account);
     if (
@@ -742,13 +879,11 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
         "codex_isolated_auth_account_projection_mismatch",
       );
     }
-    const observedPolicy = observedSecurityPolicyV01(
-      input.config,
-      this.#state.sqliteHome.path,
-    );
     if (
-      observedPolicy.fingerprint !==
-      this.projection.config_policy.policy_fingerprint
+      semanticProfile.semantic_profile_fingerprint !==
+        this.projection.semantic_profile_fingerprint ||
+      semanticProfile.observed_security_policy_fingerprint !==
+        this.projection.config_policy.policy_fingerprint
     )
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_config_policy_mismatch",
@@ -764,6 +899,8 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       observation_version: CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01,
       projection_id: this.projection.projection_id,
       projection_fingerprint: this.projection.integrity.fingerprint,
+      semantic_profile_version: this.projection.semantic_profile_version,
+      semantic_profile_fingerprint: this.projection.semantic_profile_fingerprint,
       auth_attestation_fingerprint: this.#attestation.integrity.fingerprint,
       auth_source_generation_fingerprint:
         this.#attestation.auth_generation_fingerprint,
@@ -776,14 +913,18 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       tmp_identity_fingerprint: this.#state.tmp.fingerprint,
       codex_executable_fingerprint:
         this.projection.codex_executable_fingerprint,
+      executable_identity_class:
+        this.projection.executable_identity_class,
       codex_cli_version: cliVersion,
       auth_mode: "agent_identity",
       account_identity_fingerprint:
         this.#attestation.account_identity_fingerprint,
       account_read_projection_fingerprint: accountRead.fingerprint,
-      observed_security_policy_fingerprint: observedPolicy.fingerprint,
-      provider_route_fingerprint: observedPolicy.providerRouteFingerprint,
-      config_layers_fingerprint: observedPolicy.layersFingerprint,
+      observed_security_policy_fingerprint:
+        semanticProfile.observed_security_policy_fingerprint,
+      provider_route_fingerprint:
+        semanticProfile.provider_route_fingerprint,
+      config_layers_fingerprint: semanticProfile.config_layers_fingerprint,
       codex_sqlite_home_reobserved: true,
       mcp_server_count: 0,
       unexpected_tool_policy_observed: false,
@@ -891,7 +1032,9 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       "projection_version",
       "projection_id",
       "projection_mode",
-      "provisioning_authorization_ref",
+      "provisioning_binding_ref",
+      "semantic_profile_version",
+      "semantic_profile_fingerprint",
       "auth_attestation_ref",
       "auth_attestation_fingerprint",
       "projection_seal_ref",
@@ -908,6 +1051,7 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       "account_identity_fingerprint",
       "codex_executable_ref",
       "codex_executable_fingerprint",
+      "executable_identity_class",
       "compatible_codex_cli_version",
       "state_policy",
       "config_policy",
@@ -930,6 +1074,7 @@ export function assertValidCodexIsolatedAuthProjectionV01(
   );
   for (const value of [
     input.integrity.fingerprint,
+    input.semantic_profile_fingerprint,
     input.auth_attestation_fingerprint,
     input.projection_seal_fingerprint,
     input.auth_source_generation_fingerprint,
@@ -944,6 +1089,16 @@ export function assertValidCodexIsolatedAuthProjectionV01(
   if (
     input.projection_version !== CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01 ||
     input.projection_mode !== CODEX_ISOLATED_AUTH_ROUTE_V01 ||
+    input.semantic_profile_version !==
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version ||
+    input.semantic_profile_fingerprint !==
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint ||
+    input.compatible_codex_cli_version !==
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
+    exactExecutableIdentityClassV01(
+      input.executable_identity_class,
+      input.codex_executable_fingerprint,
+    ) !== input.executable_identity_class ||
     input.provider_ref.external_id !== "openai" ||
     input.auth_mode !== "agent_identity" ||
     input.launch_injection_mechanism !==
@@ -963,6 +1118,10 @@ export function assertValidCodexIsolatedAuthProjectionV01(
         input.auth_attestation_fingerprint ||
       attestation.auth_generation_fingerprint !==
         input.auth_source_generation_fingerprint ||
+      attestation.semantic_profile_version !==
+        input.semantic_profile_version ||
+      attestation.semantic_profile_fingerprint !==
+        input.semantic_profile_fingerprint ||
       attestation.account_identity_fingerprint !==
         input.account_identity_fingerprint ||
       attestation.issued_at !== input.issued_at ||
@@ -977,7 +1136,9 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       [
         "attestation_version",
         "attestation_id",
-        "provisioning_authorization_ref",
+        "provisioning_binding_ref",
+        "semantic_profile_version",
+        "semantic_profile_fingerprint",
         "auth_handle_ref",
         "broker_locator_fingerprint",
         "auth_generation_fingerprint",
@@ -1002,6 +1163,7 @@ export function assertValidCodexIsolatedAuthProjectionV01(
     );
     for (const value of [
       attestation.integrity.fingerprint,
+      attestation.semantic_profile_fingerprint,
       attestation.broker_locator_fingerprint,
       attestation.auth_generation_fingerprint,
       attestation.account_identity_fingerprint,
@@ -1039,8 +1201,12 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       seal.integrity.fingerprint !== input.projection_seal_fingerprint ||
       seal.auth_attestation_fingerprint !==
         input.auth_attestation_fingerprint ||
+      seal.semantic_profile_version !== input.semantic_profile_version ||
+      seal.semantic_profile_fingerprint !== input.semantic_profile_fingerprint ||
       seal.app_server_launch_shape_fingerprint !==
         input.app_server_launch_shape_fingerprint ||
+      seal.executable_identity_class !==
+        input.executable_identity_class ||
       seal.issued_at !== input.issued_at ||
       seal.expires_at !== input.expires_at)
   )
@@ -1053,11 +1219,14 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       [
         "seal_version",
         "seal_id",
-        "provisioning_authorization_ref",
+        "provisioning_binding_ref",
+        "semantic_profile_version",
+        "semantic_profile_fingerprint",
         "auth_attestation_ref",
         "auth_attestation_fingerprint",
         "broker_binding_fingerprint",
         "codex_executable_fingerprint",
+        "executable_identity_class",
         "config_policy_fingerprint",
         "state_policy_fingerprint",
         "app_server_launch_shape_fingerprint",
@@ -1084,6 +1253,8 @@ export function assertValidCodexIsolatedAuthObservationV01(
       "observation_version",
       "projection_id",
       "projection_fingerprint",
+      "semantic_profile_version",
+      "semantic_profile_fingerprint",
       "auth_attestation_fingerprint",
       "auth_source_generation_fingerprint",
       "claims_authentication_status",
@@ -1093,6 +1264,7 @@ export function assertValidCodexIsolatedAuthObservationV01(
       "codex_sqlite_home_identity_fingerprint",
       "tmp_identity_fingerprint",
       "codex_executable_fingerprint",
+      "executable_identity_class",
       "codex_cli_version",
       "auth_mode",
       "account_identity_fingerprint",
@@ -1117,6 +1289,7 @@ export function assertValidCodexIsolatedAuthObservationV01(
   for (const value of [
     input.integrity.fingerprint,
     input.projection_fingerprint,
+    input.semantic_profile_fingerprint,
     input.auth_attestation_fingerprint,
     input.auth_source_generation_fingerprint,
     input.state_root_fingerprint,
@@ -1134,6 +1307,12 @@ export function assertValidCodexIsolatedAuthObservationV01(
   if (
     input.observation_version !== CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01 ||
     input.projection_fingerprint !== projection.integrity.fingerprint ||
+    input.semantic_profile_version !== projection.semantic_profile_version ||
+    input.semantic_profile_fingerprint !==
+      projection.semantic_profile_fingerprint ||
+    input.codex_cli_version !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
+    input.executable_identity_class !==
+      projection.executable_identity_class ||
     input.auth_attestation_fingerprint !==
       projection.auth_attestation_fingerprint ||
     input.auth_source_generation_fingerprint !==
@@ -1166,6 +1345,43 @@ export function assertValidCodexIsolatedAuthObservationV01(
 
 export function codexIsolatedAuthConfigOverrideArgsV01(): readonly string[] {
   return CONFIG_OVERRIDE_ARGS_V01;
+}
+export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: {
+  initialized: Record<string, unknown>;
+  config: Record<string, unknown>;
+  codex_sqlite_home: string;
+}): {
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
+  observed_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
+  observed_security_policy_fingerprint: string;
+  provider_route_fingerprint: string;
+  config_layers_fingerprint: string;
+} {
+  const cliVersion = publicCliVersionV01(input.initialized.userAgent);
+  exactSupportedCliVersionV01(cliVersion);
+  const observedPolicy = observedSecurityPolicyV01(
+    input.config,
+    input.codex_sqlite_home,
+  );
+  const expected = expectedConfigPolicyV01();
+  if (
+    observedPolicy.fingerprint !== expected.policy_fingerprint ||
+    observedPolicy.providerRouteFingerprint !== expected.provider_route_fingerprint
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_semantic_profile_mismatch",
+    );
+  return {
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    observed_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    observed_security_policy_fingerprint: observedPolicy.fingerprint,
+    provider_route_fingerprint: observedPolicy.providerRouteFingerprint,
+    config_layers_fingerprint: observedPolicy.layersFingerprint,
+  };
 }
 export function createCodexIsolatedAuthTestRefV01(input: {
   ref_type: string;
@@ -1390,9 +1606,14 @@ function launchShapeFingerprintV01(
   executableFingerprint: string,
   cliVersion: string,
 ): string {
+  exactSupportedCliVersionV01(cliVersion);
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       version: "codex_isolated_app_server_launch_shape.v0.1",
+      semantic_profile_version:
+        CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+      semantic_profile_fingerprint:
+        CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
       codex_executable_fingerprint: executableFingerprint,
       cli_version: cliVersion,
       config_override_args: CONFIG_OVERRIDE_ARGS_V01,
@@ -1604,8 +1825,13 @@ function validatePrefixArgsV01(values: string[]): string[] {
 function validateProvisionInputV01(
   input: ProvisionCodexIsolatedAuthProjectionInputV01,
 ): void {
+  exactSupportedCliVersionV01(input.compatible_codex_cli_version);
+  exactExecutableIdentityClassV01(
+    input.executable_identity_class,
+    input.codex_executable_fingerprint,
+  );
   for (const ref of [
-    input.provisioning_authorization_ref,
+    input.provisioning_binding_ref,
     input.provider_ref,
     input.broker_binding.auth_handle_ref,
     input.broker_binding.broker_backend_ref,
@@ -1794,6 +2020,40 @@ function requiredCliVersionV01(value: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/u.test(value))
     throw new CodexIsolatedAuthProjectionErrorV01(
       "codex_isolated_auth_cli_version_invalid",
+    );
+  return value;
+}
+function exactSupportedCliVersionV01(
+  value: string,
+): typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 {
+  requiredCliVersionV01(value);
+  if (value !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01)
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_cli_version_mismatch",
+    );
+  return CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
+}
+function exactExecutableIdentityClassV01(
+  value: "production_pinned_codex" | "test_emulated_profile",
+  fingerprint: string,
+): "production_pinned_codex" | "test_emulated_profile" {
+  requiredSha256V01(fingerprint);
+  if (value === "production_pinned_codex") {
+    if (
+      fingerprint !==
+      CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01
+    )
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_production_executable_mismatch",
+      );
+    return value;
+  }
+  if (
+    value !== "test_emulated_profile" ||
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1"
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_executable_identity_class_refused",
     );
   return value;
 }

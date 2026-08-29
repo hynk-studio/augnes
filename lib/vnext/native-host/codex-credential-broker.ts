@@ -99,7 +99,9 @@ export interface CodexCredentialBrokerBindingV01 {
 }
 
 export interface ProvisionCodexCredentialAttestationInputV01 {
-  provisioning_authorization_ref: ExternalRefV01;
+  provisioning_binding_ref: ExternalRefV01;
+  semantic_profile_version: CodexIsolatedAuthCredentialAttestationV01["semantic_profile_version"];
+  semantic_profile_fingerprint: string;
   attestation_id: string;
   issued_at: string;
   expires_at: string;
@@ -1247,7 +1249,11 @@ function createCredentialAttestationFromMaterialV01(input: {
   const material = {
     attestation_version: CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01,
     attestation_id: requiredBoundedIdV01(input.input.attestation_id),
-    provisioning_authorization_ref: input.input.provisioning_authorization_ref,
+    provisioning_binding_ref: input.input.provisioning_binding_ref,
+    semantic_profile_version: input.input.semantic_profile_version,
+    semantic_profile_fingerprint: requiredSha256V01(
+      input.input.semantic_profile_fingerprint,
+    ),
     auth_handle_ref: input.binding.auth_handle_ref,
     broker_locator_fingerprint: input.binding.broker_locator_fingerprint,
     auth_generation_fingerprint: generationFingerprint,

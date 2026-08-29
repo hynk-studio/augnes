@@ -35,16 +35,19 @@ import {
 import {
   CodexIsolatedAuthProjectionErrorV01,
   CodexIsolatedAuthenticatedExecutionOwnerV01,
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   assertValidCodexIsolatedAuthObservationV01,
   assertValidCodexIsolatedAuthProjectionV01,
-  createCodexIsolatedAuthProvisioningAuthorizationV01,
+  createCodexIsolatedAuthProvisioningBindingV01,
   createCodexIsolatedAuthTestRefV01,
   provisionCodexIsolatedAuthProjectionV01,
   type ProvisionCodexIsolatedAuthProjectionResultV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import {
   createCodexAppServerAdapterV01,
+  createCodexIsolatedAuthTestExecutionAuthorizationV01,
+  probeCodexIsolatedAuthCredentialFreeCompatibilityV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
@@ -55,8 +58,10 @@ import {
 import { buildRunReceiptV01 } from "@/lib/vnext/run-receipt";
 import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type {
+  CodexIsolatedAuthCredentialFreePreflightV01,
   CodexIsolatedAuthObservationV01,
   CodexIsolatedAuthProjectionV01,
+  CodexIsolatedAuthTestExecutionAuthorizationV01,
 } from "@/types/vnext/codex-isolated-auth-projection";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -153,6 +158,18 @@ const SECRET_CANARIES = [
 ] as const;
 
 type RootsV01 = ReturnType<typeof createRootsV01>;
+type ExecutionAuthorizationVariantV01 =
+  | "test_authorized"
+  | "absent"
+  | "wrong_request"
+  | "wrong_run"
+  | "expired"
+  | "substituted_projection"
+  | "substituted_environment"
+  | "substituted_provider"
+  | "substituted_route"
+  | "substituted_ordinal"
+  | "substituted_fallback";
 type ProbeV01 = {
   result: NativeHostResultV01 | null;
   error: unknown;
@@ -165,6 +182,9 @@ type ProbeV01 = {
   network_path: string;
   cleanup_path: string;
   trace_path: string;
+  execution_authorization: CodexIsolatedAuthTestExecutionAuthorizationV01 | null;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  request: NativeHostRequestV01;
 };
 
 async function mainV01(): Promise<void> {
@@ -312,6 +332,13 @@ async function mainV01(): Promise<void> {
         error.code === "codex_isolated_auth_owner_source_mismatch",
     );
     maliciousConsumerOwner.cleanupV01();
+
+    const semanticProfileProof =
+      await semanticProfileAndCredentialFreePreflightV01(roots, provisioned);
+    const executionGateProof = await externalExecutionAuthorityGateV01(
+      roots,
+      provisioned,
+    );
 
     const positive = await runProbeV01(
       roots,
@@ -463,6 +490,16 @@ async function mainV01(): Promise<void> {
         unique_account_identity_non_null: true,
         isolated_tmpdir: true,
         exact_observed_security_policy: true,
+        semantic_profile_version:
+          CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+        semantic_profile_fingerprint:
+          CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+        installed_cli_preflight: semanticProfileProof.installed.state,
+        credential_free_fake_preflight: semanticProfileProof.fake.state,
+        no_authorization_preflight_stop:
+          executionGateProof.no_authorization_stop,
+        test_only_authorized_fake_turn:
+          executionGateProof.authorized_fake_turn,
         real_keychain_accesses: 0,
         real_provider_calls: 0,
         successful_external_network_egress: 0,
@@ -477,6 +514,372 @@ async function mainV01(): Promise<void> {
     restoreEnvV01("TMPDIR", prior.tmp);
     rmSync(roots.root, { recursive: true, force: true });
   }
+}
+
+async function semanticProfileAndCredentialFreePreflightV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<{
+  fake: CodexIsolatedAuthCredentialFreePreflightV01;
+  installed: { state: CodexIsolatedAuthCredentialFreePreflightV01["state"] };
+}> {
+  const profile = CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01;
+  assert.equal(
+    profile.semantic_profile_version,
+    "codex_isolated_auth_semantic_profile.rust-v0.147.0",
+  );
+  assert.equal(profile.upstream_tag, "rust-v0.147.0");
+  assert.equal(
+    profile.upstream_source_commit,
+    "be6e8eac029b183056b7e4402879f15d2c85f61b",
+  );
+  assert.equal(profile.supported_public_cli_version, "0.147.0");
+  assert.equal(
+    provisioned.projection.semantic_profile_fingerprint,
+    profile.integrity.fingerprint,
+  );
+  assert.equal(
+    provisioned.projection.compatible_codex_cli_version,
+    "0.147.0",
+  );
+
+  for (const version of ["0.146.9", "0.148.0", "99.0.0", "not-a-version"]) {
+    assert.throws(
+      () =>
+        createCodexIsolatedAuthProvisioningBindingV01({
+          binding_id: `provisioning:wrong-version:${version}`,
+          auth_handle_ref: bindingV01().auth_handle_ref,
+          broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(
+            bindingV01(),
+          ),
+          provider_ref: refV01("model_provider", "openai"),
+          codex_executable_fingerprint: sha256FileV01(process.execPath),
+          executable_identity_class: "test_emulated_profile",
+          compatible_codex_cli_version: version as "0.147.0",
+          issued_at: GENERATED_AT,
+          expires_at: EXPIRES_AT,
+        }),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        (error.code === "codex_isolated_auth_cli_version_mismatch" ||
+          error.code === "codex_isolated_auth_cli_version_invalid"),
+      version,
+    );
+  }
+  assert.throws(
+    () =>
+      createCodexIsolatedAuthProvisioningBindingV01({
+        binding_id: "provisioning:wrong-production-executable",
+        auth_handle_ref: bindingV01().auth_handle_ref,
+        broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(
+          bindingV01(),
+        ),
+        provider_ref: refV01("model_provider", "openai"),
+        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        executable_identity_class: "production_pinned_codex",
+        compatible_codex_cli_version: "0.147.0",
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
+      }),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code === "codex_isolated_auth_production_executable_mismatch",
+  );
+  const substitutedProfile = structuredClone(
+    provisioned.projection,
+  ) as CodexIsolatedAuthProjectionV01;
+  (substitutedProfile as unknown as Record<string, unknown>)[
+    "semantic_profile_fingerprint"
+  ] = `sha256:${"d".repeat(64)}`;
+  assert.throws(
+    () =>
+      assertValidCodexIsolatedAuthProjectionV01(
+        substitutedProfile,
+        provisioned.credential_attestation,
+        provisioned.projection_seal,
+      ),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01,
+  );
+
+  const fakeStateParent = path.join(roots.state, "semantic-preflight-fake");
+  const fakeRuntime = path.join(roots.runtime, "semantic-preflight-fake");
+  const fakeTrace = path.join(fakeRuntime, "trace.jsonl");
+  const fakeNetwork = path.join(fakeRuntime, "network-count.txt");
+  mkdirSync(fakeStateParent, { recursive: true, mode: 0o700 });
+  mkdirSync(fakeRuntime, { recursive: true, mode: 0o700 });
+  const fake = await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
+    command: process.execPath,
+    expected_executable_fingerprint: sha256FileV01(process.execPath),
+    executable_identity_class: "test_emulated_profile",
+    state_parent: realpathSync(fakeStateParent),
+    repository_root: roots.repository,
+    base_environment: {
+      PATH: process.env.PATH,
+      LANG: "C",
+      TZ: "UTC",
+      NO_COLOR: "1",
+    },
+    test_prefix_args: [
+      path.join(
+        process.cwd(),
+        "scripts",
+        "fixtures",
+        "fake-codex-app-server.mjs",
+      ),
+    ],
+    test_environment: {
+      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+      FAKE_CODEX_SCENARIO: "isolated_auth_semantic_preflight",
+      FAKE_CODEX_TRACE_PATH: fakeTrace,
+      FAKE_CODEX_NETWORK_COUNT_PATH: fakeNetwork,
+    },
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(fake.state, "compatible_exact");
+  assert.equal(fake.observed_cli_version, "0.147.0");
+  assert.equal(fake.cleanup_completed, true);
+  assert.equal(readdirSync(fakeStateParent).length, 0);
+  const fakeMethods = receivedMethodsV01(fakeTrace);
+  assert.deepEqual(fakeMethods, ["initialize", "initialized", "config/read"]);
+  assert.equal(fakeMethods.includes("account/read"), false);
+  assert.equal(fakeMethods.includes("thread/start"), false);
+  assert.equal(fakeMethods.includes("turn/start"), false);
+  assert.equal(readFileSync(fakeNetwork, "utf8"), "0\n");
+  assertPublicSafeV01(fake);
+
+  const installedCommand = executableOnPathV01("codex");
+  let installedState: CodexIsolatedAuthCredentialFreePreflightV01["state"] =
+    "unavailable";
+  if (installedCommand) {
+    const installedStateParent = path.join(
+      roots.state,
+      "semantic-preflight-installed",
+    );
+    mkdirSync(installedStateParent, { recursive: true, mode: 0o700 });
+    const installed =
+      await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
+        command: installedCommand,
+        expected_executable_fingerprint:
+          profile.pinned_production_executable_fingerprint,
+        executable_identity_class: "production_pinned_codex",
+        state_parent: realpathSync(installedStateParent),
+        repository_root: roots.repository,
+        base_environment: {
+          PATH: process.env.PATH,
+          LANG: "C",
+          TZ: "UTC",
+          NO_COLOR: "1",
+        },
+        observed_at: GENERATED_AT,
+      });
+    installedState = installed.state;
+    assert.equal(installed.cleanup_completed, true);
+    assert.equal(readdirSync(installedStateParent).length, 0);
+    assertPublicSafeV01(installed);
+  }
+  return { fake, installed: { state: installedState } };
+}
+
+async function externalExecutionAuthorityGateV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<{
+  no_authorization_stop: string;
+  authorized_fake_turn: "completed_once";
+}> {
+  assert.equal(provisioned.projection.authority.provider_call_granted, false);
+  assert.equal(
+    provisioned.projection.authority.repository_execution_granted,
+    false,
+  );
+  const binding = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: "provisioning:authority-classification",
+    auth_handle_ref: bindingV01().auth_handle_ref,
+    broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(
+      bindingV01(),
+    ),
+    provider_ref: refV01("model_provider", "openai"),
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
+  assert.equal(binding.authority.is_execution_authority, false);
+  assert.equal(binding.authority.is_provider_authority, false);
+  assert.equal(binding.authority.provider_call_granted, false);
+  assert.equal(binding.authority.repository_execution_granted, false);
+
+  const noAuthorization = await runProbeV01(
+    roots,
+    "execution-gate-absent",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    "absent",
+  );
+  assert.equal(noAuthorization.error, null);
+  assert.equal(noAuthorization.settled_error, null);
+  assert.equal(noAuthorization.result?.outcome, "unavailable");
+  assert.equal(
+    noAuthorization.result?.public_stop_reason,
+    "codex_isolated_auth_external_execution_authorization_required",
+  );
+  assert.equal(noAuthorization.auth_observations.length, 1);
+  const noAuthorizationMethods = receivedMethodsV01(
+    noAuthorization.trace_path,
+  );
+  for (const method of [
+    "initialize",
+    "account/read",
+    "getAuthStatus",
+    "config/read",
+    "mcpServerStatus/list",
+  ])
+    assert.equal(noAuthorizationMethods.includes(method), true, method);
+  assert.equal(noAuthorizationMethods.includes("thread/start"), false);
+  assert.equal(noAuthorizationMethods.includes("turn/start"), false);
+  assert.equal(readdirSync(noAuthorization.state_parent).length, 0);
+
+  for (const variant of [
+    "wrong_request",
+    "wrong_run",
+    "expired",
+    "substituted_projection",
+    "substituted_environment",
+    "substituted_provider",
+    "substituted_route",
+    "substituted_ordinal",
+    "substituted_fallback",
+  ] as const) {
+    const refused = await runProbeV01(
+      roots,
+      `execution-gate-${variant}`,
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_success",
+      variant,
+    );
+    assert.equal(refused.result?.outcome, "failed", variant);
+    assert.equal(
+      refused.result?.public_stop_reason,
+      "codex_isolated_auth_external_execution_authorization_refused",
+      variant,
+    );
+    const methods = receivedMethodsV01(refused.trace_path);
+    assert.equal(methods.includes("thread/start"), false, variant);
+    assert.equal(methods.includes("turn/start"), false, variant);
+    assert.equal(readdirSync(refused.state_parent).length, 0, variant);
+  }
+
+  const wrongRootOwner = ownerV01(
+    roots,
+    "execution-gate-wrong-root-factory",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+  );
+  const wrongRootRequest = requestV01(roots.repository, "wrong-root-factory");
+  wrongRootRequest.root_scope.canonical_root = roots.ordinaryHome;
+  assert.throws(
+    () =>
+      createCodexIsolatedAuthTestExecutionAuthorizationV01({
+        owner: wrongRootOwner,
+        request: wrongRootRequest,
+        external_authorization_ref: refV01(
+          "codex_isolated_auth_test_execution_authorization",
+          "test-execution:wrong-root-factory",
+        ),
+        expires_at: EXPIRES_AT,
+      }),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code === "codex_isolated_auth_repository_root_mismatch",
+  );
+  wrongRootOwner.cleanupV01();
+
+  const productionRefusalOwner = ownerV01(
+    roots,
+    "execution-gate-production-refusal",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+  );
+  const priorTestMode = process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  delete process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  try {
+    assert.throws(
+      () =>
+        createCodexIsolatedAuthTestExecutionAuthorizationV01({
+          owner: productionRefusalOwner,
+          request: requestV01(
+            roots.repository,
+            "execution-gate-production-refusal",
+          ),
+          external_authorization_ref: refV01(
+            "codex_isolated_auth_test_execution_authorization",
+            "test-execution:production-refusal",
+          ),
+          expires_at: EXPIRES_AT,
+        }),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code ===
+          "codex_isolated_auth_test_execution_authorization_refused",
+    );
+  } finally {
+    restoreEnvV01("AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE", priorTestMode);
+    productionRefusalOwner.cleanupV01();
+  }
+
+  const authorized = await runProbeV01(
+    roots,
+    "execution-gate-authorized-once",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+  );
+  assert.equal(authorized.result?.outcome, "completed");
+  const firstMethods = receivedMethodsV01(authorized.trace_path);
+  assert.equal(firstMethods.filter((value) => value === "thread/start").length, 1);
+  assert.equal(firstMethods.filter((value) => value === "turn/start").length, 1);
+  const modelDrift = await runProbeV01(
+    roots,
+    "execution-gate-model-drift",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_model_configuration_drift",
+  );
+  assert.equal(modelDrift.result?.outcome, "failed");
+  assert.equal(
+    modelDrift.result?.public_stop_reason,
+    "codex_isolated_auth_external_execution_authorization_refused",
+  );
+  assert.equal(
+    receivedMethodsV01(modelDrift.trace_path).includes("thread/start"),
+    false,
+  );
+  const replayAdapter = createCodexAppServerAdapterV01({
+    isolated_authenticated_execution: authorized.owner,
+    isolated_authenticated_external_execution_authorization:
+      authorized.execution_authorization!,
+  });
+  const replay = replayAdapter.invoke(authorized.request, controlV01([]));
+  const replayResult = await replay.result;
+  await replay.settled;
+  assert.equal(replayResult.outcome, "failed");
+  assert.equal(
+    replayResult.public_stop_reason,
+    "codex_isolated_auth_owner_single_use_refused",
+  );
+  assert.deepEqual(receivedMethodsV01(authorized.trace_path), firstMethods);
+
+  return {
+    no_authorization_stop:
+      "codex_isolated_auth_external_execution_authorization_required",
+    authorized_fake_turn: "completed_once",
+  };
 }
 
 async function agentIdentityClaimNegativesV01(
@@ -569,10 +972,11 @@ async function agentIdentityClaimNegativesV01(
   await assert.rejects(
     () =>
       brokerV01(roots, FAKE_JWT).provisionCredentialAttestationV01({
-        provisioning_authorization_ref: refV01(
-          "codex_auth_provisioning_authorization",
+        provisioning_binding_ref: refV01(
+          "codex_auth_provisioning_binding",
           "provisioning:expiry-overrun",
         ),
+        ...semanticProfileBindingV01(),
         attestation_id: "expiry-overrun",
         issued_at: GENERATED_AT,
         expires_at: "2100-01-01T00:00:00.000Z",
@@ -611,22 +1015,23 @@ async function agentIdentityClaimNegativesV01(
     now_epoch_seconds: () => observedNow,
   });
   const providerRef = refV01("model_provider", "openai", issuedAt);
-  const authorization = createCodexIsolatedAuthProvisioningAuthorizationV01({
-    authorization_id: "provisioning:expires-between",
+  const authorization = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: "provisioning:expires-between",
     auth_handle_ref: binding.auth_handle_ref,
     broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
     provider_ref: providerRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
     issued_at: issuedAt,
     expires_at: projectionExpiresAt,
   });
   const expiring = await provisionCodexIsolatedAuthProjectionV01({
     projection_id: "codex-isolated-auth:expires-between",
-    provisioning_authorization: authorization,
-    provisioning_authorization_ref: refV01(
-      "codex_auth_provisioning_authorization",
-      authorization.authorization_id,
+    provisioning_binding: authorization,
+    provisioning_binding_ref: refV01(
+      "codex_auth_provisioning_binding",
+      authorization.binding_id,
       issuedAt,
     ),
     provider_ref: providerRef,
@@ -634,7 +1039,8 @@ async function agentIdentityClaimNegativesV01(
     broker,
     codex_executable_ref: refV01("codex_executable", "node-test-host", issuedAt),
     codex_executable_fingerprint: sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
     issued_at: issuedAt,
     expires_at: projectionExpiresAt,
   });
@@ -682,13 +1088,14 @@ async function brokerAndProvisioningNegativesV01(
     },
   };
   const forgedProviderRef = refV01("model_provider", "openai");
-  const forgedAuthorization = createCodexIsolatedAuthProvisioningAuthorizationV01({
-    authorization_id: "provisioning:forged-broker",
+  const forgedAuthorization = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: "provisioning:forged-broker",
     auth_handle_ref: binding.auth_handle_ref,
     broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
     provider_ref: forgedProviderRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -696,9 +1103,9 @@ async function brokerAndProvisioningNegativesV01(
     () =>
       provisionCodexIsolatedAuthProjectionV01({
         projection_id: "codex-isolated-auth:forged-broker",
-        provisioning_authorization: forgedAuthorization,
-        provisioning_authorization_ref: refV01(
-          "codex_auth_provisioning_authorization",
+        provisioning_binding: forgedAuthorization,
+        provisioning_binding_ref: refV01(
+          "codex_auth_provisioning_binding",
           "provisioning:forged-broker",
         ),
         provider_ref: forgedProviderRef,
@@ -706,7 +1113,8 @@ async function brokerAndProvisioningNegativesV01(
         broker: forgedBroker,
         codex_executable_ref: refV01("codex_executable", "node-test-host"),
         codex_executable_fingerprint: sha256FileV01(process.execPath),
-        compatible_codex_cli_version: "fake-0.143.0",
+        executable_identity_class: "test_emulated_profile",
+        compatible_codex_cli_version: "0.147.0",
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
       }),
@@ -719,23 +1127,24 @@ async function brokerAndProvisioningNegativesV01(
     () =>
       provisionCodexIsolatedAuthProjectionV01({
         projection_id: "codex-isolated-auth:forged-authorization",
-        provisioning_authorization: clonedAuthorization,
-        provisioning_authorization_ref: refV01(
-          "codex_auth_provisioning_authorization",
-          clonedAuthorization.authorization_id,
+        provisioning_binding: clonedAuthorization,
+        provisioning_binding_ref: refV01(
+          "codex_auth_provisioning_binding",
+          clonedAuthorization.binding_id,
         ),
         provider_ref: forgedProviderRef,
         broker_binding: binding,
         broker: brokerV01(roots, FAKE_JWT),
         codex_executable_ref: refV01("codex_executable", "node-test-host"),
         codex_executable_fingerprint: sha256FileV01(process.execPath),
-        compatible_codex_cli_version: "fake-0.143.0",
+        executable_identity_class: "test_emulated_profile",
+        compatible_codex_cli_version: "0.147.0",
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
       }),
     (error: unknown) =>
       error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_provisioning_authorization_refused",
+      error.code === "codex_isolated_auth_provisioning_binding_refused",
   );
 
   const productionLocator = {
@@ -757,10 +1166,11 @@ async function brokerAndProvisioningNegativesV01(
   await assert.rejects(
     () =>
       productionBroker.provisionCredentialAttestationV01({
-        provisioning_authorization_ref: refV01(
-          "provisioning_authorization",
+        provisioning_binding_ref: refV01(
+          "provisioning_binding",
           "provisioning:production-forbidden-in-test",
         ),
+        ...semanticProfileBindingV01(),
         attestation_id: "production-forbidden-in-test",
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
@@ -777,10 +1187,11 @@ async function brokerAndProvisioningNegativesV01(
     await assert.rejects(
       () =>
         fakeOutsideTest.provisionCredentialAttestationV01({
-          provisioning_authorization_ref: refV01(
-            "provisioning_authorization",
+          provisioning_binding_ref: refV01(
+            "provisioning_binding",
             "provisioning:fake-forbidden-outside-test",
           ),
+          ...semanticProfileBindingV01(),
           attestation_id: "fake-forbidden-outside-test",
           issued_at: GENERATED_AT,
           expires_at: EXPIRES_AT,
@@ -826,10 +1237,11 @@ async function brokerAndProvisioningNegativesV01(
   await assert.rejects(
     () =>
       missing.provisionCredentialAttestationV01({
-        provisioning_authorization_ref: refV01(
-          "provisioning_authorization",
+        provisioning_binding_ref: refV01(
+          "provisioning_binding",
           "provisioning:missing",
         ),
+        ...semanticProfileBindingV01(),
         attestation_id: "missing",
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
@@ -935,10 +1347,11 @@ async function brokerAndProvisioningNegativesV01(
     },
   });
   const first = collisionBroker.provisionCredentialAttestationV01({
-    provisioning_authorization_ref: refV01(
-      "provisioning_authorization",
+    provisioning_binding_ref: refV01(
+      "provisioning_binding",
       "provisioning:collision",
     ),
+    ...semanticProfileBindingV01(),
     attestation_id: "collision-one",
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
@@ -947,10 +1360,11 @@ async function brokerAndProvisioningNegativesV01(
   await assert.rejects(
     () =>
       collisionBroker.provisionCredentialAttestationV01({
-        provisioning_authorization_ref: refV01(
-          "provisioning_authorization",
+        provisioning_binding_ref: refV01(
+          "provisioning_binding",
           "provisioning:collision",
         ),
+        ...semanticProfileBindingV01(),
         attestation_id: "collision-two",
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
@@ -1559,21 +1973,22 @@ async function provisionV01(
 ): Promise<ProvisionCodexIsolatedAuthProjectionResultV01> {
   const binding = bindingV01();
   const providerRef = refV01("model_provider", "openai");
-  const authorization = createCodexIsolatedAuthProvisioningAuthorizationV01({
-    authorization_id: `provisioning:${id}`,
+  const authorization = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: `provisioning:${id}`,
     auth_handle_ref: binding.auth_handle_ref,
     broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
     provider_ref: providerRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
   return await provisionCodexIsolatedAuthProjectionV01({
     projection_id: `codex-isolated-auth:${id}`,
-    provisioning_authorization: authorization,
-    provisioning_authorization_ref: refV01(
-      "codex_auth_provisioning_authorization",
+    provisioning_binding: authorization,
+    provisioning_binding_ref: refV01(
+      "codex_auth_provisioning_binding",
       `provisioning:${id}`,
     ),
     provider_ref: providerRef,
@@ -1581,7 +1996,8 @@ async function provisionV01(
     broker: brokerV01(roots, jwt),
     codex_executable_ref: refV01("codex_executable", "node-test-host"),
     codex_executable_fingerprint: sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version: "0.147.0",
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -1603,6 +2019,14 @@ function bindingV01(): CodexCredentialBrokerBindingV01 {
   };
   assert.match(credentialBrokerBindingFingerprintV01(binding), /^sha256:/u);
   return binding;
+}
+function semanticProfileBindingV01() {
+  return {
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  } as const;
 }
 function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
   const binding = bindingV01();
@@ -1677,6 +2101,7 @@ async function runProbeV01(
   provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
   jwt: string,
   scenario: string,
+  executionAuthorization: ExecutionAuthorizationVariantV01 = "test_authorized",
 ): Promise<ProbeV01> {
   const stateParent = path.join(roots.state, id);
   const runRoot = path.join(roots.runtime, id);
@@ -1720,16 +2145,78 @@ async function runProbeV01(
     },
   });
   assertNoSecretApiV01(owner);
+  const request = requestV01(roots.repository, id);
+  const authorizationRequest = structuredClone(request);
+  if (executionAuthorization === "wrong_request")
+    authorizationRequest.request_id = `${request.request_id}:foreign`;
+  if (executionAuthorization === "wrong_run")
+    authorizationRequest.run_id = `${request.run_id}:foreign`;
+  let externalExecutionAuthorization:
+    | CodexIsolatedAuthTestExecutionAuthorizationV01
+    | undefined;
+  if (executionAuthorization !== "absent") {
+    externalExecutionAuthorization =
+      createCodexIsolatedAuthTestExecutionAuthorizationV01({
+        owner,
+        request: authorizationRequest,
+        external_authorization_ref: refV01(
+          "codex_isolated_auth_test_execution_authorization",
+          `test-execution:${id}`,
+        ),
+        expires_at:
+          executionAuthorization === "expired"
+            ? "2025-01-01T00:00:00.000Z"
+            : EXPIRES_AT,
+      });
+    const substitutions: Partial<
+      CodexIsolatedAuthTestExecutionAuthorizationV01
+    > =
+      executionAuthorization === "substituted_projection"
+        ? { projection_fingerprint: `sha256:${"1".repeat(64)}` }
+        : executionAuthorization === "substituted_environment"
+          ? { execution_environment_fingerprint: `sha256:${"2".repeat(64)}` }
+          : executionAuthorization === "substituted_provider"
+            ? { provider_ref: refV01("model_provider", "foreign-provider") }
+            : executionAuthorization === "substituted_route"
+              ? { effective_route_fingerprint: `sha256:${"3".repeat(64)}` }
+              : executionAuthorization === "substituted_ordinal"
+                ? { invocation_ordinal: 2 as 1 }
+                : executionAuthorization === "substituted_fallback"
+                  ? { no_fallback: false as true }
+                  : {};
+    if (Object.keys(substitutions).length > 0) {
+      const substituted = {
+        ...structuredClone(externalExecutionAuthorization),
+        ...substitutions,
+      } as CodexIsolatedAuthTestExecutionAuthorizationV01;
+      const { integrity: _integrity, ...material } = substituted;
+      externalExecutionAuthorization = Object.freeze({
+        ...material,
+        integrity: {
+          algorithm: "sha256",
+          fingerprint: createProtocolSha256V01(
+            canonicalizeProtocolValueV01(material),
+          ),
+        },
+      }) as CodexIsolatedAuthTestExecutionAuthorizationV01;
+    }
+  }
   const lifecycle: NativeHostLifecycleEventV01[] = [];
   const adapterObservations: CodexAppServerAdapterObservationV01[] = [];
   const authObservations: CodexIsolatedAuthObservationV01[] = [];
   const adapter = createCodexAppServerAdapterV01({
     isolated_authenticated_execution: owner,
+    ...(externalExecutionAuthorization
+      ? {
+          isolated_authenticated_external_execution_authorization:
+            externalExecutionAuthorization,
+        }
+      : {}),
     observe: (value) => adapterObservations.push(value),
     observe_isolated_auth: (value) => authObservations.push(value),
   });
   const invocation = adapter.invoke(
-    requestV01(roots.repository, id),
+    request,
     controlV01(lifecycle),
   );
   let result: NativeHostResultV01 | null = null;
@@ -1757,6 +2244,9 @@ async function runProbeV01(
     network_path: networkPath,
     cleanup_path: cleanupPath,
     trace_path: tracePath,
+    execution_authorization: externalExecutionAuthorization ?? null,
+    owner,
+    request,
   };
 }
 
@@ -2033,6 +2523,20 @@ function receivedMethodsV01(tracePath: string): string[] {
     .filter((entry) => entry.kind === "received")
     .map((entry) => (entry.value as Record<string, unknown>).method)
     .filter((value): value is string => typeof value === "string");
+}
+function executableOnPathV01(name: string): string | null {
+  for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
+    if (!directory) continue;
+    const candidate = path.join(directory, name);
+    if (!existsSync(candidate)) continue;
+    try {
+      const resolved = realpathSync(candidate);
+      if (lstatSync(resolved).isFile()) return resolved;
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 function errorCodeV01(value: unknown): string | null {
   return value instanceof Error

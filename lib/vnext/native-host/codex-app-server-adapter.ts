@@ -1,6 +1,14 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { realpathSync } from "node:fs";
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
 import path from "node:path";
 
 import {
@@ -21,8 +29,11 @@ import {
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
 import {
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   CodexIsolatedAuthProjectionErrorV01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
+  codexIsolatedAuthConfigOverrideArgsV01,
+  observeCodexIsolatedAuthCredentialFreeSemanticProfileV01,
   type CodexIsolatedAuthenticatedExecutionOwnerV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import { CodexCredentialBrokerErrorV01 } from "@/lib/vnext/native-host/codex-credential-broker";
@@ -45,7 +56,15 @@ import {
   type NativeHostStopRequestV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
-import type { CodexIsolatedAuthObservationV01 } from "@/types/vnext/codex-isolated-auth-projection";
+import {
+  CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+  type CodexIsolatedAuthCredentialFreePreflightV01,
+  type CodexIsolatedAuthObservationV01,
+  type CodexIsolatedAuthTestExecutionAuthorizationV01,
+} from "@/types/vnext/codex-isolated-auth-projection";
 
 export const CODEX_APP_SERVER_ADAPTER_VERSION_V01 =
   "codex_app_server_adapter.v0.1" as const;
@@ -55,6 +74,18 @@ export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
 export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
   "codex_app_server_request_source_binding.v0.1" as const;
+const SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01 = new WeakMap<
+  object,
+  {
+    owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+    consumed: boolean;
+  }
+>();
+const CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01 = {
+  configuration_version: "codex_isolated_auth_test_model_configuration.v0.1",
+  model: "fake-isolated-model",
+  reasoning_effort: "low",
+} as const;
 
 export interface CodexAppServerRequestSourceBindingV01 {
   binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
@@ -216,11 +247,77 @@ export interface CodexAppServerAdapterObservationV01 {
 export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
   isolated_authenticated_execution?: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  isolated_authenticated_external_execution_authorization?: CodexIsolatedAuthTestExecutionAuthorizationV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
   observe_isolated_auth?: (
     observation: CodexIsolatedAuthObservationV01,
   ) => void;
+}
+
+export function createCodexIsolatedAuthTestExecutionAuthorizationV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  request: NativeHostRequestV01;
+  external_authorization_ref: ExternalRefV01;
+  expires_at: string;
+}): CodexIsolatedAuthTestExecutionAuthorizationV01 {
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  if (
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
+    input.owner.projection.executable_identity_class !==
+      "test_emulated_profile" ||
+    input.external_authorization_ref.ref_type !==
+      "codex_isolated_auth_test_execution_authorization" ||
+    !Number.isFinite(Date.parse(input.expires_at))
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_test_execution_authorization_refused",
+    );
+  input.owner.assertRepositoryRootV01(input.request.root_scope.canonical_root);
+  const material = {
+    authorization_version:
+      CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+    authorization_kind: "test_only_external_execution",
+    external_authorization_ref: structuredClone(
+      input.external_authorization_ref,
+    ),
+    request_id: input.request.request_id,
+    run_id: input.request.run_id,
+    root_scope_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.request.root_scope),
+    ),
+    projection_fingerprint: input.owner.projection.integrity.fingerprint,
+    execution_environment_fingerprint:
+      input.owner.execution_environment_fingerprint,
+    provider_ref: structuredClone(input.owner.projection.provider_ref),
+    model_configuration_ref: testModelConfigurationRefV01(
+      input.external_authorization_ref.observed_at ?? new Date().toISOString(),
+      input.owner.projection.config_policy.provider_route_fingerprint,
+    ),
+    effective_route_fingerprint:
+      input.owner.projection.config_policy.provider_route_fingerprint,
+    invocation_ordinal: 1,
+    provider_model_bearing_invocation_ceiling: 1,
+    expires_at: input.expires_at,
+    no_fallback: true,
+    single_use: true,
+    test_only: true,
+  } as const;
+  const authorization: CodexIsolatedAuthTestExecutionAuthorizationV01 =
+    deepFreezeAdapterValueV01({
+      ...material,
+      integrity: {
+        algorithm: "sha256",
+        fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(material),
+        ),
+      },
+    });
+  SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.set(authorization, {
+    owner: input.owner,
+    consumed: false,
+  });
+  return authorization;
 }
 
 export function createCodexAppServerAdapterV01(
@@ -231,6 +328,13 @@ export function createCodexAppServerAdapterV01(
       "codex_isolated_auth_parallel_launch_refused",
     );
   }
+  if (
+    options.isolated_authenticated_external_execution_authorization &&
+    !options.isolated_authenticated_execution
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_external_execution_owner_missing",
+    );
   return {
     adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
@@ -270,6 +374,208 @@ export function resolveDefaultCodexAppServerLaunchV01(
   };
 }
 
+export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
+  input: {
+    command: string;
+    expected_executable_fingerprint: string;
+    executable_identity_class:
+      | "production_pinned_codex"
+      | "test_emulated_profile";
+    state_parent: string;
+    repository_root: string;
+    base_environment?: {
+      PATH?: string;
+      LANG?: string;
+      LC_ALL?: string;
+      LC_CTYPE?: string;
+      TZ?: string;
+      TERM?: string;
+      NO_COLOR?: string;
+    };
+    test_prefix_args?: string[];
+    test_environment?: Record<string, string | undefined>;
+    observed_at?: string;
+  },
+): Promise<CodexIsolatedAuthCredentialFreePreflightV01> {
+  const observedAt = input.observed_at ?? new Date().toISOString();
+  let observedCliVersion: string | null = null;
+  let observedPolicyFingerprint: string | null = null;
+  let state: CodexIsolatedAuthCredentialFreePreflightV01["state"] =
+    "unavailable";
+  let cleanupCompleted = false;
+  let root: string | null = null;
+  let transport: CodexStdioJsonRpcTransportV01 | null = null;
+  try {
+    const command = realpathSync(input.command);
+    const commandStat = lstatSync(command);
+    const commandFingerprint = `sha256:${createHash("sha256")
+      .update(readFileSync(command))
+      .digest("hex")}`;
+    const productionExact =
+      input.executable_identity_class === "production_pinned_codex" &&
+      input.expected_executable_fingerprint ===
+        CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+    const testExact =
+      input.executable_identity_class === "test_emulated_profile" &&
+      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1";
+    if (
+      !commandStat.isFile() ||
+      commandStat.isSymbolicLink() ||
+      commandFingerprint !== input.expected_executable_fingerprint ||
+      (!productionExact && !testExact)
+    ) {
+      state = "executable_mismatch";
+      return preflightResultV01({
+        state,
+        executable_fingerprint: input.expected_executable_fingerprint,
+        executable_identity_class: input.executable_identity_class,
+        observed_cli_version: observedCliVersion,
+        observed_policy_fingerprint: observedPolicyFingerprint,
+        cleanup_completed: true,
+        observed_at: observedAt,
+      });
+    }
+    const parent = realpathSync(input.state_parent);
+    const parentStat = lstatSync(parent);
+    if (
+      parent !== input.state_parent ||
+      !parentStat.isDirectory() ||
+      parentStat.isSymbolicLink() ||
+      (parentStat.mode & 0o077) !== 0
+    )
+      throw new Error("preflight_state_parent_invalid");
+    root = mkdtempSync(path.join(parent, "codex-semantic-preflight-"));
+    chmodSync(root, 0o700);
+    const home = path.join(root, "home");
+    const codexHome = path.join(root, "codex-home");
+    const sqliteHome = path.join(root, "sqlite-home");
+    const tmp = path.join(root, "tmp");
+    for (const directory of [home, codexHome, sqliteHome, tmp]) {
+      mkdirSync(directory, { mode: 0o700 });
+      chmodSync(directory, 0o700);
+    }
+    const testPrefixArgs = input.test_prefix_args ?? [];
+    const testEnvironment = input.test_environment ?? {};
+    if (
+      (testPrefixArgs.length > 0 || Object.keys(testEnvironment).length > 0) &&
+      !testExact
+    )
+      throw new Error("preflight_test_controls_refused");
+    const environment: NodeJS.ProcessEnv = {
+      NODE_ENV: testExact ? "test" : "production",
+      HOME: home,
+      CODEX_HOME: codexHome,
+      CODEX_SQLITE_HOME: sqliteHome,
+      TMPDIR: tmp,
+      NO_COLOR: input.base_environment?.NO_COLOR ?? "1",
+      ...(input.base_environment?.PATH
+        ? { PATH: input.base_environment.PATH }
+        : {}),
+      ...(input.base_environment?.LANG
+        ? { LANG: input.base_environment.LANG }
+        : {}),
+      ...(input.base_environment?.LC_ALL
+        ? { LC_ALL: input.base_environment.LC_ALL }
+        : {}),
+      ...(input.base_environment?.LC_CTYPE
+        ? { LC_CTYPE: input.base_environment.LC_CTYPE }
+        : {}),
+      ...(input.base_environment?.TZ ? { TZ: input.base_environment.TZ } : {}),
+      ...(input.base_environment?.TERM
+        ? { TERM: input.base_environment.TERM }
+        : {}),
+      ...(testExact ? testEnvironment : {}),
+    };
+    transport = new CodexStdioJsonRpcTransportV01({
+      command,
+      args: [
+        ...testPrefixArgs,
+        ...codexIsolatedAuthConfigOverrideArgsV01(),
+        "app-server",
+        "--stdio",
+      ],
+      cwd: realpathSync(input.repository_root),
+      environment,
+      onNotification: async () => undefined,
+      onServerRequest: async () => {
+        throw new CodexProtocolErrorV01(
+          "codex_isolated_auth_preflight_server_request_refused",
+        );
+      },
+    });
+    await transport.started;
+    const initialized = objectV01(
+      await transport.request("initialize", {
+        clientInfo: {
+          name: "augnes-semantic-preflight",
+          title: "Augnes semantic preflight",
+          version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        },
+        capabilities: null,
+      }),
+      "codex_initialize_response_invalid",
+    );
+    transport.notify("initialized", {});
+    observedCliVersion = isolatedAuthPublicCliVersionV01(
+      initialized.userAgent,
+    );
+    const config = objectV01(
+      await transport.request("config/read", {
+        includeLayers: true,
+        cwd: realpathSync(input.repository_root),
+      }),
+      "codex_config_response_invalid",
+    );
+    const profile = observeCodexIsolatedAuthCredentialFreeSemanticProfileV01({
+      initialized,
+      config,
+      codex_sqlite_home: sqliteHome,
+    });
+    observedPolicyFingerprint =
+      profile.observed_security_policy_fingerprint;
+    state = "compatible_exact";
+  } catch (error) {
+    const code = error instanceof Error && "code" in error ? error.code : null;
+    if (
+      code === "codex_isolated_auth_cli_version_mismatch" ||
+      observedCliVersion !== null &&
+        observedCliVersion !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
+    )
+      state = "version_mismatch";
+    else if (
+      code === "codex_isolated_auth_semantic_profile_mismatch" ||
+      code === "codex_isolated_auth_config_policy_mismatch"
+    )
+      state = "semantic_profile_mismatch";
+    else if (
+      code === "codex_required_method_unavailable" ||
+      code === "codex_initialize_response_invalid" ||
+      code === "codex_config_response_invalid"
+    )
+      state = "method_shape_mismatch";
+    else state = "unavailable";
+  } finally {
+    if (transport) await transport.shutdown().catch(() => false);
+    if (root) {
+      try {
+        rmSync(root, { recursive: true, force: false });
+        cleanupCompleted = true;
+      } catch {
+        cleanupCompleted = false;
+      }
+    } else cleanupCompleted = true;
+  }
+  return preflightResultV01({
+    state,
+    executable_fingerprint: input.expected_executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    observed_cli_version: observedCliVersion,
+    observed_policy_fingerprint: observedPolicyFingerprint,
+    cleanup_completed: cleanupCompleted,
+    observed_at: observedAt,
+  });
+}
+
 class CodexAppServerInvocationV01 {
   readonly public: NativeHostInvocationV01;
   private readonly resultDeferred = deferredV01<NativeHostResultV01>();
@@ -297,6 +603,7 @@ class CodexAppServerInvocationV01 {
   private fatalError: Error | null = null;
   private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null =
     null;
+  private isolatedObservedModelConfigurationFingerprint: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
@@ -335,6 +642,7 @@ class CodexAppServerInvocationV01 {
     try {
       await this.startTransport();
       await this.initializeAndCheckAccount();
+      this.requireIsolatedExternalExecutionAuthorization();
       if (this.control.resume_binding) await this.resumeKnownTurn();
       else await this.startNewThreadAndTurn();
 
@@ -537,6 +845,11 @@ class CodexAppServerInvocationV01 {
         }),
         "codex_config_response_invalid",
       );
+      this.isolatedObservedModelConfigurationFingerprint =
+        observedModelConfigurationFingerprintV01(
+          config,
+          isolatedOwner.projection.config_policy.provider_route_fingerprint,
+        );
       const mcpStatus = objectV01(
         await this.transport!.request("mcpServerStatus/list", {
           limit: 100,
@@ -615,6 +928,74 @@ class CodexAppServerInvocationV01 {
     await this.bindThreadResponse(response, "thread_started");
     this.observe("thread_started");
     await this.startTurn();
+  }
+
+  private requireIsolatedExternalExecutionAuthorization(): void {
+    const owner = this.options.isolated_authenticated_execution;
+    if (!owner) return;
+    const observation = this.isolatedAuthObservation;
+    if (!observation)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_observation_missing",
+      );
+    const authorization =
+      this.options.isolated_authenticated_external_execution_authorization;
+    if (!authorization)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_external_execution_authorization_required",
+      );
+    const sourceState =
+      SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.get(authorization);
+    const { integrity, ...material } = authorization;
+    if (
+      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
+      !sourceState ||
+      sourceState.owner !== owner ||
+      sourceState.consumed ||
+      integrity.algorithm !== "sha256" ||
+      integrity.fingerprint !==
+        createProtocolSha256V01(canonicalizeProtocolValueV01(material)) ||
+      authorization.authorization_version !==
+        CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 ||
+      authorization.authorization_kind !== "test_only_external_execution" ||
+      authorization.request_id !== this.request.request_id ||
+      authorization.run_id !== this.request.run_id ||
+      authorization.root_scope_fingerprint !==
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01(this.request.root_scope),
+        ) ||
+      authorization.projection_fingerprint !==
+        owner.projection.integrity.fingerprint ||
+      authorization.execution_environment_fingerprint !==
+        owner.execution_environment_fingerprint ||
+      canonicalizeProtocolValueV01(authorization.provider_ref) !==
+        canonicalizeProtocolValueV01(owner.projection.provider_ref) ||
+      authorization.effective_route_fingerprint !==
+        owner.projection.config_policy.provider_route_fingerprint ||
+      this.isolatedObservedModelConfigurationFingerprint === null ||
+      authorization.model_configuration_ref.ref_type !==
+        "model_configuration" ||
+      authorization.model_configuration_ref.external_id !==
+        modelConfigurationExternalIdV01(
+          this.isolatedObservedModelConfigurationFingerprint,
+        ) ||
+      authorization.invocation_ordinal !== 1 ||
+      authorization.provider_model_bearing_invocation_ceiling !== 1 ||
+      authorization.no_fallback !== true ||
+      authorization.single_use !== true ||
+      authorization.test_only !== true ||
+      Date.parse(authorization.expires_at) <= Date.parse(this.now()) ||
+      observation.projection_fingerprint !==
+        authorization.projection_fingerprint ||
+      observation.semantic_profile_fingerprint !==
+        owner.projection.semantic_profile_fingerprint ||
+      observation.provider_route_fingerprint !==
+        authorization.effective_route_fingerprint
+    )
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_external_execution_authorization_refused",
+      );
+    sourceState.consumed = true;
   }
 
   private async resumeKnownTurn(): Promise<void> {
@@ -3530,6 +3911,112 @@ function publicCliVersionV01(value: unknown): string {
   return value.trim() || "unknown";
 }
 
+function isolatedAuthPublicCliVersionV01(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 160)
+    return null;
+  const match = value.match(/^codex-cli(?:\s|\/)([0-9]+\.[0-9]+\.[0-9]+)$/u);
+  return match?.[1] ?? null;
+}
+
+function observedModelConfigurationFingerprintV01(
+  value: Record<string, unknown>,
+  providerRouteFingerprint: string,
+): string | null {
+  const config = value.config;
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  const record = config as Record<string, unknown>;
+  const model = stringV01(record.model);
+  const reasoningEffort = stringV01(record.model_reasoning_effort);
+  if (!model || !reasoningEffort) return null;
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      configuration_version:
+        CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01.configuration_version,
+      model,
+      reasoning_effort: reasoningEffort,
+      provider_route_fingerprint: providerRouteFingerprint,
+    }),
+  );
+}
+
+function testModelConfigurationRefV01(
+  observedAt: string,
+  providerRouteFingerprint: string,
+): ExternalRefV01 {
+  const fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      ...CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01,
+      provider_route_fingerprint: providerRouteFingerprint,
+    }),
+  );
+  return {
+    ref_version: "external_ref.v0.1",
+    ref_type: "model_configuration",
+    external_id: modelConfigurationExternalIdV01(fingerprint),
+    provider: "codex",
+    host: "local",
+    observed_at: observedAt,
+    compatibility_namespace:
+      CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+    trust_class: "direct_local_observation",
+  };
+}
+
+function modelConfigurationExternalIdV01(fingerprint: string): string {
+  return `codex-isolated-auth-model-configuration:${fingerprint}`;
+}
+
+function preflightResultV01(input: {
+  state: CodexIsolatedAuthCredentialFreePreflightV01["state"];
+  executable_fingerprint: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  observed_cli_version: string | null;
+  observed_policy_fingerprint: string | null;
+  cleanup_completed: boolean;
+  observed_at: string;
+}): CodexIsolatedAuthCredentialFreePreflightV01 {
+  const material = {
+    preflight_version:
+      CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+    state: input.state,
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    codex_executable_fingerprint: input.executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    observed_cli_version: input.observed_cli_version,
+    observed_security_policy_fingerprint:
+      input.observed_policy_fingerprint,
+    credential_access_attempted: false,
+    provider_model_call_attempted: false,
+    repository_turn_started: false,
+    successful_external_network_egress_observed: false,
+    cleanup_completed: input.cleanup_completed,
+    observed_at: input.observed_at,
+  } as const;
+  return deepFreezeAdapterValueV01({
+    ...material,
+    integrity: {
+      algorithm: "sha256",
+      fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(material),
+      ),
+    },
+  });
+}
+
+function deepFreezeAdapterValueV01<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const entry of Object.values(value as Record<string, unknown>))
+      deepFreezeAdapterValueV01(entry);
+    Object.freeze(value);
+  }
+  return value;
+}
+
 function requiredOpaqueIdV01(value: unknown, code: string): string {
   const id = requiredStringV01(value, code);
   if (id.length > 512 || /[\u0000-\u001f]/u.test(id)) {
@@ -3589,6 +4076,9 @@ function uniqueSortedV01(values: string[]): string[] {
 function isCapabilityUnavailableV01(error: Error): boolean {
   return (
     error instanceof CodexCapabilityErrorV01 ||
+    (error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_external_execution_authorization_required") ||
     (error instanceof CodexRpcErrorV01 &&
       error.code === "codex_required_method_unavailable")
   );

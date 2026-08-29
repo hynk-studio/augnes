@@ -198,7 +198,7 @@ async function handle(message) {
       if (scenario === "invalid_response_envelope") {
         send({
           id: message.id,
-          result: { userAgent: "codex-cli/fake-0.143.0" },
+          result: { userAgent: "codex-cli/0.147.0" },
           error: { code: -32000, message: "conflicting response fields" },
         });
         return;
@@ -207,15 +207,15 @@ async function handle(message) {
       respond(message.id, {
         userAgent:
           scenario === "isolated_auth_cli_version_mismatch"
-            ? "codex-cli/fake-9.999.0"
-            : "codex-cli/fake-0.143.0",
+            ? "codex-cli/0.148.0"
+            : "codex-cli/0.147.0",
         codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
         platformFamily: process.platform === "win32" ? "windows" : "unix",
         platformOs: process.platform,
       });
       if (scenario === "duplicate_response") {
         respond(message.id, {
-          userAgent: "codex-cli/fake-0.143.0",
+          userAgent: "codex-cli/0.147.0",
           codexHome: process.env.HOME ?? root,
           platformFamily: "unix",
           platformOs: process.platform,
@@ -289,6 +289,13 @@ async function handle(message) {
           forced_login_method: isolatedAuthScenario ? "chatgpt" : null,
           cli_auth_credentials_store: isolatedAuthScenario ? "ephemeral" : null,
           model_provider: isolatedAuthScenario ? "openai" : null,
+          model:
+            scenario === "isolated_auth_model_configuration_drift"
+              ? "foreign-model"
+              : isolatedAuthScenario
+                ? "fake-isolated-model"
+                : null,
+          model_reasoning_effort: isolatedAuthScenario ? "low" : null,
           model_providers:
             scenario === "isolated_auth_provider_route_drift"
               ? {
@@ -1184,7 +1191,7 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: "fake-0.143.0",
+    cliVersion: "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,

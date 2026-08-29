@@ -4,8 +4,8 @@ export const CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01 =
   "codex_isolated_authenticated_execution_projection.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01 =
   "codex_isolated_auth_credential_attestation.v0.1" as const;
-export const CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01 =
-  "codex_isolated_auth_provisioning_authorization.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PROVISIONING_BINDING_VERSION_V01 =
+  "codex_isolated_auth_provisioning_binding.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01 =
   "codex_isolated_auth_projection_seal.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_AVAILABILITY_VERSION_V01 =
@@ -16,6 +16,18 @@ export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
   "codex_credential_broker.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
   "macos_keychain_agent_identity_handle" as const;
+export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
+  "codex_isolated_auth_semantic_profile.rust-v0.147.0" as const;
+export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.147.0" as const;
+export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.147.0" as const;
+export const CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 =
+  "be6e8eac029b183056b7e4402879f15d2c85f61b" as const;
+export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 =
+  "sha256:19c4f144c5226a9f17c58e6f0fa854843b0f77a6eb420f40e2745a12f10f5d37" as const;
+export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
+  "codex_isolated_auth_credential_free_preflight.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
+  "codex_isolated_auth_test_external_execution_authorization.v0.1" as const;
 export const CODEX_AGENT_IDENTITY_ISSUER_V01 =
   "https://chatgpt.com/codex-backend/agent-identity" as const;
 export const CODEX_AGENT_IDENTITY_AUDIENCE_V01 = "codex-app-server" as const;
@@ -96,6 +108,20 @@ export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
 export interface CodexIsolatedAuthIntegrityV01 {
   algorithm: "sha256";
   fingerprint: string;
+}
+
+export interface CodexIsolatedAuthSemanticProfileV01 {
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  upstream_tag: typeof CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01;
+  upstream_source_commit: typeof CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01;
+  supported_public_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
+  pinned_production_executable_fingerprint: typeof CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+  agent_identity_claim_contract_fingerprint: string;
+  effective_provider_rule_fingerprint: string;
+  config_tool_feature_schema_fingerprint: string;
+  app_server_method_profile_fingerprint: string;
+  required_environment_auth_behavior_fingerprint: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
 }
 
 export interface CodexIsolatedAuthStatePolicyV01 {
@@ -183,20 +209,55 @@ export interface CodexIsolatedAuthAvailabilityV01 {
   integrity: CodexIsolatedAuthIntegrityV01;
 }
 
-export interface CodexIsolatedAuthProvisioningAuthorizationV01 {
-  authorization_version: typeof CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01;
-  authorization_id: string;
+export type CodexIsolatedAuthCredentialFreePreflightStateV01 =
+  | "compatible_exact"
+  | "executable_mismatch"
+  | "version_mismatch"
+  | "semantic_profile_mismatch"
+  | "method_shape_mismatch"
+  | "unavailable";
+
+export interface CodexIsolatedAuthCredentialFreePreflightV01 {
+  preflight_version: typeof CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01;
+  state: CodexIsolatedAuthCredentialFreePreflightStateV01;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
+  codex_executable_fingerprint: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  observed_cli_version: string | null;
+  observed_security_policy_fingerprint: string | null;
+  credential_access_attempted: false;
+  provider_model_call_attempted: false;
+  repository_turn_started: false;
+  successful_external_network_egress_observed: false;
+  cleanup_completed: boolean;
+  observed_at: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export interface CodexIsolatedAuthProvisioningBindingV01 {
+  binding_version: typeof CODEX_ISOLATED_AUTH_PROVISIONING_BINDING_VERSION_V01;
+  binding_id: string;
   auth_handle_ref: ExternalRefV01;
   broker_binding_fingerprint: string;
   provider_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
-  compatible_codex_cli_version: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  compatible_codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
   projection_mode: typeof CODEX_ISOLATED_AUTH_ROUTE_V01;
   issued_at: string;
   expires_at: string;
   authority: {
     opaque_handle_attestation_read: true;
-    authenticated_child_spawn: true;
+    authenticated_child_spawn_for_preflight: true;
+    is_execution_authority: false;
+    is_provider_authority: false;
     repository_execution_granted: false;
     provider_call_granted: false;
     task_network_granted: false;
@@ -212,7 +273,9 @@ export interface CodexIsolatedAuthProvisioningAuthorizationV01 {
 export interface CodexIsolatedAuthCredentialAttestationV01 {
   attestation_version: typeof CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01;
   attestation_id: string;
-  provisioning_authorization_ref: ExternalRefV01;
+  provisioning_binding_ref: ExternalRefV01;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
   auth_handle_ref: ExternalRefV01;
   broker_locator_fingerprint: string;
   auth_generation_fingerprint: string;
@@ -237,11 +300,16 @@ export interface CodexIsolatedAuthCredentialAttestationV01 {
 export interface CodexIsolatedAuthProjectionSealV01 {
   seal_version: typeof CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01;
   seal_id: string;
-  provisioning_authorization_ref: ExternalRefV01;
+  provisioning_binding_ref: ExternalRefV01;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
   auth_attestation_ref: ExternalRefV01;
   auth_attestation_fingerprint: string;
   broker_binding_fingerprint: string;
   codex_executable_fingerprint: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
   config_policy_fingerprint: string;
   state_policy_fingerprint: string;
   app_server_launch_shape_fingerprint: string;
@@ -254,7 +322,9 @@ export interface CodexIsolatedAuthProjectionV01 {
   projection_version: typeof CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01;
   projection_id: string;
   projection_mode: typeof CODEX_ISOLATED_AUTH_ROUTE_V01;
-  provisioning_authorization_ref: ExternalRefV01;
+  provisioning_binding_ref: ExternalRefV01;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
   auth_attestation_ref: ExternalRefV01;
   auth_attestation_fingerprint: string;
   projection_seal_ref: ExternalRefV01;
@@ -271,7 +341,10 @@ export interface CodexIsolatedAuthProjectionV01 {
   account_identity_fingerprint: string;
   codex_executable_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
-  compatible_codex_cli_version: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  compatible_codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
   state_policy: CodexIsolatedAuthStatePolicyV01;
   config_policy: CodexIsolatedAuthConfigPolicyV01;
   app_server_launch_shape_fingerprint: string;
@@ -303,6 +376,8 @@ export interface CodexIsolatedAuthObservationV01 {
   observation_version: typeof CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01;
   projection_id: string;
   projection_fingerprint: string;
+  semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
   auth_attestation_fingerprint: string;
   auth_source_generation_fingerprint: string;
   claims_authentication_status: "verified_by_codex_agent_identity_auth";
@@ -312,7 +387,10 @@ export interface CodexIsolatedAuthObservationV01 {
   codex_sqlite_home_identity_fingerprint: string;
   tmp_identity_fingerprint: string;
   codex_executable_fingerprint: string;
-  codex_cli_version: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
   auth_mode: "agent_identity";
   account_identity_fingerprint: string;
   account_read_projection_fingerprint: string;
@@ -329,5 +407,26 @@ export interface CodexIsolatedAuthObservationV01 {
   repository_command_auth_material_inherited: false;
   task_tool_network_authority: "none";
   observed_at: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export interface CodexIsolatedAuthTestExecutionAuthorizationV01 {
+  authorization_version: typeof CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01;
+  authorization_kind: "test_only_external_execution";
+  external_authorization_ref: ExternalRefV01;
+  request_id: string;
+  run_id: string;
+  root_scope_fingerprint: string;
+  projection_fingerprint: string;
+  execution_environment_fingerprint: string;
+  provider_ref: ExternalRefV01;
+  model_configuration_ref: ExternalRefV01;
+  effective_route_fingerprint: string;
+  invocation_ordinal: 1;
+  provider_model_bearing_invocation_ceiling: 1;
+  expires_at: string;
+  no_fallback: true;
+  single_use: true;
+  test_only: true;
   integrity: CodexIsolatedAuthIntegrityV01;
 }
