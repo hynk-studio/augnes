@@ -21,14 +21,18 @@ import path from "node:path";
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import { genericCliDirectObservationInputFixture } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import {
+  CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
   CodexCredentialBrokerErrorV01,
   bindCodexBrokerPrivateLaunchCapabilityV01,
+  configureCodexAuthenticatedChildBindingFaultForTestV01,
   createFakeCodexCredentialBrokerV01,
   createMacOsKeychainAgentIdentityBrokerV01,
   credentialBrokerBindingFingerprintV01,
   fingerprintBrokerLocatorV01,
   spawnCodexAppServerWithPrivateCapabilityV01,
   verifyCodexBrokerProcessIdentitySubstitutionForTestV01,
+  type CodexAuthenticatedChildBindingFaultForTestV01,
+  type CodexIsolatedAuthenticatedChildBindingV01,
   type CodexCredentialBrokerBindingV01,
   type CodexCredentialBrokerV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
@@ -45,6 +49,7 @@ import {
   type ProvisionCodexIsolatedAuthProjectionResultV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import {
+  consumeCodexAuthenticatedChildBindingIntoPreflightV01,
   createCodexAppServerAdapterV01,
   createCodexIsolatedAuthTestExecutionAuthorizationV01,
   probeCodexIsolatedAuthCredentialFreeCompatibilityV01,
@@ -396,6 +401,11 @@ async function mainV01(): Promise<void> {
         error.code === "codex_isolated_auth_preflight_session_unavailable",
     );
 
+    const provenanceProof = await authenticatedChildProvenanceV01(
+      roots,
+      provisioned,
+    );
+
     const semanticProfileProof =
       await semanticProfileAndCredentialFreePreflightV01(roots, provisioned);
     const executionGateProof = await externalExecutionAuthorityGateV01(
@@ -563,6 +573,12 @@ async function mainV01(): Promise<void> {
           executionGateProof.no_authorization_stop,
         test_only_authorized_fake_turn:
           executionGateProof.authorized_fake_turn,
+        authenticated_child_binding_version:
+          CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
+        arbitrary_child_wrapping_refused:
+          provenanceProof.arbitrary_child_wrapping_refused,
+        spawn_binding_matrix_refused:
+          provenanceProof.spawn_binding_matrix_refused,
         real_keychain_accesses: 0,
         real_provider_calls: 0,
         successful_external_network_egress: 0,
@@ -577,6 +593,196 @@ async function mainV01(): Promise<void> {
     restoreEnvV01("TMPDIR", prior.tmp);
     rmSync(roots.root, { recursive: true, force: true });
   }
+}
+
+async function authenticatedChildProvenanceV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<{
+  arbitrary_child_wrapping_refused: true;
+  spawn_binding_matrix_refused: true;
+}> {
+  const adapterExports = await import(
+    "@/lib/vnext/native-host/codex-app-server-adapter"
+  );
+  assert.equal(
+    Reflect.get(
+      adapterExports,
+      "createCodexIsolatedAuthenticatedPreflightSessionV01",
+    ),
+    undefined,
+    "no exported factory may certify an arbitrary spawned child",
+  );
+
+  const stateParent = path.join(roots.state, "malicious-fake-child");
+  const tracePath = path.join(
+    roots.runtime,
+    "malicious-fake-child.trace.jsonl",
+  );
+  mkdirSync(stateParent, { recursive: true, mode: 0o700 });
+  const owner = ownerV01(
+    roots,
+    "malicious-fake-child",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    stateParent,
+  );
+  const foreignChild = spawn(
+    process.execPath,
+    [
+      path.join(
+        process.cwd(),
+        "scripts",
+        "fixtures",
+        "fake-codex-app-server.mjs",
+      ),
+      "app-server",
+      "--stdio",
+    ],
+    {
+      cwd: roots.repository,
+      env: {
+        PATH: process.env.PATH,
+        HOME: roots.ordinaryHome,
+        CODEX_HOME: roots.ordinaryHome,
+        CODEX_SQLITE_HOME: roots.ordinaryHome,
+        TMPDIR: roots.ordinaryTmp,
+        NODE_ENV: "test",
+        AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+        FAKE_CODEX_SCENARIO: "isolated_auth_success",
+        FAKE_CODEX_TRACE_PATH: tracePath,
+      },
+      shell: false,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  await waitForSpawnV01(foreignChild);
+  try {
+    let observationCallbackReached = false;
+    const forgedBinding = Object.freeze({
+      binding_version:
+        CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
+      binding_fingerprint: `sha256:${"0".repeat(64)}`,
+    }) satisfies CodexIsolatedAuthenticatedChildBindingV01;
+    await assert.rejects(
+      () =>
+        consumeCodexAuthenticatedChildBindingIntoPreflightV01({
+          owner,
+          authenticated_child_binding: forgedBinding,
+          repository_root: roots.repository,
+          observe_authenticated_configuration: () => {
+            observationCallbackReached = true;
+            throw new Error("forged binding callback must remain unreachable");
+          },
+          spawned_child: foreignChild,
+        } as unknown as Parameters<
+          typeof consumeCodexAuthenticatedChildBindingIntoPreflightV01
+        >[0]),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_preflight_factory_input_invalid",
+    );
+    assert.equal(observationCallbackReached, false);
+    assert.throws(
+      () => owner.requireObservationV01(),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_observation_missing",
+    );
+    assert.equal(
+      Reflect.get(owner, "observeInitializedAccountV01"),
+      undefined,
+      "authenticated observation minting must not be public",
+    );
+    assert.doesNotThrow(() => process.kill(foreignChild.pid!, 0));
+    assert.equal(receivedMethodsV01(tracePath).includes("thread/start"), false);
+    assert.equal(receivedMethodsV01(tracePath).includes("turn/start"), false);
+  } finally {
+    await stopTestOwnedChildV01(foreignChild);
+    owner.cleanupV01();
+  }
+  assert.equal(readdirSync(stateParent).length, 0);
+
+  const faults: readonly CodexAuthenticatedChildBindingFaultForTestV01[] = [
+    "cloned_binding",
+    "already_consumed",
+    "wrong_owner",
+    "wrong_projection",
+    "wrong_attestation",
+    "wrong_credential_generation",
+    "wrong_semantic_profile",
+    "wrong_executable",
+    "wrong_repository_root",
+    "wrong_state_root",
+    "wrong_pid",
+    "wrong_birth_identity",
+    "substituted_child",
+    "wrong_launch_shape",
+  ];
+  for (const fault of faults) {
+    const faultStateParent = path.join(
+      roots.state,
+      `authenticated-child-binding-${fault}`,
+    );
+    const faultTracePath = path.join(
+      roots.runtime,
+      `authenticated-child-binding-${fault}.trace.jsonl`,
+    );
+    const faultInput = ownerInputV01(
+      roots,
+      `authenticated-child-binding-${fault}`,
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_success",
+      faultStateParent,
+    );
+    faultInput.test_environment = {
+      ...faultInput.test_environment,
+      FAKE_CODEX_TRACE_PATH: faultTracePath,
+    };
+    const faultOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01(
+      faultInput,
+    );
+    configureCodexAuthenticatedChildBindingFaultForTestV01(
+      faultOwner,
+      fault,
+    );
+    await assert.rejects(
+      () => faultOwner.startAuthenticatedPreflightV01(),
+      (error: unknown) =>
+        error instanceof CodexCredentialBrokerErrorV01 &&
+        [
+          "codex_auth_broker_authenticated_child_binding_refused",
+          "codex_auth_broker_authenticated_child_binding_replayed",
+        ].includes(error.code),
+      fault,
+    );
+    assert.throws(
+      () => faultOwner.requireObservationV01(),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_observation_missing",
+      fault,
+    );
+    assert.equal(
+      receivedMethodsV01(faultTracePath).includes("thread/start"),
+      false,
+      fault,
+    );
+    assert.equal(
+      receivedMethodsV01(faultTracePath).includes("turn/start"),
+      false,
+      fault,
+    );
+    assert.equal(readdirSync(faultStateParent).length, 0, fault);
+  }
+  assert.equal(readdirSync(roots.lease).length, 0);
+  return {
+    arbitrary_child_wrapping_refused: true,
+    spawn_binding_matrix_refused: true,
+  };
 }
 
 async function semanticProfileAndCredentialFreePreflightV01(
@@ -2713,6 +2919,35 @@ function receivedMethodsV01(tracePath: string): string[] {
     .filter((entry) => entry.kind === "received")
     .map((entry) => (entry.value as Record<string, unknown>).method)
     .filter((value): value is string => typeof value === "string");
+}
+async function waitForSpawnV01(child: ChildProcess): Promise<void> {
+  if (child.pid !== undefined) return;
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+}
+async function stopTestOwnedChildV01(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const settled = new Promise<void>((resolve) => {
+    child.once("close", () => resolve());
+  });
+  child.kill("SIGTERM");
+  const graceful = await Promise.race([
+    settled.then(() => true),
+    new Promise<false>((resolve) => setTimeout(() => resolve(false), 1_000)),
+  ]);
+  if (graceful) return;
+  child.kill("SIGKILL");
+  await Promise.race([
+    settled,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("test-owned fake child cleanup timed out")),
+        2_000,
+      ),
+    ),
+  ]);
 }
 function executableOnPathV01(name: string): string | null {
   for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {

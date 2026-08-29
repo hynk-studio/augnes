@@ -25,7 +25,7 @@ import {
   type CodexCredentialBrokerV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
 import {
-  createCodexIsolatedAuthenticatedPreflightSessionV01,
+  consumeCodexAuthenticatedChildBindingIntoPreflightV01,
   type CodexIsolatedAuthenticatedPreflightSessionV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
@@ -818,13 +818,16 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
     assertIdentityV01(this.#command);
     this.#spawned = true;
     try {
-      const spawnedChild = await spawnCodexAppServerWithPrivateCapabilityV01(
+      const authenticatedChildBinding =
+        await spawnCodexAppServerWithPrivateCapabilityV01(
         this.#launchCapability,
       );
-      return await createCodexIsolatedAuthenticatedPreflightSessionV01({
+      return await consumeCodexAuthenticatedChildBindingIntoPreflightV01({
         owner: this,
-        spawned_child: spawnedChild,
+        authenticated_child_binding: authenticatedChildBinding,
         repository_root: this.#repositoryRoot,
+        observe_authenticated_configuration: (observationInput) =>
+          this.#observeInitializedAccountV01(observationInput),
       });
     } catch (error) {
       if (
@@ -846,7 +849,7 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       );
   }
 
-  observeInitializedAccountV01(input: {
+  #observeInitializedAccountV01(input: {
     initialized: Record<string, unknown>;
     auth_status: Record<string, unknown>;
     account: Record<string, unknown>;

@@ -36,7 +36,11 @@ import {
   observeCodexIsolatedAuthCredentialFreeSemanticProfileV01,
   type CodexIsolatedAuthenticatedExecutionOwnerV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
-import { CodexCredentialBrokerErrorV01 } from "@/lib/vnext/native-host/codex-credential-broker";
+import {
+  CodexCredentialBrokerErrorV01,
+  consumeCodexIsolatedAuthenticatedChildBindingV01,
+  type CodexIsolatedAuthenticatedChildBindingV01,
+} from "@/lib/vnext/native-host/codex-credential-broker";
 import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
@@ -283,6 +287,14 @@ export interface CodexIsolatedAuthenticatedPreflightSessionV01 {
 interface PrivateIsolatedPreflightSessionStateV01 {
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
   transport: CodexStdioJsonRpcTransportV01;
+  observeAuthenticatedConfiguration(input: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
   initialized: Record<string, unknown> | null;
   state:
     | "preflight"
@@ -297,14 +309,68 @@ const PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01 = new WeakMap<
   PrivateIsolatedPreflightSessionStateV01
 >();
 
-export async function createCodexIsolatedAuthenticatedPreflightSessionV01(input: {
+export async function consumeCodexAuthenticatedChildBindingIntoPreflightV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  authenticated_child_binding: CodexIsolatedAuthenticatedChildBindingV01;
+  repository_root: string;
+  observe_authenticated_configuration(observationInput: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
+}): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
+  if (
+    Object.keys(input).sort().join("\n") !==
+    [
+      "authenticated_child_binding",
+      "observe_authenticated_configuration",
+      "owner",
+      "repository_root",
+    ]
+      .sort()
+      .join("\n")
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_factory_input_invalid",
+    );
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  input.owner.assertRepositoryRootV01(input.repository_root);
+  if (typeof input.observe_authenticated_configuration !== "function")
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_factory_input_invalid",
+    );
+  return await consumeCodexIsolatedAuthenticatedChildBindingV01({
+    binding: input.authenticated_child_binding,
+    owner: input.owner,
+    repository_root: input.repository_root,
+    consume_authenticated_child: async (spawnedChild) =>
+      await createAuthenticatedPreflightFromBrokerChildV01({
+        owner: input.owner,
+        spawned_child: spawnedChild,
+        repository_root: input.repository_root,
+        observe_authenticated_configuration:
+          input.observe_authenticated_configuration,
+      }),
+  });
+}
+
+async function createAuthenticatedPreflightFromBrokerChildV01(input: {
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
   spawned_child: unknown;
   repository_root: string;
+  observe_authenticated_configuration(observationInput: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
 }): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
-  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
-  input.owner.assertRepositoryRootV01(input.repository_root);
-  const spawned = exactPrivateSpawnedChildV01(input.spawned_child);
+  const spawned = exactBrokerAuthenticatedChildV01(input.spawned_child);
   const transport = new CodexStdioJsonRpcTransportV01({
     spawned_child: spawned.child,
     onNotification: async () => {
@@ -404,7 +470,10 @@ export async function createCodexIsolatedAuthenticatedPreflightSessionV01(input:
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_preflight_initialization_missing",
         );
-      const observation = binding.owner.observeInitializedAccountV01({
+      await binding.transport.settleNotifications();
+      const failure = binding.transport.failure;
+      if (failure) throw failure;
+      const observation = binding.observeAuthenticatedConfiguration({
         initialized: binding.initialized,
         auth_status: authStatus,
         account,
@@ -412,9 +481,6 @@ export async function createCodexIsolatedAuthenticatedPreflightSessionV01(input:
         mcp_status: mcpStatus,
         observed_at: preflightInput.observed_at,
       });
-      await binding.transport.settleNotifications();
-      const failure = binding.transport.failure;
-      if (failure) throw failure;
       binding.state = "preflight_complete";
       return deepFreezeAdapterValueV01({
         observation: structuredClone(observation),
@@ -443,13 +509,15 @@ export async function createCodexIsolatedAuthenticatedPreflightSessionV01(input:
   PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.set(session, {
     owner: input.owner,
     transport,
+    observeAuthenticatedConfiguration:
+      input.observe_authenticated_configuration,
     initialized: null,
     state: "preflight",
   });
   return session;
 }
 
-function exactPrivateSpawnedChildV01(value: unknown): {
+function exactBrokerAuthenticatedChildV01(value: unknown): {
   child: ChildProcessWithoutNullStreams;
   child_identity_fingerprint: string;
   projection_fingerprint: string;

@@ -47,16 +47,28 @@ const MAX_BROKER_OUTPUT_BYTES_V01 = 64 * 1024;
 const BROKER_TIMEOUT_MS_V01 = 5_000;
 const CHILD_ROLLBACK_TIMEOUT_MS_V01 = 5_000;
 const CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01 = 60;
+export const CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01 =
+  "codex_isolated_authenticated_child_binding.v0.1" as const;
 const SOURCE_OWNED_BROKERS_V01 = new WeakSet<object>();
 const PRIVATE_BROKER_SPAWNERS_V01 = new WeakMap<
   CodexCredentialBrokerV01,
-  (input: PrivateSpawnExactCodexAppServerInputV01) => Promise<CodexIsolatedSpawnedChildV01>
+  (
+    input: PrivateSpawnExactCodexAppServerInputV01,
+  ) => Promise<CodexIsolatedAuthenticatedChildBindingV01>
 >();
 const PRIVATE_LAUNCH_CAPABILITIES_V01 = new WeakMap<
   CodexBrokerPrivateLaunchCapabilityV01,
   PrivateSpawnExactCodexAppServerInputV01
 >();
 const PRIVATE_BOUND_EXECUTION_OWNERS_V01 = new WeakSet<object>();
+const PRIVATE_AUTHENTICATED_CHILD_BINDINGS_V01 = new WeakMap<
+  CodexIsolatedAuthenticatedChildBindingV01,
+  PrivateAuthenticatedChildBindingStateV01
+>();
+const PRIVATE_AUTHENTICATED_CHILD_BINDING_FAULTS_V01 = new WeakMap<
+  CodexIsolatedAuthenticatedExecutionOwnerV01,
+  CodexAuthenticatedChildBindingFaultForTestV01
+>();
 const PRIVATE_RETAINED_ROLLBACK_OWNERS_V01 = new WeakSet<object>();
 const PRIVATE_RETAINED_ROLLBACK_CHILDREN_V01 =
   new Set<ChildProcessWithoutNullStreams>();
@@ -173,11 +185,48 @@ export interface CodexBrokerPrivateLaunchCapabilityV01 {
   readonly capability_fingerprint: string;
 }
 
-interface CodexIsolatedSpawnedChildV01 {
-  child: ChildProcessWithoutNullStreams;
+export interface CodexIsolatedAuthenticatedChildBindingV01 {
+  readonly binding_version: typeof CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01;
+  readonly binding_fingerprint: string;
+}
+
+interface PrivateAuthenticatedChildBindingStateV01 {
+  source_binding: CodexIsolatedAuthenticatedChildBindingV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  launch_input: PrivateSpawnExactCodexAppServerInputV01;
+  source_child: ChildProcessWithoutNullStreams;
+  bound_child: ChildProcessWithoutNullStreams;
+  rollback_ownership: BrokerOwnedProcessTreeIdentityV01;
+  child_pid: number;
+  child_birth_record: BrokerProcessBirthRecordV01;
   child_identity_fingerprint: string;
   projection_fingerprint: string;
+  credential_generation_fingerprint: string;
+  credential_attestation_fingerprint: string;
+  semantic_profile_fingerprint: string;
+  executable_fingerprint: string;
+  repository_root_fingerprint: string;
+  launch_shape_fingerprint: string;
+  state_root_fingerprint: string;
+  consumed: boolean;
+  transferred: boolean;
 }
+
+export type CodexAuthenticatedChildBindingFaultForTestV01 =
+  | "cloned_binding"
+  | "already_consumed"
+  | "wrong_owner"
+  | "wrong_projection"
+  | "wrong_attestation"
+  | "wrong_credential_generation"
+  | "wrong_semantic_profile"
+  | "wrong_executable"
+  | "wrong_repository_root"
+  | "wrong_state_root"
+  | "wrong_pid"
+  | "wrong_birth_identity"
+  | "substituted_child"
+  | "wrong_launch_shape";
 
 export interface BindCodexBrokerPrivateLaunchCapabilityInputV01 {
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
@@ -347,7 +396,7 @@ export function bindCodexBrokerPrivateLaunchCapabilityV01(
 
 export async function spawnCodexAppServerWithPrivateCapabilityV01(
   capability: CodexBrokerPrivateLaunchCapabilityV01,
-): Promise<unknown> {
+): Promise<CodexIsolatedAuthenticatedChildBindingV01> {
   const binding = PRIVATE_LAUNCH_CAPABILITIES_V01.get(capability);
   if (!binding)
     throw new CodexCredentialBrokerErrorV01(
@@ -361,6 +410,84 @@ export async function spawnCodexAppServerWithPrivateCapabilityV01(
     );
   assertPrivateLaunchIdentitiesV01(binding);
   return await privateSpawner(binding);
+}
+
+/**
+ * Atomic broker-to-adapter handoff. The opaque binding can be produced only by
+ * the exact credential-injected spawn above. Raw process material is released
+ * only to this one callback after every stored owner, credential, launch,
+ * root, state, and process-birth relation has been reauthenticated.
+ */
+export async function consumeCodexIsolatedAuthenticatedChildBindingV01<T>(input: {
+  binding: CodexIsolatedAuthenticatedChildBindingV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  repository_root: string;
+  consume_authenticated_child(spawnedChild: unknown): Promise<T>;
+}): Promise<T> {
+  const state = PRIVATE_AUTHENTICATED_CHILD_BINDINGS_V01.get(input.binding);
+  if (!state)
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_authenticated_child_binding_refused",
+    );
+  if (state.consumed) {
+    if (!state.transferred) {
+      const rollback = await rollbackAuthenticatedChildBindingV01(state);
+      if (!rollback.settled) {
+        retainUnsettledRollbackV01(
+          state.launch_input,
+          state.source_child,
+          state.rollback_ownership,
+        );
+        throw new CodexCredentialBrokerErrorV01(
+          "codex_auth_broker_child_rollback_incomplete",
+        );
+      }
+    }
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_authenticated_child_binding_replayed",
+    );
+  }
+  state.consumed = true;
+  try {
+    assertAuthenticatedChildBindingV01(input, state);
+    const result = await input.consume_authenticated_child({
+      child: state.source_child,
+      child_identity_fingerprint: state.child_identity_fingerprint,
+      projection_fingerprint: state.projection_fingerprint,
+    });
+    state.transferred = true;
+    return result;
+  } catch (error) {
+    const rollback = await rollbackAuthenticatedChildBindingV01(state);
+    if (!rollback.settled) {
+      retainUnsettledRollbackV01(
+        state.launch_input,
+        state.source_child,
+        state.rollback_ownership,
+      );
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_child_rollback_incomplete",
+      );
+    }
+    throw error;
+  }
+}
+
+/** Test-only source substitution owner for the closed binding matrix. */
+export function configureCodexAuthenticatedChildBindingFaultForTestV01(
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01,
+  fault: CodexAuthenticatedChildBindingFaultForTestV01,
+): void {
+  if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1")
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_authenticated_child_binding_test_forbidden",
+    );
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(owner);
+  if (PRIVATE_AUTHENTICATED_CHILD_BINDING_FAULTS_V01.has(owner))
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_authenticated_child_binding_test_reused",
+    );
+  PRIVATE_AUTHENTICATED_CHILD_BINDING_FAULTS_V01.set(owner, fault);
 }
 
 /** Read-only guard used by the exact execution owner. Ordinary callers can
@@ -481,7 +608,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
 
   async #spawnPrivateV01(
     input: PrivateSpawnExactCodexAppServerInputV01,
-  ): Promise<CodexIsolatedSpawnedChildV01> {
+  ): Promise<CodexIsolatedAuthenticatedChildBindingV01> {
     assertExactSpawnBindingV01(this.#binding, input);
     this.#preflight();
     if (this.#poisoned)
@@ -572,19 +699,11 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
         throw new CodexCredentialBrokerErrorV01(
           "codex_auth_broker_child_exited_before_return",
         );
-      return {
+      return createAuthenticatedChildBindingV01(
+        input,
         child,
-        child_identity_fingerprint: createProtocolSha256V01(
-          canonicalizeProtocolValueV01({
-            version: "codex_isolated_spawned_child.v0.1",
-            projection_fingerprint: input.projection.integrity.fingerprint,
-            pid_observed: child.pid !== undefined,
-            launch_shape_fingerprint: input.launch_shape_fingerprint,
-            spawn_nonce: randomUUID(),
-          }),
-        ),
-        projection_fingerprint: input.projection.integrity.fingerprint,
-      };
+        rollbackOwnership,
+      );
     } catch (error) {
       primaryError = error;
       let rollbackIncomplete = false;
@@ -904,6 +1023,241 @@ export function createFakeCodexCredentialBrokerV01(input: {
       input.force_persistent_rollback_unsettled_for_test === true,
       input.force_poison_write_failure_for_test === true,
     ),
+  );
+}
+
+function createAuthenticatedChildBindingV01(
+  input: PrivateSpawnExactCodexAppServerInputV01,
+  child: ChildProcessWithoutNullStreams,
+  ownership: BrokerOwnedProcessTreeIdentityV01,
+): CodexIsolatedAuthenticatedChildBindingV01 {
+  const childPid = child.pid ?? null;
+  const childBirthRecord = ownership.records.find(
+    (entry) => entry.pid === childPid,
+  );
+  if (!ownership.exact || childPid === null || !childBirthRecord)
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_child_identity_unavailable",
+    );
+  const childBirthFingerprint = brokerProcessBirthFingerprintV01(
+    childBirthRecord,
+  );
+  const childIdentityFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      version: "codex_isolated_authenticated_child_identity.v0.1",
+      projection_fingerprint: input.projection.integrity.fingerprint,
+      credential_generation_fingerprint:
+        input.projection.auth_source_generation_fingerprint,
+      executable_fingerprint: input.projection.codex_executable_fingerprint,
+      child_pid: childPid,
+      child_birth_fingerprint: childBirthFingerprint,
+      launch_shape_fingerprint: input.launch_shape_fingerprint,
+    }),
+  );
+  const bindingMaterial = {
+    binding_version:
+      CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
+    projection_fingerprint: input.projection.integrity.fingerprint,
+    credential_generation_fingerprint:
+      input.projection.auth_source_generation_fingerprint,
+    credential_attestation_fingerprint:
+      input.credential_attestation.integrity.fingerprint,
+    semantic_profile_fingerprint:
+      input.projection.semantic_profile_fingerprint,
+    executable_fingerprint: input.projection.codex_executable_fingerprint,
+    repository_root_fingerprint: launchDirectoryFingerprintV01(
+      input.repository_identity,
+    ),
+    child_identity_fingerprint: childIdentityFingerprint,
+    launch_shape_fingerprint: input.launch_shape_fingerprint,
+    state_root_fingerprint: input.owner.state_root_fingerprint,
+    nonce: randomUUID(),
+  } as const;
+  const sourceBinding = Object.freeze({
+    binding_version:
+      CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
+    binding_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(bindingMaterial),
+    ),
+  });
+  const state: PrivateAuthenticatedChildBindingStateV01 = {
+    source_binding: sourceBinding,
+    owner: input.owner,
+    launch_input: input,
+    source_child: child,
+    bound_child: child,
+    rollback_ownership: ownership,
+    child_pid: childPid,
+    child_birth_record: Object.freeze({ ...childBirthRecord }),
+    child_identity_fingerprint: childIdentityFingerprint,
+    projection_fingerprint: input.projection.integrity.fingerprint,
+    credential_generation_fingerprint:
+      input.projection.auth_source_generation_fingerprint,
+    credential_attestation_fingerprint:
+      input.credential_attestation.integrity.fingerprint,
+    semantic_profile_fingerprint:
+      input.projection.semantic_profile_fingerprint,
+    executable_fingerprint: input.projection.codex_executable_fingerprint,
+    repository_root_fingerprint: launchDirectoryFingerprintV01(
+      input.repository_identity,
+    ),
+    launch_shape_fingerprint: input.launch_shape_fingerprint,
+    state_root_fingerprint: input.owner.state_root_fingerprint,
+    consumed: false,
+    transferred: false,
+  };
+  let presentedBinding = sourceBinding;
+  const fault = PRIVATE_AUTHENTICATED_CHILD_BINDING_FAULTS_V01.get(
+    input.owner,
+  );
+  PRIVATE_AUTHENTICATED_CHILD_BINDING_FAULTS_V01.delete(input.owner);
+  if (fault) {
+    const substituted = `sha256:${"0".repeat(64)}`;
+    switch (fault) {
+      case "cloned_binding":
+        presentedBinding = Object.freeze({ ...sourceBinding });
+        break;
+      case "already_consumed":
+        state.consumed = true;
+        break;
+      case "wrong_owner":
+        state.owner = Object.freeze(
+          {},
+        ) as CodexIsolatedAuthenticatedExecutionOwnerV01;
+        break;
+      case "wrong_projection":
+        state.projection_fingerprint = substituted;
+        break;
+      case "wrong_attestation":
+        state.credential_attestation_fingerprint = substituted;
+        break;
+      case "wrong_credential_generation":
+        state.credential_generation_fingerprint = substituted;
+        break;
+      case "wrong_semantic_profile":
+        state.semantic_profile_fingerprint = substituted;
+        break;
+      case "wrong_executable":
+        state.executable_fingerprint = substituted;
+        break;
+      case "wrong_repository_root":
+        state.repository_root_fingerprint = substituted;
+        break;
+      case "wrong_state_root":
+        state.state_root_fingerprint = substituted;
+        break;
+      case "wrong_pid":
+        state.child_pid += 1;
+        break;
+      case "wrong_birth_identity":
+        state.child_birth_record = Object.freeze({
+          ...state.child_birth_record,
+          started: `${state.child_birth_record.started}:substituted`,
+        });
+        break;
+      case "substituted_child":
+        state.bound_child = Object.freeze(
+          {},
+        ) as ChildProcessWithoutNullStreams;
+        break;
+      case "wrong_launch_shape":
+        state.launch_shape_fingerprint = substituted;
+        break;
+    }
+  }
+  PRIVATE_AUTHENTICATED_CHILD_BINDINGS_V01.set(presentedBinding, state);
+  return presentedBinding;
+}
+
+function assertAuthenticatedChildBindingV01(
+  input: {
+    binding: CodexIsolatedAuthenticatedChildBindingV01;
+    owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+    repository_root: string;
+  },
+  state: PrivateAuthenticatedChildBindingStateV01,
+): void {
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  input.owner.assertRepositoryRootV01(input.repository_root);
+  const currentRepository = exactLaunchDirectoryIdentityV01(
+    input.repository_root,
+    "codex_auth_broker_repository_root_refused",
+  );
+  const currentOwnership = captureExactBrokerProcessTreeV01(
+    state.source_child,
+  );
+  const currentBirth = currentOwnership.records.find(
+    (entry) => entry.pid === state.source_child.pid,
+  );
+  if (
+    input.binding !== state.source_binding ||
+    Object.keys(input.binding).sort().join("\n") !==
+      ["binding_fingerprint", "binding_version"].sort().join("\n") ||
+    input.binding.binding_version !==
+      CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01 ||
+    !/^sha256:[a-f0-9]{64}$/u.test(input.binding.binding_fingerprint) ||
+    state.owner !== input.owner ||
+    state.bound_child !== state.source_child ||
+    state.projection_fingerprint !==
+      input.owner.projection.integrity.fingerprint ||
+    state.credential_generation_fingerprint !==
+      state.launch_input.projection.auth_source_generation_fingerprint ||
+    state.credential_attestation_fingerprint !==
+      state.launch_input.credential_attestation.integrity.fingerprint ||
+    state.semantic_profile_fingerprint !==
+      input.owner.projection.semantic_profile_fingerprint ||
+    state.executable_fingerprint !==
+      input.owner.projection.codex_executable_fingerprint ||
+    state.repository_root_fingerprint !==
+      launchDirectoryFingerprintV01(currentRepository) ||
+    state.state_root_fingerprint !== input.owner.state_root_fingerprint ||
+    state.launch_shape_fingerprint !==
+      input.owner.projection.app_server_launch_shape_fingerprint ||
+    state.child_pid !== state.source_child.pid ||
+    !currentOwnership.exact ||
+    !currentBirth ||
+    !sameBrokerProcessBirthV01(state.child_birth_record, currentBirth) ||
+    state.source_child.exitCode !== null ||
+    state.source_child.signalCode !== null
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_authenticated_child_binding_refused",
+    );
+}
+
+async function rollbackAuthenticatedChildBindingV01(
+  state: PrivateAuthenticatedChildBindingStateV01,
+): Promise<BrokerOwnedProcessTreeStopResultV01> {
+  const first = await stopExactBrokerProcessTreeV01(state.source_child, {
+    graceful_timeout_ms: CHILD_ROLLBACK_TIMEOUT_MS_V01 / 2,
+    forced_timeout_ms: CHILD_ROLLBACK_TIMEOUT_MS_V01 / 2,
+    ownership: state.rollback_ownership,
+  });
+  const result = first.settled
+    ? first
+    : await stopExactBrokerProcessTreeV01(state.source_child, {
+        graceful_timeout_ms: CHILD_ROLLBACK_TIMEOUT_MS_V01 / 2,
+        forced_timeout_ms: CHILD_ROLLBACK_TIMEOUT_MS_V01 / 2,
+        ownership: state.rollback_ownership,
+      });
+  state.source_child.stdin.destroy();
+  state.source_child.stdout.destroy();
+  state.source_child.stderr.destroy();
+  return result;
+}
+
+function brokerProcessBirthFingerprintV01(
+  record: BrokerProcessBirthRecordV01,
+): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      version: "codex_broker_process_birth.v0.1",
+      pid: record.pid,
+      ppid: record.ppid,
+      pgid: record.pgid,
+      started: record.started,
+      command_fingerprint: record.command_fingerprint,
+    }),
   );
 }
 
