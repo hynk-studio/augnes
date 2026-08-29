@@ -12,6 +12,11 @@ import {
 import path from "node:path";
 
 import {
+  CommissionedLiveTrainingExecutionAuthorizationErrorV01,
+  assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
+  consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01,
+} from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
+import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostPublicTextV01,
@@ -63,10 +68,13 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
   type CodexIsolatedAuthCredentialFreePreflightV01,
+  type CodexIsolatedAuthExternalExecutionAuthorizationV01,
   type CodexIsolatedAuthObservationV01,
+  type CodexIsolatedAuthProjectionV01,
   type CodexIsolatedAuthTestExecutionAuthorizationV01,
 } from "@/types/vnext/codex-isolated-auth-projection";
 
@@ -253,7 +261,7 @@ export interface CodexAppServerAdapterObservationV01 {
 export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
   isolated_authenticated_execution?: CodexIsolatedAuthenticatedExecutionOwnerV01;
-  isolated_authenticated_external_execution_authorization?: CodexIsolatedAuthTestExecutionAuthorizationV01;
+  isolated_authenticated_external_execution_authorization?: CodexIsolatedAuthExternalExecutionAuthorizationV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
   observe_isolated_auth?: (
@@ -280,6 +288,8 @@ export interface CodexIsolatedAuthenticatedPreflightSessionV01 {
   }): Promise<{
     observation: CodexIsolatedAuthObservationV01;
     model_configuration_fingerprint: string;
+    model_id: string;
+    reasoning_effort: string;
   }>;
   shutdownAndCleanupV01(): Promise<boolean>;
 }
@@ -454,6 +464,7 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
         observedModelConfigurationFingerprintV01(
           config,
           binding.owner.projection.config_policy.provider_route_fingerprint,
+          binding.owner.projection.executable_identity_class,
         );
       if (modelConfigurationFingerprint === null)
         throw new CodexIsolatedAuthProjectionErrorV01(
@@ -485,6 +496,11 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
       return deepFreezeAdapterValueV01({
         observation: structuredClone(observation),
         model_configuration_fingerprint: modelConfigurationFingerprint,
+        model_id: requiredModelConfigurationValueV01(config, "model"),
+        reasoning_effort: requiredModelConfigurationValueV01(
+          config,
+          "model_reasoning_effort",
+        ),
       });
     },
     shutdownAndCleanupV01: async () => {
@@ -964,6 +980,8 @@ class CodexAppServerInvocationV01 {
   private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null =
     null;
   private isolatedObservedModelConfigurationFingerprint: string | null = null;
+  private isolatedObservedModelId: string | null = null;
+  private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
@@ -1181,6 +1199,8 @@ class CodexAppServerInvocationV01 {
         });
       this.isolatedObservedModelConfigurationFingerprint =
         preflight.model_configuration_fingerprint;
+      this.isolatedObservedModelId = preflight.model_id;
+      this.isolatedObservedReasoningEffort = preflight.reasoning_effort;
       this.isolatedAuthObservation = preflight.observation;
       this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
     } else {
@@ -1285,26 +1305,15 @@ class CodexAppServerInvocationV01 {
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_external_execution_authorization_required",
       );
-    const sourceState =
-      SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.get(authorization);
-    const { integrity, ...material } = authorization;
-    if (
-      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
-      !sourceState ||
-      sourceState.owner !== owner ||
-      sourceState.consumed ||
-      integrity.algorithm !== "sha256" ||
-      integrity.fingerprint !==
-        createProtocolSha256V01(canonicalizeProtocolValueV01(material)) ||
-      authorization.authorization_version !==
-        CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 ||
-      authorization.authorization_kind !== "test_only_external_execution" ||
+    const rootScopeFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(this.request.root_scope),
+    );
+    const modelConfigurationFingerprint =
+      this.isolatedObservedModelConfigurationFingerprint;
+    const commonRefused =
       authorization.request_id !== this.request.request_id ||
       authorization.run_id !== this.request.run_id ||
-      authorization.root_scope_fingerprint !==
-        createProtocolSha256V01(
-          canonicalizeProtocolValueV01(this.request.root_scope),
-        ) ||
+      authorization.root_scope_fingerprint !== rootScopeFingerprint ||
       authorization.projection_fingerprint !==
         owner.projection.integrity.fingerprint ||
       authorization.execution_environment_fingerprint !==
@@ -1313,30 +1322,90 @@ class CodexAppServerInvocationV01 {
         canonicalizeProtocolValueV01(owner.projection.provider_ref) ||
       authorization.effective_route_fingerprint !==
         owner.projection.config_policy.provider_route_fingerprint ||
-      this.isolatedObservedModelConfigurationFingerprint === null ||
+      modelConfigurationFingerprint === null ||
       authorization.model_configuration_ref.ref_type !==
         "model_configuration" ||
       authorization.model_configuration_ref.external_id !==
-        modelConfigurationExternalIdV01(
-          this.isolatedObservedModelConfigurationFingerprint,
-        ) ||
-      authorization.invocation_ordinal !== 1 ||
-      authorization.provider_model_bearing_invocation_ceiling !== 1 ||
+        modelConfigurationExternalIdV01(modelConfigurationFingerprint ?? "") ||
+      !Number.isInteger(authorization.invocation_ordinal) ||
+      authorization.invocation_ordinal < 1 ||
+      !Number.isInteger(
+        authorization.provider_model_bearing_invocation_ceiling,
+      ) ||
+      authorization.provider_model_bearing_invocation_ceiling < 1 ||
       authorization.no_fallback !== true ||
       authorization.single_use !== true ||
-      authorization.test_only !== true ||
       Date.parse(authorization.expires_at) <= Date.parse(this.now()) ||
       observation.projection_fingerprint !==
         authorization.projection_fingerprint ||
       observation.semantic_profile_fingerprint !==
         owner.projection.semantic_profile_fingerprint ||
       observation.provider_route_fingerprint !==
-        authorization.effective_route_fingerprint
-    )
+        authorization.effective_route_fingerprint;
+    if (commonRefused)
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_external_execution_authorization_refused",
       );
-    sourceState.consumed = true;
+    if (authorization.authorization_kind === "production_external_execution") {
+      assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01(
+        authorization,
+      );
+      if (
+        process.env.AUGNES_CANONICAL_TEST_MODE === "1" ||
+        process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1" ||
+        owner.projection.executable_identity_class !==
+          "production_pinned_codex" ||
+        authorization.provider_model_bearing_invocation_ceiling !== 1 ||
+        authorization.test_only !== false ||
+        this.isolatedObservedModelId !== authorization.expected_model_id ||
+        this.isolatedObservedReasoningEffort !==
+        authorization.expected_reasoning_effort
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_external_execution_authorization_refused",
+        );
+      consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
+        authorization,
+        {
+          owner,
+          request_id: this.request.request_id,
+          run_id: this.request.run_id,
+          root_scope_fingerprint: rootScopeFingerprint,
+          projection_fingerprint: owner.projection.integrity.fingerprint,
+          execution_environment_fingerprint:
+            owner.execution_environment_fingerprint,
+          provider_ref: owner.projection.provider_ref,
+          model_configuration_fingerprint: modelConfigurationFingerprint!,
+          effective_route_fingerprint:
+            owner.projection.config_policy.provider_route_fingerprint,
+          observed_model_id: this.isolatedObservedModelId,
+          observed_reasoning_effort: this.isolatedObservedReasoningEffort,
+          observed_at: this.now(),
+        },
+      );
+    } else {
+      const sourceState =
+        SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.get(authorization);
+      const { integrity, ...material } = authorization;
+      if (
+        process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
+        !sourceState ||
+        sourceState.owner !== owner ||
+        sourceState.consumed ||
+        integrity.algorithm !== "sha256" ||
+        integrity.fingerprint !==
+          createProtocolSha256V01(canonicalizeProtocolValueV01(material)) ||
+        authorization.authorization_version !==
+          CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 ||
+        authorization.invocation_ordinal !== 1 ||
+        authorization.provider_model_bearing_invocation_ceiling !== 1 ||
+        authorization.test_only !== true
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_external_execution_authorization_refused",
+        );
+      sourceState.consumed = true;
+    }
     this.transport = transferPrivatePreflightTransportForExecutionV01({
       session: preflight,
       owner,
@@ -4303,6 +4372,7 @@ function isolatedAuthPublicCliVersionV01(value: unknown): string | null {
 function observedModelConfigurationFingerprintV01(
   value: Record<string, unknown>,
   providerRouteFingerprint: string,
+  executableIdentityClass: CodexIsolatedAuthProjectionV01["executable_identity_class"],
 ): string | null {
   const config = value.config;
   if (!config || typeof config !== "object" || Array.isArray(config)) return null;
@@ -4313,12 +4383,31 @@ function observedModelConfigurationFingerprintV01(
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       configuration_version:
-        CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01.configuration_version,
+        executableIdentityClass === "production_pinned_codex"
+          ? CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01
+          : CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01.configuration_version,
       model,
       reasoning_effort: reasoningEffort,
       provider_route_fingerprint: providerRouteFingerprint,
     }),
   );
+}
+
+function requiredModelConfigurationValueV01(
+  value: Record<string, unknown>,
+  key: "model" | "model_reasoning_effort",
+): string {
+  const config = value.config;
+  const record =
+    config && typeof config === "object" && !Array.isArray(config)
+      ? (config as Record<string, unknown>)
+      : null;
+  const result = record ? stringV01(record[key]) : null;
+  if (!result)
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_model_configuration_missing",
+    );
+  return result;
 }
 
 function testModelConfigurationRefV01(
@@ -4480,6 +4569,7 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexRpcErrorV01 ||
     error instanceof CodexCredentialBrokerErrorV01 ||
     error instanceof CodexIsolatedAuthProjectionErrorV01 ||
+    error instanceof CommissionedLiveTrainingExecutionAuthorizationErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01
   ) {

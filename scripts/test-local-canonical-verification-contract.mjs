@@ -15,6 +15,10 @@ import {
   buildRuntimeOperabilityCanonicalSteps,
   createRuntimeOperabilityContext,
 } from "./runtime-operability-ownership.mjs";
+import {
+  assertCanonicalConcurrentChildLabelsV01,
+  normalizeCanonicalConcurrentChildLabelV01,
+} from "./canonical-child-runner.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -921,6 +925,8 @@ assert.doesNotMatch(
 for (const fragment of [
   `runCanonicalChild,`,
   `runCanonicalChildGroups,`,
+  `assertCanonicalConcurrentChildLabelsV01,`,
+  `integrationInventory.map((step) => step.label)`,
   `maxConcurrency: 2`,
   `{ id: "operator-process", children:`,
   `{ id: "supporting-serial", children:`,
@@ -939,6 +945,22 @@ for (const fragment of [
     `canonical suite guardrail is missing: ${fragment}`,
   );
 }
+const integrationLabelPreflightIndex = canonicalSuite.indexOf(
+  `assertCanonicalConcurrentChildLabelsV01(\n    integrationInventory.map((step) => step.label),\n  );`,
+);
+const integrationResourcePreparationIndex = canonicalSuite.indexOf(
+  `const preparedSteps = suites[suiteName].map((step, index) => {`,
+);
+assert.notEqual(
+  integrationLabelPreflightIndex,
+  -1,
+  "integration label preflight must remain registered",
+);
+assert.equal(
+  integrationLabelPreflightIndex < integrationResourcePreparationIndex,
+  true,
+  "integration label preflight must precede per-child resource roots",
+);
 
 const integrationChildren = [
   "project-verify-material",
@@ -947,11 +969,17 @@ const integrationChildren = [
   "project-verify-operator-adapter",
   "reconstruction-conformance",
   "commissioned-controlled-workbench",
+  "commissioned-controlled-live-training",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",
   "project-controls",
+  "continuity-pins",
   "policy-triggered-model-run",
   "project-home",
+  "project-work-initialization",
+  "blank-state",
+  "guide-brief-current-project",
+  "codex-read-guide-brief",
   "project-onboarding",
   "project-identity",
   "mcp-adapter-runtime",
@@ -961,6 +989,49 @@ const integrationChildren = [
   "portable-export",
   "portable-project-continuity",
 ];
+const integrationSourceStart = canonicalSuite.indexOf("  integration: [");
+const integrationSourceEnd = canonicalSuite.indexOf("  authority: [");
+assert.notEqual(
+  integrationSourceStart,
+  -1,
+  "integration canonical inventory must remain present",
+);
+assert.equal(
+  integrationSourceEnd > integrationSourceStart,
+  true,
+  "integration canonical inventory must remain bounded",
+);
+const integrationSource = canonicalSuite.slice(
+  integrationSourceStart,
+  integrationSourceEnd,
+);
+assert.deepEqual(
+  [...integrationSource.matchAll(/\n\s+id: "([^"]+)"/gu)].map(
+    (match) => match[1],
+  ),
+  integrationChildren,
+  "integration ownership inventory must remain unchanged",
+);
+const integrationRegistrations = integrationChildren.map((childId) =>
+  readCanonicalChildRegistration(integrationSource, childId),
+);
+const normalizedIntegrationLabels =
+  assertCanonicalConcurrentChildLabelsV01(
+    integrationRegistrations.map((registration) => registration.label),
+  );
+assert.equal(normalizedIntegrationLabels.length, integrationChildren.length);
+assert.equal(
+  new Set(normalizedIntegrationLabels).size,
+  integrationChildren.length,
+);
+for (const [index, registration] of integrationRegistrations.entries()) {
+  assert.equal(registration.label.length <= 160, true, registration.id);
+  assert.equal(
+    normalizedIntegrationLabels[index],
+    registration.label,
+    registration.id,
+  );
+}
 for (const childId of integrationChildren) {
   assert.equal(
     countOccurrences(canonicalSuite, `id: "${childId}"`),
@@ -968,6 +1039,65 @@ for (const childId of integrationChildren) {
     `integration child must have exactly one owner: ${childId}`,
   );
 }
+const commissionedLiveTrainingRegistration =
+  readCanonicalChildRegistration(
+    integrationSource,
+    "commissioned-controlled-live-training",
+  );
+assert.equal(
+  commissionedLiveTrainingRegistration.label,
+  "commissioned live-training authorization, isolated attempt ownership, blinded evaluation, and append-only artifact conformance",
+);
+assert.equal(commissionedLiveTrainingRegistration.label.length, 126);
+for (const fragment of [
+  `group: "supporting-serial"`,
+  `requirements: [\n        "filesystem",\n        "process-owning",\n        "project-root",\n        "mutable-module-state",\n      ]`,
+  `"scripts/test-commissioned-controlled-live-training.ts"`,
+  `env: { AUGNES_CANONICAL_TEST_MODE: "1" }`,
+  `timeoutMs: 420_000`,
+]) {
+  requireText(
+    commissionedLiveTrainingRegistration.block,
+    fragment,
+    `commissioned live-training registration changed unexpectedly: ${fragment}`,
+  );
+}
+for (const childId of [
+  "codex-isolated-auth-projection",
+  "codex-isolated-auth-rollback-lifecycle",
+]) {
+  const registration = readCanonicalChildRegistration(
+    integrationSource,
+    childId,
+  );
+  assert.equal(
+    normalizeCanonicalConcurrentChildLabelV01(registration.label),
+    registration.label,
+    childId,
+  );
+}
+for (const overlongLabel of ["a".repeat(161), "a".repeat(162)]) {
+  assert.throws(
+    () => normalizeCanonicalConcurrentChildLabelV01(overlongLabel),
+    /canonical concurrent child ownership is invalid/,
+  );
+}
+assert.throws(
+  () => normalizeCanonicalConcurrentChildLabelV01(""),
+  /canonical concurrent child ownership is invalid/,
+);
+assert.throws(
+  () => normalizeCanonicalConcurrentChildLabelV01("unsafe[label]"),
+  /canonical concurrent child ownership is invalid/,
+);
+assert.throws(
+  () =>
+    assertCanonicalConcurrentChildLabelsV01([
+      normalizedIntegrationLabels[0],
+      normalizedIntegrationLabels[0],
+    ]),
+  /canonical concurrent child ownership is invalid/,
+);
 const operabilityChildren = [
   ["durable-run-reconciliation", "operability-fast"],
   ["public-recovery-action", "operability-fast"],
@@ -1132,6 +1262,7 @@ requireText(
 );
 for (const [pathName, timeout] of [
   ["scripts/test-commissioned-controlled-workbench.ts", "30_000"],
+  ["scripts/test-commissioned-controlled-live-training.ts", "420_000"],
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
@@ -1182,6 +1313,8 @@ assert.equal(
 for (const fragment of [
   `DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = 300_000`,
   `DEFAULT_CANONICAL_HEARTBEAT_MS = 30_000`,
+  `normalizeCanonicalConcurrentChildLabelV01`,
+  `assertCanonicalConcurrentChildLabelsV01`,
   `terminateOwnedProcessTree(record`,
   `child_start label=`,
   `child_spawn label=`,
@@ -1418,6 +1551,12 @@ console.log(
       ],
       local_pr_evidence_publication_explicit_only: true,
       local_pr_evidence_status_check_and_deployment_paths_absent: true,
+      integration_concurrent_labels_valid: true,
+      integration_concurrent_label_count: normalizedIntegrationLabels.length,
+      commissioned_live_training_label_length:
+        commissionedLiveTrainingRegistration.label.length,
+      concurrent_label_161_and_162_characters_refused: true,
+      concurrent_empty_unsafe_and_duplicate_labels_refused: true,
     },
     null,
     2,
@@ -1491,6 +1630,19 @@ function assertCanonicalIsolatedAuthChild(
       `${id} canonical registration is missing: ${fragment}`,
     );
   }
+}
+
+function readCanonicalChildRegistration(source, id) {
+  const idIndex = source.indexOf(`id: "${id}"`);
+  assert.notEqual(idIndex, -1, `missing canonical child registration: ${id}`);
+  const blockStart = source.lastIndexOf("\n    {", idIndex);
+  const blockEnd = source.indexOf("\n    },", idIndex);
+  assert.notEqual(blockStart, -1, `missing canonical child block: ${id}`);
+  assert.notEqual(blockEnd, -1, `unterminated canonical child block: ${id}`);
+  const block = source.slice(blockStart, blockEnd);
+  const labelMatch = block.match(/label:\s*"([^"]+)"/u);
+  assert.notEqual(labelMatch, null, `missing canonical child label: ${id}`);
+  return { id, label: labelMatch[1], block };
 }
 
 function requireText(source, fragment, message) {

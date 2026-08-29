@@ -28,6 +28,8 @@ export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
   "codex_isolated_auth_credential_free_preflight.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
   "codex_isolated_auth_test_external_execution_authorization.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01 =
+  "codex_isolated_auth_model_configuration.v0.1" as const;
 export const CODEX_AGENT_IDENTITY_ISSUER_V01 =
   "https://chatgpt.com/codex-backend/agent-identity" as const;
 export const CODEX_AGENT_IDENTITY_AUDIENCE_V01 = "codex-app-server" as const;
@@ -430,3 +432,36 @@ export interface CodexIsolatedAuthTestExecutionAuthorizationV01 {
   test_only: true;
   integrity: CodexIsolatedAuthIntegrityV01;
 }
+
+/**
+ * Data-only production bridge consumed by the App Server adapter only after the
+ * authenticated preflight has completed.  The adapter deliberately owns no
+ * public production factory: a commissioned runtime must supply source-owned,
+ * data-only single-use material recognized by its trusted registry owner.
+ */
+export interface CodexIsolatedAuthProductionExecutionAuthorizationV01 {
+  authorization_version: string;
+  authorization_kind: "production_external_execution";
+  external_authorization_ref: ExternalRefV01;
+  request_id: string;
+  run_id: string;
+  root_scope_fingerprint: string;
+  projection_fingerprint: string;
+  execution_environment_fingerprint: string;
+  provider_ref: ExternalRefV01;
+  model_configuration_ref: ExternalRefV01;
+  effective_route_fingerprint: string;
+  expected_model_id: string;
+  expected_reasoning_effort: string;
+  invocation_ordinal: number;
+  provider_model_bearing_invocation_ceiling: number;
+  expires_at: string;
+  no_fallback: true;
+  single_use: true;
+  test_only: false;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export type CodexIsolatedAuthExternalExecutionAuthorizationV01 =
+  | CodexIsolatedAuthTestExecutionAuthorizationV01
+  | CodexIsolatedAuthProductionExecutionAuthorizationV01;

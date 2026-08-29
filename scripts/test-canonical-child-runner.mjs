@@ -15,8 +15,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertCanonicalConcurrentChildLabelsV01,
   canonicalChildAcceptanceFailure,
   canonicalChildFailure,
+  normalizeCanonicalConcurrentChildLabelV01,
   runCanonicalChild,
   runCanonicalChildGroups,
 } from "./canonical-child-runner.mjs";
@@ -43,6 +45,38 @@ const observedPorts = new Set();
 const summaries = [];
 
 try {
+  const maximumSafeLabel = "a".repeat(160);
+  assert.equal(
+    normalizeCanonicalConcurrentChildLabelV01(maximumSafeLabel),
+    maximumSafeLabel,
+  );
+  assert.equal(
+    normalizeCanonicalConcurrentChildLabelV01("ordinary existing label"),
+    "ordinary existing label",
+  );
+  assert.throws(
+    () => normalizeCanonicalConcurrentChildLabelV01(""),
+    /canonical concurrent child ownership is invalid/,
+  );
+  for (const overlongLabel of ["a".repeat(161), "a".repeat(162)]) {
+    assert.throws(
+      () => normalizeCanonicalConcurrentChildLabelV01(overlongLabel),
+      /canonical concurrent child ownership is invalid/,
+    );
+  }
+  assert.throws(
+    () => normalizeCanonicalConcurrentChildLabelV01("unsafe[label]"),
+    /canonical concurrent child ownership is invalid/,
+  );
+  assert.throws(
+    () =>
+      assertCanonicalConcurrentChildLabelsV01([
+        "duplicate safe label",
+        "duplicate safe label",
+      ]),
+    /canonical concurrent child ownership is invalid/,
+  );
+
   const success = await runFixture("fast-success", {
     timeoutMs: 2_000,
   });
@@ -427,6 +461,9 @@ console.log(
       sigterm_escalation_verified: process.platform !== "win32",
       windows_forced_tree_termination_verified: process.platform === "win32",
       privacy_safe_diagnostics: true,
+      concurrent_label_160_characters_accepted: true,
+      concurrent_label_161_and_162_characters_refused: true,
+      concurrent_empty_unsafe_and_duplicate_labels_refused: true,
       concurrent_groups_bounded_and_deterministic: true,
       concurrent_failure_timeout_and_cleanup_fail_closed: true,
       concurrent_incomplete_conflicting_and_duplicate_results_refused: true,

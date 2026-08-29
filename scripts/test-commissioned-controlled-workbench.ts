@@ -52,6 +52,11 @@ import {
   writeCommissionedWorkArtifactsV01,
 } from "@/lib/vnext/commissioned-controlled-workbench-artifact-store";
 import {
+  buildCommissionedWorkObjectiveObservationFromDecisionV01,
+  createCommissionedWorkObjectiveEvaluatorViewV01,
+  evaluateCommissionedWorkRepositoryBlindV01,
+} from "@/lib/vnext/commissioned-controlled-workbench-objective-evaluator";
+import {
   createCodexAppServerAdapterV01,
   createCodexAppServerRequestSourceBindingV01,
   requestSourceBindingMetadataForLifecycleEventV01,
@@ -1519,206 +1524,31 @@ function evaluateRepositoryEpisodeV01(input: {
   oracle_guard_path: string;
   network_attempt_log: string;
 }): CommissionedWorkObjectiveObservationV01 {
-  const changedPaths = gitV01(input.repository_root, [
-    "diff",
-    "--name-only",
-    `${input.episode_start_commit}..HEAD`,
-  ])
-    .split("\n")
-    .filter(Boolean)
-    .sort(compareProtocolCodeUnitsV01);
-  const checks = input.source.required_checks.map((check) => {
-    const oraclePath = path.join(input.repository_root, check.oracle_relative_path);
-    const commandFingerprint = createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        runtime: process.execPath,
-        oracle_relative_path: check.oracle_relative_path,
-        oracle_content_fingerprint: createProtocolSha256V01(
-          canonicalizeProtocolValueV01(readFileSync(oraclePath, "utf8")),
-        ),
-      }),
-    );
-    if (!input.run_oracles) {
-      return {
-        check_id: check.check_id,
-        disposition: "skipped" as const,
-        command_fingerprint: null,
-        exit_code: null,
-      };
-    }
-    try {
-      runOracleProcessV01({
-        repository_root: input.repository_root,
-        oracle_relative_path: check.oracle_relative_path,
-        oracle_guard_path: input.oracle_guard_path,
-        network_attempt_log: input.network_attempt_log,
-      });
-      return {
-        check_id: check.check_id,
-        disposition: "passed" as const,
-        command_fingerprint: commandFingerprint,
-        exit_code: 0,
-      };
-    } catch (error) {
-      const exitCode =
-        typeof error === "object" &&
-        error !== null &&
-        "status" in error &&
-        typeof error.status === "number"
-          ? error.status
-          : 1;
-      return {
-        check_id: check.check_id,
-        disposition: "failed" as const,
-        command_fingerprint: commandFingerprint,
-        exit_code: exitCode,
-      };
-    }
-  });
-  const guardObservations = input.source.negative_space_guards.map(
-    (guard, index) => {
-      const content = readFileSync(
-        path.join(input.repository_root, guard.repository_relative_path),
-        "utf8",
-      );
-      const status = content.includes(guard.forbidden_fragment)
-        ? ("revived" as const)
-        : ("preserved" as const);
-      return {
-        guard_ref: input.commitment.negative_space_guard_refs[index]!,
-        status,
-      };
-    },
-  );
-  const currentSourceFingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01(
-      [...input.source.current_source_relative_paths]
-        .sort(compareProtocolCodeUnitsV01)
-        .map((repository_relative_path) => ({
-          repository_relative_path,
-          content_fingerprint: createProtocolSha256V01(
-            canonicalizeProtocolValueV01(
-              readFileSync(
-                path.join(input.repository_root, repository_relative_path),
-                "utf8",
-              ),
-            ),
-          ),
-        })),
-    ),
-  );
-  const currentnessCheck = checks.find(
-    (check) => check.check_id === input.source.source_currentness_check_id,
-  );
-  const sourceCurrentness =
-    input.episode_role === "predecessor"
-      ? ("unknown" as const)
-      : currentnessCheck?.disposition === "passed"
-        ? ("current" as const)
-        : currentnessCheck?.disposition === "failed"
-          ? ("failed" as const)
-          : ("unknown" as const);
-  const actualDiff = changedPaths.map((repository_relative_path) => ({
-    repository_relative_path,
-    content_fingerprint: createProtocolSha256V01(
-      readFileSync(
-        path.join(input.repository_root, repository_relative_path),
-        "utf8",
-      ),
-    ),
-  }));
-  const recordedDiff = input.result.changed_files
-    .map((changed) => ({
-      repository_relative_path: changed.repository_relative_path,
-      content_fingerprint:
-        changed.after_hash ??
-        createProtocolSha256V01(
-          readFileSync(
-            path.join(
-              input.repository_root,
-              changed.repository_relative_path,
-            ),
-            "utf8",
-          ),
-        ),
-    }))
-    .sort((left, right) =>
-      compareProtocolCodeUnitsV01(
-        left.repository_relative_path,
-        right.repository_relative_path,
-      ),
-    );
-  const expectedDiff =
-    input.episode_role === "predecessor"
-      ? recordedDiff
-      : input.source.expected_success_writes
-          .map((write) => ({
-            repository_relative_path: write.repository_relative_path,
-            content_fingerprint: createProtocolSha256V01(write.content),
-          }))
-          .sort((left, right) =>
-            compareProtocolCodeUnitsV01(
-              left.repository_relative_path,
-              right.repository_relative_path,
-            ),
-          );
-  const diffCorrect =
-    canonicalizeProtocolValueV01(actualDiff) ===
-      canonicalizeProtocolValueV01(expectedDiff) &&
-    canonicalizeProtocolValueV01(actualDiff) ===
-      canonicalizeProtocolValueV01(recordedDiff);
-  const observationInput: BuildCommissionedWorkObjectiveObservationInputV01 = {
-    case_commitment: input.commitment,
-    evaluator_version: input.evaluator_version,
+  const view = createCommissionedWorkObjectiveEvaluatorViewV01({
+    source: input.source,
+    commitment: input.commitment,
+    episode_role: input.episode_role,
+    run_ref_fingerprint: input.run_ref_fingerprint,
     evaluator_role: input.evaluator_role,
+    evaluator_version: input.evaluator_version,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
-    case_id: input.source.case_id,
-    episode_role: input.episode_role,
+    run_oracles: input.run_oracles,
+  });
+  const decision = evaluateCommissionedWorkRepositoryBlindV01({
+    view,
+    repository_root: input.repository_root,
+    episode_start_commit: input.episode_start_commit,
+    result: input.result,
+    oracle_guard_path: input.oracle_guard_path,
+    network_attempt_log: input.network_attempt_log,
+  });
+  return buildCommissionedWorkObjectiveObservationFromDecisionV01({
+    decision,
+    commitment: input.commitment,
     condition: input.condition,
     holdout_variant: input.holdout_variant,
-    run_ref_fingerprint: input.run_ref_fingerprint,
-    oracle_executed: input.run_oracles,
-    repository_state_fingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({
-        head: gitV01(input.repository_root, ["rev-parse", "HEAD"]),
-        tree: gitV01(input.repository_root, ["rev-parse", "HEAD^{tree}"]),
-        changed_paths: changedPaths,
-      }),
-    ),
-    current_source_fingerprint: currentSourceFingerprint,
-    changed_path_fingerprints: changedPaths.map(createProtocolSha256V01),
-    required_checks: checks,
-    repository_diff_correctness:
-      diffCorrect ? "passed" : "failed",
-    verification_completeness: input.run_oracles ? "complete" : "incomplete",
-    negative_space: {
-      status: guardObservations.some((guard) => guard.status === "revived")
-        ? "revived"
-        : "preserved",
-      violated_guard_fingerprints: guardObservations
-        .filter((guard) => guard.status === "revived")
-        .map((guard) => guard.guard_ref.content_fingerprint),
-      guard_observations: guardObservations,
-    },
-    source_currentness: sourceCurrentness,
-    project_scope: "exact",
-    unauthorized_effects: {
-      provider_calls_outside_authorization: 0,
-      model_calls_outside_authorization: 0,
-      network_calls_outside_authorization: 0,
-      outside_root_writes: 0,
-      product_database_writes: 0,
-      core_writes: 0,
-      proposal_writes: 0,
-      review_decision_writes: 0,
-      transition_writes: 0,
-      policy_activations: 0,
-      active_pointer_writes: 0,
-      github_writes: 0,
-    },
-  };
-  return buildCommissionedWorkObjectiveObservationV01(observationInput);
+  });
 }
 
 function buildEpisodeArtifactFromBundleV01(input: {
