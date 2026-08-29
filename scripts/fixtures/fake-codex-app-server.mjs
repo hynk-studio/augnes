@@ -3,7 +3,15 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import dns from "node:dns";
-import { appendFileSync, existsSync, readFileSync, watch, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  watch,
+  writeFileSync,
+} from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import readline from "node:readline";
@@ -20,9 +28,12 @@ const scenario =
     ? "browser_two_sequential_approvals"
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
-const threadId = process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
-const sessionId = process.env.FAKE_CODEX_SESSION_ID ?? "01900000-0000-7000-8000-000000000002";
-const turnId = process.env.FAKE_CODEX_TURN_ID ?? "01900000-0000-7000-8000-000000000003";
+const threadId =
+  process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
+const sessionId =
+  process.env.FAKE_CODEX_SESSION_ID ?? "01900000-0000-7000-8000-000000000002";
+const turnId =
+  process.env.FAKE_CODEX_TURN_ID ?? "01900000-0000-7000-8000-000000000003";
 const approvalRequestId = "fake-server-approval-1";
 const sequentialApprovalCount = 20;
 // The full canonical browser lifecycle includes a server-rendered Project Home
@@ -62,10 +73,7 @@ let descendant = null;
 installZeroNetworkGuard();
 trace("fixture_started", { scenario });
 
-if (
-  process.argv.at(-2) !== "app-server" ||
-  process.argv.at(-1) !== "--stdio"
-) {
+if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
   process.exit(2);
 }
 
@@ -95,18 +103,21 @@ if (isolatedAuthScenario) {
         app_server_material_present:
           typeof process.env.CODEX_ACCESS_TOKEN === "string" &&
           process.env.CODEX_ACCESS_TOKEN.length > 0,
-        repository_child_material_present:
-          descendantProbe.stdout === "present",
+        repository_child_material_present: descendantProbe.stdout === "present",
         shared_home_canary_visible: existsSync(
           path.join(process.env.HOME ?? "", "foreign-config.toml"),
         ),
         shared_codex_home_history_visible: existsSync(
           path.join(process.env.CODEX_HOME ?? "", "foreign-history.jsonl"),
         ),
+        owned_tmp_present:
+          typeof process.env.TMPDIR === "string" &&
+          path.basename(process.env.TMPDIR) === "tmp",
+        shared_tmp_canary_visible: existsSync(
+          path.join(process.env.TMPDIR ?? "", "foreign-temp-canary"),
+        ),
         material_in_argv: process.argv.some((value) =>
-          /(?:sk-(?:proj-)?|xoxb-|AKIA[A-Z0-9]|BEGIN PRIVATE KEY)/u.test(
-            value,
-          ),
+          /(?:sk-(?:proj-)?|xoxb-|AKIA[A-Z0-9]|BEGIN PRIVATE KEY)/u.test(value),
         ),
         ephemeral_store_policy_present: process.argv.includes(
           'cli_auth_credentials_store="ephemeral"',
@@ -121,6 +132,13 @@ if (isolatedAuthScenario) {
       { encoding: "utf8", mode: 0o600 },
     );
   }
+  if (scenario === "isolated_auth_tmp_substitution") {
+    const ownedTmp = process.env.TMPDIR;
+    if (ownedTmp) {
+      rmSync(ownedTmp, { recursive: true, force: true });
+      symlinkSync(process.cwd(), ownedTmp);
+    }
+  }
 }
 
 if (scenario === "descendant_cleanup") {
@@ -131,7 +149,10 @@ if (scenario === "descendant_cleanup") {
   trace("descendant_started", { pid: descendant.pid ?? null });
 }
 
-const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+const lines = readline.createInterface({
+  input: process.stdin,
+  crlfDelay: Infinity,
+});
 lines.on("line", (line) => {
   let message;
   try {
@@ -143,7 +164,9 @@ lines.on("line", (line) => {
   }
   trace("received", minimized(message));
   void handle(message).catch((error) => {
-    trace("handler_error", { code: error instanceof Error ? error.message : "unknown" });
+    trace("handler_error", {
+      code: error instanceof Error ? error.message : "unknown",
+    });
     process.exitCode = 4;
     lines.close();
   });
@@ -220,10 +243,15 @@ async function handle(message) {
               account: {
                 type: "chatgpt",
                 email:
-                  scenario === "isolated_auth_account_mismatch"
-                    ? "different-account@example.invalid"
-                    : "not-returned-to-augnes@example.invalid",
-                planType: "unknown",
+                  scenario === "isolated_auth_email_absent"
+                    ? null
+                    : scenario === "isolated_auth_account_mismatch"
+                      ? "different-account@example.invalid"
+                      : "not-returned-to-augnes@example.invalid",
+                planType:
+                  scenario === "isolated_auth_account_plan_drift"
+                    ? "different-plan"
+                    : "unknown",
               },
               requiresOpenaiAuth: true,
             },
@@ -250,24 +278,32 @@ async function handle(message) {
     if (message.method === "config/read") {
       respond(message.id, {
         config: {
-          forced_login_method:
-            isolatedAuthScenario ? "chatgpt" : null,
-          cli_auth_credentials_store:
-            isolatedAuthScenario ? "ephemeral" : null,
+          forced_login_method: isolatedAuthScenario ? "chatgpt" : null,
+          cli_auth_credentials_store: isolatedAuthScenario ? "ephemeral" : null,
+          model_provider: isolatedAuthScenario ? "openai" : null,
+          model_providers: isolatedAuthScenario
+            ? {
+                openai: {
+                  base_url:
+                    scenario === "isolated_auth_provider_route_drift"
+                      ? "https://example.invalid/v1"
+                      : "https://api.openai.com/v1",
+                  wire_api: "responses",
+                },
+              }
+            : null,
           web_search:
             isolatedAuthScenario && scenario !== "isolated_auth_config_mismatch"
               ? "disabled"
               : null,
-          project_doc_max_bytes:
-            isolatedAuthScenario ? 0 : 32_768,
+          project_doc_max_bytes: isolatedAuthScenario ? 0 : 32_768,
           project_doc_fallback_filenames: isolatedAuthScenario ? [] : null,
           sqlite_home: isolatedAuthScenario
             ? scenario === "isolated_auth_sqlite_home_drift"
               ? "file:///foreign-sqlite-home"
               : pathToFileURL(process.env.CODEX_SQLITE_HOME).href
             : null,
-          allow_login_shell:
-            isolatedAuthScenario ? false : true,
+          allow_login_shell: isolatedAuthScenario ? false : true,
           shell_environment_policy: isolatedAuthScenario
             ? { inherit: "core", ignore_default_excludes: false }
             : null,
@@ -308,11 +344,18 @@ async function handle(message) {
                 tool_suggest: false,
                 web_search_cached: false,
                 web_search_request: false,
+                ...(scenario === "isolated_auth_unknown_feature_drift"
+                  ? { unknown_network_tool: true }
+                  : {}),
               }
             : null,
         },
         origins: {},
-        layers: null,
+        layers:
+          scenario === "isolated_auth_managed_layer_drift"
+            ? [{ source: "managed", fingerprint: "sha256:foreign" }]
+            : [],
+        requirements: [],
       });
       return;
     }
@@ -370,7 +413,10 @@ async function handle(message) {
         respondAndCompleteSuccessInOneBatch(message.id);
         return;
       }
-      respond(message.id, threadResponse({ includeTurns: true, turnStatus: "inProgress" }));
+      respond(
+        message.id,
+        threadResponse({ includeTurns: true, turnStatus: "inProgress" }),
+      );
       if (scenario === "cw1_same_run_resume_repository_edit") {
         applyCw1MechanicalRepositoryEdit();
         emitObservedItems(path.join(root, "src", "route-token.mjs"));
@@ -440,17 +486,23 @@ async function handle(message) {
           isolatedAuthScenario ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
-        ) completeSuccess();
+        )
+          completeSuccess();
         else if (scenario === "turn_failure") completeFailure();
-        else if (scenario === "structured_result_invalid") completeInvalidStructuredResult();
-        else if (scenario === "structured_result_oversized") completeOversizedStructuredResult();
-        else if (scenario === "structured_result_unsafe_path") completeUnsafePathStructuredResult();
-        else if (scenario === "structured_result_private_path_text") completeUnsafeTextStructuredResult(
-          "Completed under /Users/private/project/file.ts",
-        );
-        else if (scenario === "structured_result_credential_text") completeUnsafeTextStructuredResult(
-          "OPENAI_API_KEY=sk-not-returned-to-augnes-1234567890",
-        );
+        else if (scenario === "structured_result_invalid")
+          completeInvalidStructuredResult();
+        else if (scenario === "structured_result_oversized")
+          completeOversizedStructuredResult();
+        else if (scenario === "structured_result_unsafe_path")
+          completeUnsafePathStructuredResult();
+        else if (scenario === "structured_result_private_path_text")
+          completeUnsafeTextStructuredResult(
+            "Completed under /Users/private/project/file.ts",
+          );
+        else if (scenario === "structured_result_credential_text")
+          completeUnsafeTextStructuredResult(
+            "OPENAI_API_KEY=sk-not-returned-to-augnes-1234567890",
+          );
         else if (
           scenario === "disconnect_resume" ||
           scenario === "disconnect_resume_same_batch" ||
@@ -458,51 +510,65 @@ async function handle(message) {
         ) {
           trace("intentional_disconnect", { exit_code: 19 });
           process.exit(19);
-        }
-        else if (scenario === "command_approval" || scenario === "delayed_cleanup" || scenario === "ignored_interrupt" || scenario === "descendant_cleanup") requestCommandApproval();
-        else if (scenario === "public_safe_command_approval") requestCommandApproval({
-          command: String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`,
-        });
+        } else if (
+          scenario === "command_approval" ||
+          scenario === "delayed_cleanup" ||
+          scenario === "ignored_interrupt" ||
+          scenario === "descendant_cleanup"
+        )
+          requestCommandApproval();
+        else if (scenario === "public_safe_command_approval")
+          requestCommandApproval({
+            command: String.raw`/usr/bin/env tool --client-secret super-secret-value --header "Authorization: Bearer header-secret-value" node /home/private/project/script.js`,
+          });
         else if (isSequentialApprovalScenario()) requestSequentialApproval();
         else if (scenario === "concurrent_approval_overflow") {
           requestConcurrentApprovalOverflow();
-        }
-        else if (scenario === "active_duplicate_request") {
+        } else if (scenario === "active_duplicate_request") {
           const params = commandApprovalParams();
           requestCommandApprovalWithParams(approvalRequestId, params);
           requestCommandApprovalWithParams(approvalRequestId, params);
-        }
-        else if (scenario === "active_conflicting_request") {
+        } else if (scenario === "active_conflicting_request") {
           requestCommandApproval();
           requestCommandApproval(
             { command: "npm run conflicting-check" },
             approvalRequestId,
           );
-        }
-        else if (
+        } else if (
           scenario === "resolved_duplicate_request" ||
           scenario === "resolved_conflicting_request"
-        ) requestCommandApproval();
-        else if (scenario === "command_network_approval") requestCommandApproval({
-          networkApprovalContext: { host: "api.example.invalid", protocol: "https" },
-        });
-        else if (scenario === "file_approval") requestFileApproval(path.join(root, "src"));
-        else if (scenario === "file_approval_unsafe") requestFileApproval("C:\\outside\\file.ts");
-        else if (scenario === "permission_approval") requestPermissionApproval(false);
+        )
+          requestCommandApproval();
+        else if (scenario === "command_network_approval")
+          requestCommandApproval({
+            networkApprovalContext: {
+              host: "api.example.invalid",
+              protocol: "https",
+            },
+          });
+        else if (scenario === "file_approval")
+          requestFileApproval(path.join(root, "src"));
+        else if (scenario === "file_approval_unsafe")
+          requestFileApproval("C:\\outside\\file.ts");
+        else if (scenario === "permission_approval")
+          requestPermissionApproval(false);
         else if (
           scenario === "network_permission_approval" ||
           scenario === "network_permission_approval_ignored_interrupt"
-        ) requestPermissionApproval(true);
-        else if (scenario === "mismatched_thread_approval") requestCommandApproval({ threadId: "wrong-thread" });
-        else if (scenario === "mismatched_turn_approval") requestCommandApproval({ turnId: "wrong-turn" });
-        else if (scenario === "unknown_approval_method") requestUnknownApproval();
+        )
+          requestPermissionApproval(true);
+        else if (scenario === "mismatched_thread_approval")
+          requestCommandApproval({ threadId: "wrong-thread" });
+        else if (scenario === "mismatched_turn_approval")
+          requestCommandApproval({ turnId: "wrong-turn" });
+        else if (scenario === "unknown_approval_method")
+          requestUnknownApproval();
         else if (scenario === "thread_status_unsupported") {
           notify("thread/status/changed", {
             threadId,
             status: { type: "notLoaded" },
           });
-        }
-        else if (scenario === "thread_system_error_failure") {
+        } else if (scenario === "thread_system_error_failure") {
           notify("error", {
             threadId,
             turnId,
@@ -518,14 +584,15 @@ async function handle(message) {
             status: { type: "systemError" },
           });
           completeFailure();
-        }
-        else if (scenario === "thread_system_error_retry") {
+        } else if (scenario === "thread_system_error_retry") {
           notify("error", {
             threadId,
             turnId,
             error: {
               message: "bounded fake retry",
-              codexErrorInfo: { responseStreamDisconnected: { httpStatusCode: null } },
+              codexErrorInfo: {
+                responseStreamDisconnected: { httpStatusCode: null },
+              },
               additionalDetails: null,
             },
             willRetry: true,
@@ -539,23 +606,26 @@ async function handle(message) {
             status: { type: "active", activeFlags: [] },
           });
           completeSuccess();
-        }
-        else if (scenario === "conflicting_completion") completeConflictingSuccess();
+        } else if (scenario === "conflicting_completion")
+          completeConflictingSuccess();
         else if (scenario === "duplicate_event") {
           notify("turn/started", { threadId, turn: turn("inProgress", []) });
           completeSuccess();
-        }
-        else completeSuccess();
+        } else completeSuccess();
       });
       return;
     }
     if (message.method === "turn/interrupt") {
-      trace("interrupt", { threadId: message.params?.threadId, turnId: message.params?.turnId });
+      trace("interrupt", {
+        threadId: message.params?.threadId,
+        turnId: message.params?.turnId,
+      });
       respond(message.id, {});
       if (
         scenario === "ignored_interrupt" ||
         scenario === "network_permission_approval_ignored_interrupt"
-      ) return;
+      )
+        return;
       const delayMs = scenario === "delayed_cleanup" ? 75 : 0;
       setTimeout(() => completeInterrupted(), delayMs);
       return;
@@ -579,7 +649,10 @@ async function handle(message) {
       (message.result?.scope === "turn" &&
         message.result?.permissions &&
         Object.keys(message.result.permissions).length > 0);
-    notify("serverRequest/resolved", { threadId, requestId: resolvedRequestId });
+    notify("serverRequest/resolved", {
+      threadId,
+      requestId: resolvedRequestId,
+    });
     if (isSequentialApprovalScenario() && accepted) {
       if (scenario === "sequential_approval_chain") {
         await waitForApprovalResolutionObservation(sequentialApprovalIndex);
@@ -631,7 +704,8 @@ async function handle(message) {
       if (
         scenario === "ignored_interrupt" ||
         scenario === "network_permission_approval_ignored_interrupt"
-      ) return;
+      )
+        return;
       completeInterrupted();
     } else if (scenario === "network_permission_approval_ignored_interrupt") {
       // This scenario models a host that resolves the permission request but
@@ -773,15 +847,36 @@ function emitObservedItems(filePath = "src/live-result.ts") {
     exitCode: 0,
     durationMs: 1,
   };
-  notify("item/started", { item: command, threadId, turnId, startedAtMs: Date.now() });
-  notify("item/completed", { item: command, threadId, turnId, completedAtMs: Date.now() });
+  notify("item/started", {
+    item: command,
+    threadId,
+    turnId,
+    startedAtMs: Date.now(),
+  });
+  notify("item/completed", {
+    item: command,
+    threadId,
+    turnId,
+    completedAtMs: Date.now(),
+  });
   const file = {
     type: "fileChange",
     id: "fake-file-item",
-    changes: [{ path: filePath, kind: "update", diff: "raw diff must never be persisted" }],
+    changes: [
+      {
+        path: filePath,
+        kind: "update",
+        diff: "raw diff must never be persisted",
+      },
+    ],
     status: "completed",
   };
-  notify("item/completed", { item: file, threadId, turnId, completedAtMs: Date.now() });
+  notify("item/completed", {
+    item: file,
+    threadId,
+    turnId,
+    completedAtMs: Date.now(),
+  });
 }
 
 function completeSuccess() {
@@ -801,7 +896,7 @@ function applyCw1MechanicalRepositoryEdit() {
   const target = path.join(root, "src", "route-token.mjs");
   const content =
     scenario === "cw1_predecessor_repository_edit"
-      ? 'export function routeToken(key, id) { return `${key}:${id}`; }\n'
+      ? "export function routeToken(key, id) { return `${key}:${id}`; }\n"
       : 'import { separator } from "./channel.mjs";\nexport function routeToken(key, id) { return `${key}${separator}${id}`; }\n';
   writeFileSync(target, content, { encoding: "utf8", mode: 0o600 });
 }
@@ -834,11 +929,17 @@ function respondAndCompleteSuccessInOneBatch(id) {
     record_count: messages.length,
     thread_id: threadId,
     turn_id: turnId,
-    methods: ["thread/resume:response", "turn/completed", "thread/status/changed"],
+    methods: [
+      "thread/resume:response",
+      "turn/completed",
+      "thread/status/changed",
+    ],
   });
   // One pipe write forces the response and both notifications into the same
   // transport data batch instead of relying on probabilistic stdout chunking.
-  process.stdout.write(`${messages.map((message) => JSON.stringify(message)).join("\n")}\n`);
+  process.stdout.write(
+    `${messages.map((message) => JSON.stringify(message)).join("\n")}\n`,
+  );
 }
 
 function respondAndRuntimeDriftInOneBatch(id) {
@@ -961,7 +1062,8 @@ function structuredResult() {
       : "src/live-result.ts";
   return JSON.stringify({
     result_version: "codex_host_structured_result.v0.1",
-    summary: "The deterministic fake App Server completed the bounded live lifecycle.",
+    summary:
+      "The deterministic fake App Server completed the bounded live lifecycle.",
     changed_files: [
       {
         repository_relative_path: changedPath,
@@ -995,7 +1097,9 @@ function structuredResult() {
     skipped_checks: [],
     uncertainty: [],
     gaps: ["No live provider was called by the deterministic fixture."],
-    proposed_next_steps: ["Review the operational receipt before semantic action."],
+    proposed_next_steps: [
+      "Review the operational receipt before semantic action.",
+    ],
   });
 }
 
@@ -1052,7 +1156,16 @@ function thread(options = {}) {
     agentRole: null,
     gitInfo: null,
     name: null,
-    turns: includeTurns ? [turn(turnStatus, turnStatus === "completed" ? [agentMessage(structuredResult())] : [])] : [],
+    turns: includeTurns
+      ? [
+          turn(
+            turnStatus,
+            turnStatus === "completed"
+              ? [agentMessage(structuredResult())]
+              : [],
+          ),
+        ]
+      : [],
   };
 }
 
@@ -1130,27 +1243,63 @@ function minimized(message) {
         ? message.error.message
         : "bounded_protocol_error";
   }
-  if (message?.method === "thread/start" || message?.method === "thread/resume") {
-    summary.cwd = message.params?.cwd ?? null;
+  if (
+    message?.method === "thread/start" ||
+    message?.method === "thread/resume"
+  ) {
+    if (isolatedAuthScenario) {
+      summary.cwd_fingerprint =
+        typeof message.params?.cwd === "string"
+          ? `sha256:${createHash("sha256").update(message.params.cwd).digest("hex")}`
+          : null;
+    } else {
+      summary.cwd = message.params?.cwd ?? null;
+    }
     summary.approval_policy = message.params?.approvalPolicy ?? null;
     summary.sandbox = message.params?.sandbox ?? null;
   }
   if (message?.method === "turn/start") {
     const rendered = message.params?.input?.[0]?.text;
-    const guideHeading = "## GuideBrief — non-authoritative task-start guidance";
-    const packetHeading = "## TaskContextPacket — exact bounded execution contract";
-    const guideIndex = typeof rendered === "string" ? rendered.indexOf(guideHeading) : -1;
-    const packetIndex = typeof rendered === "string" ? rendered.indexOf(packetHeading) : -1;
-    const packetText = typeof rendered === "string"
-      ? rendered.split("\n\n").at(-1) ?? ""
-      : "";
-    const packetFingerprint = typeof rendered === "string"
-      ? rendered.match(/Packet fingerprint: (sha256:[a-f0-9]{64})/u)?.[1] ?? null
-      : null;
+    const guideHeading =
+      "## GuideBrief — non-authoritative task-start guidance";
+    const packetHeading =
+      "## TaskContextPacket — exact bounded execution contract";
+    const guideIndex =
+      typeof rendered === "string" ? rendered.indexOf(guideHeading) : -1;
+    const packetIndex =
+      typeof rendered === "string" ? rendered.indexOf(packetHeading) : -1;
+    const packetText =
+      typeof rendered === "string" ? (rendered.split("\n\n").at(-1) ?? "") : "";
+    const packetFingerprint =
+      typeof rendered === "string"
+        ? (rendered.match(/Packet fingerprint: (sha256:[a-f0-9]{64})/u)?.[1] ??
+          null)
+        : null;
     summary.thread_id = message.params?.threadId ?? null;
-    summary.cwd = message.params?.cwd ?? null;
+    if (isolatedAuthScenario) {
+      summary.cwd_fingerprint =
+        typeof message.params?.cwd === "string"
+          ? `sha256:${createHash("sha256").update(message.params.cwd).digest("hex")}`
+          : null;
+    } else {
+      summary.cwd = message.params?.cwd ?? null;
+    }
     summary.approval_policy = message.params?.approvalPolicy ?? null;
-    summary.sandbox_policy = message.params?.sandboxPolicy ?? null;
+    if (isolatedAuthScenario) {
+      const sandboxPolicy = message.params?.sandboxPolicy;
+      summary.sandbox_policy_type = sandboxPolicy?.type ?? null;
+      summary.sandbox_writable_root_fingerprints = Array.isArray(
+        sandboxPolicy?.writableRoots,
+      )
+        ? sandboxPolicy.writableRoots.map((writableRoot) =>
+            typeof writableRoot === "string"
+              ? `sha256:${createHash("sha256").update(writableRoot).digest("hex")}`
+              : null,
+          )
+        : [];
+    } else {
+      summary.sandbox_policy = message.params?.sandboxPolicy ?? null;
+    }
     summary.output_schema = Boolean(message.params?.outputSchema);
     summary.rendered_input_bytes =
       typeof rendered === "string" ? Buffer.byteLength(rendered, "utf8") : 0;
@@ -1159,12 +1308,22 @@ function minimized(message) {
         ? `sha256:${createHash("sha256").update(rendered).digest("hex")}`
         : null;
     summary.guide_brief_section = guideIndex >= 0;
-    summary.guide_brief_version_v0_2 = typeof rendered === "string" && rendered.includes("guide_brief.v0.2");
+    summary.guide_brief_version_v0_2 =
+      typeof rendered === "string" && rendered.includes("guide_brief.v0.2");
     summary.task_context_packet_section = packetIndex >= 0;
-    summary.guide_before_task_context_packet = guideIndex >= 0 && packetIndex > guideIndex;
-    summary.guide_non_authority_statement = typeof rendered === "string" && rendered.includes("It is not the execution contract and does not override the TaskContextPacket");
-    summary.unresolved_judgment_remains_unresolved = typeof rendered === "string" && rendered.includes("Unresolved judgment remains unresolved");
-    summary.suggestions_are_not_commands = typeof rendered === "string" && rendered.includes("suggestions are not commands");
+    summary.guide_before_task_context_packet =
+      guideIndex >= 0 && packetIndex > guideIndex;
+    summary.guide_non_authority_statement =
+      typeof rendered === "string" &&
+      rendered.includes(
+        "It is not the execution contract and does not override the TaskContextPacket",
+      );
+    summary.unresolved_judgment_remains_unresolved =
+      typeof rendered === "string" &&
+      rendered.includes("Unresolved judgment remains unresolved");
+    summary.suggestions_are_not_commands =
+      typeof rendered === "string" &&
+      rendered.includes("suggestions are not commands");
     summary.repository_validation_discovery_statement =
       typeof rendered === "string" &&
       rendered.includes(
@@ -1173,7 +1332,8 @@ function minimized(message) {
       rendered.includes(
         "An empty required_checks list does not waive this discovery step or authorize inventing a check.",
       );
-    summary.guide_grants_approval = typeof rendered === "string" && /"can_approve":true/u.test(rendered);
+    summary.guide_grants_approval =
+      typeof rendered === "string" && /"can_approve":true/u.test(rendered);
     summary.packet_fingerprint = packetFingerprint;
     summary.packet_payload_sha256 = packetText
       ? `sha256:${createHash("sha256").update(packetText).digest("hex")}`
@@ -1244,7 +1404,9 @@ function waitForApprovalResolutionObservation(expectedCount) {
 
   function readBarrierCount() {
     if (!existsSync(approvalResolutionBarrierPath)) return 0;
-    const value = Number(readFileSync(approvalResolutionBarrierPath, "utf8").trim());
+    const value = Number(
+      readFileSync(approvalResolutionBarrierPath, "utf8").trim(),
+    );
     return Number.isSafeInteger(value) ? value : 0;
   }
 }
@@ -1282,7 +1444,9 @@ function installZeroNetworkGuard() {
 
 function persistNetworkCount() {
   if (!networkCountPath) return;
-  writeFileSync(networkCountPath, `${externalNetworkAttempts}\n`, { mode: 0o600 });
+  writeFileSync(networkCountPath, `${externalNetworkAttempts}\n`, {
+    mode: 0o600,
+  });
 }
 
 function persistState(value) {

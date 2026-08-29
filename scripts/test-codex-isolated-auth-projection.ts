@@ -20,27 +20,27 @@ import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-co
 import { genericCliDirectObservationInputFixture } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import {
   CodexCredentialBrokerErrorV01,
-  FakeCodexCredentialBrokerV01,
-  MacOsKeychainAgentIdentityBrokerV01,
-  credentialLeaseIdentityFingerprintV01,
+  createFakeCodexCredentialBrokerV01,
+  createMacOsKeychainAgentIdentityBrokerV01,
+  credentialBrokerBindingFingerprintV01,
   fingerprintBrokerLocatorV01,
-  fingerprintCredentialSourceGenerationV01,
+  type CodexCredentialBrokerBindingV01,
   type CodexCredentialBrokerV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
 import {
   CodexIsolatedAuthProjectionErrorV01,
   CodexIsolatedAuthenticatedExecutionOwnerV01,
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   assertValidCodexIsolatedAuthObservationV01,
   assertValidCodexIsolatedAuthProjectionV01,
-  createCodexAccountProjectionFingerprintV01,
-  createCodexIsolatedAuthProjectionV01,
   createCodexIsolatedAuthTestRefV01,
+  provisionCodexIsolatedAuthProjectionV01,
+  type ProvisionCodexIsolatedAuthProjectionResultV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import {
   createCodexAppServerAdapterV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
-import { NativeHostReconciliationRequiredErrorV01 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -62,47 +62,102 @@ import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
 const GENERATED_AT = "2026-08-28T00:00:00.000Z";
 const EXPIRES_AT = "2099-08-29T06:00:00.000Z";
-const FAKE_ACCOUNT = {
-  account: {
-    type: "chatgpt",
+const RAW_ACCOUNT_ID = "acct-fixture-stable-private";
+const RAW_USER_ID = "user-fixture-stable-private";
+const OTHER_ACCOUNT_ID = "acct-fixture-other-private";
+const OTHER_USER_ID = "user-fixture-other-private";
+const FAKE_JWT = jwtV01(
+  {
+    account_id: RAW_ACCOUNT_ID,
+    chatgpt_user_id: RAW_USER_ID,
     email: "not-returned-to-augnes@example.invalid",
-    planType: "unknown",
+    task_id: "fixture-runtime",
+    sub: "fixture-subject",
+    iss: "fixture-issuer",
+    aud: "fixture-audience",
+    provider: "openai",
+    environment: "production",
+    plan_type: "unknown",
+    fedramp: false,
+    iat: 1_777_000_000,
+    exp: 4_102_444_800,
   },
-  requiresOpenaiAuth: true,
-};
-const FAKE_AUTH_STATUS = {
-  authMethod: "agentIdentity",
-  authToken: null,
-  requiresOpenaiAuth: true,
-};
-const FAKE_LAUNCH_MATERIAL =
-  "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0YXNrX2lkIjoiZml4dHVyZS10YXNrIiwiaXNzIjoiZml4dHVyZS1pc3N1ZXIifQ.c2lnbmF0dXJlLWZpeHR1cmUtbWF0ZXJpYWwtbm90LWEtcmVhbC10b2tlbg";
-const REPLACED_FAKE_LAUNCH_MATERIAL =
-  "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0YXNrX2lkIjoiZm9yZWlnbi10YXNrIiwiaXNzIjoiZml4dHVyZS1pc3N1ZXIifQ.c2lnbmF0dXJlLWZvcmVpZ24tbWF0ZXJpYWwtbm90LWEtcmVhbC10b2tlbg";
-const FAKE_OPENAI_SECRET_CANARY = ["sk", "proj-AbCdEfGh12345678"].join("-");
-const FAKE_SLACK_SECRET_CANARY = ["xoxb", "AbCdEfGh12345678"].join("-");
-const FAKE_AWS_SECRET_CANARY = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
-const FAKE_PRIVATE_KEY_CANARY = ["-----BEGIN", "PRIVATE KEY-----"].join(" ");
-const FAKE_PAT_SECRET_CANARY = [
-  "at",
-  "AbCdEfGhIjKlMnOpQrStUvWxYz012345",
-].join("-");
-const OTHER_SECRET_CANARIES = [
-  FAKE_OPENAI_SECRET_CANARY,
-  FAKE_SLACK_SECRET_CANARY,
-  FAKE_AWS_SECRET_CANARY,
-  FAKE_PRIVATE_KEY_CANARY,
+  "fixture-signature-material-not-a-real-token",
+);
+const OTHER_ACCOUNT_JWT = jwtV01(
+  {
+    account_id: OTHER_ACCOUNT_ID,
+    chatgpt_user_id: OTHER_USER_ID,
+    task_id: "fixture-runtime",
+    iss: "fixture-issuer",
+    aud: "fixture-audience",
+    provider: "openai",
+    environment: "production",
+    plan_type: "unknown",
+    fedramp: false,
+    iat: 1_777_000_000,
+    exp: 4_102_444_800,
+  },
+  "other-signature-material-not-a-real-token",
+);
+const CHANGED_ACCOUNT_ID_JWT = jwtV01(
+  {
+    account_id: OTHER_ACCOUNT_ID,
+    chatgpt_user_id: RAW_USER_ID,
+    task_id: "fixture-runtime",
+    iss: "fixture-issuer",
+    aud: "fixture-audience",
+    provider: "openai",
+    environment: "production",
+    plan_type: "unknown",
+    fedramp: false,
+  },
+  "changed-account-id-signature",
+);
+const CHANGED_USER_ID_JWT = jwtV01(
+  {
+    account_id: RAW_ACCOUNT_ID,
+    chatgpt_user_id: OTHER_USER_ID,
+    task_id: "fixture-runtime",
+    iss: "fixture-issuer",
+    aud: "fixture-audience",
+    provider: "openai",
+    environment: "production",
+    plan_type: "unknown",
+    fedramp: false,
+  },
+  "changed-user-id-signature",
+);
+const PARTIAL_ID_JWT = jwtV01(
+  { account_id: RAW_ACCOUNT_ID, task_id: "fixture-runtime" },
+  "partial-signature-material",
+);
+const SECRET_CANARIES = [
+  FAKE_JWT,
+  OTHER_ACCOUNT_JWT,
+  CHANGED_ACCOUNT_ID_JWT,
+  CHANGED_USER_ID_JWT,
+  ["sk", "proj-AbCdEfGh12345678"].join("-"),
+  ["xoxb", "AbCdEfGh12345678"].join("-"),
+  ["AKIA", "ABCDEFGHIJKLMNOP"].join(""),
+  ["-----BEGIN", "PRIVATE KEY-----"].join(" "),
+  ["ghp", "AbCdEfGhIjKlMnOpQrStUvWxYz012345"].join("_"),
+  RAW_ACCOUNT_ID,
+  RAW_USER_ID,
+  "not-returned-to-augnes@example.invalid",
+  "different-account@example.invalid",
+  OTHER_ACCOUNT_ID,
+  OTHER_USER_ID,
 ] as const;
 
-type TestRootsV01 = ReturnType<typeof createRootsV01>;
-
+type RootsV01 = ReturnType<typeof createRootsV01>;
 type ProbeV01 = {
   result: NativeHostResultV01 | null;
-  error: unknown | null;
-  settled_error: unknown | null;
+  error: unknown;
+  settled_error: unknown;
   lifecycle_events: NativeHostLifecycleEventV01[];
   adapter_observations: CodexAppServerAdapterObservationV01[];
-  auth_observations: unknown[];
+  auth_observations: CodexIsolatedAuthObservationV01[];
   state_parent: string;
   boundary_path: string;
   network_path: string;
@@ -112,278 +167,322 @@ type ProbeV01 = {
 
 async function mainV01(): Promise<void> {
   installZeroNetworkGuard();
-  const previousEnvironment = {
-    AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE:
-      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE,
-    HOME: process.env.HOME,
-    CODEX_HOME: process.env.CODEX_HOME,
-    CODEX_SQLITE_HOME: process.env.CODEX_SQLITE_HOME,
+  const prior = {
+    test: process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE,
+    home: process.env.HOME,
+    codex: process.env.CODEX_HOME,
+    sqlite: process.env.CODEX_SQLITE_HOME,
+    tmp: process.env.TMPDIR,
   };
-  process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
   const roots = createRootsV01();
+  process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
   process.env.HOME = roots.ordinaryHome;
   process.env.CODEX_HOME = roots.ordinaryHome;
   process.env.CODEX_SQLITE_HOME = roots.ordinaryHome;
-
+  process.env.TMPDIR = roots.ordinaryTmp;
   try {
-  const projection = projectionV01();
-  const positive = await runProbeV01({
-    roots,
-    id: "positive",
-    projection,
-    scenario: "isolated_auth_success",
-  });
-  assert.equal(positive.error, null);
-  assert.equal(positive.settled_error, null);
-  assert.equal(
-    positive.result?.outcome,
-    "completed",
-    JSON.stringify({
-      public_stop_reason: positive.result?.public_stop_reason,
-      summary: positive.result?.summary,
-      lifecycle_event_kinds: positive.lifecycle_events.map(
-        (event) => event.event_kind,
-      ),
-    }),
-  );
-  assert.equal(positive.auth_observations.length, 1);
-  assert.equal(readdirSync(positive.state_parent).length, 0);
-  assert.equal(readdirSync(roots.lease).length, 0);
-  assert.equal(readFileSync(positive.network_path, "utf8"), "0\n");
-  assert.equal(readFileSync(positive.cleanup_path, "utf8"), "settled\n");
-  const boundary = JSON.parse(
-    readFileSync(positive.boundary_path, "utf8"),
-  ) as Record<string, unknown>;
-  assert.deepEqual(boundary, {
-    app_server_material_present: true,
-    repository_child_material_present: false,
-    shared_home_canary_visible: false,
-    shared_codex_home_history_visible: false,
-    material_in_argv: false,
-    ephemeral_store_policy_present: true,
-    shell_core_policy_present: true,
-    shell_sensitive_name_excludes_present: true,
-  });
-  assert.equal(
-    positive.result?.adapter_extension?.bounded_metadata.ephemeral_thread,
-    true,
-  );
-  assert.equal(
-    positive.result?.adapter_extension?.bounded_metadata
-      .repository_command_auth_material_inherited,
-    false,
-  );
-  assert.equal(
-    positive.result?.adapter_extension?.bounded_metadata
-      .isolated_instruction_sources_empty,
-    true,
-  );
-  assert.ok(
-    positive.lifecycle_events.some(
-      (event) =>
-        event.event_kind === "capability_confirmed" &&
-        typeof event.bounded_metadata
-          .isolated_auth_observation_fingerprint === "string",
-    ),
-  );
-  const observation =
-    positive.auth_observations[0] as CodexIsolatedAuthObservationV01;
-  assert.equal(observation.auth_mode, "agent_identity");
-  assert.equal(observation.mcp_server_count, 0);
-  assert.equal(observation.codex_sqlite_home_reobserved, true);
-  assert.equal(observation.shared_state_observed, false);
-  assert.equal(observation.attempt_auth_material_persisted, false);
-  assert.equal(
-    observation.auth_material_exposed_outside_app_server_launch_boundary,
-    false,
-  );
-  const { integrity: _observationIntegrity, ...observationMaterial } =
-    observation;
-  const mutatedObservationMaterial = {
-    ...observationMaterial,
-    shared_state_observed: true,
-  };
-  assert.throws(
-    () =>
-      assertValidCodexIsolatedAuthObservationV01(
-        {
-          ...mutatedObservationMaterial,
-          integrity: {
-            algorithm: "sha256",
-            fingerprint: createProtocolSha256V01(
-              canonicalizeProtocolValueV01(mutatedObservationMaterial),
-            ),
+    const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
+    assert.equal(provisioned.availability.state, "available_exact");
+    assert.match(
+      provisioned.credential_attestation.account_identity_fingerprint,
+      /^sha256:/u,
+    );
+    assert.equal(
+      provisioned.credential_attestation.claims_authentication_status,
+      "credential_claims_unverified_before_codex_auth",
+    );
+    assertPublicSafeV01(provisioned);
+    assertNoSecretApiV01(provisioned);
+    const maliciousConsumerBroker = brokerV01(roots, FAKE_JWT);
+    assertNoSecretApiV01(maliciousConsumerBroker);
+    assertRuntimeSubstitutionRefusedV01(
+      maliciousConsumerBroker,
+      "spawnExactCodexAppServerV01",
+    );
+    const maliciousConsumerOwner = ownerV01(
+      roots,
+      "malicious-consumer-surface",
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_success",
+    );
+    assertPublicSafeV01(maliciousConsumerOwner);
+    assertNoSecretApiV01(maliciousConsumerOwner);
+    assertSourceOwnedCodexIsolatedExecutionOwnerV01(maliciousConsumerOwner);
+    assertRuntimeSubstitutionRefusedV01(
+      maliciousConsumerOwner,
+      "spawnIsolatedCodexAppServerV01",
+    );
+    assert.throws(
+      () =>
+        assertSourceOwnedCodexIsolatedExecutionOwnerV01({
+          projection: maliciousConsumerOwner.projection,
+          spawnIsolatedCodexAppServerV01: async () => {
+            throw new Error("forged execution owner must remain unreachable");
           },
-        } as unknown as CodexIsolatedAuthObservationV01,
-        projection,
+        } as unknown as CodexIsolatedAuthenticatedExecutionOwnerV01),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_owner_source_mismatch",
+    );
+    maliciousConsumerOwner.cleanupV01();
+
+    const positive = await runProbeV01(
+      roots,
+      "positive",
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_success",
+    );
+    assert.equal(positive.error, null);
+    assert.equal(positive.settled_error, null);
+    assert.equal(positive.result?.outcome, "completed");
+    assert.equal(positive.auth_observations.length, 1);
+    const observation = positive.auth_observations[0]!;
+    assert.equal(
+      observation.account_identity_fingerprint,
+      provisioned.credential_attestation.account_identity_fingerprint,
+    );
+    assert.equal(
+      observation.claims_authentication_status,
+      "verified_by_codex_agent_identity_auth",
+    );
+    assert.equal(
+      observation.tmp_identity_fingerprint.startsWith("sha256:"),
+      true,
+    );
+    assertValidCodexIsolatedAuthObservationV01(
+      observation,
+      provisioned.projection,
+    );
+    const boundary = JSON.parse(
+      readFileSync(positive.boundary_path, "utf8"),
+    ) as Record<string, unknown>;
+    assert.deepEqual(boundary, {
+      app_server_material_present: true,
+      repository_child_material_present: false,
+      shared_home_canary_visible: false,
+      shared_codex_home_history_visible: false,
+      owned_tmp_present: true,
+      shared_tmp_canary_visible: false,
+      material_in_argv: false,
+      ephemeral_store_policy_present: true,
+      shell_core_policy_present: true,
+      shell_sensitive_name_excludes_present: true,
+    });
+    assert.equal(readFileSync(positive.network_path, "utf8"), "0\n");
+    assert.equal(readFileSync(positive.cleanup_path, "utf8"), "settled\n");
+    assert.equal(readdirSync(positive.state_parent).length, 0);
+    assert.equal(readdirSync(roots.lease).length, 0);
+
+    const emailAbsent = await runProbeV01(
+      roots,
+      "email-absent",
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_email_absent",
+    );
+    assert.equal(
+      emailAbsent.result?.outcome,
+      "completed",
+      "email absence must not erase stable account identity",
+    );
+    const replacement = await runProbeV01(
+      roots,
+      "replacement",
+      provisioned,
+      FAKE_JWT,
+      "isolated_auth_success",
+    );
+    assert.equal(replacement.result?.outcome, "completed");
+    assert.notEqual(
+      replacement.auth_observations[0]!.state_root_fingerprint,
+      observation.state_root_fingerprint,
+    );
+    assert.notEqual(
+      replacement.auth_observations[0]!.tmp_identity_fingerprint,
+      observation.tmp_identity_fingerprint,
+    );
+
+    const receipt = buildRunReceiptV01({
+      ...structuredClone(genericCliDirectObservationInputFixture),
+      run_id: positive.result!.run_id,
+      started_at: positive.result!.started_at,
+      finished_at: positive.result!.finished_at,
+      host_ref: positive.result!.host_refs[0] ?? null,
+      result_summary: {
+        summary: positive.result!.summary,
+        outcome: "The isolated fake App Server completed.",
+        limitations: [
+          "Mechanics only; no provider authority or real credential was used.",
+        ],
+      },
+    });
+    assertPublicSafeV01({
+      provisioned,
+      observation,
+      result: positive.result,
+      lifecycle: positive.lifecycle_events,
+      receipt,
+    });
+
+    await brokerAndProvisioningNegativesV01(roots, provisioned);
+    await runtimePolicyNegativesV01(roots, provisioned);
+    await tmpAndFailureNegativesV01(roots, provisioned);
+    assertNoSecretFilesV01(roots.root);
+    assert.equal(
+      readFileSync(path.join(roots.ordinaryTmp, "foreign-temp-canary"), "utf8"),
+      "ordinary-temp-untouched\n",
+    );
+    assert.equal(
+      readFileSync(
+        path.join(roots.ordinaryHome, "foreign-config.toml"),
+        "utf8",
       ),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_observation_binding_invalid",
-  );
+      "foreign-user-instruction=true\n",
+    );
+    assert.equal(existsSync(path.join(roots.ordinaryHome, "auth.json")), false);
+    assert.equal(readdirSync(roots.lease).length, 0);
 
-  const receipt = buildRunReceiptV01({
-    ...structuredClone(genericCliDirectObservationInputFixture),
-    run_id: positive.result!.run_id,
-    started_at: positive.result!.started_at,
-    finished_at: positive.result!.finished_at,
-    host_ref: positive.result!.host_refs[0] ?? null,
-    result_summary: {
-      summary: positive.result!.summary,
-      outcome: "The isolated fake App Server completed.",
-      limitations: [
-        "The fake route proves mechanics only and grants no provider authority.",
-      ],
-    },
-  });
-  assertPublicMaterialSafeV01({
-    projection,
-    result: positive.result,
-    lifecycle_events: positive.lifecycle_events,
-    adapter_observations: positive.adapter_observations,
-    auth_observations: positive.auth_observations,
-    receipt,
-  });
-  assertNoSeededMaterialV01(roots.root);
-  assert.equal(
-    readFileSync(path.join(roots.ordinaryHome, "foreign-config.toml"), "utf8"),
-    "foreign-user-instruction=true\n",
-  );
-  assert.equal(
-    existsSync(path.join(roots.ordinaryHome, "auth.json")),
-    false,
-  );
-
-  const replacement = await runProbeV01({
-    roots,
-    id: "replacement",
-    projection,
-    scenario: "isolated_auth_success",
-  });
-  assert.equal(replacement.result?.outcome, "completed");
-  const firstStateFingerprint = (
-    positive.auth_observations[0] as Record<string, unknown>
-  ).state_root_fingerprint;
-  const replacementStateFingerprint = (
-    replacement.auth_observations[0] as Record<string, unknown>
-  ).state_root_fingerprint;
-  assert.notEqual(firstStateFingerprint, replacementStateFingerprint);
-
-  await assertProjectionAndBrokerNegativesV01(roots, projection);
-  await assertIsolatedStateNegativesV01(roots, projection);
-  await assertRuntimeBindingNegativesV01(roots, projection);
-
-  assert.equal(readdirSync(roots.lease).length, 0);
-  assertNoSeededMaterialV01(roots.root);
-  console.log(
-    JSON.stringify({
-      status: "passed",
-      projection_version: projection.projection_version,
-      projection_fingerprint: projection.integrity.fingerprint,
-      broker_version: projection.broker_version,
-      broker_locator_fingerprint: projection.broker_locator_fingerprint,
-      config_policy_fingerprint: projection.config_policy.policy_fingerprint,
-      selected_route: projection.projection_mode,
-      auth_mode: projection.auth_mode,
-      positive_fake_app_server_result: positive.result?.outcome,
-      account_projection_reobserved: true,
-      ephemeral_thread: true,
-      repository_child_auth_material_inherited: false,
-      distinct_replacement_state_root: true,
-      real_keychain_accesses: 0,
-      real_provider_calls: 0,
-      external_network_attempts: 0,
-      cleanup_complete: true,
-    }),
-  );
+    console.log(
+      JSON.stringify({
+        status: "passed",
+        projection_version: provisioned.projection.projection_version,
+        attestation_version:
+          provisioned.credential_attestation.attestation_version,
+        seal_version: provisioned.projection_seal.seal_version,
+        projection_fingerprint: provisioned.projection.integrity.fingerprint,
+        attestation_fingerprint:
+          provisioned.credential_attestation.integrity.fingerprint,
+        seal_fingerprint: provisioned.projection_seal.integrity.fingerprint,
+        operational_availability: provisioned.availability.state,
+        malicious_consumer_secret_access: false,
+        unique_account_identity_non_null: true,
+        isolated_tmpdir: true,
+        exact_observed_security_policy: true,
+        real_keychain_accesses: 0,
+        real_provider_calls: 0,
+        successful_external_network_egress: 0,
+        cleanup_complete: true,
+      }),
+    );
   } finally {
-    for (const [key, value] of Object.entries(previousEnvironment)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+    restoreEnvV01("AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE", prior.test);
+    restoreEnvV01("HOME", prior.home);
+    restoreEnvV01("CODEX_HOME", prior.codex);
+    restoreEnvV01("CODEX_SQLITE_HOME", prior.sqlite);
+    restoreEnvV01("TMPDIR", prior.tmp);
     rmSync(roots.root, { recursive: true, force: true });
   }
 }
 
-void mainV01().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-
-async function assertProjectionAndBrokerNegativesV01(
-  roots: TestRootsV01,
-  projection: CodexIsolatedAuthProjectionV01,
+async function brokerAndProvisioningNegativesV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
 ): Promise<void> {
-  assert.throws(
+  const binding = bindingV01();
+  const forgedBroker: CodexCredentialBrokerV01 = {
+    binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
+    async availabilityV01() {
+      throw new Error("forged broker must remain unreachable");
+    },
+    async provisionCredentialAttestationV01() {
+      throw new Error("forged broker must remain unreachable");
+    },
+    async spawnExactCodexAppServerV01() {
+      throw new Error("forged broker must remain unreachable");
+    },
+  };
+  await assert.rejects(
     () =>
-      projectionV01({
-        broker_backend_external_id: "foreign-keyring",
+      provisionCodexIsolatedAuthProjectionV01({
+        projection_id: "codex-isolated-auth:forged-broker",
+        provisioning_authorization_ref: refV01(
+          "provisioning_authorization",
+          "provisioning:forged-broker",
+        ),
+        provider_ref: refV01("model_provider", "openai"),
+        broker_binding: binding,
+        broker: forgedBroker,
+        codex_executable_ref: refV01("codex_executable", "node-test-host"),
+        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        compatible_codex_cli_version: "fake-0.143.0",
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
       }),
     (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_external_ref_invalid",
+      error instanceof CodexCredentialBrokerErrorV01 &&
+      error.code === "codex_auth_broker_source_owner_mismatch",
   );
-  assert.throws(
+
+  const productionLocator = {
+    backend: "macos_keychain_generic_password",
+    service_name: "augnes-test-never-read",
+    account_name: "opaque-test-never-read",
+    keychain_path: path.join(roots.root, "never-read.keychain-db"),
+  } as const;
+  const productionBroker = createMacOsKeychainAgentIdentityBrokerV01({
+    binding: {
+      ...binding,
+      broker_locator_fingerprint:
+        fingerprintBrokerLocatorV01(productionLocator),
+    },
+    service_name: productionLocator.service_name,
+    account_name: productionLocator.account_name,
+    keychain_path: productionLocator.keychain_path,
+  });
+  await assert.rejects(
     () =>
-      projectionV01({
-        broker_executable_external_id: "foreign-security-binary",
+      productionBroker.provisionCredentialAttestationV01({
+        provisioning_authorization_ref: refV01(
+          "provisioning_authorization",
+          "provisioning:production-forbidden-in-test",
+        ),
+        attestation_id: "production-forbidden-in-test",
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
       }),
     (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_external_ref_invalid",
+      error instanceof CodexCredentialBrokerErrorV01 &&
+      error.code === "codex_auth_production_broker_forbidden_in_test_mode",
   );
-  assert.throws(
-    () =>
-      projectionV01({
-        auth_handle_external_id:
-          `codex-auth-handle:${FAKE_OPENAI_SECRET_CANARY}`,
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_public_material_forbidden",
-  );
-  for (const projectionSecret of [
-    `fixture:${FAKE_LAUNCH_MATERIAL}`,
-    `fixture:${FAKE_PAT_SECRET_CANARY}`,
-  ]) {
-    assert.throws(
-      () => projectionV01({ projection_id: projectionSecret }),
+
+  const fakeOutsideTest = brokerV01(roots, FAKE_JWT);
+  const priorTestMode = process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  delete process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  try {
+    await assert.rejects(
+      () =>
+        fakeOutsideTest.provisionCredentialAttestationV01({
+          provisioning_authorization_ref: refV01(
+            "provisioning_authorization",
+            "provisioning:fake-forbidden-outside-test",
+          ),
+          attestation_id: "fake-forbidden-outside-test",
+          issued_at: GENERATED_AT,
+          expires_at: EXPIRES_AT,
+        }),
       (error: unknown) =>
-        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-        error.code === "codex_isolated_auth_public_material_forbidden",
+        error instanceof CodexCredentialBrokerErrorV01 &&
+        error.code === "codex_auth_fake_broker_forbidden_outside_test_mode",
     );
+  } finally {
+    restoreEnvV01("AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE", priorTestMode);
   }
+
   assert.throws(
     () =>
-      projectionV01({
-        auth_handle_external_id: FAKE_LAUNCH_MATERIAL,
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_external_ref_invalid",
-  );
-  assert.throws(
-    () =>
-      projectionV01({
-        auth_handle_external_id: "/Users/private/auth-handle",
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_external_ref_invalid",
-  );
-  assert.throws(
-    () =>
-      new FakeCodexCredentialBrokerV01({
-        projection,
+      createFakeCodexCredentialBrokerV01({
+        binding,
         lease_root: roots.lease,
         entries: [
           {
-            handle_external_id: "codex-auth-handle:fixture",
-            material: FAKE_LAUNCH_MATERIAL,
+            handle_external_id: binding.auth_handle_ref.external_id,
+            material: FAKE_JWT,
           },
           {
-            handle_external_id: "codex-auth-handle:fixture",
-            material: REPLACED_FAKE_LAUNCH_MATERIAL,
+            handle_external_id: binding.auth_handle_ref.external_id,
+            material: OTHER_ACCOUNT_JWT,
           },
         ],
       }),
@@ -391,572 +490,318 @@ async function assertProjectionAndBrokerNegativesV01(
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code === "codex_auth_broker_handle_duplicate",
   );
-  const missing = new FakeCodexCredentialBrokerV01({
-    projection,
+  const missing = createFakeCodexCredentialBrokerV01({
+    binding,
     lease_root: roots.lease,
     entries: [],
   });
+  const availability = await missing.availabilityV01({
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(availability.state, "handle_missing");
   await assert.rejects(
-    missing.withLaunchMaterialV01(async () => undefined),
+    () =>
+      missing.provisionCredentialAttestationV01({
+        provisioning_authorization_ref: refV01(
+          "provisioning_authorization",
+          "provisioning:missing",
+        ),
+        attestation_id: "missing",
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
+      }),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code === "codex_auth_broker_handle_missing",
   );
-  const foreign = new FakeCodexCredentialBrokerV01({
-    projection,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: "codex-auth-handle:foreign",
-        material: REPLACED_FAKE_LAUNCH_MATERIAL,
-      },
-    ],
-  });
-  await assert.rejects(
-    foreign.withLaunchMaterialV01(async () => undefined),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_handle_missing",
-  );
-  const changedGeneration = new FakeCodexCredentialBrokerV01({
-    projection,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: projection.auth_handle_ref.external_id,
-        material: REPLACED_FAKE_LAUNCH_MATERIAL,
-      },
-    ],
-  });
-  await assert.rejects(
-    changedGeneration.withLaunchMaterialV01(async () => undefined),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_generation_mismatch",
-  );
-  for (const material of [
-    ["at", "fake-personal-access-token"].join("-"),
-    "not-a-jwt",
-  ]) {
-    const invalidRouteMaterial = new FakeCodexCredentialBrokerV01({
-      projection,
-      lease_root: roots.lease,
-      entries: [
-        {
-          handle_external_id: projection.auth_handle_ref.external_id,
-          material,
-        },
-      ],
-    });
-    await assert.rejects(
-      invalidRouteMaterial.withLaunchMaterialV01(async () => undefined),
-      (error: unknown) =>
-        error instanceof CodexCredentialBrokerErrorV01 &&
-        error.code === "codex_auth_broker_material_invalid",
-    );
-  }
-  const activeTestMode = process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
-  delete process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
-  try {
-    await assert.rejects(
-      brokerV01(roots, projection).withLaunchMaterialV01(
-        async () => undefined,
-      ),
-      (error: unknown) =>
-        error instanceof CodexCredentialBrokerErrorV01 &&
-        error.code === "codex_auth_fake_broker_forbidden_outside_test_mode",
-    );
-  } finally {
-    if (activeTestMode === undefined) {
-      delete process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
-    } else {
-      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = activeTestMode;
-    }
-  }
 
-  let releaseFirst!: () => void;
-  let markStarted!: () => void;
-  const started = new Promise<void>((resolve) => {
-    markStarted = resolve;
+  const incomplete = brokerV01(roots, PARTIAL_ID_JWT);
+  const incompleteAvailability = await incomplete.availabilityV01({
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    observed_at: GENERATED_AT,
   });
-  const barrier = new Promise<void>((resolve) => {
-    releaseFirst = resolve;
-  });
-  const first = brokerV01(roots, projection);
-  const secondProjection = projectionV01({
-    projection_id: "codex-isolated-auth:fixture-v01-second-projection",
-  });
-  const second = brokerV01(roots, secondProjection);
-  const firstUse = first.withLaunchMaterialV01(async () => {
-    markStarted();
-    await barrier;
-  });
-  await started;
+  assert.equal(incompleteAvailability.state, "account_identity_unavailable");
+
+  const other = await provisionV01(roots, "other-account", OTHER_ACCOUNT_JWT);
+  assert.notEqual(
+    other.credential_attestation.account_identity_fingerprint,
+    provisioned.credential_attestation.account_identity_fingerprint,
+    "same plan, different stable account must remain distinct",
+  );
+  const changedAccount = await provisionV01(
+    roots,
+    "changed-account-id",
+    CHANGED_ACCOUNT_ID_JWT,
+  );
+  const changedUser = await provisionV01(
+    roots,
+    "changed-user-id",
+    CHANGED_USER_ID_JWT,
+  );
+  assert.notEqual(
+    changedAccount.credential_attestation.account_identity_fingerprint,
+    provisioned.credential_attestation.account_identity_fingerprint,
+  );
+  assert.notEqual(
+    changedUser.credential_attestation.account_identity_fingerprint,
+    provisioned.credential_attestation.account_identity_fingerprint,
+  );
+  const substitutedOwner = ownerV01(
+    roots,
+    "substituted-account",
+    provisioned,
+    OTHER_ACCOUNT_JWT,
+    "isolated_auth_success",
+  );
   await assert.rejects(
-    second.withLaunchMaterialV01(async () => undefined),
+    () =>
+      substitutedOwner.spawnIsolatedCodexAppServerV01({
+        repository_root: roots.repository,
+      }),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_lease_collision",
-  );
-  releaseFirst();
-  await firstUse;
-
-  const substitutedLeasePath = path.join(
-    roots.lease,
-    `${credentialLeaseIdentityFingerprintV01(projection).slice("sha256:".length)}.lease`,
-  );
-  let substitutedLeaseUseCalled = false;
-  const substitutedLeaseBroker = new FakeCodexCredentialBrokerV01({
-    projection,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: projection.auth_handle_ref.external_id,
-        material: FAKE_LAUNCH_MATERIAL,
-      },
-    ],
-    before_return() {
-      rmSync(substitutedLeasePath, { force: false });
-      writeFileSync(substitutedLeasePath, "substituted-lease\n", {
-        encoding: "utf8",
-        mode: 0o600,
-      });
-    },
-  });
-  await assert.rejects(
-    substitutedLeaseBroker.withLaunchMaterialV01(async () => {
-      substitutedLeaseUseCalled = true;
-    }),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_lease_substituted",
-  );
-  assert.equal(substitutedLeaseUseCalled, false);
-  assert.equal(readFileSync(substitutedLeasePath, "utf8"), "substituted-lease\n");
-  rmSync(substitutedLeasePath, { force: false });
-
-  await assert.rejects(
-    brokerV01(roots, projection).withLaunchMaterialV01(async () => {
-      throw new Error("bounded_spawn_failure");
-    }),
-    /bounded_spawn_failure/u,
-  );
-  await brokerV01(roots, projection).withLaunchMaterialV01(
-    async () => undefined,
-  );
-  assert.equal(readdirSync(roots.lease).length, 0);
-
-  const staleLeasePath = path.join(
-    roots.lease,
-    `${credentialLeaseIdentityFingerprintV01(projection).slice("sha256:".length)}.lease`,
-  );
-  writeFileSync(staleLeasePath, "simulated-crash-tombstone\n", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  await assert.rejects(
-    brokerV01(roots, projection).withLaunchMaterialV01(async () => undefined),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_lease_collision",
+      (error.code === "codex_auth_broker_generation_mismatch" ||
+        error.code === "codex_auth_broker_account_identity_mismatch"),
   );
   assert.equal(
-    readFileSync(staleLeasePath, "utf8"),
-    "simulated-crash-tombstone\n",
-  );
-  rmSync(staleLeasePath, { force: false });
-
-  const leaseRootLink = path.join(roots.root, "lease-root-link");
-  symlinkSync(roots.lease, leaseRootLink);
-  await assert.rejects(
-    new FakeCodexCredentialBrokerV01({
-      projection,
-      lease_root: leaseRootLink,
-      entries: [
-        {
-          handle_external_id: projection.auth_handle_ref.external_id,
-          material: FAKE_LAUNCH_MATERIAL,
-        },
-      ],
-    }).withLaunchMaterialV01(async () => undefined),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_lease_root_invalid",
+    readdirSync(path.join(roots.state, "substituted-account")).length,
+    0,
   );
 
-  const locator = fingerprintBrokerLocatorV01({
-    backend: "macos_keychain_generic_password",
-    service_name: "org.example.codex-agent",
-    account_name: "agent-identity-fixture",
-    keychain_path: path.join(roots.temp, "fixture.keychain-db"),
-  });
-  for (const locatorSecret of [
-    FAKE_LAUNCH_MATERIAL,
-    `service:${FAKE_LAUNCH_MATERIAL}`,
-    `service:${FAKE_PAT_SECRET_CANARY}`,
-    ...OTHER_SECRET_CANARIES,
-  ]) {
-    assert.throws(
-      () =>
-        fingerprintBrokerLocatorV01({
-          backend: "macos_keychain_generic_password",
-          service_name: locatorSecret,
-          account_name: "agent-identity-fixture",
-          keychain_path: path.join(roots.temp, "fixture.keychain-db"),
-        }),
-      (error: unknown) =>
-        error instanceof CodexCredentialBrokerErrorV01 &&
-        error.code === "codex_auth_broker_locator_invalid",
-    );
-  }
-  assert.throws(
-    () =>
-      fingerprintBrokerLocatorV01({
-        backend: "macos_keychain_generic_password",
-        service_name: "org.example.codex-agent",
-        account_name: "agent-identity-fixture",
-        keychain_path: path.join(
-          roots.temp,
-          `${FAKE_OPENAI_SECRET_CANARY}.keychain-db`,
-        ),
-      }),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_keychain_path_invalid",
-  );
-  for (const pathSecret of [
-    `credential-${FAKE_LAUNCH_MATERIAL}`,
-    `credential-${FAKE_PAT_SECRET_CANARY}`,
-  ]) {
-    assert.throws(
-      () =>
-        fingerprintBrokerLocatorV01({
-          backend: "macos_keychain_generic_password",
-          service_name: "org.example.codex-agent",
-          account_name: "agent-identity-fixture",
-          keychain_path: path.join(roots.temp, `${pathSecret}.keychain-db`),
-        }),
-      (error: unknown) =>
-        error instanceof CodexCredentialBrokerErrorV01 &&
-        error.code === "codex_auth_broker_keychain_path_invalid",
-    );
-  }
-  const productionProjection = projectionV01({
-    broker_locator_fingerprint: locator,
-  });
-  const productionBroker = new MacOsKeychainAgentIdentityBrokerV01({
-    projection: productionProjection,
-    service_name: "org.example.codex-agent",
-    account_name: "agent-identity-fixture",
-    keychain_path: path.join(roots.temp, "fixture.keychain-db"),
-  });
-  await assert.rejects(
-    productionBroker.withLaunchMaterialV01(async () => undefined),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_production_broker_forbidden_in_test_mode",
-  );
-  assert.throws(
-    () =>
-      new MacOsKeychainAgentIdentityBrokerV01({
-        projection: productionProjection,
-        service_name: "org.example.foreign",
-        account_name: "agent-identity-fixture",
-        keychain_path: path.join(roots.temp, "fixture.keychain-db"),
-      }),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_locator_mismatch",
-  );
-
-  const expiredProjection = projectionV01({
-    issued_at: "2020-01-01T00:00:00.000Z",
-    expires_at: "2020-01-01T01:00:00.000Z",
-  });
-  const expiredOwner = ownerV01({
-    roots,
-    projection: expiredProjection,
-    id: "expired-projection",
-  });
-  await assert.rejects(
-    expiredOwner.withSpawnMaterialV01({
-      repository_root: roots.repository,
-      async use() {
-        throw new Error("expired_projection_must_not_spawn");
-      },
-    }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_projection_expired",
-  );
-  expiredOwner.cleanupV01();
-
-  const lookupIssuedAt = new Date(Date.now() - 1_000).toISOString();
-  const lookupExpiresAtMs = Date.now() + 60_000;
-  const lookupExpiresAt = new Date(lookupExpiresAtMs).toISOString();
-  const expiresDuringLookupProjection = projectionV01({
-    projection_id: "codex-isolated-auth:expires-during-lookup",
-    issued_at: lookupIssuedAt,
-    expires_at: lookupExpiresAt,
-  });
-  let delayedLookupReached = false;
-  let expiredLookupUseCalled = false;
-  const expiresDuringLookupBroker = new FakeCodexCredentialBrokerV01({
-    projection: expiresDuringLookupProjection,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id:
-          expiresDuringLookupProjection.auth_handle_ref.external_id,
-        material: FAKE_LAUNCH_MATERIAL,
-      },
-    ],
-    before_return() {
-      delayedLookupReached = true;
-      // Advance only this isolated test process's clock after exact broker
-      // lookup. This deterministically reaches the immediate pre-spawn expiry
-      // check without depending on scheduler load or weakening the check.
-      Date.now = () => lookupExpiresAtMs;
-    },
-  });
-  const expiresDuringLookupStateParent = path.join(
-    roots.state,
-    "expires-during-lookup",
-  );
-  mkdirSync(expiresDuringLookupStateParent, {
-    recursive: true,
-    mode: 0o700,
-  });
-  const expiresDuringLookupOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection: expiresDuringLookupProjection,
-    broker: expiresDuringLookupBroker,
-    state_parent: expiresDuringLookupStateParent,
-    command: process.execPath,
-    prefix_args: [
-      path.join(
-        process.cwd(),
-        "scripts",
-        "fixtures",
-        "fake-codex-app-server.mjs",
-      ),
-    ],
-    base_environment: { NODE_ENV: "test", PATH: process.env.PATH },
-  });
-  const originalDateNow = Date.now;
-  try {
-    await assert.rejects(
-      expiresDuringLookupOwner.withSpawnMaterialV01({
-        repository_root: roots.repository,
-        async use() {
-          expiredLookupUseCalled = true;
-        },
-      }),
-      (error: unknown) =>
-        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-        error.code === "codex_isolated_auth_projection_expired",
-    );
-  } finally {
-    Date.now = originalDateNow;
-  }
-  assert.equal(delayedLookupReached, true);
-  assert.equal(expiredLookupUseCalled, false);
-  expiresDuringLookupOwner.cleanupV01();
-
-  const futureProjection = projectionV01({
-    issued_at: "2099-01-01T00:00:00.000Z",
-    expires_at: "2100-01-01T00:00:00.000Z",
-  });
-  const futureOwner = ownerV01({
-    roots,
-    projection: futureProjection,
-    id: "future-projection",
-  });
-  await assert.rejects(
-    futureOwner.withSpawnMaterialV01({
-      repository_root: roots.repository,
-      async use() {
-        throw new Error("future_projection_must_not_spawn");
-      },
-    }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_projection_not_yet_valid",
-  );
-  futureOwner.cleanupV01();
-}
-
-async function assertIsolatedStateNegativesV01(
-  roots: TestRootsV01,
-  projection: CodexIsolatedAuthProjectionV01,
-): Promise<void> {
-  const { integrity: _projectionIntegrity, ...projectionMaterial } = projection;
-  const projectionWithExtra = {
-    ...projectionMaterial,
-    unregistered_route: "forbidden",
-  };
-  const resealedProjectionWithExtra = {
-    ...projectionWithExtra,
-    integrity: {
-      algorithm: "sha256" as const,
-      fingerprint: createProtocolSha256V01(
-        canonicalizeProtocolValueV01(projectionWithExtra),
-      ),
-    },
+  const mutatedProjection = structuredClone(provisioned.projection);
+  mutatedProjection.account_identity_fingerprint =
+    other.projection.account_identity_fingerprint;
+  const { integrity: _integrity, ...material } = mutatedProjection;
+  mutatedProjection.integrity = {
+    algorithm: "sha256",
+    fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
   };
   assert.throws(
     () =>
       assertValidCodexIsolatedAuthProjectionV01(
-        resealedProjectionWithExtra as unknown as CodexIsolatedAuthProjectionV01,
+        mutatedProjection,
+        provisioned.credential_attestation,
+        provisioned.projection_seal,
       ),
     (error: unknown) =>
       error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_projection_shape_invalid",
+      error.code === "codex_isolated_auth_attestation_binding_mismatch",
   );
-  for (const field of [
-    "allowed_child_environment_key_fingerprint",
-    "forbidden_persistence_surface_fingerprint",
-  ] as const) {
-    const { integrity: _integrity, ...material } = projection;
-    const changedMaterial = {
-      ...material,
-      [field]: `sha256:${"d".repeat(64)}`,
-    };
-    const resealed = {
-      ...changedMaterial,
-      integrity: {
-        algorithm: "sha256" as const,
-        fingerprint: createProtocolSha256V01(
-          canonicalizeProtocolValueV01(changedMaterial),
-        ),
-      },
-    };
-    assert.throws(
-      () =>
-        assertValidCodexIsolatedAuthProjectionV01(
-          resealed as CodexIsolatedAuthProjectionV01,
-        ),
-      (error: unknown) =>
-        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-        error.code === "codex_isolated_auth_material_boundary_mismatch",
-    );
-  }
-  for (const [index, secret] of [
-    FAKE_LAUNCH_MATERIAL,
-    ...OTHER_SECRET_CANARIES,
-  ].entries()) {
-    assert.throws(
-      () =>
-        ownerV01({
-          roots,
-          projection,
-          id: `argv-secret-${index}`,
-          prefix_args: [secret],
-        }),
-      (error: unknown) =>
-        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-        error.code === "codex_isolated_auth_prefix_args_invalid",
-    );
-  }
-  const wrongExecutableProjection = projectionV01({
-    codex_executable_fingerprint: `sha256:${"f".repeat(64)}`,
+
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  assert.throws(
-    () =>
-      ownerV01({
-        roots,
-        projection: wrongExecutableProjection,
-        id: "wrong-executable",
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_executable_substituted",
-  );
-
-  const sharedParent = path.join(roots.ordinaryHome, "attempt-state");
-  mkdirSync(sharedParent, { mode: 0o700 });
-  assert.throws(
-    () =>
-      ownerV01({
-        roots,
-        projection,
-        id: "shared-parent",
-        state_parent: sharedParent,
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_shared_state_refused",
-  );
-  const stateParentLink = path.join(roots.root, "state-parent-link");
-  symlinkSync(roots.state, stateParentLink);
-  assert.throws(
-    () =>
-      ownerV01({
-        roots,
-        projection,
-        id: "state-parent-symlink",
-        state_parent: stateParentLink,
-      }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_state_parent_invalid",
-  );
-
-  const replacedHomeParent = path.join(roots.state, "replaced-home");
-  mkdirSync(replacedHomeParent, { recursive: true, mode: 0o700 });
-  const replacedHomeOwner = ownerV01({
-    roots,
-    projection,
-    id: "replaced-home",
-    state_parent: replacedHomeParent,
+  let entered!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
   });
-  const replacedHomeRoot = path.join(
-    replacedHomeParent,
-    readdirSync(replacedHomeParent)[0]!,
-  );
-  const replacedHome = path.join(replacedHomeRoot, "home");
-  rmSync(replacedHome, { recursive: true, force: false });
-  mkdirSync(replacedHome, { mode: 0o700 });
-  await assert.rejects(
-    replacedHomeOwner.withSpawnMaterialV01({
-      repository_root: roots.repository,
-      async use() {
-        throw new Error("substituted_home_must_not_spawn");
+  const collisionBroker = createFakeCodexCredentialBrokerV01({
+    binding,
+    lease_root: roots.lease,
+    entries: [
+      {
+        handle_external_id: binding.auth_handle_ref.external_id,
+        material: FAKE_JWT,
       },
-    }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_state_substituted",
-  );
-  assert.throws(
-    () => replacedHomeOwner.cleanupV01(),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_state_substituted",
-  );
-  assert.equal(readdirSync(replacedHomeParent).length, 0);
-
-  const brokerBarrierParent = path.join(
-    roots.state,
-    "broker-barrier-home-substitution",
-  );
-  mkdirSync(brokerBarrierParent, { recursive: true, mode: 0o700 });
-  const barrierBroker: CodexCredentialBrokerV01 = {
-    projection_fingerprint: projection.integrity.fingerprint,
-    async withLaunchMaterialV01(use) {
-      const stateRoot = path.join(
-        brokerBarrierParent,
-        readdirSync(brokerBarrierParent)[0]!,
-      );
-      const home = path.join(stateRoot, "home");
-      rmSync(home, { recursive: true, force: false });
-      mkdirSync(home, { mode: 0o700 });
-      return await use(FAKE_LAUNCH_MATERIAL);
+    ],
+    before_return: async () => {
+      entered();
+      await barrier;
     },
-  };
-  const brokerBarrierOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection,
-    broker: barrierBroker,
-    state_parent: brokerBarrierParent,
+  });
+  const first = collisionBroker.provisionCredentialAttestationV01({
+    provisioning_authorization_ref: refV01(
+      "provisioning_authorization",
+      "provisioning:collision",
+    ),
+    attestation_id: "collision-one",
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
+  await enteredPromise;
+  await assert.rejects(
+    () =>
+      collisionBroker.provisionCredentialAttestationV01({
+        provisioning_authorization_ref: refV01(
+          "provisioning_authorization",
+          "provisioning:collision",
+        ),
+        attestation_id: "collision-two",
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
+      }),
+    (error: unknown) =>
+      error instanceof CodexCredentialBrokerErrorV01 &&
+      error.code === "codex_auth_broker_lease_collision",
+  );
+  release();
+  await first;
+}
+
+async function runtimePolicyNegativesV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<void> {
+  for (const [id, scenario, reason] of [
+    [
+      "mode-fallback",
+      "isolated_auth_mode_fallback",
+      "codex_isolated_auth_mode_mismatch",
+    ],
+    [
+      "account-switch",
+      "isolated_auth_account_mismatch",
+      "codex_isolated_auth_account_projection_mismatch",
+    ],
+    [
+      "account-plan-drift",
+      "isolated_auth_account_plan_drift",
+      "codex_isolated_auth_account_projection_mismatch",
+    ],
+    [
+      "config-drift",
+      "isolated_auth_config_mismatch",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "tool-drift",
+      "isolated_auth_tool_policy_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "unknown-tool-drift",
+      "isolated_auth_unknown_feature_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "mcp-drift",
+      "isolated_auth_mcp_drift",
+      "codex_isolated_auth_mcp_policy_mismatch",
+    ],
+    [
+      "plugin-drift",
+      "isolated_auth_plugin_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "route-drift",
+      "isolated_auth_provider_route_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "managed-layer",
+      "isolated_auth_managed_layer_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "sqlite-drift",
+      "isolated_auth_sqlite_home_drift",
+      "codex_isolated_auth_config_policy_mismatch",
+    ],
+    [
+      "cli-drift",
+      "isolated_auth_cli_version_mismatch",
+      "codex_isolated_auth_cli_version_mismatch",
+    ],
+  ] as const) {
+    const probe = await runProbeV01(roots, id, provisioned, FAKE_JWT, scenario);
+    assert.equal(
+      probe.result?.outcome,
+      "failed",
+      `${scenario} must fail before repository work`,
+    );
+    assert.equal(probe.result?.public_stop_reason, reason);
+    assert.equal(
+      receivedMethodsV01(probe.trace_path).includes("thread/start"),
+      false,
+    );
+    assert.equal(readdirSync(probe.state_parent).length, 0);
+  }
+}
+
+async function tmpAndFailureNegativesV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<void> {
+  const preSpawnParent = path.join(roots.state, "tmp-pre-spawn-substitution");
+  const preSpawnOwner = ownerV01(
+    roots,
+    "tmp-pre-spawn-substitution",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    preSpawnParent,
+  );
+  const attemptRoot = path.join(
+    preSpawnParent,
+    readdirSync(preSpawnParent)[0]!,
+  );
+  const ownedTmp = path.join(attemptRoot, "tmp");
+  rmSync(ownedTmp, { recursive: true, force: false });
+  symlinkSync(roots.ordinaryTmp, ownedTmp);
+  await assert.rejects(
+    () =>
+      preSpawnOwner.spawnIsolatedCodexAppServerV01({
+        repository_root: roots.repository,
+      }),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code === "codex_isolated_auth_state_substituted",
+  );
+  assert.equal(readdirSync(roots.lease).length, 0);
+  rmSync(attemptRoot, { recursive: true, force: false });
+
+  const malformed = await runProbeV01(
+    roots,
+    "transport-failure",
+    provisioned,
+    FAKE_JWT,
+    "malformed_json",
+  );
+  assert.notEqual(malformed.result?.outcome, "completed");
+  assert.equal(readdirSync(malformed.state_parent).length, 0);
+  assertPublicSafeV01({
+    error: errorCodeV01(malformed.error),
+    settled: errorCodeV01(malformed.settled_error),
+    observations: malformed.adapter_observations,
+  });
+
+  const tmpSubstitution = await runProbeV01(
+    roots,
+    "tmp-substitution",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_tmp_substitution",
+  );
+  assert.equal(tmpSubstitution.settled_error instanceof Error, true);
+  assert.match(
+    (tmpSubstitution.settled_error as Error).message,
+    /codex_isolated_auth_state_substituted/u,
+  );
+
+  const failedBroker = createFakeCodexCredentialBrokerV01({
+    binding: bindingV01(),
+    lease_root: roots.lease,
+    entries: [
+      {
+        handle_external_id: bindingV01().auth_handle_ref.external_id,
+        material: FAKE_JWT,
+      },
+    ],
+    fail_code: "codex_auth_broker_lookup_failed",
+  });
+  const stateParent = path.join(roots.state, "broker-failure");
+  mkdirSync(stateParent, { mode: 0o700 });
+  const failedOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
+    projection: provisioned.projection,
+    credential_attestation: provisioned.credential_attestation,
+    projection_seal: provisioned.projection_seal,
+    broker: failedBroker,
+    state_parent: stateParent,
     command: process.execPath,
     prefix_args: [
       path.join(
@@ -966,332 +811,184 @@ async function assertIsolatedStateNegativesV01(
         "fake-codex-app-server.mjs",
       ),
     ],
-    base_environment: { NODE_ENV: "test", PATH: process.env.PATH },
-  });
-  await assert.rejects(
-    brokerBarrierOwner.withSpawnMaterialV01({
-      repository_root: roots.repository,
-      async use() {
-        throw new Error("broker_barrier_substitution_must_not_spawn");
-      },
-    }),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_state_substituted",
-  );
-  assert.throws(
-    () => brokerBarrierOwner.cleanupV01(),
-    (error: unknown) =>
-      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-      error.code === "codex_isolated_auth_state_substituted",
-  );
-  assert.equal(readdirSync(brokerBarrierParent).length, 0);
-
-  for (const variant of ["copy", "symlink"] as const) {
-    const id = `auth-file-${variant}`;
-    const stateParent = path.join(roots.state, id);
-    mkdirSync(stateParent, { recursive: true, mode: 0o700 });
-    const owner = ownerV01({ roots, projection, id, state_parent: stateParent });
-    const stateRoot = path.join(stateParent, readdirSync(stateParent)[0]!);
-    const authPath = path.join(stateRoot, "codex-home", "auth.json");
-    if (variant === "copy") {
-      writeFileSync(authPath, "{}\n", { mode: 0o600 });
-    } else {
-      symlinkSync(path.join(roots.ordinaryHome, "foreign-config.toml"), authPath);
-    }
-    const request = requestV01(roots.repository, id);
-    const adapter = createCodexAppServerAdapterV01({
-      isolated_authenticated_execution: owner,
-    });
-    const invocation = adapter.invoke(request, controlV01([]));
-    const result = await invocation.result;
-    await assert.rejects(
-      invocation.settled,
-      (error: unknown) =>
-        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
-        error.code === "codex_isolated_auth_file_persistence_refused",
-    );
-    assert.equal(result.outcome, "failed");
-    assert.equal(
-      result.public_stop_reason,
-      "codex_isolated_auth_file_persistence_refused",
-    );
-    assert.equal(readdirSync(stateParent).length, 0);
-  }
-
-  const configStateParent = path.join(roots.state, "config-copy");
-  mkdirSync(configStateParent, { recursive: true, mode: 0o700 });
-  const configOwner = ownerV01({
-    roots,
-    projection,
-    id: "config-copy",
-    state_parent: configStateParent,
-  });
-  const configStateRoot = path.join(
-    configStateParent,
-    readdirSync(configStateParent)[0]!,
-  );
-  writeFileSync(
-    path.join(configStateRoot, "codex-home", "config.toml"),
-    "foreign-user-instruction=true\n",
-    { mode: 0o600 },
-  );
-  const configInvocation = createCodexAppServerAdapterV01({
-    isolated_authenticated_execution: configOwner,
-  }).invoke(requestV01(roots.repository, "config-copy"), controlV01([]));
-  const configResult = await configInvocation.result;
-  await configInvocation.settled;
-  assert.equal(configResult.outcome, "failed");
-  assert.equal(
-    configResult.public_stop_reason,
-    "codex_isolated_auth_shared_state_material_refused",
-  );
-  assert.equal(readdirSync(configStateParent).length, 0);
-
-  const disappearingExecutable = path.join(
-    roots.temp,
-    "disappearing-codex-fixture",
-  );
-  writeFileSync(disappearingExecutable, "#!/bin/sh\nexit 0\n", {
-    encoding: "utf8",
-    mode: 0o700,
-  });
-  const disappearingProjection = projectionV01({
-    codex_executable_fingerprint: sha256FileV01(disappearingExecutable),
-  });
-  const disappearingStateParent = path.join(
-    roots.state,
-    "disappearing-executable",
-  );
-  mkdirSync(disappearingStateParent, { recursive: true, mode: 0o700 });
-  const disappearingOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection: disappearingProjection,
-    broker: brokerV01(roots, disappearingProjection),
-    state_parent: disappearingStateParent,
-    command: disappearingExecutable,
     base_environment: {
       NODE_ENV: "test",
       PATH: process.env.PATH,
-      TMPDIR: roots.temp,
+      TMPDIR: roots.ordinaryTmp,
     },
   });
-  rmSync(disappearingExecutable, { force: false });
-  const disappearingInvocation = createCodexAppServerAdapterV01({
-    isolated_authenticated_execution: disappearingOwner,
-  }).invoke(
-    requestV01(roots.repository, "disappearing-executable"),
-    controlV01([]),
-  );
-  const disappearingResult = await disappearingInvocation.result;
-  await disappearingInvocation.settled;
-  assert.equal(disappearingResult.outcome, "failed");
-  assert.equal(
-    disappearingResult.public_stop_reason,
-    "codex_isolated_auth_executable_substituted",
-  );
-  assert.equal(readdirSync(disappearingStateParent).length, 0);
-  assert.equal(readdirSync(roots.lease).length, 0);
-}
-
-async function assertRuntimeBindingNegativesV01(
-  roots: TestRootsV01,
-  projection: CodexIsolatedAuthProjectionV01,
-): Promise<void> {
-  const accountMismatch = await runProbeV01({
-    roots,
-    id: "account-mismatch",
-    projection,
-    scenario: "isolated_auth_account_mismatch",
-  });
-  assert.equal(accountMismatch.result?.outcome, "failed");
-  assert.equal(
-    accountMismatch.result?.public_stop_reason,
-    "codex_isolated_auth_account_projection_mismatch",
-  );
-  const authFallback = await runProbeV01({
-    roots,
-    id: "auth-fallback",
-    projection,
-    scenario: "isolated_auth_mode_fallback",
-  });
-  assert.equal(authFallback.result?.outcome, "failed");
-  assert.equal(
-    authFallback.result?.public_stop_reason,
-    "codex_isolated_auth_mode_mismatch",
-  );
-  const configMismatch = await runProbeV01({
-    roots,
-    id: "config-mismatch",
-    projection,
-    scenario: "isolated_auth_config_mismatch",
-  });
-  assert.equal(configMismatch.result?.outcome, "failed");
-  assert.equal(
-    configMismatch.result?.public_stop_reason,
-      "codex_isolated_auth_config_policy_mismatch",
-  );
-  const sqliteHomeMismatch = await runProbeV01({
-    roots,
-    id: "sqlite-home-mismatch",
-    projection,
-    scenario: "isolated_auth_sqlite_home_drift",
-  });
-  assert.equal(sqliteHomeMismatch.result?.outcome, "failed");
-  assert.equal(
-    sqliteHomeMismatch.result?.public_stop_reason,
-    "codex_isolated_auth_config_policy_mismatch",
-  );
-  const mcpMismatch = await runProbeV01({
-    roots,
-    id: "mcp-mismatch",
-    projection,
-    scenario: "isolated_auth_mcp_drift",
-  });
-  assert.equal(mcpMismatch.result?.outcome, "failed");
-  assert.equal(
-    mcpMismatch.result?.public_stop_reason,
-    "codex_isolated_auth_mcp_policy_mismatch",
-  );
-  for (const [id, scenario] of [
-    ["plugin-mismatch", "isolated_auth_plugin_drift"],
-    ["tool-policy-mismatch", "isolated_auth_tool_policy_drift"],
-  ] as const) {
-    const probe = await runProbeV01({ roots, id, projection, scenario });
-    assert.equal(probe.result?.outcome, "failed");
-    assert.equal(
-      probe.result?.public_stop_reason,
-      "codex_isolated_auth_config_policy_mismatch",
-    );
-  }
-  const cliMismatch = await runProbeV01({
-    roots,
-    id: "cli-version-mismatch",
-    projection,
-    scenario: "isolated_auth_cli_version_mismatch",
-  });
-  assert.equal(cliMismatch.result?.outcome, "failed");
-  assert.equal(
-    cliMismatch.result?.public_stop_reason,
-    "codex_isolated_auth_cli_version_mismatch",
-  );
-  const providerMismatch = await runProbeV01({
-    roots,
-    id: "provider-mismatch",
-    projection,
-    scenario: "isolated_auth_provider_mismatch",
-  });
-  assert.equal(providerMismatch.result, null);
-  assert.ok(
-    providerMismatch.error instanceof NativeHostReconciliationRequiredErrorV01,
-    JSON.stringify({
-      error_name:
-        providerMismatch.error instanceof Error
-          ? providerMismatch.error.name
-          : typeof providerMismatch.error,
-      error_message:
-        providerMismatch.error instanceof Error
-          ? providerMismatch.error.message
-          : null,
-    }),
+  await assert.rejects(
+    () =>
+      failedOwner.spawnIsolatedCodexAppServerV01({
+        repository_root: roots.repository,
+      }),
+    (error: unknown) =>
+      error instanceof CodexCredentialBrokerErrorV01 &&
+      error.code === "codex_auth_broker_lookup_failed",
   );
   assert.equal(
-    providerMismatch.error.code,
-    "codex_isolated_auth_provider_mismatch",
-  );
-  const runtimeDrift = await runProbeV01({
-    roots,
-    id: "runtime-drift",
-    projection,
-    scenario: "isolated_auth_runtime_drift",
-  });
-  assert.equal(runtimeDrift.error, null);
-  assert.equal(runtimeDrift.result?.outcome, "failed");
-  assert.equal(
-    runtimeDrift.result?.public_stop_reason,
-    "codex_isolated_auth_runtime_policy_drift",
-  );
-  assert.equal(
-    receivedMethodsV01(runtimeDrift.trace_path).includes("thread/start"),
-    false,
-  );
-  assert.equal(readdirSync(runtimeDrift.state_parent).length, 0);
-
-  const instructionSourceDrift = await runProbeV01({
-    roots,
-    id: "instruction-source-drift",
-    projection,
-    scenario: "isolated_auth_instruction_source_drift",
-  });
-  assert.equal(instructionSourceDrift.result, null);
-  assert.ok(
-    instructionSourceDrift.error instanceof NativeHostReconciliationRequiredErrorV01,
-  );
-  assert.equal(
-    instructionSourceDrift.error.code,
-    "codex_isolated_auth_thread_not_ephemeral",
-  );
-  assert.equal(
-    receivedMethodsV01(instructionSourceDrift.trace_path).includes("turn/start"),
-    false,
+    readdirSync(stateParent).length,
+    0,
+    "spawn failure must remove the complete attempt including tmp",
   );
 }
 
-function receivedMethodsV01(tracePath: string): string[] {
-  return readFileSync(tracePath, "utf8")
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as Record<string, unknown>)
-    .filter((entry) => entry.kind === "received")
-    .map((entry) => {
-      const value = entry.value as Record<string, unknown>;
-      return typeof value.method === "string" ? value.method : "";
-    })
-    .filter(Boolean);
+async function provisionV01(
+  roots: RootsV01,
+  id: string,
+  jwt: string,
+): Promise<ProvisionCodexIsolatedAuthProjectionResultV01> {
+  const binding = bindingV01();
+  return await provisionCodexIsolatedAuthProjectionV01({
+    projection_id: `codex-isolated-auth:${id}`,
+    provisioning_authorization_ref: refV01(
+      "provisioning_authorization",
+      `provisioning:${id}`,
+    ),
+    provider_ref: refV01("model_provider", "openai"),
+    broker_binding: binding,
+    broker: brokerV01(roots, jwt),
+    codex_executable_ref: refV01("codex_executable", "node-test-host"),
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    compatible_codex_cli_version: "fake-0.143.0",
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
 }
 
-async function runProbeV01(input: {
-  roots: TestRootsV01;
-  id: string;
-  projection: CodexIsolatedAuthProjectionV01;
-  scenario: string;
-}): Promise<ProbeV01> {
-  const stateParent = path.join(input.roots.state, input.id);
-  const runRoot = path.join(input.roots.runtime, input.id);
+function bindingV01(): CodexCredentialBrokerBindingV01 {
+  const binding = {
+    auth_handle_ref: refV01("opaque_auth_handle", "codex-auth-handle:fixture"),
+    broker_backend_ref: refV01(
+      "auth_broker_backend",
+      "macos-keychain-generic-password",
+    ),
+    broker_executable_ref: refV01(
+      "auth_broker_executable",
+      "security-system-binary",
+    ),
+    broker_executable_fingerprint: `sha256:${"b".repeat(64)}`,
+    broker_locator_fingerprint: `sha256:${"c".repeat(64)}`,
+  };
+  assert.match(credentialBrokerBindingFingerprintV01(binding), /^sha256:/u);
+  return binding;
+}
+function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
+  const binding = bindingV01();
+  return createFakeCodexCredentialBrokerV01({
+    binding,
+    lease_root: roots.lease,
+    entries: [
+      {
+        handle_external_id: binding.auth_handle_ref.external_id,
+        material: jwt,
+      },
+    ],
+  });
+}
+function ownerV01(
+  roots: RootsV01,
+  id: string,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+  jwt: string,
+  scenario: string,
+  stateParent?: string,
+): CodexIsolatedAuthenticatedExecutionOwnerV01 {
+  const parent = stateParent ?? path.join(roots.state, id);
+  mkdirSync(parent, { recursive: true, mode: 0o700 });
+  return new CodexIsolatedAuthenticatedExecutionOwnerV01({
+    projection: provisioned.projection,
+    credential_attestation: provisioned.credential_attestation,
+    projection_seal: provisioned.projection_seal,
+    broker: brokerV01(roots, jwt),
+    state_parent: parent,
+    command: process.execPath,
+    prefix_args: [
+      path.join(
+        process.cwd(),
+        "scripts",
+        "fixtures",
+        "fake-codex-app-server.mjs",
+      ),
+    ],
+    base_environment: {
+      NODE_ENV: "test",
+      PATH: process.env.PATH,
+      TMPDIR: roots.ordinaryTmp,
+      LANG: "C",
+      TZ: "UTC",
+      NO_COLOR: "1",
+    },
+    test_environment: {
+      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+      FAKE_CODEX_SCENARIO: scenario,
+    },
+  });
+}
+
+async function runProbeV01(
+  roots: RootsV01,
+  id: string,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+  jwt: string,
+  scenario: string,
+): Promise<ProbeV01> {
+  const stateParent = path.join(roots.state, id);
+  const runRoot = path.join(roots.runtime, id);
   mkdirSync(stateParent, { recursive: true, mode: 0o700 });
   mkdirSync(runRoot, { recursive: true, mode: 0o700 });
   const boundaryPath = path.join(runRoot, "auth-boundary.json");
   const networkPath = path.join(runRoot, "network-count.txt");
   const cleanupPath = path.join(runRoot, "cleanup.marker");
   const tracePath = path.join(runRoot, "app-server-trace.jsonl");
-  const owner = ownerV01({
-    roots: input.roots,
-    projection: input.projection,
-    id: input.id,
+  const owner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
+    projection: provisioned.projection,
+    credential_attestation: provisioned.credential_attestation,
+    projection_seal: provisioned.projection_seal,
+    broker: brokerV01(roots, jwt),
     state_parent: stateParent,
+    command: process.execPath,
+    prefix_args: [
+      path.join(
+        process.cwd(),
+        "scripts",
+        "fixtures",
+        "fake-codex-app-server.mjs",
+      ),
+    ],
+    base_environment: {
+      NODE_ENV: "test",
+      PATH: process.env.PATH,
+      TMPDIR: roots.ordinaryTmp,
+      LANG: "C",
+      TZ: "UTC",
+      NO_COLOR: "1",
+    },
     test_environment: {
       AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
-      FAKE_CODEX_SCENARIO: input.scenario,
+      FAKE_CODEX_SCENARIO: scenario,
       FAKE_CODEX_AUTH_BOUNDARY_PATH: boundaryPath,
       FAKE_CODEX_NETWORK_COUNT_PATH: networkPath,
       FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupPath,
       FAKE_CODEX_TRACE_PATH: tracePath,
     },
   });
-  assert.equal(JSON.stringify(owner).includes(FAKE_LAUNCH_MATERIAL), false);
-  const lifecycleEvents: NativeHostLifecycleEventV01[] = [];
+  assertNoSecretApiV01(owner);
+  const lifecycle: NativeHostLifecycleEventV01[] = [];
   const adapterObservations: CodexAppServerAdapterObservationV01[] = [];
-  const authObservations: unknown[] = [];
+  const authObservations: CodexIsolatedAuthObservationV01[] = [];
   const adapter = createCodexAppServerAdapterV01({
     isolated_authenticated_execution: owner,
-    observe: (observation) => adapterObservations.push(observation),
-    observe_isolated_auth: (observation) => authObservations.push(observation),
+    observe: (value) => adapterObservations.push(value),
+    observe_isolated_auth: (value) => authObservations.push(value),
   });
-  const request = requestV01(input.roots.repository, input.id);
-  const invocation = adapter.invoke(request, controlV01(lifecycleEvents));
+  const invocation = adapter.invoke(
+    requestV01(roots.repository, id),
+    controlV01(lifecycle),
+  );
   let result: NativeHostResultV01 | null = null;
-  let error: unknown | null = null;
-  let settledError: unknown | null = null;
+  let error: unknown = null;
+  let settledError: unknown = null;
   try {
     result = await invocation.result;
   } catch (caught) {
@@ -1306,7 +1003,7 @@ async function runProbeV01(input: {
     result,
     error,
     settled_error: settledError,
-    lifecycle_events: lifecycleEvents,
+    lifecycle_events: lifecycle,
     adapter_observations: adapterObservations,
     auth_observations: authObservations,
     state_parent: stateParent,
@@ -1315,118 +1012,6 @@ async function runProbeV01(input: {
     cleanup_path: cleanupPath,
     trace_path: tracePath,
   };
-}
-
-function ownerV01(input: {
-  roots: TestRootsV01;
-  projection: CodexIsolatedAuthProjectionV01;
-  id: string;
-  state_parent?: string;
-  prefix_args?: string[];
-  test_environment?: Record<string, string | undefined>;
-}): CodexIsolatedAuthenticatedExecutionOwnerV01 {
-  const stateParent = input.state_parent ?? path.join(input.roots.state, input.id);
-  mkdirSync(stateParent, { recursive: true, mode: 0o700 });
-  return new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection: input.projection,
-    broker: brokerV01(input.roots, input.projection),
-    state_parent: stateParent,
-    command: process.execPath,
-    prefix_args: input.prefix_args ?? [
-      path.join(
-        process.cwd(),
-        "scripts",
-        "fixtures",
-        "fake-codex-app-server.mjs",
-      ),
-    ],
-    base_environment: {
-      NODE_ENV: "test",
-      PATH: process.env.PATH,
-      TMPDIR: input.roots.temp,
-      LANG: "C",
-      TZ: "UTC",
-      NO_COLOR: "1",
-    },
-    test_environment: input.test_environment,
-  });
-}
-
-function brokerV01(
-  roots: TestRootsV01,
-  projection: CodexIsolatedAuthProjectionV01,
-): FakeCodexCredentialBrokerV01 {
-  return new FakeCodexCredentialBrokerV01({
-    projection,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: projection.auth_handle_ref.external_id,
-        material: FAKE_LAUNCH_MATERIAL,
-      },
-    ],
-  });
-}
-
-function projectionV01(
-  overrides: {
-    projection_id?: string;
-    auth_handle_external_id?: string;
-    broker_locator_fingerprint?: string;
-    auth_source_generation_fingerprint?: string;
-    codex_executable_fingerprint?: string;
-    provider_external_id?: string;
-    broker_backend_external_id?: string;
-    broker_executable_external_id?: string;
-    issued_at?: string;
-    expires_at?: string;
-  } = {},
-): CodexIsolatedAuthProjectionV01 {
-  const accountProjection = createCodexAccountProjectionFingerprintV01({
-    auth_status: FAKE_AUTH_STATUS,
-    account: FAKE_ACCOUNT,
-  });
-  const authHandleExternalId =
-    overrides.auth_handle_external_id ?? "codex-auth-handle:fixture";
-  const brokerLocatorFingerprint =
-    overrides.broker_locator_fingerprint ?? `sha256:${"c".repeat(64)}`;
-  return createCodexIsolatedAuthProjectionV01({
-    projection_id:
-      overrides.projection_id ?? "codex-isolated-auth:fixture-v01",
-    provider_ref: refV01(
-      "model_provider",
-      overrides.provider_external_id ?? "openai",
-    ),
-    auth_handle_ref: refV01(
-      "opaque_auth_handle",
-      authHandleExternalId,
-    ),
-    broker_backend_ref: refV01(
-      "auth_broker_backend",
-      overrides.broker_backend_external_id ??
-        "macos-keychain-generic-password",
-    ),
-    broker_executable_ref: refV01(
-      "auth_broker_executable",
-      overrides.broker_executable_external_id ?? "security-system-binary",
-    ),
-    broker_executable_fingerprint: `sha256:${"b".repeat(64)}`,
-    broker_locator_fingerprint: brokerLocatorFingerprint,
-    auth_source_generation_fingerprint:
-      overrides.auth_source_generation_fingerprint ??
-      fingerprintCredentialSourceGenerationV01({
-        auth_handle_external_id: authHandleExternalId,
-        broker_locator_fingerprint: brokerLocatorFingerprint,
-        material: FAKE_LAUNCH_MATERIAL,
-      }),
-    expected_account_projection_fingerprint: accountProjection,
-    codex_executable_ref: refV01("codex_executable", "node-test-host"),
-    codex_executable_fingerprint:
-      overrides.codex_executable_fingerprint ?? sha256FileV01(process.execPath),
-    compatible_codex_cli_version: "fake-0.143.0",
-    issued_at: overrides.issued_at ?? GENERATED_AT,
-    expires_at: overrides.expires_at ?? EXPIRES_AT,
-  });
 }
 
 function requestV01(repositoryRoot: string, id: string): NativeHostRequestV01 {
@@ -1506,15 +1091,14 @@ function requestV01(repositoryRoot: string, id: string): NativeHostRequestV01 {
     },
   };
 }
-
-function controlV01(lifecycleEvents: NativeHostLifecycleEventV01[]) {
+function controlV01(events: NativeHostLifecycleEventV01[]) {
   return {
     cancellation_signal: new AbortController().signal,
     timeout_ms: 10_000,
     stop_settle_timeout_ms: 3_000,
     lifecycle_sink: {
       async report_event(event: NativeHostLifecycleEventV01) {
-        lifecycleEvents.push(event);
+        events.push(event);
       },
       async request_approval() {
         throw new Error("isolated_auth_unexpected_approval");
@@ -1523,7 +1107,6 @@ function controlV01(lifecycleEvents: NativeHostLifecycleEventV01[]) {
     resume_binding: null,
   };
 }
-
 function refV01(refType: string, externalId: string): ExternalRefV01 {
   return createCodexIsolatedAuthTestRefV01({
     ref_type: refType,
@@ -1540,12 +1123,11 @@ function createRootsV01() {
     state: path.join(root, "state"),
     lease: path.join(root, "lease"),
     runtime: path.join(root, "runtime"),
-    temp: path.join(root, "temp"),
-    ordinaryHome: path.join(root, "ordinary-codex-home"),
+    ordinaryHome: path.join(root, "ordinary-home"),
+    ordinaryTmp: path.join(root, "ordinary-tmp"),
   };
-  for (const directory of Object.values(roots).slice(1)) {
+  for (const directory of Object.values(roots).slice(1))
     mkdirSync(directory, { recursive: true, mode: 0o700 });
-  }
   mkdirSync(path.join(roots.repository, ".git"), { mode: 0o700 });
   writeFileSync(
     path.join(roots.ordinaryHome, "foreign-config.toml"),
@@ -1557,99 +1139,174 @@ function createRootsV01() {
     '{"message":"seeded predecessor and sibling history"}\n',
     { mode: 0o600 },
   );
+  writeFileSync(
+    path.join(roots.ordinaryTmp, "foreign-temp-canary"),
+    "ordinary-temp-untouched\n",
+    { mode: 0o600 },
+  );
   return roots;
 }
-
-function assertPublicMaterialSafeV01(value: unknown): void {
+function assertNoSecretApiV01(value: unknown): void {
+  const text = JSON.stringify(value);
+  for (const secret of SECRET_CANARIES)
+    assert.equal(text.includes(secret), false);
+  const methods = new Set<string>();
+  let proto: object | null =
+    typeof value === "object" && value ? Object.getPrototypeOf(value) : null;
+  while (proto && proto !== Object.prototype) {
+    Object.getOwnPropertyNames(proto).forEach((name) => methods.add(name));
+    proto = Object.getPrototypeOf(proto);
+  }
+  assert.equal(methods.has("withLaunchMaterialV01"), false);
+  assert.equal(methods.has("withSpawnMaterialV01"), false);
+  assert.equal(methods.has("resolveMaterialV01"), false);
+  assert.equal(methods.has("withResolvedMaterialV01"), false);
+  assert.equal(methods.has("resolveMaterial"), false);
+  assert.equal(Object.hasOwn(value as object, "resolveMaterial"), false);
+  assert.equal(
+    Object.hasOwn(value as object, "withResolvedMaterialV01"),
+    false,
+  );
+}
+function assertRuntimeSubstitutionRefusedV01(
+  value: object,
+  method: string,
+): void {
+  const prototype = Object.getPrototypeOf(value) as object;
+  const original = Reflect.get(value, method);
+  assert.equal(Object.isFrozen(value), true);
+  assert.equal(Object.isFrozen(prototype), true);
+  assert.equal(
+    Reflect.set(value, method, async () => {
+      throw new Error("runtime substitution must remain unreachable");
+    }),
+    false,
+  );
+  assert.equal(
+    Reflect.set(prototype, method, async () => {
+      throw new Error("prototype substitution must remain unreachable");
+    }),
+    false,
+  );
+  assert.equal(Reflect.get(value, method), original);
+}
+function assertPublicSafeV01(value: unknown): void {
+  const serialized = JSON.stringify(value);
+  for (const secret of SECRET_CANARIES)
+    assert.equal(
+      serialized.includes(secret),
+      false,
+      "public material leaked seeded private material",
+    );
   const issues: string[] = [];
   scanForbiddenProtocolMaterialV01(
     value,
     "$",
     {
-      error(code, issuePath) {
-        if (code !== "provider_specific_core_field") {
-          issues.push(`${code}:${issuePath ?? "$"}`);
-        }
+      error(code) {
+        if (
+          code !== "provider_specific_core_field" &&
+          code !== "secret_shaped_field"
+        )
+          issues.push(code);
       },
       warning() {},
     },
     {
-      secret_material_message: "No fake auth material may escape.",
-      provider_specific_field_message:
-        "Provider identity remains typed in protocol refs.",
-      allowed_false_invariant_fields: new Set([
-        "raw_provider_payload_included",
-        "raw_output_included",
-        "raw_output_persisted",
-        "raw_prompt_persisted",
-        "raw_transcript_persisted",
-        "secret_material_persisted",
-        "shared_state_observed",
-        "attempt_auth_material_persisted",
-        "auth_material_exposed_outside_app_server_launch_boundary",
-        "repository_command_auth_material_inherited",
-      ]),
+      secret_material_message: "No secret may escape.",
+      provider_specific_field_message: "Provider refs remain typed.",
     },
   );
-  walkValueStringsV01(value, (candidate) => {
-    assert.equal(
-      path.isAbsolute(candidate) ||
-        /^[A-Za-z]:[\\/]/u.test(candidate) ||
-        /^\\\\[^\\]+\\[^\\]+/u.test(candidate),
-      false,
-      "Public material contains an absolute local path.",
-    );
-  });
   assert.deepEqual(issues, []);
 }
-
-function walkValueStringsV01(
-  value: unknown,
-  visit: (candidate: string) => void,
-): void {
-  if (typeof value === "string") {
-    visit(value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) walkValueStringsV01(item, visit);
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  for (const item of Object.values(value as Record<string, unknown>)) {
-    walkValueStringsV01(item, visit);
-  }
-}
-
-function assertNoSeededMaterialV01(root: string): void {
-  const forbidden = [
-    FAKE_LAUNCH_MATERIAL,
-    REPLACED_FAKE_LAUNCH_MATERIAL,
-    ...OTHER_SECRET_CANARIES,
-    "not-returned-to-augnes@example.invalid",
-  ];
+function assertNoSecretFilesV01(root: string): void {
   for (const file of listFilesV01(root)) {
-    const value = readFileSync(file, "utf8");
-    for (const candidate of forbidden) {
-      assert.equal(value.includes(candidate), false, `material leaked into ${file}`);
-    }
+    const text = readFileSync(file, "utf8");
+    for (const secret of SECRET_CANARIES)
+      assert.equal(text.includes(secret), false, `secret leaked into ${file}`);
+    const privateRootTraceKinds = text
+      .split("\n")
+      .filter((line) => line.includes(root))
+      .flatMap((line) => {
+        try {
+          const parsed = JSON.parse(line) as { kind?: unknown };
+          return findStringMatchPathsV01(parsed, root).map(
+            (matchPath) =>
+              `${typeof parsed.kind === "string" ? parsed.kind : "unknown"}:${matchPath}`,
+          );
+        } catch {
+          return ["non_json"];
+        }
+      });
+    assert.equal(
+      privateRootTraceKinds.length,
+      0,
+      `private disposable root leaked into ${file} at ${JSON.stringify(privateRootTraceKinds)}`,
+    );
   }
 }
-
+function findStringMatchPathsV01(
+  value: unknown,
+  needle: string,
+  currentPath = "$",
+): string[] {
+  if (typeof value === "string")
+    return value.includes(needle) ? [currentPath] : [];
+  if (Array.isArray(value))
+    return value.flatMap((entry, index) =>
+      findStringMatchPathsV01(entry, needle, `${currentPath}[${index}]`),
+    );
+  if (value && typeof value === "object")
+    return Object.entries(value).flatMap(([key, entry]) =>
+      findStringMatchPathsV01(entry, needle, `${currentPath}.${key}`),
+    );
+  return [];
+}
 function listFilesV01(root: string): string[] {
-  const files: string[] = [];
+  const out: string[] = [];
   for (const name of readdirSync(root)) {
-    const candidate = path.join(root, name);
-    const stat = lstatSync(candidate);
-    if (stat.isSymbolicLink()) continue;
-    if (stat.isDirectory()) files.push(...listFilesV01(candidate));
-    else if (stat.isFile()) files.push(candidate);
+    const value = path.join(root, name);
+    const stat = lstatSync(value);
+    if (stat.isDirectory() && !stat.isSymbolicLink())
+      out.push(...listFilesV01(value));
+    else if (stat.isFile()) out.push(value);
   }
-  return files;
+  return out;
+}
+function receivedMethodsV01(tracePath: string): string[] {
+  if (!existsSync(tracePath)) return [];
+  return readFileSync(tracePath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((entry) => entry.kind === "received")
+    .map((entry) => (entry.value as Record<string, unknown>).method)
+    .filter((value): value is string => typeof value === "string");
+}
+function errorCodeV01(value: unknown): string | null {
+  return value instanceof Error
+    ? value.message
+    : value === null
+      ? null
+      : "unknown";
+}
+function sha256FileV01(file: string): string {
+  return `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}`;
+}
+function jwtV01(payload: Record<string, unknown>, signature: string): string {
+  const header = Buffer.from(
+    JSON.stringify({ alg: "RS256", typ: "JWT" }),
+  ).toString("base64url");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `${header}.${body}.${Buffer.from(signature).toString("base64url")}`;
+}
+function restoreEnvV01(key: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
 }
 
-function sha256FileV01(file: string): string {
-  return `sha256:${createHash("sha256")
-    .update(readFileSync(file))
-    .digest("hex")}`;
-}
+void mainV01().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

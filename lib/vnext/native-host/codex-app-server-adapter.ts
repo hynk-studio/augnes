@@ -22,8 +22,8 @@ import {
 } from "@/lib/vnext/repository-relative-path";
 import {
   CodexIsolatedAuthProjectionErrorV01,
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   type CodexIsolatedAuthenticatedExecutionOwnerV01,
-  type CodexIsolatedSpawnMaterialV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import { CodexCredentialBrokerErrorV01 } from "@/lib/vnext/native-host/codex-credential-broker";
 import {
@@ -253,7 +253,12 @@ export function resolveDefaultCodexAppServerLaunchV01(
     return {
       command: process.execPath,
       prefix_args: [
-        path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs"),
+        path.join(
+          process.cwd(),
+          "scripts",
+          "fixtures",
+          "fake-codex-app-server.mjs",
+        ),
       ],
       environment: boundedCodexChildEnvironmentV01(environment, true),
     };
@@ -290,7 +295,8 @@ class CodexAppServerInvocationV01 {
   private terminalObserved: CodexTurnTerminalV01 | null = null;
   private cleanupSettled = false;
   private fatalError: Error | null = null;
-  private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null = null;
+  private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null =
+    null;
   private isolatedInstructionSourcesObservedEmpty = false;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
@@ -369,9 +375,15 @@ class CodexAppServerInvocationV01 {
           bounded_metadata: { reason: normalized.code },
         }).catch(() => undefined);
         this.resultDeferred.reject(normalized);
-      } else if (isCapabilityUnavailableV01(normalized) && !this.threadStartSent) {
+      } else if (
+        isCapabilityUnavailableV01(normalized) &&
+        !this.threadStartSent
+      ) {
         this.resultDeferred.resolve(
-          this.buildBoundaryResult("unavailable", publicErrorCodeV01(normalized)),
+          this.buildBoundaryResult(
+            "unavailable",
+            publicErrorCodeV01(normalized),
+          ),
         );
       } else if (this.terminalObserved) {
         // The host turn is definitely terminal. A malformed or missing bounded
@@ -425,23 +437,40 @@ class CodexAppServerInvocationV01 {
   private async startTransport(): Promise<void> {
     const isolatedOwner = this.options.isolated_authenticated_execution;
     if (isolatedOwner) {
+      assertSourceOwnedCodexIsolatedExecutionOwnerV01(isolatedOwner);
       if (this.control.resume_binding) {
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_resume_refused",
         );
       }
-      await isolatedOwner.withSpawnMaterialV01({
+      const spawned = await isolatedOwner.spawnIsolatedCodexAppServerV01({
         repository_root: this.request.root_scope.canonical_root,
-        use: async (material) => this.startIsolatedTransportV01(material),
       });
+      if (
+        spawned.projection_fingerprint !==
+          isolatedOwner.projection.integrity.fingerprint ||
+        !/^sha256:[a-f0-9]{64}$/u.test(spawned.child_identity_fingerprint)
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_spawn_binding_mismatch",
+        );
+      this.transport = new CodexStdioJsonRpcTransportV01({
+        spawned_child: spawned.child,
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+      await this.transport.started;
     } else {
-      const launch = this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
+      const launch =
+        this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
       this.transport = new CodexStdioJsonRpcTransportV01({
         command: launch.command,
         args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
         cwd: this.request.root_scope.canonical_root,
         environment:
-          launch.environment ?? boundedCodexChildEnvironmentV01(process.env, false),
+          launch.environment ??
+          boundedCodexChildEnvironmentV01(process.env, false),
         onNotification: (method, params) => this.onNotification(method, params),
         onServerRequest: (id, method, params) =>
           this.onServerRequest(id, method, params),
@@ -463,25 +492,6 @@ class CodexAppServerInvocationV01 {
       bounded_metadata: { transport: "stdio_jsonl", experimental_api: false },
     });
     this.observe("spawned");
-  }
-
-  private async startIsolatedTransportV01(
-    material: CodexIsolatedSpawnMaterialV01,
-  ): Promise<void> {
-    try {
-      this.transport = new CodexStdioJsonRpcTransportV01({
-        command: material.command,
-        args: material.args,
-        cwd: material.cwd,
-        environment: material.environment,
-        onNotification: (method, params) => this.onNotification(method, params),
-        onServerRequest: (id, method, params) =>
-          this.onServerRequest(id, method, params),
-      });
-      await this.transport.started;
-    } finally {
-      delete material.environment[material.sensitive_environment_key];
-    }
   }
 
   private async initializeAndCheckAccount(): Promise<void> {
@@ -521,7 +531,7 @@ class CodexAppServerInvocationV01 {
       );
       const config = objectV01(
         await this.transport!.request("config/read", {
-          includeLayers: false,
+          includeLayers: true,
           cwd: this.request.root_scope.canonical_root,
         }),
         "codex_config_response_invalid",
@@ -532,14 +542,16 @@ class CodexAppServerInvocationV01 {
         }),
         "codex_mcp_status_response_invalid",
       );
-      this.isolatedAuthObservation = isolatedOwner.observeInitializedAccountV01({
-        initialized,
-        auth_status: authStatus,
-        account,
-        config,
-        mcp_status: mcpStatus,
-        observed_at: this.now(),
-      });
+      this.isolatedAuthObservation = isolatedOwner.observeInitializedAccountV01(
+        {
+          initialized,
+          auth_status: authStatus,
+          account,
+          config,
+          mcp_status: mcpStatus,
+          observed_at: this.now(),
+        },
+      );
       this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
       // Account/config/MCP reads and policy notifications can share one
       // stdout batch. Drain every already-admitted notification before any
@@ -649,7 +661,10 @@ class CodexAppServerInvocationV01 {
       "codex_thread_resume_response_invalid",
     );
     await this.bindThreadResponse(response, "thread_resumed", true);
-    const thread = objectV01(response.thread, "codex_thread_resume_binding_invalid");
+    const thread = objectV01(
+      response.thread,
+      "codex_thread_resume_binding_invalid",
+    );
     const matchingTurn = this.assertKnownTurnSet(thread);
     const status = stringV01(matchingTurn.status);
     if (["completed", "failed", "interrupted"].includes(status ?? "")) {
@@ -675,7 +690,10 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     const thread = this.assertKnownThread(response.thread, existing);
     const cwd = stringV01(response.cwd) ?? stringV01(thread.cwd);
-    if (!cwd || !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
+    if (
+      !cwd ||
+      !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)
+    ) {
       throw this.reconciliationError("codex_thread_root_mismatch");
     }
     const threadId = requiredOpaqueIdV01(thread.id, "codex_thread_id_invalid");
@@ -722,7 +740,10 @@ class CodexAppServerInvocationV01 {
     });
   }
 
-  private assertKnownThread(value: unknown, existing: boolean): Record<string, unknown> {
+  private assertKnownThread(
+    value: unknown,
+    existing: boolean,
+  ): Record<string, unknown> {
     const thread = objectV01(value, "codex_thread_binding_invalid");
     const threadId = requiredOpaqueIdV01(thread.id, "codex_thread_id_invalid");
     if (existing && this.threadId && threadId !== this.threadId) {
@@ -738,7 +759,10 @@ class CodexAppServerInvocationV01 {
       }
     }
     const cwd = stringV01(thread.cwd);
-    if (cwd && !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
+    if (
+      cwd &&
+      !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)
+    ) {
       throw this.reconciliationError("codex_thread_root_mismatch");
     }
     return thread;
@@ -850,10 +874,7 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "thread/status/changed") {
-      const status = objectV01(
-        value.status,
-        "codex_thread_status_invalid",
-      );
+      const status = objectV01(value.status, "codex_thread_status_invalid");
       const statusType = requiredStringV01(
         status.type,
         "codex_thread_status_invalid",
@@ -888,17 +909,15 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "item/started" || method === "item/completed") {
-      await this.observeItem(
-        value.item,
-        method === "item/completed",
-        value,
-      );
+      await this.observeItem(value.item, method === "item/completed", value);
       return;
     }
     if (method === "serverRequest/resolved") {
       const requestId = requestIdStringV01(value.requestId);
       if (!requestId) {
-        throw this.reconciliationError("codex_server_request_resolution_mismatch");
+        throw this.reconciliationError(
+          "codex_server_request_resolution_mismatch",
+        );
       }
       const resolutionFingerprint = createProtocolSha256V01(
         canonicalizeProtocolValueV01({ method, params: value }),
@@ -919,7 +938,9 @@ class CodexAppServerInvocationV01 {
         active.thread_id !== this.threadId ||
         active.turn_id !== this.turnId
       ) {
-        throw this.reconciliationError("codex_server_request_resolution_mismatch");
+        throw this.reconciliationError(
+          "codex_server_request_resolution_mismatch",
+        );
       }
       await this.reportLifecycle({
         event_kind: "approval_resolved",
@@ -966,10 +987,13 @@ class CodexAppServerInvocationV01 {
         "item/permissions/requestApproval",
       ].includes(method)
     ) {
-      throw new CodexProtocolErrorV01("codex_server_request_method_unsupported");
+      throw new CodexProtocolErrorV01(
+        "codex_server_request_method_unsupported",
+      );
     }
     const requestId = requestIdStringV01(id);
-    if (!requestId) throw new CodexProtocolErrorV01("codex_server_request_id_invalid");
+    if (!requestId)
+      throw new CodexProtocolErrorV01("codex_server_request_id_invalid");
     const fingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01({ method, params }),
     );
@@ -1059,7 +1083,10 @@ class CodexAppServerInvocationV01 {
     const source = objectV01(params, "codex_approval_request_invalid");
     this.assertThreadIdentity(source.threadId);
     this.assertTurnIdentity(source.turnId);
-    const itemId = requiredOpaqueIdV01(source.itemId, "codex_approval_item_invalid");
+    const itemId = requiredOpaqueIdV01(
+      source.itemId,
+      "codex_approval_item_invalid",
+    );
     const observedAt = this.now();
     const itemRef = externalRefV01(
       "host_item",
@@ -1084,16 +1111,15 @@ class CodexAppServerInvocationV01 {
       "decline",
       "cancel_run",
     ];
-    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] = null;
+    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] =
+      null;
 
     if (method === "item/commandExecution/requestApproval") {
       const cwd = stringV01(source.cwd);
       if (cwd) paths = relativeScopeForHostPathV01(this.request, cwd);
       const command = stringV01(source.command);
       commandSummary = command ? publicSafeCommandSummaryV01(command) : null;
-      commandFingerprint = command
-        ? createProtocolSha256V01(command)
-        : null;
+      commandFingerprint = command ? createProtocolSha256V01(command) : null;
       const network = isObjectV01(source.networkApprovalContext)
         ? source.networkApprovalContext
         : null;
@@ -1102,26 +1128,26 @@ class CodexAppServerInvocationV01 {
         const protocol = canonicalNetworkProtocolV01(network.protocol);
         resources = [`${protocol}://${host}`];
         operation = "network_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "refused"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment" ? "refused" : null;
         resourceSummary = `Network access to ${resources[0]}.`;
       } else {
         operation = "command_execution";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? classifyRepositoryEnvelopeCommandV01(command)
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment"
+            ? classifyRepositoryEnvelopeCommandV01(command)
+            : null;
         resourceSummary = paths.length
           ? `Command scoped to ${paths.join(", ")}.`
           : "Command scoped to the selected project root.";
       }
     } else if (method === "item/fileChange/requestApproval") {
       operation = "file_change";
-      repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-        ? "preauthorized"
-        : null;
+      repositoryEnvelopeClassification =
+        this.request.mode === "repository_attachment" ? "preauthorized" : null;
       const grantRoot = stringV01(source.grantRoot);
-      if (grantRoot) paths = relativeScopeForHostPathV01(this.request, grantRoot);
+      if (grantRoot)
+        paths = relativeScopeForHostPathV01(this.request, grantRoot);
       resourceSummary = paths.length
         ? `File change under ${paths.join(", ")}.`
         : "File change under the selected project root.";
@@ -1138,17 +1164,17 @@ class CodexAppServerInvocationV01 {
         : null;
       if (network?.enabled === true) {
         operation = "network_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "refused"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment" ? "refused" : null;
         resourceSummary =
           "Network permission requested without an exact destination in the stable payload.";
         available = ["decline", "cancel_run"];
       } else {
         operation = "filesystem_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "preauthorized"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment"
+            ? "preauthorized"
+            : null;
         paths = uniqueSortedV01([
           ...paths,
           ...repositoryPathsFromPermissionProfileV01(this.request, permissions),
@@ -1160,7 +1186,8 @@ class CodexAppServerInvocationV01 {
     }
 
     const reason = publicTextV01(
-      stringV01(source.reason) ?? "The native host requested permission to continue.",
+      stringV01(source.reason) ??
+        "The native host requested permission to continue.",
       512,
     );
     const material = {
@@ -1208,7 +1235,9 @@ class CodexAppServerInvocationV01 {
       budget_impact: null,
       available_decisions: available,
       issued_at: observedAt,
-      expires_at: new Date(Date.parse(observedAt) + APPROVAL_TTL_MS).toISOString(),
+      expires_at: new Date(
+        Date.parse(observedAt) + APPROVAL_TTL_MS,
+      ).toISOString(),
       coverage: "observed",
       repository_envelope_classification: repositoryEnvelopeClassification,
     };
@@ -1270,10 +1299,7 @@ class CodexAppServerInvocationV01 {
     }
     if (existing === fingerprint) return;
     this.completedMessageFingerprints.set(key, fingerprint);
-    if (
-      item.type === "commandExecution" ||
-      item.type === "fileChange"
-    ) {
+    if (item.type === "commandExecution" || item.type === "fileChange") {
       await this.reportCheckpointV01(item, completed);
     }
     if (!completed) return;
@@ -1288,7 +1314,9 @@ class CodexAppServerInvocationV01 {
         command_fingerprint: createProtocolSha256V01(command),
         started_at: millisTimestampV01(envelope.startedAtMs),
         finished_at: millisTimestampV01(envelope.completedAtMs) ?? this.now(),
-        exit_code: Number.isSafeInteger(item.exitCode) ? Number(item.exitCode) : null,
+        exit_code: Number.isSafeInteger(item.exitCode)
+          ? Number(item.exitCode)
+          : null,
         status:
           item.status === "completed"
             ? "completed"
@@ -1301,7 +1329,10 @@ class CodexAppServerInvocationV01 {
       this.observedActions.push("host_command_item_completed");
     }
     if (item.type === "fileChange" && Array.isArray(item.changes)) {
-      for (const change of item.changes.slice(0, this.request.policy.max_changed_files)) {
+      for (const change of item.changes.slice(
+        0,
+        this.request.policy.max_changed_files,
+      )) {
         if (!isObjectV01(change)) continue;
         let relative: string;
         try {
@@ -1349,22 +1380,18 @@ class CodexAppServerInvocationV01 {
         operation_class: checkpointKind,
       }),
     );
-    const status =
-      !completed
-        ? "active"
-        : item.status === "completed"
-          ? "completed"
-          : item.status === "failed"
-            ? "failed"
-            : item.status === "declined"
-              ? "blocked"
-              : "unknown";
+    const status = !completed
+      ? "active"
+      : item.status === "completed"
+        ? "completed"
+        : item.status === "failed"
+          ? "failed"
+          : item.status === "declined"
+            ? "blocked"
+            : "unknown";
     const changeCount =
       checkpointKind === "file_change" && Array.isArray(item.changes)
-        ? Math.min(
-            item.changes.length,
-            this.request.policy.max_changed_files,
-          )
+        ? Math.min(item.changes.length, this.request.policy.max_changed_files)
         : null;
     // The lifecycle sink contract exposes no closed transient-storage error
     // class. Until it does, every checkpoint refusal is fail-visible so a
@@ -1415,7 +1442,9 @@ class CodexAppServerInvocationV01 {
     this.terminalDeferred.resolve(terminal);
   }
 
-  private async finishFromTerminal(terminal: CodexTurnTerminalV01): Promise<void> {
+  private async finishFromTerminal(
+    terminal: CodexTurnTerminalV01,
+  ): Promise<void> {
     if (terminal.status === "completed") {
       const payload = parseStructuredResultFromTurnV01(
         terminal.turn,
@@ -1516,7 +1545,9 @@ class CodexAppServerInvocationV01 {
           capability: "codex_thread_turn_lifecycle",
           coverage: "observed",
           source_ref: this.turnRef,
-          notes: ["Stable App Server thread and turn identifiers were observed."],
+          notes: [
+            "Stable App Server thread and turn identifiers were observed.",
+          ],
         },
         {
           capability: "repository_actions_and_checks",
@@ -1557,8 +1588,7 @@ class CodexAppServerInvocationV01 {
                 ephemeral_thread: true,
                 shared_state_observed: false,
                 attempt_auth_material_persisted: false,
-                auth_material_exposed_outside_app_server_launch_boundary:
-                  false,
+                auth_material_exposed_outside_app_server_launch_boundary: false,
                 repository_command_auth_material_inherited: false,
                 isolated_instruction_sources_empty:
                   this.isolatedInstructionSourcesObservedEmpty,
@@ -1588,7 +1618,10 @@ class CodexAppServerInvocationV01 {
       changed_files: [],
       artifacts: [],
       observed_actions: ["codex_app_server_boundary_result"],
-      commands: this.observedCommands.slice(0, this.request.policy.max_commands),
+      commands: this.observedCommands.slice(
+        0,
+        this.request.policy.max_commands,
+      ),
       checks: this.packetDeliveryInitiated
         ? [
             {
@@ -1654,8 +1687,7 @@ class CodexAppServerInvocationV01 {
                 ephemeral_thread: true,
                 shared_state_observed: false,
                 attempt_auth_material_persisted: false,
-                auth_material_exposed_outside_app_server_launch_boundary:
-                  false,
+                auth_material_exposed_outside_app_server_launch_boundary: false,
                 repository_command_auth_material_inherited: false,
                 isolated_instruction_sources_empty:
                   this.isolatedInstructionSourcesObservedEmpty,
@@ -1674,7 +1706,9 @@ class CodexAppServerInvocationV01 {
     return this.stopPromise;
   }
 
-  private async stopInvocation(request: NativeHostStopRequestV01): Promise<void> {
+  private async stopInvocation(
+    request: NativeHostStopRequestV01,
+  ): Promise<void> {
     await this.reportLifecycle({
       event_kind: "stop_requested",
       state: "cancelling",
@@ -1786,7 +1820,10 @@ class CodexAppServerInvocationV01 {
   }
 
   private async reportLifecycle(
-    input: Omit<NativeHostLifecycleEventV01, "event_id" | "run_id" | "observed_at">,
+    input: Omit<
+      NativeHostLifecycleEventV01,
+      "event_id" | "run_id" | "observed_at"
+    >,
   ): Promise<void> {
     if (!this.control.lifecycle_sink) return;
     const observedAt = this.now();
@@ -1823,7 +1860,9 @@ class CodexAppServerInvocationV01 {
     ].filter((value): value is ExternalRefV01 => value !== null);
   }
 
-  private reconciliationError(code: string): NativeHostReconciliationRequiredErrorV01 {
+  private reconciliationError(
+    code: string,
+  ): NativeHostReconciliationRequiredErrorV01 {
     return new NativeHostReconciliationRequiredErrorV01(code);
   }
 
@@ -1855,17 +1894,25 @@ export function classifyRepositoryEnvelopeCommandV01(
   const normalized = command.trim().toLowerCase();
   if (!normalized || /[\n\r]/u.test(normalized)) return "approval_required";
   if (
-    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(normalized) ||
+    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(
+      normalized,
+    ) ||
     /(^|\s)git\s+(push|fetch|pull|clone|remote)(\s|$)/u.test(normalized) ||
-    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(normalized) ||
-    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(normalized) ||
+    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(
+      normalized,
+    ) ||
+    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(
+      normalized,
+    ) ||
     /(^|\s)(deploy|release|publish)(\s|$)/u.test(normalized)
   ) {
     return "refused";
   }
   if (/[;&|`]|\$\(|>|</u.test(normalized)) return "approval_required";
   if (
-    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(normalized)
+    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(
+      normalized,
+    )
   ) {
     return "preauthorized";
   }
@@ -1874,7 +1921,10 @@ export function classifyRepositoryEnvelopeCommandV01(
 
 class CodexStdioJsonRpcTransportV01 {
   readonly started: Promise<void>;
-  readonly closed: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
+  readonly closed: Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>;
   readonly processId: number | null;
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly startedDeferred = deferredV01<void>();
@@ -1902,11 +1952,18 @@ class CodexStdioJsonRpcTransportV01 {
   }
 
   constructor(
-    input: {
-      command: string;
-      args: string[];
-      cwd: string;
-      environment: NodeJS.ProcessEnv;
+    input: (
+      | {
+          spawned_child: ChildProcessWithoutNullStreams;
+        }
+      | {
+          command: string;
+          args: string[];
+          cwd: string;
+          environment: NodeJS.ProcessEnv;
+          spawned_child?: never;
+        }
+    ) & {
       onNotification(method: string, params: unknown): Promise<void>;
       onServerRequest(
         id: string | number,
@@ -1919,14 +1976,17 @@ class CodexStdioJsonRpcTransportV01 {
       onNotification: input.onNotification,
       onServerRequest: input.onServerRequest,
     };
-    this.child = spawn(input.command, input.args, {
-      cwd: input.cwd,
-      env: input.environment,
-      detached: false,
-      shell: false,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    this.child =
+      "spawned_child" in input
+        ? input.spawned_child!
+        : spawn(input.command, input.args, {
+            cwd: input.cwd,
+            env: input.environment,
+            detached: false,
+            shell: false,
+            windowsHide: true,
+            stdio: ["pipe", "pipe", "pipe"],
+          });
     this.processId = this.child.pid ?? null;
     if (this.processId) this.knownOwnedProcessIds.add(this.processId);
     this.processTreeObserver = this.processId
@@ -1935,7 +1995,8 @@ class CodexStdioJsonRpcTransportV01 {
     this.processTreeObserver?.unref();
     this.started = this.startedDeferred.promise;
     this.closed = this.closedDeferred.promise;
-    this.child.once("spawn", () => this.startedDeferred.resolve());
+    if (this.child.pid !== undefined) this.startedDeferred.resolve();
+    else this.child.once("spawn", () => this.startedDeferred.resolve());
     this.child.once("error", (error) => {
       const normalized =
         (error as NodeJS.ErrnoException).code === "ENOENT"
@@ -1973,15 +2034,24 @@ class CodexStdioJsonRpcTransportV01 {
     this.child.stderr.on("data", () => undefined);
     this.child.stderr.on("error", () => {
       if (!this.closing) {
-        this.fail(new CodexProtocolErrorV01("codex_transport_diagnostic_read_failed"));
+        this.fail(
+          new CodexProtocolErrorV01("codex_transport_diagnostic_read_failed"),
+        );
       }
     });
+    this.child.stdout.resume();
+    this.child.stderr.resume();
   }
 
-  request(method: string, params: unknown, timeoutMs = RPC_TIMEOUT_MS): Promise<unknown> {
+  request(
+    method: string,
+    params: unknown,
+    timeoutMs = RPC_TIMEOUT_MS,
+  ): Promise<unknown> {
     if (this.closing || this.protocolFailure) {
       return Promise.reject(
-        this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed"),
+        this.protocolFailure ??
+          new CodexProtocolErrorV01("codex_transport_closed"),
       );
     }
     if (this.pending.size >= MAX_PENDING_REQUESTS) {
@@ -2076,9 +2146,13 @@ class CodexStdioJsonRpcTransportV01 {
     },
   ): void {
     const message = objectV01(value, "codex_rpc_envelope_invalid");
-    const hasId = typeof message.id === "string" || typeof message.id === "number";
+    const hasId =
+      typeof message.id === "string" || typeof message.id === "number";
     const method = stringV01(message.method);
-    if (hasId && (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))) {
+    if (
+      hasId &&
+      (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))
+    ) {
       if (method) throw new CodexProtocolErrorV01("codex_rpc_response_invalid");
       this.handleResponse(message);
       return;
@@ -2094,7 +2168,8 @@ class CodexStdioJsonRpcTransportV01 {
       const task = handlers
         .onServerRequest(message.id as string | number, method, message.params)
         .then(
-          (result) => this.writeServerResponseSafely({ id: message.id, result }),
+          (result) =>
+            this.writeServerResponseSafely({ id: message.id, result }),
           (error) => {
             this.writeServerResponseSafely({
               id: message.id,
@@ -2154,7 +2229,9 @@ class CodexStdioJsonRpcTransportV01 {
       const code = Number.isFinite(error.code) ? Number(error.code) : null;
       pending.deferred.reject(
         new CodexRpcErrorV01(
-          code === -32601 ? "codex_required_method_unavailable" : "codex_rpc_failed",
+          code === -32601
+            ? "codex_required_method_unavailable"
+            : "codex_rpc_failed",
           pending.method,
         ),
       );
@@ -2165,7 +2242,10 @@ class CodexStdioJsonRpcTransportV01 {
 
   private write(value: unknown): void {
     if (this.closing || this.protocolFailure) {
-      throw this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed");
+      throw (
+        this.protocolFailure ??
+        new CodexProtocolErrorV01("codex_transport_closed")
+      );
     }
     const line = `${JSON.stringify(value)}\n`;
     if (Buffer.byteLength(line, "utf8") > MAX_JSONL_LINE_BYTES) {
@@ -2205,7 +2285,8 @@ class CodexStdioJsonRpcTransportV01 {
     this.closing = true;
     try {
       this.rejectPending(
-        this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed"),
+        this.protocolFailure ??
+          new CodexProtocolErrorV01("codex_transport_closed"),
       );
       this.captureOwnedProcessTree();
       this.child.stdin.end();
@@ -2243,7 +2324,6 @@ class CodexStdioJsonRpcTransportV01 {
       }
     }
   }
-
 }
 
 interface PendingRpcV01 {
@@ -2311,7 +2391,10 @@ class CodexProtocolErrorV01 extends Error {
 }
 
 class CodexRpcErrorV01 extends Error {
-  constructor(readonly code: string, readonly method: string) {
+  constructor(
+    readonly code: string,
+    readonly method: string,
+  ) {
     super(code);
     this.name = "CodexRpcErrorV01";
   }
@@ -2352,7 +2435,11 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
           "after_hash",
         ],
         properties: {
-          repository_relative_path: { type: "string", minLength: 1, maxLength: 4096 },
+          repository_relative_path: {
+            type: "string",
+            minLength: 1,
+            maxLength: 4096,
+          },
           change_kind: {
             type: "string",
             enum: ["added", "modified", "deleted", "renamed", "unknown"],
@@ -2529,18 +2616,23 @@ function renderPacketV01(request: NativeHostRequestV01): string {
           canonicalizeProtocolValueV01({
             attachment_id: request.repository_delegation_context?.attachment_id,
             attachment_binding_fingerprint:
-              request.repository_delegation_context?.attachment_binding_fingerprint,
+              request.repository_delegation_context
+                ?.attachment_binding_fingerprint,
             execution_envelope_fingerprint:
-              request.repository_delegation_context?.execution_envelope_fingerprint,
+              request.repository_delegation_context
+                ?.execution_envelope_fingerprint,
             allowed_operation_categories: request.allowed_operation_categories,
-            forbidden_operation_categories: request.forbidden_operation_categories,
+            forbidden_operation_categories:
+              request.forbidden_operation_categories,
             policy: request.policy,
           }),
         ]
       : []),
   ].join("\n\n");
   if (Buffer.byteLength(rendered, "utf8") > MAX_PROMPT_BYTES) {
-    throw new NativeHostContractErrorV01("codex_rendered_packet_bound_exceeded");
+    throw new NativeHostContractErrorV01(
+      "codex_rendered_packet_bound_exceeded",
+    );
   }
   return rendered;
 }
@@ -2555,7 +2647,9 @@ function parseStructuredResultFromTurnV01(
   ) as Record<string, unknown>[];
   const text = stringV01(messages.at(-1)?.text);
   if (!text || Buffer.byteLength(text, "utf8") > maxBytes) {
-    throw new NativeHostContractErrorV01("codex_structured_result_missing_or_oversized");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_missing_or_oversized",
+    );
   }
   let parsed: unknown;
   try {
@@ -2582,11 +2676,16 @@ function parseStructuredResultFromTurnV01(
     Object.keys(value).some((key) => !required.has(key)) ||
     value.result_version !== CODEX_HOST_STRUCTURED_RESULT_VERSION_V01
   ) {
-    throw new NativeHostContractErrorV01("codex_structured_result_shape_invalid");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_shape_invalid",
+    );
   }
   return {
     result_version: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
-    summary: publicTextV01(requiredStringV01(value.summary, "codex_result_summary_invalid"), 4096),
+    summary: publicTextV01(
+      requiredStringV01(value.summary, "codex_result_summary_invalid"),
+      4096,
+    ),
     changed_files: arrayV01(value.changed_files, 128).map((item) => {
       const changed = exactObjectV01(
         item,
@@ -2614,7 +2713,9 @@ function parseStructuredResultFromTurnV01(
     observed_actions: stringArrayV01(value.observed_actions, 64, 512),
     commands: arrayV01(value.commands, 128).map(normalizeCommandV01),
     checks: arrayV01(value.checks, 128).map(normalizeCheckV01),
-    skipped_checks: arrayV01(value.skipped_checks, 128).map(normalizeSkippedCheckV01),
+    skipped_checks: arrayV01(value.skipped_checks, 128).map(
+      normalizeSkippedCheckV01,
+    ),
     uncertainty: stringArrayV01(value.uncertainty, 64, 1024),
     gaps: stringArrayV01(value.gaps, 64, 1024),
     proposed_next_steps: stringArrayV01(value.proposed_next_steps, 64, 1024),
@@ -2637,7 +2738,10 @@ function normalizeArtifactV01(value: unknown): NativeHostArtifactV01 {
   ) {
     throw new NativeHostContractErrorV01("codex_result_artifact_ref_invalid");
   }
-  const refType = requiredStringV01(ref.ref_type, "codex_result_artifact_ref_invalid");
+  const refType = requiredStringV01(
+    ref.ref_type,
+    "codex_result_artifact_ref_invalid",
+  );
   let externalId = requiredStringV01(
     ref.external_id,
     "codex_result_artifact_ref_invalid",
@@ -2660,7 +2764,10 @@ function normalizeArtifactV01(value: unknown): NativeHostArtifactV01 {
       compatibility_namespace: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     },
     summary: publicTextV01(
-      requiredStringV01(artifact.summary, "codex_result_artifact_summary_invalid"),
+      requiredStringV01(
+        artifact.summary,
+        "codex_result_artifact_summary_invalid",
+      ),
       1024,
     ),
   };
@@ -2677,19 +2784,30 @@ function normalizeCommandV01(value: unknown): NativeHostObservedCommandV01 {
     "status",
   ]);
   const status = stringV01(command.status);
-  if (!status || !["completed", "failed", "blocked", "unknown"].includes(status)) {
+  if (
+    !status ||
+    !["completed", "failed", "blocked", "unknown"].includes(status)
+  ) {
     throw new NativeHostContractErrorV01("codex_result_command_status_invalid");
   }
   return {
-    command_id: requiredOpaqueIdV01(command.command_id, "codex_result_command_id_invalid"),
+    command_id: requiredOpaqueIdV01(
+      command.command_id,
+      "codex_result_command_id_invalid",
+    ),
     summary: publicTextV01(
-      requiredStringV01(command.summary, "codex_result_command_summary_invalid"),
+      requiredStringV01(
+        command.summary,
+        "codex_result_command_summary_invalid",
+      ),
       1024,
     ),
     command_fingerprint: nullableHashV01(command.command_fingerprint),
     started_at: nullableStringV01(command.started_at),
     finished_at: nullableStringV01(command.finished_at),
-    exit_code: Number.isSafeInteger(command.exit_code) ? Number(command.exit_code) : null,
+    exit_code: Number.isSafeInteger(command.exit_code)
+      ? Number(command.exit_code)
+      : null,
     status: status as NativeHostObservedCommandV01["status"],
   };
 }
@@ -2706,7 +2824,10 @@ function normalizeCheckV01(value: unknown): NativeHostObservedCheckV01 {
     throw new NativeHostContractErrorV01("codex_result_check_status_invalid");
   }
   return {
-    check_id: requiredOpaqueIdV01(check.check_id, "codex_result_check_id_invalid"),
+    check_id: requiredOpaqueIdV01(
+      check.check_id,
+      "codex_result_check_id_invalid",
+    ),
     required: check.required === true,
     status: status as NativeHostObservedCheckV01["status"],
     summary: publicTextV01(
@@ -2729,7 +2850,10 @@ function normalizeSkippedCheckV01(value: unknown): NativeHostSkippedCheckV01 {
     ),
     required: check.required === true,
     reason: publicTextV01(
-      requiredStringV01(check.reason, "codex_result_skipped_check_reason_invalid"),
+      requiredStringV01(
+        check.reason,
+        "codex_result_skipped_check_reason_invalid",
+      ),
       1024,
     ),
   };
@@ -2756,7 +2880,9 @@ function repositoryPathsFromPermissionProfileV01(
   }
   return uniqueSortedV01(
     values.flatMap((value) =>
-      typeof value === "string" ? relativeScopeForHostPathV01(request, value) : [],
+      typeof value === "string"
+        ? relativeScopeForHostPathV01(request, value)
+        : [],
     ),
   );
 }
@@ -2976,9 +3102,7 @@ export function publicSafeCommandSummaryV01(value: string): string {
   summary = summary.replace(
     /([?;&])([A-Za-z][A-Za-z0-9_.-]*)(=)([^&#\s"'`]+)/giu,
     (match, separator: string, key: string) =>
-      isSensitiveCommandNameV01(key)
-        ? `${separator}${key}=[redacted]`
-        : match,
+      isSensitiveCommandNameV01(key) ? `${separator}${key}=[redacted]` : match,
   );
 
   summary = summary.replace(
@@ -2996,9 +3120,7 @@ export function publicSafeCommandSummaryV01(value: string): string {
 
   summary = summary.replace(/\s+/gu, " ").trim();
   const bounded =
-    summary.length <= 512
-      ? summary
-      : `${summary.slice(0, 509).trimEnd()}...`;
+    summary.length <= 512 ? summary : `${summary.slice(0, 509).trimEnd()}...`;
   return publicTextV01(bounded || "Command details unavailable.", 512);
 }
 
@@ -3131,7 +3253,8 @@ function boundedCodexChildEnvironmentV01(
   if (canonicalTest) {
     environment.AUGNES_CANONICAL_TEST_MODE = "1";
     if (source.AUGNES_CANONICAL_TEMP_ROOT) {
-      environment.AUGNES_CANONICAL_TEMP_ROOT = source.AUGNES_CANONICAL_TEMP_ROOT;
+      environment.AUGNES_CANONICAL_TEMP_ROOT =
+        source.AUGNES_CANONICAL_TEMP_ROOT;
     }
   }
   return environment;
@@ -3177,7 +3300,7 @@ function minimizedTurnTerminalMaterialV01(
     id: turn.id,
     status: turn.status,
     error_code: isObjectV01(turn.error)
-      ? stringV01(turn.error.codexErrorInfo) ?? "host_error"
+      ? (stringV01(turn.error.codexErrorInfo) ?? "host_error")
       : null,
     agent_message_fingerprints: Array.isArray(turn.items)
       ? turn.items
@@ -3311,7 +3434,9 @@ function mergeCompatibleValueV01<T>(
   throw new CodexProtocolErrorV01(conflictCode);
 }
 
-function changeKindV01(value: unknown): NativeHostChangedFileV01["change_kind"] {
+function changeKindV01(
+  value: unknown,
+): NativeHostChangedFileV01["change_kind"] {
   if (
     typeof value === "string" &&
     ["added", "modified", "deleted", "renamed", "unknown"].includes(value)
@@ -3334,7 +3459,9 @@ function nullableHashV01(value: unknown): string | null {
 }
 
 function nullableStringV01(value: unknown): string | null {
-  return value === null || value === undefined ? null : requiredStringV01(value, "codex_result_string_invalid");
+  return value === null || value === undefined
+    ? null
+    : requiredStringV01(value, "codex_result_string_invalid");
 }
 
 function millisTimestampV01(value: unknown): string | null {
@@ -3349,19 +3476,26 @@ function stringArrayV01(
   maxLength: number,
 ): string[] {
   return arrayV01(value, maxItems).map((entry) =>
-    publicTextV01(requiredStringV01(entry, "codex_result_text_invalid"), maxLength),
+    publicTextV01(
+      requiredStringV01(entry, "codex_result_text_invalid"),
+      maxLength,
+    ),
   );
 }
 
 function arrayV01(value: unknown, maxItems: number): unknown[] {
   if (!Array.isArray(value) || value.length > maxItems) {
-    throw new NativeHostContractErrorV01("codex_structured_result_bound_exceeded");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_bound_exceeded",
+    );
   }
   return value;
 }
 
 function publicTextV01(value: string, maxLength: number): string {
-  const normalized = value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ").trim();
+  const normalized = value
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ")
+    .trim();
   if (!normalized || normalized.length > maxLength) {
     throw new NativeHostContractErrorV01("codex_public_text_invalid");
   }
@@ -3369,7 +3503,11 @@ function publicTextV01(value: string, maxLength: number): string {
   return normalized;
 }
 
-function boundedTextV01(value: unknown, maxLength: number, fallback: string): string {
+function boundedTextV01(
+  value: unknown,
+  maxLength: number,
+  fallback: string,
+): string {
   return typeof value === "string" && value.length > 0
     ? value.slice(0, maxLength)
     : fallback;
@@ -3436,8 +3574,10 @@ function isObjectV01(value: unknown): value is Record<string, unknown> {
 }
 
 function requestIdStringV01(value: unknown): string | null {
-  if (typeof value === "string" && value.length > 0 && value.length <= 512) return value;
-  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
+  if (typeof value === "string" && value.length > 0 && value.length <= 512)
+    return value;
+  if (typeof value === "number" && Number.isSafeInteger(value))
+    return String(value);
   return null;
 }
 
@@ -3502,7 +3642,10 @@ function deferredV01<T>(): DeferredV01<T> {
   return { promise, resolve, reject };
 }
 
-async function withinV01<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+async function withinV01<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     return await Promise.race([
