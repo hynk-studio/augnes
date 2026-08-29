@@ -1,6 +1,14 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { realpathSync } from "node:fs";
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
 import path from "node:path";
 
 import {
@@ -21,6 +29,19 @@ import {
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
 import {
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
+  CodexIsolatedAuthProjectionErrorV01,
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01,
+  codexIsolatedAuthConfigOverrideArgsV01,
+  observeCodexIsolatedAuthCredentialFreeSemanticProfileV01,
+  type CodexIsolatedAuthenticatedExecutionOwnerV01,
+} from "@/lib/vnext/native-host/codex-isolated-auth-projection";
+import {
+  CodexCredentialBrokerErrorV01,
+  consumeCodexIsolatedAuthenticatedChildBindingV01,
+  type CodexIsolatedAuthenticatedChildBindingV01,
+} from "@/lib/vnext/native-host/codex-credential-broker";
+import {
   NATIVE_HOST_APPROVAL_VERSION_V01,
   NATIVE_HOST_RESULT_VERSION_V01,
   type NativeHostAdapterV01,
@@ -39,6 +60,15 @@ import {
   type NativeHostStopRequestV01,
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import {
+  CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+  type CodexIsolatedAuthCredentialFreePreflightV01,
+  type CodexIsolatedAuthObservationV01,
+  type CodexIsolatedAuthTestExecutionAuthorizationV01,
+} from "@/types/vnext/codex-isolated-auth-projection";
 
 export const CODEX_APP_SERVER_ADAPTER_VERSION_V01 =
   "codex_app_server_adapter.v0.1" as const;
@@ -48,6 +78,20 @@ export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
 export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
   "codex_app_server_request_source_binding.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01 =
+  "codex_isolated_authenticated_preflight_session.v0.1" as const;
+const SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01 = new WeakMap<
+  object,
+  {
+    owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+    consumed: boolean;
+  }
+>();
+const CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01 = {
+  configuration_version: "codex_isolated_auth_test_model_configuration.v0.1",
+  model: "fake-isolated-model",
+  reasoning_effort: "low",
+} as const;
 
 export interface CodexAppServerRequestSourceBindingV01 {
   binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
@@ -208,13 +252,447 @@ export interface CodexAppServerAdapterObservationV01 {
 
 export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
+  isolated_authenticated_execution?: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  isolated_authenticated_external_execution_authorization?: CodexIsolatedAuthTestExecutionAuthorizationV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
+  observe_isolated_auth?: (
+    observation: CodexIsolatedAuthObservationV01,
+  ) => void;
+}
+
+/**
+ * The only public handle returned by an authenticated isolated launch before
+ * external execution authorization. It exposes the closed Codex 0.147
+ * preflight method set and cleanup, but no child, stream, generic RPC, or
+ * repository/provider-bearing operation.
+ */
+export interface CodexIsolatedAuthenticatedPreflightSessionV01 {
+  readonly session_version: typeof CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01;
+  readonly projection_fingerprint: string;
+  readonly child_identity_fingerprint: string;
+  readonly process_id: number | null;
+  initializeV01(): Promise<{
+    cli_version: string;
+  }>;
+  observeAuthenticatedConfigurationV01(input: {
+    observed_at: string;
+  }): Promise<{
+    observation: CodexIsolatedAuthObservationV01;
+    model_configuration_fingerprint: string;
+  }>;
+  shutdownAndCleanupV01(): Promise<boolean>;
+}
+
+interface PrivateIsolatedPreflightSessionStateV01 {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  transport: CodexStdioJsonRpcTransportV01;
+  observeAuthenticatedConfiguration(input: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
+  initialized: Record<string, unknown> | null;
+  state:
+    | "preflight"
+    | "initialized"
+    | "preflight_complete"
+    | "transferred"
+    | "closed";
+}
+
+const PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01 = new WeakMap<
+  CodexIsolatedAuthenticatedPreflightSessionV01,
+  PrivateIsolatedPreflightSessionStateV01
+>();
+
+export async function consumeCodexAuthenticatedChildBindingIntoPreflightV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  authenticated_child_binding: CodexIsolatedAuthenticatedChildBindingV01;
+  repository_root: string;
+  observe_authenticated_configuration(observationInput: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
+}): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
+  if (
+    Object.keys(input).sort().join("\n") !==
+    [
+      "authenticated_child_binding",
+      "observe_authenticated_configuration",
+      "owner",
+      "repository_root",
+    ]
+      .sort()
+      .join("\n")
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_factory_input_invalid",
+    );
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  input.owner.assertRepositoryRootV01(input.repository_root);
+  if (typeof input.observe_authenticated_configuration !== "function")
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_factory_input_invalid",
+    );
+  return await consumeCodexIsolatedAuthenticatedChildBindingV01({
+    binding: input.authenticated_child_binding,
+    owner: input.owner,
+    repository_root: input.repository_root,
+    consume_authenticated_child: async (spawnedChild) =>
+      await createAuthenticatedPreflightFromBrokerChildV01({
+        owner: input.owner,
+        spawned_child: spawnedChild,
+        repository_root: input.repository_root,
+        observe_authenticated_configuration:
+          input.observe_authenticated_configuration,
+      }),
+  });
+}
+
+async function createAuthenticatedPreflightFromBrokerChildV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  spawned_child: unknown;
+  repository_root: string;
+  observe_authenticated_configuration(observationInput: {
+    initialized: Record<string, unknown>;
+    auth_status: Record<string, unknown>;
+    account: Record<string, unknown>;
+    config: Record<string, unknown>;
+    mcp_status: Record<string, unknown>;
+    observed_at: string;
+  }): CodexIsolatedAuthObservationV01;
+}): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
+  const spawned = exactBrokerAuthenticatedChildV01(input.spawned_child);
+  const transport = new CodexStdioJsonRpcTransportV01({
+    spawned_child: spawned.child,
+    onNotification: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_preflight_handler_unbound",
+      );
+    },
+    onServerRequest: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_preflight_server_request_refused",
+      );
+    },
+  });
+  if (
+    spawned.projection_fingerprint !==
+      input.owner.projection.integrity.fingerprint ||
+    !/^sha256:[a-f0-9]{64}$/u.test(spawned.child_identity_fingerprint)
+  ) {
+    await transport.shutdown();
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_spawn_binding_mismatch",
+    );
+  }
+  let session!: CodexIsolatedAuthenticatedPreflightSessionV01;
+  session = Object.freeze({
+    session_version: CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01,
+    projection_fingerprint: spawned.projection_fingerprint,
+    child_identity_fingerprint: spawned.child_identity_fingerprint,
+    process_id: transport.processId,
+    initializeV01: async () => {
+      const binding = privatePreflightBindingV01(session, "preflight");
+      const initialized = objectV01(
+        await binding.transport.request("initialize", {
+          clientInfo: {
+            name: "augnes",
+            title: "Augnes",
+            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+          },
+          capabilities: null,
+        }),
+        "codex_initialize_response_invalid",
+      );
+      binding.transport.notify("initialized", {});
+      binding.initialized = initialized;
+      binding.state = "initialized";
+      return Object.freeze({
+        cli_version: publicCliVersionV01(initialized.userAgent),
+      });
+    },
+    observeAuthenticatedConfigurationV01: async (preflightInput: {
+      observed_at: string;
+    }) => {
+      const binding = privatePreflightBindingV01(session, "initialized");
+      const account = objectV01(
+        await binding.transport.request("account/read", {
+          refreshToken: false,
+        }),
+        "codex_account_response_invalid",
+      );
+      if (account.account === null && account.requiresOpenaiAuth === true)
+        throw new CodexCapabilityErrorV01("codex_not_authenticated");
+      if (account.account === null || typeof account.account !== "object")
+        throw new CodexCapabilityErrorV01(
+          "codex_account_state_unsupported",
+        );
+      const authStatus = objectV01(
+        await binding.transport.request("getAuthStatus", {
+          includeToken: false,
+          refreshToken: false,
+        }),
+        "codex_auth_status_response_invalid",
+      );
+      const config = objectV01(
+        await binding.transport.request("config/read", {
+          includeLayers: true,
+          cwd: input.repository_root,
+        }),
+        "codex_config_response_invalid",
+      );
+      const modelConfigurationFingerprint =
+        observedModelConfigurationFingerprintV01(
+          config,
+          binding.owner.projection.config_policy.provider_route_fingerprint,
+        );
+      if (modelConfigurationFingerprint === null)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_model_configuration_missing",
+        );
+      const mcpStatus = objectV01(
+        await binding.transport.request(
+          "mcpServerStatus/list",
+          { limit: 100 },
+        ),
+        "codex_mcp_status_response_invalid",
+      );
+      if (!binding.initialized)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_initialization_missing",
+        );
+      await binding.transport.settleNotifications();
+      const failure = binding.transport.failure;
+      if (failure) throw failure;
+      const observation = binding.observeAuthenticatedConfiguration({
+        initialized: binding.initialized,
+        auth_status: authStatus,
+        account,
+        config,
+        mcp_status: mcpStatus,
+        observed_at: preflightInput.observed_at,
+      });
+      binding.state = "preflight_complete";
+      return deepFreezeAdapterValueV01({
+        observation: structuredClone(observation),
+        model_configuration_fingerprint: modelConfigurationFingerprint,
+      });
+    },
+    shutdownAndCleanupV01: async () => {
+      const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(session);
+      if (
+        !binding ||
+        !["preflight", "initialized", "preflight_complete"].includes(
+          binding.state,
+        )
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_session_unavailable",
+        );
+      binding.state = "closed";
+      try {
+        return await binding.transport.shutdown();
+      } finally {
+        binding.owner.cleanupV01();
+      }
+    },
+  });
+  PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.set(session, {
+    owner: input.owner,
+    transport,
+    observeAuthenticatedConfiguration:
+      input.observe_authenticated_configuration,
+    initialized: null,
+    state: "preflight",
+  });
+  return session;
+}
+
+function exactBrokerAuthenticatedChildV01(value: unknown): {
+  child: ChildProcessWithoutNullStreams;
+  child_identity_fingerprint: string;
+  projection_fingerprint: string;
+} {
+  const record = objectV01(value, "codex_isolated_auth_spawn_result_invalid");
+  if (
+    Object.keys(record).sort().join("\n") !==
+      ["child", "child_identity_fingerprint", "projection_fingerprint"]
+        .sort()
+        .join("\n") ||
+    !record.child ||
+    typeof record.child !== "object" ||
+    !("stdin" in record.child) ||
+    !("stdout" in record.child) ||
+    !("stderr" in record.child) ||
+    typeof record.child_identity_fingerprint !== "string" ||
+    typeof record.projection_fingerprint !== "string"
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_spawn_result_invalid",
+    );
+  return {
+    child: record.child as ChildProcessWithoutNullStreams,
+    child_identity_fingerprint: record.child_identity_fingerprint,
+    projection_fingerprint: record.projection_fingerprint,
+  };
+}
+
+function privatePreflightBindingV01(
+  session: CodexIsolatedAuthenticatedPreflightSessionV01,
+  expectedState:
+    | "preflight"
+    | "initialized"
+    | "preflight_complete",
+): PrivateIsolatedPreflightSessionStateV01 {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(session);
+  if (!binding || binding.state !== expectedState)
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_session_unavailable",
+    );
+  return binding;
+}
+
+function bindPrivatePreflightHandlersV01(input: {
+  session: CodexIsolatedAuthenticatedPreflightSessionV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  onNotification(method: string, params: unknown): Promise<void>;
+  onServerRequest(
+    id: string | number,
+    method: string,
+    params: unknown,
+  ): Promise<unknown>;
+}): void {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(input.session);
+  if (
+    !binding ||
+    binding.state !== "preflight" ||
+    binding.owner !== input.owner
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_session_unavailable",
+    );
+  binding.transport.replaceHandlersV01({
+    onNotification: input.onNotification,
+    onServerRequest: input.onServerRequest,
+  });
+}
+
+function transferPrivatePreflightTransportForExecutionV01(input: {
+  session: CodexIsolatedAuthenticatedPreflightSessionV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  onNotification(method: string, params: unknown): Promise<void>;
+  onServerRequest(
+    id: string | number,
+    method: string,
+    params: unknown,
+  ): Promise<unknown>;
+}): CodexStdioJsonRpcTransportV01 {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(input.session);
+  if (
+    !binding ||
+    binding.state !== "preflight_complete" ||
+    binding.owner !== input.owner
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_execution_transfer_refused",
+    );
+  binding.transport.replaceHandlersV01({
+    onNotification: input.onNotification,
+    onServerRequest: input.onServerRequest,
+  });
+  binding.state = "transferred";
+  return binding.transport;
+}
+
+export function createCodexIsolatedAuthTestExecutionAuthorizationV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  request: NativeHostRequestV01;
+  external_authorization_ref: ExternalRefV01;
+  expires_at: string;
+}): CodexIsolatedAuthTestExecutionAuthorizationV01 {
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  if (
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
+    input.owner.projection.executable_identity_class !==
+      "test_emulated_profile" ||
+    input.external_authorization_ref.ref_type !==
+      "codex_isolated_auth_test_execution_authorization" ||
+    !Number.isFinite(Date.parse(input.expires_at))
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_test_execution_authorization_refused",
+    );
+  input.owner.assertRepositoryRootV01(input.request.root_scope.canonical_root);
+  const material = {
+    authorization_version:
+      CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+    authorization_kind: "test_only_external_execution",
+    external_authorization_ref: structuredClone(
+      input.external_authorization_ref,
+    ),
+    request_id: input.request.request_id,
+    run_id: input.request.run_id,
+    root_scope_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.request.root_scope),
+    ),
+    projection_fingerprint: input.owner.projection.integrity.fingerprint,
+    execution_environment_fingerprint:
+      input.owner.execution_environment_fingerprint,
+    provider_ref: structuredClone(input.owner.projection.provider_ref),
+    model_configuration_ref: testModelConfigurationRefV01(
+      input.external_authorization_ref.observed_at ?? new Date().toISOString(),
+      input.owner.projection.config_policy.provider_route_fingerprint,
+    ),
+    effective_route_fingerprint:
+      input.owner.projection.config_policy.provider_route_fingerprint,
+    invocation_ordinal: 1,
+    provider_model_bearing_invocation_ceiling: 1,
+    expires_at: input.expires_at,
+    no_fallback: true,
+    single_use: true,
+    test_only: true,
+  } as const;
+  const authorization: CodexIsolatedAuthTestExecutionAuthorizationV01 =
+    deepFreezeAdapterValueV01({
+      ...material,
+      integrity: {
+        algorithm: "sha256",
+        fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01(material),
+        ),
+      },
+    });
+  SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.set(authorization, {
+    owner: input.owner,
+    consumed: false,
+  });
+  return authorization;
 }
 
 export function createCodexAppServerAdapterV01(
   options: CodexAppServerAdapterOptionsV01 = {},
 ): NativeHostAdapterV01 {
+  if (options.launch && options.isolated_authenticated_execution) {
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_parallel_launch_refused",
+    );
+  }
+  if (
+    options.isolated_authenticated_external_execution_authorization &&
+    !options.isolated_authenticated_execution
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_external_execution_owner_missing",
+    );
   return {
     adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
@@ -237,7 +715,12 @@ export function resolveDefaultCodexAppServerLaunchV01(
     return {
       command: process.execPath,
       prefix_args: [
-        path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs"),
+        path.join(
+          process.cwd(),
+          "scripts",
+          "fixtures",
+          "fake-codex-app-server.mjs",
+        ),
       ],
       environment: boundedCodexChildEnvironmentV01(environment, true),
     };
@@ -249,6 +732,208 @@ export function resolveDefaultCodexAppServerLaunchV01(
   };
 }
 
+export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
+  input: {
+    command: string;
+    expected_executable_fingerprint: string;
+    executable_identity_class:
+      | "production_pinned_codex"
+      | "test_emulated_profile";
+    state_parent: string;
+    repository_root: string;
+    base_environment?: {
+      PATH?: string;
+      LANG?: string;
+      LC_ALL?: string;
+      LC_CTYPE?: string;
+      TZ?: string;
+      TERM?: string;
+      NO_COLOR?: string;
+    };
+    test_prefix_args?: string[];
+    test_environment?: Record<string, string | undefined>;
+    observed_at?: string;
+  },
+): Promise<CodexIsolatedAuthCredentialFreePreflightV01> {
+  const observedAt = input.observed_at ?? new Date().toISOString();
+  let observedCliVersion: string | null = null;
+  let observedPolicyFingerprint: string | null = null;
+  let state: CodexIsolatedAuthCredentialFreePreflightV01["state"] =
+    "unavailable";
+  let cleanupCompleted = false;
+  let root: string | null = null;
+  let transport: CodexStdioJsonRpcTransportV01 | null = null;
+  try {
+    const command = realpathSync(input.command);
+    const commandStat = lstatSync(command);
+    const commandFingerprint = `sha256:${createHash("sha256")
+      .update(readFileSync(command))
+      .digest("hex")}`;
+    const productionExact =
+      input.executable_identity_class === "production_pinned_codex" &&
+      input.expected_executable_fingerprint ===
+        CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+    const testExact =
+      input.executable_identity_class === "test_emulated_profile" &&
+      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1";
+    if (
+      !commandStat.isFile() ||
+      commandStat.isSymbolicLink() ||
+      commandFingerprint !== input.expected_executable_fingerprint ||
+      (!productionExact && !testExact)
+    ) {
+      state = "executable_mismatch";
+      return preflightResultV01({
+        state,
+        executable_fingerprint: input.expected_executable_fingerprint,
+        executable_identity_class: input.executable_identity_class,
+        observed_cli_version: observedCliVersion,
+        observed_policy_fingerprint: observedPolicyFingerprint,
+        cleanup_completed: true,
+        observed_at: observedAt,
+      });
+    }
+    const parent = realpathSync(input.state_parent);
+    const parentStat = lstatSync(parent);
+    if (
+      parent !== input.state_parent ||
+      !parentStat.isDirectory() ||
+      parentStat.isSymbolicLink() ||
+      (parentStat.mode & 0o077) !== 0
+    )
+      throw new Error("preflight_state_parent_invalid");
+    root = mkdtempSync(path.join(parent, "codex-semantic-preflight-"));
+    chmodSync(root, 0o700);
+    const home = path.join(root, "home");
+    const codexHome = path.join(root, "codex-home");
+    const sqliteHome = path.join(root, "sqlite-home");
+    const tmp = path.join(root, "tmp");
+    for (const directory of [home, codexHome, sqliteHome, tmp]) {
+      mkdirSync(directory, { mode: 0o700 });
+      chmodSync(directory, 0o700);
+    }
+    const testPrefixArgs = input.test_prefix_args ?? [];
+    const testEnvironment = input.test_environment ?? {};
+    if (
+      (testPrefixArgs.length > 0 || Object.keys(testEnvironment).length > 0) &&
+      !testExact
+    )
+      throw new Error("preflight_test_controls_refused");
+    const environment: NodeJS.ProcessEnv = {
+      NODE_ENV: testExact ? "test" : "production",
+      HOME: home,
+      CODEX_HOME: codexHome,
+      CODEX_SQLITE_HOME: sqliteHome,
+      TMPDIR: tmp,
+      NO_COLOR: input.base_environment?.NO_COLOR ?? "1",
+      ...(input.base_environment?.PATH
+        ? { PATH: input.base_environment.PATH }
+        : {}),
+      ...(input.base_environment?.LANG
+        ? { LANG: input.base_environment.LANG }
+        : {}),
+      ...(input.base_environment?.LC_ALL
+        ? { LC_ALL: input.base_environment.LC_ALL }
+        : {}),
+      ...(input.base_environment?.LC_CTYPE
+        ? { LC_CTYPE: input.base_environment.LC_CTYPE }
+        : {}),
+      ...(input.base_environment?.TZ ? { TZ: input.base_environment.TZ } : {}),
+      ...(input.base_environment?.TERM
+        ? { TERM: input.base_environment.TERM }
+        : {}),
+      ...(testExact ? testEnvironment : {}),
+    };
+    transport = new CodexStdioJsonRpcTransportV01({
+      command,
+      args: [
+        ...testPrefixArgs,
+        ...codexIsolatedAuthConfigOverrideArgsV01(),
+        "app-server",
+        "--stdio",
+      ],
+      cwd: realpathSync(input.repository_root),
+      environment,
+      onNotification: async () => undefined,
+      onServerRequest: async () => {
+        throw new CodexProtocolErrorV01(
+          "codex_isolated_auth_preflight_server_request_refused",
+        );
+      },
+    });
+    await transport.started;
+    const initialized = objectV01(
+      await transport.request("initialize", {
+        clientInfo: {
+          name: "augnes-semantic-preflight",
+          title: "Augnes semantic preflight",
+          version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        },
+        capabilities: null,
+      }),
+      "codex_initialize_response_invalid",
+    );
+    transport.notify("initialized", {});
+    observedCliVersion = isolatedAuthPublicCliVersionV01(
+      initialized.userAgent,
+    );
+    const config = objectV01(
+      await transport.request("config/read", {
+        includeLayers: true,
+        cwd: realpathSync(input.repository_root),
+      }),
+      "codex_config_response_invalid",
+    );
+    const profile = observeCodexIsolatedAuthCredentialFreeSemanticProfileV01({
+      initialized,
+      config,
+      codex_sqlite_home: sqliteHome,
+    });
+    observedPolicyFingerprint =
+      profile.observed_security_policy_fingerprint;
+    state = "compatible_exact";
+  } catch (error) {
+    const code = error instanceof Error && "code" in error ? error.code : null;
+    if (
+      code === "codex_isolated_auth_cli_version_mismatch" ||
+      observedCliVersion !== null &&
+        observedCliVersion !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
+    )
+      state = "version_mismatch";
+    else if (
+      code === "codex_isolated_auth_semantic_profile_mismatch" ||
+      code === "codex_isolated_auth_config_policy_mismatch"
+    )
+      state = "semantic_profile_mismatch";
+    else if (
+      code === "codex_required_method_unavailable" ||
+      code === "codex_initialize_response_invalid" ||
+      code === "codex_config_response_invalid"
+    )
+      state = "method_shape_mismatch";
+    else state = "unavailable";
+  } finally {
+    if (transport) await transport.shutdown().catch(() => false);
+    if (root) {
+      try {
+        rmSync(root, { recursive: true, force: false });
+        cleanupCompleted = true;
+      } catch {
+        cleanupCompleted = false;
+      }
+    } else cleanupCompleted = true;
+  }
+  return preflightResultV01({
+    state,
+    executable_fingerprint: input.expected_executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    observed_cli_version: observedCliVersion,
+    observed_policy_fingerprint: observedPolicyFingerprint,
+    cleanup_completed: cleanupCompleted,
+    observed_at: observedAt,
+  });
+}
+
 class CodexAppServerInvocationV01 {
   readonly public: NativeHostInvocationV01;
   private readonly resultDeferred = deferredV01<NativeHostResultV01>();
@@ -258,6 +943,8 @@ class CodexAppServerInvocationV01 {
   private readonly now: () => string;
   private readonly startedAt: string;
   private transport: CodexStdioJsonRpcTransportV01 | null = null;
+  private isolatedPreflightSession: CodexIsolatedAuthenticatedPreflightSessionV01 | null =
+    null;
   private stopPromise: Promise<void> | null = null;
   private stopRequest: NativeHostStopRequestV01 | null = null;
   private threadId: string | null = null;
@@ -274,6 +961,10 @@ class CodexAppServerInvocationV01 {
   private terminalObserved: CodexTurnTerminalV01 | null = null;
   private cleanupSettled = false;
   private fatalError: Error | null = null;
+  private isolatedAuthObservation: CodexIsolatedAuthObservationV01 | null =
+    null;
+  private isolatedObservedModelConfigurationFingerprint: string | null = null;
+  private isolatedInstructionSourcesObservedEmpty = false;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
   private readonly observedActions: string[] = [];
@@ -311,6 +1002,7 @@ class CodexAppServerInvocationV01 {
     try {
       await this.startTransport();
       await this.initializeAndCheckAccount();
+      this.requireIsolatedExternalExecutionAuthorization();
       if (this.control.resume_binding) await this.resumeKnownTurn();
       else await this.startNewThreadAndTurn();
 
@@ -351,9 +1043,15 @@ class CodexAppServerInvocationV01 {
           bounded_metadata: { reason: normalized.code },
         }).catch(() => undefined);
         this.resultDeferred.reject(normalized);
-      } else if (isCapabilityUnavailableV01(normalized) && !this.threadStartSent) {
+      } else if (
+        isCapabilityUnavailableV01(normalized) &&
+        !this.threadStartSent
+      ) {
         this.resultDeferred.resolve(
-          this.buildBoundaryResult("unavailable", publicErrorCodeV01(normalized)),
+          this.buildBoundaryResult(
+            "unavailable",
+            publicErrorCodeV01(normalized),
+          ),
         );
       } else if (this.terminalObserved) {
         // The host turn is definitely terminal. A malformed or missing bounded
@@ -388,6 +1086,15 @@ class CodexAppServerInvocationV01 {
           publicCleanupDiagnosticCodeV01(cleanupError),
         );
       }
+      try {
+        this.options.isolated_authenticated_execution?.cleanupV01();
+      } catch (error) {
+        cleanupError ??= asErrorV01(error);
+        this.observe(
+          "settlement_failed",
+          publicCleanupDiagnosticCodeV01(asErrorV01(error)),
+        );
+      }
       this.cleanupSettled = cleanupError === null;
       this.observe("settled");
       if (cleanupError) this.settledDeferred.reject(cleanupError);
@@ -396,18 +1103,50 @@ class CodexAppServerInvocationV01 {
   }
 
   private async startTransport(): Promise<void> {
-    const launch = this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
-    this.transport = new CodexStdioJsonRpcTransportV01({
-      command: launch.command,
-      args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
-      cwd: this.request.root_scope.canonical_root,
-      environment:
-        launch.environment ?? boundedCodexChildEnvironmentV01(process.env, false),
-      onNotification: (method, params) => this.onNotification(method, params),
-      onServerRequest: (id, method, params) =>
-        this.onServerRequest(id, method, params),
-    });
-    await this.transport.started;
+    const isolatedOwner = this.options.isolated_authenticated_execution;
+    if (isolatedOwner) {
+      assertSourceOwnedCodexIsolatedExecutionOwnerV01(isolatedOwner);
+      if (this.control.resume_binding) {
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_resume_refused",
+        );
+      }
+      isolatedOwner.assertRepositoryRootV01(
+        this.request.root_scope.canonical_root,
+      );
+      const preflight = await isolatedOwner.startAuthenticatedPreflightV01();
+      if (
+        preflight.projection_fingerprint !==
+          isolatedOwner.projection.integrity.fingerprint ||
+        !/^sha256:[a-f0-9]{64}$/u.test(preflight.child_identity_fingerprint)
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_spawn_binding_mismatch",
+        );
+      this.isolatedPreflightSession = preflight;
+      bindPrivatePreflightHandlersV01({
+        session: preflight,
+        owner: isolatedOwner,
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+    } else {
+      const launch =
+        this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
+      this.transport = new CodexStdioJsonRpcTransportV01({
+        command: launch.command,
+        args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
+        cwd: this.request.root_scope.canonical_root,
+        environment:
+          launch.environment ??
+          boundedCodexChildEnvironmentV01(process.env, false),
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+      await this.transport.started;
+    }
     const observedAt = this.now();
     this.connectionRef = externalRefV01(
       "host_connection",
@@ -426,30 +1165,49 @@ class CodexAppServerInvocationV01 {
   }
 
   private async initializeAndCheckAccount(): Promise<void> {
-    const initialized = objectV01(
-      await this.transport!.request("initialize", {
-        clientInfo: {
-          name: "augnes",
-          title: "Augnes",
-          version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-        },
-        capabilities: null,
-      }),
-      "codex_initialize_response_invalid",
-    );
-    this.cliVersion = publicCliVersionV01(initialized.userAgent);
-    this.transport!.notify("initialized", {});
-    this.observe("initialized");
-
-    const account = objectV01(
-      await this.transport!.request("account/read", { refreshToken: false }),
-      "codex_account_response_invalid",
-    );
-    if (account.account === null && account.requiresOpenaiAuth === true) {
-      throw new CodexCapabilityErrorV01("codex_not_authenticated");
-    }
-    if (account.account === null || typeof account.account !== "object") {
-      throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
+    const isolatedPreflight = this.isolatedPreflightSession;
+    const isolatedOwner = this.options.isolated_authenticated_execution;
+    if (isolatedOwner) {
+      if (!isolatedPreflight)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_session_missing",
+        );
+      const initialization = await isolatedPreflight.initializeV01();
+      this.cliVersion = initialization.cli_version;
+      this.observe("initialized");
+      const preflight =
+        await isolatedPreflight.observeAuthenticatedConfigurationV01({
+          observed_at: this.now(),
+        });
+      this.isolatedObservedModelConfigurationFingerprint =
+        preflight.model_configuration_fingerprint;
+      this.isolatedAuthObservation = preflight.observation;
+      this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
+    } else {
+      const initialized = objectV01(
+        await this.transport!.request("initialize", {
+          clientInfo: {
+            name: "augnes",
+            title: "Augnes",
+            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+          },
+          capabilities: null,
+        }),
+        "codex_initialize_response_invalid",
+      );
+      this.cliVersion = publicCliVersionV01(initialized.userAgent);
+      this.transport!.notify("initialized", {});
+      this.observe("initialized");
+      const account = objectV01(
+        await this.transport!.request("account/read", { refreshToken: false }),
+        "codex_account_response_invalid",
+      );
+      if (account.account === null && account.requiresOpenaiAuth === true)
+        throw new CodexCapabilityErrorV01("codex_not_authenticated");
+      if (account.account === null || typeof account.account !== "object")
+        throw new CodexCapabilityErrorV01(
+          "codex_account_state_unsupported",
+        );
     }
     await this.reportLifecycle({
       event_kind: "capability_confirmed",
@@ -460,6 +1218,14 @@ class CodexAppServerInvocationV01 {
         adapter_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
         capability_version: CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
         cli_version: this.cliVersion,
+        ...(this.isolatedAuthObservation
+          ? {
+              isolated_auth_projection_fingerprint:
+                this.isolatedAuthObservation.projection_fingerprint,
+              isolated_auth_observation_fingerprint:
+                this.isolatedAuthObservation.integrity.fingerprint,
+            }
+          : {}),
       },
     });
     this.observe("account_available");
@@ -473,13 +1239,111 @@ class CodexAppServerInvocationV01 {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
         sandbox: "workspace-write",
-        ephemeral: false,
+        ephemeral: this.options.isolated_authenticated_execution ? true : false,
+        ...(this.options.isolated_authenticated_execution
+          ? { allowProviderModelFallback: false }
+          : {}),
       }),
       "codex_thread_start_response_invalid",
     );
+    if (this.options.isolated_authenticated_execution) {
+      this.options.isolated_authenticated_execution.assertFreshThreadResponseV01(
+        response,
+      );
+      this.isolatedInstructionSourcesObservedEmpty = true;
+      if (
+        response.modelProvider !==
+        this.options.isolated_authenticated_execution.projection.provider_ref
+          .external_id
+      ) {
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_provider_mismatch",
+        );
+      }
+    }
     await this.bindThreadResponse(response, "thread_started");
     this.observe("thread_started");
     await this.startTurn();
+  }
+
+  private requireIsolatedExternalExecutionAuthorization(): void {
+    const owner = this.options.isolated_authenticated_execution;
+    if (!owner) return;
+    const observation = this.isolatedAuthObservation;
+    const preflight = this.isolatedPreflightSession;
+    if (!observation)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_observation_missing",
+      );
+    if (!preflight)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_preflight_session_missing",
+      );
+    const authorization =
+      this.options.isolated_authenticated_external_execution_authorization;
+    if (!authorization)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_external_execution_authorization_required",
+      );
+    const sourceState =
+      SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.get(authorization);
+    const { integrity, ...material } = authorization;
+    if (
+      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
+      !sourceState ||
+      sourceState.owner !== owner ||
+      sourceState.consumed ||
+      integrity.algorithm !== "sha256" ||
+      integrity.fingerprint !==
+        createProtocolSha256V01(canonicalizeProtocolValueV01(material)) ||
+      authorization.authorization_version !==
+        CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 ||
+      authorization.authorization_kind !== "test_only_external_execution" ||
+      authorization.request_id !== this.request.request_id ||
+      authorization.run_id !== this.request.run_id ||
+      authorization.root_scope_fingerprint !==
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01(this.request.root_scope),
+        ) ||
+      authorization.projection_fingerprint !==
+        owner.projection.integrity.fingerprint ||
+      authorization.execution_environment_fingerprint !==
+        owner.execution_environment_fingerprint ||
+      canonicalizeProtocolValueV01(authorization.provider_ref) !==
+        canonicalizeProtocolValueV01(owner.projection.provider_ref) ||
+      authorization.effective_route_fingerprint !==
+        owner.projection.config_policy.provider_route_fingerprint ||
+      this.isolatedObservedModelConfigurationFingerprint === null ||
+      authorization.model_configuration_ref.ref_type !==
+        "model_configuration" ||
+      authorization.model_configuration_ref.external_id !==
+        modelConfigurationExternalIdV01(
+          this.isolatedObservedModelConfigurationFingerprint,
+        ) ||
+      authorization.invocation_ordinal !== 1 ||
+      authorization.provider_model_bearing_invocation_ceiling !== 1 ||
+      authorization.no_fallback !== true ||
+      authorization.single_use !== true ||
+      authorization.test_only !== true ||
+      Date.parse(authorization.expires_at) <= Date.parse(this.now()) ||
+      observation.projection_fingerprint !==
+        authorization.projection_fingerprint ||
+      observation.semantic_profile_fingerprint !==
+        owner.projection.semantic_profile_fingerprint ||
+      observation.provider_route_fingerprint !==
+        authorization.effective_route_fingerprint
+    )
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_external_execution_authorization_refused",
+      );
+    sourceState.consumed = true;
+    this.transport = transferPrivatePreflightTransportForExecutionV01({
+      session: preflight,
+      owner,
+      onNotification: (method, params) => this.onNotification(method, params),
+      onServerRequest: (id, method, params) =>
+        this.onServerRequest(id, method, params),
+    });
   }
 
   private async resumeKnownTurn(): Promise<void> {
@@ -527,7 +1391,10 @@ class CodexAppServerInvocationV01 {
       "codex_thread_resume_response_invalid",
     );
     await this.bindThreadResponse(response, "thread_resumed", true);
-    const thread = objectV01(response.thread, "codex_thread_resume_binding_invalid");
+    const thread = objectV01(
+      response.thread,
+      "codex_thread_resume_binding_invalid",
+    );
     const matchingTurn = this.assertKnownTurnSet(thread);
     const status = stringV01(matchingTurn.status);
     if (["completed", "failed", "interrupted"].includes(status ?? "")) {
@@ -553,7 +1420,10 @@ class CodexAppServerInvocationV01 {
   ): Promise<void> {
     const thread = this.assertKnownThread(response.thread, existing);
     const cwd = stringV01(response.cwd) ?? stringV01(thread.cwd);
-    if (!cwd || !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
+    if (
+      !cwd ||
+      !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)
+    ) {
       throw this.reconciliationError("codex_thread_root_mismatch");
     }
     const threadId = requiredOpaqueIdV01(thread.id, "codex_thread_id_invalid");
@@ -600,7 +1470,10 @@ class CodexAppServerInvocationV01 {
     });
   }
 
-  private assertKnownThread(value: unknown, existing: boolean): Record<string, unknown> {
+  private assertKnownThread(
+    value: unknown,
+    existing: boolean,
+  ): Record<string, unknown> {
     const thread = objectV01(value, "codex_thread_binding_invalid");
     const threadId = requiredOpaqueIdV01(thread.id, "codex_thread_id_invalid");
     if (existing && this.threadId && threadId !== this.threadId) {
@@ -616,7 +1489,10 @@ class CodexAppServerInvocationV01 {
       }
     }
     const cwd = stringV01(thread.cwd);
-    if (cwd && !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)) {
+    if (
+      cwd &&
+      !sameCanonicalRootV01(this.request.root_scope.canonical_root, cwd)
+    ) {
       throw this.reconciliationError("codex_thread_root_mismatch");
     }
     return thread;
@@ -695,6 +1571,20 @@ class CodexAppServerInvocationV01 {
   }
 
   private async onNotification(method: string, params: unknown): Promise<void> {
+    if (
+      this.options.isolated_authenticated_execution &&
+      [
+        "account/updated",
+        "configWarning",
+        "mcpServer/startupStatus/updated",
+        "model/rerouted",
+        "remoteControl/status/changed",
+      ].includes(method)
+    ) {
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_runtime_policy_drift",
+      );
+    }
     const value = objectV01(params, "codex_notification_params_invalid");
     this.assertNotificationBinding(value);
     if (method === "turn/started") {
@@ -714,10 +1604,7 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "thread/status/changed") {
-      const status = objectV01(
-        value.status,
-        "codex_thread_status_invalid",
-      );
+      const status = objectV01(value.status, "codex_thread_status_invalid");
       const statusType = requiredStringV01(
         status.type,
         "codex_thread_status_invalid",
@@ -752,17 +1639,15 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "item/started" || method === "item/completed") {
-      await this.observeItem(
-        value.item,
-        method === "item/completed",
-        value,
-      );
+      await this.observeItem(value.item, method === "item/completed", value);
       return;
     }
     if (method === "serverRequest/resolved") {
       const requestId = requestIdStringV01(value.requestId);
       if (!requestId) {
-        throw this.reconciliationError("codex_server_request_resolution_mismatch");
+        throw this.reconciliationError(
+          "codex_server_request_resolution_mismatch",
+        );
       }
       const resolutionFingerprint = createProtocolSha256V01(
         canonicalizeProtocolValueV01({ method, params: value }),
@@ -783,7 +1668,9 @@ class CodexAppServerInvocationV01 {
         active.thread_id !== this.threadId ||
         active.turn_id !== this.turnId
       ) {
-        throw this.reconciliationError("codex_server_request_resolution_mismatch");
+        throw this.reconciliationError(
+          "codex_server_request_resolution_mismatch",
+        );
       }
       await this.reportLifecycle({
         event_kind: "approval_resolved",
@@ -830,10 +1717,13 @@ class CodexAppServerInvocationV01 {
         "item/permissions/requestApproval",
       ].includes(method)
     ) {
-      throw new CodexProtocolErrorV01("codex_server_request_method_unsupported");
+      throw new CodexProtocolErrorV01(
+        "codex_server_request_method_unsupported",
+      );
     }
     const requestId = requestIdStringV01(id);
-    if (!requestId) throw new CodexProtocolErrorV01("codex_server_request_id_invalid");
+    if (!requestId)
+      throw new CodexProtocolErrorV01("codex_server_request_id_invalid");
     const fingerprint = createProtocolSha256V01(
       canonicalizeProtocolValueV01({ method, params }),
     );
@@ -923,7 +1813,10 @@ class CodexAppServerInvocationV01 {
     const source = objectV01(params, "codex_approval_request_invalid");
     this.assertThreadIdentity(source.threadId);
     this.assertTurnIdentity(source.turnId);
-    const itemId = requiredOpaqueIdV01(source.itemId, "codex_approval_item_invalid");
+    const itemId = requiredOpaqueIdV01(
+      source.itemId,
+      "codex_approval_item_invalid",
+    );
     const observedAt = this.now();
     const itemRef = externalRefV01(
       "host_item",
@@ -948,16 +1841,15 @@ class CodexAppServerInvocationV01 {
       "decline",
       "cancel_run",
     ];
-    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] = null;
+    let repositoryEnvelopeClassification: NativeHostApprovalRequestV01["repository_envelope_classification"] =
+      null;
 
     if (method === "item/commandExecution/requestApproval") {
       const cwd = stringV01(source.cwd);
       if (cwd) paths = relativeScopeForHostPathV01(this.request, cwd);
       const command = stringV01(source.command);
       commandSummary = command ? publicSafeCommandSummaryV01(command) : null;
-      commandFingerprint = command
-        ? createProtocolSha256V01(command)
-        : null;
+      commandFingerprint = command ? createProtocolSha256V01(command) : null;
       const network = isObjectV01(source.networkApprovalContext)
         ? source.networkApprovalContext
         : null;
@@ -966,26 +1858,26 @@ class CodexAppServerInvocationV01 {
         const protocol = canonicalNetworkProtocolV01(network.protocol);
         resources = [`${protocol}://${host}`];
         operation = "network_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "refused"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment" ? "refused" : null;
         resourceSummary = `Network access to ${resources[0]}.`;
       } else {
         operation = "command_execution";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? classifyRepositoryEnvelopeCommandV01(command)
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment"
+            ? classifyRepositoryEnvelopeCommandV01(command)
+            : null;
         resourceSummary = paths.length
           ? `Command scoped to ${paths.join(", ")}.`
           : "Command scoped to the selected project root.";
       }
     } else if (method === "item/fileChange/requestApproval") {
       operation = "file_change";
-      repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-        ? "preauthorized"
-        : null;
+      repositoryEnvelopeClassification =
+        this.request.mode === "repository_attachment" ? "preauthorized" : null;
       const grantRoot = stringV01(source.grantRoot);
-      if (grantRoot) paths = relativeScopeForHostPathV01(this.request, grantRoot);
+      if (grantRoot)
+        paths = relativeScopeForHostPathV01(this.request, grantRoot);
       resourceSummary = paths.length
         ? `File change under ${paths.join(", ")}.`
         : "File change under the selected project root.";
@@ -1002,17 +1894,17 @@ class CodexAppServerInvocationV01 {
         : null;
       if (network?.enabled === true) {
         operation = "network_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "refused"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment" ? "refused" : null;
         resourceSummary =
           "Network permission requested without an exact destination in the stable payload.";
         available = ["decline", "cancel_run"];
       } else {
         operation = "filesystem_permission";
-        repositoryEnvelopeClassification = this.request.mode === "repository_attachment"
-          ? "preauthorized"
-          : null;
+        repositoryEnvelopeClassification =
+          this.request.mode === "repository_attachment"
+            ? "preauthorized"
+            : null;
         paths = uniqueSortedV01([
           ...paths,
           ...repositoryPathsFromPermissionProfileV01(this.request, permissions),
@@ -1024,7 +1916,8 @@ class CodexAppServerInvocationV01 {
     }
 
     const reason = publicTextV01(
-      stringV01(source.reason) ?? "The native host requested permission to continue.",
+      stringV01(source.reason) ??
+        "The native host requested permission to continue.",
       512,
     );
     const material = {
@@ -1072,7 +1965,9 @@ class CodexAppServerInvocationV01 {
       budget_impact: null,
       available_decisions: available,
       issued_at: observedAt,
-      expires_at: new Date(Date.parse(observedAt) + APPROVAL_TTL_MS).toISOString(),
+      expires_at: new Date(
+        Date.parse(observedAt) + APPROVAL_TTL_MS,
+      ).toISOString(),
       coverage: "observed",
       repository_envelope_classification: repositoryEnvelopeClassification,
     };
@@ -1134,10 +2029,7 @@ class CodexAppServerInvocationV01 {
     }
     if (existing === fingerprint) return;
     this.completedMessageFingerprints.set(key, fingerprint);
-    if (
-      item.type === "commandExecution" ||
-      item.type === "fileChange"
-    ) {
+    if (item.type === "commandExecution" || item.type === "fileChange") {
       await this.reportCheckpointV01(item, completed);
     }
     if (!completed) return;
@@ -1152,7 +2044,9 @@ class CodexAppServerInvocationV01 {
         command_fingerprint: createProtocolSha256V01(command),
         started_at: millisTimestampV01(envelope.startedAtMs),
         finished_at: millisTimestampV01(envelope.completedAtMs) ?? this.now(),
-        exit_code: Number.isSafeInteger(item.exitCode) ? Number(item.exitCode) : null,
+        exit_code: Number.isSafeInteger(item.exitCode)
+          ? Number(item.exitCode)
+          : null,
         status:
           item.status === "completed"
             ? "completed"
@@ -1165,7 +2059,10 @@ class CodexAppServerInvocationV01 {
       this.observedActions.push("host_command_item_completed");
     }
     if (item.type === "fileChange" && Array.isArray(item.changes)) {
-      for (const change of item.changes.slice(0, this.request.policy.max_changed_files)) {
+      for (const change of item.changes.slice(
+        0,
+        this.request.policy.max_changed_files,
+      )) {
         if (!isObjectV01(change)) continue;
         let relative: string;
         try {
@@ -1213,22 +2110,18 @@ class CodexAppServerInvocationV01 {
         operation_class: checkpointKind,
       }),
     );
-    const status =
-      !completed
-        ? "active"
-        : item.status === "completed"
-          ? "completed"
-          : item.status === "failed"
-            ? "failed"
-            : item.status === "declined"
-              ? "blocked"
-              : "unknown";
+    const status = !completed
+      ? "active"
+      : item.status === "completed"
+        ? "completed"
+        : item.status === "failed"
+          ? "failed"
+          : item.status === "declined"
+            ? "blocked"
+            : "unknown";
     const changeCount =
       checkpointKind === "file_change" && Array.isArray(item.changes)
-        ? Math.min(
-            item.changes.length,
-            this.request.policy.max_changed_files,
-          )
+        ? Math.min(item.changes.length, this.request.policy.max_changed_files)
         : null;
     // The lifecycle sink contract exposes no closed transient-storage error
     // class. Until it does, every checkpoint refusal is fail-visible so a
@@ -1279,7 +2172,9 @@ class CodexAppServerInvocationV01 {
     this.terminalDeferred.resolve(terminal);
   }
 
-  private async finishFromTerminal(terminal: CodexTurnTerminalV01): Promise<void> {
+  private async finishFromTerminal(
+    terminal: CodexTurnTerminalV01,
+  ): Promise<void> {
     if (terminal.status === "completed") {
       const payload = parseStructuredResultFromTurnV01(
         terminal.turn,
@@ -1380,7 +2275,9 @@ class CodexAppServerInvocationV01 {
           capability: "codex_thread_turn_lifecycle",
           coverage: "observed",
           source_ref: this.turnRef,
-          notes: ["Stable App Server thread and turn identifiers were observed."],
+          notes: [
+            "Stable App Server thread and turn identifiers were observed.",
+          ],
         },
         {
           capability: "repository_actions_and_checks",
@@ -1410,6 +2307,23 @@ class CodexAppServerInvocationV01 {
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...(this.isolatedAuthObservation
+            ? {
+                isolated_auth_projection_fingerprint:
+                  this.isolatedAuthObservation.projection_fingerprint,
+                isolated_auth_observation_fingerprint:
+                  this.isolatedAuthObservation.integrity.fingerprint,
+                isolated_state_root_fingerprint:
+                  this.isolatedAuthObservation.state_root_fingerprint,
+                ephemeral_thread: true,
+                shared_state_observed: false,
+                attempt_auth_material_persisted: false,
+                auth_material_exposed_outside_app_server_launch_boundary: false,
+                repository_command_auth_material_inherited: false,
+                isolated_instruction_sources_empty:
+                  this.isolatedInstructionSourcesObservedEmpty,
+              }
+            : {}),
         },
       },
     };
@@ -1434,7 +2348,10 @@ class CodexAppServerInvocationV01 {
       changed_files: [],
       artifacts: [],
       observed_actions: ["codex_app_server_boundary_result"],
-      commands: this.observedCommands.slice(0, this.request.policy.max_commands),
+      commands: this.observedCommands.slice(
+        0,
+        this.request.policy.max_commands,
+      ),
       checks: this.packetDeliveryInitiated
         ? [
             {
@@ -1483,12 +2400,30 @@ class CodexAppServerInvocationV01 {
         adapter_kind: "codex_app_server",
         bounded_metadata: {
           execution_kind: "live_local_app_server",
-          live_host_invoked: this.transport !== null,
+          live_host_invoked:
+            this.transport !== null || this.isolatedPreflightSession !== null,
           packet_delivery_initiated: this.packetDeliveryInitiated,
           app_server_transport: "stdio_jsonl",
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...(this.isolatedAuthObservation
+            ? {
+                isolated_auth_projection_fingerprint:
+                  this.isolatedAuthObservation.projection_fingerprint,
+                isolated_auth_observation_fingerprint:
+                  this.isolatedAuthObservation.integrity.fingerprint,
+                isolated_state_root_fingerprint:
+                  this.isolatedAuthObservation.state_root_fingerprint,
+                ephemeral_thread: true,
+                shared_state_observed: false,
+                attempt_auth_material_persisted: false,
+                auth_material_exposed_outside_app_server_launch_boundary: false,
+                repository_command_auth_material_inherited: false,
+                isolated_instruction_sources_empty:
+                  this.isolatedInstructionSourcesObservedEmpty,
+              }
+            : {}),
         },
       },
     };
@@ -1502,7 +2437,9 @@ class CodexAppServerInvocationV01 {
     return this.stopPromise;
   }
 
-  private async stopInvocation(request: NativeHostStopRequestV01): Promise<void> {
+  private async stopInvocation(
+    request: NativeHostStopRequestV01,
+  ): Promise<void> {
     await this.reportLifecycle({
       event_kind: "stop_requested",
       state: "cancelling",
@@ -1551,6 +2488,15 @@ class CodexAppServerInvocationV01 {
     this.stopSignal.resolve();
     try {
       if (!this.transport) {
+        if (this.isolatedPreflightSession) {
+          const settled =
+            await this.isolatedPreflightSession.shutdownAndCleanupV01();
+          if (!settled)
+            throw new CodexProtocolErrorV01(
+              "codex_process_tree_unsettled",
+            );
+          this.isolatedPreflightSession = null;
+        }
         this.cleanupSettled = true;
         return;
       }
@@ -1614,7 +2560,10 @@ class CodexAppServerInvocationV01 {
   }
 
   private async reportLifecycle(
-    input: Omit<NativeHostLifecycleEventV01, "event_id" | "run_id" | "observed_at">,
+    input: Omit<
+      NativeHostLifecycleEventV01,
+      "event_id" | "run_id" | "observed_at"
+    >,
   ): Promise<void> {
     if (!this.control.lifecycle_sink) return;
     const observedAt = this.now();
@@ -1651,7 +2600,9 @@ class CodexAppServerInvocationV01 {
     ].filter((value): value is ExternalRefV01 => value !== null);
   }
 
-  private reconciliationError(code: string): NativeHostReconciliationRequiredErrorV01 {
+  private reconciliationError(
+    code: string,
+  ): NativeHostReconciliationRequiredErrorV01 {
     return new NativeHostReconciliationRequiredErrorV01(code);
   }
 
@@ -1662,7 +2613,10 @@ class CodexAppServerInvocationV01 {
     this.options.observe?.({
       kind,
       run_id: this.request.run_id,
-      process_id: this.transport?.processId ?? null,
+      process_id:
+        this.transport?.processId ??
+        this.isolatedPreflightSession?.process_id ??
+        null,
       thread_id: this.threadId,
       turn_id: this.turnId,
       timeout_ms: this.control.timeout_ms,
@@ -1683,17 +2637,25 @@ export function classifyRepositoryEnvelopeCommandV01(
   const normalized = command.trim().toLowerCase();
   if (!normalized || /[\n\r]/u.test(normalized)) return "approval_required";
   if (
-    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(normalized) ||
+    /(^|[;&|()\s])(curl|wget|ssh|scp|sftp|nc|ncat|telnet|gh|hub|sudo|doas|launchctl|systemctl|service|security|keychain)(\s|$)/u.test(
+      normalized,
+    ) ||
     /(^|\s)git\s+(push|fetch|pull|clone|remote)(\s|$)/u.test(normalized) ||
-    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(normalized) ||
-    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(normalized) ||
+    /(^|\s)(npm|pnpm|yarn|bun)\s+(install|add|remove|update|upgrade|publish|login|logout|whoami|ci)(\s|$)/u.test(
+      normalized,
+    ) ||
+    /(^|\s)(docker|podman|kubectl|helm|terraform|ansible)(\s|$)/u.test(
+      normalized,
+    ) ||
     /(^|\s)(deploy|release|publish)(\s|$)/u.test(normalized)
   ) {
     return "refused";
   }
   if (/[;&|`]|\$\(|>|</u.test(normalized)) return "approval_required";
   if (
-    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(normalized)
+    /^(git\s+(status|diff|log|show|rev-parse|ls-files|branch|switch|checkout|add)\b|git\s+commit\b.*(?:--no-verify|-n)(?:\s|$)|(?:npm|pnpm|yarn|bun)\s+(?:test|run)\b|(?:npx\s+)?(?:tsc|eslint|prettier|vitest|jest|playwright)\b)/u.test(
+      normalized,
+    )
   ) {
     return "preauthorized";
   }
@@ -1702,7 +2664,10 @@ export function classifyRepositoryEnvelopeCommandV01(
 
 class CodexStdioJsonRpcTransportV01 {
   readonly started: Promise<void>;
-  readonly closed: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
+  readonly closed: Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>;
   readonly processId: number | null;
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly startedDeferred = deferredV01<void>();
@@ -1724,17 +2689,32 @@ class CodexStdioJsonRpcTransportV01 {
   private protocolFailure: Error | null = null;
   private readonly knownOwnedProcessIds = new Set<number>();
   private readonly processTreeObserver: ReturnType<typeof setInterval> | null;
+  private handlers: {
+    onNotification(method: string, params: unknown): Promise<void>;
+    onServerRequest(
+      id: string | number,
+      method: string,
+      params: unknown,
+    ): Promise<unknown>;
+  };
 
   get failure(): Error | null {
     return this.protocolFailure;
   }
 
   constructor(
-    input: {
-      command: string;
-      args: string[];
-      cwd: string;
-      environment: NodeJS.ProcessEnv;
+    input: (
+      | {
+          spawned_child: ChildProcessWithoutNullStreams;
+        }
+      | {
+          command: string;
+          args: string[];
+          cwd: string;
+          environment: NodeJS.ProcessEnv;
+          spawned_child?: never;
+        }
+    ) & {
       onNotification(method: string, params: unknown): Promise<void>;
       onServerRequest(
         id: string | number,
@@ -1743,14 +2723,21 @@ class CodexStdioJsonRpcTransportV01 {
       ): Promise<unknown>;
     },
   ) {
-    this.child = spawn(input.command, input.args, {
-      cwd: input.cwd,
-      env: input.environment,
-      detached: false,
-      shell: false,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    this.handlers = {
+      onNotification: input.onNotification,
+      onServerRequest: input.onServerRequest,
+    };
+    this.child =
+      "spawned_child" in input
+        ? input.spawned_child!
+        : spawn(input.command, input.args, {
+            cwd: input.cwd,
+            env: input.environment,
+            detached: false,
+            shell: false,
+            windowsHide: true,
+            stdio: ["pipe", "pipe", "pipe"],
+          });
     this.processId = this.child.pid ?? null;
     if (this.processId) this.knownOwnedProcessIds.add(this.processId);
     this.processTreeObserver = this.processId
@@ -1759,7 +2746,8 @@ class CodexStdioJsonRpcTransportV01 {
     this.processTreeObserver?.unref();
     this.started = this.startedDeferred.promise;
     this.closed = this.closedDeferred.promise;
-    this.child.once("spawn", () => this.startedDeferred.resolve());
+    if (this.child.pid !== undefined) this.startedDeferred.resolve();
+    else this.child.once("spawn", () => this.startedDeferred.resolve());
     this.child.once("error", (error) => {
       const normalized =
         (error as NodeJS.ErrnoException).code === "ENOENT"
@@ -1777,7 +2765,9 @@ class CodexStdioJsonRpcTransportV01 {
         );
       }
     });
-    this.child.stdout.on("data", (chunk: Buffer) => this.onStdout(chunk, input));
+    // Retain only the two bounded callbacks after spawn. In particular, the
+    // launch environment is not captured by any transport listener.
+    this.child.stdout.on("data", (chunk: Buffer) => this.onStdout(chunk));
     this.child.stdout.on("error", () => {
       if (!this.closing) {
         this.fail(new CodexProtocolErrorV01("codex_transport_read_failed"));
@@ -1793,15 +2783,24 @@ class CodexStdioJsonRpcTransportV01 {
     this.child.stderr.on("data", () => undefined);
     this.child.stderr.on("error", () => {
       if (!this.closing) {
-        this.fail(new CodexProtocolErrorV01("codex_transport_diagnostic_read_failed"));
+        this.fail(
+          new CodexProtocolErrorV01("codex_transport_diagnostic_read_failed"),
+        );
       }
     });
+    this.child.stdout.resume();
+    this.child.stderr.resume();
   }
 
-  request(method: string, params: unknown, timeoutMs = RPC_TIMEOUT_MS): Promise<unknown> {
+  request(
+    method: string,
+    params: unknown,
+    timeoutMs = RPC_TIMEOUT_MS,
+  ): Promise<unknown> {
     if (this.closing || this.protocolFailure) {
       return Promise.reject(
-        this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed"),
+        this.protocolFailure ??
+          new CodexProtocolErrorV01("codex_transport_closed"),
       );
     }
     if (this.pending.size >= MAX_PENDING_REQUESTS) {
@@ -1830,6 +2829,31 @@ class CodexStdioJsonRpcTransportV01 {
     this.write({ method, params });
   }
 
+  replaceHandlersV01(input: {
+    onNotification(method: string, params: unknown): Promise<void>;
+    onServerRequest(
+      id: string | number,
+      method: string,
+      params: unknown,
+    ): Promise<unknown>;
+  }): void {
+    if (
+      this.closing ||
+      this.protocolFailure ||
+      this.pending.size !== 0 ||
+      this.serverTasks.size !== 0 ||
+      this.notificationTasks.size !== 0 ||
+      this.inFlightServerRequestHandlerCount !== 0
+    )
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_execution_transfer_unsettled",
+      );
+    this.handlers = {
+      onNotification: input.onNotification,
+      onServerRequest: input.onServerRequest,
+    };
+  }
+
   async settleNotifications(): Promise<void> {
     while (this.notificationTasks.size > 0) {
       await Promise.allSettled([...this.notificationTasks]);
@@ -1841,17 +2865,7 @@ class CodexStdioJsonRpcTransportV01 {
     return this.shutdownPromise;
   }
 
-  private onStdout(
-    chunk: Buffer,
-    handlers: {
-      onNotification(method: string, params: unknown): Promise<void>;
-      onServerRequest(
-        id: string | number,
-        method: string,
-        params: unknown,
-      ): Promise<unknown>;
-    },
-  ): void {
+  private onStdout(chunk: Buffer): void {
     if (this.protocolFailure) return;
     this.stdoutBuffer = Buffer.concat([this.stdoutBuffer, chunk]);
     if (this.stdoutBuffer.byteLength > MAX_JSONL_BUFFER_BYTES) {
@@ -1876,7 +2890,7 @@ class CodexStdioJsonRpcTransportV01 {
         return;
       }
       try {
-        this.dispatch(message, handlers);
+        this.dispatch(message, this.handlers);
       } catch (error) {
         this.fail(asErrorV01(error));
         return;
@@ -1896,9 +2910,13 @@ class CodexStdioJsonRpcTransportV01 {
     },
   ): void {
     const message = objectV01(value, "codex_rpc_envelope_invalid");
-    const hasId = typeof message.id === "string" || typeof message.id === "number";
+    const hasId =
+      typeof message.id === "string" || typeof message.id === "number";
     const method = stringV01(message.method);
-    if (hasId && (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))) {
+    if (
+      hasId &&
+      (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))
+    ) {
       if (method) throw new CodexProtocolErrorV01("codex_rpc_response_invalid");
       this.handleResponse(message);
       return;
@@ -1914,7 +2932,8 @@ class CodexStdioJsonRpcTransportV01 {
       const task = handlers
         .onServerRequest(message.id as string | number, method, message.params)
         .then(
-          (result) => this.writeServerResponseSafely({ id: message.id, result }),
+          (result) =>
+            this.writeServerResponseSafely({ id: message.id, result }),
           (error) => {
             this.writeServerResponseSafely({
               id: message.id,
@@ -1974,7 +2993,9 @@ class CodexStdioJsonRpcTransportV01 {
       const code = Number.isFinite(error.code) ? Number(error.code) : null;
       pending.deferred.reject(
         new CodexRpcErrorV01(
-          code === -32601 ? "codex_required_method_unavailable" : "codex_rpc_failed",
+          code === -32601
+            ? "codex_required_method_unavailable"
+            : "codex_rpc_failed",
           pending.method,
         ),
       );
@@ -1985,7 +3006,10 @@ class CodexStdioJsonRpcTransportV01 {
 
   private write(value: unknown): void {
     if (this.closing || this.protocolFailure) {
-      throw this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed");
+      throw (
+        this.protocolFailure ??
+        new CodexProtocolErrorV01("codex_transport_closed")
+      );
     }
     const line = `${JSON.stringify(value)}\n`;
     if (Buffer.byteLength(line, "utf8") > MAX_JSONL_LINE_BYTES) {
@@ -2025,7 +3049,8 @@ class CodexStdioJsonRpcTransportV01 {
     this.closing = true;
     try {
       this.rejectPending(
-        this.protocolFailure ?? new CodexProtocolErrorV01("codex_transport_closed"),
+        this.protocolFailure ??
+          new CodexProtocolErrorV01("codex_transport_closed"),
       );
       this.captureOwnedProcessTree();
       this.child.stdin.end();
@@ -2063,7 +3088,6 @@ class CodexStdioJsonRpcTransportV01 {
       }
     }
   }
-
 }
 
 interface PendingRpcV01 {
@@ -2131,7 +3155,10 @@ class CodexProtocolErrorV01 extends Error {
 }
 
 class CodexRpcErrorV01 extends Error {
-  constructor(readonly code: string, readonly method: string) {
+  constructor(
+    readonly code: string,
+    readonly method: string,
+  ) {
     super(code);
     this.name = "CodexRpcErrorV01";
   }
@@ -2172,7 +3199,11 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
           "after_hash",
         ],
         properties: {
-          repository_relative_path: { type: "string", minLength: 1, maxLength: 4096 },
+          repository_relative_path: {
+            type: "string",
+            minLength: 1,
+            maxLength: 4096,
+          },
           change_kind: {
             type: "string",
             enum: ["added", "modified", "deleted", "renamed", "unknown"],
@@ -2349,18 +3380,23 @@ function renderPacketV01(request: NativeHostRequestV01): string {
           canonicalizeProtocolValueV01({
             attachment_id: request.repository_delegation_context?.attachment_id,
             attachment_binding_fingerprint:
-              request.repository_delegation_context?.attachment_binding_fingerprint,
+              request.repository_delegation_context
+                ?.attachment_binding_fingerprint,
             execution_envelope_fingerprint:
-              request.repository_delegation_context?.execution_envelope_fingerprint,
+              request.repository_delegation_context
+                ?.execution_envelope_fingerprint,
             allowed_operation_categories: request.allowed_operation_categories,
-            forbidden_operation_categories: request.forbidden_operation_categories,
+            forbidden_operation_categories:
+              request.forbidden_operation_categories,
             policy: request.policy,
           }),
         ]
       : []),
   ].join("\n\n");
   if (Buffer.byteLength(rendered, "utf8") > MAX_PROMPT_BYTES) {
-    throw new NativeHostContractErrorV01("codex_rendered_packet_bound_exceeded");
+    throw new NativeHostContractErrorV01(
+      "codex_rendered_packet_bound_exceeded",
+    );
   }
   return rendered;
 }
@@ -2375,7 +3411,9 @@ function parseStructuredResultFromTurnV01(
   ) as Record<string, unknown>[];
   const text = stringV01(messages.at(-1)?.text);
   if (!text || Buffer.byteLength(text, "utf8") > maxBytes) {
-    throw new NativeHostContractErrorV01("codex_structured_result_missing_or_oversized");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_missing_or_oversized",
+    );
   }
   let parsed: unknown;
   try {
@@ -2402,11 +3440,16 @@ function parseStructuredResultFromTurnV01(
     Object.keys(value).some((key) => !required.has(key)) ||
     value.result_version !== CODEX_HOST_STRUCTURED_RESULT_VERSION_V01
   ) {
-    throw new NativeHostContractErrorV01("codex_structured_result_shape_invalid");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_shape_invalid",
+    );
   }
   return {
     result_version: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
-    summary: publicTextV01(requiredStringV01(value.summary, "codex_result_summary_invalid"), 4096),
+    summary: publicTextV01(
+      requiredStringV01(value.summary, "codex_result_summary_invalid"),
+      4096,
+    ),
     changed_files: arrayV01(value.changed_files, 128).map((item) => {
       const changed = exactObjectV01(
         item,
@@ -2434,7 +3477,9 @@ function parseStructuredResultFromTurnV01(
     observed_actions: stringArrayV01(value.observed_actions, 64, 512),
     commands: arrayV01(value.commands, 128).map(normalizeCommandV01),
     checks: arrayV01(value.checks, 128).map(normalizeCheckV01),
-    skipped_checks: arrayV01(value.skipped_checks, 128).map(normalizeSkippedCheckV01),
+    skipped_checks: arrayV01(value.skipped_checks, 128).map(
+      normalizeSkippedCheckV01,
+    ),
     uncertainty: stringArrayV01(value.uncertainty, 64, 1024),
     gaps: stringArrayV01(value.gaps, 64, 1024),
     proposed_next_steps: stringArrayV01(value.proposed_next_steps, 64, 1024),
@@ -2457,7 +3502,10 @@ function normalizeArtifactV01(value: unknown): NativeHostArtifactV01 {
   ) {
     throw new NativeHostContractErrorV01("codex_result_artifact_ref_invalid");
   }
-  const refType = requiredStringV01(ref.ref_type, "codex_result_artifact_ref_invalid");
+  const refType = requiredStringV01(
+    ref.ref_type,
+    "codex_result_artifact_ref_invalid",
+  );
   let externalId = requiredStringV01(
     ref.external_id,
     "codex_result_artifact_ref_invalid",
@@ -2480,7 +3528,10 @@ function normalizeArtifactV01(value: unknown): NativeHostArtifactV01 {
       compatibility_namespace: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
     },
     summary: publicTextV01(
-      requiredStringV01(artifact.summary, "codex_result_artifact_summary_invalid"),
+      requiredStringV01(
+        artifact.summary,
+        "codex_result_artifact_summary_invalid",
+      ),
       1024,
     ),
   };
@@ -2497,19 +3548,30 @@ function normalizeCommandV01(value: unknown): NativeHostObservedCommandV01 {
     "status",
   ]);
   const status = stringV01(command.status);
-  if (!status || !["completed", "failed", "blocked", "unknown"].includes(status)) {
+  if (
+    !status ||
+    !["completed", "failed", "blocked", "unknown"].includes(status)
+  ) {
     throw new NativeHostContractErrorV01("codex_result_command_status_invalid");
   }
   return {
-    command_id: requiredOpaqueIdV01(command.command_id, "codex_result_command_id_invalid"),
+    command_id: requiredOpaqueIdV01(
+      command.command_id,
+      "codex_result_command_id_invalid",
+    ),
     summary: publicTextV01(
-      requiredStringV01(command.summary, "codex_result_command_summary_invalid"),
+      requiredStringV01(
+        command.summary,
+        "codex_result_command_summary_invalid",
+      ),
       1024,
     ),
     command_fingerprint: nullableHashV01(command.command_fingerprint),
     started_at: nullableStringV01(command.started_at),
     finished_at: nullableStringV01(command.finished_at),
-    exit_code: Number.isSafeInteger(command.exit_code) ? Number(command.exit_code) : null,
+    exit_code: Number.isSafeInteger(command.exit_code)
+      ? Number(command.exit_code)
+      : null,
     status: status as NativeHostObservedCommandV01["status"],
   };
 }
@@ -2526,7 +3588,10 @@ function normalizeCheckV01(value: unknown): NativeHostObservedCheckV01 {
     throw new NativeHostContractErrorV01("codex_result_check_status_invalid");
   }
   return {
-    check_id: requiredOpaqueIdV01(check.check_id, "codex_result_check_id_invalid"),
+    check_id: requiredOpaqueIdV01(
+      check.check_id,
+      "codex_result_check_id_invalid",
+    ),
     required: check.required === true,
     status: status as NativeHostObservedCheckV01["status"],
     summary: publicTextV01(
@@ -2549,7 +3614,10 @@ function normalizeSkippedCheckV01(value: unknown): NativeHostSkippedCheckV01 {
     ),
     required: check.required === true,
     reason: publicTextV01(
-      requiredStringV01(check.reason, "codex_result_skipped_check_reason_invalid"),
+      requiredStringV01(
+        check.reason,
+        "codex_result_skipped_check_reason_invalid",
+      ),
       1024,
     ),
   };
@@ -2576,7 +3644,9 @@ function repositoryPathsFromPermissionProfileV01(
   }
   return uniqueSortedV01(
     values.flatMap((value) =>
-      typeof value === "string" ? relativeScopeForHostPathV01(request, value) : [],
+      typeof value === "string"
+        ? relativeScopeForHostPathV01(request, value)
+        : [],
     ),
   );
 }
@@ -2796,9 +3866,7 @@ export function publicSafeCommandSummaryV01(value: string): string {
   summary = summary.replace(
     /([?;&])([A-Za-z][A-Za-z0-9_.-]*)(=)([^&#\s"'`]+)/giu,
     (match, separator: string, key: string) =>
-      isSensitiveCommandNameV01(key)
-        ? `${separator}${key}=[redacted]`
-        : match,
+      isSensitiveCommandNameV01(key) ? `${separator}${key}=[redacted]` : match,
   );
 
   summary = summary.replace(
@@ -2816,9 +3884,7 @@ export function publicSafeCommandSummaryV01(value: string): string {
 
   summary = summary.replace(/\s+/gu, " ").trim();
   const bounded =
-    summary.length <= 512
-      ? summary
-      : `${summary.slice(0, 509).trimEnd()}...`;
+    summary.length <= 512 ? summary : `${summary.slice(0, 509).trimEnd()}...`;
   return publicTextV01(bounded || "Command details unavailable.", 512);
 }
 
@@ -2951,7 +4017,8 @@ function boundedCodexChildEnvironmentV01(
   if (canonicalTest) {
     environment.AUGNES_CANONICAL_TEST_MODE = "1";
     if (source.AUGNES_CANONICAL_TEMP_ROOT) {
-      environment.AUGNES_CANONICAL_TEMP_ROOT = source.AUGNES_CANONICAL_TEMP_ROOT;
+      environment.AUGNES_CANONICAL_TEMP_ROOT =
+        source.AUGNES_CANONICAL_TEMP_ROOT;
     }
   }
   return environment;
@@ -2997,7 +4064,7 @@ function minimizedTurnTerminalMaterialV01(
     id: turn.id,
     status: turn.status,
     error_code: isObjectV01(turn.error)
-      ? stringV01(turn.error.codexErrorInfo) ?? "host_error"
+      ? (stringV01(turn.error.codexErrorInfo) ?? "host_error")
       : null,
     agent_message_fingerprints: Array.isArray(turn.items)
       ? turn.items
@@ -3131,7 +4198,9 @@ function mergeCompatibleValueV01<T>(
   throw new CodexProtocolErrorV01(conflictCode);
 }
 
-function changeKindV01(value: unknown): NativeHostChangedFileV01["change_kind"] {
+function changeKindV01(
+  value: unknown,
+): NativeHostChangedFileV01["change_kind"] {
   if (
     typeof value === "string" &&
     ["added", "modified", "deleted", "renamed", "unknown"].includes(value)
@@ -3154,7 +4223,9 @@ function nullableHashV01(value: unknown): string | null {
 }
 
 function nullableStringV01(value: unknown): string | null {
-  return value === null || value === undefined ? null : requiredStringV01(value, "codex_result_string_invalid");
+  return value === null || value === undefined
+    ? null
+    : requiredStringV01(value, "codex_result_string_invalid");
 }
 
 function millisTimestampV01(value: unknown): string | null {
@@ -3169,19 +4240,26 @@ function stringArrayV01(
   maxLength: number,
 ): string[] {
   return arrayV01(value, maxItems).map((entry) =>
-    publicTextV01(requiredStringV01(entry, "codex_result_text_invalid"), maxLength),
+    publicTextV01(
+      requiredStringV01(entry, "codex_result_text_invalid"),
+      maxLength,
+    ),
   );
 }
 
 function arrayV01(value: unknown, maxItems: number): unknown[] {
   if (!Array.isArray(value) || value.length > maxItems) {
-    throw new NativeHostContractErrorV01("codex_structured_result_bound_exceeded");
+    throw new NativeHostContractErrorV01(
+      "codex_structured_result_bound_exceeded",
+    );
   }
   return value;
 }
 
 function publicTextV01(value: string, maxLength: number): string {
-  const normalized = value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ").trim();
+  const normalized = value
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ")
+    .trim();
   if (!normalized || normalized.length > maxLength) {
     throw new NativeHostContractErrorV01("codex_public_text_invalid");
   }
@@ -3189,7 +4267,11 @@ function publicTextV01(value: string, maxLength: number): string {
   return normalized;
 }
 
-function boundedTextV01(value: unknown, maxLength: number, fallback: string): string {
+function boundedTextV01(
+  value: unknown,
+  maxLength: number,
+  fallback: string,
+): string {
   return typeof value === "string" && value.length > 0
     ? value.slice(0, maxLength)
     : fallback;
@@ -3209,6 +4291,112 @@ function publicCliVersionV01(value: unknown): string {
     return "unknown";
   }
   return value.trim() || "unknown";
+}
+
+function isolatedAuthPublicCliVersionV01(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 160)
+    return null;
+  const match = value.match(/^codex-cli(?:\s|\/)([0-9]+\.[0-9]+\.[0-9]+)$/u);
+  return match?.[1] ?? null;
+}
+
+function observedModelConfigurationFingerprintV01(
+  value: Record<string, unknown>,
+  providerRouteFingerprint: string,
+): string | null {
+  const config = value.config;
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  const record = config as Record<string, unknown>;
+  const model = stringV01(record.model);
+  const reasoningEffort = stringV01(record.model_reasoning_effort);
+  if (!model || !reasoningEffort) return null;
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      configuration_version:
+        CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01.configuration_version,
+      model,
+      reasoning_effort: reasoningEffort,
+      provider_route_fingerprint: providerRouteFingerprint,
+    }),
+  );
+}
+
+function testModelConfigurationRefV01(
+  observedAt: string,
+  providerRouteFingerprint: string,
+): ExternalRefV01 {
+  const fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      ...CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01,
+      provider_route_fingerprint: providerRouteFingerprint,
+    }),
+  );
+  return {
+    ref_version: "external_ref.v0.1",
+    ref_type: "model_configuration",
+    external_id: modelConfigurationExternalIdV01(fingerprint),
+    provider: "codex",
+    host: "local",
+    observed_at: observedAt,
+    compatibility_namespace:
+      CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+    trust_class: "direct_local_observation",
+  };
+}
+
+function modelConfigurationExternalIdV01(fingerprint: string): string {
+  return `codex-isolated-auth-model-configuration:${fingerprint}`;
+}
+
+function preflightResultV01(input: {
+  state: CodexIsolatedAuthCredentialFreePreflightV01["state"];
+  executable_fingerprint: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "test_emulated_profile";
+  observed_cli_version: string | null;
+  observed_policy_fingerprint: string | null;
+  cleanup_completed: boolean;
+  observed_at: string;
+}): CodexIsolatedAuthCredentialFreePreflightV01 {
+  const material = {
+    preflight_version:
+      CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+    state: input.state,
+    semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    codex_executable_fingerprint: input.executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    observed_cli_version: input.observed_cli_version,
+    observed_security_policy_fingerprint:
+      input.observed_policy_fingerprint,
+    credential_access_attempted: false,
+    provider_model_call_attempted: false,
+    repository_turn_started: false,
+    successful_external_network_egress_observed: false,
+    cleanup_completed: input.cleanup_completed,
+    observed_at: input.observed_at,
+  } as const;
+  return deepFreezeAdapterValueV01({
+    ...material,
+    integrity: {
+      algorithm: "sha256",
+      fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(material),
+      ),
+    },
+  });
+}
+
+function deepFreezeAdapterValueV01<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const entry of Object.values(value as Record<string, unknown>))
+      deepFreezeAdapterValueV01(entry);
+    Object.freeze(value);
+  }
+  return value;
 }
 
 function requiredOpaqueIdV01(value: unknown, code: string): string {
@@ -3256,8 +4444,10 @@ function isObjectV01(value: unknown): value is Record<string, unknown> {
 }
 
 function requestIdStringV01(value: unknown): string | null {
-  if (typeof value === "string" && value.length > 0 && value.length <= 512) return value;
-  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
+  if (typeof value === "string" && value.length > 0 && value.length <= 512)
+    return value;
+  if (typeof value === "number" && Number.isSafeInteger(value))
+    return String(value);
   return null;
 }
 
@@ -3268,6 +4458,9 @@ function uniqueSortedV01(values: string[]): string[] {
 function isCapabilityUnavailableV01(error: Error): boolean {
   return (
     error instanceof CodexCapabilityErrorV01 ||
+    (error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_external_execution_authorization_required") ||
     (error instanceof CodexRpcErrorV01 &&
       error.code === "codex_required_method_unavailable")
   );
@@ -3285,6 +4478,8 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexCapabilityErrorV01 ||
     error instanceof CodexProtocolErrorV01 ||
     error instanceof CodexRpcErrorV01 ||
+    error instanceof CodexCredentialBrokerErrorV01 ||
+    error instanceof CodexIsolatedAuthProjectionErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01
   ) {
@@ -3320,7 +4515,10 @@ function deferredV01<T>(): DeferredV01<T> {
   return { promise, resolve, reject };
 }
 
-async function withinV01<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+async function withinV01<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     return await Promise.race([

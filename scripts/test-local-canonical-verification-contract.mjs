@@ -947,6 +947,8 @@ const integrationChildren = [
   "project-verify-operator-adapter",
   "reconstruction-conformance",
   "commissioned-controlled-workbench",
+  "codex-isolated-auth-projection",
+  "codex-isolated-auth-rollback-lifecycle",
   "project-controls",
   "policy-triggered-model-run",
   "project-home",
@@ -1143,6 +1145,39 @@ for (const [pathName, timeout] of [
 ]) {
   assertCanonicalChildTimeout(canonicalSuite, pathName, timeout);
 }
+for (const definition of [
+  {
+    id: "codex-isolated-auth-projection",
+    label:
+      "credential-safe isolated Agent Identity projection, provenance, and execution-authority boundary",
+    mode: "--contracts",
+    timeout: "60_000",
+  },
+  {
+    id: "codex-isolated-auth-rollback-lifecycle",
+    label:
+      "isolated Agent Identity credential lease, rollback, replay, and exact process-ownership boundary",
+    mode: "--rollback-lifecycle",
+    timeout: "30_000",
+  },
+]) {
+  assertCanonicalIsolatedAuthChild(canonicalSuite, definition);
+}
+assert.equal(
+  countOccurrences(
+    canonicalSuite,
+    `"scripts/test-codex-isolated-auth-projection.ts"`,
+  ),
+  2,
+  "isolated-auth must have exactly two independently bounded canonical children",
+);
+assert.equal(
+  canonicalSuite.includes(
+    `rootNode("scripts/test-codex-isolated-auth-projection.ts")`,
+  ),
+  false,
+  "the old monolithic isolated-auth canonical child must remain absent",
+);
 
 for (const fragment of [
   `DEFAULT_CANONICAL_CHILD_TIMEOUT_MS = 300_000`,
@@ -1429,6 +1464,33 @@ function assertCanonicalChildTimeout(source, pathName, timeout) {
     `timeoutMs: ${timeout}`,
     `${pathName} must keep its measured timeout`,
   );
+}
+
+function assertCanonicalIsolatedAuthChild(
+  source,
+  { id, label, mode, timeout },
+) {
+  const idIndex = source.indexOf(`id: "${id}"`);
+  assert.notEqual(idIndex, -1, `missing isolated-auth canonical child: ${id}`);
+  const blockStart = source.lastIndexOf("\n    {", idIndex);
+  const blockEnd = source.indexOf("\n    },", idIndex);
+  assert.notEqual(blockStart, -1, `missing canonical child block: ${id}`);
+  assert.notEqual(blockEnd, -1, `unterminated canonical child block: ${id}`);
+  const block = source.slice(blockStart, blockEnd);
+  for (const fragment of [
+    `group: "supporting-serial"`,
+    `requirements: [\n        "filesystem",\n        "process-owning",\n        "project-root",\n        "mutable-module-state",\n      ]`,
+    `label:\n        "${label}"`,
+    `"scripts/test-codex-isolated-auth-projection.ts"`,
+    `"${mode}"`,
+    `timeoutMs: ${timeout}`,
+  ]) {
+    requireText(
+      block,
+      fragment,
+      `${id} canonical registration is missing: ${fragment}`,
+    );
+  }
 }
 
 function requireText(source, fragment, message) {
