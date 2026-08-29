@@ -74,6 +74,8 @@ export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
   "codex_host_structured_result.v0.1" as const;
 export const CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01 =
   "codex_app_server_request_source_binding.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01 =
+  "codex_isolated_authenticated_preflight_session.v0.1" as const;
 const SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01 = new WeakMap<
   object,
   {
@@ -253,6 +255,294 @@ export interface CodexAppServerAdapterOptionsV01 {
   observe_isolated_auth?: (
     observation: CodexIsolatedAuthObservationV01,
   ) => void;
+}
+
+/**
+ * The only public handle returned by an authenticated isolated launch before
+ * external execution authorization. It exposes the closed Codex 0.147
+ * preflight method set and cleanup, but no child, stream, generic RPC, or
+ * repository/provider-bearing operation.
+ */
+export interface CodexIsolatedAuthenticatedPreflightSessionV01 {
+  readonly session_version: typeof CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01;
+  readonly projection_fingerprint: string;
+  readonly child_identity_fingerprint: string;
+  readonly process_id: number | null;
+  initializeV01(): Promise<{
+    cli_version: string;
+  }>;
+  observeAuthenticatedConfigurationV01(input: {
+    observed_at: string;
+  }): Promise<{
+    observation: CodexIsolatedAuthObservationV01;
+    model_configuration_fingerprint: string;
+  }>;
+  shutdownAndCleanupV01(): Promise<boolean>;
+}
+
+interface PrivateIsolatedPreflightSessionStateV01 {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  transport: CodexStdioJsonRpcTransportV01;
+  initialized: Record<string, unknown> | null;
+  state:
+    | "preflight"
+    | "initialized"
+    | "preflight_complete"
+    | "transferred"
+    | "closed";
+}
+
+const PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01 = new WeakMap<
+  CodexIsolatedAuthenticatedPreflightSessionV01,
+  PrivateIsolatedPreflightSessionStateV01
+>();
+
+export async function createCodexIsolatedAuthenticatedPreflightSessionV01(input: {
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  spawned_child: unknown;
+  repository_root: string;
+}): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
+  assertSourceOwnedCodexIsolatedExecutionOwnerV01(input.owner);
+  input.owner.assertRepositoryRootV01(input.repository_root);
+  const spawned = exactPrivateSpawnedChildV01(input.spawned_child);
+  const transport = new CodexStdioJsonRpcTransportV01({
+    spawned_child: spawned.child,
+    onNotification: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_preflight_handler_unbound",
+      );
+    },
+    onServerRequest: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_preflight_server_request_refused",
+      );
+    },
+  });
+  if (
+    spawned.projection_fingerprint !==
+      input.owner.projection.integrity.fingerprint ||
+    !/^sha256:[a-f0-9]{64}$/u.test(spawned.child_identity_fingerprint)
+  ) {
+    await transport.shutdown();
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_spawn_binding_mismatch",
+    );
+  }
+  let session!: CodexIsolatedAuthenticatedPreflightSessionV01;
+  session = Object.freeze({
+    session_version: CODEX_ISOLATED_AUTH_PREFLIGHT_SESSION_VERSION_V01,
+    projection_fingerprint: spawned.projection_fingerprint,
+    child_identity_fingerprint: spawned.child_identity_fingerprint,
+    process_id: transport.processId,
+    initializeV01: async () => {
+      const binding = privatePreflightBindingV01(session, "preflight");
+      const initialized = objectV01(
+        await binding.transport.request("initialize", {
+          clientInfo: {
+            name: "augnes",
+            title: "Augnes",
+            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+          },
+          capabilities: null,
+        }),
+        "codex_initialize_response_invalid",
+      );
+      binding.transport.notify("initialized", {});
+      binding.initialized = initialized;
+      binding.state = "initialized";
+      return Object.freeze({
+        cli_version: publicCliVersionV01(initialized.userAgent),
+      });
+    },
+    observeAuthenticatedConfigurationV01: async (preflightInput: {
+      observed_at: string;
+    }) => {
+      const binding = privatePreflightBindingV01(session, "initialized");
+      const account = objectV01(
+        await binding.transport.request("account/read", {
+          refreshToken: false,
+        }),
+        "codex_account_response_invalid",
+      );
+      if (account.account === null && account.requiresOpenaiAuth === true)
+        throw new CodexCapabilityErrorV01("codex_not_authenticated");
+      if (account.account === null || typeof account.account !== "object")
+        throw new CodexCapabilityErrorV01(
+          "codex_account_state_unsupported",
+        );
+      const authStatus = objectV01(
+        await binding.transport.request("getAuthStatus", {
+          includeToken: false,
+          refreshToken: false,
+        }),
+        "codex_auth_status_response_invalid",
+      );
+      const config = objectV01(
+        await binding.transport.request("config/read", {
+          includeLayers: true,
+          cwd: input.repository_root,
+        }),
+        "codex_config_response_invalid",
+      );
+      const modelConfigurationFingerprint =
+        observedModelConfigurationFingerprintV01(
+          config,
+          binding.owner.projection.config_policy.provider_route_fingerprint,
+        );
+      if (modelConfigurationFingerprint === null)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_model_configuration_missing",
+        );
+      const mcpStatus = objectV01(
+        await binding.transport.request(
+          "mcpServerStatus/list",
+          { limit: 100 },
+        ),
+        "codex_mcp_status_response_invalid",
+      );
+      if (!binding.initialized)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_initialization_missing",
+        );
+      const observation = binding.owner.observeInitializedAccountV01({
+        initialized: binding.initialized,
+        auth_status: authStatus,
+        account,
+        config,
+        mcp_status: mcpStatus,
+        observed_at: preflightInput.observed_at,
+      });
+      await binding.transport.settleNotifications();
+      const failure = binding.transport.failure;
+      if (failure) throw failure;
+      binding.state = "preflight_complete";
+      return deepFreezeAdapterValueV01({
+        observation: structuredClone(observation),
+        model_configuration_fingerprint: modelConfigurationFingerprint,
+      });
+    },
+    shutdownAndCleanupV01: async () => {
+      const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(session);
+      if (
+        !binding ||
+        !["preflight", "initialized", "preflight_complete"].includes(
+          binding.state,
+        )
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_session_unavailable",
+        );
+      binding.state = "closed";
+      try {
+        return await binding.transport.shutdown();
+      } finally {
+        binding.owner.cleanupV01();
+      }
+    },
+  });
+  PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.set(session, {
+    owner: input.owner,
+    transport,
+    initialized: null,
+    state: "preflight",
+  });
+  return session;
+}
+
+function exactPrivateSpawnedChildV01(value: unknown): {
+  child: ChildProcessWithoutNullStreams;
+  child_identity_fingerprint: string;
+  projection_fingerprint: string;
+} {
+  const record = objectV01(value, "codex_isolated_auth_spawn_result_invalid");
+  if (
+    Object.keys(record).sort().join("\n") !==
+      ["child", "child_identity_fingerprint", "projection_fingerprint"]
+        .sort()
+        .join("\n") ||
+    !record.child ||
+    typeof record.child !== "object" ||
+    !("stdin" in record.child) ||
+    !("stdout" in record.child) ||
+    !("stderr" in record.child) ||
+    typeof record.child_identity_fingerprint !== "string" ||
+    typeof record.projection_fingerprint !== "string"
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_spawn_result_invalid",
+    );
+  return {
+    child: record.child as ChildProcessWithoutNullStreams,
+    child_identity_fingerprint: record.child_identity_fingerprint,
+    projection_fingerprint: record.projection_fingerprint,
+  };
+}
+
+function privatePreflightBindingV01(
+  session: CodexIsolatedAuthenticatedPreflightSessionV01,
+  expectedState:
+    | "preflight"
+    | "initialized"
+    | "preflight_complete",
+): PrivateIsolatedPreflightSessionStateV01 {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(session);
+  if (!binding || binding.state !== expectedState)
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_session_unavailable",
+    );
+  return binding;
+}
+
+function bindPrivatePreflightHandlersV01(input: {
+  session: CodexIsolatedAuthenticatedPreflightSessionV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  onNotification(method: string, params: unknown): Promise<void>;
+  onServerRequest(
+    id: string | number,
+    method: string,
+    params: unknown,
+  ): Promise<unknown>;
+}): void {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(input.session);
+  if (
+    !binding ||
+    binding.state !== "preflight" ||
+    binding.owner !== input.owner
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_preflight_session_unavailable",
+    );
+  binding.transport.replaceHandlersV01({
+    onNotification: input.onNotification,
+    onServerRequest: input.onServerRequest,
+  });
+}
+
+function transferPrivatePreflightTransportForExecutionV01(input: {
+  session: CodexIsolatedAuthenticatedPreflightSessionV01;
+  owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
+  onNotification(method: string, params: unknown): Promise<void>;
+  onServerRequest(
+    id: string | number,
+    method: string,
+    params: unknown,
+  ): Promise<unknown>;
+}): CodexStdioJsonRpcTransportV01 {
+  const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(input.session);
+  if (
+    !binding ||
+    binding.state !== "preflight_complete" ||
+    binding.owner !== input.owner
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_execution_transfer_refused",
+    );
+  binding.transport.replaceHandlersV01({
+    onNotification: input.onNotification,
+    onServerRequest: input.onServerRequest,
+  });
+  binding.state = "transferred";
+  return binding.transport;
 }
 
 export function createCodexIsolatedAuthTestExecutionAuthorizationV01(input: {
@@ -585,6 +875,8 @@ class CodexAppServerInvocationV01 {
   private readonly now: () => string;
   private readonly startedAt: string;
   private transport: CodexStdioJsonRpcTransportV01 | null = null;
+  private isolatedPreflightSession: CodexIsolatedAuthenticatedPreflightSessionV01 | null =
+    null;
   private stopPromise: Promise<void> | null = null;
   private stopRequest: NativeHostStopRequestV01 | null = null;
   private threadId: string | null = null;
@@ -754,22 +1046,23 @@ class CodexAppServerInvocationV01 {
       isolatedOwner.assertRepositoryRootV01(
         this.request.root_scope.canonical_root,
       );
-      const spawned = await isolatedOwner.spawnIsolatedCodexAppServerV01();
+      const preflight = await isolatedOwner.startAuthenticatedPreflightV01();
       if (
-        spawned.projection_fingerprint !==
+        preflight.projection_fingerprint !==
           isolatedOwner.projection.integrity.fingerprint ||
-        !/^sha256:[a-f0-9]{64}$/u.test(spawned.child_identity_fingerprint)
+        !/^sha256:[a-f0-9]{64}$/u.test(preflight.child_identity_fingerprint)
       )
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_spawn_binding_mismatch",
         );
-      this.transport = new CodexStdioJsonRpcTransportV01({
-        spawned_child: spawned.child,
+      this.isolatedPreflightSession = preflight;
+      bindPrivatePreflightHandlersV01({
+        session: preflight,
+        owner: isolatedOwner,
         onNotification: (method, params) => this.onNotification(method, params),
         onServerRequest: (id, method, params) =>
           this.onServerRequest(id, method, params),
       });
-      await this.transport.started;
     } else {
       const launch =
         this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
@@ -804,74 +1097,49 @@ class CodexAppServerInvocationV01 {
   }
 
   private async initializeAndCheckAccount(): Promise<void> {
-    const initialized = objectV01(
-      await this.transport!.request("initialize", {
-        clientInfo: {
-          name: "augnes",
-          title: "Augnes",
-          version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-        },
-        capabilities: null,
-      }),
-      "codex_initialize_response_invalid",
-    );
-    this.cliVersion = publicCliVersionV01(initialized.userAgent);
-    this.transport!.notify("initialized", {});
-    this.observe("initialized");
-
-    const account = objectV01(
-      await this.transport!.request("account/read", { refreshToken: false }),
-      "codex_account_response_invalid",
-    );
-    if (account.account === null && account.requiresOpenaiAuth === true) {
-      throw new CodexCapabilityErrorV01("codex_not_authenticated");
-    }
-    if (account.account === null || typeof account.account !== "object") {
-      throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
-    }
+    const isolatedPreflight = this.isolatedPreflightSession;
     const isolatedOwner = this.options.isolated_authenticated_execution;
     if (isolatedOwner) {
-      const authStatus = objectV01(
-        await this.transport!.request("getAuthStatus", {
-          includeToken: false,
-          refreshToken: false,
-        }),
-        "codex_auth_status_response_invalid",
-      );
-      const config = objectV01(
-        await this.transport!.request("config/read", {
-          includeLayers: true,
-          cwd: this.request.root_scope.canonical_root,
-        }),
-        "codex_config_response_invalid",
-      );
-      this.isolatedObservedModelConfigurationFingerprint =
-        observedModelConfigurationFingerprintV01(
-          config,
-          isolatedOwner.projection.config_policy.provider_route_fingerprint,
+      if (!isolatedPreflight)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_preflight_session_missing",
         );
-      const mcpStatus = objectV01(
-        await this.transport!.request("mcpServerStatus/list", {
-          limit: 100,
-        }),
-        "codex_mcp_status_response_invalid",
-      );
-      this.isolatedAuthObservation = isolatedOwner.observeInitializedAccountV01(
-        {
-          initialized,
-          auth_status: authStatus,
-          account,
-          config,
-          mcp_status: mcpStatus,
+      const initialization = await isolatedPreflight.initializeV01();
+      this.cliVersion = initialization.cli_version;
+      this.observe("initialized");
+      const preflight =
+        await isolatedPreflight.observeAuthenticatedConfigurationV01({
           observed_at: this.now(),
-        },
-      );
+        });
+      this.isolatedObservedModelConfigurationFingerprint =
+        preflight.model_configuration_fingerprint;
+      this.isolatedAuthObservation = preflight.observation;
       this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
-      // Account/config/MCP reads and policy notifications can share one
-      // stdout batch. Drain every already-admitted notification before any
-      // repository-bearing thread or turn request is allowed to start.
-      await this.transport!.settleNotifications();
-      if (this.transport!.failure) throw this.transport!.failure;
+    } else {
+      const initialized = objectV01(
+        await this.transport!.request("initialize", {
+          clientInfo: {
+            name: "augnes",
+            title: "Augnes",
+            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+          },
+          capabilities: null,
+        }),
+        "codex_initialize_response_invalid",
+      );
+      this.cliVersion = publicCliVersionV01(initialized.userAgent);
+      this.transport!.notify("initialized", {});
+      this.observe("initialized");
+      const account = objectV01(
+        await this.transport!.request("account/read", { refreshToken: false }),
+        "codex_account_response_invalid",
+      );
+      if (account.account === null && account.requiresOpenaiAuth === true)
+        throw new CodexCapabilityErrorV01("codex_not_authenticated");
+      if (account.account === null || typeof account.account !== "object")
+        throw new CodexCapabilityErrorV01(
+          "codex_account_state_unsupported",
+        );
     }
     await this.reportLifecycle({
       event_kind: "capability_confirmed",
@@ -934,9 +1202,14 @@ class CodexAppServerInvocationV01 {
     const owner = this.options.isolated_authenticated_execution;
     if (!owner) return;
     const observation = this.isolatedAuthObservation;
+    const preflight = this.isolatedPreflightSession;
     if (!observation)
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_observation_missing",
+      );
+    if (!preflight)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_preflight_session_missing",
       );
     const authorization =
       this.options.isolated_authenticated_external_execution_authorization;
@@ -996,6 +1269,13 @@ class CodexAppServerInvocationV01 {
         "codex_isolated_auth_external_execution_authorization_refused",
       );
     sourceState.consumed = true;
+    this.transport = transferPrivatePreflightTransportForExecutionV01({
+      session: preflight,
+      owner,
+      onNotification: (method, params) => this.onNotification(method, params),
+      onServerRequest: (id, method, params) =>
+        this.onServerRequest(id, method, params),
+    });
   }
 
   private async resumeKnownTurn(): Promise<void> {
@@ -2052,7 +2332,8 @@ class CodexAppServerInvocationV01 {
         adapter_kind: "codex_app_server",
         bounded_metadata: {
           execution_kind: "live_local_app_server",
-          live_host_invoked: this.transport !== null,
+          live_host_invoked:
+            this.transport !== null || this.isolatedPreflightSession !== null,
           packet_delivery_initiated: this.packetDeliveryInitiated,
           app_server_transport: "stdio_jsonl",
           experimental_api: false,
@@ -2139,6 +2420,15 @@ class CodexAppServerInvocationV01 {
     this.stopSignal.resolve();
     try {
       if (!this.transport) {
+        if (this.isolatedPreflightSession) {
+          const settled =
+            await this.isolatedPreflightSession.shutdownAndCleanupV01();
+          if (!settled)
+            throw new CodexProtocolErrorV01(
+              "codex_process_tree_unsettled",
+            );
+          this.isolatedPreflightSession = null;
+        }
         this.cleanupSettled = true;
         return;
       }
@@ -2255,7 +2545,10 @@ class CodexAppServerInvocationV01 {
     this.options.observe?.({
       kind,
       run_id: this.request.run_id,
-      process_id: this.transport?.processId ?? null,
+      process_id:
+        this.transport?.processId ??
+        this.isolatedPreflightSession?.process_id ??
+        null,
       thread_id: this.threadId,
       turn_id: this.turnId,
       timeout_ms: this.control.timeout_ms,
@@ -2328,6 +2621,14 @@ class CodexStdioJsonRpcTransportV01 {
   private protocolFailure: Error | null = null;
   private readonly knownOwnedProcessIds = new Set<number>();
   private readonly processTreeObserver: ReturnType<typeof setInterval> | null;
+  private handlers: {
+    onNotification(method: string, params: unknown): Promise<void>;
+    onServerRequest(
+      id: string | number,
+      method: string,
+      params: unknown,
+    ): Promise<unknown>;
+  };
 
   get failure(): Error | null {
     return this.protocolFailure;
@@ -2354,7 +2655,7 @@ class CodexStdioJsonRpcTransportV01 {
       ): Promise<unknown>;
     },
   ) {
-    const handlers = {
+    this.handlers = {
       onNotification: input.onNotification,
       onServerRequest: input.onServerRequest,
     };
@@ -2398,9 +2699,7 @@ class CodexStdioJsonRpcTransportV01 {
     });
     // Retain only the two bounded callbacks after spawn. In particular, the
     // launch environment is not captured by any transport listener.
-    this.child.stdout.on("data", (chunk: Buffer) =>
-      this.onStdout(chunk, handlers),
-    );
+    this.child.stdout.on("data", (chunk: Buffer) => this.onStdout(chunk));
     this.child.stdout.on("error", () => {
       if (!this.closing) {
         this.fail(new CodexProtocolErrorV01("codex_transport_read_failed"));
@@ -2462,6 +2761,31 @@ class CodexStdioJsonRpcTransportV01 {
     this.write({ method, params });
   }
 
+  replaceHandlersV01(input: {
+    onNotification(method: string, params: unknown): Promise<void>;
+    onServerRequest(
+      id: string | number,
+      method: string,
+      params: unknown,
+    ): Promise<unknown>;
+  }): void {
+    if (
+      this.closing ||
+      this.protocolFailure ||
+      this.pending.size !== 0 ||
+      this.serverTasks.size !== 0 ||
+      this.notificationTasks.size !== 0 ||
+      this.inFlightServerRequestHandlerCount !== 0
+    )
+      throw new CodexProtocolErrorV01(
+        "codex_isolated_auth_execution_transfer_unsettled",
+      );
+    this.handlers = {
+      onNotification: input.onNotification,
+      onServerRequest: input.onServerRequest,
+    };
+  }
+
   async settleNotifications(): Promise<void> {
     while (this.notificationTasks.size > 0) {
       await Promise.allSettled([...this.notificationTasks]);
@@ -2473,17 +2797,7 @@ class CodexStdioJsonRpcTransportV01 {
     return this.shutdownPromise;
   }
 
-  private onStdout(
-    chunk: Buffer,
-    handlers: {
-      onNotification(method: string, params: unknown): Promise<void>;
-      onServerRequest(
-        id: string | number,
-        method: string,
-        params: unknown,
-      ): Promise<unknown>;
-    },
-  ): void {
+  private onStdout(chunk: Buffer): void {
     if (this.protocolFailure) return;
     this.stdoutBuffer = Buffer.concat([this.stdoutBuffer, chunk]);
     if (this.stdoutBuffer.byteLength > MAX_JSONL_BUFFER_BYTES) {
@@ -2508,7 +2822,7 @@ class CodexStdioJsonRpcTransportV01 {
         return;
       }
       try {
-        this.dispatch(message, handlers);
+        this.dispatch(message, this.handlers);
       } catch (error) {
         this.fail(asErrorV01(error));
         return;

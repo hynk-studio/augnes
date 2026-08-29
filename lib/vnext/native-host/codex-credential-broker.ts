@@ -173,7 +173,7 @@ export interface CodexBrokerPrivateLaunchCapabilityV01 {
   readonly capability_fingerprint: string;
 }
 
-export interface CodexIsolatedSpawnedChildV01 {
+interface CodexIsolatedSpawnedChildV01 {
   child: ChildProcessWithoutNullStreams;
   child_identity_fingerprint: string;
   projection_fingerprint: string;
@@ -347,7 +347,7 @@ export function bindCodexBrokerPrivateLaunchCapabilityV01(
 
 export async function spawnCodexAppServerWithPrivateCapabilityV01(
   capability: CodexBrokerPrivateLaunchCapabilityV01,
-): Promise<CodexIsolatedSpawnedChildV01> {
+): Promise<unknown> {
   const binding = PRIVATE_LAUNCH_CAPABILITIES_V01.get(capability);
   if (!binding)
     throw new CodexCredentialBrokerErrorV01(

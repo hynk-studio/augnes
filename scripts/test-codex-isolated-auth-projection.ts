@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -163,12 +163,16 @@ type ExecutionAuthorizationVariantV01 =
   | "absent"
   | "wrong_request"
   | "wrong_run"
+  | "cloned"
   | "expired"
+  | "substituted_root"
   | "substituted_projection"
   | "substituted_environment"
   | "substituted_provider"
   | "substituted_route"
+  | "substituted_model"
   | "substituted_ordinal"
+  | "substituted_ceiling"
   | "substituted_fallback";
 type ProbeV01 = {
   result: NativeHostResultV01 | null;
@@ -226,20 +230,35 @@ async function mainV01(): Promise<void> {
       maliciousConsumerBroker,
       "spawnExactCodexAppServerV01",
     );
-    const maliciousConsumerOwner = ownerV01(
+    const maliciousStateParent = path.join(
+      roots.state,
+      "malicious-consumer-surface",
+    );
+    const maliciousTracePath = path.join(
+      roots.runtime,
+      "malicious-consumer-surface.trace.jsonl",
+    );
+    const maliciousOwnerInput = ownerInputV01(
       roots,
       "malicious-consumer-surface",
       provisioned,
       FAKE_JWT,
       "isolated_auth_success",
+      maliciousStateParent,
     );
+    maliciousOwnerInput.test_environment = {
+      ...maliciousOwnerInput.test_environment,
+      FAKE_CODEX_TRACE_PATH: maliciousTracePath,
+    };
+    const maliciousConsumerOwner =
+      new CodexIsolatedAuthenticatedExecutionOwnerV01(maliciousOwnerInput);
     assertPublicSafeV01(maliciousConsumerOwner);
     assertNoSecretApiV01(maliciousConsumerOwner);
     assertSourceOwnedCodexIsolatedExecutionOwnerV01(maliciousConsumerOwner);
     class MaliciousDerivedExecutionOwnerV01 extends
       CodexIsolatedAuthenticatedExecutionOwnerV01 {
       override assertRepositoryRootV01(_value: string): void {}
-      override async spawnIsolatedCodexAppServerV01(): Promise<never> {
+      override async startAuthenticatedPreflightV01(): Promise<never> {
         throw new Error("derived owner must never become source-owned");
       }
     }
@@ -311,8 +330,14 @@ async function mainV01(): Promise<void> {
     );
     assertRuntimeSubstitutionRefusedV01(
       maliciousConsumerOwner,
-      "spawnIsolatedCodexAppServerV01",
+      "startAuthenticatedPreflightV01",
     );
+    assert.equal(
+      Reflect.get(maliciousConsumerOwner, "spawnIsolatedCodexAppServerV01"),
+      undefined,
+      "the public owner must expose no authenticated raw-child spawn",
+    );
+    assertNoExecutionTransportSurfaceV01(maliciousConsumerOwner);
     assert.throws(
       () => maliciousConsumerOwner.assertRepositoryRootV01(roots.ordinaryHome),
       (error: unknown) =>
@@ -323,7 +348,7 @@ async function mainV01(): Promise<void> {
       () =>
         assertSourceOwnedCodexIsolatedExecutionOwnerV01({
           projection: maliciousConsumerOwner.projection,
-          spawnIsolatedCodexAppServerV01: async () => {
+          startAuthenticatedPreflightV01: async () => {
             throw new Error("forged execution owner must remain unreachable");
           },
         } as unknown as CodexIsolatedAuthenticatedExecutionOwnerV01),
@@ -331,7 +356,45 @@ async function mainV01(): Promise<void> {
         error instanceof CodexIsolatedAuthProjectionErrorV01 &&
         error.code === "codex_isolated_auth_owner_source_mismatch",
     );
-    maliciousConsumerOwner.cleanupV01();
+    const maliciousPreflight =
+      await maliciousConsumerOwner.startAuthenticatedPreflightV01();
+    let maliciousPreflightCleaned = false;
+    try {
+      assertNoExecutionTransportSurfaceV01(maliciousPreflight);
+      const initialized = await maliciousPreflight.initializeV01();
+      const observed =
+        await maliciousPreflight.observeAuthenticatedConfigurationV01({
+          observed_at: GENERATED_AT,
+        });
+      assert.equal(initialized.cli_version, "codex-cli/0.147.0");
+      assert.equal(
+        observed.observation.claims_authentication_status,
+        "verified_by_codex_agent_identity_auth",
+      );
+      assert.match(observed.model_configuration_fingerprint, /^sha256:/u);
+      assertPublicSafeV01(observed);
+      const maliciousMethods = receivedMethodsV01(maliciousTracePath);
+      assert.equal(maliciousMethods.includes("thread/start"), false);
+      assert.equal(maliciousMethods.includes("turn/start"), false);
+      assert.equal(
+        maliciousMethods.some((method) =>
+          ["thread/start", "turn/start", "turn/interrupt"].includes(method),
+        ),
+        false,
+      );
+      assert.equal(await maliciousPreflight.shutdownAndCleanupV01(), true);
+      maliciousPreflightCleaned = true;
+    } finally {
+      if (!maliciousPreflightCleaned)
+        await maliciousPreflight.shutdownAndCleanupV01().catch(() => false);
+    }
+    assert.equal(readdirSync(maliciousStateParent).length, 0);
+    await assert.rejects(
+      () => maliciousPreflight.initializeV01(),
+      (error: unknown) =>
+        error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+        error.code === "codex_isolated_auth_preflight_session_unavailable",
+    );
 
     const semanticProfileProof =
       await semanticProfileAndCredentialFreePreflightV01(roots, provisioned);
@@ -745,12 +808,16 @@ async function externalExecutionAuthorityGateV01(
   for (const variant of [
     "wrong_request",
     "wrong_run",
+    "cloned",
     "expired",
+    "substituted_root",
     "substituted_projection",
     "substituted_environment",
     "substituted_provider",
     "substituted_route",
+    "substituted_model",
     "substituted_ordinal",
+    "substituted_ceiling",
     "substituted_fallback",
   ] as const) {
     const refused = await runProbeV01(
@@ -772,6 +839,68 @@ async function externalExecutionAuthorityGateV01(
     assert.equal(methods.includes("turn/start"), false, variant);
     assert.equal(readdirSync(refused.state_parent).length, 0, variant);
   }
+
+  const foreignAuthorizationOwner = ownerV01(
+    roots,
+    "execution-gate-foreign-authorization-owner",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+  );
+  const foreignSessionState = path.join(
+    roots.state,
+    "execution-gate-foreign-preflight-owner",
+  );
+  const foreignSessionTrace = path.join(
+    roots.runtime,
+    "execution-gate-foreign-preflight-owner.trace.jsonl",
+  );
+  const foreignSessionInput = ownerInputV01(
+    roots,
+    "execution-gate-foreign-preflight-owner",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    foreignSessionState,
+  );
+  foreignSessionInput.test_environment = {
+    ...foreignSessionInput.test_environment,
+    FAKE_CODEX_TRACE_PATH: foreignSessionTrace,
+  };
+  const foreignSessionOwner =
+    new CodexIsolatedAuthenticatedExecutionOwnerV01(foreignSessionInput);
+  const foreignOwnerRequest = requestV01(
+    roots.repository,
+    "execution-gate-foreign-owner",
+  );
+  const foreignOwnerAuthorization =
+    createCodexIsolatedAuthTestExecutionAuthorizationV01({
+      owner: foreignAuthorizationOwner,
+      request: foreignOwnerRequest,
+      external_authorization_ref: refV01(
+        "codex_isolated_auth_test_execution_authorization",
+        "test-execution:foreign-owner",
+      ),
+      expires_at: EXPIRES_AT,
+    });
+  const foreignOwnerInvocation = createCodexAppServerAdapterV01({
+    isolated_authenticated_execution: foreignSessionOwner,
+    isolated_authenticated_external_execution_authorization:
+      foreignOwnerAuthorization,
+  }).invoke(foreignOwnerRequest, controlV01([]));
+  const foreignOwnerResult = await foreignOwnerInvocation.result;
+  await foreignOwnerInvocation.settled;
+  assert.equal(foreignOwnerResult.outcome, "failed");
+  assert.equal(
+    foreignOwnerResult.public_stop_reason,
+    "codex_isolated_auth_external_execution_authorization_refused",
+  );
+  assert.equal(
+    receivedMethodsV01(foreignSessionTrace).includes("thread/start"),
+    false,
+  );
+  assert.equal(readdirSync(foreignSessionState).length, 0);
+  foreignAuthorizationOwner.cleanupV01();
 
   const wrongRootOwner = ownerV01(
     roots,
@@ -1065,7 +1194,7 @@ async function agentIdentityClaimNegativesV01(
   });
   observedNow = exp + 1;
   await assert.rejects(
-    () => owner.spawnIsolatedCodexAppServerV01(),
+    () => owner.startAuthenticatedPreflightV01(),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code === "codex_auth_broker_credential_expired",
@@ -1291,7 +1420,7 @@ async function brokerAndProvisioningNegativesV01(
   );
   await assert.rejects(
     () =>
-      substitutedOwner.spawnIsolatedCodexAppServerV01(),
+      substitutedOwner.startAuthenticatedPreflightV01(),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       (error.code === "codex_auth_broker_generation_mismatch" ||
@@ -1510,7 +1639,7 @@ async function tmpAndFailureNegativesV01(
   symlinkSync(roots.ordinaryTmp, ownedTmp);
   await assert.rejects(
     () =>
-      preSpawnOwner.spawnIsolatedCodexAppServerV01(),
+      preSpawnOwner.startAuthenticatedPreflightV01(),
     (error: unknown) =>
       error instanceof CodexIsolatedAuthProjectionErrorV01 &&
       error.code === "codex_isolated_auth_state_substituted",
@@ -1583,7 +1712,7 @@ async function tmpAndFailureNegativesV01(
   });
   await assert.rejects(
     () =>
-      failedOwner.spawnIsolatedCodexAppServerV01(),
+      failedOwner.startAuthenticatedPreflightV01(),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code === "codex_auth_broker_lookup_failed",
@@ -1648,7 +1777,7 @@ async function leaseReleaseRollbackV01(
   });
   try {
     await assert.rejects(
-      () => owner.spawnIsolatedCodexAppServerV01(),
+      () => owner.startAuthenticatedPreflightV01(),
       (error: unknown) =>
         error instanceof CodexCredentialBrokerErrorV01 &&
         error.code === "codex_auth_broker_lease_substituted",
@@ -1690,7 +1819,7 @@ async function leaseReleaseRollbackV01(
       },
     });
     await assert.rejects(
-      () => replayOwner.spawnIsolatedCodexAppServerV01(),
+      () => replayOwner.startAuthenticatedPreflightV01(),
       (error: unknown) =>
         error instanceof CodexCredentialBrokerErrorV01 &&
         error.code === "codex_auth_broker_lease_collision",
@@ -1766,7 +1895,7 @@ async function leaseReleaseRollbackV01(
   });
   try {
     await assert.rejects(
-      () => timeoutOwner.spawnIsolatedCodexAppServerV01(),
+      () => timeoutOwner.startAuthenticatedPreflightV01(),
       (error: unknown) =>
         error instanceof CodexCredentialBrokerErrorV01 &&
         error.code === "codex_auth_broker_child_rollback_incomplete",
@@ -1809,7 +1938,7 @@ async function leaseReleaseRollbackV01(
       }),
     });
     await assert.rejects(
-      () => timeoutReplayOwner.spawnIsolatedCodexAppServerV01(),
+      () => timeoutReplayOwner.startAuthenticatedPreflightV01(),
       (error: unknown) =>
         error instanceof CodexCredentialBrokerErrorV01 &&
         error.code === "codex_auth_broker_lease_collision",
@@ -1912,7 +2041,7 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
   });
   try {
     await assert.rejects(
-      () => owner.spawnIsolatedCodexAppServerV01(),
+      () => owner.startAuthenticatedPreflightV01(),
       (error: unknown) =>
         error instanceof CodexCredentialBrokerErrorV01 &&
         error.code === "codex_auth_broker_child_rollback_incomplete",
@@ -1946,7 +2075,7 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
         }),
       });
       await assert.rejects(
-        () => replayOwner.spawnIsolatedCodexAppServerV01(),
+        () => replayOwner.startAuthenticatedPreflightV01(),
         (error: unknown) =>
           error instanceof CodexCredentialBrokerErrorV01 &&
           error.code === "codex_auth_broker_lease_collision",
@@ -2171,7 +2300,9 @@ async function runProbeV01(
     const substitutions: Partial<
       CodexIsolatedAuthTestExecutionAuthorizationV01
     > =
-      executionAuthorization === "substituted_projection"
+      executionAuthorization === "substituted_root"
+        ? { root_scope_fingerprint: `sha256:${"0".repeat(64)}` }
+        : executionAuthorization === "substituted_projection"
         ? { projection_fingerprint: `sha256:${"1".repeat(64)}` }
         : executionAuthorization === "substituted_environment"
           ? { execution_environment_fingerprint: `sha256:${"2".repeat(64)}` }
@@ -2179,12 +2310,26 @@ async function runProbeV01(
             ? { provider_ref: refV01("model_provider", "foreign-provider") }
             : executionAuthorization === "substituted_route"
               ? { effective_route_fingerprint: `sha256:${"3".repeat(64)}` }
+              : executionAuthorization === "substituted_model"
+                ? {
+                    model_configuration_ref: refV01(
+                      "model_configuration",
+                      "foreign-model-configuration",
+                    ),
+                  }
               : executionAuthorization === "substituted_ordinal"
                 ? { invocation_ordinal: 2 as 1 }
+                : executionAuthorization === "substituted_ceiling"
+                  ? {
+                      provider_model_bearing_invocation_ceiling: 0 as 1,
+                    }
                 : executionAuthorization === "substituted_fallback"
                   ? { no_fallback: false as true }
                   : {};
-    if (Object.keys(substitutions).length > 0) {
+    if (
+      executionAuthorization === "cloned" ||
+      Object.keys(substitutions).length > 0
+    ) {
       const substituted = {
         ...structuredClone(externalExecutionAuthorization),
         ...substitutions,
@@ -2407,6 +2552,51 @@ function assertNoSecretApiV01(value: unknown): void {
     Object.hasOwn(value as object, "withResolvedMaterialV01"),
     false,
   );
+}
+function assertNoExecutionTransportSurfaceV01(value: unknown): void {
+  assert.equal(typeof value, "object");
+  assert.notEqual(value, null);
+  const forbidden = new Set([
+    "child",
+    "stdin",
+    "stdout",
+    "stderr",
+    "write",
+    "request",
+    "notify",
+    "kill",
+    "spawnIsolatedCodexAppServerV01",
+    "spawnCodexAppServerWithPrivateCapabilityV01",
+  ]);
+  const reachable = new Set<string>(
+    Object.getOwnPropertyNames(value as object),
+  );
+  let proto = Object.getPrototypeOf(value as object) as object | null;
+  while (proto && proto !== Object.prototype) {
+    Object.getOwnPropertyNames(proto).forEach((name) => reachable.add(name));
+    proto = Object.getPrototypeOf(proto) as object | null;
+  }
+  for (const name of forbidden)
+    assert.equal(
+      reachable.has(name),
+      false,
+      `public isolated-auth surface exposed ${name}`,
+    );
+  for (const name of Object.getOwnPropertyNames(value as object)) {
+    const member = Reflect.get(value as object, name) as unknown;
+    assert.equal(
+      member instanceof ChildProcess,
+      false,
+      `public isolated-auth property ${name} exposed a ChildProcess`,
+    );
+    assert.equal(
+      typeof member === "object" &&
+        member !== null &&
+        ("writable" in member || "readable" in member),
+      false,
+      `public isolated-auth property ${name} exposed a process stream`,
+    );
+  }
 }
 function assertRuntimeSubstitutionRefusedV01(
   value: object,

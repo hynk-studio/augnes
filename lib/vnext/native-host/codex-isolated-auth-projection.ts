@@ -23,8 +23,11 @@ import {
   type CodexBrokerPrivateLaunchCapabilityV01,
   type CodexCredentialBrokerBindingV01,
   type CodexCredentialBrokerV01,
-  type CodexIsolatedSpawnedChildV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
+import {
+  createCodexIsolatedAuthenticatedPreflightSessionV01,
+  type CodexIsolatedAuthenticatedPreflightSessionV01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -805,7 +808,7 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
     Object.freeze(this);
   }
 
-  async spawnIsolatedCodexAppServerV01(): Promise<CodexIsolatedSpawnedChildV01> {
+  async startAuthenticatedPreflightV01(): Promise<CodexIsolatedAuthenticatedPreflightSessionV01> {
     if (this.#spawned || this.#cleaned)
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_owner_single_use_refused",
@@ -815,9 +818,14 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
     assertIdentityV01(this.#command);
     this.#spawned = true;
     try {
-      return await spawnCodexAppServerWithPrivateCapabilityV01(
+      const spawnedChild = await spawnCodexAppServerWithPrivateCapabilityV01(
         this.#launchCapability,
       );
+      return await createCodexIsolatedAuthenticatedPreflightSessionV01({
+        owner: this,
+        spawned_child: spawnedChild,
+        repository_root: this.#repositoryRoot,
+      });
     } catch (error) {
       if (
         !(
