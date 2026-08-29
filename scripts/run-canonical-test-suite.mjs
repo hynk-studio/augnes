@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertCanonicalConcurrentChildLabelsV01,
   canonicalChildAcceptanceFailure,
   DEFAULT_CANONICAL_CHILD_TIMEOUT_MS,
   runCanonicalChild,
@@ -448,7 +449,7 @@ const suites = {
         "mutable-module-state",
       ],
       label:
-        "single-use commissioned live-training authorization, isolated authenticated attempt ownership, blinded objective observation, and append-only artifact conformance",
+        "commissioned live-training authorization, isolated attempt ownership, blinded evaluation, and append-only artifact conformance",
       ...rootNode("scripts/test-commissioned-controlled-live-training.ts"),
       env: { AUGNES_CANONICAL_TEST_MODE: "1" },
       // Sixteen isolated-auth fake App Server invocations (15 primary slots
@@ -1051,6 +1052,9 @@ let serviceMaintenance = null;
 let serviceMaintenanceRelease = null;
 
 try {
+  assertCanonicalConcurrentChildLabelsV01(
+    integrationInventory.map((step) => step.label),
+  );
   const preparedSteps = suites[suiteName].map((step, index) => {
     const resourceRoot = realpathSync(
       mkdtempSync(

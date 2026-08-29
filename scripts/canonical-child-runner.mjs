@@ -11,6 +11,27 @@ export const DEFAULT_CANONICAL_HEARTBEAT_MS = 30_000;
 export const DEFAULT_CANONICAL_TERM_GRACE_MS = 8_000;
 export const DEFAULT_CANONICAL_KILL_GRACE_MS = 5_000;
 
+export function normalizeCanonicalConcurrentChildLabelV01(label) {
+  const normalizedLabel = safeText(label, "");
+  if (!normalizedLabel || normalizedLabel !== label) {
+    throw new Error("canonical concurrent child ownership is invalid");
+  }
+  return normalizedLabel;
+}
+
+export function assertCanonicalConcurrentChildLabelsV01(labels) {
+  if (!Array.isArray(labels)) {
+    throw new Error("canonical concurrent child ownership is invalid");
+  }
+  const normalizedLabels = labels.map((label) =>
+    normalizeCanonicalConcurrentChildLabelV01(label),
+  );
+  if (new Set(normalizedLabels).size !== normalizedLabels.length) {
+    throw new Error("canonical concurrent child ownership is invalid");
+  }
+  return normalizedLabels;
+}
+
 export async function runCanonicalChild({
   suite,
   label,
@@ -407,7 +428,7 @@ function assertConcurrentGroupInput(groups, maxConcurrency) {
     throw new Error("canonical concurrent group bound is invalid");
   }
   const groupIds = new Set();
-  const childLabels = new Set();
+  const childLabels = [];
   for (const group of groups) {
     if (
       !group ||
@@ -422,11 +443,8 @@ function assertConcurrentGroupInput(groups, maxConcurrency) {
       throw new Error("canonical concurrent group must own at least one child");
     }
     for (const child of group.children) {
-      const label = safeText(child?.label, "");
-      if (!label || label !== child?.label || childLabels.has(label)) {
-        throw new Error("canonical concurrent child ownership is invalid");
-      }
-      childLabels.add(label);
+      childLabels.push(child?.label);
     }
   }
+  assertCanonicalConcurrentChildLabelsV01(childLabels);
 }
