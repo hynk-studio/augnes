@@ -149,6 +149,14 @@ if (scenario === "descendant_cleanup") {
   trace("descendant_started", { pid: descendant.pid ?? null });
 }
 
+if (scenario === "isolated_auth_ignore_sigterm") {
+  setInterval(() => {}, 1_000);
+  process.on("SIGTERM", () => {
+    trace("sigterm_ignored_for_isolated_auth_rollback_test", {});
+  });
+  trace("sigterm_handler_ready_for_isolated_auth_rollback_test", {});
+}
+
 const lines = readline.createInterface({
   input: process.stdin,
   crlfDelay: Infinity,
@@ -281,17 +289,40 @@ async function handle(message) {
           forced_login_method: isolatedAuthScenario ? "chatgpt" : null,
           cli_auth_credentials_store: isolatedAuthScenario ? "ephemeral" : null,
           model_provider: isolatedAuthScenario ? "openai" : null,
-          model_providers: isolatedAuthScenario
-            ? {
-                openai: {
-                  base_url:
-                    scenario === "isolated_auth_provider_route_drift"
-                      ? "https://example.invalid/v1"
-                      : "https://api.openai.com/v1",
-                  wire_api: "responses",
-                },
-              }
-            : null,
+          model_providers:
+            scenario === "isolated_auth_provider_route_drift"
+              ? {
+                  openai: {
+                    base_url: "https://api.openai.com/v1",
+                    wire_api: "responses",
+                  },
+                }
+              : scenario === "isolated_auth_custom_provider_drift"
+                ? {
+                    openai: {
+                      base_url: "https://example.invalid/v1",
+                      wire_api: "responses",
+                    },
+                  }
+                : scenario === "isolated_auth_provider_env_key_drift"
+                  ? { openai: { env_key: "OPENAI_API_KEY" } }
+                  : scenario === "isolated_auth_provider_bearer_drift"
+                    ? { openai: { experimental_bearer_token: "configured" } }
+                    : scenario === "isolated_auth_provider_auth_drift"
+                      ? { openai: { auth: { command: "foreign-auth" } } }
+                      : scenario === "isolated_auth_provider_aws_drift"
+                        ? { openai: { aws: { region: "us-east-1" } } }
+                      : scenario === "isolated_auth_provider_headers_drift"
+                        ? {
+                            openai: {
+                              query_params: { source: "foreign" },
+                              http_headers: { Authorization: "foreign" },
+                              env_http_headers: {
+                                Authorization: "FOREIGN_AUTH",
+                              },
+                            },
+                          }
+                        : null,
           web_search:
             isolatedAuthScenario && scenario !== "isolated_auth_config_mismatch"
               ? "disabled"
@@ -999,6 +1030,10 @@ function completeInterrupted() {
 }
 
 async function settleAndExit() {
+  if (scenario === "isolated_auth_ignore_sigterm") {
+    trace("stdin_close_ignored_for_isolated_auth_rollback_test", {});
+    return;
+  }
   if (scenario === "delayed_cleanup" && releasePath) {
     await waitForRelease();
   }

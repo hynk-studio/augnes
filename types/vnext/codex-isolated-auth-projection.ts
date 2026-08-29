@@ -4,6 +4,8 @@ export const CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01 =
   "codex_isolated_authenticated_execution_projection.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01 =
   "codex_isolated_auth_credential_attestation.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01 =
+  "codex_isolated_auth_provisioning_authorization.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01 =
   "codex_isolated_auth_projection_seal.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_AVAILABILITY_VERSION_V01 =
@@ -14,6 +16,82 @@ export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
   "codex_credential_broker.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
   "macos_keychain_agent_identity_handle" as const;
+export const CODEX_AGENT_IDENTITY_ISSUER_V01 =
+  "https://chatgpt.com/codex-backend/agent-identity" as const;
+export const CODEX_AGENT_IDENTITY_AUDIENCE_V01 = "codex-app-server" as const;
+export const CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01 =
+  "https://chatgpt.com/backend-api/codex" as const;
+export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
+  "--strict-config",
+  "-c",
+  'forced_login_method="chatgpt"',
+  "-c",
+  'cli_auth_credentials_store="ephemeral"',
+  "-c",
+  'model_provider="openai"',
+  "-c",
+  'web_search="disabled"',
+  "-c",
+  "mcp_servers={}",
+  "-c",
+  "plugins={}",
+  "-c",
+  "skills={}",
+  "-c",
+  "apps={}",
+  "-c",
+  "features.apps=false",
+  "-c",
+  "features.plugins=false",
+  "-c",
+  "features.remote_plugin=false",
+  "-c",
+  "features.network_proxy=false",
+  "-c",
+  "features.request_permissions_tool=false",
+  "-c",
+  "features.hooks=false",
+  "-c",
+  "features.multi_agent=false",
+  "-c",
+  "features.in_app_browser=false",
+  "-c",
+  "features.browser_use=false",
+  "-c",
+  "features.browser_use_full_cdp_access=false",
+  "-c",
+  "features.browser_use_external=false",
+  "-c",
+  "features.computer_use=false",
+  "-c",
+  "features.image_generation=false",
+  "-c",
+  "features.tool_suggest=false",
+  "-c",
+  "features.recommended_plugins=false",
+  "-c",
+  "features.web_search_request=false",
+  "-c",
+  "features.web_search_cached=false",
+  "-c",
+  "features.standalone_web_search=false",
+  "-c",
+  "orchestrator.skills.enabled=false",
+  "-c",
+  "orchestrator.mcp.enabled=false",
+  "-c",
+  "check_for_update_on_startup=false",
+  "-c",
+  "allow_login_shell=false",
+  "-c",
+  'shell_environment_policy.inherit="core"',
+  "-c",
+  "shell_environment_policy.ignore_default_excludes=false",
+  "-c",
+  "project_doc_max_bytes=0",
+  "-c",
+  "project_doc_fallback_filenames=[]",
+] as const;
 
 export interface CodexIsolatedAuthIntegrityV01 {
   algorithm: "sha256";
@@ -44,6 +122,28 @@ export interface CodexIsolatedAuthConfigPolicyV01 {
   auth_store_mode: "ephemeral";
   model_provider: "openai";
   provider_route_fingerprint: string;
+  provider_projection_version: "codex_agent_identity_effective_provider.v0.1";
+  raw_provider_base_url: null;
+  effective_provider_base_url_fingerprint: string;
+  wire_api: "responses";
+  requires_openai_auth: true;
+  supports_websockets: true;
+  supports_standalone_web_search: true;
+  builtin_version_header_owned: true;
+  builtin_organization_env_header_owned: true;
+  builtin_project_env_header_owned: true;
+  isolated_launch_provider_header_env_absent: true;
+  request_max_retries: 4;
+  stream_max_retries: 5;
+  stream_idle_timeout_ms: 300000;
+  websocket_connect_timeout_ms: 15000;
+  env_key_present: false;
+  experimental_bearer_token_present: false;
+  auth_command_present: false;
+  aws_config_present: false;
+  query_params_present: false;
+  user_http_headers_present: false;
+  user_env_http_headers_present: false;
   config_layer_policy: "runtime_overrides_only";
   config_requirements_policy: "none";
   web_search: "disabled";
@@ -83,6 +183,32 @@ export interface CodexIsolatedAuthAvailabilityV01 {
   integrity: CodexIsolatedAuthIntegrityV01;
 }
 
+export interface CodexIsolatedAuthProvisioningAuthorizationV01 {
+  authorization_version: typeof CODEX_ISOLATED_AUTH_PROVISIONING_AUTHORIZATION_VERSION_V01;
+  authorization_id: string;
+  auth_handle_ref: ExternalRefV01;
+  broker_binding_fingerprint: string;
+  provider_ref: ExternalRefV01;
+  codex_executable_fingerprint: string;
+  compatible_codex_cli_version: string;
+  projection_mode: typeof CODEX_ISOLATED_AUTH_ROUTE_V01;
+  issued_at: string;
+  expires_at: string;
+  authority: {
+    opaque_handle_attestation_read: true;
+    authenticated_child_spawn: true;
+    repository_execution_granted: false;
+    provider_call_granted: false;
+    task_network_granted: false;
+    github_write_granted: false;
+    semantic_write_granted: false;
+    policy_activation_granted: false;
+    publication_granted: false;
+    merge_granted: false;
+  };
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
 export interface CodexIsolatedAuthCredentialAttestationV01 {
   attestation_version: typeof CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01;
   attestation_id: string;
@@ -99,6 +225,9 @@ export interface CodexIsolatedAuthCredentialAttestationV01 {
   issuer_projection_fingerprint: string;
   audience_projection_fingerprint: string;
   validity_projection_fingerprint: string;
+  source_not_before_epoch_seconds: number;
+  source_expires_at_epoch_seconds: number;
+  source_expiry_safety_margin_seconds: 60;
   claims_authentication_status: "credential_claims_unverified_before_codex_auth";
   issued_at: string;
   expires_at: string;
@@ -175,6 +304,7 @@ export interface CodexIsolatedAuthObservationV01 {
   projection_id: string;
   projection_fingerprint: string;
   auth_attestation_fingerprint: string;
+  auth_source_generation_fingerprint: string;
   claims_authentication_status: "verified_by_codex_agent_identity_auth";
   state_root_fingerprint: string;
   home_identity_fingerprint: string;

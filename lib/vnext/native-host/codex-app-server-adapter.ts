@@ -443,9 +443,10 @@ class CodexAppServerInvocationV01 {
           "codex_isolated_auth_resume_refused",
         );
       }
-      const spawned = await isolatedOwner.spawnIsolatedCodexAppServerV01({
-        repository_root: this.request.root_scope.canonical_root,
-      });
+      isolatedOwner.assertRepositoryRootV01(
+        this.request.root_scope.canonical_root,
+      );
+      const spawned = await isolatedOwner.spawnIsolatedCodexAppServerV01();
       if (
         spawned.projection_fingerprint !==
           isolatedOwner.projection.integrity.fingerprint ||
