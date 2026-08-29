@@ -68,7 +68,7 @@ import {
 import {
   assertCommissionedLiveTrainingExternalExecutionAuthorizationPublicMaterialV01,
   assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
-  consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01,
+  consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01,
   createCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
 import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-test-execution-authorization";
@@ -1568,7 +1568,7 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
     );
     assert.throws(
       () =>
-        consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+        consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
           clonedGrant,
           adapterObservation,
         ),
@@ -1603,7 +1603,7 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
     ])
       assert.throws(
         () =>
-          consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+          consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
             grant,
             { ...adapterObservation, ...changedObservation },
           ),
@@ -1623,7 +1623,7 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
     try {
       assert.throws(
         () =>
-          consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+          consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
             grant,
             { ...adapterObservation, owner: wrongOwner },
           ),
@@ -1632,13 +1632,13 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
     } finally {
       wrongOwner.cleanupV01();
     }
-    consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+    consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
       grant,
       adapterObservation,
     );
     assert.throws(
       () =>
-        consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+        consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
           grant,
           adapterObservation,
         ),

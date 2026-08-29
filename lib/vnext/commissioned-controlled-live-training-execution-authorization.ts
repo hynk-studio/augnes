@@ -348,22 +348,23 @@ export function consumeCommissionedLiveTrainingExternalExecutionAuthorizationFor
   authorization: CodexIsolatedAuthProductionExecutionAuthorizationV01,
   input: CommissionedLiveTrainingExternalExecutionAuthorizationAdapterObservationV01,
 ): void {
-  consumeRegisteredAuthorizationV01(authorization, input, "production");
-}
-
-export function consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
-  authorization: CodexIsolatedAuthProductionExecutionAuthorizationV01,
-  input: CommissionedLiveTrainingExternalExecutionAuthorizationAdapterObservationV01,
-): void {
+  const source = SOURCE_OWNED_PRODUCTION_AUTHORIZATIONS_V01.get(authorization);
   if (
-    process.env.AUGNES_CANONICAL_TEST_MODE !== "1" ||
-    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1"
-  )
-    failV01("live_training_external_execution_authorization_contract_fixture_refused");
+    source?.source_class === "source_ownership_contract_test" &&
+    process.env.AUGNES_CANONICAL_TEST_MODE === "1" &&
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1"
+  ) {
+    consumeRegisteredAuthorizationV01(
+      authorization,
+      input,
+      "source_ownership_contract_test",
+    );
+    return;
+  }
   consumeRegisteredAuthorizationV01(
     authorization,
     input,
-    "source_ownership_contract_test",
+    "production",
   );
 }
 
