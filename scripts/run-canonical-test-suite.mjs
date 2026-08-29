@@ -448,11 +448,36 @@ const suites = {
         "mutable-module-state",
       ],
       label:
-        "credential-safe isolated Agent Identity projection and App Server launch boundary",
-      ...rootNode("scripts/test-codex-isolated-auth-projection.ts"),
-      // Broker exclusion, production-shaped fake App Server launch, account and
-      // tool-policy reobservation, replacement isolation, and cleanup measured
-      // 1.7s locally on arm64. Keep one bounded child with no retry path.
+        "credential-safe isolated Agent Identity projection, provenance, and execution-authority boundary",
+      ...rootNode(
+        "scripts/test-codex-isolated-auth-projection.ts",
+        "--contracts",
+      ),
+      // The structural contract lane owns the production-shaped fake App Server,
+      // account/tool-policy reobservation, provenance, and execution gate. Three
+      // exact Node 24 canonical-runner measurements were 35.987s-36.255s. Bound
+      // at 60s for shared-host variance without a retry path.
+      timeoutMs: 60_000,
+    },
+    {
+      id: "codex-isolated-auth-rollback-lifecycle",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "isolated Agent Identity credential lease, rollback, replay, and exact process-ownership boundary",
+      ...rootNode(
+        "scripts/test-codex-isolated-auth-projection.ts",
+        "--rollback-lifecycle",
+      ),
+      // The destructive lane intentionally waits through the broker's 5s child
+      // rollback settlement contract and retained-owner cleanup. Three exact
+      // Node 24 canonical-runner measurements were 9.671s-9.702s. The separate
+      // 30s bound preserves those irreducible waits without hiding a hang.
       timeoutMs: 30_000,
     },
     {

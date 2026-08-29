@@ -163,6 +163,7 @@ const SECRET_CANARIES = [
 ] as const;
 
 type RootsV01 = ReturnType<typeof createRootsV01>;
+type FocusedModeV01 = "contracts" | "rollback-lifecycle";
 type ExecutionAuthorizationVariantV01 =
   | "test_authorized"
   | "absent"
@@ -197,7 +198,19 @@ type ProbeV01 = {
 };
 
 async function mainV01(): Promise<void> {
-  installZeroNetworkGuard();
+  for (const mode of focusedModesV01(process.argv.slice(2)))
+    await runFocusedModeV01(mode);
+}
+
+function focusedModesV01(args: string[]): FocusedModeV01[] {
+  if (args.length === 0) return ["contracts", "rollback-lifecycle"];
+  if (args.length === 1 && args[0] === "--contracts") return ["contracts"];
+  if (args.length === 1 && args[0] === "--rollback-lifecycle")
+    return ["rollback-lifecycle"];
+  throw new Error("codex_isolated_auth_test_mode_invalid");
+}
+
+async function runFocusedModeV01(mode: FocusedModeV01): Promise<void> {
   const prior = {
     test: process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE,
     home: process.env.HOME,
@@ -206,12 +219,32 @@ async function mainV01(): Promise<void> {
     tmp: process.env.TMPDIR,
   };
   const roots = createRootsV01();
-  process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
-  process.env.HOME = roots.ordinaryHome;
-  process.env.CODEX_HOME = roots.ordinaryHome;
-  process.env.CODEX_SQLITE_HOME = roots.ordinaryHome;
-  process.env.TMPDIR = roots.ordinaryTmp;
+  const networkGuard = installZeroNetworkGuard();
   try {
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
+    process.env.HOME = roots.ordinaryHome;
+    process.env.CODEX_HOME = roots.ordinaryHome;
+    process.env.CODEX_SQLITE_HOME = roots.ordinaryHome;
+    process.env.TMPDIR = roots.ordinaryTmp;
+    if (mode === "contracts") await contractsV01(roots);
+    else await rollbackLifecycleV01(roots);
+    assert.deepEqual(
+      networkGuard.attempts,
+      [],
+      `${mode} must make zero external network attempts`,
+    );
+  } finally {
+    networkGuard.restore();
+    restoreEnvV01("AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE", prior.test);
+    restoreEnvV01("HOME", prior.home);
+    restoreEnvV01("CODEX_HOME", prior.codex);
+    restoreEnvV01("CODEX_SQLITE_HOME", prior.sqlite);
+    restoreEnvV01("TMPDIR", prior.tmp);
+    rmSync(roots.root, { recursive: true, force: true });
+  }
+}
+
+async function contractsV01(roots: RootsV01): Promise<void> {
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
     assert.equal(provisioned.availability.state, "available_exact");
     assert.match(
@@ -529,9 +562,6 @@ async function mainV01(): Promise<void> {
     await agentIdentityClaimNegativesV01(roots);
     await runtimePolicyNegativesV01(roots, provisioned);
     await tmpAndFailureNegativesV01(roots, provisioned);
-    await leaseReleaseRollbackV01(roots, provisioned);
-    await poisonWriteFailureReplayV01(roots);
-    await exactProcessBirthRollbackV01();
     assertNoSecretFilesV01(roots.root);
     assert.equal(
       readFileSync(path.join(roots.ordinaryTmp, "foreign-temp-canary"), "utf8"),
@@ -550,6 +580,8 @@ async function mainV01(): Promise<void> {
     console.log(
       JSON.stringify({
         status: "passed",
+        mode: "contracts",
+        contract_suite: "codex_isolated_auth_contracts.v0.1",
         projection_version: provisioned.projection.projection_version,
         attestation_version:
           provisioned.credential_attestation.attestation_version,
@@ -585,14 +617,44 @@ async function mainV01(): Promise<void> {
         cleanup_complete: true,
       }),
     );
-  } finally {
-    restoreEnvV01("AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE", prior.test);
-    restoreEnvV01("HOME", prior.home);
-    restoreEnvV01("CODEX_HOME", prior.codex);
-    restoreEnvV01("CODEX_SQLITE_HOME", prior.sqlite);
-    restoreEnvV01("TMPDIR", prior.tmp);
-    rmSync(roots.root, { recursive: true, force: true });
-  }
+}
+
+async function rollbackLifecycleV01(roots: RootsV01): Promise<void> {
+  const provisioned = await provisionV01(
+    roots,
+    "rollback-lifecycle",
+    FAKE_JWT,
+  );
+  assert.equal(provisioned.availability.state, "available_exact");
+  await leaseReleaseRollbackV01(roots, provisioned);
+  await poisonWriteFailureReplayV01(roots);
+  await exactProcessBirthRollbackV01();
+  assertNoSecretFilesV01(roots.root);
+  assert.equal(
+    readFileSync(path.join(roots.ordinaryTmp, "foreign-temp-canary"), "utf8"),
+    "ordinary-temp-untouched\n",
+  );
+  assert.equal(
+    readFileSync(path.join(roots.ordinaryHome, "foreign-config.toml"), "utf8"),
+    "foreign-user-instruction=true\n",
+  );
+  assert.equal(existsSync(path.join(roots.ordinaryHome, "auth.json")), false);
+  assert.equal(readdirSync(roots.lease).length, 0);
+  console.log(
+    JSON.stringify({
+      status: "passed",
+      mode: "rollback-lifecycle",
+      contract_suite: "codex_isolated_auth_rollback_lifecycle.v0.1",
+      lease_release_rollback: true,
+      retained_rollback_ownership: true,
+      poison_replay_refused: true,
+      exact_process_birth_substitution_refused: true,
+      real_keychain_accesses: 0,
+      real_provider_calls: 0,
+      successful_external_network_egress: 0,
+      cleanup_complete: true,
+    }),
+  );
 }
 
 async function authenticatedChildProvenanceV01(
@@ -2038,7 +2100,7 @@ async function leaseReleaseRollbackV01(
       cleanup_complete: true,
     });
   } finally {
-    unrelated.kill("SIGKILL");
+    await stopTestOwnedChildV01(unrelated);
     rmSync(rollbackRoot, { recursive: true, force: true });
   }
 
@@ -2184,8 +2246,10 @@ async function exactProcessBirthRollbackV01(): Promise<void> {
     assert.doesNotThrow(() => process.kill(child.pid!, 0));
     assert.doesNotThrow(() => process.kill(unrelated.pid!, 0));
   } finally {
-    child.kill("SIGKILL");
-    unrelated.kill("SIGKILL");
+    await Promise.all([
+      stopTestOwnedChildV01(child),
+      stopTestOwnedChildV01(unrelated),
+    ]);
   }
 }
 

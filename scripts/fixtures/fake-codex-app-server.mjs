@@ -28,6 +28,7 @@ const scenario =
     ? "browser_two_sequential_approvals"
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
+const fakeCodexUserAgent = fakeCodexUserAgentV01(scenario);
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -205,17 +206,14 @@ async function handle(message) {
       }
       initialized = true;
       respond(message.id, {
-        userAgent:
-          scenario === "isolated_auth_cli_version_mismatch"
-            ? "codex-cli/0.148.0"
-            : "codex-cli/0.147.0",
+        userAgent: fakeCodexUserAgent,
         codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
         platformFamily: process.platform === "win32" ? "windows" : "unix",
         platformOs: process.platform,
       });
       if (scenario === "duplicate_response") {
         respond(message.id, {
-          userAgent: "codex-cli/0.147.0",
+          userAgent: fakeCodexUserAgent,
           codexHome: process.env.HOME ?? root,
           platformFamily: "unix",
           platformOs: process.platform,
@@ -754,6 +752,13 @@ async function handle(message) {
       completeFailure();
     }
   }
+}
+
+function fakeCodexUserAgentV01(value) {
+  if (value === "isolated_auth_cli_version_mismatch")
+    return "codex-cli/0.148.0";
+  if (value.startsWith("isolated_auth_")) return "codex-cli/0.147.0";
+  return "codex-cli/fake-0.143.0";
 }
 
 function requestCommandApproval(overrides = {}, requestId = approvalRequestId) {
