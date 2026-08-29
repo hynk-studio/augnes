@@ -61,8 +61,8 @@ import {
 } from "@/lib/vnext/commissioned-controlled-live-training-artifact-store";
 import {
   createCommissionedLiveTrainingExternalExecutionAuthorizationV01,
-  createCommissionedLiveTrainingTestExecutionAuthorizationV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
+import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-test-execution-authorization";
 import {
   admitCommissionedWorkExecutorResultV01,
   assertValidCommissionedWorkEpisodeArtifactV01,

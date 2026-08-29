@@ -28,6 +28,8 @@ export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
   "codex_isolated_auth_credential_free_preflight.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
   "codex_isolated_auth_test_external_execution_authorization.v0.1" as const;
+export const CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01 =
+  "codex_isolated_auth_model_configuration.v0.1" as const;
 export const CODEX_AGENT_IDENTITY_ISSUER_V01 =
   "https://chatgpt.com/codex-backend/agent-identity" as const;
 export const CODEX_AGENT_IDENTITY_AUDIENCE_V01 = "codex-app-server" as const;
@@ -432,10 +434,10 @@ export interface CodexIsolatedAuthTestExecutionAuthorizationV01 {
 }
 
 /**
- * Opaque production bridge consumed by the App Server adapter only after the
+ * Data-only production bridge consumed by the App Server adapter only after the
  * authenticated preflight has completed.  The adapter deliberately owns no
- * public production factory: a commissioned runtime must supply a source-owned
- * single-use capability whose callback revalidates its upstream authority.
+ * public production factory: a commissioned runtime must supply source-owned,
+ * data-only single-use material recognized by its trusted registry owner.
  */
 export interface CodexIsolatedAuthProductionExecutionAuthorizationV01 {
   authorization_version: string;
@@ -458,17 +460,6 @@ export interface CodexIsolatedAuthProductionExecutionAuthorizationV01 {
   single_use: true;
   test_only: false;
   integrity: CodexIsolatedAuthIntegrityV01;
-  consume_for_adapter_v01(input: {
-    owner: object;
-    request_id: string;
-    run_id: string;
-    root_scope_fingerprint: string;
-    projection_fingerprint: string;
-    execution_environment_fingerprint: string;
-    provider_ref: ExternalRefV01;
-    model_configuration_fingerprint: string;
-    effective_route_fingerprint: string;
-  }): void;
 }
 
 export type CodexIsolatedAuthExternalExecutionAuthorizationV01 =

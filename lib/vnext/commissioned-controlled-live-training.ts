@@ -3224,7 +3224,15 @@ export function assertSafeCommissionedLiveTrainingOutputV01(value: unknown): voi
     if (candidate === false && key !== null) allowedFalseInvariantFields.add(key);
     if (
       key !== null &&
-      ["provider_id", "model_id", "route_id"].includes(key)
+      [
+        "provider_id",
+        "model_id",
+        "route_id",
+        "expected_provider_id",
+        "expected_model_id",
+        "expected_route_id",
+        "run_id",
+      ].includes(key)
     ) {
       allowedCanonicalIdentityPaths.add(path);
     }

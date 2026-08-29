@@ -65,7 +65,13 @@ import {
   validateCommissionedLiveTrainingArtifactsV01,
   validateCommissionedLiveTrainingIncompleteArtifactsV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-artifact-store";
-import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
+import {
+  assertCommissionedLiveTrainingExternalExecutionAuthorizationPublicMaterialV01,
+  assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
+  consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01,
+  createCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01,
+} from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
+import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-test-execution-authorization";
 import {
   executeCommissionedLiveTrainingCohortV01,
   observeCommissionedLiveTrainingExecutableIdentityV01,
@@ -220,6 +226,14 @@ async function main(): Promise<void> {
       cost_microunit_ceiling: { observability: "unknown", limit: null, source_ref: null },
       per_episode_timeout_ms: 10_000,
       total_cohort_timeout_ms: 180_000,
+    });
+    await runRuntimeConsumptionWitnessNegativeMatrixV01({
+      root,
+      manifest,
+      trainingCases,
+      plan,
+      authorization,
+      nativeConfiguration,
     });
     const fixtureOutputs = trainingFixtureOutputsV01(trainingCases, plan);
     assert.equal(fixtureOutputs.length, 15);
@@ -535,14 +549,6 @@ async function main(): Promise<void> {
       authorization,
       nativeConfiguration,
       result,
-    });
-    await runRuntimeConsumptionWitnessNegativeMatrixV01({
-      root,
-      manifest,
-      trainingCases,
-      plan,
-      authorization,
-      nativeConfiguration,
     });
     process.stdout.write(`${JSON.stringify({
       status: "passed",
@@ -1496,7 +1502,8 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
         }),
       /live_training_external_execution_authorization_allocation_refused/u,
     );
-    const grant = createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+    const grant =
+      createCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01({
       witness: consumed.runtime_witness,
       owner,
       request,
@@ -1504,9 +1511,139 @@ async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
       attempt_id: slot.primary_attempt_id,
       attempt_kind: "primary",
       invocation_ordinal: 1,
-      expires_at: authorization.expires_at,
     });
     assert.equal(grant.single_use, true);
+    assert.equal("consume_for_adapter_v01" in grant, false);
+    assert.equal(containsFunctionMemberV01(grant), false);
+    assertCommissionedLiveTrainingExternalExecutionAuthorizationPublicMaterialV01(
+      grant,
+    );
+    const publicGrantText = JSON.stringify(grant);
+    for (const forbidden of [
+      "consume_for_adapter_v01",
+      "childprocess",
+      "stdin",
+      "stdout",
+      "keychain",
+      "auth.json",
+      "private_key",
+      "jwt",
+    ])
+      assert.equal(publicGrantText.toLowerCase().includes(forbidden), false);
+    const adapterObservation = {
+      owner,
+      request_id: request.request_id,
+      run_id: request.run_id,
+      root_scope_fingerprint: grant.root_scope_fingerprint,
+      projection_fingerprint: grant.projection_fingerprint,
+      execution_environment_fingerprint:
+        grant.execution_environment_fingerprint,
+      provider_ref: grant.provider_ref,
+      model_configuration_fingerprint:
+        grant.model_configuration_ref.external_id.slice(
+          "codex-isolated-auth-model-configuration:".length,
+        ),
+      effective_route_fingerprint: grant.effective_route_fingerprint,
+      observed_model_id: grant.expected_model_id,
+      observed_reasoning_effort: grant.expected_reasoning_effort,
+      observed_at: "2026-08-28T06:05:00.000Z",
+    };
+    const clonedGrant = structuredClone(grant);
+    const { integrity: _clonedIntegrity, ...clonedMaterial } = clonedGrant;
+    clonedGrant.integrity = {
+      algorithm: "sha256",
+      fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(clonedMaterial),
+      ),
+    };
+    assertCommissionedLiveTrainingExternalExecutionAuthorizationPublicMaterialV01(
+      clonedGrant,
+    );
+    assert.throws(
+      () =>
+        assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01(
+          clonedGrant,
+        ),
+      /live_training_external_execution_authorization_source_identity_missing/u,
+    );
+    assert.throws(
+      () =>
+        consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+          clonedGrant,
+          adapterObservation,
+        ),
+      /live_training_external_execution_authorization_source_identity_missing/u,
+    );
+    for (const changedObservation of [
+      { request_id: `${request.request_id}-wrong` },
+      { run_id: `${request.run_id}-wrong` },
+      { root_scope_fingerprint: createProtocolSha256V01("wrong-root") },
+      { projection_fingerprint: createProtocolSha256V01("wrong-projection") },
+      {
+        execution_environment_fingerprint:
+          createProtocolSha256V01("wrong-environment"),
+      },
+      {
+        provider_ref: {
+          ...grant.provider_ref,
+          external_id: `${grant.provider_ref.external_id}-wrong`,
+        },
+      },
+      {
+        model_configuration_fingerprint:
+          createProtocolSha256V01("wrong-model-configuration"),
+      },
+      {
+        effective_route_fingerprint:
+          createProtocolSha256V01("wrong-route"),
+      },
+      { observed_model_id: "wrong-model" },
+      { observed_reasoning_effort: "wrong-reasoning" },
+      { observed_at: grant.expires_at },
+    ])
+      assert.throws(
+        () =>
+          consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+            grant,
+            { ...adapterObservation, ...changedObservation },
+          ),
+        /live_training_external_execution_authorization_consumption_refused/u,
+      );
+    const wrongOwner = TEST_ISOLATED_AUTH_HARNESS.create_owner({
+      repository_root: attemptRepository,
+      state_parent: path.join(
+        input.root,
+        "runtime-witness-wrong-owner-state",
+      ),
+      test_environment: {
+        AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+        FAKE_CODEX_SCENARIO: "isolated_auth_success",
+      },
+    });
+    try {
+      assert.throws(
+        () =>
+          consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+            grant,
+            { ...adapterObservation, owner: wrongOwner },
+          ),
+        /live_training_external_execution_authorization_consumption_refused/u,
+      );
+    } finally {
+      wrongOwner.cleanupV01();
+    }
+    consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+      grant,
+      adapterObservation,
+    );
+    assert.throws(
+      () =>
+        consumeCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01(
+          grant,
+          adapterObservation,
+        ),
+      /live_training_external_execution_authorization_consumption_refused/u,
+    );
     assert.throws(
       () =>
         createCommissionedLiveTrainingTestExecutionAuthorizationV01({
@@ -3360,6 +3497,21 @@ function resealV01(
   const record = value as typeof value & Record<string, unknown>;
   const { integrity: _prior, ...withoutIntegrity } = record;
   value.integrity = createCommissionedWorkIntegrityV01(withoutIntegrity, scope);
+}
+
+function containsFunctionMemberV01(
+  value: unknown,
+  stack = new Set<object>(),
+): boolean {
+  if (typeof value === "function") return true;
+  if (value === null || typeof value !== "object") return false;
+  if (stack.has(value)) return true;
+  stack.add(value);
+  const containsFunction = Object.values(value).some((candidate) =>
+    containsFunctionMemberV01(candidate, stack),
+  );
+  stack.delete(value);
+  return containsFunction;
 }
 
 function readFilesRecursivelyV01(root: string): string {

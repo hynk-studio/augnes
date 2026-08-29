@@ -12,6 +12,11 @@ import {
 import path from "node:path";
 
 import {
+  CommissionedLiveTrainingExecutionAuthorizationErrorV01,
+  assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
+  consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01,
+} from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
+import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostPublicTextV01,
@@ -63,6 +68,7 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
   type CodexIsolatedAuthCredentialFreePreflightV01,
@@ -94,8 +100,6 @@ const CODEX_ISOLATED_AUTH_TEST_MODEL_CONFIGURATION_V01 = {
   model: "fake-isolated-model",
   reasoning_effort: "low",
 } as const;
-export const CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01 =
-  "codex_isolated_auth_model_configuration.v0.1" as const;
 
 export interface CodexAppServerRequestSourceBindingV01 {
   binding_version: typeof CODEX_APP_SERVER_REQUEST_SOURCE_BINDING_VERSION_V01;
@@ -1343,8 +1347,9 @@ class CodexAppServerInvocationV01 {
         "codex_isolated_auth_external_execution_authorization_refused",
       );
     if (authorization.authorization_kind === "production_external_execution") {
-      const { integrity, consume_for_adapter_v01: consume, ...material } =
-        authorization;
+      assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01(
+        authorization,
+      );
       if (
         process.env.AUGNES_CANONICAL_TEST_MODE === "1" ||
         process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1" ||
@@ -1354,27 +1359,30 @@ class CodexAppServerInvocationV01 {
         authorization.test_only !== false ||
         this.isolatedObservedModelId !== authorization.expected_model_id ||
         this.isolatedObservedReasoningEffort !==
-          authorization.expected_reasoning_effort ||
-        integrity.algorithm !== "sha256" ||
-        integrity.fingerprint !==
-          createProtocolSha256V01(canonicalizeProtocolValueV01(material))
+        authorization.expected_reasoning_effort
       )
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_external_execution_authorization_refused",
         );
-      consume({
-        owner,
-        request_id: this.request.request_id,
-        run_id: this.request.run_id,
-        root_scope_fingerprint: rootScopeFingerprint,
-        projection_fingerprint: owner.projection.integrity.fingerprint,
-        execution_environment_fingerprint:
-          owner.execution_environment_fingerprint,
-        provider_ref: owner.projection.provider_ref,
-        model_configuration_fingerprint: modelConfigurationFingerprint!,
-        effective_route_fingerprint:
-          owner.projection.config_policy.provider_route_fingerprint,
-      });
+      consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01(
+        authorization,
+        {
+          owner,
+          request_id: this.request.request_id,
+          run_id: this.request.run_id,
+          root_scope_fingerprint: rootScopeFingerprint,
+          projection_fingerprint: owner.projection.integrity.fingerprint,
+          execution_environment_fingerprint:
+            owner.execution_environment_fingerprint,
+          provider_ref: owner.projection.provider_ref,
+          model_configuration_fingerprint: modelConfigurationFingerprint!,
+          effective_route_fingerprint:
+            owner.projection.config_policy.provider_route_fingerprint,
+          observed_model_id: this.isolatedObservedModelId,
+          observed_reasoning_effort: this.isolatedObservedReasoningEffort,
+          observed_at: this.now(),
+        },
+      );
     } else {
       const sourceState =
         SOURCE_OWNED_TEST_EXECUTION_AUTHORIZATIONS_V01.get(authorization);
@@ -4561,6 +4569,7 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexRpcErrorV01 ||
     error instanceof CodexCredentialBrokerErrorV01 ||
     error instanceof CodexIsolatedAuthProjectionErrorV01 ||
+    error instanceof CommissionedLiveTrainingExecutionAuthorizationErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01
   ) {
