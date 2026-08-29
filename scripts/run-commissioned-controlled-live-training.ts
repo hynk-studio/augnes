@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -9,6 +17,11 @@ import {
 } from "@/lib/vnext/commissioned-controlled-live-training";
 import { validateCommissionedLiveTrainingArtifactsV01 } from "@/lib/vnext/commissioned-controlled-live-training-artifact-store";
 import { executeCommissionedLiveTrainingCohortV01 } from "@/lib/vnext/commissioned-controlled-live-training-runner";
+import {
+  createCommissionedLiveTrainingProductionOwnerFactoryV01,
+  parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01,
+} from "@/lib/vnext/commissioned-controlled-live-training-production-owner";
+import { probeCodexIsolatedAuthCredentialFreeCompatibilityV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -193,14 +206,80 @@ async function main(): Promise<void> {
     sourceIdentity.tree !== input.current_main_tree ||
     sourceIdentity.head !== input.authorization.source_binding.main_sha ||
     sourceIdentity.tree !== input.authorization.source_binding.main_tree ||
+    sourceIdentity.branch !== "main" ||
+    sourceIdentity.origin_main !== sourceIdentity.head ||
     sourceIdentity.clean !== true ||
     sourceIdentity.origin !== "hynk-studio/augnes" ||
     realpathSync(input.artifact_repository_root) !== sourceIdentity.root
   ) {
     throw new Error("live_training_cli_exact_source_or_artifact_root_mismatch");
   }
-  const nonce = process.env.AUGNES_CW1_L1_AUTHORIZATION_NONCE;
-  if (!nonce) throw new Error("live_training_authorization_nonce_environment_missing");
+  const nonce = takePrivateEnvironmentValueV01(
+    "AUGNES_CW1_L1_AUTHORIZATION_NONCE",
+    "live_training_authorization_nonce_environment_missing",
+  );
+  const runtimeAuthBinding =
+    parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01(
+      JSON.parse(
+        takePrivateEnvironmentValueV01(
+          "AUGNES_CW1_L1_RUNTIME_AUTH_BINDING_JSON",
+          "live_training_runtime_auth_binding_environment_missing",
+        ),
+      ) as unknown,
+    );
+  const runtimeLocator = {
+    service_name: takePrivateEnvironmentValueV01(
+      "AUGNES_CW1_L1_KEYCHAIN_SERVICE_NAME",
+      "live_training_keychain_service_environment_missing",
+    ),
+    account_name: takePrivateEnvironmentValueV01(
+      "AUGNES_CW1_L1_KEYCHAIN_ACCOUNT_NAME",
+      "live_training_keychain_account_environment_missing",
+    ),
+    keychain_path: takePrivateEnvironmentValueV01(
+      "AUGNES_CW1_L1_KEYCHAIN_PATH",
+      "live_training_keychain_path_environment_missing",
+    ),
+  };
+  const isolatedRuntimeParent = realpathSync(
+    takePrivateEnvironmentValueV01(
+      "AUGNES_CW1_L1_ISOLATED_RUNTIME_PARENT",
+      "live_training_isolated_runtime_parent_environment_missing",
+    ),
+  );
+  const compatibilityParent = mkdtempSync(
+    path.join(os.tmpdir(), "augnes-cw1-l1-compatibility-"),
+  );
+  chmodSync(compatibilityParent, 0o700);
+  let currentCompatibility;
+  try {
+    currentCompatibility =
+      await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
+        command: input.native_host_executable_path,
+        expected_executable_fingerprint:
+          input.authorization.codex_environment_binding
+            .codex_executable_fingerprint,
+        executable_identity_class: "production_pinned_codex",
+        state_parent: realpathSync(compatibilityParent),
+        repository_root: sourceIdentity.root,
+        base_environment: {
+          PATH: process.env.PATH,
+          LANG: "C",
+          TZ: "UTC",
+          NO_COLOR: "1",
+        },
+      });
+  } finally {
+    rmSync(compatibilityParent, { recursive: true, force: false });
+  }
+  const createOwner =
+    createCommissionedLiveTrainingProductionOwnerFactoryV01({
+      authorization: input.authorization,
+      native_execution_configuration: input.native_execution_configuration,
+      runtime_auth_binding: runtimeAuthBinding,
+      executable_path: input.native_host_executable_path,
+      locator: runtimeLocator,
+    });
   const result = await executeCommissionedLiveTrainingCohortV01({
     source_repository_root: input.source_repository_root,
     artifact_repository_root: input.artifact_repository_root,
@@ -214,7 +293,10 @@ async function main(): Promise<void> {
     current_main_tree: input.current_main_tree,
     consumer_instance_ref: input.consumer_instance_ref,
     execution_started_at: new Date().toISOString(),
+    credential_free_compatibility_observation: currentCompatibility,
+    isolated_runtime_parent: isolatedRuntimeParent,
     native_host_executable_path: input.native_host_executable_path,
+    create_isolated_authenticated_execution_owner: createOwner,
   });
   process.stdout.write(`${JSON.stringify({
     mode,
@@ -228,6 +310,13 @@ async function main(): Promise<void> {
     fake_output_is_behavioral_evidence: result.fake_output_is_behavioral_evidence,
     cleanup_complete: result.cleanup_complete,
   })}\n`);
+}
+
+function takePrivateEnvironmentValueV01(name: string, errorCode: string): string {
+  const value = process.env[name];
+  delete process.env[name];
+  if (!value) throw new Error(errorCode);
+  return value;
 }
 
 function assertExactInputKeysV01(
@@ -253,6 +342,8 @@ function observeExactExecutionSourceV01(root: string): {
   root: string;
   head: string;
   tree: string;
+  branch: string;
+  origin_main: string;
   clean: boolean;
   origin: "hynk-studio/augnes" | "foreign";
 } {
@@ -273,6 +364,8 @@ function observeExactExecutionSourceV01(root: string): {
     root: canonicalRoot,
     head: git(["rev-parse", "HEAD"]),
     tree: git(["rev-parse", "HEAD^{tree}"]),
+    branch: git(["symbolic-ref", "--short", "HEAD"]),
+    origin_main: git(["rev-parse", "origin/main"]),
     clean: git(["status", "--porcelain=v1"]) === "",
     origin:
       remote === "https://github.com/hynk-studio/augnes"

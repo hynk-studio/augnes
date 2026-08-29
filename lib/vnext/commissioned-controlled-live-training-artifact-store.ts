@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 import {
   assertCommissionedLiveTrainingArtifactsCompleteV01,
@@ -34,6 +35,7 @@ import {
   commissionedLiveTrainingRecordRefV01,
   commissionedWorkManifestRecordRefV01,
   createCommissionedLiveTrainingAdapterBindingV01,
+  createCommissionedLiveTrainingRecordRefV01,
   COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01,
   CommissionedControlledLiveTrainingErrorV01,
 } from "@/lib/vnext/commissioned-controlled-live-training";
@@ -55,6 +57,7 @@ import {
   COMMISSIONED_LIVE_TRAINING_ARTIFACT_INDEX_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_COMPLETION_WITNESS_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_CONSUMPTION_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_RUNTIME_CONSUMPTION_WITNESS_VERSION_V01,
   type CommissionedLiveTrainingArtifactIndexEntryV01,
   type CommissionedLiveTrainingArtifactIndexV01,
   type CommissionedLiveTrainingArtifactsV01,
@@ -75,6 +78,8 @@ import {
   type CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
   type CommissionedLiveTrainingIncompleteCloseoutV01,
   type CommissionedLiveTrainingResultV01,
+  type CommissionedLiveTrainingRuntimeConsumptionWitnessV01,
+  type CommissionedLiveTrainingScheduleSlotV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
 import type {
   CommissionedWorkEpisodeArtifactV01,
@@ -91,6 +96,19 @@ const INDEX_FILE_V01 = "artifact-index.json";
 const INCOMPLETE_INDEX_FILE_V01 = "incomplete-artifact-index.json";
 const INCOMPLETE_CLEANUP_FILE_V01 = "incomplete-cleanup-report.json";
 const MAX_SECURE_IO_BYTES_V01 = 4_194_304;
+interface RuntimeWitnessSourceV01 {
+  authorization: CommissionedLiveTrainingAuthorizationV01;
+  consumption: CommissionedLiveTrainingAuthorizationConsumptionV01;
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  checkout_root_fingerprint: string;
+  artifact_run_root: string;
+  allocated_ordinals: Set<number>;
+  allocated_attempt_ids: Set<string>;
+}
+const SOURCE_OWNED_RUNTIME_WITNESSES_V01 = new WeakMap<
+  object,
+  RuntimeWitnessSourceV01
+>();
 const SECURE_ARTIFACT_IO_HELPER_V01 = [
   "import json, os, stat, sys",
   "operation, encoded_segments, expected_dev, expected_ino, encoded_pins = sys.argv[1:]",
@@ -253,9 +271,70 @@ export interface CommissionedLiveTrainingArtifactStoreInitializationV01 {
 
 export interface CommissionedLiveTrainingAuthorizationConsumptionSummaryV01 {
   consumption: CommissionedLiveTrainingAuthorizationConsumptionV01;
+  runtime_witness: CommissionedLiveTrainingRuntimeConsumptionWitnessV01;
   primary_marker_relative_path: string;
   witness_marker_relative_path: string;
   exclusive_before_first_native_host_invocation: true;
+}
+
+export function assertSourceOwnedCommissionedLiveTrainingRuntimeConsumptionWitnessV01(
+  witness: CommissionedLiveTrainingRuntimeConsumptionWitnessV01,
+): void {
+  const source = SOURCE_OWNED_RUNTIME_WITNESSES_V01.get(witness);
+  const { integrity, ...material } = witness;
+  if (
+    !source ||
+    integrity.fingerprint !==
+      createCommissionedWorkIntegrityV01(
+        material,
+        "commissioned_live_training_runtime_consumption_witness_without_integrity_fingerprint",
+      ).fingerprint
+  )
+    failV01("live_training_runtime_consumption_witness_source_invalid");
+}
+
+export function reserveCommissionedLiveTrainingRuntimeWitnessInvocationV01(input: {
+  witness: CommissionedLiveTrainingRuntimeConsumptionWitnessV01;
+  invocation_ordinal: number;
+  slot: CommissionedLiveTrainingScheduleSlotV01;
+  attempt_id: string;
+  attempt_kind: "primary" | "replacement";
+}): Pick<
+  RuntimeWitnessSourceV01,
+  "authorization" | "consumption" | "plan" | "checkout_root_fingerprint" | "artifact_run_root"
+> {
+  assertSourceOwnedCommissionedLiveTrainingRuntimeConsumptionWitnessV01(
+    input.witness,
+  );
+  const source = SOURCE_OWNED_RUNTIME_WITNESSES_V01.get(input.witness)!;
+  const slot = source.plan.slots.find(
+    (candidate) => candidate.slot_id === input.slot.slot_id,
+  );
+  const expectedAttemptId =
+    input.attempt_kind === "primary"
+      ? input.slot.primary_attempt_id
+      : `${input.slot.primary_attempt_id.slice(0, -1)}r1`;
+  if (
+    !slot ||
+    canonicalizeProtocolValueV01(slot) !==
+      canonicalizeProtocolValueV01(input.slot) ||
+    input.attempt_id !== expectedAttemptId ||
+    !Number.isInteger(input.invocation_ordinal) ||
+    input.invocation_ordinal < 1 ||
+    input.invocation_ordinal > source.authorization.native_host_invocation_limit ||
+    source.allocated_ordinals.has(input.invocation_ordinal) ||
+    source.allocated_attempt_ids.has(input.attempt_id)
+  )
+    failV01("live_training_external_execution_authorization_allocation_refused");
+  source.allocated_ordinals.add(input.invocation_ordinal);
+  source.allocated_attempt_ids.add(input.attempt_id);
+  return {
+    authorization: source.authorization,
+    consumption: source.consumption,
+    plan: source.plan,
+    checkout_root_fingerprint: source.checkout_root_fingerprint,
+    artifact_run_root: source.artifact_run_root,
+  };
 }
 
 export interface CommissionedLiveTrainingArtifactWriteSummaryV01 {
@@ -561,12 +640,110 @@ export function consumeCommissionedLiveTrainingAuthorizationV01(input: {
   } catch (error) {
     throw error;
   }
+  const runtimeWitness =
+    createRuntimeConsumptionWitnessAfterDurableConsumptionV01({
+      authorization: input.authorization,
+      consumption,
+      plan: input.plan,
+      checkout_root_fingerprint: input.checkout_root_fingerprint,
+      artifact_run_root: input.store.run_root,
+      current_main_sha: input.current_main_sha,
+      current_main_tree: input.current_main_tree,
+      created_at: input.evaluated_at,
+    });
   return {
     consumption,
+    runtime_witness: runtimeWitness,
     primary_marker_relative_path: primaryRelativePath,
     witness_marker_relative_path: witnessRelativePath,
     exclusive_before_first_native_host_invocation: true,
   };
+}
+
+function createRuntimeConsumptionWitnessAfterDurableConsumptionV01(input: {
+  authorization: CommissionedLiveTrainingAuthorizationV01;
+  consumption: CommissionedLiveTrainingAuthorizationConsumptionV01;
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  checkout_root_fingerprint: string;
+  artifact_run_root: string;
+  current_main_sha: string;
+  current_main_tree: string;
+  created_at: string;
+}): CommissionedLiveTrainingRuntimeConsumptionWitnessV01 {
+  const authorizationRef = commissionedLiveTrainingRecordRefV01(
+    input.authorization,
+  );
+  const consumptionRef = createCommissionedLiveTrainingRecordRefV01({
+    record_version: input.consumption.consumption_version,
+    record_id: input.consumption.consumption_id,
+    record_fingerprint: input.consumption.integrity.fingerprint,
+  });
+  if (
+    canonicalizeProtocolValueV01(input.consumption.authorization_ref) !==
+      canonicalizeProtocolValueV01(authorizationRef) ||
+    canonicalizeProtocolValueV01(input.consumption.cohort_plan_ref) !==
+      canonicalizeProtocolValueV01(
+        commissionedLiveTrainingRecordRefV01(input.plan),
+      ) ||
+    input.consumption.authorization_nonce_fingerprint !==
+      input.authorization.authorization_nonce_fingerprint ||
+    input.consumption.native_execution_configuration_fingerprint !==
+      input.authorization.native_execution_configuration
+        .configuration_fingerprint ||
+    input.authorization.source_binding.main_sha !== input.current_main_sha ||
+    input.authorization.source_binding.main_tree !== input.current_main_tree
+  )
+    failV01("live_training_runtime_witness_source_invalid");
+  const material = {
+    witness_version:
+      COMMISSIONED_LIVE_TRAINING_RUNTIME_CONSUMPTION_WITNESS_VERSION_V01,
+    witness_identity_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01({
+        version:
+          COMMISSIONED_LIVE_TRAINING_RUNTIME_CONSUMPTION_WITNESS_VERSION_V01,
+        source_identity: randomUUID(),
+        authorization_fingerprint: input.authorization.integrity.fingerprint,
+        consumption_fingerprint: input.consumption.integrity.fingerprint,
+      }),
+    ),
+    authorization_ref: authorizationRef,
+    authorization_consumption_ref: consumptionRef,
+    cohort_plan_fingerprint: input.plan.integrity.fingerprint,
+    main_sha: input.current_main_sha,
+    main_tree: input.current_main_tree,
+    checkout_root_fingerprint: input.checkout_root_fingerprint,
+    artifact_run_root_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(input.artifact_run_root),
+    ),
+    consumer_instance_ref: structuredClone(
+      input.consumption.consumer_instance_ref,
+    ),
+    nonce_fingerprint: input.consumption.authorization_nonce_fingerprint,
+    native_execution_configuration_fingerprint:
+      input.consumption.native_execution_configuration_fingerprint,
+    codex_environment_binding_fingerprint:
+      input.authorization.codex_environment_binding.integrity.fingerprint,
+    cohort_native_invocation_ceiling:
+      input.authorization.native_host_invocation_limit,
+    created_at: input.created_at,
+  } as const;
+  const witness = Object.freeze({
+    ...material,
+    integrity: createCommissionedWorkIntegrityV01(
+      material,
+      "commissioned_live_training_runtime_consumption_witness_without_integrity_fingerprint",
+    ),
+  });
+  SOURCE_OWNED_RUNTIME_WITNESSES_V01.set(witness, {
+    authorization: input.authorization,
+    consumption: input.consumption,
+    plan: input.plan,
+    checkout_root_fingerprint: input.checkout_root_fingerprint,
+    artifact_run_root: input.artifact_run_root,
+    allocated_ordinals: new Set(),
+    allocated_attempt_ids: new Set(),
+  });
+  return witness;
 }
 
 export function appendCommissionedLiveTrainingAttemptStartV01(input: {

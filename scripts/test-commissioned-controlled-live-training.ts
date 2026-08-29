@@ -59,11 +59,13 @@ import {
 } from "@/lib/vnext/commissioned-controlled-live-training";
 import {
   consumeCommissionedLiveTrainingAuthorizationV01,
+  assertSourceOwnedCommissionedLiveTrainingRuntimeConsumptionWitnessV01,
   initializeCommissionedLiveTrainingArtifactStoreV01,
   setCommissionedLiveTrainingArtifactIoOneShotTestHookV01,
   validateCommissionedLiveTrainingArtifactsV01,
   validateCommissionedLiveTrainingIncompleteArtifactsV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-artifact-store";
+import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
 import {
   executeCommissionedLiveTrainingCohortV01,
   observeCommissionedLiveTrainingExecutableIdentityV01,
@@ -77,13 +79,7 @@ import {
   createCommissionedWorkRecordRefV01,
   createCommissionedWorkRoleRefV01,
 } from "@/lib/vnext/commissioned-controlled-workbench";
-import {
-  codexAppServerAccountProjectionFingerprintV01,
-  codexAppServerIsolatedConfigurationFingerprintV01,
-  codexAppServerIsolatedToolPolicyFingerprintV01,
-  createCodexAppServerAdapterV01,
-  createCodexAppServerIsolatedEnvironmentExpectationV01,
-} from "@/lib/vnext/native-host/codex-app-server-adapter";
+import { createCommissionedLiveTrainingIsolatedAuthTestHarnessV01 } from "@/scripts/fixtures/commissioned-live-training-isolated-auth-test-harness";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -97,9 +93,9 @@ import type {
 } from "@/types/vnext/commissioned-controlled-workbench";
 import type {
   CommissionedLiveTrainingAuthorizationV01,
+  CommissionedLiveTrainingCodexEnvironmentBindingV01,
   CommissionedLiveTrainingCohortPlanV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
-import type { NativeHostRequestV01 } from "@/types/vnext/native-host-adapter";
 
 const FOUNDATION_SHA = "53381b1aead57554e1c5b7978050b6a3a550f78c";
 const FOUNDATION_TREE = "a19354842a6eea028a5e8a669c8f4ec98e3da498";
@@ -111,34 +107,54 @@ const CHECKOUT_ROOT_FINGERPRINT = createProtocolSha256V01(
 const TEST_RESOURCE_SOURCE_REF = testRecordRefV01(
   "credential-free-zero-provider-enforcement",
 );
-const TEST_CODEX_ENVIRONMENT_BINDING =
-  buildCommissionedLiveTrainingCodexEnvironmentBindingV01({
-    binding_id: "cw1-l1-test-isolated-codex-environment",
-    binding_class: "zero_provider_control_flow_conformance",
-    account_auth_projection_ref: testRecordRefV01(
-      "credential-free-test-account-projection",
-    ),
-    account_auth_projection_fingerprint:
-      codexAppServerAccountProjectionFingerprintV01({
-        type: "chatgpt",
-        accountId: "credential-free-test-account",
-        planType: "unknown",
-      }),
-    task_network_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
-    unauthorized_effect_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
-  });
+let TEST_CODEX_ENVIRONMENT_BINDING: CommissionedLiveTrainingCodexEnvironmentBindingV01;
+let TEST_ISOLATED_AUTH_HARNESS: Awaited<
+  ReturnType<typeof createCommissionedLiveTrainingIsolatedAuthTestHarnessV01>
+>;
 
 async function main(): Promise<void> {
   const root = mkdtempSync(path.join(os.tmpdir(), "augnes-cw1-l1-test-"));
   const priorCanonicalTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
+  const priorIsolatedAuthTestMode =
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  const priorTmpDir = process.env.TMPDIR;
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
+  process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
   const artifactRepository = path.join(root, "artifact-repository");
+  const isolatedRuntimeParent = path.join(root, "isolated-runtime-parent");
+  const sharedTmpDir = path.join(root, "shared-tmp");
   mkdirSync(artifactRepository, { recursive: true, mode: 0o700 });
+  mkdirSync(isolatedRuntimeParent, { recursive: true, mode: 0o700 });
+  mkdirSync(sharedTmpDir, { recursive: true, mode: 0o700 });
+  process.env.TMPDIR = sharedTmpDir;
   writeFileSync(path.join(artifactRepository, ".gitignore"), ".augnes-lab/\n", {
     encoding: "utf8",
     mode: 0o600,
   });
   try {
+    const fakeAppServerPath = path.join(
+      process.cwd(),
+      "scripts",
+      "fixtures",
+      "fake-codex-app-server.mjs",
+    );
+    TEST_ISOLATED_AUTH_HARNESS =
+      await createCommissionedLiveTrainingIsolatedAuthTestHarnessV01({
+        repository_root: process.cwd(),
+        lease_root: path.join(root, "isolated-auth-leases"),
+        state_root: path.join(root, "isolated-auth-harness"),
+        fake_app_server_path: fakeAppServerPath,
+      });
+    TEST_CODEX_ENVIRONMENT_BINDING =
+      buildCommissionedLiveTrainingCodexEnvironmentBindingV01({
+        binding_id: "cw1-l1-test-isolated-codex-environment",
+        binding_class: "zero_provider_control_flow_conformance",
+        isolated_auth_projection: TEST_ISOLATED_AUTH_HARNESS.projection,
+        credential_free_preflight:
+          TEST_ISOLATED_AUTH_HARNESS.credential_free_preflight,
+        task_network_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
+        unauthorized_effect_enforcement_ref: TEST_RESOURCE_SOURCE_REF,
+      });
     const trainingFamily = createCommissionedControlledWorkTrainingOnlyFamilyV01();
     const manifest = trainingFamily.manifest;
     const trainingCases = trainingFamily.training_cases;
@@ -246,6 +262,9 @@ async function main(): Promise<void> {
         current_main_tree: FOUNDATION_TREE,
         consumer_instance_ref: testRecordRefV01("consumer-instance-01"),
         execution_started_at: "2026-08-28T06:02:00.000Z",
+        credential_free_compatibility_observation:
+          TEST_ISOLATED_AUTH_HARNESS.credential_free_preflight,
+        isolated_runtime_parent: isolatedRuntimeParent,
         test_fixture_outputs: fixtureOutputs,
         fake_app_server_path: path.join(
           process.cwd(),
@@ -253,6 +272,8 @@ async function main(): Promise<void> {
           "fixtures",
           "fake-codex-app-server.mjs",
         ),
+        create_isolated_authenticated_execution_owner:
+          createTestIsolatedAuthenticatedExecutionOwnerV01,
       });
     } finally {
       if (priorCodexHome === undefined) delete process.env.CODEX_HOME;
@@ -416,6 +437,17 @@ async function main(): Promise<void> {
       persistedText.includes("SEEDED_SIBLING_TRANSCRIPT_MUST_NOT_CROSS"),
       false,
     );
+    for (const forbidden of [
+      "commissioned_live_training_runtime_consumption_witness.v0.1",
+      "fixture-agent-private-key-material-never-public",
+      "acct-fixture-stable-private",
+      "user-fixture-stable-private",
+      "not-returned-to-augnes@example.invalid",
+      "AUGNES_CW1_L1_KEYCHAIN_SERVICE_NAME",
+      "AUGNES_CW1_L1_KEYCHAIN_ACCOUNT_NAME",
+      "AUGNES_CW1_L1_KEYCHAIN_PATH",
+    ])
+      assert.equal(persistedText.includes(forbidden), false);
     assertCandidateRuleMatrixV01({ plan, result });
     const index = validateCommissionedLiveTrainingArtifactsV01({
       repository_root: artifactRepository,
@@ -504,10 +536,12 @@ async function main(): Promise<void> {
       nativeConfiguration,
       result,
     });
-    await runExactExecutionBindingRefusalsV01({
+    await runRuntimeConsumptionWitnessNegativeMatrixV01({
       root,
       manifest,
-      source: trainingCases[0],
+      trainingCases,
+      plan,
+      authorization,
       nativeConfiguration,
     });
     process.stdout.write(`${JSON.stringify({
@@ -543,6 +577,14 @@ async function main(): Promise<void> {
     } else {
       process.env.AUGNES_CANONICAL_TEST_MODE = priorCanonicalTestMode;
     }
+    if (priorIsolatedAuthTestMode === undefined) {
+      delete process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+    } else {
+      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE =
+        priorIsolatedAuthTestMode;
+    }
+    if (priorTmpDir === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = priorTmpDir;
     rmSync(root, { recursive: true, force: true });
   }
 }
@@ -789,6 +831,9 @@ async function assertInjectedIncompleteCloseoutV01(input: {
       current_main_tree: FOUNDATION_TREE,
       consumer_instance_ref: testRecordRefV01(`consumer-${input.cohortSuffix}`),
       execution_started_at: "2026-08-28T06:32:00.000Z",
+      credential_free_compatibility_observation:
+        TEST_ISOLATED_AUTH_HARNESS.credential_free_preflight,
+      isolated_runtime_parent: path.join(input.root, "isolated-runtime-parent"),
       test_fixture_outputs: trainingFixtureOutputsV01(input.trainingCases, plan),
       fake_app_server_path: path.join(
         process.cwd(),
@@ -796,6 +841,8 @@ async function assertInjectedIncompleteCloseoutV01(input: {
         "fixtures",
         "fake-codex-app-server.mjs",
       ),
+      create_isolated_authenticated_execution_owner:
+        createTestIsolatedAuthenticatedExecutionOwnerV01,
         test_failure_injection_stage: input.failureStage,
       }),
       new RegExp(`live_training_test_failure_${input.failureStage}`, "u"),
@@ -1060,7 +1107,7 @@ function runCliContractV01(input: {
       per_episode_timeout_ms: 10_000,
       total_cohort_timeout_ms: 180_000,
     }),
-    /live_training_future_execution_credential_safe_environment_unavailable/u,
+    /live_training_future_execution_binding_invalid/u,
   );
   const {
     attempt_start_version: _attemptStartVersion,
@@ -1239,13 +1286,18 @@ async function assertIncompleteFailureArtifactsV01(input: {
       current_main_tree: FOUNDATION_TREE,
       consumer_instance_ref: testRecordRefV01("incomplete-consumer"),
       execution_started_at: "2026-08-28T06:22:00.000Z",
+      credential_free_compatibility_observation:
+        TEST_ISOLATED_AUTH_HARNESS.credential_free_preflight,
+      isolated_runtime_parent: path.join(input.root, "isolated-runtime-parent"),
       test_fixture_outputs: fixtureOutputs,
-      fake_app_server_path: path.join(
+    fake_app_server_path: path.join(
         process.cwd(),
         "scripts",
         "fixtures",
-        "fake-codex-app-server.mjs",
-      ),
+      "fake-codex-app-server.mjs",
+    ),
+    create_isolated_authenticated_execution_owner:
+      createTestIsolatedAuthenticatedExecutionOwnerV01,
     }),
     /live_training_runner_replacement_failed_or_second_replacement_refused/u,
   );
@@ -1278,6 +1330,240 @@ async function assertIncompleteFailureArtifactsV01(input: {
     }),
     /live_training_authorization_replay_refused/u,
   );
+}
+
+async function runRuntimeConsumptionWitnessNegativeMatrixV01(input: {
+  root: string;
+  manifest: ReturnType<
+    typeof createCommissionedControlledWorkTrainingOnlyFamilyV01
+  >["manifest"];
+  trainingCases: ReturnType<
+    typeof createCommissionedControlledWorkTrainingOnlyFamilyV01
+  >["training_cases"];
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  authorization: CommissionedLiveTrainingAuthorizationV01;
+  nativeConfiguration: ReturnType<typeof buildTestNativeConfigurationV01>;
+}): Promise<void> {
+  const repository = path.join(input.root, "runtime-witness-negative-repository");
+  mkdirSync(repository, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(repository, ".gitignore"), ".augnes-lab/\n", {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  const nonce = "cw1l1_runtime_witness_negative_nonce_000001";
+  const authorization = buildCommissionedLiveTrainingAuthorizationV01({
+    authorization_id: "cw1-l1-runtime-witness-negative",
+    authorization_kind: "future_live_control_flow_conformance",
+    issued_at: input.authorization.issued_at,
+    expires_at: input.authorization.expires_at,
+    current_main_sha: FOUNDATION_SHA,
+    current_main_tree: FOUNDATION_TREE,
+    checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+    plan: input.plan,
+    native_execution_configuration: input.nativeConfiguration,
+    codex_environment_binding: TEST_CODEX_ENVIRONMENT_BINDING,
+    authorization_nonce: nonce,
+    artifact_relative_root: input.authorization.artifact_relative_root,
+    replacement_invocation_limit:
+      input.authorization.replacement_invocation_limit,
+    native_host_invocation_limit:
+      input.authorization.native_host_invocation_limit,
+    provider_bearing_native_host_invocation_limit: 0,
+    model_bearing_native_host_invocation_limit: 0,
+    provider_call_ceiling: structuredClone(
+      input.authorization.provider_call_ceiling,
+    ),
+    model_call_ceiling: structuredClone(input.authorization.model_call_ceiling),
+    usage_unit_ceiling: structuredClone(input.authorization.usage_unit_ceiling),
+    cost_microunit_ceiling: structuredClone(
+      input.authorization.cost_microunit_ceiling,
+    ),
+    per_episode_timeout_ms: input.authorization.per_episode_timeout_ms,
+    total_cohort_timeout_ms: input.authorization.total_cohort_timeout_ms,
+  });
+  const store = initializeCommissionedLiveTrainingArtifactStoreV01({
+    repository_root: repository,
+    plan: input.plan,
+    authorization,
+    family: input.manifest,
+  });
+  const consumed = consumeCommissionedLiveTrainingAuthorizationV01({
+    store,
+    authorization,
+    plan: input.plan,
+    native_execution_configuration: input.nativeConfiguration,
+    current_main_sha: FOUNDATION_SHA,
+    current_main_tree: FOUNDATION_TREE,
+    checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+    evaluated_at: "2026-08-28T06:04:00.000Z",
+    authorization_nonce: nonce,
+    consumer_instance_ref: testRecordRefV01("runtime-witness-negative-consumer"),
+    allow_test_conformance: true,
+  });
+  const clonedWitness = structuredClone(consumed.runtime_witness);
+  assert.throws(
+    () =>
+      assertSourceOwnedCommissionedLiveTrainingRuntimeConsumptionWitnessV01(
+        clonedWitness,
+      ),
+    /live_training_runtime_consumption_witness_source_invalid/u,
+  );
+  const source = input.trainingCases[0];
+  const attemptRepository = path.join(input.root, "runtime-witness-attempt-root");
+  mkdirSync(attemptRepository, { recursive: true, mode: 0o700 });
+  for (const fixture of source.repository_fixture) {
+    const target = path.join(
+      attemptRepository,
+      fixture.repository_relative_path,
+    );
+    mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    writeFileSync(target, fixture.content, { encoding: "utf8", mode: 0o600 });
+  }
+  const packet = buildCommissionedWorkTaskContextPacketV01({
+    manifest: input.manifest,
+    source,
+    plan: source.predecessor_plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    generated_at: "2026-08-28T06:04:00.000Z",
+  });
+  const request = buildCommissionedWorkNativeHostRequestV01({
+    manifest: input.manifest,
+    source,
+    plan: source.predecessor_plan,
+    consolidation_candidate: null,
+    expected_candidate_freeze_fingerprint: null,
+    packet,
+    runtime: {
+      report_included: false,
+      case_id: source.case_id,
+      condition: null,
+      holdout_variant: null,
+      workspace_id: input.manifest.workspace_id,
+      project_id: source.project_id,
+      repository_root: attemptRepository,
+      database_path: path.join(attemptRepository, "runtime.sqlite"),
+      home_root: attemptRepository,
+      data_root: attemptRepository,
+      config_root: attemptRepository,
+      runtime_root: attemptRepository,
+      artifact_root: attemptRepository,
+    },
+    episode_id: "runtime-witness-negative-episode",
+    requested_at: "2026-08-28T06:04:00.000Z",
+  });
+  const ownerState = path.join(input.root, "runtime-witness-owner-state");
+  const owner = TEST_ISOLATED_AUTH_HARNESS.create_owner({
+    repository_root: attemptRepository,
+    state_parent: ownerState,
+    test_environment: {
+      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+      FAKE_CODEX_SCENARIO: "isolated_auth_success",
+    },
+  });
+  const slot = input.plan.slots[0]!;
+  try {
+    for (const witness of [
+      clonedWitness,
+      consumed.consumption as unknown as typeof consumed.runtime_witness,
+    ]) {
+      assert.throws(
+        () =>
+          createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+            witness,
+            owner,
+            request,
+            slot,
+            attempt_id: slot.primary_attempt_id,
+            attempt_kind: "primary",
+            invocation_ordinal: 1,
+            expires_at: authorization.expires_at,
+          }),
+        /live_training_runtime_consumption_witness_source_invalid/u,
+      );
+    }
+    assert.throws(
+      () =>
+        createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+          witness: consumed.runtime_witness,
+          owner,
+          request,
+          slot,
+          attempt_id: "cw1l1-attempt-not-consumed-p",
+          attempt_kind: "primary",
+          invocation_ordinal: 1,
+          expires_at: authorization.expires_at,
+        }),
+      /live_training_external_execution_authorization_allocation_refused/u,
+    );
+    const grant = createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+      witness: consumed.runtime_witness,
+      owner,
+      request,
+      slot,
+      attempt_id: slot.primary_attempt_id,
+      attempt_kind: "primary",
+      invocation_ordinal: 1,
+      expires_at: authorization.expires_at,
+    });
+    assert.equal(grant.single_use, true);
+    assert.throws(
+      () =>
+        createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+          witness: consumed.runtime_witness,
+          owner,
+          request,
+          slot,
+          attempt_id: slot.primary_attempt_id,
+          attempt_kind: "primary",
+          invocation_ordinal: 1,
+          expires_at: authorization.expires_at,
+        }),
+      /live_training_external_execution_authorization_allocation_refused/u,
+    );
+    createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+      witness: consumed.runtime_witness,
+      owner,
+      request,
+      slot,
+      attempt_id: `${slot.primary_attempt_id.slice(0, -1)}r1`,
+      attempt_kind: "replacement",
+      invocation_ordinal: 2,
+      expires_at: authorization.expires_at,
+    });
+    assert.throws(
+      () =>
+        createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+          witness: consumed.runtime_witness,
+          owner,
+          request,
+          slot,
+          attempt_id: `${slot.primary_attempt_id.slice(0, -1)}r1`,
+          attempt_kind: "replacement",
+          invocation_ordinal: 3,
+          expires_at: authorization.expires_at,
+        }),
+      /live_training_external_execution_authorization_allocation_refused/u,
+    );
+    const ceilingSlot = input.plan.slots[1]!;
+    assert.throws(
+      () =>
+        createCommissionedLiveTrainingTestExecutionAuthorizationV01({
+          witness: consumed.runtime_witness,
+          owner,
+          request,
+          slot: ceilingSlot,
+          attempt_id: ceilingSlot.primary_attempt_id,
+          attempt_kind: "primary",
+          invocation_ordinal:
+            authorization.native_host_invocation_limit + 1,
+          expires_at: authorization.expires_at,
+        }),
+      /live_training_external_execution_authorization_allocation_refused/u,
+    );
+  } finally {
+    owner.cleanupV01();
+  }
 }
 
 async function runNegativeProofMatrixV01(input: {
@@ -1808,15 +2094,15 @@ async function runNegativeProofMatrixV01(input: {
       account_projection_status: "observed_exact",
       account_projection_fingerprint:
         input.authorization.codex_environment_binding
-          .account_auth_projection_fingerprint,
+          .account_identity_fingerprint,
       codex_configuration_status: "observed_exact",
       codex_configuration_fingerprint:
         input.authorization.codex_environment_binding
-          .codex_configuration_fingerprint,
+          .config_tool_policy_fingerprint,
       tool_policy_status: "observed_exact",
       tool_policy_fingerprint:
         input.authorization.codex_environment_binding
-          .mcp_tool_web_policy_fingerprint,
+          .config_tool_policy_fingerprint,
     });
   const secondReplacement = buildCommissionedLiveTrainingAttemptAdmissionV01({
     attempt_id: `${replacedPrimary.attempt_id.slice(0, -1)}r2`,
@@ -2962,237 +3248,6 @@ function spawnConsumptionWorkerV01(
   });
 }
 
-async function runExactExecutionBindingRefusalsV01(input: {
-  root: string;
-  manifest: ReturnType<
-    typeof createCommissionedControlledWorkTrainingOnlyFamilyV01
-  >["manifest"];
-  source: ReturnType<
-    typeof createCommissionedControlledWorkTrainingOnlyFamilyV01
-  >["training_cases"][number];
-  nativeConfiguration: ReturnType<typeof buildTestNativeConfigurationV01>;
-}): Promise<void> {
-  for (const scenario of [
-    "cw1_live_training_exact_binding_mismatch",
-    "cw1_live_training_exact_binding_rerouted",
-  ]) {
-    const repositoryRoot = path.join(input.root, `binding-refusal-${scenario}`);
-    mkdirSync(repositoryRoot, { recursive: true, mode: 0o700 });
-    input.source.repository_fixture.forEach((fixture) => {
-      const target = path.join(repositoryRoot, fixture.repository_relative_path);
-      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-      writeFileSync(target, fixture.content, "utf8");
-    });
-    const packet = buildCommissionedWorkTaskContextPacketV01({
-      manifest: input.manifest,
-      source: input.source,
-      plan: input.source.successor_plans[0],
-      consolidation_candidate: null,
-      expected_candidate_freeze_fingerprint: null,
-      generated_at: "2026-08-28T09:00:00.000Z",
-    });
-    const request = buildCommissionedWorkNativeHostRequestV01({
-      manifest: input.manifest,
-      source: input.source,
-      plan: input.source.successor_plans[0],
-      consolidation_candidate: null,
-      expected_candidate_freeze_fingerprint: null,
-      packet,
-      runtime: {
-        report_included: false,
-        case_id: input.source.case_id,
-        condition: input.source.successor_plans[0].condition,
-        holdout_variant: null,
-        workspace_id: input.manifest.workspace_id,
-        project_id: input.source.project_id,
-        repository_root: repositoryRoot,
-        database_path: path.join(input.root, `${scenario}.sqlite`),
-        home_root: path.join(input.root, "home"),
-        data_root: path.join(input.root, "data"),
-        config_root: path.join(input.root, "config"),
-        runtime_root: path.join(input.root, "runtime"),
-        artifact_root: path.join(input.root, "artifacts"),
-      },
-      episode_id: `binding-probe-${scenario}`,
-      requested_at: "2026-08-28T09:00:00.000Z",
-    });
-    await assertAdapterFailureV01({
-      request,
-      scenario,
-      nativeConfiguration: input.nativeConfiguration,
-      fakeOutput: input.source.expected_success_writes[0],
-      expected: scenario.endsWith("mismatch")
-        ? /codex_exact_execution_response_binding_mismatch/u
-        : /codex_exact_execution_model_rerouted/u,
-    });
-  }
-  for (const [scenario, expectedReason] of [
-    [
-      "cw1_isolated_account_drift",
-      "codex_isolated_account_projection_mismatch",
-    ],
-    [
-      "cw1_isolated_tool_drift",
-      "codex_isolated_configuration_or_tool_policy_mismatch",
-    ],
-    [
-      "cw1_isolated_unexpected_mcp",
-      "codex_isolated_unexpected_mcp_or_remote_startup",
-    ],
-  ] as const) {
-    const repositoryRoot = path.join(input.root, `isolation-refusal-${scenario}`);
-    const codexHome = path.join(repositoryRoot, "codex-home");
-    mkdirSync(codexHome, { recursive: true, mode: 0o700 });
-    input.source.repository_fixture.forEach((fixture) => {
-      const target = path.join(repositoryRoot, fixture.repository_relative_path);
-      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-      writeFileSync(target, fixture.content, "utf8");
-    });
-    const packet = buildCommissionedWorkTaskContextPacketV01({
-      manifest: input.manifest,
-      source: input.source,
-      plan: input.source.successor_plans[0],
-      consolidation_candidate: null,
-      expected_candidate_freeze_fingerprint: null,
-      generated_at: "2026-08-28T09:10:00.000Z",
-    });
-    const request = buildCommissionedWorkNativeHostRequestV01({
-      manifest: input.manifest,
-      source: input.source,
-      plan: input.source.successor_plans[0],
-      consolidation_candidate: null,
-      expected_candidate_freeze_fingerprint: null,
-      packet,
-      runtime: {
-        report_included: false,
-        case_id: input.source.case_id,
-        condition: input.source.successor_plans[0].condition,
-        holdout_variant: null,
-        workspace_id: input.manifest.workspace_id,
-        project_id: input.source.project_id,
-        repository_root: repositoryRoot,
-        database_path: path.join(repositoryRoot, "runtime.sqlite"),
-        home_root: path.join(repositoryRoot, "home"),
-        data_root: path.join(repositoryRoot, "data"),
-        config_root: codexHome,
-        runtime_root: path.join(repositoryRoot, "runtime"),
-        artifact_root: path.join(repositoryRoot, "artifacts"),
-      },
-      episode_id: `isolation-probe-${scenario}`,
-      requested_at: "2026-08-28T09:10:00.000Z",
-    });
-    await assertIsolatedAdapterBoundaryRefusalV01({
-      request,
-      scenario,
-      expectedReason,
-      nativeConfiguration: input.nativeConfiguration,
-      codexHome: realpathSync(codexHome),
-    });
-  }
-}
-
-async function assertIsolatedAdapterBoundaryRefusalV01(input: {
-  request: NativeHostRequestV01;
-  scenario: string;
-  expectedReason: string;
-  nativeConfiguration: ReturnType<typeof buildTestNativeConfigurationV01>;
-  codexHome: string;
-}): Promise<void> {
-  const adapter = createCodexAppServerAdapterV01({
-    exact_execution_binding: createCommissionedLiveTrainingAdapterBindingV01(
-      input.nativeConfiguration,
-    ),
-    isolated_environment_expectation:
-      createCodexAppServerIsolatedEnvironmentExpectationV01({
-        state_home_fingerprint: createProtocolSha256V01(
-          canonicalizeProtocolValueV01(input.codexHome),
-        ),
-        account_projection_fingerprint:
-          TEST_CODEX_ENVIRONMENT_BINDING.account_auth_projection_fingerprint!,
-        codex_configuration_fingerprint:
-          codexAppServerIsolatedConfigurationFingerprintV01(),
-        tool_policy_fingerprint:
-          codexAppServerIsolatedToolPolicyFingerprintV01(),
-      }),
-    launch: {
-      command: process.execPath,
-      prefix_args: [
-        path.join(
-          process.cwd(),
-          "scripts",
-          "fixtures",
-          "fake-codex-app-server.mjs",
-        ),
-      ],
-      environment: {
-        NODE_ENV: "test",
-        HOME: input.codexHome,
-        CODEX_HOME: input.codexHome,
-        CODEX_SQLITE_HOME: input.codexHome,
-        TMPDIR: process.env.TMPDIR,
-        PATH: process.env.PATH,
-        FAKE_CODEX_SCENARIO: input.scenario,
-      },
-    },
-  });
-  const invocation = adapter.invoke(input.request, {
-    cancellation_signal: new AbortController().signal,
-    timeout_ms: 10_000,
-    stop_settle_timeout_ms: 3_000,
-    resume_binding: null,
-  });
-  let observedReason: string | null = null;
-  try {
-    const result = await invocation.result;
-    assert.notEqual(result.outcome, "completed");
-    observedReason = result.public_stop_reason;
-  } catch (error) {
-    observedReason =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code: unknown }).code)
-        : null;
-  }
-  await invocation.settled.catch(() => undefined);
-  assert.equal(observedReason, input.expectedReason);
-}
-
-async function assertAdapterFailureV01(input: {
-  request: NativeHostRequestV01;
-  scenario: string;
-  nativeConfiguration: ReturnType<typeof buildTestNativeConfigurationV01>;
-  fakeOutput: { repository_relative_path: string; content: string };
-  expected: RegExp;
-}): Promise<void> {
-  let tick = 0;
-  const adapter = createCodexAppServerAdapterV01({
-    exact_execution_binding: createCommissionedLiveTrainingAdapterBindingV01(
-      input.nativeConfiguration,
-    ),
-    now: () => new Date(Date.parse("2026-08-28T09:00:00.000Z") + tick++ * 50).toISOString(),
-    launch: {
-      command: process.execPath,
-      prefix_args: [path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs")],
-      environment: {
-        NODE_ENV: "test",
-        HOME: process.env.HOME,
-        TMPDIR: process.env.TMPDIR,
-        PATH: process.env.PATH,
-        FAKE_CODEX_SCENARIO: input.scenario,
-        FAKE_CODEX_CW1_OUTPUT_RELATIVE_PATH: input.fakeOutput.repository_relative_path,
-        FAKE_CODEX_CW1_OUTPUT_CONTENT_BASE64: Buffer.from(input.fakeOutput.content).toString("base64"),
-      },
-    },
-  });
-  const invocation = adapter.invoke(input.request, {
-    cancellation_signal: new AbortController().signal,
-    timeout_ms: 10_000,
-    stop_settle_timeout_ms: 3_000,
-    resume_binding: null,
-  });
-  await assert.rejects(invocation.result, input.expected);
-  await invocation.settled.catch(() => undefined);
-}
-
 function buildTestNativeConfigurationV01() {
   return buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01({
     provider_id: "fake-provider-exact",
@@ -3223,6 +3278,20 @@ function buildTestNativeConfigurationV01() {
         executable_path: process.execPath,
         executable_kind: "node_runtime",
       }),
+  });
+}
+
+function createTestIsolatedAuthenticatedExecutionOwnerV01(input: {
+  attempt_id: string;
+  repository_root: string;
+  state_parent: string;
+  test_environment: Record<string, string | undefined>;
+}) {
+  void input.attempt_id;
+  return TEST_ISOLATED_AUTH_HARNESS.create_owner({
+    repository_root: input.repository_root,
+    state_parent: input.state_parent,
+    test_environment: input.test_environment,
   });
 }
 

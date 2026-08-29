@@ -7,9 +7,10 @@ import {
 import {
   CODEX_APP_SERVER_ADAPTER_VERSION_V01,
   CODEX_APP_SERVER_CAPABILITY_VERSION_V01,
-  createCodexAppServerExactExecutionBindingV01,
-  type CodexAppServerExactExecutionBindingV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import {
+  assertValidCodexIsolatedAuthProjectionV01,
+} from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import {
   assertValidCommissionedWorkEpisodeArtifactV01,
   assertValidCommissionedWorkObjectiveObservationV01,
@@ -36,6 +37,7 @@ import {
 } from "@/types/vnext/commissioned-controlled-workbench";
 import {
   COMMISSIONED_LIVE_TRAINING_ANALYSIS_JOIN_VERSION_V01,
+  COMMISSIONED_LIVE_TRAINING_ADAPTER_EXECUTION_BINDING_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_ARTIFACT_INDEX_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_ATTEMPT_ADMISSION_VERSION_V01,
   COMMISSIONED_LIVE_TRAINING_ATTEMPT_START_VERSION_V01,
@@ -63,6 +65,7 @@ import {
   COMMISSIONED_LIVE_TRAINING_REPLACEMENT_LIMIT_V01,
   COMMISSIONED_LIVE_TRAINING_RESULT_VERSION_V01,
   type CommissionedLiveTrainingAnalysisJoinV01,
+  type CommissionedLiveTrainingAdapterExecutionBindingV01,
   type CommissionedLiveTrainingArtifactIndexV01,
   type CommissionedLiveTrainingAttemptAdmissionV01,
   type CommissionedLiveTrainingAttemptStartV01,
@@ -89,6 +92,10 @@ import {
   type CommissionedLiveTrainingResultV01,
   type CommissionedLiveTrainingScheduleSlotV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
+import type {
+  CodexIsolatedAuthCredentialFreePreflightV01,
+  CodexIsolatedAuthProjectionV01,
+} from "@/types/vnext/codex-isolated-auth-projection";
 
 const SAFE_CODE_V01 = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
 const SHA256_V01 = /^sha256:[a-f0-9]{64}$/u;
@@ -587,21 +594,9 @@ export function buildCommissionedLiveTrainingExactNativeExecutionConfigurationV0
   assertCommissionedLiveTrainingExecutableIdentityV01(
     input.runtime_executable_identity,
   );
-  createCodexAppServerExactExecutionBindingV01({
-    provider_id: input.provider_id,
-    model_id: input.model_id,
-    route_id: input.route_id,
-    reasoning_effort: input.reasoning_effort,
-    expected_cli_version: input.expected_cli_version,
-    source_configuration_fingerprint: fingerprintV01({
-      provider_ref: input.provider_ref,
-      model_ref: input.model_ref,
-      route_ref: input.route_ref,
-      host_ref: input.host_ref,
-      cli_ref: input.cli_ref,
-      runtime_ref: input.runtime_ref,
-    }),
-  });
+  requireSafeCodeV01(input.provider_id, "live_training_provider_id_invalid");
+  requireSafeCodeV01(input.model_id, "live_training_model_id_invalid");
+  requireSafeCodeV01(input.route_id, "live_training_route_id_invalid");
   const withoutFingerprint = {
     configuration_version:
       "commissioned_live_training_native_execution_configuration.v0.1" as const,
@@ -662,119 +657,85 @@ export function assertCommissionedLiveTrainingExecutableIdentityV01(
   createCommissionedWorkRecordRefV01(identity.executable_ref);
 }
 
-const CODEX_CONFIGURATION_PROJECTION_V01 = Object.freeze({
-  projection_version: "commissioned_live_training_codex_configuration_projection.v0.1",
-  approval_policy: "on-request",
-  approvals_reviewer: "user",
-  sandbox_type: "workspaceWrite",
-  sandbox_network_access: false,
-  instruction_sources: [] as string[],
-  thread_ephemeral: true,
-});
-
-const CODEX_TOOL_POLICY_PROJECTION_V01 = Object.freeze({
-  projection_version: "commissioned_live_training_codex_tool_policy_projection.v0.1",
-  expected_tools: [] as string[],
-  mcp_servers: [] as string[],
-  web_search_enabled: false,
-  remote_tools_enabled: false,
-  github_tools_enabled: false,
-});
-
-const CODEX_ALLOWED_ENVIRONMENT_KEYS_V01 = Object.freeze([
-  "CODEX_HOME",
-  "CODEX_SQLITE_HOME",
-  "HOME",
-  "LANG",
-  "LC_ALL",
-  "LC_CTYPE",
-  "NODE_ENV",
-  "NODE_OPTIONS",
-  "NO_COLOR",
-  "PATH",
-  "TEMP",
-  "TMP",
-  "TMPDIR",
-  "TZ",
-]);
-
-const CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01 = Object.freeze([
-  "OPENAI_API_KEY",
-  "GITHUB_TOKEN",
-  "GH_TOKEN",
-  "AWS_ACCESS_KEY_ID",
-  "AWS_SECRET_ACCESS_KEY",
-]);
-
-export function commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01(): string {
-  return fingerprintV01(CODEX_CONFIGURATION_PROJECTION_V01);
-}
-
-export function commissionedLiveTrainingExpectedToolPolicyFingerprintV01(): string {
-  return fingerprintV01(CODEX_TOOL_POLICY_PROJECTION_V01);
-}
-
 export function buildCommissionedLiveTrainingCodexEnvironmentBindingV01(input: {
   binding_id: string;
   binding_class: CommissionedLiveTrainingCodexEnvironmentBindingV01["binding_class"];
-  account_auth_projection_ref: CommissionedWorkRecordRefV01 | null;
-  account_auth_projection_fingerprint: string | null;
+  isolated_auth_projection: CodexIsolatedAuthProjectionV01;
+  credential_free_preflight: CodexIsolatedAuthCredentialFreePreflightV01;
   task_network_enforcement_ref: CommissionedWorkRecordRefV01;
   unauthorized_effect_enforcement_ref: CommissionedWorkRecordRefV01;
 }): CommissionedLiveTrainingCodexEnvironmentBindingV01 {
   requireSafeCodeV01(input.binding_id, "live_training_environment_binding_id_invalid");
-  const testBinding = input.binding_class === "zero_provider_control_flow_conformance";
+  assertValidCodexIsolatedAuthProjectionV01(input.isolated_auth_projection);
+  assertCredentialFreePreflightBindingV01(
+    input.credential_free_preflight,
+    input.isolated_auth_projection,
+  );
+  const conformance =
+    input.binding_class === "zero_provider_control_flow_conformance";
   if (
-    testBinding !== (input.account_auth_projection_ref !== null) ||
-    testBinding !== (input.account_auth_projection_fingerprint !== null)
-  ) {
-    failV01("live_training_environment_account_projection_invalid");
-  }
-  if (input.account_auth_projection_ref) {
-    createCommissionedWorkRecordRefV01(input.account_auth_projection_ref);
-    requireFingerprintV01(
-      input.account_auth_projection_fingerprint!,
-      "live_training_environment_account_projection_invalid",
-    );
-  }
+    conformance !==
+      (input.isolated_auth_projection.executable_identity_class ===
+        "test_emulated_profile") ||
+    !conformance !==
+      (input.isolated_auth_projection.executable_identity_class ===
+        "production_pinned_codex")
+  )
+    failV01("live_training_environment_projection_class_invalid");
   createCommissionedWorkRecordRefV01(input.task_network_enforcement_ref);
   createCommissionedWorkRecordRefV01(input.unauthorized_effect_enforcement_ref);
+  const projection = input.isolated_auth_projection;
+  const preflight = input.credential_free_preflight;
   const withoutIntegrity = {
     environment_binding_version:
       COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01,
-    environment_strategy_version:
-      "commissioned_live_training_isolated_attempt_home.v0.1" as const,
     binding_id: input.binding_id,
     binding_class: input.binding_class,
-    account_auth_projection_status: testBinding
-      ? ("credential_free_test_projection" as const)
-      : ("credential_safe_projection_unavailable" as const),
-    account_auth_projection_ref: input.account_auth_projection_ref,
-    account_auth_projection_fingerprint:
-      input.account_auth_projection_fingerprint,
-    codex_configuration_fingerprint:
-      commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01(),
-    mcp_tool_web_policy_fingerprint:
-      commissionedLiveTrainingExpectedToolPolicyFingerprintV01(),
-    expected_tool_set_fingerprint: fingerprintV01([]),
-    expected_tool_set: [] as [],
-    state_home_isolation_strategy:
-      "fresh_per_attempt_home_codex_home_sqlite_home" as const,
-    history_thread_persistence_policy:
-      "ephemeral_fresh_thread_no_shared_history" as const,
-    per_attempt_home_identity_rule: "new_opaque_identity_per_attempt" as const,
-    per_attempt_codex_home_identity_rule:
-      "new_opaque_identity_per_attempt" as const,
-    per_attempt_codex_sqlite_home_identity_rule:
-      "new_opaque_identity_per_attempt" as const,
-    allowed_environment_key_fingerprint: fingerprintV01(
-      CODEX_ALLOWED_ENVIRONMENT_KEYS_V01,
-    ),
-    forbidden_environment_key_fingerprint: fingerprintV01(
-      CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01,
-    ),
-    cleanup_policy:
-      "remove_all_attempt_state_roots_on_success_or_failure" as const,
+    account_auth_projection_status: conformance
+      ? ("test_emulated_isolated_authenticated_projection" as const)
+      : ("production_isolated_authenticated_projection" as const),
+    codex_isolated_auth_projection_version: projection.projection_version,
+    codex_isolated_auth_projection_ref: createCommissionedWorkRecordRefV01({
+      record_version: projection.projection_version,
+      record_id: projection.projection_id,
+      record_fingerprint: projection.integrity.fingerprint,
+    }),
+    codex_isolated_auth_projection_fingerprint:
+      projection.integrity.fingerprint,
+    semantic_profile_version: projection.semantic_profile_version,
+    semantic_profile_fingerprint: projection.semantic_profile_fingerprint,
+    compatibility_preflight_ref: createCommissionedWorkRecordRefV01({
+      record_version: preflight.preflight_version,
+      record_id: `credential-free-preflight-${preflight.integrity.fingerprint.slice("sha256:".length, "sha256:".length + 16)}`,
+      record_fingerprint: preflight.integrity.fingerprint,
+    }),
+    compatibility_preflight_state: preflight.state,
+    compatibility_preflight_fingerprint: preflight.integrity.fingerprint,
+    auth_mode: projection.auth_mode,
+    account_identity_fingerprint: projection.account_identity_fingerprint,
+    auth_source_generation_fingerprint:
+      projection.auth_source_generation_fingerprint,
+    broker_binding_fingerprint: fingerprintV01({
+      broker_version: projection.broker_version,
+      broker_backend_ref: projection.broker_backend_ref,
+      broker_executable_ref: projection.broker_executable_ref,
+      broker_executable_fingerprint: projection.broker_executable_fingerprint,
+      broker_locator_fingerprint: projection.broker_locator_fingerprint,
+    }),
+    broker_locator_fingerprint: projection.broker_locator_fingerprint,
+    codex_executable_fingerprint: projection.codex_executable_fingerprint,
+    executable_identity_class: projection.executable_identity_class,
+    compatible_codex_cli_version: projection.compatible_codex_cli_version,
+    state_policy_fingerprint: fingerprintV01(projection.state_policy),
+    config_tool_policy_fingerprint: projection.config_policy.policy_fingerprint,
+    effective_provider_route_fingerprint:
+      projection.config_policy.provider_route_fingerprint,
+    app_server_launch_shape_fingerprint:
+      projection.app_server_launch_shape_fingerprint,
+    allowed_child_environment_fingerprint:
+      projection.allowed_child_environment_key_fingerprint,
+    task_tool_network_authority: projection.task_tool_network_authority,
+    cleanup_policy: projection.cleanup_policy,
     task_network_enforcement_ref: createCommissionedWorkRecordRefV01(
       input.task_network_enforcement_ref,
     ),
@@ -791,9 +752,7 @@ export function buildCommissionedLiveTrainingCodexEnvironmentBindingV01(input: {
     maximum_resume_count_per_attempt: 0 as const,
     maximum_resume_count_per_cohort: 0 as const,
     approval_policy: "terminal_on_any_request" as const,
-    future_live_execution_ready: false as const,
-    missing_live_owner_code:
-      "credential_safe_isolated_codex_auth_projection_unavailable" as const,
+    future_live_execution_ready: !conformance,
   };
   const binding = sealV01(
     withoutIntegrity,
@@ -812,48 +771,46 @@ export function assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
     "live_training_environment_binding_integrity_invalid",
   );
   assertExactObjectKeysV01(binding, [
-    "environment_binding_version", "environment_strategy_version", "binding_id",
-    "binding_class", "account_auth_projection_status",
-    "account_auth_projection_ref", "account_auth_projection_fingerprint",
-    "codex_configuration_fingerprint", "mcp_tool_web_policy_fingerprint",
-    "expected_tool_set_fingerprint", "expected_tool_set",
-    "state_home_isolation_strategy", "history_thread_persistence_policy",
-    "per_attempt_home_identity_rule", "per_attempt_codex_home_identity_rule",
-    "per_attempt_codex_sqlite_home_identity_rule",
-    "allowed_environment_key_fingerprint", "forbidden_environment_key_fingerprint",
+    "environment_binding_version", "binding_id", "binding_class",
+    "account_auth_projection_status", "codex_isolated_auth_projection_version",
+    "codex_isolated_auth_projection_ref",
+    "codex_isolated_auth_projection_fingerprint", "semantic_profile_version",
+    "semantic_profile_fingerprint", "compatibility_preflight_ref",
+    "compatibility_preflight_state", "compatibility_preflight_fingerprint",
+    "auth_mode", "account_identity_fingerprint",
+    "auth_source_generation_fingerprint", "broker_binding_fingerprint",
+    "broker_locator_fingerprint", "codex_executable_fingerprint",
+    "executable_identity_class", "compatible_codex_cli_version",
+    "state_policy_fingerprint", "config_tool_policy_fingerprint",
+    "effective_provider_route_fingerprint",
+    "app_server_launch_shape_fingerprint",
+    "allowed_child_environment_fingerprint", "task_tool_network_authority",
     "cleanup_policy", "task_network_enforcement_ref",
     "unauthorized_effect_enforcement_ref", "shell_network_policy",
     "network_permission_policy", "mcp_policy", "built_in_web_remote_policy",
     "github_tool_policy", "same_run_resume_policy",
     "maximum_resume_count_per_attempt", "maximum_resume_count_per_cohort",
-    "approval_policy", "future_live_execution_ready", "missing_live_owner_code",
+    "approval_policy", "future_live_execution_ready",
     "integrity",
   ], "live_training_environment_binding_schema_invalid");
   requireSafeCodeV01(binding.binding_id, "live_training_environment_binding_id_invalid");
-  const testBinding = binding.binding_class === "zero_provider_control_flow_conformance";
+  const testBinding =
+    binding.binding_class === "zero_provider_control_flow_conformance";
   if (
-    !testBinding && binding.binding_class !== "future_live_execution_blocked" ||
+    !testBinding &&
+      binding.binding_class !== "isolated_authenticated_live_execution" ||
     binding.environment_binding_version !==
       COMMISSIONED_LIVE_TRAINING_CODEX_ENVIRONMENT_BINDING_VERSION_V01 ||
-    binding.environment_strategy_version !==
-      "commissioned_live_training_isolated_attempt_home.v0.1" ||
     binding.account_auth_projection_status !==
       (testBinding
-        ? "credential_free_test_projection"
-        : "credential_safe_projection_unavailable") ||
-    testBinding !== (binding.account_auth_projection_ref !== null) ||
-    testBinding !== (binding.account_auth_projection_fingerprint !== null) ||
-    binding.codex_configuration_fingerprint !==
-      commissionedLiveTrainingExpectedCodexConfigurationFingerprintV01() ||
-    binding.mcp_tool_web_policy_fingerprint !==
-      commissionedLiveTrainingExpectedToolPolicyFingerprintV01() ||
-    binding.expected_tool_set_fingerprint !== fingerprintV01([]) ||
-    binding.expected_tool_set.length !== 0 ||
-    binding.allowed_environment_key_fingerprint !==
-      fingerprintV01(CODEX_ALLOWED_ENVIRONMENT_KEYS_V01) ||
-    binding.forbidden_environment_key_fingerprint !==
-      fingerprintV01(CODEX_FORBIDDEN_ENVIRONMENT_KEYS_V01) ||
-    binding.future_live_execution_ready !== false ||
+        ? "test_emulated_isolated_authenticated_projection"
+        : "production_isolated_authenticated_projection") ||
+    binding.compatibility_preflight_state !== "compatible_exact" ||
+    testBinding !== (binding.executable_identity_class === "test_emulated_profile") ||
+    !testBinding !==
+      (binding.executable_identity_class === "production_pinned_codex") ||
+    binding.future_live_execution_ready !== !testBinding ||
+    binding.task_tool_network_authority !== "none" ||
     binding.maximum_resume_count_per_attempt !== 0 ||
     binding.maximum_resume_count_per_cohort !== 0 ||
     binding.same_run_resume_policy !==
@@ -862,13 +819,25 @@ export function assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
   ) {
     failV01("live_training_environment_binding_contract_invalid");
   }
-  if (binding.account_auth_projection_ref) {
-    createCommissionedWorkRecordRefV01(binding.account_auth_projection_ref);
-    requireFingerprintV01(
-      binding.account_auth_projection_fingerprint!,
-      "live_training_environment_account_projection_invalid",
-    );
-  }
+  createCommissionedWorkRecordRefV01(
+    binding.codex_isolated_auth_projection_ref,
+  );
+  createCommissionedWorkRecordRefV01(binding.compatibility_preflight_ref);
+  for (const fingerprint of [
+    binding.codex_isolated_auth_projection_fingerprint,
+    binding.semantic_profile_fingerprint,
+    binding.compatibility_preflight_fingerprint,
+    binding.account_identity_fingerprint,
+    binding.auth_source_generation_fingerprint,
+    binding.broker_binding_fingerprint,
+    binding.broker_locator_fingerprint,
+    binding.codex_executable_fingerprint,
+    binding.state_policy_fingerprint,
+    binding.config_tool_policy_fingerprint,
+    binding.effective_provider_route_fingerprint,
+    binding.app_server_launch_shape_fingerprint,
+    binding.allowed_child_environment_fingerprint,
+  ]) requireFingerprintV01(fingerprint, "live_training_environment_fingerprint_invalid");
   createCommissionedWorkRecordRefV01(binding.task_network_enforcement_ref);
   createCommissionedWorkRecordRefV01(binding.unauthorized_effect_enforcement_ref);
   assertSafeCommissionedLiveTrainingOutputV01(binding);
@@ -876,9 +845,11 @@ export function assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
 
 export function createCommissionedLiveTrainingAdapterBindingV01(
   configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
-): CodexAppServerExactExecutionBindingV01 {
+): CommissionedLiveTrainingAdapterExecutionBindingV01 {
   assertValidNativeConfigurationV01(configuration);
-  return createCodexAppServerExactExecutionBindingV01({
+  const material = {
+    binding_version:
+      COMMISSIONED_LIVE_TRAINING_ADAPTER_EXECUTION_BINDING_VERSION_V01,
     provider_id: configuration.provider_id,
     model_id: configuration.model_id,
     route_id: configuration.route_id,
@@ -892,7 +863,40 @@ export function createCommissionedLiveTrainingAdapterBindingV01(
       cli_ref: configuration.cli_ref,
       runtime_ref: configuration.runtime_ref,
     }),
-  });
+  } as const;
+  return {
+    ...material,
+    binding_fingerprint: fingerprintV01(material),
+  };
+}
+
+function assertCredentialFreePreflightBindingV01(
+  preflight: CodexIsolatedAuthCredentialFreePreflightV01,
+  projection: CodexIsolatedAuthProjectionV01,
+): void {
+  const { integrity, ...material } = preflight;
+  if (
+    integrity.algorithm !== "sha256" ||
+    integrity.fingerprint !== fingerprintV01(material) ||
+    preflight.state !== "compatible_exact" ||
+    preflight.semantic_profile_version !== projection.semantic_profile_version ||
+    preflight.semantic_profile_fingerprint !==
+      projection.semantic_profile_fingerprint ||
+    preflight.codex_executable_fingerprint !==
+      projection.codex_executable_fingerprint ||
+    preflight.executable_identity_class !==
+      projection.executable_identity_class ||
+    preflight.observed_cli_version !==
+      projection.compatible_codex_cli_version ||
+    preflight.observed_security_policy_fingerprint !==
+      projection.config_policy.policy_fingerprint ||
+    preflight.credential_access_attempted !== false ||
+    preflight.provider_model_call_attempted !== false ||
+    preflight.repository_turn_started !== false ||
+    preflight.successful_external_network_egress_observed !== false ||
+    preflight.cleanup_completed !== true
+  )
+    failV01("live_training_credential_free_preflight_binding_invalid");
 }
 
 export function buildCommissionedLiveTrainingAuthorizationV01(input: {
@@ -966,9 +970,30 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
       failV01("live_training_test_authorization_provider_ceiling_invalid");
     }
   } else {
-    failV01(
-      "live_training_future_execution_credential_safe_environment_unavailable",
-    );
+    if (
+      input.authorization_kind !== "future_live_execution" ||
+      process.env.AUGNES_CANONICAL_TEST_MODE === "1" ||
+      input.codex_environment_binding.binding_class !==
+        "isolated_authenticated_live_execution" ||
+      input.codex_environment_binding.executable_identity_class !==
+        "production_pinned_codex" ||
+      input.codex_environment_binding.compatibility_preflight_state !==
+        "compatible_exact" ||
+      input.native_execution_configuration.expected_cli_version !== "0.147.0" ||
+      input.native_execution_configuration.cli_executable_identity
+        .content_fingerprint !==
+        input.codex_environment_binding.codex_executable_fingerprint ||
+      input.native_execution_configuration.provider_id !== "openai" ||
+      input.provider_bearing_native_host_invocation_limit !==
+        input.native_host_invocation_limit ||
+      input.model_bearing_native_host_invocation_limit !==
+        input.native_host_invocation_limit ||
+      input.provider_call_ceiling.observability !== "observed" ||
+      input.model_call_ceiling.observability !== "observed" ||
+      input.provider_call_ceiling.limit !== input.native_host_invocation_limit ||
+      input.model_call_ceiling.limit !== input.native_host_invocation_limit
+    )
+      failV01("live_training_future_execution_binding_invalid");
   }
   assertOptionalCeilingV01(input.usage_unit_ceiling);
   assertOptionalCeilingV01(input.cost_microunit_ceiling);
@@ -1242,7 +1267,29 @@ function assertValidAuthorizationShapeV01(
         authorization.model_bearing_native_host_invocation_limit !== 0 ||
         authorization.codex_environment_binding.binding_class !==
           "zero_provider_control_flow_conformance")) ||
-    authorization.authorization_kind === "future_live_execution" ||
+    (authorization.authorization_kind === "future_live_execution" &&
+      (authorization.codex_environment_binding.binding_class !==
+        "isolated_authenticated_live_execution" ||
+        authorization.codex_environment_binding.executable_identity_class !==
+          "production_pinned_codex" ||
+        authorization.codex_environment_binding
+          .compatibility_preflight_state !== "compatible_exact" ||
+        authorization.native_execution_configuration.expected_cli_version !==
+          "0.147.0" ||
+        authorization.native_execution_configuration.cli_executable_identity
+          .content_fingerprint !==
+          authorization.codex_environment_binding.codex_executable_fingerprint ||
+        authorization.native_execution_configuration.provider_id !== "openai" ||
+        authorization.provider_bearing_native_host_invocation_limit !==
+          authorization.native_host_invocation_limit ||
+        authorization.model_bearing_native_host_invocation_limit !==
+          authorization.native_host_invocation_limit ||
+        authorization.provider_call_ceiling.observability !== "observed" ||
+        authorization.model_call_ceiling.observability !== "observed" ||
+        authorization.provider_call_ceiling.limit !==
+          authorization.native_host_invocation_limit ||
+        authorization.model_call_ceiling.limit !==
+          authorization.native_host_invocation_limit)) ||
     authorization.task_external_network_policy.limit !== 0 ||
     canonicalizeProtocolValueV01(
       authorization.task_external_network_policy.enforcement_ref,
@@ -1863,11 +1910,11 @@ export function buildCommissionedLiveTrainingIsolationObservationV01(input: {
       (observed ? "observed_exact" : "not_observed_pre_spawn_failure") ||
     (observed &&
       (input.account_projection_fingerprint !==
-          input.environment_binding.account_auth_projection_fingerprint ||
+          input.environment_binding.account_identity_fingerprint ||
         input.codex_configuration_fingerprint !==
-          input.environment_binding.codex_configuration_fingerprint ||
+          input.environment_binding.config_tool_policy_fingerprint ||
         input.tool_policy_fingerprint !==
-          input.environment_binding.mcp_tool_web_policy_fingerprint))
+          input.environment_binding.config_tool_policy_fingerprint))
   ) {
     failV01("live_training_isolation_observation_source_invalid");
   }
@@ -3187,6 +3234,10 @@ export function assertSafeCommissionedLiveTrainingOutputV01(value: unknown): voi
         "codex_environment_binding",
         "codex_environment_binding_ref",
         "codex_environment_binding_fingerprint",
+        "codex_isolated_auth_projection_version",
+        "codex_isolated_auth_projection_ref",
+        "codex_isolated_auth_projection_fingerprint",
+        "codex_executable_fingerprint",
         "codex_configuration_status",
         "codex_configuration_fingerprint",
         "codex_home_identity_fingerprint",

@@ -448,15 +448,56 @@ const suites = {
         "mutable-module-state",
       ],
       label:
-        "single-use commissioned live-training authorization, cold-clone schedule, blinded objective observation, and append-only artifact conformance",
+        "single-use commissioned live-training authorization, isolated authenticated attempt ownership, blinded objective observation, and append-only artifact conformance",
       ...rootNode("scripts/test-commissioned-controlled-live-training.ts"),
       env: { AUGNES_CANONICAL_TEST_MODE: "1" },
-      // Sixteen cold fake App Server invocations (15 primary slots plus one
-      // eligible pre-action replacement), descriptor-relative artifact readback,
-      // CLI modes, and adversarial copies measured 263s on local arm64 after
-      // the fail-closed directory-identity hardening. Keep one bounded 420s
-      // child owner without a retry path.
+      // Sixteen isolated-auth fake App Server invocations (15 primary slots
+      // plus one eligible pre-action replacement), descriptor-relative
+      // artifact readback, CLI modes, and adversarial copies remain under the
+      // established 420s bound without a retry path.
       timeoutMs: 420_000,
+    },
+    {
+      id: "codex-isolated-auth-projection",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "credential-safe isolated Agent Identity projection, provenance, and execution-authority boundary",
+      ...rootNode(
+        "scripts/test-codex-isolated-auth-projection.ts",
+        "--contracts",
+      ),
+      // The structural contract lane owns the production-shaped fake App Server,
+      // account/tool-policy reobservation, provenance, and execution gate. Three
+      // exact Node 24 canonical-runner measurements were 35.987s-36.255s. Bound
+      // at 60s for shared-host variance without a retry path.
+      timeoutMs: 60_000,
+    },
+    {
+      id: "codex-isolated-auth-rollback-lifecycle",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "isolated Agent Identity credential lease, rollback, replay, and exact process-ownership boundary",
+      ...rootNode(
+        "scripts/test-codex-isolated-auth-projection.ts",
+        "--rollback-lifecycle",
+      ),
+      // The destructive lane intentionally waits through the broker's 5s child
+      // rollback settlement contract and retained-owner cleanup. Three exact
+      // Node 24 canonical-runner measurements were 9.671s-9.702s. The separate
+      // 30s bound preserves those irreducible waits without hiding a hang.
+      timeoutMs: 30_000,
     },
     {
       id: "project-controls",
