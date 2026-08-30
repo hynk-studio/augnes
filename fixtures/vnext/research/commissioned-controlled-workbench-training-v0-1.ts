@@ -540,6 +540,14 @@ const cedarCase: CommissionedWorkCaseSourceV01 = {
   budget: SHARED_BUDGET,
 };
 
+export function createCommissionedControlledWorkTrainingCasesV01(): BuildCommissionedWorkFamilyManifestInputV01["training_cases"] {
+  return structuredClone([
+    amberCase,
+    cobaltCase,
+    cedarCase,
+  ]) as BuildCommissionedWorkFamilyManifestInputV01["training_cases"];
+}
+
 /**
  * Builds training sources and the pre-registered holdout commitment only.
  * This module has no dependency on the mixed fixture that owns raw holdout
@@ -549,11 +557,7 @@ export function createCommissionedControlledWorkTrainingOnlyFamilyV01(): {
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestFromCommitmentsV01>;
   training_cases: BuildCommissionedWorkFamilyManifestInputV01["training_cases"];
 } {
-  const trainingCases = structuredClone([
-    amberCase,
-    cobaltCase,
-    cedarCase,
-  ]) as BuildCommissionedWorkFamilyManifestInputV01["training_cases"];
+  const trainingCases = createCommissionedControlledWorkTrainingCasesV01();
   const manifest = buildCommissionedWorkFamilyManifestFromCommitmentsV01({
     family_id: COMMISSIONED_WORKBENCH_FIXTURE_FAMILY_ID_V01,
     workspace_id: "workspace-cw1-controlled",

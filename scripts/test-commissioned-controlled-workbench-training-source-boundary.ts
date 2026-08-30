@@ -5,6 +5,12 @@ import path from "node:path";
 import ts from "typescript";
 
 import {
+  COMMISSIONED_WORKBENCH_CANONICAL_CONFORMANCE_FAMILY_ID_V01,
+  COMMISSIONED_WORKBENCH_CANONICAL_CONFORMANCE_HOLDOUT_CASE_ID_V01,
+  createCommissionedControlledWorkCanonicalConformanceFamilySourceV01,
+  createCommissionedControlledWorkCanonicalConformanceSyntheticFixtureOutputsV01,
+} from "@/fixtures/vnext/research/commissioned-controlled-workbench-canonical-conformance-v0-1";
+import {
   createCommissionedControlledWorkTrainingOnlyFamilyV01,
 } from "@/fixtures/vnext/research/commissioned-controlled-workbench-training-v0-1";
 import {
@@ -29,6 +35,14 @@ const liveTrainingTestPath = path.join(
   repositoryRoot,
   "scripts/test-commissioned-controlled-live-training.ts",
 );
+const canonicalConformanceFixturePath = path.join(
+  repositoryRoot,
+  "fixtures/vnext/research/commissioned-controlled-workbench-canonical-conformance-v0-1.ts",
+);
+const canonicalWorkbenchTestPath = path.join(
+  repositoryRoot,
+  "scripts/test-commissioned-controlled-workbench.ts",
+);
 
 const visited = new Set<string>();
 let commitmentTerminalReached = false;
@@ -50,7 +64,7 @@ function resolveLocalModule(fromPath: string, specifier: string): string | null 
     assert.notEqual(
       normalizedCandidate,
       mixedFixturePath,
-      "training_source_dependency_reaches_mixed_holdout_fixture",
+      "permitted_dependency_reaches_mixed_holdout_fixture",
     );
     if (existsSync(normalizedCandidate) && statSync(normalizedCandidate).isFile()) {
       return normalizedCandidate;
@@ -112,6 +126,50 @@ assert.doesNotMatch(
 inspectPermittedDependency(liveTrainingTestPath);
 assert.equal(visited.has(mixedFixturePath), false);
 
+const canonicalWorkbenchTestSource = readFileSync(
+  canonicalWorkbenchTestPath,
+  "utf8",
+);
+assert.match(
+  canonicalWorkbenchTestSource,
+  /from "@\/fixtures\/vnext\/research\/commissioned-controlled-workbench-canonical-conformance-v0-1"/,
+);
+assert.doesNotMatch(
+  canonicalWorkbenchTestSource,
+  /from "@\/fixtures\/vnext\/research\/commissioned-controlled-workbench-v0-1"/,
+);
+const canonicalConformanceFixtureSource = readFileSync(
+  canonicalConformanceFixturePath,
+  "utf8",
+);
+assert.match(
+  canonicalConformanceFixtureSource,
+  /createCommissionedControlledWorkTrainingCasesV01/,
+);
+assert.doesNotMatch(
+  canonicalConformanceFixtureSource,
+  /createCommissionedControlledWorkTrainingOnlyFamilyV01/,
+);
+inspectPermittedDependency(canonicalWorkbenchTestPath);
+assert.equal(visited.has(mixedFixturePath), false);
+
+const canonicalConformanceFamily =
+  createCommissionedControlledWorkCanonicalConformanceFamilySourceV01();
+assert.equal(
+  canonicalConformanceFamily.family_id,
+  COMMISSIONED_WORKBENCH_CANONICAL_CONFORMANCE_FAMILY_ID_V01,
+);
+assert.equal(
+  canonicalConformanceFamily.holdout_case.case_id,
+  COMMISSIONED_WORKBENCH_CANONICAL_CONFORMANCE_HOLDOUT_CASE_ID_V01,
+);
+assert.equal(canonicalConformanceFamily.holdout_case.case_role, "holdout");
+assert.equal(
+  createCommissionedControlledWorkCanonicalConformanceSyntheticFixtureOutputsV01()
+    .length,
+  20,
+);
+
 const trainingFamily = createCommissionedControlledWorkTrainingOnlyFamilyV01();
 assert.deepEqual(
   trainingFamily.training_cases.map((source) => source.case_id),
@@ -143,6 +201,10 @@ console.log(JSON.stringify({
   status: "commissioned_controlled_workbench_training_source_boundary_ok",
   permitted_module_count: visited.size,
   holdout_commitment_terminal_reached: commitmentTerminalReached,
+  canonical_conformance_family_id:
+    canonicalConformanceFamily.family_id,
+  canonical_conformance_holdout_case_id:
+    canonicalConformanceFamily.holdout_case.case_id,
   training_case_ids: trainingFamily.training_cases.map((source) => source.case_id),
   schedule_fingerprint: plan.schedule_fingerprint,
 }));
