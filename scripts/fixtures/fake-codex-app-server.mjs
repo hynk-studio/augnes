@@ -364,30 +364,7 @@ async function handle(message) {
             : null,
           check_for_update_on_startup: isolatedAuthScenario ? false : true,
           features: isolatedAuthScenario
-            ? {
-                apps: false,
-                browser_use: false,
-                browser_use_external: false,
-                browser_use_full_cdp_access: false,
-                computer_use: false,
-                hooks: false,
-                image_generation: false,
-                in_app_browser: false,
-                multi_agent: false,
-                network_proxy: false,
-                plugins: false,
-                recommended_plugins: false,
-                remote_plugin: false,
-                request_permissions_tool:
-                  scenario === "isolated_auth_tool_policy_drift",
-                standalone_web_search: false,
-                tool_suggest: false,
-                web_search_cached: false,
-                web_search_request: false,
-                ...(scenario === "isolated_auth_unknown_feature_drift"
-                  ? { unknown_network_tool: true }
-                  : {}),
-              }
+            ? isolatedAuthFeatureProjectionV01(scenario)
             : null,
         },
         origins: {},
@@ -854,6 +831,48 @@ function requestConcurrentApprovalOverflow() {
   // chunk scheduling. The adapter must observe all nine requests before any
   // asynchronous approval lifecycle handler can race the ninth-request bound.
   process.stdout.write(`${messages.join("\n")}\n`);
+}
+
+function isolatedAuthFeatureProjectionV01(activeScenario) {
+  const features = {
+    apps: false,
+    auth_elicitation:
+      activeScenario === "isolated_auth_feature_auth_elicitation_enabled",
+    browser_use: false,
+    browser_use_external: false,
+    browser_use_full_cdp_access: false,
+    computer_use: false,
+    hooks: false,
+    image_generation: false,
+    in_app_browser: false,
+    mcp_2026_07_28:
+      activeScenario === "isolated_auth_feature_mcp_2026_07_28_enabled",
+    memories: activeScenario === "isolated_auth_feature_memories_enabled",
+    mentions_v2:
+      activeScenario === "isolated_auth_feature_mentions_v2_enabled",
+    multi_agent: false,
+    network_proxy: false,
+    plugins: false,
+    recommended_plugins: false,
+    remote_control:
+      activeScenario === "isolated_auth_feature_remote_control_enabled",
+    remote_plugin:
+      activeScenario === "isolated_auth_feature_remote_plugin_enabled",
+    request_permissions_tool:
+      activeScenario === "isolated_auth_tool_policy_drift",
+    standalone_web_search: false,
+    tool_suggest:
+      activeScenario === "isolated_auth_feature_tool_suggest_enabled",
+    web_search_cached: false,
+    web_search_request: false,
+    ...(activeScenario === "isolated_auth_unknown_feature_drift"
+      ? { unknown_network_tool: false }
+      : {}),
+  };
+  if (activeScenario === "isolated_auth_feature_required_missing") {
+    delete features.auth_elicitation;
+  }
+  return features;
 }
 
 function isSequentialApprovalScenario() {

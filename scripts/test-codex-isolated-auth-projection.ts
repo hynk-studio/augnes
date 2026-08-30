@@ -79,6 +79,7 @@ import {
   CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
 } from "@/types/vnext/codex-isolated-auth-projection";
@@ -621,6 +622,13 @@ async function contractsV01(roots: RootsV01): Promise<void> {
           CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
         semantic_profile_fingerprint:
           CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+        config_tool_feature_schema_fingerprint:
+          CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01
+            .config_tool_feature_schema_fingerprint,
+        config_policy_fingerprint:
+          provisioned.projection.config_policy.policy_fingerprint,
+        observed_security_policy_fingerprint:
+          semanticProfileProof.fake.observed_security_policy_fingerprint,
         user_agent_contract_fingerprint:
           userAgentProof.contract_fingerprint,
         user_agent_negative_shapes_refused:
@@ -986,9 +994,30 @@ async function semanticProfileAndCredentialFreePreflightV01(
     profile.app_server_user_agent_contract_fingerprint,
     CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
   );
+  const configOverrideArgs: readonly string[] =
+    CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
+  for (const feature of [
+    "auth_elicitation",
+    "mcp_2026_07_28",
+    "memories",
+    "mentions_v2",
+    "remote_plugin",
+    "tool_suggest",
+  ]) {
+    assert.equal(
+      configOverrideArgs.includes(`features.${feature}=false`),
+      true,
+      `${feature} must be explicitly disabled for the isolated profile`,
+    );
+  }
+  assert.equal(
+    configOverrideArgs.includes("features.remote_control=false"),
+    false,
+    "removed 0.150.1 remote_control is a source-injected false observation, not an effective override",
+  );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:c693f4c949647c5f093488fae5273ebf861c3836f33d9e6742864fcaca02bb1e",
+    "sha256:d27049d83b216fe09a9afd33ecca2175e14651ad1744a20c299a02f8640838a7",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -997,6 +1026,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(
     provisioned.projection.compatible_codex_cli_version,
     CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  );
+  assert.equal(
+    provisioned.projection.config_policy.remote_tool_features_enabled,
+    0,
   );
 
   for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
@@ -1077,6 +1110,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   const fakeRuntime = path.join(roots.runtime, "semantic-preflight-fake");
   const fakeTrace = path.join(fakeRuntime, "trace.jsonl");
   const fakeNetwork = path.join(fakeRuntime, "network-count.txt");
+  const fakeAuthBoundary = path.join(fakeRuntime, "auth-boundary.jsonl");
   mkdirSync(fakeStateParent, { recursive: true, mode: 0o700 });
   mkdirSync(fakeRuntime, { recursive: true, mode: 0o700 });
   const fake = await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
@@ -1104,6 +1138,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
       FAKE_CODEX_SCENARIO: "isolated_auth_semantic_preflight",
       FAKE_CODEX_TRACE_PATH: fakeTrace,
       FAKE_CODEX_NETWORK_COUNT_PATH: fakeNetwork,
+      FAKE_CODEX_AUTH_BOUNDARY_PATH: fakeAuthBoundary,
     },
     observed_at: GENERATED_AT,
   });
@@ -1116,16 +1151,111 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
   assert.deepEqual(fakeMethods, ["initialize", "initialized", "config/read"]);
-  assert.equal(fakeMethods.includes("account/read"), false);
-  assert.equal(fakeMethods.includes("thread/start"), false);
-  assert.equal(fakeMethods.includes("turn/start"), false);
+  for (const forbiddenMethod of [
+    "account/read",
+    "getAuthStatus",
+    "mcpServerStatus/list",
+    "thread/start",
+    "turn/start",
+  ])
+    assert.equal(fakeMethods.includes(forbiddenMethod), false, forbiddenMethod);
+  const credentialFreeBoundary = JSON.parse(
+    readFileSync(fakeAuthBoundary, "utf8"),
+  ) as Record<string, unknown>;
+  assert.equal(credentialFreeBoundary.app_server_material_present, false);
+  assert.equal(credentialFreeBoundary.repository_child_material_present, false);
+  assert.equal(credentialFreeBoundary.shared_home_canary_visible, false);
+  assert.equal(credentialFreeBoundary.shared_codex_home_history_visible, false);
+  assert.equal(credentialFreeBoundary.shared_tmp_canary_visible, false);
+  assert.equal(credentialFreeBoundary.material_in_argv, false);
   assert.equal(readFileSync(fakeNetwork, "utf8"), "0\n");
   assertPublicSafeV01(fake);
+
+  await credentialFreeFeatureProjectionNegativesV01(roots);
 
   // Source and Canonical conformance must never promote an installed binary
   // into a production observation. Exact-head production probing is a later,
   // separately authorized gate.
   return { fake, installed: { state: "unavailable" } };
+}
+
+async function credentialFreeFeatureProjectionNegativesV01(
+  roots: RootsV01,
+): Promise<void> {
+  for (const [id, scenario] of [
+    ["auth-elicitation-enabled", "isolated_auth_feature_auth_elicitation_enabled"],
+    ["mentions-v2-enabled", "isolated_auth_feature_mentions_v2_enabled"],
+    ["memories-enabled", "isolated_auth_feature_memories_enabled"],
+    ["mcp-2026-07-28-enabled", "isolated_auth_feature_mcp_2026_07_28_enabled"],
+    ["remote-plugin-enabled", "isolated_auth_feature_remote_plugin_enabled"],
+    ["tool-suggest-enabled", "isolated_auth_feature_tool_suggest_enabled"],
+    ["remote-control-enabled", "isolated_auth_feature_remote_control_enabled"],
+    ["unknown-feature-false", "isolated_auth_unknown_feature_drift"],
+    ["required-feature-missing", "isolated_auth_feature_required_missing"],
+  ] as const) {
+    const stateParent = path.join(roots.state, `credential-free-${id}`);
+    const runtime = path.join(roots.runtime, `credential-free-${id}`);
+    const tracePath = path.join(runtime, "trace.jsonl");
+    const networkPath = path.join(runtime, "network-count.txt");
+    const authBoundaryPath = path.join(runtime, "auth-boundary.jsonl");
+    mkdirSync(stateParent, { mode: 0o700 });
+    mkdirSync(runtime, { mode: 0o700 });
+    const preflight =
+      await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
+        command: process.execPath,
+        expected_executable_fingerprint: sha256FileV01(process.execPath),
+        executable_identity_class: "test_emulated_profile",
+        state_parent: realpathSync(stateParent),
+        repository_root: roots.repository,
+        base_environment: {
+          PATH: process.env.PATH,
+          LANG: "C",
+          TZ: "UTC",
+          NO_COLOR: "1",
+        },
+        test_prefix_args: [
+          path.join(
+            process.cwd(),
+            "scripts",
+            "fixtures",
+            "fake-codex-app-server.mjs",
+          ),
+        ],
+        test_environment: {
+          AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+          FAKE_CODEX_SCENARIO: scenario,
+          FAKE_CODEX_TRACE_PATH: tracePath,
+          FAKE_CODEX_NETWORK_COUNT_PATH: networkPath,
+          FAKE_CODEX_AUTH_BOUNDARY_PATH: authBoundaryPath,
+        },
+        observed_at: GENERATED_AT,
+      });
+    assert.equal(preflight.state, "semantic_profile_mismatch", scenario);
+    assert.equal(preflight.cleanup_completed, true, scenario);
+    assert.equal(readdirSync(stateParent).length, 0, scenario);
+    const methods = receivedMethodsV01(tracePath);
+    assert.deepEqual(
+      methods,
+      ["initialize", "initialized", "config/read"],
+      scenario,
+    );
+    for (const forbiddenMethod of [
+      "account/read",
+      "getAuthStatus",
+      "mcpServerStatus/list",
+      "thread/start",
+      "turn/start",
+    ])
+      assert.equal(methods.includes(forbiddenMethod), false, forbiddenMethod);
+    const boundary = JSON.parse(
+      readFileSync(authBoundaryPath, "utf8"),
+    ) as Record<string, unknown>;
+    assert.equal(boundary.app_server_material_present, false, scenario);
+    assert.equal(boundary.repository_child_material_present, false, scenario);
+    assert.equal(boundary.material_in_argv, false, scenario);
+    assert.equal(readFileSync(networkPath, "utf8"), "0\n", scenario);
+    assertPublicSafeV01(preflight);
+  }
 }
 
 async function externalExecutionAuthorityGateV01(

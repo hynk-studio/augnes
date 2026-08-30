@@ -214,6 +214,7 @@ const FORBIDDEN_SURFACES_V01 = [
 ] as const;
 const DISABLED_FEATURE_NAMES_V01 = [
   "apps",
+  "auth_elicitation",
   "browser_use",
   "browser_use_external",
   "browser_use_full_cdp_access",
@@ -221,10 +222,14 @@ const DISABLED_FEATURE_NAMES_V01 = [
   "hooks",
   "image_generation",
   "in_app_browser",
+  "mcp_2026_07_28",
+  "memories",
+  "mentions_v2",
   "multi_agent",
   "network_proxy",
   "plugins",
   "recommended_plugins",
+  "remote_control",
   "remote_plugin",
   "request_permissions_tool",
   "standalone_web_search",
