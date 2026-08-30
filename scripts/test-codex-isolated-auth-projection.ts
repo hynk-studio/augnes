@@ -484,6 +484,10 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     assert.equal(positive.auth_observations.length, 1);
     const observation = positive.auth_observations[0]!;
     assert.equal(
+      observation.config_layers_fingerprint,
+      "sha256:95ad52573b41d462ac933f0aaf02bdc59003d9d71043ee6a9ec849f7d189e859",
+    );
+    assert.equal(
       observation.account_identity_fingerprint,
       provisioned.credential_attestation.account_identity_fingerprint,
     );
@@ -996,6 +1000,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
     profile.app_server_user_agent_contract_fingerprint,
     CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
   );
+  assert.equal(
+    profile.config_tool_feature_schema_fingerprint,
+    "sha256:321274df17ca9b9f734b05b6f1ec8b07eaf426d5d715d8d578229892d2600d44",
+  );
   const configOverrideArgs: readonly string[] =
     CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
   assert.equal(configOverrideArgs[0], "--strict-config");
@@ -1010,8 +1018,12 @@ async function semanticProfileAndCredentialFreePreflightV01(
     configOverridePaths,
     "every -c override must own exactly one SessionFlags projection path",
   );
+  assert.equal(configOverridePaths.length, 38);
   assert.equal(new Set(configOverridePaths).size, configOverridePaths.length);
   const runtimeOriginPaths = codexIsolatedAuthExpectedRuntimeOriginPathsV01();
+  assert.equal(runtimeOriginPaths.length, 34);
+  assert.equal(configOverridePaths.includes("sqlite_home"), false);
+  assert.equal(runtimeOriginPaths.includes("sqlite_home"), false);
   for (const emptyContainerPath of [
     "mcp_servers",
     "plugins",
@@ -1052,7 +1064,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:0e09f35f18a55e4769bd2b6f290711f84fd84cd6777eb582f8b93e229541a2b3",
+    "sha256:8c7181c024e2279490c903dde5d7f2b40947c7cde5e9ebea3c64ea9005db41e5",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -1073,6 +1085,39 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(
     provisioned.projection.config_policy.config_requirements_policy,
     "not_enumerated_critical_override_origins_intact",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.sqlite_config_projection,
+    "absent",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.sqlite_runtime_binding,
+    "private_codex_sqlite_home_environment",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.sqlite_runtime_source,
+    "CODEX_SQLITE_HOME",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.sqlite_runtime_private_root_required,
+    true,
+  );
+  assert.equal(
+    provisioned.projection.config_policy
+      .sqlite_runtime_shared_fallback_forbidden,
+    true,
+  );
+  assert.equal(
+    provisioned.projection.config_policy.apps_config_projection,
+    "source_default_only",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.apps_capability,
+    "disabled_by_feature",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.policy_fingerprint,
+    "sha256:97f9f2365c0a8b79e80c76b10a78b3a7c221327fad075588ae40fb8371514519",
   );
 
   for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
@@ -1191,6 +1236,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
     CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   );
   assert.equal(fake.cleanup_completed, true);
+  assert.equal(
+    fake.observed_security_policy_fingerprint,
+    "sha256:97f9f2365c0a8b79e80c76b10a78b3a7c221327fad075588ae40fb8371514519",
+  );
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
   assert.deepEqual(fakeMethods, ["initialize", "initialized", "config/read"]);
@@ -1200,6 +1249,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
   )[0];
   assert.equal(configReadShape?.requirements_field_present, false);
   assert.equal(configReadShape?.session_flags_layer_count, 1);
+  assert.equal(configReadShape?.sqlite_home_is_null, true);
+  assert.equal(configReadShape?.sqlite_home_origin_present, false);
+  assert.deepEqual(configReadShape?.apps_top_level_keys, ["_default"]);
+  assert.equal(configReadShape?.apps_per_app_count, 0);
   assert.equal(
     typeof configReadShape?.layer_count === "number" &&
       configReadShape.layer_count > 1,
@@ -1299,6 +1352,11 @@ async function credentialFreeFeatureProjectionNegativesV01(
       "malformed-layer-metadata",
       "isolated_auth_provenance_malformed_layer_metadata",
     ],
+    ["sqlite-origin-present", "isolated_auth_sqlite_home_origin_drift"],
+    ["apps-per-app", "isolated_auth_apps_per_app_drift"],
+    ["apps-default-malformed", "isolated_auth_apps_default_malformed"],
+    ["apps-default-active", "isolated_auth_apps_default_active"],
+    ["apps-unknown-key", "isolated_auth_apps_unknown_key"],
   ] as const) {
     const stateParent = path.join(roots.state, `credential-free-${id}`);
     const runtime = path.join(roots.runtime, `credential-free-${id}`);

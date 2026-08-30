@@ -11,7 +11,6 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import {
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
@@ -155,7 +154,13 @@ const CONFIG_POLICY_BASE_V01 = {
   shell_environment_inherit: "core",
   shell_default_sensitive_name_excludes: true,
   repository_command_auth_material_inheritance: false,
-  codex_sqlite_home_binding: "exact_attempt_state_home",
+  sqlite_config_projection: "absent",
+  sqlite_runtime_binding: "private_codex_sqlite_home_environment",
+  sqlite_runtime_source: "CODEX_SQLITE_HOME",
+  sqlite_runtime_private_root_required: true,
+  sqlite_runtime_shared_fallback_forbidden: true,
+  apps_config_projection: "source_default_only",
+  apps_capability: "disabled_by_feature",
   thread_instruction_sources: "empty",
   orchestrator_skills_enabled: false,
   orchestrator_mcp_enabled: false,
@@ -1456,10 +1461,7 @@ export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: 
       CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   }).codex_cli_version;
   exactSupportedCliVersionV01(cliVersion);
-  const observedPolicy = observedSecurityPolicyV01(
-    input.config,
-    input.codex_sqlite_home,
-  );
+  const observedPolicy = observedSecurityPolicyV01(input.config);
   const expected = expectedConfigPolicyV01();
   if (
     observedPolicy.fingerprint !== expected.policy_fingerprint ||
@@ -1807,7 +1809,6 @@ function hasActiveConfigLeafV01(value: unknown): boolean {
 }
 function observedSecurityPolicyV01(
   value: Record<string, unknown>,
-  sqliteHome: string,
 ): {
   fingerprint: string;
   providerRouteFingerprint: string;
@@ -1818,6 +1819,7 @@ function observedSecurityPolicyV01(
   const shell = recordV01(config?.shell_environment_policy);
   const orchestrator = recordV01(config?.orchestrator);
   const providerMap = recordV01(config?.model_providers);
+  const appsProjectionExact = inactiveAppsProjectionV01(config?.apps);
   const provenance = observeConfigReadProvenanceV01(value);
   if (
     !config ||
@@ -1832,7 +1834,7 @@ function observedSecurityPolicyV01(
     config.project_doc_max_bytes !== 0 ||
     config.allow_login_shell !== false ||
     config.check_for_update_on_startup !== false ||
-    config.sqlite_home !== pathToFileURL(sqliteHome).href ||
+    config.sqlite_home !== null ||
     !Array.isArray(config.project_doc_fallback_filenames) ||
     config.project_doc_fallback_filenames.length !== 0 ||
     shell.inherit !== "core" ||
@@ -1840,7 +1842,7 @@ function observedSecurityPolicyV01(
     !emptyRecordV01(config.mcp_servers) ||
     !emptyRecordV01(config.plugins) ||
     !emptyRecordV01(config.skills) ||
-    !emptyRecordV01(config.apps) ||
+    !appsProjectionExact ||
     recordV01(orchestrator.skills)?.enabled !== false ||
     recordV01(orchestrator.mcp)?.enabled !== false ||
     Object.entries(features).some(
@@ -1897,7 +1899,7 @@ function observedSecurityPolicyV01(
     web_search: config.web_search,
     mcp_server_count: Object.keys(config.mcp_servers as object).length,
     plugin_count: Object.keys(config.plugins as object).length,
-    app_count: Object.keys(config.apps as object).length,
+    app_count: 0,
     skill_source_count: Object.keys(config.skills as object).length,
     project_instruction_bytes: config.project_doc_max_bytes,
     login_shell_allowed: config.allow_login_shell,
@@ -1905,10 +1907,18 @@ function observedSecurityPolicyV01(
     shell_default_sensitive_name_excludes:
       shell.ignore_default_excludes === false,
     repository_command_auth_material_inheritance: false,
-    codex_sqlite_home_binding:
-      config.sqlite_home === pathToFileURL(sqliteHome).href
-        ? "exact_attempt_state_home"
-        : "mismatch",
+    sqlite_config_projection:
+      config.sqlite_home === null ? ("absent" as const) : "mismatch",
+    sqlite_runtime_binding:
+      "private_codex_sqlite_home_environment" as const,
+    sqlite_runtime_source: "CODEX_SQLITE_HOME" as const,
+    sqlite_runtime_private_root_required: true,
+    sqlite_runtime_shared_fallback_forbidden: true,
+    apps_config_projection: appsProjectionExact
+      ? ("source_default_only" as const)
+      : "mismatch",
+    apps_capability:
+      features.apps === false ? ("disabled_by_feature" as const) : "mismatch",
     thread_instruction_sources:
       Array.isArray(config.project_doc_fallback_filenames) &&
       config.project_doc_fallback_filenames.length === 0
@@ -2308,7 +2318,8 @@ function assertSafePublicV01(value: unknown): void {
         "$.codex_sqlite_home_reobserved",
         "$.state_policy.codex_home_isolated",
         "$.state_policy.codex_sqlite_home_isolated",
-        "$.config_policy.codex_sqlite_home_binding",
+        "$.config_policy.sqlite_runtime_binding",
+        "$.config_policy.sqlite_runtime_source",
       ]),
       allowed_false_invariant_fields: new Set([
         "repository_execution_granted",
@@ -2474,6 +2485,15 @@ function assertExactKeysV01(
 function emptyRecordV01(value: unknown): boolean {
   const record = recordV01(value);
   return Boolean(record && Object.keys(record).length === 0);
+}
+function inactiveAppsProjectionV01(value: unknown): boolean {
+  const apps = recordV01(value);
+  // Codex 0.150.1 converts an empty ConfigToml apps table into the API
+  // AppsConfig shape with one nullable `_default` sentinel. No per-app key or
+  // expanded default policy is part of the isolated profile.
+  return Boolean(
+    apps && exactObjectKeysV01(apps, ["_default"]) && apps._default === null,
+  );
 }
 function withinV01(parent: string, candidate: string): boolean {
   const relative = path.relative(parent, candidate);

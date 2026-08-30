@@ -201,7 +201,13 @@ export interface CodexIsolatedAuthConfigPolicyV01 {
   shell_environment_inherit: "core";
   shell_default_sensitive_name_excludes: true;
   repository_command_auth_material_inheritance: false;
-  codex_sqlite_home_binding: "exact_attempt_state_home";
+  sqlite_config_projection: "absent";
+  sqlite_runtime_binding: "private_codex_sqlite_home_environment";
+  sqlite_runtime_source: "CODEX_SQLITE_HOME";
+  sqlite_runtime_private_root_required: true;
+  sqlite_runtime_shared_fallback_forbidden: true;
+  apps_config_projection: "source_default_only";
+  apps_capability: "disabled_by_feature";
   thread_instruction_sources: "empty";
   orchestrator_skills_enabled: false;
   orchestrator_mcp_enabled: false;
