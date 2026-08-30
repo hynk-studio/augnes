@@ -17,6 +17,7 @@ import type {
   CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import { CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 } from "@/types/vnext/codex-isolated-auth-projection";
 
 export const COMMISSIONED_LIVE_TRAINING_PRODUCTION_RUNTIME_AUTH_BINDING_VERSION_V01 =
   "commissioned_live_training_production_runtime_auth_binding.v0.1" as const;
@@ -110,7 +111,8 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     environment.codex_executable_fingerprint !==
       input.native_execution_configuration.cli_executable_identity
         .content_fingerprint ||
-    input.native_execution_configuration.expected_cli_version !== "0.147.0" ||
+    input.native_execution_configuration.expected_cli_version !==
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
     input.native_execution_configuration.provider_id !== "openai" ||
     !privateLocatorV01(input.locator.service_name) ||
     !privateLocatorV01(input.locator.account_name) ||
@@ -132,7 +134,7 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     provider_ref: binding.provider_ref,
     codex_executable_fingerprint: environment.codex_executable_fingerprint,
     executable_identity_class: "production_pinned_codex",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: binding.projection_issued_at,
     expires_at: binding.projection_expires_at,
   });
@@ -162,7 +164,8 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
       codex_executable_ref: binding.codex_executable_ref,
       codex_executable_fingerprint: environment.codex_executable_fingerprint,
       executable_identity_class: "production_pinned_codex",
-      compatible_codex_cli_version: "0.147.0",
+      compatible_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
       issued_at: binding.projection_issued_at,
       expires_at: binding.projection_expires_at,
     });

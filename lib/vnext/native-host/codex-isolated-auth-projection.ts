@@ -14,6 +14,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+  observeCodexAppServerUserAgentV01,
+} from "@/lib/vnext/native-host/codex-app-server-user-agent";
+import {
   assertCodexBrokerRollbackCleanupAvailableV01,
   containsCodexCredentialSecretShapeV01,
   bindCodexBrokerPrivateLaunchCapabilityV01,
@@ -38,7 +42,10 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   CODEX_ISOLATED_AUTH_BROKER_VERSION_V01,
+  CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01,
+  CODEX_APP_SERVER_CLIENT_VERSION_V01,
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
@@ -186,6 +193,11 @@ const ALLOWED_ENV_KEYS_V01 = [
   "TMPDIR",
   "TZ",
 ] as const;
+const FORBIDDEN_UPSTREAM_OVERRIDE_ENV_KEYS_V01 = [
+  "CODEX_AGENT_IDENTITY_AUTHAPI_BASE_URL",
+  "CODEX_AGENT_IDENTITY_JWKS_BASE_URL",
+  "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
+] as const;
 const FORBIDDEN_SURFACES_V01 = [
   "adapter_options",
   "argv",
@@ -221,7 +233,7 @@ const DISABLED_FEATURE_NAMES_V01 = [
   "web_search_request",
 ] as const;
 const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
-  contract_version: "codex_agent_identity_jwt_claims.rust-v0.147.0",
+  contract_version: CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   algorithm: "RS256",
   kid_required: true,
   issuer: "https://chatgpt.com/codex-backend/agent-identity",
@@ -242,7 +254,7 @@ const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
   source_expiry_safety_margin_seconds: 60,
 } as const;
 const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
-  method_profile_version: "codex_app_server_auth_preflight.rust-v0.147.0",
+  method_profile_version: "codex_app_server_auth_preflight.rust-v0.150.1",
   initialize: "initialize",
   initialized: "initialized",
   account_read: "account/read",
@@ -251,7 +263,10 @@ const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
   mcp_status: "mcpServerStatus/list",
   thread_start: "thread/start",
   turn_start: "turn/start",
-  user_agent: "codex-cli/0.147.0",
+  user_agent_contract_version:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  user_agent_contract_fingerprint:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
 } as const;
 const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
   canonicalizeProtocolValueV01({
@@ -265,6 +280,8 @@ const REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01 =
     canonicalizeProtocolValueV01({
       state_policy: STATE_POLICY_V01,
       allowed_environment_keys: ALLOWED_ENV_KEYS_V01,
+      forbidden_upstream_override_environment_keys:
+        FORBIDDEN_UPSTREAM_OVERRIDE_ENV_KEYS_V01,
       launch_injection_mechanism: "broker_internal_immediate_child_spawn",
       auth_store_mode: "ephemeral",
       auth_file_copy_forbidden: true,
@@ -278,6 +295,8 @@ const SEMANTIC_PROFILE_MATERIAL_V01 = {
   supported_public_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   pinned_production_executable_fingerprint:
     CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  agent_identity_claim_contract_version:
+    CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   agent_identity_claim_contract_fingerprint: createProtocolSha256V01(
     canonicalizeProtocolValueV01(AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01),
   ),
@@ -287,6 +306,10 @@ const SEMANTIC_PROFILE_MATERIAL_V01 = {
   app_server_method_profile_fingerprint: createProtocolSha256V01(
     canonicalizeProtocolValueV01(APP_SERVER_METHOD_PROFILE_MATERIAL_V01),
   ),
+  app_server_user_agent_contract_version:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  app_server_user_agent_contract_fingerprint:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
   required_environment_auth_behavior_fingerprint:
     REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01,
 } as const;
@@ -880,6 +903,7 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
         initialized: input.initialized,
         config: input.config,
         codex_sqlite_home: this.#state.sqliteHome.path,
+        expected_client_name: "augnes",
       });
     const cliVersion = semanticProfile.observed_cli_version;
     assertAuthStatusV01(input.auth_status);
@@ -1367,6 +1391,7 @@ export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: 
   initialized: Record<string, unknown>;
   config: Record<string, unknown>;
   codex_sqlite_home: string;
+  expected_client_name: "augnes" | "augnes-semantic-preflight";
 }): {
   semantic_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
   semantic_profile_fingerprint: string;
@@ -1375,7 +1400,13 @@ export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: 
   provider_route_fingerprint: string;
   config_layers_fingerprint: string;
 } {
-  const cliVersion = publicCliVersionV01(input.initialized.userAgent);
+  const cliVersion = observeCodexAppServerUserAgentV01({
+    raw_user_agent: input.initialized.userAgent,
+    expected_client_name: input.expected_client_name,
+    expected_client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    expected_codex_cli_version:
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  }).codex_cli_version;
   exactSupportedCliVersionV01(cliVersion);
   const observedPolicy = observedSecurityPolicyV01(
     input.config,
@@ -2073,15 +2104,6 @@ function exactExecutableIdentityClassV01(
       "codex_isolated_auth_executable_identity_class_refused",
     );
   return value;
-}
-function publicCliVersionV01(value: unknown): string {
-  const text = requiredTextV01(
-    value,
-    "codex_isolated_auth_cli_version_missing",
-  );
-  return requiredCliVersionV01(
-    text.match(/(?:codex-cli[\s/]+)([A-Za-z0-9._-]+)/u)?.[1] ?? text,
-  );
 }
 function requiredTextV01(value: unknown, code: string): string {
   if (

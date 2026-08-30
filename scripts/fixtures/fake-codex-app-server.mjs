@@ -28,7 +28,6 @@ const scenario =
     ? "browser_two_sequential_approvals"
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
-const fakeCodexUserAgent = fakeCodexUserAgentV01(scenario);
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -205,6 +204,10 @@ async function handle(message) {
         return;
       }
       initialized = true;
+      const fakeCodexUserAgent = fakeCodexUserAgentV01(
+        scenario,
+        message.params?.clientInfo,
+      );
       respond(message.id, {
         userAgent: fakeCodexUserAgent,
         codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
@@ -756,11 +759,41 @@ async function handle(message) {
   }
 }
 
-function fakeCodexUserAgentV01(value) {
-  if (value === "isolated_auth_cli_version_mismatch")
-    return "codex-cli/0.148.0";
-  if (value.startsWith("isolated_auth_")) return "codex-cli/0.147.0";
-  return "codex-cli/fake-0.143.0";
+function fakeCodexUserAgentV01(value, clientInfo) {
+  if (!value.startsWith("isolated_auth_"))
+    return "codex-cli/fake-0.143.0";
+  const name =
+    typeof clientInfo?.name === "string" ? clientInfo.name : "augnes";
+  const version =
+    typeof clientInfo?.version === "string"
+      ? clientInfo.version
+      : "codex_app_server_adapter.v0.1";
+  const cliVersion =
+    value === "isolated_auth_cli_version_mismatch" ? "0.147.0" : "0.150.1";
+  const originator =
+    value === "isolated_auth_user_agent_wrong_originator"
+      ? "other-originator"
+      : name;
+  const suffixVersion =
+    value === "isolated_auth_user_agent_wrong_client_version"
+      ? "codex_app_server_adapter.v9.9"
+      : version;
+  if (value === "isolated_auth_user_agent_legacy_abbreviated")
+    return "codex-cli/0.150.1";
+  if (value === "isolated_auth_user_agent_missing_platform")
+    return `${originator}/${cliVersion} fake-terminal/1.0 (${name}; ${suffixVersion})`;
+  if (value === "isolated_auth_user_agent_malformed_platform")
+    return `${originator}/${cliVersion} (Mac OS current; arm64) fake-terminal/1.0 (${name}; ${suffixVersion})`;
+  if (value === "isolated_auth_user_agent_control_character")
+    return `${originator}/${cliVersion} (Mac OS 15.7.1; arm64) fake\u0000terminal/1.0 (${name}; ${suffixVersion})`;
+  if (value === "isolated_auth_user_agent_over_bound")
+    return `${originator}/${cliVersion} (Mac OS 15.7.1; arm64) ${"x".repeat(480)} (${name}; ${suffixVersion})`;
+  const full = `${originator}/${cliVersion} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${suffixVersion})`;
+  if (value === "isolated_auth_user_agent_duplicate_identity")
+    return `${full} (${name}; ${suffixVersion})`;
+  if (value === "isolated_auth_user_agent_unexpected_suffix")
+    return `${full} unexpected`;
+  return full;
 }
 
 function requestCommandApproval(overrides = {}, requestId = approvalRequestId) {
@@ -1224,7 +1257,7 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: "0.147.0",
+    cliVersion: isolatedAuthScenario ? "0.150.1" : "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,
