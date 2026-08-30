@@ -51,6 +51,8 @@ const cleanupMarkerPath = process.env.FAKE_CODEX_CLEANUP_MARKER_PATH ?? null;
 const releasePath = process.env.FAKE_CODEX_RELEASE_PATH ?? null;
 const approvalResolutionBarrierPath =
   process.env.FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH ?? null;
+const cancellationApprovalResolutionReleasePath =
+  process.env.FAKE_CODEX_CANCELLATION_APPROVAL_RESOLUTION_RELEASE_PATH ?? null;
 const browserSecondApprovalReleasePath =
   scenario === "browser_two_sequential_approvals" && canonicalTestRoot
     ? path.join(canonicalTestRoot, "browser-second-approval.release")
@@ -539,6 +541,7 @@ async function handle(message) {
           process.exit(19);
         } else if (
           scenario === "command_approval" ||
+          scenario === "cancellation_terminal_before_approval_resolved" ||
           scenario === "delayed_cleanup" ||
           scenario === "ignored_interrupt" ||
           scenario === "descendant_cleanup"
@@ -653,6 +656,10 @@ async function handle(message) {
         scenario === "network_permission_approval_ignored_interrupt"
       )
         return;
+      if (scenario === "cancellation_terminal_before_approval_resolved") {
+        completeInterrupted();
+        return;
+      }
       const delayMs = scenario === "delayed_cleanup" ? 75 : 0;
       setTimeout(() => completeInterrupted(), delayMs);
       return;
@@ -676,6 +683,28 @@ async function handle(message) {
       (message.result?.scope === "turn" &&
         message.result?.permissions &&
         Object.keys(message.result.permissions).length > 0);
+    if (
+      scenario === "cancellation_terminal_before_approval_resolved" &&
+      message.result?.decision === "cancel"
+    ) {
+      trace("cancellation_approval_resolution_held", {
+        request_id: resolvedRequestId,
+      });
+      await waitForCancellationApprovalResolutionRelease();
+      if (!completed) {
+        throw new Error(
+          "cancellation_terminal_not_observed_before_approval_resolution",
+        );
+      }
+      notify("serverRequest/resolved", {
+        threadId,
+        requestId: resolvedRequestId,
+      });
+      trace("cancellation_approval_resolution_released", {
+        request_id: resolvedRequestId,
+      });
+      return;
+    }
     notify("serverRequest/resolved", {
       threadId,
       requestId: resolvedRequestId,
@@ -1358,8 +1387,11 @@ function completeInterrupted() {
   if (completed) return;
   completed = true;
   turnActive = false;
-  pendingApprovalRequestIds.clear();
+  if (scenario !== "cancellation_terminal_before_approval_resolved") {
+    pendingApprovalRequestIds.clear();
+  }
   persistState({ threadId, sessionId, turnId, status: "interrupted" });
+  trace("terminal_state_emitted", { status: "interrupted" });
   notify("turn/completed", { threadId, turn: turn("interrupted", []) });
 }
 
@@ -1796,6 +1828,23 @@ async function waitForBrowserRelease(releaseFile, label) {
     });
   } catch {
     throw new Error(`${label}_barrier_timeout`);
+  }
+}
+
+async function waitForCancellationApprovalResolutionRelease() {
+  if (!cancellationApprovalResolutionReleasePath) {
+    throw new Error("cancellation_approval_resolution_barrier_missing");
+  }
+  try {
+    const observed = await waitForBoundedFileSignal(
+      cancellationApprovalResolutionReleasePath,
+      { timeoutMs: 10_000 },
+    );
+    trace("cancellation_approval_resolution_release_observed", {
+      observation: observed.observation,
+    });
+  } catch {
+    throw new Error("cancellation_approval_resolution_barrier_timeout");
   }
 }
 
