@@ -106,7 +106,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   createCommissionedControlledWorkTrainingOnlyFamilyV01,
-} from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
+} from "@/fixtures/vnext/research/commissioned-controlled-workbench-training-v0-1";
 import type {
   CommissionedWorkEpisodeArtifactV01,
   CommissionedWorkRecordRefV01,
