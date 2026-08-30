@@ -245,6 +245,7 @@ export interface CodexAppServerAdapterObservationV01 {
     | "thread_started"
     | "thread_resumed"
     | "turn_started"
+    | "terminal_observed"
     | "approval_requested"
     | "approval_resolved"
     | "server_request_state_cleared"
@@ -1060,6 +1061,12 @@ class CodexAppServerInvocationV01 {
       // accepting its terminal message, so an earlier path or identity failure
       // cannot race a later turn/completed notification into a receipt.
       await this.transport!.settleNotifications();
+      // Cancellation owns a stronger exact-request settlement boundary than
+      // the transport's already-admitted notification set. A delayed
+      // serverRequest/resolved notification may arrive after turn/completed;
+      // keep terminal completion behind the stop owner until that exact
+      // approval resolution reaches its durable lifecycle sink.
+      if (this.stopPromise) await this.stopPromise;
       if (this.transport!.failure) throw this.transport!.failure;
       if (terminalOrDisconnect.kind === "disconnect") {
         if (this.terminalObserved) {
@@ -1789,6 +1796,12 @@ class CodexAppServerInvocationV01 {
         );
       }
       this.observe("approval_resolved");
+      active.resolution_settled.resolve({
+        request_id: requestId,
+        request_fingerprint: active.request_fingerprint,
+        approval_id: active.approval_id,
+        approval_fingerprint: active.approval_fingerprint,
+      });
       return;
     }
     if (KNOWN_IGNORED_NOTIFICATIONS.has(method)) return;
@@ -1841,6 +1854,7 @@ class CodexAppServerInvocationV01 {
       approval_id: approval.approval_id,
       approval_fingerprint: approval.idempotency_fingerprint,
       decision_fingerprint: null,
+      resolution_settled: deferredV01<CodexApprovalResolutionIdentityV01>(),
       run_id: this.request.run_id,
       thread_id: this.threadId!,
       turn_id: this.turnId!,
@@ -2259,6 +2273,7 @@ class CodexAppServerInvocationV01 {
     }
     const terminal = { turn, status, fingerprint } as CodexTurnTerminalV01;
     this.terminalObserved = terminal;
+    this.observe("terminal_observed", status);
     this.terminalDeferred.resolve(terminal);
   }
 
@@ -2530,6 +2545,17 @@ class CodexAppServerInvocationV01 {
   private async stopInvocation(
     request: NativeHostStopRequestV01,
   ): Promise<void> {
+    const approvalResolutionSettlements = [
+      ...this.activeServerRequests.entries(),
+    ].map(([requestId, active]) => ({
+      expected: {
+        request_id: requestId,
+        request_fingerprint: active.request_fingerprint,
+        approval_id: active.approval_id,
+        approval_fingerprint: active.approval_fingerprint,
+      } satisfies CodexApprovalResolutionIdentityV01,
+      settled: active.resolution_settled.promise,
+    }));
     await this.reportLifecycle({
       event_kind: "stop_requested",
       state: "cancelling",
@@ -2545,6 +2571,9 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (this.terminalObserved) {
+      await this.awaitApprovalResolutionSettlements(
+        approvalResolutionSettlements,
+      );
       await this.cleanupTransport();
       return;
     }
@@ -2568,7 +2597,35 @@ class CodexAppServerInvocationV01 {
       throw this.reconciliationError("codex_turn_interrupt_unconfirmed");
     }
     this.terminalObserved = terminal;
+    await this.awaitApprovalResolutionSettlements(
+      approvalResolutionSettlements,
+    );
     await this.cleanupTransport();
+  }
+
+  private async awaitApprovalResolutionSettlements(
+    settlements: ReadonlyArray<{
+      expected: CodexApprovalResolutionIdentityV01;
+      settled: Promise<CodexApprovalResolutionIdentityV01>;
+    }>,
+  ): Promise<void> {
+    if (settlements.length === 0) return;
+    const observed = await withinV01(
+      Promise.all(settlements.map((settlement) => settlement.settled)),
+      Math.max(100, Math.floor(this.control.stop_settle_timeout_ms / 3)),
+    );
+    if (
+      !observed ||
+      observed.some(
+        (identity, index) =>
+          canonicalizeProtocolValueV01(identity) !==
+          canonicalizeProtocolValueV01(settlements[index]!.expected),
+      )
+    ) {
+      throw this.reconciliationError(
+        "codex_approval_resolution_settlement_unconfirmed",
+      );
+    }
   }
 
   private async cleanupTransport(): Promise<void> {
@@ -3191,9 +3248,17 @@ interface ActiveCodexServerRequestV01 {
   approval_id: string;
   approval_fingerprint: string;
   decision_fingerprint: string | null;
+  resolution_settled: DeferredV01<CodexApprovalResolutionIdentityV01>;
   run_id: string;
   thread_id: string;
   turn_id: string;
+}
+
+interface CodexApprovalResolutionIdentityV01 {
+  request_id: string;
+  request_fingerprint: string;
+  approval_id: string;
+  approval_fingerprint: string;
 }
 
 interface ResolvedCodexServerRequestV01 {

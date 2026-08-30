@@ -189,8 +189,8 @@ export interface CodexIsolatedAuthConfigPolicyV01 {
   query_params_present: false;
   user_http_headers_present: false;
   user_env_http_headers_present: false;
-  config_layer_policy: "runtime_overrides_only";
-  config_requirements_policy: "none";
+  config_layer_policy: "session_flags_exact_no_active_non_session_layers";
+  config_requirements_policy: "not_enumerated_critical_override_origins_intact";
   web_search: "disabled";
   mcp_server_count: 0;
   plugin_count: 0;

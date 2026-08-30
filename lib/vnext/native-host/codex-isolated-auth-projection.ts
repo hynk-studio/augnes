@@ -142,8 +142,9 @@ const CONFIG_POLICY_BASE_V01 = {
     PROVIDER_ROUTE_MATERIAL_V01.user_http_headers_present,
   user_env_http_headers_present:
     PROVIDER_ROUTE_MATERIAL_V01.user_env_http_headers_present,
-  config_layer_policy: "runtime_overrides_only",
-  config_requirements_policy: "none",
+  config_layer_policy: "session_flags_exact_no_active_non_session_layers",
+  config_requirements_policy:
+    "not_enumerated_critical_override_origins_intact",
   web_search: "disabled",
   mcp_server_count: 0,
   plugin_count: 0,
@@ -178,6 +179,29 @@ const STATE_POLICY_V01: CodexIsolatedAuthStatePolicyV01 = {
   remove_after_settlement: true,
 };
 const CONFIG_OVERRIDE_ARGS_V01 = CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
+const CONFIG_PROVENANCE_CONTRACT_VERSION_V01 =
+  "codex_config_read_provenance.rust-v0.150.1" as const;
+type BoundedRuntimeOverrideValueV01 =
+  | string
+  | number
+  | boolean
+  | readonly []
+  | Readonly<Record<string, never>>;
+type RuntimeOverrideEntryV01 = {
+  path: string;
+  value: BoundedRuntimeOverrideValueV01;
+};
+const EXPECTED_RUNTIME_OVERRIDE_ENTRIES_V01 =
+  parseRuntimeConfigOverrideArgsV01(CONFIG_OVERRIDE_ARGS_V01);
+const EXPECTED_RUNTIME_OVERRIDE_PATHS_V01 =
+  EXPECTED_RUNTIME_OVERRIDE_ENTRIES_V01.map((entry) => entry.path);
+const EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01 =
+  runtimeOverrideProjectionV01(EXPECTED_RUNTIME_OVERRIDE_ENTRIES_V01);
+const EXPECTED_RUNTIME_ORIGIN_PATHS_V01 =
+  runtimeOverrideOriginPathsV01(EXPECTED_RUNTIME_OVERRIDE_ENTRIES_V01);
+const EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01 = createProtocolSha256V01(
+  canonicalizeProtocolValueV01(EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01),
+);
 const ALLOWED_ENV_KEYS_V01 = [
   "CODEX_ACCESS_TOKEN",
   "CODEX_HOME",
@@ -237,6 +261,18 @@ const DISABLED_FEATURE_NAMES_V01 = [
   "web_search_cached",
   "web_search_request",
 ] as const;
+const CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01 = {
+  contract_version: CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
+  config_read_include_layers: true,
+  packaged_defaults_filtered_before_response: true,
+  session_flags_layer_required: true,
+  active_non_session_layer_count: 0,
+  expected_runtime_override_paths: [...EXPECTED_RUNTIME_OVERRIDE_PATHS_V01],
+  expected_runtime_origin_paths: [...EXPECTED_RUNTIME_ORIGIN_PATHS_V01],
+  requirements_enumerated: false,
+  critical_requirement_shadow_detection:
+    "missing_expected_session_flags_origin",
+} as const;
 const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
   contract_version: CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   algorithm: "RS256",
@@ -278,6 +314,7 @@ const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
     config_policy: CONFIG_POLICY_BASE_V01,
     config_override_args: CONFIG_OVERRIDE_ARGS_V01,
     disabled_features: [...DISABLED_FEATURE_NAMES_V01],
+    config_provenance_contract: CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01,
   }),
 );
 const REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01 =
@@ -1392,6 +1429,12 @@ export function assertValidCodexIsolatedAuthObservationV01(
 export function codexIsolatedAuthConfigOverrideArgsV01(): readonly string[] {
   return CONFIG_OVERRIDE_ARGS_V01;
 }
+export function codexIsolatedAuthExpectedRuntimeOverridePathsV01(): readonly string[] {
+  return [...EXPECTED_RUNTIME_OVERRIDE_PATHS_V01];
+}
+export function codexIsolatedAuthExpectedRuntimeOriginPathsV01(): readonly string[] {
+  return [...EXPECTED_RUNTIME_ORIGIN_PATHS_V01];
+}
 export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: {
   initialized: Record<string, unknown>;
   config: Record<string, unknown>;
@@ -1459,6 +1502,309 @@ function expectedConfigPolicyV01(): CodexIsolatedAuthConfigPolicyV01 {
     ),
   };
 }
+function parseRuntimeConfigOverrideArgsV01(
+  args: readonly string[],
+): RuntimeOverrideEntryV01[] {
+  if (
+    args[0] !== "--strict-config" ||
+    args.length < 3 ||
+    (args.length - 1) % 2 !== 0
+  )
+    throw new Error("codex_isolated_auth_config_override_shape_invalid");
+  const entries: RuntimeOverrideEntryV01[] = [];
+  const observedPaths = new Set<string>();
+  for (let index = 1; index < args.length; index += 2) {
+    if (args[index] !== "-c")
+      throw new Error("codex_isolated_auth_config_override_shape_invalid");
+    const expression = args[index + 1];
+    if (typeof expression !== "string")
+      throw new Error("codex_isolated_auth_config_override_shape_invalid");
+    const separator = expression.indexOf("=");
+    const overridePath = expression.slice(0, separator);
+    const rawValue = expression.slice(separator + 1);
+    if (
+      separator <= 0 ||
+      !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/u.test(overridePath) ||
+      observedPaths.has(overridePath)
+    )
+      throw new Error("codex_isolated_auth_config_override_shape_invalid");
+    observedPaths.add(overridePath);
+    entries.push({
+      path: overridePath,
+      value: boundedRuntimeOverrideValueV01(rawValue),
+    });
+  }
+  return entries;
+}
+function boundedRuntimeOverrideValueV01(
+  value: string,
+): BoundedRuntimeOverrideValueV01 {
+  if (value === "false") return false;
+  if (value === "true") return true;
+  if (/^(?:0|[1-9][0-9]*)$/u.test(value)) return Number(value);
+  if (value === "{}") return {};
+  if (value === "[]") return [];
+  const stringMatch = /^"([a-z][a-z0-9_-]*)"$/u.exec(value);
+  if (stringMatch) return stringMatch[1]!;
+  throw new Error("codex_isolated_auth_config_override_value_invalid");
+}
+function runtimeOverrideProjectionV01(
+  entries: readonly RuntimeOverrideEntryV01[],
+): Record<string, unknown> {
+  const projection: Record<string, unknown> = {};
+  for (const entry of entries) {
+    const segments = entry.path.split(".");
+    let target = projection;
+    for (const [index, segment] of segments.entries()) {
+      if (["__proto__", "prototype", "constructor"].includes(segment))
+        throw new Error("codex_isolated_auth_config_override_path_invalid");
+      if (index === segments.length - 1) {
+        if (Object.hasOwn(target, segment))
+          throw new Error("codex_isolated_auth_config_override_path_invalid");
+        target[segment] = structuredClone(entry.value);
+        continue;
+      }
+      const existing = target[segment];
+      if (existing === undefined) {
+        const nested: Record<string, unknown> = {};
+        target[segment] = nested;
+        target = nested;
+      } else {
+        const nested = recordV01(existing);
+        if (!nested)
+          throw new Error("codex_isolated_auth_config_override_path_invalid");
+        target = nested;
+      }
+    }
+  }
+  return projection;
+}
+function runtimeOverrideOriginPathsV01(
+  entries: readonly RuntimeOverrideEntryV01[],
+): string[] {
+  const paths = entries.flatMap((entry) => {
+    if (
+      Array.isArray(entry.value) ||
+      (typeof entry.value === "object" && entry.value !== null)
+    )
+      return [];
+    if (entry.path === "features.network_proxy")
+      return [entry.path, `${entry.path}.enabled`];
+    return [entry.path];
+  });
+  return [...new Set(paths)].sort();
+}
+type ObservedConfigLayerSourceV01 = {
+  type: string;
+  precedence: number;
+  packagedDefaults: boolean;
+  sessionFlags: boolean;
+};
+function observeConfigReadProvenanceV01(value: Record<string, unknown>): {
+  fingerprint: string;
+} {
+  const layers = Array.isArray(value.layers) ? value.layers : null;
+  const origins = recordV01(value.origins);
+  if (
+    Object.hasOwn(value, "requirements") ||
+    !layers ||
+    layers.length === 0 ||
+    layers.length > 64 ||
+    !origins ||
+    Object.keys(origins).length > 128
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_config_policy_mismatch",
+    );
+  let previousPrecedence = Number.POSITIVE_INFINITY;
+  let sessionFlagsLayerCount = 0;
+  let sessionFlagsVersion: string | null = null;
+  let activeNonSessionLayerCount = 0;
+  let packagedDefaultSurfaceObserved = false;
+  for (const rawLayer of layers) {
+    const layer = recordV01(rawLayer);
+    const layerName = recordV01(layer?.name);
+    const layerConfig = recordV01(layer?.config);
+    const layerVersion = layer?.version;
+    const disabledReasonPresent = Object.hasOwn(layer ?? {}, "disabledReason");
+    const disabledReason = disabledReasonPresent
+      ? layer?.disabledReason
+      : undefined;
+    if (
+      !layer ||
+      !layerName ||
+      !layerConfig ||
+      !exactObjectKeysV01(
+        layer,
+        disabledReasonPresent
+          ? ["config", "disabledReason", "name", "version"]
+          : ["config", "name", "version"],
+      ) ||
+      typeof layerVersion !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(layerVersion) ||
+      layerVersion !==
+        createProtocolSha256V01(
+          canonicalizeProtocolValueV01(layerConfig),
+        ) ||
+      (disabledReasonPresent &&
+        (typeof disabledReason !== "string" || disabledReason.length === 0))
+    )
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_config_policy_mismatch",
+      );
+    const source = observedConfigLayerSourceV01(layerName);
+    if (source.precedence > previousPrecedence)
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_config_policy_mismatch",
+      );
+    previousPrecedence = source.precedence;
+    if (source.packagedDefaults) packagedDefaultSurfaceObserved = true;
+    if (source.sessionFlags) {
+      sessionFlagsLayerCount += 1;
+      if (
+        disabledReasonPresent ||
+        canonicalizeProtocolValueV01(layerConfig) !==
+          canonicalizeProtocolValueV01(
+            EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01,
+          ) ||
+        layerVersion !== EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01
+      )
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_config_policy_mismatch",
+        );
+      sessionFlagsVersion = layerVersion;
+    } else if (!disabledReasonPresent && hasActiveConfigLeafV01(layerConfig)) {
+      activeNonSessionLayerCount += 1;
+    }
+  }
+  const observedOriginPaths = Object.keys(origins).sort();
+  if (
+    sessionFlagsLayerCount !== 1 ||
+    sessionFlagsVersion === null ||
+    activeNonSessionLayerCount !== 0 ||
+    packagedDefaultSurfaceObserved ||
+    canonicalizeProtocolValueV01(observedOriginPaths) !==
+      canonicalizeProtocolValueV01(EXPECTED_RUNTIME_ORIGIN_PATHS_V01)
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_config_policy_mismatch",
+    );
+  for (const expectedPath of EXPECTED_RUNTIME_ORIGIN_PATHS_V01) {
+    const metadata = recordV01(origins[expectedPath]);
+    const name = recordV01(metadata?.name);
+    if (
+      !metadata ||
+      !name ||
+      !exactObjectKeysV01(metadata, ["name", "version"]) ||
+      typeof metadata.version !== "string" ||
+      metadata.version !== sessionFlagsVersion ||
+      !observedConfigLayerSourceV01(name).sessionFlags
+    )
+      throw new CodexIsolatedAuthProjectionErrorV01(
+        "codex_isolated_auth_config_policy_mismatch",
+      );
+  }
+  const normalized = {
+    config_provenance_contract_version:
+      CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
+    session_flags_layer_count: sessionFlagsLayerCount,
+    active_non_session_layer_count: activeNonSessionLayerCount,
+    expected_runtime_override_count:
+      EXPECTED_RUNTIME_OVERRIDE_PATHS_V01.length,
+    session_flags_runtime_overrides_exact: true,
+    expected_runtime_origin_count: EXPECTED_RUNTIME_ORIGIN_PATHS_V01.length,
+    expected_runtime_origins_all_session_flags: true,
+    unexpected_active_origin_count: 0,
+    packaged_default_surface_observed: packagedDefaultSurfaceObserved,
+    requirements_enumerated: false,
+    critical_requirement_shadow_observed: false,
+  } as const;
+  return {
+    fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(normalized),
+    ),
+  };
+}
+function observedConfigLayerSourceV01(
+  source: Record<string, unknown>,
+): ObservedConfigLayerSourceV01 {
+  const type = source.type;
+  if (typeof type !== "string")
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_config_policy_mismatch",
+    );
+  const exact = (keys: readonly string[]) => exactObjectKeysV01(source, keys);
+  const absolute = (key: string) =>
+    typeof source[key] === "string" &&
+    path.isAbsolute(source[key] as string);
+  const text = (key: string) =>
+    typeof source[key] === "string" && (source[key] as string).length > 0;
+  switch (type) {
+    case "packagedDefaults":
+      if (!exact(["file", "type"]) || !absolute("file")) break;
+      return { type, precedence: -10, packagedDefaults: true, sessionFlags: false };
+    case "mdm":
+      if (!exact(["domain", "key", "type"]) || !text("domain") || !text("key"))
+        break;
+      return { type, precedence: 0, packagedDefaults: false, sessionFlags: false };
+    case "system":
+      if (!exact(["file", "type"]) || !absolute("file")) break;
+      return { type, precedence: 10, packagedDefaults: false, sessionFlags: false };
+    case "enterpriseManaged":
+      if (!exact(["id", "name", "type"]) || !text("id") || !text("name"))
+        break;
+      return { type, precedence: 15, packagedDefaults: false, sessionFlags: false };
+    case "user":
+      if (
+        !exact(["file", "profile", "type"]) ||
+        !absolute("file") ||
+        !(
+          source.profile === null ||
+          (typeof source.profile === "string" && source.profile.length > 0)
+        )
+      )
+        break;
+      return {
+        type,
+        precedence: source.profile === null ? 20 : 21,
+        packagedDefaults: false,
+        sessionFlags: false,
+      };
+    case "project":
+      if (!exact(["dotCodexFolder", "type"]) || !absolute("dotCodexFolder"))
+        break;
+      return { type, precedence: 25, packagedDefaults: false, sessionFlags: false };
+    case "sessionFlags":
+      if (!exact(["type"])) break;
+      return { type, precedence: 30, packagedDefaults: false, sessionFlags: true };
+    case "legacyManagedConfigTomlFromFile":
+      if (!exact(["file", "type"]) || !absolute("file")) break;
+      return { type, precedence: 40, packagedDefaults: false, sessionFlags: false };
+    case "legacyManagedConfigTomlFromMdm":
+      if (!exact(["type"])) break;
+      return { type, precedence: 50, packagedDefaults: false, sessionFlags: false };
+  }
+  throw new CodexIsolatedAuthProjectionErrorV01(
+    "codex_isolated_auth_config_policy_mismatch",
+  );
+}
+function exactObjectKeysV01(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  return (
+    canonicalizeProtocolValueV01(Object.keys(value).sort()) ===
+    canonicalizeProtocolValueV01([...expected].sort())
+  );
+}
+function hasActiveConfigLeafV01(value: unknown): boolean {
+  if (Array.isArray(value))
+    return value.some((entry) => hasActiveConfigLeafV01(entry));
+  const record = recordV01(value);
+  if (record)
+    return Object.values(record).some((entry) => hasActiveConfigLeafV01(entry));
+  return value !== null && value !== undefined;
+}
 function observedSecurityPolicyV01(
   value: Record<string, unknown>,
   sqliteHome: string,
@@ -1472,22 +1818,12 @@ function observedSecurityPolicyV01(
   const shell = recordV01(config?.shell_environment_policy);
   const orchestrator = recordV01(config?.orchestrator);
   const providerMap = recordV01(config?.model_providers);
-  const layers = Array.isArray(value.layers) ? value.layers : null;
-  const requirements = Array.isArray(value.requirements)
-    ? value.requirements
-    : null;
-  const origins = recordV01(value.origins);
+  const provenance = observeConfigReadProvenanceV01(value);
   if (
     !config ||
     !features ||
     !shell ||
     !orchestrator ||
-    !layers ||
-    !requirements ||
-    !origins ||
-    layers.length !== 0 ||
-    requirements.length !== 0 ||
-    Object.keys(origins).length !== 0 ||
     (providerMap !== null && Object.keys(providerMap).length !== 0) ||
     config.forced_login_method !== "chatgpt" ||
     config.cli_auth_credentials_store !== "ephemeral" ||
@@ -1555,11 +1891,9 @@ function observedSecurityPolicyV01(
     user_http_headers_present: false,
     user_env_http_headers_present: false,
     config_layer_policy:
-      layers.length === 0 && Object.keys(origins).length === 0
-        ? "runtime_overrides_only"
-        : "unexpected_layers",
+      "session_flags_exact_no_active_non_session_layers" as const,
     config_requirements_policy:
-      requirements.length === 0 ? "none" : "unexpected_requirements",
+      "not_enumerated_critical_override_origins_intact" as const,
     web_search: config.web_search,
     mcp_server_count: Object.keys(config.mcp_servers as object).length,
     plugin_count: Object.keys(config.plugins as object).length,
@@ -1592,9 +1926,7 @@ function observedSecurityPolicyV01(
     providerRouteFingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(providerRouteMaterial),
     ),
-    layersFingerprint: createProtocolSha256V01(
-      canonicalizeProtocolValueV01({ layers, requirements, origins }),
-    ),
+    layersFingerprint: provenance.fingerprint,
   };
 }
 function accountReadProjectionV01(value: Record<string, unknown>): {

@@ -8046,6 +8046,9 @@ async function assertLiveCodexAppServerLifecycleOnClonesV01(input: {
       `live_codex_policy_approval_case:${error instanceof Error ? error.message : "failed"}`,
     );
   }
+  await assertLiveCodexCancellationApprovalResolutionSettlementOnCloneV01(
+    input,
+  );
   await assertLiveCodexCancellationSettlementOnCloneV01(input);
   await assertLiveCodexTimeoutSettlementOnCloneV01(input);
   try {
@@ -9706,6 +9709,238 @@ async function assertLiveCodexPolicyApprovalParityOnClonesV01(input: {
   reject("live_codex_active_replay_with_mode_or_policy_drift_fails_closed");
 }
 
+async function assertLiveCodexCancellationApprovalResolutionSettlementOnCloneV01(
+  input: {
+    environment: NodeJS.ProcessEnv;
+    jar: RouteCookieJar;
+    packet: TaskContextPacketV01;
+  },
+): Promise<void> {
+  await withOperatorDatabaseCloneV01(
+    "live-codex-cancel-approval-resolution-settlement",
+    input.environment,
+    async ({ config, environment }) => {
+      installPublicSafeLivePacketV01(config, input.packet);
+      const clock = new ManualClock(
+        addIsoMillisecondsV01(input.packet.generated_at, 31_875),
+      );
+      const harness = createFakeLiveCodexHarnessV01({
+        config,
+        scenario: "cancellation_terminal_before_approval_resolved",
+        now: () => clock.now(),
+        stop_settle_timeout_ms: 3_000,
+      });
+      const post = createVNextOperatorHostRoundTripHandlerV01({
+        environment,
+        clock,
+        secret_source: new DeterministicSecretSource(),
+        live_service: harness.service,
+      });
+      const jar = cloneRouteCookieJarV01(input.jar);
+      const receiptsBefore = countRunReceiptsV01(config);
+      let released = false;
+      try {
+        const start = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: { action: "start_live" },
+          }),
+        );
+        jar.absorb(start);
+        const waiting = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) =>
+            value.status === "waiting_for_approval" &&
+            value.pending_approval !== null,
+          10_000,
+          "cancel_approval_resolution_waiting",
+        );
+        assert(waiting.run_ref);
+        assert(waiting.pending_approval);
+        const approvalRef = waiting.pending_approval.approval_ref;
+        const approvalRequest = readFakeTraceV01(harness.trace_path).find(
+          (entry) =>
+            entry.kind === "sent" &&
+            entry.value.method === "item/commandExecution/requestApproval",
+        );
+        assert.equal(typeof approvalRequest?.value.id, "string");
+        const exactServerRequestId = String(approvalRequest!.value.id);
+
+        const cancel = await post(
+          routeRequest("/api/vnext/operator/host-round-trip", {
+            method: "POST",
+            jar,
+            body: {
+              action: "cancel",
+              run_ref: waiting.run_ref,
+              control_revision: waiting.control_revision,
+            },
+          }),
+        );
+        assert.equal(cancel.status, 200);
+        jar.absorb(cancel);
+        const cancelBody = await publicJson(cancel);
+        assert.equal(cancelBody.status, "cancellation_admitted");
+
+        const held = await waitForFakeTraceKindV01(
+          harness.trace_path,
+          "cancellation_approval_resolution_held",
+        );
+        const terminalObserved = await waitForAdapterObservationV01(
+          harness.observations,
+          (entry) =>
+            entry.kind === "terminal_observed" &&
+            entry.public_reason === "interrupted",
+          "cancel_approval_terminal_observed",
+        );
+        assert.equal(held.value.request_id, exactServerRequestId);
+        assert.equal(terminalObserved.active_server_request_count, 1);
+        assert.equal(
+          readFakeTraceV01(harness.trace_path).some(
+            (entry) =>
+              entry.kind === "cancellation_approval_resolution_released",
+          ),
+          false,
+        );
+        const beforeRelease = harness.service.read(config);
+        assert.equal(beforeRelease.status, "cancelling");
+        assert.equal(beforeRelease.receipt, null);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore);
+        assert.equal(existsSync(harness.cleanup_marker_path), false);
+        assert.equal(
+          harness.observations.some((entry) => entry.kind === "settled"),
+          false,
+        );
+        assert.equal(
+          harness.observations.some(
+            (entry) => entry.kind === "server_request_state_cleared",
+          ),
+          false,
+        );
+        const beforeReleaseRun = readHostRunStateFromConfigV01(
+          config,
+          waiting.run_ref,
+        );
+        assert.equal(
+          beforeReleaseRun.events.filter(
+            (event) =>
+              event.event_type === "host_event_observed" &&
+              event.payload.event_kind === "stop_requested",
+          ).length,
+          1,
+        );
+        assert.equal(
+          beforeReleaseRun.events.filter(
+            (event) =>
+              event.event_type === "host_event_observed" &&
+              event.payload.event_kind === "approval_resolved",
+          ).length,
+          0,
+        );
+
+        writeFileSync(
+          harness.cancellation_approval_resolution_release_path,
+          "release\n",
+          { mode: 0o600 },
+        );
+        released = true;
+        const cancelled = await waitForLiveProjectionV01(
+          harness.service,
+          config,
+          (value) => value.status === "cancelled",
+          10_000,
+          "cancel_approval_resolution_settled",
+        );
+        assert(cancelled.receipt);
+        assert.equal(countRunReceiptsV01(config), receiptsBefore + 1);
+        const run = readHostRunStateFromConfigV01(config, waiting.run_ref);
+        const approvalResolvedEvents = run.events.filter(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "approval_resolved",
+        );
+        const stopRequestedEvents = run.events.filter(
+          (event) =>
+            event.event_type === "host_event_observed" &&
+            event.payload.event_kind === "stop_requested",
+        );
+        assert.equal(approvalResolvedEvents.length, 1);
+        assert.equal(approvalResolvedEvents[0]!.status, "cancelling");
+        assert.equal(stopRequestedEvents.length, 1);
+        assert.equal(stopRequestedEvents[0]!.status, "cancelling");
+        assert.equal(run.status, "cancelled");
+        assert.equal(run.metadata.pending_approval, null);
+        const exactApprovalRequests = (
+          Array.isArray(run.metadata.approval_requests)
+            ? run.metadata.approval_requests
+            : []
+        ).filter(
+          (approval) => approval.approval_id === approvalRef,
+        );
+        assert.equal(exactApprovalRequests.length, 1);
+        const resolutionObservations = harness.observations.filter(
+          (entry) => entry.kind === "approval_resolved",
+        );
+        assert.equal(resolutionObservations.length, 1);
+        assert.equal(
+          resolutionObservations[0]!.active_server_request_count,
+          0,
+        );
+        assert.equal(
+          resolutionObservations[0]!.recent_resolved_server_request_count,
+          1,
+        );
+        const cleared = harness.observations.filter(
+          (entry) => entry.kind === "server_request_state_cleared",
+        );
+        assert.equal(cleared.length, 1);
+        assert.equal(cleared[0]!.active_server_request_count, 0);
+        assert.equal(cleared[0]!.recent_resolved_server_request_count, 0);
+        const releasedTrace = await waitForFakeTraceKindV01(
+          harness.trace_path,
+          "cancellation_approval_resolution_released",
+        );
+        assert.equal(releasedTrace.value.request_id, exactServerRequestId);
+        const settledTrace = readFakeTraceV01(harness.trace_path);
+        const interruptedTerminalIndex = settledTrace.findIndex(
+          (entry) =>
+            entry.kind === "terminal_state_emitted" &&
+            entry.value.status === "interrupted",
+        );
+        const releasedResolutionIndex = settledTrace.findIndex(
+          (entry) =>
+            entry.kind === "cancellation_approval_resolution_released",
+        );
+        assert(interruptedTerminalIndex >= 0);
+        assert(releasedResolutionIndex > interruptedTerminalIndex);
+        assert.equal(existsSync(harness.cleanup_marker_path), true);
+        assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
+        assertObservedProcessesStoppedV01(
+          harness.observations,
+          "cancel-approval-resolution-settlement",
+        );
+      } finally {
+        if (!released) {
+          writeFileSync(
+            harness.cancellation_approval_resolution_release_path,
+            "release\n",
+            { mode: 0o600 },
+          );
+        }
+        await harness.service.shutdown();
+      }
+    },
+  );
+  pass(
+    "live_codex_cancel_waits_for_exact_approval_resolution_after_interrupted_terminal",
+  );
+  pass(
+    "live_codex_cancel_approval_resolution_commits_once_before_cleanup",
+  );
+}
+
 async function assertLiveCodexCancellationSettlementOnCloneV01(input: {
   environment: NodeJS.ProcessEnv;
   jar: RouteCookieJar;
@@ -10547,6 +10782,7 @@ function createFakeLiveCodexHarnessV01(input: {
   cleanup_marker_path: string;
   network_count_path: string;
   release_path: string | null;
+  cancellation_approval_resolution_release_path: string;
   trigger_timeout: (() => void) | null;
   timeout_schedule_active: () => boolean;
 } {
@@ -10566,6 +10802,10 @@ function createFakeLiveCodexHarnessV01(input: {
   const approvalResolutionBarrierPath = path.join(
     runtime,
     "approval-resolution-count.txt",
+  );
+  const cancellationApprovalResolutionReleasePath = path.join(
+    runtime,
+    "cancellation-approval-resolution.release",
   );
   const releasePath = input.controlled_cleanup
     ? path.join(runtime, "release.marker")
@@ -10639,6 +10879,13 @@ function createFakeLiveCodexHarnessV01(input: {
             FAKE_CODEX_NETWORK_COUNT_PATH: networkCountPath,
             FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH:
               approvalResolutionBarrierPath,
+            ...(input.scenario ===
+            "cancellation_terminal_before_approval_resolved"
+              ? {
+                  FAKE_CODEX_CANCELLATION_APPROVAL_RESOLUTION_RELEASE_PATH:
+                    cancellationApprovalResolutionReleasePath,
+                }
+              : {}),
             ...(releasePath ? { FAKE_CODEX_RELEASE_PATH: releasePath } : {}),
           },
         },
@@ -10652,6 +10899,8 @@ function createFakeLiveCodexHarnessV01(input: {
     cleanup_marker_path: cleanupMarkerPath,
     network_count_path: networkCountPath,
     release_path: releasePath,
+    cancellation_approval_resolution_release_path:
+      cancellationApprovalResolutionReleasePath,
     trigger_timeout: input.controlled_timeout
       ? () => {
           assert.equal(timeoutTriggered, false);
@@ -10979,6 +11228,39 @@ async function waitForFakeTraceMethodV01(
   const deadline = Date.now() + timeoutMs;
   while (countTraceMethodV01(readFakeTraceV01(tracePath), method) === 0) {
     if (Date.now() >= deadline) throw new Error(`fake_trace_timeout:${method}`);
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+async function waitForFakeTraceKindV01(
+  tracePath: string,
+  kind: string,
+  timeoutMs = 10_000,
+): Promise<FakeTraceEntryV01> {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const observed = readFakeTraceV01(tracePath).find(
+      (entry) => entry.kind === kind,
+    );
+    if (observed) return observed;
+    if (Date.now() >= deadline) throw new Error(`fake_trace_timeout:${kind}`);
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+async function waitForAdapterObservationV01(
+  observations: CodexAppServerAdapterObservationV01[],
+  predicate: (observation: CodexAppServerAdapterObservationV01) => boolean,
+  label: string,
+  timeoutMs = 10_000,
+): Promise<CodexAppServerAdapterObservationV01> {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const observed = observations.find(predicate);
+    if (observed) return observed;
+    if (Date.now() >= deadline) {
+      throw new Error(`adapter_observation_timeout:${label}`);
+    }
     await new Promise<void>((resolve) => setTimeout(resolve, 20));
   }
 }

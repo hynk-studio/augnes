@@ -51,6 +51,8 @@ const cleanupMarkerPath = process.env.FAKE_CODEX_CLEANUP_MARKER_PATH ?? null;
 const releasePath = process.env.FAKE_CODEX_RELEASE_PATH ?? null;
 const approvalResolutionBarrierPath =
   process.env.FAKE_CODEX_APPROVAL_RESOLUTION_BARRIER_PATH ?? null;
+const cancellationApprovalResolutionReleasePath =
+  process.env.FAKE_CODEX_CANCELLATION_APPROVAL_RESOLUTION_RELEASE_PATH ?? null;
 const browserSecondApprovalReleasePath =
   scenario === "browser_two_sequential_approvals" && canonicalTestRoot
     ? path.join(canonicalTestRoot, "browser-second-approval.release")
@@ -286,7 +288,10 @@ async function handle(message) {
       return;
     }
     if (message.method === "config/read") {
-      respond(message.id, {
+      const provenance = isolatedAuthScenario
+        ? isolatedAuthConfigReadProvenanceV01(scenario)
+        : { origins: {}, layers: [], requirements: [] };
+      const response = {
         config: {
           forced_login_method: isolatedAuthScenario ? "chatgpt" : null,
           cli_auth_credentials_store: isolatedAuthScenario ? "ephemeral" : null,
@@ -367,13 +372,19 @@ async function handle(message) {
             ? isolatedAuthFeatureProjectionV01(scenario)
             : null,
         },
-        origins: {},
-        layers:
-          scenario === "isolated_auth_managed_layer_drift"
-            ? [{ source: "managed", fingerprint: "sha256:foreign" }]
-            : [],
-        requirements: [],
-      });
+        ...provenance,
+      };
+      if (isolatedAuthScenario) {
+        trace("isolated_auth_config_read_shape", {
+          requirements_field_present: Object.hasOwn(response, "requirements"),
+          layer_count: response.layers.length,
+          origin_count: Object.keys(response.origins).length,
+          session_flags_layer_count: response.layers.filter(
+            (layer) => layer?.name?.type === "sessionFlags",
+          ).length,
+        });
+      }
+      respond(message.id, response);
       return;
     }
     if (message.method === "mcpServerStatus/list") {
@@ -530,6 +541,7 @@ async function handle(message) {
           process.exit(19);
         } else if (
           scenario === "command_approval" ||
+          scenario === "cancellation_terminal_before_approval_resolved" ||
           scenario === "delayed_cleanup" ||
           scenario === "ignored_interrupt" ||
           scenario === "descendant_cleanup"
@@ -644,6 +656,10 @@ async function handle(message) {
         scenario === "network_permission_approval_ignored_interrupt"
       )
         return;
+      if (scenario === "cancellation_terminal_before_approval_resolved") {
+        completeInterrupted();
+        return;
+      }
       const delayMs = scenario === "delayed_cleanup" ? 75 : 0;
       setTimeout(() => completeInterrupted(), delayMs);
       return;
@@ -667,6 +683,28 @@ async function handle(message) {
       (message.result?.scope === "turn" &&
         message.result?.permissions &&
         Object.keys(message.result.permissions).length > 0);
+    if (
+      scenario === "cancellation_terminal_before_approval_resolved" &&
+      message.result?.decision === "cancel"
+    ) {
+      trace("cancellation_approval_resolution_held", {
+        request_id: resolvedRequestId,
+      });
+      await waitForCancellationApprovalResolutionRelease();
+      if (!completed) {
+        throw new Error(
+          "cancellation_terminal_not_observed_before_approval_resolution",
+        );
+      }
+      notify("serverRequest/resolved", {
+        threadId,
+        requestId: resolvedRequestId,
+      });
+      trace("cancellation_approval_resolution_released", {
+        request_id: resolvedRequestId,
+      });
+      return;
+    }
     notify("serverRequest/resolved", {
       threadId,
       requestId: resolvedRequestId,
@@ -831,6 +869,240 @@ function requestConcurrentApprovalOverflow() {
   // chunk scheduling. The adapter must observe all nine requests before any
   // asynchronous approval lifecycle handler can race the ninth-request bound.
   process.stdout.write(`${messages.join("\n")}\n`);
+}
+
+function isolatedAuthConfigReadProvenanceV01(activeScenario) {
+  const entries = isolatedAuthRuntimeOverrideEntriesV01(
+    process.argv.slice(2, -2),
+  );
+  const sessionConfig = isolatedAuthRuntimeOverrideProjectionV01(entries);
+  const sessionLayer = fakeConfigLayerV01(
+    { type: "sessionFlags" },
+    sessionConfig,
+  );
+  const emptyConfig = {};
+  let layers = [
+    sessionLayer,
+    fakeConfigLayerV01(
+      {
+        type: "user",
+        file: "/codex-isolated-fixture/user/config.toml",
+        profile: null,
+      },
+      emptyConfig,
+    ),
+    fakeConfigLayerV01(
+      { type: "system", file: "/codex-isolated-fixture/system/config.toml" },
+      emptyConfig,
+    ),
+  ];
+  const origins = Object.fromEntries(
+    isolatedAuthRuntimeOriginPathsV01(entries).map((originPath) => [
+      originPath,
+      {
+        name: { type: "sessionFlags" },
+        version: sessionLayer.version,
+      },
+    ]),
+  );
+  const activeConfig = { model_provider: "foreign" };
+  switch (activeScenario) {
+    case "isolated_auth_provenance_session_flags_missing":
+      layers = layers.filter((layer) => layer.name.type !== "sessionFlags");
+      break;
+    case "isolated_auth_provenance_session_flags_duplicate":
+      layers.splice(1, 0, structuredClone(sessionLayer));
+      break;
+    case "isolated_auth_provenance_non_empty_user_layer":
+      layers[1] = fakeConfigLayerV01(layers[1].name, activeConfig);
+      break;
+    case "isolated_auth_provenance_non_empty_system_layer":
+      layers[2] = fakeConfigLayerV01(layers[2].name, activeConfig);
+      break;
+    case "isolated_auth_provenance_non_empty_project_layer":
+      layers.splice(
+        1,
+        0,
+        fakeConfigLayerV01(
+          {
+            type: "project",
+            dotCodexFolder: "/codex-isolated-fixture/project/.codex",
+          },
+          activeConfig,
+        ),
+      );
+      break;
+    case "isolated_auth_managed_layer_drift":
+    case "isolated_auth_provenance_non_empty_mdm_layer":
+      layers.push(
+        fakeConfigLayerV01(
+          { type: "mdm", domain: "com.openai.codex", key: "config" },
+          activeConfig,
+        ),
+      );
+      break;
+    case "isolated_auth_provenance_non_empty_enterprise_layer":
+      layers.splice(
+        2,
+        0,
+        fakeConfigLayerV01(
+          { type: "enterpriseManaged", id: "fixture", name: "Fixture" },
+          activeConfig,
+        ),
+      );
+      break;
+    case "isolated_auth_provenance_expected_origin_missing":
+      delete origins.forced_login_method;
+      break;
+    case "isolated_auth_provenance_origin_user":
+      origins.forced_login_method = {
+        name: {
+          type: "user",
+          file: "/codex-isolated-fixture/user/config.toml",
+          profile: null,
+        },
+        version: sessionLayer.version,
+      };
+      break;
+    case "isolated_auth_provenance_origin_managed":
+      origins.forced_login_method = {
+        name: { type: "mdm", domain: "com.openai.codex", key: "config" },
+        version: sessionLayer.version,
+      };
+      break;
+    case "isolated_auth_provenance_unknown_active_origin":
+      origins["foreign.active"] = {
+        name: { type: "sessionFlags" },
+        version: sessionLayer.version,
+      };
+      break;
+    case "isolated_auth_provenance_packaged_defaults_surface":
+      layers.push(
+        fakeConfigLayerV01(
+          {
+            type: "packagedDefaults",
+            file: "/codex-isolated-fixture/package/defaults.toml",
+          },
+          emptyConfig,
+        ),
+      );
+      break;
+    case "isolated_auth_provenance_malformed_layer_metadata":
+      layers[0] = { ...layers[0], version: "not-a-sha256-version" };
+      break;
+  }
+  return { origins, layers };
+}
+
+function isolatedAuthRuntimeOverrideEntriesV01(args) {
+  if (
+    args[0] !== "--strict-config" ||
+    args.length < 3 ||
+    (args.length - 1) % 2 !== 0
+  )
+    throw new Error("fake_isolated_auth_config_override_shape_invalid");
+  const entries = [];
+  const paths = new Set();
+  for (let index = 1; index < args.length; index += 2) {
+    if (args[index] !== "-c")
+      throw new Error("fake_isolated_auth_config_override_shape_invalid");
+    const expression = args[index + 1];
+    const separator = expression.indexOf("=");
+    const overridePath = expression.slice(0, separator);
+    const rawValue = expression.slice(separator + 1);
+    if (
+      separator <= 0 ||
+      !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/u.test(overridePath) ||
+      paths.has(overridePath)
+    )
+      throw new Error("fake_isolated_auth_config_override_shape_invalid");
+    paths.add(overridePath);
+    entries.push({
+      path: overridePath,
+      value: isolatedAuthRuntimeOverrideValueV01(rawValue),
+    });
+  }
+  return entries;
+}
+
+function isolatedAuthRuntimeOverrideValueV01(value) {
+  if (value === "false") return false;
+  if (value === "true") return true;
+  if (/^(?:0|[1-9][0-9]*)$/u.test(value)) return Number(value);
+  if (value === "{}") return {};
+  if (value === "[]") return [];
+  const stringMatch = /^"([a-z][a-z0-9_-]*)"$/u.exec(value);
+  if (stringMatch) return stringMatch[1];
+  throw new Error("fake_isolated_auth_config_override_value_invalid");
+}
+
+function isolatedAuthRuntimeOverrideProjectionV01(entries) {
+  const projection = {};
+  for (const entry of entries) {
+    const segments = entry.path.split(".");
+    let target = projection;
+    for (const [index, segment] of segments.entries()) {
+      if (["__proto__", "prototype", "constructor"].includes(segment))
+        throw new Error("fake_isolated_auth_config_override_path_invalid");
+      if (index === segments.length - 1) {
+        if (Object.hasOwn(target, segment))
+          throw new Error("fake_isolated_auth_config_override_path_invalid");
+        target[segment] = structuredClone(entry.value);
+      } else {
+        target[segment] ??= {};
+        if (
+          !target[segment] ||
+          Array.isArray(target[segment]) ||
+          typeof target[segment] !== "object"
+        )
+          throw new Error("fake_isolated_auth_config_override_path_invalid");
+        target = target[segment];
+      }
+    }
+  }
+  return projection;
+}
+
+function isolatedAuthRuntimeOriginPathsV01(entries) {
+  return [
+    ...new Set(
+      entries.flatMap((entry) => {
+        if (
+          Array.isArray(entry.value) ||
+          (entry.value && typeof entry.value === "object")
+        )
+          return [];
+        if (entry.path === "features.network_proxy")
+          return [entry.path, `${entry.path}.enabled`];
+        return [entry.path];
+      }),
+    ),
+  ].sort();
+}
+
+function fakeConfigLayerV01(name, config) {
+  return {
+    name: structuredClone(name),
+    version: fakeConfigLayerVersionV01(config),
+    config: structuredClone(config),
+  };
+}
+
+function fakeConfigLayerVersionV01(config) {
+  return `sha256:${createHash("sha256")
+    .update(JSON.stringify(canonicalJsonV01(config)))
+    .digest("hex")}`;
+}
+
+function canonicalJsonV01(value) {
+  if (Array.isArray(value)) return value.map(canonicalJsonV01);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalJsonV01(value[key])]),
+    );
+  return value;
 }
 
 function isolatedAuthFeatureProjectionV01(activeScenario) {
@@ -1115,8 +1387,11 @@ function completeInterrupted() {
   if (completed) return;
   completed = true;
   turnActive = false;
-  pendingApprovalRequestIds.clear();
+  if (scenario !== "cancellation_terminal_before_approval_resolved") {
+    pendingApprovalRequestIds.clear();
+  }
   persistState({ threadId, sessionId, turnId, status: "interrupted" });
+  trace("terminal_state_emitted", { status: "interrupted" });
   notify("turn/completed", { threadId, turn: turn("interrupted", []) });
 }
 
@@ -1553,6 +1828,23 @@ async function waitForBrowserRelease(releaseFile, label) {
     });
   } catch {
     throw new Error(`${label}_barrier_timeout`);
+  }
+}
+
+async function waitForCancellationApprovalResolutionRelease() {
+  if (!cancellationApprovalResolutionReleasePath) {
+    throw new Error("cancellation_approval_resolution_barrier_missing");
+  }
+  try {
+    const observed = await waitForBoundedFileSignal(
+      cancellationApprovalResolutionReleasePath,
+      { timeoutMs: 10_000 },
+    );
+    trace("cancellation_approval_resolution_release_observed", {
+      observation: observed.observation,
+    });
+  } catch {
+    throw new Error("cancellation_approval_resolution_barrier_timeout");
   }
 }
 

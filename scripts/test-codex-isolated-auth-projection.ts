@@ -49,6 +49,8 @@ import {
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   assertValidCodexIsolatedAuthObservationV01,
   assertValidCodexIsolatedAuthProjectionV01,
+  codexIsolatedAuthExpectedRuntimeOriginPathsV01,
+  codexIsolatedAuthExpectedRuntimeOverridePathsV01,
   createCodexIsolatedAuthProvisioningBindingV01,
   createCodexIsolatedAuthTestRefV01,
   provisionCodexIsolatedAuthProjectionV01,
@@ -996,6 +998,39 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   const configOverrideArgs: readonly string[] =
     CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
+  assert.equal(configOverrideArgs[0], "--strict-config");
+  const configOverridePaths: string[] = [];
+  for (let index = 1; index < configOverrideArgs.length; index += 2) {
+    assert.equal(configOverrideArgs[index], "-c");
+    const expression = configOverrideArgs[index + 1]!;
+    configOverridePaths.push(expression.slice(0, expression.indexOf("=")));
+  }
+  assert.deepEqual(
+    codexIsolatedAuthExpectedRuntimeOverridePathsV01(),
+    configOverridePaths,
+    "every -c override must own exactly one SessionFlags projection path",
+  );
+  assert.equal(new Set(configOverridePaths).size, configOverridePaths.length);
+  const runtimeOriginPaths = codexIsolatedAuthExpectedRuntimeOriginPathsV01();
+  for (const emptyContainerPath of [
+    "mcp_servers",
+    "plugins",
+    "skills",
+    "apps",
+    "project_doc_fallback_filenames",
+  ]) {
+    assert.equal(configOverridePaths.includes(emptyContainerPath), true);
+    assert.equal(
+      runtimeOriginPaths.includes(emptyContainerPath),
+      false,
+      `${emptyContainerPath} remains proven by the SessionFlags layer because upstream emits no origin leaf for empty containers`,
+    );
+  }
+  assert.equal(runtimeOriginPaths.includes("features.network_proxy"), true);
+  assert.equal(
+    runtimeOriginPaths.includes("features.network_proxy.enabled"),
+    true,
+  );
   for (const feature of [
     "auth_elicitation",
     "mcp_2026_07_28",
@@ -1017,7 +1052,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:d27049d83b216fe09a9afd33ecca2175e14651ad1744a20c299a02f8640838a7",
+    "sha256:0e09f35f18a55e4769bd2b6f290711f84fd84cd6777eb582f8b93e229541a2b3",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -1030,6 +1065,14 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(
     provisioned.projection.config_policy.remote_tool_features_enabled,
     0,
+  );
+  assert.equal(
+    provisioned.projection.config_policy.config_layer_policy,
+    "session_flags_exact_no_active_non_session_layers",
+  );
+  assert.equal(
+    provisioned.projection.config_policy.config_requirements_policy,
+    "not_enumerated_critical_override_origins_intact",
   );
 
   for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
@@ -1151,7 +1194,25 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
   assert.deepEqual(fakeMethods, ["initialize", "initialized", "config/read"]);
+  const configReadShape = traceValuesV01(
+    fakeTrace,
+    "isolated_auth_config_read_shape",
+  )[0];
+  assert.equal(configReadShape?.requirements_field_present, false);
+  assert.equal(configReadShape?.session_flags_layer_count, 1);
+  assert.equal(
+    typeof configReadShape?.layer_count === "number" &&
+      configReadShape.layer_count > 1,
+    true,
+    "production-shaped config/read must include SessionFlags plus empty lower layers",
+  );
+  assert.equal(
+    typeof configReadShape?.origin_count === "number" &&
+      configReadShape.origin_count > 0,
+    true,
+  );
   for (const forbiddenMethod of [
+    "configRequirements/read",
     "account/read",
     "getAuthStatus",
     "mcpServerStatus/list",
@@ -1192,6 +1253,52 @@ async function credentialFreeFeatureProjectionNegativesV01(
     ["remote-control-enabled", "isolated_auth_feature_remote_control_enabled"],
     ["unknown-feature-false", "isolated_auth_unknown_feature_drift"],
     ["required-feature-missing", "isolated_auth_feature_required_missing"],
+    [
+      "session-flags-missing",
+      "isolated_auth_provenance_session_flags_missing",
+    ],
+    [
+      "session-flags-duplicate",
+      "isolated_auth_provenance_session_flags_duplicate",
+    ],
+    [
+      "non-empty-user-layer",
+      "isolated_auth_provenance_non_empty_user_layer",
+    ],
+    [
+      "non-empty-system-layer",
+      "isolated_auth_provenance_non_empty_system_layer",
+    ],
+    [
+      "non-empty-project-layer",
+      "isolated_auth_provenance_non_empty_project_layer",
+    ],
+    [
+      "non-empty-mdm-layer",
+      "isolated_auth_provenance_non_empty_mdm_layer",
+    ],
+    [
+      "non-empty-enterprise-layer",
+      "isolated_auth_provenance_non_empty_enterprise_layer",
+    ],
+    [
+      "expected-origin-missing",
+      "isolated_auth_provenance_expected_origin_missing",
+    ],
+    ["origin-user", "isolated_auth_provenance_origin_user"],
+    ["origin-managed", "isolated_auth_provenance_origin_managed"],
+    [
+      "unknown-active-origin",
+      "isolated_auth_provenance_unknown_active_origin",
+    ],
+    [
+      "packaged-defaults-surfaced",
+      "isolated_auth_provenance_packaged_defaults_surface",
+    ],
+    [
+      "malformed-layer-metadata",
+      "isolated_auth_provenance_malformed_layer_metadata",
+    ],
   ] as const) {
     const stateParent = path.join(roots.state, `credential-free-${id}`);
     const runtime = path.join(roots.runtime, `credential-free-${id}`);
@@ -1240,6 +1347,7 @@ async function credentialFreeFeatureProjectionNegativesV01(
       scenario,
     );
     for (const forbiddenMethod of [
+      "configRequirements/read",
       "account/read",
       "getAuthStatus",
       "mcpServerStatus/list",
@@ -3389,6 +3497,23 @@ function listFilesV01(root: string): string[] {
     else if (stat.isFile()) out.push(value);
   }
   return out;
+}
+function traceValuesV01(
+  tracePath: string,
+  kind: string,
+): Record<string, unknown>[] {
+  if (!existsSync(tracePath)) return [];
+  return readFileSync(tracePath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((entry) => entry.kind === kind)
+    .map((entry) => entry.value)
+    .filter(
+      (value): value is Record<string, unknown> =>
+        value !== null && typeof value === "object" && !Array.isArray(value),
+    );
 }
 function receivedMethodsV01(tracePath: string): string[] {
   if (!existsSync(tracePath)) return [];
