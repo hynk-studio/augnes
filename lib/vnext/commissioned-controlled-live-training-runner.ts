@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -15,6 +16,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   assertCommissionedLiveTrainingExecutableIdentityV01,
   buildCommissionedLiveTrainingAnalysisJoinV01,
   buildCommissionedLiveTrainingApprovalObservationV01,
@@ -167,9 +169,9 @@ export function observeCommissionedLiveTrainingExecutableIdentityV01(input: {
     realpath_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(exactPath),
     ),
-    content_fingerprint: createProtocolSha256V01(
-      readFileSync(exactPath).toString("base64"),
-    ),
+    content_fingerprint: `sha256:${createHash("sha256")
+      .update(readFileSync(exactPath))
+      .digest("hex")}`,
     physical_identity_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         device: String(stat.dev),
@@ -323,6 +325,11 @@ export async function executeCommissionedLiveTrainingCohortV01(
     "test_conformance",
     "future_live_control_flow_conformance",
   ].includes(input.authorization.authorization_kind);
+  if (!conformance) {
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      input.native_execution_configuration,
+    );
+  }
   const executionStartedAt = conformance
     ? input.execution_started_at
     : new Date().toISOString();
@@ -2408,7 +2415,7 @@ function assertExactRunnerSourceIdentityV01(input: {
   }
 }
 
-function assertObservedExecutableIdentityUnchangedV01(input: {
+export function assertObservedExecutableIdentityUnchangedV01(input: {
   executable_path: string;
   expected: CommissionedLiveTrainingExecutableIdentityV01;
 }): void {

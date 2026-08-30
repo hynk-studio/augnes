@@ -12,6 +12,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
+  commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
+} from "@/lib/vnext/commissioned-controlled-live-training";
 import type {
   CommissionedLiveTrainingAuthorizationV01,
   CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
@@ -37,6 +41,19 @@ export interface CommissionedLiveTrainingProductionRuntimeAuthBindingV01 {
   broker_binding: CodexCredentialBrokerBindingV01;
   projection_issued_at: string;
   projection_expires_at: string;
+}
+
+export function commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01(
+  input: {
+    native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+    codex_executable_fingerprint: string;
+  },
+): boolean {
+  return commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+    identity:
+      input.native_execution_configuration.cli_executable_identity,
+    raw_file_sha256: input.codex_executable_fingerprint,
+  });
 }
 
 export function parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01(
@@ -100,17 +117,25 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     keychain_path: string;
   };
 }) {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+    input.native_execution_configuration,
+  );
   const binding = parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01(
     input.runtime_auth_binding,
   );
   const environment = input.authorization.codex_environment_binding;
   if (
     input.authorization.authorization_kind !== "future_live_execution" ||
+    canonicalizeProtocolValueV01(
+      input.authorization.native_execution_configuration,
+    ) !== canonicalizeProtocolValueV01(input.native_execution_configuration) ||
     environment.binding_class !== "isolated_authenticated_live_execution" ||
     environment.executable_identity_class !== "production_pinned_codex" ||
-    environment.codex_executable_fingerprint !==
-      input.native_execution_configuration.cli_executable_identity
-        .content_fingerprint ||
+    !commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01({
+      native_execution_configuration: input.native_execution_configuration,
+      codex_executable_fingerprint:
+        environment.codex_executable_fingerprint,
+    }) ||
     input.native_execution_configuration.expected_cli_version !==
       CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
     input.native_execution_configuration.provider_id !== "openai" ||

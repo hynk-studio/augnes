@@ -10,8 +10,13 @@ import {
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   assertValidCodexIsolatedAuthProjectionV01,
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
-import { CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 } from "@/types/vnext/codex-isolated-auth-projection";
+import {
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+} from "@/types/vnext/codex-isolated-auth-projection";
 import {
   assertValidCommissionedWorkEpisodeArtifactV01,
   assertValidCommissionedWorkObjectiveObservationV01,
@@ -106,6 +111,20 @@ const MAX_TOTAL_TIMEOUT_MS_V01 = 604_800_000;
 const MAX_NATIVE_INVOCATIONS_V01 =
   COMMISSIONED_LIVE_TRAINING_PRIMARY_EPISODE_LIMIT_V01 +
   COMMISSIONED_LIVE_TRAINING_REPLACEMENT_LIMIT_V01;
+
+export const COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01 =
+  "openai" as const;
+export const COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01 =
+  `codex-isolated-auth-effective-provider-route:${CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01}` as const;
+
+const PRODUCTION_NATIVE_HOST_SELECTION_VERSION_V01 =
+  "commissioned_live_training_production_native_host_selection.v0.1" as const;
+const PRODUCTION_PROVIDER_SELECTION_VERSION_V01 =
+  "commissioned_live_training_production_provider_selection.v0.1" as const;
+const PRODUCTION_MODEL_SELECTION_VERSION_V01 =
+  "commissioned_live_training_production_model_selection.v0.1" as const;
+const PRODUCTION_ROUTE_SELECTION_VERSION_V01 =
+  "commissioned_live_training_production_route_selection.v0.1" as const;
 
 const REPLACEMENT_POLICY_V01 = Object.freeze({
   policy_version: "commissioned_live_training_replacement_policy.v0.1",
@@ -627,6 +646,146 @@ export function buildCommissionedLiveTrainingExactNativeExecutionConfigurationV0
   };
 }
 
+export function commissionedLiveTrainingProductionProviderSelectionRefV01(): CommissionedWorkRecordRefV01 {
+  const material = {
+    selection_version: PRODUCTION_PROVIDER_SELECTION_VERSION_V01,
+    selection_semantics: "expected_provider_selection_not_observation" as const,
+    provider_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01,
+    isolated_auth_semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    isolated_auth_semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  };
+  return createCommissionedWorkRecordRefV01({
+    record_version: PRODUCTION_PROVIDER_SELECTION_VERSION_V01,
+    record_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01,
+    record_fingerprint: fingerprintV01(material),
+  });
+}
+
+export function commissionedLiveTrainingProductionModelSelectionRefV01(
+  modelId: string,
+): CommissionedWorkRecordRefV01 {
+  requireSafeCodeV01(modelId, "live_training_model_id_invalid");
+  const material = {
+    selection_version: PRODUCTION_MODEL_SELECTION_VERSION_V01,
+    selection_semantics: "exact_model_selection_not_observation" as const,
+    model_id: modelId,
+  };
+  return createCommissionedWorkRecordRefV01({
+    record_version: PRODUCTION_MODEL_SELECTION_VERSION_V01,
+    record_id: modelId,
+    record_fingerprint: fingerprintV01(material),
+  });
+}
+
+export function commissionedLiveTrainingProductionRouteSelectionRefV01(): CommissionedWorkRecordRefV01 {
+  const material = {
+    selection_version: PRODUCTION_ROUTE_SELECTION_VERSION_V01,
+    selection_semantics:
+      "expected_effective_provider_route_selection_not_observation" as const,
+    route_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
+    isolated_auth_semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    isolated_auth_semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    effective_provider_route_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01
+        .effective_provider_rule_fingerprint,
+  };
+  return createCommissionedWorkRecordRefV01({
+    record_version: PRODUCTION_ROUTE_SELECTION_VERSION_V01,
+    record_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
+    record_fingerprint: fingerprintV01(material),
+  });
+}
+
+export function commissionedLiveTrainingProductionNativeHostSelectionRefV01(): CommissionedWorkRecordRefV01 {
+  const material = {
+    selection_version: PRODUCTION_NATIVE_HOST_SELECTION_VERSION_V01,
+    selection_semantics:
+      "source_profile_native_host_selection_not_process_observation" as const,
+    adapter_ref: commissionedLiveTrainingDefaultAdapterRefV01(),
+    capability_ref: commissionedLiveTrainingDefaultCapabilityRefV01(),
+    expected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    pinned_production_executable_fingerprint:
+      CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+    isolated_auth_semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    isolated_auth_semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  };
+  return createCommissionedWorkRecordRefV01({
+    record_version: PRODUCTION_NATIVE_HOST_SELECTION_VERSION_V01,
+    record_id: "codex-isolated-auth-native-host-selection",
+    record_fingerprint: fingerprintV01(material),
+  });
+}
+
+/**
+ * Builds selection/provenance material only. It observes neither provider nor
+ * model availability and grants no execution authority.
+ */
+export function buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(input: {
+  model_id: string;
+  reasoning_effort: CommissionedLiveTrainingExactNativeExecutionConfigurationV01["reasoning_effort"];
+  cli_executable_identity: CommissionedLiveTrainingExecutableIdentityV01;
+  runtime_executable_identity: CommissionedLiveTrainingExecutableIdentityV01;
+}): CommissionedLiveTrainingExactNativeExecutionConfigurationV01 {
+  assertCommissionedLiveTrainingExecutableIdentityV01(
+    input.cli_executable_identity,
+  );
+  assertCommissionedLiveTrainingExecutableIdentityV01(
+    input.runtime_executable_identity,
+  );
+  if (
+    input.cli_executable_identity.executable_kind !== "codex_app_server_cli" ||
+    input.runtime_executable_identity.executable_kind !== "node_runtime"
+  ) {
+    failV01("live_training_production_native_executable_class_invalid");
+  }
+  const adapterRef = commissionedLiveTrainingDefaultAdapterRefV01();
+  const capabilityRef = commissionedLiveTrainingDefaultCapabilityRefV01();
+  return buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01({
+    provider_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01,
+    model_id: input.model_id,
+    route_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
+    reasoning_effort: input.reasoning_effort,
+    expected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    adapter_ref: adapterRef,
+    capability_ref: capabilityRef,
+    host_ref: commissionedLiveTrainingProductionNativeHostSelectionRefV01(),
+    cli_ref: input.cli_executable_identity.executable_ref,
+    runtime_ref: input.runtime_executable_identity.executable_ref,
+    provider_ref: commissionedLiveTrainingProductionProviderSelectionRefV01(),
+    model_ref: commissionedLiveTrainingProductionModelSelectionRefV01(
+      input.model_id,
+    ),
+    route_ref: commissionedLiveTrainingProductionRouteSelectionRefV01(),
+    cli_executable_identity: input.cli_executable_identity,
+    runtime_executable_identity: input.runtime_executable_identity,
+  });
+}
+
+export function assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+  configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+): void {
+  assertValidNativeConfigurationV01(configuration);
+  const rebuilt =
+    buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01({
+      model_id: configuration.model_id,
+      reasoning_effort: configuration.reasoning_effort,
+      cli_executable_identity: configuration.cli_executable_identity,
+      runtime_executable_identity: configuration.runtime_executable_identity,
+    });
+  if (
+    canonicalizeProtocolValueV01(rebuilt) !==
+    canonicalizeProtocolValueV01(configuration)
+  ) {
+    failV01("live_training_production_native_configuration_reconstruction_invalid");
+  }
+}
+
 export function assertCommissionedLiveTrainingExecutableIdentityV01(
   identity: CommissionedLiveTrainingExecutableIdentityV01,
 ): void {
@@ -656,6 +815,20 @@ export function assertCommissionedLiveTrainingExecutableIdentityV01(
     );
   }
   createCommissionedWorkRecordRefV01(identity.executable_ref);
+}
+
+export function commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01(
+  input: {
+    identity: CommissionedLiveTrainingExecutableIdentityV01;
+    raw_file_sha256: string;
+  },
+): boolean {
+  assertCommissionedLiveTrainingExecutableIdentityV01(input.identity);
+  requireFingerprintV01(
+    input.raw_file_sha256,
+    "live_training_executable_raw_file_fingerprint_invalid",
+  );
+  return input.identity.content_fingerprint === input.raw_file_sha256;
 }
 
 export function buildCommissionedLiveTrainingCodexEnvironmentBindingV01(input: {
@@ -945,6 +1118,11 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
   assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
     input.codex_environment_binding,
   );
+  if (input.authorization_kind === "future_live_execution") {
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      input.native_execution_configuration,
+    );
+  }
   assertExactCeilingV01(input.replacement_invocation_limit, 0, 3);
   assertExactCeilingV01(input.native_host_invocation_limit, 15, 18);
   assertExactCeilingV01(input.provider_bearing_native_host_invocation_limit, 0, 18);
@@ -982,9 +1160,12 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
         "compatible_exact" ||
       input.native_execution_configuration.expected_cli_version !==
         CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
-      input.native_execution_configuration.cli_executable_identity
-        .content_fingerprint !==
-        input.codex_environment_binding.codex_executable_fingerprint ||
+      !commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+        identity:
+          input.native_execution_configuration.cli_executable_identity,
+        raw_file_sha256:
+          input.codex_environment_binding.codex_executable_fingerprint,
+      }) ||
       input.native_execution_configuration.provider_id !== "openai" ||
       input.provider_bearing_native_host_invocation_limit !==
         input.native_host_invocation_limit ||
@@ -1234,6 +1415,11 @@ function assertValidAuthorizationShapeV01(
   assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
     authorization.codex_environment_binding,
   );
+  if (authorization.authorization_kind === "future_live_execution") {
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      authorization.native_execution_configuration,
+    );
+  }
   createCommissionedWorkRecordRefV01(
     authorization.source_binding.codex_environment_binding_ref,
   );
@@ -1278,9 +1464,14 @@ function assertValidAuthorizationShapeV01(
           .compatibility_preflight_state !== "compatible_exact" ||
         authorization.native_execution_configuration.expected_cli_version !==
           CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
-        authorization.native_execution_configuration.cli_executable_identity
-          .content_fingerprint !==
-          authorization.codex_environment_binding.codex_executable_fingerprint ||
+        !commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+          identity:
+            authorization.native_execution_configuration
+              .cli_executable_identity,
+          raw_file_sha256:
+            authorization.codex_environment_binding
+              .codex_executable_fingerprint,
+        }) ||
         authorization.native_execution_configuration.provider_id !== "openai" ||
         authorization.provider_bearing_native_host_invocation_limit !==
           authorization.native_host_invocation_limit ||
