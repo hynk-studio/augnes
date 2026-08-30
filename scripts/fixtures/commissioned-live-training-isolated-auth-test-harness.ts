@@ -15,6 +15,7 @@ import {
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import { probeCodexIsolatedAuthCredentialFreeCompatibilityV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import { CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 } from "@/types/vnext/codex-isolated-auth-projection";
 
 const ISSUED_AT = "2026-08-28T00:00:00.000Z";
 const EXPIRES_AT = "2099-08-29T06:00:00.000Z";
@@ -59,7 +60,8 @@ export async function createCommissionedLiveTrainingIsolatedAuthTestHarnessV01(i
       provider_ref: providerRef,
       codex_executable_fingerprint: executableFingerprint,
       executable_identity_class: "test_emulated_profile",
-      compatible_codex_cli_version: "0.147.0",
+      compatible_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
       issued_at: ISSUED_AT,
       expires_at: EXPIRES_AT,
     });
@@ -76,7 +78,7 @@ export async function createCommissionedLiveTrainingIsolatedAuthTestHarnessV01(i
     codex_executable_ref: refV01("codex_executable", "node-test-host"),
     codex_executable_fingerprint: executableFingerprint,
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: ISSUED_AT,
     expires_at: EXPIRES_AT,
   });

@@ -12,6 +12,10 @@ import {
 import path from "node:path";
 
 import {
+  CodexAppServerUserAgentErrorV01,
+  observeCodexAppServerUserAgentV01,
+} from "@/lib/vnext/native-host/codex-app-server-user-agent";
+import {
   CommissionedLiveTrainingExecutionAuthorizationErrorV01,
   assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
   consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01,
@@ -67,6 +71,7 @@ import {
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
   CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+  CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
@@ -79,7 +84,7 @@ import {
 } from "@/types/vnext/codex-isolated-auth-projection";
 
 export const CODEX_APP_SERVER_ADAPTER_VERSION_V01 =
-  "codex_app_server_adapter.v0.1" as const;
+  CODEX_APP_SERVER_CLIENT_VERSION_V01;
 export const CODEX_APP_SERVER_CAPABILITY_VERSION_V01 =
   "codex_app_server_stable_stdio.v0.1" as const;
 export const CODEX_HOST_STRUCTURED_RESULT_VERSION_V01 =
@@ -271,7 +276,7 @@ export interface CodexAppServerAdapterOptionsV01 {
 
 /**
  * The only public handle returned by an authenticated isolated launch before
- * external execution authorization. It exposes the closed Codex 0.147
+ * external execution authorization. It exposes the closed Codex 0.150.1
  * preflight method set and cleanup, but no child, stream, generic RPC, or
  * repository/provider-bearing operation.
  */
@@ -423,11 +428,18 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
         }),
         "codex_initialize_response_invalid",
       );
+      const userAgentObservation = observeIsolatedAuthUserAgentV01({
+        raw_user_agent: initialized.userAgent,
+        expected_client_name: "augnes",
+        expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        expected_codex_cli_version:
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+      });
       binding.transport.notify("initialized", {});
       binding.initialized = initialized;
       binding.state = "initialized";
       return Object.freeze({
-        cli_version: publicCliVersionV01(initialized.userAgent),
+        cli_version: userAgentObservation.codex_cli_version,
       });
     },
     observeAuthenticatedConfigurationV01: async (preflightInput: {
@@ -889,10 +901,15 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       }),
       "codex_initialize_response_invalid",
     );
+    const userAgentObservation = observeIsolatedAuthUserAgentV01({
+      raw_user_agent: initialized.userAgent,
+      expected_client_name: "augnes-semantic-preflight",
+      expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+      expected_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    });
+    observedCliVersion = userAgentObservation.codex_cli_version;
     transport.notify("initialized", {});
-    observedCliVersion = isolatedAuthPublicCliVersionV01(
-      initialized.userAgent,
-    );
     const config = objectV01(
       await transport.request("config/read", {
         includeLayers: true,
@@ -904,6 +921,7 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       initialized,
       config,
       codex_sqlite_home: sqliteHome,
+      expected_client_name: "augnes-semantic-preflight",
     });
     observedPolicyFingerprint =
       profile.observed_security_policy_fingerprint;
@@ -912,6 +930,7 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
     const code = error instanceof Error && "code" in error ? error.code : null;
     if (
       code === "codex_isolated_auth_cli_version_mismatch" ||
+      code === "codex_app_server_user_agent_cli_version_mismatch" ||
       observedCliVersion !== null &&
         observedCliVersion !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
     )
@@ -924,7 +943,9 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
     else if (
       code === "codex_required_method_unavailable" ||
       code === "codex_initialize_response_invalid" ||
-      code === "codex_config_response_invalid"
+      code === "codex_config_response_invalid" ||
+      (typeof code === "string" &&
+        code.startsWith("codex_app_server_user_agent_"))
     )
       state = "method_shape_mismatch";
     else state = "unavailable";
@@ -4362,11 +4383,16 @@ function publicCliVersionV01(value: unknown): string {
   return value.trim() || "unknown";
 }
 
-function isolatedAuthPublicCliVersionV01(value: unknown): string | null {
-  if (typeof value !== "string" || value.length === 0 || value.length > 160)
-    return null;
-  const match = value.match(/^codex-cli(?:\s|\/)([0-9]+\.[0-9]+\.[0-9]+)$/u);
-  return match?.[1] ?? null;
+function observeIsolatedAuthUserAgentV01(
+  input: Parameters<typeof observeCodexAppServerUserAgentV01>[0],
+): ReturnType<typeof observeCodexAppServerUserAgentV01> {
+  try {
+    return observeCodexAppServerUserAgentV01(input);
+  } catch (error) {
+    if (error instanceof CodexAppServerUserAgentErrorV01)
+      throw new CodexIsolatedAuthProjectionErrorV01(error.code);
+    throw error;
+  }
 }
 
 function observedModelConfigurationFingerprintV01(

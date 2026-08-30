@@ -18,6 +18,12 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import {
+  CodexAppServerUserAgentErrorV01,
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+  CODEX_APP_SERVER_USER_AGENT_MAX_LENGTH_V01,
+  observeCodexAppServerUserAgentV01,
+} from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import { genericCliDirectObservationInputFixture } from "@/fixtures/vnext/protocol/run-receipt-v0-1";
 import {
@@ -68,6 +74,13 @@ import type {
   CodexIsolatedAuthProductionExecutionAuthorizationV01,
   CodexIsolatedAuthProjectionV01,
   CodexIsolatedAuthTestExecutionAuthorizationV01,
+} from "@/types/vnext/codex-isolated-auth-projection";
+import {
+  CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
+  CODEX_APP_SERVER_CLIENT_VERSION_V01,
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
 } from "@/types/vnext/codex-isolated-auth-projection";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
@@ -250,6 +263,7 @@ async function runFocusedModeV01(mode: FocusedModeV01): Promise<void> {
 }
 
 async function contractsV01(roots: RootsV01): Promise<void> {
+    const userAgentProof = userAgentContractV01();
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
     assert.equal(provisioned.availability.state, "available_exact");
     assert.match(
@@ -409,7 +423,10 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         await maliciousPreflight.observeAuthenticatedConfigurationV01({
           observed_at: GENERATED_AT,
         });
-      assert.equal(initialized.cli_version, "codex-cli/0.147.0");
+      assert.equal(
+        initialized.cli_version,
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+      );
       assert.equal(
         observed.observation.claims_authentication_status,
         "verified_by_codex_agent_identity_auth",
@@ -604,6 +621,10 @@ async function contractsV01(roots: RootsV01): Promise<void> {
           CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
         semantic_profile_fingerprint:
           CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+        user_agent_contract_fingerprint:
+          userAgentProof.contract_fingerprint,
+        user_agent_negative_shapes_refused:
+          userAgentProof.negative_shapes_refused,
         installed_cli_preflight: semanticProfileProof.installed.state,
         credential_free_fake_preflight: semanticProfileProof.fake.state,
         no_authorization_preflight_stop:
@@ -622,6 +643,78 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         cleanup_complete: true,
       }),
     );
+}
+
+function userAgentContractV01(): {
+  contract_fingerprint: string;
+  negative_shapes_refused: number;
+} {
+  const authenticated = exactUserAgentV01("augnes");
+  const semanticPreflight = exactUserAgentV01("augnes-semantic-preflight");
+  for (const [name, raw] of [
+    ["augnes", authenticated],
+    ["augnes-semantic-preflight", semanticPreflight],
+  ] as const) {
+    const observed = observeCodexAppServerUserAgentV01({
+      raw_user_agent: raw,
+      expected_client_name: name,
+      expected_client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+      expected_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    });
+    assert.equal(
+      observed.contract_version,
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+    );
+    assert.equal(
+      observed.contract_fingerprint,
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+    );
+    assert.equal(observed.expected_originator_match, true);
+    assert.equal(observed.expected_client_version_match, true);
+    assert.equal(Object.hasOwn(observed, "raw_user_agent"), false);
+  }
+  const invalid = [
+    "codex-cli/0.150.1",
+    exactUserAgentV01("augnes").replace("augnes/", "other/"),
+    exactUserAgentV01("augnes").replace(
+      `; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
+      "; codex_app_server_adapter.v9.9)",
+    ),
+    exactUserAgentV01("augnes").replace("/0.150.1 ", "/0.147.0 "),
+    exactUserAgentV01("augnes").replace("Mac OS 15.7.1; ", ""),
+    exactUserAgentV01("augnes").replace("15.7.1", "current"),
+    `${exactUserAgentV01("augnes")} (augnes; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
+    `${exactUserAgentV01("augnes")} unexpected`,
+    `augnes/0.150.1 (Mac OS 15.7.1; arm64) ${"x".repeat(480)} (augnes; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
+    exactUserAgentV01("augnes").replace("fake-terminal", "fake\u0000terminal"),
+    exactUserAgentV01("augnes").replace("fake-terminal", "fake\ud800terminal"),
+  ];
+  for (const raw of invalid) {
+    assert.throws(
+      () =>
+        observeCodexAppServerUserAgentV01({
+          raw_user_agent: raw,
+          expected_client_name: "augnes",
+          expected_client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+          expected_codex_cli_version:
+            CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+        }),
+      (error: unknown) => error instanceof CodexAppServerUserAgentErrorV01,
+    );
+  }
+  assert.ok(invalid.at(-3)!.length > CODEX_APP_SERVER_USER_AGENT_MAX_LENGTH_V01);
+  return {
+    contract_fingerprint:
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+    negative_shapes_refused: invalid.length,
+  };
+}
+
+function exactUserAgentV01(
+  clientName: "augnes" | "augnes-semantic-preflight",
+): string {
+  return `${clientName}/${CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${clientName}; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`;
 }
 
 async function rollbackLifecycleV01(roots: RootsV01): Promise<void> {
@@ -862,24 +955,51 @@ async function semanticProfileAndCredentialFreePreflightV01(
   const profile = CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01;
   assert.equal(
     profile.semantic_profile_version,
-    "codex_isolated_auth_semantic_profile.rust-v0.147.0",
+    "codex_isolated_auth_semantic_profile.rust-v0.150.1",
   );
-  assert.equal(profile.upstream_tag, "rust-v0.147.0");
+  assert.equal(profile.upstream_tag, "rust-v0.150.1");
   assert.equal(
     profile.upstream_source_commit,
-    "be6e8eac029b183056b7e4402879f15d2c85f61b",
+    "90854393966b21e9ebfd21b122334eb09a20c93d",
   );
-  assert.equal(profile.supported_public_cli_version, "0.147.0");
+  assert.equal(
+    profile.supported_public_cli_version,
+    CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  );
+  assert.equal(
+    profile.pinned_production_executable_fingerprint,
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  );
+  assert.equal(
+    profile.agent_identity_claim_contract_version,
+    CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
+  );
+  assert.equal(
+    profile.agent_identity_claim_contract_fingerprint,
+    "sha256:5db3700db96d5ac17ba41b3a42299d32a27616a214859a2955437624370f4f47",
+  );
+  assert.equal(
+    profile.app_server_user_agent_contract_version,
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  );
+  assert.equal(
+    profile.app_server_user_agent_contract_fingerprint,
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+  );
+  assert.equal(
+    profile.integrity.fingerprint,
+    "sha256:c693f4c949647c5f093488fae5273ebf861c3836f33d9e6742864fcaca02bb1e",
+  );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
     profile.integrity.fingerprint,
   );
   assert.equal(
     provisioned.projection.compatible_codex_cli_version,
-    "0.147.0",
+    CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   );
 
-  for (const version of ["0.146.9", "0.148.0", "99.0.0", "not-a-version"]) {
+  for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
     assert.throws(
       () =>
         createCodexIsolatedAuthProvisioningBindingV01({
@@ -891,7 +1011,8 @@ async function semanticProfileAndCredentialFreePreflightV01(
           provider_ref: refV01("model_provider", "openai"),
           codex_executable_fingerprint: sha256FileV01(process.execPath),
           executable_identity_class: "test_emulated_profile",
-          compatible_codex_cli_version: version as "0.147.0",
+          compatible_codex_cli_version:
+            version as typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
           issued_at: GENERATED_AT,
           expires_at: EXPIRES_AT,
         }),
@@ -911,9 +1032,11 @@ async function semanticProfileAndCredentialFreePreflightV01(
           bindingV01(),
         ),
         provider_ref: refV01("model_provider", "openai"),
-        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        codex_executable_fingerprint:
+          "sha256:19c4f144c5226a9f17c58e6f0fa854843b0f77a6eb420f40e2745a12f10f5d37",
         executable_identity_class: "production_pinned_codex",
-        compatible_codex_cli_version: "0.147.0",
+        compatible_codex_cli_version:
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
       }),
@@ -921,6 +1044,18 @@ async function semanticProfileAndCredentialFreePreflightV01(
       error instanceof CodexIsolatedAuthProjectionErrorV01 &&
       error.code === "codex_isolated_auth_production_executable_mismatch",
   );
+  const staleExecutablePreflight =
+    await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
+      command: process.execPath,
+      expected_executable_fingerprint:
+        "sha256:19c4f144c5226a9f17c58e6f0fa854843b0f77a6eb420f40e2745a12f10f5d37",
+      executable_identity_class: "production_pinned_codex",
+      state_parent: roots.state,
+      repository_root: roots.repository,
+      observed_at: GENERATED_AT,
+    });
+  assert.equal(staleExecutablePreflight.state, "executable_mismatch");
+  assert.equal(staleExecutablePreflight.cleanup_completed, true);
   const substitutedProfile = structuredClone(
     provisioned.projection,
   ) as CodexIsolatedAuthProjectionV01;
@@ -973,7 +1108,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
     observed_at: GENERATED_AT,
   });
   assert.equal(fake.state, "compatible_exact");
-  assert.equal(fake.observed_cli_version, "0.147.0");
+  assert.equal(
+    fake.observed_cli_version,
+    CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  );
   assert.equal(fake.cleanup_completed, true);
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
@@ -984,37 +1122,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(readFileSync(fakeNetwork, "utf8"), "0\n");
   assertPublicSafeV01(fake);
 
-  const installedCommand = executableOnPathV01("codex");
-  let installedState: CodexIsolatedAuthCredentialFreePreflightV01["state"] =
-    "unavailable";
-  if (installedCommand) {
-    const installedStateParent = path.join(
-      roots.state,
-      "semantic-preflight-installed",
-    );
-    mkdirSync(installedStateParent, { recursive: true, mode: 0o700 });
-    const installed =
-      await probeCodexIsolatedAuthCredentialFreeCompatibilityV01({
-        command: installedCommand,
-        expected_executable_fingerprint:
-          profile.pinned_production_executable_fingerprint,
-        executable_identity_class: "production_pinned_codex",
-        state_parent: realpathSync(installedStateParent),
-        repository_root: roots.repository,
-        base_environment: {
-          PATH: process.env.PATH,
-          LANG: "C",
-          TZ: "UTC",
-          NO_COLOR: "1",
-        },
-        observed_at: GENERATED_AT,
-      });
-    installedState = installed.state;
-    assert.equal(installed.cleanup_completed, true);
-    assert.equal(readdirSync(installedStateParent).length, 0);
-    assertPublicSafeV01(installed);
-  }
-  return { fake, installed: { state: installedState } };
+  // Source and Canonical conformance must never promote an installed binary
+  // into a production observation. Exact-head production probing is a later,
+  // separately authorized gate.
+  return { fake, installed: { state: "unavailable" } };
 }
 
 async function externalExecutionAuthorityGateV01(
@@ -1038,7 +1149,7 @@ async function externalExecutionAuthorityGateV01(
     provider_ref: refV01("model_provider", "openai"),
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -1458,7 +1569,7 @@ async function agentIdentityClaimNegativesV01(
     provider_ref: providerRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: issuedAt,
     expires_at: projectionExpiresAt,
   });
@@ -1476,7 +1587,7 @@ async function agentIdentityClaimNegativesV01(
     codex_executable_ref: refV01("codex_executable", "node-test-host", issuedAt),
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: issuedAt,
     expires_at: projectionExpiresAt,
   });
@@ -1531,7 +1642,7 @@ async function brokerAndProvisioningNegativesV01(
     provider_ref: forgedProviderRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -1550,7 +1661,8 @@ async function brokerAndProvisioningNegativesV01(
         codex_executable_ref: refV01("codex_executable", "node-test-host"),
         codex_executable_fingerprint: sha256FileV01(process.execPath),
         executable_identity_class: "test_emulated_profile",
-        compatible_codex_cli_version: "0.147.0",
+        compatible_codex_cli_version:
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
       }),
@@ -1574,7 +1686,8 @@ async function brokerAndProvisioningNegativesV01(
         codex_executable_ref: refV01("codex_executable", "node-test-host"),
         codex_executable_fingerprint: sha256FileV01(process.execPath),
         executable_identity_class: "test_emulated_profile",
-        compatible_codex_cli_version: "0.147.0",
+        compatible_codex_cli_version:
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
         issued_at: GENERATED_AT,
         expires_at: EXPIRES_AT,
       }),
@@ -1906,7 +2019,52 @@ async function runtimePolicyNegativesV01(
     [
       "cli-drift",
       "isolated_auth_cli_version_mismatch",
-      "codex_isolated_auth_cli_version_mismatch",
+      "codex_app_server_user_agent_cli_version_mismatch",
+    ],
+    [
+      "user-agent-originator",
+      "isolated_auth_user_agent_wrong_originator",
+      "codex_app_server_user_agent_originator_mismatch",
+    ],
+    [
+      "user-agent-client-version",
+      "isolated_auth_user_agent_wrong_client_version",
+      "codex_app_server_user_agent_client_version_mismatch",
+    ],
+    [
+      "user-agent-missing-platform",
+      "isolated_auth_user_agent_missing_platform",
+      "codex_app_server_user_agent_shape_mismatch",
+    ],
+    [
+      "user-agent-malformed-platform",
+      "isolated_auth_user_agent_malformed_platform",
+      "codex_app_server_user_agent_shape_mismatch",
+    ],
+    [
+      "user-agent-duplicate-identity",
+      "isolated_auth_user_agent_duplicate_identity",
+      "codex_app_server_user_agent_shape_mismatch",
+    ],
+    [
+      "user-agent-unexpected-suffix",
+      "isolated_auth_user_agent_unexpected_suffix",
+      "codex_app_server_user_agent_shape_mismatch",
+    ],
+    [
+      "user-agent-over-bound",
+      "isolated_auth_user_agent_over_bound",
+      "codex_app_server_user_agent_invalid",
+    ],
+    [
+      "user-agent-control",
+      "isolated_auth_user_agent_control_character",
+      "codex_app_server_user_agent_invalid",
+    ],
+    [
+      "user-agent-legacy",
+      "isolated_auth_user_agent_legacy_abbreviated",
+      "codex_app_server_user_agent_shape_mismatch",
     ],
   ] as const) {
     const probe = await runProbeV01(roots, id, provisioned, FAKE_JWT, scenario);
@@ -1918,6 +2076,10 @@ async function runtimePolicyNegativesV01(
     assert.equal(probe.result?.public_stop_reason, reason);
     assert.equal(
       receivedMethodsV01(probe.trace_path).includes("thread/start"),
+      false,
+    );
+    assert.equal(
+      receivedMethodsV01(probe.trace_path).includes("turn/start"),
       false,
     );
     assert.equal(readdirSync(probe.state_parent).length, 0);
@@ -2418,7 +2580,7 @@ async function provisionV01(
     provider_ref: providerRef,
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -2435,7 +2597,7 @@ async function provisionV01(
     codex_executable_ref: refV01("codex_executable", "node-test-host"),
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: "0.147.0",
+    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     issued_at: GENERATED_AT,
     expires_at: EXPIRES_AT,
   });
@@ -3137,20 +3299,6 @@ async function stopTestOwnedChildV01(child: ChildProcess): Promise<void> {
       ),
     ),
   ]);
-}
-function executableOnPathV01(name: string): string | null {
-  for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
-    if (!directory) continue;
-    const candidate = path.join(directory, name);
-    if (!existsSync(candidate)) continue;
-    try {
-      const resolved = realpathSync(candidate);
-      if (lstatSync(resolved).isFile()) return resolved;
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 function errorCodeV01(value: unknown): string | null {
   return value instanceof Error

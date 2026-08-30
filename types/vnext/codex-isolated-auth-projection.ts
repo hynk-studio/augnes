@@ -17,13 +17,19 @@ export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
   "macos_keychain_agent_identity_handle" as const;
 export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
-  "codex_isolated_auth_semantic_profile.rust-v0.147.0" as const;
-export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.147.0" as const;
-export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.147.0" as const;
+  "codex_isolated_auth_semantic_profile.rust-v0.150.1" as const;
+export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.150.1" as const;
+export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.150.1" as const;
 export const CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 =
-  "be6e8eac029b183056b7e4402879f15d2c85f61b" as const;
+  "90854393966b21e9ebfd21b122334eb09a20c93d" as const;
 export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 =
-  "sha256:19c4f144c5226a9f17c58e6f0fa854843b0f77a6eb420f40e2745a12f10f5d37" as const;
+  "sha256:a14f9a907c12c8812878b70e6b7d65f81c39ed795513e46a55817d7428c0ca6b" as const;
+export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01 =
+  "codex_app_server_user_agent.rust-v0.150.1" as const;
+export const CODEX_APP_SERVER_CLIENT_VERSION_V01 =
+  "codex_app_server_adapter.v0.1" as const;
+export const CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01 =
+  "codex_agent_identity_jwt_claims.rust-v0.150.1" as const;
 export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
   "codex_isolated_auth_credential_free_preflight.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
@@ -118,10 +124,13 @@ export interface CodexIsolatedAuthSemanticProfileV01 {
   upstream_source_commit: typeof CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01;
   supported_public_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
   pinned_production_executable_fingerprint: typeof CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+  agent_identity_claim_contract_version: typeof CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01;
   agent_identity_claim_contract_fingerprint: string;
   effective_provider_rule_fingerprint: string;
   config_tool_feature_schema_fingerprint: string;
   app_server_method_profile_fingerprint: string;
+  app_server_user_agent_contract_version: typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01;
+  app_server_user_agent_contract_fingerprint: string;
   required_environment_auth_behavior_fingerprint: string;
   integrity: CodexIsolatedAuthIntegrityV01;
 }

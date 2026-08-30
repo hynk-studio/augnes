@@ -11,6 +11,7 @@ import {
 import {
   assertValidCodexIsolatedAuthProjectionV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
+import { CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 } from "@/types/vnext/codex-isolated-auth-projection";
 import {
   assertValidCommissionedWorkEpisodeArtifactV01,
   assertValidCommissionedWorkObjectiveObservationV01,
@@ -979,7 +980,8 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
         "production_pinned_codex" ||
       input.codex_environment_binding.compatibility_preflight_state !==
         "compatible_exact" ||
-      input.native_execution_configuration.expected_cli_version !== "0.147.0" ||
+      input.native_execution_configuration.expected_cli_version !==
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
       input.native_execution_configuration.cli_executable_identity
         .content_fingerprint !==
         input.codex_environment_binding.codex_executable_fingerprint ||
@@ -1275,7 +1277,7 @@ function assertValidAuthorizationShapeV01(
         authorization.codex_environment_binding
           .compatibility_preflight_state !== "compatible_exact" ||
         authorization.native_execution_configuration.expected_cli_version !==
-          "0.147.0" ||
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
         authorization.native_execution_configuration.cli_executable_identity
           .content_fingerprint !==
           authorization.codex_environment_binding.codex_executable_fingerprint ||
