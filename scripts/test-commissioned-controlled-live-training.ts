@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
@@ -43,6 +44,7 @@ import {
   buildCommissionedLiveTrainingCohortPlanV01,
   buildCommissionedLiveTrainingCodexEnvironmentBindingV01,
   buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+  commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
   buildCommissionedLiveTrainingIsolationObservationV01,
   buildCommissionedLiveTrainingResultV01,
   commissionedLiveTrainingDefaultAdapterRefV01,
@@ -69,11 +71,13 @@ import {
   assertCommissionedLiveTrainingExternalExecutionAuthorizationPublicMaterialV01,
   assertCommissionedLiveTrainingExternalExecutionAuthorizationSourceOwnedV01,
   consumeCommissionedLiveTrainingExternalExecutionAuthorizationForAdapterV01,
+  commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01,
   createCommissionedLiveTrainingProductionAuthorizationSourceOwnershipContractFixtureV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-execution-authorization";
 import { createCommissionedLiveTrainingTestExecutionAuthorizationV01 } from "@/lib/vnext/commissioned-controlled-live-training-test-execution-authorization";
 import {
   executeCommissionedLiveTrainingCohortV01,
+  assertObservedExecutableIdentityUnchangedV01,
   observeCommissionedLiveTrainingExecutableIdentityV01,
   type CommissionedLiveTrainingTestFixtureOutputV01,
 } from "@/lib/vnext/commissioned-controlled-live-training-runner";
@@ -86,6 +90,7 @@ import {
   createCommissionedWorkRoleRefV01,
 } from "@/lib/vnext/commissioned-controlled-workbench";
 import { createCommissionedLiveTrainingIsolatedAuthTestHarnessV01 } from "@/scripts/fixtures/commissioned-live-training-isolated-auth-test-harness";
+import { commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01 } from "@/lib/vnext/commissioned-controlled-live-training-production-owner";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -138,6 +143,7 @@ async function main(): Promise<void> {
     mode: 0o600,
   });
   try {
+    assertExecutableFingerprintDomainV01(root);
     const fakeAppServerPath = path.join(
       process.cwd(),
       "scripts",
@@ -172,6 +178,12 @@ async function main(): Promise<void> {
     });
     assertValidCommissionedLiveTrainingCohortPlanV01(plan);
     assert.equal(plan.slots.length, 15);
+    assert.equal(
+      plan.schedule_fingerprint,
+      "sha256:ff97505d8e1a3ad88420a772f575d4a5eaea805ac31be7fed760145946d62d35",
+    );
+    assert.equal(plan.replacement_invocation_limit, 3);
+    assert.equal(plan.slots.every((slot) => slot.replacement_allowed), true);
     assert.deepEqual(
       plan.slots.map((slot) => [slot.case_id, slot.condition]),
       [
@@ -194,6 +206,7 @@ async function main(): Promise<void> {
     );
     assert.equal(plan.holdout_source_materialized, false);
     assert.equal(plan.holdout_execution_authorized, false);
+    assert.equal(plan.holdout_candidate_freeze_authorized, false);
     const nativeConfiguration = buildTestNativeConfigurationV01();
     const authorization = buildCommissionedLiveTrainingAuthorizationV01({
       authorization_id: "cw1-l1-test-authorization-01",
@@ -3383,6 +3396,161 @@ function spawnConsumptionWorkerV01(
     child.once("error", reject);
     child.once("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
+}
+
+function assertExecutableFingerprintDomainV01(root: string): void {
+  const executablePath = path.join(root, "raw-fingerprint-executable.bin");
+  writeFileSync(
+    executablePath,
+    Buffer.from([0x00, 0x13, 0x37, 0x7f, 0x80, 0xfe, 0xff]),
+    { mode: 0o700 },
+  );
+  const executableIdentity =
+    observeCommissionedLiveTrainingExecutableIdentityV01({
+      executable_path: executablePath,
+      executable_kind: "codex_app_server_cli",
+    });
+  const rawFileFingerprint = rawFileSha256V01(executablePath);
+  const legacyEncodedFingerprint = createProtocolSha256V01(
+    readFileSync(executablePath).toString("base64"),
+  );
+  assert.equal(executableIdentity.content_fingerprint, rawFileFingerprint);
+  assert.notEqual(legacyEncodedFingerprint, rawFileFingerprint);
+
+  const processIdentity =
+    observeCommissionedLiveTrainingExecutableIdentityV01({
+      executable_path: process.execPath,
+      executable_kind: "node_runtime",
+    });
+  assert.equal(
+    processIdentity.content_fingerprint,
+    rawFileSha256V01(process.execPath),
+  );
+
+  const productionShapedConfiguration =
+    buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01({
+      provider_id: "openai",
+      model_id: "gpt-5.6-terra",
+      route_id: "chatgpt-agent-identity-responses",
+      reasoning_effort: "medium",
+      expected_cli_version: "0.150.1",
+      adapter_ref: commissionedLiveTrainingDefaultAdapterRefV01(),
+      capability_ref: commissionedLiveTrainingDefaultCapabilityRefV01(),
+      host_ref: testRecordRefV01("production-shaped-host-ref"),
+      cli_ref: executableIdentity.executable_ref,
+      runtime_ref: processIdentity.executable_ref,
+      provider_ref: testRecordRefV01("production-shaped-provider-ref"),
+      model_ref: testRecordRefV01("production-shaped-model-ref"),
+      route_ref: testRecordRefV01("production-shaped-route-ref"),
+      cli_executable_identity: executableIdentity,
+      runtime_executable_identity: processIdentity,
+    });
+  const exactBindingInput = {
+    native_execution_configuration: productionShapedConfiguration,
+    codex_executable_fingerprint: rawFileFingerprint,
+  };
+  assert.equal(
+    commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+      identity: executableIdentity,
+      raw_file_sha256: rawFileFingerprint,
+    }),
+    true,
+  );
+  assert.equal(
+    commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01(
+      exactBindingInput,
+    ),
+    true,
+  );
+  assert.equal(
+    commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01(
+      exactBindingInput,
+    ),
+    true,
+  );
+
+  const substitutedRawFingerprint = `${rawFileFingerprint.slice(0, -1)}${
+    rawFileFingerprint.endsWith("0") ? "1" : "0"
+  }`;
+  assert.equal(
+    commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+      identity: executableIdentity,
+      raw_file_sha256: substitutedRawFingerprint,
+    }),
+    false,
+  );
+
+  const legacyIdentity = structuredClone(executableIdentity);
+  legacyIdentity.content_fingerprint = legacyEncodedFingerprint;
+  const legacyConfiguration =
+    buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01({
+      ...productionShapedConfiguration,
+      cli_executable_identity: legacyIdentity,
+    });
+  const legacyBindingInput = {
+    native_execution_configuration: legacyConfiguration,
+    codex_executable_fingerprint: rawFileFingerprint,
+  };
+  assert.equal(
+    commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+      identity: legacyIdentity,
+      raw_file_sha256: rawFileFingerprint,
+    }),
+    false,
+  );
+  assert.equal(
+    commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01(
+      legacyBindingInput,
+    ),
+    false,
+  );
+  assert.equal(
+    commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01(
+      legacyBindingInput,
+    ),
+    false,
+  );
+
+  assertObservedExecutableIdentityUnchangedV01({
+    executable_path: executablePath,
+    expected: executableIdentity,
+  });
+  writeFileSync(executablePath, Buffer.from([0x42]), { flag: "a" });
+  assert.throws(
+    () =>
+      assertObservedExecutableIdentityUnchangedV01({
+        executable_path: executablePath,
+        expected: executableIdentity,
+      }),
+    /live_training_runner_executable_identity_drift/u,
+  );
+
+  const processCopy = path.join(root, "node-runtime-substitution");
+  cpSync(process.execPath, processCopy);
+  const copiedRuntimeIdentity =
+    observeCommissionedLiveTrainingExecutableIdentityV01({
+      executable_path: processCopy,
+      executable_kind: "node_runtime",
+    });
+  assert.equal(
+    copiedRuntimeIdentity.content_fingerprint,
+    processIdentity.content_fingerprint,
+  );
+  writeFileSync(processCopy, Buffer.from([0x42]), { flag: "a" });
+  assert.throws(
+    () =>
+      assertObservedExecutableIdentityUnchangedV01({
+        executable_path: processCopy,
+        expected: copiedRuntimeIdentity,
+      }),
+    /live_training_runner_executable_identity_drift/u,
+  );
+}
+
+function rawFileSha256V01(file: string): string {
+  return `sha256:${createHash("sha256")
+    .update(readFileSync(file))
+    .digest("hex")}`;
 }
 
 function buildTestNativeConfigurationV01() {

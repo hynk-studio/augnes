@@ -1,6 +1,7 @@
 import {
   assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01,
   assertSafeCommissionedLiveTrainingOutputV01,
+  commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
   commissionedLiveTrainingRecordRefV01,
   createCommissionedLiveTrainingRecordRefV01,
 } from "@/lib/vnext/commissioned-controlled-live-training";
@@ -63,6 +64,19 @@ export class CommissionedLiveTrainingExecutionAuthorizationErrorV01 extends Erro
   }
 }
 
+export function commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01(
+  input: {
+    native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+    codex_executable_fingerprint: string;
+  },
+): boolean {
+  return commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+    identity:
+      input.native_execution_configuration.cli_executable_identity,
+    raw_file_sha256: input.codex_executable_fingerprint,
+  });
+}
+
 export function createCommissionedLiveTrainingExternalExecutionAuthorizationV01(input: {
   witness: CommissionedLiveTrainingRuntimeConsumptionWitnessV01;
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
@@ -101,9 +115,11 @@ export function createCommissionedLiveTrainingExternalExecutionAuthorizationV01(
         .codex_isolated_auth_projection_fingerprint ||
     input.owner.projection.semantic_profile_fingerprint !==
       input.codex_environment_binding.semantic_profile_fingerprint ||
-    input.owner.projection.codex_executable_fingerprint !==
-      input.native_execution_configuration.cli_executable_identity
-        .content_fingerprint ||
+    !commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01({
+      native_execution_configuration: input.native_execution_configuration,
+      codex_executable_fingerprint:
+        input.owner.projection.codex_executable_fingerprint,
+    }) ||
     input.owner.projection.compatible_codex_cli_version !==
       input.native_execution_configuration.expected_cli_version ||
     input.owner.projection.provider_ref.external_id !==
@@ -486,6 +502,12 @@ function consumeRegisteredAuthorizationV01(
     exact.expected_route_id !== nativeConfiguration.route_id ||
     exact.expected_reasoning_effort !== nativeConfiguration.reasoning_effort ||
     exact.expected_reasoning_effort !== input.observed_reasoning_effort ||
+    (productionSource &&
+      !commissionedLiveTrainingExternalExecutionExecutableBindingMatchesV01({
+        native_execution_configuration: nativeConfiguration,
+        codex_executable_fingerprint:
+          source.owner.projection.codex_executable_fingerprint,
+      })) ||
     exact.native_execution_configuration_fingerprint !==
       nativeConfiguration.configuration_fingerprint ||
     exact.native_execution_configuration_fingerprint !==

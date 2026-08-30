@@ -177,6 +177,7 @@ export interface CommissionedLiveTrainingExecutableIdentityV01 {
   identity_version: "commissioned_live_training_executable_identity.v0.1";
   executable_kind: "codex_app_server_cli" | "node_runtime" | "test_fake_app_server";
   realpath_fingerprint: string;
+  /** SHA-256 of the exact executable's raw file bytes. */
   content_fingerprint: string;
   physical_identity_fingerprint: string;
   executable_ref: CommissionedWorkRecordRefV01;

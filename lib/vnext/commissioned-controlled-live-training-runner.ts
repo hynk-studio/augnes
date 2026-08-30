@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -167,9 +168,9 @@ export function observeCommissionedLiveTrainingExecutableIdentityV01(input: {
     realpath_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(exactPath),
     ),
-    content_fingerprint: createProtocolSha256V01(
-      readFileSync(exactPath).toString("base64"),
-    ),
+    content_fingerprint: `sha256:${createHash("sha256")
+      .update(readFileSync(exactPath))
+      .digest("hex")}`,
     physical_identity_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         device: String(stat.dev),
@@ -2408,7 +2409,7 @@ function assertExactRunnerSourceIdentityV01(input: {
   }
 }
 
-function assertObservedExecutableIdentityUnchangedV01(input: {
+export function assertObservedExecutableIdentityUnchangedV01(input: {
   executable_path: string;
   expected: CommissionedLiveTrainingExecutableIdentityV01;
 }): void {

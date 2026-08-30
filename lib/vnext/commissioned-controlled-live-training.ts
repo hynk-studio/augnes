@@ -658,6 +658,20 @@ export function assertCommissionedLiveTrainingExecutableIdentityV01(
   createCommissionedWorkRecordRefV01(identity.executable_ref);
 }
 
+export function commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01(
+  input: {
+    identity: CommissionedLiveTrainingExecutableIdentityV01;
+    raw_file_sha256: string;
+  },
+): boolean {
+  assertCommissionedLiveTrainingExecutableIdentityV01(input.identity);
+  requireFingerprintV01(
+    input.raw_file_sha256,
+    "live_training_executable_raw_file_fingerprint_invalid",
+  );
+  return input.identity.content_fingerprint === input.raw_file_sha256;
+}
+
 export function buildCommissionedLiveTrainingCodexEnvironmentBindingV01(input: {
   binding_id: string;
   binding_class: CommissionedLiveTrainingCodexEnvironmentBindingV01["binding_class"];
@@ -982,9 +996,12 @@ export function buildCommissionedLiveTrainingAuthorizationV01(input: {
         "compatible_exact" ||
       input.native_execution_configuration.expected_cli_version !==
         CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
-      input.native_execution_configuration.cli_executable_identity
-        .content_fingerprint !==
-        input.codex_environment_binding.codex_executable_fingerprint ||
+      !commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+        identity:
+          input.native_execution_configuration.cli_executable_identity,
+        raw_file_sha256:
+          input.codex_environment_binding.codex_executable_fingerprint,
+      }) ||
       input.native_execution_configuration.provider_id !== "openai" ||
       input.provider_bearing_native_host_invocation_limit !==
         input.native_host_invocation_limit ||
@@ -1278,9 +1295,14 @@ function assertValidAuthorizationShapeV01(
           .compatibility_preflight_state !== "compatible_exact" ||
         authorization.native_execution_configuration.expected_cli_version !==
           CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
-        authorization.native_execution_configuration.cli_executable_identity
-          .content_fingerprint !==
-          authorization.codex_environment_binding.codex_executable_fingerprint ||
+        !commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01({
+          identity:
+            authorization.native_execution_configuration
+              .cli_executable_identity,
+          raw_file_sha256:
+            authorization.codex_environment_binding
+              .codex_executable_fingerprint,
+        }) ||
         authorization.native_execution_configuration.provider_id !== "openai" ||
         authorization.provider_bearing_native_host_invocation_limit !==
           authorization.native_host_invocation_limit ||
