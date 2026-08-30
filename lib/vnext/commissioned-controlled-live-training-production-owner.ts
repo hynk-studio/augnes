@@ -12,7 +12,10 @@ import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
-import { commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01 } from "@/lib/vnext/commissioned-controlled-live-training";
+import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
+  commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
+} from "@/lib/vnext/commissioned-controlled-live-training";
 import type {
   CommissionedLiveTrainingAuthorizationV01,
   CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
@@ -114,12 +117,18 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     keychain_path: string;
   };
 }) {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+    input.native_execution_configuration,
+  );
   const binding = parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01(
     input.runtime_auth_binding,
   );
   const environment = input.authorization.codex_environment_binding;
   if (
     input.authorization.authorization_kind !== "future_live_execution" ||
+    canonicalizeProtocolValueV01(
+      input.authorization.native_execution_configuration,
+    ) !== canonicalizeProtocolValueV01(input.native_execution_configuration) ||
     environment.binding_class !== "isolated_authenticated_live_execution" ||
     environment.executable_identity_class !== "production_pinned_codex" ||
     !commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01({

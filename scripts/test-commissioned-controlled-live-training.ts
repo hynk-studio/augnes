@@ -20,6 +20,7 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   assertCommissionedLiveTrainingAuthorizationCurrentV01,
   assertCommissionedLiveTrainingAttemptIdentitiesDistinctV01,
   assertCommissionedLiveTrainingAttemptStartReservationV01,
@@ -44,11 +45,16 @@ import {
   buildCommissionedLiveTrainingCohortPlanV01,
   buildCommissionedLiveTrainingCodexEnvironmentBindingV01,
   buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+  buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
   buildCommissionedLiveTrainingIsolationObservationV01,
   buildCommissionedLiveTrainingResultV01,
   commissionedLiveTrainingDefaultAdapterRefV01,
   commissionedLiveTrainingDefaultCapabilityRefV01,
+  commissionedLiveTrainingProductionModelSelectionRefV01,
+  commissionedLiveTrainingProductionNativeHostSelectionRefV01,
+  commissionedLiveTrainingProductionProviderSelectionRefV01,
+  commissionedLiveTrainingProductionRouteSelectionRefV01,
   commissionedLiveTrainingRecordRefV01,
   commissionedWorkManifestRecordRefV01,
   createCommissionedLiveTrainingAdapterBindingV01,
@@ -58,6 +64,8 @@ import {
   commissionedLiveTrainingCandidateRuleTableV01,
   evaluateCommissionedLiveTrainingComponentRuleV01,
   COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01,
+  COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01,
+  COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
 } from "@/lib/vnext/commissioned-controlled-live-training";
 import {
   consumeCommissionedLiveTrainingAuthorizationV01,
@@ -91,6 +99,7 @@ import {
 } from "@/lib/vnext/commissioned-controlled-workbench";
 import { createCommissionedLiveTrainingIsolatedAuthTestHarnessV01 } from "@/scripts/fixtures/commissioned-live-training-isolated-auth-test-harness";
 import { commissionedLiveTrainingProductionOwnerExecutableBindingMatchesV01 } from "@/lib/vnext/commissioned-controlled-live-training-production-owner";
+import { CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
@@ -106,6 +115,7 @@ import type {
   CommissionedLiveTrainingAuthorizationV01,
   CommissionedLiveTrainingCodexEnvironmentBindingV01,
   CommissionedLiveTrainingCohortPlanV01,
+  CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
 } from "@/types/vnext/commissioned-controlled-live-training";
 
 const FOUNDATION_SHA = "53381b1aead57554e1c5b7978050b6a3a550f78c";
@@ -124,6 +134,16 @@ let TEST_ISOLATED_AUTH_HARNESS: Awaited<
 >;
 
 async function main(): Promise<void> {
+  const focusedMode = process.argv[2] ?? null;
+  if (
+    focusedMode !== null &&
+    ![
+      "--executable-fingerprint-domain-only",
+      "--production-native-configuration-only",
+    ].includes(focusedMode)
+  ) {
+    throw new Error("unsupported_live_training_test_mode");
+  }
   const root = mkdtempSync(path.join(os.tmpdir(), "augnes-cw1-l1-test-"));
   const priorCanonicalTestMode = process.env.AUGNES_CANONICAL_TEST_MODE;
   const priorIsolatedAuthTestMode =
@@ -144,6 +164,29 @@ async function main(): Promise<void> {
   });
   try {
     assertExecutableFingerprintDomainV01(root);
+    if (focusedMode === "--executable-fingerprint-domain-only") {
+      process.stdout.write(`${JSON.stringify({
+        status: "passed",
+        mode: "executable-fingerprint-domain-only",
+      })}\n`);
+      return;
+    }
+    const productionNativeConfiguration =
+      assertProductionNativeConfigurationOwnershipV01(root);
+    if (focusedMode === "--production-native-configuration-only") {
+      process.stdout.write(`${JSON.stringify({
+        status: "passed",
+        mode: "production-native-configuration-only",
+        model_selection_is_test_only: true,
+        provider_ref: productionNativeConfiguration.provider_ref,
+        model_ref: productionNativeConfiguration.model_ref,
+        route_ref: productionNativeConfiguration.route_ref,
+        host_ref: productionNativeConfiguration.host_ref,
+        configuration_fingerprint:
+          productionNativeConfiguration.configuration_fingerprint,
+      })}\n`);
+      return;
+    }
     const fakeAppServerPath = path.join(
       process.cwd(),
       "scripts",
@@ -207,6 +250,11 @@ async function main(): Promise<void> {
     assert.equal(plan.holdout_source_materialized, false);
     assert.equal(plan.holdout_execution_authorized, false);
     assert.equal(plan.holdout_candidate_freeze_authorized, false);
+    assertFutureLiveProductionNativeConfigurationGateV01({
+      plan,
+      environment: TEST_CODEX_ENVIRONMENT_BINDING,
+      productionConfiguration: productionNativeConfiguration,
+    });
     const nativeConfiguration = buildTestNativeConfigurationV01();
     const authorization = buildCommissionedLiveTrainingAuthorizationV01({
       authorization_id: "cw1-l1-test-authorization-01",
@@ -1126,7 +1174,7 @@ function runCliContractV01(input: {
       per_episode_timeout_ms: 10_000,
       total_cohort_timeout_ms: 180_000,
     }),
-    /live_training_future_execution_binding_invalid/u,
+    /live_training_production_native_executable_class_invalid/u,
   );
   const {
     attempt_start_version: _attemptStartVersion,
@@ -3396,6 +3444,297 @@ function spawnConsumptionWorkerV01(
     child.once("error", reject);
     child.once("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
+}
+
+function assertProductionNativeConfigurationOwnershipV01(
+  root: string,
+): CommissionedLiveTrainingExactNativeExecutionConfigurationV01 {
+  const executablePath = path.join(root, "production-native-selection-cli.bin");
+  writeFileSync(executablePath, Buffer.from("production-native-selection-proof\n"), {
+    mode: 0o700,
+  });
+  const cliIdentity = observeCommissionedLiveTrainingExecutableIdentityV01({
+    executable_path: executablePath,
+    executable_kind: "codex_app_server_cli",
+  });
+  const runtimeIdentity = observeCommissionedLiveTrainingExecutableIdentityV01({
+    executable_path: process.execPath,
+    executable_kind: "node_runtime",
+  });
+  const modelA = "preauth-test-model-selection-a";
+  const modelB = "preauth-test-model-selection-b";
+  const configurationA =
+    buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01({
+      model_id: modelA,
+      reasoning_effort: "medium",
+      cli_executable_identity: cliIdentity,
+      runtime_executable_identity: runtimeIdentity,
+    });
+  const configurationARepeat =
+    buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01({
+      model_id: modelA,
+      reasoning_effort: "medium",
+      cli_executable_identity: cliIdentity,
+      runtime_executable_identity: runtimeIdentity,
+    });
+  const configurationB =
+    buildCommissionedLiveTrainingProductionNativeExecutionConfigurationV01({
+      model_id: modelB,
+      reasoning_effort: "medium",
+      cli_executable_identity: cliIdentity,
+      runtime_executable_identity: runtimeIdentity,
+    });
+
+  assert.deepEqual(configurationA, configurationARepeat);
+  assert.doesNotThrow(() =>
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      configurationA,
+    ),
+  );
+  assert.equal(
+    configurationA.provider_id,
+    COMMISSIONED_LIVE_TRAINING_PRODUCTION_PROVIDER_ID_V01,
+  );
+  assert.deepEqual(
+    configurationA.provider_ref,
+    commissionedLiveTrainingProductionProviderSelectionRefV01(),
+  );
+  assert.deepEqual(
+    configurationA.model_ref,
+    commissionedLiveTrainingProductionModelSelectionRefV01(modelA),
+  );
+  assert.notDeepEqual(configurationA.model_ref, configurationB.model_ref);
+  assert.equal(
+    configurationA.route_id,
+    COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
+  );
+  assert.deepEqual(
+    configurationA.route_ref,
+    commissionedLiveTrainingProductionRouteSelectionRefV01(),
+  );
+  assert.deepEqual(
+    configurationA.host_ref,
+    commissionedLiveTrainingProductionNativeHostSelectionRefV01(),
+  );
+  assert.deepEqual(
+    configurationA.adapter_ref,
+    commissionedLiveTrainingDefaultAdapterRefV01(),
+  );
+  assert.deepEqual(
+    configurationA.capability_ref,
+    commissionedLiveTrainingDefaultCapabilityRefV01(),
+  );
+  assert.deepEqual(configurationA.cli_ref, cliIdentity.executable_ref);
+  assert.deepEqual(configurationA.runtime_ref, runtimeIdentity.executable_ref);
+
+  const routeSelectionMaterial = {
+    selection_version:
+      "commissioned_live_training_production_route_selection.v0.1",
+    selection_semantics:
+      "expected_effective_provider_route_selection_not_observation",
+    route_id: COMMISSIONED_LIVE_TRAINING_PRODUCTION_ROUTE_ID_V01,
+    isolated_auth_semantic_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    isolated_auth_semantic_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    effective_provider_route_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01
+        .effective_provider_rule_fingerprint,
+  };
+  assert.equal(
+    configurationA.route_ref.record_fingerprint,
+    createProtocolSha256V01(
+      canonicalizeProtocolValueV01(routeSelectionMaterial),
+    ),
+  );
+
+  const assertReconstructionRefused = (
+    candidate: CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+    expected = /live_training_production_native_configuration_reconstruction_invalid/u,
+  ): void => {
+    assert.throws(
+      () =>
+        assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+          candidate,
+        ),
+      expected,
+    );
+  };
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      route_id: "substituted-human-readable-route",
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      route_ref: testRecordRefV01("test-fake-route-selection"),
+    }),
+  );
+  const substitutedEffectiveRouteFingerprint = substituteFingerprintV01(
+    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01
+      .effective_provider_rule_fingerprint,
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      route_ref: createCommissionedWorkRecordRefV01({
+        record_version: configurationA.route_ref.record_version,
+        record_id: configurationA.route_ref.record_id,
+        record_fingerprint: createProtocolSha256V01(
+          canonicalizeProtocolValueV01({
+            ...routeSelectionMaterial,
+            effective_provider_route_fingerprint:
+              substitutedEffectiveRouteFingerprint,
+          }),
+        ),
+      }),
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      model_id: modelB,
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      model_ref: configurationB.model_ref,
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      provider_id: "not-openai",
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      provider_ref: {
+        ...configurationA.provider_ref,
+        record_fingerprint: substituteFingerprintV01(
+          configurationA.provider_ref.record_fingerprint,
+        ),
+      },
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      host_ref: testRecordRefV01("test-fake-native-host-selection"),
+    }),
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      adapter_ref: testRecordRefV01("substituted-production-adapter"),
+    }),
+    /live_training_native_execution_owner_binding_invalid/u,
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      capability_ref: testRecordRefV01("substituted-production-capability"),
+    }),
+    /live_training_native_execution_owner_binding_invalid/u,
+  );
+  assertReconstructionRefused(
+    rebuildNativeConfigurationV01(configurationA, {
+      expected_cli_version: "0.150.1-substituted",
+    }),
+  );
+  return configurationA;
+}
+
+function assertFutureLiveProductionNativeConfigurationGateV01(input: {
+  plan: CommissionedLiveTrainingCohortPlanV01;
+  environment: CommissionedLiveTrainingCodexEnvironmentBindingV01;
+  productionConfiguration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
+}): void {
+  const fakeRouteConfiguration = rebuildNativeConfigurationV01(
+    input.productionConfiguration,
+    { route_ref: testRecordRefV01("test-fake-future-live-route-ref") },
+  );
+  assert.throws(
+    () =>
+      buildCommissionedLiveTrainingAuthorizationV01({
+        authorization_id: "cw1-l1-production-native-gate-negative",
+        authorization_kind: "future_live_execution",
+        issued_at: "2026-08-28T06:00:00.000Z",
+        expires_at: "2026-08-28T18:00:00.000Z",
+        current_main_sha: FOUNDATION_SHA,
+        current_main_tree: FOUNDATION_TREE,
+        checkout_root_fingerprint: CHECKOUT_ROOT_FINGERPRINT,
+        plan: input.plan,
+        native_execution_configuration: fakeRouteConfiguration,
+        codex_environment_binding: input.environment,
+        authorization_nonce: "cw1l1_production_native_gate_nonce_000001",
+        artifact_relative_root: `${COMMISSIONED_LIVE_TRAINING_ARTIFACT_NAMESPACE_V01}/${input.plan.cohort_id}`,
+        replacement_invocation_limit: 3,
+        native_host_invocation_limit: 18,
+        provider_bearing_native_host_invocation_limit: 18,
+        model_bearing_native_host_invocation_limit: 18,
+        provider_call_ceiling: {
+          observability: "observed",
+          limit: 18,
+          source_ref: TEST_RESOURCE_SOURCE_REF,
+        },
+        model_call_ceiling: {
+          observability: "observed",
+          limit: 18,
+          source_ref: TEST_RESOURCE_SOURCE_REF,
+        },
+        usage_unit_ceiling: {
+          observability: "unknown",
+          limit: null,
+          source_ref: null,
+        },
+        cost_microunit_ceiling: {
+          observability: "unknown",
+          limit: null,
+          source_ref: null,
+        },
+        per_episode_timeout_ms: 900_000,
+        total_cohort_timeout_ms: 21_600_000,
+      }),
+    /live_training_production_native_configuration_reconstruction_invalid/u,
+  );
+}
+
+function rebuildNativeConfigurationV01(
+  configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
+  overrides: Partial<{
+    provider_id: string;
+    model_id: string;
+    route_id: string;
+    reasoning_effort: CommissionedLiveTrainingExactNativeExecutionConfigurationV01["reasoning_effort"];
+    expected_cli_version: string;
+    adapter_ref: CommissionedWorkRecordRefV01;
+    capability_ref: CommissionedWorkRecordRefV01;
+    host_ref: CommissionedWorkRecordRefV01;
+    cli_ref: CommissionedWorkRecordRefV01;
+    runtime_ref: CommissionedWorkRecordRefV01;
+    provider_ref: CommissionedWorkRecordRefV01;
+    model_ref: CommissionedWorkRecordRefV01;
+    route_ref: CommissionedWorkRecordRefV01;
+  }>,
+): CommissionedLiveTrainingExactNativeExecutionConfigurationV01 {
+  return buildCommissionedLiveTrainingExactNativeExecutionConfigurationV01({
+    provider_id: overrides.provider_id ?? configuration.provider_id,
+    model_id: overrides.model_id ?? configuration.model_id,
+    route_id: overrides.route_id ?? configuration.route_id,
+    reasoning_effort:
+      overrides.reasoning_effort ?? configuration.reasoning_effort,
+    expected_cli_version:
+      overrides.expected_cli_version ?? configuration.expected_cli_version,
+    adapter_ref: overrides.adapter_ref ?? configuration.adapter_ref,
+    capability_ref: overrides.capability_ref ?? configuration.capability_ref,
+    host_ref: overrides.host_ref ?? configuration.host_ref,
+    cli_ref: overrides.cli_ref ?? configuration.cli_ref,
+    runtime_ref: overrides.runtime_ref ?? configuration.runtime_ref,
+    provider_ref: overrides.provider_ref ?? configuration.provider_ref,
+    model_ref: overrides.model_ref ?? configuration.model_ref,
+    route_ref: overrides.route_ref ?? configuration.route_ref,
+    cli_executable_identity: configuration.cli_executable_identity,
+    runtime_executable_identity: configuration.runtime_executable_identity,
+  });
+}
+
+function substituteFingerprintV01(fingerprint: string): string {
+  return `${fingerprint.slice(0, -1)}${fingerprint.endsWith("0") ? "1" : "0"}`;
 }
 
 function assertExecutableFingerprintDomainV01(root: string): void {

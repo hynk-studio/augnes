@@ -160,11 +160,15 @@ export interface CommissionedLiveTrainingExactNativeExecutionConfigurationV01 {
   expected_cli_version: string;
   adapter_ref: CommissionedWorkRecordRefV01;
   capability_ref: CommissionedWorkRecordRefV01;
+  /** Source-profile host selection; never a live host-process observation. */
   host_ref: CommissionedWorkRecordRefV01;
   cli_ref: CommissionedWorkRecordRefV01;
   runtime_ref: CommissionedWorkRecordRefV01;
+  /** Expected provider selection; never provider availability or execution. */
   provider_ref: CommissionedWorkRecordRefV01;
+  /** Exact operator-selected model; never observed model availability. */
   model_ref: CommissionedWorkRecordRefV01;
+  /** Source-owned effective provider-route selection, not a free-form label. */
   route_ref: CommissionedWorkRecordRefV01;
   cli_executable_identity: CommissionedLiveTrainingExecutableIdentityV01;
   runtime_executable_identity: CommissionedLiveTrainingExecutableIdentityV01;

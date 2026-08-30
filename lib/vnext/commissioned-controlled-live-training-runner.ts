@@ -16,6 +16,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   assertCommissionedLiveTrainingExecutableIdentityV01,
   buildCommissionedLiveTrainingAnalysisJoinV01,
   buildCommissionedLiveTrainingApprovalObservationV01,
@@ -324,6 +325,11 @@ export async function executeCommissionedLiveTrainingCohortV01(
     "test_conformance",
     "future_live_control_flow_conformance",
   ].includes(input.authorization.authorization_kind);
+  if (!conformance) {
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      input.native_execution_configuration,
+    );
+  }
   const executionStartedAt = conformance
     ? input.execution_started_at
     : new Date().toISOString();

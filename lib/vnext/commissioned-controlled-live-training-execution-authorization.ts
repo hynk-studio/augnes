@@ -1,4 +1,5 @@
 import {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01,
   assertSafeCommissionedLiveTrainingOutputV01,
   commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
@@ -89,6 +90,9 @@ export function createCommissionedLiveTrainingExternalExecutionAuthorizationV01(
   codex_environment_binding: CommissionedLiveTrainingCodexEnvironmentBindingV01;
   expires_at: string;
 }): CommissionedLiveTrainingExternalExecutionAuthorizationV01 {
+  assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+    input.native_execution_configuration,
+  );
   const source = assertAllocationV01(input);
   assertValidCommissionedLiveTrainingCodexEnvironmentBindingV01(
     input.codex_environment_binding,
@@ -429,6 +433,11 @@ function consumeRegisteredAuthorizationV01(
   );
   const { integrity, ...material } = exact;
   const productionSource = source.source_class === "production";
+  if (productionSource) {
+    assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
+      nativeConfiguration,
+    );
+  }
   if (
     source.consumed ||
     (productionSource &&
