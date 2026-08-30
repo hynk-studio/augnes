@@ -16,7 +16,6 @@ import net from "node:net";
 import path from "node:path";
 import readline from "node:readline";
 import tls from "node:tls";
-import { pathToFileURL } from "node:url";
 
 import { waitForBoundedFileSignal } from "../bounded-file-signal.mjs";
 
@@ -343,11 +342,11 @@ async function handle(message) {
               : null,
           project_doc_max_bytes: isolatedAuthScenario ? 0 : 32_768,
           project_doc_fallback_filenames: isolatedAuthScenario ? [] : null,
-          sqlite_home: isolatedAuthScenario
-            ? scenario === "isolated_auth_sqlite_home_drift"
-              ? "file:///foreign-sqlite-home"
-              : pathToFileURL(process.env.CODEX_SQLITE_HOME).href
-            : null,
+          sqlite_home:
+            isolatedAuthScenario &&
+            scenario === "isolated_auth_sqlite_home_drift"
+              ? "/codex-isolated-fixture/foreign-sqlite-home"
+              : null,
           allow_login_shell: isolatedAuthScenario ? false : true,
           shell_environment_policy: isolatedAuthScenario
             ? { inherit: "core", ignore_default_excludes: false }
@@ -360,7 +359,9 @@ async function handle(message) {
                 ? {}
                 : null,
           skills: isolatedAuthScenario ? {} : null,
-          apps: isolatedAuthScenario ? {} : null,
+          apps: isolatedAuthScenario
+            ? isolatedAuthInactiveAppsProjectionV01(scenario)
+            : null,
           orchestrator: isolatedAuthScenario
             ? {
                 skills: { enabled: false },
@@ -381,6 +382,15 @@ async function handle(message) {
           origin_count: Object.keys(response.origins).length,
           session_flags_layer_count: response.layers.filter(
             (layer) => layer?.name?.type === "sessionFlags",
+          ).length,
+          sqlite_home_is_null: response.config.sqlite_home === null,
+          sqlite_home_origin_present: Object.hasOwn(
+            response.origins,
+            "sqlite_home",
+          ),
+          apps_top_level_keys: Object.keys(response.config.apps).sort(),
+          apps_per_app_count: Object.keys(response.config.apps).filter(
+            (key) => key !== "_default",
           ).length,
         });
       }
@@ -954,6 +964,12 @@ function isolatedAuthConfigReadProvenanceV01(activeScenario) {
     case "isolated_auth_provenance_expected_origin_missing":
       delete origins.forced_login_method;
       break;
+    case "isolated_auth_sqlite_home_origin_drift":
+      origins.sqlite_home = {
+        name: { type: "sessionFlags" },
+        version: sessionLayer.version,
+      };
+      break;
     case "isolated_auth_provenance_origin_user":
       origins.forced_login_method = {
         name: {
@@ -1145,6 +1161,21 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     delete features.auth_elicitation;
   }
   return features;
+}
+
+function isolatedAuthInactiveAppsProjectionV01(activeScenario) {
+  switch (activeScenario) {
+    case "isolated_auth_apps_per_app_drift":
+      return { _default: null, fixture_app: { enabled: false } };
+    case "isolated_auth_apps_default_malformed":
+      return { _default: "malformed" };
+    case "isolated_auth_apps_default_active":
+      return { _default: { enabled: true } };
+    case "isolated_auth_apps_unknown_key":
+      return { _default: null, _unknown: null };
+    default:
+      return { _default: null };
+  }
 }
 
 function isSequentialApprovalScenario() {
