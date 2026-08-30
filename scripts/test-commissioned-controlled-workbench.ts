@@ -78,9 +78,9 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
-  createCommissionedControlledWorkFamilySourceV01,
-  createCommissionedControlledWorkSyntheticFixtureOutputsV01,
-} from "@/fixtures/vnext/research/commissioned-controlled-workbench-v0-1";
+  createCommissionedControlledWorkCanonicalConformanceFamilySourceV01,
+  createCommissionedControlledWorkCanonicalConformanceSyntheticFixtureOutputsV01,
+} from "@/fixtures/vnext/research/commissioned-controlled-workbench-canonical-conformance-v0-1";
 import {
   COMMISSIONED_WORK_CANDIDATE_COMPONENT_IDS_V01,
   COMMISSIONED_WORK_COMMISSIONED_AGENT_CONFORMANCE_EVIDENCE_CLASS_V01,
@@ -483,13 +483,14 @@ void main().catch((error: unknown) => {
 async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>> {
   const roots = createDisposableRootsV01(root);
   assertHermeticGitEnvironmentV01(roots);
-  const familySource = createCommissionedControlledWorkFamilySourceV01();
+  const familySource =
+    createCommissionedControlledWorkCanonicalConformanceFamilySourceV01();
   const manifestBuiltWithoutSyntheticOutputs =
     buildCommissionedWorkFamilyManifestV01(familySource);
   const familyCommitmentFingerprintBuiltWithoutSyntheticOutputs =
     manifestBuiltWithoutSyntheticOutputs.integrity.fingerprint;
   const syntheticFixtureOutputs =
-    createCommissionedControlledWorkSyntheticFixtureOutputsV01();
+    createCommissionedControlledWorkCanonicalConformanceSyntheticFixtureOutputsV01();
   assert.equal(syntheticFixtureOutputs.length, 20);
   assert.equal(
     syntheticFixtureOutputs.every(
@@ -555,7 +556,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   const candidate = buildCommissionedWorkConsolidationCandidateV01({
     manifest,
     training,
-    candidate_id: "cw1-candidate-training-three-01",
+    candidate_id: "cw1-canonical-conformance-candidate-01",
     frozen_at: "2026-08-27T03:00:00.000Z",
   });
   const candidateReplay = buildCommissionedWorkConsolidationCandidateV01({
@@ -594,7 +595,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   const holdout = buildCommissionedWorkHoldoutEvaluationV01({
     manifest,
     candidate,
-    holdout_id: "cw1-holdout-quartz-01",
+    holdout_id: "cw1-canonical-conformance-holdout-evaluation-01",
     holdout_materialized_at: "2026-08-27T04:00:00.000Z",
     holdout_started_at: "2026-08-27T04:05:00.000Z",
     predecessor_episode: holdoutRun.predecessor,
@@ -674,7 +675,7 @@ async function runGoldenFamilyV01(root: string): Promise<Record<string, unknown>
   assert.equal(holdoutCandidate.execution_binding.candidate_components_delivered, 3);
   assert.equal(holdoutAblation.execution_binding.candidate_components_delivered, 2);
   const report = buildCommissionedWorkFinalReportV01({
-    report_id: "cw1-report-four-case-01",
+    report_id: "cw1-canonical-conformance-report-01",
     family: manifest,
     training,
     consolidation_candidate: candidate,
@@ -1707,7 +1708,7 @@ function assertTrainingContrastsV01(report: CommissionedWorkFinalReportV01): voi
 
 async function runNegativeContractCasesV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
-  familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
+  familySource: ReturnType<typeof createCommissionedControlledWorkCanonicalConformanceFamilySourceV01>;
   syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   report: CommissionedWorkFinalReportV01;
@@ -2338,7 +2339,7 @@ async function runNegativeContractCasesV01(input: {
 
 async function assertSyntheticOutputSeparationV01(input: {
   roots: ReturnType<typeof createDisposableRootsV01>;
-  familySource: ReturnType<typeof createCommissionedControlledWorkFamilySourceV01>;
+  familySource: ReturnType<typeof createCommissionedControlledWorkCanonicalConformanceFamilySourceV01>;
   syntheticFixtureOutputs: CommissionedWorkSyntheticFixtureOutputV01[];
   manifest: ReturnType<typeof buildCommissionedWorkFamilyManifestV01>;
   bundle: EpisodeBundle;
