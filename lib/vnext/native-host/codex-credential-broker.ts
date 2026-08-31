@@ -33,6 +33,8 @@ import {
   CODEX_ISOLATED_AUTH_AVAILABILITY_VERSION_V01,
   CODEX_AGENT_IDENTITY_AUDIENCE_V01,
   CODEX_AGENT_IDENTITY_ISSUER_V01,
+  CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  CODEX_AUTH_KEYRING_SERVICE_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
   CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_ROUTE_V01,
@@ -220,8 +222,38 @@ interface PrivateAuthenticatedChildBindingStateV01 {
   repository_root_fingerprint: string;
   launch_shape_fingerprint: string;
   state_root_fingerprint: string;
+  private_auth_snapshot: ExactPrivateAuthSnapshotIdentityV01 | null;
   consumed: boolean;
   transferred: boolean;
+}
+
+interface ExactPrivateAuthSnapshotIdentityV01 {
+  path: string;
+  parent_path: string;
+  device: bigint;
+  inode: bigint;
+}
+
+interface AgentIdentityRecordV01 extends Record<string, unknown> {
+  agent_runtime_id: string;
+  agent_private_key: string;
+  account_id: string;
+  chatgpt_user_id: string;
+  email?: string;
+  plan_type: string;
+  chatgpt_account_is_fedramp: boolean;
+  task_id?: string;
+}
+
+interface ResolvedCodexAuthStorageV01 {
+  source_material: string;
+  source_auth_mode: "agentIdentity" | "chatgpt";
+  agent_identity_storage_kind: "jwt" | "record";
+  managed_chatgpt_binding_verified: boolean;
+  agent_identity_task_registration_state: "present" | "required";
+  identity: AgentIdentityClaimsV01 | AgentIdentityRecordV01;
+  jwt_claims: AgentIdentityClaimsV01 | null;
+  launch_auth_dot_json: string;
 }
 
 export type CodexAuthenticatedChildBindingFaultForTestV01 =
@@ -466,6 +498,15 @@ export async function consumeCodexIsolatedAuthenticatedChildBindingV01<T>(input:
       child: state.source_child,
       child_identity_fingerprint: state.child_identity_fingerprint,
       projection_fingerprint: state.projection_fingerprint,
+      settle_private_auth_material: () => {
+        const snapshot = state.private_auth_snapshot;
+        if (!snapshot)
+          throw new CodexCredentialBrokerErrorV01(
+            "codex_auth_broker_private_auth_snapshot_unavailable",
+          );
+        settlePrivateAuthSnapshotV01(snapshot);
+        state.private_auth_snapshot = null;
+      },
     });
     state.transferred = true;
     return result;
@@ -571,13 +612,14 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
   async provisionCredentialAttestationV01(
     input: ProvisionCodexCredentialAttestationInputV01,
   ): Promise<CodexIsolatedAuthCredentialAttestationV01> {
-    return await this.#withResolvedMaterialV01(null, async (material) =>
-      createCredentialAttestationFromMaterialV01({
+    return await this.#withResolvedMaterialV01(null, async (resolved) => {
+      assertAgentIdentityReadyWithoutBootstrapV01(resolved);
+      return createCredentialAttestationFromStorageV01({
         binding: this.#binding,
         input,
-        material,
-      }),
-    );
+        resolved,
+      });
+    });
   }
 
   async availabilityV01(input: {
@@ -586,9 +628,13 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
   }): Promise<CodexIsolatedAuthAvailabilityV01> {
     let state: CodexIsolatedAuthAvailabilityV01["state"] = "available_exact";
     try {
-      await this.#withResolvedMaterialV01(null, async (material) => {
-        decodeCredentialClaimsV01(material, input.observed_at);
-      });
+      await this.#withResolvedMaterialV01(
+        null,
+        async (resolved) => {
+          assertAgentIdentityReadyWithoutBootstrapV01(resolved);
+        },
+        input.observed_at,
+      );
     } catch (error) {
       const code =
         error instanceof CodexCredentialBrokerErrorV01 ? error.code : "";
@@ -599,6 +645,11 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
             ? "handle_ambiguous"
             : code === "codex_auth_broker_locator_mismatch"
               ? "locator_mismatch"
+              : code ===
+                  "codex_auth_broker_agent_identity_task_registration_required"
+                ? "agent_identity_task_registration_required"
+              : code === "codex_auth_broker_agent_identity_bootstrap_required"
+                ? "agent_identity_bootstrap_required"
               : code === "codex_auth_broker_material_invalid"
                 ? "credential_shape_invalid"
                 : code === "codex_auth_broker_account_identity_missing"
@@ -638,21 +689,26 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
     this.#poisoned = true;
     let child: ChildProcessWithoutNullStreams | null = null;
     let rollbackOwnership: BrokerOwnedProcessTreeIdentityV01 | null = null;
+    let privateAuthSnapshot: ExactPrivateAuthSnapshotIdentityV01 | null = null;
     let leaseSettled = false;
     let leaseReleaseAttempted = false;
     let primaryError: unknown = null;
     try {
       assertLeaseIdentityV01(lease);
       const material = await this.#resolveMaterial();
-      const claims = decodeCredentialClaimsV01(material, input.credential_attestation.issued_at);
+      const resolved = resolveCodexAuthStorageV01(
+        material,
+        input.credential_attestation.issued_at,
+      );
+      assertAgentIdentityReadyWithoutBootstrapV01(resolved);
       const generation = fingerprintCredentialSourceGenerationV01({
         auth_handle_external_id: this.#binding.auth_handle_ref.external_id,
         broker_locator_fingerprint: this.#binding.broker_locator_fingerprint,
-        material,
+        material: resolved.source_material,
       });
       if (
         generation !== input.projection.auth_source_generation_fingerprint ||
-        accountIdentityFingerprintV01(claims) !==
+        accountIdentityFingerprintV01(resolved.identity) !==
           input.projection.account_identity_fingerprint ||
         input.credential_attestation.account_identity_fingerprint !==
           input.projection.account_identity_fingerprint
@@ -660,18 +716,21 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
         throw new CodexCredentialBrokerErrorV01(
           "codex_auth_broker_generation_mismatch",
         );
-      assertCredentialValidAtSpawnV01(
-        claims,
+      assertCredentialStorageValidAtSpawnV01(
+        resolved,
         input.credential_attestation,
         this.#nowEpochSeconds(),
       );
       assertLeaseIdentityV01(lease);
+      privateAuthSnapshot = writePrivateAuthSnapshotV01({
+        codex_home: input.state_identities.CODEX_HOME,
+        serialized_auth_dot_json: resolved.launch_auth_dot_json,
+      });
       const { test_controls: testControls, ...nonSecretEnvironment } =
         input.launch_environment;
       const environment: NodeJS.ProcessEnv = {
         ...nonSecretEnvironment,
         ...testControls,
-        CODEX_ACCESS_TOKEN: material,
       };
       try {
         child = spawn(input.command, input.args, {
@@ -687,7 +746,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
           "codex_auth_broker_child_spawn_failed",
         );
       } finally {
-        delete environment.CODEX_ACCESS_TOKEN;
+        Object.freeze(environment);
       }
       child.stdout.pause();
       child.stderr.pause();
@@ -715,6 +774,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
         input,
         child,
         rollbackOwnership,
+        privateAuthSnapshot,
       );
     } catch (error) {
       primaryError = error;
@@ -746,6 +806,10 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
         child.stdin.destroy();
         child.stdout.destroy();
         child.stderr.destroy();
+      }
+      if (privateAuthSnapshot) {
+        settlePrivateAuthSnapshotV01(privateAuthSnapshot);
+        privateAuthSnapshot = null;
       }
       if (!leaseSettled && !leaseReleaseAttempted) {
         let releaseAllowed = true;
@@ -793,7 +857,8 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
 
   async #withResolvedMaterialV01<T>(
     expectedGeneration: string | null,
-    useSafeInternal: (material: string) => Promise<T>,
+    useSafeInternal: (resolved: ResolvedCodexAuthStorageV01) => Promise<T>,
+    observedAt?: string,
   ): Promise<T> {
     this.#preflight();
     if (this.#poisoned)
@@ -810,15 +875,14 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
     try {
       assertLeaseRootIdentityV01(lease);
       const material = await this.#resolveMaterial();
-      if (!isBoundedAgentIdentityJwtV01(material)) {
-        throw new CodexCredentialBrokerErrorV01(
-          "codex_auth_broker_material_invalid",
-        );
-      }
+      const resolved = resolveCodexAuthStorageV01(
+        material,
+        observedAt ?? new Date().toISOString(),
+      );
       const generation = fingerprintCredentialSourceGenerationV01({
         auth_handle_external_id: this.#binding.auth_handle_ref.external_id,
         broker_locator_fingerprint: this.#binding.broker_locator_fingerprint,
-        material,
+        material: resolved.source_material,
       });
       if (expectedGeneration !== null && generation !== expectedGeneration) {
         throw new CodexCredentialBrokerErrorV01(
@@ -830,7 +894,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
       // launch effect so a removed or substituted lease cannot admit two
       // consumers of the same handle generation.
       assertLeaseIdentityV01(lease);
-      return await useSafeInternal(material);
+      return await useSafeInternal(resolved);
     } finally {
       this.#leaseHeld = false;
       try {
@@ -905,17 +969,15 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
 
 Object.freeze(ExclusiveCodexCredentialBrokerV01.prototype);
 
-export function createMacOsKeychainAgentIdentityBrokerV01(input: {
+export function createMacOsKeychainCodexAuthBrokerV01(input: {
   binding: CodexCredentialBrokerBindingV01;
-  service_name: string;
-  account_name: string;
+  source_codex_home: string;
   keychain_path: string;
 }): CodexCredentialBrokerV01 {
   const binding = deepFreezeV01(structuredClone(input.binding));
   const locatorFingerprint = fingerprintBrokerLocatorV01({
     backend: "macos_keychain_generic_password",
-    service_name: input.service_name,
-    account_name: input.account_name,
+    source_codex_home: input.source_codex_home,
     keychain_path: input.keychain_path,
   });
   if (locatorFingerprint !== binding.broker_locator_fingerprint) {
@@ -923,8 +985,9 @@ export function createMacOsKeychainAgentIdentityBrokerV01(input: {
       "codex_auth_broker_locator_mismatch",
     );
   }
-  const serviceName = requiredPrivateLocatorV01(input.service_name);
-  const accountName = requiredPrivateLocatorV01(input.account_name);
+  const sourceCodexHome = exactPrivateCodexHomeV01(input.source_codex_home);
+  const serviceName = CODEX_AUTH_KEYRING_SERVICE_V01;
+  const accountName = codexAuthKeyringAccountForHomeV01(sourceCodexHome);
   const keychainPath = requiredPrivateAbsolutePathV01(input.keychain_path);
   return sourceOwnedBrokerV01(
     new ExclusiveCodexCredentialBrokerV01(
@@ -1042,6 +1105,7 @@ function createAuthenticatedChildBindingV01(
   input: PrivateSpawnExactCodexAppServerInputV01,
   child: ChildProcessWithoutNullStreams,
   ownership: BrokerOwnedProcessTreeIdentityV01,
+  privateAuthSnapshot: ExactPrivateAuthSnapshotIdentityV01,
 ): CodexIsolatedAuthenticatedChildBindingV01 {
   const childPid = child.pid ?? null;
   const childBirthRecord = ownership.records.find(
@@ -1115,6 +1179,7 @@ function createAuthenticatedChildBindingV01(
     ),
     launch_shape_fingerprint: input.launch_shape_fingerprint,
     state_root_fingerprint: input.owner.state_root_fingerprint,
+    private_auth_snapshot: privateAuthSnapshot,
     consumed: false,
     transferred: false,
   };
@@ -1225,6 +1290,7 @@ function assertAuthenticatedChildBindingV01(
     state.state_root_fingerprint !== input.owner.state_root_fingerprint ||
     state.launch_shape_fingerprint !==
       input.owner.projection.app_server_launch_shape_fingerprint ||
+    state.private_auth_snapshot === null ||
     state.child_pid !== state.source_child.pid ||
     !currentOwnership.exact ||
     !currentBirth ||
@@ -1235,6 +1301,7 @@ function assertAuthenticatedChildBindingV01(
     throw new CodexCredentialBrokerErrorV01(
       "codex_auth_broker_authenticated_child_binding_refused",
     );
+  assertPrivateAuthSnapshotIdentityV01(state.private_auth_snapshot);
 }
 
 async function rollbackAuthenticatedChildBindingV01(
@@ -1255,6 +1322,10 @@ async function rollbackAuthenticatedChildBindingV01(
   state.source_child.stdin.destroy();
   state.source_child.stdout.destroy();
   state.source_child.stderr.destroy();
+  if (result.settled && state.private_auth_snapshot) {
+    settlePrivateAuthSnapshotV01(state.private_auth_snapshot);
+    state.private_auth_snapshot = null;
+  }
   return result;
 }
 
@@ -1586,21 +1657,21 @@ export function credentialBrokerBindingFingerprintV01(
   );
 }
 
-function createCredentialAttestationFromMaterialV01(input: {
+function createCredentialAttestationFromStorageV01(input: {
   binding: CodexCredentialBrokerBindingV01;
   input: ProvisionCodexCredentialAttestationInputV01;
-  material: string;
+  resolved: ResolvedCodexAuthStorageV01 & {
+    agent_identity_task_registration_state: "present";
+  };
 }): CodexIsolatedAuthCredentialAttestationV01 {
-  const claims = decodeCredentialClaimsV01(
-    input.material,
-    input.input.issued_at,
-  );
+  const identity = input.resolved.identity;
+  const claims = input.resolved.jwt_claims;
   const requestedExpiry = Date.parse(input.input.expires_at);
-  const credentialSafeExpiry =
-    (claims.exp - CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01) * 1000;
   if (
     !Number.isFinite(requestedExpiry) ||
-    requestedExpiry > credentialSafeExpiry
+    (claims !== null &&
+      requestedExpiry >
+        (claims.exp - CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01) * 1000)
   )
     throw new CodexCredentialBrokerErrorV01(
       "codex_auth_broker_projection_expiry_exceeds_credential",
@@ -1608,7 +1679,7 @@ function createCredentialAttestationFromMaterialV01(input: {
   const generationFingerprint = fingerprintCredentialSourceGenerationV01({
     auth_handle_external_id: input.binding.auth_handle_ref.external_id,
     broker_locator_fingerprint: input.binding.broker_locator_fingerprint,
-    material: input.material,
+    material: input.resolved.source_material,
   });
   const claimFingerprint = (domain: string, value: unknown): string =>
     createProtocolSha256V01(canonicalizeProtocolValueV01({ domain, value }));
@@ -1623,14 +1694,23 @@ function createCredentialAttestationFromMaterialV01(input: {
     auth_handle_ref: input.binding.auth_handle_ref,
     broker_locator_fingerprint: input.binding.broker_locator_fingerprint,
     auth_generation_fingerprint: generationFingerprint,
-    account_identity_fingerprint: accountIdentityFingerprintV01(claims),
+    auth_storage_contract_version:
+      CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+    source_auth_mode: input.resolved.source_auth_mode,
+    agent_identity_storage_kind:
+      input.resolved.agent_identity_storage_kind,
+    managed_chatgpt_binding_verified:
+      input.resolved.managed_chatgpt_binding_verified,
+    agent_identity_task_registration_state:
+      input.resolved.agent_identity_task_registration_state,
+    account_identity_fingerprint: accountIdentityFingerprintV01(identity),
     account_read_email_fingerprint: optionalPrivateClaimFingerprintV01(
       "codex-agent-identity-account-read-email-v01",
-      claims.email,
+      identity.email,
     ),
     agent_identity_runtime_fingerprint: claimFingerprint(
       "codex-agent-identity-runtime-v01",
-      claims.agent_runtime_id,
+      identity.agent_runtime_id,
     ),
     provider_environment_fingerprint: claimFingerprint(
       "codex-agent-identity-provider-environment-v01",
@@ -1642,30 +1722,33 @@ function createCredentialAttestationFromMaterialV01(input: {
     ),
     plan_projection_fingerprint: claimFingerprint(
       "codex-agent-identity-plan-v01",
-      claims.plan_type,
+      identity.plan_type,
     ),
     fedramp_projection_fingerprint: claimFingerprint(
       "codex-agent-identity-fedramp-v01",
-      claims.chatgpt_account_is_fedramp,
+      identity.chatgpt_account_is_fedramp,
     ),
-    issuer_projection_fingerprint: claimFingerprint(
-      "codex-agent-identity-issuer-v01",
-      claims.iss,
-    ),
-    audience_projection_fingerprint: claimFingerprint(
-      "codex-agent-identity-audience-v01",
-      claims.aud,
-    ),
-    validity_projection_fingerprint: claimFingerprint(
-      "codex-agent-identity-validity-v01",
-      { iat: claims.iat, exp: claims.exp },
-    ),
-    source_not_before_epoch_seconds: claims.iat,
-    source_expires_at_epoch_seconds: claims.exp,
+    issuer_projection_fingerprint:
+      claims === null
+        ? null
+        : claimFingerprint("codex-agent-identity-issuer-v01", claims.iss),
+    audience_projection_fingerprint:
+      claims === null
+        ? null
+        : claimFingerprint("codex-agent-identity-audience-v01", claims.aud),
+    validity_projection_fingerprint:
+      claims === null
+        ? null
+        : claimFingerprint("codex-agent-identity-validity-v01", {
+            iat: claims.iat,
+            exp: claims.exp,
+          }),
+    source_not_before_epoch_seconds: claims?.iat ?? null,
+    source_expires_at_epoch_seconds: claims?.exp ?? null,
     source_expiry_safety_margin_seconds:
-      CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01,
+      claims === null ? null : CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01,
     claims_authentication_status:
-      "credential_claims_unverified_before_codex_auth",
+      "stored_agent_identity_unverified_before_codex_auth",
     issued_at: input.input.issued_at,
     expires_at: input.input.expires_at,
   } as const;
@@ -1686,7 +1769,279 @@ interface AgentIdentityClaimsV01 extends Record<string, unknown> {
   chatgpt_account_is_fedramp: boolean;
 }
 
-function decodeCredentialClaimsV01(
+/**
+ * Parse the exact rust-v0.150.1 AuthDotJson storage envelope. Augnes never
+ * treats the Keychain value itself as an Agent Identity JWT. Managed ChatGPT
+ * auth may reuse only an official AgentIdentityAuthRecord whose account/user
+ * binding matches the token snapshot; absent that Record, the official
+ * AuthManager ChatGptAuth bootstrap remains the owner and Augnes reports the
+ * separate prerequisite instead of minting identity material.
+ */
+function resolveCodexAuthStorageV01(
+  material: string,
+  observedAt: string,
+): ResolvedCodexAuthStorageV01 {
+  try {
+    if (!boundedCodexAuthStorageMaterialV01(material)) throw new Error("invalid");
+    const parsed = JSON.parse(material) as unknown;
+    if (
+      !isPlainObjectV01(parsed) ||
+      !exactKeysAllowOptionalV01(
+        parsed,
+        [],
+        [
+          "auth_mode",
+          "OPENAI_API_KEY",
+          "tokens",
+          "last_refresh",
+          "agent_identity",
+          "personal_access_token",
+          "bedrock_api_key",
+          "bedrock_access_keys",
+        ],
+      )
+    )
+      throw new Error("invalid");
+    const authMode = resolvedCodexAuthModeV01(parsed);
+    if (authMode !== "agentIdentity" && authMode !== "chatgpt") {
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_material_invalid",
+      );
+    }
+    if (
+      (parsed.OPENAI_API_KEY !== undefined && parsed.OPENAI_API_KEY !== null) ||
+      (parsed.personal_access_token !== undefined &&
+        parsed.personal_access_token !== null) ||
+      (parsed.bedrock_api_key !== undefined && parsed.bedrock_api_key !== null) ||
+      (parsed.bedrock_access_keys !== undefined &&
+        parsed.bedrock_access_keys !== null)
+    )
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_material_invalid",
+      );
+
+    if (authMode === "chatgpt") {
+      const binding = managedChatGptBindingV01(parsed.tokens);
+      if (!isPlainObjectV01(parsed.agent_identity))
+        throw new CodexCredentialBrokerErrorV01(
+          "codex_auth_broker_agent_identity_bootstrap_required",
+        );
+      const record = agentIdentityRecordV01(parsed.agent_identity);
+      if (
+        record.account_id !== binding.account_id ||
+        record.chatgpt_user_id !== binding.chatgpt_user_id
+      )
+        throw new CodexCredentialBrokerErrorV01(
+          "codex_auth_broker_account_identity_missing",
+        );
+      return resolvedRecordStorageV01({
+        source_material: material,
+        source_auth_mode: "chatgpt",
+        record,
+        managed_chatgpt_binding_verified: true,
+      });
+    }
+
+    if (typeof parsed.agent_identity === "string") {
+      const claims = decodeAgentIdentityJwtClaimsV01(
+        parsed.agent_identity,
+        observedAt,
+      );
+      return {
+        source_material: material,
+        source_auth_mode: "agentIdentity",
+        agent_identity_storage_kind: "jwt",
+        managed_chatgpt_binding_verified: false,
+        agent_identity_task_registration_state: "required",
+        identity: claims,
+        jwt_claims: claims,
+        launch_auth_dot_json: minimalAgentIdentityAuthDotJsonV01(
+          parsed.agent_identity,
+        ),
+      };
+    }
+    if (isPlainObjectV01(parsed.agent_identity)) {
+      return resolvedRecordStorageV01({
+        source_material: material,
+        source_auth_mode: "agentIdentity",
+        record: agentIdentityRecordV01(parsed.agent_identity),
+        managed_chatgpt_binding_verified: false,
+      });
+    }
+    throw new Error("invalid");
+  } catch (error) {
+    if (error instanceof CodexCredentialBrokerErrorV01) throw error;
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_material_invalid",
+    );
+  }
+}
+
+function resolvedCodexAuthModeV01(
+  value: Record<string, unknown>,
+): string {
+  if (typeof value.auth_mode === "string") return value.auth_mode;
+  if (value.personal_access_token !== undefined && value.personal_access_token !== null)
+    return "personalAccessToken";
+  if (value.bedrock_api_key !== undefined && value.bedrock_api_key !== null)
+    return "bedrockApiKey";
+  if (value.bedrock_access_keys !== undefined && value.bedrock_access_keys !== null)
+    return "bedrockAccessKeys";
+  if (value.OPENAI_API_KEY !== undefined && value.OPENAI_API_KEY !== null)
+    return "apikey";
+  return "chatgpt";
+}
+
+function resolvedRecordStorageV01(input: {
+  source_material: string;
+  source_auth_mode: "agentIdentity" | "chatgpt";
+  record: AgentIdentityRecordV01;
+  managed_chatgpt_binding_verified: boolean;
+}): ResolvedCodexAuthStorageV01 {
+  const taskId = boundedPrivateClaimV01(input.record.task_id);
+  return {
+    source_material: input.source_material,
+    source_auth_mode: input.source_auth_mode,
+    agent_identity_storage_kind: "record",
+    managed_chatgpt_binding_verified:
+      input.managed_chatgpt_binding_verified,
+    agent_identity_task_registration_state:
+      taskId === null ? "required" : "present",
+    identity: input.record,
+    jwt_claims: null,
+    launch_auth_dot_json: minimalAgentIdentityAuthDotJsonV01(input.record),
+  };
+}
+
+function assertAgentIdentityReadyWithoutBootstrapV01(
+  resolved: ResolvedCodexAuthStorageV01,
+): asserts resolved is ResolvedCodexAuthStorageV01 & {
+  agent_identity_task_registration_state: "present";
+} {
+  if (resolved.agent_identity_task_registration_state !== "present")
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_agent_identity_task_registration_required",
+    );
+}
+
+function minimalAgentIdentityAuthDotJsonV01(
+  identity: string | AgentIdentityRecordV01,
+): string {
+  return JSON.stringify({
+    auth_mode: "agentIdentity",
+    OPENAI_API_KEY: null,
+    tokens: null,
+    last_refresh: null,
+    agent_identity: identity,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
+}
+
+function agentIdentityRecordV01(
+  value: Record<string, unknown>,
+): AgentIdentityRecordV01 {
+  if (
+    !exactKeysAllowOptionalV01(
+      value,
+      [
+        "agent_runtime_id",
+        "agent_private_key",
+        "account_id",
+        "chatgpt_user_id",
+        "plan_type",
+        "chatgpt_account_is_fedramp",
+      ],
+      ["email", "task_id"],
+    ) ||
+    !boundedClaimStringV01(value.agent_runtime_id, 1, 512) ||
+    !boundedAgentPrivateKeyV01(value.agent_private_key) ||
+    !boundedClaimStringV01(value.account_id, 1, 512) ||
+    !boundedClaimStringV01(value.chatgpt_user_id, 1, 512) ||
+    !boundedClaimStringV01(value.plan_type, 1, 128) ||
+    typeof value.chatgpt_account_is_fedramp !== "boolean" ||
+    (value.email !== undefined &&
+      value.email !== "" &&
+      !boundedClaimStringV01(value.email, 1, 320)) ||
+    (value.task_id !== undefined &&
+      value.task_id !== null &&
+      value.task_id !== "" &&
+      !boundedClaimStringV01(value.task_id, 1, 512))
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_material_invalid",
+    );
+  return {
+    agent_runtime_id: value.agent_runtime_id,
+    agent_private_key: value.agent_private_key,
+    account_id: value.account_id,
+    chatgpt_user_id: value.chatgpt_user_id,
+    ...(typeof value.email === "string" && value.email.length > 0
+      ? { email: value.email }
+      : {}),
+    plan_type: value.plan_type,
+    chatgpt_account_is_fedramp: value.chatgpt_account_is_fedramp,
+    ...(typeof value.task_id === "string" && value.task_id.length > 0
+      ? { task_id: value.task_id }
+      : {}),
+  };
+}
+
+function managedChatGptBindingV01(value: unknown): {
+  account_id: string;
+  chatgpt_user_id: string;
+} {
+  if (
+    !isPlainObjectV01(value) ||
+    !exactKeysAllowOptionalV01(
+      value,
+      ["id_token", "access_token", "refresh_token", "account_id"],
+      [],
+    ) ||
+    !boundedClaimStringV01(value.id_token, 16, 32_768) ||
+    !boundedClaimStringV01(value.access_token, 16, 32_768) ||
+    /^(?:sk-|at-)/u.test(value.access_token) ||
+    typeof value.refresh_token !== "string" ||
+    value.refresh_token.length > 32_768 ||
+    !basicJwtEnvelopeV01(value.id_token)
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_material_invalid",
+    );
+  try {
+    const payload = JSON.parse(
+      Buffer.from(value.id_token.split(".")[1]!, "base64url").toString("utf8"),
+    ) as unknown;
+    const auth = isPlainObjectV01(payload)
+      ? payload["https://api.openai.com/auth"]
+      : null;
+    if (!isPlainObjectV01(auth)) throw new Error("invalid");
+    const accountId =
+      boundedPrivateClaimV01(value.account_id) ??
+      boundedPrivateClaimV01(auth.chatgpt_account_id);
+    const userId =
+      boundedPrivateClaimV01(auth.chatgpt_user_id) ??
+      boundedPrivateClaimV01(auth.user_id);
+    if (!accountId || !userId) throw new Error("invalid");
+    return { account_id: accountId, chatgpt_user_id: userId };
+  } catch {
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_account_identity_missing",
+    );
+  }
+}
+
+function boundedCodexAuthStorageMaterialV01(value: string): boolean {
+  return (
+    typeof value === "string" &&
+    value.length >= 2 &&
+    Buffer.byteLength(value, "utf8") <= MAX_BROKER_OUTPUT_BYTES_V01 &&
+    !value.includes("\u0000")
+  );
+}
+
+function decodeAgentIdentityJwtClaimsV01(
   material: string,
   observedAt: string,
 ): AgentIdentityClaimsV01 {
@@ -2061,6 +2416,86 @@ function exactPrivateLaunchEnvironmentV01(input: {
   };
 }
 
+function writePrivateAuthSnapshotV01(input: {
+  codex_home: ExactLaunchDirectoryIdentityV01;
+  serialized_auth_dot_json: string;
+}): ExactPrivateAuthSnapshotIdentityV01 {
+  assertExactLaunchDirectoryIdentityV01(input.codex_home);
+  const snapshotPath = path.join(input.codex_home.path, "auth.json");
+  if (
+    existsSync(snapshotPath) ||
+    !boundedCodexAuthStorageMaterialV01(input.serialized_auth_dot_json)
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_private_auth_snapshot_refused",
+    );
+  const bytes = Buffer.from(input.serialized_auth_dot_json, "utf8");
+  let fd: number | null = null;
+  try {
+    fd = openSync(snapshotPath, "wx", 0o600);
+    writeFileSync(fd, bytes);
+    fsyncSync(fd);
+    const stat = fstatSync(fd, { bigint: true });
+    if (
+      !stat.isFile() ||
+      (stat.mode & BigInt(0o077)) !== BigInt(0)
+    )
+      throw new Error("invalid");
+    return {
+      path: snapshotPath,
+      parent_path: input.codex_home.path,
+      device: stat.dev,
+      inode: stat.ino,
+    };
+  } catch {
+    if (existsSync(snapshotPath)) unlinkSync(snapshotPath);
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_private_auth_snapshot_refused",
+    );
+  } finally {
+    bytes.fill(0);
+    if (fd !== null) closeSync(fd);
+  }
+}
+
+function settlePrivateAuthSnapshotV01(
+  snapshot: ExactPrivateAuthSnapshotIdentityV01,
+): void {
+  try {
+    assertPrivateAuthSnapshotIdentityV01(snapshot);
+    unlinkSync(snapshot.path);
+    if (existsSync(snapshot.path)) throw new Error("invalid");
+  } catch {
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_private_auth_snapshot_cleanup_failed",
+    );
+  }
+}
+
+function assertPrivateAuthSnapshotIdentityV01(
+  snapshot: ExactPrivateAuthSnapshotIdentityV01,
+): void {
+  if (
+    path.dirname(snapshot.path) !== snapshot.parent_path ||
+    path.basename(snapshot.path) !== "auth.json" ||
+    realpathSync(snapshot.parent_path) !== snapshot.parent_path
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_private_auth_snapshot_substituted",
+    );
+  const stat = lstatSync(snapshot.path, { bigint: true });
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.dev !== snapshot.device ||
+    stat.ino !== snapshot.inode ||
+    (stat.mode & BigInt(0o077)) !== BigInt(0)
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_private_auth_snapshot_substituted",
+    );
+}
+
 async function waitForChildSpawnV01(
   child: ChildProcessWithoutNullStreams,
 ): Promise<void> {
@@ -2107,21 +2542,32 @@ function integrityV01(value: unknown): {
 
 export function fingerprintBrokerLocatorV01(input: {
   backend: "macos_keychain_generic_password";
-  service_name: string;
-  account_name: string;
+  source_codex_home: string;
   keychain_path: string;
 }): string {
+  const sourceCodexHome = exactPrivateCodexHomeV01(input.source_codex_home);
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
-      version: "codex_auth_broker_locator.v0.1",
+      version: "codex_auth_broker_locator.v0.2",
       backend: input.backend,
-      service_name: requiredPrivateLocatorV01(input.service_name),
-      account_name: requiredPrivateLocatorV01(input.account_name),
+      service_name: CODEX_AUTH_KEYRING_SERVICE_V01,
+      account_name: codexAuthKeyringAccountForHomeV01(sourceCodexHome),
+      source_codex_home_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(sourceCodexHome),
+      ),
       keychain_path_fingerprint: createProtocolSha256V01(
         requiredPrivateAbsolutePathV01(input.keychain_path),
       ),
     }),
   );
+}
+
+export function codexAuthKeyringAccountForHomeV01(
+  sourceCodexHome: string,
+): string {
+  const canonical = exactPrivateCodexHomeV01(sourceCodexHome);
+  const digest = createHash("sha256").update(canonical, "utf8").digest("hex");
+  return `cli|${digest.slice(0, 16)}`;
 }
 
 /**
@@ -2134,7 +2580,7 @@ function fingerprintCredentialSourceGenerationV01(input: {
   broker_locator_fingerprint: string;
   material: string;
 }): string {
-  if (!isBoundedAgentIdentityJwtV01(input.material)) {
+  if (!boundedCodexAuthStorageMaterialV01(input.material)) {
     throw new CodexCredentialBrokerErrorV01(
       "codex_auth_broker_material_invalid",
     );
@@ -2179,22 +2625,6 @@ function basicJwtEnvelopeV01(value: string): boolean {
   return true;
 }
 
-function isBoundedAgentIdentityJwtV01(value: string): boolean {
-  if (!basicJwtEnvelopeV01(value)) return false;
-  try {
-    const header = JSON.parse(
-      Buffer.from(value.split(".")[0]!, "base64url").toString("utf8"),
-    ) as unknown;
-    return (
-      isPlainObjectV01(header) &&
-      header.alg === "RS256" &&
-      boundedClaimStringV01(header.kid, 1, 256)
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Detect credential-shaped material even when a caller prefixes or suffixes
  * it inside an otherwise syntactically valid identifier or locator.
@@ -2214,11 +2644,37 @@ export function containsCodexCredentialSecretShapeV01(value: string): boolean {
   return candidate ? basicJwtEnvelopeV01(candidate) : false;
 }
 
-function assertCredentialValidAtSpawnV01(
-  claims: AgentIdentityClaimsV01,
+function assertCredentialStorageValidAtSpawnV01(
+  resolved: ResolvedCodexAuthStorageV01,
   attestation: CodexIsolatedAuthCredentialAttestationV01,
   now: number,
 ): void {
+  if (
+    attestation.auth_storage_contract_version !==
+      CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01 ||
+    attestation.source_auth_mode !== resolved.source_auth_mode ||
+    attestation.agent_identity_storage_kind !==
+      resolved.agent_identity_storage_kind ||
+    attestation.managed_chatgpt_binding_verified !==
+      resolved.managed_chatgpt_binding_verified ||
+    attestation.agent_identity_task_registration_state !==
+      resolved.agent_identity_task_registration_state
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_credential_validity_mismatch",
+    );
+  const claims = resolved.jwt_claims;
+  if (claims === null) {
+    if (
+      attestation.source_not_before_epoch_seconds !== null ||
+      attestation.source_expires_at_epoch_seconds !== null ||
+      attestation.source_expiry_safety_margin_seconds !== null
+    )
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_credential_validity_mismatch",
+      );
+    return;
+  }
   if (
     claims.iat !== attestation.source_not_before_epoch_seconds ||
     claims.exp !== attestation.source_expires_at_epoch_seconds ||
@@ -2501,19 +2957,33 @@ function exactPrivateDirectoryV01(value: string): string {
   }
 }
 
-function requiredPrivateLocatorV01(value: string): string {
-  if (
-    typeof value !== "string" ||
-    value.length < 1 ||
-    value.length > 256 ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/u.test(value) ||
-    containsSensitiveLocatorShapeV01(value)
-  ) {
+function exactPrivateCodexHomeV01(value: string): string {
+  try {
+    if (
+      typeof value !== "string" ||
+      !path.isAbsolute(value) ||
+      path.normalize(value) !== value ||
+      value.length > 4096 ||
+      /[\u0000\r\n]/u.test(value) ||
+      containsSensitiveLocatorShapeV01(value)
+    )
+      throw new Error("invalid");
+    const supplied = lstatSync(value);
+    if (supplied.isSymbolicLink()) throw new Error("invalid");
+    const resolved = realpathSync(value);
+    const stat = lstatSync(resolved);
+    if (
+      !stat.isDirectory() ||
+      stat.isSymbolicLink() ||
+      (typeof process.getuid === "function" && stat.uid !== process.getuid())
+    )
+      throw new Error("invalid");
+    return resolved;
+  } catch {
     throw new CodexCredentialBrokerErrorV01(
-      "codex_auth_broker_locator_invalid",
+      "codex_auth_broker_source_codex_home_invalid",
     );
   }
-  return value;
 }
 
 function containsSensitiveLocatorShapeV01(value: string): boolean {

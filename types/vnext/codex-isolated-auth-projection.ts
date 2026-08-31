@@ -15,7 +15,7 @@ export const CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01 =
 export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
   "codex_credential_broker.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
-  "macos_keychain_agent_identity_handle" as const;
+  "macos_keychain_codex_auth_storage" as const;
 export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
   "codex_isolated_auth_semantic_profile.rust-v0.150.1" as const;
 export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.150.1" as const;
@@ -30,6 +30,9 @@ export const CODEX_APP_SERVER_CLIENT_VERSION_V01 =
   "codex_app_server_adapter.v0.1" as const;
 export const CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01 =
   "codex_agent_identity_jwt_claims.rust-v0.150.1" as const;
+export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01 =
+  "codex_auth_dot_json_storage.rust-v0.150.1" as const;
+export const CODEX_AUTH_KEYRING_SERVICE_V01 = "Codex Auth" as const;
 export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
   "codex_isolated_auth_credential_free_preflight.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
@@ -46,7 +49,7 @@ export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
   "-c",
   'forced_login_method="chatgpt"',
   "-c",
-  'cli_auth_credentials_store="ephemeral"',
+  'cli_auth_credentials_store="file"',
   "-c",
   'model_provider="openai"',
   "-c",
@@ -61,6 +64,8 @@ export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
   "apps={}",
   "-c",
   "features.auth_elicitation=false",
+  "-c",
+  "features.use_agent_identity=true",
   "-c",
   "features.apps=false",
   "-c",
@@ -134,6 +139,8 @@ export interface CodexIsolatedAuthSemanticProfileV01 {
   pinned_production_executable_fingerprint: typeof CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
   agent_identity_claim_contract_version: typeof CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01;
   agent_identity_claim_contract_fingerprint: string;
+  auth_storage_contract_version: typeof CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01;
+  auth_storage_contract_fingerprint: string;
   effective_provider_rule_fingerprint: string;
   config_tool_feature_schema_fingerprint: string;
   app_server_method_profile_fingerprint: string;
@@ -144,14 +151,17 @@ export interface CodexIsolatedAuthSemanticProfileV01 {
 }
 
 export interface CodexIsolatedAuthStatePolicyV01 {
-  strategy_version: "codex_isolated_state_home.v0.1";
+  strategy_version: "codex_isolated_state_home.v0.2";
   per_attempt_private_root: true;
   home_isolated: true;
   codex_home_isolated: true;
   codex_sqlite_home_isolated: true;
   tmp_isolated: true;
   shared_state_fallback_forbidden: true;
-  auth_file_copy_forbidden: true;
+  source_auth_file_copy_forbidden: true;
+  broker_owned_minimal_auth_snapshot: "attempt_private_official_auth_dot_json";
+  broker_owned_auth_snapshot_mode_0600: true;
+  broker_owned_auth_snapshot_removed_before_observation: true;
   auth_file_symlink_forbidden: true;
   ordinary_config_copy_forbidden: true;
   ordinary_history_copy_forbidden: true;
@@ -164,7 +174,8 @@ export interface CodexIsolatedAuthStatePolicyV01 {
 export interface CodexIsolatedAuthConfigPolicyV01 {
   policy_version: "codex_isolated_tool_policy.v0.1";
   forced_login_method: "chatgpt";
-  auth_store_mode: "ephemeral";
+  auth_store_mode: "file";
+  use_agent_identity_feature_enabled: true;
   model_provider: "openai";
   provider_route_fingerprint: string;
   provider_projection_version: "codex_agent_identity_effective_provider.v0.1";
@@ -217,6 +228,8 @@ export interface CodexIsolatedAuthConfigPolicyV01 {
 
 export type CodexIsolatedAuthAvailabilityStateV01 =
   | "available_exact"
+  | "agent_identity_task_registration_required"
+  | "agent_identity_bootstrap_required"
   | "handle_missing"
   | "handle_ambiguous"
   | "locator_mismatch"
@@ -304,19 +317,24 @@ export interface CodexIsolatedAuthCredentialAttestationV01 {
   auth_handle_ref: ExternalRefV01;
   broker_locator_fingerprint: string;
   auth_generation_fingerprint: string;
+  auth_storage_contract_version: typeof CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01;
+  source_auth_mode: "agentIdentity" | "chatgpt";
+  agent_identity_storage_kind: "jwt" | "record";
+  managed_chatgpt_binding_verified: boolean;
+  agent_identity_task_registration_state: "present";
   account_identity_fingerprint: string;
   account_read_email_fingerprint: string | null;
   agent_identity_runtime_fingerprint: string;
   provider_environment_fingerprint: string;
   plan_projection_fingerprint: string;
   fedramp_projection_fingerprint: string;
-  issuer_projection_fingerprint: string;
-  audience_projection_fingerprint: string;
-  validity_projection_fingerprint: string;
-  source_not_before_epoch_seconds: number;
-  source_expires_at_epoch_seconds: number;
-  source_expiry_safety_margin_seconds: 60;
-  claims_authentication_status: "credential_claims_unverified_before_codex_auth";
+  issuer_projection_fingerprint: string | null;
+  audience_projection_fingerprint: string | null;
+  validity_projection_fingerprint: string | null;
+  source_not_before_epoch_seconds: number | null;
+  source_expires_at_epoch_seconds: number | null;
+  source_expiry_safety_margin_seconds: 60 | null;
+  claims_authentication_status: "stored_agent_identity_unverified_before_codex_auth";
   issued_at: string;
   expires_at: string;
   integrity: CodexIsolatedAuthIntegrityV01;
@@ -364,6 +382,10 @@ export interface CodexIsolatedAuthProjectionV01 {
   broker_locator_fingerprint: string;
   auth_source_generation_fingerprint: string;
   account_identity_fingerprint: string;
+  source_auth_mode: "agentIdentity" | "chatgpt";
+  agent_identity_storage_kind: "jwt" | "record";
+  managed_chatgpt_binding_verified: boolean;
+  agent_identity_task_registration_state: "present";
   codex_executable_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
   executable_identity_class:
@@ -373,11 +395,11 @@ export interface CodexIsolatedAuthProjectionV01 {
   state_policy: CodexIsolatedAuthStatePolicyV01;
   config_policy: CodexIsolatedAuthConfigPolicyV01;
   app_server_launch_shape_fingerprint: string;
-  launch_injection_mechanism: "broker_internal_immediate_child_spawn";
-  sensitive_material_lifetime: "broker_internal_lookup_to_spawn_only";
-  refresh_update_policy: "agent_identity_source_read_only_no_augnes_writeback";
+  launch_injection_mechanism: "broker_internal_attempt_private_auth_snapshot";
+  sensitive_material_lifetime: "broker_internal_lookup_to_authenticated_load_only";
+  refresh_update_policy: "source_codex_auth_read_only_attempt_snapshot_discarded";
   concurrency_lease_policy: "canonical_handle_generation_lookup_spawn_lease";
-  cleanup_policy: "release_after_spawn_remove_attempt_root_after_settlement";
+  cleanup_policy: "remove_auth_snapshot_before_observation_remove_attempt_root_after_settlement";
   allowed_child_environment_key_fingerprint: string;
   forbidden_persistence_surface_fingerprint: string;
   auth_bootstrap_network_class: "credential_bootstrap_separate_from_task_network";

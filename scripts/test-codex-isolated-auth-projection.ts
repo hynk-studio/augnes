@@ -31,8 +31,9 @@ import {
   CodexCredentialBrokerErrorV01,
   bindCodexBrokerPrivateLaunchCapabilityV01,
   configureCodexAuthenticatedChildBindingFaultForTestV01,
+  codexAuthKeyringAccountForHomeV01,
   createFakeCodexCredentialBrokerV01,
-  createMacOsKeychainAgentIdentityBrokerV01,
+  createMacOsKeychainCodexAuthBrokerV01,
   credentialBrokerBindingFingerprintV01,
   fingerprintBrokerLocatorV01,
   spawnCodexAppServerWithPrivateCapabilityV01,
@@ -45,6 +46,7 @@ import {
 import {
   CodexIsolatedAuthProjectionErrorV01,
   CodexIsolatedAuthenticatedExecutionOwnerV01,
+  CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   assertValidCodexIsolatedAuthObservationV01,
@@ -79,6 +81,8 @@ import type {
 } from "@/types/vnext/codex-isolated-auth-projection";
 import {
   CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
+  CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  CODEX_AUTH_KEYRING_SERVICE_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
@@ -170,6 +174,10 @@ const SECRET_CANARIES = [
   ["AKIA", "ABCDEFGHIJKLMNOP"].join(""),
   ["-----BEGIN", "PRIVATE KEY-----"].join(" "),
   ["ghp", "AbCdEfGhIjKlMnOpQrStUvWxYz012345"].join("_"),
+  AGENT_PRIVATE_KEY,
+  BASE_CLAIMS.agent_runtime_id,
+  "fixture-agent-task",
+  "fixture-refresh-token",
   RAW_ACCOUNT_ID,
   RAW_USER_ID,
   "not-returned-to-augnes@example.invalid",
@@ -267,6 +275,7 @@ async function runFocusedModeV01(mode: FocusedModeV01): Promise<void> {
 
 async function contractsV01(roots: RootsV01): Promise<void> {
     const userAgentProof = userAgentContractV01();
+    await officialAuthStorageAlignmentV01(roots);
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
     assert.equal(provisioned.availability.state, "available_exact");
     assert.match(
@@ -275,7 +284,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     );
     assert.equal(
       provisioned.credential_attestation.claims_authentication_status,
-      "credential_claims_unverified_before_codex_auth",
+      "stored_agent_identity_unverified_before_codex_auth",
     );
     assertPublicSafeV01(provisioned);
     assertNoSecretApiV01(provisioned);
@@ -485,7 +494,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     const observation = positive.auth_observations[0]!;
     assert.equal(
       observation.config_layers_fingerprint,
-      "sha256:95ad52573b41d462ac933f0aaf02bdc59003d9d71043ee6a9ec849f7d189e859",
+      "sha256:e940fef393c2d25e2279d5f09aa3ebcdde7e590acca60466c6db618598c2d531",
     );
     assert.equal(
       observation.account_identity_fingerprint,
@@ -521,13 +530,15 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     ) as Record<string, unknown>;
     assert.deepEqual(boundary, {
       app_server_material_present: true,
+      environment_material_present: false,
+      auth_snapshot_kind: "record",
       repository_child_material_present: false,
       shared_home_canary_visible: false,
       shared_codex_home_history_visible: false,
       owned_tmp_present: true,
       shared_tmp_canary_visible: false,
       material_in_argv: false,
-      ephemeral_store_policy_present: true,
+      file_store_policy_present: true,
       shell_core_policy_present: true,
       shell_sensitive_name_excludes_present: true,
     });
@@ -657,6 +668,292 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         cleanup_complete: true,
       }),
     );
+}
+
+async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
+  const binding = bindingV01();
+  const recordWithoutTask = {
+    agent_runtime_id: BASE_CLAIMS.agent_runtime_id,
+    agent_private_key: BASE_CLAIMS.agent_private_key,
+    account_id: RAW_ACCOUNT_ID,
+    chatgpt_user_id: RAW_USER_ID,
+    email: "not-returned-to-augnes@example.invalid",
+    plan_type: BASE_CLAIMS.plan_type,
+    chatgpt_account_is_fedramp: BASE_CLAIMS.chatgpt_account_is_fedramp,
+  } as const;
+  const record = {
+    ...recordWithoutTask,
+    task_id: "fixture-agent-task",
+  } as const;
+  const directRecordStorage = officialAgentIdentityRecordStorageV01(record);
+  const directRecordWithoutTaskStorage =
+    officialAgentIdentityRecordStorageV01(recordWithoutTask);
+  const managedStorage = officialManagedChatGptStorageV01(record);
+  const managedRecordWithoutTaskStorage =
+    officialManagedChatGptStorageV01(recordWithoutTask);
+  const managedBootstrapRequiredStorage = officialManagedChatGptStorageV01(null);
+  const apiKeyStorage = JSON.stringify({
+    auth_mode: "apikey",
+    OPENAI_API_KEY: ["sk", "fixture-not-a-real-key"].join("-"),
+    agent_identity: null,
+  });
+  const fakeBrokerForMaterial = (material: string) =>
+    createFakeCodexCredentialBrokerV01({
+      binding,
+      lease_root: roots.lease,
+      entries: [
+        {
+          handle_external_id: binding.auth_handle_ref.external_id,
+          material,
+        },
+      ],
+    });
+  const provisionMaterial = async (
+    id: string,
+    material: string,
+  ): Promise<ProvisionCodexIsolatedAuthProjectionResultV01> => {
+    const providerRef = refV01("model_provider", "openai");
+    const provisioningBinding = createCodexIsolatedAuthProvisioningBindingV01({
+      binding_id: `provisioning:${id}`,
+      auth_handle_ref: binding.auth_handle_ref,
+      broker_binding_fingerprint:
+        credentialBrokerBindingFingerprintV01(binding),
+      provider_ref: providerRef,
+      codex_executable_fingerprint: sha256FileV01(process.execPath),
+      executable_identity_class: "test_emulated_profile",
+      compatible_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+      issued_at: GENERATED_AT,
+      expires_at: EXPIRES_AT,
+    });
+    return await provisionCodexIsolatedAuthProjectionV01({
+      projection_id: `codex-isolated-auth:${id}`,
+      provisioning_binding: provisioningBinding,
+      provisioning_binding_ref: refV01(
+        "codex_auth_provisioning_binding",
+        provisioningBinding.binding_id,
+      ),
+      provider_ref: providerRef,
+      broker_binding: binding,
+      broker: fakeBrokerForMaterial(material),
+      codex_executable_ref: refV01("codex_executable", "node-test-host"),
+      codex_executable_fingerprint: sha256FileV01(process.execPath),
+      executable_identity_class: "test_emulated_profile",
+      compatible_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+      issued_at: GENERATED_AT,
+      expires_at: EXPIRES_AT,
+    });
+  };
+  const availabilityForMaterial = async (material: string) =>
+    await fakeBrokerForMaterial(material).availabilityV01({
+      codex_executable_fingerprint: sha256FileV01(process.execPath),
+      observed_at: GENERATED_AT,
+    });
+
+  const jwtStorage = officialAgentIdentityJwtStorageV01(FAKE_JWT);
+  assert.equal(
+    (await availabilityForMaterial(jwtStorage)).state,
+    "agent_identity_task_registration_required",
+  );
+  await assert.rejects(
+    () => provisionMaterial("official-auth-storage-jwt", jwtStorage),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
+
+  assert.equal(
+    (await availabilityForMaterial(directRecordWithoutTaskStorage)).state,
+    "agent_identity_task_registration_required",
+  );
+  await assert.rejects(
+    () =>
+      provisionMaterial(
+        "official-auth-storage-record-without-task",
+        directRecordWithoutTaskStorage,
+      ),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
+
+  const recordProvisioned = await provisionMaterial(
+    "official-auth-storage-record",
+    directRecordStorage,
+  );
+  assert.equal(
+    recordProvisioned.credential_attestation.agent_identity_storage_kind,
+    "record",
+  );
+  assert.equal(
+    recordProvisioned.credential_attestation.source_not_before_epoch_seconds,
+    null,
+  );
+  assert.equal(
+    recordProvisioned.credential_attestation.agent_identity_task_registration_state,
+    "present",
+  );
+  assertPublicSafeV01(recordProvisioned);
+
+  assert.equal(
+    (await availabilityForMaterial(managedRecordWithoutTaskStorage)).state,
+    "agent_identity_task_registration_required",
+  );
+  await assert.rejects(
+    () =>
+      provisionMaterial(
+        "official-auth-storage-managed-record-without-task",
+        managedRecordWithoutTaskStorage,
+      ),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
+
+  const managedProvisioned = await provisionMaterial(
+    "official-auth-storage-managed-record",
+    managedStorage,
+  );
+  assert.equal(
+    managedProvisioned.credential_attestation.source_auth_mode,
+    "chatgpt",
+  );
+  assert.equal(
+    managedProvisioned.credential_attestation.managed_chatgpt_binding_verified,
+    true,
+  );
+  assert.equal(
+    managedProvisioned.credential_attestation.agent_identity_storage_kind,
+    "record",
+  );
+  assertPublicSafeV01(managedProvisioned);
+
+  const bootstrapBroker = fakeBrokerForMaterial(
+    managedBootstrapRequiredStorage,
+  );
+  const bootstrapAvailability = await bootstrapBroker.availabilityV01({
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(
+    bootstrapAvailability.state,
+    "agent_identity_bootstrap_required",
+  );
+  const managedJwtStorage = JSON.parse(
+    managedBootstrapRequiredStorage,
+  ) as Record<string, unknown>;
+  managedJwtStorage.agent_identity = FAKE_JWT;
+  assert.equal(
+    (
+      await fakeBrokerForMaterial(JSON.stringify(managedJwtStorage)).availabilityV01({
+        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        observed_at: GENERATED_AT,
+      })
+    ).state,
+    "agent_identity_bootstrap_required",
+    "managed ChatGPT reuses only the official Record form; a nested JWT does not bypass bootstrap",
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01
+      .managed_chatgpt_agent_identity_route,
+    "upstream_auth_manager_chatgpt_auth_policy",
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.bootstrap_network_class,
+    "credential_bootstrap_separate_from_task_provider_inference",
+  );
+  await assert.rejects(
+    () => provisionMaterial("managed-bootstrap-required", managedBootstrapRequiredStorage),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code === "codex_isolated_auth_agent_identity_bootstrap_required",
+  );
+
+  for (const [id, material] of [
+    ["raw-jwt-storage-refused", FAKE_JWT],
+    ["api-key-storage-refused", apiKeyStorage],
+    [
+      "api-key-agent-identity-refused",
+      officialAgentIdentityJwtStorageV01(
+        ["sk", "fixture-not-a-real-agent-identity"].join("-"),
+      ),
+    ],
+  ] as const) {
+    const availability = await fakeBrokerForMaterial(material).availabilityV01({
+      codex_executable_fingerprint: sha256FileV01(process.execPath),
+      observed_at: GENERATED_AT,
+    });
+    assert.equal(availability.state, "credential_shape_invalid", id);
+  }
+
+  const mismatchedManaged = officialManagedChatGptStorageV01({
+    ...record,
+    account_id: OTHER_ACCOUNT_ID,
+  });
+  assert.equal(
+    (
+      await fakeBrokerForMaterial(mismatchedManaged).availabilityV01({
+        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        observed_at: GENERATED_AT,
+      })
+    ).state,
+    "account_identity_unavailable",
+  );
+
+  const expectedKeyringAccount = `cli|${createHash("sha256")
+    .update(realpathSync(roots.ordinaryHome), "utf8")
+    .digest("hex")
+    .slice(0, 16)}`;
+  assert.equal(
+    codexAuthKeyringAccountForHomeV01(roots.ordinaryHome),
+    expectedKeyringAccount,
+  );
+
+  const stateParent = path.join(roots.state, "official-record-preflight");
+  const boundaryPath = path.join(
+    roots.runtime,
+    "official-record-preflight-boundary.json",
+  );
+  mkdirSync(stateParent, { recursive: true, mode: 0o700 });
+  const recordOwnerInput = ownerInputV01(
+    roots,
+    "official-record-preflight",
+    recordProvisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    stateParent,
+  );
+  recordOwnerInput.broker = fakeBrokerForMaterial(directRecordStorage);
+  recordOwnerInput.test_environment = {
+    ...recordOwnerInput.test_environment,
+    FAKE_CODEX_AUTH_BOUNDARY_PATH: boundaryPath,
+  };
+  const recordOwner = new CodexIsolatedAuthenticatedExecutionOwnerV01(
+    recordOwnerInput,
+  );
+  const session = await recordOwner.startAuthenticatedPreflightV01();
+  await session.initializeV01();
+  const observed = await session.observeAuthenticatedConfigurationV01({
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(observed.observation.auth_mode, "agent_identity");
+  assert.equal(
+    listFilesV01(stateParent).some((file) => path.basename(file) === "auth.json"),
+    false,
+    "attempt-private auth snapshot must be removed before observation returns",
+  );
+  const boundary = JSON.parse(readFileSync(boundaryPath, "utf8")) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(boundary.auth_snapshot_kind, "record");
+  assert.equal(boundary.environment_material_present, false);
+  assert.equal(await session.shutdownAndCleanupV01(), true);
+  assert.equal(readdirSync(stateParent).length, 0);
 }
 
 function userAgentContractV01(): {
@@ -1002,7 +1299,23 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.config_tool_feature_schema_fingerprint,
-    "sha256:321274df17ca9b9f734b05b6f1ec8b07eaf426d5d715d8d578229892d2600d44",
+    "sha256:baa7d22bafadad873f099713288596bdfd3f9873f737773b35e20aa954a0ea22",
+  );
+  assert.equal(
+    profile.auth_storage_contract_version,
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  );
+  assert.equal(
+    profile.auth_storage_contract_fingerprint,
+    "sha256:c676ab832ca7bbfbde6f5bbf045afbd23034ff122840863fed2ead5ac52cd18c",
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.keyring_service,
+    CODEX_AUTH_KEYRING_SERVICE_V01,
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.manual_agent_identity_jwt_required,
+    false,
   );
   const configOverrideArgs: readonly string[] =
     CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
@@ -1018,10 +1331,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
     configOverridePaths,
     "every -c override must own exactly one SessionFlags projection path",
   );
-  assert.equal(configOverridePaths.length, 38);
+  assert.equal(configOverridePaths.length, 39);
   assert.equal(new Set(configOverridePaths).size, configOverridePaths.length);
   const runtimeOriginPaths = codexIsolatedAuthExpectedRuntimeOriginPathsV01();
-  assert.equal(runtimeOriginPaths.length, 34);
+  assert.equal(runtimeOriginPaths.length, 35);
   assert.equal(configOverridePaths.includes("sqlite_home"), false);
   assert.equal(runtimeOriginPaths.includes("sqlite_home"), false);
   for (const emptyContainerPath of [
@@ -1064,7 +1377,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:8c7181c024e2279490c903dde5d7f2b40947c7cde5e9ebea3c64ea9005db41e5",
+    "sha256:a5fa8090c9caa21f512bc9b38e2ff3242d35164fa8858cbedb9a609fd52de107",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -1117,7 +1430,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     provisioned.projection.config_policy.policy_fingerprint,
-    "sha256:97f9f2365c0a8b79e80c76b10a78b3a7c221327fad075588ae40fb8371514519",
+    "sha256:f8681edeae0ba1a80aa810e473a73fb14f287e5bb5ae2b1f542b58ddb2299c1d",
   );
 
   for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
@@ -1238,7 +1551,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(fake.cleanup_completed, true);
   assert.equal(
     fake.observed_security_policy_fingerprint,
-    "sha256:97f9f2365c0a8b79e80c76b10a78b3a7c221327fad075588ae40fb8371514519",
+    "sha256:f8681edeae0ba1a80aa810e473a73fb14f287e5bb5ae2b1f542b58ddb2299c1d",
   );
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
@@ -1805,7 +2118,7 @@ async function agentIdentityClaimNegativesV01(
     ],
   ];
   for (const [id, material] of invalid) {
-    const availability = await brokerV01(roots, material).availabilityV01({
+    const availability = await brokerV01(roots, material, "jwt").availabilityV01({
       codex_executable_fingerprint: sha256FileV01(process.execPath),
       observed_at: GENERATED_AT,
     });
@@ -1814,106 +2127,22 @@ async function agentIdentityClaimNegativesV01(
 
   await assert.rejects(
     () =>
-      brokerV01(roots, FAKE_JWT).provisionCredentialAttestationV01({
+      brokerV01(roots, FAKE_JWT, "jwt").provisionCredentialAttestationV01({
         provisioning_binding_ref: refV01(
           "codex_auth_provisioning_binding",
           "provisioning:expiry-overrun",
         ),
         ...semanticProfileBindingV01(),
-        attestation_id: "expiry-overrun",
+        attestation_id: "jwt-task-registration-gate",
         issued_at: GENERATED_AT,
-        expires_at: "2100-01-01T00:00:00.000Z",
+        expires_at: EXPIRES_AT,
       }),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code ===
-        "codex_auth_broker_projection_expiry_exceeds_credential",
+        "codex_auth_broker_agent_identity_task_registration_required",
   );
 
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 120;
-  const issuedAt = new Date((now - 10) * 1000).toISOString();
-  const projectionExpiresAt = new Date((now + 30) * 1000).toISOString();
-  const expiringJwt = jwtV01(
-    {
-      ...BASE_CLAIMS,
-      iat: now - 20,
-      exp,
-      account_id: RAW_ACCOUNT_ID,
-      chatgpt_user_id: RAW_USER_ID,
-    },
-    "expiring-signature",
-  );
-  const binding = bindingV01();
-  let observedNow = now;
-  const broker = createFakeCodexCredentialBrokerV01({
-    binding,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: binding.auth_handle_ref.external_id,
-        material: expiringJwt,
-      },
-    ],
-    now_epoch_seconds: () => observedNow,
-  });
-  const providerRef = refV01("model_provider", "openai", issuedAt);
-  const authorization = createCodexIsolatedAuthProvisioningBindingV01({
-    binding_id: "provisioning:expires-between",
-    auth_handle_ref: binding.auth_handle_ref,
-    broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
-    provider_ref: providerRef,
-    codex_executable_fingerprint: sha256FileV01(process.execPath),
-    executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-    issued_at: issuedAt,
-    expires_at: projectionExpiresAt,
-  });
-  const expiring = await provisionCodexIsolatedAuthProjectionV01({
-    projection_id: "codex-isolated-auth:expires-between",
-    provisioning_binding: authorization,
-    provisioning_binding_ref: refV01(
-      "codex_auth_provisioning_binding",
-      authorization.binding_id,
-      issuedAt,
-    ),
-    provider_ref: providerRef,
-    broker_binding: binding,
-    broker,
-    codex_executable_ref: refV01("codex_executable", "node-test-host", issuedAt),
-    codex_executable_fingerprint: sha256FileV01(process.execPath),
-    executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-    issued_at: issuedAt,
-    expires_at: projectionExpiresAt,
-  });
-  const stateParent = path.join(roots.state, "expires-between");
-  mkdirSync(stateParent, { recursive: true, mode: 0o700 });
-  const owner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection: expiring.projection,
-    credential_attestation: expiring.credential_attestation,
-    projection_seal: expiring.projection_seal,
-    broker,
-    state_parent: stateParent,
-    repository_root: roots.repository,
-    command: process.execPath,
-    prefix_args: [
-      path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs"),
-    ],
-    base_environment: { NODE_ENV: "test", PATH: process.env.PATH },
-    test_environment: {
-      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
-      FAKE_CODEX_SCENARIO: "isolated_auth_success",
-    },
-  });
-  observedNow = exp + 1;
-  await assert.rejects(
-    () => owner.startAuthenticatedPreflightV01(),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_credential_expired",
-  );
-  assert.equal(readdirSync(stateParent).length, 0);
 }
 
 async function brokerAndProvisioningNegativesV01(
@@ -1994,18 +2223,16 @@ async function brokerAndProvisioningNegativesV01(
 
   const productionLocator = {
     backend: "macos_keychain_generic_password",
-    service_name: "augnes-test-never-read",
-    account_name: "opaque-test-never-read",
+    source_codex_home: roots.ordinaryHome,
     keychain_path: path.join(roots.root, "never-read.keychain-db"),
   } as const;
-  const productionBroker = createMacOsKeychainAgentIdentityBrokerV01({
+  const productionBroker = createMacOsKeychainCodexAuthBrokerV01({
     binding: {
       ...binding,
       broker_locator_fingerprint:
         fingerprintBrokerLocatorV01(productionLocator),
     },
-    service_name: productionLocator.service_name,
-    account_name: productionLocator.account_name,
+    source_codex_home: productionLocator.source_codex_home,
     keychain_path: productionLocator.keychain_path,
   });
   await assert.rejects(
@@ -2057,11 +2284,11 @@ async function brokerAndProvisioningNegativesV01(
         entries: [
           {
             handle_external_id: binding.auth_handle_ref.external_id,
-            material: FAKE_JWT,
+            material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
           },
           {
             handle_external_id: binding.auth_handle_ref.external_id,
-            material: OTHER_ACCOUNT_JWT,
+            material: officialAgentIdentityJwtStorageV01(OTHER_ACCOUNT_JWT),
           },
         ],
       }),
@@ -2096,7 +2323,7 @@ async function brokerAndProvisioningNegativesV01(
       error.code === "codex_auth_broker_handle_missing",
   );
 
-  const incomplete = brokerV01(roots, PARTIAL_ID_JWT);
+  const incomplete = brokerV01(roots, PARTIAL_ID_JWT, "jwt");
   const incompleteAvailability = await incomplete.availabilityV01({
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     observed_at: GENERATED_AT,
@@ -2183,7 +2410,7 @@ async function brokerAndProvisioningNegativesV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     before_return: async () => {
@@ -2446,7 +2673,7 @@ async function tmpAndFailureNegativesV01(
     entries: [
       {
         handle_external_id: bindingV01().auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     fail_code: "codex_auth_broker_lookup_failed",
@@ -2506,7 +2733,7 @@ async function leaseReleaseRollbackV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -2562,7 +2789,7 @@ async function leaseReleaseRollbackV01(
       entries: [
         {
           handle_external_id: binding.auth_handle_ref.external_id,
-          material: FAKE_JWT,
+          material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
         },
       ],
     });
@@ -2613,7 +2840,7 @@ async function leaseReleaseRollbackV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -2697,7 +2924,7 @@ async function leaseReleaseRollbackV01(
         entries: [
           {
             handle_external_id: binding.auth_handle_ref.external_id,
-            material: FAKE_JWT,
+            material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
           },
         ],
       }),
@@ -2769,7 +2996,8 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: POISON_FAILURE_JWT,
+        material:
+          officialInitializedAgentIdentityRecordStorageV01(POISON_FAILURE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -2836,7 +3064,10 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
           entries: [
             {
               handle_external_id: binding.auth_handle_ref.external_id,
-              material: POISON_FAILURE_JWT,
+              material:
+                officialInitializedAgentIdentityRecordStorageV01(
+                  POISON_FAILURE_JWT,
+                ),
             },
           ],
         }),
@@ -2924,7 +3155,11 @@ function semanticProfileBindingV01() {
       CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
   } as const;
 }
-function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
+function brokerV01(
+  roots: RootsV01,
+  jwt: string,
+  storage: "initialized_record" | "jwt" = "initialized_record",
+): CodexCredentialBrokerV01 {
   const binding = bindingV01();
   return createFakeCodexCredentialBrokerV01({
     binding,
@@ -2932,10 +3167,37 @@ function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: jwt,
+        material:
+          storage === "jwt"
+            ? officialAgentIdentityJwtStorageV01(jwt)
+            : officialInitializedAgentIdentityRecordStorageV01(jwt),
       },
     ],
   });
+}
+
+function initializedAgentIdentityRecordFromJwtFixtureV01(
+  jwt: string,
+): Record<string, unknown> {
+  const payload = JSON.parse(
+    Buffer.from(jwt.split(".")[1]!, "base64url").toString("utf8"),
+  ) as Record<string, unknown>;
+  return {
+    agent_runtime_id: payload.agent_runtime_id,
+    agent_private_key: payload.agent_private_key,
+    account_id: payload.account_id,
+    chatgpt_user_id: payload.chatgpt_user_id,
+    ...(typeof payload.email === "string" ? { email: payload.email } : {}),
+    plan_type: payload.plan_type,
+    chatgpt_account_is_fedramp: payload.chatgpt_account_is_fedramp,
+    task_id: "fixture-agent-task",
+  };
+}
+
+function officialInitializedAgentIdentityRecordStorageV01(jwt: string): string {
+  return officialAgentIdentityRecordStorageV01(
+    initializedAgentIdentityRecordFromJwtFixtureV01(jwt),
+  );
 }
 function ownerV01(
   roots: RootsV01,
@@ -3622,6 +3884,66 @@ function errorCodeV01(value: unknown): string | null {
 }
 function sha256FileV01(file: string): string {
   return `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}`;
+}
+function officialAgentIdentityJwtStorageV01(jwt: string): string {
+  return JSON.stringify({
+    auth_mode: "agentIdentity",
+    OPENAI_API_KEY: null,
+    tokens: null,
+    last_refresh: null,
+    agent_identity: jwt,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
+}
+function officialAgentIdentityRecordStorageV01(
+  record: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    auth_mode: "agentIdentity",
+    OPENAI_API_KEY: null,
+    tokens: null,
+    last_refresh: null,
+    agent_identity: record,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
+}
+function officialManagedChatGptStorageV01(
+  record: Record<string, unknown> | null,
+): string {
+  const idToken = jwtV01(
+    {
+      "https://api.openai.com/auth": {
+        chatgpt_plan_type: "unknown",
+        chatgpt_user_id: RAW_USER_ID,
+        chatgpt_account_id: RAW_ACCOUNT_ID,
+        chatgpt_account_is_fedramp: false,
+      },
+    },
+    "managed-id-token",
+  );
+  const accessToken = jwtV01(
+    { sub: "managed-access-token-fixture" },
+    "managed-access-token",
+  );
+  return JSON.stringify({
+    auth_mode: "chatgpt",
+    OPENAI_API_KEY: null,
+    tokens: {
+      id_token: idToken,
+      access_token: accessToken,
+      refresh_token: "fixture-refresh-token",
+      account_id: RAW_ACCOUNT_ID,
+    },
+    last_refresh: "2026-08-28T00:00:00.000Z",
+    agent_identity: record,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
 }
 function jwtV01(
   payload: Record<string, unknown>,

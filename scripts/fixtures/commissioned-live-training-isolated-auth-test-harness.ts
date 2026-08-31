@@ -26,11 +26,7 @@ const AGENT_PRIVATE_KEY = Buffer.from(
   "fixture-agent-private-key-material-never-public",
   "utf8",
 ).toString("base64");
-const FAKE_JWT = jwtV01({
-  iss: "https://chatgpt.com/codex-backend/agent-identity",
-  aud: "codex-app-server",
-  iat: 1_777_000_000,
-  exp: 4_102_444_800,
+const INITIALIZED_AGENT_IDENTITY_RECORD = {
   agent_runtime_id: "fixture-agent-runtime",
   agent_private_key: AGENT_PRIVATE_KEY,
   account_id: RAW_ACCOUNT_ID,
@@ -38,7 +34,8 @@ const FAKE_JWT = jwtV01({
   email: EMAIL,
   plan_type: "unknown",
   chatgpt_account_is_fedramp: false,
-});
+  task_id: "fixture-agent-task",
+} as const;
 
 export async function createCommissionedLiveTrainingIsolatedAuthTestHarnessV01(input: {
   repository_root: string;
@@ -176,7 +173,9 @@ function brokerV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialAgentIdentityRecordStorageV01(
+          INITIALIZED_AGENT_IDENTITY_RECORD,
+        ),
       },
     ],
   });
@@ -194,14 +193,17 @@ function sha256FileV01(file: string): string {
   return `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}`;
 }
 
-function jwtV01(payload: Record<string, unknown>): string {
-  const header = Buffer.from(
-    JSON.stringify({
-      alg: "RS256",
-      typ: "JWT",
-      kid: "fixture-agent-identity-key",
-    }),
-  ).toString("base64url");
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return `${header}.${body}.${Buffer.from("fixture-signature-material-not-a-real-token").toString("base64url")}`;
+function officialAgentIdentityRecordStorageV01(
+  record: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    auth_mode: "agentIdentity",
+    OPENAI_API_KEY: null,
+    tokens: null,
+    last_refresh: null,
+    agent_identity: record,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
 }

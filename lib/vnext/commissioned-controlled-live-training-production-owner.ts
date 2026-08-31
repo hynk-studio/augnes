@@ -1,5 +1,5 @@
 import {
-  createMacOsKeychainAgentIdentityBrokerV01,
+  createMacOsKeychainCodexAuthBrokerV01,
   credentialBrokerBindingFingerprintV01,
   type CodexCredentialBrokerBindingV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
@@ -112,8 +112,7 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
   runtime_auth_binding: CommissionedLiveTrainingProductionRuntimeAuthBindingV01;
   executable_path: string;
   locator: {
-    service_name: string;
-    account_name: string;
+    source_codex_home: string;
     keychain_path: string;
   };
 }) {
@@ -139,15 +138,13 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     input.native_execution_configuration.expected_cli_version !==
       CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
     input.native_execution_configuration.provider_id !== "openai" ||
-    !privateLocatorV01(input.locator.service_name) ||
-    !privateLocatorV01(input.locator.account_name) ||
+    !privateAbsolutePathV01(input.locator.source_codex_home) ||
     !privateAbsolutePathV01(input.locator.keychain_path)
   )
     failV01("live_training_production_owner_factory_binding_invalid");
-  const broker = createMacOsKeychainAgentIdentityBrokerV01({
+  const broker = createMacOsKeychainCodexAuthBrokerV01({
     binding: binding.broker_binding,
-    service_name: input.locator.service_name,
-    account_name: input.locator.account_name,
+    source_codex_home: input.locator.source_codex_home,
     keychain_path: input.locator.keychain_path,
   });
   const provisioningBinding = createCodexIsolatedAuthProvisioningBindingV01({

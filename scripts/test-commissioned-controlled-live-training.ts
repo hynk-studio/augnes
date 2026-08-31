@@ -518,8 +518,7 @@ async function main(): Promise<void> {
       "acct-fixture-stable-private",
       "user-fixture-stable-private",
       "not-returned-to-augnes@example.invalid",
-      "AUGNES_CW1_L1_KEYCHAIN_SERVICE_NAME",
-      "AUGNES_CW1_L1_KEYCHAIN_ACCOUNT_NAME",
+      "AUGNES_CW1_L1_CODEX_AUTH_SOURCE_HOME",
       "AUGNES_CW1_L1_KEYCHAIN_PATH",
     ])
       assert.equal(persistedText.includes(forbidden), false);

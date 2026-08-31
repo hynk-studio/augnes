@@ -79,6 +79,23 @@ if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
 }
 
 if (isolatedAuthScenario) {
+  const authSnapshotPath = path.join(process.env.CODEX_HOME ?? "", "auth.json");
+  let authSnapshotKind = null;
+  if (existsSync(authSnapshotPath)) {
+    const stored = JSON.parse(readFileSync(authSnapshotPath, "utf8"));
+    if (
+      stored?.auth_mode !== "agentIdentity" ||
+      !(
+        typeof stored.agent_identity === "string" ||
+        (stored.agent_identity &&
+          typeof stored.agent_identity === "object" &&
+          !Array.isArray(stored.agent_identity))
+      )
+    )
+      process.exit(5);
+    authSnapshotKind =
+      typeof stored.agent_identity === "string" ? "jwt" : "record";
+  }
   const repositoryChildEnvironment = Object.fromEntries(
     ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "TERM"]
       .filter((key) => typeof process.env[key] === "string")
@@ -102,8 +119,11 @@ if (isolatedAuthScenario) {
       authBoundaryPath,
       `${JSON.stringify({
         app_server_material_present:
+          authSnapshotKind !== null,
+        environment_material_present:
           typeof process.env.CODEX_ACCESS_TOKEN === "string" &&
           process.env.CODEX_ACCESS_TOKEN.length > 0,
+        auth_snapshot_kind: authSnapshotKind,
         repository_child_material_present: descendantProbe.stdout === "present",
         shared_home_canary_visible: existsSync(
           path.join(process.env.HOME ?? "", "foreign-config.toml"),
@@ -120,8 +140,8 @@ if (isolatedAuthScenario) {
         material_in_argv: process.argv.some((value) =>
           /(?:sk-(?:proj-)?|xoxb-|AKIA[A-Z0-9]|BEGIN PRIVATE KEY)/u.test(value),
         ),
-        ephemeral_store_policy_present: process.argv.includes(
-          'cli_auth_credentials_store="ephemeral"',
+        file_store_policy_present: process.argv.includes(
+          'cli_auth_credentials_store="file"',
         ),
         shell_core_policy_present: process.argv.includes(
           'shell_environment_policy.inherit="core"',
@@ -293,7 +313,7 @@ async function handle(message) {
       const response = {
         config: {
           forced_login_method: isolatedAuthScenario ? "chatgpt" : null,
-          cli_auth_credentials_store: isolatedAuthScenario ? "ephemeral" : null,
+          cli_auth_credentials_store: isolatedAuthScenario ? "file" : null,
           model_provider: isolatedAuthScenario ? "openai" : null,
           model:
             scenario === "isolated_auth_model_configuration_drift"
@@ -1151,6 +1171,7 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     standalone_web_search: false,
     tool_suggest:
       activeScenario === "isolated_auth_feature_tool_suggest_enabled",
+    use_agent_identity: true,
     web_search_cached: false,
     web_search_request: false,
     ...(activeScenario === "isolated_auth_unknown_feature_drift"
