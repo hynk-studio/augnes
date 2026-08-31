@@ -485,11 +485,7 @@ async function handle(message) {
         message.id,
         threadResponse({ includeTurns: true, turnStatus: "inProgress" }),
       );
-      if (scenario === "cw1_same_run_resume_repository_edit") {
-        applyCw1MechanicalRepositoryEdit();
-        emitObservedItems(path.join(root, "src", "route-token.mjs"));
-        setImmediate(() => completeSuccess());
-      } else if (scenario === "disconnect_resume") {
+      if (scenario === "disconnect_resume") {
         setImmediate(() => completeSuccess());
       }
       return;
@@ -543,14 +539,6 @@ async function handle(message) {
           emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
           completeSuccess();
         } else if (
-          scenario === "cw1_predecessor_repository_edit" ||
-          scenario === "cw1_successor_repository_edit" ||
-          scenario === "isolated_auth_cw1_live_training_repository_edit"
-        ) {
-          applyCw1MechanicalRepositoryEdit();
-          emitObservedItems(path.join(root, cw1MechanicalChangedPath()));
-          completeSuccess();
-        } else if (
           scenario === "success" ||
           isolatedAuthScenario ||
           scenario === "thread_bound_notification_before_response" ||
@@ -574,8 +562,7 @@ async function handle(message) {
           );
         else if (
           scenario === "disconnect_resume" ||
-          scenario === "disconnect_resume_same_batch" ||
-          scenario === "cw1_same_run_resume_repository_edit"
+          scenario === "disconnect_resume_same_batch"
         ) {
           trace("intentional_disconnect", { exit_code: 19 });
           process.exit(19);
@@ -1323,40 +1310,6 @@ function completeSuccess() {
   notify("thread/status/changed", { threadId, status: { type: "idle" } });
 }
 
-function applyCw1MechanicalRepositoryEdit() {
-  const relativePath = cw1MechanicalChangedPath();
-  const target = path.resolve(root, relativePath);
-  const rootPrefix = `${path.resolve(root)}${path.sep}`;
-  if (!target.startsWith(rootPrefix) || relativePath.includes("..")) {
-    throw new Error("fake_live_training_repository_path_invalid");
-  }
-  const liveTrainingScenario =
-    scenario === "isolated_auth_cw1_live_training_repository_edit";
-  const content = liveTrainingScenario
-    ? Buffer.from(
-        process.env.FAKE_CODEX_CW1_OUTPUT_CONTENT_BASE64 ?? "",
-        "base64",
-      ).toString("utf8")
-    : scenario === "cw1_predecessor_repository_edit"
-      ? "export function routeToken(key, id) { return `${key}:${id}`; }\n"
-      : 'import { separator } from "./channel.mjs";\nexport function routeToken(key, id) { return `${key}${separator}${id}`; }\n';
-  if (content.length === 0 || content.length > 32_768) {
-    throw new Error("fake_live_training_repository_content_invalid");
-  }
-  writeFileSync(target, content, { encoding: "utf8", mode: 0o600 });
-}
-
-function cw1MechanicalChangedPath() {
-  if (scenario === "isolated_auth_cw1_live_training_repository_edit") {
-    const relativePath = process.env.FAKE_CODEX_CW1_OUTPUT_RELATIVE_PATH ?? "";
-    if (!/^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/u.test(relativePath)) {
-      throw new Error("fake_live_training_repository_path_invalid");
-    }
-    return relativePath;
-  }
-  return "src/route-token.mjs";
-}
-
 function respondAndCompleteSuccessInOneBatch(id) {
   if (completed) return;
   completed = true;
@@ -1517,13 +1470,7 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
-  const changedPath =
-    scenario === "cw1_predecessor_repository_edit" ||
-    scenario === "cw1_successor_repository_edit" ||
-    scenario === "cw1_same_run_resume_repository_edit" ||
-    scenario === "isolated_auth_cw1_live_training_repository_edit"
-      ? cw1MechanicalChangedPath()
-      : "src/live-result.ts";
+  const changedPath = "src/live-result.ts";
   return JSON.stringify({
     result_version: "codex_host_structured_result.v0.1",
     summary:
