@@ -423,42 +423,6 @@ const suites = {
       timeoutMs: 600_000,
     },
     {
-      id: "commissioned-controlled-workbench",
-      group: "supporting-serial",
-      requirements: [
-        "filesystem",
-        "process-owning",
-        "project-root",
-        "mutable-module-state",
-      ],
-      label:
-        "sealed four-case commissioned-work mechanics, synthetic output, candidate freeze, and holdout comparison",
-      ...rootNode("scripts/test-commissioned-controlled-workbench.ts"),
-      // Twenty cold Git episodes, synthetic fixture output, objective local
-      // checks, append-only artifact validation, adversarial gates, and cleanup measured 7.0s on
-      // local arm64. Keep the bounded child at 30s without a retry path.
-      timeoutMs: 30_000,
-    },
-    {
-      id: "commissioned-controlled-live-training",
-      group: "supporting-serial",
-      requirements: [
-        "filesystem",
-        "process-owning",
-        "project-root",
-        "mutable-module-state",
-      ],
-      label:
-        "commissioned live-training authorization, isolated attempt ownership, blinded evaluation, and append-only artifact conformance",
-      ...rootNode("scripts/test-commissioned-controlled-live-training.ts"),
-      env: { AUGNES_CANONICAL_TEST_MODE: "1" },
-      // Sixteen isolated-auth fake App Server invocations (15 primary slots
-      // plus one eligible pre-action replacement), descriptor-relative
-      // artifact readback, CLI modes, and adversarial copies remain under the
-      // established 420s bound without a retry path.
-      timeoutMs: 420_000,
-    },
-    {
       id: "codex-isolated-auth-projection",
       group: "supporting-serial",
       requirements: [

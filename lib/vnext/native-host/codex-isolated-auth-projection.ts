@@ -327,7 +327,7 @@ export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01 = deepFreezeV01({
   launch_snapshot_removed_before_authenticated_observation: true,
   bootstrap_network_class:
     "credential_bootstrap_separate_from_task_provider_inference",
-  cw1_authorization_before_agent_identity_material: "forbidden",
+  external_execution_authorization_before_agent_identity_material: "forbidden",
 } as const);
 const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
   method_profile_version: "codex_app_server_auth_preflight.rust-v0.150.1",

@@ -82,7 +82,6 @@ import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type {
   CodexIsolatedAuthCredentialFreePreflightV01,
   CodexIsolatedAuthObservationV01,
-  CodexIsolatedAuthProductionExecutionAuthorizationV01,
   CodexIsolatedAuthProjectionV01,
   CodexIsolatedAuthTestExecutionAuthorizationV01,
 } from "@/types/vnext/codex-isolated-auth-projection";
@@ -212,7 +211,10 @@ type ExecutionAuthorizationVariantV01 =
   | "substituted_ordinal"
   | "substituted_ceiling"
   | "substituted_fallback"
-  | "forged_production";
+  | "unsupported_production";
+type PresentedExternalExecutionAuthorizationV01 =
+  | CodexIsolatedAuthTestExecutionAuthorizationV01
+  | Readonly<Record<string, unknown>>;
 type ProbeV01 = {
   result: NativeHostResultV01 | null;
   error: unknown;
@@ -225,10 +227,7 @@ type ProbeV01 = {
   network_path: string;
   cleanup_path: string;
   trace_path: string;
-  execution_authorization:
-    | CodexIsolatedAuthTestExecutionAuthorizationV01
-    | CodexIsolatedAuthProductionExecutionAuthorizationV01
-    | null;
+  execution_authorization: PresentedExternalExecutionAuthorizationV01 | null;
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
   request: NativeHostRequestV01;
 };
@@ -665,6 +664,8 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         credential_free_fake_preflight: semanticProfileProof.fake.state,
         no_authorization_preflight_stop:
           executionGateProof.no_authorization_stop,
+        unsupported_production_authority:
+          executionGateProof.unsupported_production_authority,
         test_only_authorized_fake_turn:
           executionGateProof.authorized_fake_turn,
         authenticated_child_binding_version:
@@ -941,6 +942,11 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
   assert.equal(
     CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.bootstrap_network_class,
     "credential_bootstrap_separate_from_task_provider_inference",
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01
+      .external_execution_authorization_before_agent_identity_material,
+    "forbidden",
   );
   await assert.rejects(
     () => provisionMaterial("managed-bootstrap-required", managedBootstrapRequiredStorage),
@@ -1344,26 +1350,6 @@ async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
     "unsupported",
   );
 
-  const productionOwnerSource = readFileSync(
-    path.join(
-      process.cwd(),
-      "lib/vnext/commissioned-controlled-live-training-production-owner.ts",
-    ),
-    "utf8",
-  );
-  const productionCliSource = readFileSync(
-    path.join(
-      process.cwd(),
-      "scripts/run-commissioned-controlled-live-training.ts",
-    ),
-    "utf8",
-  );
-  for (const source of [productionOwnerSource, productionCliSource]) {
-    assert.equal(source.includes("createMacOsKeychainCodexAuthBrokerV01"), false);
-    assert.equal(source.includes("keychain_path"), false);
-    assert.equal(source.includes("AUGNES_CW1_L1_KEYCHAIN_PATH"), false);
-    assert.equal(source.includes("/usr/bin/security"), false);
-  }
   rmSync(sourceHome, { recursive: true, force: false });
   for (const home of syntheticHomes)
     rmSync(home, { recursive: true, force: false });
@@ -1720,7 +1706,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.auth_storage_contract_fingerprint,
-    "sha256:ebaab94674707cc9f71a9ed842e9e628f1cc3f812e871cd205a645f35283a867",
+    "sha256:d5bceae3a650f62a1d910e8adda538d798eb27a85c0df5350b5bc633594f6282",
   );
   assert.equal(
     CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.keyring_service,
@@ -1798,7 +1784,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:a554f3cda984183ceae63d11c49dd8d81f8f851b2ed165d05ebd97952dab8474",
+    "sha256:0c2275335eb069ccd251dade36df03b6f4f0842deedc1d8d12191dadfa917058",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -2165,6 +2151,7 @@ async function externalExecutionAuthorityGateV01(
   provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
 ): Promise<{
   no_authorization_stop: string;
+  unsupported_production_authority: "refused_before_turn";
   authorized_fake_turn: "completed_once";
 }> {
   assert.equal(provisioned.projection.authority.provider_call_granted, false);
@@ -2221,27 +2208,29 @@ async function externalExecutionAuthorityGateV01(
   assert.equal(noAuthorizationMethods.includes("turn/start"), false);
   assert.equal(readdirSync(noAuthorization.state_parent).length, 0);
 
-  const forgedProduction = await runProbeV01(
+  const unsupportedProduction = await runProbeV01(
     roots,
-    "execution-gate-forged-production-without-cw1-consumption",
+    "execution-gate-unsupported-production-authority",
     provisioned,
     FAKE_JWT,
     "isolated_auth_success",
-    "forged_production",
+    "unsupported_production",
   );
-  assert.equal(forgedProduction.result?.outcome, "failed");
+  assert.equal(unsupportedProduction.result?.outcome, "failed");
   assert.equal(
-    forgedProduction.result?.public_stop_reason,
-    "live_training_external_execution_authorization_source_identity_missing",
+    unsupportedProduction.result?.public_stop_reason,
+    "codex_isolated_auth_external_execution_authorization_refused",
   );
-  assert.equal(forgedProduction.auth_observations.length, 1);
+  assert.equal(unsupportedProduction.auth_observations.length, 1);
   assert.equal(
-    Object.values(forgedProduction.execution_authorization ?? {}).some(
+    Object.values(unsupportedProduction.execution_authorization ?? {}).some(
       (value) => typeof value === "function",
     ),
     false,
   );
-  const forgedMethods = receivedMethodsV01(forgedProduction.trace_path);
+  const unsupportedMethods = receivedMethodsV01(
+    unsupportedProduction.trace_path,
+  );
   for (const method of [
     "initialize",
     "account/read",
@@ -2249,11 +2238,14 @@ async function externalExecutionAuthorityGateV01(
     "config/read",
     "mcpServerStatus/list",
   ])
-    assert.equal(forgedMethods.includes(method), true, method);
-  assert.equal(forgedMethods.includes("thread/start"), false);
-  assert.equal(forgedMethods.includes("turn/start"), false);
-  assert.equal(readFileSync(forgedProduction.network_path, "utf8"), "0\n");
-  assert.equal(readdirSync(forgedProduction.state_parent).length, 0);
+    assert.equal(unsupportedMethods.includes(method), true, method);
+  assert.equal(unsupportedMethods.includes("thread/start"), false);
+  assert.equal(unsupportedMethods.includes("turn/start"), false);
+  assert.equal(
+    readFileSync(unsupportedProduction.network_path, "utf8"),
+    "0\n",
+  );
+  assert.equal(readdirSync(unsupportedProduction.state_parent).length, 0);
 
   for (const variant of [
     "wrong_request",
@@ -2442,7 +2434,8 @@ async function externalExecutionAuthorityGateV01(
   const replayAdapter = createCodexAppServerAdapterV01({
     isolated_authenticated_execution: authorized.owner,
     isolated_authenticated_external_execution_authorization:
-      authorized.execution_authorization!,
+      authorized.execution_authorization as
+        CodexIsolatedAuthTestExecutionAuthorizationV01,
   });
   const replay = replayAdapter.invoke(authorized.request, controlV01([]));
   const replayResult = await replay.result;
@@ -2457,6 +2450,7 @@ async function externalExecutionAuthorityGateV01(
   return {
     no_authorization_stop:
       "codex_isolated_auth_external_execution_authorization_required",
+    unsupported_production_authority: "refused_before_turn",
     authorized_fake_turn: "completed_once",
   };
 }
@@ -3733,11 +3727,10 @@ async function runProbeV01(
   if (executionAuthorization === "wrong_run")
     authorizationRequest.run_id = `${request.run_id}:foreign`;
   let externalExecutionAuthorization:
-    | CodexIsolatedAuthTestExecutionAuthorizationV01
-    | CodexIsolatedAuthProductionExecutionAuthorizationV01
+    | PresentedExternalExecutionAuthorizationV01
     | undefined;
-  if (executionAuthorization === "forged_production") {
-    externalExecutionAuthorization = forgedProductionExecutionAuthorizationV01({
+  if (executionAuthorization === "unsupported_production") {
+    externalExecutionAuthorization = unsupportedProductionExecutionAuthorizationV01({
       owner,
       request,
       observed_at: GENERATED_AT,
@@ -3812,7 +3805,8 @@ async function runProbeV01(
     ...(externalExecutionAuthorization
       ? {
           isolated_authenticated_external_execution_authorization:
-            externalExecutionAuthorization,
+            externalExecutionAuthorization as
+              CodexIsolatedAuthTestExecutionAuthorizationV01,
         }
       : {}),
     observe: (value) => adapterObservations.push(value),
@@ -3853,12 +3847,12 @@ async function runProbeV01(
   };
 }
 
-function forgedProductionExecutionAuthorizationV01(input: {
+function unsupportedProductionExecutionAuthorizationV01(input: {
   owner: CodexIsolatedAuthenticatedExecutionOwnerV01;
   request: NativeHostRequestV01;
   observed_at: string;
   expires_at: string;
-}): CodexIsolatedAuthProductionExecutionAuthorizationV01 {
+}): Readonly<Record<string, unknown>> {
   const modelConfigurationFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       configuration_version:
@@ -3869,29 +3863,14 @@ function forgedProductionExecutionAuthorizationV01(input: {
         input.owner.projection.config_policy.provider_route_fingerprint,
     }),
   );
-  const safeRecordRef = (id: string) => ({
-    ref_version: "commissioned_work_record_ref.v0.1" as const,
-    record_version: "forged_production_regression.v0.1",
-    record_id: id,
-    record_fingerprint: createProtocolSha256V01(id),
-  });
   const material = {
-    authorization_version:
-      "commissioned_live_training_external_execution_authorization.v0.1",
+    authorization_version: "unsupported_external_execution_authorization.v0.1",
     authorization_kind: "production_external_execution" as const,
     external_authorization_ref: refV01(
-      "commissioned_live_training_external_execution_authorization",
-      "forged-production-without-source-registry",
+      "unsupported_external_execution_authorization",
+      "foreign-production-authority",
       input.observed_at,
     ),
-    cohort_authorization_ref: safeRecordRef("forged-cohort-authorization"),
-    authorization_consumption_ref: safeRecordRef("forged-consumption"),
-    runtime_consumption_witness_fingerprint: createProtocolSha256V01(
-      "forged-runtime-witness",
-    ),
-    slot_id: "cw1l1-slot-01",
-    attempt_id: "cw1l1-attempt-01-p",
-    attempt_kind: "primary" as const,
     request_id: input.request.request_id,
     run_id: input.request.run_id,
     root_scope_fingerprint: createProtocolSha256V01(
@@ -3910,13 +3889,6 @@ function forgedProductionExecutionAuthorizationV01(input: {
       input.owner.projection.config_policy.provider_route_fingerprint,
     invocation_ordinal: 1,
     provider_model_bearing_invocation_ceiling: 1,
-    native_execution_configuration_fingerprint: createProtocolSha256V01(
-      "forged-native-configuration",
-    ),
-    expected_provider_id: input.owner.projection.provider_ref.external_id,
-    expected_model_id: "fake-isolated-model",
-    expected_route_id: "responses-api",
-    expected_reasoning_effort: "low",
     expires_at: input.expires_at,
     no_fallback: true as const,
     single_use: true as const,
