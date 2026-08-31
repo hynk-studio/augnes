@@ -17,6 +17,11 @@ const repositoryRoot = path.resolve(
 );
 const approvedTransportConfigurationOwner =
   "lib/vnext/model-gateway/openai/responses-adapter.ts";
+const approvedChatGptIdentityClaimNamespaceOwner =
+  "lib/vnext/native-host/codex-credential-broker.ts";
+const approvedChatGptIdentityClaimNamespaceParser =
+  "managedChatGptBindingV01";
+const chatGptIdentityClaimNamespace = "https://api.openai.com/auth";
 const sharedGatewayOwner = "lib/vnext/model-gateway/model-gateway.ts";
 const approvedPurposeCodecOwners = new Set([
   "lib/vnext/model-gateway/openai/observe-codec.ts",
@@ -208,10 +213,14 @@ function classifyBoundaryViolations(
   source: string,
 ): BoundaryViolation[] {
   const found = new Set<BoundaryViolationKind>();
+  const providerTransportSource = sourceForProviderTransportScan(
+    relativePath,
+    source,
+  );
   const transportOwned =
-    providerDomainPattern.test(source) ||
-    responsesEndpointPattern.test(source) ||
-    providerSdkPattern.test(source);
+    providerDomainPattern.test(providerTransportSource) ||
+    responsesEndpointPattern.test(providerTransportSource) ||
+    providerSdkPattern.test(providerTransportSource);
   if (
     transportOwned &&
     relativePath !== approvedTransportConfigurationOwner
@@ -228,7 +237,7 @@ function classifyBoundaryViolations(
   }
 
   if (
-    isProviderAuthorizationOwnerSource(source) &&
+    isProviderAuthorizationOwnerSource(providerTransportSource) &&
     providerAuthorizationPattern.test(source) &&
     relativePath !== approvedTransportConfigurationOwner
   ) {
@@ -438,7 +447,34 @@ function assertSyntheticDetectionMatrix() {
     name: string;
     source: string;
     expected: BoundaryViolationKind | null;
+    relativePath?: string;
   }> = [
+    {
+      name: "approved_chatgpt_identity_claim_namespace",
+      source:
+        'function managedChatGptBindingV01(payload: Record<string, unknown>) { return payload["https://api.openai.com/auth"]; }',
+      expected: null,
+      relativePath: approvedChatGptIdentityClaimNamespaceOwner,
+    },
+    {
+      name: "claim_namespace_outside_approved_owner",
+      source:
+        'const auth = payload["https://api.openai.com/auth"];',
+      expected: "provider_transport_owner",
+    },
+    {
+      name: "claim_namespace_fetch_in_approved_owner",
+      source: 'fetch("https://api.openai.com/auth")',
+      expected: "provider_transport_owner",
+      relativePath: approvedChatGptIdentityClaimNamespaceOwner,
+    },
+    {
+      name: "responses_fetch_in_approved_claim_parser",
+      source:
+        'function managedChatGptBindingV01() { return fetch("https://api.openai.com/v1/responses"); }',
+      expected: "provider_transport_owner",
+      relativePath: approvedChatGptIdentityClaimNamespaceOwner,
+    },
     {
       name: "provider_domain_and_fetch",
       source: 'fetch("https://api.openai.com/v1/responses")',
@@ -554,7 +590,7 @@ function assertSyntheticDetectionMatrix() {
 
   for (const testCase of cases) {
     const detected = classifyBoundaryViolations(
-      `lib/synthetic/${testCase.name}.ts`,
+      testCase.relativePath ?? `lib/synthetic/${testCase.name}.ts`,
       testCase.source,
     ).map((item) => item.kind);
     if (testCase.expected === null) {
@@ -578,8 +614,25 @@ function assertSyntheticDetectionMatrix() {
 
 function assertCurrentOwnershipInventory(files: SourceFile[]) {
   assert.deepEqual(
-    ownersMatching(files, providerDomainPattern),
+    ownersMatchingProviderTransport(files, providerDomainPattern),
     [approvedTransportConfigurationOwner],
+  );
+  const claimNamespaceOwners = files
+    .filter(({ source }) => source.includes(chatGptIdentityClaimNamespace))
+    .map(({ relativePath }) => relativePath)
+    .sort();
+  assert.deepEqual(claimNamespaceOwners, [approvedChatGptIdentityClaimNamespaceOwner]);
+  const claimOwnerSource = sourceFor(
+    files,
+    approvedChatGptIdentityClaimNamespaceOwner,
+  );
+  assert.equal(
+    approvedChatGptIdentityClaimNamespaceRanges(
+      approvedChatGptIdentityClaimNamespaceOwner,
+      claimOwnerSource,
+    ).length,
+    1,
+    "the exact upstream ChatGPT auth-claim namespace must have one reviewed parser access",
   );
   assert.deepEqual(
     ownersMatching(files, responsesEndpointPattern),
@@ -797,6 +850,70 @@ function ownersMatching(files: SourceFile[], pattern: RegExp): string[] {
     .filter(({ source }) => pattern.test(source))
     .map(({ relativePath }) => relativePath)
     .sort();
+}
+
+function ownersMatchingProviderTransport(
+  files: SourceFile[],
+  pattern: RegExp,
+): string[] {
+  return files
+    .filter(({ relativePath, source }) =>
+      pattern.test(sourceForProviderTransportScan(relativePath, source)),
+    )
+    .map(({ relativePath }) => relativePath)
+    .sort();
+}
+
+function sourceForProviderTransportScan(
+  relativePath: string,
+  source: string,
+): string {
+  const ranges = approvedChatGptIdentityClaimNamespaceRanges(
+    relativePath,
+    source,
+  );
+  return ranges
+    .sort((left, right) => right.start - left.start)
+    .reduce(
+      (current, range) =>
+        `${current.slice(0, range.start)}${" ".repeat(range.end - range.start)}${current.slice(range.end)}`,
+      source,
+    );
+}
+
+function approvedChatGptIdentityClaimNamespaceRanges(
+  relativePath: string,
+  source: string,
+): Array<{ start: number; end: number }> {
+  if (relativePath !== approvedChatGptIdentityClaimNamespaceOwner) return [];
+  const sourceFile = ts.createSourceFile(
+    relativePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(relativePath),
+  );
+  const ranges: Array<{ start: number; end: number }> = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isElementAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "payload" &&
+      node.argumentExpression !== undefined &&
+      ts.isStringLiteralLike(node.argumentExpression) &&
+      node.argumentExpression.text === chatGptIdentityClaimNamespace &&
+      enclosingNamedFunction(node) ===
+        approvedChatGptIdentityClaimNamespaceParser
+    ) {
+      ranges.push({
+        start: node.argumentExpression.getStart(sourceFile),
+        end: node.argumentExpression.getEnd(),
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return ranges;
 }
 
 function isProviderAuthorizationOwnerSource(source: string): boolean {

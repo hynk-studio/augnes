@@ -612,13 +612,14 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
   async provisionCredentialAttestationV01(
     input: ProvisionCodexCredentialAttestationInputV01,
   ): Promise<CodexIsolatedAuthCredentialAttestationV01> {
-    return await this.#withResolvedMaterialV01(null, async (resolved) =>
-      createCredentialAttestationFromStorageV01({
+    return await this.#withResolvedMaterialV01(null, async (resolved) => {
+      assertAgentIdentityReadyWithoutBootstrapV01(resolved);
+      return createCredentialAttestationFromStorageV01({
         binding: this.#binding,
         input,
         resolved,
-      }),
-    );
+      });
+    });
   }
 
   async availabilityV01(input: {
@@ -627,7 +628,13 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
   }): Promise<CodexIsolatedAuthAvailabilityV01> {
     let state: CodexIsolatedAuthAvailabilityV01["state"] = "available_exact";
     try {
-      await this.#withResolvedMaterialV01(null, async () => undefined, input.observed_at);
+      await this.#withResolvedMaterialV01(
+        null,
+        async (resolved) => {
+          assertAgentIdentityReadyWithoutBootstrapV01(resolved);
+        },
+        input.observed_at,
+      );
     } catch (error) {
       const code =
         error instanceof CodexCredentialBrokerErrorV01 ? error.code : "";
@@ -638,6 +645,9 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
             ? "handle_ambiguous"
             : code === "codex_auth_broker_locator_mismatch"
               ? "locator_mismatch"
+              : code ===
+                  "codex_auth_broker_agent_identity_task_registration_required"
+                ? "agent_identity_task_registration_required"
               : code === "codex_auth_broker_agent_identity_bootstrap_required"
                 ? "agent_identity_bootstrap_required"
               : code === "codex_auth_broker_material_invalid"
@@ -690,6 +700,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
         material,
         input.credential_attestation.issued_at,
       );
+      assertAgentIdentityReadyWithoutBootstrapV01(resolved);
       const generation = fingerprintCredentialSourceGenerationV01({
         auth_handle_external_id: this.#binding.auth_handle_ref.external_id,
         broker_locator_fingerprint: this.#binding.broker_locator_fingerprint,
@@ -1649,7 +1660,9 @@ export function credentialBrokerBindingFingerprintV01(
 function createCredentialAttestationFromStorageV01(input: {
   binding: CodexCredentialBrokerBindingV01;
   input: ProvisionCodexCredentialAttestationInputV01;
-  resolved: ResolvedCodexAuthStorageV01;
+  resolved: ResolvedCodexAuthStorageV01 & {
+    agent_identity_task_registration_state: "present";
+  };
 }): CodexIsolatedAuthCredentialAttestationV01 {
   const identity = input.resolved.identity;
   const claims = input.resolved.jwt_claims;
@@ -1898,6 +1911,17 @@ function resolvedRecordStorageV01(input: {
     jwt_claims: null,
     launch_auth_dot_json: minimalAgentIdentityAuthDotJsonV01(input.record),
   };
+}
+
+function assertAgentIdentityReadyWithoutBootstrapV01(
+  resolved: ResolvedCodexAuthStorageV01,
+): asserts resolved is ResolvedCodexAuthStorageV01 & {
+  agent_identity_task_registration_state: "present";
+} {
+  if (resolved.agent_identity_task_registration_state !== "present")
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_agent_identity_task_registration_required",
+    );
 }
 
 function minimalAgentIdentityAuthDotJsonV01(

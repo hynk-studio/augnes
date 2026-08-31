@@ -1241,9 +1241,7 @@ export function assertValidCodexIsolatedAuthProjectionV01(
     !["jwt", "record"].includes(input.agent_identity_storage_kind) ||
     input.managed_chatgpt_binding_verified !==
       (input.source_auth_mode === "chatgpt") ||
-    !["present", "required"].includes(
-      input.agent_identity_task_registration_state,
-    ) ||
+    input.agent_identity_task_registration_state !== "present" ||
     input.launch_injection_mechanism !==
       "broker_internal_attempt_private_auth_snapshot" ||
     input.sensitive_material_lifetime !==
@@ -1368,9 +1366,7 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       !["agentIdentity", "chatgpt"].includes(attestation.source_auth_mode) ||
       attestation.managed_chatgpt_binding_verified !==
         (attestation.source_auth_mode === "chatgpt") ||
-      !["present", "required"].includes(
-        attestation.agent_identity_task_registration_state,
-      ) ||
+      attestation.agent_identity_task_registration_state !== "present" ||
       attestation.claims_authentication_status !==
         "stored_agent_identity_unverified_before_codex_auth" ||
       (!jwtValidityExact && !recordValidityExact)

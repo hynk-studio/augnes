@@ -228,6 +228,7 @@ export interface CodexIsolatedAuthConfigPolicyV01 {
 
 export type CodexIsolatedAuthAvailabilityStateV01 =
   | "available_exact"
+  | "agent_identity_task_registration_required"
   | "agent_identity_bootstrap_required"
   | "handle_missing"
   | "handle_ambiguous"
@@ -320,7 +321,7 @@ export interface CodexIsolatedAuthCredentialAttestationV01 {
   source_auth_mode: "agentIdentity" | "chatgpt";
   agent_identity_storage_kind: "jwt" | "record";
   managed_chatgpt_binding_verified: boolean;
-  agent_identity_task_registration_state: "present" | "required";
+  agent_identity_task_registration_state: "present";
   account_identity_fingerprint: string;
   account_read_email_fingerprint: string | null;
   agent_identity_runtime_fingerprint: string;
@@ -384,7 +385,7 @@ export interface CodexIsolatedAuthProjectionV01 {
   source_auth_mode: "agentIdentity" | "chatgpt";
   agent_identity_storage_kind: "jwt" | "record";
   managed_chatgpt_binding_verified: boolean;
-  agent_identity_task_registration_state: "present" | "required";
+  agent_identity_task_registration_state: "present";
   codex_executable_ref: ExternalRefV01;
   codex_executable_fingerprint: string;
   executable_identity_class:

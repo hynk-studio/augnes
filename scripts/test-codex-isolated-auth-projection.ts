@@ -531,7 +531,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     assert.deepEqual(boundary, {
       app_server_material_present: true,
       environment_material_present: false,
-      auth_snapshot_kind: "jwt",
+      auth_snapshot_kind: "record",
       repository_child_material_present: false,
       shared_home_canary_visible: false,
       shared_codex_home_history_visible: false,
@@ -672,7 +672,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
 
 async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
   const binding = bindingV01();
-  const record = {
+  const recordWithoutTask = {
     agent_runtime_id: BASE_CLAIMS.agent_runtime_id,
     agent_private_key: BASE_CLAIMS.agent_private_key,
     account_id: RAW_ACCOUNT_ID,
@@ -680,10 +680,17 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
     email: "not-returned-to-augnes@example.invalid",
     plan_type: BASE_CLAIMS.plan_type,
     chatgpt_account_is_fedramp: BASE_CLAIMS.chatgpt_account_is_fedramp,
+  } as const;
+  const record = {
+    ...recordWithoutTask,
     task_id: "fixture-agent-task",
   } as const;
   const directRecordStorage = officialAgentIdentityRecordStorageV01(record);
+  const directRecordWithoutTaskStorage =
+    officialAgentIdentityRecordStorageV01(recordWithoutTask);
   const managedStorage = officialManagedChatGptStorageV01(record);
+  const managedRecordWithoutTaskStorage =
+    officialManagedChatGptStorageV01(recordWithoutTask);
   const managedBootstrapRequiredStorage = officialManagedChatGptStorageV01(null);
   const apiKeyStorage = JSON.stringify({
     auth_mode: "apikey",
@@ -738,21 +745,40 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
       expires_at: EXPIRES_AT,
     });
   };
+  const availabilityForMaterial = async (material: string) =>
+    await fakeBrokerForMaterial(material).availabilityV01({
+      codex_executable_fingerprint: sha256FileV01(process.execPath),
+      observed_at: GENERATED_AT,
+    });
 
-  const jwtProvisioned = await provisionMaterial(
-    "official-auth-storage-jwt",
-    officialAgentIdentityJwtStorageV01(FAKE_JWT),
-  );
+  const jwtStorage = officialAgentIdentityJwtStorageV01(FAKE_JWT);
   assert.equal(
-    jwtProvisioned.credential_attestation.agent_identity_storage_kind,
-    "jwt",
+    (await availabilityForMaterial(jwtStorage)).state,
+    "agent_identity_task_registration_required",
   );
-  assert.equal(jwtProvisioned.credential_attestation.source_auth_mode, "agentIdentity");
+  await assert.rejects(
+    () => provisionMaterial("official-auth-storage-jwt", jwtStorage),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
+
   assert.equal(
-    jwtProvisioned.credential_attestation.agent_identity_task_registration_state,
-    "required",
+    (await availabilityForMaterial(directRecordWithoutTaskStorage)).state,
+    "agent_identity_task_registration_required",
   );
-  assertPublicSafeV01(jwtProvisioned);
+  await assert.rejects(
+    () =>
+      provisionMaterial(
+        "official-auth-storage-record-without-task",
+        directRecordWithoutTaskStorage,
+      ),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
 
   const recordProvisioned = await provisionMaterial(
     "official-auth-storage-record",
@@ -771,6 +797,22 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
     "present",
   );
   assertPublicSafeV01(recordProvisioned);
+
+  assert.equal(
+    (await availabilityForMaterial(managedRecordWithoutTaskStorage)).state,
+    "agent_identity_task_registration_required",
+  );
+  await assert.rejects(
+    () =>
+      provisionMaterial(
+        "official-auth-storage-managed-record-without-task",
+        managedRecordWithoutTaskStorage,
+      ),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code ===
+        "codex_isolated_auth_agent_identity_task_registration_required",
+  );
 
   const managedProvisioned = await provisionMaterial(
     "official-auth-storage-managed-record",
@@ -2076,7 +2118,7 @@ async function agentIdentityClaimNegativesV01(
     ],
   ];
   for (const [id, material] of invalid) {
-    const availability = await brokerV01(roots, material).availabilityV01({
+    const availability = await brokerV01(roots, material, "jwt").availabilityV01({
       codex_executable_fingerprint: sha256FileV01(process.execPath),
       observed_at: GENERATED_AT,
     });
@@ -2085,106 +2127,22 @@ async function agentIdentityClaimNegativesV01(
 
   await assert.rejects(
     () =>
-      brokerV01(roots, FAKE_JWT).provisionCredentialAttestationV01({
+      brokerV01(roots, FAKE_JWT, "jwt").provisionCredentialAttestationV01({
         provisioning_binding_ref: refV01(
           "codex_auth_provisioning_binding",
           "provisioning:expiry-overrun",
         ),
         ...semanticProfileBindingV01(),
-        attestation_id: "expiry-overrun",
+        attestation_id: "jwt-task-registration-gate",
         issued_at: GENERATED_AT,
-        expires_at: "2100-01-01T00:00:00.000Z",
+        expires_at: EXPIRES_AT,
       }),
     (error: unknown) =>
       error instanceof CodexCredentialBrokerErrorV01 &&
       error.code ===
-        "codex_auth_broker_projection_expiry_exceeds_credential",
+        "codex_auth_broker_agent_identity_task_registration_required",
   );
 
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 120;
-  const issuedAt = new Date((now - 10) * 1000).toISOString();
-  const projectionExpiresAt = new Date((now + 30) * 1000).toISOString();
-  const expiringJwt = jwtV01(
-    {
-      ...BASE_CLAIMS,
-      iat: now - 20,
-      exp,
-      account_id: RAW_ACCOUNT_ID,
-      chatgpt_user_id: RAW_USER_ID,
-    },
-    "expiring-signature",
-  );
-  const binding = bindingV01();
-  let observedNow = now;
-  const broker = createFakeCodexCredentialBrokerV01({
-    binding,
-    lease_root: roots.lease,
-    entries: [
-      {
-        handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(expiringJwt),
-      },
-    ],
-    now_epoch_seconds: () => observedNow,
-  });
-  const providerRef = refV01("model_provider", "openai", issuedAt);
-  const authorization = createCodexIsolatedAuthProvisioningBindingV01({
-    binding_id: "provisioning:expires-between",
-    auth_handle_ref: binding.auth_handle_ref,
-    broker_binding_fingerprint: credentialBrokerBindingFingerprintV01(binding),
-    provider_ref: providerRef,
-    codex_executable_fingerprint: sha256FileV01(process.execPath),
-    executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-    issued_at: issuedAt,
-    expires_at: projectionExpiresAt,
-  });
-  const expiring = await provisionCodexIsolatedAuthProjectionV01({
-    projection_id: "codex-isolated-auth:expires-between",
-    provisioning_binding: authorization,
-    provisioning_binding_ref: refV01(
-      "codex_auth_provisioning_binding",
-      authorization.binding_id,
-      issuedAt,
-    ),
-    provider_ref: providerRef,
-    broker_binding: binding,
-    broker,
-    codex_executable_ref: refV01("codex_executable", "node-test-host", issuedAt),
-    codex_executable_fingerprint: sha256FileV01(process.execPath),
-    executable_identity_class: "test_emulated_profile",
-    compatible_codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-    issued_at: issuedAt,
-    expires_at: projectionExpiresAt,
-  });
-  const stateParent = path.join(roots.state, "expires-between");
-  mkdirSync(stateParent, { recursive: true, mode: 0o700 });
-  const owner = new CodexIsolatedAuthenticatedExecutionOwnerV01({
-    projection: expiring.projection,
-    credential_attestation: expiring.credential_attestation,
-    projection_seal: expiring.projection_seal,
-    broker,
-    state_parent: stateParent,
-    repository_root: roots.repository,
-    command: process.execPath,
-    prefix_args: [
-      path.join(process.cwd(), "scripts", "fixtures", "fake-codex-app-server.mjs"),
-    ],
-    base_environment: { NODE_ENV: "test", PATH: process.env.PATH },
-    test_environment: {
-      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
-      FAKE_CODEX_SCENARIO: "isolated_auth_success",
-    },
-  });
-  observedNow = exp + 1;
-  await assert.rejects(
-    () => owner.startAuthenticatedPreflightV01(),
-    (error: unknown) =>
-      error instanceof CodexCredentialBrokerErrorV01 &&
-      error.code === "codex_auth_broker_credential_expired",
-  );
-  assert.equal(readdirSync(stateParent).length, 0);
 }
 
 async function brokerAndProvisioningNegativesV01(
@@ -2365,7 +2323,7 @@ async function brokerAndProvisioningNegativesV01(
       error.code === "codex_auth_broker_handle_missing",
   );
 
-  const incomplete = brokerV01(roots, PARTIAL_ID_JWT);
+  const incomplete = brokerV01(roots, PARTIAL_ID_JWT, "jwt");
   const incompleteAvailability = await incomplete.availabilityV01({
     codex_executable_fingerprint: sha256FileV01(process.execPath),
     observed_at: GENERATED_AT,
@@ -2452,7 +2410,7 @@ async function brokerAndProvisioningNegativesV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     before_return: async () => {
@@ -2715,7 +2673,7 @@ async function tmpAndFailureNegativesV01(
     entries: [
       {
         handle_external_id: bindingV01().auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     fail_code: "codex_auth_broker_lookup_failed",
@@ -2775,7 +2733,7 @@ async function leaseReleaseRollbackV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -2831,7 +2789,7 @@ async function leaseReleaseRollbackV01(
       entries: [
         {
           handle_external_id: binding.auth_handle_ref.external_id,
-          material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+          material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
         },
       ],
     });
@@ -2882,7 +2840,7 @@ async function leaseReleaseRollbackV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+        material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -2966,7 +2924,7 @@ async function leaseReleaseRollbackV01(
         entries: [
           {
             handle_external_id: binding.auth_handle_ref.external_id,
-            material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
+            material: officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
           },
         ],
       }),
@@ -3038,7 +2996,8 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(POISON_FAILURE_JWT),
+        material:
+          officialInitializedAgentIdentityRecordStorageV01(POISON_FAILURE_JWT),
       },
     ],
     after_spawn_before_lease_release: async () => {
@@ -3105,9 +3064,10 @@ async function poisonWriteFailureReplayV01(roots: RootsV01): Promise<void> {
           entries: [
             {
               handle_external_id: binding.auth_handle_ref.external_id,
-              material: officialAgentIdentityJwtStorageV01(
-                POISON_FAILURE_JWT,
-              ),
+              material:
+                officialInitializedAgentIdentityRecordStorageV01(
+                  POISON_FAILURE_JWT,
+                ),
             },
           ],
         }),
@@ -3195,7 +3155,11 @@ function semanticProfileBindingV01() {
       CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
   } as const;
 }
-function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
+function brokerV01(
+  roots: RootsV01,
+  jwt: string,
+  storage: "initialized_record" | "jwt" = "initialized_record",
+): CodexCredentialBrokerV01 {
   const binding = bindingV01();
   return createFakeCodexCredentialBrokerV01({
     binding,
@@ -3203,10 +3167,37 @@ function brokerV01(roots: RootsV01, jwt: string): CodexCredentialBrokerV01 {
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: officialAgentIdentityJwtStorageV01(jwt),
+        material:
+          storage === "jwt"
+            ? officialAgentIdentityJwtStorageV01(jwt)
+            : officialInitializedAgentIdentityRecordStorageV01(jwt),
       },
     ],
   });
+}
+
+function initializedAgentIdentityRecordFromJwtFixtureV01(
+  jwt: string,
+): Record<string, unknown> {
+  const payload = JSON.parse(
+    Buffer.from(jwt.split(".")[1]!, "base64url").toString("utf8"),
+  ) as Record<string, unknown>;
+  return {
+    agent_runtime_id: payload.agent_runtime_id,
+    agent_private_key: payload.agent_private_key,
+    account_id: payload.account_id,
+    chatgpt_user_id: payload.chatgpt_user_id,
+    ...(typeof payload.email === "string" ? { email: payload.email } : {}),
+    plan_type: payload.plan_type,
+    chatgpt_account_is_fedramp: payload.chatgpt_account_is_fedramp,
+    task_id: "fixture-agent-task",
+  };
+}
+
+function officialInitializedAgentIdentityRecordStorageV01(jwt: string): string {
+  return officialAgentIdentityRecordStorageV01(
+    initializedAgentIdentityRecordFromJwtFixtureV01(jwt),
+  );
 }
 function ownerV01(
   roots: RootsV01,
