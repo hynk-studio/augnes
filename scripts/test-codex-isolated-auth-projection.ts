@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { ChildProcess, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -30,11 +31,15 @@ import {
   CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
   CodexCredentialBrokerErrorV01,
   bindCodexBrokerPrivateLaunchCapabilityV01,
+  codexAuthFilePlatformPolicyContractForTestV01,
   configureCodexAuthenticatedChildBindingFaultForTestV01,
   codexAuthKeyringAccountForHomeV01,
+  createCodexAuthFileBrokerBindingV01,
+  createCodexAuthFileBrokerForTestV01,
   createFakeCodexCredentialBrokerV01,
   createMacOsKeychainCodexAuthBrokerV01,
   credentialBrokerBindingFingerprintV01,
+  fingerprintCodexAuthFileLocatorV01,
   fingerprintBrokerLocatorV01,
   macOsKeychainReadTimeoutContractForTestV01,
   observeMacOsKeychainReadForTestV01,
@@ -279,6 +284,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     const userAgentProof = userAgentContractV01();
     await macOsKeychainReadTimeoutV01(roots);
     await officialAuthStorageAlignmentV01(roots);
+    await fileBackedAuthSourceV01(roots);
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
     assert.equal(provisioned.availability.state, "available_exact");
     assert.match(
@@ -537,7 +543,9 @@ async function contractsV01(roots: RootsV01): Promise<void> {
       auth_snapshot_kind: "record",
       repository_child_material_present: false,
       shared_home_canary_visible: false,
+      shared_codex_home_config_visible: false,
       shared_codex_home_history_visible: false,
+      shared_codex_home_skills_visible: false,
       owned_tmp_present: true,
       shared_tmp_canary_visible: false,
       material_in_argv: false,
@@ -1024,6 +1032,343 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
   assert.equal(readdirSync(stateParent).length, 0);
 }
 
+async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
+  assert.deepEqual(codexAuthFilePlatformPolicyContractForTestV01("unix"), {
+    platform_class: "unix",
+    require_single_link: true,
+    require_current_uid: true,
+    require_private_posix_mode: true,
+    open_flags_semantics: "read_only_no_follow",
+  });
+  assert.deepEqual(
+    codexAuthFilePlatformPolicyContractForTestV01("non_unix"),
+    {
+      platform_class: "non_unix",
+      require_single_link: false,
+      require_current_uid: false,
+      require_private_posix_mode: false,
+      open_flags_semantics: "read_only",
+    },
+  );
+  const sourceHome = path.join(roots.root, "file-backed-codex-home");
+  const skillsDirectory = path.join(sourceHome, "skills");
+  mkdirSync(skillsDirectory, { recursive: true, mode: 0o700 });
+  writeFileSync(
+    path.join(sourceHome, "auth.json"),
+    officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+    { encoding: "utf8", mode: 0o600 },
+  );
+  writeFileSync(path.join(sourceHome, "config.toml"), "source-only=true\n", {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  writeFileSync(
+    path.join(sourceHome, "foreign-history.jsonl"),
+    '{"source":"must-not-cross"}\n',
+    { encoding: "utf8", mode: 0o600 },
+  );
+  writeFileSync(
+    path.join(skillsDirectory, "source-only-skill.md"),
+    "synthetic source-only skill must not cross\n",
+    { encoding: "utf8", mode: 0o600 },
+  );
+
+  const binding = createCodexAuthFileBrokerBindingV01({
+    source_codex_home: sourceHome,
+    broker_executable_path: process.execPath,
+  });
+  assert.equal(
+    binding.broker_locator_fingerprint,
+    fingerprintCodexAuthFileLocatorV01({ source_codex_home: sourceHome }),
+  );
+  assert.equal(
+    binding.broker_backend_ref.external_id,
+    "codex-auth-dot-json-file",
+  );
+  assert.equal(
+    binding.broker_executable_fingerprint,
+    sha256FileV01(process.execPath),
+  );
+  assert.throws(
+    () =>
+      createCodexAuthFileBrokerForTestV01({
+        binding: {
+          ...binding,
+          broker_backend_ref: refV01(
+            "auth_broker_backend",
+            "forged-file-auth-backend",
+          ),
+        },
+        source_codex_home: sourceHome,
+        broker_executable_path: process.execPath,
+        lease_root: roots.lease,
+      }),
+    (error: unknown) =>
+      error instanceof CodexCredentialBrokerErrorV01 &&
+      error.code === "codex_auth_broker_binding_mismatch",
+  );
+  const broker = createCodexAuthFileBrokerForTestV01({
+    binding,
+    source_codex_home: sourceHome,
+    broker_executable_path: process.execPath,
+    lease_root: roots.lease,
+  });
+  const availability = await broker.availabilityV01({
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(availability.state, "available_exact");
+
+  const providerRef = refV01("model_provider", "openai");
+  const provisioningBinding = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: "provisioning:file-backed-source",
+    auth_handle_ref: binding.auth_handle_ref,
+    broker_binding_fingerprint:
+      credentialBrokerBindingFingerprintV01(binding),
+    provider_ref: providerRef,
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version:
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
+  const provisioned = await provisionCodexIsolatedAuthProjectionV01({
+    projection_id: "codex-isolated-auth:file-backed-source",
+    provisioning_binding: provisioningBinding,
+    provisioning_binding_ref: refV01(
+      "codex_auth_provisioning_binding",
+      provisioningBinding.binding_id,
+    ),
+    provider_ref: providerRef,
+    broker_binding: binding,
+    broker,
+    codex_executable_ref: refV01("codex_executable", "node-test-host"),
+    codex_executable_fingerprint: sha256FileV01(process.execPath),
+    executable_identity_class: "test_emulated_profile",
+    compatible_codex_cli_version:
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
+  assert.equal(provisioned.availability.state, "available_exact");
+  assert.equal(provisioned.projection.source_auth_mode, "agentIdentity");
+  assertPublicSafeV01(provisioned);
+  assertNoSecretApiV01(provisioned);
+  const serializedPublicProjection = JSON.stringify(provisioned);
+  for (const secret of SECRET_CANARIES)
+    assert.equal(serializedPublicProjection.includes(secret), false);
+  assert.equal(serializedPublicProjection.includes(sourceHome), false);
+
+  const stateParent = path.join(roots.state, "file-backed-source-preflight");
+  const boundaryPath = path.join(
+    roots.runtime,
+    "file-backed-source-preflight-boundary.json",
+  );
+  const ownerInput = ownerInputV01(
+    roots,
+    "file-backed-source-preflight",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_success",
+    stateParent,
+  );
+  ownerInput.broker = broker;
+  ownerInput.test_environment = {
+    ...ownerInput.test_environment,
+    FAKE_CODEX_AUTH_BOUNDARY_PATH: boundaryPath,
+  };
+  const owner = new CodexIsolatedAuthenticatedExecutionOwnerV01(ownerInput);
+  const session = await owner.startAuthenticatedPreflightV01();
+  await session.initializeV01();
+  await session.observeAuthenticatedConfigurationV01({
+    observed_at: GENERATED_AT,
+  });
+  const boundary = JSON.parse(readFileSync(boundaryPath, "utf8")) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(boundary.app_server_material_present, true);
+  assert.equal(boundary.auth_snapshot_kind, "record");
+  assert.equal(boundary.shared_codex_home_config_visible, false);
+  assert.equal(boundary.shared_codex_home_history_visible, false);
+  assert.equal(boundary.shared_codex_home_skills_visible, false);
+  assert.equal(
+    listFilesV01(stateParent).some((file) => path.basename(file) === "auth.json"),
+    false,
+  );
+  assert.equal(await session.shutdownAndCleanupV01(), true);
+  assert.equal(readdirSync(stateParent).length, 0);
+
+  const syntheticHomes: string[] = [];
+  const availabilityForFileSource = async (
+    id: string,
+    configure: (home: string) => void,
+    options?: {
+      file_platform_for_test?: "unix" | "non_unix";
+      after_read_before_identity_recheck_for_test?: (home: string) => void;
+    },
+  ): Promise<string> => {
+    const home = path.join(roots.root, `file-auth-negative-${id}`);
+    syntheticHomes.push(home);
+    mkdirSync(home, { mode: 0o700 });
+    configure(home);
+    const negativeBinding = createCodexAuthFileBrokerBindingV01({
+      source_codex_home: home,
+      broker_executable_path: process.execPath,
+    });
+    return (
+      await createCodexAuthFileBrokerForTestV01({
+        binding: negativeBinding,
+        source_codex_home: home,
+        broker_executable_path: process.execPath,
+        lease_root: roots.lease,
+        file_platform_for_test: options?.file_platform_for_test,
+        after_read_before_identity_recheck_for_test:
+          options?.after_read_before_identity_recheck_for_test === undefined
+            ? null
+            : () =>
+                options.after_read_before_identity_recheck_for_test?.(home),
+      }).availabilityV01({
+        codex_executable_fingerprint: sha256FileV01(process.execPath),
+        observed_at: GENERATED_AT,
+      })
+    ).state;
+  };
+  assert.equal(
+    await availabilityForFileSource("registration-required", (home) =>
+      writeFileSync(
+        path.join(home, "auth.json"),
+        officialAgentIdentityJwtStorageV01(FAKE_JWT),
+        { mode: 0o600 },
+      ),
+    ),
+    "agent_identity_task_registration_required",
+  );
+  assert.equal(
+    await availabilityForFileSource("managed-bootstrap", (home) =>
+      writeFileSync(
+        path.join(home, "auth.json"),
+        officialManagedChatGptStorageV01(null),
+        { mode: 0o600 },
+      ),
+    ),
+    "agent_identity_bootstrap_required",
+  );
+  assert.equal(
+    await availabilityForFileSource("malformed", (home) =>
+      writeFileSync(path.join(home, "auth.json"), "{not-json", {
+        mode: 0o600,
+      }),
+    ),
+    "credential_shape_invalid",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "unix-permissive",
+      (home) => {
+        const authPath = path.join(home, "auth.json");
+        writeFileSync(
+          authPath,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        chmodSync(authPath, 0o644);
+      },
+      { file_platform_for_test: "unix" },
+    ),
+    "unsupported",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-permissive",
+      (home) => {
+        const authPath = path.join(home, "auth.json");
+        writeFileSync(
+          authPath,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        chmodSync(authPath, 0o644);
+      },
+      { file_platform_for_test: "non_unix" },
+    ),
+    "available_exact",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-symlink",
+      (home) => {
+        const target = path.join(home, "synthetic-auth-target.json");
+        writeFileSync(
+          target,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        symlinkSync(target, path.join(home, "auth.json"));
+      },
+      { file_platform_for_test: "non_unix" },
+    ),
+    "unsupported",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-oversized",
+      (home) =>
+        writeFileSync(path.join(home, "auth.json"), "x".repeat(64 * 1024 + 1), {
+          mode: 0o600,
+        }),
+      { file_platform_for_test: "non_unix" },
+    ),
+    "unsupported",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-substituted",
+      (home) =>
+        writeFileSync(
+          path.join(home, "auth.json"),
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        ),
+      {
+        file_platform_for_test: "non_unix",
+        after_read_before_identity_recheck_for_test: (home) =>
+          writeFileSync(
+            path.join(home, "auth.json"),
+            `${officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT)}\n `,
+            { mode: 0o600 },
+          ),
+      },
+    ),
+    "unsupported",
+  );
+
+  const productionOwnerSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "lib/vnext/commissioned-controlled-live-training-production-owner.ts",
+    ),
+    "utf8",
+  );
+  const productionCliSource = readFileSync(
+    path.join(
+      process.cwd(),
+      "scripts/run-commissioned-controlled-live-training.ts",
+    ),
+    "utf8",
+  );
+  for (const source of [productionOwnerSource, productionCliSource]) {
+    assert.equal(source.includes("createMacOsKeychainCodexAuthBrokerV01"), false);
+    assert.equal(source.includes("keychain_path"), false);
+    assert.equal(source.includes("AUGNES_CW1_L1_KEYCHAIN_PATH"), false);
+    assert.equal(source.includes("/usr/bin/security"), false);
+  }
+  rmSync(sourceHome, { recursive: true, force: false });
+  for (const home of syntheticHomes)
+    rmSync(home, { recursive: true, force: false });
+}
+
 function userAgentContractV01(): {
   contract_fingerprint: string;
   negative_shapes_refused: number;
@@ -1375,11 +1720,19 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.auth_storage_contract_fingerprint,
-    "sha256:c676ab832ca7bbfbde6f5bbf045afbd23034ff122840863fed2ead5ac52cd18c",
+    "sha256:ebaab94674707cc9f71a9ed842e9e628f1cc3f812e871cd205a645f35283a867",
   );
   assert.equal(
     CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.keyring_service,
     CODEX_AUTH_KEYRING_SERVICE_V01,
+  );
+  assert.deepEqual(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.supported_source_stores,
+    ["file", "macos_direct_keyring"],
+  );
+  assert.equal(
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.file_source_location,
+    "CODEX_HOME/auth.json",
   );
   assert.equal(
     CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01.manual_agent_identity_jwt_required,
@@ -1445,7 +1798,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
-    "sha256:a5fa8090c9caa21f512bc9b38e2ff3242d35164fa8858cbedb9a609fd52de107",
+    "sha256:a554f3cda984183ceae63d11c49dd8d81f8f851b2ed165d05ebd97952dab8474",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -1660,7 +2013,9 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(credentialFreeBoundary.app_server_material_present, false);
   assert.equal(credentialFreeBoundary.repository_child_material_present, false);
   assert.equal(credentialFreeBoundary.shared_home_canary_visible, false);
+  assert.equal(credentialFreeBoundary.shared_codex_home_config_visible, false);
   assert.equal(credentialFreeBoundary.shared_codex_home_history_visible, false);
+  assert.equal(credentialFreeBoundary.shared_codex_home_skills_visible, false);
   assert.equal(credentialFreeBoundary.shared_tmp_canary_visible, false);
   assert.equal(credentialFreeBoundary.material_in_argv, false);
   assert.equal(readFileSync(fakeNetwork, "utf8"), "0\n");

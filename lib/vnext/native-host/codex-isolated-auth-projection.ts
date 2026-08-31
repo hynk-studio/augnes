@@ -307,6 +307,9 @@ const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
 } as const;
 export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01 = deepFreezeV01({
   contract_version: CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  supported_source_stores: ["file", "macos_direct_keyring"],
+  file_source_location: "CODEX_HOME/auth.json",
+  file_source_value: "serialized_auth_dot_json",
   keyring_service: CODEX_AUTH_KEYRING_SERVICE_V01,
   keyring_account_derivation:
     "cli_pipe_first_16_hex_sha256_of_canonical_codex_home",
