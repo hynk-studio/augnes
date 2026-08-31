@@ -80,6 +80,14 @@ or support for the paths that still consume them. They are not active authority
 unless an active owner explicitly delegates a bounded contract to them. Git
 history is the primary archive; retirement requires separate reviewed proof.
 
+The
+[ACGC-CW1 terminal closeout and salvage boundary](./research/ACGC_CW1_TERMINAL_CLOSEOUT_AND_SALVAGE_V0_1.md)
+records that CW1 terminated before obtaining a usable empirical cohort result,
+separates independently useful generic mechanisms and research-method lessons
+from CW1-specific historical machinery, and defines a consumer-audited
+reduction boundary. It is closeout/history material only and does not own
+current sequencing, authorize deletion, or create a scientific conclusion.
+
 ## Conflict resolution
 
 1. Use the active owner for the topic in dispute.
