@@ -46,7 +46,7 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
 const MACOS_SECURITY_PATH_V01 = "/usr/bin/security";
 const MAX_BROKER_OUTPUT_BYTES_V01 = 64 * 1024;
-const BROKER_TIMEOUT_MS_V01 = 5_000;
+const MACOS_KEYCHAIN_READ_TIMEOUT_MS_V01 = 60_000;
 const CHILD_ROLLBACK_TIMEOUT_MS_V01 = 5_000;
 const CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01 = 60;
 export const CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01 =
@@ -1030,6 +1030,7 @@ export function createMacOsKeychainCodexAuthBrokerV01(input: {
           service_name: serviceName,
           account_name: accountName,
           keychain_path: keychainIdentity.path,
+          timeout_ms: MACOS_KEYCHAIN_READ_TIMEOUT_MS_V01,
         });
         assertExactPrivateFileIdentityV01(
           keychainIdentity,
@@ -2719,7 +2720,12 @@ async function readExactMacOsKeychainItemV01(input: {
   service_name: string;
   account_name: string;
   keychain_path: string;
+  timeout_ms: number;
 }): Promise<string> {
+  if (!Number.isSafeInteger(input.timeout_ms) || input.timeout_ms <= 0)
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_timeout_invalid",
+    );
   return await new Promise<string>((resolve, reject) => {
     const child = spawn(
       input.executable,
@@ -2759,7 +2765,7 @@ async function readExactMacOsKeychainItemV01(input: {
         "codex_auth_broker_timeout",
       );
       child.kill("SIGKILL");
-    }, BROKER_TIMEOUT_MS_V01);
+    }, input.timeout_ms);
     timer.unref();
     child.stdout.on("data", (chunk: Buffer) => {
       stdoutBytes += chunk.byteLength;
@@ -2800,6 +2806,75 @@ async function readExactMacOsKeychainItemV01(input: {
       resolve(material);
     });
   });
+}
+
+/** Test-only proof surface for the purpose-specific Keychain timeout. */
+export function macOsKeychainReadTimeoutContractForTestV01(): Readonly<{
+  macos_keychain_read_timeout_ms: number;
+  child_rollback_timeout_ms: number;
+}> {
+  assertMacOsKeychainReadTestModeV01();
+  return Object.freeze({
+    macos_keychain_read_timeout_ms: MACOS_KEYCHAIN_READ_TIMEOUT_MS_V01,
+    child_rollback_timeout_ms: CHILD_ROLLBACK_TIMEOUT_MS_V01,
+  });
+}
+
+/**
+ * Test-only lifecycle observation over a synthetic executable. It returns no
+ * credential material and refuses the real macOS Keychain executable.
+ */
+export async function observeMacOsKeychainReadForTestV01(input: {
+  executable: string;
+  keychain_path: string;
+  timeout_ms: number;
+}): Promise<
+  Readonly<{
+    state: "completed" | "failed_closed";
+    error_code: string | null;
+    material_returned_internally: boolean;
+  }>
+> {
+  assertMacOsKeychainReadTestModeV01();
+  if (
+    !path.isAbsolute(input.executable) ||
+    !path.isAbsolute(input.keychain_path) ||
+    realpathSync(input.executable) === MACOS_SECURITY_PATH_V01 ||
+    !Number.isSafeInteger(input.timeout_ms) ||
+    input.timeout_ms <= 0 ||
+    input.timeout_ms > 1_000
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_keychain_read_test_invalid",
+    );
+  try {
+    const material = await readExactMacOsKeychainItemV01({
+      executable: input.executable,
+      service_name: "Augnes Synthetic Keychain Read Test",
+      account_name: "synthetic-test-account",
+      keychain_path: input.keychain_path,
+      timeout_ms: input.timeout_ms,
+    });
+    return Object.freeze({
+      state: "completed",
+      error_code: null,
+      material_returned_internally: material.length > 0,
+    });
+  } catch (error) {
+    if (!(error instanceof CodexCredentialBrokerErrorV01)) throw error;
+    return Object.freeze({
+      state: "failed_closed",
+      error_code: error.code,
+      material_returned_internally: false,
+    });
+  }
+}
+
+function assertMacOsKeychainReadTestModeV01(): void {
+  if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1")
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_keychain_read_test_forbidden",
+    );
 }
 
 function releaseLeaseV01(lease: BrokerLeaseV01): void {

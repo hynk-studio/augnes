@@ -36,6 +36,8 @@ import {
   createMacOsKeychainCodexAuthBrokerV01,
   credentialBrokerBindingFingerprintV01,
   fingerprintBrokerLocatorV01,
+  macOsKeychainReadTimeoutContractForTestV01,
+  observeMacOsKeychainReadForTestV01,
   spawnCodexAppServerWithPrivateCapabilityV01,
   verifyCodexBrokerProcessIdentitySubstitutionForTestV01,
   type CodexAuthenticatedChildBindingFaultForTestV01,
@@ -275,6 +277,7 @@ async function runFocusedModeV01(mode: FocusedModeV01): Promise<void> {
 
 async function contractsV01(roots: RootsV01): Promise<void> {
     const userAgentProof = userAgentContractV01();
+    await macOsKeychainReadTimeoutV01(roots);
     await officialAuthStorageAlignmentV01(roots);
     const provisioned = await provisionV01(roots, "primary", FAKE_JWT);
     assert.equal(provisioned.availability.state, "available_exact");
@@ -668,6 +671,71 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         cleanup_complete: true,
       }),
     );
+}
+
+async function macOsKeychainReadTimeoutV01(roots: RootsV01): Promise<void> {
+  const contract = macOsKeychainReadTimeoutContractForTestV01();
+  assert.equal(contract.macos_keychain_read_timeout_ms, 60_000);
+  assert.equal(contract.child_rollback_timeout_ms, 5_000);
+  assert.equal(5_001 < contract.macos_keychain_read_timeout_ms, true);
+
+  const fixtureRoot = path.join(roots.runtime, "keychain-read-timeout");
+  mkdirSync(fixtureRoot, { mode: 0o700 });
+  const delayedPidPath = path.join(fixtureRoot, "delayed.pid");
+  const delayedExecutable = path.join(fixtureRoot, "delayed-keychain-read");
+  const syntheticMaterial = "synthetic-keychain-material-must-not-be-public";
+  writeFileSync(
+    delayedExecutable,
+    "#!/bin/sh\n" +
+      `printf '%s' "$$" > ${JSON.stringify(delayedPidPath)}\n` +
+      "/bin/sleep 0.075\n" +
+      `printf '%s\\n' ${JSON.stringify(syntheticMaterial)}\n`,
+    { mode: 0o700 },
+  );
+  const completed = await observeMacOsKeychainReadForTestV01({
+    executable: delayedExecutable,
+    keychain_path: path.join(fixtureRoot, "synthetic.keychain-db"),
+    timeout_ms: 1_000,
+  });
+  assert.deepEqual(completed, {
+    state: "completed",
+    error_code: null,
+    material_returned_internally: true,
+  });
+  assert.equal(JSON.stringify(completed).includes(syntheticMaterial), false);
+  assertProcessNotAliveV01(Number(readFileSync(delayedPidPath, "utf8")));
+
+  const blockedPidPath = path.join(fixtureRoot, "blocked.pid");
+  const blockedExecutable = path.join(fixtureRoot, "blocked-keychain-read");
+  writeFileSync(
+    blockedExecutable,
+    "#!/bin/sh\n" +
+      `printf '%s' "$$" > ${JSON.stringify(blockedPidPath)}\n` +
+      "while :; do :; done\n",
+    { mode: 0o700 },
+  );
+  const timedOut = await observeMacOsKeychainReadForTestV01({
+    executable: blockedExecutable,
+    keychain_path: path.join(fixtureRoot, "synthetic.keychain-db"),
+    timeout_ms: 1_000,
+  });
+  assert.deepEqual(timedOut, {
+    state: "failed_closed",
+    error_code: "codex_auth_broker_timeout",
+    material_returned_internally: false,
+  });
+  assertProcessNotAliveV01(Number(readFileSync(blockedPidPath, "utf8")));
+  assert.equal(readdirSync(roots.lease).length, 0);
+  rmSync(fixtureRoot, { recursive: true, force: false });
+}
+
+function assertProcessNotAliveV01(pid: number): void {
+  assert.equal(Number.isSafeInteger(pid) && pid > 0, true);
+  assert.throws(
+    () => process.kill(pid, 0),
+    (error: unknown) =>
+      error instanceof Error && Reflect.get(error, "code") === "ESRCH",
+  );
 }
 
 async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
