@@ -31,6 +31,7 @@ import {
   CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01,
   CodexCredentialBrokerErrorV01,
   bindCodexBrokerPrivateLaunchCapabilityV01,
+  codexAuthFilePlatformPolicyContractForTestV01,
   configureCodexAuthenticatedChildBindingFaultForTestV01,
   codexAuthKeyringAccountForHomeV01,
   createCodexAuthFileBrokerBindingV01,
@@ -1032,6 +1033,23 @@ async function officialAuthStorageAlignmentV01(roots: RootsV01): Promise<void> {
 }
 
 async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
+  assert.deepEqual(codexAuthFilePlatformPolicyContractForTestV01("unix"), {
+    platform_class: "unix",
+    require_single_link: true,
+    require_current_uid: true,
+    require_private_posix_mode: true,
+    open_flags_semantics: "read_only_no_follow",
+  });
+  assert.deepEqual(
+    codexAuthFilePlatformPolicyContractForTestV01("non_unix"),
+    {
+      platform_class: "non_unix",
+      require_single_link: false,
+      require_current_uid: false,
+      require_private_posix_mode: false,
+      open_flags_semantics: "read_only",
+    },
+  );
   const sourceHome = path.join(roots.root, "file-backed-codex-home");
   const skillsDirectory = path.join(sourceHome, "skills");
   mkdirSync(skillsDirectory, { recursive: true, mode: 0o700 });
@@ -1182,13 +1200,17 @@ async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
   assert.equal(await session.shutdownAndCleanupV01(), true);
   assert.equal(readdirSync(stateParent).length, 0);
 
-  const negativeHomes: string[] = [];
+  const syntheticHomes: string[] = [];
   const availabilityForFileSource = async (
     id: string,
     configure: (home: string) => void,
+    options?: {
+      file_platform_for_test?: "unix" | "non_unix";
+      after_read_before_identity_recheck_for_test?: (home: string) => void;
+    },
   ): Promise<string> => {
     const home = path.join(roots.root, `file-auth-negative-${id}`);
-    negativeHomes.push(home);
+    syntheticHomes.push(home);
     mkdirSync(home, { mode: 0o700 });
     configure(home);
     const negativeBinding = createCodexAuthFileBrokerBindingV01({
@@ -1201,6 +1223,12 @@ async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
         source_codex_home: home,
         broker_executable_path: process.execPath,
         lease_root: roots.lease,
+        file_platform_for_test: options?.file_platform_for_test,
+        after_read_before_identity_recheck_for_test:
+          options?.after_read_before_identity_recheck_for_test === undefined
+            ? null
+            : () =>
+                options.after_read_before_identity_recheck_for_test?.(home),
       }).availabilityV01({
         codex_executable_fingerprint: sha256FileV01(process.execPath),
         observed_at: GENERATED_AT,
@@ -1236,27 +1264,83 @@ async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
     "credential_shape_invalid",
   );
   assert.equal(
-    await availabilityForFileSource("permissive", (home) => {
-      const authPath = path.join(home, "auth.json");
-      writeFileSync(
-        authPath,
-        officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
-        { mode: 0o600 },
-      );
-      chmodSync(authPath, 0o644);
-    }),
+    await availabilityForFileSource(
+      "unix-permissive",
+      (home) => {
+        const authPath = path.join(home, "auth.json");
+        writeFileSync(
+          authPath,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        chmodSync(authPath, 0o644);
+      },
+      { file_platform_for_test: "unix" },
+    ),
     "unsupported",
   );
   assert.equal(
-    await availabilityForFileSource("symlink", (home) => {
-      const target = path.join(home, "synthetic-auth-target.json");
-      writeFileSync(
-        target,
-        officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
-        { mode: 0o600 },
-      );
-      symlinkSync(target, path.join(home, "auth.json"));
-    }),
+    await availabilityForFileSource(
+      "non-unix-permissive",
+      (home) => {
+        const authPath = path.join(home, "auth.json");
+        writeFileSync(
+          authPath,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        chmodSync(authPath, 0o644);
+      },
+      { file_platform_for_test: "non_unix" },
+    ),
+    "available_exact",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-symlink",
+      (home) => {
+        const target = path.join(home, "synthetic-auth-target.json");
+        writeFileSync(
+          target,
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        );
+        symlinkSync(target, path.join(home, "auth.json"));
+      },
+      { file_platform_for_test: "non_unix" },
+    ),
+    "unsupported",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-oversized",
+      (home) =>
+        writeFileSync(path.join(home, "auth.json"), "x".repeat(64 * 1024 + 1), {
+          mode: 0o600,
+        }),
+      { file_platform_for_test: "non_unix" },
+    ),
+    "unsupported",
+  );
+  assert.equal(
+    await availabilityForFileSource(
+      "non-unix-substituted",
+      (home) =>
+        writeFileSync(
+          path.join(home, "auth.json"),
+          officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT),
+          { mode: 0o600 },
+        ),
+      {
+        file_platform_for_test: "non_unix",
+        after_read_before_identity_recheck_for_test: (home) =>
+          writeFileSync(
+            path.join(home, "auth.json"),
+            `${officialInitializedAgentIdentityRecordStorageV01(FAKE_JWT)}\n `,
+            { mode: 0o600 },
+          ),
+      },
+    ),
     "unsupported",
   );
 
@@ -1281,7 +1365,7 @@ async function fileBackedAuthSourceV01(roots: RootsV01): Promise<void> {
     assert.equal(source.includes("/usr/bin/security"), false);
   }
   rmSync(sourceHome, { recursive: true, force: false });
-  for (const home of negativeHomes)
+  for (const home of syntheticHomes)
     rmSync(home, { recursive: true, force: false });
 }
 

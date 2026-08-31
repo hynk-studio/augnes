@@ -1083,8 +1083,14 @@ export function createCodexAuthFileBrokerV01(input: {
   broker_executable_path: string;
 }): CodexCredentialBrokerV01 {
   return createCodexAuthFileBrokerWithLeaseV01({
-    ...input,
+    binding: input.binding,
+    source_codex_home: input.source_codex_home,
+    broker_executable_path: input.broker_executable_path,
     lease_root: canonicalProductionLeaseRootV01,
+    file_platform_policy: codexAuthFilePlatformPolicyV01(
+      process.platform === "win32" ? "non_unix" : "unix",
+    ),
+    after_read_before_identity_recheck: null,
     preflight: () => {
       if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1") {
         throw new CodexCredentialBrokerErrorV01(
@@ -1102,10 +1108,20 @@ export function createCodexAuthFileBrokerForTestV01(input: {
   source_codex_home: string;
   broker_executable_path: string;
   lease_root: string;
+  file_platform_for_test?: "unix" | "non_unix";
+  after_read_before_identity_recheck_for_test?: (() => void) | null;
 }): CodexCredentialBrokerV01 {
   return createCodexAuthFileBrokerWithLeaseV01({
-    ...input,
+    binding: input.binding,
+    source_codex_home: input.source_codex_home,
+    broker_executable_path: input.broker_executable_path,
     lease_root: input.lease_root,
+    file_platform_policy: codexAuthFilePlatformPolicyV01(
+      input.file_platform_for_test ??
+        (process.platform === "win32" ? "non_unix" : "unix"),
+    ),
+    after_read_before_identity_recheck:
+      input.after_read_before_identity_recheck_for_test ?? null,
     preflight: () => {
       if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1") {
         throw new CodexCredentialBrokerErrorV01(
@@ -1121,6 +1137,8 @@ function createCodexAuthFileBrokerWithLeaseV01(input: {
   source_codex_home: string;
   broker_executable_path: string;
   lease_root: string | (() => string);
+  file_platform_policy: CodexAuthFilePlatformPolicyV01;
+  after_read_before_identity_recheck: (() => void) | null;
   preflight: () => void;
 }): CodexCredentialBrokerV01 {
   const binding = deepFreezeV01(structuredClone(input.binding));
@@ -1159,7 +1177,11 @@ function createCodexAuthFileBrokerWithLeaseV01(input: {
             "codex_auth_broker_executable_substituted",
           );
         }
-        return readExactCodexAuthFileV01(sourceCodexHome);
+        return readExactCodexAuthFileV01(
+          sourceCodexHome,
+          input.file_platform_policy,
+          input.after_read_before_identity_recheck,
+        );
       },
     ),
   );
@@ -3281,27 +3303,101 @@ function exactBrokerExecutableIdentityV01(
   }
 }
 
-interface ExactCodexAuthFileIdentityV01 extends ExactPrivateFileIdentityV01 {
-  size: bigint;
-  mode: bigint;
-  uid: bigint;
-  nlink: bigint;
-  mtime_ns: bigint;
-  ctime_ns: bigint;
+type CodexAuthFilePlatformClassV01 = "unix" | "non_unix";
+
+/** Mirrors rust-v0.150.1: file mode 0600 is a cfg(unix) write policy,
+ * while Windows uses its portable regular-file identity and O_RDONLY path. */
+interface CodexAuthFilePlatformPolicyV01 {
+  platform_class: CodexAuthFilePlatformClassV01;
+  require_single_link: boolean;
+  require_current_uid: boolean;
+  require_private_posix_mode: boolean;
+  use_o_no_follow: boolean;
 }
 
-function readExactCodexAuthFileV01(sourceCodexHome: string): string {
+function codexAuthFilePlatformPolicyV01(
+  platformClass: CodexAuthFilePlatformClassV01,
+): CodexAuthFilePlatformPolicyV01 {
+  const unix = platformClass === "unix";
+  return {
+    platform_class: platformClass,
+    require_single_link: unix,
+    require_current_uid: unix,
+    require_private_posix_mode: unix,
+    use_o_no_follow: unix,
+  };
+}
+
+function codexAuthFileOpenFlagsV01(
+  policy: CodexAuthFilePlatformPolicyV01,
+): number {
+  if (!policy.use_o_no_follow) return fsConstants.O_RDONLY;
+  if (
+    typeof fsConstants.O_NOFOLLOW !== "number" ||
+    fsConstants.O_NOFOLLOW === 0
+  )
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_auth_file_platform_unsupported",
+    );
+  return fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
+}
+
+export function codexAuthFilePlatformPolicyContractForTestV01(
+  platformClass: CodexAuthFilePlatformClassV01,
+): {
+  platform_class: CodexAuthFilePlatformClassV01;
+  require_single_link: boolean;
+  require_current_uid: boolean;
+  require_private_posix_mode: boolean;
+  open_flags_semantics: "read_only_no_follow" | "read_only";
+} {
+  if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1")
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_file_broker_test_forbidden_outside_test_mode",
+    );
+  const policy = codexAuthFilePlatformPolicyV01(platformClass);
+  return deepFreezeV01({
+    platform_class: policy.platform_class,
+    require_single_link: policy.require_single_link,
+    require_current_uid: policy.require_current_uid,
+    require_private_posix_mode: policy.require_private_posix_mode,
+    open_flags_semantics: policy.use_o_no_follow
+      ? "read_only_no_follow"
+      : "read_only",
+  });
+}
+
+interface ExactCodexAuthFileIdentityV01 extends ExactPrivateFileIdentityV01 {
+  size: bigint;
+  mtime_ns: bigint;
+  ctime_ns: bigint;
+  unix_identity: {
+    mode: bigint;
+    uid: bigint;
+    nlink: bigint;
+  } | null;
+}
+
+function readExactCodexAuthFileV01(
+  sourceCodexHome: string,
+  platformPolicy: CodexAuthFilePlatformPolicyV01,
+  afterReadBeforeIdentityRecheck: (() => void) | null,
+): string {
   const authFilePath = path.join(sourceCodexHome, "auth.json");
   let descriptor = -1;
   let material: Buffer | null = null;
   try {
-    const identity = exactCodexAuthFileIdentityV01(authFilePath);
+    const identity = exactCodexAuthFileIdentityV01(
+      authFilePath,
+      platformPolicy,
+    );
     descriptor = openSync(
       identity.path,
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      codexAuthFileOpenFlagsV01(platformPolicy),
     );
     assertExactCodexAuthFileIdentityV01(identity, descriptor);
     material = readFileSync(descriptor);
+    afterReadBeforeIdentityRecheck?.();
     if (
       material.length !== Number(identity.size) ||
       !boundedCodexAuthStorageMaterialV01(material.toString("utf8"))
@@ -3328,19 +3424,25 @@ function readExactCodexAuthFileV01(sourceCodexHome: string): string {
 
 function exactCodexAuthFileIdentityV01(
   value: string,
+  platformPolicy: CodexAuthFilePlatformPolicyV01,
 ): ExactCodexAuthFileIdentityV01 {
   try {
     const supplied = lstatSync(value, { bigint: true });
-    const currentUid =
-      typeof process.getuid === "function" ? BigInt(process.getuid()) : null;
+    const currentUid = platformPolicy.require_current_uid
+      ? typeof process.getuid === "function"
+        ? BigInt(process.getuid())
+        : null
+      : null;
     if (
       !supplied.isFile() ||
       supplied.isSymbolicLink() ||
-      supplied.nlink !== BigInt(1) ||
       supplied.size < BigInt(2) ||
       supplied.size > BigInt(MAX_BROKER_OUTPUT_BYTES_V01) ||
-      (supplied.mode & BigInt(0o077)) !== BigInt(0) ||
-      (currentUid !== null && supplied.uid !== currentUid) ||
+      (platformPolicy.require_single_link && supplied.nlink !== BigInt(1)) ||
+      (platformPolicy.require_private_posix_mode &&
+        (supplied.mode & BigInt(0o077)) !== BigInt(0)) ||
+      (platformPolicy.require_current_uid &&
+        (currentUid === null || supplied.uid !== currentUid)) ||
       realpathSync(value) !== value
     )
       throw new Error("invalid");
@@ -3349,11 +3451,16 @@ function exactCodexAuthFileIdentityV01(
       device: supplied.dev,
       inode: supplied.ino,
       size: supplied.size,
-      mode: supplied.mode,
-      uid: supplied.uid,
-      nlink: supplied.nlink,
       mtime_ns: supplied.mtimeNs,
       ctime_ns: supplied.ctimeNs,
+      unix_identity:
+        platformPolicy.platform_class === "unix"
+          ? {
+              mode: supplied.mode,
+              uid: supplied.uid,
+              nlink: supplied.nlink,
+            }
+          : null,
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") throw error;
@@ -3377,11 +3484,12 @@ function assertExactCodexAuthFileIdentityV01(
         observed.dev !== identity.device ||
         observed.ino !== identity.inode ||
         observed.size !== identity.size ||
-        observed.mode !== identity.mode ||
-        observed.uid !== identity.uid ||
-        observed.nlink !== identity.nlink ||
         observed.mtimeNs !== identity.mtime_ns ||
-        observed.ctimeNs !== identity.ctime_ns
+        observed.ctimeNs !== identity.ctime_ns ||
+        (identity.unix_identity !== null &&
+          (observed.mode !== identity.unix_identity.mode ||
+            observed.uid !== identity.unix_identity.uid ||
+            observed.nlink !== identity.unix_identity.nlink))
       )
         throw new Error("substituted");
     }
