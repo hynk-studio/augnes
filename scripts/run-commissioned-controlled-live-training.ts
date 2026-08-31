@@ -227,16 +227,10 @@ async function main(): Promise<void> {
         ),
       ) as unknown,
     );
-  const runtimeLocator = {
-    source_codex_home: takePrivateEnvironmentValueV01(
-      "AUGNES_CW1_L1_CODEX_AUTH_SOURCE_HOME",
-      "live_training_codex_auth_source_home_environment_missing",
-    ),
-    keychain_path: takePrivateEnvironmentValueV01(
-      "AUGNES_CW1_L1_KEYCHAIN_PATH",
-      "live_training_keychain_path_environment_missing",
-    ),
-  };
+  const sourceCodexHome = takePrivateEnvironmentValueV01(
+    "AUGNES_CW1_L1_CODEX_AUTH_SOURCE_HOME",
+    "live_training_codex_auth_source_home_environment_missing",
+  );
   const isolatedRuntimeParent = realpathSync(
     takePrivateEnvironmentValueV01(
       "AUGNES_CW1_L1_ISOLATED_RUNTIME_PARENT",
@@ -274,7 +268,7 @@ async function main(): Promise<void> {
       native_execution_configuration: input.native_execution_configuration,
       runtime_auth_binding: runtimeAuthBinding,
       executable_path: input.native_host_executable_path,
-      locator: runtimeLocator,
+      source_codex_home: sourceCodexHome,
     });
   const result = await executeCommissionedLiveTrainingCohortV01({
     source_repository_root: input.source_repository_root,

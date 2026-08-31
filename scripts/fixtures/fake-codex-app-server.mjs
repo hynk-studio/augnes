@@ -128,8 +128,18 @@ if (isolatedAuthScenario) {
         shared_home_canary_visible: existsSync(
           path.join(process.env.HOME ?? "", "foreign-config.toml"),
         ),
+        shared_codex_home_config_visible: existsSync(
+          path.join(process.env.CODEX_HOME ?? "", "config.toml"),
+        ),
         shared_codex_home_history_visible: existsSync(
           path.join(process.env.CODEX_HOME ?? "", "foreign-history.jsonl"),
+        ),
+        shared_codex_home_skills_visible: existsSync(
+          path.join(
+            process.env.CODEX_HOME ?? "",
+            "skills",
+            "source-only-skill.md",
+          ),
         ),
         owned_tmp_present:
           typeof process.env.TMPDIR === "string" &&
