@@ -1,5 +1,6 @@
 import {
-  createMacOsKeychainCodexAuthBrokerV01,
+  createCodexAuthFileBrokerBindingV01,
+  createCodexAuthFileBrokerV01,
   credentialBrokerBindingFingerprintV01,
   type CodexCredentialBrokerBindingV01,
 } from "@/lib/vnext/native-host/codex-credential-broker";
@@ -16,6 +17,9 @@ import {
   assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01,
   commissionedLiveTrainingExecutableIdentityMatchesRawFileFingerprintV01,
 } from "@/lib/vnext/commissioned-controlled-live-training";
+import {
+  observeCommissionedLiveTrainingExecutableIdentityV01,
+} from "@/lib/vnext/commissioned-controlled-live-training-runner";
 import type {
   CommissionedLiveTrainingAuthorizationV01,
   CommissionedLiveTrainingExactNativeExecutionConfigurationV01,
@@ -27,9 +31,8 @@ export const COMMISSIONED_LIVE_TRAINING_PRODUCTION_RUNTIME_AUTH_BINDING_VERSION_
   "commissioned_live_training_production_runtime_auth_binding.v0.1" as const;
 
 /**
- * Safe operator material carried only by the executing process. The Keychain
- * service/account/path locator is intentionally absent and must arrive through
- * the separate ephemeral locator input.
+ * Safe operator material carried only by the executing process. Credential
+ * contents and the private source path remain outside this public binding.
  */
 export interface CommissionedLiveTrainingProductionRuntimeAuthBindingV01 {
   binding_version: typeof COMMISSIONED_LIVE_TRAINING_PRODUCTION_RUNTIME_AUTH_BINDING_VERSION_V01;
@@ -111,10 +114,7 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
   native_execution_configuration: CommissionedLiveTrainingExactNativeExecutionConfigurationV01;
   runtime_auth_binding: CommissionedLiveTrainingProductionRuntimeAuthBindingV01;
   executable_path: string;
-  locator: {
-    source_codex_home: string;
-    keychain_path: string;
-  };
+  source_codex_home: string;
 }) {
   assertCommissionedLiveTrainingProductionNativeExecutionConfigurationV01(
     input.native_execution_configuration,
@@ -122,6 +122,15 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
   const binding = parseCommissionedLiveTrainingProductionRuntimeAuthBindingV01(
     input.runtime_auth_binding,
   );
+  const observedRuntimeIdentity =
+    observeCommissionedLiveTrainingExecutableIdentityV01({
+      executable_path: process.execPath,
+      executable_kind: "node_runtime",
+    });
+  const expectedBrokerBinding = createCodexAuthFileBrokerBindingV01({
+    source_codex_home: input.source_codex_home,
+    broker_executable_path: process.execPath,
+  });
   const environment = input.authorization.codex_environment_binding;
   if (
     input.authorization.authorization_kind !== "future_live_execution" ||
@@ -138,14 +147,19 @@ export function createCommissionedLiveTrainingProductionOwnerFactoryV01(input: {
     input.native_execution_configuration.expected_cli_version !==
       CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
     input.native_execution_configuration.provider_id !== "openai" ||
-    !privateAbsolutePathV01(input.locator.source_codex_home) ||
-    !privateAbsolutePathV01(input.locator.keychain_path)
+    !privateAbsolutePathV01(input.source_codex_home) ||
+    canonicalizeProtocolValueV01(observedRuntimeIdentity) !==
+      canonicalizeProtocolValueV01(
+        input.native_execution_configuration.runtime_executable_identity,
+      ) ||
+    canonicalizeProtocolValueV01(expectedBrokerBinding) !==
+      canonicalizeProtocolValueV01(binding.broker_binding)
   )
     failV01("live_training_production_owner_factory_binding_invalid");
-  const broker = createMacOsKeychainCodexAuthBrokerV01({
+  const broker = createCodexAuthFileBrokerV01({
     binding: binding.broker_binding,
-    source_codex_home: input.locator.source_codex_home,
-    keychain_path: input.locator.keychain_path,
+    source_codex_home: input.source_codex_home,
+    broker_executable_path: process.execPath,
   });
   const provisioningBinding = createCodexIsolatedAuthProvisioningBindingV01({
     binding_id: binding.provisioning_binding_id,

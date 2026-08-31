@@ -6,6 +6,7 @@ import {
 } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  constants as fsConstants,
   closeSync,
   existsSync,
   fstatSync,
@@ -116,6 +117,34 @@ export interface CodexCredentialBrokerBindingV01 {
   broker_executable_ref: ExternalRefV01;
   broker_executable_fingerprint: string;
   broker_locator_fingerprint: string;
+}
+
+export function createCodexAuthFileBrokerBindingV01(input: {
+  source_codex_home: string;
+  broker_executable_path: string;
+}): CodexCredentialBrokerBindingV01 {
+  const locatorFingerprint = fingerprintCodexAuthFileLocatorV01({
+    source_codex_home: input.source_codex_home,
+  });
+  const executable = exactBrokerExecutableIdentityV01(
+    input.broker_executable_path,
+  );
+  return deepFreezeV01({
+    auth_handle_ref: localAuthSourceRefV01(
+      "opaque_auth_handle",
+      `codex-auth-file:${locatorFingerprint.slice("sha256:".length)}`,
+    ),
+    broker_backend_ref: localAuthSourceRefV01(
+      "auth_broker_backend",
+      "codex-auth-dot-json-file",
+    ),
+    broker_executable_ref: localAuthSourceRefV01(
+      "auth_broker_executable",
+      `node-runtime:${executable.physical_identity_fingerprint.slice("sha256:".length)}`,
+    ),
+    broker_executable_fingerprint: executable.content_fingerprint,
+    broker_locator_fingerprint: locatorFingerprint,
+  });
 }
 
 export interface ProvisionCodexCredentialAttestationInputV01 {
@@ -889,7 +918,7 @@ class ExclusiveCodexCredentialBrokerV01 implements CodexCredentialBrokerV01 {
           "codex_auth_broker_generation_mismatch",
         );
       }
-      // The lookup may have crossed an async keychain or test-broker boundary.
+      // The lookup may have crossed an async credential-source boundary.
       // Re-authenticate the exclusive lease immediately before the first
       // launch effect so a removed or substituted lease cannot admit two
       // consumers of the same handle generation.
@@ -1037,6 +1066,100 @@ export function createMacOsKeychainCodexAuthBrokerV01(input: {
           "codex_auth_broker_keychain_substituted",
         );
         return material;
+      },
+    ),
+  );
+}
+
+/**
+ * Production source adapter for Codex's upstream-supported file credential
+ * store. The source auth.json is parsed and reduced by the same broker-owned
+ * AuthDotJson boundary as Keychain material; it is never inherited wholesale
+ * by the isolated child.
+ */
+export function createCodexAuthFileBrokerV01(input: {
+  binding: CodexCredentialBrokerBindingV01;
+  source_codex_home: string;
+  broker_executable_path: string;
+}): CodexCredentialBrokerV01 {
+  return createCodexAuthFileBrokerWithLeaseV01({
+    ...input,
+    lease_root: canonicalProductionLeaseRootV01,
+    preflight: () => {
+      if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1") {
+        throw new CodexCredentialBrokerErrorV01(
+          "codex_auth_production_broker_forbidden_in_test_mode",
+        );
+      }
+    },
+  });
+}
+
+/** Synthetic-only file-source proof surface. It uses the exact production
+ * file identity/read implementation while retaining a test-owned lease root. */
+export function createCodexAuthFileBrokerForTestV01(input: {
+  binding: CodexCredentialBrokerBindingV01;
+  source_codex_home: string;
+  broker_executable_path: string;
+  lease_root: string;
+}): CodexCredentialBrokerV01 {
+  return createCodexAuthFileBrokerWithLeaseV01({
+    ...input,
+    lease_root: input.lease_root,
+    preflight: () => {
+      if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1") {
+        throw new CodexCredentialBrokerErrorV01(
+          "codex_auth_file_broker_test_forbidden_outside_test_mode",
+        );
+      }
+    },
+  });
+}
+
+function createCodexAuthFileBrokerWithLeaseV01(input: {
+  binding: CodexCredentialBrokerBindingV01;
+  source_codex_home: string;
+  broker_executable_path: string;
+  lease_root: string | (() => string);
+  preflight: () => void;
+}): CodexCredentialBrokerV01 {
+  const binding = deepFreezeV01(structuredClone(input.binding));
+  const sourceCodexHome = exactPrivateCodexHomeV01(input.source_codex_home);
+  const brokerExecutable = exactBrokerExecutableIdentityV01(
+    input.broker_executable_path,
+  );
+  const expectedBinding = createCodexAuthFileBrokerBindingV01({
+    source_codex_home: sourceCodexHome,
+    broker_executable_path: brokerExecutable.path,
+  });
+  if (
+    canonicalizeProtocolValueV01(expectedBinding) !==
+    canonicalizeProtocolValueV01(binding)
+  ) {
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_binding_mismatch",
+    );
+  }
+  return sourceOwnedBrokerV01(
+    new ExclusiveCodexCredentialBrokerV01(
+      binding,
+      input.lease_root,
+      input.preflight,
+      async () => {
+        const observedExecutable = exactBrokerExecutableIdentityV01(
+          brokerExecutable.path,
+        );
+        if (
+          observedExecutable.content_fingerprint !==
+            brokerExecutable.content_fingerprint ||
+          observedExecutable.physical_identity_fingerprint !==
+            brokerExecutable.physical_identity_fingerprint
+        ) {
+          throw new CodexCredentialBrokerErrorV01(
+            "codex_auth_broker_executable_substituted",
+          );
+        }
+        return readExactCodexAuthFileV01(sourceCodexHome);
       },
     ),
   );
@@ -1772,11 +1895,11 @@ interface AgentIdentityClaimsV01 extends Record<string, unknown> {
 
 /**
  * Parse the exact rust-v0.150.1 AuthDotJson storage envelope. Augnes never
- * treats the Keychain value itself as an Agent Identity JWT. Managed ChatGPT
- * auth may reuse only an official AgentIdentityAuthRecord whose account/user
- * binding matches the token snapshot; absent that Record, the official
- * AuthManager ChatGptAuth bootstrap remains the owner and Augnes reports the
- * separate prerequisite instead of minting identity material.
+ * treats a storage backend's serialized value itself as an Agent Identity JWT.
+ * Managed ChatGPT auth may reuse only an official AgentIdentityAuthRecord whose
+ * account/user binding matches the token snapshot; absent that Record, the
+ * official AuthManager ChatGptAuth bootstrap remains the owner and Augnes
+ * reports the separate prerequisite instead of minting identity material.
  */
 function resolveCodexAuthStorageV01(
   material: string,
@@ -2541,6 +2664,36 @@ function integrityV01(value: unknown): {
   };
 }
 
+export function fingerprintCodexAuthFileLocatorV01(input: {
+  source_codex_home: string;
+}): string {
+  const sourceCodexHome = exactPrivateCodexHomeV01(input.source_codex_home);
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      version: "codex_auth_file_locator.v0.1",
+      backend: "codex_auth_dot_json_file",
+      auth_file_name: "auth.json",
+      source_codex_home_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(sourceCodexHome),
+      ),
+    }),
+  );
+}
+
+function localAuthSourceRefV01(
+  refType: string,
+  externalId: string,
+): ExternalRefV01 {
+  return deepFreezeV01({
+    ref_version: "external_ref.v0.1",
+    ref_type: refType,
+    external_id: externalId,
+    compatibility_namespace:
+      CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+    trust_class: "derived_interpretation",
+  });
+}
+
 export function fingerprintBrokerLocatorV01(input: {
   backend: "macos_keychain_generic_password";
   source_codex_home: string;
@@ -3085,6 +3238,158 @@ interface ExactPrivateFileIdentityV01 {
   path: string;
   device: bigint;
   inode: bigint;
+}
+
+interface ExactBrokerExecutableIdentityV01 {
+  path: string;
+  content_fingerprint: string;
+  physical_identity_fingerprint: string;
+}
+
+function exactBrokerExecutableIdentityV01(
+  value: string,
+): ExactBrokerExecutableIdentityV01 {
+  try {
+    if (
+      typeof value !== "string" ||
+      !path.isAbsolute(value) ||
+      path.normalize(value) !== value ||
+      /[\u0000\r\n]/u.test(value)
+    )
+      throw new Error("invalid");
+    const supplied = lstatSync(value, { bigint: true });
+    if (!supplied.isFile() || supplied.isSymbolicLink())
+      throw new Error("invalid");
+    const resolved = realpathSync(value);
+    if (resolved !== value) throw new Error("invalid");
+    return {
+      path: resolved,
+      content_fingerprint: sha256FileV01(resolved),
+      physical_identity_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          device: String(supplied.dev),
+          inode: String(supplied.ino),
+          size: String(supplied.size),
+          mode: String(supplied.mode),
+        }),
+      ),
+    };
+  } catch {
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_executable_substituted",
+    );
+  }
+}
+
+interface ExactCodexAuthFileIdentityV01 extends ExactPrivateFileIdentityV01 {
+  size: bigint;
+  mode: bigint;
+  uid: bigint;
+  nlink: bigint;
+  mtime_ns: bigint;
+  ctime_ns: bigint;
+}
+
+function readExactCodexAuthFileV01(sourceCodexHome: string): string {
+  const authFilePath = path.join(sourceCodexHome, "auth.json");
+  let descriptor = -1;
+  let material: Buffer | null = null;
+  try {
+    const identity = exactCodexAuthFileIdentityV01(authFilePath);
+    descriptor = openSync(
+      identity.path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    assertExactCodexAuthFileIdentityV01(identity, descriptor);
+    material = readFileSync(descriptor);
+    if (
+      material.length !== Number(identity.size) ||
+      !boundedCodexAuthStorageMaterialV01(material.toString("utf8"))
+    )
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_auth_file_invalid",
+      );
+    assertExactCodexAuthFileIdentityV01(identity, descriptor);
+    return material.toString("utf8");
+  } catch (error) {
+    if (error instanceof CodexCredentialBrokerErrorV01) throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      throw new CodexCredentialBrokerErrorV01(
+        "codex_auth_broker_handle_missing",
+      );
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_auth_file_invalid",
+    );
+  } finally {
+    material?.fill(0);
+    if (descriptor >= 0) closeSync(descriptor);
+  }
+}
+
+function exactCodexAuthFileIdentityV01(
+  value: string,
+): ExactCodexAuthFileIdentityV01 {
+  try {
+    const supplied = lstatSync(value, { bigint: true });
+    const currentUid =
+      typeof process.getuid === "function" ? BigInt(process.getuid()) : null;
+    if (
+      !supplied.isFile() ||
+      supplied.isSymbolicLink() ||
+      supplied.nlink !== BigInt(1) ||
+      supplied.size < BigInt(2) ||
+      supplied.size > BigInt(MAX_BROKER_OUTPUT_BYTES_V01) ||
+      (supplied.mode & BigInt(0o077)) !== BigInt(0) ||
+      (currentUid !== null && supplied.uid !== currentUid) ||
+      realpathSync(value) !== value
+    )
+      throw new Error("invalid");
+    return {
+      path: value,
+      device: supplied.dev,
+      inode: supplied.ino,
+      size: supplied.size,
+      mode: supplied.mode,
+      uid: supplied.uid,
+      nlink: supplied.nlink,
+      mtime_ns: supplied.mtimeNs,
+      ctime_ns: supplied.ctimeNs,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw error;
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_auth_file_invalid",
+    );
+  }
+}
+
+function assertExactCodexAuthFileIdentityV01(
+  identity: ExactCodexAuthFileIdentityV01,
+  descriptor: number,
+): void {
+  try {
+    const current = lstatSync(identity.path, { bigint: true });
+    const opened = fstatSync(descriptor, { bigint: true });
+    for (const observed of [current, opened]) {
+      if (
+        !observed.isFile() ||
+        observed.isSymbolicLink() ||
+        observed.dev !== identity.device ||
+        observed.ino !== identity.inode ||
+        observed.size !== identity.size ||
+        observed.mode !== identity.mode ||
+        observed.uid !== identity.uid ||
+        observed.nlink !== identity.nlink ||
+        observed.mtimeNs !== identity.mtime_ns ||
+        observed.ctimeNs !== identity.ctime_ns
+      )
+        throw new Error("substituted");
+    }
+  } catch {
+    throw new CodexCredentialBrokerErrorV01(
+      "codex_auth_broker_auth_file_substituted",
+    );
+  }
 }
 
 function exactPrivateKeychainIdentityV01(

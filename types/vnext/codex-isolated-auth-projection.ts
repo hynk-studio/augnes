@@ -15,7 +15,7 @@ export const CODEX_ISOLATED_AUTH_OBSERVATION_VERSION_V01 =
 export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
   "codex_credential_broker.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
-  "macos_keychain_codex_auth_storage" as const;
+  "local_codex_auth_storage" as const;
 export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
   "codex_isolated_auth_semantic_profile.rust-v0.150.1" as const;
 export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.150.1" as const;
