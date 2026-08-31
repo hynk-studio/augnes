@@ -228,13 +228,9 @@ async function main(): Promise<void> {
       ) as unknown,
     );
   const runtimeLocator = {
-    service_name: takePrivateEnvironmentValueV01(
-      "AUGNES_CW1_L1_KEYCHAIN_SERVICE_NAME",
-      "live_training_keychain_service_environment_missing",
-    ),
-    account_name: takePrivateEnvironmentValueV01(
-      "AUGNES_CW1_L1_KEYCHAIN_ACCOUNT_NAME",
-      "live_training_keychain_account_environment_missing",
+    source_codex_home: takePrivateEnvironmentValueV01(
+      "AUGNES_CW1_L1_CODEX_AUTH_SOURCE_HOME",
+      "live_training_codex_auth_source_home_environment_missing",
     ),
     keychain_path: takePrivateEnvironmentValueV01(
       "AUGNES_CW1_L1_KEYCHAIN_PATH",

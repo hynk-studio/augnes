@@ -42,6 +42,8 @@ import {
 import {
   CODEX_ISOLATED_AUTH_BROKER_VERSION_V01,
   CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
+  CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  CODEX_AUTH_KEYRING_SERVICE_V01,
   CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
@@ -105,7 +107,8 @@ const PROVIDER_ROUTE_FINGERPRINT_V01 = createProtocolSha256V01(
 const CONFIG_POLICY_BASE_V01 = {
   policy_version: "codex_isolated_tool_policy.v0.1",
   forced_login_method: "chatgpt",
-  auth_store_mode: "ephemeral",
+  auth_store_mode: "file",
+  use_agent_identity_feature_enabled: true,
   model_provider: "openai",
   provider_route_fingerprint: PROVIDER_ROUTE_FINGERPRINT_V01,
   provider_projection_version:
@@ -167,14 +170,18 @@ const CONFIG_POLICY_BASE_V01 = {
   remote_tool_features_enabled: 0,
 } as const;
 const STATE_POLICY_V01: CodexIsolatedAuthStatePolicyV01 = {
-  strategy_version: "codex_isolated_state_home.v0.1",
+  strategy_version: "codex_isolated_state_home.v0.2",
   per_attempt_private_root: true,
   home_isolated: true,
   codex_home_isolated: true,
   codex_sqlite_home_isolated: true,
   tmp_isolated: true,
   shared_state_fallback_forbidden: true,
-  auth_file_copy_forbidden: true,
+  source_auth_file_copy_forbidden: true,
+  broker_owned_minimal_auth_snapshot:
+    "attempt_private_official_auth_dot_json",
+  broker_owned_auth_snapshot_mode_0600: true,
+  broker_owned_auth_snapshot_removed_before_observation: true,
   auth_file_symlink_forbidden: true,
   ordinary_config_copy_forbidden: true,
   ordinary_history_copy_forbidden: true,
@@ -208,7 +215,6 @@ const EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01 = createProtocolSha256V01(
   canonicalizeProtocolValueV01(EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01),
 );
 const ALLOWED_ENV_KEYS_V01 = [
-  "CODEX_ACCESS_TOKEN",
   "CODEX_HOME",
   "CODEX_SQLITE_HOME",
   "HOME",
@@ -299,6 +305,27 @@ const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
   optional_claims: ["email"],
   source_expiry_safety_margin_seconds: 60,
 } as const;
+export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01 = deepFreezeV01({
+  contract_version: CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  keyring_service: CODEX_AUTH_KEYRING_SERVICE_V01,
+  keyring_account_derivation:
+    "cli_pipe_first_16_hex_sha256_of_canonical_codex_home",
+  keyring_value: "serialized_auth_dot_json",
+  supported_agent_identity_storage: ["jwt", "record"],
+  managed_chatgpt_agent_identity_route:
+    "upstream_auth_manager_chatgpt_auth_policy",
+  managed_chatgpt_use_agent_identity_feature_required: true,
+  manual_agent_identity_jwt_required: false,
+  api_key_substitution_forbidden: true,
+  source_storage_writeback: "forbidden",
+  launch_snapshot:
+    "minimal_agent_identity_auth_dot_json_in_attempt_private_codex_home",
+  launch_snapshot_mode: "0600",
+  launch_snapshot_removed_before_authenticated_observation: true,
+  bootstrap_network_class:
+    "credential_bootstrap_separate_from_task_provider_inference",
+  cw1_authorization_before_agent_identity_material: "forbidden",
+} as const);
 const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
   method_profile_version: "codex_app_server_auth_preflight.rust-v0.150.1",
   initialize: "initialize",
@@ -329,9 +356,12 @@ const REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01 =
       allowed_environment_keys: ALLOWED_ENV_KEYS_V01,
       forbidden_upstream_override_environment_keys:
         FORBIDDEN_UPSTREAM_OVERRIDE_ENV_KEYS_V01,
-      launch_injection_mechanism: "broker_internal_immediate_child_spawn",
-      auth_store_mode: "ephemeral",
-      auth_file_copy_forbidden: true,
+      launch_injection_mechanism:
+        "broker_internal_attempt_private_auth_snapshot",
+      auth_store_mode: "file",
+      source_auth_file_copy_forbidden: true,
+      broker_owned_minimal_auth_snapshot:
+        "attempt_private_official_auth_dot_json",
       ordinary_codex_home_fallback_forbidden: true,
     }),
   );
@@ -346,6 +376,11 @@ const SEMANTIC_PROFILE_MATERIAL_V01 = {
     CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   agent_identity_claim_contract_fingerprint: createProtocolSha256V01(
     canonicalizeProtocolValueV01(AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01),
+  ),
+  auth_storage_contract_version:
+    CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
+  auth_storage_contract_fingerprint: createProtocolSha256V01(
+    canonicalizeProtocolValueV01(CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01),
   ),
   effective_provider_rule_fingerprint: PROVIDER_ROUTE_FINGERPRINT_V01,
   config_tool_feature_schema_fingerprint:
@@ -679,6 +714,12 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     ),
     auth_source_generation_fingerprint: attestation.auth_generation_fingerprint,
     account_identity_fingerprint: attestation.account_identity_fingerprint,
+    source_auth_mode: attestation.source_auth_mode,
+    agent_identity_storage_kind: attestation.agent_identity_storage_kind,
+    managed_chatgpt_binding_verified:
+      attestation.managed_chatgpt_binding_verified,
+    agent_identity_task_registration_state:
+      attestation.agent_identity_task_registration_state,
     codex_executable_ref: normalizeExternalRefPrimitiveV01(
       input.codex_executable_ref,
     ),
@@ -692,12 +733,15 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     state_policy: STATE_POLICY_V01,
     config_policy: configPolicy,
     app_server_launch_shape_fingerprint: launchShape,
-    launch_injection_mechanism: "broker_internal_immediate_child_spawn",
-    sensitive_material_lifetime: "broker_internal_lookup_to_spawn_only",
+    launch_injection_mechanism:
+      "broker_internal_attempt_private_auth_snapshot",
+    sensitive_material_lifetime:
+      "broker_internal_lookup_to_authenticated_load_only",
     refresh_update_policy:
-      "agent_identity_source_read_only_no_augnes_writeback",
+      "source_codex_auth_read_only_attempt_snapshot_discarded",
     concurrency_lease_policy: "canonical_handle_generation_lookup_spawn_lease",
-    cleanup_policy: "release_after_spawn_remove_attempt_root_after_settlement",
+    cleanup_policy:
+      "remove_auth_snapshot_before_observation_remove_attempt_root_after_settlement",
     allowed_child_environment_key_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(ALLOWED_ENV_KEYS_V01),
     ),
@@ -1137,6 +1181,10 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       "broker_locator_fingerprint",
       "auth_source_generation_fingerprint",
       "account_identity_fingerprint",
+      "source_auth_mode",
+      "agent_identity_storage_kind",
+      "managed_chatgpt_binding_verified",
+      "agent_identity_task_registration_state",
       "codex_executable_ref",
       "codex_executable_fingerprint",
       "executable_identity_class",
@@ -1189,8 +1237,21 @@ export function assertValidCodexIsolatedAuthProjectionV01(
     ) !== input.executable_identity_class ||
     input.provider_ref.external_id !== "openai" ||
     input.auth_mode !== "agent_identity" ||
+    !["agentIdentity", "chatgpt"].includes(input.source_auth_mode) ||
+    !["jwt", "record"].includes(input.agent_identity_storage_kind) ||
+    input.managed_chatgpt_binding_verified !==
+      (input.source_auth_mode === "chatgpt") ||
+    !["present", "required"].includes(
+      input.agent_identity_task_registration_state,
+    ) ||
     input.launch_injection_mechanism !==
-      "broker_internal_immediate_child_spawn" ||
+      "broker_internal_attempt_private_auth_snapshot" ||
+    input.sensitive_material_lifetime !==
+      "broker_internal_lookup_to_authenticated_load_only" ||
+    input.refresh_update_policy !==
+      "source_codex_auth_read_only_attempt_snapshot_discarded" ||
+    input.cleanup_policy !==
+      "remove_auth_snapshot_before_observation_remove_attempt_root_after_settlement" ||
     input.task_tool_network_authority !== "none" ||
     Object.values(input.authority).some(Boolean)
   )
@@ -1212,6 +1273,13 @@ export function assertValidCodexIsolatedAuthProjectionV01(
         input.semantic_profile_fingerprint ||
       attestation.account_identity_fingerprint !==
         input.account_identity_fingerprint ||
+      attestation.source_auth_mode !== input.source_auth_mode ||
+      attestation.agent_identity_storage_kind !==
+        input.agent_identity_storage_kind ||
+      attestation.managed_chatgpt_binding_verified !==
+        input.managed_chatgpt_binding_verified ||
+      attestation.agent_identity_task_registration_state !==
+        input.agent_identity_task_registration_state ||
       attestation.issued_at !== input.issued_at ||
       attestation.expires_at !== input.expires_at)
   )
@@ -1230,6 +1298,11 @@ export function assertValidCodexIsolatedAuthProjectionV01(
         "auth_handle_ref",
         "broker_locator_fingerprint",
         "auth_generation_fingerprint",
+        "auth_storage_contract_version",
+        "source_auth_mode",
+        "agent_identity_storage_kind",
+        "managed_chatgpt_binding_verified",
+        "agent_identity_task_registration_state",
         "account_identity_fingerprint",
         "account_read_email_fingerprint",
         "agent_identity_runtime_fingerprint",
@@ -1259,21 +1332,48 @@ export function assertValidCodexIsolatedAuthProjectionV01(
       attestation.provider_environment_fingerprint,
       attestation.plan_projection_fingerprint,
       attestation.fedramp_projection_fingerprint,
+    ])
+      requiredSha256V01(value);
+    for (const value of [
       attestation.issuer_projection_fingerprint,
       attestation.audience_projection_fingerprint,
       attestation.validity_projection_fingerprint,
     ])
-      requiredSha256V01(value);
+      if (value !== null) requiredSha256V01(value);
     if (attestation.account_read_email_fingerprint !== null)
       requiredSha256V01(attestation.account_read_email_fingerprint);
+    const jwtValidityExact =
+      attestation.agent_identity_storage_kind === "jwt" &&
+      Number.isSafeInteger(attestation.source_not_before_epoch_seconds) &&
+      Number.isSafeInteger(attestation.source_expires_at_epoch_seconds) &&
+      (attestation.source_expires_at_epoch_seconds as number) >
+        (attestation.source_not_before_epoch_seconds as number) &&
+      attestation.source_expiry_safety_margin_seconds === 60 &&
+      attestation.issuer_projection_fingerprint !== null &&
+      attestation.audience_projection_fingerprint !== null &&
+      attestation.validity_projection_fingerprint !== null &&
+      Date.parse(attestation.expires_at) <=
+        ((attestation.source_expires_at_epoch_seconds as number) - 60) * 1000;
+    const recordValidityExact =
+      attestation.agent_identity_storage_kind === "record" &&
+      attestation.source_not_before_epoch_seconds === null &&
+      attestation.source_expires_at_epoch_seconds === null &&
+      attestation.source_expiry_safety_margin_seconds === null &&
+      attestation.issuer_projection_fingerprint === null &&
+      attestation.audience_projection_fingerprint === null &&
+      attestation.validity_projection_fingerprint === null;
     if (
-      !Number.isSafeInteger(attestation.source_not_before_epoch_seconds) ||
-      !Number.isSafeInteger(attestation.source_expires_at_epoch_seconds) ||
-      attestation.source_expires_at_epoch_seconds <=
-        attestation.source_not_before_epoch_seconds ||
-      attestation.source_expiry_safety_margin_seconds !== 60 ||
-      Date.parse(attestation.expires_at) >
-        (attestation.source_expires_at_epoch_seconds - 60) * 1000
+      attestation.auth_storage_contract_version !==
+        CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01 ||
+      !["agentIdentity", "chatgpt"].includes(attestation.source_auth_mode) ||
+      attestation.managed_chatgpt_binding_verified !==
+        (attestation.source_auth_mode === "chatgpt") ||
+      !["present", "required"].includes(
+        attestation.agent_identity_task_registration_state,
+      ) ||
+      attestation.claims_authentication_status !==
+        "stored_agent_identity_unverified_before_codex_auth" ||
+      (!jwtValidityExact && !recordValidityExact)
     )
       throw new CodexIsolatedAuthProjectionErrorV01(
         "codex_isolated_auth_attestation_validity_invalid",
@@ -1828,7 +1928,7 @@ function observedSecurityPolicyV01(
     !orchestrator ||
     (providerMap !== null && Object.keys(providerMap).length !== 0) ||
     config.forced_login_method !== "chatgpt" ||
-    config.cli_auth_credentials_store !== "ephemeral" ||
+    config.cli_auth_credentials_store !== "file" ||
     config.model_provider !== "openai" ||
     config.web_search !== "disabled" ||
     config.project_doc_max_bytes !== 0 ||
@@ -1846,8 +1946,12 @@ function observedSecurityPolicyV01(
     recordV01(orchestrator.skills)?.enabled !== false ||
     recordV01(orchestrator.mcp)?.enabled !== false ||
     Object.entries(features).some(
-      ([key, enabled]) => !DISABLED_FEATURES_V01.has(key) || enabled !== false,
+      ([key, enabled]) =>
+        key === "use_agent_identity"
+          ? enabled !== true
+          : !DISABLED_FEATURES_V01.has(key) || enabled !== false,
     ) ||
+    features.use_agent_identity !== true ||
     [...DISABLED_FEATURES_V01].some((key) => features[key] !== false)
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
@@ -1861,6 +1965,7 @@ function observedSecurityPolicyV01(
     policy_version: CONFIG_POLICY_BASE_V01.policy_version,
     forced_login_method: config.forced_login_method,
     auth_store_mode: config.cli_auth_credentials_store,
+    use_agent_identity_feature_enabled: features.use_agent_identity,
     model_provider: config.model_provider,
     provider_route_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01(providerRouteMaterial),
@@ -1926,8 +2031,8 @@ function observedSecurityPolicyV01(
         : "unexpected",
     orchestrator_skills_enabled: recordV01(orchestrator.skills)?.enabled,
     orchestrator_mcp_enabled: recordV01(orchestrator.mcp)?.enabled,
-    remote_tool_features_enabled: Object.values(features).filter(
-      (enabled) => enabled === true,
+    remote_tool_features_enabled: [...DISABLED_FEATURES_V01].filter(
+      (key) => features[key] === true,
     ).length,
     config_override_args: CONFIG_OVERRIDE_ARGS_V01,
   };

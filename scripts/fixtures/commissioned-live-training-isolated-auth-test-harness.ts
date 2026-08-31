@@ -176,7 +176,7 @@ function brokerV01(
     entries: [
       {
         handle_external_id: binding.auth_handle_ref.external_id,
-        material: FAKE_JWT,
+        material: officialAgentIdentityJwtStorageV01(FAKE_JWT),
       },
     ],
   });
@@ -204,4 +204,17 @@ function jwtV01(payload: Record<string, unknown>): string {
   ).toString("base64url");
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${header}.${body}.${Buffer.from("fixture-signature-material-not-a-real-token").toString("base64url")}`;
+}
+
+function officialAgentIdentityJwtStorageV01(jwt: string): string {
+  return JSON.stringify({
+    auth_mode: "agentIdentity",
+    OPENAI_API_KEY: null,
+    tokens: null,
+    last_refresh: null,
+    agent_identity: jwt,
+    personal_access_token: null,
+    bedrock_api_key: null,
+    bedrock_access_keys: null,
+  });
 }

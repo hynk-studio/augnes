@@ -311,6 +311,7 @@ interface PrivateIsolatedPreflightSessionStateV01 {
     mcp_status: Record<string, unknown>;
     observed_at: string;
   }): CodexIsolatedAuthObservationV01;
+  settlePrivateAuthMaterial: (() => void) | null;
   initialized: Record<string, unknown> | null;
   state:
     | "preflight"
@@ -497,6 +498,8 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
       await binding.transport.settleNotifications();
       const failure = binding.transport.failure;
       if (failure) throw failure;
+      binding.settlePrivateAuthMaterial?.();
+      binding.settlePrivateAuthMaterial = null;
       const observation = binding.observeAuthenticatedConfiguration({
         initialized: binding.initialized,
         auth_status: authStatus,
@@ -529,7 +532,10 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
         );
       binding.state = "closed";
       try {
-        return await binding.transport.shutdown();
+        const settled = await binding.transport.shutdown();
+        binding.settlePrivateAuthMaterial?.();
+        binding.settlePrivateAuthMaterial = null;
+        return settled;
       } finally {
         binding.owner.cleanupV01();
       }
@@ -540,6 +546,7 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
     transport,
     observeAuthenticatedConfiguration:
       input.observe_authenticated_configuration,
+    settlePrivateAuthMaterial: spawned.settle_private_auth_material,
     initialized: null,
     state: "preflight",
   });
@@ -550,11 +557,17 @@ function exactBrokerAuthenticatedChildV01(value: unknown): {
   child: ChildProcessWithoutNullStreams;
   child_identity_fingerprint: string;
   projection_fingerprint: string;
+  settle_private_auth_material(): void;
 } {
   const record = objectV01(value, "codex_isolated_auth_spawn_result_invalid");
   if (
     Object.keys(record).sort().join("\n") !==
-      ["child", "child_identity_fingerprint", "projection_fingerprint"]
+      [
+        "child",
+        "child_identity_fingerprint",
+        "projection_fingerprint",
+        "settle_private_auth_material",
+      ]
         .sort()
         .join("\n") ||
     !record.child ||
@@ -562,6 +575,7 @@ function exactBrokerAuthenticatedChildV01(value: unknown): {
     !("stdin" in record.child) ||
     !("stdout" in record.child) ||
     !("stderr" in record.child) ||
+    typeof record.settle_private_auth_material !== "function" ||
     typeof record.child_identity_fingerprint !== "string" ||
     typeof record.projection_fingerprint !== "string"
   )
@@ -572,6 +586,8 @@ function exactBrokerAuthenticatedChildV01(value: unknown): {
     child: record.child as ChildProcessWithoutNullStreams,
     child_identity_fingerprint: record.child_identity_fingerprint,
     projection_fingerprint: record.projection_fingerprint,
+    settle_private_auth_material:
+      record.settle_private_auth_material as () => void,
   };
 }
 
