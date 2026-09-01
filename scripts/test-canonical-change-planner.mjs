@@ -17,13 +17,16 @@ import { spawnSync } from "node:child_process";
 
 import {
   PERMANENT_BROWSER_PHASE_IDS,
+  classifyCanonicalBrowserOwnership,
   parseNameStatus,
   planCanonicalChange,
   selectCanonicalBrowserPhasesForChanges,
+  validateChangeOwnerManifest,
 } from "./canonical-change-planner.mjs";
 import {
   validateCanonicalDocumentationChange,
   validateCanonicalOperatingPolicyChange,
+  validateCanonicalOwnerTargetedChange,
 } from "./validate-canonical-docs-change.mjs";
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
@@ -65,21 +68,154 @@ try {
   runPlanCase("composite-action", "full-canonical", ({ write }) => {
     write(".github/actions/example/action.yml", "name: example\n");
   });
-  runPlanCase("source-file", "full-canonical", ({ write }) => {
+  runPlanCase("unknown-source-file", "full-canonical", ({ write }) => {
     write("lib/example.ts", "export const value = 1;\n");
   });
-  runPlanCase("application-CSS", "full-canonical", ({ write }) => {
-    write("app/example.css", "body { color: red; }\n");
+  runPlanCase(
+    "leaf-internal-known-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        "lib/temporal-interpretation/guardrails.ts",
+        "export const guarded = true;\n",
+      );
+    },
+    {
+      reason: "all_changes_have_owner_complete_targeted_coverage",
+      ownerIds: ["temporal-interpretation-preview"],
+      phaseIds: ["targeted-change-validator", "typecheck", "authority"],
+    },
+  );
+  runPlanCase(
+    "test-only-leaf-known-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        "scripts/test-codex-augnes-user-hook-migration.mjs",
+        "export {};\n",
+      );
+    },
+    {
+      ownerIds: ["codex-user-reuse-hook"],
+      phaseIds: ["targeted-change-validator", "unit"],
+    },
+  );
+  runPlanCase(
+    "fixture-only-leaf-known-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write("fixtures/local-canonical-owner-contract/current.json", "{}\n");
+    },
+    {
+      ownerIds: ["local-canonical-owner-contract-fixture"],
+      phaseIds: ["targeted-change-validator", "unit"],
+    },
+  );
+  runPlanCase(
+    "consumer-proven-leaf-deletion",
+    "owner-targeted",
+    ({ remove }) => {
+      remove("fixtures/local-canonical-owner-contract/retired.json");
+    },
+    {
+      ownerIds: ["local-canonical-owner-contract-fixture"],
+      phaseIds: ["targeted-change-validator", "unit"],
+    },
+  );
+  runPlanCase(
+    "single-browser-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        "components/guide-brief/current-action.tsx",
+        "export const CurrentAction = () => null;\n",
+      );
+    },
+    {
+      ownerIds: ["product-multi-candidate"],
+      phaseIds: [
+        "targeted-change-validator",
+        "typecheck",
+        "unit",
+        "e2e-operator-multi-candidate",
+      ],
+      browserPhaseIds: ["e2e-operator-multi-candidate"],
+    },
+  );
+  runPlanCase(
+    "targeted-owner-plus-documentation",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
+        "export {};\n",
+      );
+      write("docs/guide.md", "# Updated guide\n");
+    },
+    {
+      ownerIds: ["codex-user-reuse-hook", "documentation"],
+      phaseIds: ["targeted-change-validator", "unit"],
+    },
+  );
+  runPlanCase("targeted-owner-deletion-unproven", "full-canonical", ({ remove }) => {
+    remove("scripts/test-codex-augnes-user-hook-migration.mjs");
   });
-  runPlanCase("test-file", "full-canonical", ({ write }) => {
-    write("tests/example.test.ts", "export {};\n");
-  });
-  runPlanCase("migration", "full-canonical", ({ write }) => {
-    write("data/migrations/001.sql", "select 1;\n");
-  });
-  runPlanCase("package-manifest", "full-canonical", ({ write }) => {
-    write("package.json", "{\"private\":true,\"version\":\"2\"}\n");
-  });
+  runPlanCase(
+    "multi-owner-product-composition",
+    "full-canonical",
+    ({ write }) => {
+      write(
+        "lib/vnext/project-work-initialization.ts",
+        "export const initialize = true;\n",
+      );
+    },
+    {
+      ownerIds: ["multi-owner-product-composition"],
+      fullReasons: [
+        "composition_browser_ownership_requires_full:lib/vnext/project-work-initialization.ts",
+      ],
+    },
+  );
+  runPlanCase(
+    "native-host-security-credential",
+    "full-canonical",
+    ({ write }) => {
+      write(
+        "lib/vnext/native-host/credential-broker.ts",
+        "export const broker = true;\n",
+      );
+    },
+    {
+      ownerIds: ["security-authority-process-isolation"],
+      fullReasons: [
+        "security_authority_or_process_isolation:lib/vnext/native-host/credential-broker.ts",
+      ],
+    },
+  );
+  runPlanCase(
+    "migration",
+    "full-canonical",
+    ({ write }) => {
+      write("data/migrations/001.sql", "select 1;\n");
+    },
+    {
+      ownerIds: ["schema-migration-current-data"],
+      fullReasons: [
+        "schema_migration_or_current_data:data/migrations/001.sql",
+      ],
+    },
+  );
+  runPlanCase(
+    "package-manifest",
+    "full-canonical",
+    ({ write }) => {
+      write("package.json", "{\"private\":true,\"version\":\"2\"}\n");
+    },
+    {
+      ownerIds: ["package-build-distribution"],
+      fullReasons: ["package_build_distribution_foundation:package.json"],
+    },
+  );
   runPlanCase("nested-lockfile", "full-canonical", ({ write }) => {
     write("apps/example/package-lock.json", "{\"lockfileVersion\":3}\n");
   });
@@ -89,9 +225,30 @@ try {
   runPlanCase("documentation-deletion", "full-canonical", ({ remove }) => {
     remove("docs/existing.md");
   });
-  runPlanCase("unknown-path", "full-canonical", ({ write }) => {
-    write("docs/unknown.payload", "unknown\n");
-  });
+  runPlanCase(
+    "unknown-path",
+    "full-canonical",
+    ({ write }) => {
+      write("docs/unknown.payload", "unknown\n");
+    },
+    {
+      ownerIds: ["unknown-owner"],
+      fullReasons: ["unknown_or_unmatched_owner:docs/unknown.payload"],
+    },
+  );
+  runPlanCase(
+    "planner-receipt-executor-self-change",
+    "full-canonical",
+    ({ write }) => {
+      write("scripts/canonical-change-planner.mjs", "export const changed = true;\n");
+    },
+    {
+      ownerIds: ["local-canonical-integrity"],
+      fullReasons: [
+        "local_canonical_integrity_self_change:scripts/canonical-change-planner.mjs",
+      ],
+    },
+  );
   if (process.platform === "win32") {
     results.push("AGENTS-mode-change:posix_mode_unavailable_on_windows_ntfs");
     results.push("executable-mode-change:posix_mode_unavailable_on_windows_ntfs");
@@ -136,6 +293,10 @@ try {
   assert.throws(
     () => parseNameStatus(Buffer.from("M\0path", "utf8")),
     /not NUL terminated/u,
+  );
+  assert.throws(
+    () => parseNameStatus(Buffer.from("M\0../escape\0", "utf8")),
+    /path escapes the repository/u,
   );
   results.push("malformed-or-missing-base-head");
 
@@ -184,6 +345,24 @@ try {
     PERMANENT_BROWSER_PHASE_IDS,
   );
   assert.deepEqual(
+    classifyCanonicalBrowserOwnership([
+      { oldPath: null, newPath: "components/project-home/project-home.tsx" },
+    ]),
+    { status: "owned", phase_ids: ["e2e-project-experience"] },
+  );
+  assert.equal(
+    classifyCanonicalBrowserOwnership([
+      { oldPath: null, newPath: "lib/vnext/project-work-initialization.ts" },
+    ]).status,
+    "composition",
+  );
+  assert.equal(
+    classifyCanonicalBrowserOwnership([
+      { oldPath: null, newPath: "unclassified/behavior-owner.ts" },
+    ]).status,
+    "unknown",
+  );
+  assert.deepEqual(
     selectCanonicalBrowserPhasesForChanges([
       { oldPath: null, newPath: "unclassified/behavior-owner.ts" },
     ]),
@@ -194,6 +373,31 @@ try {
     /requires changed paths/u,
   );
   results.push("permanent-browser-owner-selection");
+
+  const ownerManifest = JSON.parse(
+    readFileSync(
+      new URL("./local-canonical-change-owners.v1.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(validateChangeOwnerManifest(ownerManifest), true);
+  const malformedOwnerManifest = structuredClone(ownerManifest);
+  malformedOwnerManifest.targeted_phase_order.push("caller-selected-command");
+  malformedOwnerManifest.targeted_owners[0].phase_ids = [
+    "caller-selected-command",
+  ];
+  assert.throws(
+    () => validateChangeOwnerManifest(malformedOwnerManifest),
+    /targeted phase order is invalid/u,
+  );
+  const duplicateOwnerManifest = structuredClone(ownerManifest);
+  duplicateOwnerManifest.high_risk_owners[0].id =
+    duplicateOwnerManifest.targeted_owners[0].id;
+  assert.throws(
+    () => validateChangeOwnerManifest(duplicateOwnerManifest),
+    /duplicate canonical owner id/u,
+  );
+  results.push("owner-manifest-fail-closed");
 
   runDocumentationValidatorCases();
 
@@ -214,7 +418,7 @@ try {
   rmSync(temporaryRoot, { recursive: true, force: true });
 }
 
-function runPlanCase(name, expectedPlan, mutate) {
+function runPlanCase(name, expectedPlan, mutate, expected = {}) {
   const repository = createRepository(name);
   mutate(repository);
   commitAll(repository.cwd, `case: ${name}`);
@@ -226,6 +430,31 @@ function runPlanCase(name, expectedPlan, mutate) {
     cwd: repository.cwd,
   });
   assert.equal(plan.plan, expectedPlan, name);
+  if (expected.reason) assert.equal(plan.reason, expected.reason, name);
+  if (expected.ownerIds) {
+    assert.deepEqual(plan.owner_ids, expected.ownerIds, `${name}:owners`);
+  }
+  if (expected.phaseIds) {
+    assert.deepEqual(
+      plan.targeted_phase_ids,
+      expected.phaseIds,
+      `${name}:phases`,
+    );
+  }
+  if (expected.fullReasons) {
+    assert.deepEqual(
+      plan.full_reasons,
+      expected.fullReasons,
+      `${name}:full-reasons`,
+    );
+  }
+  if (expected.browserPhaseIds) {
+    assert.deepEqual(
+      plan.browser_phase_ids,
+      expected.browserPhaseIds,
+      `${name}:browser-phases`,
+    );
+  }
   if (expectedPlan === "operating-policy-only") {
     assert.equal(plan.reason, "exact_safe_agents_operating_policy_change", name);
     assert.deepEqual(plan.full_reasons, [], name);
@@ -244,6 +473,16 @@ function createRepository(name) {
   write(cwd, "AGENTS.md", "# Instructions\n");
   write(cwd, "docs/existing.md", "# Existing\n");
   write(cwd, "package.json", "{\"private\":true}\n");
+  write(
+    cwd,
+    "fixtures/local-canonical-owner-contract/retired.json",
+    "{}\n",
+  );
+  write(
+    cwd,
+    "scripts/test-codex-augnes-user-hook-migration.mjs",
+    "export const baseline = true;\n",
+  );
   commitAll(cwd, "base");
   const baseSha = git(cwd, ["rev-parse", "HEAD"]).trim();
   return {
@@ -342,6 +581,29 @@ function runDocumentationValidatorCases() {
   assert.equal(operatingPolicyResult.plan, "operating-policy-only");
   assert.equal(operatingPolicyResult.markdown_files_checked, 1);
   results.push("operating-policy-links-and-anchors");
+
+  const ownerTargeted = createRepository("owner-targeted-validator-valid");
+  ownerTargeted.write(
+    "scripts/test-codex-augnes-user-hook-migration.mjs",
+    "export const updated = true;\n",
+  );
+  commitAll(ownerTargeted.cwd, "valid owner-targeted change");
+  headSha = git(ownerTargeted.cwd, ["rev-parse", "HEAD"]).trim();
+  const ownerTargetedResult = validateCanonicalOwnerTargetedChange({
+    baseSha: ownerTargeted.baseSha,
+    headSha,
+    cwd: ownerTargeted.cwd,
+  });
+  assert.equal(ownerTargetedResult.status, "pass");
+  assert.equal(ownerTargetedResult.plan, "owner-targeted");
+  assert.deepEqual(ownerTargetedResult.owner_ids, [
+    "codex-user-reuse-hook",
+  ]);
+  assert.deepEqual(ownerTargetedResult.targeted_phase_ids, [
+    "targeted-change-validator",
+    "unit",
+  ]);
+  results.push("owner-targeted-exact-plan-validator");
 }
 
 function write(cwd, relativePath, content) {

@@ -18,7 +18,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  OWNER_TARGETED_PLAN,
   PERMANENT_BROWSER_PHASE_IDS,
+  TARGETED_PHASE_ORDER,
   planCanonicalChange,
 } from "./canonical-change-planner.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
@@ -74,11 +76,13 @@ const generatedWindowsHelperRoot = path.join(
   "windows-x64",
 );
 const EXECUTOR_SOURCE_FILES = Object.freeze([
+  "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
   "scripts/canonical-child-runner.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/canonical-repository-identity.mjs",
   "scripts/local-canonical-environment.mjs",
+  "scripts/local-canonical-change-owners.v1.json",
   "scripts/local-canonical-receipt.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "scripts/run-local-canonical-verification.mjs",
@@ -216,6 +220,8 @@ export function resolveVerificationPlan({
       planner_change_count: result.change_count,
       planner_changed_paths: result.changed_paths,
       planner_full_reasons: result.full_reasons,
+      planner_owner_ids: result.owner_ids,
+      planner_targeted_phase_ids: result.targeted_phase_ids,
       planner_browser_phase_ids:
         mode === "full"
           ? [...PERMANENT_BROWSER_PHASE_IDS]
@@ -230,6 +236,8 @@ export function resolveVerificationPlan({
         selected_plan: "full-canonical",
         planner_reason: "planner_failure_requires_full_canonical",
         planner_error_code: safeErrorCode(error),
+        planner_owner_ids: ["planner-failure"],
+        planner_targeted_phase_ids: [],
         planner_browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       };
     }
@@ -243,6 +251,7 @@ export function buildPhasePlan({
   baseSha,
   headSha,
   browserPhaseIds = [...PERMANENT_BROWSER_PHASE_IDS],
+  targetedPhaseIds = [],
 }) {
   if (mode === "quick") return quickPhases();
   if (selectedPlan === "documentation-only") {
@@ -265,6 +274,13 @@ export function buildPhasePlan({
   }
   if (selectedPlan === "operating-policy-only") {
     return operatingPolicyPhases({ baseSha, headSha });
+  }
+  if (selectedPlan === OWNER_TARGETED_PLAN) {
+    return ownerTargetedPhases({
+      baseSha,
+      headSha,
+      targetedPhaseIds,
+    });
   }
   if (selectedPlan !== "full-canonical") {
     const error = new Error("unsupported local canonical selected plan");
@@ -349,6 +365,7 @@ export async function executeLocalCanonicalVerification({
     baseSha,
     headSha,
     browserPhaseIds: plan.planner_browser_phase_ids,
+    targetedPhaseIds: plan.planner_targeted_phase_ids,
   });
   const phaseReceipts = phaseDefinitions.map(notRunPhaseReceipt);
   const serviceLifecycleBefore = boundedLifecycleState(
@@ -358,8 +375,11 @@ export async function executeLocalCanonicalVerification({
   let dependencyMaintenance = null;
   let dependencyMaintenanceRelease = null;
   const preflightIssues = [];
+  const selectedBrowserPhases = phaseDefinitions.filter(
+    (phase) => phase.browser === true,
+  );
   const diskMinimumBytes =
-    plan.selected_plan === "full-canonical"
+    plan.selected_plan === "full-canonical" || selectedBrowserPhases.length > 0
       ? FULL_MINIMUM_DISK_BYTES
       : QUICK_MINIMUM_DISK_BYTES;
 
@@ -383,7 +403,7 @@ export async function executeLocalCanonicalVerification({
     preflightIssues.push("insufficient_disk_space");
   }
   if (
-    plan.selected_plan === "full-canonical" &&
+    selectedBrowserPhases.length > 0 &&
     host.browser.available !== true
   ) {
     preflightIssues.push("canonical_browser_unavailable");
@@ -492,7 +512,8 @@ export async function executeLocalCanonicalVerification({
   } finally {
     console.log("[local-canonical] cleanup_start");
     if (
-      plan.selected_plan === "full-canonical" &&
+      (plan.selected_plan === "full-canonical" ||
+        plan.selected_plan === OWNER_TARGETED_PLAN) &&
       (nextState.removed_before_execution || !nextState.present_before) &&
       existsSync(generatedNextRoot)
     ) {
@@ -648,6 +669,8 @@ export async function executeLocalCanonicalVerification({
       planner_change_count: plan.planner_change_count ?? null,
       planner_changed_paths: plan.planner_changed_paths ?? [],
       planner_full_reasons: plan.planner_full_reasons ?? [],
+      planner_owner_ids: plan.planner_owner_ids ?? [],
+      planner_targeted_phase_ids: plan.planner_targeted_phase_ids ?? [],
       planner_error_code: plan.planner_error_code ?? null,
       planner_browser_phase_ids: plan.planner_browser_phase_ids ?? [],
       selected_plan: plan.selected_plan,
@@ -688,9 +711,11 @@ export async function executeLocalCanonicalVerification({
           ? "clean_npm_ci_root_and_nested"
           : plan.selected_plan === "operating-policy-only"
             ? "operating_policy_only_no_dependency_install"
-          : mode === "quick"
-            ? "existing_installed_trees_feedback_only"
-            : "documentation_only_no_dependency_install",
+            : plan.selected_plan === OWNER_TARGETED_PLAN
+              ? "owner_targeted_existing_trees_with_exact_lock_fingerprints"
+              : mode === "quick"
+                ? "existing_installed_trees_feedback_only"
+                : "documentation_only_no_dependency_install",
       download_cache: "npm_cache_reuse_permitted_not_authoritative",
       installed_trees:
         plan.selected_plan === "full-canonical" &&
@@ -700,7 +725,9 @@ export async function executeLocalCanonicalVerification({
           ? "replaced_from_lockfiles_by_npm_ci"
           : plan.selected_plan === "full-canonical"
             ? "not_prepared_or_incomplete"
-          : "not_deciding_authority",
+            : plan.selected_plan === OWNER_TARGETED_PLAN
+              ? "used_without_replacement_not_independent_dependency_attestation"
+              : "not_deciding_authority",
       root_lock_sha256: locks.root,
       nested_lock_sha256: locks.nested,
     },
@@ -800,6 +827,8 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
   const machineFingerprint = ensureMachineFingerprint(artifactRoot);
   let expectedSelectedPlan = null;
   let expectedPhaseIds = null;
+  let expectedOwnerIds = [];
+  let expectedTargetedPhaseIds = [];
   let expectedBrowserPhaseIds = [...PERMANENT_BROWSER_PHASE_IDS];
   if (receipt?.evidence?.mode === "full") {
     const fullPlan = resolveVerificationPlan({
@@ -808,6 +837,8 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
       headSha: receipt?.repository?.head_sha,
     });
     expectedSelectedPlan = "full-canonical";
+    expectedOwnerIds = fullPlan.planner_owner_ids ?? [];
+    expectedTargetedPhaseIds = fullPlan.planner_targeted_phase_ids ?? [];
     expectedBrowserPhaseIds = fullPlan.planner_browser_phase_ids;
   } else if (receipt?.evidence?.mode === "changed") {
     const changedPlan = resolveVerificationPlan({
@@ -816,6 +847,9 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
       headSha: receipt?.repository?.head_sha,
     });
     expectedSelectedPlan = changedPlan.selected_plan;
+    expectedOwnerIds = changedPlan.planner_owner_ids ?? [];
+    expectedTargetedPhaseIds =
+      changedPlan.planner_targeted_phase_ids ?? [];
     expectedBrowserPhaseIds = changedPlan.planner_browser_phase_ids;
   } else if (receipt?.evidence?.mode === "quick") {
     expectedSelectedPlan = "quick-feedback";
@@ -827,6 +861,7 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
       baseSha: receipt?.repository?.base_sha,
       headSha: receipt?.repository?.head_sha,
       browserPhaseIds: expectedBrowserPhaseIds,
+      targetedPhaseIds: expectedTargetedPhaseIds,
     }).map((phase) => phase.id);
   }
   return inspectReceiptForDecision(receipt, {
@@ -835,6 +870,8 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
     currentExecutorFingerprint: executorFingerprint,
     expectedSelectedPlan,
     expectedPhaseIds,
+    expectedOwnerIds,
+    expectedTargetedPhaseIds,
     currentEnvironment: {
       machine_fingerprint: machineFingerprint,
       operating_system: host.operating_system,
@@ -953,6 +990,85 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       timeoutMs: 60_000,
     }),
   ];
+}
+
+function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
+  if (
+    !Array.isArray(targetedPhaseIds) ||
+    targetedPhaseIds.length < 2 ||
+    targetedPhaseIds[0] !== "targeted-change-validator" ||
+    new Set(targetedPhaseIds).size !== targetedPhaseIds.length ||
+    JSON.stringify(targetedPhaseIds) !==
+      JSON.stringify(
+        TARGETED_PHASE_ORDER.filter((phaseId) =>
+          targetedPhaseIds.includes(phaseId)
+        ),
+      )
+  ) {
+    const error = new Error("invalid owner-targeted phase inventory");
+    error.code = "invalid_owner_targeted_phase_inventory";
+    throw error;
+  }
+  return targetedPhaseIds.map((phaseId) => {
+    if (phaseId === "targeted-change-validator") {
+      return phaseDefinition({
+        id: phaseId,
+        label: "exact-head owner-targeted change validator",
+        command: process.execPath,
+        args: [
+          "scripts/validate-canonical-docs-change.mjs",
+          "--base",
+          baseSha,
+          "--head",
+          headSha,
+          "--plan",
+          OWNER_TARGETED_PLAN,
+        ],
+        display:
+          `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan ${OWNER_TARGETED_PLAN}`,
+        timeoutMs: 120_000,
+      });
+    }
+    return targetedCanonicalPhaseDefinition(phaseId, { baseSha, headSha });
+  });
+}
+
+function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
+  const canonicalSuitePhases = {
+    typecheck: () =>
+      npmPhase("typecheck", "TypeScript typecheck", ["run", "typecheck"], 300_000),
+    unit: () => npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000),
+    authority: () =>
+      npmPhase(
+        "authority",
+        "Canonical authority suite",
+        ["run", "test:authority"],
+        2_400_000,
+      ),
+    integration: () =>
+      npmPhase(
+        "integration",
+        "Canonical integration suite",
+        ["run", "test:integration"],
+        4_200_000,
+      ),
+    operability: () =>
+      npmPhase(
+        "operability",
+        "Canonical operability suite",
+        ["run", "test:operability"],
+        1_800_000,
+      ),
+  };
+  if (Object.hasOwn(canonicalSuitePhases, id)) {
+    return canonicalSuitePhases[id]();
+  }
+  if (PERMANENT_BROWSER_PHASE_IDS.includes(id)) {
+    return browserPhaseDefinition(id, { baseSha, headSha });
+  }
+  const error = new Error(`unsupported owner-targeted phase: ${id}`);
+  error.code = "unsupported_owner_targeted_phase";
+  throw error;
 }
 
 function fullPhases({ baseSha, headSha, browserPhaseIds }) {

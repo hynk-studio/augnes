@@ -34,6 +34,9 @@ const baseReceipt = {
     planner_changed_paths: ["README.md"],
     planner_full_reasons: [],
     planner_error_code: null,
+    planner_owner_ids: ["documentation"],
+    planner_targeted_phase_ids: [],
+    planner_browser_phase_ids: [],
     selected_plan: "documentation-only",
     deciding: true,
     transferable: true,
@@ -192,6 +195,8 @@ const validContext = {
   },
   currentExecutorFingerprint: "5".repeat(64),
   expectedSelectedPlan: "documentation-only",
+  expectedOwnerIds: ["documentation"],
+  expectedTargetedPhaseIds: [],
   expectedPhaseIds: ["documentation-validator"],
   currentEnvironment: {
     machine_fingerprint: "a".repeat(32),
@@ -220,6 +225,9 @@ operatingPolicyReceipt.evidence.planner_plan = "operating-policy-only";
 operatingPolicyReceipt.evidence.planner_reason =
   "exact_safe_agents_operating_policy_change";
 operatingPolicyReceipt.evidence.planner_changed_paths = ["AGENTS.md"];
+operatingPolicyReceipt.evidence.planner_owner_ids = [
+  "repository-operating-policy",
+];
 operatingPolicyReceipt.evidence.selected_plan = "operating-policy-only";
 operatingPolicyReceipt.dependencies.policy =
   "operating_policy_only_no_dependency_install";
@@ -239,6 +247,7 @@ assert.deepEqual(
   inspectReceiptForDecision(finalizedOperatingPolicyReceipt, {
     ...validContext,
     expectedSelectedPlan: "operating-policy-only",
+    expectedOwnerIds: ["repository-operating-policy"],
     expectedPhaseIds: operatingPolicyPhaseIds,
   }),
   {
@@ -248,6 +257,66 @@ assert.deepEqual(
     content_fingerprint:
       finalizedOperatingPolicyReceipt.integrity.content_fingerprint,
   },
+);
+
+const targetedReceipt = structuredClone(baseReceipt);
+targetedReceipt.evidence.planner_plan = "owner-targeted";
+targetedReceipt.evidence.planner_reason =
+  "all_changes_have_owner_complete_targeted_coverage";
+targetedReceipt.evidence.planner_changed_paths = [
+  "scripts/augnes-codex-user-reuse-hook.mjs",
+];
+targetedReceipt.evidence.planner_owner_ids = ["codex-user-reuse-hook"];
+targetedReceipt.evidence.planner_targeted_phase_ids = [
+  "targeted-change-validator",
+  "unit",
+];
+targetedReceipt.evidence.selected_plan = "owner-targeted";
+targetedReceipt.dependencies.policy =
+  "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+targetedReceipt.phases = [
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "targeted-change-validator",
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "unit",
+  },
+];
+const finalizedTargetedReceipt = finalizeReceipt(targetedReceipt);
+const targetedContext = {
+  ...validContext,
+  expectedSelectedPlan: "owner-targeted",
+  expectedOwnerIds: ["codex-user-reuse-hook"],
+  expectedTargetedPhaseIds: ["targeted-change-validator", "unit"],
+  expectedPhaseIds: ["targeted-change-validator", "unit"],
+};
+assert.deepEqual(
+  inspectReceiptForDecision(finalizedTargetedReceipt, targetedContext),
+  {
+    valid_deciding_evidence: true,
+    status: "valid",
+    issues: [],
+    content_fingerprint:
+      finalizedTargetedReceipt.integrity.content_fingerprint,
+  },
+);
+const targetedPhaseTamper = structuredClone(targetedReceipt);
+targetedPhaseTamper.phases.reverse();
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedPhaseTamper),
+    targetedContext,
+  ).issues.includes("receipt_targeted_phase_inventory_mismatch"),
+);
+const targetedOwnerTamper = structuredClone(targetedContext);
+targetedOwnerTamper.expectedOwnerIds = ["different-owner"];
+assert(
+  inspectReceiptForDecision(
+    finalizedTargetedReceipt,
+    targetedOwnerTamper,
+  ).issues.includes("receipt_stale_owners"),
 );
 
 const browserReceipt = structuredClone(baseReceipt);
@@ -528,6 +597,8 @@ console.log(
       private_material_excluded: true,
       stale_head_lock_executor_and_plan_refused: true,
       operating_policy_plan_deciding_and_validated: true,
+      owner_targeted_plan_deciding_and_validated: true,
+      owner_targeted_inventory_and_owner_drift_refused: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,

@@ -149,7 +149,9 @@ operator child unions. Source-code parsing is not part of permanent ownership.
 
 ## Changed-file selection
 
-The planner applies the manifest rules conservatively:
+The Browser manifest remains the semantic owner map; the Local Canonical change
+owner manifest decides whether that Browser ownership is narrow enough for an
+`owner-targeted` plan. The planner applies both manifests conservatively:
 
 - project entry, lifecycle, ProductShell, responsive, and presentation changes
   select project experience;
@@ -157,16 +159,22 @@ The planner applies the manifest rules conservatively:
   candidate changes select the relevant operator children;
 - portability, recovery, reconciliation, persistent lineage, and Perspective
   continuity changes select continuity;
+- a known single detailed Browser owner may join typecheck and unit in an
+  `owner-targeted` deciding plan;
 - first-work-to-result composition changes select golden plus affected detailed
-  owners;
+  owners and therefore require `full-canonical` in the current planner;
 - shared runtime, fixture, lifecycle, planner, executor, receipt, or ambiguous
-  cross-owner changes select golden plus every affected detailed owner;
-- unknown or ambiguous verification ownership selects all six phases;
+  cross-owner changes select all six phases through `full-canonical`;
+- multiple detailed Browser owners require `full-canonical`; a targeted plan
+  cannot omit their cross-boundary proof;
+- unknown or ambiguous verification ownership selects all six phases through
+  `full-canonical`;
 - full-canonical selects all six phases.
 
 Documentation-only changes remain eligible for the existing bounded
-documentation selection when their paths and links validate. Renames,
-executable-mode changes, unknown paths, or invalid planner inputs fail closed.
+documentation selection when their paths and links validate. Browser/product
+deletion is not targeted in this version. Renames, executable-mode changes,
+unknown paths, or invalid planner inputs fail closed.
 
 ## Deciding Local Canonical receipt
 
@@ -181,9 +189,11 @@ For each required Browser phase, deciding evidence requires:
 - zero owned-process and listener residue;
 - no timeout, omission, skip, or stale result.
 
-An absent, unrun, failed, timed-out, stale, or cleanup-incomplete phase makes
-the aggregate receipt non-deciding. A focused owner result is useful diagnostic
-evidence but is not a substitute for the planner-selected exact-head receipt.
+An absent, unrun, failed, timed-out, stale, or cleanup-incomplete selected phase
+makes the aggregate receipt non-deciding. A focused owner result is deciding
+only when the exact planner selected it inside an owner-complete exact-head
+receipt; an arbitrary standalone focused run is diagnostic evidence, not a
+substitute for that receipt.
 
 ## Timing policy
 

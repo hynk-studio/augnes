@@ -30,6 +30,9 @@ const readme = readRepositoryFile("README.md");
 const localPolicy = readRepositoryFile(
   ".github/LOCAL_CANONICAL_VERIFICATION.md",
 );
+const canonicalBrowserOwnershipPolicy = readRepositoryFile(
+  "docs/CANONICAL_BROWSER_VERIFICATION_OWNERSHIP_V1.md",
+);
 const pullRequestTemplate = readRepositoryFile(
   ".github/pull_request_template.md",
 );
@@ -81,6 +84,10 @@ const processLifecycle = readRepositoryFile(
 const plannerSource = readRepositoryFile(
   "scripts/canonical-change-planner.mjs",
 );
+const changeOwnerManifestSource = readRepositoryFile(
+  "scripts/local-canonical-change-owners.v1.json",
+);
+const changeOwnerManifest = JSON.parse(changeOwnerManifestSource);
 const plannerContract = readRepositoryFile(
   "scripts/test-canonical-change-planner.mjs",
 );
@@ -536,6 +543,11 @@ for (const fragment of [
   `operating-policy-receipt-contract`,
   `operating-policy-verification-contract`,
   `operating_policy_only_no_dependency_install`,
+  `targeted-change-validator`,
+  `invalid_owner_targeted_phase_inventory`,
+  `owner_targeted_existing_trees_with_exact_lock_fingerprints`,
+  `planner_owner_ids`,
+  `planner_targeted_phase_ids`,
   `runPhasesSequentially`,
   `for (const phase of phases)`,
   `canonical_node_mismatch`,
@@ -624,15 +636,19 @@ for (const fragment of [
   `receipt_stale_lockfiles`,
   `receipt_stale_executor`,
   `receipt_stale_plan`,
+  `receipt_stale_owners`,
+  `receipt_stale_targeted_phases`,
   `receipt_stale_environment`,
   `receipt_missing_phases`,
   `receipt_phase_inventory_mismatch`,
+  `receipt_targeted_phase_inventory_mismatch`,
   `phase_not_passing:`,
   `receipt_cleanup_incomplete`,
   `receipt_canonical_node_mismatch`,
   `receipt_non_deciding`,
   `receipt_dirty_worktree`,
   `operating-policy-only`,
+  `owner-targeted`,
 ]) {
   requireText(
     localReceipt,
@@ -649,6 +665,9 @@ for (const fragment of [
   `deciding_dirty_refused`,
   `documentation_selection_dependency_light`,
   `operating_policy_selection_static_and_maintenance_free`,
+  `owner_targeted_selection_uses_fixed_owner_complete_phases`,
+  `owner_targeted_arbitrary_phase_selection_refused`,
+  `owner_targeted_browser_phase_exact_head_bound`,
   `full_phase_inventory_complete`,
   `browser_lanes_sequential`,
   `maximum_outer_phase_concurrency`,
@@ -673,6 +692,8 @@ for (const fragment of [
   `incomplete_failed_timed_out_and_cleanup_incomplete_refused`,
   `quick_dirty_explicitly_non_deciding`,
   `operating_policy_plan_deciding_and_validated`,
+  `owner_targeted_plan_deciding_and_validated`,
+  `owner_targeted_inventory_and_owner_drift_refused`,
   `canonical_node_mismatch_refused`,
   `{ private_path: "/Users/private/project/file" }`,
   `{ username: "private-user" }`,
@@ -720,6 +741,10 @@ for (const fragment of [
   `GitHub did not run these tests`,
   `OPERATING_POLICY_PUBLIC_PHASE_COMMANDS`,
   `operating-policy-only`,
+  `TARGETED_PHASE_ORDER`,
+  `owner-targeted`,
+  `targeted-change-validator`,
+  `receipt_owner_targeted_projection_mismatch`,
 ]) {
   requireText(
     localPrEvidenceEnvelope,
@@ -785,7 +810,9 @@ assert.doesNotMatch(
 for (const fragment of [
   `deterministic_projection`,
   `non_deciding_receipts_refused`,
-  `full_documentation_and_operating_policy_receipts_supported`,
+  `full_documentation_operating_policy_and_owner_targeted_receipts_supported`,
+  `owner_targeted_phase_order_and_validator_required`,
+  `owner_targeted_receipt_ownership_projection_bound`,
   `private_material_excluded`,
   `duplicate_and_malformed_comments_refused`,
   `dirty_stale_fork_closed_merged_and_non_draft_refused`,
@@ -867,6 +894,11 @@ for (const fragment of [
   `isSafeOperatingPolicyModification`,
   `exact_safe_agents_operating_policy_change`,
   `operating-policy-only`,
+  `OWNER_TARGETED_PLAN`,
+  `all_changes_have_owner_complete_targeted_coverage`,
+  `local-canonical-change-owners.v1.json`,
+  `multi_browser_owner_product_composition`,
+  `unknown_or_unmatched_owner`,
 ]) {
   requireText(
     plannerSource,
@@ -879,6 +911,60 @@ assert.doesNotMatch(
   /GITHUB_OUTPUT|write-github-output|appendFileSync/u,
   "the local planner must not contain workflow-output behavior",
 );
+assert.equal(
+  changeOwnerManifest.schema,
+  "augnes.local-canonical-change-owners.v1",
+);
+assert.equal(
+  changeOwnerManifest.targeted_phase_order[0],
+  "targeted-change-validator",
+);
+assert.deepEqual(
+  changeOwnerManifest.targeted_owners.map((owner) => owner.id),
+  [
+    "codex-user-reuse-hook",
+    "augnes-operator-plugin-setup",
+    "temporal-interpretation-preview",
+    "local-canonical-owner-contract-fixture",
+  ],
+);
+assert.deepEqual(
+  changeOwnerManifest.targeted_owners
+    .filter((owner) => owner.deletion_policy === "targeted")
+    .map((owner) => owner.id),
+  ["local-canonical-owner-contract-fixture"],
+  "targeted deletion must remain an explicit consumer-bounded exception",
+);
+for (const requiredHighRiskOwner of [
+  "local-canonical-integrity",
+  "package-build-distribution",
+  "schema-migration-current-data",
+  "security-authority-process-isolation",
+  "shared-native-host-runtime",
+  "core-protocol-semantics",
+  "compatibility-boundary",
+]) {
+  assert.equal(
+    changeOwnerManifest.high_risk_owners.some(
+      (owner) => owner.id === requiredHighRiskOwner,
+    ),
+    true,
+    `missing fail-closed responsibility owner: ${requiredHighRiskOwner}`,
+  );
+}
+for (const fragment of [
+  `known single detailed Browser owner`,
+  `multiple detailed Browser owners require \`full-canonical\``,
+  `unknown or ambiguous verification ownership selects all six phases`,
+  `deletion is not targeted in this version`,
+  `arbitrary standalone focused run is diagnostic evidence`,
+]) {
+  requireText(
+    canonicalBrowserOwnershipPolicy,
+    fragment,
+    `Browser ownership policy is missing targeted fail-closed guidance: ${fragment}`,
+  );
+}
 for (const regression of [
   "README-only",
   "docs-only",
@@ -892,15 +978,23 @@ for (const regression of [
   "AGENTS-mode-change",
   "workflow",
   "composite-action",
-  "source-file",
-  "application-CSS",
-  "test-file",
+  "unknown-source-file",
+  "leaf-internal-known-owner",
+  "test-only-leaf-known-owner",
+  "fixture-only-leaf-known-owner",
+  "consumer-proven-leaf-deletion",
+  "single-browser-owner",
+  "targeted-owner-plus-documentation",
+  "targeted-owner-deletion-unproven",
+  "multi-owner-product-composition",
+  "native-host-security-credential",
   "migration",
   "package-manifest",
   "nested-lockfile",
   "docs-to-source-rename",
   "documentation-deletion",
   "unknown-path",
+  "planner-receipt-executor-self-change",
   "malformed-or-missing-base-head",
 ]) {
   requireText(
@@ -916,6 +1010,8 @@ for (const fragment of [
   `unresolved local Markdown anchor`,
   `private absolute filesystem path`,
   `validateCanonicalOperatingPolicyChange`,
+  `validateCanonicalOwnerTargetedChange`,
+  `owner-targeted validator requires explicit owners and deciding phases`,
   `operating-policy validator requires one safe AGENTS.md modification`,
 ]) {
   requireText(
@@ -931,6 +1027,11 @@ for (const fragment of [
   `\`AGENTS.md\` combined`,
   `with any other path`,
   `deletion, rename, copy, mode change`,
+  `owner-targeted`,
+  `checked-in responsibility owner`,
+  `Callers cannot supply`,
+  `Deletion is classified by the responsibility`,
+  `cannot approve its own implementation`,
 ]) {
   requireText(
     localPolicy,

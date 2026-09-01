@@ -232,6 +232,83 @@ assert.match(
   /--plan operating-policy-only$/u,
 );
 
+const ownerTargetedPlan = resolveVerificationPlan({
+  mode: "changed",
+  baseSha,
+  headSha,
+  planner: () => ({
+    event: "pull_request",
+    plan: "owner-targeted",
+    reason: "all_changes_have_owner_complete_targeted_coverage",
+    change_count: 1,
+    changed_paths: ["scripts/test-codex-augnes-user-hook-migration.mjs"],
+    full_reasons: [],
+    owner_ids: ["codex-user-reuse-hook"],
+    targeted_phase_ids: ["targeted-change-validator", "unit"],
+    browser_phase_ids: [],
+  }),
+});
+assert.equal(ownerTargetedPlan.selected_plan, "owner-targeted");
+assert.deepEqual(ownerTargetedPlan.planner_owner_ids, [
+  "codex-user-reuse-hook",
+]);
+assert.deepEqual(ownerTargetedPlan.planner_targeted_phase_ids, [
+  "targeted-change-validator",
+  "unit",
+]);
+const ownerTargetedPhases = buildPhasePlan({
+  mode: "changed",
+  selectedPlan: ownerTargetedPlan.selected_plan,
+  baseSha,
+  headSha,
+  targetedPhaseIds: ownerTargetedPlan.planner_targeted_phase_ids,
+});
+assert.deepEqual(
+  ownerTargetedPhases.map((phase) => phase.id),
+  ["targeted-change-validator", "unit"],
+);
+assert.match(ownerTargetedPhases[0].display, /--plan owner-targeted$/u);
+assert.equal(ownerTargetedPhases[1].display, "npm test");
+assert.equal(ownerTargetedPhases[1].exclusive, true);
+assert.throws(
+  () =>
+    buildPhasePlan({
+      mode: "changed",
+      selectedPlan: "owner-targeted",
+      baseSha,
+      headSha,
+      targetedPhaseIds: [
+        "targeted-change-validator",
+        "caller-selected-command",
+      ],
+    }),
+  (error) => error?.code === "invalid_owner_targeted_phase_inventory",
+);
+const ownerTargetedBrowserPhases = buildPhasePlan({
+  mode: "changed",
+  selectedPlan: "owner-targeted",
+  baseSha,
+  headSha,
+  targetedPhaseIds: [
+    "targeted-change-validator",
+    "typecheck",
+    "unit",
+    "e2e-operator-multi-candidate",
+  ],
+});
+assert.deepEqual(
+  ownerTargetedBrowserPhases.map((phase) => phase.id),
+  [
+    "targeted-change-validator",
+    "typecheck",
+    "unit",
+    "e2e-operator-multi-candidate",
+  ],
+);
+assert.equal(ownerTargetedBrowserPhases.at(-1).browser, true);
+assert.equal(ownerTargetedBrowserPhases.at(-1).base_sha, baseSha);
+assert.equal(ownerTargetedBrowserPhases.at(-1).head_sha, headSha);
+
 const failClosedPlan = resolveVerificationPlan({
   mode: "changed",
   baseSha,
@@ -472,6 +549,9 @@ console.log(
       typecheck_runs_next_typegen: true,
       documentation_selection_dependency_light: true,
       operating_policy_selection_static_and_maintenance_free: true,
+      owner_targeted_selection_uses_fixed_owner_complete_phases: true,
+      owner_targeted_arbitrary_phase_selection_refused: true,
+      owner_targeted_browser_phase_exact_head_bound: true,
       full_phase_inventory_complete: true,
       full_maintenance_precedes_generated_mutation_and_spans_all_phases: true,
       browser_lanes_sequential: true,

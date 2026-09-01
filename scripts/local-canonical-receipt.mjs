@@ -110,6 +110,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedSelectedPlan = null,
     currentEnvironment = null,
     expectedPhaseIds = null,
+    expectedOwnerIds = null,
+    expectedTargetedPhaseIds = null,
   } = options ?? {};
   const issues = [];
   try {
@@ -178,11 +180,29 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       ![
         "documentation-only",
         "operating-policy-only",
+        "owner-targeted",
         "full-canonical",
       ].includes(selectedPlan)) ||
     (mode === "full" && selectedPlan !== "full-canonical")
   ) {
     issues.push("receipt_mode_or_plan_invalid");
+  }
+  const plannerOwnerIds = receipt?.evidence?.planner_owner_ids;
+  const plannerTargetedPhaseIds =
+    receipt?.evidence?.planner_targeted_phase_ids;
+  if (
+    !Array.isArray(plannerOwnerIds) ||
+    (mode !== "quick" && plannerOwnerIds.length === 0) ||
+    new Set(plannerOwnerIds).size !== plannerOwnerIds.length ||
+    plannerOwnerIds.some(
+      (ownerId) =>
+        typeof ownerId !== "string" ||
+        !/^[a-z0-9][a-z0-9-]{0,79}$/u.test(ownerId),
+    ) ||
+    !Array.isArray(plannerTargetedPhaseIds) ||
+    new Set(plannerTargetedPhaseIds).size !== plannerTargetedPhaseIds.length
+  ) {
+    issues.push("receipt_planner_ownership_invalid");
   }
   if (
     (mode === "quick" &&
@@ -209,6 +229,13 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       JSON.stringify(expectedPhaseIds)
   ) {
     issues.push("receipt_phase_inventory_mismatch");
+  }
+  if (
+    selectedPlan === "owner-targeted" &&
+    JSON.stringify(phases.map((phase) => phase?.id ?? null)) !==
+      JSON.stringify(plannerTargetedPhaseIds)
+  ) {
+    issues.push("receipt_targeted_phase_inventory_mismatch");
   }
   for (const phase of phases) {
     const browserLifecycleInvalid =
@@ -308,6 +335,19 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     receipt?.evidence?.selected_plan !== expectedSelectedPlan
   ) {
     issues.push("receipt_stale_plan");
+  }
+  if (
+    expectedOwnerIds &&
+    JSON.stringify(plannerOwnerIds) !== JSON.stringify(expectedOwnerIds)
+  ) {
+    issues.push("receipt_stale_owners");
+  }
+  if (
+    expectedTargetedPhaseIds &&
+    JSON.stringify(plannerTargetedPhaseIds) !==
+      JSON.stringify(expectedTargetedPhaseIds)
+  ) {
+    issues.push("receipt_stale_targeted_phases");
   }
   if (currentEnvironment) {
     for (const [receiptPath, currentValue] of [

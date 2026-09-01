@@ -1,0 +1,231 @@
+{
+  "schema": "augnes.local-canonical-change-owners.v1",
+  "version": 1,
+  "targeted_phase_order": [
+    "targeted-change-validator",
+    "typecheck",
+    "unit",
+    "authority",
+    "integration",
+    "operability",
+    "e2e-project-experience",
+    "e2e-operator-review-control",
+    "e2e-operator-native-host-execution",
+    "e2e-operator-multi-candidate",
+    "e2e-continuity",
+    "e2e-golden"
+  ],
+  "targeted_owners": [
+    {
+      "id": "codex-user-reuse-hook",
+      "phase_ids": [
+        "unit"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "exact_paths": [
+          ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
+          "scripts/lib/codex-augnes-user-hook-installer-common.mjs",
+          "scripts/test-codex-augnes-user-hook-migration.mjs"
+        ]
+      }
+    },
+    {
+      "id": "augnes-operator-plugin-setup",
+      "phase_ids": [
+        "unit"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "exact_paths": [
+          "plugins/augnes-operator/.codex-plugin/plugin.json",
+          "scripts/augnes-operator-plugin-setup.mjs",
+          "scripts/test-augnes-operator-plugin-setup.mjs"
+        ]
+      }
+    },
+    {
+      "id": "temporal-interpretation-preview",
+      "phase_ids": [
+        "typecheck",
+        "authority"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "path_prefixes": [
+          "lib/temporal-interpretation/"
+        ]
+      }
+    },
+    {
+      "id": "local-canonical-owner-contract-fixture",
+      "phase_ids": [
+        "unit"
+      ],
+      "deletion_policy": "targeted",
+      "path_rules": {
+        "path_prefixes": [
+          "fixtures/local-canonical-owner-contract/"
+        ]
+      }
+    }
+  ],
+  "browser_targeted": {
+    "eligible_path_prefixes": [
+      "app/",
+      "components/",
+      "lib/",
+      "types/"
+    ],
+    "base_phase_ids": [
+      "typecheck",
+      "unit"
+    ],
+    "phase_owner_ids": {
+      "e2e-project-experience": "product-project-experience",
+      "e2e-operator-review-control": "product-operator-review-control",
+      "e2e-operator-native-host-execution": "product-native-host-execution",
+      "e2e-operator-multi-candidate": "product-multi-candidate",
+      "e2e-continuity": "product-continuity"
+    },
+    "deletion_policy": "full"
+  },
+  "high_risk_owners": [
+    {
+      "id": "local-canonical-integrity",
+      "reason": "local_canonical_integrity_self_change",
+      "path_rules": {
+        "exact_paths": [
+          "scripts/browser-verification-owners.v1.json",
+          "scripts/canonical-change-planner.mjs",
+          "scripts/canonical-child-runner.mjs",
+          "scripts/canonical-repository-identity.mjs",
+          "scripts/canonical-test-environment.mjs",
+          "scripts/local-canonical-change-owners.v1.json",
+          "scripts/local-canonical-environment.mjs",
+          "scripts/local-canonical-github-transport.mjs",
+          "scripts/local-canonical-pr-evidence-envelope.mjs",
+          "scripts/local-canonical-pr-evidence.mjs",
+          "scripts/local-canonical-receipt.mjs",
+          "scripts/run-canonical-test-suite.mjs",
+          "scripts/run-local-canonical-verification.mjs",
+          "scripts/test-browser-verification-owners.mjs",
+          "scripts/test-canonical-change-planner.mjs",
+          "scripts/test-local-canonical-executor.mjs",
+          "scripts/test-local-canonical-pr-evidence-transport.mjs",
+          "scripts/test-local-canonical-pr-evidence.mjs",
+          "scripts/test-local-canonical-receipt.mjs",
+          "scripts/test-local-canonical-verification-contract.mjs",
+          "scripts/test-harness-process-lifecycle.mjs",
+          "scripts/validate-canonical-docs-change.mjs"
+        ]
+      }
+    },
+    {
+      "id": "package-build-distribution",
+      "reason": "package_build_distribution_foundation",
+      "path_rules": {
+        "basenames": [
+          "package.json",
+          "package-lock.json"
+        ],
+        "path_prefixes": [
+          "native/"
+        ],
+        "path_fragments": [
+          "distributable-package",
+          "package-runtime",
+          "package-build",
+          "distribution"
+        ]
+      }
+    },
+    {
+      "id": "schema-migration-current-data",
+      "reason": "schema_migration_or_current_data",
+      "path_rules": {
+        "exact_paths": [
+          "lib/db.ts",
+          "scripts/db-migrations.mjs"
+        ],
+        "path_prefixes": [
+          "data/"
+        ],
+        "path_fragments": [
+          "/schema/",
+          "/schemas/",
+          "/migration/",
+          "/migrations/",
+          "database-migration",
+          "database-recovery"
+        ]
+      }
+    },
+    {
+      "id": "security-authority-process-isolation",
+      "reason": "security_authority_or_process_isolation",
+      "path_rules": {
+        "path_fragments": [
+          "credential",
+          "authentication",
+          "authorization",
+          "keychain",
+          "permission",
+          "process-isolation",
+          "security",
+          "secret",
+          "canonical-child-runner",
+          "canonical-test-environment",
+          "test-harness-process-lifecycle"
+        ]
+      }
+    },
+    {
+      "id": "shared-native-host-runtime",
+      "reason": "shared_native_host_or_runtime_composition",
+      "path_rules": {
+        "path_prefixes": [
+          "apps/augnes_apps/"
+        ],
+        "path_fragments": [
+          "companion-service",
+          "native-host",
+          "runtime-supervisor",
+          "runtime-operability"
+        ]
+      }
+    },
+    {
+      "id": "core-protocol-semantics",
+      "reason": "core_or_protocol_semantics",
+      "path_rules": {
+        "path_fragments": [
+          "vnext-protocol",
+          "/core-record",
+          "/core/",
+          "semantic-transition",
+          "review-decision"
+        ]
+      }
+    },
+    {
+      "id": "compatibility-boundary",
+      "reason": "compatibility_boundary",
+      "path_rules": {
+        "path_fragments": [
+          "compatibility"
+        ]
+      }
+    },
+    {
+      "id": "hosted-automation",
+      "reason": "hosted_automation_boundary",
+      "path_rules": {
+        "path_prefixes": [
+          ".github/actions/",
+          ".github/workflows/"
+        ]
+      }
+    }
+  ]
+}
