@@ -807,17 +807,18 @@ for (const fragment of [
   );
 }
 for (const fragment of [
-  `publication is never implicit`,
-  `current task Draft PR`,
-  `Never publish quick`,
-  `Never publish to a historical PR`,
-  `Stop on duplicate marker comments`,
-  `idempotent no-write result`,
+  `small, durable repository constitution`,
+  `ChatGPT and the user own the goal, scope, invariants, authority, non-goals,`,
+  `Codex owns current-source inspection, implementation search, file, function,`,
+  `Evidence is review material, not approval`,
+  `Semantic, execution, external-effect, and repository merge authority`,
+  `Do not merge, mark Ready, enable auto-merge, release, deploy, publish evidence,`,
+  `without exact user authority for that action`,
 ]) {
   requireText(
     agents,
     fragment,
-    `AGENTS.md publication instruction is missing: ${fragment}`,
+    `AGENTS.md durable authority instruction is missing: ${fragment}`,
   );
 }
 assert.match(gitignore, /^\.augnes-local-verification\/$/mu);
@@ -1469,16 +1470,18 @@ for (const fragment of [
 }
 
 for (const fragment of [
-  `### Local Canonical verification lifecycle`,
-  `must use the repository's bounded test-harness lifecycle`,
-  `exact pull-request head`,
-  `Do not add automatic retries, arbitrary sleeps, or wider timeouts`,
-  `GitHub Actions execution must remain absent`,
+  `## Verification`,
+  `Canonical planner for the final exact head`,
+  `Deciding evidence binds the exact clean repository`,
+  `Repository-owned process tests must use bounded lifecycle and cleanup owners`,
+  `Do not retry a failed exact-head deciding run merely to obtain a pass`,
+  `source change creates a new verification target`,
+  `[Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md)`,
 ]) {
   requireText(
     agents,
     fragment,
-    `AGENTS.md local verification instruction is missing: ${fragment}`,
+    `AGENTS.md durable verification instruction is missing: ${fragment}`,
   );
 }
 
