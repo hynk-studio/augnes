@@ -13,10 +13,9 @@ The goal is not to add authority. The goal is to make the existing read-first su
 
 ## Current Baseline
 
-Current repository baseline:
+Remote repository baseline:
 
-- repository: `hynk-studio/augnes`
-- app path: `apps/augnes_apps`
+- repository: `Aurna-code/augnes/apps/augnes_apps`
 - default branch: `main`
 - app package: `augnes-console-starter`
 - public tool count: exactly nine
