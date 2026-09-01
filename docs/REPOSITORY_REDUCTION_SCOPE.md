@@ -12,15 +12,11 @@ status, research claims, or cleanup sequencing. Those topics remain with the
 owners. This policy supplies classification and proof requirements only; it
 never authorizes a disposition by itself.
 
-[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the current,
-temporary authorization to begin proof-backed C9 and repository cleanup. C9 is
-authorized and current under that program, but it is not complete. Issue #1170
-is not blanket deletion authority: every removal or replacement still needs an
-exact reviewable scope and the proof required below. Current status belongs to
-the [roadmap](./vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md), and the temporary
-C9 boundary remains with the
-[correction charter](./vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
-until its separately reviewed closeout.
+This policy applies only when a separate active owner explicitly authorizes a
+retention, reduction, absorption, deletion, or other disposition task. Current
+authorization and sequencing belong to the
+[roadmap](./vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) and any temporary
+program owner; this policy does not own or record their current status.
 
 ## Governing rules
 
@@ -152,7 +148,8 @@ and compatibility behavior remain until that proof exists.
   not redesign them.
 - Current sequencing and research classification remain with `03`; a cleanup
   task does not activate, reinterpret, or complete research.
-- The temporary C9 proof boundary remains with `07` while C9 is current.
+- Temporary program proof and closeout boundaries remain with their active
+  temporary owner; this policy does not own their status.
 - Data-bearing or recovery material cannot retire from reachability alone.
 - Safety and authority enforcement cannot retire because a happy-path consumer
   is absent.
