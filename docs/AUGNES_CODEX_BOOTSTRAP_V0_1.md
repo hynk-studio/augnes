@@ -99,9 +99,10 @@ npm run augnes:service:install
 # Ask Codex: Resume this repository with Augnes.
 ```
 
-The reviewed 0.4.0 plugin refresh removes a stale effective 0.3.0 cache and
-verifies that its manifest, proxy, lifecycle core, skill, hook, and default
-prompt come from one exact version. Fresh continuation reads lifecycle status,
+The reviewed 0.5.0 plugin refresh removes stale cached versions and verifies
+that its manifest, proxy, lifecycle core, retained skill inventory, and default
+prompt come from one exact version. The trusted checkout owns its three compact
+project hooks separately. Fresh continuation reads lifecycle status,
 starts one already-installed exact service only when offered, then performs
 one read-only canonical Resume. It never installs the service from MCP.
 
