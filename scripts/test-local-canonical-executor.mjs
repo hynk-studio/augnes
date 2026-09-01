@@ -2,7 +2,17 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,7 +36,10 @@ import {
   RESOURCE_EXCLUSIVE_PHASE_IDS,
   buildPhasePlan,
   evaluateWorktreePolicy,
+  generatedNextEntryPresent,
   isPostExecutionIdentityValid,
+  managesGeneratedNextState,
+  removeBoundedGeneratedNextState,
   resolveVerificationPlan,
   runPhasesSequentially,
 } from "./run-local-canonical-verification.mjs";
@@ -336,6 +349,87 @@ assert.equal(ownerTargetedBrowserPhases.at(-1).browser, true);
 assert.equal(ownerTargetedBrowserPhases.at(-1).base_sha, baseSha);
 assert.equal(ownerTargetedBrowserPhases.at(-1).head_sha, headSha);
 
+assert.equal(managesGeneratedNextState("owner-targeted"), true);
+assert.equal(managesGeneratedNextState("full-canonical"), true);
+assert.equal(managesGeneratedNextState("documentation-only"), false);
+assert.equal(managesGeneratedNextState("operating-policy-only"), false);
+assert.equal(managesGeneratedNextState("quick-feedback"), false);
+
+const generatedNextTestRoot = mkdtempSync(
+  path.join(tmpdir(), "augnes-local-canonical-next-"),
+);
+const generatedNextExternalRoot = mkdtempSync(
+  path.join(tmpdir(), "augnes-local-canonical-next-external-"),
+);
+const generatedNextCandidate = path.join(generatedNextTestRoot, ".next");
+try {
+  mkdirSync(generatedNextCandidate);
+  writeFileSync(
+    path.join(generatedNextCandidate, "stale-head-sentinel"),
+    "foreign generated state",
+  );
+  assert.equal(generatedNextEntryPresent(generatedNextCandidate), true);
+  assert.equal(
+    removeBoundedGeneratedNextState({
+      root: generatedNextTestRoot,
+      candidate: generatedNextCandidate,
+    }),
+    true,
+  );
+  assert.equal(generatedNextEntryPresent(generatedNextCandidate), false);
+
+  mkdirSync(generatedNextCandidate);
+  writeFileSync(
+    path.join(generatedNextCandidate, "exact-head-generated-sentinel"),
+    "targeted generated state",
+  );
+  assert.equal(
+    removeBoundedGeneratedNextState({
+      root: generatedNextTestRoot,
+      candidate: generatedNextCandidate,
+    }),
+    true,
+  );
+  assert.equal(generatedNextEntryPresent(generatedNextCandidate), false);
+
+  writeFileSync(
+    path.join(generatedNextExternalRoot, "unrelated-user-work"),
+    "preserve",
+  );
+  symlinkSync(
+    generatedNextExternalRoot,
+    generatedNextCandidate,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  assert.throws(
+    () =>
+      removeBoundedGeneratedNextState({
+        root: generatedNextTestRoot,
+        candidate: generatedNextCandidate,
+      }),
+    (error) => error?.code === "unsafe_generated_next_path",
+  );
+  assert.equal(
+    readFileSync(
+      path.join(generatedNextExternalRoot, "unrelated-user-work"),
+      "utf8",
+    ),
+    "preserve",
+  );
+  rmSync(generatedNextCandidate, { force: true });
+  assert.throws(
+    () =>
+      removeBoundedGeneratedNextState({
+        root: generatedNextTestRoot,
+        candidate: path.join(generatedNextTestRoot, "other-generated-state"),
+      }),
+    (error) => error?.code === "generated_next_path_out_of_bounds",
+  );
+} finally {
+  rmSync(generatedNextTestRoot, { recursive: true, force: true });
+  rmSync(generatedNextExternalRoot, { recursive: true, force: true });
+}
+
 const failClosedPlan = resolveVerificationPlan({
   mode: "changed",
   baseSha,
@@ -531,8 +625,8 @@ assert.doesNotMatch(
 const maintenanceAcquireIndex = executorSource.indexOf(
   "operationId: `local-canonical-dependencies:${runId}`",
 );
-const generatedNextRemovalIndex = executorSource.indexOf(
-  "rmSync(generatedNextRoot, { recursive: true, force: true })",
+const generatedNextPreRemovalIndex = executorSource.indexOf(
+  "nextState.removed_before_execution = removeBoundedGeneratedNextState()",
 );
 const phaseExecutionIndex = executorSource.indexOf(
   "const completed = await runPhasesSequentially",
@@ -540,10 +634,14 @@ const phaseExecutionIndex = executorSource.indexOf(
 const maintenanceReleaseIndex = executorSource.indexOf(
   "dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance",
 );
+const generatedNextFinalRemovalIndex = executorSource.indexOf(
+  "nextState.removed_after_execution =",
+);
 assert.ok(maintenanceAcquireIndex >= 0);
-assert.ok(generatedNextRemovalIndex > maintenanceAcquireIndex);
-assert.ok(phaseExecutionIndex > generatedNextRemovalIndex);
+assert.ok(generatedNextPreRemovalIndex > maintenanceAcquireIndex);
+assert.ok(phaseExecutionIndex > generatedNextPreRemovalIndex);
 assert.ok(maintenanceReleaseIndex > phaseExecutionIndex);
+assert.ok(generatedNextFinalRemovalIndex > maintenanceReleaseIndex);
 
 assert.deepEqual(listWorkflowFiles(), []);
 for (const forbiddenPath of [
@@ -578,6 +676,8 @@ console.log(
       operating_policy_selection_static_and_maintenance_free: true,
       owner_targeted_selection_uses_fixed_owner_complete_phases: true,
       owner_targeted_dependencies_cleanly_prepared_before_consumers: true,
+      owner_targeted_preexisting_and_generated_next_removed: true,
+      generated_next_path_and_symlink_safety_fail_closed: true,
       owner_targeted_arbitrary_phase_selection_refused: true,
       owner_targeted_browser_phase_exact_head_bound: true,
       full_phase_inventory_complete: true,

@@ -76,6 +76,7 @@ const generatedWindowsHelperRoot = path.join(
   "native",
   "windows-x64",
 );
+const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
@@ -143,6 +144,56 @@ export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "e2e-continuity",
   "e2e-golden",
 ]);
+
+export function managesGeneratedNextState(selectedPlan) {
+  return (
+    selectedPlan === "full-canonical" || selectedPlan === OWNER_TARGETED_PLAN
+  );
+}
+
+export function generatedNextEntryPresent(candidate = generatedNextRoot) {
+  return lstatSync(candidate, { throwIfNoEntry: false }) !== undefined;
+}
+
+export function removeBoundedGeneratedNextState({
+  root = repositoryRoot,
+  candidate = path.join(root, GENERATED_NEXT_DIRECTORY),
+} = {}) {
+  const resolvedRoot = realpathSync(root);
+  const resolvedCandidate = path.resolve(candidate);
+  const resolvedCandidateParent = realpathSync(
+    path.dirname(resolvedCandidate),
+  );
+  const boundedCandidate = path.join(
+    resolvedCandidateParent,
+    path.basename(resolvedCandidate),
+  );
+  const expectedCandidate = path.join(
+    resolvedRoot,
+    GENERATED_NEXT_DIRECTORY,
+  );
+  if (boundedCandidate !== expectedCandidate) {
+    const error = new Error("generated Next state path is outside its owner");
+    error.code = "generated_next_path_out_of_bounds";
+    throw error;
+  }
+  const stats = lstatSync(boundedCandidate, { throwIfNoEntry: false });
+  if (stats === undefined) return false;
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    const error = new Error(
+      "generated Next state must be a real repository-owned directory",
+    );
+    error.code = "unsafe_generated_next_path";
+    throw error;
+  }
+  rmSync(boundedCandidate, { recursive: true, force: true });
+  if (lstatSync(boundedCandidate, { throwIfNoEntry: false }) !== undefined) {
+    const error = new Error("generated Next state cleanup is incomplete");
+    error.code = "generated_next_cleanup_incomplete";
+    throw error;
+  }
+  return true;
+}
 
 export function evaluateWorktreePolicy({ mode, worktreeDirty }) {
   if (mode === "quick") {
@@ -431,8 +482,9 @@ export async function executeLocalCanonicalVerification({
     );
   }
 
+  const generatedNextManaged = managesGeneratedNextState(plan.selected_plan);
   const nextState = {
-    present_before: existsSync(generatedNextRoot),
+    present_before: generatedNextEntryPresent(),
     removed_before_execution: false,
     removed_after_execution: false,
   };
@@ -458,9 +510,8 @@ export async function executeLocalCanonicalVerification({
           operationId: `local-canonical-dependencies:${runId}`,
         });
       }
-      if (plan.selected_plan === "full-canonical" && nextState.present_before) {
-        rmSync(generatedNextRoot, { recursive: true, force: true });
-        nextState.removed_before_execution = true;
+      if (generatedNextManaged && nextState.present_before) {
+        nextState.removed_before_execution = removeBoundedGeneratedNextState();
         console.log(
           "[local-canonical] cleanup generated=.next action=removed_before_execution",
         );
@@ -517,26 +568,21 @@ export async function executeLocalCanonicalVerification({
     );
   } finally {
     console.log("[local-canonical] cleanup_start");
-    if (
-      (plan.selected_plan === "full-canonical" ||
-        plan.selected_plan === OWNER_TARGETED_PLAN) &&
-      (nextState.removed_before_execution || !nextState.present_before) &&
-      existsSync(generatedNextRoot)
-    ) {
-      try {
-        rmSync(generatedNextRoot, { recursive: true, force: true });
-        nextState.removed_after_execution = true;
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
     if (dependencyMaintenance && !dependencyMaintenanceRelease) {
       try {
         dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
           repositoryRoot,
           lease: dependencyMaintenance.lease,
         });
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+    }
+    if (generatedNextManaged && generatedNextEntryPresent()) {
+      try {
+        nextState.removed_after_execution =
+          removeBoundedGeneratedNextState();
       } catch (error) {
         cleanupComplete = false;
         cleanupReason = safeErrorCode(error);
@@ -564,16 +610,6 @@ export async function executeLocalCanonicalVerification({
       cleanupComplete = false;
       cleanupReason = safeErrorCode(error);
     }
-    const cleanupRemaining = phaseReceipts.some(
-      (phase) =>
-        phase.status !== "not_run" &&
-        phase.cleanup.remaining_owned_processes !== 0,
-    )
-      ? "unknown"
-      : "0";
-    console.log(
-      `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${existsSync(generatedNextRoot)} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
-    );
     serviceLifecycleAfter = boundedLifecycleState(
       await inspectCompanionService({ repositoryRoot }),
     );
@@ -588,6 +624,22 @@ export async function executeLocalCanonicalVerification({
     cleanupComplete = false;
     cleanupReason ??= "companion_service_not_restored";
   }
+  const generatedNextPresentAfter = generatedNextEntryPresent();
+  if (generatedNextManaged && generatedNextPresentAfter) {
+    executionFailure = true;
+    cleanupComplete = false;
+    cleanupReason ??= "generated_next_cleanup_incomplete";
+  }
+  const cleanupRemaining = phaseReceipts.some(
+    (phase) =>
+      phase.status !== "not_run" &&
+      phase.cleanup.remaining_owned_processes !== 0,
+  )
+    ? "unknown"
+    : "0";
+  console.log(
+    `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${generatedNextPresentAfter} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
+  );
 
   let identityAfter;
   try {
@@ -769,7 +821,7 @@ export async function executeLocalCanonicalVerification({
       },
       generated_next: {
         ...nextState,
-        present_after: existsSync(generatedNextRoot),
+        present_after: generatedNextPresentAfter,
       },
       generated_windows_helper: {
         ...windowsHelperState,

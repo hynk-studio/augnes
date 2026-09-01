@@ -594,6 +594,24 @@ function assertReceiptProjectionEligible(receipt) {
     );
   }
   if (
+    ["owner-targeted", "full-canonical"].includes(
+      receipt.evidence.selected_plan,
+    ) &&
+    (typeof receipt.cleanup?.generated_next?.present_before !== "boolean" ||
+      typeof receipt.cleanup?.generated_next?.removed_before_execution !==
+        "boolean" ||
+      typeof receipt.cleanup?.generated_next?.removed_after_execution !==
+        "boolean" ||
+      receipt.cleanup.generated_next.present_after !== false ||
+      receipt.cleanup.generated_next.removed_before_execution !==
+        receipt.cleanup.generated_next.present_before)
+  ) {
+    throw evidenceError(
+      "receipt_generated_next_projection_mismatch",
+      "receipt generated Next state provenance is incomplete",
+    );
+  }
+  if (
     receipt.evidence.selected_plan === "owner-targeted" &&
     (!Array.isArray(receipt.evidence.planner_owner_ids) ||
       receipt.evidence.planner_owner_ids.length === 0 ||

@@ -335,6 +335,26 @@ for (const mutate of [
     hasCode("receipt_owner_targeted_projection_mismatch"),
   );
 }
+for (const mutate of [
+  (candidate) => {
+    candidate.cleanup.generated_next.present_before = true;
+  },
+  (candidate) => {
+    candidate.cleanup.generated_next.present_after = true;
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: candidate,
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("receipt_generated_next_projection_mismatch"),
+  );
+}
 for (const phases of [
   [buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit)],
   [
@@ -571,6 +591,7 @@ console.log(
         true,
       owner_targeted_phase_order_and_validator_required: true,
       owner_targeted_receipt_ownership_projection_bound: true,
+      owner_targeted_generated_next_projection_bound: true,
       non_deciding_receipts_refused: true,
       private_material_excluded: true,
       bounded_deterministic_markdown: true,
@@ -663,6 +684,12 @@ function buildReceipt({
     cleanup: {
       completed: true,
       remaining_owned_processes: 0,
+      generated_next: {
+        present_before: false,
+        removed_before_execution: false,
+        removed_after_execution: false,
+        present_after: false,
+      },
     },
     final: {
       result: "pass",

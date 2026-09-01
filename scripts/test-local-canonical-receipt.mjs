@@ -146,6 +146,7 @@ const baseReceipt = {
       present_before: false,
       removed_before_execution: false,
       removed_after_execution: false,
+      present_after: false,
     },
     artifact_retention: {
       receipt_files: 20,
@@ -401,6 +402,45 @@ assert(
       root: "7".repeat(64),
     },
   }).issues.includes("receipt_stale_lockfiles"),
+);
+const targetedPreexistingGeneratedState = structuredClone(targetedReceipt);
+targetedPreexistingGeneratedState.cleanup.generated_next.present_before = true;
+targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution =
+  false;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedPreexistingGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+const targetedGeneratedStateSurvived = structuredClone(targetedReceipt);
+targetedGeneratedStateSurvived.cleanup.generated_next.present_after = true;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedGeneratedStateSurvived),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+const targetedGeneratedCleanupFailure = structuredClone(targetedReceipt);
+targetedGeneratedCleanupFailure.cleanup.generated_next.present_after = true;
+targetedGeneratedCleanupFailure.cleanup.completed = false;
+const targetedGeneratedCleanupFailureResult = inspectReceiptForDecision(
+  finalizeReceipt(targetedGeneratedCleanupFailure),
+  targetedContext,
+);
+assert.equal(
+  targetedGeneratedCleanupFailureResult.valid_deciding_evidence,
+  false,
+);
+assert(
+  targetedGeneratedCleanupFailureResult.issues.includes(
+    "receipt_generated_next_provenance_invalid",
+  ),
+);
+assert(
+  targetedGeneratedCleanupFailureResult.issues.includes(
+    "receipt_cleanup_incomplete",
+  ),
 );
 
 const browserReceipt = structuredClone(baseReceipt);
@@ -684,6 +724,8 @@ console.log(
       owner_targeted_plan_deciding_and_validated: true,
       owner_targeted_inventory_and_owner_drift_refused: true,
       owner_targeted_stale_tampered_and_unattested_dependencies_refused: true,
+      owner_targeted_stale_and_residual_generated_next_refused: true,
+      owner_targeted_generated_next_cleanup_failure_refused: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,

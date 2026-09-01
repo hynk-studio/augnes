@@ -276,6 +276,22 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       issues.push("receipt_targeted_dependency_provenance_invalid");
     }
   }
+  if (
+    selectedPlan === "owner-targeted" ||
+    selectedPlan === "full-canonical"
+  ) {
+    const generatedNext = receipt?.cleanup?.generated_next;
+    const generatedNextProvenanceValid =
+      typeof generatedNext?.present_before === "boolean" &&
+      typeof generatedNext?.removed_before_execution === "boolean" &&
+      typeof generatedNext?.removed_after_execution === "boolean" &&
+      generatedNext?.present_after === false &&
+      generatedNext.removed_before_execution ===
+        generatedNext.present_before;
+    if (!generatedNextProvenanceValid) {
+      issues.push("receipt_generated_next_provenance_invalid");
+    }
+  }
   for (const phase of phases) {
     const browserLifecycleInvalid =
       phase?.browser === true &&
