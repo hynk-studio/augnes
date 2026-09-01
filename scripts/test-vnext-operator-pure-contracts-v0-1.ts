@@ -618,6 +618,23 @@ for (const permanentBrowserSource of [
 ]) {
   assert.equal(canonicalSuite.includes(permanentBrowserSource), true);
 }
+const nativeHostExecutionBrowser = source(
+  "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+);
+const projectReturnPrimaryStartReadiness =
+  '[data-delegated-work-action="start"][data-augnes-primary-action="start-codex-work"]:not(:disabled)';
+assert.equal(
+  nativeHostExecutionBrowser.includes(projectReturnPrimaryStartReadiness),
+  true,
+);
+assert.equal(
+  nativeHostExecutionBrowser.indexOf(projectReturnPrimaryStartReadiness) <
+    nativeHostExecutionBrowser.indexOf("const staleInitialization"),
+  true,
+);
+record(
+  "native_host_project_return_waits_for_primary_start_before_viewport_checks",
+);
 assert.equal(
   canonicalSuite.includes("browser-validate-vnext-task-context-packet-handoff-v0-1.mjs"),
   false,
@@ -856,6 +873,7 @@ assert.deepEqual(assertions, [
   "automatic_native_host_completion_has_one_complete_normalizer_and_receipt_authority",
   "packet_identity_is_absorbed_and_shared_inspector_is_read_only",
   "semantic_workbench_entry_source_and_state_are_consistent",
+  "native_host_project_return_waits_for_primary_start_before_viewport_checks",
   "package_and_canonical_graph_have_no_retired_manual_aliases",
   "project_home_refresh_exact_projection_replay_is_idempotent",
   "project_home_refresh_distinguishes_repeated_approval_revisions_in_one_run",
