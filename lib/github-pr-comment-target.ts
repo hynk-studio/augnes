@@ -19,7 +19,7 @@ export function parseGitHubPrCommentTargetRef(
   const match = GITHUB_PR_REF_PATTERN.exec(cleanTargetRef);
   if (!match) {
     throw new PublicationValidationError(
-      "target_ref must use owner/repo#pull_number format, for example Aurna-code/augnes#62.",
+      "target_ref must use owner/repo#pull_number format, for example hynk-studio/augnes#62.",
     );
   }
 
