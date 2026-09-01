@@ -1,383 +1,147 @@
 # AGENTS.md
 
-## Role
+## Purpose and collaboration
 
-This file owns repository operating rules. It does not define the complete
-product doctrine, Core/protocol semantics, implementation roadmap, evaluation
-model, or C0–C9 history.
+This file is the small, durable repository constitution for Augnes. It owns
+repository identity, collaboration, development, authority, safety, and
+verification principles. Product doctrine, Core/protocol meaning,
+implementation status, evaluation, and temporary program history belong to
+their active owners.
 
-For the current repository workflow, Codex implements, verifies, and opens pull
-requests. ChatGPT and the user set product direction and review scope. Codex
-does not merge, mark ready, enable auto-merge, or claim user decisions.
+- ChatGPT and the user own the goal, scope, invariants, authority, non-goals,
+  and deciding-evidence requirements. ChatGPT and the user also own
+  post-implementation audit and evidence review.
+- Codex owns current-source inspection, implementation search, file, function,
+  and test choice, implementation, verification, and Draft pull-request
+  creation.
+- Issues and pull requests constrain outcomes and invariants. They do not force
+  stale preselected mechanisms unless a current compatibility or authority
+  boundary fixes the mechanism.
+- Codex does not claim user judgments, repository approval, or merge authority.
 
-## Repository and workspace boundary
+## Repository and workspace identity
 
-- `hynk-studio/augnes` and `/Users/hynk/code/augnes` are the sole current
-  repository and local root.
-- `hynk-studio/augnes-perspective-lab` and `/Users/hynk/code/augnes-temp` are
-  historical provenance and rollback material only. They grant no current
-  development, Local Canonical, project, Companion, research-runner, provider,
-  or repository-execution authority.
-- Cross-paired or third repositories, origins, roots, clones, mirrors,
-  worktrees, and folders remain unauthorized for Local Canonical execution.
-- GitHub evidence transport and new Issue/PR work target only
-  `hynk-studio/augnes`. The legacy repository remains historical provenance and
-  receives no new development Issue, PR, evidence publication, tag, or release.
-- Resolve `git rev-parse --show-toplevel`, branch, `HEAD`, clean/dirty state, and
-  `origin` before reading or changing repository material. Preserve user work
-  in both existing roots.
-- Product, Core, protocol, UI, and documentation use **Augnes**. Historical
-  perspective-lab Issue, PR, release, and evidence links remain historical and
-  must not be blanket-retargeted.
-- No future Issue, PR, development, verification publication, or execution may
-  originate in perspective-lab. Explicit historical readers may preserve and
-  validate frozen provenance without making it current input or authority.
-- Do not recreate the migration bridge or extend the canonical identity into
-  generic multi-repository or configurable-root behavior.
+- The sole current repository/root pair is `hynk-studio/augnes` and
+  `/Users/hynk/code/augnes`.
+- `hynk-studio/augnes-perspective-lab` and
+  `/Users/hynk/code/augnes-temp` are historical provenance and rollback
+  material only. They grant no current development, project, execution,
+  verification, provider, or GitHub-write authority.
+- Before repository work and again before deciding verification, resolve the
+  exact repository root, origin, branch, `HEAD`, base, and clean/dirty
+  worktree state. Stop on a mismatch.
+- Preserve unrelated user work. Do not reset, stash, discard, overwrite, or
+  relocate it to make a task or verification pass.
+- New development, issues, pull requests, and verification target only the
+  current repository. Historical links remain historical and must not be
+  blanket-retargeted.
+- Checked-in source and runtime behavior are the truth for what is implemented.
+  Git history is the primary archive.
 
-Stop on any repository, root, branch, baseline, or remote mismatch.
+## Active authority owners
 
-## Required reading and active owners
+Read only the owners relevant to the task. Start with the
+[authority map](docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md) when ownership is
+unclear.
 
-Read only the owners relevant to the task:
+- [README.md](README.md) owns the product entry and supported usage.
+- [Product and continuity doctrine](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md)
+  owns product identity, cross-surface meaning, complexity compression, and the
+  product feature-change test.
+- [Architecture and protocol](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)
+  is the sole semantic owner for Core records, persistence, lineage, evidence,
+  proposals, decisions, Transitions, execution authority, and provider-neutral
+  protocol boundaries.
+- [Implementation and sequence](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md)
+  owns completed, current, next, later, research, and compatibility status.
+- [Evaluation and maturity](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
+  owns correctness, product-continuity, maturity, outcome, and usefulness
+  evaluation.
+- The [temporary correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
+  owns only C0-C9 history, status, proof boundary, and closeout.
+- The [reduction policy](docs/REPOSITORY_REDUCTION_SCOPE.md) applies only to an
+  explicitly authorized retention, reduction, or deletion task.
 
-- [`README.md`](./README.md) — product and supported-usage entry;
-- [`docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`](./docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md)
-  — authority and conflict-resolution map;
-- [`docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`](./docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md)
-  — product and continuity doctrine;
-- [`docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)
-  — sole Core/protocol semantic authority;
-- [`docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](./docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md)
-  — completed/current/next/later/research sequencing;
-- [`docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
-  — product-continuity, correctness, maturity, and outcome evaluation;
-- [`docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
-  — temporary C0–C9 program and C9 proof boundary;
-- [`docs/REPOSITORY_REDUCTION_SCOPE.md`](./docs/REPOSITORY_REDUCTION_SCOPE.md)
-  — retention/deletion safety for an explicitly authorized reduction.
+Implementation contracts, operator manuals, research, compatibility material,
+fixtures, closeouts, and historical plans may constrain their bounded surfaces.
+They do not silently override an active owner or create current authority. An
+unknown conflict fails closed: preserve current behavior and data, record the
+uncertainty, and obtain separate authority before changing semantics,
+compatibility, or runtime behavior.
 
-Implementation contracts, operator manuals, research, compatibility documents,
-fixtures, closeouts, submissions, and historical plans do not override these
-owners.
+## Development operating model
 
-## Product-continuity operating rules
+- Inspect current source before choosing an implementation. Prefer the active
+  owner and current behavior over stale file, function, or phase prescriptions.
+- Keep changes bounded, reversible, reviewable, and attributable. Do not widen a
+  task because adjacent cleanup is convenient.
+- Preserve current user data, behavior, compatibility, and recovery until an
+  explicitly authorized replacement proves parity and rollback.
+- Independent source-first audit, review, verification, investigation, and
+  claim checking do not automatically require continuity priming.
+- Explicit resume, continue, recovery, or current-state intent uses the
+  repository-owned [current-continuity contract](docs/CODEX_CURRENT_CONTINUITY_V0_1.md)
+  and [Companion tooling](docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md). Those
+  active owners define the exact lifecycle and tool mechanics; do not duplicate
+  them here.
 
-Use product doctrine rather than duplicating it here. These rules are
-merge-blocking:
+## Durable technical principles
 
-1. Preserve the same durable work meaning across affected host-native
-   interfaces without requiring identical interfaces.
-2. Default product projection prioritizes goal, current meaningful situation,
-   meaningful change/result, uncertainty/risk, pending judgment, and next
-   meaningful action.
-3. Internal research complexity may increase; default user complexity must not
-   increase with it.
-4. The existence of a record, schema, engine, model, capability, route,
-   diagnostic, or status creates no page, menu, card, badge, or default concept
-   entitlement.
-5. Navigation and product presence follow user intention. A replacement must
-   absorb, redirect, hide, demote, or remove the superseded concept instead of
-   silently adding another destination.
-6. A default state has one primary action when action is required.
-7. Normal resumption, progress, result review, and important decisions require
-   no Inspector or internal-ID work.
-8. Protocol vocabulary is hidden by default unless an unavoidable term is
-   explained and helps a consequential decision.
-9. Timeline explains sequence; relationship exploration explains connection;
-   GuideBrief explains present meaning; Inspector exposes exact records.
-10. GuideBrief remains contextual, source-anchored, conversational, and
-    non-authoritative.
-11. Research engines may explore, compare, challenge, infer, predict, and
-    propose. Research output is not truth, accepted Perspective, user decision,
-    Transition, execution authority, or authority expansion.
-12. Recommendation is not decision. Execution completion is not verified
-    success. Candidate is not accepted state. Product projections do not create
-    new Core records or authority.
-
-Technical correctness is necessary but does not excuse a product-continuity
-regression.
-
-## Required feature-change questions
-
-Every product or research change must answer:
-
-1. Which core user question does this improve?
-2. What interpretation burden does the system absorb?
-3. What durable product meaning must remain consistent across surfaces?
-4. Why does this capability deserve any default user-facing presence?
-5. Which existing surface absorbs it?
-6. What existing surface, card, explanation, or concept is removed, demoted, or
-   replaced?
-7. How is uncertainty preserved?
-8. How is user authority preserved?
-9. How does the result return to long-term continuity?
-10. What later outcome would demonstrate usefulness or reveal failure?
-
-A capability that cannot answer these questions remains research, internal
-capability, compatibility, or deferred work rather than default product UI.
-
-## Development defaults
-
-- For exact current-project continuity, use
-  `npm run codex:current-continuity`. It reads only the running local Augnes
-  canonical projection and never falls back to repository seeds, GuideBrief,
-  or legacy Work Brief material. Exit `0` means the continuity and snapshot
-  are exact, `2` means local runtime transport is unavailable, and `3` means
-  canonical continuity is partial/unavailable or the route contract is invalid.
-- Repository execution preparation is project-scoped and selection-independent.
-  Reuse the canonical physical-root baseline, current work/packet, managed-run
-  read, and bounded worktree owners. Never use Browser active selection,
-  selection revision, or Git remote equality as attachment authority. Missing
-  legacy baselines and intentional root moves require their exact explicit
-  adoption/rebind actions; explicit revocation is separate. Those exceptional
-  mutations require one expiring expected-state request and a one-time grant
-  from the same-origin Browser confirmation surface. That surface requires its
-  HttpOnly, SameSite=Strict decision-session cookie and exact request-bound
-  rotating nonce; Origin and Fetch Metadata headers alone are insufficient.
-  MCP literals, annotations, assistant prose, runtime manifests, Companion
-  access records, and delegated environments are not confirmation and expose
-  no Browser session capability. Ordinary exact preparation requires no confirmation.
-- `repository_execution_attachment.v0.1` is immutable start-snapshot metadata.
-  CDX2B2A may prepare, validate, stale, supersede, and revoke it. The CDX2B2B
-  attachment-backed start owner may consume one exact prepared attachment into
-  one admitted managed run only after one Browser-confirmed start decision.
-  Grant validation, attachment consumption, and run-claim admission are one
-  immediate transaction; physical/worktree reobservation and the final
-  database read gate the first adapter invocation. Exact replay returns the
-  same run. A consumed attachment never returns to prepared and cannot bind a
-  second run. Non-Git work remains available for continuity but is not eligible
-  for managed repository delegation in v0.1.
-- CDX2B3A owns the candidate Windows physical identity union and narrow Win32
-  directory-handle helper source. The supported target is Windows 10 Pro 22H2
-  build 19045 or newer, or Windows 11 build 22000 or newer, on x64 local fixed
-  NTFS. Support claims must name the exact Windows lane actually verified.
-  Exact source-runtime proof exists for Windows 10 Pro 22H2 build 19045.6456
-  at checkpoint `374a582b766a10616667633eb911d3df2d49b85e` and for Windows
-  11 Home 25H2 build 26200.8875 at pre-integration checkpoint
-  `567c9bbbad5d35e6803ad740adfac1b881983912`. A later integrated head is not
-  Windows 10 exact-head verified without a fresh run there. ARM64, ReFS/Dev Drive,
-  FAT/exFAT, UNC/network, WSL, removable, virtual/projected, and unclassified
-  reparse roots fail closed.
-  Windows source-runtime attachment admission is enabled only for the exact
-  supported lane after the required real Windows filesystem and source-runtime
-  proof. A parser test, mocked platform value, reviewed source, or another
-  platform's package build is not that proof. Packaged Windows admission stays
-  disabled until a native Windows package lane proves the helper and manifest.
-  CDX2B3A never enables Windows managed Start or Resume; CDX2B3B remains separate.
-- The CDX2B2B execution envelope permits broad bounded local reversible work
-  only inside the exact macOS repository root. Network project commands,
-  dependency downloads, push/GitHub, release/deploy/publish, injected
-  Browser/Companion/provider/database/runtime/OS credentials, outside-root
-  secret material or writes, and semantic approval remain outside the
-  envelope. Files already present inside the exact repository remain in its
-  read scope; do not claim content-based secret unreadability without a
-  separately enforced read-time owner.
-  Existing operation approval is separate from Start, and result review,
-  ReviewDecision, and Transition remain separate from both. A durable run
-  without its exact controller is disconnected/paused and never auto-resumes.
-  Risk-reducing cancellation binds only the immutable consumed attachment and
-  exact run/controller ownership; packet, work, root, baseline, worktree, and
-  Browser-selection drift must not prevent cancelling that owned run.
-- CDX2B4A resume checkpoints are private node-local operational history, not a
-  mutable attachment or portable project truth. Resume eligibility is an exact
-  read-only projection over the same run, attachment, event/step/effect,
-  approval, controller, provider binding, root/baseline, worktree, and envelope
-  owners. It never resumes a repository run. Ambiguous effect or missing
-  post-effect state requires reconciliation; pending approval stays the next
-  action. Browser active selection is not binding material.
-- CDX2B4B may turn only exact `resume_ready` material into one expiring
-  Browser-only Resume decision and one atomic same-run attempt. Eligibility is
-  not authority, Resume decision is not operation approval, and the consumed
-  Start grant is never reused. The same run, attachment, execution envelope,
-  checkpoint, and provider thread are preserved while controller generation
-  advances exactly once. A durable provider-invocation-start marker precedes
-  `thread/resume`; once present, controller/result loss is reconciliation and
-  never a second provider call. The immutable attempt and mutable supervised
-  runtime claim are separate: exact user replay may transfer only a pre-marker
-  claim by CAS, while durable lost-controller cancellation forbids later
-  reacquisition without claiming provider stop. Generic historical interactive/policy resume
-  keeps its existing owner. Companion startup never resumes automatically.
-- For a fresh Codex request whose user intent is materially to resume or
-  continue current or previous work, recover what was being worked on, obtain
-  the current Augnes project or work state, or recover current work coordinates
-  before continuing, first call `augnes_companion_lifecycle_status` for the
-  exact root. This includes requests such as "What was I working on here?" or
-  explicit requests to show the current Augnes project state. If live, call
-  `augnes_resume_repository` once. If one exact installed service start is
-  offered, call `augnes_start_companion_service` once, require live
-  verification, then call `augnes_resume_repository` once. Never loop or retry.
-  `not_installed` requires the explicit checkout service setup action;
-  lifecycle state never substitutes for canonical continuity. Resume authority
-  may start an already-installed exact service as a reversible prerequisite,
-  but does not install or modify it. Explicit Stop remains stopped across
-  login or LaunchAgent reload until an explicit Start or Install. Only one
-  production Companion service may be installed per local user session; a
-  different checkout fails closed without mutating the existing service.
-  `augnes_resume_repository` must still resolve one verified live supervised
-  Companion and one registered physical project root through the narrow
-  generation-bound Companion channel; never substitute docs, seeds,
-  GuideBrief, legacy Work Brief, mock data, repository reconstruction, or
-  Browser active selection for project identity. The nested CDX2A projection
-  still truthfully reports active-selection status and eligibility.
-- Do not automatically invoke `augnes_resume_repository` merely because a
-  fresh task reads or inspects the current local repository. For tasks
-  materially intended as independent source-first verification, audit,
-  pull-request or change review, investigation, historical-issue
-  requalification, or claim checking against current repository or source
-  evidence, establish ordinary repository identity from the supplied root and
-  Git state under the existing repository and workspace rules, then inspect
-  the required source and evidence without mandatory continuity priming.
-  Repository inspection by itself is not resumption intent. If the user
-  explicitly asks to use Augnes continuity, or the task later genuinely
-  changes into resuming or continuing canonical current work, run the existing
-  lifecycle and resume path at that point. Continuity already exposed in the
-  current session must not be hidden, erased, or pretended unknown, and do not
-  claim a blinded or independent review when continuity materially primed the
-  session. When a request genuinely mixes independent inspection with explicit
-  continuation intent, preserve the continuation and resumption semantics
-  rather than suppressing continuity for methodological convenience.
-- Prefer a working vertical slice with a real producer, consumer, behavior
-  test, and later-use signal over planning, preview, boundary, or presence-only
-  work.
-- Reuse native host task, terminal, browser, diff, pull-request, worktree, and
-  scheduler UX instead of rebuilding them in Augnes.
-- Keep provider-neutral Core semantics; provider-specific behavior belongs in
+- Keep Core semantics provider-neutral. Provider-specific behavior belongs in
   adapters.
-- Preserve zero-model Core behavior. Model unavailability may remove
-  enrichment but not continuity, review, or authorized Transition paths.
-- Use one Core loop for interactive and policy-triggered work.
-- Bounded automation may select work, start hosts, run tests, ingest results,
-  and create proposals only within an approved policy/grant. It may not expand
-  budget, scope, capability, semantic authority, or external authority.
-- Preserve project isolation, source and temporal lineage, idempotency,
-  replay/stale-state refusal, credential safety, migration safety, backup,
-  restore, and recovery.
-- Do not persist raw prompts, hidden reasoning, raw provider/challenger output,
-  or broad transcripts by default.
-- Model confidence, agreement, agent count, provider count, graph structure,
-  and formalization are not authority.
-- Do not create a separate planning document, manual handoff/copy-paste path,
-  native execution replica, feature-specific package smoke, parallel proposal
-  store, durable actor/debate substrate, or new authority layer by default.
-- Preserve current user data, compatibility, and behavior until an explicitly
-  authorized replacement proves parity and rollback.
-- Git history is the primary archive. Remove material only through a separately
-  authorized, proof-backed scope.
-
-C0–C8 are merged. RR0 was inventory/planning, and RR1 is documentation
-authority reconciliation. C9 remains pending separate explicit authorization.
-Do not begin C9 from documentation, research, or cleanup language.
+- Preserve zero-model continuity, review, decision, Transition, restore, and
+  recovery paths. Model unavailability may remove enrichment, not Core
+  correctness.
+- Preserve project isolation; source and temporal lineage; idempotency and
+  replay/stale-state refusal; credential safety; and migration, backup, restore,
+  and recovery.
+- Recommendation is not decision. Execution completion is not verified success.
+  Candidate, projection, assessment, and research output are not accepted state,
+  truth, a Core record, or authority. `ReviewDecision` is not an applied
+  Transition.
+- Semantic, execution, external-effect, and repository merge authority remain
+  distinct.
+- Automation operates only within its approved scope and grant. It may not
+  expand budget, capability, semantic authority, execution authority, or
+  external-effect authority.
+- Do not persist raw prompts, hidden reasoning, raw provider payloads, broad
+  transcripts, or secrets as durable product state by default.
+- Retire current material only through a separately authorized, consumer-audited,
+  proof-backed change.
 
 ## Authority and safety
 
-- Never fabricate tests, evidence, IDs, host observations, state changes,
-  receipts, or pull-request URLs.
-- Durable semantic changes and irreversible external actions require explicit
+- Never fabricate tests, evidence, IDs, receipts, observations, state changes,
+  or pull-request state.
+- Durable semantic changes and irreversible external effects require exact user
+  authority. Host permission, model confidence, agreement, formalization, or
+  execution completion never expands authority.
+- Evidence is review material, not approval, publication authority, or merge
   authority.
-- Keep semantic authority, execution authority, external-effect authority, and
-  repository merge authority distinct.
-- `ReviewDecision` and Transition remain separate. Host/native permission is
-  not Augnes approval.
-- Do not turn nonce, fingerprint, TTL, database path, checksum, process
-  management, or protocol mechanics into normal user tasks.
-- Do not merge, mark ready for review, enable auto-merge, publish evidence,
-  release, deploy, or change repository settings without explicit authorization
-  for that exact action.
+- Do not merge, mark Ready, enable auto-merge, release, deploy, publish evidence,
+  or change repository settings without exact user authority for that action.
 
 ## Verification
 
-For ordinary changes:
-
-- run focused tests for the changed behavior or documentation contract;
-- run `npm run typecheck` for behavior changes;
-- run `npm run build` when routes, runtime composition, or packaging are
-  affected;
-- use `npm test`, `npm run test:authority`, `npm run test:integration`,
-  `npm run test:operability`, and the bounded browser lanes as the canonical
-  public test surface;
-- use disposable databases for destructive, writer, migration, restore, or
-  recovery verification;
-- cover both interactive and policy-triggered paths when shared lifecycle
-  behavior changes;
-- report exact commands, results, and concrete skipped reasons.
-
-### Local Canonical verification lifecycle
-
-- Before mutation and before deciding verification, prove the exact repository
-  root, authorized origin, branch, baseline/head, and clean/dirty state.
-- Use `npm run verify:local:quick` during implementation. Quick mode is
-  non-deciding feedback and may record a dirty tree or noncanonical Node
-  version.
-- Before opening most pull requests, run
-  `npm run verify:local:changed -- --base <exact-40-character-sha> --head <exact-40-character-sha>`.
-  Run `npm run verify:local:full -- --base <exact-40-character-sha> --head <exact-40-character-sha>`
-  when the planner selects `full-canonical`, before an explicitly required full
-  phase, or when package, runtime, process, browser, or authority boundaries
-  require it.
-- Never weaken the planner, choose an artificial base, or widen timeouts to
-  obtain a narrower or passing result.
-- Deciding local evidence requires Node 24.18.0, npm 11.16.0, a clean worktree,
-  and current `HEAD` equal to the requested head. Other supported versions are
-  compatibility lanes and cannot silently produce a Canonical pass.
-- Treat root `next-env.d.ts` and bounded `.next` output according to the
-  repository-owned executor. Never hide unrelated tracked mutations.
-- Dependency replacement, build, package, runtime, operability, and browser
-  phases run sequentially on the shared host. Core and continuity E2E never run
-  concurrently.
-- Process-owning Canonical tests must use the repository's bounded test-harness lifecycle
-  and declare a measured timeout. They must terminate and await their complete
-  owned process tree, close listeners, and leave zero owned process, port,
-  database, runtime-state, or temporary-file residue.
-- Do not add automatic retries, arbitrary sleeps, or wider timeouts to obtain a
-  pass. Do not add unbounded child waits or cleanup bypasses.
-- Temporary deciding evidence is a completed successful local Canonical run for
-  the exact pull-request head. Cite its exact repository-relative receipt path
-  and SHA-256 content fingerprint. Validate the deciding receipt against the
-  current repository after the exact-head run.
-- A receipt records one execution on one shared machine. It is not hosted
-  reproduction, independent attestation, signature, GitHub-authenticated
-  execution, status, check, or deployment.
-- Receipts and logs remain ignored local artifacts. Do not commit or upload
-  them.
-- Local Canonical PR evidence publication is never implicit. Codex may run
-  `npm run verify:local:evidence:prepare` without a GitHub write, but may run
-  `verify:local:evidence:publish` only when the user explicitly authorizes the
-  exact task and current task Draft PR.
-- Publish only after source is committed, the exact head is pushed, and a
-  current changed/full receipt validates as deciding. Never publish quick,
-  dirty, stale, failed, incomplete, noncanonical, or non-deciding evidence.
-- Publish only the bounded dedicated marker comment to the current task Draft
-  PR. Never publish to a historical PR or unrelated issue; never create a
-  status, check, deployment, review, label, workflow, merge, ready-for-review
-  transition, auto-merge action, or repository-setting change.
-- Stop on duplicate marker comments, stale base/head/branch identity, a fork or
-  non-Draft target, or an optimistic replacement fingerprint/body mismatch.
-  Replacing different evidence requires the exact prior publication
-  fingerprint and explicit publication confirmation. An identical fingerprint
-  must be an idempotent no-write result.
-- Call the comment a mutable local-evidence projection. Its SHA-256 fingerprints
-  prove content integrity only, not a signature, hosted reproduction,
-  GitHub-authenticated environment, or independent attestation.
-- GitHub Actions execution must remain absent. GitHub is source control,
-  pull-request, review, and history infrastructure, not this repository’s
-  active verification runner.
-
-Long manual pilots and broad usefulness studies are Alpha/RC work unless the
-task explicitly requires them. Basic product-continuity correctness remains a
-merge gate for affected product changes.
+- Run focused checks owned by the changed behavior or documentation contract.
+  Report exact commands and results, plus concrete reasons for skipped checks.
+- For deciding pull-request verification, ask the repository-owned Local
+  Canonical planner for the final exact head and follow the
+  [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
+- Deciding evidence binds the exact clean repository, origin, base, head,
+  environment, selected plan, and completed cleanup. It does not transfer to a
+  different source head or environment.
+- Repository-owned process tests must use bounded lifecycle and cleanup owners
+  and leave no owned process, port, database, runtime-state, or temporary-file
+  residue.
+- Do not retry a failed exact-head deciding run merely to obtain a pass. A
+  source change creates a new verification target and requires a new deciding
+  run.
 
 ## Pull requests
 
-Use the user-authorized branch. Keep the PR centered on one product advance or
-one audited reduction. Stage only intended files. Include:
-
-- user/workflow or authority impact;
-- complete changed-file list;
-- current implementation versus target direction;
-- data, Core/protocol, execution, and compatibility impact;
-- tests and exact Local Canonical result;
-- unresolved questions and next separately authorized work.
-
-Keep Draft unless the user explicitly authorizes ready-for-review. Never merge
-or enable auto-merge.
+Use the user-authorized branch, stage only intended files, and keep the pull
+request Draft unless the user explicitly authorizes otherwise. Report the
+changed files, user/workflow and authority impact, data/Core/execution/
+compatibility impact, focused checks, planner-selected exact-head verification,
+skipped checks, and unresolved risks. Never merge or enable auto-merge.
