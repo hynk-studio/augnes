@@ -6,6 +6,8 @@ Scope: Sprint 4E, full local HTTP read-contract validation for Augnes Evidence &
 
 This document consolidates the Sprint 4E HTTP-mode validation work for `Aurna-code/augnes/apps/augnes_apps`.
 
+The detailed per-slice validation transcripts are retained in Git history. This consolidated record preserves their endpoint coverage, observed outcomes, invariants, known issue, and completion decision.
+
 The legacy `augnes-core` repository was not used or referenced for this phase. All validation was performed inside `apps/augnes_apps` using the local development read API shim and the existing MCP app HTTP adapter.
 
 ## Executive Summary
@@ -142,12 +144,6 @@ Each endpoint validates its response against the existing app schemas before ret
 
 ### Slice 1: Working View
 
-Documented in:
-
-```text
-./docs/13_HTTP_WORKING_VIEW_VALIDATION.md
-```
-
 Validated:
 
 - `GET /working-view`
@@ -160,12 +156,6 @@ Validated:
 Decision: complete.
 
 ### Slice 2: Casefile
-
-Documented in:
-
-```text
-./docs/14_HTTP_CASEFILE_VALIDATION.md
-```
 
 Validated:
 
@@ -181,12 +171,6 @@ Decision: complete.
 
 ### Slice 3: Search And Fetch
 
-Documented in:
-
-```text
-./docs/15_HTTP_SEARCH_FETCH_VALIDATION.md
-```
-
 Validated:
 
 - `POST /search`
@@ -201,12 +185,6 @@ Decision: complete.
 
 ### Slice 4: Continuity And Boundary
 
-Documented in:
-
-```text
-./docs/16_HTTP_CONTINUITY_BOUNDARY_VALIDATION.md
-```
-
 Validated:
 
 - `GET /continuity-report`
@@ -219,12 +197,6 @@ Validated:
 Decision: complete.
 
 ### Slice 5: Strategy And Governance
-
-Documented in:
-
-```text
-./docs/17_HTTP_STRATEGY_GOVERNANCE_VALIDATION.md
-```
 
 Validated:
 
@@ -239,12 +211,6 @@ Validated:
 Decision: complete.
 
 ### Slice 6: Repo Navigation
-
-Documented in:
-
-```text
-./docs/18_HTTP_REPO_NAVIGATION_VALIDATION.md
-```
 
 Validated:
 

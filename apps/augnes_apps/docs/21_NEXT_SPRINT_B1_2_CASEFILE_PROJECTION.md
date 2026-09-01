@@ -1,7 +1,7 @@
 # Next Sprint B1-2: Evidence Projection Base + Casefile Projection
 
 Status: planned  
-Scope: `Aurna-code/augnes/apps/augnes_apps` App Read Projection Model  
+Scope: `hynk-studio/augnes` / `apps/augnes_apps` App Read Projection Model
 Phase: B1-2 after Working View projection validation
 
 This sprint narrows the next development step after `GET /working-view` started using the App Read Projection Model.
