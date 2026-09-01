@@ -236,9 +236,10 @@ maintenance release, the executor removes any newly generated `.next` while it
 still owns the runtime-maintenance boundary and verifies that the path is absent
 at that execution-cleanup boundary. Removal failure or residual state makes the
 run non-deciding and invalidates its receipt. The executor then restores the
-exact prior Companion lifecycle. A previously live exact-checkout Companion may
-create fresh exact-head runtime `.next` state after that restoration; the
-receipt records that final observation separately, and it is not input to or
+exact prior Companion lifecycle. A previously live or starting exact-checkout
+Companion may create fresh exact-head runtime `.next` state after successful
+restoration to `live`; the receipt records that final observation separately,
+and it is not input to or
 residue from a deciding phase. Documentation-only and operating-policy-only
 execution remain dependency-light and do not touch `.next`. The executor never
 uses broad `git clean` or deletes unrelated files. Existing Canonical children

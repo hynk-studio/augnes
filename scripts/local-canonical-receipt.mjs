@@ -290,7 +290,9 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       generatedNext.removed_before_execution ===
         generatedNext.present_before &&
       (generatedNext.present_after === false ||
-        (receipt?.cleanup?.companion_service?.before?.status === "live" &&
+        (["live", "starting"].includes(
+          receipt?.cleanup?.companion_service?.before?.status,
+        ) &&
           receipt?.cleanup?.companion_service?.after?.status === "live" &&
           receipt?.cleanup?.companion_service?.restored === true));
     if (!generatedNextProvenanceValid) {

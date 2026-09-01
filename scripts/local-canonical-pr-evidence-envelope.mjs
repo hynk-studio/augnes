@@ -608,7 +608,9 @@ function assertReceiptProjectionEligible(receipt) {
       receipt.cleanup.generated_next.removed_before_execution !==
         receipt.cleanup.generated_next.present_before ||
       (receipt.cleanup.generated_next.present_after === true &&
-        (receipt.cleanup?.companion_service?.before?.status !== "live" ||
+        (!["live", "starting"].includes(
+          receipt.cleanup?.companion_service?.before?.status,
+        ) ||
           receipt.cleanup?.companion_service?.after?.status !== "live" ||
           receipt.cleanup?.companion_service?.restored !== true)))
   ) {

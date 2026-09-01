@@ -315,7 +315,7 @@ for (const mutate of [
 }
 const restoredServiceGeneratedNextReceipt = structuredClone(targetedReceipt);
 restoredServiceGeneratedNextReceipt.cleanup.companion_service = {
-  before: { status: "live" },
+  before: { status: "starting" },
   after: { status: "live" },
   maintenance_released: true,
   restored: true,

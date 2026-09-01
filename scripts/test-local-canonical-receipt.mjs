@@ -447,7 +447,7 @@ assert(
 );
 const targetedRestoredServiceGeneratedState = structuredClone(targetedReceipt);
 targetedRestoredServiceGeneratedState.cleanup.companion_service.before.status =
-  "live";
+  "starting";
 targetedRestoredServiceGeneratedState.cleanup.companion_service.after.status =
   "live";
 targetedRestoredServiceGeneratedState.cleanup.generated_next.present_after =
