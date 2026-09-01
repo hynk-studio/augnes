@@ -16,6 +16,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import {
+  OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
   PERMANENT_BROWSER_PHASE_IDS,
   classifyCanonicalBrowserOwnership,
   parseNameStatus,
@@ -31,6 +32,11 @@ import {
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
 const results = [];
+const targetedPhaseIds = (...ownerPhaseIds) => [
+  "targeted-change-validator",
+  ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
+  ...ownerPhaseIds,
+];
 
 try {
   runPlanCase("README-only", "documentation-only", ({ write }) => {
@@ -83,7 +89,7 @@ try {
     {
       reason: "all_changes_have_owner_complete_targeted_coverage",
       ownerIds: ["temporal-interpretation-preview"],
-      phaseIds: ["targeted-change-validator", "typecheck", "authority"],
+      phaseIds: targetedPhaseIds("typecheck", "authority"),
     },
   );
   runPlanCase(
@@ -97,7 +103,7 @@ try {
     },
     {
       ownerIds: ["codex-user-reuse-hook"],
-      phaseIds: ["targeted-change-validator", "unit"],
+      phaseIds: targetedPhaseIds("unit"),
     },
   );
   runPlanCase(
@@ -108,7 +114,7 @@ try {
     },
     {
       ownerIds: ["local-canonical-owner-contract-fixture"],
-      phaseIds: ["targeted-change-validator", "unit"],
+      phaseIds: targetedPhaseIds("unit"),
     },
   );
   runPlanCase(
@@ -119,7 +125,7 @@ try {
     },
     {
       ownerIds: ["local-canonical-owner-contract-fixture"],
-      phaseIds: ["targeted-change-validator", "unit"],
+      phaseIds: targetedPhaseIds("unit"),
     },
   );
   runPlanCase(
@@ -134,9 +140,7 @@ try {
     {
       ownerIds: ["product-multi-candidate"],
       phaseIds: [
-        "targeted-change-validator",
-        "typecheck",
-        "unit",
+        ...targetedPhaseIds("typecheck", "unit"),
         "e2e-operator-multi-candidate",
       ],
       browserPhaseIds: ["e2e-operator-multi-candidate"],
@@ -154,7 +158,7 @@ try {
     },
     {
       ownerIds: ["codex-user-reuse-hook", "documentation"],
-      phaseIds: ["targeted-change-validator", "unit"],
+      phaseIds: targetedPhaseIds("unit"),
     },
   );
   runPlanCase("targeted-owner-deletion-unproven", "full-canonical", ({ remove }) => {
@@ -599,10 +603,10 @@ function runDocumentationValidatorCases() {
   assert.deepEqual(ownerTargetedResult.owner_ids, [
     "codex-user-reuse-hook",
   ]);
-  assert.deepEqual(ownerTargetedResult.targeted_phase_ids, [
-    "targeted-change-validator",
-    "unit",
-  ]);
+  assert.deepEqual(
+    ownerTargetedResult.targeted_phase_ids,
+    targetedPhaseIds("unit"),
+  );
   results.push("owner-targeted-exact-plan-validator");
 }
 

@@ -26,6 +26,10 @@ export const PERMANENT_BROWSER_PHASE_IDS = Object.freeze([
   ...browserOwnerManifest.canonical_phase_order,
 ]);
 export const OWNER_TARGETED_PLAN = "owner-targeted";
+export const OWNER_TARGETED_DEPENDENCY_PHASE_IDS = Object.freeze([
+  "dependencies-root",
+  "dependencies-nested",
+]);
 export const TARGETED_PHASE_ORDER = Object.freeze([
   ...changeOwnerManifest.targeted_phase_order,
 ]);
@@ -516,7 +520,11 @@ function changedPaths(change) {
 }
 
 function orderedTargetedPhases(phaseIds) {
-  const selected = new Set(["targeted-change-validator", ...phaseIds]);
+  const selected = new Set([
+    "targeted-change-validator",
+    ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
+    ...phaseIds,
+  ]);
   const ordered = TARGETED_PHASE_ORDER.filter((phaseId) =>
     selected.has(phaseId)
   );
@@ -561,6 +569,7 @@ export function validateChangeOwnerManifest(manifest) {
   const phaseOrder = manifest.targeted_phase_order;
   const fixedPhaseOrder = [
     "targeted-change-validator",
+    ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
     "typecheck",
     "unit",
     "authority",
@@ -574,7 +583,9 @@ export function validateChangeOwnerManifest(manifest) {
   ) {
     throw new Error("canonical targeted phase order is invalid");
   }
-  const allowedPhases = new Set(phaseOrder.slice(1));
+  const allowedPhases = new Set(
+    phaseOrder.slice(1 + OWNER_TARGETED_DEPENDENCY_PHASE_IDS.length),
+  );
   const ownerIds = new Set();
   const exactTargetedPaths = new Set();
   for (const owner of manifest.targeted_owners ?? []) {

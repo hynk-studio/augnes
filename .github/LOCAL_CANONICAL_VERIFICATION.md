@@ -138,9 +138,10 @@ change matches a checked-in responsibility owner in
 That manifest may select only a fixed ordered subset of existing Canonical
 phases. The plan always begins with an exact-base/head validator that recomputes
 the planner result, runs `git diff --check`, and validates any changed Markdown;
-the executor then runs the manifest-selected typecheck, unit, authority,
-integration, operability, or Browser owners sequentially. Callers cannot supply
-tests or phases.
+the executor then replaces both installed dependency trees through the same
+sequential root and nested `npm ci` preparation used by Full Canonical before it
+runs the manifest-selected typecheck, unit, authority, integration, operability,
+or Browser owners sequentially. Callers cannot supply tests or phases.
 
 The manifest is intentionally a narrow admission list, not an inference engine.
 A top-level `scripts/`, `lib/`, `app/`, `components/`, `tests/`, or `fixtures/`
@@ -210,12 +211,15 @@ npm run test:operability:package
 
 Quick treats installed dependencies as feedback inputs only. Documentation-only
 and operating-policy-only changed execution do not consult or replace them.
-Owner-targeted execution uses the existing installed dependency trees and
-records their exact committed lockfile fingerprints; it does not independently
-attest or replace those trees. Package, build, distribution, dependency, or
-lockfile responsibility therefore cannot use the targeted plan. A full surface
-replaces both installed `node_modules` trees through sequential `npm ci`
-operations bound to the committed lockfiles.
+Owner-targeted and Full Canonical execution replace both installed
+`node_modules` trees through sequential `npm ci` operations bound to the exact
+committed root and nested lockfiles. The clean preparation phases precede every
+dependency-consuming targeted owner, are recorded in the fixed planner phase
+inventory, and must pass for the receipt to be deciding. A stale, foreign,
+locally polluted, reused, incomplete, reordered, or unattested installed tree
+is not deciding input. Package, build, distribution, dependency, or lockfile
+responsibility remains `full-canonical`; clean targeted preparation does not
+make those responsibilities narrow.
 
 npm download-cache reuse is permitted to avoid unnecessary transfer, but the
 cache and pre-existing installed trees are not deciding authority. Dependency
@@ -267,11 +271,11 @@ deterministic ownership over throughput:
   tree termination, stream closure, and exact cleanup assertions remain owned
   by the current runners.
 
-The full surface and any owner-targeted plan containing a Browser phase require
+The full surface and every owner-targeted plan require
 at least two logical CPUs, 8 GiB physical memory, and 15 GiB free
-repository-volume disk before long phases. Quick, documentation-only,
-operating-policy-only, and non-Browser owner-targeted execution require at
-least 1 GiB. The receipt records
+repository-volume disk before dependency or long phases. Quick,
+documentation-only, and operating-policy-only execution require at least 1 GiB.
+The receipt records
 logical CPUs, physical and observed free memory, and disk before and after.
 Resource, thermal, process, memory, disk, or cleanup failure is not suppressed.
 

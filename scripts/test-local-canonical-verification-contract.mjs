@@ -66,6 +66,9 @@ const browserE2e = [
 const operatorSmoke = readRepositoryFile(
   "scripts/smoke-vnext-operator-pilot-v0-1.ts",
 );
+const fakeCodexAppServer = readRepositoryFile(
+  "scripts/fixtures/fake-codex-app-server.mjs",
+);
 const operatorPureContracts = readRepositoryFile(
   "scripts/test-vnext-operator-pure-contracts-v0-1.ts",
 );
@@ -545,7 +548,8 @@ for (const fragment of [
   `operating_policy_only_no_dependency_install`,
   `targeted-change-validator`,
   `invalid_owner_targeted_phase_inventory`,
-  `owner_targeted_existing_trees_with_exact_lock_fingerprints`,
+  `owner_targeted_clean_npm_ci_root_and_nested`,
+  `OWNER_TARGETED_DEPENDENCY_PHASE_IDS`,
   `planner_owner_ids`,
   `planner_targeted_phase_ids`,
   `runPhasesSequentially`,
@@ -642,6 +646,7 @@ for (const fragment of [
   `receipt_missing_phases`,
   `receipt_phase_inventory_mismatch`,
   `receipt_targeted_phase_inventory_mismatch`,
+  `receipt_targeted_dependency_provenance_invalid`,
   `phase_not_passing:`,
   `receipt_cleanup_incomplete`,
   `receipt_canonical_node_mismatch`,
@@ -666,6 +671,7 @@ for (const fragment of [
   `documentation_selection_dependency_light`,
   `operating_policy_selection_static_and_maintenance_free`,
   `owner_targeted_selection_uses_fixed_owner_complete_phases`,
+  `owner_targeted_dependencies_cleanly_prepared_before_consumers`,
   `owner_targeted_arbitrary_phase_selection_refused`,
   `owner_targeted_browser_phase_exact_head_bound`,
   `full_phase_inventory_complete`,
@@ -694,6 +700,7 @@ for (const fragment of [
   `operating_policy_plan_deciding_and_validated`,
   `owner_targeted_plan_deciding_and_validated`,
   `owner_targeted_inventory_and_owner_drift_refused`,
+  `owner_targeted_stale_tampered_and_unattested_dependencies_refused`,
   `canonical_node_mismatch_refused`,
   `{ private_path: "/Users/private/project/file" }`,
   `{ username: "private-user" }`,
@@ -918,6 +925,10 @@ assert.equal(
 assert.equal(
   changeOwnerManifest.targeted_phase_order[0],
   "targeted-change-validator",
+);
+assert.deepEqual(
+  changeOwnerManifest.targeted_phase_order.slice(1, 3),
+  ["dependencies-root", "dependencies-nested"],
 );
 assert.deepEqual(
   changeOwnerManifest.targeted_owners.map((owner) => owner.id),
@@ -1521,6 +1532,21 @@ assert.doesNotMatch(
   operatorSmoke,
   /AUGNES_VNEXT_OPERATOR_PILOT_BROWSER_FIXTURE_DIR|browser_fixture_export/u,
   "operator integration must not own browser fixture export",
+);
+requireText(
+  operatorSmoke,
+  `assert.equal(approvalResolutionObserved, true)`,
+  "timeout settlement must require the exact approval resolution event",
+);
+requireText(
+  fakeCodexAppServer,
+  `A terminal turn notification does not settle an in-flight server request`,
+  "fake App Server must preserve an in-flight approval through terminal ordering",
+);
+assert.doesNotMatch(
+  fakeCodexAppServer,
+  /function completeInterrupted\(\)[\s\S]{0,320}pendingApprovalRequestIds\.clear\(\)/u,
+  "fake App Server must not discard an unsettled approval at terminal observation",
 );
 
 for (const fragment of [

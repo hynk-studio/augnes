@@ -8,6 +8,18 @@ export const MAX_RECEIPT_BYTES = 512 * 1024;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+const OWNER_TARGETED_DEPENDENCY_PHASES = Object.freeze([
+  {
+    id: "dependencies-root",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "root",
+  },
+  {
+    id: "dependencies-nested",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "nested-app",
+  },
+]);
 const PRIVATE_PATH_PATTERNS = Object.freeze([
   /\/Users\/[^/]+\//u,
   /\/home\/(?!user\/|username\/|example\/)[^/]+\//u,
@@ -236,6 +248,33 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       JSON.stringify(plannerTargetedPhaseIds)
   ) {
     issues.push("receipt_targeted_phase_inventory_mismatch");
+  }
+  if (selectedPlan === "owner-targeted") {
+    const dependencyPhases = phases.slice(
+      1,
+      1 + OWNER_TARGETED_DEPENDENCY_PHASES.length,
+    );
+    const dependencyPreparationValid =
+      receipt?.dependencies?.policy ===
+        "owner_targeted_clean_npm_ci_root_and_nested" &&
+      receipt?.dependencies?.download_cache ===
+        "npm_cache_reuse_permitted_not_authoritative" &&
+      receipt?.dependencies?.installed_trees ===
+        "replaced_from_lockfiles_by_npm_ci" &&
+      dependencyPhases.length === OWNER_TARGETED_DEPENDENCY_PHASES.length &&
+      dependencyPhases.every((phase, index) => {
+        const expected = OWNER_TARGETED_DEPENDENCY_PHASES[index];
+        return (
+          phase?.id === expected.id &&
+          phase?.command === expected.command &&
+          phase?.cwd_scope === expected.cwd_scope &&
+          phase?.exclusive === true &&
+          phase?.browser === false
+        );
+      });
+    if (!dependencyPreparationValid) {
+      issues.push("receipt_targeted_dependency_provenance_invalid");
+    }
   }
   for (const phase of phases) {
     const browserLifecycleInvalid =

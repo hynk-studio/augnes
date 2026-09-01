@@ -98,8 +98,10 @@ function validateCanonicalMarkdownChange({
     (!Array.isArray(plan.owner_ids) ||
       plan.owner_ids.length === 0 ||
       !Array.isArray(plan.targeted_phase_ids) ||
-      plan.targeted_phase_ids.length < 2 ||
-      plan.targeted_phase_ids[0] !== "targeted-change-validator")
+      plan.targeted_phase_ids.length < 4 ||
+      plan.targeted_phase_ids[0] !== "targeted-change-validator" ||
+      plan.targeted_phase_ids[1] !== "dependencies-root" ||
+      plan.targeted_phase_ids[2] !== "dependencies-nested")
   ) {
     throw new Error(
       "owner-targeted validator requires explicit owners and deciding phases",

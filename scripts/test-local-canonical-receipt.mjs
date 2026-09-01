@@ -260,6 +260,12 @@ assert.deepEqual(
 );
 
 const targetedReceipt = structuredClone(baseReceipt);
+const targetedPhaseIds = [
+  "targeted-change-validator",
+  "dependencies-root",
+  "dependencies-nested",
+  "unit",
+];
 targetedReceipt.evidence.planner_plan = "owner-targeted";
 targetedReceipt.evidence.planner_reason =
   "all_changes_have_owner_complete_targeted_coverage";
@@ -267,21 +273,40 @@ targetedReceipt.evidence.planner_changed_paths = [
   "scripts/augnes-codex-user-reuse-hook.mjs",
 ];
 targetedReceipt.evidence.planner_owner_ids = ["codex-user-reuse-hook"];
-targetedReceipt.evidence.planner_targeted_phase_ids = [
-  "targeted-change-validator",
-  "unit",
-];
+targetedReceipt.evidence.planner_targeted_phase_ids = targetedPhaseIds;
 targetedReceipt.evidence.selected_plan = "owner-targeted";
 targetedReceipt.dependencies.policy =
-  "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+  "owner_targeted_clean_npm_ci_root_and_nested";
+targetedReceipt.dependencies.installed_trees =
+  "replaced_from_lockfiles_by_npm_ci";
 targetedReceipt.phases = [
   {
     ...structuredClone(baseReceipt.phases[0]),
     id: "targeted-change-validator",
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-root",
+    label: "root clean dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "root",
+    exclusive: true,
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-nested",
+    label: "nested application clean dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "nested-app",
+    exclusive: true,
+    browser: false,
   },
   {
     ...structuredClone(baseReceipt.phases[0]),
     id: "unit",
+    browser: false,
   },
 ];
 const finalizedTargetedReceipt = finalizeReceipt(targetedReceipt);
@@ -289,8 +314,8 @@ const targetedContext = {
   ...validContext,
   expectedSelectedPlan: "owner-targeted",
   expectedOwnerIds: ["codex-user-reuse-hook"],
-  expectedTargetedPhaseIds: ["targeted-change-validator", "unit"],
-  expectedPhaseIds: ["targeted-change-validator", "unit"],
+  expectedTargetedPhaseIds: targetedPhaseIds,
+  expectedPhaseIds: targetedPhaseIds,
 };
 assert.deepEqual(
   inspectReceiptForDecision(finalizedTargetedReceipt, targetedContext),
@@ -317,6 +342,65 @@ assert(
     finalizedTargetedReceipt,
     targetedOwnerTamper,
   ).issues.includes("receipt_stale_owners"),
+);
+for (const mutate of [
+  (receipt) => {
+    receipt.dependencies.policy =
+      "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+  },
+  (receipt) => {
+    receipt.dependencies.installed_trees =
+      "used_without_replacement_not_independent_dependency_attestation";
+  },
+  (receipt) => {
+    receipt.phases[1].command = "npm test";
+  },
+  (receipt) => {
+    receipt.phases[2].cwd_scope = "root";
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert(
+    inspectReceiptForDecision(
+      finalizeReceipt(candidate),
+      targetedContext,
+    ).issues.includes("receipt_targeted_dependency_provenance_invalid"),
+  );
+}
+const targetedMissingPreparation = structuredClone(targetedReceipt);
+targetedMissingPreparation.phases.splice(1, 1);
+targetedMissingPreparation.evidence.planner_targeted_phase_ids =
+  targetedMissingPreparation.phases.map((phase) => phase.id);
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedMissingPreparation),
+    {
+      ...targetedContext,
+      expectedTargetedPhaseIds:
+        targetedMissingPreparation.evidence.planner_targeted_phase_ids,
+      expectedPhaseIds:
+        targetedMissingPreparation.evidence.planner_targeted_phase_ids,
+    },
+  ).issues.includes("receipt_targeted_dependency_provenance_invalid"),
+);
+const targetedFailedPreparation = structuredClone(targetedReceipt);
+targetedFailedPreparation.phases[1].status = "failure";
+targetedFailedPreparation.phases[1].exit_status = 1;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedFailedPreparation),
+    targetedContext,
+  ).issues.includes("phase_not_passing:dependencies-root"),
+);
+assert(
+  inspectReceiptForDecision(finalizedTargetedReceipt, {
+    ...targetedContext,
+    currentLocks: {
+      ...targetedContext.currentLocks,
+      root: "7".repeat(64),
+    },
+  }).issues.includes("receipt_stale_lockfiles"),
 );
 
 const browserReceipt = structuredClone(baseReceipt);
@@ -599,6 +683,7 @@ console.log(
       operating_policy_plan_deciding_and_validated: true,
       owner_targeted_plan_deciding_and_validated: true,
       owner_targeted_inventory_and_owner_drift_refused: true,
+      owner_targeted_stale_tampered_and_unattested_dependencies_refused: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,

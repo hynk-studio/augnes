@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   OWNER_TARGETED_PLAN,
+  OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
   PERMANENT_BROWSER_PHASE_IDS,
   TARGETED_PHASE_ORDER,
   planCanonicalChange,
@@ -379,7 +380,9 @@ export async function executeLocalCanonicalVerification({
     (phase) => phase.browser === true,
   );
   const diskMinimumBytes =
-    plan.selected_plan === "full-canonical" || selectedBrowserPhases.length > 0
+    plan.selected_plan === "full-canonical" ||
+    plan.selected_plan === OWNER_TARGETED_PLAN ||
+    selectedBrowserPhases.length > 0
       ? FULL_MINIMUM_DISK_BYTES
       : QUICK_MINIMUM_DISK_BYTES;
 
@@ -446,10 +449,13 @@ export async function executeLocalCanonicalVerification({
   try {
     if (!executionFailure) {
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
-      if (plan.selected_plan === "full-canonical") {
+      if (
+        plan.selected_plan === "full-canonical" ||
+        plan.selected_plan === OWNER_TARGETED_PLAN
+      ) {
         dependencyMaintenance = await acquireCompanionServiceMaintenance({
           repositoryRoot,
-          operationId: `local-canonical-full:${runId}`,
+          operationId: `local-canonical-dependencies:${runId}`,
         });
       }
       if (plan.selected_plan === "full-canonical" && nextState.present_before) {
@@ -712,22 +718,25 @@ export async function executeLocalCanonicalVerification({
           : plan.selected_plan === "operating-policy-only"
             ? "operating_policy_only_no_dependency_install"
             : plan.selected_plan === OWNER_TARGETED_PLAN
-              ? "owner_targeted_existing_trees_with_exact_lock_fingerprints"
+              ? "owner_targeted_clean_npm_ci_root_and_nested"
               : mode === "quick"
                 ? "existing_installed_trees_feedback_only"
                 : "documentation_only_no_dependency_install",
       download_cache: "npm_cache_reuse_permitted_not_authoritative",
       installed_trees:
-        plan.selected_plan === "full-canonical" &&
+        (plan.selected_plan === "full-canonical" ||
+          plan.selected_plan === OWNER_TARGETED_PLAN) &&
+        phaseReceipts
+          .filter((phase) => phase.id.startsWith("dependencies-"))
+          .length === OWNER_TARGETED_DEPENDENCY_PHASE_IDS.length &&
         phaseReceipts
           .filter((phase) => phase.id.startsWith("dependencies-"))
           .every((phase) => phase.status === "pass")
           ? "replaced_from_lockfiles_by_npm_ci"
-          : plan.selected_plan === "full-canonical"
+          : plan.selected_plan === "full-canonical" ||
+              plan.selected_plan === OWNER_TARGETED_PLAN
             ? "not_prepared_or_incomplete"
-            : plan.selected_plan === OWNER_TARGETED_PLAN
-              ? "used_without_replacement_not_independent_dependency_attestation"
-              : "not_deciding_authority",
+            : "not_deciding_authority",
       root_lock_sha256: locks.root,
       nested_lock_sha256: locks.nested,
     },
@@ -995,8 +1004,10 @@ function operatingPolicyPhases({ baseSha, headSha }) {
 function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
   if (
     !Array.isArray(targetedPhaseIds) ||
-    targetedPhaseIds.length < 2 ||
+    targetedPhaseIds.length < 4 ||
     targetedPhaseIds[0] !== "targeted-change-validator" ||
+    targetedPhaseIds[1] !== "dependencies-root" ||
+    targetedPhaseIds[2] !== "dependencies-nested" ||
     new Set(targetedPhaseIds).size !== targetedPhaseIds.length ||
     JSON.stringify(targetedPhaseIds) !==
       JSON.stringify(
@@ -1035,6 +1046,21 @@ function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
 
 function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
   const canonicalSuitePhases = {
+    "dependencies-root": () =>
+      npmPhase(
+        "dependencies-root",
+        "root clean dependency installation",
+        ["ci", "--no-audit", "--no-fund"],
+        600_000,
+      ),
+    "dependencies-nested": () =>
+      npmPhase(
+        "dependencies-nested",
+        "nested application clean dependency installation",
+        ["ci", "--no-audit", "--no-fund"],
+        600_000,
+        "nested-app",
+      ),
     typecheck: () =>
       npmPhase("typecheck", "TypeScript typecheck", ["run", "typecheck"], 300_000),
     unit: () => npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000),

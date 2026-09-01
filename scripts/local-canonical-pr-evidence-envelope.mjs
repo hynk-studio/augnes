@@ -598,7 +598,11 @@ function assertReceiptProjectionEligible(receipt) {
     (!Array.isArray(receipt.evidence.planner_owner_ids) ||
       receipt.evidence.planner_owner_ids.length === 0 ||
       canonicalSerialize(receipt.evidence.planner_targeted_phase_ids) !==
-        canonicalSerialize(receipt.phases.map((phase) => phase.id)))
+        canonicalSerialize(receipt.phases.map((phase) => phase.id)) ||
+      receipt.dependencies?.policy !==
+        "owner_targeted_clean_npm_ci_root_and_nested" ||
+      receipt.dependencies?.installed_trees !==
+        "replaced_from_lockfiles_by_npm_ci")
   ) {
     throw evidenceError(
       "receipt_owner_targeted_projection_mismatch",
@@ -721,8 +725,10 @@ function assertPhases(envelope) {
       actual.includes(phaseId)
     );
     if (
-      actual.length < 2 ||
+      actual.length < 4 ||
       actual[0] !== "targeted-change-validator" ||
+      actual[1] !== "dependencies-root" ||
+      actual[2] !== "dependencies-nested" ||
       canonicalSerialize(actual) !== canonicalSerialize(expected)
     ) {
       throw evidenceError(

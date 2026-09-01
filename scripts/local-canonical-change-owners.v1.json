@@ -3,6 +3,8 @@
   "version": 1,
   "targeted_phase_order": [
     "targeted-change-validator",
+    "dependencies-root",
+    "dependencies-nested",
     "typecheck",
     "unit",
     "authority",

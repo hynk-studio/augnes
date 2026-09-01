@@ -45,6 +45,12 @@ const gitignore = readFileSync(
   path.join(repositoryRoot, ".gitignore"),
   "utf8",
 );
+const ownerTargetedUnitPhaseIds = [
+  "targeted-change-validator",
+  "dependencies-root",
+  "dependencies-nested",
+  "unit",
+];
 const executorSource = readFileSync(
   path.join(repositoryRoot, "scripts", "run-local-canonical-verification.mjs"),
   "utf8",
@@ -244,7 +250,7 @@ const ownerTargetedPlan = resolveVerificationPlan({
     changed_paths: ["scripts/test-codex-augnes-user-hook-migration.mjs"],
     full_reasons: [],
     owner_ids: ["codex-user-reuse-hook"],
-    targeted_phase_ids: ["targeted-change-validator", "unit"],
+    targeted_phase_ids: ownerTargetedUnitPhaseIds,
     browser_phase_ids: [],
   }),
 });
@@ -252,10 +258,10 @@ assert.equal(ownerTargetedPlan.selected_plan, "owner-targeted");
 assert.deepEqual(ownerTargetedPlan.planner_owner_ids, [
   "codex-user-reuse-hook",
 ]);
-assert.deepEqual(ownerTargetedPlan.planner_targeted_phase_ids, [
-  "targeted-change-validator",
-  "unit",
-]);
+assert.deepEqual(
+  ownerTargetedPlan.planner_targeted_phase_ids,
+  ownerTargetedUnitPhaseIds,
+);
 const ownerTargetedPhases = buildPhasePlan({
   mode: "changed",
   selectedPlan: ownerTargetedPlan.selected_plan,
@@ -265,11 +271,26 @@ const ownerTargetedPhases = buildPhasePlan({
 });
 assert.deepEqual(
   ownerTargetedPhases.map((phase) => phase.id),
-  ["targeted-change-validator", "unit"],
+  ownerTargetedUnitPhaseIds,
 );
 assert.match(ownerTargetedPhases[0].display, /--plan owner-targeted$/u);
-assert.equal(ownerTargetedPhases[1].display, "npm test");
-assert.equal(ownerTargetedPhases[1].exclusive, true);
+assert.equal(ownerTargetedPhases[1].display, "npm ci --no-audit --no-fund");
+assert.equal(ownerTargetedPhases[1].cwdScope, "root");
+assert.equal(ownerTargetedPhases[2].display, "npm ci --no-audit --no-fund");
+assert.equal(ownerTargetedPhases[2].cwdScope, "nested-app");
+assert.equal(ownerTargetedPhases[3].display, "npm test");
+assert.equal(ownerTargetedPhases[3].exclusive, true);
+assert.throws(
+  () =>
+    buildPhasePlan({
+      mode: "changed",
+      selectedPlan: "owner-targeted",
+      baseSha,
+      headSha,
+      targetedPhaseIds: ["targeted-change-validator", "unit"],
+    }),
+  (error) => error?.code === "invalid_owner_targeted_phase_inventory",
+);
 assert.throws(
   () =>
     buildPhasePlan({
@@ -279,6 +300,8 @@ assert.throws(
       headSha,
       targetedPhaseIds: [
         "targeted-change-validator",
+        "dependencies-root",
+        "dependencies-nested",
         "caller-selected-command",
       ],
     }),
@@ -291,6 +314,8 @@ const ownerTargetedBrowserPhases = buildPhasePlan({
   headSha,
   targetedPhaseIds: [
     "targeted-change-validator",
+    "dependencies-root",
+    "dependencies-nested",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -300,6 +325,8 @@ assert.deepEqual(
   ownerTargetedBrowserPhases.map((phase) => phase.id),
   [
     "targeted-change-validator",
+    "dependencies-root",
+    "dependencies-nested",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -502,7 +529,7 @@ assert.doesNotMatch(
 );
 
 const maintenanceAcquireIndex = executorSource.indexOf(
-  "operationId: `local-canonical-full:${runId}`",
+  "operationId: `local-canonical-dependencies:${runId}`",
 );
 const generatedNextRemovalIndex = executorSource.indexOf(
   "rmSync(generatedNextRoot, { recursive: true, force: true })",
@@ -550,10 +577,12 @@ console.log(
       documentation_selection_dependency_light: true,
       operating_policy_selection_static_and_maintenance_free: true,
       owner_targeted_selection_uses_fixed_owner_complete_phases: true,
+      owner_targeted_dependencies_cleanly_prepared_before_consumers: true,
       owner_targeted_arbitrary_phase_selection_refused: true,
       owner_targeted_browser_phase_exact_head_bound: true,
       full_phase_inventory_complete: true,
-      full_maintenance_precedes_generated_mutation_and_spans_all_phases: true,
+      dependency_maintenance_precedes_generated_mutation_and_spans_all_phases:
+        true,
       browser_lanes_sequential: true,
       maximum_outer_phase_concurrency: maximumActive,
       canonical_node_mismatch_explicit: true,

@@ -160,7 +160,8 @@ owner manifest decides whether that Browser ownership is narrow enough for an
 - portability, recovery, reconciliation, persistent lineage, and Perspective
   continuity changes select continuity;
 - a known single detailed Browser owner may join typecheck and unit in an
-  `owner-targeted` deciding plan;
+  `owner-targeted` deciding plan after the fixed clean root and nested
+  dependency preparation;
 - first-work-to-result composition changes select golden plus affected detailed
   owners and therefore require `full-canonical` in the current planner;
 - shared runtime, fixture, lifecycle, planner, executor, receipt, or ambiguous

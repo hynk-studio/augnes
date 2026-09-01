@@ -267,6 +267,11 @@ const targetedReceipt = buildReceipt({
       "targeted-change-validator",
       `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
     ),
+    buildPhase("dependencies-root", PUBLIC_PHASE_COMMANDS["dependencies-root"]),
+    buildPhase(
+      "dependencies-nested",
+      PUBLIC_PHASE_COMMANDS["dependencies-nested"],
+    ),
     buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit),
   ],
 });
@@ -281,7 +286,12 @@ assert.equal(
 );
 assert.deepEqual(
   targetedEnvelope.phases.map((phase) => phase.id),
-  ["targeted-change-validator", "unit"],
+  [
+    "targeted-change-validator",
+    "dependencies-root",
+    "dependencies-nested",
+    "unit",
+  ],
 );
 for (const mutate of [
   (candidate) => {
@@ -289,6 +299,28 @@ for (const mutate of [
   },
   (candidate) => {
     candidate.evidence.planner_targeted_phase_ids = ["unit"];
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: candidate,
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("receipt_owner_targeted_projection_mismatch"),
+  );
+}
+for (const mutate of [
+  (candidate) => {
+    candidate.dependencies.policy =
+      "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+  },
+  (candidate) => {
+    candidate.dependencies.installed_trees =
+      "used_without_replacement_not_independent_dependency_attestation";
   },
 ]) {
   const candidate = structuredClone(targetedReceipt);
@@ -311,6 +343,14 @@ for (const phases of [
       "targeted-change-validator",
       `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
     ),
+  ],
+  [
+    buildPhase(
+      "targeted-change-validator",
+      `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
+    ),
+    buildPhase("dependencies-root", PUBLIC_PHASE_COMMANDS["dependencies-root"]),
+    buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit),
   ],
 ]) {
   assert.throws(
@@ -570,6 +610,14 @@ function buildReceipt({
       worktree_after: "clean",
     },
     dependencies: {
+      policy:
+        selectedPlan === "owner-targeted"
+          ? "owner_targeted_clean_npm_ci_root_and_nested"
+          : "clean_npm_ci_root_and_nested",
+      installed_trees:
+        selectedPlan === "owner-targeted"
+          ? "replaced_from_lockfiles_by_npm_ci"
+          : "not_projected",
       root_lock_sha256: "3".repeat(64),
       nested_lock_sha256: "4".repeat(64),
     },

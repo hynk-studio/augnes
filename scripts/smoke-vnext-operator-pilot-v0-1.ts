@@ -10214,28 +10214,18 @@ async function assertLiveCodexTimeoutSettlementOnCloneV01(input: {
         );
         assert.equal(existsSync(harness.cleanup_marker_path), true);
         const run = readHostRunStateFromConfigV01(config, projection.run_ref!);
-        const cancellationDecision = (
-          Array.isArray(run.metadata.approval_decisions)
-            ? (run.metadata.approval_decisions as Array<
-                Record<string, unknown>
-              >)
-            : []
-        ).find(
-          (decision) =>
-            decision.decision === "cancel_run" &&
-            decision.decision_source === "run_cancellation",
-        );
         const approvalResolutionObserved = run.events.some(
           (event) =>
             event.event_type === "host_event_observed" &&
             event.payload.event_kind === "approval_resolved",
         );
         assert.equal(run.metadata.pending_approval, null);
+        assert.equal(approvalResolutionObserved, true);
         assert.equal(
-          Boolean(cancellationDecision) ||
-            approvalResolutionObserved ||
-            run.metadata.pending_approval_abandoned_by_terminal_stop === true,
-          true,
+          readFakeTraceV01(harness.trace_path).filter(
+            (entry) => entry.kind === "approval_decision_received",
+          ).length,
+          1,
         );
         assert.equal(readNetworkAttemptsV01(harness.network_count_path), 0);
         assertObservedProcessesStoppedV01(harness.observations);
