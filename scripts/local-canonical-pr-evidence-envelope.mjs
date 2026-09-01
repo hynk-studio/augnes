@@ -5,6 +5,7 @@ import {
   canonicalSerialize,
   fingerprintCanonicalValue,
 } from "./local-canonical-receipt.mjs";
+import { TARGETED_PHASE_ORDER } from "./canonical-change-planner.mjs";
 
 export const LOCAL_CANONICAL_PR_EVIDENCE_SCHEMA =
   "augnes.local-canonical-pr-evidence.v1";
@@ -58,6 +59,7 @@ const PHASE_LABELS = Object.freeze({
   "dependencies-root": "Root dependencies",
   "dependencies-nested": "Nested dependencies",
   "documentation-validator": "Documentation validator",
+  "targeted-change-validator": "Owner-targeted change validator",
   "operating-policy-validator": "Operating-policy Markdown validator",
   "operating-policy-planner-contract": "Operating-policy planner contract",
   "operating-policy-executor-contract": "Operating-policy executor contract",
@@ -301,6 +303,7 @@ export function assertValidPublicationEnvelope(envelope) {
     ![
       "documentation-only",
       "operating-policy-only",
+      "owner-targeted",
       "full-canonical",
     ].includes(
       envelope.verification?.selected_plan,
@@ -563,6 +566,7 @@ function assertReceiptProjectionEligible(receipt) {
     ![
       "documentation-only",
       "operating-policy-only",
+      "owner-targeted",
       "full-canonical",
     ].includes(
       receipt.evidence?.selected_plan,
@@ -587,6 +591,48 @@ function assertReceiptProjectionEligible(receipt) {
     throw evidenceError(
       "receipt_phase_inventory_incomplete",
       "receipt phase inventory is incomplete",
+    );
+  }
+  if (
+    ["owner-targeted", "full-canonical"].includes(
+      receipt.evidence.selected_plan,
+    ) &&
+    (typeof receipt.cleanup?.generated_next?.present_before !== "boolean" ||
+      typeof receipt.cleanup?.generated_next?.removed_before_execution !==
+        "boolean" ||
+      typeof receipt.cleanup?.generated_next?.removed_after_execution !==
+        "boolean" ||
+      receipt.cleanup.generated_next.present_after_execution_cleanup !==
+        false ||
+      typeof receipt.cleanup.generated_next.present_after !== "boolean" ||
+      receipt.cleanup.generated_next.removed_before_execution !==
+        receipt.cleanup.generated_next.present_before ||
+      (receipt.cleanup.generated_next.present_after === true &&
+        (!["live", "starting"].includes(
+          receipt.cleanup?.companion_service?.before?.status,
+        ) ||
+          receipt.cleanup?.companion_service?.after?.status !== "live" ||
+          receipt.cleanup?.companion_service?.restored !== true)))
+  ) {
+    throw evidenceError(
+      "receipt_generated_next_projection_mismatch",
+      "receipt generated Next state provenance is incomplete",
+    );
+  }
+  if (
+    receipt.evidence.selected_plan === "owner-targeted" &&
+    (!Array.isArray(receipt.evidence.planner_owner_ids) ||
+      receipt.evidence.planner_owner_ids.length === 0 ||
+      canonicalSerialize(receipt.evidence.planner_targeted_phase_ids) !==
+        canonicalSerialize(receipt.phases.map((phase) => phase.id)) ||
+      receipt.dependencies?.policy !==
+        "owner_targeted_clean_npm_ci_root_and_nested" ||
+      receipt.dependencies?.installed_trees !==
+        "replaced_from_lockfiles_by_npm_ci")
+  ) {
+    throw evidenceError(
+      "receipt_owner_targeted_projection_mismatch",
+      "owner-targeted receipt ownership or phase inventory is incomplete",
     );
   }
   for (const phase of receipt.phases) {
@@ -699,6 +745,24 @@ function assertPhases(envelope) {
       );
     }
   }
+  if (envelope.verification.selected_plan === "owner-targeted") {
+    const actual = envelope.phases.map((phase) => phase.id);
+    const expected = TARGETED_PHASE_ORDER.filter((phaseId) =>
+      actual.includes(phaseId)
+    );
+    if (
+      actual.length < 4 ||
+      actual[0] !== "targeted-change-validator" ||
+      actual[1] !== "dependencies-root" ||
+      actual[2] !== "dependencies-nested" ||
+      canonicalSerialize(actual) !== canonicalSerialize(expected)
+    ) {
+      throw evidenceError(
+        "invalid_owner_targeted_publication_phases",
+        "owner-targeted publication must preserve its bounded ordered phase inventory",
+      );
+    }
+  }
   if (envelope.verification.selected_plan === "full-canonical") {
     const expected = Object.keys(PUBLIC_PHASE_COMMANDS);
     if (
@@ -738,6 +802,18 @@ function expectedPublicCommand(phaseId, receipt) {
     }
     return expected;
   }
+  if (phaseId === "targeted-change-validator") {
+    const expected =
+      `node scripts/validate-canonical-docs-change.mjs --base ${receipt.repository.base_sha} --head ${receipt.repository.head_sha} --plan owner-targeted`;
+    const actual = receipt.phases.find((phase) => phase.id === phaseId)?.command;
+    if (actual !== expected) {
+      throw evidenceError(
+        "untrusted_publication_phase_command",
+        "owner-targeted validator command does not match its exact receipt identity",
+      );
+    }
+    return expected;
+  }
   const expected =
     OPERATING_POLICY_PUBLIC_PHASE_COMMANDS[phaseId] ??
     PUBLIC_PHASE_COMMANDS[phaseId];
@@ -757,6 +833,9 @@ function expectedPublicCommandForEnvelope(phase, envelope) {
   }
   if (phase.id === "operating-policy-validator") {
     return `node scripts/validate-canonical-docs-change.mjs --base ${envelope.repository.base_sha} --head ${envelope.repository.head_sha} --plan operating-policy-only`;
+  }
+  if (phase.id === "targeted-change-validator") {
+    return `node scripts/validate-canonical-docs-change.mjs --base ${envelope.repository.base_sha} --head ${envelope.repository.head_sha} --plan owner-targeted`;
   }
   return (
     OPERATING_POLICY_PUBLIC_PHASE_COMMANDS[phase.id] ??

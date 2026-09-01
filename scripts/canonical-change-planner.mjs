@@ -19,23 +19,22 @@ const MAX_SUMMARY_BYTES = 64 * 1024;
 const browserOwnerManifest = JSON.parse(
   readFileSync(new URL("./browser-verification-owners.v1.json", import.meta.url), "utf8"),
 );
+const changeOwnerManifest = JSON.parse(
+  readFileSync(new URL("./local-canonical-change-owners.v1.json", import.meta.url), "utf8"),
+);
 export const PERMANENT_BROWSER_PHASE_IDS = Object.freeze([
   ...browserOwnerManifest.canonical_phase_order,
 ]);
+export const OWNER_TARGETED_PLAN = "owner-targeted";
+export const OWNER_TARGETED_DEPENDENCY_PHASE_IDS = Object.freeze([
+  "dependencies-root",
+  "dependencies-nested",
+]);
+export const TARGETED_PHASE_ORDER = Object.freeze([
+  ...changeOwnerManifest.targeted_phase_order,
+]);
 
-const FULL_PATH_PREFIXES = [
-  ".github/workflows/",
-  ".github/actions/",
-  "scripts/",
-  "lib/",
-  "apps/",
-  "app/",
-  "components/",
-  "data/",
-  "test/",
-  "tests/",
-  "fixtures/",
-];
+validateChangeOwnerManifest(changeOwnerManifest);
 
 const DOCUMENTATION_ASSET_EXTENSIONS = new Set([
   ".avif",
@@ -55,7 +54,7 @@ export function planCanonicalChange({
 }) {
   if (eventName === "push") {
     return boundedSummary({
-      schema_version: 1,
+      schema_version: 2,
       event: "push",
       plan: "full-canonical",
       reason: "main_push_always_full",
@@ -64,6 +63,8 @@ export function planCanonicalChange({
       change_count: null,
       changed_paths: [],
       full_reasons: ["main_push_always_full"],
+      owner_ids: ["repository-main-push"],
+      targeted_phase_ids: [],
       browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       changes: [],
     });
@@ -84,7 +85,7 @@ export function planCanonicalChange({
   }
   if (changes.length > MAX_CHANGED_PATHS) {
     return boundedSummary({
-      schema_version: 1,
+      schema_version: 2,
       event: "pull_request",
       plan: "full-canonical",
       reason: "change_count_exceeds_documentation_bound",
@@ -93,6 +94,8 @@ export function planCanonicalChange({
       change_count: changes.length,
       changed_paths: [],
       full_reasons: ["change_count_exceeds_documentation_bound"],
+      owner_ids: ["unknown-change-set"],
+      targeted_phase_ids: [],
       browser_phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
       changes,
     });
@@ -100,32 +103,72 @@ export function planCanonicalChange({
 
   const operatingPolicyOnly =
     changes.length === 1 && isSafeOperatingPolicyModification(changes[0]);
-  const fullReasons = [];
-  if (!operatingPolicyOnly) {
-    for (const change of changes) {
-      const reason = classifyFullReason(change);
-      if (reason) fullReasons.push(reason);
-    }
-  }
-  const uniqueReasons = [...new Set(fullReasons)].sort();
-  const documentationOnly = !operatingPolicyOnly && uniqueReasons.length === 0;
-  const browserPhaseIds = operatingPolicyOnly || documentationOnly
+  const classifications = operatingPolicyOnly
     ? []
-    : selectCanonicalBrowserPhasesForChanges(changes);
+    : changes.map(classifyChangeResponsibility);
+  const fullReasons = classifications
+    .filter((classification) => classification.kind === "full")
+    .map((classification) => classification.reason);
+  const ownerIds = operatingPolicyOnly
+    ? ["repository-operating-policy"]
+    : classifications.map((classification) => classification.ownerId);
+  let uniqueReasons = [...new Set(fullReasons)].sort();
+  let uniqueOwnerIds = [...new Set(ownerIds)].sort(compareCodeUnits);
+  const documentationOnly =
+    !operatingPolicyOnly &&
+    uniqueReasons.length === 0 &&
+    classifications.every((classification) => classification.kind === "documentation");
+  const targeted =
+    !operatingPolicyOnly &&
+    !documentationOnly &&
+    uniqueReasons.length === 0 &&
+    classifications.every((classification) =>
+      classification.kind === "documentation" ||
+      classification.kind === "targeted"
+    );
+  let targetedPhaseIds = targeted
+    ? orderedTargetedPhases(
+        classifications.flatMap((classification) => classification.phaseIds),
+      )
+    : [];
+  let targetedBrowserPhaseIds = targetedPhaseIds.filter((phaseId) =>
+    PERMANENT_BROWSER_PHASE_IDS.includes(phaseId),
+  );
+  if (targetedBrowserPhaseIds.length > 1) {
+    uniqueReasons = [
+      "multi_browser_owner_product_composition",
+    ];
+    uniqueOwnerIds = [
+      ...new Set([...uniqueOwnerIds, "multi-owner-product-composition"]),
+    ].sort(compareCodeUnits);
+    targetedPhaseIds = [];
+    targetedBrowserPhaseIds = [];
+  }
+  const selectedPlan = operatingPolicyOnly
+    ? "operating-policy-only"
+    : documentationOnly
+      ? "documentation-only"
+      : targeted && uniqueReasons.length === 0
+        ? OWNER_TARGETED_PLAN
+        : "full-canonical";
+  const browserPhaseIds =
+    operatingPolicyOnly || documentationOnly
+      ? []
+      : selectedPlan === OWNER_TARGETED_PLAN
+        ? targetedBrowserPhaseIds
+        : selectCanonicalBrowserPhasesForChanges(changes);
 
   return boundedSummary({
-    schema_version: 1,
+    schema_version: 2,
     event: "pull_request",
-    plan: operatingPolicyOnly
-      ? "operating-policy-only"
-      : documentationOnly
-        ? "documentation-only"
-        : "full-canonical",
+    plan: selectedPlan,
     reason: operatingPolicyOnly
       ? "exact_safe_agents_operating_policy_change"
       : documentationOnly
         ? "all_changes_match_documentation_allowlist"
-        : "one_or_more_changes_require_full_canonical",
+        : selectedPlan === OWNER_TARGETED_PLAN
+          ? "all_changes_have_owner_complete_targeted_coverage"
+          : "one_or_more_changes_require_full_canonical",
     base_sha: baseSha,
     head_sha: headSha,
     change_count: changes.length,
@@ -134,12 +177,21 @@ export function planCanonicalChange({
       .filter(Boolean)
       .slice(0, MAX_SUMMARY_PATHS),
     full_reasons: uniqueReasons,
+    owner_ids: uniqueOwnerIds,
+    targeted_phase_ids: targetedPhaseIds,
     browser_phase_ids: browserPhaseIds,
     changes,
   });
 }
 
 export function selectCanonicalBrowserPhasesForChanges(changes) {
+  const classification = classifyCanonicalBrowserOwnership(changes);
+  return ["unknown", "shared"].includes(classification.status)
+    ? [...PERMANENT_BROWSER_PHASE_IDS]
+    : classification.phase_ids;
+}
+
+export function classifyCanonicalBrowserOwnership(changes) {
   if (!Array.isArray(changes) || changes.length === 0) {
     throw new Error("canonical browser ownership requires changed paths");
   }
@@ -186,11 +238,36 @@ export function selectCanonicalBrowserPhasesForChanges(changes) {
       }
     }
     matchedAny ||= matchedPath;
-    if (!matchedPath) return [...PERMANENT_BROWSER_PHASE_IDS];
+    if (!matchedPath) {
+      return {
+        status: "unknown",
+        phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
+      };
+    }
   }
-  if (!matchedAny || shared) return [...PERMANENT_BROWSER_PHASE_IDS];
+  if (!matchedAny) {
+    return {
+      status: "unknown",
+      phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
+    };
+  }
+  if (shared) {
+    return {
+      status: "shared",
+      phase_ids: [...PERMANENT_BROWSER_PHASE_IDS],
+    };
+  }
   if (composition || selected.size > 1) add("e2e-golden");
-  return PERMANENT_BROWSER_PHASE_IDS.filter((phaseId) => selected.has(phaseId));
+  return {
+    status: composition
+      ? "composition"
+      : selected.size > 1
+        ? "multi-owner"
+        : "owned",
+    phase_ids: PERMANENT_BROWSER_PHASE_IDS.filter((phaseId) =>
+      selected.has(phaseId)
+    ),
+  };
 }
 
 export function parseNameStatus(buffer) {
@@ -237,7 +314,7 @@ export function parseNameStatus(buffer) {
 
 export function isDocumentationPath(relativePath) {
   const normalized = normalizeRepositoryPath(relativePath);
-  if (requiresFullByPath(normalized)) return false;
+  if (/(^|\/)AGENTS\.md$/u.test(normalized)) return false;
 
   if (normalized.endsWith(".md")) {
     return (
@@ -275,36 +352,139 @@ function readGitChanges({ cwd, baseSha, headSha }) {
   }));
 }
 
-function classifyFullReason(change) {
-  if (change.status === "D") return `deletion:${change.oldPath}`;
+function classifyChangeResponsibility(change) {
   if (change.status === "T" || change.status === "U") {
-    return `unsafe_status_${change.status}:${change.newPath ?? change.oldPath}`;
+    return fullClassification(
+      "unknown-change-status",
+      `unsafe_status_${change.status}:${change.newPath ?? change.oldPath}`,
+    );
   }
   if (change.status === "C") {
-    return `copy_requires_full:${change.newPath}`;
+    return fullClassification(
+      "unknown-copy-consumers",
+      `copy_requires_full:${change.newPath}`,
+    );
   }
-  if (!isSafeRegularMode(change.newMode)) {
-    return `unsafe_new_mode_${change.newMode ?? "missing"}:${change.newPath}`;
+  if (
+    change.status === "D"
+      ? !isSafeRegularMode(change.oldMode)
+      : !isSafeRegularMode(change.newMode)
+  ) {
+    return fullClassification(
+      "unsafe-file-mode",
+      `unsafe_${change.status === "D" ? "old" : "new"}_mode_${
+        change.status === "D" ? change.oldMode ?? "missing" : change.newMode ?? "missing"
+      }:${change.newPath ?? change.oldPath}`,
+    );
   }
   if (
     change.oldMode !== null &&
+    change.status !== "D" &&
     (change.oldMode !== change.newMode || !isSafeRegularMode(change.oldMode))
   ) {
-    return `mode_change:${change.newPath ?? change.oldPath}`;
+    return fullClassification(
+      "unsafe-file-mode",
+      `mode_change:${change.newPath ?? change.oldPath}`,
+    );
   }
   if (change.status === "R") {
     if (
-      !isDocumentationPath(change.oldPath) ||
-      !isDocumentationPath(change.newPath)
+      isDocumentationPath(change.oldPath) &&
+      isDocumentationPath(change.newPath)
     ) {
-      return `rename_crosses_documentation_boundary:${change.oldPath}->${change.newPath}`;
+      return documentationClassification();
     }
-    return null;
+    return fullClassification(
+      "unknown-rename-consumers",
+      `rename_requires_full:${change.oldPath}->${change.newPath}`,
+    );
   }
-  if (!isDocumentationPath(change.newPath)) {
-    return `path_requires_full:${change.newPath}`;
+
+  const relativePath = change.newPath ?? change.oldPath;
+  if (relativePath === "AGENTS.md" || /(^|\/)AGENTS\.md$/u.test(relativePath)) {
+    return fullClassification(
+      "repository-operating-policy",
+      `agents_change_requires_full:${relativePath}`,
+    );
   }
-  return null;
+  if (change.status !== "D" && isDocumentationPath(relativePath)) {
+    return documentationClassification();
+  }
+
+  const highRiskOwner = changeOwnerManifest.high_risk_owners.find((owner) =>
+    changedPaths(change).some((changedPath) =>
+      matchesPathRules(changedPath, owner.path_rules)
+    )
+  );
+  if (highRiskOwner) {
+    return fullClassification(
+      highRiskOwner.id,
+      `${highRiskOwner.reason}:${relativePath}`,
+    );
+  }
+
+  const targetedOwner = changeOwnerManifest.targeted_owners.find((owner) =>
+    changedPaths(change).every((changedPath) =>
+      matchesPathRules(changedPath, owner.path_rules)
+    )
+  );
+  if (targetedOwner) {
+    if (
+      change.status === "D" &&
+      targetedOwner.deletion_policy !== "targeted"
+    ) {
+      return fullClassification(
+        targetedOwner.id,
+        `owner_deletion_requires_full:${relativePath}`,
+      );
+    }
+    return {
+      kind: "targeted",
+      ownerId: targetedOwner.id,
+      phaseIds: targetedOwner.phase_ids,
+      reason: `known_owner:${targetedOwner.id}:${relativePath}`,
+    };
+  }
+
+  if (
+    change.status !== "D" &&
+    matchesAnyPrefix(
+      relativePath,
+      changeOwnerManifest.browser_targeted.eligible_path_prefixes,
+    )
+  ) {
+    const browserOwnership = classifyCanonicalBrowserOwnership([change]);
+    if (
+      browserOwnership.status === "owned" &&
+      browserOwnership.phase_ids.length === 1
+    ) {
+      const browserPhaseId = browserOwnership.phase_ids[0];
+      const ownerId =
+        changeOwnerManifest.browser_targeted.phase_owner_ids[browserPhaseId];
+      if (ownerId) {
+        return {
+          kind: "targeted",
+          ownerId,
+          phaseIds: [
+            ...changeOwnerManifest.browser_targeted.base_phase_ids,
+            browserPhaseId,
+          ],
+          reason: `known_browser_owner:${ownerId}:${relativePath}`,
+        };
+      }
+    }
+    return fullClassification(
+      browserOwnership.status === "unknown"
+        ? "unknown-browser-owner"
+        : "multi-owner-product-composition",
+      `${browserOwnership.status}_browser_ownership_requires_full:${relativePath}`,
+    );
+  }
+
+  return fullClassification(
+    "unknown-owner",
+    `unknown_or_unmatched_owner:${relativePath}`,
+  );
 }
 
 function isSafeOperatingPolicyModification(change) {
@@ -317,23 +497,181 @@ function isSafeOperatingPolicyModification(change) {
   );
 }
 
-function requiresFullByPath(relativePath) {
-  const lower = relativePath.toLowerCase();
-  const basename = path.posix.basename(relativePath);
-  if (/(^|\/)AGENTS\.md$/u.test(relativePath)) return true;
-  if (FULL_PATH_PREFIXES.some((prefix) => relativePath.startsWith(prefix))) {
-    return true;
+function documentationClassification() {
+  return {
+    kind: "documentation",
+    ownerId: "documentation",
+    phaseIds: [],
+    reason: "documentation_allowlist",
+  };
+}
+
+function fullClassification(ownerId, reason) {
+  return {
+    kind: "full",
+    ownerId,
+    phaseIds: [],
+    reason,
+  };
+}
+
+function changedPaths(change) {
+  return [change.oldPath, change.newPath].filter(Boolean);
+}
+
+function orderedTargetedPhases(phaseIds) {
+  const selected = new Set([
+    "targeted-change-validator",
+    ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
+    ...phaseIds,
+  ]);
+  const ordered = TARGETED_PHASE_ORDER.filter((phaseId) =>
+    selected.has(phaseId)
+  );
+  if (ordered.length !== selected.size || ordered.length < 2) {
+    throw new Error("targeted owner phase inventory is unsupported or incomplete");
   }
-  if (basename === "package.json" || basename === "package-lock.json") {
-    return true;
-  }
+  return ordered;
+}
+
+function matchesAnyPrefix(relativePath, prefixes) {
+  const normalized = normalizeRepositoryPath(relativePath).toLowerCase();
+  return prefixes.some((prefix) => normalized.startsWith(prefix.toLowerCase()));
+}
+
+function matchesPathRules(relativePath, rules) {
+  const normalized = normalizeRepositoryPath(relativePath).toLowerCase();
+  const basename = path.posix.basename(normalized);
+  return (
+    rules.exact_paths?.some(
+      (candidate) => candidate.toLowerCase() === normalized,
+    ) ||
+    rules.path_prefixes?.some((prefix) =>
+      normalized.startsWith(prefix.toLowerCase())
+    ) ||
+    rules.path_fragments?.some((fragment) =>
+      normalized.includes(fragment.toLowerCase())
+    ) ||
+    rules.basenames?.some(
+      (candidate) => candidate.toLowerCase() === basename,
+    ) ||
+    false
+  );
+}
+
+export function validateChangeOwnerManifest(manifest) {
   if (
-    /(^|\/)(?:schema|schemas|migration|migrations)(?:\/|$)/u.test(lower) ||
-    /(?:^|[._-])(?:schema|migration)(?:[._-]|$)/u.test(lower)
+    manifest?.schema !== "augnes.local-canonical-change-owners.v1" ||
+    manifest?.version !== 1
   ) {
-    return true;
+    throw new Error("canonical change owner manifest identity is invalid");
   }
-  return false;
+  const phaseOrder = manifest.targeted_phase_order;
+  const fixedPhaseOrder = [
+    "targeted-change-validator",
+    ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
+    "typecheck",
+    "unit",
+    "authority",
+    "integration",
+    "operability",
+    ...PERMANENT_BROWSER_PHASE_IDS,
+  ];
+  if (
+    !Array.isArray(phaseOrder) ||
+    JSON.stringify(phaseOrder) !== JSON.stringify(fixedPhaseOrder)
+  ) {
+    throw new Error("canonical targeted phase order is invalid");
+  }
+  const allowedPhases = new Set(
+    phaseOrder.slice(1 + OWNER_TARGETED_DEPENDENCY_PHASE_IDS.length),
+  );
+  const ownerIds = new Set();
+  const exactTargetedPaths = new Set();
+  for (const owner of manifest.targeted_owners ?? []) {
+    assertOwnerIdentity(owner, ownerIds);
+    if (
+      !Array.isArray(owner.phase_ids) ||
+      owner.phase_ids.length === 0 ||
+      new Set(owner.phase_ids).size !== owner.phase_ids.length ||
+      owner.phase_ids.some((phaseId) => !allowedPhases.has(phaseId)) ||
+      !["full", "targeted"].includes(owner.deletion_policy)
+    ) {
+      throw new Error(`canonical targeted owner is invalid: ${owner.id}`);
+    }
+    validatePathRules(owner.path_rules, owner.id);
+    for (const exactPath of owner.path_rules.exact_paths ?? []) {
+      const normalized = normalizeRepositoryPath(exactPath).toLowerCase();
+      if (exactTargetedPaths.has(normalized)) {
+        throw new Error(`duplicate canonical targeted exact path: ${exactPath}`);
+      }
+      exactTargetedPaths.add(normalized);
+    }
+  }
+  const browserTargeted = manifest.browser_targeted;
+  if (
+    !browserTargeted ||
+    !Array.isArray(browserTargeted.eligible_path_prefixes) ||
+    browserTargeted.eligible_path_prefixes.length === 0 ||
+    !Array.isArray(browserTargeted.base_phase_ids) ||
+    browserTargeted.base_phase_ids.some((phaseId) => !allowedPhases.has(phaseId)) ||
+    browserTargeted.deletion_policy !== "full"
+  ) {
+    throw new Error("canonical browser targeted owner contract is invalid");
+  }
+  for (const [phaseId, ownerId] of Object.entries(
+    browserTargeted.phase_owner_ids ?? {},
+  )) {
+    if (
+      !PERMANENT_BROWSER_PHASE_IDS.includes(phaseId) ||
+      phaseId === "e2e-golden" ||
+      !/^[a-z0-9][a-z0-9-]{0,79}$/u.test(ownerId)
+    ) {
+      throw new Error("canonical browser targeted phase owner is invalid");
+    }
+  }
+  for (const owner of manifest.high_risk_owners ?? []) {
+    assertOwnerIdentity(owner, ownerIds);
+    if (!/^[a-z0-9][a-z0-9_]{0,79}$/u.test(owner.reason ?? "")) {
+      throw new Error(`canonical high-risk owner reason is invalid: ${owner.id}`);
+    }
+    validatePathRules(owner.path_rules, owner.id);
+  }
+  if ((manifest.high_risk_owners ?? []).length === 0) {
+    throw new Error("canonical high-risk owner inventory is empty");
+  }
+  return true;
+}
+
+function assertOwnerIdentity(owner, ownerIds) {
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/u.test(owner?.id ?? "")) {
+    throw new Error("canonical owner id is invalid");
+  }
+  if (ownerIds.has(owner.id)) {
+    throw new Error(`duplicate canonical owner id: ${owner.id}`);
+  }
+  ownerIds.add(owner.id);
+}
+
+function validatePathRules(rules, ownerId) {
+  const entries = [
+    ...(rules?.exact_paths ?? []),
+    ...(rules?.path_prefixes ?? []),
+    ...(rules?.path_fragments ?? []),
+    ...(rules?.basenames ?? []),
+  ];
+  if (
+    entries.length === 0 ||
+    entries.some((entry) => typeof entry !== "string" || entry.length === 0)
+  ) {
+    throw new Error(`canonical owner path rules are invalid: ${ownerId}`);
+  }
+  for (const exactPath of rules?.exact_paths ?? []) {
+    normalizeRepositoryPath(exactPath);
+  }
+  for (const prefix of rules?.path_prefixes ?? []) {
+    normalizeRepositoryPath(prefix);
+  }
 }
 
 function readGitMode(cwd, revision, relativePath) {
@@ -415,6 +753,10 @@ function matchesOwnershipRule(relativePath, rule) {
     rule.path_fragments?.some((fragment) => relativePath.includes(fragment.toLowerCase())) ||
     false
   );
+}
+
+function compareCodeUnits(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function boundedSummary(summary) {

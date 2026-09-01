@@ -46,6 +46,20 @@ export function validateCanonicalOperatingPolicyChange({
   });
 }
 
+export function validateCanonicalOwnerTargetedChange({
+  baseSha,
+  headSha,
+  cwd = repositoryRoot,
+}) {
+  return validateCanonicalMarkdownChange({
+    baseSha,
+    headSha,
+    cwd,
+    expectedPlan: "owner-targeted",
+    test: "canonical-owner-targeted-change",
+  });
+}
+
 function validateCanonicalMarkdownChange({
   baseSha,
   headSha,
@@ -77,6 +91,20 @@ function validateCanonicalMarkdownChange({
   ) {
     throw new Error(
       "operating-policy validator requires one safe AGENTS.md modification",
+    );
+  }
+  if (
+    expectedPlan === "owner-targeted" &&
+    (!Array.isArray(plan.owner_ids) ||
+      plan.owner_ids.length === 0 ||
+      !Array.isArray(plan.targeted_phase_ids) ||
+      plan.targeted_phase_ids.length < 4 ||
+      plan.targeted_phase_ids[0] !== "targeted-change-validator" ||
+      plan.targeted_phase_ids[1] !== "dependencies-root" ||
+      plan.targeted_phase_ids[2] !== "dependencies-nested")
+  ) {
+    throw new Error(
+      "owner-targeted validator requires explicit owners and deciding phases",
     );
   }
 
@@ -115,6 +143,8 @@ function validateCanonicalMarkdownChange({
     local_anchors_checked: localAnchorsChecked,
     private_absolute_paths_found: 0,
     git_diff_check: "pass",
+    owner_ids: plan.owner_ids ?? [],
+    targeted_phase_ids: plan.targeted_phase_ids ?? [],
   };
 }
 
@@ -281,6 +311,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       });
     } else if (expectedPlan === "operating-policy-only") {
       result = validateCanonicalOperatingPolicyChange({
+        baseSha: args.get("base"),
+        headSha: args.get("head"),
+      });
+    } else if (expectedPlan === "owner-targeted") {
+      result = validateCanonicalOwnerTargetedChange({
         baseSha: args.get("base"),
         headSha: args.get("head"),
       });

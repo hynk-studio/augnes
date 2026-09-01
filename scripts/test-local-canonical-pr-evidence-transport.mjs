@@ -488,7 +488,17 @@ function buildReceipt() {
       timed_out: false,
       cleanup: { completed: true, remaining_owned_processes: 0 },
     })),
-    cleanup: { completed: true, remaining_owned_processes: 0 },
+    cleanup: {
+      completed: true,
+      remaining_owned_processes: 0,
+      generated_next: {
+        present_before: false,
+        removed_before_execution: false,
+        removed_after_execution: false,
+        present_after_execution_cleanup: false,
+        present_after: false,
+      },
+    },
     final: { result: "pass" },
     integrity: { content_fingerprint: "6".repeat(64) },
   };

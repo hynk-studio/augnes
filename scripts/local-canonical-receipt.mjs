@@ -8,6 +8,18 @@ export const MAX_RECEIPT_BYTES = 512 * 1024;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+const OWNER_TARGETED_DEPENDENCY_PHASES = Object.freeze([
+  {
+    id: "dependencies-root",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "root",
+  },
+  {
+    id: "dependencies-nested",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "nested-app",
+  },
+]);
 const PRIVATE_PATH_PATTERNS = Object.freeze([
   /\/Users\/[^/]+\//u,
   /\/home\/(?!user\/|username\/|example\/)[^/]+\//u,
@@ -110,6 +122,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedSelectedPlan = null,
     currentEnvironment = null,
     expectedPhaseIds = null,
+    expectedOwnerIds = null,
+    expectedTargetedPhaseIds = null,
   } = options ?? {};
   const issues = [];
   try {
@@ -178,11 +192,29 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       ![
         "documentation-only",
         "operating-policy-only",
+        "owner-targeted",
         "full-canonical",
       ].includes(selectedPlan)) ||
     (mode === "full" && selectedPlan !== "full-canonical")
   ) {
     issues.push("receipt_mode_or_plan_invalid");
+  }
+  const plannerOwnerIds = receipt?.evidence?.planner_owner_ids;
+  const plannerTargetedPhaseIds =
+    receipt?.evidence?.planner_targeted_phase_ids;
+  if (
+    !Array.isArray(plannerOwnerIds) ||
+    (mode !== "quick" && plannerOwnerIds.length === 0) ||
+    new Set(plannerOwnerIds).size !== plannerOwnerIds.length ||
+    plannerOwnerIds.some(
+      (ownerId) =>
+        typeof ownerId !== "string" ||
+        !/^[a-z0-9][a-z0-9-]{0,79}$/u.test(ownerId),
+    ) ||
+    !Array.isArray(plannerTargetedPhaseIds) ||
+    new Set(plannerTargetedPhaseIds).size !== plannerTargetedPhaseIds.length
+  ) {
+    issues.push("receipt_planner_ownership_invalid");
   }
   if (
     (mode === "quick" &&
@@ -209,6 +241,63 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       JSON.stringify(expectedPhaseIds)
   ) {
     issues.push("receipt_phase_inventory_mismatch");
+  }
+  if (
+    selectedPlan === "owner-targeted" &&
+    JSON.stringify(phases.map((phase) => phase?.id ?? null)) !==
+      JSON.stringify(plannerTargetedPhaseIds)
+  ) {
+    issues.push("receipt_targeted_phase_inventory_mismatch");
+  }
+  if (selectedPlan === "owner-targeted") {
+    const dependencyPhases = phases.slice(
+      1,
+      1 + OWNER_TARGETED_DEPENDENCY_PHASES.length,
+    );
+    const dependencyPreparationValid =
+      receipt?.dependencies?.policy ===
+        "owner_targeted_clean_npm_ci_root_and_nested" &&
+      receipt?.dependencies?.download_cache ===
+        "npm_cache_reuse_permitted_not_authoritative" &&
+      receipt?.dependencies?.installed_trees ===
+        "replaced_from_lockfiles_by_npm_ci" &&
+      dependencyPhases.length === OWNER_TARGETED_DEPENDENCY_PHASES.length &&
+      dependencyPhases.every((phase, index) => {
+        const expected = OWNER_TARGETED_DEPENDENCY_PHASES[index];
+        return (
+          phase?.id === expected.id &&
+          phase?.command === expected.command &&
+          phase?.cwd_scope === expected.cwd_scope &&
+          phase?.exclusive === true &&
+          phase?.browser === false
+        );
+      });
+    if (!dependencyPreparationValid) {
+      issues.push("receipt_targeted_dependency_provenance_invalid");
+    }
+  }
+  if (
+    selectedPlan === "owner-targeted" ||
+    selectedPlan === "full-canonical"
+  ) {
+    const generatedNext = receipt?.cleanup?.generated_next;
+    const generatedNextProvenanceValid =
+      typeof generatedNext?.present_before === "boolean" &&
+      typeof generatedNext?.removed_before_execution === "boolean" &&
+      typeof generatedNext?.removed_after_execution === "boolean" &&
+      generatedNext?.present_after_execution_cleanup === false &&
+      typeof generatedNext?.present_after === "boolean" &&
+      generatedNext.removed_before_execution ===
+        generatedNext.present_before &&
+      (generatedNext.present_after === false ||
+        (["live", "starting"].includes(
+          receipt?.cleanup?.companion_service?.before?.status,
+        ) &&
+          receipt?.cleanup?.companion_service?.after?.status === "live" &&
+          receipt?.cleanup?.companion_service?.restored === true));
+    if (!generatedNextProvenanceValid) {
+      issues.push("receipt_generated_next_provenance_invalid");
+    }
   }
   for (const phase of phases) {
     const browserLifecycleInvalid =
@@ -308,6 +397,19 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     receipt?.evidence?.selected_plan !== expectedSelectedPlan
   ) {
     issues.push("receipt_stale_plan");
+  }
+  if (
+    expectedOwnerIds &&
+    JSON.stringify(plannerOwnerIds) !== JSON.stringify(expectedOwnerIds)
+  ) {
+    issues.push("receipt_stale_owners");
+  }
+  if (
+    expectedTargetedPhaseIds &&
+    JSON.stringify(plannerTargetedPhaseIds) !==
+      JSON.stringify(expectedTargetedPhaseIds)
+  ) {
+    issues.push("receipt_stale_targeted_phases");
   }
   if (currentEnvironment) {
     for (const [receiptPath, currentValue] of [

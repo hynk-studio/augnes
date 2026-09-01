@@ -1402,9 +1402,9 @@ function completeInterrupted() {
   if (completed) return;
   completed = true;
   turnActive = false;
-  if (scenario !== "cancellation_terminal_before_approval_resolved") {
-    pendingApprovalRequestIds.clear();
-  }
+  // A terminal turn notification does not settle an in-flight server request.
+  // Keep its exact identity until the matching response is observed so the
+  // fixture can emit serverRequest/resolved in either valid message order.
   persistState({ threadId, sessionId, turnId, status: "interrupted" });
   trace("terminal_state_emitted", { status: "interrupted" });
   notify("turn/completed", { threadId, turn: turn("interrupted", []) });

@@ -259,6 +259,150 @@ assert.deepEqual(
   ],
 );
 
+const targetedReceipt = buildReceipt({
+  mode: "changed",
+  selectedPlan: "owner-targeted",
+  phases: [
+    buildPhase(
+      "targeted-change-validator",
+      `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
+    ),
+    buildPhase("dependencies-root", PUBLIC_PHASE_COMMANDS["dependencies-root"]),
+    buildPhase(
+      "dependencies-nested",
+      PUBLIC_PHASE_COMMANDS["dependencies-nested"],
+    ),
+    buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit),
+  ],
+});
+const targetedEnvelope = buildPublicationEnvelope({
+  receipt: targetedReceipt,
+  pullRequest,
+  publicationCreatedAt,
+});
+assert.equal(
+  targetedEnvelope.verification.selected_plan,
+  "owner-targeted",
+);
+assert.deepEqual(
+  targetedEnvelope.phases.map((phase) => phase.id),
+  [
+    "targeted-change-validator",
+    "dependencies-root",
+    "dependencies-nested",
+    "unit",
+  ],
+);
+for (const mutate of [
+  (candidate) => {
+    candidate.evidence.planner_owner_ids = [];
+  },
+  (candidate) => {
+    candidate.evidence.planner_targeted_phase_ids = ["unit"];
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: candidate,
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("receipt_owner_targeted_projection_mismatch"),
+  );
+}
+const restoredServiceGeneratedNextReceipt = structuredClone(targetedReceipt);
+restoredServiceGeneratedNextReceipt.cleanup.companion_service = {
+  before: { status: "starting" },
+  after: { status: "live" },
+  maintenance_released: true,
+  restored: true,
+};
+restoredServiceGeneratedNextReceipt.cleanup.generated_next.present_after = true;
+assert.doesNotThrow(() =>
+  buildPublicationEnvelope({
+    receipt: restoredServiceGeneratedNextReceipt,
+    pullRequest,
+    publicationCreatedAt,
+  }),
+);
+for (const mutate of [
+  (candidate) => {
+    candidate.dependencies.policy =
+      "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+  },
+  (candidate) => {
+    candidate.dependencies.installed_trees =
+      "used_without_replacement_not_independent_dependency_attestation";
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: candidate,
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("receipt_owner_targeted_projection_mismatch"),
+  );
+}
+for (const mutate of [
+  (candidate) => {
+    candidate.cleanup.generated_next.present_before = true;
+  },
+  (candidate) => {
+    candidate.cleanup.generated_next.present_after_execution_cleanup = true;
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: candidate,
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("receipt_generated_next_projection_mismatch"),
+  );
+}
+for (const phases of [
+  [buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit)],
+  [
+    buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit),
+    buildPhase(
+      "targeted-change-validator",
+      `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
+    ),
+  ],
+  [
+    buildPhase(
+      "targeted-change-validator",
+      `node scripts/validate-canonical-docs-change.mjs --base ${baseSha} --head ${headSha} --plan owner-targeted`,
+    ),
+    buildPhase("dependencies-root", PUBLIC_PHASE_COMMANDS["dependencies-root"]),
+    buildPhase("unit", PUBLIC_PHASE_COMMANDS.unit),
+  ],
+]) {
+  assert.throws(
+    () =>
+      buildPublicationEnvelope({
+        receipt: buildReceipt({
+          mode: "changed",
+          selectedPlan: "owner-targeted",
+          phases,
+        }),
+        pullRequest,
+        publicationCreatedAt,
+      }),
+    hasCode("invalid_owner_targeted_publication_phases"),
+  );
+}
+
 const replacementEnvelope = buildPublicationEnvelope({
   receipt,
   pullRequest,
@@ -458,7 +602,12 @@ console.log(
       deterministic_projection: true,
       deterministic_canonical_serialization: true,
       deterministic_fingerprint: true,
-      full_documentation_and_operating_policy_receipts_supported: true,
+      full_documentation_operating_policy_and_owner_targeted_receipts_supported:
+        true,
+      owner_targeted_phase_order_and_validator_required: true,
+      owner_targeted_receipt_ownership_projection_bound: true,
+      owner_targeted_generated_next_projection_bound: true,
+      restored_service_generated_next_projection_supported: true,
       non_deciding_receipts_refused: true,
       private_material_excluded: true,
       bounded_deterministic_markdown: true,
@@ -498,6 +647,14 @@ function buildReceipt({
       worktree_after: "clean",
     },
     dependencies: {
+      policy:
+        selectedPlan === "owner-targeted"
+          ? "owner_targeted_clean_npm_ci_root_and_nested"
+          : "clean_npm_ci_root_and_nested",
+      installed_trees:
+        selectedPlan === "owner-targeted"
+          ? "replaced_from_lockfiles_by_npm_ci"
+          : "not_projected",
       root_lock_sha256: "3".repeat(64),
       nested_lock_sha256: "4".repeat(64),
     },
@@ -518,6 +675,18 @@ function buildReceipt({
     evidence: {
       mode,
       planner_event: "pull_request",
+      planner_owner_ids:
+        selectedPlan === "documentation-only"
+          ? ["documentation"]
+          : selectedPlan === "operating-policy-only"
+            ? ["repository-operating-policy"]
+            : selectedPlan === "owner-targeted"
+              ? ["codex-user-reuse-hook"]
+              : ["test-full-owner"],
+      planner_targeted_phase_ids:
+        selectedPlan === "owner-targeted"
+          ? phases.map((phase) => phase.id)
+          : [],
       selected_plan: selectedPlan,
       deciding: true,
       transferable: true,
@@ -531,6 +700,13 @@ function buildReceipt({
     cleanup: {
       completed: true,
       remaining_owned_processes: 0,
+      generated_next: {
+        present_before: false,
+        removed_before_execution: false,
+        removed_after_execution: false,
+        present_after_execution_cleanup: false,
+        present_after: false,
+      },
     },
     final: {
       result: "pass",

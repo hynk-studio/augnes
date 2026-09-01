@@ -34,6 +34,9 @@ const baseReceipt = {
     planner_changed_paths: ["README.md"],
     planner_full_reasons: [],
     planner_error_code: null,
+    planner_owner_ids: ["documentation"],
+    planner_targeted_phase_ids: [],
+    planner_browser_phase_ids: [],
     selected_plan: "documentation-only",
     deciding: true,
     transferable: true,
@@ -143,6 +146,8 @@ const baseReceipt = {
       present_before: false,
       removed_before_execution: false,
       removed_after_execution: false,
+      present_after_execution_cleanup: false,
+      present_after: false,
     },
     artifact_retention: {
       receipt_files: 20,
@@ -192,6 +197,8 @@ const validContext = {
   },
   currentExecutorFingerprint: "5".repeat(64),
   expectedSelectedPlan: "documentation-only",
+  expectedOwnerIds: ["documentation"],
+  expectedTargetedPhaseIds: [],
   expectedPhaseIds: ["documentation-validator"],
   currentEnvironment: {
     machine_fingerprint: "a".repeat(32),
@@ -220,6 +227,9 @@ operatingPolicyReceipt.evidence.planner_plan = "operating-policy-only";
 operatingPolicyReceipt.evidence.planner_reason =
   "exact_safe_agents_operating_policy_change";
 operatingPolicyReceipt.evidence.planner_changed_paths = ["AGENTS.md"];
+operatingPolicyReceipt.evidence.planner_owner_ids = [
+  "repository-operating-policy",
+];
 operatingPolicyReceipt.evidence.selected_plan = "operating-policy-only";
 operatingPolicyReceipt.dependencies.policy =
   "operating_policy_only_no_dependency_install";
@@ -239,6 +249,7 @@ assert.deepEqual(
   inspectReceiptForDecision(finalizedOperatingPolicyReceipt, {
     ...validContext,
     expectedSelectedPlan: "operating-policy-only",
+    expectedOwnerIds: ["repository-operating-policy"],
     expectedPhaseIds: operatingPolicyPhaseIds,
   }),
   {
@@ -248,6 +259,213 @@ assert.deepEqual(
     content_fingerprint:
       finalizedOperatingPolicyReceipt.integrity.content_fingerprint,
   },
+);
+
+const targetedReceipt = structuredClone(baseReceipt);
+const targetedPhaseIds = [
+  "targeted-change-validator",
+  "dependencies-root",
+  "dependencies-nested",
+  "unit",
+];
+targetedReceipt.evidence.planner_plan = "owner-targeted";
+targetedReceipt.evidence.planner_reason =
+  "all_changes_have_owner_complete_targeted_coverage";
+targetedReceipt.evidence.planner_changed_paths = [
+  "scripts/augnes-codex-user-reuse-hook.mjs",
+];
+targetedReceipt.evidence.planner_owner_ids = ["codex-user-reuse-hook"];
+targetedReceipt.evidence.planner_targeted_phase_ids = targetedPhaseIds;
+targetedReceipt.evidence.selected_plan = "owner-targeted";
+targetedReceipt.dependencies.policy =
+  "owner_targeted_clean_npm_ci_root_and_nested";
+targetedReceipt.dependencies.installed_trees =
+  "replaced_from_lockfiles_by_npm_ci";
+targetedReceipt.phases = [
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "targeted-change-validator",
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-root",
+    label: "root clean dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "root",
+    exclusive: true,
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-nested",
+    label: "nested application clean dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "nested-app",
+    exclusive: true,
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "unit",
+    browser: false,
+  },
+];
+const finalizedTargetedReceipt = finalizeReceipt(targetedReceipt);
+const targetedContext = {
+  ...validContext,
+  expectedSelectedPlan: "owner-targeted",
+  expectedOwnerIds: ["codex-user-reuse-hook"],
+  expectedTargetedPhaseIds: targetedPhaseIds,
+  expectedPhaseIds: targetedPhaseIds,
+};
+assert.deepEqual(
+  inspectReceiptForDecision(finalizedTargetedReceipt, targetedContext),
+  {
+    valid_deciding_evidence: true,
+    status: "valid",
+    issues: [],
+    content_fingerprint:
+      finalizedTargetedReceipt.integrity.content_fingerprint,
+  },
+);
+const targetedPhaseTamper = structuredClone(targetedReceipt);
+targetedPhaseTamper.phases.reverse();
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedPhaseTamper),
+    targetedContext,
+  ).issues.includes("receipt_targeted_phase_inventory_mismatch"),
+);
+const targetedOwnerTamper = structuredClone(targetedContext);
+targetedOwnerTamper.expectedOwnerIds = ["different-owner"];
+assert(
+  inspectReceiptForDecision(
+    finalizedTargetedReceipt,
+    targetedOwnerTamper,
+  ).issues.includes("receipt_stale_owners"),
+);
+for (const mutate of [
+  (receipt) => {
+    receipt.dependencies.policy =
+      "owner_targeted_existing_trees_with_exact_lock_fingerprints";
+  },
+  (receipt) => {
+    receipt.dependencies.installed_trees =
+      "used_without_replacement_not_independent_dependency_attestation";
+  },
+  (receipt) => {
+    receipt.phases[1].command = "npm test";
+  },
+  (receipt) => {
+    receipt.phases[2].cwd_scope = "root";
+  },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate);
+  assert(
+    inspectReceiptForDecision(
+      finalizeReceipt(candidate),
+      targetedContext,
+    ).issues.includes("receipt_targeted_dependency_provenance_invalid"),
+  );
+}
+const targetedMissingPreparation = structuredClone(targetedReceipt);
+targetedMissingPreparation.phases.splice(1, 1);
+targetedMissingPreparation.evidence.planner_targeted_phase_ids =
+  targetedMissingPreparation.phases.map((phase) => phase.id);
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedMissingPreparation),
+    {
+      ...targetedContext,
+      expectedTargetedPhaseIds:
+        targetedMissingPreparation.evidence.planner_targeted_phase_ids,
+      expectedPhaseIds:
+        targetedMissingPreparation.evidence.planner_targeted_phase_ids,
+    },
+  ).issues.includes("receipt_targeted_dependency_provenance_invalid"),
+);
+const targetedFailedPreparation = structuredClone(targetedReceipt);
+targetedFailedPreparation.phases[1].status = "failure";
+targetedFailedPreparation.phases[1].exit_status = 1;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedFailedPreparation),
+    targetedContext,
+  ).issues.includes("phase_not_passing:dependencies-root"),
+);
+assert(
+  inspectReceiptForDecision(finalizedTargetedReceipt, {
+    ...targetedContext,
+    currentLocks: {
+      ...targetedContext.currentLocks,
+      root: "7".repeat(64),
+    },
+  }).issues.includes("receipt_stale_lockfiles"),
+);
+const targetedPreexistingGeneratedState = structuredClone(targetedReceipt);
+targetedPreexistingGeneratedState.cleanup.generated_next.present_before = true;
+targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution =
+  false;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedPreexistingGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+const targetedGeneratedStateSurvived = structuredClone(targetedReceipt);
+targetedGeneratedStateSurvived.cleanup.generated_next.present_after_execution_cleanup =
+  true;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedGeneratedStateSurvived),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+const targetedGeneratedCleanupFailure = structuredClone(targetedReceipt);
+targetedGeneratedCleanupFailure.cleanup.generated_next.present_after_execution_cleanup =
+  true;
+targetedGeneratedCleanupFailure.cleanup.completed = false;
+const targetedGeneratedCleanupFailureResult = inspectReceiptForDecision(
+  finalizeReceipt(targetedGeneratedCleanupFailure),
+  targetedContext,
+);
+assert.equal(
+  targetedGeneratedCleanupFailureResult.valid_deciding_evidence,
+  false,
+);
+assert(
+  targetedGeneratedCleanupFailureResult.issues.includes(
+    "receipt_generated_next_provenance_invalid",
+  ),
+);
+assert(
+  targetedGeneratedCleanupFailureResult.issues.includes(
+    "receipt_cleanup_incomplete",
+  ),
+);
+const targetedRestoredServiceGeneratedState = structuredClone(targetedReceipt);
+targetedRestoredServiceGeneratedState.cleanup.companion_service.before.status =
+  "starting";
+targetedRestoredServiceGeneratedState.cleanup.companion_service.after.status =
+  "live";
+targetedRestoredServiceGeneratedState.cleanup.generated_next.present_after =
+  true;
+assert.equal(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedRestoredServiceGeneratedState),
+    targetedContext,
+  ).valid_deciding_evidence,
+  true,
+);
+const targetedUnownedFinalGeneratedState = structuredClone(targetedReceipt);
+targetedUnownedFinalGeneratedState.cleanup.generated_next.present_after = true;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedUnownedFinalGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
 );
 
 const browserReceipt = structuredClone(baseReceipt);
@@ -528,6 +746,12 @@ console.log(
       private_material_excluded: true,
       stale_head_lock_executor_and_plan_refused: true,
       operating_policy_plan_deciding_and_validated: true,
+      owner_targeted_plan_deciding_and_validated: true,
+      owner_targeted_inventory_and_owner_drift_refused: true,
+      owner_targeted_stale_tampered_and_unattested_dependencies_refused: true,
+      owner_targeted_stale_and_residual_generated_next_refused: true,
+      owner_targeted_generated_next_cleanup_failure_refused: true,
+      restored_service_generated_next_separate_from_execution_provenance: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,
