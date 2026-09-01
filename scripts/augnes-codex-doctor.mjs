@@ -17,15 +17,12 @@ const requiredFiles = [
   "README.md",
   "AGENTS.md",
   "docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md",
-  "docs/AUGNES_CODEX_BOOTSTRAP_V0_1.md",
-  ".codex/config.toml.example",
   "plugins/augnes-operator/.codex-plugin/plugin.json",
   "plugins/augnes-operator/INSTALL.md",
   "apps/augnes_apps/package.json",
 ];
 
 const requiredPackageScripts = [
-  "augnes:codex-bootstrap",
   "augnes:doctor",
   "augnes:setup-local-demo",
   "augnes:service:install",
