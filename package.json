@@ -75,6 +75,7 @@
     "test:codex-companion-discovery": "node scripts/test-codex-companion-discovery.mjs",
     "test:codex-companion-privacy": "node scripts/test-codex-companion-privacy.mjs",
     "test:augnes-operator-plugin-setup": "node scripts/test-augnes-operator-plugin-setup.mjs",
+    "test:codex-user-hook-migration": "node scripts/test-codex-augnes-user-hook-migration.mjs",
     "test:companion-service:native": "node scripts/test-companion-service-native.mjs",
     "test:companion-service:contract": "node scripts/test-companion-service-contract.mjs",
     "test:canonical-contract": "node scripts/test-local-canonical-verification-contract.mjs",

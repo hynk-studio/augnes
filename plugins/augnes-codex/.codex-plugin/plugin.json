@@ -1,35 +1,33 @@
 {
   "name": "augnes-codex",
-  "version": "0.1.0",
-  "description": "Packages the Augnes Codex Skill for guided setup and reuse onboarding with Augnes memory/reuse/context in Codex.",
+  "version": "0.2.0",
+  "description": "Routes explicit Augnes continuity, setup, and memory-reuse requests to their current owners without priming ordinary source-first work.",
   "author": {
     "name": "hynk-studio"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Augnes Codex",
-    "shortDescription": "Guide Augnes setup, English/Korean triggers, /hooks trust, and memory reuse fallback in Codex.",
-    "longDescription": "Packages the Augnes Codex Skill v0.1 for guided setup and reuse onboarding. Guides Codex through English and Korean Augnes install/use triggers, installer dry-run, explicit --yes install, user-liftable default constraints, non-liftable /hooks trust review, and memory-reuse fallback. Hook trust remains manual; installing this plugin does not write to ~/.codex, bundle hooks, or add MCP, provider/model, storage, persistence, Codex SDK, GitHub mutation, or automatic memory item creation behavior.",
+    "shortDescription": "Guide explicit Augnes continuity, setup, and bounded memory reuse in Codex.",
+    "longDescription": "Packages the Augnes Codex skill for explicit continuity, setup, and memory-reuse requests. Current repository resumption delegates to the reviewed Augnes Operator and Companion owners; explicit memory reuse uses the bounded manual intake or an explicitly installed user-level hook. Ordinary source-first work is not memory-primed.",
     "developerName": "hynk-studio",
     "category": "Productivity",
     "capabilities": [
       "workflow-guidance",
       "skill-packaging",
-      "memory-reuse-onboarding",
-      "installer-dry-run-guidance",
-      "manual-hook-trust-guidance"
+      "continuity-routing",
+      "explicit-memory-reuse",
+      "manual-hook-migration-guidance"
     ],
     "defaultPrompt": [
       "Use Augnes for this task",
       "Set up Augnes in Codex",
       "Start with Augnes memory",
       "Review this PR with Augnes context",
-      "Enable Augnes reuse",
       "Use Augnes context before editing",
       "Codex야 Augnes 설치해줘",
       "Codex야 Augnes 쓰자",
       "Augnes memory 보고 시작해",
-      "Augnes reuse 켜줘",
       "Augnes context 붙여서 작업해줘",
       "아그네스 설치해줘",
       "아그네스 쓰자"

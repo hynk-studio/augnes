@@ -327,6 +327,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "Codex explicit-reuse hook migration and uninstall contract",
+      ...rootNode("scripts/test-codex-augnes-user-hook-migration.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "private live Companion Host, Origin, CORS, and proxy-channel contract",
       ...rootNode("scripts/test-codex-companion-privacy.mjs"),
       timeoutMs: 30_000,

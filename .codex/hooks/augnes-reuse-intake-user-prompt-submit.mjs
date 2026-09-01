@@ -28,10 +28,12 @@ const REUSE_BRIEF_MARKERS = [
   "# Perspective Memory Reuse Intake v0",
 ];
 
-const DEVELOPMENT_TASK_PATTERNS = [
-  /\b(add|address|adjust|audit|build|change|check|create|debug|document|fix|implement|inspect|modify|patch|refactor|repair|review|run|smoke|test|triage|update|validate|verify|wire)\b/i,
-  /\b(agents\.md|package\.json|\.codex|hook|script|docs?|reports?|smoke|typecheck|pr|branch|diff|commit|github|codex|augnes|perspective|memory|reuse|intake)\b/i,
-  /(?:^|\s)(?:app|components|docs|lib|reports|scripts|\.codex|plugins)\//i,
+const EXPLICIT_REUSE_INTENT_PATTERNS = [
+  /^(?:please\s+)?(?:use|load|read|enable)\s+augnes\s+(?:memory|memories|context|reuse)\b/i,
+  /^(?:please\s+)?start(?:\s+this\s+task)?\s+(?:with|from)\s+augnes\s+(?:memory|memories|context)\b/i,
+  /^(?:please\s+)?work\s+with\s+augnes\s+(?:memory|context|reuse)\b/i,
+  /^(?:please\s+)?review\b.{0,120}\bwith\s+augnes\s+context\b/i,
+  /^(?:codex(?:야)?[,\s]*)?(?:augnes|아그네스)\s*(?:memory|memories|context|reuse|기억|메모리|컨텍스트)(?=$|[\s\p{P}]).{0,80}(?:use|load|read|start|보고|사용|써|붙여)/iu,
 ];
 
 main();
@@ -45,7 +47,7 @@ function main() {
   if (!prompt) return;
   if (containsOptOut(prompt)) return;
   if (containsReuseBriefMarker(prompt)) return;
-  if (!promptLooksLikeDevelopmentTask(prompt)) return;
+  if (!promptRequestsExplicitReuse(prompt)) return;
 
   const repoRoot = findRepoRoot(
     typeof input.cwd === "string" && input.cwd.trim()
@@ -120,13 +122,11 @@ function appearsToBeAugnesRepo(repoRoot) {
       typeof packageJson.scripts?.["perspective:memory-reuse-intake"] ===
       "string";
     const agentsText = safeRead(path.join(repoRoot, "AGENTS.md"));
-    const hasInstructionMarker =
-      agentsText.includes("Codex Operating Contract For Augnes") ||
-      agentsText.includes("Codex Augnes Reuse Hook v0.1");
+    const hasInstructionMarker = agentsText.includes(
+      "small, durable repository constitution for Augnes",
+    );
     const gitConfig = safeRead(path.join(repoRoot, ".git", "config"));
-    const hasRepoMarker =
-      gitConfig.includes("hynk-studio/augnes") ||
-      gitConfig.includes("Aurna-code/augnes");
+    const hasRepoMarker = gitConfig.includes("hynk-studio/augnes");
     return (
       hasPackageMarker &&
       hasIntakeCommand &&
@@ -149,15 +149,11 @@ function containsReuseBriefMarker(prompt) {
   return /memory_item_id:\s*perspective-memory-item:[\w:.-]+/i.test(prompt);
 }
 
-function promptLooksLikeDevelopmentTask(prompt) {
+function promptRequestsExplicitReuse(prompt) {
   const normalized = normalizePrompt(prompt);
-  if (/^(hi|hello|hey|thanks|thank you|ok|okay|sounds good|what'?s up)[.!?\s]*$/i.test(normalized)) {
-    return false;
-  }
-  if (/^(what time is it|what is the date|tell me a joke)[?!.]?\s*$/i.test(normalized)) {
-    return false;
-  }
-  return DEVELOPMENT_TASK_PATTERNS.some((pattern) => pattern.test(prompt));
+  return EXPLICIT_REUSE_INTENT_PATTERNS.some((pattern) =>
+    pattern.test(normalized),
+  );
 }
 
 function runReuseIntake(repoRoot, prompt) {

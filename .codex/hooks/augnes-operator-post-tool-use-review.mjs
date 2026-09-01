@@ -10,7 +10,7 @@ if (!/^(Bash|exec_command)$/i.test(toolName) || !isVerificationCommand(command))
   const additionalContext = outcome === "failed"
     ? "Augnes operator review: the structured command status reports a verification failure. Keep the failure visible in Verification or Skipped checks."
     : outcome === "passed"
-      ? "Augnes operator review: the structured command status reports a verification pass. Record evidence only when the applicable runtime context is available."
+      ? "Augnes operator review: the structured command status reports a verification pass. Keep the exact result in the PR verification summary."
       : "";
   writeJson(
     additionalContext

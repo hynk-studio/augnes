@@ -23,7 +23,7 @@ const operatorManifest = JSON.parse(readFileSync(
 ));
 const operatorDefaultPrompt = operatorManifest.interface?.defaultPrompt;
 assert.equal(typeof operatorDefaultPrompt, "string");
-assert.equal(operatorManifest.version, "0.4.0");
+assert.equal(operatorManifest.version, "0.5.0");
 assert.ok(operatorDefaultPrompt.length <= 256);
 assert.match(operatorDefaultPrompt, /augnes_companion_lifecycle_status/u);
 assert.match(operatorDefaultPrompt, /augnes_start_companion_service once/u);
@@ -38,10 +38,11 @@ const operatorHooks = JSON.parse(readFileSync(
   "utf8",
 ));
 assert.equal(Object.hasOwn(operatorHooks.hooks, "Stop"), false);
+assert.equal(Object.hasOwn(operatorHooks.hooks, "UserPromptSubmit"), false);
 const operatorHookCommands = Object.values(operatorHooks.hooks).flatMap((groups) =>
   groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
 );
-assert.equal(operatorHookCommands.length, 4);
+assert.equal(operatorHookCommands.length, 3);
 for (const command of operatorHookCommands) {
   assert.match(command, /^node "\$\(git rev-parse --show-toplevel\)\/\.codex\/hooks\/[a-z0-9-]+\.mjs"$/u);
   assert.equal(command.includes("$PLUGIN_ROOT"), false);
@@ -64,16 +65,14 @@ const repositoryResumeHookOutput = JSON.parse(repositoryResumeHook.stdout);
 assert.equal(repositoryResumeHookOutput.hookSpecificOutput?.hookEventName, "SessionStart");
 assert.match(
   repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
-  /first call augnes_companion_lifecycle_status with repositoryRoot equal to the exact absolute current working directory/u,
+  /Ordinary source-first work does not require continuity or memory priming/u,
 );
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_start_companion_service exactly once/u);
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /call augnes_resume_repository exactly once/u);
 assert.match(
   repositoryResumeHookOutput.hookSpecificOutput?.additionalContext,
-  /augnes_prepare_repository_execution with repositoryRoot equal to that same exact absolute current working directory/u,
+  /Explicit resume, continue, recovery, or current-state intent uses the reviewed Augnes Operator Companion lifecycle and repository-continuity owner/u,
 );
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /before reading repository files, docs, memory, or skills/u);
-assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /do not reconstruct continuity/u);
+assert.match(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /planner-selected exact-head verification/u);
+assert.doesNotMatch(repositoryResumeHookOutput.hookSpecificOutput?.additionalContext, /codex:read-brief|record-completion-proof/u);
 
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-companion-discovery-"));
 const instance = "runtime-instance-cdx2b1";
