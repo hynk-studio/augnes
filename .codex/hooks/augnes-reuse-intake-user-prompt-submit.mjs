@@ -33,7 +33,7 @@ const EXPLICIT_REUSE_INTENT_PATTERNS = [
   /^(?:please\s+)?start(?:\s+this\s+task)?\s+(?:with|from)\s+augnes\s+(?:memory|memories|context)\b/i,
   /^(?:please\s+)?work\s+with\s+augnes\s+(?:memory|context|reuse)\b/i,
   /^(?:please\s+)?review\b.{0,120}\bwith\s+augnes\s+context\b/i,
-  /^(?:codex(?:야)?[,\s]*)?(?:augnes|아그네스)\s*(?:memory|memories|context|reuse|기억|메모리|컨텍스트)\b.{0,80}(?:use|load|read|start|보고|사용|써|붙여)/iu,
+  /^(?:codex(?:야)?[,\s]*)?(?:augnes|아그네스)\s*(?:memory|memories|context|reuse|기억|메모리|컨텍스트)(?=$|[\s\p{P}]).{0,80}(?:use|load|read|start|보고|사용|써|붙여)/iu,
 ];
 
 main();

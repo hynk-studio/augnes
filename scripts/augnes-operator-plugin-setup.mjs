@@ -86,6 +86,8 @@ export function verifyOperatorPluginCache({
   ));
   if (
     manifest.version !== REVIEWED_OPERATOR_PLUGIN_VERSION ||
+    manifest.author?.name !== "hynk-studio" ||
+    manifest.interface?.developerName !== "hynk-studio" ||
     Object.hasOwn(manifest, "hooks") ||
     !manifest.interface?.defaultPrompt?.includes("augnes_companion_lifecycle_status") ||
     !manifest.interface?.defaultPrompt?.includes("augnes_start_companion_service") ||
@@ -99,6 +101,7 @@ export function verifyOperatorPluginCache({
     cache_locator:
       `${MARKETPLACE_NAME}/augnes-operator/${REVIEWED_OPERATOR_PLUGIN_VERSION}`,
     reviewed_files_verified: REVIEWED_FILES.length,
+    canonical_developer_identity: true,
     stale_cache_versions: 0,
   };
 }

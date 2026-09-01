@@ -54,6 +54,7 @@ try {
   assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);
   assert.equal(verified.reviewed_files_verified, 11);
+  assert.equal(verified.canonical_developer_identity, true);
   verifyNoPluginLifecycleHooks(sourceRoot);
   verifyNoPluginLifecycleHooks(currentCache);
   verifyProjectHooks();
@@ -90,6 +91,7 @@ try {
   console.log(JSON.stringify({
     status: "pass",
     reviewed_plugin_version: "0.5.0",
+    canonical_developer_identity: true,
     stale_0_3_0_refused: true,
     plugin_default_hooks_absent: true,
     duplicate_generic_skills_absent: true,

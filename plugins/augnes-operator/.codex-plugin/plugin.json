@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "description": "Augnes workflow harness plus a fail-closed macOS Companion service lifecycle and exact canonical repository continuity.",
   "author": {
-    "name": "Aurna-code"
+    "name": "hynk-studio"
   },
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -11,7 +11,7 @@
     "displayName": "Augnes Operator",
     "shortDescription": "Use Augnes workflow skills inside Codex.",
     "longDescription": "Packages Augnes workflow skills, bounded status and start controls for an explicitly installed checkout-bound macOS Companion service, and exact canonical continuity through one verified live Companion without mock or fallback state.",
-    "developerName": "Aurna-code",
+    "developerName": "hynk-studio",
     "category": "Productivity",
     "capabilities": [
       "workflow-guidance",

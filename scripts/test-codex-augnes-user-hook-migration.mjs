@@ -115,14 +115,21 @@ try {
     1,
   );
 
-  assert.equal(
-    runInstalledHook(installedScript, {
-      hook_event_name: "UserPromptSubmit",
-      cwd: repositoryRoot,
-      prompt: "Fix the Codex script and review the pull request.",
-    }),
-    "",
-  );
+  const genericDevelopmentPrompts = [
+    "Fix the Codex script and review the pull request.",
+    "Audit the current source and inspect the Perspective memory reuse matcher.",
+  ];
+  for (const prompt of genericDevelopmentPrompts) {
+    assert.equal(
+      runInstalledHook(installedScript, {
+        hook_event_name: "UserPromptSubmit",
+        cwd: repositoryRoot,
+        prompt,
+      }),
+      "",
+      `generic development prompt must not inject reuse context: ${prompt}`,
+    );
+  }
 
   const explicitOutput = JSON.parse(runInstalledHook(installedScript, {
     hook_event_name: "UserPromptSubmit",
@@ -137,6 +144,26 @@ try {
     explicitOutput.hookSpecificOutput?.additionalContext ?? "",
     /Codex Augnes Reuse Context/u,
   );
+
+  const koreanReusePrompts = [
+    "아그네스 메모리 사용해",
+    "아그네스 기억 보고 시작해",
+  ];
+  for (const prompt of koreanReusePrompts) {
+    const output = JSON.parse(runInstalledHook(installedScript, {
+      hook_event_name: "UserPromptSubmit",
+      cwd: repositoryRoot,
+      prompt,
+    }, { fakeNpm: true }));
+    assert.equal(
+      output.hookSpecificOutput?.hookEventName,
+      "UserPromptSubmit",
+    );
+    assert.match(
+      output.hookSpecificOutput?.additionalContext ?? "",
+      /Codex Augnes Reuse Context/u,
+    );
+  }
 
   const beforeDryRunUninstall = readFileSync(hooksFile, "utf8");
   const dryRunUninstall = uninstallUserHook({
@@ -177,7 +204,9 @@ try {
     status: "pass",
     project_default_user_prompt_submit_absent: true,
     generic_source_first_prompt_injection: false,
+    generic_development_prompts_refused: genericDevelopmentPrompts.length,
     explicit_reuse_prompt_supported: true,
+    explicit_korean_reuse_prompts_supported: koreanReusePrompts.length,
     legacy_entry_updated: true,
     unrelated_user_hooks_preserved: true,
     installer_owned_files_removed: true,
