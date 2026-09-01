@@ -137,6 +137,17 @@ const tsconfig = JSON.parse(readRepositoryFile("tsconfig.json"));
 const nodeVersionMarker = readRepositoryFile(".node-version").trim();
 const packageJson = JSON.parse(readRepositoryFile("package.json"));
 
+assert.deepEqual(
+  listFiles(".agents/skills").filter((file) => file.endsWith("/SKILL.md")),
+  [".agents/skills/augnes-codex/SKILL.md"],
+  "repository-local skill surface must contain only the current user-facing Augnes router",
+);
+assert.equal(
+  readRepositoryFile(".agents/skills/augnes-codex/SKILL.md"),
+  readRepositoryFile("plugins/augnes-codex/skills/augnes-codex/SKILL.md"),
+  "repo-local and packaged Augnes Codex skills must remain identical",
+);
+
 const activeWorkflowFiles = listFiles(".github/workflows").filter((file) =>
   /\.ya?ml$/iu.test(file),
 );
@@ -198,29 +209,40 @@ for (const fragment of [
   );
 }
 for (const fragment of [
-  "Exact base SHA:",
-  "Exact head SHA:",
-  "Worktree status before verification:",
-  "Worktree status after verification:",
-  "Operating system and architecture:",
-  "Node version:",
-  "npm version:",
-  "Root `package-lock.json` SHA-256:",
-  "Nested `apps/augnes_apps/package-lock.json` SHA-256:",
-  "Selected plan and planner command:",
-  "Selected commands, results, and finite durations:",
-  "Cleanup result:",
-  "Remaining owned processes/listeners/runtime state/databases/profiles/temp roots:",
-  "Final result: `pass | failure`",
-  "no GitHub Actions workflow was invoked",
-  "not an independent hosted reproduction",
+  "# Summary / outcome",
+  "## Scope / changed responsibilities",
+  "## Authority / non-goals",
+  "## Verification",
+  "Local Canonical planner result:",
+  "Deciding exact-head command and result, when applicable:",
+  "## Skipped checks / remaining risks",
+  "Local evidence is review material",
 ]) {
   requireText(
     pullRequestTemplate,
     fragment,
-    `pull-request template is missing local evidence: ${fragment}`,
+    `pull-request template is missing concise workflow guidance: ${fragment}`,
   );
 }
+for (const obsoleteFixedField of [
+  "Augnes Work ID:",
+  "## Execution Surfaces Used",
+  "## Browser / Chrome Checks",
+  "## Structured Evidence Records",
+  "## Optional Local Canonical PR publication",
+  "Pseudonymous local machine fingerprint:",
+  "Root `package-lock.json` SHA-256:",
+]) {
+  assert.equal(
+    pullRequestTemplate.includes(obsoleteFixedField),
+    false,
+    `pull-request template must not require obsolete fixed ceremony: ${obsoleteFixedField}`,
+  );
+}
+assert.ok(
+  pullRequestTemplate.split(/\r?\n/u).length <= 40,
+  "pull-request template must remain concise",
+);
 
 const canonicalCommands = Object.freeze({
   typegen: "next typegen",
@@ -798,12 +820,11 @@ for (const fragment of [
   `Local-linked verification result:`,
   `Identical-publication idempotent no-op proof:`,
   `Replacement used: \`yes | no\``,
-  `not a signature`,
 ]) {
-  requireText(
-    pullRequestTemplate,
-    fragment,
-    `pull-request template publication field is missing: ${fragment}`,
+  assert.equal(
+    pullRequestTemplate.includes(fragment),
+    false,
+    `ordinary pull-request template must not require optional publication metadata: ${fragment}`,
   );
 }
 for (const fragment of [

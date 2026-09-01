@@ -50,7 +50,7 @@ the existing checkout service.
 The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
 surface; that build uses `plugin add`, not a nonexistent `plugin install`
 command. It refreshes an already-installed local plugin, requires effective
-version 0.4.0, verifies the cached manifest/proxy/service core/skill as one
+version 0.5.0, verifies the cached manifest/proxy/service core/skills as one
 reviewed copy, rejects a retained default `hooks/hooks.json`, and refuses any
 silently retained 0.3.0 cache. The
 plugin and checkout service installs are explicit setup actions. No fixed bridge URL or copied
@@ -70,11 +70,12 @@ explicit structured status for known verification commands, not arbitrary
 words in command output. No `Stop` hook is registered, so an automatic
 continuation cannot replace or condense the assistant's final answer.
 
-Plugin version 0.4.0 replaces stale 0.3.0 Resume-first behavior. Start a new
+Plugin version 0.5.0 replaces stale pre-0.5 workflow-skill inventories while
+preserving the same Companion lifecycle and repository-continuity owners. Start a new
 Codex conversation after refreshing the repo-local marketplace and plugin so
 the proxy, skill, and default prompt all come from the same reviewed version;
 the trusted checkout supplies project-local hooks separately. Setup
-verification fails closed if 0.3.0 or a cached default hook config remains
+verification fails closed if another cached version or a cached default hook config remains
 effective.
 
 ## What the proxy does

@@ -46,7 +46,7 @@ CODEX_RESULT_SUMMARY="Codex completed the requested slice and verified checks." 
 CODEX_FILES_CHANGED="AGENTS.md,docs/example.md" \
 CODEX_RESULT_STATUS=completed \
 CODEX_RESULT_KIND=documentation \
-CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/___" \
+CODEX_RELATED_PR="https://github.com/hynk-studio/augnes/pull/___" \
 CODEX_RELATED_STATE_KEYS="coordination.example" \
 npm run codex:record-completion-proof
 ```

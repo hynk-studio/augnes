@@ -192,12 +192,10 @@ function assertAugnesRepo(repoRoot) {
   const packageJson = readJson(path.join(repoRoot, "package.json"), "package.json");
   const agentsText = safeRead(path.join(repoRoot, "AGENTS.md"));
   const gitRemoteText = readGitRemoteText(repoRoot);
-  const hasRepoMarker =
-    gitRemoteText.includes("hynk-studio/augnes") ||
-    gitRemoteText.includes("Aurna-code/augnes");
-  const hasAgentsMarker =
-    agentsText.includes("Codex Operating Contract For Augnes") ||
-    agentsText.includes("Codex Augnes Reuse Hook v0.1");
+  const hasRepoMarker = gitRemoteText.includes("hynk-studio/augnes");
+  const hasAgentsMarker = agentsText.includes(
+    "small, durable repository constitution for Augnes",
+  );
 
   if (packageJson.name !== "augnes") {
     throw new Error("Refusing install: package.json name is not augnes.");
@@ -209,7 +207,7 @@ function assertAugnesRepo(repoRoot) {
     throw new Error("Refusing install: AGENTS.md Augnes marker is missing.");
   }
   if (!hasRepoMarker) {
-    throw new Error("Refusing install: git remote does not contain hynk-studio/augnes or Aurna-code/augnes.");
+    throw new Error("Refusing install: git remote does not contain hynk-studio/augnes.");
   }
 }
 
@@ -240,13 +238,9 @@ function buildUserLevelHookSource(repoRoot) {
   );
   source = source.replace(
     `    const gitConfig = safeRead(path.join(repoRoot, ".git", "config"));
-    const hasRepoMarker =
-      gitConfig.includes("hynk-studio/augnes") ||
-      gitConfig.includes("Aurna-code/augnes");`,
+    const hasRepoMarker = gitConfig.includes("hynk-studio/augnes");`,
     `    const gitRemoteText = readGitRemoteText(repoRoot);
-    const hasRepoMarker =
-      gitRemoteText.includes("hynk-studio/augnes") ||
-      gitRemoteText.includes("Aurna-code/augnes");`,
+    const hasRepoMarker = gitRemoteText.includes("hynk-studio/augnes");`,
   );
   source = source.replace(
     "\nfunction safeRead(filePath) {",

@@ -13,15 +13,30 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-export const REVIEWED_OPERATOR_PLUGIN_VERSION = "0.4.0";
+export const REVIEWED_OPERATOR_PLUGIN_VERSION = "0.5.0";
 const MARKETPLACE_NAME = "augnes-local";
 const PLUGIN_ID = `augnes-operator@${MARKETPLACE_NAME}`;
+const REVIEWED_SKILLS = Object.freeze([
+  "augnes-autonomy-contract",
+  "augnes-closeout-proof",
+  "augnes-codex-surface-ops",
+  "augnes-guidebrief-handoff",
+  "augnes-live-repository-continuity",
+  "augnes-read-brief",
+  "augnes-record-evidence",
+]);
 const REVIEWED_FILES = Object.freeze([
   ".codex-plugin/plugin.json",
   ".mcp.json",
   "mcp/companion-proxy.mjs",
   "mcp/companion-service-core.mjs",
+  "skills/augnes-autonomy-contract/SKILL.md",
+  "skills/augnes-closeout-proof/SKILL.md",
+  "skills/augnes-codex-surface-ops/SKILL.md",
+  "skills/augnes-guidebrief-handoff/SKILL.md",
   "skills/augnes-live-repository-continuity/SKILL.md",
+  "skills/augnes-read-brief/SKILL.md",
+  "skills/augnes-record-evidence/SKILL.md",
 ]);
 const repositoryRoot = realpathSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
@@ -56,6 +71,8 @@ export function verifyOperatorPluginCache({
   }
   assertNoDefaultHookConfig(sourceRoot);
   assertNoDefaultHookConfig(expectedInstalledPath);
+  assertReviewedSkillInventory(sourceRoot);
+  assertReviewedSkillInventory(expectedInstalledPath);
   for (const relativePath of REVIEWED_FILES) {
     const source = safeRegularFile(sourceRoot, relativePath);
     const cached = safeRegularFile(expectedInstalledPath, relativePath);
@@ -89,6 +106,21 @@ export function verifyOperatorPluginCache({
 function assertNoDefaultHookConfig(root) {
   if (existsSync(path.join(root, "hooks", "hooks.json"))) {
     throw setupError("operator_plugin_default_hooks_present");
+  }
+}
+
+function assertReviewedSkillInventory(root) {
+  const skillRoot = path.join(root, "skills");
+  const actual = readdirSync(skillRoot, { withFileTypes: true })
+    .filter((entry) =>
+      entry.isDirectory() &&
+      !entry.isSymbolicLink() &&
+      existsSync(path.join(skillRoot, entry.name, "SKILL.md")),
+    )
+    .map((entry) => entry.name)
+    .sort();
+  if (JSON.stringify(actual) !== JSON.stringify(REVIEWED_SKILLS)) {
+    throw setupError("operator_plugin_skill_inventory_invalid");
   }
 }
 

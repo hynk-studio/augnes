@@ -1,6 +1,6 @@
 {
   "name": "augnes-operator",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Augnes workflow harness plus a fail-closed macOS Companion service lifecycle and exact canonical repository continuity.",
   "author": {
     "name": "Aurna-code"
@@ -15,10 +15,8 @@
     "category": "Productivity",
     "capabilities": [
       "workflow-guidance",
-      "preflight",
       "surface-ops-guidance",
       "capsule-handoff-guidance",
-      "authority-audit",
       "companion-service-lifecycle",
       "live-repository-continuity"
     ],

@@ -51,9 +51,9 @@ try {
   };
   const verified = runOperatorPluginSetup({ runCodex: exactRunner, cacheRoot });
   assert.equal(addCalls, 1);
-  assert.equal(verified.version, "0.4.0");
+  assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);
-  assert.equal(verified.reviewed_files_verified, 5);
+  assert.equal(verified.reviewed_files_verified, 11);
   verifyNoPluginLifecycleHooks(sourceRoot);
   verifyNoPluginLifecycleHooks(currentCache);
   verifyProjectHooks();
@@ -73,7 +73,7 @@ try {
     ? commandResult({ marketplaces: [{ name: "augnes-local", root: repositoryRoot }] })
     : commandResult({
         pluginId: "augnes-operator@augnes-local",
-        version: "0.4.0",
+        version: "0.5.0",
         installedPath: currentCache,
       });
   assert.throws(
@@ -89,9 +89,10 @@ try {
   assert.equal(trackedCache.stdout.trim(), "");
   console.log(JSON.stringify({
     status: "pass",
-    reviewed_plugin_version: "0.4.0",
+    reviewed_plugin_version: "0.5.0",
     stale_0_3_0_refused: true,
     plugin_default_hooks_absent: true,
+    duplicate_generic_skills_absent: true,
     project_local_hooks_verified: true,
     stop_continuation_absent: true,
     structured_verification_status_only: true,
@@ -121,16 +122,16 @@ function verifyProjectHooks() {
     "PostToolUse",
     "PreToolUse",
     "SessionStart",
-    "UserPromptSubmit",
   ]);
   assert.equal(Object.hasOwn(config.hooks, "Stop"), false);
+  assert.equal(Object.hasOwn(config.hooks, "UserPromptSubmit"), false);
   assert.equal(config.hooks.PreToolUse[0].matcher, "Bash");
   assert.equal(config.hooks.PostToolUse[0].matcher, "Bash");
 
   const commands = Object.values(config.hooks).flatMap((groups) =>
     groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
   );
-  assert.equal(commands.length, 4);
+  assert.equal(commands.length, 3);
   for (const command of commands) {
     assert.match(command, /^node "\$\(git rev-parse --show-toplevel\)\/\.codex\/hooks\/[a-z0-9-]+\.mjs"$/u);
     assert.equal(command.includes("$PLUGIN_ROOT"), false);
@@ -142,6 +143,17 @@ function verifyProjectHooks() {
   });
   assert.equal(sessionOutput.hookSpecificOutput?.hookEventName, "SessionStart");
   assert.match(sessionOutput.hookSpecificOutput?.additionalContext ?? "", /Augnes operator guardrails/u);
+
+  for (const prompt of [
+    "Fix the Codex script and review the pull request.",
+    "Audit current source and inspect the Perspective memory reuse implementation.",
+  ]) {
+    assert.equal(runProjectHookRaw("augnes-reuse-intake-user-prompt-submit.mjs", {
+      hook_event_name: "UserPromptSubmit",
+      prompt,
+      cwd: repositoryRoot,
+    }), "", `ordinary source-first prompt must not receive reuse context: ${prompt}`);
+  }
 
   assert.deepEqual(runProjectHook("augnes-operator-pre-tool-use-policy.mjs", {
     hook_event_name: "PreToolUse",
@@ -212,6 +224,11 @@ function verifyProjectHooks() {
 }
 
 function runProjectHook(file, input) {
+  const output = runProjectHookRaw(file, input);
+  return JSON.parse(output);
+}
+
+function runProjectHookRaw(file, input) {
   const result = spawnSync(
     process.execPath,
     [path.join(repositoryRoot, ".codex", "hooks", file)],
@@ -223,5 +240,5 @@ function runProjectHook(file, input) {
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
-  return JSON.parse(result.stdout);
+  return result.stdout;
 }
