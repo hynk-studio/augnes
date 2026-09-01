@@ -602,9 +602,15 @@ function assertReceiptProjectionEligible(receipt) {
         "boolean" ||
       typeof receipt.cleanup?.generated_next?.removed_after_execution !==
         "boolean" ||
-      receipt.cleanup.generated_next.present_after !== false ||
+      receipt.cleanup.generated_next.present_after_execution_cleanup !==
+        false ||
+      typeof receipt.cleanup.generated_next.present_after !== "boolean" ||
       receipt.cleanup.generated_next.removed_before_execution !==
-        receipt.cleanup.generated_next.present_before)
+        receipt.cleanup.generated_next.present_before ||
+      (receipt.cleanup.generated_next.present_after === true &&
+        (receipt.cleanup?.companion_service?.before?.status !== "live" ||
+          receipt.cleanup?.companion_service?.after?.status !== "live" ||
+          receipt.cleanup?.companion_service?.restored !== true)))
   ) {
     throw evidenceError(
       "receipt_generated_next_projection_mismatch",

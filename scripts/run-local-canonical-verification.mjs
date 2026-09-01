@@ -497,6 +497,7 @@ export async function executeLocalCanonicalVerification({
   let executionFailure = preflightIssues.length > 0;
   let cleanupComplete = true;
   let cleanupReason = null;
+  let generatedNextPresentAfterExecutionCleanup = nextState.present_before;
 
   try {
     if (!executionFailure) {
@@ -568,21 +569,26 @@ export async function executeLocalCanonicalVerification({
     );
   } finally {
     console.log("[local-canonical] cleanup_start");
+    if (generatedNextManaged && generatedNextEntryPresent()) {
+      try {
+        nextState.removed_after_execution =
+          removeBoundedGeneratedNextState();
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+    }
+    generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
+    if (generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
+      cleanupComplete = false;
+      cleanupReason ??= "generated_next_cleanup_incomplete";
+    }
     if (dependencyMaintenance && !dependencyMaintenanceRelease) {
       try {
         dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
           repositoryRoot,
           lease: dependencyMaintenance.lease,
         });
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
-    if (generatedNextManaged && generatedNextEntryPresent()) {
-      try {
-        nextState.removed_after_execution =
-          removeBoundedGeneratedNextState();
       } catch (error) {
         cleanupComplete = false;
         cleanupReason = safeErrorCode(error);
@@ -625,11 +631,6 @@ export async function executeLocalCanonicalVerification({
     cleanupReason ??= "companion_service_not_restored";
   }
   const generatedNextPresentAfter = generatedNextEntryPresent();
-  if (generatedNextManaged && generatedNextPresentAfter) {
-    executionFailure = true;
-    cleanupComplete = false;
-    cleanupReason ??= "generated_next_cleanup_incomplete";
-  }
   const cleanupRemaining = phaseReceipts.some(
     (phase) =>
       phase.status !== "not_run" &&
@@ -638,7 +639,7 @@ export async function executeLocalCanonicalVerification({
     ? "unknown"
     : "0";
   console.log(
-    `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present=${generatedNextPresentAfter} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
+    `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present_after_execution_cleanup=${generatedNextPresentAfterExecutionCleanup} generated_next_present_after_service_restore=${generatedNextPresentAfter} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
   );
 
   let identityAfter;
@@ -821,6 +822,8 @@ export async function executeLocalCanonicalVerification({
       },
       generated_next: {
         ...nextState,
+        present_after_execution_cleanup:
+          generatedNextPresentAfterExecutionCleanup,
         present_after: generatedNextPresentAfter,
       },
       generated_windows_helper: {

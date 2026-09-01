@@ -285,9 +285,14 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       typeof generatedNext?.present_before === "boolean" &&
       typeof generatedNext?.removed_before_execution === "boolean" &&
       typeof generatedNext?.removed_after_execution === "boolean" &&
-      generatedNext?.present_after === false &&
+      generatedNext?.present_after_execution_cleanup === false &&
+      typeof generatedNext?.present_after === "boolean" &&
       generatedNext.removed_before_execution ===
-        generatedNext.present_before;
+        generatedNext.present_before &&
+      (generatedNext.present_after === false ||
+        (receipt?.cleanup?.companion_service?.before?.status === "live" &&
+          receipt?.cleanup?.companion_service?.after?.status === "live" &&
+          receipt?.cleanup?.companion_service?.restored === true));
     if (!generatedNextProvenanceValid) {
       issues.push("receipt_generated_next_provenance_invalid");
     }

@@ -495,6 +495,7 @@ function buildReceipt() {
         present_before: false,
         removed_before_execution: false,
         removed_after_execution: false,
+        present_after_execution_cleanup: false,
         present_after: false,
       },
     },

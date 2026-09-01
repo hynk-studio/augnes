@@ -313,6 +313,21 @@ for (const mutate of [
     hasCode("receipt_owner_targeted_projection_mismatch"),
   );
 }
+const restoredServiceGeneratedNextReceipt = structuredClone(targetedReceipt);
+restoredServiceGeneratedNextReceipt.cleanup.companion_service = {
+  before: { status: "live" },
+  after: { status: "live" },
+  maintenance_released: true,
+  restored: true,
+};
+restoredServiceGeneratedNextReceipt.cleanup.generated_next.present_after = true;
+assert.doesNotThrow(() =>
+  buildPublicationEnvelope({
+    receipt: restoredServiceGeneratedNextReceipt,
+    pullRequest,
+    publicationCreatedAt,
+  }),
+);
 for (const mutate of [
   (candidate) => {
     candidate.dependencies.policy =
@@ -340,7 +355,7 @@ for (const mutate of [
     candidate.cleanup.generated_next.present_before = true;
   },
   (candidate) => {
-    candidate.cleanup.generated_next.present_after = true;
+    candidate.cleanup.generated_next.present_after_execution_cleanup = true;
   },
 ]) {
   const candidate = structuredClone(targetedReceipt);
@@ -592,6 +607,7 @@ console.log(
       owner_targeted_phase_order_and_validator_required: true,
       owner_targeted_receipt_ownership_projection_bound: true,
       owner_targeted_generated_next_projection_bound: true,
+      restored_service_generated_next_projection_supported: true,
       non_deciding_receipts_refused: true,
       private_material_excluded: true,
       bounded_deterministic_markdown: true,
@@ -688,6 +704,7 @@ function buildReceipt({
         present_before: false,
         removed_before_execution: false,
         removed_after_execution: false,
+        present_after_execution_cleanup: false,
         present_after: false,
       },
     },

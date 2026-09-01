@@ -231,14 +231,19 @@ not exact-head source evidence. Before both Full Canonical and owner-targeted
 execution, the executor accepts only the exact bounded root `.next` directory
 and removes any pre-existing entry before a deciding phase runs. A symlink,
 non-directory entry, or path outside that boundary fails closed without
-following or modifying the external target. After phases and Companion
-maintenance restoration, the executor removes any newly generated `.next` and
-verifies that the path is absent. Removal failure or residual state makes the
-run non-deciding and invalidates its receipt. Documentation-only and
-operating-policy-only execution remain dependency-light and do not touch
-`.next`. The executor never uses broad `git clean` or deletes unrelated files.
-Existing Canonical children continue to own their bounded OS-temporary
-resources; the executor does not create another checkout or Git working copy.
+following or modifying the external target. After phases and before Companion
+maintenance release, the executor removes any newly generated `.next` while it
+still owns the runtime-maintenance boundary and verifies that the path is absent
+at that execution-cleanup boundary. Removal failure or residual state makes the
+run non-deciding and invalidates its receipt. The executor then restores the
+exact prior Companion lifecycle. A previously live exact-checkout Companion may
+create fresh exact-head runtime `.next` state after that restoration; the
+receipt records that final observation separately, and it is not input to or
+residue from a deciding phase. Documentation-only and operating-policy-only
+execution remain dependency-light and do not touch `.next`. The executor never
+uses broad `git clean` or deletes unrelated files. Existing Canonical children
+continue to own their bounded OS-temporary resources; the executor does not
+create another checkout or Git working copy.
 
 Next.js also owns the ignored root `next-env.d.ts`. `npm run typecheck` runs
 `next typegen` before `tsc --noEmit`, so a fresh tree receives the required

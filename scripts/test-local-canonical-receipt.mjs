@@ -146,6 +146,7 @@ const baseReceipt = {
       present_before: false,
       removed_before_execution: false,
       removed_after_execution: false,
+      present_after_execution_cleanup: false,
       present_after: false,
     },
     artifact_retention: {
@@ -414,7 +415,8 @@ assert(
   ).issues.includes("receipt_generated_next_provenance_invalid"),
 );
 const targetedGeneratedStateSurvived = structuredClone(targetedReceipt);
-targetedGeneratedStateSurvived.cleanup.generated_next.present_after = true;
+targetedGeneratedStateSurvived.cleanup.generated_next.present_after_execution_cleanup =
+  true;
 assert(
   inspectReceiptForDecision(
     finalizeReceipt(targetedGeneratedStateSurvived),
@@ -422,7 +424,8 @@ assert(
   ).issues.includes("receipt_generated_next_provenance_invalid"),
 );
 const targetedGeneratedCleanupFailure = structuredClone(targetedReceipt);
-targetedGeneratedCleanupFailure.cleanup.generated_next.present_after = true;
+targetedGeneratedCleanupFailure.cleanup.generated_next.present_after_execution_cleanup =
+  true;
 targetedGeneratedCleanupFailure.cleanup.completed = false;
 const targetedGeneratedCleanupFailureResult = inspectReceiptForDecision(
   finalizeReceipt(targetedGeneratedCleanupFailure),
@@ -441,6 +444,28 @@ assert(
   targetedGeneratedCleanupFailureResult.issues.includes(
     "receipt_cleanup_incomplete",
   ),
+);
+const targetedRestoredServiceGeneratedState = structuredClone(targetedReceipt);
+targetedRestoredServiceGeneratedState.cleanup.companion_service.before.status =
+  "live";
+targetedRestoredServiceGeneratedState.cleanup.companion_service.after.status =
+  "live";
+targetedRestoredServiceGeneratedState.cleanup.generated_next.present_after =
+  true;
+assert.equal(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedRestoredServiceGeneratedState),
+    targetedContext,
+  ).valid_deciding_evidence,
+  true,
+);
+const targetedUnownedFinalGeneratedState = structuredClone(targetedReceipt);
+targetedUnownedFinalGeneratedState.cleanup.generated_next.present_after = true;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedUnownedFinalGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
 );
 
 const browserReceipt = structuredClone(baseReceipt);
@@ -726,6 +751,7 @@ console.log(
       owner_targeted_stale_tampered_and_unattested_dependencies_refused: true,
       owner_targeted_stale_and_residual_generated_next_refused: true,
       owner_targeted_generated_next_cleanup_failure_refused: true,
+      restored_service_generated_next_separate_from_execution_provenance: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,

@@ -640,8 +640,8 @@ const generatedNextFinalRemovalIndex = executorSource.indexOf(
 assert.ok(maintenanceAcquireIndex >= 0);
 assert.ok(generatedNextPreRemovalIndex > maintenanceAcquireIndex);
 assert.ok(phaseExecutionIndex > generatedNextPreRemovalIndex);
-assert.ok(maintenanceReleaseIndex > phaseExecutionIndex);
-assert.ok(generatedNextFinalRemovalIndex > maintenanceReleaseIndex);
+assert.ok(generatedNextFinalRemovalIndex > phaseExecutionIndex);
+assert.ok(maintenanceReleaseIndex > generatedNextFinalRemovalIndex);
 
 assert.deepEqual(listWorkflowFiles(), []);
 for (const forbiddenPath of [
@@ -678,6 +678,7 @@ console.log(
       owner_targeted_dependencies_cleanly_prepared_before_consumers: true,
       owner_targeted_preexisting_and_generated_next_removed: true,
       generated_next_path_and_symlink_safety_fail_closed: true,
+      generated_next_cleanup_precedes_companion_restoration: true,
       owner_targeted_arbitrary_phase_selection_refused: true,
       owner_targeted_browser_phase_exact_head_bound: true,
       full_phase_inventory_complete: true,
