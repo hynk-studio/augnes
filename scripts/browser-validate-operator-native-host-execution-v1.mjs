@@ -525,7 +525,7 @@ await runOperatorExecutionBrowserChildV1({
         `${appOrigin}/workbench/semantic-review?active-project-return=1`,
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
+        `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-delegated-work-action="start"][data-augnes-primary-action="start-codex-work"]:not(:disabled)') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
         "revision editor requires fresh activation after project return",
       );
       const staleInitialization = await lifecycle.evaluateJson(`(async () => {
