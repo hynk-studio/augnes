@@ -2350,27 +2350,49 @@ calls the provider again. The resumed path uses `thread/resume`, never
 and proposal owners under the next generation. Resume completion is not
 semantic acceptance.
 
-## Next separately authorized work
+## Separately authorized work
 
 No automatic-resume policy is authorized by CDX2B4B. A bounded automatic-resume
 policy, if pursued, is a later separately authorized phase. Current-session
 attachment, automatic resume after controller loss or Companion startup,
 Linux product rollout, remote nodes, long-horizon continuation,
 continuous policy execution, and multi-agent orchestration remain later and
-separate. PC6 and C9 remain separate. Windows enablement remains separately
-authorized under CDX2B3B.
+separate. PC6 remains separate. Windows enablement remains separately
+authorized under CDX2B3B. The current cleanup program does not authorize any of
+these capabilities.
 
-## Pending C9
+## Current repository cleanup and C9
 
-C9 compatibility and obsolete-surface reduction remains pending separate
-explicit authorization. RR0, RR1, PC1, PC2, PC3, PC4 and the bounded first PC5
-slice do not authorize it.
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the Current,
+temporary post-CW1 repository-cleanup program and the explicit authorization to
+begin proof-backed C9 compatibility and obsolete-surface dispositions. C9 is
+authorized and Current; it is not completed. Issue #1170 is not blanket
+deletion authority and does not replace the proof boundary in the temporary
+correction charter or the phase-neutral repository reduction policy.
 
-Before C9 can begin, each proposed removal, redirect, demotion, or retained
-compatibility path needs the proof defined in the temporary correction charter:
-replacement parity, current consumers, deep links, data and migration safety,
-package/external integration effects, test coverage, rollback, and exact
-disposition.
+CW1 remains terminal history with scientific disposition `not_tested`, as
+recorded by the
+[CW1 closeout](./research/ACGC_CW1_TERMINAL_CLOSEOUT_AND_SALVAGE_V0_1.md).
+Cleanup may audit current consumers of independently useful generic material;
+it must not recreate retired CW1 APIs or reinterpret the failed pre-empirical
+track as a scientific result.
+
+The cleanup does not activate, implement, reinterpret, merge, or close the
+separately owned work in Augnes Issues
+[#1130](https://github.com/hynk-studio/augnes/issues/1130),
+[#1143](https://github.com/hynk-studio/augnes/issues/1143),
+[#1148](https://github.com/hynk-studio/augnes/issues/1148),
+[#1149](https://github.com/hynk-studio/augnes/issues/1149), or
+[#1150](https://github.com/hynk-studio/augnes/issues/1150). Their existing
+statuses and claims remain unchanged. Any future implementation of #1149 or
+#1150 must re-audit current owners because the CW1 APIs named in their issue
+text are historical; those APIs must not be recreated to satisfy stale
+prescriptions.
+
+Each proposed removal, redirect, demotion, retention, or replacement still
+needs exact replacement parity, current-consumer and deep-link proof, data and
+migration safety, authority and integration effects, rollback, focused tests,
+and planner-selected exact-head verification.
 
 ## Later product directions
 
@@ -2419,10 +2441,13 @@ surface, or user experience.
 | Arena, actor, challenger, and debate substrate | Productization and automatic promotion remain deferred. A separately authorized local/offline Lab experiment may begin only after shared ACGC attribution/evaluation prerequisites exist. | Lab selection is not `ReviewDecision`, actor-private memory is not product memory, and no actor/population result may write TaskContext, Personal/Project Perspective, Core state, execution authority, or external authority. |
 | Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
 
-For current sequencing, the ACGC summary row's earlier “preferred next”
-wording is historical pre-Issue-#212 context, and its P6U-Current wording is
-superseded by P6U's merge at `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5`
-and the completed P6V section above. E2R2P3H Issue #212 / PR #213 is
+For current sequencing, the ACGC summary row's C9-unauthorized wording records
+the research program's pre-Issue-#1170 boundary and is superseded only for the
+current cleanup authorization; no ACGC claim or research authority changes.
+The row's earlier “preferred next” wording is historical pre-Issue-#212
+context, and its P6U-Current wording is superseded by P6U's merge at
+`66fa9ee3dc20ceaf6054ea4afa445fce20c190f5` and the completed P6V section
+above. E2R2P3H Issue #212 / PR #213 is
 Completed at `8fb239d05d0839e64c7975539dd4c5bdcea8d772`. E2R2P4H Issue #214 /
 PR #215 is Completed at `9d82daf9b393cb13843809d5d94c0c33a008b05c`
 for the zero-real-egress parser-closed v0.3 compatibility harness. E2R2P4L
