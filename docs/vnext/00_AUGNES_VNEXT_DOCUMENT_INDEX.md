@@ -22,8 +22,8 @@ The governing rule is:
 | Evaluation and maturity | [`04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) | Owns correctness, product-continuity, outcome, maturity, and usefulness evaluation without inventing measured success. |
 | Temporary C0–C9 correction program | [`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md) | Owns only the reason, status, C9 proof boundary, and closeout of the temporary correction program. |
 | Product entry and supported usage | [`../../README.md`](../../README.md) | Concise product introduction, supported startup/evaluation paths, current topology summary, and links to active authority. |
-| Repository operating rules | [`../../AGENTS.md`](../../AGENTS.md) | Workspace/repository boundaries, required reading, development rules, authority restrictions, verification, and blocking product questions. |
-| Retention and deletion safety | [`../REPOSITORY_REDUCTION_SCOPE.md`](../REPOSITORY_REDUCTION_SCOPE.md) | Safety and proof requirements for later retention, reduction, and deletion work. It does not authorize C9 or cleanup. |
+| Repository operating rules | [`../../AGENTS.md`](../../AGENTS.md) | Repository identity, collaboration, development, authority, safety, exact-head verification, and Draft pull-request principles. |
+| Retention and deletion safety | [`../REPOSITORY_REDUCTION_SCOPE.md`](../REPOSITORY_REDUCTION_SCOPE.md) | Phase-neutral responsibility classes and proof requirements for authorized retention, reduction, and deletion work. It does not authorize an individual disposition. |
 
 ## Supporting layers
 
@@ -34,6 +34,16 @@ Versioned contracts such as
 verification policy, current review-window and operability contracts,
 recovery/portability contracts, and active package contracts constrain actual
 implementations. They implement canonical authority but do not override it.
+
+### Temporary cleanup program
+
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the current,
+temporary repository-cleanup program and the explicit authorization to begin
+proof-backed C9 dispositions. It is not permanent product or Core doctrine,
+does not complete C9, and is not blanket deletion authority. `03` owns current
+program sequencing, `07` owns the temporary C9 proof boundary, and the
+repository reduction policy owns phase-neutral classification and disposition
+proof.
 
 ### Active research
 
@@ -87,6 +97,8 @@ separates independently useful generic mechanisms and research-method lessons
 from CW1-specific historical machinery, and defines a consumer-audited
 reduction boundary. It is closeout/history material only and does not own
 current sequencing, authorize deletion, or create a scientific conclusion.
+Its scientific disposition remains `not_tested`, and its track disposition
+remains terminal history.
 
 ## Conflict resolution
 

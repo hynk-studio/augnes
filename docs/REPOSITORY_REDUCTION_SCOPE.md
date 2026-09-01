@@ -1,237 +1,166 @@
-# Repository Reduction Scope
+# Repository retention and reduction policy
 
-## Decision
+## Role
 
-Augnes development is organized around one operability-first product path:
+This is the durable, phase-neutral policy for classifying current repository
+material during an explicitly authorized retention, reduction, absorption, or
+deletion task.
 
-```text
-Start Augnes
-→ select a project
-→ start or accept a task
-→ compile project context
-→ run the native host / Codex interactively or through bounded automation
-→ return a structured result
-→ review the result
-→ approve any durable semantic change
-→ reuse the changed context in later work
-```
+It does not own product doctrine, Core/protocol semantics, implementation
+status, research claims, or cleanup sequencing. Those topics remain with the
+[authority map](./vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md) and its active
+owners. This policy supplies classification and proof requirements only; it
+never authorizes a disposition by itself.
 
-Git history is the archive. Active repository content is retained only when it satisfies at least one of these conditions:
+This policy applies only when a separate active owner explicitly authorizes a
+retention, reduction, absorption, deletion, or other disposition task. Current
+authorization and sequencing belong to the
+[roadmap](./vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) and any temporary
+program owner; this policy does not own or record their current status.
 
-1. It is used by the current product runtime.
-2. It is required by the active R1–R8 roadmap or the bounded Personal Perspective parallel lane.
-3. It preserves existing user data, migration, backup, restore, portable export, or recovery.
-4. It enforces a real safety invariant: no unauthorized durable write, no unbounded external egress, no cross-project leakage, no replay or duplicate transition, or no credential leakage.
-5. It belongs to a small canonical unit, integration, authority, operability, or end-to-end test suite.
-6. It is required for build, packaging, licensing, or CI.
+## Governing rules
 
-A filename containing `preview`, `smoke`, `dogfood`, `handoff`, `autohunt`, or `perspective` is not enough to keep or delete it. Production imports, route consumers, package or CI references, data dependencies, safety enforcement, and active-roadmap destinations decide classification.
+- Current responsibility, consumers, data, safety, authority, and replacement
+  evidence decide whether material remains in current source.
+- A name, directory, age, phase label, lack of navigation, static-import result,
+  or historical origin is not enough to keep or delete anything.
+- Git history is the primary archive. Historical value alone does not require a
+  current executable or default-authority copy when no current consumer,
+  retention requirement, or support obligation remains.
+- Unknown consumers, data effects, authority effects, or rollback behavior
+  block removal. Unknown is not evidence of obsolescence.
+- Preserve current user data, behavior, compatibility, and recovery until an
+  explicitly authorized replacement proves parity and rollback.
+- Classification does not override an active owner or expand product,
+  semantic, execution, external-effect, publication, or merge authority.
 
-## Classification
+## Responsibility classes
 
-Every retained or removed path must be classified as one of:
+Every in-scope path or coherent family must receive one or more of these
+classifications:
 
-- `KEEP_RUNTIME`: imported or invoked by the current product runtime
-- `KEEP_PLAN`: directly required by R1–R8 or the bounded Personal Perspective lane
-- `KEEP_DATA`: migration, backup, restore, portable export, recovery, or existing-data compatibility
-- `KEEP_SAFETY`: enforces a real runtime invariant
-- `ABSORB`: valuable behavior that must move into a canonical document or test before the original path is removed
-- `DELETE_NOW`: no live runtime, roadmap, data, safety, build, or canonical-test role
-- `DELETE_WITH_REPLACEMENT`: current compatibility path removed in the same PR as its tested replacement
+| Class | Meaning |
+|---|---|
+| `KEEP_RUNTIME` | Used by the current product runtime, supported host path, route, API, package, or integration. Record the exact owner and consumer. |
+| `KEEP_DATA` | Required for current data, schema compatibility, migration, export/import, backup, restore, recovery, replay, or portable history. |
+| `KEEP_SAFETY` | Enforces security, credential containment, project isolation, authority separation, idempotency, stale/replay refusal, process ownership, rollback, or another current safety invariant. |
+| `KEEP_RESEARCH_ACTIVE` | Required by research that the sequencing owner still classifies as active or current, including its bounded method, data, harness, or review obligation. Research presence creates no product or runtime authority. |
+| `KEEP_TOOLBOX` | Has a current authority-documentation, product-entry, developer, operator, verification, test, build, package, licensing, or maintenance consumer without being product runtime. |
+| `ABSORB` | Contains a durable responsibility that must move to the active owner or canonical consumer before the original material can retire. |
+| `RETIRE_HISTORY` | Serves only historical, closeout, or superseded-program use and may leave current source after consumer, data, retention, and reference proof. Git history or a bounded historical pointer remains the archive. |
+| `DELETE_WITH_REPLACEMENT` | Provides current behavior or compatibility that may be removed only in the same reviewed change as a proven replacement, migration path where needed, and rollback. |
 
-## Protected product commitments
+Multiple keep classes may apply. The most protective applicable class controls
+until a reviewed change proves that responsibility has moved or ended.
+`RETIRE_HISTORY` and `DELETE_WITH_REPLACEMENT` are candidate dispositions,
+not permission to delete.
 
-Reduction must not remove or collapse:
+## Required disposition proof
 
-- provider-neutral, local-first temporal project substrate
-- Resume / Verify / Decide
-- project and workspace identity with project isolation
-- Evidence, Claim, accepted state, reviewed memory, Perspective, projection, ReviewDecision, and transition as distinct source-linked semantic layers
-- `TaskContextPacket`, `RunReceipt`, `EpisodeDeltaProposal`, `ReviewDecision`, and `StateTransitionReceipt`
-- semantic transition receipts, idempotency, and replay protection
-- minimal Model Gateway and OpenAI reference adapter
-- Codex or native-host context and receipt round trip
-- shared Automation Spine: policy, bounded grants, runs, receipts, budgets, stop conditions, reconciliation, and user control
-- first bounded Autohunt path using the shared Core loop
-- Blank State, AI Workplane, and shared Inspector
-- bounded Personal Perspective work that reuses existing candidate, review, scoped-state, context-selection, lineage, receipt, and feedback contracts
-- migration, backup, restore, provider-neutral portable export, update, and recovery
+Before removing, absorbing, redirecting, demoting, or replacing current
+material, the reviewable change must provide:
 
-Blank State, AI Workplane, Shared Inspector, Portability와 Recovery에 대한 이
-보호는 현재 implemented runtime behavior, user data, authority와 compatibility를
-tested replacement 전까지 보존한다는 뜻이다. final user-facing topology 권한은
-`vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`가 소유한다.
-그 charter에 따른 Blank State 또는 AI Workplane absorption, contextual Inspector
-demotion, management/safety relocation은 behavior parity와 replacement proof가 있는
-later correction PR에서 이 보호를 충족하면서 수행할 수 있다.
+1. **Exact scope and identity** — repository, base, head, changed paths, and the
+   exact path or compatibility family being dispositioned.
+2. **Active owner** — the current product, protocol, sequencing, evaluation,
+   implementation-contract, research, data, safety, or toolbox owner.
+3. **Consumer proof** — production imports, dynamic or string-addressed use,
+   routes and deep links, package commands, hosts, MCP/App tools, fixtures,
+   documentation links, archived evaluation use, and known external consumers.
+4. **Data proof** — population, readers and writers, schema/migration effects,
+   export/import, backup, restore, recovery, replay, and historical readability.
+5. **Authority proof** — semantic, execution, external-effect, publication, and
+   merge authority remain unchanged; projections, candidates, recommendations,
+   results, and research output do not gain accepted-state meaning.
+6. **Safety proof** — security, credentials, project isolation, idempotency,
+   stale/replay refusal, process ownership, cleanup, and failure containment
+   remain owned.
+7. **Replacement parity** — the exact current responsibility and supported user
+   or operator path that absorbs the behavior, including compatibility and
+   failure semantics.
+8. **Rollback proof** — how a failed migration or replacement is refused,
+   reversed, restored, or otherwise recovered without losing current state.
+9. **Verification proof** — focused owner checks plus the repository-owned
+   planner's deciding verification for the clean exact final head.
 
-`TaskContextPacket` is selected working context, not project truth. Automation may create tasks, runs, receipts, and proposals, but does not gain semantic authority or collapse Evidence, Claim, state, memory, Perspective, decision, and transition into one generic record.
+If a proof category is genuinely inapplicable, record why. Silence is not an
+inapplicability finding.
 
-## Active implementation destinations
+## Command-backed manifest
 
-```text
-R1 Development Authority and Operability Reset
-R2 Zero-config Runtime Spine + automation lifecycle primitives
-R3 Project Onboarding and Project Home + project automation state
-R4 Minimal Model Gateway + budget, timeout, and cancellation
-R5 Codex Host Round Trip + unattended run mode
-R6 Core Closed Loop + first bounded Autohunt
-R6-P bounded Personal Perspective parallel slice
-R7 Semantic Workbench and Inspector + automation control and review
-R8 Packaging, portable export, update, backup, restore, recovery, and run reconciliation
-Alpha and RC verification
-Post-Alpha usefulness evaluation
-```
-
-## Keep or absorb
-
-The cleanup manifest must preserve or absorb:
-
-- current app routes and their production component imports
-- durable vNext store, semantic projections, target heads, and migration ledger
-- project isolation, immutable ledger, idempotency, stale-state refusal, and conflicting replay refusal
-- model egress boundaries and later Model Gateway foundations
-- Autohunt and autonomy primitives that map to policy, grants, runs, receipts, budgets, stop conditions, pause or cancel, and reconciliation
-- Personal Perspective primitives that map to reviewed candidates, scoped state, context selection, source lineage, `TaskContextPacket`, `RunReceipt`, and context-use feedback
-- portable-export foundations separately from full-fidelity recovery-backup foundations
-- behavior tests for migration safety, backup and restore, export isolation, durable writes, project isolation, replay refusal, egress refusal, startup, process cleanup, host round trip, and one automated golden path
-
-Open PR #1069 owns its model-egress paths until resolved. A reduction PR must not create conflicting edits to that scope.
-
-## Delete now after reference audit
-
-The following are deletion candidates when they have no runtime, roadmap, data, safety, build, CI, or canonical-test consumer:
-
-- committed execution, browser, dogfood, screenshot-validation, and closeout reports
-- historical planning, readiness, observation, snapshot, and PR-by-PR checkpoint documents
-- scripts that only assert document wording, removed-panel existence, historical layout, completed closeout state, or disabled/no-op design scaffolding
-- one-off `design:`, `plan:`, `review:`, `report:`, `envelope:`, `stopline:`, or `harness:` aliases with no active consumer
-- feature-specific smoke commands whose useful behavior has been absorbed into canonical suites
-- preview-only scheduler replicas, duplicated automation contracts, or separate Personal Perspective subsystems that duplicate the shared Core
-
-Names or patterns alone do not authorize deletion. The cleanup PR must remove the package entry and source together and prove that no runtime or CI reference remains.
-
-## Delete with replacement
-
-Current compatibility remains until a tested replacement exists.
-
-### R5 host integration
-
-Remove with a working `TaskContextPacket → host → RunReceipt` path:
-
-- manual handoff and launch-card copy flows
-- `codexResultText` and `codexResultPaste`
-- manual result templates, normalizers, ingestion UI, and compatibility tests
-
-### R3 and R7 surface consolidation
-
-Remove after destination behavior exists:
-
-- Project Home navigation and cards whose user-facing capability is absorbed
-  into Blank State
-- superseded Semantic Workbench default projections after C4 AI Workplane
-  replacement evidence remains canonical
-- passive workflow-stage Workplane panels
-- repeated boundary cards
-- duplicate diagnostics and lineage surfaces
-- manual-controls migration rows
-- preview-of-preview panels
-- top-level Portability and Recovery entries after their capability is relocated
-  to project management, safety, settings, or condition-triggered paths
-
-For exact R7 detail, the replacement destination remains the generated,
-project-scoped `/workbench/inspector` read surface. Result and suggested-change
-deep links remain valid; C4 moves large diagnostics and durable-lineage detail
-behind advanced or contextual access only where their assertions remain owned
-by the shared Inspector and canonical tests. `/workbench` redirects to the
-compatible canonical AI Workplane route rather than remaining a competing
-landing. This compatibility rule does not make Inspector a target peer
-navigation destination.
-
-C5 moves active live-Codex start, progress, approval, cancellation and resume
-ownership from the Project options compatibility component into AI Workplane.
-The deterministic local round-trip remains an advanced project option. The
-existing host-round-trip route and autonomy runner ledger remain retained
-runtime authorities; broad adapter/file-name cleanup is deferred to C9.
-
-C6 retains `shared_project_inspector.v0.1` and the compatible
-`/workbench/inspector` route as the exact authenticated reader. Active product
-presentation is `contextual_inspector_view.v0.1`: generic
-`project_coordination` navigation is compatibility/direct-audit residue only,
-while concrete result, suggested-change, delegated-run, automation-policy and
-Personal Perspective links open contextual Exact details. Historical
-SharedProjectInspector component/type names and inactive Agent Workplane links
-remain C9 cleanup residue.
-
-C7 removes active shared-shell Project tools rendering but retains compatible
-`/portability` and `/recovery` route names and their exact engines. Project
-transfer/import and ordinary backups/recovery are discovered through Blank
-State’s closed Manage and protect context; forced recovery remains owned by the
-existing proxy. `ProductUtilityContext`, `utilityContext` data markers, old
-`.product-project-tools` CSS, historical callers, and internal Portability/
-Recovery names remain explicit C9 compatibility residue.
-
-### Automation and Personal Perspective
-
-Do not delete shared roadmap foundations. Delete only duplicated or advanced subsystems after replacement or an explicit later product decision:
-
-- Augnes-owned generic scheduler replica
-- advanced hunt heuristics not used by the bounded loop
-- unrestricted retry, self-modification, automatic authority expansion, and automatic semantic commit
-- hidden personal profiles, automatic cross-project injection, and broad Perspective Arena or Personal Vault subsystems
-
-## M3D disposition
-
-M3D real-user pilot and autonomous evidence infrastructure are not ordinary R2–R8 merge gates.
-
-Retain or absorb reusable invariants:
-
-- durable transition correctness
-- project isolation
-- idempotency and replay refusal
-- backup and restore
-- browser mechanics needed by the active golden path
-
-Long-form operator runbooks, evidence-chain allocation narration, and dedicated qualification infrastructure not used by active CI are deletion or deferment candidates after reference audit. Short real-user verification belongs at Alpha or release-candidate time.
-
-## Required cleanup manifest
-
-Before deletion, produce a command-backed manifest with:
+An implementation deletion or replacement PR must carry a command-backed
+manifest sufficient to review at least:
 
 ```text
-path
+path_or_family
 classification
-production_imports
-route_consumers
-package_or_ci_references
-migration_export_or_data_dependency
-R1_R8_or_parallel_destination
-replacement_pr
-reason
+active_owner
+current_consumers
+runtime_route_host_or_package_use
+dynamic_string_deep_link_or_external_use
+data_migration_export_backup_restore_or_replay_effect
+authority_and_safety_effect
+replacement
+rollback
+verification
+unresolved_unknowns
 ```
 
-Audit at minimum:
+The manifest may live in the issue, pull request, or another explicitly owned
+review artifact. This policy does not require a permanent repository report
+when the evidence is reviewable without one.
 
-- `app/**`
-- `components/**`
-- public `lib/**` entry points
-- `scripts/**`
-- every `package.json` script
-- `.github/workflows/**` (must remain free of executable GitHub Actions
-  workflows unless repository policy is explicitly changed)
-- schema and migrations
-- active documentation links
-- `reports/**`
+## Disposition rules
 
-No runtime code, migration, package command, test, report, or document is deleted solely because of its filename.
+### Keep
 
-## Pull-request sequence
+Material classified `KEEP_RUNTIME`, `KEEP_DATA`, `KEEP_SAFETY`,
+`KEEP_RESEARCH_ACTIVE`, or `KEEP_TOOLBOX` remains until the relevant owner
+and consumers are removed, replaced, or reclassified with proof. A current
+responsibility may be simplified or consolidated, but its behavior and
+authority obligations remain.
 
-1. R1 aligns active authority and sequencing.
-2. Repository Reduction Cleanup applies the audited manifest, removes historical residue, and creates canonical test entry points while preserving live compatibility.
-3. R2–R8 vertical PRs remove compatibility in the same PR as its tested replacement.
+### Absorb
 
-Local typecheck, build, browser, disposable-database, export, and recovery
-verification must run through the exact-head local Canonical surface before
-implementation deletion PRs are merged. GitHub Actions is not an active
-verification surface for this repository.
+`ABSORB` requires the active owner or canonical consumer to receive the
+durable responsibility before, or atomically with, retirement of the original
+material. Moving words without moving ownership, tests, or behavior is not
+absorption.
+
+### Retire history
+
+`RETIRE_HISTORY` requires proof that no current runtime, data, safety,
+research, toolbox, compatibility, support, or known external consumer depends
+on the current copy. Update active links and owner maps in the same reviewed
+scope. Preserve exact historical claims rather than relabeling incomplete,
+blocked, failed, inconclusive, or `not_tested` work as completed.
+
+### Delete with replacement
+
+`DELETE_WITH_REPLACEMENT` requires current-behavior parity, consumer and data
+proof, failure and rollback coverage, and exact-head verification in the same
+reviewed scope. Current route names, APIs, schemas, packages, types, deep links,
+and compatibility behavior remain until that proof exists.
+
+## Durable boundaries
+
+- Product and Core responsibilities remain with `01` and `02`; cleanup does
+  not redesign them.
+- Current sequencing and research classification remain with `03`; a cleanup
+  task does not activate, reinterpret, or complete research.
+- Temporary program proof and closeout boundaries remain with their active
+  temporary owner; this policy does not own their status.
+- Data-bearing or recovery material cannot retire from reachability alone.
+- Safety and authority enforcement cannot retire because a happy-path consumer
+  is absent.
+- Historical repositories, plans, milestones, and closeouts provide provenance,
+  not current execution or deletion authority.
+- One cleanup issue may coordinate reviewed slices, but it cannot pre-approve
+  the contents of a later deletion PR.
+
+## Historical framing
+
+Earlier R1–R8 destinations, Perspective-lab lanes, merged C2–C7 implementation
+instructions, M3D narration, and PR-specific exclusions remain available in Git
+history and the bounded historical owners that still need them. They do not
+classify current source or define a new cleanup roadmap here.

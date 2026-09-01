@@ -48,21 +48,23 @@ permanent product doctrine.
 | C6 | Contextual Inspector / Exact details | Merged |
 | C7 | Portability and Recovery management/safety relocation | Merged |
 | C8 | Semantic visual hierarchy | Merged |
-| C9 | Compatibility and obsolete-surface reduction | Pending separate explicit authorization |
+| C9 | Compatibility and obsolete-surface reduction | Authorized and Current under Augnes Issue #1170; incomplete |
 
 C0–C8 are completed implementation history. Their durable product principles
 now live in `01`, their Core boundaries in `02`, their status in `03`, and
 their evaluation rules in `04`.
 
-C9 is not implemented, complete, runtime-active, or authorized. RR0 inventory
-and RR1 documentation reconciliation do not authorize C9 or runtime cleanup.
+C9 is explicitly authorized and Current under
+[Augnes Issue #1170](https://github.com/hynk-studio/augnes/issues/1170), but it
+is not complete. The umbrella issue authorizes proof-backed cleanup to begin; it
+does not provide blanket deletion authority or complete any disposition.
 
 ## C9 scope boundary
 
-C9 may be proposed only as separately authorized, proof-backed replacement and
-compatibility work. It must not be inferred from the word “cleanup,” from old
-names, from missing navigation, from static import reachability, or from the
-existence of historical/research residue.
+C9 proceeds only through separately reviewable, proof-backed replacement and
+compatibility work under Issue #1170. A disposition must not be inferred from
+the word “cleanup,” from old names, from missing navigation, from static import
+reachability, or from the existence of historical/research residue.
 
 Every proposed C9 disposition must name the exact surface or compatibility
 family and choose one outcome:
@@ -124,7 +126,8 @@ C9 is not authority to:
 
 The C0–C9 program closes only when:
 
-- C9 has received separate explicit authorization;
+- C9 has a reviewed completed outcome rather than only Current authorization
+  under Issue #1170;
 - each in-scope compatibility family has an approved proof-backed disposition;
 - replacement parity, consumers, data, authority, user path, rollback, and exact
   verification are reviewed;
