@@ -186,7 +186,7 @@ implemented and tested:
 - CW1 fake/conformance adapters and fixture-only execution material;
 - CW1-specific Local Canonical children and their recurring verification cost.
 
-Representative source families currently include:
+Historical source families moved back to Git history included:
 
 ```text
 types/vnext/commissioned-controlled-workbench.ts
@@ -212,24 +212,28 @@ CW1 experiment/corpus/schedule/result machinery = HISTORICAL_CW1
 The corpus should not be treated as a privileged future benchmark. Reusing the
 same known fixtures in a later experiment may itself weaken independence.
 
-## Known shared seams that must be disentangled before deletion
+## Shared-seam reduction completion
 
-Current source contains generic-looking owners with direct CW1 dependencies.
-They must be separated by responsibility rather than deleted or retained by
-filename alone.
+The consumer-audited current-source reduction is complete. The generic Codex
+App Server adapter no longer imports a CW1 authorization owner, the production
+authorization union and tombstones are removed, and Local Canonical no longer
+registers CW1-specific children.
 
-In particular:
+The reduction preserved the independently useful generic owners identified by
+the salvage test:
 
-- the general Codex App Server adapter currently imports the CW1-specific
-  external execution authorization owner;
-- isolated-auth test/config material contains CW1 fixture controls;
-- Local Canonical registers both general isolated-auth children and CW1-specific
-  commissioned-work children.
+- exact NativeHost request, TaskContextPacket, root, operation, and capability
+  provenance;
+- file-backed credential handling and private per-attempt state directories;
+- source-owned credential-broker and exact process ownership/rollback;
+- the source-owned test-only isolated-auth authorization path; and
+- generic refusal of unsupported or foreign production-shaped authority before
+  repository/provider-bearing turn execution.
 
-A later implementation may choose the smallest compatible way to remove these
-couplings. This closeout does not prescribe files/functions or a replacement
-architecture. The required outcome is that generic native-host/auth behavior no
-longer depends on a terminated research track.
+CW1 remains in Git history and this terminal closeout/history document. This
+completion changes no scientific classification: `scientific_disposition`
+remains `not_tested`, and no retry, cohort, holdout, credential, provider, or
+execution authority is created.
 
 ## Authority after closeout
 
@@ -272,11 +276,14 @@ any surviving generic responsibility. Git history, merged PRs, Issues, and
 receipts remain the archive; current source should not serve as an expensive
 museum for a terminated experiment.
 
-## This closeout changes no runtime
+## Original closeout authority boundary
 
-This document intentionally performs no source deletion, test deregistration,
-runtime behavior change, provider/auth action, credential read, cohort action,
-holdout action, semantic Transition, publication, Ready transition, or merge.
+The original closeout intentionally performed no source deletion, test
+deregistration, runtime behavior change, provider/auth action, credential read,
+cohort action, holdout action, semantic Transition, publication, Ready
+transition, or merge. The later consumer-audited reduction was separately
+reviewed implementation work and did not reinterpret the closeout as deletion
+or execution authority.
 
-Its only effect is to make the terminal outcome and the salvage boundary
-reviewable before a later code reduction.
+The closeout's continuing effect is to keep the terminal outcome and salvage
+boundary reviewable without retaining executable CW1 source.

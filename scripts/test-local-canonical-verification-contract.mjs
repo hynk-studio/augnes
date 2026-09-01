@@ -968,8 +968,6 @@ const integrationChildren = [
   "project-verify-production-lifecycle",
   "project-verify-operator-adapter",
   "reconstruction-conformance",
-  "commissioned-controlled-workbench",
-  "commissioned-controlled-live-training",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",
   "project-controls",
@@ -1037,29 +1035,6 @@ for (const childId of integrationChildren) {
     countOccurrences(canonicalSuite, `id: "${childId}"`),
     1,
     `integration child must have exactly one owner: ${childId}`,
-  );
-}
-const commissionedLiveTrainingRegistration =
-  readCanonicalChildRegistration(
-    integrationSource,
-    "commissioned-controlled-live-training",
-  );
-assert.equal(
-  commissionedLiveTrainingRegistration.label,
-  "commissioned live-training authorization, isolated attempt ownership, blinded evaluation, and append-only artifact conformance",
-);
-assert.equal(commissionedLiveTrainingRegistration.label.length, 126);
-for (const fragment of [
-  `group: "supporting-serial"`,
-  `requirements: [\n        "filesystem",\n        "process-owning",\n        "project-root",\n        "mutable-module-state",\n      ]`,
-  `"scripts/test-commissioned-controlled-live-training.ts"`,
-  `env: { AUGNES_CANONICAL_TEST_MODE: "1" }`,
-  `timeoutMs: 420_000`,
-]) {
-  requireText(
-    commissionedLiveTrainingRegistration.block,
-    fragment,
-    `commissioned live-training registration changed unexpectedly: ${fragment}`,
   );
 }
 for (const childId of [
@@ -1261,8 +1236,6 @@ requireText(
   "canonical child Windows repository-root authorization is not forwarded",
 );
 for (const [pathName, timeout] of [
-  ["scripts/test-commissioned-controlled-workbench.ts", "30_000"],
-  ["scripts/test-commissioned-controlled-live-training.ts", "420_000"],
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
@@ -1553,8 +1526,6 @@ console.log(
       local_pr_evidence_status_check_and_deployment_paths_absent: true,
       integration_concurrent_labels_valid: true,
       integration_concurrent_label_count: normalizedIntegrationLabels.length,
-      commissioned_live_training_label_length:
-        commissionedLiveTrainingRegistration.label.length,
       concurrent_label_161_and_162_characters_refused: true,
       concurrent_empty_unsafe_and_duplicate_labels_refused: true,
     },
