@@ -38,7 +38,6 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:reset": "node scripts/db-reset.mjs",
     "demo:seed": "node scripts/demo-seed.mjs",
-    "augnes:codex-bootstrap": "node scripts/augnes-codex-bootstrap.mjs",
     "augnes:doctor": "node scripts/augnes-codex-doctor.mjs",
     "augnes:prepare": "node scripts/augnes-codex-prepare.mjs",
     "augnes:setup-local-demo": "node scripts/augnes-codex-local-demo-setup.mjs",
