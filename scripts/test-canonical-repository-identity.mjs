@@ -12,7 +12,7 @@ import {
   canonicalRepositoryIdentity,
   matchCanonicalRepositoryIdentity,
 } from "./canonical-repository-identity.mjs";
-import { AUTHORIZED_GITHUB_REPOSITORY } from "./local-canonical-github-transport.mjs";
+import { AUTHORIZED_GITHUB_REPOSITORY } from "./github-main-branch-transport.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -118,23 +118,11 @@ const localExecutorContract = readRepositoryFile(
 const localReceiptContract = readRepositoryFile(
   "scripts/test-local-canonical-receipt.mjs",
 );
-const localPrEvidencePolicy = readRepositoryFile(
-  ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
+const githubMainBranchTransport = readRepositoryFile(
+  "scripts/github-main-branch-transport.mjs",
 );
-const localPrEvidence = readRepositoryFile(
-  "scripts/local-canonical-pr-evidence.mjs",
-);
-const localPrEvidenceEnvelope = readRepositoryFile(
-  "scripts/local-canonical-pr-evidence-envelope.mjs",
-);
-const localPrEvidenceTransport = readRepositoryFile(
-  "scripts/local-canonical-github-transport.mjs",
-);
-const localPrEvidenceContract = readRepositoryFile(
-  "scripts/test-local-canonical-pr-evidence.mjs",
-);
-const localPrEvidenceTransportContract = readRepositoryFile(
-  "scripts/test-local-canonical-pr-evidence-transport.mjs",
+const githubMainBranchTransportContract = readRepositoryFile(
+  "scripts/test-github-main-branch-transport.mjs",
 );
 const dependencyLockCompatibility = readRepositoryFile(
   "scripts/dependency-lock-compatibility.mjs",
@@ -183,7 +171,6 @@ const activePolicySources = {
   "AGENTS.md": agents,
   "README.md": readme,
   ".github/LOCAL_CANONICAL_VERIFICATION.md": localPolicy,
-  ".github/LOCAL_CANONICAL_PR_EVIDENCE.md": localPrEvidencePolicy,
   ".github/pull_request_template.md": pullRequestTemplate,
   "docs/REPOSITORY_REDUCTION_SCOPE.md": reductionScope,
 };
@@ -298,16 +285,6 @@ const canonicalCommands = Object.freeze({
   localFull: "node scripts/run-local-canonical-verification.mjs full",
   localReceiptValidation:
     "node scripts/run-local-canonical-verification.mjs validate",
-  localEvidenceContract:
-    "node scripts/test-local-canonical-pr-evidence.mjs",
-  localEvidenceTransportContract:
-    "node scripts/test-local-canonical-pr-evidence-transport.mjs",
-  localEvidencePrepare:
-    "node scripts/local-canonical-pr-evidence.mjs prepare",
-  localEvidencePublish:
-    "node scripts/local-canonical-pr-evidence.mjs publish",
-  localEvidenceVerify:
-    "node scripts/local-canonical-pr-evidence.mjs verify",
 });
 assert.equal(packageJson.scripts.typegen, canonicalCommands.typegen);
 assert.equal(packageJson.scripts.typecheck, canonicalCommands.typecheck);
@@ -402,26 +379,19 @@ assert.equal(
   packageJson.scripts["verify:local:receipt"],
   canonicalCommands.localReceiptValidation,
 );
-assert.equal(
-  packageJson.scripts["test:local-canonical-pr-evidence"],
-  canonicalCommands.localEvidenceContract,
-);
-assert.equal(
-  packageJson.scripts["test:local-canonical-pr-evidence-transport"],
-  canonicalCommands.localEvidenceTransportContract,
-);
-assert.equal(
-  packageJson.scripts["verify:local:evidence:prepare"],
-  canonicalCommands.localEvidencePrepare,
-);
-assert.equal(
-  packageJson.scripts["verify:local:evidence:publish"],
-  canonicalCommands.localEvidencePublish,
-);
-assert.equal(
-  packageJson.scripts["verify:local:evidence:verify"],
-  canonicalCommands.localEvidenceVerify,
-);
+for (const retiredCommand of [
+  "test:local-canonical-pr-evidence",
+  "test:local-canonical-pr-evidence-transport",
+  "verify:local:evidence:prepare",
+  "verify:local:evidence:publish",
+  "verify:local:evidence:verify",
+]) {
+  assert.equal(
+    packageJson.scripts[retiredCommand],
+    undefined,
+    `retired PR-comment publication command must remain absent: ${retiredCommand}`,
+  );
+}
 assert.equal(nodeVersionMarker, "24.18.0");
 assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
 assert.equal(packageJson.engines.npm, ">=10 <12");
@@ -466,16 +436,6 @@ for (const command of [
   requireText(readme, command, `README is missing ${command}`);
   requireText(localPolicy, command, `policy is missing ${command}`);
 }
-for (const command of [
-  "npm run verify:local:evidence:prepare --",
-  "npm run verify:local:evidence:publish --",
-  "npm run verify:local:evidence:verify --",
-]) {
-  requireText(readme, command, `README is missing ${command}`);
-  requireText(localPolicy, command, `policy is missing ${command}`);
-  requireText(localPrEvidencePolicy, command, `evidence policy is missing ${command}`);
-}
-
 for (const fragment of [
   `WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =`,
   `"AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT"`,
@@ -737,8 +697,7 @@ for (const authorityChild of [
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
-  "scripts/test-local-canonical-pr-evidence.mjs",
-  "scripts/test-local-canonical-pr-evidence-transport.mjs",
+  "scripts/test-github-main-branch-transport.mjs",
 ]) {
   assert.equal(
     countOccurrences(canonicalSuite, authorityChild),
@@ -747,50 +706,25 @@ for (const authorityChild of [
   );
 }
 
-for (const fragment of [
-  `augnes.local-canonical-pr-evidence.v1`,
-  `MAX_PUBLICATION_ENVELOPE_BYTES = 32 * 1024`,
-  `MAX_PUBLICATION_COMMENT_BYTES = 48 * 1024`,
-  `<!-- augnes-local-canonical-pr-evidence:v1 -->`,
-  `<!-- /augnes-local-canonical-pr-evidence:v1 -->`,
-  `fingerprintCanonicalValue(envelopeContent)`,
-  `assertPublicSafeReceipt(envelope)`,
-  `publication_integrity_mismatch`,
-  `duplicate_publication_comments`,
-  `not a signature or independent attestation`,
-  `GitHub did not run these tests`,
-  `OPERATING_POLICY_PUBLIC_PHASE_COMMANDS`,
-  `operating-policy-only`,
-  `TARGETED_PHASE_ORDER`,
-  `owner-targeted`,
-  `targeted-change-validator`,
-  `receipt_owner_targeted_projection_mismatch`,
+for (const retiredPath of [
+  ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
+  "scripts/local-canonical-pr-evidence.mjs",
+  "scripts/local-canonical-pr-evidence-envelope.mjs",
+  "scripts/local-canonical-github-transport.mjs",
+  "scripts/test-local-canonical-pr-evidence.mjs",
+  "scripts/test-local-canonical-pr-evidence-transport.mjs",
 ]) {
-  requireText(
-    localPrEvidenceEnvelope,
-    fragment,
-    `publication envelope contract is missing: ${fragment}`,
+  assert.equal(
+    existsSync(path.join(repositoryRoot, retiredPath)),
+    false,
+    `retired PR-comment publication path must remain absent: ${retiredPath}`,
   );
 }
-for (const fragment of [
-  `validateReceiptAgainstCurrentRepository`,
-  `receipt_not_current_deciding_evidence`,
-  `remoteHeadSha !== identity.head_sha`,
-  `remoteBaseSha !== pullRequest.base_sha`,
-  `dirty_worktree_not_publishable`,
-  `pull_request_not_draft`,
-  `replacement_authority_required`,
-  `publication_comment_changed_before_update`,
-  `idempotent_noop`,
-  `github_write_performed: action !== "idempotent_noop"`,
-  `local_linked_match`,
-  `.augnes-local-verification`,
-  `"publications"`,
-]) {
-  requireText(
-    localPrEvidence,
-    fragment,
-    `publication orchestrator contract is missing: ${fragment}`,
+for (const source of [readme, localPolicy, localExecutor, canonicalSuite]) {
+  assert.doesNotMatch(
+    source,
+    /verify:local:evidence|local-canonical-pr-evidence|local-pr-evidence/iu,
+    "active Local Canonical owners must not restore PR-comment publication",
   );
 }
 for (const fragment of [
@@ -800,64 +734,50 @@ for (const fragment of [
   `shell: false`,
   `GITHUB_TRANSPORT_TIMEOUT_MS = 30_000`,
   `GITHUB_TRANSPORT_MAX_BYTES = 2 * 1024 * 1024`,
-  `--paginate`,
-  `--input`,
+  `fetchBranchHead`,
+  `fetch_branch_head`,
+  `"--method"`,
+  `"GET"`,
   `github_transport_failed`,
 ]) {
   requireText(
-    localPrEvidenceTransport,
+    githubMainBranchTransport,
     fragment,
-    `publication transport contract is missing: ${fragment}`,
+    `read-only GitHub main-branch transport is missing: ${fragment}`,
   );
 }
-for (const forbiddenEndpoint of [
-  "/statuses",
-  "/check-runs",
-  "/deployments",
-  "/actions/workflows",
+for (const forbiddenTransportFragment of [
+  "/pulls",
+  "/issues",
+  "/comments",
+  "--input",
+  `"POST"`,
+  `"PATCH"`,
+  `"DELETE"`,
 ]) {
-  assert.doesNotMatch(
-    localPrEvidenceTransport,
-    new RegExp(forbiddenEndpoint.replace("/", "\\/"), "u"),
-    `publication transport must not contain ${forbiddenEndpoint}`,
+  assert.equal(
+    githubMainBranchTransport.includes(forbiddenTransportFragment),
+    false,
+    `read-only GitHub transport must not contain ${forbiddenTransportFragment}`,
   );
 }
 assert.doesNotMatch(
-  localPrEvidenceTransport,
+  githubMainBranchTransport,
   /GITHUB_TOKEN|GH_TOKEN|auth status|credential/iu,
-  "publication transport must not inspect or log authentication material",
+  "read-only GitHub transport must not inspect or log authentication material",
 );
 for (const fragment of [
-  `deterministic_projection`,
-  `non_deciding_receipts_refused`,
-  `full_documentation_operating_policy_and_owner_targeted_receipts_supported`,
-  `owner_targeted_phase_order_and_validator_required`,
-  `owner_targeted_receipt_ownership_projection_bound`,
-  `owner_targeted_generated_next_projection_bound`,
-  `private_material_excluded`,
-  `duplicate_and_malformed_comments_refused`,
-  `dirty_stale_fork_closed_merged_and_non_draft_refused`,
-  `arbitrary_comment_id_refused`,
-]) {
-  requireText(
-    localPrEvidenceContract,
-    fragment,
-    `publication regression is missing: ${fragment}`,
-  );
-}
-for (const fragment of [
-  `fixed_repository_endpoints`,
+  `fixed_repository_and_main_branch`,
   `argument_safe_gh_spawn`,
-  `idempotent_noop_zero_writes`,
-  `replacement_requires_exact_prior_fingerprint`,
-  `changed_remote_body_refused`,
-  `unrelated_comments_unchanged`,
-  `no_delete_status_check_deployment_or_workflow_path`,
+  `authentication_unavailable_normalized`,
+  `transport_errors_fail_closed`,
+  `read_only_api_surface`,
+  `pull_request_comment_write_surface_absent`,
 ]) {
   requireText(
-    localPrEvidenceTransportContract,
+    githubMainBranchTransportContract,
     fragment,
-    `publication transport regression is missing: ${fragment}`,
+    `read-only GitHub transport regression is missing: ${fragment}`,
   );
 }
 for (const fragment of [
@@ -1684,11 +1604,10 @@ console.log(
         "local-canonical-verification-contract",
         "local-canonical-executor",
         "local-canonical-receipt",
-        "local-canonical-pr-evidence",
-        "local-canonical-pr-evidence-transport",
+        "github-main-branch-transport",
       ],
-      local_pr_evidence_publication_explicit_only: true,
-      local_pr_evidence_status_check_and_deployment_paths_absent: true,
+      local_pr_comment_publication_surface_absent: true,
+      github_main_branch_attestation_transport_read_only: true,
       integration_concurrent_labels_valid: true,
       integration_concurrent_label_count: normalizedIntegrationLabels.length,
       concurrent_label_161_and_162_characters_refused: true,

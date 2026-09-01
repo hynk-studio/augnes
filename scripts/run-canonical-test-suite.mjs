@@ -687,15 +687,8 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "local Canonical PR evidence projection and policy contract",
-      ...rootNode("scripts/test-local-canonical-pr-evidence.mjs"),
-      timeoutMs: 30_000,
-    },
-    {
-      label: "local Canonical PR evidence GitHub transport contract",
-      ...rootNode(
-        "scripts/test-local-canonical-pr-evidence-transport.mjs",
-      ),
+      label: "read-only GitHub main-branch source-attestation transport",
+      ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,
     },
     {
