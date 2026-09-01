@@ -311,31 +311,12 @@ The complete surface consists of:
 
 Receipts and logs remain ignored local artifacts. Their fingerprints establish
 content integrity and local provenance only; they are not hosted reproduction,
-independent attestation, or an external status. Evidence publication is a
-separate explicit action and never follows verification automatically.
-
-The explicit evidence commands are:
-
-```bash
-npm run verify:local:evidence:prepare -- \
-  --pr <positive-pr-number> \
-  --receipt .augnes-local-verification/receipts/<receipt>.json
-npm run verify:local:evidence:publish -- \
-  --pr <positive-pr-number> \
-  --receipt .augnes-local-verification/receipts/<receipt>.json \
-  --confirm-publish
-npm run verify:local:evidence:verify -- \
-  --pr <positive-pr-number> \
-  --receipt .augnes-local-verification/receipts/<receipt>.json
-```
-
-`prepare` is read-only. `publish` is forbidden without separate explicit
-authorization for the exact current Draft PR and receipt.
+independent attestation, or an external status. The Draft PR body carries the
+review summary; verification itself has no GitHub write or publication path.
 
 See:
 
 - [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md)
-- [Local Canonical PR evidence policy](.github/LOCAL_CANONICAL_PR_EVIDENCE.md)
 - [Evaluation and maturity](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
 
 ## Historical note

@@ -105,17 +105,12 @@
           "scripts/canonical-test-environment.mjs",
           "scripts/local-canonical-change-owners.v1.json",
           "scripts/local-canonical-environment.mjs",
-          "scripts/local-canonical-github-transport.mjs",
-          "scripts/local-canonical-pr-evidence-envelope.mjs",
-          "scripts/local-canonical-pr-evidence.mjs",
           "scripts/local-canonical-receipt.mjs",
           "scripts/run-canonical-test-suite.mjs",
           "scripts/run-local-canonical-verification.mjs",
           "scripts/test-browser-verification-owners.mjs",
           "scripts/test-canonical-change-planner.mjs",
           "scripts/test-local-canonical-executor.mjs",
-          "scripts/test-local-canonical-pr-evidence-transport.mjs",
-          "scripts/test-local-canonical-pr-evidence.mjs",
           "scripts/test-local-canonical-receipt.mjs",
           "scripts/test-local-canonical-verification-contract.mjs",
           "scripts/test-harness-process-lifecycle.mjs",
@@ -167,6 +162,10 @@
       "id": "security-authority-process-isolation",
       "reason": "security_authority_or_process_isolation",
       "path_rules": {
+        "exact_paths": [
+          "scripts/github-main-branch-transport.mjs",
+          "scripts/test-github-main-branch-transport.mjs"
+        ],
         "path_fragments": [
           "credential",
           "authentication",

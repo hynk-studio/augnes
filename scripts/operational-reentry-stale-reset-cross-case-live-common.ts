@@ -12,7 +12,7 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateOperationalReentryStaleResetCrossCasePricingV01 } from "@/lib/vnext/operational-reentry-stale-reset-cross-case-replication";
-import { createGitHubTransport } from "@/scripts/local-canonical-github-transport.mjs";
+import { createGitHubMainBranchTransport } from "@/scripts/github-main-branch-transport.mjs";
 import { matchCanonicalRepositoryIdentity } from "./canonical-repository-identity.mjs";
 
 const REPOSITORY = "hynk-studio/augnes" as const;
@@ -192,7 +192,7 @@ export async function attestCrossCaseSourceReadinessV01(
 
   let remote: unknown;
   try {
-    remote = await (dependencies.transport ?? createGitHubTransport())
+    remote = await (dependencies.transport ?? createGitHubMainBranchTransport())
       .fetchBranchHead("main");
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error

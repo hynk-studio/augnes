@@ -100,8 +100,6 @@ export const QUICK_PHASE_IDS = Object.freeze([
   "typecheck",
   "local-executor-contract",
   "local-receipt-contract",
-  "local-pr-evidence-contract",
-  "local-pr-evidence-transport-contract",
   "local-canonical-contract",
 ]);
 export const OPERATING_POLICY_PHASE_IDS = Object.freeze([
@@ -970,25 +968,6 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
-    }),
-    phaseDefinition({
-      id: "local-pr-evidence-contract",
-      label: "local canonical PR evidence contract",
-      command: process.execPath,
-      args: ["scripts/test-local-canonical-pr-evidence.mjs"],
-      display: "node scripts/test-local-canonical-pr-evidence.mjs",
-      timeoutMs: 60_000,
-    }),
-    phaseDefinition({
-      id: "local-pr-evidence-transport-contract",
-      label: "local canonical PR evidence transport contract",
-      command: process.execPath,
-      args: [
-        "scripts/test-local-canonical-pr-evidence-transport.mjs",
-      ],
-      display:
-        "node scripts/test-local-canonical-pr-evidence-transport.mjs",
       timeoutMs: 60_000,
     }),
     phaseDefinition({
