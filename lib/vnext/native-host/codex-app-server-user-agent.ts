@@ -3,6 +3,9 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
+  CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
@@ -25,15 +28,42 @@ const USER_AGENT_CONTRACT_MATERIAL_V01 = {
   client_suffix_binding: "exact_initialize_client_info_name_and_version",
 } as const;
 
+const USER_AGENT_CONTRACT_MATERIAL_0_152_1_V01 = {
+  ...USER_AGENT_CONTRACT_MATERIAL_V01,
+  contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
+  upstream_source_commit: CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  supported_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+} as const;
+
 export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01 =
   createProtocolSha256V01(
     canonicalizeProtocolValueV01(USER_AGENT_CONTRACT_MATERIAL_V01),
+  );
+
+export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01 =
+  createProtocolSha256V01(
+    canonicalizeProtocolValueV01(USER_AGENT_CONTRACT_MATERIAL_0_152_1_V01),
   );
 
 export interface CodexAppServerUserAgentObservationV01 {
   contract_version: typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01;
   contract_fingerprint: string;
   codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
+  expected_originator_match: true;
+  expected_client_version_match: true;
+  platform_shape: "macos_semver_supported_arch";
+  platform_shape_fingerprint: string;
+  terminal_shape: "bounded_sanitized_terminal_token";
+  terminal_shape_fingerprint: string;
+  suffix_shape: "exact_client_info_name_and_version";
+  suffix_shape_fingerprint: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export interface CodexAppServerUserAgentObservation01521V01 {
+  contract_version: typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01;
+  contract_fingerprint: string;
+  codex_cli_version: typeof CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01;
   expected_originator_match: true;
   expected_client_version_match: true;
   platform_shape: "macos_semver_supported_arch";
@@ -58,6 +88,43 @@ export function observeCodexAppServerUserAgentV01(input: {
   expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
   expected_codex_cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01;
 }): CodexAppServerUserAgentObservationV01 {
+  const parsed = parseCodexAppServerUserAgentV01(input);
+  return userAgentObservationV01({
+    contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+    contract_fingerprint:
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+    codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    expected_client_name: input.expected_client_name,
+    expected_client_version: input.expected_client_version,
+    architecture: parsed.architecture,
+  });
+}
+
+export function observeCodexAppServerUserAgent01521V01(input: {
+  raw_user_agent: unknown;
+  expected_client_name: "augnes" | "augnes-semantic-preflight";
+  expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
+  expected_codex_cli_version: typeof CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01;
+}): CodexAppServerUserAgentObservation01521V01 {
+  const parsed = parseCodexAppServerUserAgentV01(input);
+  return userAgentObservationV01({
+    contract_version:
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
+    contract_fingerprint:
+      CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01,
+    codex_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+    expected_client_name: input.expected_client_name,
+    expected_client_version: input.expected_client_version,
+    architecture: parsed.architecture,
+  });
+}
+
+function parseCodexAppServerUserAgentV01(input: {
+  raw_user_agent: unknown;
+  expected_client_name: "augnes" | "augnes-semantic-preflight";
+  expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
+  expected_codex_cli_version: string;
+}): { architecture: "arm64" | "x86_64" } {
   if (
     typeof input.raw_user_agent !== "string" ||
     input.raw_user_agent.length === 0 ||
@@ -70,8 +137,7 @@ export function observeCodexAppServerUserAgentV01(input: {
   if (
     !/^[a-z][a-z0-9-]{0,63}$/u.test(input.expected_client_name) ||
     !/^[A-Za-z0-9._-]{1,128}$/u.test(input.expected_client_version) ||
-    input.expected_codex_cli_version !==
-      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
+    !/^[0-9]+\.[0-9]+\.[0-9]+$/u.test(input.expected_codex_cli_version)
   )
     throw new CodexAppServerUserAgentErrorV01(
       "codex_app_server_user_agent_expectation_invalid",
@@ -84,7 +150,7 @@ export function observeCodexAppServerUserAgentV01(input: {
     throw new CodexAppServerUserAgentErrorV01(
       "codex_app_server_user_agent_shape_mismatch",
     );
-  const [, originator, cliVersion, , architecture, , suffixName, suffixVersion] =
+  const [, originator, cliVersion, , rawArchitecture, , suffixName, suffixVersion] =
     match;
   if (cliVersion !== input.expected_codex_cli_version)
     throw new CodexAppServerUserAgentErrorV01(
@@ -102,11 +168,41 @@ export function observeCodexAppServerUserAgentV01(input: {
       "codex_app_server_user_agent_client_version_mismatch",
     );
 
+  return { architecture: rawArchitecture as "arm64" | "x86_64" };
+}
+
+function userAgentObservationV01<
+  ContractVersion extends
+    | typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01
+    | typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
+  CliVersion extends
+    | typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
+    | typeof CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+>(input: {
+  contract_version: ContractVersion;
+  contract_fingerprint: string;
+  codex_cli_version: CliVersion;
+  expected_client_name: "augnes" | "augnes-semantic-preflight";
+  expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
+  architecture: "arm64" | "x86_64";
+}): {
+  contract_version: ContractVersion;
+  contract_fingerprint: string;
+  codex_cli_version: CliVersion;
+  expected_originator_match: true;
+  expected_client_version_match: true;
+  platform_shape: "macos_semver_supported_arch";
+  platform_shape_fingerprint: string;
+  terminal_shape: "bounded_sanitized_terminal_token";
+  terminal_shape_fingerprint: string;
+  suffix_shape: "exact_client_info_name_and_version";
+  suffix_shape_fingerprint: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+} {
   const material = {
-    contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
-    contract_fingerprint:
-      CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
-    codex_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    contract_version: input.contract_version,
+    contract_fingerprint: input.contract_fingerprint,
+    codex_cli_version: input.codex_cli_version,
     expected_originator_match: true,
     expected_client_version_match: true,
     platform_shape: "macos_semver_supported_arch",
@@ -114,7 +210,7 @@ export function observeCodexAppServerUserAgentV01(input: {
       canonicalizeProtocolValueV01({
         platform: "Mac OS",
         os_version: "semantic_version_triplet",
-        architecture,
+        architecture: input.architecture,
       }),
     ),
     terminal_shape: "bounded_sanitized_terminal_token",

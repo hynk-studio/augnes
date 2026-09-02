@@ -532,7 +532,37 @@ async function handle(message) {
             threadName: "Bounded fixture name",
           });
         }
-        if (scenario === "absolute_inside_root_file_change") {
+        if (
+          [
+            "auth_recovery_notifications",
+            "isolated_auth_auth_recovery_notifications",
+          ].includes(scenario)
+        ) {
+          notify("modelProvider/authRecoveryStarted", {
+            threadId,
+            turnId,
+            provider: "Amazon Bedrock",
+            message: "Refreshing AWS authentication.",
+          });
+          notify("modelProvider/authRecoveryCompleted", {
+            threadId,
+            turnId,
+            provider: "Amazon Bedrock",
+            message: "AWS authentication refreshed.",
+          });
+          completeSuccess();
+        } else if (scenario === "auth_recovery_notification_malformed") {
+          notify("modelProvider/authRecoveryStarted", {
+            threadId,
+            turnId,
+            provider: "Amazon Bedrock",
+          });
+        } else if (scenario === "unknown_notification") {
+          notify("modelProvider/unqualifiedFutureEvent", {
+            threadId,
+            turnId,
+          });
+        } else if (scenario === "absolute_inside_root_file_change") {
           emitObservedItems(path.join(root, "src", "live-result.ts"));
           completeSuccess();
         } else if (scenario === "absolute_outside_root_file_change") {
@@ -810,8 +840,17 @@ function fakeCodexUserAgentV01(value, clientInfo) {
     typeof clientInfo?.version === "string"
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
+  const qualification01521 = value.startsWith(
+    "isolated_auth_qualification_0_152_1",
+  );
   const cliVersion =
-    value === "isolated_auth_cli_version_mismatch" ? "0.147.0" : "0.150.1";
+    value === "isolated_auth_cli_version_mismatch"
+      ? "0.147.0"
+      : value === "isolated_auth_qualification_0_152_1_cli_mismatch"
+        ? "0.151.0"
+        : qualification01521
+          ? "0.152.1"
+          : "0.150.1";
   const originator =
     value === "isolated_auth_user_agent_wrong_originator"
       ? "other-originator"
@@ -1107,6 +1146,8 @@ function isolatedAuthRuntimeOriginPathsV01(entries) {
           return [];
         if (entry.path === "features.network_proxy")
           return [entry.path, `${entry.path}.enabled`];
+        if (entry.path === "features.sleep_tool")
+          return [`${entry.path}.enabled`];
         return [entry.path];
       }),
     ),
@@ -1171,6 +1212,13 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     use_agent_identity: true,
     web_search_cached: false,
     web_search_request: false,
+    ...(activeScenario.startsWith("isolated_auth_qualification_0_152_1")
+      ? {
+          background_paginated_rollout_migration: false,
+          content_item_kinds: false,
+          sleep_tool: false,
+        }
+      : {}),
     ...(activeScenario === "isolated_auth_unknown_feature_drift"
       ? { unknown_network_tool: false }
       : {}),
