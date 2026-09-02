@@ -902,6 +902,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
         cli_reported_version: null,
         app_server_reported_cli_version: null,
         observed_policy_fingerprint: null,
+        runtime_exercised_methods: [],
         private_environment_observed: false,
         cleanup_completed: true,
         observed_at: observedAt,
@@ -926,6 +927,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
       cli_reported_version: null,
       app_server_reported_cli_version: null,
       observed_policy_fingerprint: null,
+      runtime_exercised_methods: [],
       private_environment_observed: false,
       cleanup_completed: true,
       observed_at: observedAt,
@@ -942,6 +944,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
       cli_reported_version: null,
       app_server_reported_cli_version: null,
       observed_policy_fingerprint: null,
+      runtime_exercised_methods: [],
       private_environment_observed: false,
       cleanup_completed: true,
       observed_at: observedAt,
@@ -959,6 +962,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
       cli_reported_version: null,
       app_server_reported_cli_version: null,
       observed_policy_fingerprint: null,
+      runtime_exercised_methods: [],
       private_environment_observed: false,
       cleanup_completed: true,
       observed_at: observedAt,
@@ -1020,6 +1024,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
     cli_reported_version: probe.cli_reported_version,
     app_server_reported_cli_version: probe.observed_cli_version,
     observed_policy_fingerprint: probe.observed_policy_fingerprint,
+    runtime_exercised_methods: probe.runtime_exercised_methods,
     private_environment_observed: probe.private_environment_observed,
     cleanup_completed: cleanupCompleted,
     observed_at: observedAt,
@@ -1033,6 +1038,7 @@ type CredentialFreeExactProfileResultV01 = {
   observed_cli_version: string | null;
   cli_reported_version: string | null;
   observed_policy_fingerprint: string | null;
+  runtime_exercised_methods: string[];
   executable_fingerprint: string;
   private_environment_observed: boolean;
   cleanup_completed: boolean;
@@ -1077,6 +1083,7 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
   let observedCliVersion: string | null = null;
   let cliReportedVersion: string | null = null;
   let observedPolicyFingerprint: string | null = null;
+  const runtimeExercisedMethods: string[] = [];
   let executableFingerprint = input.expected_executable_fingerprint;
   let privateEnvironmentObserved = false;
   let state: CredentialFreeExactProfileStateV01 = "unavailable";
@@ -1105,6 +1112,7 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
         observed_cli_version: observedCliVersion,
         cli_reported_version: cliReportedVersion,
         observed_policy_fingerprint: observedPolicyFingerprint,
+        runtime_exercised_methods: runtimeExercisedMethods,
         executable_fingerprint: executableFingerprint,
         private_environment_observed: privateEnvironmentObserved,
         cleanup_completed: true,
@@ -1203,6 +1211,7 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
       },
     });
     await transport.started;
+    runtimeExercisedMethods.push("initialize");
     const initialized = objectV01(
       await transport.request("initialize", {
         clientInfo: {
@@ -1215,6 +1224,8 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
       "codex_initialize_response_invalid",
     );
     transport.notify("initialized", {});
+    runtimeExercisedMethods.push("initialized");
+    runtimeExercisedMethods.push("config/read");
     const config = objectV01(
       await transport.request("config/read", {
         includeLayers: true,
@@ -1272,6 +1283,7 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
     observed_cli_version: observedCliVersion,
     cli_reported_version: cliReportedVersion,
     observed_policy_fingerprint: observedPolicyFingerprint,
+    runtime_exercised_methods: runtimeExercisedMethods,
     executable_fingerprint: executableFingerprint,
     private_environment_observed: privateEnvironmentObserved,
     cleanup_completed: cleanupCompleted,
@@ -4881,6 +4893,7 @@ function codex01521QualificationResultV01(input: {
   cli_reported_version: string | null;
   app_server_reported_cli_version: string | null;
   observed_policy_fingerprint: string | null;
+  runtime_exercised_methods: string[];
   private_environment_observed: boolean;
   cleanup_completed: boolean;
   observed_at: string;
@@ -4915,7 +4928,7 @@ function codex01521QualificationResultV01(input: {
         : ("not_qualified" as const),
     production_cutover_authorized: false as const,
     executable_identity_class: input.executable_identity_class,
-    runtime_qualified_methods: ["initialize", "initialized", "config/read"],
+    runtime_exercised_methods: [...input.runtime_exercised_methods],
     source_compatible_runtime_unqualified_methods: [
       "account/read",
       "getAuthStatus",
@@ -4925,7 +4938,7 @@ function codex01521QualificationResultV01(input: {
       "thread/resume",
       "turn/start",
     ],
-    qualified_notification_methods: [
+    source_and_fixture_qualified_notification_methods: [
       "modelProvider/authRecoveryStarted",
       "modelProvider/authRecoveryCompleted",
     ],

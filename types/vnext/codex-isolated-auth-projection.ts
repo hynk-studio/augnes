@@ -374,9 +374,9 @@ export interface Codex01521ExactQualificationResultV01 {
   executable_identity_class:
     | "qualification_candidate_codex_0_152_1"
     | "test_emulated_profile";
-  runtime_qualified_methods: string[];
+  runtime_exercised_methods: string[];
   source_compatible_runtime_unqualified_methods: string[];
-  qualified_notification_methods: string[];
+  source_and_fixture_qualified_notification_methods: string[];
   observed_security_policy_fingerprint: string | null;
   private_environment_observed: boolean;
   private_environment_policy: {

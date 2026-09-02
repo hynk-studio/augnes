@@ -221,6 +221,13 @@ initialized
 config/read(includeLayers=true)
 ```
 
+The qualification result records those as `runtime_exercised_methods` only
+after each method is actually exercised. Early identity or profile refusal
+therefore records an empty list. Notification compatibility is separately
+named `source_and_fixture_qualified_notification_methods`: the exact released
+source plus focused adapter fixtures qualify those two notification shapes,
+but the credential-free candidate run did not claim to observe them at runtime.
+
 It sent no account, thread, turn, tool, approval, or provider request. No
 repository instruction or repository command was presented to a model, and no
 model existed in the run. The parent was empty after owned process settlement

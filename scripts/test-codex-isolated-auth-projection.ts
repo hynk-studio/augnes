@@ -2088,6 +2088,18 @@ async function codex01521QualificationContractV01(
     compatible.production_profile_fingerprint,
   );
   assert.equal(compatible.private_environment_observed, true);
+  assert.deepEqual(compatible.runtime_exercised_methods, [
+    "initialize",
+    "initialized",
+    "config/read",
+  ]);
+  assert.deepEqual(
+    compatible.source_and_fixture_qualified_notification_methods,
+    [
+      "modelProvider/authRecoveryStarted",
+      "modelProvider/authRecoveryCompleted",
+    ],
+  );
   assert.equal(compatible.cleanup_completed, true);
   assert.equal(readdirSync(stateParent).length, 0);
   assert.deepEqual(receivedMethodsV01(tracePath), [
@@ -2121,6 +2133,7 @@ async function codex01521QualificationContractV01(
   );
   assert.equal(wrongExecutable.production_selected, false);
   assert.equal(wrongExecutable.production_cutover_authorized, false);
+  assert.deepEqual(wrongExecutable.runtime_exercised_methods, []);
 
   for (const [id, override, expectedState] of [
     [
@@ -2154,6 +2167,7 @@ async function codex01521QualificationContractV01(
     assert.equal(rejected.production_selected, false, id);
     assert.equal(rejected.production_compatibility_status, "not_qualified", id);
     assert.equal(rejected.production_cutover_authorized, false, id);
+    assert.deepEqual(rejected.runtime_exercised_methods, [], id);
   }
 
   const wrongCli = await qualifyCodex01521ExactCompatibilityV01({
@@ -2170,6 +2184,11 @@ async function codex01521QualificationContractV01(
   assert.equal(wrongCli.production_selected, false);
   assert.equal(wrongCli.production_compatibility_status, "not_qualified");
   assert.equal(wrongCli.production_cutover_authorized, false);
+  assert.deepEqual(wrongCli.runtime_exercised_methods, [
+    "initialize",
+    "initialized",
+    "config/read",
+  ]);
   assert.equal(readdirSync(stateParent).length, 0);
 }
 
