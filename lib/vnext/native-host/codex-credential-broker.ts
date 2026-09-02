@@ -1912,7 +1912,8 @@ interface AgentIdentityClaimsV01 extends Record<string, unknown> {
 }
 
 /**
- * Parse the exact rust-v0.150.1 AuthDotJson storage envelope. Augnes never
+ * Parse the exact AuthDotJson storage envelope retained from rust-v0.150.1
+ * by the selected rust-v0.152.1 profile. Augnes never
  * treats a storage backend's serialized value itself as an Agent Identity JWT.
  * Managed ChatGPT auth may reuse only an official AgentIdentityAuthRecord whose
  * account/user binding matches the token snapshot; absent that Record, the
@@ -3301,7 +3302,7 @@ function exactBrokerExecutableIdentityV01(
 
 type CodexAuthFilePlatformClassV01 = "unix" | "non_unix";
 
-/** Mirrors rust-v0.150.1: file mode 0600 is a cfg(unix) write policy,
+/** Mirrors rust-v0.150.1 and rust-v0.152.1: file mode 0600 is a cfg(unix) write policy,
  * while Windows uses its portable regular-file identity and O_RDONLY path. */
 interface CodexAuthFilePlatformPolicyV01 {
   platform_class: CodexAuthFilePlatformClassV01;

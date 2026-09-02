@@ -16,16 +16,30 @@ export const CODEX_ISOLATED_AUTH_BROKER_VERSION_V01 =
   "codex_credential_broker.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_ROUTE_V01 =
   "local_codex_auth_storage" as const;
-export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01 =
   "codex_isolated_auth_semantic_profile.rust-v0.150.1" as const;
-export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.150.1" as const;
-export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.150.1" as const;
-export const CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 =
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SUPPORTED_CLI_VERSION_V01 =
+  "0.150.1" as const;
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_TAG_V01 =
+  "rust-v0.150.1" as const;
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_SOURCE_COMMIT_V01 =
   "90854393966b21e9ebfd21b122334eb09a20c93d" as const;
-export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 =
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_EXECUTABLE_FINGERPRINT_V01 =
   "sha256:a14f9a907c12c8812878b70e6b7d65f81c39ed795513e46a55817d7428c0ca6b" as const;
+export const CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01 =
+  "sha256:0c2275335eb069ccd251dade36df03b6f4f0842deedc1d8d12191dadfa917058" as const;
+export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01 =
+  "codex_isolated_auth_semantic_profile.rust-v0.152.1" as const;
+export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.152.1" as const;
+export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.152.1" as const;
+export const CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 =
+  "5adb68a49933ae446bf11935662c83dba55a0804" as const;
+export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 =
+  "sha256:8194ea3181f330e63023b234b0b231855e5874e0331c5ef7cbc490591497a7bf" as const;
+export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01 =
+  "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529" as const;
 export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01 =
-  "codex_app_server_user_agent.rust-v0.150.1" as const;
+  "codex_app_server_user_agent.rust-v0.152.1" as const;
 export const CODEX_APP_SERVER_CLIENT_VERSION_V01 =
   "codex_app_server_adapter.v0.1" as const;
 export const CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01 =
@@ -62,6 +76,11 @@ export const CODEX_AGENT_IDENTITY_ISSUER_V01 =
 export const CODEX_AGENT_IDENTITY_AUDIENCE_V01 = "codex-app-server" as const;
 export const CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01 =
   "https://chatgpt.com/backend-api/codex" as const;
+/**
+ * Production overrides for released Codex 0.152.1. The final two added flags
+ * preserve the 0.150.1 tool/item surface after 0.152.1 made `sleep_tool`
+ * default-on and stabilized default-on `content_item_kinds`.
+ */
 export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
   "--strict-config",
   "-c",
@@ -142,20 +161,15 @@ export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
   "project_doc_max_bytes=0",
   "-c",
   "project_doc_fallback_filenames=[]",
-] as const;
-
-/**
- * Additive qualification-only overrides for released Codex 0.152.1. The two
- * added flags preserve the 0.150.1 tool/item surface after 0.152.1 made
- * `sleep_tool` default-on and stabilized default-on `content_item_kinds`. This
- * tuple is not selected by the production isolated-auth projection.
- */
-export const CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01 = [
-  ...CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
   "-c",
   "features.sleep_tool=false",
   "-c",
   "features.content_item_kinds=false",
+] as const;
+
+/** Frozen CDX3B candidate tuple. It remains candidate-only historical evidence. */
+export const CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01 = [
+  ...CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
 ] as const;
 
 export interface CodexIsolatedAuthIntegrityV01 {
@@ -192,7 +206,7 @@ export interface Codex01521QualificationSemanticProfileV01 {
   qualification_executable_fingerprint: typeof CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01;
   platform: typeof CODEX_0_152_1_PLATFORM_V01;
   architecture: typeof CODEX_0_152_1_ARCHITECTURE_V01;
-  production_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  production_profile_version: typeof CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01;
   production_profile_fingerprint: string;
   production_selection: false;
   agent_identity_claim_contract_status: "unchanged_from_rust_v0.150.1";
@@ -364,7 +378,7 @@ export interface Codex01521ExactQualificationResultV01 {
   app_server_reported_cli_version: string | null;
   semantic_profile_version: typeof CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01;
   semantic_profile_fingerprint: string;
-  production_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  production_profile_version: typeof CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01;
   production_profile_fingerprint: string;
   production_selected: false;
   production_compatibility_status:

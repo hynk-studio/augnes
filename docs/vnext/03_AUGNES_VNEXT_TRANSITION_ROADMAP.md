@@ -2362,6 +2362,34 @@ calls the provider again. The resumed path uses `thread/resume`, never
 and proposal owners under the next generation. Resume completion is not
 semantic acceptance.
 
+## Codex continuity ownership and production target
+
+CDX3A preserves the distinction between Codex host-local operational
+continuity and Augnes canonical semantic, epistemic, and authority continuity.
+CDX3B exactly qualified released Codex `rust-v0.152.1` without selecting it.
+
+[Issue #1193](https://github.com/hynk-studio/augnes/issues/1193) authorizes the
+final production-selection change. The
+[CDX3C cutover record](./research/CDX3C_CODEX_0_152_1_PRODUCTION_CUTOVER_V0_1.md)
+binds the selected `rust-v0.152.1` source, executable, config, user-agent,
+method, notification, and semantic-profile identities while preserving the
+exact `rust-v0.150.1` profile as historical non-selected compatibility
+evidence. The change does not enable memories, Persistent reasoning,
+goal/queue continuation, remote tools, or a broader continuity contract.
+
+Exact credential-free production admission passes. The attempted authenticated
+rollout stops before child launch at the existing Agent Identity bootstrap
+prerequisite, so authenticated account/preflight and turn runtime remain
+unqualified until that independently owned prerequisite is satisfied. No
+credential bootstrap, provider/model turn, repository execution, semantic
+proposal, `ReviewDecision`, or `Transition` was created by CDX3C.
+
+For RW1B, the effective ambient-condition boundary is the future merge of the
+CDX3C pull request. The cutover is not an episode and consumes no slot; prior
+observations remain valid pre-cutover history, subsequent natural observations
+are post-0.152.1, and the two conditions must not be pooled as one frozen
+ambient condition.
+
 ## Separately authorized work
 
 No automatic-resume policy is authorized by CDX2B4B. A bounded automatic-resume

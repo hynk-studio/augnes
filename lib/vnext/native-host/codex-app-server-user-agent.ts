@@ -15,10 +15,7 @@ import {
 
 export const CODEX_APP_SERVER_USER_AGENT_MAX_LENGTH_V01 = 512;
 
-const USER_AGENT_CONTRACT_MATERIAL_V01 = {
-  contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
-  upstream_source_commit: CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
-  supported_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+const USER_AGENT_CONTRACT_COMMON_MATERIAL_V01 = {
   grammar:
     "originator/cli-version (Mac OS os-semver; arm64|x86_64) terminal-token (client-name; client-version)",
   max_length: CODEX_APP_SERVER_USER_AGENT_MAX_LENGTH_V01,
@@ -28,11 +25,18 @@ const USER_AGENT_CONTRACT_MATERIAL_V01 = {
   client_suffix_binding: "exact_initialize_client_info_name_and_version",
 } as const;
 
+const USER_AGENT_CONTRACT_MATERIAL_V01 = {
+  contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
+  upstream_source_commit: CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
+  supported_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  ...USER_AGENT_CONTRACT_COMMON_MATERIAL_V01,
+} as const;
+
 const USER_AGENT_CONTRACT_MATERIAL_0_152_1_V01 = {
-  ...USER_AGENT_CONTRACT_MATERIAL_V01,
   contract_version: CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
   upstream_source_commit: CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
   supported_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  ...USER_AGENT_CONTRACT_COMMON_MATERIAL_V01,
 } as const;
 
 export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01 =
