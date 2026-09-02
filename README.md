@@ -234,7 +234,6 @@ active owner per durable topic:
 - Core and protocol semantics — `02`;
 - implementation status and sequence — `03`;
 - evaluation and maturity — `04`;
-- temporary C0–C9 correction program — `07`;
 - retention and deletion safety — `docs/REPOSITORY_REDUCTION_SCOPE.md`;
 - product entry — this README;
 - repository operating rules — `AGENTS.md`.
@@ -247,15 +246,15 @@ C0–C8 are merged. RR0 was completed in
 and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
 RR1 is documentation authority reconciliation defined by
 [issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
-[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the current,
-temporary repository-cleanup program and the explicit authorization to begin
-proof-backed C9 dispositions. C9 is current but incomplete, and the umbrella
-issue is not blanket deletion authority. Each runtime, data, or compatibility
-disposition still requires the consumer, data, authority, replacement, rollback,
-and exact-head proof owned by the temporary `07` charter and the durable
-[repository reduction policy](docs/REPOSITORY_REDUCTION_SCOPE.md). The cleanup
-does not activate or reinterpret separate research and candidate work; current
-status remains in `03`.
+
+The temporary C0–C9 correction and post-CW1 cleanup program is completed.
+[`07`](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
+is a historical closeout pointer, not an active authority owner. Its umbrella
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) grants no
+continuing cleanup or deletion authority. Future dispositions require separate
+authorization under the durable
+[repository reduction policy](docs/REPOSITORY_REDUCTION_SCOPE.md) and current
+verification rules. Current research status remains owned by `03`.
 
 Attachment-backed managed runs retain one private exact safe-operation
 checkpoint history and expose one bounded read-only resume-eligibility status

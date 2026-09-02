@@ -5,8 +5,8 @@
 This file is the small, durable repository constitution for Augnes. It owns
 repository identity, collaboration, development, authority, safety, and
 verification principles. Product doctrine, Core/protocol meaning,
-implementation status, evaluation, and temporary program history belong to
-their active owners.
+implementation status, and evaluation belong to their active owners;
+temporary program history belongs to supporting historical records.
 
 - ChatGPT and the user own the goal, scope, invariants, authority, non-goals,
   and deciding-evidence requirements. ChatGPT and the user also own
@@ -57,8 +57,6 @@ unclear.
 - [Evaluation and maturity](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
   owns correctness, product-continuity, maturity, outcome, and usefulness
   evaluation.
-- The [temporary correction charter](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
-  owns only C0-C9 history, status, proof boundary, and closeout.
 - The [reduction policy](docs/REPOSITORY_REDUCTION_SCOPE.md) applies only to an
   explicitly authorized retention, reduction, or deletion task.
 

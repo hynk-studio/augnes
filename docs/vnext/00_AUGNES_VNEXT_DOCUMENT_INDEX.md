@@ -4,7 +4,7 @@
 
 This file is the concise map of active repository authority. It does not own
 product doctrine, Core semantics, implementation chronology, evaluation
-criteria, or the C0–C9 program.
+criteria, or C0–C9 program history.
 
 The governing rule is:
 
@@ -20,7 +20,6 @@ The governing rule is:
 | Core and protocol semantics | [`02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md) | Sole semantic authority for Core records, identity, persistence, lineage, evidence, proposals, decisions, Transitions, execution authority, and provider-neutral protocol boundaries. |
 | Current implementation status and sequence | [`03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md) | Sole owner of completed, current, next, later, and research sequencing. Current code remains the truth for implemented behavior. |
 | Evaluation and maturity | [`04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) | Owns correctness, product-continuity, outcome, maturity, and usefulness evaluation without inventing measured success. |
-| Temporary C0–C9 correction program | [`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md) | Owns only the reason, status, C9 proof boundary, and closeout of the temporary correction program. |
 | Product entry and supported usage | [`../../README.md`](../../README.md) | Concise product introduction, supported startup/evaluation paths, current topology summary, and links to active authority. |
 | Repository operating rules | [`../../AGENTS.md`](../../AGENTS.md) | Repository identity, collaboration, development, authority, safety, exact-head verification, and Draft pull-request principles. |
 | Retention and deletion safety | [`../REPOSITORY_REDUCTION_SCOPE.md`](../REPOSITORY_REDUCTION_SCOPE.md) | Phase-neutral responsibility classes and proof requirements for authorized retention, reduction, and deletion work. It does not authorize an individual disposition. |
@@ -35,15 +34,15 @@ verification policy, current review-window and operability contracts,
 recovery/portability contracts, and active package contracts constrain actual
 implementations. They implement canonical authority but do not override it.
 
-### Temporary cleanup program
+### Completed correction and cleanup program
 
-[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the current,
-temporary repository-cleanup program and the explicit authorization to begin
-proof-backed C9 dispositions. It is not permanent product or Core doctrine,
-does not complete C9, and is not blanket deletion authority. `03` owns current
-program sequencing, `07` owns the temporary C9 proof boundary, and the
-repository reduction policy owns phase-neutral classification and disposition
-proof.
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) records the
+completed temporary C0–C9 correction and post-CW1 cleanup program.
+[`07`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md) is its
+historical closeout pointer, not an active authority owner. Neither the issue
+nor `07` grants continuing cleanup or deletion authority. Future repository
+maintenance requires separate authorization under the repository reduction
+policy and current verification owners.
 
 ### Active research
 
@@ -100,6 +99,11 @@ current sequencing, authorize deletion, or create a scientific conclusion.
 Its scientific disposition remains `not_tested`, and its track disposition
 remains terminal history.
 
+The
+[C0–C9 correction-program closeout](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
+likewise remains historical/closeout supporting material. It does not own a
+current repository topic or authorize continuation of C9.
+
 ## Conflict resolution
 
 1. Use the active owner for the topic in dispute.
@@ -109,11 +113,9 @@ remains terminal history.
    checked-in runtime evidence about what is implemented.
 4. `04` owns evaluation; a roadmap milestone, fixture, metric, or test count
    cannot claim product usefulness on its own.
-5. `07` is temporary C0–C9 authority only. It cannot override durable doctrine,
-   Core semantics, or evaluation, and it retires after C9 closeout.
-6. Active implementation contracts may narrow an implementation but cannot
+5. Active implementation contracts may narrow an implementation but cannot
    expand product, semantic, execution, or user authority.
-7. Research, compatibility, and historical material lose any conflict with an
+6. Research, compatibility, and historical material lose any conflict with an
    active owner.
 
 Unknown conflicts fail closed: preserve the current implementation and data,
