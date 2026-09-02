@@ -2384,6 +2384,19 @@ unqualified until that independently owned prerequisite is satisfied. No
 credential bootstrap, provider/model turn, repository execution, semantic
 proposal, `ReviewDecision`, or `Transition` was created by CDX3C.
 
+[Issue #1195](https://github.com/hynk-studio/augnes/issues/1195) authorized the
+CDX3D authenticated-runtime attempt. The
+[CDX3D qualification record](./research/CDX3D_CODEX_0_152_1_AUTHENTICATED_RUNTIME_V0_1.md)
+proves that exact `rust-v0.152.1` source can enter a non-interactive official
+Agent Identity bootstrap from the current managed ChatGPT source, but the
+official identity-registration endpoint returned non-retryable HTTP 403 before
+task registration or persistence. The verdict is `HOLD / NOT_QUALIFIED`.
+Authenticated preflight, thread/turn runtime, and the authorized one-turn
+provider proof therefore remained unexercised; provider/model, tool/effect,
+repository execution, Proposal, `ReviewDecision`, and `Transition` counts all
+remain zero. The production selection is unchanged, and no source-backed user
+interaction is available to reclassify the stop as `USER_ACTION_REQUIRED`.
+
 For RW1B, the effective ambient-condition boundary is the future merge of the
 CDX3C pull request. The cutover is not an episode and consumes no slot; prior
 observations remain valid pre-cutover history, subsequent natural observations
