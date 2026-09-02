@@ -55,6 +55,7 @@ import {
   CodexIsolatedAuthenticatedExecutionOwnerV01,
   CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01,
   CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01,
+  CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   assertValidCodexIsolatedAuthObservationV01,
@@ -97,6 +98,9 @@ import {
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
 } from "@/types/vnext/codex-isolated-auth-projection";
@@ -507,7 +511,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     const observation = positive.auth_observations[0]!;
     assert.equal(
       observation.config_layers_fingerprint,
-      "sha256:e940fef393c2d25e2279d5f09aa3ebcdde7e590acca60466c6db618598c2d531",
+      "sha256:8c88c909e223a88a30129f4113962350f51714580773af4d79a16a41b1f51f3a",
     );
     assert.equal(
       observation.account_identity_fingerprint,
@@ -1390,18 +1394,18 @@ function userAgentContractV01(): {
     assert.equal(Object.hasOwn(observed, "raw_user_agent"), false);
   }
   const invalid = [
-    "codex-cli/0.150.1",
+    "codex-cli/0.152.1",
     exactUserAgentV01("augnes").replace("augnes/", "other/"),
     exactUserAgentV01("augnes").replace(
       `; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
       "; codex_app_server_adapter.v9.9)",
     ),
-    exactUserAgentV01("augnes").replace("/0.150.1 ", "/0.147.0 "),
+    exactUserAgentV01("augnes").replace("/0.152.1 ", "/0.147.0 "),
     exactUserAgentV01("augnes").replace("Mac OS 15.7.1; ", ""),
     exactUserAgentV01("augnes").replace("15.7.1", "current"),
     `${exactUserAgentV01("augnes")} (augnes; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
     `${exactUserAgentV01("augnes")} unexpected`,
-    `augnes/0.150.1 (Mac OS 15.7.1; arm64) ${"x".repeat(480)} (augnes; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
+    `augnes/0.152.1 (Mac OS 15.7.1; arm64) ${"x".repeat(480)} (augnes; ${CODEX_APP_SERVER_CLIENT_VERSION_V01})`,
     exactUserAgentV01("augnes").replace("fake-terminal", "fake\u0000terminal"),
     exactUserAgentV01("augnes").replace("fake-terminal", "fake\ud800terminal"),
   ];
@@ -1670,12 +1674,12 @@ async function semanticProfileAndCredentialFreePreflightV01(
   const profile = CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01;
   assert.equal(
     profile.semantic_profile_version,
-    "codex_isolated_auth_semantic_profile.rust-v0.150.1",
+    "codex_isolated_auth_semantic_profile.rust-v0.152.1",
   );
-  assert.equal(profile.upstream_tag, "rust-v0.150.1");
+  assert.equal(profile.upstream_tag, "rust-v0.152.1");
   assert.equal(
     profile.upstream_source_commit,
-    "90854393966b21e9ebfd21b122334eb09a20c93d",
+    "5adb68a49933ae446bf11935662c83dba55a0804",
   );
   assert.equal(
     profile.supported_public_cli_version,
@@ -1703,7 +1707,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.config_tool_feature_schema_fingerprint,
-    "sha256:baa7d22bafadad873f099713288596bdfd3f9873f737773b35e20aa954a0ea22",
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.config_tool_feature_schema_fingerprint,
   );
   assert.equal(
     profile.auth_storage_contract_version,
@@ -1743,10 +1747,10 @@ async function semanticProfileAndCredentialFreePreflightV01(
     configOverridePaths,
     "every -c override must own exactly one SessionFlags projection path",
   );
-  assert.equal(configOverridePaths.length, 39);
+  assert.equal(configOverridePaths.length, 41);
   assert.equal(new Set(configOverridePaths).size, configOverridePaths.length);
   const runtimeOriginPaths = codexIsolatedAuthExpectedRuntimeOriginPathsV01();
-  assert.equal(runtimeOriginPaths.length, 35);
+  assert.equal(runtimeOriginPaths.length, 37);
   assert.equal(configOverridePaths.includes("sqlite_home"), false);
   assert.equal(runtimeOriginPaths.includes("sqlite_home"), false);
   for (const emptyContainerPath of [
@@ -1775,6 +1779,8 @@ async function semanticProfileAndCredentialFreePreflightV01(
     "mentions_v2",
     "remote_plugin",
     "tool_suggest",
+    "sleep_tool",
+    "content_item_kinds",
   ]) {
     assert.equal(
       configOverrideArgs.includes(`features.${feature}=false`),
@@ -1789,7 +1795,41 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     profile.integrity.fingerprint,
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
     "sha256:0c2275335eb069ccd251dade36df03b6f4f0842deedc1d8d12191dadfa917058",
+  );
+  assert.equal(CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected, true);
+  assert.equal(Object.isFrozen(CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01), true);
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected_upstream_tag,
+    "rust-v0.152.1",
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected_upstream_source_commit,
+    "5adb68a49933ae446bf11935662c83dba55a0804",
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected_executable_fingerprint,
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected_profile_fingerprint,
+    profile.integrity.fingerprint,
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.previous_profile_fingerprint,
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  );
+  assert.notEqual(
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    profile.integrity.fingerprint,
+  );
+  assert.equal(
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    "sha256:222fa6bb809ef302f30e1f12de6b7475a3e736afc41db72d87e395d7fbecf0a4",
   );
   assert.equal(
     provisioned.projection.semantic_profile_fingerprint,
@@ -1842,10 +1882,16 @@ async function semanticProfileAndCredentialFreePreflightV01(
   );
   assert.equal(
     provisioned.projection.config_policy.policy_fingerprint,
-    "sha256:f8681edeae0ba1a80aa810e473a73fb14f287e5bb5ae2b1f542b58ddb2299c1d",
+    "sha256:d76a11f5f6ebfd93d29e48ee003e4d3d0443411503fe32b155019bde8d2f8ebe",
   );
 
-  for (const version of ["0.147.0", "0.150.0", "0.151.0", "not-a-version"]) {
+  for (const version of [
+    "0.147.0",
+    "0.150.0",
+    "0.150.1",
+    "0.151.0",
+    "not-a-version",
+  ]) {
     assert.throws(
       () =>
         createCodexIsolatedAuthProvisioningBindingV01({
@@ -1956,6 +2002,12 @@ async function semanticProfileAndCredentialFreePreflightV01(
     observed_at: GENERATED_AT,
   });
   assert.equal(fake.state, "compatible_exact");
+  assert.equal(fake.executable_identity_class, "test_emulated_profile");
+  assert.notEqual(
+    fake.codex_executable_fingerprint,
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01.selected_executable_fingerprint,
+    "a test-emulated executable cannot masquerade as selected production",
+  );
   assert.equal(
     fake.observed_cli_version,
     CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
@@ -1963,7 +2015,7 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assert.equal(fake.cleanup_completed, true);
   assert.equal(
     fake.observed_security_policy_fingerprint,
-    "sha256:f8681edeae0ba1a80aa810e473a73fb14f287e5bb5ae2b1f542b58ddb2299c1d",
+    "sha256:d76a11f5f6ebfd93d29e48ee003e4d3d0443411503fe32b155019bde8d2f8ebe",
   );
   assert.equal(readdirSync(fakeStateParent).length, 0);
   const fakeMethods = receivedMethodsV01(fakeTrace);
@@ -2073,6 +2125,10 @@ async function codex01521QualificationContractV01(
   assert.equal(compatible.production_selected, false);
   assert.equal(compatible.production_compatibility_status, "not_qualified");
   assert.equal(compatible.production_cutover_authorized, false);
+  assert.equal(
+    compatible.production_profile_version,
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
+  );
   assert.equal(compatible.cli_reported_version, null);
   assert.equal(compatible.app_server_reported_cli_version, "0.152.1");
   assert.equal(

@@ -850,7 +850,7 @@ function fakeCodexUserAgentV01(value, clientInfo) {
         ? "0.151.0"
         : qualification01521
           ? "0.152.1"
-          : "0.150.1";
+          : "0.152.1";
   const originator =
     value === "isolated_auth_user_agent_wrong_originator"
       ? "other-originator"
@@ -860,7 +860,7 @@ function fakeCodexUserAgentV01(value, clientInfo) {
       ? "codex_app_server_adapter.v9.9"
       : version;
   if (value === "isolated_auth_user_agent_legacy_abbreviated")
-    return "codex-cli/0.150.1";
+    return "codex-cli/0.152.1";
   if (value === "isolated_auth_user_agent_missing_platform")
     return `${originator}/${cliVersion} fake-terminal/1.0 (${name}; ${suffixVersion})`;
   if (value === "isolated_auth_user_agent_malformed_platform")
@@ -1184,10 +1184,12 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     apps: false,
     auth_elicitation:
       activeScenario === "isolated_auth_feature_auth_elicitation_enabled",
+    background_paginated_rollout_migration: false,
     browser_use: false,
     browser_use_external: false,
     browser_use_full_cdp_access: false,
     computer_use: false,
+    content_item_kinds: false,
     hooks: false,
     image_generation: false,
     in_app_browser: false,
@@ -1207,18 +1209,12 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     request_permissions_tool:
       activeScenario === "isolated_auth_tool_policy_drift",
     standalone_web_search: false,
+    sleep_tool: false,
     tool_suggest:
       activeScenario === "isolated_auth_feature_tool_suggest_enabled",
     use_agent_identity: true,
     web_search_cached: false,
     web_search_request: false,
-    ...(activeScenario.startsWith("isolated_auth_qualification_0_152_1")
-      ? {
-          background_paginated_rollout_migration: false,
-          content_item_kinds: false,
-          sleep_tool: false,
-        }
-      : {}),
     ...(activeScenario === "isolated_auth_unknown_feature_drift"
       ? { unknown_network_tool: false }
       : {}),
@@ -1608,7 +1604,7 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: isolatedAuthScenario ? "0.150.1" : "0.147.0",
+    cliVersion: isolatedAuthScenario ? "0.152.1" : "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,

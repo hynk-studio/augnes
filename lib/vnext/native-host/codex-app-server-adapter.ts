@@ -84,6 +84,8 @@ import {
   CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
   CODEX_0_152_1_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01,
@@ -293,7 +295,8 @@ export interface CodexAppServerAdapterOptionsV01 {
 
 /**
  * The only public handle returned by an authenticated isolated launch before
- * external execution authorization. It exposes the closed Codex 0.150.1
+ * external execution authorization. It exposes the closed selected Codex
+ * 0.152.1
  * preflight method set and cleanup, but no child, stream, generic RPC, or
  * repository/provider-bearing operation.
  */
@@ -4918,9 +4921,9 @@ function codex01521QualificationResultV01(input: {
     semantic_profile_fingerprint:
       CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
     production_profile_version:
-      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+      CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
     production_profile_fingerprint:
-      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+      CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
     production_selected: false as const,
     production_compatibility_status:
       input.state === "qualified_exact" && input.cleanup_completed

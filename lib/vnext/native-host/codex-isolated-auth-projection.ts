@@ -61,9 +61,16 @@ import {
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SUPPORTED_CLI_VERSION_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
   CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_CREDENTIAL_ATTESTATION_VERSION_V01,
@@ -208,7 +215,7 @@ const CONFIG_OVERRIDE_ARGS_V01 = CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
 const CONFIG_OVERRIDE_ARGS_0_152_1_V01 =
   CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01;
 const CONFIG_PROVENANCE_CONTRACT_VERSION_V01 =
-  "codex_config_read_provenance.rust-v0.150.1" as const;
+  "codex_config_read_provenance.rust-v0.152.1" as const;
 type BoundedRuntimeOverrideValueV01 =
   | string
   | number
@@ -303,13 +310,11 @@ const DISABLED_FEATURE_NAMES_V01 = [
   "tool_suggest",
   "web_search_cached",
   "web_search_request",
-] as const;
-const DISABLED_FEATURE_NAMES_0_152_1_V01 = [
-  ...DISABLED_FEATURE_NAMES_V01,
   "sleep_tool",
   "content_item_kinds",
   "background_paginated_rollout_migration",
 ] as const;
+const DISABLED_FEATURE_NAMES_0_152_1_V01 = [...DISABLED_FEATURE_NAMES_V01] as const;
 const CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01 = {
   contract_version: CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
   config_read_include_layers: true,
@@ -324,7 +329,6 @@ const CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01 = {
 } as const;
 const CONFIG_PROVENANCE_CONTRACT_MATERIAL_0_152_1_V01 = {
   ...CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01,
-  contract_version: "codex_config_read_provenance.rust-v0.152.1",
   expected_runtime_override_paths: [
     ...EXPECTED_RUNTIME_OVERRIDE_PATHS_0_152_1_V01,
   ],
@@ -378,15 +382,31 @@ export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01 = deepFreezeV01({
   external_execution_authorization_before_agent_identity_material: "forbidden",
 } as const);
 const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
-  method_profile_version: "codex_app_server_auth_preflight.rust-v0.150.1",
-  initialize: "initialize",
-  initialized: "initialized",
-  account_read: "account/read",
-  auth_status: "getAuthStatus",
-  config_read: "config/read",
-  mcp_status: "mcpServerStatus/list",
-  thread_start: "thread/start",
-  turn_start: "turn/start",
+  method_profile_version: "codex_app_server_auth_preflight.rust-v0.152.1",
+  authenticated_preflight_methods: [
+    "initialize",
+    "initialized",
+    "account/read",
+    "getAuthStatus",
+    "config/read",
+    "mcpServerStatus/list",
+  ],
+  isolated_execution_methods: ["thread/start", "turn/start"],
+  terminal_statuses: ["completed", "interrupted", "failed", "inProgress"],
+  approval_server_requests: [
+    "item/commandExecution/requestApproval",
+    "item/fileChange/requestApproval",
+    "item/permissions/requestApproval",
+  ],
+  qualified_notifications: [
+    "modelProvider/authRecoveryStarted",
+    "modelProvider/authRecoveryCompleted",
+  ],
+  auth_recovery_notification_classification:
+    "stable_public_provider_recovery_progress_observation",
+  auth_recovery_creates_authority: false,
+  unknown_notifications: "fail_closed",
+  unknown_server_requests: "fail_closed",
   user_agent_contract_version:
     CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   user_agent_contract_fingerprint:
@@ -431,6 +451,13 @@ const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
     config_override_args: CONFIG_OVERRIDE_ARGS_V01,
     disabled_features: [...DISABLED_FEATURE_NAMES_V01],
     config_provenance_contract: CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01,
+    released_source_delta: {
+      sleep_tool: "stable_default_on_forced_off",
+      content_item_kinds: "stabilized_default_on_forced_off",
+      background_paginated_rollout_migration:
+        "source_injected_false_not_overridden",
+      update_plan_default: "default_off_source_delta_not_consumed",
+    },
   }),
 );
 const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_0_152_1_V01 =
@@ -501,6 +528,12 @@ export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01:
   ...SEMANTIC_PROFILE_MATERIAL_V01,
   integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_V01),
 });
+if (
+  CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint !==
+  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01
+) {
+  throw new Error("codex_isolated_auth_production_semantic_profile_unsealed");
+}
 const SEMANTIC_PROFILE_MATERIAL_0_152_1_V01 = {
   semantic_profile_version: CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01,
   upstream_tag: CODEX_0_152_1_UPSTREAM_TAG_V01,
@@ -514,9 +547,9 @@ const SEMANTIC_PROFILE_MATERIAL_0_152_1_V01 = {
   platform: CODEX_0_152_1_PLATFORM_V01,
   architecture: CODEX_0_152_1_ARCHITECTURE_V01,
   production_profile_version:
-    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
   production_profile_fingerprint:
-    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
   production_selection: false,
   agent_identity_claim_contract_status:
     "unchanged_from_rust_v0.150.1",
@@ -548,6 +581,44 @@ export const CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01:
   Codex01521QualificationSemanticProfileV01 = deepFreezeV01({
   ...SEMANTIC_PROFILE_MATERIAL_0_152_1_V01,
   integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_0_152_1_V01),
+});
+const PRODUCTION_SELECTION_MATERIAL_V01 = {
+  selection_version: "codex_isolated_auth_production_selection.v0.1",
+  selected: true,
+  selected_profile_version:
+    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+  selected_profile_fingerprint:
+    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  selected_upstream_tag: CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
+  selected_upstream_source_commit:
+    CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
+  selected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+  selected_executable_fingerprint:
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+  qualification_profile_version:
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.semantic_profile_version,
+  qualification_profile_fingerprint:
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  qualification_status: "qualified_exact_candidate_promoted_by_cdx3c",
+  previous_profile_version:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_VERSION_V01,
+  previous_profile_fingerprint:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SEMANTIC_PROFILE_FINGERPRINT_V01,
+  previous_upstream_tag:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_TAG_V01,
+  previous_upstream_source_commit:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_UPSTREAM_SOURCE_COMMIT_V01,
+  previous_cli_version:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_SUPPORTED_CLI_VERSION_V01,
+  previous_executable_fingerprint:
+    CODEX_ISOLATED_AUTH_HISTORICAL_0_150_1_EXECUTABLE_FINGERPRINT_V01,
+  previous_profile_status: "exact_qualified_historical_non_selected",
+  rollback_requires_schema_migration: false,
+  host_continuity_creates_semantic_authority: false,
+} as const;
+export const CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01 = deepFreezeV01({
+  ...PRODUCTION_SELECTION_MATERIAL_V01,
+  integrity: integrityV01(PRODUCTION_SELECTION_MATERIAL_V01),
 });
 const TEST_ENV_KEYS_V01 = new Set([
   "AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE",
@@ -2837,7 +2908,7 @@ function emptyRecordV01(value: unknown): boolean {
 }
 function inactiveAppsProjectionV01(value: unknown): boolean {
   const apps = recordV01(value);
-  // Codex 0.150.1 converts an empty ConfigToml apps table into the API
+  // Codex 0.150.1 and 0.152.1 convert an empty ConfigToml apps table into the API
   // AppsConfig shape with one nullable `_default` sentinel. No per-app key or
   // expanded default policy is part of the isolated profile.
   return Boolean(
