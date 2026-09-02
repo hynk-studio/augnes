@@ -428,6 +428,15 @@ const suites = {
       timeoutMs: 600_000,
     },
     {
+      id: "codex-production-runtime",
+      group: "supporting-serial",
+      requirements: ["filesystem", "project-root", "mutable-module-state"],
+      label:
+        "exact ordinary Codex production executable resolution and default-launch binding",
+      ...rootNode("scripts/test-codex-production-runtime.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "codex-isolated-auth-projection",
       group: "supporting-serial",
       requirements: [

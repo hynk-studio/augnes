@@ -8617,7 +8617,7 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         );
         assert.equal(
           projection.capability.cli_version,
-          "codex-cli/fake-0.143.0",
+          "0.152.1",
         );
         assert.equal(projection.pending_approval.command_summary, "npm test");
         assert.equal(projection.pending_approval.decision_submitted, false);

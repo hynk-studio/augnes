@@ -832,14 +832,14 @@ async function handle(message) {
 }
 
 function fakeCodexUserAgentV01(value, clientInfo) {
-  if (!value.startsWith("isolated_auth_"))
-    return "codex-cli/fake-0.143.0";
   const name =
     typeof clientInfo?.name === "string" ? clientInfo.name : "augnes";
   const version =
     typeof clientInfo?.version === "string"
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
+  if (!value.startsWith("isolated_auth_"))
+    return `${name}/0.152.1 (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
   const qualification01521 = value.startsWith(
     "isolated_auth_qualification_0_152_1",
   );

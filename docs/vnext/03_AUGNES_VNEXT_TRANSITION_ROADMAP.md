@@ -2384,6 +2384,20 @@ unqualified until that independently owned prerequisite is satisfied. No
 credential bootstrap, provider/model turn, repository execution, semantic
 proposal, `ReviewDecision`, or `Transition` was created by CDX3C.
 
+[Issue #1197](https://github.com/hynk-studio/augnes/issues/1197) separately
+owns the ordinary ChatGPT-auth LiveNativeHost executable binding. The
+[CDX3E record](./research/CDX3E_CODEX_0_152_1_EXACT_ORDINARY_RUNTIME_V0_1.md)
+replaces the ambient `command: "codex"` production launch with fail-closed
+first-PATH resolution, exact selected native fingerprint and version
+admission, identity recheck, absolute-target spawn, and post-spawn 0.152.1
+user-agent enforcement. Canonical fake app-server routing remains isolated.
+
+The current host's effective first PATH candidate resolves through standalone
+symlinks to native Codex `0.151.0`, whose bytes do not match selected 0.152.1.
+CDX3E therefore stops `PATH_RUNTIME_MISMATCH` before app-server spawn and runs
+no real turn. It does not skip to a later PATH entry, mutate the installation,
+or weaken the separate strict Agent Identity `HOLD / NOT_QUALIFIED` result.
+
 For RW1B, the effective ambient-condition boundary is the future merge of the
 CDX3C pull request. The cutover is not an episode and consumes no slot; prior
 observations remain valid pre-cutover history, subsequent natural observations
