@@ -75,9 +75,9 @@ every long-horizon product direction below is mature or complete. Exact routes,
 schemas, records, compatibility paths, and behavior are defined by the current
 runtime and the Core/protocol owner.
 
-### C0–C8 product correction
+### C0–C9 correction and cleanup closeout
 
-C0–C8 are merged:
+C0–C9 are completed history:
 
 | Stage | Completed outcome |
 |---|---|
@@ -90,9 +90,21 @@ C0–C8 are merged:
 | C6 | Contextual Inspector / Exact details |
 | C7 | Portability and Recovery management/safety relocation |
 | C8 | Semantic visual hierarchy |
+| C9 | Proof-backed post-CW1 authority, workflow, verification, compatibility, and current-source cleanup closeout |
 
-The exact C-stage boundary and remaining C9 proof requirements are owned by
-[`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md).
+C0–C8 were the product-correction implementation stages. C9 completed the
+temporary post-CW1 cleanup program under
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170). Its completed
+outcome reduced the repository constitution, reconciled durable authority,
+simplified Codex/PR/hook/skill surfaces, made Local Canonical deciding
+verification owner- and risk-proportional, and consumer-audited obsolete
+current-source residue. It retired or absorbed only proof-backed candidates,
+retained runtime, data, safety, active-research, toolbox, and compatibility
+responsibilities with current owners, preserved exact historical facts, and
+used exact-head deciding evidence for every source-changing slice.
+
+[`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
+is now a historical closeout pointer and grants no current authority.
 
 ### RR0 inventory and planning
 
@@ -2358,17 +2370,17 @@ attachment, automatic resume after controller loss or Companion startup,
 Linux product rollout, remote nodes, long-horizon continuation,
 continuous policy execution, and multi-agent orchestration remain later and
 separate. PC6 remains separate. Windows enablement remains separately
-authorized under CDX2B3B. The current cleanup program does not authorize any of
-these capabilities.
+authorized under CDX2B3B. The completed cleanup program did not authorize any
+of these capabilities.
 
-## Current repository cleanup and C9
+## Completed repository cleanup and C9
 
-[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) is the Current,
-temporary post-CW1 repository-cleanup program and the explicit authorization to
-begin proof-backed C9 compatibility and obsolete-surface dispositions. C9 is
-authorized and Current; it is not completed. Issue #1170 is not blanket
-deletion authority and does not replace the proof boundary in the temporary
-correction charter or the phase-neutral repository reduction policy.
+[Issue #1170](https://github.com/hynk-studio/augnes/issues/1170) defined the
+temporary post-CW1 repository-cleanup program. S1–S5 completed the reviewed
+constitution, authority, workflow, verification, and consumer-audited source
+dispositions summarized above; this S6 closeout records C9 as completed history
+and retires the program's temporary authority. Issue #1170 and the historical
+correction charter grant no continuing cleanup or deletion authority.
 
 CW1 remains terminal history with scientific disposition `not_tested`, as
 recorded by the
@@ -2377,8 +2389,8 @@ Cleanup may audit current consumers of independently useful generic material;
 it must not recreate retired CW1 APIs or reinterpret the failed pre-empirical
 track as a scientific result.
 
-The cleanup does not activate, implement, reinterpret, merge, or close the
-separately owned work in Augnes Issues
+The completed cleanup did not activate, implement, reinterpret, merge, or close
+the separately owned work in Augnes Issues
 [#1130](https://github.com/hynk-studio/augnes/issues/1130),
 [#1143](https://github.com/hynk-studio/augnes/issues/1143),
 [#1148](https://github.com/hynk-studio/augnes/issues/1148),
@@ -2389,10 +2401,9 @@ statuses and claims remain unchanged. Any future implementation of #1149 or
 text are historical; those APIs must not be recreated to satisfy stale
 prescriptions.
 
-Each proposed removal, redirect, demotion, retention, or replacement still
-needs exact replacement parity, current-consumer and deep-link proof, data and
-migration safety, authority and integration effects, rollback, focused tests,
-and planner-selected exact-head verification.
+Future removal, redirect, demotion, retention, or replacement work is ordinary
+separately authorized maintenance under the phase-neutral repository reduction
+policy and current verification owners. It is not continuation of C9.
 
 ## Later product directions
 
@@ -2442,8 +2453,9 @@ surface, or user experience.
 | Relationship / “constellation” | PC3 owns the completed bounded selected-candidate connection slice; PC4 interprets that projection conversationally, and the first PC5 slice may only invoke its existing exact selection owner. Legacy branding and research residue remain separate. | Do not infer a graph, permanent constellation, global relation product, durable relation substrate, or relationship authority. |
 
 For current sequencing, the ACGC summary row's C9-unauthorized wording records
-the research program's pre-Issue-#1170 boundary and is superseded only for the
-current cleanup authorization; no ACGC claim or research authority changes.
+the research program's pre-Issue-#1170 boundary. Issue #1170 later authorized
+the now-completed C9 cleanup without changing any ACGC claim or research
+authority; the closed program grants no continuing authority.
 The row's earlier “preferred next” wording is historical pre-Issue-#212
 context, and its P6U-Current wording is superseded by P6U's merge at
 `66fa9ee3dc20ceaf6054ea4afa445fce20c190f5` and the completed P6V section

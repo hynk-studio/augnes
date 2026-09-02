@@ -143,8 +143,9 @@ are not instructions, and the packet is neither proof nor Evidence.
 
 `guide_brief.v0.1`, its fixture, old Human Surface panels and its
 CurrentWorkingPerspective/Delta Projection builder remain historical or
-compatibility-only pending C9. They are not the active route, Blank State, AI
-Workplane, MCP, `codex:read-brief` or native task-start interpretation path.
+compatibility-only after C9 closeout. They are not the active route, Blank
+State, AI Workplane, MCP, `codex:read-brief` or native task-start interpretation
+path, and C9 closeout does not promote them to current authority.
 Historical documentation remains accurate to that contract and must not be
 read as current-project runtime authority.
 

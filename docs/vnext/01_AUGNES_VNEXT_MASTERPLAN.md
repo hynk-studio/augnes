@@ -8,7 +8,7 @@
 > feature-change test.
 >
 > **Not owned here:** Core/protocol semantics, schemas, implementation status,
-> sequencing, evaluation mechanics, or the temporary C0–C9 program.
+> sequencing, evaluation mechanics, or temporary C0–C9 program history.
 
 ## 1. Product definition
 
@@ -313,7 +313,8 @@ Augnes is not:
 - [`04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
   owns product-continuity and outcome evaluation.
 - [`07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md`](./07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
-  owns only the temporary C0–C9 correction program.
+  preserves the completed C0–C9 closeout as history and grants no current
+  authority.
 
 Implementation chronology belongs in the roadmap. Whether a target product
 direction is currently implemented must be established by checked-in runtime
