@@ -544,7 +544,7 @@ npm run codex:record-evidence
 CODEX_EVIDENCE_KIND=duplicate_block_observed \
 CODEX_EVIDENCE_STATUS=blocked \
 CODEX_EVIDENCE_LABEL="Different-key duplicate block observation" \
-CODEX_TARGET_REF="Aurna-code/augnes#..." \
+CODEX_TARGET_REF="hynk-studio/augnes#..." \
 CODEX_RESULT_SUMMARY="Duplicate publish behavior was observed outside this helper and blocked before posting." \
 CODEX_OBSERVED_BEHAVIOR="HTTP 409 duplicate block" \
 npm run codex:record-evidence
