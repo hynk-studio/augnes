@@ -1,4 +1,8 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import {
+  spawn,
+  spawnSync,
+  type ChildProcessWithoutNullStreams,
+} from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -6,6 +10,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
 } from "node:fs";
@@ -33,10 +38,12 @@ import {
   canonicalizeRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
 import {
+  CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   CodexIsolatedAuthProjectionErrorV01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
   codexIsolatedAuthConfigOverrideArgsV01,
+  observeCodex01521CredentialFreeSemanticProfileV01,
   observeCodexIsolatedAuthCredentialFreeSemanticProfileV01,
   type CodexIsolatedAuthenticatedExecutionOwnerV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
@@ -65,12 +72,25 @@ import {
 } from "@/types/vnext/native-host-adapter";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import {
+  CODEX_0_152_1_ARCHITECTURE_V01,
+  CODEX_0_152_1_EXACT_QUALIFICATION_VERSION_V01,
+  CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_0_152_1_PLATFORM_V01,
+  CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01,
+  CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01,
+  CODEX_0_152_1_RELEASE_ASSET_NAME_V01,
+  CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_0_152_1_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
   CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
   CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01,
   CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01,
+  type Codex01521ExactQualificationResultV01,
+  type Codex01521ExactQualificationStateV01,
   type CodexIsolatedAuthCredentialFreePreflightV01,
   type CodexIsolatedAuthObservationV01,
   type CodexIsolatedAuthProjectionV01,
@@ -239,6 +259,8 @@ export interface CodexAppServerAdapterObservationV01 {
     | "thread_started"
     | "thread_resumed"
     | "turn_started"
+    | "provider_auth_recovery_started"
+    | "provider_auth_recovery_completed"
     | "terminal_observed"
     | "approval_requested"
     | "approval_resolved"
@@ -794,11 +816,270 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
     observed_at?: string;
   },
 ): Promise<CodexIsolatedAuthCredentialFreePreflightV01> {
+  const result = await probeCodexCredentialFreeExactProfileV01({
+    ...input,
+    accepted_exact_identity:
+      input.executable_identity_class === "production_pinned_codex" &&
+      input.expected_executable_fingerprint ===
+        CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+    expected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    config_override_args: codexIsolatedAuthConfigOverrideArgsV01(),
+    run_cli_version_probe: false,
+    observe_semantic_profile: ({ initialized, config, sqlite_home }) =>
+      observeCodexIsolatedAuthCredentialFreeSemanticProfileV01({
+        initialized,
+        config,
+        codex_sqlite_home: sqlite_home,
+        expected_client_name: "augnes-semantic-preflight",
+      }),
+  });
+  return preflightResultV01({
+    state: result.state,
+    executable_fingerprint: input.expected_executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    observed_cli_version: result.observed_cli_version,
+    observed_policy_fingerprint: result.observed_policy_fingerprint,
+    cleanup_completed: result.cleanup_completed,
+    observed_at: result.observed_at,
+  });
+}
+
+/**
+ * Qualify the one released 0.152.1 candidate without selecting it for
+ * production. Test-emulated inputs can exercise admission but can only yield
+ * HOLD.
+ */
+export async function qualifyCodex01521ExactCompatibilityV01(input: {
+  command: string;
+  release_archive_path?: string;
+  upstream_tag: string;
+  upstream_source_commit: string;
+  semantic_profile_fingerprint: string;
+  executable_identity_class:
+    | "qualification_candidate_codex_0_152_1"
+    | "test_emulated_profile";
+  state_parent: string;
+  repository_root: string;
+  base_environment?: {
+    PATH?: string;
+    LANG?: string;
+    LC_ALL?: string;
+    LC_CTYPE?: string;
+    TZ?: string;
+    TERM?: string;
+    NO_COLOR?: string;
+  };
+  test_prefix_args?: string[];
+  test_environment?: Record<string, string | undefined>;
+  test_release_archive_fingerprint?: string;
+  test_expected_executable_fingerprint?: string;
+  observed_at?: string;
+}): Promise<Codex01521ExactQualificationResultV01> {
+  const observedAt = input.observed_at ?? new Date().toISOString();
+  const testExact =
+    input.executable_identity_class === "test_emulated_profile" &&
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1";
+  let releaseArchiveFingerprint =
+    input.test_release_archive_fingerprint ?? "unavailable";
+  if (
+    input.executable_identity_class ===
+    "qualification_candidate_codex_0_152_1"
+  ) {
+    try {
+      const archive = realpathSync(input.release_archive_path ?? "");
+      const archiveStat = lstatSync(archive);
+      if (!archiveStat.isFile() || archiveStat.isSymbolicLink())
+        throw new Error("codex_0_152_1_release_archive_invalid");
+      releaseArchiveFingerprint = `sha256:${createHash("sha256")
+        .update(readFileSync(archive))
+        .digest("hex")}`;
+    } catch {
+      return codex01521QualificationResultV01({
+        state: "release_identity_mismatch",
+        release_archive_fingerprint: releaseArchiveFingerprint,
+        executable_fingerprint: "unavailable",
+        executable_identity_class: input.executable_identity_class,
+        cli_reported_version: null,
+        app_server_reported_cli_version: null,
+        observed_policy_fingerprint: null,
+        private_environment_observed: false,
+        cleanup_completed: true,
+        observed_at: observedAt,
+      });
+    }
+  }
+  if (
+    (!testExact &&
+      input.executable_identity_class !==
+        "qualification_candidate_codex_0_152_1") ||
+    input.upstream_tag !== CODEX_0_152_1_UPSTREAM_TAG_V01 ||
+    input.upstream_source_commit !==
+      CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01 ||
+    releaseArchiveFingerprint !==
+      CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01
+  )
+    return codex01521QualificationResultV01({
+      state: "release_identity_mismatch",
+      release_archive_fingerprint: releaseArchiveFingerprint,
+      executable_fingerprint: "unavailable",
+      executable_identity_class: input.executable_identity_class,
+      cli_reported_version: null,
+      app_server_reported_cli_version: null,
+      observed_policy_fingerprint: null,
+      private_environment_observed: false,
+      cleanup_completed: true,
+      observed_at: observedAt,
+    });
+  if (
+    input.semantic_profile_fingerprint !==
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint
+  )
+    return codex01521QualificationResultV01({
+      state: "semantic_profile_mismatch",
+      release_archive_fingerprint: releaseArchiveFingerprint,
+      executable_fingerprint: "unavailable",
+      executable_identity_class: input.executable_identity_class,
+      cli_reported_version: null,
+      app_server_reported_cli_version: null,
+      observed_policy_fingerprint: null,
+      private_environment_observed: false,
+      cleanup_completed: true,
+      observed_at: observedAt,
+    });
+  if (
+    !testExact &&
+    (process.platform !== CODEX_0_152_1_PLATFORM_V01 ||
+      process.arch !== CODEX_0_152_1_ARCHITECTURE_V01)
+  )
+    return codex01521QualificationResultV01({
+      state: "platform_mismatch",
+      release_archive_fingerprint: releaseArchiveFingerprint,
+      executable_fingerprint: "unavailable",
+      executable_identity_class: input.executable_identity_class,
+      cli_reported_version: null,
+      app_server_reported_cli_version: null,
+      observed_policy_fingerprint: null,
+      private_environment_observed: false,
+      cleanup_completed: true,
+      observed_at: observedAt,
+    });
+  const probe = await probeCodexCredentialFreeExactProfileV01({
+    command: input.command,
+    expected_executable_fingerprint:
+      testExact
+        ? input.test_expected_executable_fingerprint ??
+          `sha256:${createHash("sha256")
+            .update(readFileSync(realpathSync(input.command)))
+            .digest("hex")}`
+        : CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
+    executable_identity_class: input.executable_identity_class,
+    accepted_exact_identity:
+      input.executable_identity_class ===
+      "qualification_candidate_codex_0_152_1",
+    expected_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+    config_override_args:
+      CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01,
+    run_cli_version_probe: !testExact,
+    observe_semantic_profile: ({ initialized, config, sqlite_home }) =>
+      observeCodex01521CredentialFreeSemanticProfileV01({
+        initialized,
+        config,
+        codex_sqlite_home: sqlite_home,
+        expected_client_name: "augnes-semantic-preflight",
+      }),
+    state_parent: input.state_parent,
+    repository_root: input.repository_root,
+    base_environment: input.base_environment,
+    test_prefix_args: input.test_prefix_args,
+    test_environment: input.test_environment,
+    observed_at: observedAt,
+  });
+  const stateParentEmptyAfterCleanup = (() => {
+    try {
+      const parent = realpathSync(input.state_parent);
+      return readdirSync(parent).length === 0;
+    } catch {
+      return false;
+    }
+  })();
+  const cleanupCompleted =
+    probe.cleanup_completed && stateParentEmptyAfterCleanup;
+  const mappedState: Codex01521ExactQualificationStateV01 =
+    !cleanupCompleted && probe.state === "compatible_exact"
+      ? "cleanup_incomplete"
+      : probe.state === "compatible_exact"
+        ? testExact
+          ? "compatible_emulated"
+          : "qualified_exact"
+        : probe.state;
+  return codex01521QualificationResultV01({
+    state: mappedState,
+    release_archive_fingerprint: releaseArchiveFingerprint,
+    executable_fingerprint: probe.executable_fingerprint,
+    executable_identity_class: input.executable_identity_class,
+    cli_reported_version: probe.cli_reported_version,
+    app_server_reported_cli_version: probe.observed_cli_version,
+    observed_policy_fingerprint: probe.observed_policy_fingerprint,
+    private_environment_observed: probe.private_environment_observed,
+    cleanup_completed: cleanupCompleted,
+    observed_at: observedAt,
+  });
+}
+
+type CredentialFreeExactProfileStateV01 =
+  CodexIsolatedAuthCredentialFreePreflightV01["state"];
+type CredentialFreeExactProfileResultV01 = {
+  state: CredentialFreeExactProfileStateV01;
+  observed_cli_version: string | null;
+  cli_reported_version: string | null;
+  observed_policy_fingerprint: string | null;
+  executable_fingerprint: string;
+  private_environment_observed: boolean;
+  cleanup_completed: boolean;
+  observed_at: string;
+};
+
+async function probeCodexCredentialFreeExactProfileV01(input: {
+  command: string;
+  expected_executable_fingerprint: string;
+  executable_identity_class:
+    | "production_pinned_codex"
+    | "qualification_candidate_codex_0_152_1"
+    | "test_emulated_profile";
+  accepted_exact_identity: boolean;
+  expected_cli_version: string;
+  config_override_args: readonly string[];
+  run_cli_version_probe: boolean;
+  observe_semantic_profile: (input: {
+    initialized: Record<string, unknown>;
+    config: Record<string, unknown>;
+    sqlite_home: string;
+  }) => {
+    observed_cli_version: string;
+    observed_security_policy_fingerprint: string;
+  };
+  state_parent: string;
+  repository_root: string;
+  base_environment?: {
+    PATH?: string;
+    LANG?: string;
+    LC_ALL?: string;
+    LC_CTYPE?: string;
+    TZ?: string;
+    TERM?: string;
+    NO_COLOR?: string;
+  };
+  test_prefix_args?: string[];
+  test_environment?: Record<string, string | undefined>;
+  observed_at?: string;
+}): Promise<CredentialFreeExactProfileResultV01> {
   const observedAt = input.observed_at ?? new Date().toISOString();
   let observedCliVersion: string | null = null;
+  let cliReportedVersion: string | null = null;
   let observedPolicyFingerprint: string | null = null;
-  let state: CodexIsolatedAuthCredentialFreePreflightV01["state"] =
-    "unavailable";
+  let executableFingerprint = input.expected_executable_fingerprint;
+  let privateEnvironmentObserved = false;
+  let state: CredentialFreeExactProfileStateV01 = "unavailable";
   let cleanupCompleted = false;
   let root: string | null = null;
   let transport: CodexStdioJsonRpcTransportV01 | null = null;
@@ -808,10 +1089,7 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
     const commandFingerprint = `sha256:${createHash("sha256")
       .update(readFileSync(command))
       .digest("hex")}`;
-    const productionExact =
-      input.executable_identity_class === "production_pinned_codex" &&
-      input.expected_executable_fingerprint ===
-        CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+    executableFingerprint = commandFingerprint;
     const testExact =
       input.executable_identity_class === "test_emulated_profile" &&
       process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1";
@@ -819,18 +1097,19 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       !commandStat.isFile() ||
       commandStat.isSymbolicLink() ||
       commandFingerprint !== input.expected_executable_fingerprint ||
-      (!productionExact && !testExact)
+      (!input.accepted_exact_identity && !testExact)
     ) {
       state = "executable_mismatch";
-      return preflightResultV01({
+      return {
         state,
-        executable_fingerprint: input.expected_executable_fingerprint,
-        executable_identity_class: input.executable_identity_class,
         observed_cli_version: observedCliVersion,
+        cli_reported_version: cliReportedVersion,
         observed_policy_fingerprint: observedPolicyFingerprint,
+        executable_fingerprint: executableFingerprint,
+        private_environment_observed: privateEnvironmentObserved,
         cleanup_completed: true,
         observed_at: observedAt,
-      });
+      };
     }
     const parent = realpathSync(input.state_parent);
     const parentStat = lstatSync(parent);
@@ -851,6 +1130,7 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       mkdirSync(directory, { mode: 0o700 });
       chmodSync(directory, 0o700);
     }
+    privateEnvironmentObserved = true;
     const testPrefixArgs = input.test_prefix_args ?? [];
     const testEnvironment = input.test_environment ?? {};
     if (
@@ -883,11 +1163,33 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
         : {}),
       ...(testExact ? testEnvironment : {}),
     };
+    if (input.run_cli_version_probe) {
+      const cliVersionProbe = spawnSync(command, ["--version"], {
+        cwd: realpathSync(input.repository_root),
+        env: environment,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024,
+        timeout: 10_000,
+      });
+      const match = /^codex-cli ([0-9]+\.[0-9]+\.[0-9]+)\s*$/u.exec(
+        cliVersionProbe.stdout,
+      );
+      cliReportedVersion = match?.[1] ?? null;
+      if (
+        cliVersionProbe.status !== 0 ||
+        cliVersionProbe.signal !== null ||
+        cliVersionProbe.error ||
+        cliReportedVersion !== input.expected_cli_version
+      )
+        throw new CodexProtocolErrorV01(
+          "codex_isolated_auth_cli_version_mismatch",
+        );
+    }
     transport = new CodexStdioJsonRpcTransportV01({
       command,
       args: [
         ...testPrefixArgs,
-        ...codexIsolatedAuthConfigOverrideArgsV01(),
+        ...input.config_override_args,
         "app-server",
         "--stdio",
       ],
@@ -912,14 +1214,6 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       }),
       "codex_initialize_response_invalid",
     );
-    const userAgentObservation = observeIsolatedAuthUserAgentV01({
-      raw_user_agent: initialized.userAgent,
-      expected_client_name: "augnes-semantic-preflight",
-      expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-      expected_codex_cli_version:
-        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-    });
-    observedCliVersion = userAgentObservation.codex_cli_version;
     transport.notify("initialized", {});
     const config = objectV01(
       await transport.request("config/read", {
@@ -928,12 +1222,12 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       }),
       "codex_config_response_invalid",
     );
-    const profile = observeCodexIsolatedAuthCredentialFreeSemanticProfileV01({
+    const profile = input.observe_semantic_profile({
       initialized,
       config,
-      codex_sqlite_home: sqliteHome,
-      expected_client_name: "augnes-semantic-preflight",
+      sqlite_home: sqliteHome,
     });
+    observedCliVersion = profile.observed_cli_version;
     observedPolicyFingerprint =
       profile.observed_security_policy_fingerprint;
     state = "compatible_exact";
@@ -942,8 +1236,10 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
     if (
       code === "codex_isolated_auth_cli_version_mismatch" ||
       code === "codex_app_server_user_agent_cli_version_mismatch" ||
-      observedCliVersion !== null &&
-        observedCliVersion !== CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01
+      (observedCliVersion !== null &&
+        observedCliVersion !== input.expected_cli_version) ||
+      (cliReportedVersion !== null &&
+        cliReportedVersion !== input.expected_cli_version)
     )
       state = "version_mismatch";
     else if (
@@ -971,15 +1267,16 @@ export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
       }
     } else cleanupCompleted = true;
   }
-  return preflightResultV01({
+  return {
     state,
-    executable_fingerprint: input.expected_executable_fingerprint,
-    executable_identity_class: input.executable_identity_class,
     observed_cli_version: observedCliVersion,
+    cli_reported_version: cliReportedVersion,
     observed_policy_fingerprint: observedPolicyFingerprint,
+    executable_fingerprint: executableFingerprint,
+    private_environment_observed: privateEnvironmentObserved,
     cleanup_completed: cleanupCompleted,
     observed_at: observedAt,
-  });
+  };
 }
 
 class CodexAppServerInvocationV01 {
@@ -1656,6 +1953,38 @@ class CodexAppServerInvocationV01 {
     }
     const value = objectV01(params, "codex_notification_params_invalid");
     this.assertNotificationBinding(value);
+    if (
+      method === "modelProvider/authRecoveryStarted" ||
+      method === "modelProvider/authRecoveryCompleted"
+    ) {
+      if (this.options.isolated_authenticated_execution)
+        throw new CodexIsolatedAuthProjectionErrorV01(
+          "codex_isolated_auth_runtime_policy_drift",
+        );
+      const provider = publicTextV01(
+        requiredStringV01(
+          value.provider,
+          "codex_auth_recovery_notification_invalid",
+        ),
+        128,
+      );
+      publicTextV01(
+        requiredStringV01(
+          value.message,
+          "codex_auth_recovery_notification_invalid",
+        ),
+        512,
+      );
+      this.observe(
+        method === "modelProvider/authRecoveryStarted"
+          ? "provider_auth_recovery_started"
+          : "provider_auth_recovery_completed",
+        method === "modelProvider/authRecoveryStarted"
+          ? `${provider}: authentication recovery started.`
+          : `${provider}: authentication recovery completed.`,
+      );
+      return;
+    }
     if (method === "turn/started") {
       const turn = objectV01(value.turn, "codex_turn_started_invalid");
       this.assertTurnIdentity(turn.id);
@@ -4535,6 +4864,99 @@ function preflightResultV01(input: {
     ...material,
     integrity: {
       algorithm: "sha256",
+      fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01(material),
+      ),
+    },
+  });
+}
+
+function codex01521QualificationResultV01(input: {
+  state: Codex01521ExactQualificationStateV01;
+  release_archive_fingerprint: string;
+  executable_fingerprint: string;
+  executable_identity_class:
+    | "qualification_candidate_codex_0_152_1"
+    | "test_emulated_profile";
+  cli_reported_version: string | null;
+  app_server_reported_cli_version: string | null;
+  observed_policy_fingerprint: string | null;
+  private_environment_observed: boolean;
+  cleanup_completed: boolean;
+  observed_at: string;
+}): Codex01521ExactQualificationResultV01 {
+  const material = {
+    qualification_version: CODEX_0_152_1_EXACT_QUALIFICATION_VERSION_V01,
+    verdict:
+      input.state === "qualified_exact" && input.cleanup_completed
+        ? ("QUALIFIED_EXACT" as const)
+        : ("HOLD / NOT_QUALIFIED" as const),
+    state: input.state,
+    upstream_tag: CODEX_0_152_1_UPSTREAM_TAG_V01,
+    upstream_source_commit: CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+    release_asset_name: CODEX_0_152_1_RELEASE_ASSET_NAME_V01,
+    release_archive_fingerprint: input.release_archive_fingerprint,
+    executable_fingerprint: input.executable_fingerprint,
+    platform: process.platform,
+    architecture: process.arch,
+    cli_reported_version: input.cli_reported_version,
+    app_server_reported_cli_version: input.app_server_reported_cli_version,
+    semantic_profile_version: CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01,
+    semantic_profile_fingerprint:
+      CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    production_profile_version:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    production_profile_fingerprint:
+      CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    production_selected: false as const,
+    production_compatibility_status:
+      input.state === "qualified_exact" && input.cleanup_completed
+        ? ("qualified_candidate_only" as const)
+        : ("not_qualified" as const),
+    production_cutover_authorized: false as const,
+    executable_identity_class: input.executable_identity_class,
+    runtime_qualified_methods: ["initialize", "initialized", "config/read"],
+    source_compatible_runtime_unqualified_methods: [
+      "account/read",
+      "getAuthStatus",
+      "mcpServerStatus/list",
+      "thread/start",
+      "thread/read",
+      "thread/resume",
+      "turn/start",
+    ],
+    qualified_notification_methods: [
+      "modelProvider/authRecoveryStarted",
+      "modelProvider/authRecoveryCompleted",
+    ],
+    observed_security_policy_fingerprint:
+      input.observed_policy_fingerprint,
+    private_environment_observed: input.private_environment_observed,
+    private_environment_policy: {
+      home: true as const,
+      codex_home: true as const,
+      codex_sqlite_home: true as const,
+      tmpdir: true as const,
+      shared_state_fallback: false as const,
+      ordinary_config_copied: false as const,
+      ordinary_history_copied: false as const,
+      ordinary_memories_inherited: false as const,
+      ordinary_skills_plugins_apps_mcp_inherited: false as const,
+      repository_instructions_inherited: false as const,
+      repository_command_auth_material_inherited: false as const,
+    },
+    credential_material_supplied: false as const,
+    provider_model_call_count: 0 as const,
+    repository_execution_count: 0 as const,
+    repository_turn_started: false as const,
+    successful_external_network_egress_observed: false as const,
+    cleanup_completed: input.cleanup_completed,
+    observed_at: input.observed_at,
+  };
+  return deepFreezeAdapterValueV01({
+    ...material,
+    integrity: {
+      algorithm: "sha256" as const,
       fingerprint: createProtocolSha256V01(
         canonicalizeProtocolValueV01(material),
       ),

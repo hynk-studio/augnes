@@ -10586,6 +10586,9 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
     ["structured_result_private_path_text", "failed", true],
     ["structured_result_credential_text", "failed", true],
     ["status_only_notifications", "completed", true],
+    ["auth_recovery_notifications", "completed", true],
+    ["auth_recovery_notification_malformed", "paused", false],
+    ["unknown_notification", "paused", false],
     ["duplicate_event", "completed", true],
   ] as const;
 
@@ -10647,6 +10650,55 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
               "codex_file_change_path_outside_root",
             );
           }
+          if (scenario === "auth_recovery_notifications") {
+            assert.deepEqual(
+              harness.observations
+                .filter((observation) =>
+                  [
+                    "provider_auth_recovery_started",
+                    "provider_auth_recovery_completed",
+                  ].includes(observation.kind),
+                )
+                .map((observation) => ({
+                  kind: observation.kind,
+                  public_reason: observation.public_reason,
+                  active_server_request_count:
+                    observation.active_server_request_count,
+                })),
+              [
+                {
+                  kind: "provider_auth_recovery_started",
+                  public_reason:
+                    "Amazon Bedrock: authentication recovery started.",
+                  active_server_request_count: 0,
+                },
+                {
+                  kind: "provider_auth_recovery_completed",
+                  public_reason:
+                    "Amazon Bedrock: authentication recovery completed.",
+                  active_server_request_count: 0,
+                },
+              ],
+            );
+            assert.equal(
+              harness.observations.some((observation) =>
+                ["approval_requested", "approval_resolved"].includes(
+                  observation.kind,
+                ),
+              ),
+              false,
+            );
+          }
+          if (scenario === "auth_recovery_notification_malformed")
+            assert.equal(
+              projection.public_reason,
+              "codex_auth_recovery_notification_invalid",
+            );
+          if (scenario === "unknown_notification")
+            assert.equal(
+              projection.public_reason,
+              "codex_notification_method_unsupported",
+            );
           assert.equal(
             countRunReceiptsV01(config),
             receiptsBefore + (expectsReceipt ? 1 : 0),
@@ -10750,6 +10802,9 @@ async function assertLiveCodexFailureMatrixOnClonesV01(input: {
   pass("live_codex_fake_app_server_external_calls_zero_and_processes_settled");
   pass("live_codex_current_status_notifications_are_bounded_and_ignored");
   pass("live_codex_current_thread_name_notification_is_bounded_and_ignored");
+  pass("live_codex_0_152_1_auth_recovery_is_observed_without_authority");
+  reject("live_codex_malformed_auth_recovery_notification_fails_closed");
+  reject("live_codex_unqualified_notification_still_fails_closed");
   pass("live_codex_duplicate_lifecycle_event_is_idempotent");
   pass("live_codex_absolute_inside_root_file_change_is_normalized");
   reject("live_codex_absolute_outside_root_file_change_fails_closed");

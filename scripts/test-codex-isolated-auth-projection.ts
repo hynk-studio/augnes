@@ -53,6 +53,7 @@ import {
 import {
   CodexIsolatedAuthProjectionErrorV01,
   CodexIsolatedAuthenticatedExecutionOwnerV01,
+  CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01,
   CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
   assertSourceOwnedCodexIsolatedExecutionOwnerV01,
@@ -70,6 +71,7 @@ import {
   createCodexAppServerAdapterV01,
   createCodexIsolatedAuthTestExecutionAuthorizationV01,
   probeCodexIsolatedAuthCredentialFreeCompatibilityV01,
+  qualifyCodex01521ExactCompatibilityV01,
   type CodexAppServerAdapterObservationV01,
 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
@@ -86,6 +88,9 @@ import type {
   CodexIsolatedAuthTestExecutionAuthorizationV01,
 } from "@/types/vnext/codex-isolated-auth-projection";
 import {
+  CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01,
+  CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_0_152_1_UPSTREAM_TAG_V01,
   CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
   CODEX_AUTH_KEYRING_SERVICE_V01,
@@ -2008,11 +2013,164 @@ async function semanticProfileAndCredentialFreePreflightV01(
   assertPublicSafeV01(fake);
 
   await credentialFreeFeatureProjectionNegativesV01(roots);
+  await codex01521QualificationContractV01(roots);
 
   // Source and Canonical conformance must never promote an installed binary
   // into a production observation. Exact-head production probing is a later,
   // separately authorized gate.
   return { fake, installed: { state: "unavailable" } };
+}
+
+async function codex01521QualificationContractV01(
+  roots: RootsV01,
+): Promise<void> {
+  const stateParent = path.join(roots.state, "qualification-0-152-1");
+  const runtime = path.join(roots.runtime, "qualification-0-152-1");
+  const tracePath = path.join(runtime, "trace.jsonl");
+  const networkPath = path.join(runtime, "network-count.txt");
+  const authBoundaryPath = path.join(runtime, "auth-boundary.jsonl");
+  mkdirSync(stateParent, { mode: 0o700 });
+  mkdirSync(runtime, { mode: 0o700 });
+  const qualificationInput = {
+    command: process.execPath,
+    upstream_tag: CODEX_0_152_1_UPSTREAM_TAG_V01,
+    upstream_source_commit: CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+    semantic_profile_fingerprint:
+      CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    executable_identity_class: "test_emulated_profile" as const,
+    state_parent: realpathSync(stateParent),
+    repository_root: roots.repository,
+    base_environment: {
+      PATH: process.env.PATH,
+      LANG: "C",
+      TZ: "UTC",
+      NO_COLOR: "1",
+    },
+    test_prefix_args: [
+      path.join(
+        process.cwd(),
+        "scripts",
+        "fixtures",
+        "fake-codex-app-server.mjs",
+      ),
+    ],
+    test_environment: {
+      AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE: "1",
+      FAKE_CODEX_SCENARIO: "isolated_auth_qualification_0_152_1_success",
+      FAKE_CODEX_TRACE_PATH: tracePath,
+      FAKE_CODEX_NETWORK_COUNT_PATH: networkPath,
+      FAKE_CODEX_AUTH_BOUNDARY_PATH: authBoundaryPath,
+    },
+    test_release_archive_fingerprint:
+      CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01,
+    observed_at: GENERATED_AT,
+  };
+  const compatible = await qualifyCodex01521ExactCompatibilityV01(
+    qualificationInput,
+  );
+  assert.equal(compatible.state, "compatible_emulated");
+  assert.equal(compatible.verdict, "HOLD / NOT_QUALIFIED");
+  assert.equal(compatible.production_selected, false);
+  assert.equal(compatible.production_compatibility_status, "not_qualified");
+  assert.equal(compatible.production_cutover_authorized, false);
+  assert.equal(compatible.cli_reported_version, null);
+  assert.equal(compatible.app_server_reported_cli_version, "0.152.1");
+  assert.equal(
+    compatible.semantic_profile_fingerprint,
+    CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  );
+  assert.equal(
+    compatible.production_profile_fingerprint,
+    "sha256:0c2275335eb069ccd251dade36df03b6f4f0842deedc1d8d12191dadfa917058",
+  );
+  assert.notEqual(
+    compatible.semantic_profile_fingerprint,
+    compatible.production_profile_fingerprint,
+  );
+  assert.equal(compatible.private_environment_observed, true);
+  assert.equal(compatible.cleanup_completed, true);
+  assert.equal(readdirSync(stateParent).length, 0);
+  assert.deepEqual(receivedMethodsV01(tracePath), [
+    "initialize",
+    "initialized",
+    "config/read",
+  ]);
+  assert.equal(readFileSync(networkPath, "utf8"), "0\n");
+  const boundary = JSON.parse(
+    readFileSync(authBoundaryPath, "utf8"),
+  ) as Record<string, unknown>;
+  assert.equal(boundary.app_server_material_present, false);
+  assert.equal(boundary.repository_child_material_present, false);
+  assert.equal(boundary.shared_home_canary_visible, false);
+  assert.equal(boundary.shared_codex_home_config_visible, false);
+  assert.equal(boundary.shared_codex_home_history_visible, false);
+  assert.equal(boundary.shared_codex_home_skills_visible, false);
+  assert.equal(boundary.shared_tmp_canary_visible, false);
+  assertPublicSafeV01(compatible);
+
+  const wrongExecutable = await qualifyCodex01521ExactCompatibilityV01({
+    ...qualificationInput,
+    test_expected_executable_fingerprint: `sha256:${"0".repeat(64)}`,
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(wrongExecutable.state, "executable_mismatch");
+  assert.equal(wrongExecutable.verdict, "HOLD / NOT_QUALIFIED");
+  assert.equal(
+    wrongExecutable.production_compatibility_status,
+    "not_qualified",
+  );
+  assert.equal(wrongExecutable.production_selected, false);
+  assert.equal(wrongExecutable.production_cutover_authorized, false);
+
+  for (const [id, override, expectedState] of [
+    [
+      "wrong-tag",
+      { upstream_tag: "rust-v0.152.0" },
+      "release_identity_mismatch",
+    ],
+    [
+      "wrong-source",
+      { upstream_source_commit: "0".repeat(40) },
+      "release_identity_mismatch",
+    ],
+    [
+      "wrong-archive",
+      { test_release_archive_fingerprint: `sha256:${"0".repeat(64)}` },
+      "release_identity_mismatch",
+    ],
+    [
+      "stale-profile",
+      { semantic_profile_fingerprint: `sha256:${"0".repeat(64)}` },
+      "semantic_profile_mismatch",
+    ],
+  ] as const) {
+    const rejected = await qualifyCodex01521ExactCompatibilityV01({
+      ...qualificationInput,
+      ...override,
+      observed_at: GENERATED_AT,
+    });
+    assert.equal(rejected.state, expectedState, id);
+    assert.equal(rejected.verdict, "HOLD / NOT_QUALIFIED", id);
+    assert.equal(rejected.production_selected, false, id);
+    assert.equal(rejected.production_compatibility_status, "not_qualified", id);
+    assert.equal(rejected.production_cutover_authorized, false, id);
+  }
+
+  const wrongCli = await qualifyCodex01521ExactCompatibilityV01({
+    ...qualificationInput,
+    test_environment: {
+      ...qualificationInput.test_environment,
+      FAKE_CODEX_SCENARIO:
+        "isolated_auth_qualification_0_152_1_cli_mismatch",
+    },
+    observed_at: GENERATED_AT,
+  });
+  assert.equal(wrongCli.state, "version_mismatch");
+  assert.equal(wrongCli.verdict, "HOLD / NOT_QUALIFIED");
+  assert.equal(wrongCli.production_selected, false);
+  assert.equal(wrongCli.production_compatibility_status, "not_qualified");
+  assert.equal(wrongCli.production_cutover_authorized, false);
+  assert.equal(readdirSync(stateParent).length, 0);
 }
 
 async function credentialFreeFeatureProjectionNegativesV01(
@@ -3024,6 +3182,31 @@ async function runtimePolicyNegativesV01(
     );
     assert.equal(readdirSync(probe.state_parent).length, 0);
   }
+
+  const authRecovery = await runProbeV01(
+    roots,
+    "auth-recovery-runtime-drift",
+    provisioned,
+    FAKE_JWT,
+    "isolated_auth_auth_recovery_notifications",
+  );
+  assert.equal(authRecovery.result, null);
+  assert.equal(
+    errorCodeV01(authRecovery.error),
+    "codex_isolated_auth_runtime_policy_drift",
+  );
+  assert.equal(
+    authRecovery.adapter_observations.some((observation) =>
+      [
+        "provider_auth_recovery_started",
+        "provider_auth_recovery_completed",
+        "approval_requested",
+        "approval_resolved",
+      ].includes(observation.kind),
+    ),
+    false,
+  );
+  assert.equal(readdirSync(authRecovery.state_parent).length, 0);
 }
 
 async function tmpAndFailureNegativesV01(

@@ -35,6 +35,24 @@ export const CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01 =
 export const CODEX_AUTH_KEYRING_SERVICE_V01 = "Codex Auth" as const;
 export const CODEX_ISOLATED_AUTH_CREDENTIAL_FREE_PREFLIGHT_VERSION_V01 =
   "codex_isolated_auth_credential_free_preflight.v0.1" as const;
+export const CODEX_0_152_1_EXACT_QUALIFICATION_VERSION_V01 =
+  "codex_rust_v0_152_1_exact_qualification.v0.1" as const;
+export const CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01 =
+  "codex_isolated_auth_semantic_profile.rust-v0.152.1-qualification" as const;
+export const CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01 = "0.152.1" as const;
+export const CODEX_0_152_1_UPSTREAM_TAG_V01 = "rust-v0.152.1" as const;
+export const CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01 =
+  "5adb68a49933ae446bf11935662c83dba55a0804" as const;
+export const CODEX_0_152_1_RELEASE_ASSET_NAME_V01 =
+  "codex-aarch64-apple-darwin.tar.gz" as const;
+export const CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01 =
+  "sha256:8ddde1fcf5c9842e9baa09c7c108088bb22a39feb86e4344e45dc0986764b9d7" as const;
+export const CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01 =
+  "sha256:8194ea3181f330e63023b234b0b231855e5874e0331c5ef7cbc490591497a7bf" as const;
+export const CODEX_0_152_1_PLATFORM_V01 = "darwin" as const;
+export const CODEX_0_152_1_ARCHITECTURE_V01 = "arm64" as const;
+export const CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01 =
+  "codex_app_server_user_agent.rust-v0.152.1-qualification" as const;
 export const CODEX_ISOLATED_AUTH_TEST_EXECUTION_AUTHORIZATION_VERSION_V01 =
   "codex_isolated_auth_test_external_execution_authorization.v0.1" as const;
 export const CODEX_ISOLATED_AUTH_PRODUCTION_MODEL_CONFIGURATION_VERSION_V01 =
@@ -126,6 +144,20 @@ export const CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 = [
   "project_doc_fallback_filenames=[]",
 ] as const;
 
+/**
+ * Additive qualification-only overrides for released Codex 0.152.1. The two
+ * added flags preserve the 0.150.1 tool/item surface after 0.152.1 made
+ * `sleep_tool` default-on and stabilized default-on `content_item_kinds`. This
+ * tuple is not selected by the production isolated-auth projection.
+ */
+export const CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01 = [
+  ...CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
+  "-c",
+  "features.sleep_tool=false",
+  "-c",
+  "features.content_item_kinds=false",
+] as const;
+
 export interface CodexIsolatedAuthIntegrityV01 {
   algorithm: "sha256";
   fingerprint: string;
@@ -146,6 +178,36 @@ export interface CodexIsolatedAuthSemanticProfileV01 {
   app_server_method_profile_fingerprint: string;
   app_server_user_agent_contract_version: typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01;
   app_server_user_agent_contract_fingerprint: string;
+  required_environment_auth_behavior_fingerprint: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export interface Codex01521QualificationSemanticProfileV01 {
+  semantic_profile_version: typeof CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01;
+  upstream_tag: typeof CODEX_0_152_1_UPSTREAM_TAG_V01;
+  upstream_source_commit: typeof CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01;
+  supported_public_cli_version: typeof CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01;
+  release_asset_name: typeof CODEX_0_152_1_RELEASE_ASSET_NAME_V01;
+  release_archive_fingerprint: typeof CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01;
+  qualification_executable_fingerprint: typeof CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01;
+  platform: typeof CODEX_0_152_1_PLATFORM_V01;
+  architecture: typeof CODEX_0_152_1_ARCHITECTURE_V01;
+  production_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  production_profile_fingerprint: string;
+  production_selection: false;
+  agent_identity_claim_contract_status: "unchanged_from_rust_v0.150.1";
+  agent_identity_claim_contract_fingerprint: string;
+  auth_storage_contract_status: "unchanged_from_rust_v0.150.1";
+  auth_storage_contract_fingerprint: string;
+  effective_openai_provider_route_status: "unchanged_from_rust_v0.150.1";
+  effective_provider_rule_fingerprint: string;
+  config_tool_feature_schema_status: "versioned_delta";
+  config_tool_feature_schema_fingerprint: string;
+  app_server_method_profile_status: "versioned_delta";
+  app_server_method_profile_fingerprint: string;
+  app_server_user_agent_contract_version: typeof CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01;
+  app_server_user_agent_contract_fingerprint: string;
+  required_environment_auth_behavior_status: "unchanged_private_state_policy";
   required_environment_auth_behavior_fingerprint: string;
   integrity: CodexIsolatedAuthIntegrityV01;
 }
@@ -268,6 +330,71 @@ export interface CodexIsolatedAuthCredentialFreePreflightV01 {
   observed_security_policy_fingerprint: string | null;
   credential_access_attempted: false;
   provider_model_call_attempted: false;
+  repository_turn_started: false;
+  successful_external_network_egress_observed: false;
+  cleanup_completed: boolean;
+  observed_at: string;
+  integrity: CodexIsolatedAuthIntegrityV01;
+}
+
+export type Codex01521ExactQualificationStateV01 =
+  | "qualified_exact"
+  | "compatible_emulated"
+  | "release_identity_mismatch"
+  | "executable_mismatch"
+  | "platform_mismatch"
+  | "version_mismatch"
+  | "semantic_profile_mismatch"
+  | "method_shape_mismatch"
+  | "cleanup_incomplete"
+  | "unavailable";
+
+export interface Codex01521ExactQualificationResultV01 {
+  qualification_version: typeof CODEX_0_152_1_EXACT_QUALIFICATION_VERSION_V01;
+  verdict: "QUALIFIED_EXACT" | "HOLD / NOT_QUALIFIED";
+  state: Codex01521ExactQualificationStateV01;
+  upstream_tag: typeof CODEX_0_152_1_UPSTREAM_TAG_V01;
+  upstream_source_commit: typeof CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01;
+  release_asset_name: typeof CODEX_0_152_1_RELEASE_ASSET_NAME_V01;
+  release_archive_fingerprint: string;
+  executable_fingerprint: string;
+  platform: string;
+  architecture: string;
+  cli_reported_version: string | null;
+  app_server_reported_cli_version: string | null;
+  semantic_profile_version: typeof CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
+  production_profile_version: typeof CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01;
+  production_profile_fingerprint: string;
+  production_selected: false;
+  production_compatibility_status:
+    | "qualified_candidate_only"
+    | "not_qualified";
+  production_cutover_authorized: false;
+  executable_identity_class:
+    | "qualification_candidate_codex_0_152_1"
+    | "test_emulated_profile";
+  runtime_qualified_methods: string[];
+  source_compatible_runtime_unqualified_methods: string[];
+  qualified_notification_methods: string[];
+  observed_security_policy_fingerprint: string | null;
+  private_environment_observed: boolean;
+  private_environment_policy: {
+    home: true;
+    codex_home: true;
+    codex_sqlite_home: true;
+    tmpdir: true;
+    shared_state_fallback: false;
+    ordinary_config_copied: false;
+    ordinary_history_copied: false;
+    ordinary_memories_inherited: false;
+    ordinary_skills_plugins_apps_mcp_inherited: false;
+    repository_instructions_inherited: false;
+    repository_command_auth_material_inherited: false;
+  };
+  credential_material_supplied: false;
+  provider_model_call_count: 0;
+  repository_execution_count: 0;
   repository_turn_started: false;
   successful_external_network_egress_observed: false;
   cleanup_completed: boolean;

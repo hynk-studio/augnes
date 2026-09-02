@@ -13,7 +13,9 @@ import {
 import path from "node:path";
 
 import {
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
+  observeCodexAppServerUserAgent01521V01,
   observeCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import {
@@ -40,12 +42,23 @@ import {
   validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
+  CODEX_0_152_1_ARCHITECTURE_V01,
+  CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
+  CODEX_0_152_1_PLATFORM_V01,
+  CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01,
+  CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01,
+  CODEX_0_152_1_RELEASE_ASSET_NAME_V01,
+  CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01,
+  CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  CODEX_0_152_1_UPSTREAM_TAG_V01,
   CODEX_ISOLATED_AUTH_BROKER_VERSION_V01,
   CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
   CODEX_AUTH_DOT_JSON_STORAGE_CONTRACT_VERSION_V01,
   CODEX_AUTH_KEYRING_SERVICE_V01,
   CODEX_AGENT_IDENTITY_EFFECTIVE_BASE_URL_V01,
   CODEX_APP_SERVER_CLIENT_VERSION_V01,
+  CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_V01,
   CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_VERSION_V01,
@@ -59,6 +72,7 @@ import {
   CODEX_ISOLATED_AUTH_PROJECTION_SEAL_VERSION_V01,
   CODEX_ISOLATED_AUTH_PROJECTION_VERSION_V01,
   CODEX_ISOLATED_AUTH_ROUTE_V01,
+  type Codex01521QualificationSemanticProfileV01,
   type CodexIsolatedAuthAvailabilityV01,
   type CodexIsolatedAuthConfigPolicyV01,
   type CodexIsolatedAuthCredentialAttestationV01,
@@ -191,6 +205,8 @@ const STATE_POLICY_V01: CodexIsolatedAuthStatePolicyV01 = {
   remove_after_settlement: true,
 };
 const CONFIG_OVERRIDE_ARGS_V01 = CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01;
+const CONFIG_OVERRIDE_ARGS_0_152_1_V01 =
+  CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01;
 const CONFIG_PROVENANCE_CONTRACT_VERSION_V01 =
   "codex_config_read_provenance.rust-v0.150.1" as const;
 type BoundedRuntimeOverrideValueV01 =
@@ -214,6 +230,22 @@ const EXPECTED_RUNTIME_ORIGIN_PATHS_V01 =
 const EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01 = createProtocolSha256V01(
   canonicalizeProtocolValueV01(EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01),
 );
+const EXPECTED_RUNTIME_OVERRIDE_ENTRIES_0_152_1_V01 =
+  parseRuntimeConfigOverrideArgsV01(CONFIG_OVERRIDE_ARGS_0_152_1_V01);
+const EXPECTED_RUNTIME_OVERRIDE_PATHS_0_152_1_V01 =
+  EXPECTED_RUNTIME_OVERRIDE_ENTRIES_0_152_1_V01.map((entry) => entry.path);
+const EXPECTED_RUNTIME_OVERRIDE_PROJECTION_0_152_1_V01 =
+  runtimeOverrideProjectionV01(EXPECTED_RUNTIME_OVERRIDE_ENTRIES_0_152_1_V01);
+const EXPECTED_RUNTIME_ORIGIN_PATHS_0_152_1_V01 =
+  runtimeOverrideOriginPathsV01(
+    EXPECTED_RUNTIME_OVERRIDE_ENTRIES_0_152_1_V01,
+  );
+const EXPECTED_SESSION_FLAGS_LAYER_VERSION_0_152_1_V01 =
+  createProtocolSha256V01(
+    canonicalizeProtocolValueV01(
+      EXPECTED_RUNTIME_OVERRIDE_PROJECTION_0_152_1_V01,
+    ),
+  );
 const ALLOWED_ENV_KEYS_V01 = [
   "CODEX_HOME",
   "CODEX_SQLITE_HOME",
@@ -272,6 +304,12 @@ const DISABLED_FEATURE_NAMES_V01 = [
   "web_search_cached",
   "web_search_request",
 ] as const;
+const DISABLED_FEATURE_NAMES_0_152_1_V01 = [
+  ...DISABLED_FEATURE_NAMES_V01,
+  "sleep_tool",
+  "content_item_kinds",
+  "background_paginated_rollout_migration",
+] as const;
 const CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01 = {
   contract_version: CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
   config_read_include_layers: true,
@@ -283,6 +321,16 @@ const CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01 = {
   requirements_enumerated: false,
   critical_requirement_shadow_detection:
     "missing_expected_session_flags_origin",
+} as const;
+const CONFIG_PROVENANCE_CONTRACT_MATERIAL_0_152_1_V01 = {
+  ...CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01,
+  contract_version: "codex_config_read_provenance.rust-v0.152.1",
+  expected_runtime_override_paths: [
+    ...EXPECTED_RUNTIME_OVERRIDE_PATHS_0_152_1_V01,
+  ],
+  expected_runtime_origin_paths: [
+    ...EXPECTED_RUNTIME_ORIGIN_PATHS_0_152_1_V01,
+  ],
 } as const;
 const AGENT_IDENTITY_CLAIM_CONTRACT_MATERIAL_V01 = {
   contract_version: CODEX_AGENT_IDENTITY_CLAIM_CONTRACT_VERSION_V01,
@@ -344,6 +392,39 @@ const APP_SERVER_METHOD_PROFILE_MATERIAL_V01 = {
   user_agent_contract_fingerprint:
     CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_V01,
 } as const;
+const APP_SERVER_METHOD_PROFILE_MATERIAL_0_152_1_V01 = {
+  method_profile_version:
+    "codex_app_server_auth_preflight.rust-v0.152.1-qualification",
+  runtime_qualified_methods: ["initialize", "initialized", "config/read"],
+  source_compatible_runtime_unqualified_methods: [
+    "account/read",
+    "getAuthStatus",
+    "mcpServerStatus/list",
+    "thread/start",
+    "thread/read",
+    "thread/resume",
+    "turn/start",
+  ],
+  terminal_statuses: ["completed", "interrupted", "failed", "inProgress"],
+  approval_server_requests: [
+    "item/commandExecution/requestApproval",
+    "item/fileChange/requestApproval",
+    "item/permissions/requestApproval",
+  ],
+  qualified_notifications: [
+    "modelProvider/authRecoveryStarted",
+    "modelProvider/authRecoveryCompleted",
+  ],
+  auth_recovery_notification_classification:
+    "stable_public_provider_recovery_progress_observation",
+  auth_recovery_creates_authority: false,
+  unknown_notifications: "fail_closed",
+  unknown_server_requests: "fail_closed",
+  user_agent_contract_version:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
+  user_agent_contract_fingerprint:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01,
+} as const;
 const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
   canonicalizeProtocolValueV01({
     config_policy: CONFIG_POLICY_BASE_V01,
@@ -352,6 +433,23 @@ const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_V01 = createProtocolSha256V01(
     config_provenance_contract: CONFIG_PROVENANCE_CONTRACT_MATERIAL_V01,
   }),
 );
+const CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_0_152_1_V01 =
+  createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      config_policy: CONFIG_POLICY_BASE_V01,
+      config_override_args: CONFIG_OVERRIDE_ARGS_0_152_1_V01,
+      disabled_features: [...DISABLED_FEATURE_NAMES_0_152_1_V01],
+      config_provenance_contract:
+        CONFIG_PROVENANCE_CONTRACT_MATERIAL_0_152_1_V01,
+      released_source_delta: {
+        sleep_tool: "stable_default_on_forced_off",
+        content_item_kinds: "stabilized_default_on_forced_off",
+        background_paginated_rollout_migration:
+          "source_injected_false_not_overridden",
+        update_plan_default: "default_off_source_delta_not_consumed",
+      },
+    }),
+  );
 const REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01 =
   createProtocolSha256V01(
     canonicalizeProtocolValueV01({
@@ -403,6 +501,54 @@ export const CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01:
   ...SEMANTIC_PROFILE_MATERIAL_V01,
   integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_V01),
 });
+const SEMANTIC_PROFILE_MATERIAL_0_152_1_V01 = {
+  semantic_profile_version: CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01,
+  upstream_tag: CODEX_0_152_1_UPSTREAM_TAG_V01,
+  upstream_source_commit: CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01,
+  supported_public_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  release_asset_name: CODEX_0_152_1_RELEASE_ASSET_NAME_V01,
+  release_archive_fingerprint:
+    CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01,
+  qualification_executable_fingerprint:
+    CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
+  platform: CODEX_0_152_1_PLATFORM_V01,
+  architecture: CODEX_0_152_1_ARCHITECTURE_V01,
+  production_profile_version:
+    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
+  production_profile_fingerprint:
+    CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+  production_selection: false,
+  agent_identity_claim_contract_status:
+    "unchanged_from_rust_v0.150.1",
+  agent_identity_claim_contract_fingerprint:
+    SEMANTIC_PROFILE_MATERIAL_V01.agent_identity_claim_contract_fingerprint,
+  auth_storage_contract_status: "unchanged_from_rust_v0.150.1",
+  auth_storage_contract_fingerprint:
+    SEMANTIC_PROFILE_MATERIAL_V01.auth_storage_contract_fingerprint,
+  effective_openai_provider_route_status:
+    "unchanged_from_rust_v0.150.1",
+  effective_provider_rule_fingerprint: PROVIDER_ROUTE_FINGERPRINT_V01,
+  config_tool_feature_schema_status: "versioned_delta",
+  config_tool_feature_schema_fingerprint:
+    CONFIG_TOOL_FEATURE_SCHEMA_FINGERPRINT_0_152_1_V01,
+  app_server_method_profile_status: "versioned_delta",
+  app_server_method_profile_fingerprint: createProtocolSha256V01(
+    canonicalizeProtocolValueV01(APP_SERVER_METHOD_PROFILE_MATERIAL_0_152_1_V01),
+  ),
+  app_server_user_agent_contract_version:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_VERSION_0_152_1_V01,
+  app_server_user_agent_contract_fingerprint:
+    CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01,
+  required_environment_auth_behavior_status:
+    "unchanged_private_state_policy",
+  required_environment_auth_behavior_fingerprint:
+    REQUIRED_ENVIRONMENT_AUTH_BEHAVIOR_FINGERPRINT_V01,
+} as const;
+export const CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01:
+  Codex01521QualificationSemanticProfileV01 = deepFreezeV01({
+  ...SEMANTIC_PROFILE_MATERIAL_0_152_1_V01,
+  integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_0_152_1_V01),
+});
 const TEST_ENV_KEYS_V01 = new Set([
   "AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE",
   "FAKE_CODEX_AUTH_BOUNDARY_PATH",
@@ -416,6 +562,9 @@ const TEST_ENV_KEYS_V01 = new Set([
   "FAKE_CODEX_TURN_ID",
 ]);
 const DISABLED_FEATURES_V01 = new Set<string>(DISABLED_FEATURE_NAMES_V01);
+const DISABLED_FEATURES_0_152_1_V01 = new Set<string>(
+  DISABLED_FEATURE_NAMES_0_152_1_V01,
+);
 
 export class CodexIsolatedAuthProjectionErrorV01 extends Error {
   constructor(readonly code: string) {
@@ -650,7 +799,7 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     `${input.projection_id}:seal`,
     input.issued_at,
   );
-  const configPolicy = expectedConfigPolicyV01();
+  const configPolicy = expectedConfigPolicyV01(CONFIG_OVERRIDE_ARGS_V01);
   const launchShape = launchShapeFingerprintV01(
     input.codex_executable_fingerprint,
     input.compatible_codex_cli_version,
@@ -1558,8 +1707,11 @@ export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: 
       CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
   }).codex_cli_version;
   exactSupportedCliVersionV01(cliVersion);
-  const observedPolicy = observedSecurityPolicyV01(input.config);
-  const expected = expectedConfigPolicyV01();
+  const observedPolicy = observedSecurityPolicyV01(
+    input.config,
+    PRODUCTION_CONFIG_OBSERVATION_SPEC_V01,
+  );
+  const expected = expectedConfigPolicyV01(CONFIG_OVERRIDE_ARGS_V01);
   if (
     observedPolicy.fingerprint !== expected.policy_fingerprint ||
     observedPolicy.providerRouteFingerprint !== expected.provider_route_fingerprint
@@ -1578,6 +1730,60 @@ export function observeCodexIsolatedAuthCredentialFreeSemanticProfileV01(input: 
     config_layers_fingerprint: observedPolicy.layersFingerprint,
   };
 }
+
+export function observeCodex01521CredentialFreeSemanticProfileV01(input: {
+  initialized: Record<string, unknown>;
+  config: Record<string, unknown>;
+  codex_sqlite_home: string;
+  expected_client_name: "augnes" | "augnes-semantic-preflight";
+}): {
+  semantic_profile_version: typeof CODEX_0_152_1_SEMANTIC_PROFILE_VERSION_V01;
+  semantic_profile_fingerprint: string;
+  observed_cli_version: typeof CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01;
+  observed_security_policy_fingerprint: string;
+  provider_route_fingerprint: string;
+  config_layers_fingerprint: string;
+} {
+  const cliVersion = observeCodexAppServerUserAgent01521V01({
+    raw_user_agent: input.initialized.userAgent,
+    expected_client_name: input.expected_client_name,
+    expected_client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    expected_codex_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+  }).codex_cli_version;
+  if (cliVersion !== CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01)
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_cli_version_mismatch",
+    );
+  const sqliteHome = realpathSync(input.codex_sqlite_home);
+  if (!path.isAbsolute(sqliteHome))
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_sqlite_home_mismatch",
+    );
+  const observedPolicy = observedSecurityPolicyV01(
+    input.config,
+    QUALIFICATION_0_152_1_CONFIG_OBSERVATION_SPEC_V01,
+  );
+  const expected = expectedConfigPolicyV01(
+    CONFIG_OVERRIDE_ARGS_0_152_1_V01,
+  );
+  if (
+    observedPolicy.fingerprint !== expected.policy_fingerprint ||
+    observedPolicy.providerRouteFingerprint !== expected.provider_route_fingerprint
+  )
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_semantic_profile_mismatch",
+    );
+  return {
+    semantic_profile_version:
+      CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.semantic_profile_version,
+    semantic_profile_fingerprint:
+      CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.integrity.fingerprint,
+    observed_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
+    observed_security_policy_fingerprint: observedPolicy.fingerprint,
+    provider_route_fingerprint: observedPolicy.providerRouteFingerprint,
+    config_layers_fingerprint: observedPolicy.layersFingerprint,
+  };
+}
 export function createCodexIsolatedAuthTestRefV01(input: {
   ref_type: string;
   external_id?: string;
@@ -1590,13 +1796,48 @@ export function createCodexIsolatedAuthTestRefV01(input: {
   );
 }
 
-function expectedConfigPolicyV01(): CodexIsolatedAuthConfigPolicyV01 {
+type ConfigObservationSpecV01 = {
+  provenance_contract_version: string;
+  expected_runtime_override_paths: readonly string[];
+  expected_runtime_override_projection: Record<string, unknown>;
+  expected_runtime_origin_paths: readonly string[];
+  expected_session_flags_layer_version: string;
+  disabled_features: ReadonlySet<string>;
+  config_override_args: readonly string[];
+};
+const PRODUCTION_CONFIG_OBSERVATION_SPEC_V01: ConfigObservationSpecV01 = {
+  provenance_contract_version: CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
+  expected_runtime_override_paths: EXPECTED_RUNTIME_OVERRIDE_PATHS_V01,
+  expected_runtime_override_projection: EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01,
+  expected_runtime_origin_paths: EXPECTED_RUNTIME_ORIGIN_PATHS_V01,
+  expected_session_flags_layer_version:
+    EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01,
+  disabled_features: DISABLED_FEATURES_V01,
+  config_override_args: CONFIG_OVERRIDE_ARGS_V01,
+};
+const QUALIFICATION_0_152_1_CONFIG_OBSERVATION_SPEC_V01:
+  ConfigObservationSpecV01 = {
+  provenance_contract_version: "codex_config_read_provenance.rust-v0.152.1",
+  expected_runtime_override_paths:
+    EXPECTED_RUNTIME_OVERRIDE_PATHS_0_152_1_V01,
+  expected_runtime_override_projection:
+    EXPECTED_RUNTIME_OVERRIDE_PROJECTION_0_152_1_V01,
+  expected_runtime_origin_paths: EXPECTED_RUNTIME_ORIGIN_PATHS_0_152_1_V01,
+  expected_session_flags_layer_version:
+    EXPECTED_SESSION_FLAGS_LAYER_VERSION_0_152_1_V01,
+  disabled_features: DISABLED_FEATURES_0_152_1_V01,
+  config_override_args: CONFIG_OVERRIDE_ARGS_0_152_1_V01,
+};
+
+function expectedConfigPolicyV01(
+  configOverrideArgs: readonly string[],
+): CodexIsolatedAuthConfigPolicyV01 {
   return {
     ...CONFIG_POLICY_BASE_V01,
     policy_fingerprint: createProtocolSha256V01(
       canonicalizeProtocolValueV01({
         ...CONFIG_POLICY_BASE_V01,
-        config_override_args: CONFIG_OVERRIDE_ARGS_V01,
+        config_override_args: configOverrideArgs,
       }),
     ),
   };
@@ -1689,6 +1930,8 @@ function runtimeOverrideOriginPathsV01(
       return [];
     if (entry.path === "features.network_proxy")
       return [entry.path, `${entry.path}.enabled`];
+    if (entry.path === "features.sleep_tool")
+      return [`${entry.path}.enabled`];
     return [entry.path];
   });
   return [...new Set(paths)].sort();
@@ -1699,7 +1942,10 @@ type ObservedConfigLayerSourceV01 = {
   packagedDefaults: boolean;
   sessionFlags: boolean;
 };
-function observeConfigReadProvenanceV01(value: Record<string, unknown>): {
+function observeConfigReadProvenanceV01(
+  value: Record<string, unknown>,
+  spec: ConfigObservationSpecV01,
+): {
   fingerprint: string;
 } {
   const layers = Array.isArray(value.layers) ? value.layers : null;
@@ -1764,9 +2010,9 @@ function observeConfigReadProvenanceV01(value: Record<string, unknown>): {
         disabledReasonPresent ||
         canonicalizeProtocolValueV01(layerConfig) !==
           canonicalizeProtocolValueV01(
-            EXPECTED_RUNTIME_OVERRIDE_PROJECTION_V01,
+            spec.expected_runtime_override_projection,
           ) ||
-        layerVersion !== EXPECTED_SESSION_FLAGS_LAYER_VERSION_V01
+        layerVersion !== spec.expected_session_flags_layer_version
       )
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_config_policy_mismatch",
@@ -1783,12 +2029,12 @@ function observeConfigReadProvenanceV01(value: Record<string, unknown>): {
     activeNonSessionLayerCount !== 0 ||
     packagedDefaultSurfaceObserved ||
     canonicalizeProtocolValueV01(observedOriginPaths) !==
-      canonicalizeProtocolValueV01(EXPECTED_RUNTIME_ORIGIN_PATHS_V01)
+      canonicalizeProtocolValueV01(spec.expected_runtime_origin_paths)
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
       "codex_isolated_auth_config_policy_mismatch",
     );
-  for (const expectedPath of EXPECTED_RUNTIME_ORIGIN_PATHS_V01) {
+  for (const expectedPath of spec.expected_runtime_origin_paths) {
     const metadata = recordV01(origins[expectedPath]);
     const name = recordV01(metadata?.name);
     if (
@@ -1805,13 +2051,13 @@ function observeConfigReadProvenanceV01(value: Record<string, unknown>): {
   }
   const normalized = {
     config_provenance_contract_version:
-      CONFIG_PROVENANCE_CONTRACT_VERSION_V01,
+      spec.provenance_contract_version,
     session_flags_layer_count: sessionFlagsLayerCount,
     active_non_session_layer_count: activeNonSessionLayerCount,
     expected_runtime_override_count:
-      EXPECTED_RUNTIME_OVERRIDE_PATHS_V01.length,
+      spec.expected_runtime_override_paths.length,
     session_flags_runtime_overrides_exact: true,
-    expected_runtime_origin_count: EXPECTED_RUNTIME_ORIGIN_PATHS_V01.length,
+    expected_runtime_origin_count: spec.expected_runtime_origin_paths.length,
     expected_runtime_origins_all_session_flags: true,
     unexpected_active_origin_count: 0,
     packaged_default_surface_observed: packagedDefaultSurfaceObserved,
@@ -1906,6 +2152,7 @@ function hasActiveConfigLeafV01(value: unknown): boolean {
 }
 function observedSecurityPolicyV01(
   value: Record<string, unknown>,
+  spec: ConfigObservationSpecV01,
 ): {
   fingerprint: string;
   providerRouteFingerprint: string;
@@ -1917,7 +2164,7 @@ function observedSecurityPolicyV01(
   const orchestrator = recordV01(config?.orchestrator);
   const providerMap = recordV01(config?.model_providers);
   const appsProjectionExact = inactiveAppsProjectionV01(config?.apps);
-  const provenance = observeConfigReadProvenanceV01(value);
+  const provenance = observeConfigReadProvenanceV01(value, spec);
   if (
     !config ||
     !features ||
@@ -1946,10 +2193,10 @@ function observedSecurityPolicyV01(
       ([key, enabled]) =>
         key === "use_agent_identity"
           ? enabled !== true
-          : !DISABLED_FEATURES_V01.has(key) || enabled !== false,
+          : !spec.disabled_features.has(key) || enabled !== false,
     ) ||
     features.use_agent_identity !== true ||
-    [...DISABLED_FEATURES_V01].some((key) => features[key] !== false)
+    [...spec.disabled_features].some((key) => features[key] !== false)
   )
     throw new CodexIsolatedAuthProjectionErrorV01(
       "codex_isolated_auth_config_policy_mismatch",
@@ -2028,10 +2275,10 @@ function observedSecurityPolicyV01(
         : "unexpected",
     orchestrator_skills_enabled: recordV01(orchestrator.skills)?.enabled,
     orchestrator_mcp_enabled: recordV01(orchestrator.mcp)?.enabled,
-    remote_tool_features_enabled: [...DISABLED_FEATURES_V01].filter(
+    remote_tool_features_enabled: [...spec.disabled_features].filter(
       (key) => features[key] === true,
     ).length,
-    config_override_args: CONFIG_OVERRIDE_ARGS_V01,
+    config_override_args: spec.config_override_args,
   };
   return {
     fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(actual)),
