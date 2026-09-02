@@ -176,6 +176,9 @@ await runOperatorExecutionBrowserChildV1({
             if (DIAGNOSTIC_SCENARIO === "http-error-document") {
               assert.fail("http_error_document_navigation_was_not_rejected");
             }
+            await lifecycle.navigate(
+              `${diagnosticServer.origin}${fixturePath}#same-document`,
+            );
             await lifecycle.waitForCondition(
               `document.querySelector('#vnext-operator-bootstrap-token') !== null`,
               "operator bootstrap input",

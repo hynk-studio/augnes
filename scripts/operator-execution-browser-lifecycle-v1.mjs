@@ -285,6 +285,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         const classified = classifyUrl(params.request?.url);
         const entry = {
           request_id: params.requestId,
+          frame_id: params.frameId ?? null,
+          loader_id: params.loaderId ?? null,
           phase: currentPhase,
           navigation_epoch: navigationCount,
           path: classified.path,
@@ -301,6 +303,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         const request = requestForId(params.requestId);
         responses.push({
           request_id: params.requestId,
+          frame_id: params.frameId ?? request?.frame_id ?? null,
+          loader_id: params.loaderId ?? request?.loader_id ?? null,
           phase: request?.phase ?? currentPhase,
           navigation_epoch: request?.navigation_epoch ?? navigationCount,
           path: classified.path,
@@ -476,7 +480,6 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     const navigationEpoch = navigationCount;
     const classifiedTarget = classifyUrl(url);
     const responseStart = responses.length;
-    lastNavigationDocument = null;
     const navigation = await cdp.send("Page.navigate", { url });
     if (typeof navigation.errorText === "string") {
       setBrowserFailureDiagnostic({
@@ -493,7 +496,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       `["interactive", "complete"].includes(document.readyState)`,
       `document readiness ${navigationCount}`,
     );
-    if (classifiedTarget.http) {
+    const newDocumentLoaderId =
+      typeof navigation.loaderId === "string" && navigation.loaderId.length > 0
+        ? navigation.loaderId
+        : null;
+    if (classifiedTarget.http && newDocumentLoaderId !== null) {
+      lastNavigationDocument = null;
       let documentResponse = null;
       try {
         await waitForHostCondition(
@@ -503,8 +511,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
               .find(
                 (entry) =>
                   entry.type === "Document" &&
-                  entry.navigation_epoch === navigationEpoch &&
-                  entry.path === classifiedTarget.path,
+                  entry.loader_id === newDocumentLoaderId &&
+                  entry.frame_id === navigation.frameId,
               );
             return documentResponse !== null && documentResponse !== undefined;
           },
