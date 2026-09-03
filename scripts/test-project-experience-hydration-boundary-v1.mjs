@@ -3,8 +3,10 @@
 import assert from "node:assert/strict";
 
 import {
+  MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
   PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
-  expectedManagementSafetyHydrationWarningV1,
+  expectedConsoleErrorAfterManagementSafetyBoundaryV1,
+  managementSafetyHydrationRegressionWarningV1,
 } from "./project-experience-hydration-boundary-v1.mjs";
 
 const hydrationPrefix =
@@ -20,8 +22,19 @@ assert.equal(
   `document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,
 );
 assert.equal(
-  expectedManagementSafetyHydrationWarningV1(exactKnownWarning),
+  MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
+  0,
+);
+assert.equal(
+  managementSafetyHydrationRegressionWarningV1(exactKnownWarning),
   true,
+);
+assert.equal(
+  expectedConsoleErrorAfterManagementSafetyBoundaryV1(
+    exactKnownWarning,
+    true,
+  ),
+  false,
 );
 
 for (const entry of [
@@ -49,10 +62,22 @@ for (const entry of [
   },
 ]) {
   assert.equal(
-    expectedManagementSafetyHydrationWarningV1(entry),
+    managementSafetyHydrationRegressionWarningV1(entry),
     false,
   );
 }
+
+assert.equal(
+  expectedConsoleErrorAfterManagementSafetyBoundaryV1(
+    {
+      phase: "rendered_state_responsive_matrix",
+      path: "/api/vnext/projects",
+      text: "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    },
+    true,
+  ),
+  true,
+);
 
 assert.equal(
   /vnext_bootstrap_v01\.|OPENAI_API_KEY|GITHUB_TOKEN|\/Users\//u.test(
@@ -66,8 +91,11 @@ process.stdout.write(
     test: "project-experience-hydration-boundary-v1",
     status: "pass",
     hydrated_interaction_gate: true,
-    exact_known_warning_match: true,
+    exact_legacy_regression_warning_match: true,
     unrelated_hydration_warning_rejected: true,
+    legacy_regression_warning_not_expected: true,
+    legacy_regression_warning_required_count: 0,
+    existing_expected_status_classification_preserved: true,
     phase_and_semantic_identity_bounded: true,
     private_material_absent: true,
   })}\n`,
