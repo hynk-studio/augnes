@@ -29,6 +29,10 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import {
+  PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
+  expectedManagementSafetyHydrationWarningV1,
+} from "./project-experience-hydration-boundary-v1.mjs";
+import {
   PROJECT_EXPERIENCE_FIXTURE_VERSION_V1,
   admitExpiredProjectContextPresentationV1,
   admitProjectExperienceRenderedStateV1,
@@ -2501,6 +2505,10 @@ async function main() {
       `document.querySelector('#project-settings[data-project-settings-owner="emphasized"][data-project-identity-management="true"]') !== null`,
       "emphasized project identity owner",
     );
+    await waitForCondition(
+      PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
+      "hydrated emphasized project management",
+    );
     result.project_context_emphasized_owner = true;
     completeDetailedField("project_context_emphasized_owner");
     await validateProductShell({
@@ -2627,7 +2635,7 @@ async function main() {
   await runPhase("project_experience_global_boundaries", async () => {
     await waitForRequestQuiet();
     const knownHarnessConsoleWarnings = consoleErrors.filter(
-      expectedManagementSafetyHydrationWarning,
+      expectedManagementSafetyHydrationWarningV1,
     );
     const unexpectedConsoleErrors = consoleErrors.filter(
       (entry) => !expectedConsoleError(entry),
@@ -4992,7 +5000,7 @@ function documentStatusSince(startIndex, pathname) {
 }
 
 function expectedConsoleError(entry) {
-  if (expectedManagementSafetyHydrationWarning(entry)) return true;
+  if (expectedManagementSafetyHydrationWarningV1(entry)) return true;
   const expectedStatus = [
     [401, "Unauthorized"],
     [404, "Not Found"],
@@ -5098,17 +5106,6 @@ function expectedFailedRequest(entry) {
     (expectedPath) =>
       entry.path === expectedPath ||
       (expectedPath === "/projects" && entry.path?.startsWith("/projects/")),
-  );
-}
-
-function expectedManagementSafetyHydrationWarning(entry) {
-  return (
-    entry.phase === "rendered_state_responsive_matrix" &&
-    entry.text.includes(
-      "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties.",
-    ) &&
-    entry.text.includes('data-management-safety="management_safety_view.v0.1"') &&
-    entry.text.includes('-                                 open=""')
   );
 }
 
