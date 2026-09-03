@@ -869,6 +869,7 @@ assert.deepEqual(
   [
     "codex-user-reuse-hook",
     "augnes-operator-plugin-setup",
+    "codex-qualified-runtime-registry",
     "temporal-interpretation-preview",
     "local-canonical-owner-contract-fixture",
   ],
@@ -1036,6 +1037,7 @@ const integrationChildren = [
   "project-verify-production-lifecycle",
   "project-verify-operator-adapter",
   "reconstruction-conformance",
+  "codex-qualified-runtime-registry",
   "codex-production-runtime",
   "codex-sandbox-projection",
   "codex-isolated-auth-projection",
@@ -1105,6 +1107,24 @@ for (const childId of integrationChildren) {
     countOccurrences(canonicalSuite, `id: "${childId}"`),
     1,
     `integration child must have exactly one owner: ${childId}`,
+  );
+}
+const qualifiedRuntimeRegistryRegistration = readCanonicalChildRegistration(
+  integrationSource,
+  "codex-qualified-runtime-registry",
+);
+for (const fragment of [
+  `group: "supporting-serial"`,
+  `requirements: ["filesystem", "project-root", "mutable-module-state"]`,
+  `label:\n        "checked-in qualified Codex runtime registry and reusable compatibility-profile authority"`,
+  `rootNode("scripts/test-codex-qualified-runtime-registry.ts")`,
+  `timeoutMs: 30_000`,
+  `requireNaturalExit: true`,
+]) {
+  requireText(
+    qualifiedRuntimeRegistryRegistration.block,
+    fragment,
+    `qualified runtime registry canonical registration is missing: ${fragment}`,
   );
 }
 for (const childId of [
@@ -1307,6 +1327,7 @@ requireText(
 );
 for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
+  ["scripts/test-codex-qualified-runtime-registry.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],

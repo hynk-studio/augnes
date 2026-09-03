@@ -71,6 +71,23 @@ function directNativeIsAdmittedV01(): void {
   assert.equal(identity.launch_shape, "direct_native");
   assert.equal(identity.canonical_native_executable, executable);
   assert.equal(path.isAbsolute(identity.canonical_native_executable), true);
+  assert.equal(
+    identity.qualified_runtime_entry_id,
+    "codex-rust-v0.152.1-darwin-arm64",
+  );
+  assert.equal(
+    identity.compatibility_profile_id,
+    "codex_app_server_augnes_operator.v0.1",
+  );
+  assert.equal(
+    identity.compatibility_profile_fingerprint,
+    "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+  );
+  assert.equal(
+    identity.semantic_profile_fingerprint,
+    "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529",
+  );
+  assert.equal(identity.registry_authority, "test_injected_identity");
   assertCodexProductionRuntimeIdentityUnchangedV01(identity);
 }
 
@@ -406,6 +423,10 @@ function officialOpenAiWrapperIsBoundToVendorNativeV01(): void {
   );
   assert.equal(launch.command, executable);
   assert.equal(launch.production_runtime_identity, identity);
+  assert.equal(
+    launch.qualified_runtime_selection,
+    identity.qualified_runtime_selection,
+  );
   assert.deepEqual(launch.prefix_args, []);
 }
 
@@ -456,6 +477,14 @@ function canonicalFakeRouteRemainsUnchangedV01(): void {
     ),
   );
   assert.equal(launch.production_runtime_identity, undefined);
+  assert.equal(
+    launch.qualified_runtime_selection?.artifact.version,
+    "0.152.1",
+  );
+  assert.equal(
+    launch.qualified_runtime_selection?.compatibility_profile.fingerprint,
+    "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+  );
 }
 
 function ordinaryPostSpawnIdentityIsExactV01(): void {

@@ -47,6 +47,25 @@
       }
     },
     {
+      "id": "codex-qualified-runtime-registry",
+      "phase_ids": [
+        "typecheck",
+        "integration"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "exact_paths": [
+          "lib/vnext/native-host/codex-qualified-runtime-registry.v1.json",
+          "lib/vnext/native-host/codex-qualified-runtime-registry.ts",
+          "lib/vnext/native-host/codex-production-runtime.ts",
+          "lib/vnext/native-host/codex-app-server-adapter.ts",
+          "lib/vnext/native-host/codex-isolated-auth-projection.ts",
+          "scripts/test-codex-qualified-runtime-registry.ts",
+          "scripts/test-codex-production-runtime.ts"
+        ]
+      }
+    },
+    {
       "id": "temporal-interpretation-preview",
       "phase_ids": [
         "typecheck",

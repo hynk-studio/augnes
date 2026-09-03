@@ -34,6 +34,12 @@ export const CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 = "0.152.1" as const;
 export const CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 = "rust-v0.152.1" as const;
 export const CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 =
   "5adb68a49933ae446bf11935662c83dba55a0804" as const;
+/**
+ * Legacy artifact-bound CDX3C/CDX3E qualification evidence. Production
+ * admission is owned by the checked-in Qualified Runtime Registry; these
+ * values remain exact so existing isolated-auth receipts and projections do
+ * not silently acquire a different meaning.
+ */
 export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 =
   "sha256:8194ea3181f330e63023b234b0b231855e5874e0331c5ef7cbc490591497a7bf" as const;
 export const CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01 =

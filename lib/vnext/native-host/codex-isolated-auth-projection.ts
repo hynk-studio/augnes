@@ -18,6 +18,7 @@ import {
   observeCodexAppServerUserAgent01521V01,
   observeCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
+import { selectPinnedCodexQualifiedRuntimeV01 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 import {
   assertCodexBrokerRollbackCleanupAvailableV01,
   containsCodexCredentialSecretShapeV01,
@@ -582,19 +583,46 @@ export const CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01:
   ...SEMANTIC_PROFILE_MATERIAL_0_152_1_V01,
   integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_0_152_1_V01),
 });
+const REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01 =
+  selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
+if (
+  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.version !==
+    CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
+  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.release_tag !==
+    CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 ||
+  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.tagged_source_commit !==
+    CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 ||
+  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
+    .native_executable_sha256 !==
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 ||
+  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
+    .legacy_exact_qualification_evidence.semantic_profile_fingerprint !==
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01
+) {
+  throw new Error("codex_isolated_auth_production_registry_binding_mismatch");
+}
 const PRODUCTION_SELECTION_MATERIAL_V01 = {
   selection_version: "codex_isolated_auth_production_selection.v0.1",
   selected: true,
+  selected_registry_entry_id:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.entry_id,
+  selected_compatibility_profile_id:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.compatibility_profile.profile_id,
+  selected_compatibility_profile_fingerprint:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.compatibility_profile.fingerprint,
   selected_profile_version:
     CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.semantic_profile_version,
   selected_profile_fingerprint:
     CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01.integrity.fingerprint,
-  selected_upstream_tag: CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
+  selected_upstream_tag:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.release_tag,
   selected_upstream_source_commit:
-    CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
-  selected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.tagged_source_commit,
+  selected_cli_version:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.version,
   selected_executable_fingerprint:
-    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
+      .native_executable_sha256,
   qualification_profile_version:
     CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.semantic_profile_version,
   qualification_profile_fingerprint:
