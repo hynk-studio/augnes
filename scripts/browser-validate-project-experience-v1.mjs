@@ -29,6 +29,12 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import {
+  MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
+  PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
+  expectedConsoleErrorAfterManagementSafetyBoundaryV1,
+  managementSafetyHydrationRegressionWarningV1,
+} from "./project-experience-hydration-boundary-v1.mjs";
+import {
   PROJECT_EXPERIENCE_FIXTURE_VERSION_V1,
   admitExpiredProjectContextPresentationV1,
   admitProjectExperienceRenderedStateV1,
@@ -256,7 +262,7 @@ const result = {
   unexpected_console_failure_count: 0,
   unexpected_page_failure_count: 0,
   unexpected_request_failure_count: 0,
-  known_harness_console_warning_count: 0,
+  management_safety_hydration_regression_warning_count: 0,
   credential_private_material_boundary: false,
   default_database_isolated: false,
   provider_or_external_network_call: false,
@@ -2501,6 +2507,10 @@ async function main() {
       `document.querySelector('#project-settings[data-project-settings-owner="emphasized"][data-project-identity-management="true"]') !== null`,
       "emphasized project identity owner",
     );
+    await waitForCondition(
+      PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
+      "hydrated emphasized project management",
+    );
     result.project_context_emphasized_owner = true;
     completeDetailedField("project_context_emphasized_owner");
     await validateProductShell({
@@ -2626,8 +2636,8 @@ async function main() {
 
   await runPhase("project_experience_global_boundaries", async () => {
     await waitForRequestQuiet();
-    const knownHarnessConsoleWarnings = consoleErrors.filter(
-      expectedManagementSafetyHydrationWarning,
+    const managementSafetyHydrationRegressionWarnings = consoleErrors.filter(
+      managementSafetyHydrationRegressionWarningV1,
     );
     const unexpectedConsoleErrors = consoleErrors.filter(
       (entry) => !expectedConsoleError(entry),
@@ -2636,7 +2646,10 @@ async function main() {
       (entry) => !expectedFailedRequest(entry),
     );
     assert.deepEqual(pageErrors, []);
-    assert.equal(knownHarnessConsoleWarnings.length <= 1, true);
+    assert.equal(
+      managementSafetyHydrationRegressionWarnings.length,
+      MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
+    );
     assert.deepEqual(unexpectedConsoleErrors, []);
     assert.deepEqual(unexpectedFailedRequests, []);
     assert.deepEqual(externalRequests, []);
@@ -2685,8 +2698,8 @@ async function main() {
     result.unexpected_console_failure_count = unexpectedConsoleErrors.length;
     result.unexpected_page_failure_count = pageErrors.length;
     result.unexpected_request_failure_count = unexpectedFailedRequests.length;
-    result.known_harness_console_warning_count =
-      knownHarnessConsoleWarnings.length;
+    result.management_safety_hydration_regression_warning_count =
+      managementSafetyHydrationRegressionWarnings.length;
     result.credential_private_material_boundary =
       !/(vnext_bootstrap_v01\.|OPENAI_API_KEY|GITHUB_TOKEN|sk-|ghp_)/iu.test(
         serverLog,
@@ -4992,7 +5005,6 @@ function documentStatusSince(startIndex, pathname) {
 }
 
 function expectedConsoleError(entry) {
-  if (expectedManagementSafetyHydrationWarning(entry)) return true;
   const expectedStatus = [
     [401, "Unauthorized"],
     [404, "Not Found"],
@@ -5001,12 +5013,18 @@ function expectedConsoleError(entry) {
   ].find(([status, label]) =>
     entry.text.includes(`${status} (${label})`),
   )?.[0];
-  if (!Number.isInteger(expectedStatus)) return false;
-  return responses.some(
+  if (!Number.isInteger(expectedStatus)) {
+    return expectedConsoleErrorAfterManagementSafetyBoundaryV1(entry, false);
+  }
+  const expectedByExistingClassification = responses.some(
     (response) =>
       response.phase === entry.phase &&
       response.status === expectedStatus &&
       expectedStatusResponseIdentity(response),
+  );
+  return expectedConsoleErrorAfterManagementSafetyBoundaryV1(
+    entry,
+    expectedByExistingClassification,
   );
 }
 
@@ -5098,17 +5116,6 @@ function expectedFailedRequest(entry) {
     (expectedPath) =>
       entry.path === expectedPath ||
       (expectedPath === "/projects" && entry.path?.startsWith("/projects/")),
-  );
-}
-
-function expectedManagementSafetyHydrationWarning(entry) {
-  return (
-    entry.phase === "rendered_state_responsive_matrix" &&
-    entry.text.includes(
-      "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties.",
-    ) &&
-    entry.text.includes('data-management-safety="management_safety_view.v0.1"') &&
-    entry.text.includes('-                                 open=""')
   );
 }
 
