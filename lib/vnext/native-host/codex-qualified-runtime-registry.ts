@@ -46,9 +46,9 @@ export interface CodexRuntimeCompatibilityProfileV01 {
     thread_turn_contract: Readonly<Record<string, unknown>>;
     server_requests: Readonly<{
       approval_methods: readonly string[];
-      approval_policy: "on-request";
-      approvals_reviewer: "user";
-      resolution_notification: "serverRequest/resolved";
+      approval_policy: string;
+      approvals_reviewer: string;
+      resolution_notification: string;
       duplicate_or_conflicting_identity: "fail_closed";
       unknown_method: "fail_closed";
       active_request_bound: number;
@@ -175,6 +175,12 @@ export interface CodexQualifiedRuntimeRegistryV01 {
 export interface CodexQualifiedRuntimeSelectionV01 {
   selection_mode: "pinned_exact";
   lane: CodexRuntimeLaneV01;
+  artifact: CodexQualifiedRuntimeArtifactV01;
+  compatibility_profile: CodexRuntimeCompatibilityProfileV01;
+}
+
+export interface CodexReviewedRuntimeArtifactV01 {
+  selection_mode: "pinned_exact";
   artifact: CodexQualifiedRuntimeArtifactV01;
   compatibility_profile: CodexRuntimeCompatibilityProfileV01;
 }
@@ -340,11 +346,8 @@ export function selectPinnedCodexQualifiedRuntimeV01(input: {
   const lane = input.lane ?? registry.production_selection.lane;
   if (!(["ordinary_chatgpt_auth", "strict_agent_identity"] as const).includes(lane))
     failV01("codex_qualified_runtime_registry_lane_invalid");
-  const artifact = registry.artifacts.find(
-    (entry) => entry.entry_id === registry.production_selection.entry_id,
-  );
-  if (!artifact)
-    failV01("codex_qualified_runtime_registry_selection_missing");
+  const reviewed = getPinnedCodexReviewedRuntimeArtifactV01({ registry });
+  const { artifact } = reviewed;
   const laneState = artifact.lanes[lane];
   if (artifact.revocation !== null || laneState.status === "revoked")
     failV01("codex_qualified_runtime_registry_selection_revoked");
@@ -362,6 +365,26 @@ export function selectPinnedCodexQualifiedRuntimeV01(input: {
     artifact.security_floor.evaluation !== "satisfied"
   )
     failV01("codex_qualified_runtime_registry_security_floor_unsatisfied");
+  return deepFreezeV01({
+    selection_mode: "pinned_exact",
+    lane,
+    artifact,
+    compatibility_profile: reviewed.compatibility_profile,
+  });
+}
+
+/** Reviewed identity/profile lookup only. It grants no lane qualification. */
+export function getPinnedCodexReviewedRuntimeArtifactV01(input: {
+  registry?: unknown;
+} = {}): CodexReviewedRuntimeArtifactV01 {
+  const registry = input.registry !== undefined
+    ? validateCodexQualifiedRuntimeRegistryV01(input.registry)
+    : CODEX_QUALIFIED_RUNTIME_REGISTRY_V01;
+  const artifact = registry.artifacts.find(
+    (entry) => entry.entry_id === registry.production_selection.entry_id,
+  );
+  if (!artifact)
+    failV01("codex_qualified_runtime_registry_selection_missing");
   const compatibilityProfile = registry.compatibility_profiles.find(
     (profile) => profile.profile_id === artifact.compatibility_profile_id,
   );
@@ -373,7 +396,6 @@ export function selectPinnedCodexQualifiedRuntimeV01(input: {
     failV01("codex_qualified_runtime_registry_profile_reference_mismatch");
   return deepFreezeV01({
     selection_mode: "pinned_exact",
-    lane,
     artifact,
     compatibility_profile: compatibilityProfile,
   });
@@ -596,10 +618,10 @@ function validateProfileSemanticsV01(
     stringArrayV01(requests.approval_methods, "codex_runtime_compatibility_profile_server_request_invalid"),
     "codex_runtime_compatibility_profile_server_request_invalid",
   );
+  boundedStringV01(requests.approval_policy, 64, "codex_runtime_compatibility_profile_server_request_invalid");
+  boundedStringV01(requests.approvals_reviewer, 64, "codex_runtime_compatibility_profile_server_request_invalid");
+  boundedStringV01(requests.resolution_notification, 128, "codex_runtime_compatibility_profile_server_request_invalid");
   if (
-    requests.approval_policy !== "on-request" ||
-    requests.approvals_reviewer !== "user" ||
-    requests.resolution_notification !== "serverRequest/resolved" ||
     requests.duplicate_or_conflicting_identity !== "fail_closed" ||
     requests.unknown_method !== "fail_closed" ||
     !Number.isInteger(requests.active_request_bound) ||
@@ -928,7 +950,14 @@ function validateLaunchShapesV01(value: unknown): void {
       exactKeysV01(record, ["shape", "contract", "launcher_sha256", "supported_package_layouts"], "codex_qualified_runtime_registry_launch_shape_invalid");
       sha256V01(record.launcher_sha256, "codex_qualified_runtime_registry_launch_shape_invalid");
       const layouts = stringArrayV01(record.supported_package_layouts, "codex_qualified_runtime_registry_launch_shape_invalid");
-      if (canonicalizeProtocolValueV01(layouts) !== canonicalizeProtocolValueV01(["nested_platform_package", "bundled_vendor"]))
+      uniqueStringsV01(layouts, "codex_qualified_runtime_registry_launch_shape_invalid");
+      if (
+        layouts.length === 0 ||
+        layouts.some(
+          (layout) =>
+            layout !== "nested_platform_package" && layout !== "bundled_vendor",
+        )
+      )
         failV01("codex_qualified_runtime_registry_launch_shape_invalid");
     } else {
       exactKeysV01(record, ["shape", "contract"], "codex_qualified_runtime_registry_launch_shape_invalid");

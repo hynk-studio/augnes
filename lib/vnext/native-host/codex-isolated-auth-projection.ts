@@ -18,7 +18,11 @@ import {
   observeCodexAppServerUserAgent01521V01,
   observeCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
-import { selectPinnedCodexQualifiedRuntimeV01 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
+import {
+  getPinnedCodexReviewedRuntimeArtifactV01,
+  selectPinnedCodexQualifiedRuntimeV01,
+  type CodexQualifiedRuntimeSelectionV01,
+} from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 import {
   assertCodexBrokerRollbackCleanupAvailableV01,
   containsCodexCredentialSecretShapeV01,
@@ -584,7 +588,7 @@ export const CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01:
   integrity: integrityV01(SEMANTIC_PROFILE_MATERIAL_0_152_1_V01),
 });
 const REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01 =
-  selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
+  getPinnedCodexReviewedRuntimeArtifactV01();
 if (
   REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.version !==
     CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 ||
@@ -623,6 +627,12 @@ const PRODUCTION_SELECTION_MATERIAL_V01 = {
   selected_executable_fingerprint:
     REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
       .native_executable_sha256,
+  ordinary_chatgpt_auth_lane_status:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.lanes
+      .ordinary_chatgpt_auth.status,
+  strict_agent_identity_lane_status:
+    REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact.lanes
+      .strict_agent_identity.status,
   qualification_profile_version:
     CODEX_0_152_1_QUALIFICATION_SEMANTIC_PROFILE_V01.semantic_profile_version,
   qualification_profile_fingerprint:
@@ -811,6 +821,9 @@ interface ExecutableIdentityV01 extends DirectoryIdentityV01 {}
 export async function provisionCodexIsolatedAuthProjectionV01(
   input: ProvisionCodexIsolatedAuthProjectionInputV01,
 ): Promise<ProvisionCodexIsolatedAuthProjectionResultV01> {
+  if (input.executable_identity_class === "production_pinned_codex") {
+    assertCodexStrictAgentIdentityProductionEligibilityV01();
+  }
   validateProvisionInputV01(input);
   const binding = input.provisioning_binding;
   if (
@@ -1024,6 +1037,34 @@ export async function provisionCodexIsolatedAuthProjectionV01(
     projection_seal: seal,
     projection,
   };
+}
+
+function assertCodexStrictAgentIdentityProductionEligibilityV01(
+  registry?: unknown,
+): CodexQualifiedRuntimeSelectionV01 {
+  const reviewed = getPinnedCodexReviewedRuntimeArtifactV01({ registry });
+  const status = reviewed.artifact.lanes.strict_agent_identity.status;
+  if (status !== "qualified") {
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      `codex_isolated_auth_strict_runtime_lane_${status}`,
+    );
+  }
+  return selectPinnedCodexQualifiedRuntimeV01({
+    lane: "strict_agent_identity",
+    registry,
+  });
+}
+
+/** Test-only lane gate probe. It cannot provision credentials or spawn. */
+export function assertCodexStrictAgentIdentityProductionEligibilityForTestV01(
+  registry?: unknown,
+): CodexQualifiedRuntimeSelectionV01 {
+  if (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1") {
+    throw new CodexIsolatedAuthProjectionErrorV01(
+      "codex_isolated_auth_test_mode_required",
+    );
+  }
+  return assertCodexStrictAgentIdentityProductionEligibilityV01(registry);
 }
 
 export class CodexIsolatedAuthenticatedExecutionOwnerV01 {

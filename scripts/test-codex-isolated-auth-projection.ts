@@ -289,6 +289,7 @@ async function runFocusedModeV01(mode: FocusedModeV01): Promise<void> {
 }
 
 async function contractsV01(roots: RootsV01): Promise<void> {
+    await strictProductionHoldPrecedesExternalActivityV01();
     const userAgentProof = userAgentContractV01();
     await macOsKeychainReadTimeoutV01(roots);
     await officialAuthStorageAlignmentV01(roots);
@@ -689,6 +690,66 @@ async function contractsV01(roots: RootsV01): Promise<void> {
         cleanup_complete: true,
       }),
     );
+}
+
+async function strictProductionHoldPrecedesExternalActivityV01(): Promise<void> {
+  const brokerBinding = bindingV01();
+  const providerRef = refV01("model_provider", "openai");
+  const executableFingerprint =
+    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01;
+  const provisioningBinding = createCodexIsolatedAuthProvisioningBindingV01({
+    binding_id: "provisioning:strict-production-hold",
+    auth_handle_ref: brokerBinding.auth_handle_ref,
+    broker_binding_fingerprint:
+      credentialBrokerBindingFingerprintV01(brokerBinding),
+    provider_ref: providerRef,
+    codex_executable_fingerprint: executableFingerprint,
+    executable_identity_class: "production_pinned_codex",
+    compatible_codex_cli_version:
+      CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    issued_at: GENERATED_AT,
+    expires_at: EXPIRES_AT,
+  });
+  const calls = { availability: 0, provision: 0 };
+  const unreachableBroker: CodexCredentialBrokerV01 = {
+    binding_fingerprint: credentialBrokerBindingFingerprintV01(brokerBinding),
+    async availabilityV01() {
+      calls.availability += 1;
+      throw new Error("strict HOLD must precede broker availability");
+    },
+    async provisionCredentialAttestationV01() {
+      calls.provision += 1;
+      throw new Error("strict HOLD must precede broker provisioning");
+    },
+  };
+  await assert.rejects(
+    () =>
+      provisionCodexIsolatedAuthProjectionV01({
+        projection_id: "codex-isolated-auth:strict-production-hold",
+        provisioning_binding: provisioningBinding,
+        provisioning_binding_ref: refV01(
+          "codex_auth_provisioning_binding",
+          provisioningBinding.binding_id,
+        ),
+        provider_ref: providerRef,
+        broker_binding: brokerBinding,
+        broker: unreachableBroker,
+        codex_executable_ref: refV01(
+          "codex_executable",
+          "production-pinned-codex",
+        ),
+        codex_executable_fingerprint: executableFingerprint,
+        executable_identity_class: "production_pinned_codex",
+        compatible_codex_cli_version:
+          CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+        issued_at: GENERATED_AT,
+        expires_at: EXPIRES_AT,
+      }),
+    (error: unknown) =>
+      error instanceof CodexIsolatedAuthProjectionErrorV01 &&
+      error.code === "codex_isolated_auth_strict_runtime_lane_hold",
+  );
+  assert.deepEqual(calls, { availability: 0, provision: 0 });
 }
 
 async function macOsKeychainReadTimeoutV01(roots: RootsV01): Promise<void> {

@@ -7,12 +7,18 @@ import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
   CodexQualifiedRuntimeRegistryErrorV01,
   codexRuntimeCompatibilityProfileFingerprintV01,
+  getPinnedCodexReviewedRuntimeArtifactV01,
   selectPinnedCodexQualifiedRuntimeV01,
   validateCodexQualifiedRuntimeRegistryV01,
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 import {
+  CodexProductionRuntimeErrorV01,
+} from "@/lib/vnext/native-host/codex-production-runtime";
+import { assertCodexAppServerCompatibilityImplementedForTestV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
+import {
   CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01,
   CODEX_ISOLATED_AUTH_SEMANTIC_PROFILE_V01,
+  assertCodexStrictAgentIdentityProductionEligibilityForTestV01,
 } from "@/lib/vnext/native-host/codex-isolated-auth-projection";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01 } from "@/types/vnext/codex-isolated-auth-projection";
@@ -27,6 +33,7 @@ exactSeedIdentityV01();
 profileSemanticsAreReusableAndDeterministicV01();
 invalidRegistryMutationsFailClosedV01();
 laneSelectionIsIndependentV01();
+implementedProfileBindingRefusesSemanticMutationV01();
 revocationExpiryAndSecurityFloorFailClosedV01();
 manifestIsReviewControlledAndRuntimeImmutableV01();
 
@@ -284,9 +291,107 @@ function laneSelectionIsIndependentV01(): void {
     selected.compatibility_profile.fingerprint,
   );
   assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01
+      .ordinary_chatgpt_auth_lane_status,
+    "qualified",
+  );
+  assert.equal(
+    CODEX_ISOLATED_AUTH_PRODUCTION_SELECTION_V01
+      .strict_agent_identity_lane_status,
+    "hold",
+  );
+  assert.equal(
+    getPinnedCodexReviewedRuntimeArtifactV01().artifact.entry_id,
+    selected.artifact.entry_id,
+  );
+  assert.equal(
     registry.artifacts.some((artifact) => artifact.version === "0.153.0"),
     false,
   );
+}
+
+function implementedProfileBindingRefusesSemanticMutationV01(): void {
+  const previousRuntimeTestMode =
+    process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE;
+  const previousIsolatedTestMode =
+    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE;
+  process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE = "1";
+  process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
+  try {
+    const mutations: Array<(semantics: Record<string, any>) => void> = [
+      (semantics) => {
+        semantics.thread_turn_contract.terminal_statuses = ["done"];
+        semantics.thread_turn_contract.nonterminal_status = "working";
+      },
+      (semantics) => {
+        semantics.notifications.lifecycle_supported = [
+          ...semantics.notifications.lifecycle_supported,
+          "thread/futureLifecycle",
+        ];
+      },
+      (semantics) => {
+        semantics.server_requests.resolution_notification =
+          "serverRequest/futureResolved";
+        semantics.server_requests.approval_policy = "future-reviewed-policy";
+      },
+      (semantics) => {
+        semantics.notifications.bounded_observed_optional = [
+          ...semantics.notifications.bounded_observed_optional,
+          "future/unsupportedNotification",
+        ];
+      },
+    ];
+    for (const mutate of mutations) {
+      const value = mutableRegistryV01();
+      const profile = value.compatibility_profiles[0]!;
+      mutate(profile.semantics);
+      profile.fingerprint = codexRuntimeCompatibilityProfileFingerprintV01({
+        profile_id: profile.profile_id,
+        profile_schema_version: profile.profile_schema_version,
+        semantics: profile.semantics,
+      });
+      value.artifacts[0]!.compatibility_profile_fingerprint =
+        profile.fingerprint;
+      const unsupported = selectPinnedCodexQualifiedRuntimeV01({
+        registry: value,
+        lane: "ordinary_chatgpt_auth",
+        observed_at: "2026-09-03T01:17:35.000Z",
+      });
+      assert.throws(
+        () =>
+          assertCodexAppServerCompatibilityImplementedForTestV01(unsupported),
+        (error: unknown) =>
+          error instanceof CodexProductionRuntimeErrorV01 &&
+          error.code === "codex_production_runtime_protocol_drift",
+      );
+    }
+
+    const ordinaryChanged = mutableRegistryV01();
+    ordinaryChanged.artifacts[0]!.lanes.ordinary_chatgpt_auth = {
+      ...ordinaryChanged.artifacts[0]!.lanes.ordinary_chatgpt_auth,
+      status: "unsupported",
+      qualified_at: null,
+    };
+    assert.throws(
+      () =>
+        assertCodexStrictAgentIdentityProductionEligibilityForTestV01(
+          ordinaryChanged,
+        ),
+      (error: unknown) =>
+        error instanceof Error &&
+        (error as { code?: string }).code ===
+          "codex_isolated_auth_strict_runtime_lane_hold",
+    );
+  } finally {
+    restoreEnvironmentV01(
+      "AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE",
+      previousRuntimeTestMode,
+    );
+    restoreEnvironmentV01(
+      "AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE",
+      previousIsolatedTestMode,
+    );
+  }
 }
 
 function revocationExpiryAndSecurityFloorFailClosedV01(): void {
@@ -419,4 +524,9 @@ function reverseObjectInsertionOrderV01(value: unknown): unknown {
       .reverse()
       .map(([key, child]) => [key, reverseObjectInsertionOrderV01(child)]),
   );
+}
+
+function restoreEnvironmentV01(key: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
 }

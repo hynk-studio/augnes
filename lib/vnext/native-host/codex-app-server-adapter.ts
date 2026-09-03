@@ -214,8 +214,50 @@ export function requestSourceBindingMetadataForLifecycleEventV01(input: {
 
 const CURRENT_PINNED_ORDINARY_RUNTIME_V01 =
   selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
+export const CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 =
+  "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a" as const;
+
+function assertCodexAppServerCompatibilityImplementedV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+): void {
+  if (
+    selection.compatibility_profile.profile_id !==
+      "codex_app_server_augnes_operator.v0.1" ||
+    selection.compatibility_profile.fingerprint !==
+      CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 ||
+    selection.artifact.compatibility_profile_id !==
+      selection.compatibility_profile.profile_id ||
+    selection.artifact.compatibility_profile_fingerprint !==
+      selection.compatibility_profile.fingerprint
+  ) {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_protocol_drift",
+    );
+  }
+}
+
+/** Test-only implementation-binding probe; it cannot select or launch a runtime. */
+export function assertCodexAppServerCompatibilityImplementedForTestV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+): void {
+  if (process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1") {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_test_override_refused",
+    );
+  }
+  assertCodexAppServerCompatibilityImplementedV01(selection);
+}
+
+assertCodexAppServerCompatibilityImplementedV01(
+  CURRENT_PINNED_ORDINARY_RUNTIME_V01,
+);
 const CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01 =
   CURRENT_PINNED_ORDINARY_RUNTIME_V01.compatibility_profile.semantics;
+const CURRENT_THREAD_TURN_COMPATIBILITY_V01 =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.thread_turn_contract as Readonly<{
+    terminal_statuses: readonly string[];
+    nonterminal_status: string;
+  }>;
 const CURRENT_REQUIRED_APP_SERVER_METHODS_V01 = Object.freeze({
   initialize: requiredCompatibilityMethodV01(
     "initialize",
@@ -1595,6 +1637,9 @@ class CodexAppServerInvocationV01 {
   private async startTransport(): Promise<void> {
     const isolatedOwner = this.options.isolated_authenticated_execution;
     if (isolatedOwner) {
+      assertCodexAppServerCompatibilityImplementedV01(
+        this.qualifiedRuntimeSelection,
+      );
       assertSourceOwnedCodexIsolatedExecutionOwnerV01(isolatedOwner);
       if (this.control.resume_binding) {
         throw new CodexIsolatedAuthProjectionErrorV01(
@@ -1630,6 +1675,7 @@ class CodexAppServerInvocationV01 {
           lane: "ordinary_chatgpt_auth",
         });
       assertCurrentCodexQualifiedRuntimeSelectionV01(selectedRuntime);
+      assertCodexAppServerCompatibilityImplementedV01(selectedRuntime);
       if (launch.production_runtime_identity) {
         assertCodexProductionRuntimeIdentityUnchangedV01(
           launch.production_runtime_identity,
@@ -1763,8 +1809,12 @@ class CodexAppServerInvocationV01 {
         CURRENT_REQUIRED_APP_SERVER_METHODS_V01.thread_start,
         {
           cwd: this.request.root_scope.canonical_root,
-          approvalPolicy: "on-request",
-          approvalsReviewer: "user",
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
           sandbox: this.sandboxProjection.thread_sandbox,
           ephemeral: this.options.isolated_authenticated_execution
             ? true
@@ -1909,7 +1959,11 @@ class CodexAppServerInvocationV01 {
       this.assertKnownThread(read.thread, true),
     );
     const readStatus = stringV01(readTurn.status);
-    if (["completed", "failed", "interrupted"].includes(readStatus ?? "")) {
+    if (
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(
+        readStatus ?? "",
+      )
+    ) {
       await this.reportLifecycle({
         event_kind: "thread_bound",
         state: "starting",
@@ -1921,7 +1975,10 @@ class CodexAppServerInvocationV01 {
       this.observe("thread_resumed");
       return;
     }
-    if (readStatus !== "inProgress") {
+    if (
+      readStatus !==
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
+    ) {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     }
     const response = objectV01(
@@ -1930,8 +1987,12 @@ class CodexAppServerInvocationV01 {
         {
           threadId: this.threadId,
           cwd: this.request.root_scope.canonical_root,
-          approvalPolicy: "on-request",
-          approvalsReviewer: "user",
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
           sandbox: this.sandboxProjection.thread_sandbox,
         },
       ),
@@ -1944,9 +2005,15 @@ class CodexAppServerInvocationV01 {
     );
     const matchingTurn = this.assertKnownTurnSet(thread);
     const status = stringV01(matchingTurn.status);
-    if (["completed", "failed", "interrupted"].includes(status ?? "")) {
+    if (
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(
+        status ?? "",
+      )
+    ) {
       this.resolveTerminalFromTurn(matchingTurn);
-    } else if (status !== "inProgress") {
+    } else if (
+      status !== CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
+    ) {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     } else {
       await this.reportLifecycle({
@@ -2059,7 +2126,7 @@ class CodexAppServerInvocationV01 {
       (turn) =>
         isObjectV01(turn) &&
         turn.id !== this.turnId &&
-        turn.status === "inProgress",
+        turn.status === CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status,
     );
     if (conflictingActive) {
       throw this.reconciliationError("codex_resume_conflicting_active_turn");
@@ -2079,8 +2146,12 @@ class CodexAppServerInvocationV01 {
           clientUserMessageId: this.request.request_id,
           input: [{ type: "text", text: renderedPacket, text_elements: [] }],
           cwd: this.request.root_scope.canonical_root,
-          approvalPolicy: "on-request",
-          approvalsReviewer: "user",
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
           sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
           outputSchema: CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
         },
@@ -2226,7 +2297,11 @@ class CodexAppServerInvocationV01 {
       await this.observeItem(value.item, method === "item/completed", value);
       return;
     }
-    if (method === "serverRequest/resolved") {
+    if (
+      method ===
+      this.qualifiedRuntimeSelection.compatibility_profile.semantics
+        .server_requests.resolution_notification
+    ) {
       const requestId = requestIdStringV01(value.requestId);
       if (!requestId) {
         throw this.reconciliationError(
@@ -2749,7 +2824,10 @@ class CodexAppServerInvocationV01 {
     const turn = objectV01(value, "codex_turn_completed_invalid");
     this.assertTurnIdentity(turn.id);
     const status = stringV01(turn.status);
-    if (!status || !["completed", "failed", "interrupted"].includes(status)) {
+    if (
+      !status ||
+      !CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(status)
+    ) {
       throw this.reconciliationError("codex_turn_terminal_status_invalid");
     }
     const fingerprint = createProtocolSha256V01(
