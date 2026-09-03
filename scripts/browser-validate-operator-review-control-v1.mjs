@@ -34,6 +34,7 @@ assert.equal(
     "http-error-document",
     "successful-document-missing-bootstrap",
     "document-response-missing",
+    "non-http-new-document",
   ].includes(DIAGNOSTIC_SCENARIO),
   true,
   "unsupported operator Browser diagnostic scenario",
@@ -178,6 +179,7 @@ await runOperatorExecutionBrowserChildV1({
               [untrackedPath, 200],
             ]),
             body: sensitiveBody,
+            hold_body_open: DIAGNOSTIC_SCENARIO === "http-error-document",
           });
           try {
             await lifecycle.navigate(`${diagnosticServer.origin}${fixturePath}`);
@@ -190,6 +192,15 @@ await runOperatorExecutionBrowserChildV1({
                 `${diagnosticServer.origin}${untrackedPath}`,
               );
               assert.fail("missing_document_response_was_not_rejected");
+            }
+            if (DIAGNOSTIC_SCENARIO === "non-http-new-document") {
+              await lifecycle.navigate("about:blank");
+              await lifecycle.waitForCondition(
+                `document.querySelector('#vnext-operator-bootstrap-token') !== null`,
+                "operator bootstrap input",
+                750,
+              );
+              assert.fail("missing_bootstrap_selector_was_not_rejected");
             }
             const initialDocumentResponseCount = lifecycle.responses.filter(
               (entry) => entry.type === "Document" && entry.path === fixturePath,
@@ -1380,7 +1391,11 @@ await runOperatorExecutionBrowserChildV1({
   },
 });
 
-async function startNavigationDiagnosticServer({ routes, body }) {
+async function startNavigationDiagnosticServer({
+  routes,
+  body,
+  hold_body_open = false,
+}) {
   const server = trackServerConnections(
     createHttpServer((request, response) => {
       const status = routes.get(request.url);
@@ -1393,6 +1408,11 @@ async function startNavigationDiagnosticServer({ routes, body }) {
         "cache-control": "no-store",
         "content-type": "text/html; charset=utf-8",
       });
+      if (hold_body_open) {
+        response.flushHeaders();
+        response.write("<!doctype html><html><body>");
+        return;
+      }
       response.end(body);
     }),
   );

@@ -499,8 +499,11 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         ? navigation.loaderId
         : null;
     let documentResponse = null;
-    if (classifiedTarget.http && newDocumentLoaderId !== null) {
+    let successfulDocument = null;
+    if (newDocumentLoaderId !== null) {
       lastNavigationDocument = null;
+    }
+    if (classifiedTarget.http && newDocumentLoaderId !== null) {
       try {
         await waitForHostCondition(
           () => {
@@ -520,26 +523,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       } catch {
         throwDocumentResponseMissing(route);
       }
-    }
-    await waitForCondition(
-      `["interactive", "complete"].includes(document.readyState)`,
-      `document readiness ${navigationCount}`,
-    );
-    if (classifiedTarget.http && newDocumentLoaderId !== null) {
-      documentResponse = correlateOperatorDocumentResponseV1({
-        responses,
-        response_start: responseStart,
-        navigation_epoch: navigationEpoch,
-        phase: navigationPhase,
-        loader_id: newDocumentLoaderId,
-        frame_id: navigation.frameId,
-      });
-      const status = Number(documentResponse?.status);
+      const status = documentResponse?.status;
       if (
         documentResponse === null ||
-        !Number.isInteger(status) ||
-        status < 100 ||
-        status > 599
+        !isValidOperatorDocumentHttpStatusV1(status)
       ) {
         throwDocumentResponseMissing(route);
       }
@@ -555,11 +542,18 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           `operator_browser_navigation_failure:http_error_document:status_${status}:route_${documentRoute}`,
         );
       }
-      lastNavigationDocument = Object.freeze({
+      successfulDocument = Object.freeze({
         route: documentRoute,
         http_status: status,
         navigation_epoch: navigationEpoch,
       });
+    }
+    await waitForCondition(
+      `["interactive", "complete"].includes(document.readyState)`,
+      `document readiness ${navigationCount}`,
+    );
+    if (successfulDocument !== null) {
+      lastNavigationDocument = successfulDocument;
     }
     timing.duration(
       "navigation",
@@ -1278,6 +1272,10 @@ export function correlateOperatorDocumentResponseV1({
     }
   }
   return finalResponse;
+}
+
+export function isValidOperatorDocumentHttpStatusV1(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599;
 }
 
 function classifyOperatorDocumentRoute(value) {

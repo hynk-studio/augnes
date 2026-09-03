@@ -14,7 +14,10 @@ import {
   acquireCompanionServiceMaintenance,
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
-import { correlateOperatorDocumentResponseV1 } from "./operator-execution-browser-lifecycle-v1.mjs";
+import {
+  correlateOperatorDocumentResponseV1,
+  isValidOperatorDocumentHttpStatusV1,
+} from "./operator-execution-browser-lifecycle-v1.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -38,6 +41,7 @@ let serviceMaintenanceRelease = null;
 let summary = null;
 
 assertExactDocumentCorrelation();
+assertStrictDocumentStatusValidation();
 
 try {
   serviceMaintenance = await acquireCompanionServiceMaintenance({
@@ -54,7 +58,7 @@ try {
   );
   assert.doesNotMatch(
     httpError.result.failure,
-    /operator_condition_timeout:operator_bootstrap_input/u,
+    /operator_condition_timeout/u,
   );
   assert.deepEqual(httpError.result.browser_failure_diagnostic, {
     diagnostic_version: "operator_browser_failure_diagnostic.v1",
@@ -110,6 +114,21 @@ try {
   assertSanitized(missingDocumentResponse);
   assertCompleteCleanup(missingDocumentResponse.result);
 
+  const nonHttpNewDocument = await runScenario("non-http-new-document");
+  assert.equal(nonHttpNewDocument.exit.code, 1);
+  assert.match(
+    nonHttpNewDocument.result.failure,
+    /operator_condition_timeout:operator_bootstrap_input/u,
+  );
+  assert.doesNotMatch(
+    nonHttpNewDocument.result.failure,
+    /http_error_document/u,
+  );
+  assert.equal(nonHttpNewDocument.result.browser_failure_diagnostic, null);
+  assertSupervisorDiagnostic(nonHttpNewDocument.result);
+  assertSanitized(nonHttpNewDocument);
+  assertCompleteCleanup(nonHttpNewDocument.result);
+
   assert.equal(ownedProcesses.size, 0);
   summary = {
     status: "pass",
@@ -117,6 +136,7 @@ try {
     exact_document_correlation: {
       final_correlated_status: 500,
       foreign_loader_frame_phase_epoch_rejected: true,
+      non_coercive_status_validation: true,
     },
     http_error_document: {
       failure_category: httpError.result.browser_failure_diagnostic.category,
@@ -137,6 +157,11 @@ try {
         missingDocumentResponse.result.browser_failure_diagnostic.category,
       stale_document_response_rejected: true,
       cleanup_complete: missingDocumentResponse.result.cleanup_complete,
+    },
+    non_http_new_document: {
+      stale_successful_document_context_reused: false,
+      failure_category: "operator_bootstrap_input",
+      cleanup_complete: nonHttpNewDocument.result.cleanup_complete,
     },
     diagnostic_sanitization: "pass",
     provider_calls: 0,
@@ -219,6 +244,22 @@ function assertExactDocumentCorrelation() {
     }),
     null,
   );
+}
+
+function assertStrictDocumentStatusValidation() {
+  assert.equal(isValidOperatorDocumentHttpStatusV1(200), true);
+  assert.equal(isValidOperatorDocumentHttpStatusV1(599), true);
+  for (const malformed of [
+    null,
+    undefined,
+    "200",
+    200.5,
+    Number.NaN,
+    99,
+    600,
+  ]) {
+    assert.equal(isValidOperatorDocumentHttpStatusV1(malformed), false);
+  }
 }
 
 async function runScenario(scenario) {

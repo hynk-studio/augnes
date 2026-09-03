@@ -66,6 +66,17 @@ const operatorReviewControlStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const operatorBrowserNavigationDiagnosticsStep = {
+  id: "operator-browser-navigation-diagnostics",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "operator Browser navigation diagnostic regressions",
+  ...rootNode("scripts/test-operator-browser-navigation-diagnostics-v1.mjs"),
+  // The four isolated navigation/cleanup scenarios measured 124s on the
+  // darwin-arm64 source lane. Keep a bounded 240s owner timeout without retry.
+  timeoutMs: 240_000,
+  requireNaturalExit: true,
+};
 const operatorNativeHostExecutionStep = {
   id: "operator-native-host-execution",
   group: "operator-execution",
@@ -958,19 +969,24 @@ const suites = {
   e2e: [
     { ...projectExperienceStep },
     { ...operatorReviewControlStep },
+    { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
     { ...operatorMultiCandidateStep },
     { ...continuityStep },
     { ...goldenStep },
   ],
   "e2e-project-experience": [{ ...projectExperienceStep }],
-  "e2e-operator-review-control": [{ ...operatorReviewControlStep }],
+  "e2e-operator-review-control": [
+    { ...operatorReviewControlStep },
+    { ...operatorBrowserNavigationDiagnosticsStep },
+  ],
   "e2e-operator-native-host-execution": [
     { ...operatorNativeHostExecutionStep },
   ],
   "e2e-operator-multi-candidate": [{ ...operatorMultiCandidateStep }],
   "e2e-operator-execution": [
     { ...operatorReviewControlStep },
+    { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
     { ...operatorMultiCandidateStep },
   ],
