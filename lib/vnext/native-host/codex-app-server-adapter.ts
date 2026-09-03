@@ -27,6 +27,11 @@ import {
   type CodexProductionRuntimeIdentityV01,
 } from "@/lib/vnext/native-host/codex-production-runtime";
 import {
+  assertCurrentCodexQualifiedRuntimeSelectionV01,
+  selectPinnedCodexQualifiedRuntimeV01,
+  type CodexQualifiedRuntimeSelectionV01,
+} from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
+import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostPublicTextV01,
@@ -207,56 +212,134 @@ export function requestSourceBindingMetadataForLifecycleEventV01(input: {
   };
 }
 
-const MAX_JSONL_LINE_BYTES = 256 * 1024;
-const MAX_JSONL_BUFFER_BYTES = 512 * 1024;
+const CURRENT_PINNED_ORDINARY_RUNTIME_V01 =
+  selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
+export const CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 =
+  "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a" as const;
+
+function assertCodexAppServerCompatibilityImplementedV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+): void {
+  if (
+    selection.compatibility_profile.profile_id !==
+      "codex_app_server_augnes_operator.v0.1" ||
+    selection.compatibility_profile.fingerprint !==
+      CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 ||
+    selection.artifact.compatibility_profile_id !==
+      selection.compatibility_profile.profile_id ||
+    selection.artifact.compatibility_profile_fingerprint !==
+      selection.compatibility_profile.fingerprint
+  ) {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_protocol_drift",
+    );
+  }
+}
+
+/** Test-only implementation-binding probe; it cannot select or launch a runtime. */
+export function assertCodexAppServerCompatibilityImplementedForTestV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+): void {
+  if (process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1") {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_test_override_refused",
+    );
+  }
+  assertCodexAppServerCompatibilityImplementedV01(selection);
+}
+
+assertCodexAppServerCompatibilityImplementedV01(
+  CURRENT_PINNED_ORDINARY_RUNTIME_V01,
+);
+const CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01 =
+  CURRENT_PINNED_ORDINARY_RUNTIME_V01.compatibility_profile.semantics;
+const CURRENT_THREAD_TURN_COMPATIBILITY_V01 =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.thread_turn_contract as Readonly<{
+    terminal_statuses: readonly string[];
+    nonterminal_status: string;
+  }>;
+const CURRENT_REQUIRED_APP_SERVER_METHODS_V01 = Object.freeze({
+  initialize: requiredCompatibilityMethodV01(
+    "initialize",
+    "exact_client_info_with_null_capabilities",
+    "object_with_exact_runtime_bound_user_agent",
+  ),
+  account_read: requiredCompatibilityMethodV01(
+    "account/read",
+    "refresh_token_false",
+    "account_object_or_truthful_auth_required",
+  ),
+  thread_start: requiredCompatibilityMethodV01(
+    "thread/start",
+    "exact_root_approval_sandbox_and_lane_options",
+    "bound_thread_session_root_and_provider_identity",
+  ),
+  thread_read: requiredCompatibilityMethodV01(
+    "thread/read",
+    "exact_thread_identity_with_turns",
+    "one_bound_turn_and_no_conflicting_active_turn",
+  ),
+  thread_resume: requiredCompatibilityMethodV01(
+    "thread/resume",
+    "exact_thread_root_approval_and_sandbox",
+    "same_thread_session_root_and_bound_turn",
+  ),
+  turn_start: requiredCompatibilityMethodV01(
+    "turn/start",
+    "bound_thread_request_root_sandbox_and_exact_output_schema",
+    "one_bound_turn_identity",
+  ),
+});
+const MAX_JSONL_LINE_BYTES =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.lifecycle_cleanup_contract
+    .max_jsonl_line_bytes;
+const MAX_JSONL_BUFFER_BYTES =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.lifecycle_cleanup_contract
+    .max_jsonl_buffer_bytes;
 const MAX_PENDING_REQUESTS = 32;
 const MAX_RECENT_RESPONSES = 64;
-const MAX_SERVER_REQUESTS = 8;
+const MAX_SERVER_REQUESTS =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.server_requests
+    .active_request_bound;
 const MAX_RECENT_RESOLVED_SERVER_REQUESTS = 16;
 const MAX_PROMPT_BYTES = 512 * 1024;
-const RPC_TIMEOUT_MS = 10_000;
+const RPC_TIMEOUT_MS =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.lifecycle_cleanup_contract
+    .rpc_timeout_ms;
 const APPROVAL_TTL_MS = 5 * 60 * 1_000;
-const GRACEFUL_PROCESS_STOP_MS = 1_000;
-const FORCED_PROCESS_STOP_MS = 2_000;
+const GRACEFUL_PROCESS_STOP_MS =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.lifecycle_cleanup_contract
+    .graceful_stop_ms;
+const FORCED_PROCESS_STOP_MS =
+  CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.lifecycle_cleanup_contract
+    .forced_stop_ms;
 
-const KNOWN_IGNORED_NOTIFICATIONS = new Set([
-  "account/rateLimits/updated",
-  "account/updated",
-  "configWarning",
-  "deprecationNotice",
-  "error",
-  "guardianWarning",
-  "hook/completed",
-  "hook/started",
-  "item/agentMessage/delta",
-  "item/autoApprovalReview/completed",
-  "item/autoApprovalReview/started",
-  "item/commandExecution/outputDelta",
-  "item/commandExecution/terminalInteraction",
-  "item/fileChange/outputDelta",
-  "item/fileChange/patchUpdated",
-  "item/plan/delta",
-  "item/reasoning/summaryPartAdded",
-  "item/reasoning/summaryTextDelta",
-  "item/reasoning/textDelta",
-  "model/rerouted",
-  "model/safetyBuffering/updated",
-  "model/verification",
-  "mcpServer/startupStatus/updated",
-  "remoteControl/status/changed",
-  "thread/name/updated",
-  "thread/tokenUsage/updated",
-  "turn/diff/updated",
-  "turn/moderationMetadata",
-  "turn/plan/updated",
-  "warning",
-]);
+function requiredCompatibilityMethodV01(
+  method: string,
+  requestContract: string,
+  responseContract: string,
+): string {
+  const matches =
+    CURRENT_CODEX_COMPATIBILITY_SEMANTICS_V01.required_app_server_methods.filter(
+      (candidate) => candidate.method === method,
+    );
+  if (
+    matches.length !== 1 ||
+    matches[0]!.request_contract !== requestContract ||
+    matches[0]!.response_contract !== responseContract
+  )
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_protocol_drift",
+    );
+  return matches[0]!.method;
+}
 
 export interface CodexAppServerLaunchV01 {
   command: string;
   prefix_args?: string[];
   environment?: NodeJS.ProcessEnv;
   production_runtime_identity?: CodexProductionRuntimeIdentityV01;
+  qualified_runtime_selection?: CodexQualifiedRuntimeSelectionV01;
 }
 
 export interface CodexAppServerAdapterObservationV01 {
@@ -781,14 +864,32 @@ export function createCodexAppServerAdapterV01(
 
 export function observeOrdinaryCodexAppServerUserAgentV01(
   rawUserAgent: unknown,
-): typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 {
+  selectedRuntime: CodexQualifiedRuntimeSelectionV01 =
+    selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" }),
+): string {
   try {
+    assertCurrentCodexQualifiedRuntimeSelectionV01(selectedRuntime);
+    const rules =
+      selectedRuntime.compatibility_profile.semantics
+        .post_spawn_user_agent_validation;
+    if (
+      rules.cli_version_binding !== "selected_artifact_exact_version" ||
+      rules.originator_binding !== "exact_initialize_client_info_name" ||
+      rules.client_version_binding !== "exact_augnes_adapter_version" ||
+      rules.platform_shape !== "macos_semver_supported_arch" ||
+      rules.printable_ascii_only !== true ||
+      rules.max_length !== 512 ||
+      rules.unexpected_suffix !== "fail_closed"
+    )
+      throw new CodexProductionRuntimeErrorV01(
+        "codex_production_runtime_protocol_drift",
+      );
     return observeCodexAppServerUserAgentV01({
       raw_user_agent: rawUserAgent,
       expected_client_name: "augnes",
       expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
       expected_codex_cli_version:
-        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+        selectedRuntime.artifact.version as typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     }).codex_cli_version;
   } catch (error) {
     if (error instanceof CodexAppServerUserAgentErrorV01) {
@@ -807,6 +908,9 @@ export function resolveDefaultCodexAppServerLaunchV01(
   },
 ): CodexAppServerLaunchV01 {
   if (environment.AUGNES_CANONICAL_TEST_MODE === "1") {
+    const qualifiedRuntimeSelection = selectPinnedCodexQualifiedRuntimeV01({
+      lane: "ordinary_chatgpt_auth",
+    });
     return {
       command: process.execPath,
       prefix_args: [
@@ -818,6 +922,7 @@ export function resolveDefaultCodexAppServerLaunchV01(
         ),
       ],
       environment: boundedCodexChildEnvironmentV01(environment, true),
+      qualified_runtime_selection: qualifiedRuntimeSelection,
     };
   }
   if (
@@ -837,6 +942,7 @@ export function resolveDefaultCodexAppServerLaunchV01(
     prefix_args: [],
     environment: boundedCodexChildEnvironmentV01(environment, false),
     production_runtime_identity: productionRuntime,
+    qualified_runtime_selection: productionRuntime.qualified_runtime_selection,
   };
 }
 
@@ -1371,6 +1477,7 @@ class CodexAppServerInvocationV01 {
   private isolatedObservedModelId: string | null = null;
   private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
+  private qualifiedRuntimeSelection = CURRENT_PINNED_ORDINARY_RUNTIME_V01;
   private readonly sandboxProjection: CodexAppServerSandboxProjectionV01;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
@@ -1530,6 +1637,9 @@ class CodexAppServerInvocationV01 {
   private async startTransport(): Promise<void> {
     const isolatedOwner = this.options.isolated_authenticated_execution;
     if (isolatedOwner) {
+      assertCodexAppServerCompatibilityImplementedV01(
+        this.qualifiedRuntimeSelection,
+      );
       assertSourceOwnedCodexIsolatedExecutionOwnerV01(isolatedOwner);
       if (this.control.resume_binding) {
         throw new CodexIsolatedAuthProjectionErrorV01(
@@ -1559,19 +1669,31 @@ class CodexAppServerInvocationV01 {
     } else {
       const launch =
         this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
+      const selectedRuntime =
+        launch.qualified_runtime_selection ??
+        selectPinnedCodexQualifiedRuntimeV01({
+          lane: "ordinary_chatgpt_auth",
+        });
+      assertCurrentCodexQualifiedRuntimeSelectionV01(selectedRuntime);
+      assertCodexAppServerCompatibilityImplementedV01(selectedRuntime);
       if (launch.production_runtime_identity) {
         assertCodexProductionRuntimeIdentityUnchangedV01(
           launch.production_runtime_identity,
         );
         if (
           launch.command !==
-          launch.production_runtime_identity.canonical_native_executable
+            launch.production_runtime_identity.canonical_native_executable ||
+          canonicalizeProtocolValueV01(selectedRuntime) !==
+            canonicalizeProtocolValueV01(
+              launch.production_runtime_identity.qualified_runtime_selection,
+            )
         ) {
           throw new CodexProductionRuntimeErrorV01(
             "codex_production_runtime_identity_changed",
           );
         }
       }
+      this.qualifiedRuntimeSelection = selectedRuntime;
       this.transport = new CodexStdioJsonRpcTransportV01({
         command: launch.command,
         args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
@@ -1625,23 +1747,30 @@ class CodexAppServerInvocationV01 {
       this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
     } else {
       const initialized = objectV01(
-        await this.transport!.request("initialize", {
-          clientInfo: {
-            name: "augnes",
-            title: "Augnes",
-            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        await this.transport!.request(
+          CURRENT_REQUIRED_APP_SERVER_METHODS_V01.initialize,
+          {
+            clientInfo: {
+              name: "augnes",
+              title: "Augnes",
+              version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+            },
+            capabilities: null,
           },
-          capabilities: null,
-        }),
+        ),
         "codex_initialize_response_invalid",
       );
       this.cliVersion = observeOrdinaryCodexAppServerUserAgentV01(
         initialized.userAgent,
+        this.qualifiedRuntimeSelection,
       );
       this.transport!.notify("initialized", {});
       this.observe("initialized");
       const account = objectV01(
-        await this.transport!.request("account/read", { refreshToken: false }),
+        await this.transport!.request(
+          CURRENT_REQUIRED_APP_SERVER_METHODS_V01.account_read,
+          { refreshToken: false },
+        ),
         "codex_account_response_invalid",
       );
       if (account.account === null && account.requiresOpenaiAuth === true)
@@ -1676,16 +1805,25 @@ class CodexAppServerInvocationV01 {
   private async startNewThreadAndTurn(): Promise<void> {
     this.threadStartSent = true;
     const response = objectV01(
-      await this.transport!.request("thread/start", {
-        cwd: this.request.root_scope.canonical_root,
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandbox: this.sandboxProjection.thread_sandbox,
-        ephemeral: this.options.isolated_authenticated_execution ? true : false,
-        ...(this.options.isolated_authenticated_execution
-          ? { allowProviderModelFallback: false }
-          : {}),
-      }),
+      await this.transport!.request(
+        CURRENT_REQUIRED_APP_SERVER_METHODS_V01.thread_start,
+        {
+          cwd: this.request.root_scope.canonical_root,
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
+          sandbox: this.sandboxProjection.thread_sandbox,
+          ephemeral: this.options.isolated_authenticated_execution
+            ? true
+            : false,
+          ...(this.options.isolated_authenticated_execution
+            ? { allowProviderModelFallback: false }
+            : {}),
+        },
+      ),
       "codex_thread_start_response_invalid",
     );
     if (this.options.isolated_authenticated_execution) {
@@ -1808,17 +1946,24 @@ class CodexAppServerInvocationV01 {
     this.sessionRef = resume.host_session_ref;
     this.turnRef = resume.host_turn_ref;
     const read = objectV01(
-      await this.transport!.request("thread/read", {
-        threadId: this.threadId,
-        includeTurns: true,
-      }),
+      await this.transport!.request(
+        CURRENT_REQUIRED_APP_SERVER_METHODS_V01.thread_read,
+        {
+          threadId: this.threadId,
+          includeTurns: true,
+        },
+      ),
       "codex_thread_read_response_invalid",
     );
     const readTurn = this.assertKnownTurnSet(
       this.assertKnownThread(read.thread, true),
     );
     const readStatus = stringV01(readTurn.status);
-    if (["completed", "failed", "interrupted"].includes(readStatus ?? "")) {
+    if (
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(
+        readStatus ?? "",
+      )
+    ) {
       await this.reportLifecycle({
         event_kind: "thread_bound",
         state: "starting",
@@ -1830,17 +1975,27 @@ class CodexAppServerInvocationV01 {
       this.observe("thread_resumed");
       return;
     }
-    if (readStatus !== "inProgress") {
+    if (
+      readStatus !==
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
+    ) {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     }
     const response = objectV01(
-      await this.transport!.request("thread/resume", {
-        threadId: this.threadId,
-        cwd: this.request.root_scope.canonical_root,
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandbox: this.sandboxProjection.thread_sandbox,
-      }),
+      await this.transport!.request(
+        CURRENT_REQUIRED_APP_SERVER_METHODS_V01.thread_resume,
+        {
+          threadId: this.threadId,
+          cwd: this.request.root_scope.canonical_root,
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
+          sandbox: this.sandboxProjection.thread_sandbox,
+        },
+      ),
       "codex_thread_resume_response_invalid",
     );
     await this.bindThreadResponse(response, "thread_resumed", true);
@@ -1850,9 +2005,15 @@ class CodexAppServerInvocationV01 {
     );
     const matchingTurn = this.assertKnownTurnSet(thread);
     const status = stringV01(matchingTurn.status);
-    if (["completed", "failed", "interrupted"].includes(status ?? "")) {
+    if (
+      CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(
+        status ?? "",
+      )
+    ) {
       this.resolveTerminalFromTurn(matchingTurn);
-    } else if (status !== "inProgress") {
+    } else if (
+      status !== CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
+    ) {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     } else {
       await this.reportLifecycle({
@@ -1965,7 +2126,7 @@ class CodexAppServerInvocationV01 {
       (turn) =>
         isObjectV01(turn) &&
         turn.id !== this.turnId &&
-        turn.status === "inProgress",
+        turn.status === CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status,
     );
     if (conflictingActive) {
       throw this.reconciliationError("codex_resume_conflicting_active_turn");
@@ -1978,16 +2139,23 @@ class CodexAppServerInvocationV01 {
     this.packetDeliveryInitiated = true;
     this.turnStartSent = true;
     const response = objectV01(
-      await this.transport!.request("turn/start", {
-        threadId: this.threadId,
-        clientUserMessageId: this.request.request_id,
-        input: [{ type: "text", text: renderedPacket, text_elements: [] }],
-        cwd: this.request.root_scope.canonical_root,
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
-        outputSchema: CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
-      }),
+      await this.transport!.request(
+        CURRENT_REQUIRED_APP_SERVER_METHODS_V01.turn_start,
+        {
+          threadId: this.threadId,
+          clientUserMessageId: this.request.request_id,
+          input: [{ type: "text", text: renderedPacket, text_elements: [] }],
+          cwd: this.request.root_scope.canonical_root,
+          approvalPolicy:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approval_policy,
+          approvalsReviewer:
+            this.qualifiedRuntimeSelection.compatibility_profile.semantics
+              .server_requests.approvals_reviewer,
+          sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
+          outputSchema: CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
+        },
+      ),
       "codex_turn_start_response_invalid",
     );
     const turn = objectV01(response.turn, "codex_turn_start_binding_invalid");
@@ -2035,9 +2203,17 @@ class CodexAppServerInvocationV01 {
     const value = objectV01(params, "codex_notification_params_invalid");
     this.assertNotificationBinding(value);
     if (
-      method === "modelProvider/authRecoveryStarted" ||
-      method === "modelProvider/authRecoveryCompleted"
+      this.qualifiedRuntimeSelection.compatibility_profile.semantics.notifications.bounded_observed_optional.includes(
+        method,
+      )
     ) {
+      if (
+        method !== "modelProvider/authRecoveryStarted" &&
+        method !== "modelProvider/authRecoveryCompleted"
+      )
+        throw new CodexProtocolErrorV01(
+          "codex_notification_method_unsupported",
+        );
       if (this.options.isolated_authenticated_execution)
         throw new CodexIsolatedAuthProjectionErrorV01(
           "codex_isolated_auth_runtime_policy_drift",
@@ -2121,7 +2297,11 @@ class CodexAppServerInvocationV01 {
       await this.observeItem(value.item, method === "item/completed", value);
       return;
     }
-    if (method === "serverRequest/resolved") {
+    if (
+      method ===
+      this.qualifiedRuntimeSelection.compatibility_profile.semantics
+        .server_requests.resolution_notification
+    ) {
       const requestId = requestIdStringV01(value.requestId);
       if (!requestId) {
         throw this.reconciliationError(
@@ -2186,7 +2366,12 @@ class CodexAppServerInvocationV01 {
       });
       return;
     }
-    if (KNOWN_IGNORED_NOTIFICATIONS.has(method)) return;
+    if (
+      this.qualifiedRuntimeSelection.compatibility_profile.semantics.notifications.ignored_optional.includes(
+        method,
+      )
+    )
+      return;
     throw new CodexProtocolErrorV01("codex_notification_method_unsupported");
   }
 
@@ -2196,11 +2381,9 @@ class CodexAppServerInvocationV01 {
     params: unknown,
   ): Promise<unknown> {
     if (
-      ![
-        "item/commandExecution/requestApproval",
-        "item/fileChange/requestApproval",
-        "item/permissions/requestApproval",
-      ].includes(method)
+      !this.qualifiedRuntimeSelection.compatibility_profile.semantics.server_requests.approval_methods.includes(
+        method,
+      )
     ) {
       throw new CodexProtocolErrorV01(
         "codex_server_request_method_unsupported",
@@ -2641,7 +2824,10 @@ class CodexAppServerInvocationV01 {
     const turn = objectV01(value, "codex_turn_completed_invalid");
     this.assertTurnIdentity(turn.id);
     const status = stringV01(turn.status);
-    if (!status || !["completed", "failed", "interrupted"].includes(status)) {
+    if (
+      !status ||
+      !CURRENT_THREAD_TURN_COMPATIBILITY_V01.terminal_statuses.includes(status)
+    ) {
       throw this.reconciliationError("codex_turn_terminal_status_invalid");
     }
     const fingerprint = createProtocolSha256V01(

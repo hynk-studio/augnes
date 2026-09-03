@@ -14,28 +14,16 @@ import {
 import path from "node:path";
 
 import {
-  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
-  CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
-  CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-  CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
-  CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
-} from "@/types/vnext/codex-isolated-auth-projection";
+  assertCurrentCodexQualifiedRuntimeSelectionV01,
+  selectPinnedCodexQualifiedRuntimeV01,
+  type CodexQualifiedRuntimeSelectionV01,
+  type CodexRuntimeLaunchShapeV01,
+} from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 
 export const CODEX_PRODUCTION_RUNTIME_RESOLUTION_VERSION_V01 =
   "codex_production_runtime_resolution.v0.1" as const;
 
-/**
- * Exact rust-v0.152.1 `codex-cli/bin/codex.js` source bytes. The launcher is
- * recognized only to derive its official vendor target; Augnes never spawns
- * the launcher after admission.
- */
-export const CODEX_PRODUCTION_OFFICIAL_NODE_LAUNCHER_FINGERPRINT_V01 =
-  "sha256:134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477" as const;
-
-export type CodexProductionRuntimeLaunchShapeV01 =
-  | "direct_native"
-  | "symlink_to_native"
-  | "official_openai_node_launcher";
+export type CodexProductionRuntimeLaunchShapeV01 = CodexRuntimeLaunchShapeV01;
 
 interface CodexProductionRuntimeFileIdentityV01 {
   device: string;
@@ -52,11 +40,19 @@ export interface CodexProductionRuntimeIdentityV01 {
   launch_shape: CodexProductionRuntimeLaunchShapeV01;
   path_candidate_was_symlink: boolean;
   canonical_native_executable: string;
-  executable_fingerprint: typeof CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 | string;
-  cli_version: typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 | string;
-  upstream_tag: typeof CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01;
-  upstream_source_commit: typeof CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01;
-  semantic_profile_fingerprint: typeof CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01;
+  executable_fingerprint: string;
+  cli_version: string;
+  upstream_tag: string;
+  upstream_source_commit: string;
+  upstream_target_triple: string;
+  semantic_profile_fingerprint: string;
+  qualified_runtime_entry_id: string;
+  compatibility_profile_id: string;
+  compatibility_profile_fingerprint: string;
+  qualified_runtime_selection: CodexQualifiedRuntimeSelectionV01;
+  registry_authority:
+    | "checked_in_human_reviewed_manifest"
+    | "test_injected_identity";
   official_package_shape:
     | "not_applicable"
     | "nested_platform_package"
@@ -79,9 +75,12 @@ export class CodexProductionRuntimeErrorV01 extends Error {
 }
 
 interface CodexProductionRuntimeResolverDependenciesV01 {
+  qualified_runtime_selection: CodexQualifiedRuntimeSelectionV01;
+  registry_authority:
+    | "checked_in_human_reviewed_manifest"
+    | "test_injected_identity";
   expected_executable_fingerprint: string;
   expected_cli_version: string;
-  expected_official_launcher_fingerprint: string;
   platform: NodeJS.Platform;
   architecture: string;
   read_cli_version(nativeExecutable: string): string;
@@ -93,17 +92,20 @@ export function resolveCodexProductionRuntimeV01(input: {
   cwd?: string;
 } = {}): CodexProductionRuntimeIdentityV01 {
   const environment = input.environment ?? process.env;
+  const qualifiedRuntimeSelection = selectPinnedCodexQualifiedRuntimeV01({
+    lane: "ordinary_chatgpt_auth",
+  });
   return resolveCodexProductionRuntimeWithDependenciesV01(
     {
       environment,
       cwd: input.cwd ?? process.cwd(),
     },
     {
+      qualified_runtime_selection: qualifiedRuntimeSelection,
+      registry_authority: "checked_in_human_reviewed_manifest",
       expected_executable_fingerprint:
-        CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01,
-      expected_cli_version: CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-      expected_official_launcher_fingerprint:
-        CODEX_PRODUCTION_OFFICIAL_NODE_LAUNCHER_FINGERPRINT_V01,
+        qualifiedRuntimeSelection.artifact.native_executable_sha256,
+      expected_cli_version: qualifiedRuntimeSelection.artifact.version,
       platform: process.platform,
       architecture: process.arch,
       read_cli_version: (nativeExecutable) =>
@@ -118,7 +120,7 @@ export function resolveCodexProductionRuntimeForTestV01(input: {
   cwd: string;
   expected_executable_fingerprint: string;
   expected_cli_version?: string;
-  expected_official_launcher_fingerprint?: string;
+  qualified_runtime_registry?: unknown;
   platform?: NodeJS.Platform;
   architecture?: string;
   read_cli_version(nativeExecutable: string): string;
@@ -129,16 +131,19 @@ export function resolveCodexProductionRuntimeForTestV01(input: {
       "codex_production_runtime_test_override_refused",
     );
   }
+  const qualifiedRuntimeSelection = selectPinnedCodexQualifiedRuntimeV01({
+    lane: "ordinary_chatgpt_auth",
+    registry: input.qualified_runtime_registry,
+  });
   return resolveCodexProductionRuntimeWithDependenciesV01(
     { environment: input.environment, cwd: input.cwd },
     {
+      qualified_runtime_selection: qualifiedRuntimeSelection,
+      registry_authority: "test_injected_identity",
       expected_executable_fingerprint: input.expected_executable_fingerprint,
       expected_cli_version:
         input.expected_cli_version ??
-        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
-      expected_official_launcher_fingerprint:
-        input.expected_official_launcher_fingerprint ??
-        CODEX_PRODUCTION_OFFICIAL_NODE_LAUNCHER_FINGERPRINT_V01,
+        qualifiedRuntimeSelection.artifact.version,
       platform: input.platform ?? "darwin",
       architecture: input.architecture ?? "arm64",
       read_cli_version: input.read_cli_version,
@@ -151,10 +156,41 @@ export function assertCodexProductionRuntimeIdentityUnchangedV01(
   identity: CodexProductionRuntimeIdentityV01,
 ): void {
   try {
+    if (identity.registry_authority === "checked_in_human_reviewed_manifest") {
+      assertCurrentCodexQualifiedRuntimeSelectionV01(
+        identity.qualified_runtime_selection,
+      );
+    } else if (
+      identity.registry_authority !== "test_injected_identity" ||
+      process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1"
+    ) {
+      throw new Error();
+    }
     if (
       identity.resolution_version !==
         CODEX_PRODUCTION_RUNTIME_RESOLUTION_VERSION_V01 ||
       identity.availability !== "exact_selected_runtime_available" ||
+      identity.qualified_runtime_entry_id !==
+        identity.qualified_runtime_selection.artifact.entry_id ||
+      identity.compatibility_profile_id !==
+        identity.qualified_runtime_selection.compatibility_profile.profile_id ||
+      identity.compatibility_profile_fingerprint !==
+        identity.qualified_runtime_selection.compatibility_profile.fingerprint ||
+      identity.upstream_tag !==
+        identity.qualified_runtime_selection.artifact.release_tag ||
+      identity.upstream_source_commit !==
+        identity.qualified_runtime_selection.artifact.tagged_source_commit ||
+      identity.upstream_target_triple !==
+        identity.qualified_runtime_selection.artifact.upstream_target_triple ||
+      identity.cli_version !==
+        identity.qualified_runtime_selection.artifact.version ||
+      identity.semantic_profile_fingerprint !==
+        identity.qualified_runtime_selection.artifact
+          .legacy_exact_qualification_evidence.semantic_profile_fingerprint ||
+      (identity.registry_authority === "checked_in_human_reviewed_manifest" &&
+        identity.executable_fingerprint !==
+          identity.qualified_runtime_selection.artifact
+            .native_executable_sha256) ||
       !path.isAbsolute(identity.canonical_native_executable) ||
       realpathSync.native(identity.admission.path_candidate) !==
         identity.admission.resolved_path_entry ||
@@ -176,7 +212,8 @@ export function assertCodexProductionRuntimeIdentityUnchangedV01(
         identity.executable_fingerprint ||
       (identity.admission.official_launcher_fingerprint !== null &&
         sha256FileV01(identity.admission.resolved_path_entry) !==
-          identity.admission.official_launcher_fingerprint)
+          identity.admission.official_launcher_fingerprint) ||
+      !identityLaunchShapeRemainsAdmittedV01(identity)
     ) {
       throw new Error();
     }
@@ -220,14 +257,25 @@ function resolveCodexProductionRuntimeWithDependenciesV01(
         ? "symlink_to_native"
         : "direct_native";
     nativeTarget = resolvedPathEntry;
-  } else if (
-    resolvedEntryFingerprint ===
-      dependencies.expected_official_launcher_fingerprint &&
-    path.basename(resolvedPathEntry) === "codex.js"
-  ) {
+    requireSelectedLaunchShapeV01(
+      dependencies.qualified_runtime_selection,
+      launchShape,
+    );
+  } else if (path.basename(resolvedPathEntry) === "codex.js") {
+    const admittedLauncher = requireSelectedLaunchShapeV01(
+      dependencies.qualified_runtime_selection,
+      "official_openai_node_launcher",
+    );
+    if (resolvedEntryFingerprint !== admittedLauncher.launcher_sha256) {
+      throw new CodexProductionRuntimeErrorV01(
+        "codex_production_runtime_launch_shape_unsupported",
+      );
+    }
     const official = resolveOfficialNodeLauncherTargetV01(
       resolvedPathEntry,
       dependencies.expected_cli_version,
+      dependencies.qualified_runtime_selection.artifact.upstream_target_triple,
+      admittedLauncher.supported_package_layouts ?? [],
     );
     launchShape = "official_openai_node_launcher";
     officialPackageShape = official.package_shape;
@@ -262,11 +310,23 @@ function resolveCodexProductionRuntimeWithDependenciesV01(
     canonical_native_executable: canonicalNativeTarget,
     executable_fingerprint: executableFingerprint,
     cli_version: cliVersion,
-    upstream_tag: CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01,
+    upstream_tag:
+      dependencies.qualified_runtime_selection.artifact.release_tag,
     upstream_source_commit:
-      CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01,
+      dependencies.qualified_runtime_selection.artifact.tagged_source_commit,
+    upstream_target_triple:
+      dependencies.qualified_runtime_selection.artifact.upstream_target_triple,
     semantic_profile_fingerprint:
-      CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
+      dependencies.qualified_runtime_selection.artifact
+        .legacy_exact_qualification_evidence.semantic_profile_fingerprint,
+    qualified_runtime_entry_id:
+      dependencies.qualified_runtime_selection.artifact.entry_id,
+    compatibility_profile_id:
+      dependencies.qualified_runtime_selection.compatibility_profile.profile_id,
+    compatibility_profile_fingerprint:
+      dependencies.qualified_runtime_selection.compatibility_profile.fingerprint,
+    qualified_runtime_selection: dependencies.qualified_runtime_selection,
+    registry_authority: dependencies.registry_authority,
     official_package_shape: officialPackageShape,
     admission: {
       path_candidate: pathCandidate,
@@ -322,6 +382,8 @@ function firstPathCodexCandidateV01(input: {
 function resolveOfficialNodeLauncherTargetV01(
   launcherPath: string,
   expectedCliVersion: string,
+  targetTriple: string,
+  supportedPackageLayouts: readonly string[],
 ): {
   native_target: string;
   package_shape: "nested_platform_package" | "bundled_vendor";
@@ -344,7 +406,6 @@ function resolveOfficialNodeLauncherTargetV01(
     ) {
       throw new Error();
     }
-    const targetTriple = "aarch64-apple-darwin";
     const nestedPackageRoot = path.join(
       packageRoot,
       "node_modules",
@@ -358,7 +419,10 @@ function resolveOfficialNodeLauncherTargetV01(
       "bin",
       "codex",
     );
-    if (existsSync(nestedPackageRoot)) {
+    if (
+      existsSync(nestedPackageRoot) &&
+      supportedPackageLayouts.includes("nested_platform_package")
+    ) {
       const platformManifest = exactJsonObjectV01(
         path.join(nestedPackageRoot, "package.json"),
       );
@@ -373,6 +437,7 @@ function resolveOfficialNodeLauncherTargetV01(
         package_shape: "nested_platform_package",
       };
     }
+    if (!supportedPackageLayouts.includes("bundled_vendor")) throw new Error();
     const bundledTarget = path.join(
       packageRoot,
       "vendor",
@@ -414,22 +479,58 @@ function exactRegularExecutableV01(value: string): string {
 function assertSelectedProductionTupleV01(
   dependencies: CodexProductionRuntimeResolverDependenciesV01,
 ): void {
+  const selected = dependencies.qualified_runtime_selection;
   if (
-    dependencies.platform !== "darwin" ||
-    dependencies.architecture !== "arm64" ||
-    CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 !== "0.152.1" ||
-    CODEX_ISOLATED_AUTH_UPSTREAM_TAG_V01 !== "rust-v0.152.1" ||
-    CODEX_ISOLATED_AUTH_UPSTREAM_SOURCE_COMMIT_V01 !==
-      "5adb68a49933ae446bf11935662c83dba55a0804" ||
-    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 !==
-      "sha256:8194ea3181f330e63023b234b0b231855e5874e0331c5ef7cbc490591497a7bf" ||
-    CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01 !==
-      "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529"
+    selected.selection_mode !== "pinned_exact" ||
+    selected.lane !== "ordinary_chatgpt_auth" ||
+    selected.artifact.lanes.ordinary_chatgpt_auth.status !== "qualified" ||
+    dependencies.platform !== selected.artifact.platform ||
+    dependencies.architecture !== selected.artifact.architecture ||
+    dependencies.expected_cli_version !== selected.artifact.version
   ) {
     throw new CodexProductionRuntimeErrorV01(
       "codex_production_runtime_identity_mismatch",
     );
   }
+}
+
+function requireSelectedLaunchShapeV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+  shape: CodexProductionRuntimeLaunchShapeV01,
+): CodexQualifiedRuntimeSelectionV01["artifact"]["admitted_discovery_launch_shapes"][number] {
+  const launchShape = selection.artifact.admitted_discovery_launch_shapes.find(
+    (candidate) => candidate.shape === shape,
+  );
+  if (!launchShape) {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_launch_shape_unsupported",
+    );
+  }
+  return launchShape;
+}
+
+function identityLaunchShapeRemainsAdmittedV01(
+  identity: CodexProductionRuntimeIdentityV01,
+): boolean {
+  const admitted = identity.qualified_runtime_selection.artifact.admitted_discovery_launch_shapes.find(
+    (candidate) => candidate.shape === identity.launch_shape,
+  );
+  if (!admitted) return false;
+  if (identity.launch_shape !== "official_openai_node_launcher") {
+    return (
+      identity.official_package_shape === "not_applicable" &&
+      identity.admission.official_launcher_fingerprint === null
+    );
+  }
+  return (
+    typeof admitted.launcher_sha256 === "string" &&
+    identity.admission.official_launcher_fingerprint ===
+      admitted.launcher_sha256 &&
+    identity.official_package_shape !== "not_applicable" &&
+    (admitted.supported_package_layouts ?? []).includes(
+      identity.official_package_shape,
+    )
+  );
 }
 
 function exactJsonObjectV01(value: string): Record<string, unknown> {

@@ -1,0 +1,297 @@
+{
+  "registry_schema_version": "codex_qualified_runtime_registry.v0.1",
+  "authority": {
+    "authority_kind": "checked_in_human_reviewed_manifest",
+    "runtime_mutation": "forbidden",
+    "qualification_receipts": "evidence_only",
+    "production_promotion": "checked_in_reviewed_manifest_change_required"
+  },
+  "compatibility_profiles": [
+    {
+      "profile_id": "codex_app_server_augnes_operator.v0.1",
+      "profile_schema_version": "codex_runtime_compatibility_profile.v0.1",
+      "fingerprint": "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+      "semantics": {
+        "required_app_server_methods": [
+          {
+            "method": "initialize",
+            "request_contract": "exact_client_info_with_null_capabilities",
+            "response_contract": "object_with_exact_runtime_bound_user_agent"
+          },
+          {
+            "method": "account/read",
+            "request_contract": "refresh_token_false",
+            "response_contract": "account_object_or_truthful_auth_required"
+          },
+          {
+            "method": "thread/start",
+            "request_contract": "exact_root_approval_sandbox_and_lane_options",
+            "response_contract": "bound_thread_session_root_and_provider_identity"
+          },
+          {
+            "method": "thread/read",
+            "request_contract": "exact_thread_identity_with_turns",
+            "response_contract": "one_bound_turn_and_no_conflicting_active_turn"
+          },
+          {
+            "method": "thread/resume",
+            "request_contract": "exact_thread_root_approval_and_sandbox",
+            "response_contract": "same_thread_session_root_and_bound_turn"
+          },
+          {
+            "method": "turn/start",
+            "request_contract": "bound_thread_request_root_sandbox_and_exact_output_schema",
+            "response_contract": "one_bound_turn_identity"
+          }
+        ],
+        "initialization": {
+          "ordering": [
+            "initialize_request",
+            "initialize_response",
+            "selected_runtime_user_agent_validation",
+            "initialized_notification",
+            "lane_account_projection"
+          ],
+          "initialized_before_account_projection": true,
+          "unknown_capabilities_are_not_authority": true
+        },
+        "lane_auth_contracts": {
+          "ordinary_chatgpt_auth": {
+            "required_methods_after_initialized": [
+              "account/read"
+            ],
+            "account_contract": "non_null_account_object",
+            "refresh_token_requests": false,
+            "ordinary_user_state_copy": "not_performed"
+          },
+          "strict_agent_identity": {
+            "required_preflight_methods_after_initialized": [
+              "account/read",
+              "getAuthStatus",
+              "config/read",
+              "mcpServerStatus/list"
+            ],
+            "account_contract": "non_null_account_object",
+            "auth_status_contract": "bounded_no_token_projection",
+            "configuration_contract": "exact_private_session_flags_and_provenance",
+            "mcp_contract": "bounded_empty_status_projection",
+            "credential_bootstrap_authority": "separate_lane_owner_required"
+          }
+        },
+        "thread_turn_contract": {
+          "new_thread_method": "thread/start",
+          "resume_read_method": "thread/read",
+          "resume_method": "thread/resume",
+          "turn_method": "turn/start",
+          "terminal_owner": "turn/completed",
+          "terminal_statuses": [
+            "completed",
+            "failed",
+            "interrupted"
+          ],
+          "nonterminal_status": "inProgress",
+          "root_identity_must_match": true,
+          "thread_turn_session_identity_must_match": true
+        },
+        "server_requests": {
+          "approval_methods": [
+            "item/commandExecution/requestApproval",
+            "item/fileChange/requestApproval",
+            "item/permissions/requestApproval"
+          ],
+          "approval_policy": "on-request",
+          "approvals_reviewer": "user",
+          "resolution_notification": "serverRequest/resolved",
+          "duplicate_or_conflicting_identity": "fail_closed",
+          "unknown_method": "fail_closed",
+          "active_request_bound": 8
+        },
+        "notifications": {
+          "required": [
+            "turn/completed"
+          ],
+          "lifecycle_supported": [
+            "turn/started",
+            "turn/completed",
+            "thread/status/changed",
+            "thread/started",
+            "item/started",
+            "item/completed",
+            "serverRequest/resolved"
+          ],
+          "bounded_observed_optional": [
+            "modelProvider/authRecoveryStarted",
+            "modelProvider/authRecoveryCompleted"
+          ],
+          "ignored_optional": [
+            "account/rateLimits/updated",
+            "account/updated",
+            "configWarning",
+            "deprecationNotice",
+            "error",
+            "guardianWarning",
+            "hook/completed",
+            "hook/started",
+            "item/agentMessage/delta",
+            "item/autoApprovalReview/completed",
+            "item/autoApprovalReview/started",
+            "item/commandExecution/outputDelta",
+            "item/commandExecution/terminalInteraction",
+            "item/fileChange/outputDelta",
+            "item/fileChange/patchUpdated",
+            "item/plan/delta",
+            "item/reasoning/summaryPartAdded",
+            "item/reasoning/summaryTextDelta",
+            "item/reasoning/textDelta",
+            "model/rerouted",
+            "model/safetyBuffering/updated",
+            "model/verification",
+            "mcpServer/startupStatus/updated",
+            "remoteControl/status/changed",
+            "thread/name/updated",
+            "thread/tokenUsage/updated",
+            "turn/diff/updated",
+            "turn/moderationMetadata",
+            "turn/plan/updated",
+            "warning"
+          ],
+          "unknown_method": "fail_closed"
+        },
+        "response_decoding": {
+          "required_fields": "fail_closed_when_missing_or_invalid",
+          "required_semantics": "fail_closed_when_changed",
+          "additive_object_fields": "tolerated_only_when_unused_and_non_authoritative",
+          "optional_capabilities": "ignored_unless_explicitly_profiled"
+        },
+        "sandbox_tool_effect_contract": {
+          "sandbox_source": "already_admitted_structured_augnes_authority_only",
+          "read_only_default": true,
+          "workspace_write_requires_exact_admitted_operation": true,
+          "network_access": false,
+          "danger_full_access": "forbidden",
+          "prompt_or_model_authority_expansion": "forbidden",
+          "command_file_and_permission_effects": "approval_and_exact_scope_required",
+          "repository_write_outside_selected_root": "forbidden",
+          "unexpected_external_effect": "fail_closed"
+        },
+        "lifecycle_cleanup_contract": {
+          "transport": "stdio_jsonl",
+          "max_jsonl_line_bytes": 262144,
+          "max_jsonl_buffer_bytes": 524288,
+          "rpc_timeout_ms": 10000,
+          "graceful_stop_ms": 1000,
+          "forced_stop_ms": 2000,
+          "owned_process_tree_settlement_required": true,
+          "streams_closed_required": true,
+          "temporary_state_removed_required": true,
+          "remaining_owned_processes_required": 0
+        },
+        "post_spawn_user_agent_validation": {
+          "cli_version_binding": "selected_artifact_exact_version",
+          "originator_binding": "exact_initialize_client_info_name",
+          "client_version_binding": "exact_augnes_adapter_version",
+          "platform_shape": "macos_semver_supported_arch",
+          "printable_ascii_only": true,
+          "max_length": 512,
+          "unexpected_suffix": "fail_closed"
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "entry_id": "codex-rust-v0.152.1-darwin-arm64",
+      "version": "0.152.1",
+      "release_tag": "rust-v0.152.1",
+      "tagged_source_commit": "5adb68a49933ae446bf11935662c83dba55a0804",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "upstream_target_triple": "aarch64-apple-darwin",
+      "official_release": {
+        "repository": "openai/codex",
+        "release_id": 380862087,
+        "url": "https://github.com/openai/codex/releases/tag/rust-v0.152.1"
+      },
+      "qualified_provenance_asset": {
+        "acquisition_route": "standalone_release_tarball",
+        "asset_id": 540234445,
+        "asset_name": "codex-aarch64-apple-darwin.tar.gz",
+        "size_bytes": 86499260,
+        "digest": "sha256:8ddde1fcf5c9842e9baa09c7c108088bb22a39feb86e4344e45dc0986764b9d7",
+        "digest_mechanism": "official_github_release_asset_digest_sha256"
+      },
+      "native_executable_sha256": "sha256:8194ea3181f330e63023b234b0b231855e5874e0331c5ef7cbc490591497a7bf",
+      "provenance_method": {
+        "method": "official_github_release_metadata_and_asset_digest",
+        "post_extraction_native_sha256_required": true,
+        "upstream_macos_signature_claimed": false
+      },
+      "admitted_discovery_launch_shapes": [
+        {
+          "shape": "direct_native",
+          "contract": "first_path_regular_macos_arm64_native_resolving_to_exact_sha256"
+        },
+        {
+          "shape": "symlink_to_native",
+          "contract": "first_path_symlink_resolving_to_exact_regular_macos_arm64_native_sha256"
+        },
+        {
+          "shape": "official_openai_node_launcher",
+          "contract": "exact_openai_package_manifest_and_vendor_target_resolving_to_exact_native_sha256",
+          "launcher_sha256": "sha256:134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+          "supported_package_layouts": [
+            "nested_platform_package",
+            "bundled_vendor"
+          ]
+        }
+      ],
+      "unsupported_acquisition_routes": [
+        {
+          "route": "codex_package_archive",
+          "example_asset_name": "codex-package-aarch64-apple-darwin.tar.gz",
+          "status": "unsupported"
+        }
+      ],
+      "compatibility_profile_id": "codex_app_server_augnes_operator.v0.1",
+      "compatibility_profile_fingerprint": "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+      "lanes": {
+        "ordinary_chatgpt_auth": {
+          "status": "qualified",
+          "qualified_at": "2026-09-03T01:17:35.000Z",
+          "reason": "ordinary_runtime_qualified",
+          "evidence_refs": [
+            "github_pr:https://github.com/hynk-studio/augnes/pull/1198",
+            "local_canonical_receipt_fingerprint:6382188b98b4cf9388861428adc1219962f586c5e47ecd6c0ab09a9ae4fc1178"
+          ],
+          "review_refs": [
+            "github_pr:https://github.com/hynk-studio/augnes/pull/1198"
+          ]
+        },
+        "strict_agent_identity": {
+          "status": "hold",
+          "qualified_at": null,
+          "reason": "official_agent_identity_registration_non_retryable_http_403",
+          "evidence_refs": [
+            "github_issue:https://github.com/hynk-studio/augnes/issues/1195",
+            "github_pr:https://github.com/hynk-studio/augnes/pull/1196"
+          ],
+          "review_refs": [
+            "github_issue:https://github.com/hynk-studio/augnes/issues/1195"
+          ]
+        }
+      },
+      "legacy_exact_qualification_evidence": {
+        "semantic_profile_fingerprint": "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529",
+        "ordinary_deciding_receipt_fingerprint": "6382188b98b4cf9388861428adc1219962f586c5e47ecd6c0ab09a9ae4fc1178"
+      },
+      "revocation": null,
+      "not_after": null,
+      "security_floor": null
+    }
+  ],
+  "production_selection": {
+    "mode": "pinned_exact",
+    "lane": "ordinary_chatgpt_auth",
+    "entry_id": "codex-rust-v0.152.1-darwin-arm64"
+  }
+}

@@ -107,6 +107,20 @@ try {
     },
   );
   runPlanCase(
+    "qualified-runtime-registry-test-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        "scripts/test-codex-qualified-runtime-registry.ts",
+        "export {};\n",
+      );
+    },
+    {
+      ownerIds: ["codex-qualified-runtime-registry"],
+      phaseIds: targetedPhaseIds("typecheck", "integration"),
+    },
+  );
+  runPlanCase(
     "fixture-only-leaf-known-owner",
     "owner-targeted",
     ({ write }) => {

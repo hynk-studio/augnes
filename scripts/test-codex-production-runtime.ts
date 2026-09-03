@@ -18,6 +18,7 @@ import {
   assertCodexProductionRuntimeIdentityUnchangedV01,
   resolveCodexProductionRuntimeForTestV01,
 } from "../lib/vnext/native-host/codex-production-runtime";
+import { CODEX_QUALIFIED_RUNTIME_REGISTRY_V01 } from "../lib/vnext/native-host/codex-qualified-runtime-registry";
 import {
   observeOrdinaryCodexAppServerUserAgentV01,
   projectCodexAppServerSandboxV01,
@@ -32,6 +33,7 @@ process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE = "1";
 
 try {
   directNativeIsAdmittedV01();
+  launchShapeAuthorityIsExactV01();
   symlinkNativeIsCanonicalizedV01();
   staleAndNewerVersionsAreRejectedV01();
   wrongFingerprintIsRejectedV01();
@@ -71,7 +73,77 @@ function directNativeIsAdmittedV01(): void {
   assert.equal(identity.launch_shape, "direct_native");
   assert.equal(identity.canonical_native_executable, executable);
   assert.equal(path.isAbsolute(identity.canonical_native_executable), true);
+  assert.equal(
+    identity.qualified_runtime_entry_id,
+    "codex-rust-v0.152.1-darwin-arm64",
+  );
+  assert.equal(
+    identity.compatibility_profile_id,
+    "codex_app_server_augnes_operator.v0.1",
+  );
+  assert.equal(
+    identity.compatibility_profile_fingerprint,
+    "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+  );
+  assert.equal(
+    identity.semantic_profile_fingerprint,
+    "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529",
+  );
+  assert.equal(identity.registry_authority, "test_injected_identity");
   assertCodexProductionRuntimeIdentityUnchangedV01(identity);
+}
+
+function launchShapeAuthorityIsExactV01(): void {
+  const directDirectory = fixtureDirectoryV01("shape-authority-direct");
+  const direct = nativeFixtureV01(
+    path.join(directDirectory, "codex"),
+    "shape-authority-direct",
+  );
+  expectRuntimeCodeV01(
+    () =>
+      resolveFixtureV01({
+        path_value: directDirectory,
+        expected_fingerprint: sha256V01(direct),
+        qualified_runtime_registry: registryWithShapesV01([
+          "symlink_to_native",
+          "official_openai_node_launcher",
+        ]),
+        read_cli_version: () => "0.152.1",
+      }),
+    "codex_production_runtime_launch_shape_unsupported",
+  );
+  assert.equal(
+    resolveFixtureV01({
+      path_value: directDirectory,
+      expected_fingerprint: sha256V01(direct),
+      qualified_runtime_registry: registryWithShapesV01([
+        "direct_native",
+        "symlink_to_native",
+      ]),
+      read_cli_version: () => "0.152.1",
+    }).launch_shape,
+    "direct_native",
+  );
+
+  const symlinkDirectory = fixtureDirectoryV01("shape-authority-symlink");
+  const symlinkTargetDirectory = fixtureDirectoryV01(
+    "shape-authority-symlink-target",
+  );
+  const symlinkTarget = nativeFixtureV01(
+    path.join(symlinkTargetDirectory, "codex-native"),
+    "shape-authority-symlink",
+  );
+  symlinkSync(symlinkTarget, path.join(symlinkDirectory, "codex"));
+  expectRuntimeCodeV01(
+    () =>
+      resolveFixtureV01({
+        path_value: symlinkDirectory,
+        expected_fingerprint: sha256V01(symlinkTarget),
+        qualified_runtime_registry: registryWithShapesV01(["direct_native"]),
+        read_cli_version: () => "0.152.1",
+      }),
+    "codex_production_runtime_launch_shape_unsupported",
+  );
 }
 
 type SandboxProjectionRequestV01 = Parameters<
@@ -391,7 +463,14 @@ function officialOpenAiWrapperIsBoundToVendorNativeV01(): void {
   const identity = resolveFixtureV01({
     path_value: globalBin,
     expected_fingerprint: sha256V01(executable),
-    expected_official_launcher_fingerprint: sha256V01(launcher),
+    qualified_runtime_registry: registryWithShapesV01(
+      [
+        "direct_native",
+        "symlink_to_native",
+        "official_openai_node_launcher",
+      ],
+      sha256V01(launcher),
+    ),
     read_cli_version: (value) => {
       assert.equal(value, executable);
       return "0.152.1";
@@ -406,7 +485,47 @@ function officialOpenAiWrapperIsBoundToVendorNativeV01(): void {
   );
   assert.equal(launch.command, executable);
   assert.equal(launch.production_runtime_identity, identity);
+  assert.equal(
+    launch.qualified_runtime_selection,
+    identity.qualified_runtime_selection,
+  );
   assert.deepEqual(launch.prefix_args, []);
+  expectRuntimeCodeV01(
+    () =>
+      resolveFixtureV01({
+        path_value: globalBin,
+        expected_fingerprint: sha256V01(executable),
+        qualified_runtime_registry: registryWithShapesV01(
+          ["official_openai_node_launcher"],
+          sha256V01(launcher),
+          ["bundled_vendor"],
+        ),
+        read_cli_version: () => "0.152.1",
+      }),
+    "codex_production_runtime_launch_shape_unsupported",
+  );
+  expectRuntimeCodeV01(
+    () =>
+      resolveFixtureV01({
+        path_value: globalBin,
+        expected_fingerprint: sha256V01(executable),
+        qualified_runtime_registry: registryWithShapesV01([
+          "direct_native",
+          "symlink_to_native",
+        ]),
+        read_cli_version: () => "0.152.1",
+      }),
+    "codex_production_runtime_launch_shape_unsupported",
+  );
+  const staleAdmission = structuredClone(identity) as typeof identity;
+  (staleAdmission.qualified_runtime_selection.artifact as any)
+    .admitted_discovery_launch_shapes = [
+      { shape: "direct_native", contract: "synthetic-test-contract" },
+    ];
+  expectRuntimeCodeV01(
+    () => assertCodexProductionRuntimeIdentityUnchangedV01(staleAdmission),
+    "codex_production_runtime_identity_changed",
+  );
 }
 
 function identityDriftIsRejectedV01(): void {
@@ -456,6 +575,14 @@ function canonicalFakeRouteRemainsUnchangedV01(): void {
     ),
   );
   assert.equal(launch.production_runtime_identity, undefined);
+  assert.equal(
+    launch.qualified_runtime_selection?.artifact.version,
+    "0.152.1",
+  );
+  assert.equal(
+    launch.qualified_runtime_selection?.compatibility_profile.fingerprint,
+    "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+  );
 }
 
 function ordinaryPostSpawnIdentityIsExactV01(): void {
@@ -479,7 +606,7 @@ function ordinaryPostSpawnIdentityIsExactV01(): void {
 function resolveFixtureV01(input: {
   path_value: string;
   expected_fingerprint: string;
-  expected_official_launcher_fingerprint?: string;
+  qualified_runtime_registry?: unknown;
   read_cli_version(nativeExecutable: string): string;
   before_final_identity_check?: () => void;
 }) {
@@ -487,11 +614,37 @@ function resolveFixtureV01(input: {
     environment: { NODE_ENV: "test", PATH: input.path_value },
     cwd: root,
     expected_executable_fingerprint: input.expected_fingerprint,
-    expected_official_launcher_fingerprint:
-      input.expected_official_launcher_fingerprint,
+    qualified_runtime_registry: input.qualified_runtime_registry,
     read_cli_version: input.read_cli_version,
     before_final_identity_check: input.before_final_identity_check,
   });
+}
+
+function registryWithShapesV01(
+  shapes: Array<"direct_native" | "symlink_to_native" | "official_openai_node_launcher">,
+  launcherFingerprint?: string,
+  supportedPackageLayouts?: Array<
+    "nested_platform_package" | "bundled_vendor"
+  >,
+): unknown {
+  const value = structuredClone(CODEX_QUALIFIED_RUNTIME_REGISTRY_V01) as any;
+  value.artifacts[0].admitted_discovery_launch_shapes =
+    value.artifacts[0].admitted_discovery_launch_shapes
+      .filter((candidate: { shape: (typeof shapes)[number] }) =>
+        shapes.includes(candidate.shape),
+      )
+      .map((candidate: { shape: string; launcher_sha256?: string }) =>
+        candidate.shape === "official_openai_node_launcher" && launcherFingerprint
+          ? {
+              ...candidate,
+              launcher_sha256: launcherFingerprint,
+              ...(supportedPackageLayouts
+                ? { supported_package_layouts: supportedPackageLayouts }
+                : {}),
+            }
+          : candidate,
+      );
+  return value;
 }
 
 function fixtureDirectoryV01(name: string): string {

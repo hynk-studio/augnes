@@ -439,6 +439,16 @@ const suites = {
       timeoutMs: 600_000,
     },
     {
+      id: "codex-qualified-runtime-registry",
+      group: "supporting-serial",
+      requirements: ["filesystem", "project-root", "mutable-module-state"],
+      label:
+        "checked-in qualified Codex runtime registry and reusable compatibility-profile authority",
+      ...rootNode("scripts/test-codex-qualified-runtime-registry.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-production-runtime",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "mutable-module-state"],
