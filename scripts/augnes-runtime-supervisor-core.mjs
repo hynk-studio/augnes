@@ -1802,6 +1802,8 @@ export function buildSupervisorChildValues({
       PORT: packaged ? String(port) : null,
       NEXT_TELEMETRY_DISABLED: "1",
       AUGNES_DB_PATH: databasePath,
+      AUGNES_MANAGED_CODEX_RUNTIME_ROOT:
+        paths.local?.managed_codex_runtime_directory ?? null,
       AUGNES_RECOVERY_MODE: recoveryMode ? "1" : null,
       ...ownershipValues,
       ...diagnosticValues,

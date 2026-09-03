@@ -16,8 +16,10 @@ import path from "node:path";
 import {
   CodexProductionRuntimeErrorV01,
   assertCodexProductionRuntimeIdentityUnchangedV01,
+  resolveCodexProductionRuntimeV01,
   resolveCodexProductionRuntimeForTestV01,
 } from "../lib/vnext/native-host/codex-production-runtime";
+import { CodexManagedRuntimeStoreErrorV01 } from "../lib/vnext/native-host/codex-managed-runtime-store";
 import { CODEX_QUALIFIED_RUNTIME_REGISTRY_V01 } from "../lib/vnext/native-host/codex-qualified-runtime-registry";
 import {
   observeOrdinaryCodexAppServerUserAgentV01,
@@ -42,6 +44,7 @@ try {
   officialOpenAiWrapperIsBoundToVendorNativeV01();
   identityDriftIsRejectedV01();
   absentPathRuntimeIsClassifiedV01();
+  productionManagedSelectionNeverFallsBackToPathV01();
   canonicalFakeRouteRemainsUnchangedV01();
   ordinaryPostSpawnIdentityIsExactV01();
   nonMutatingRequestIsReadOnlyV01();
@@ -90,6 +93,7 @@ function directNativeIsAdmittedV01(): void {
     "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529",
   );
   assert.equal(identity.registry_authority, "test_injected_identity");
+  assert.equal(identity.runtime_ownership, "path_discovery_test");
   assertCodexProductionRuntimeIdentityUnchangedV01(identity);
 }
 
@@ -555,6 +559,25 @@ function absentPathRuntimeIsClassifiedV01(): void {
         read_cli_version: () => "0.152.1",
       }),
     "codex_production_runtime_not_found",
+  );
+}
+
+function productionManagedSelectionNeverFallsBackToPathV01(): void {
+  const pathDirectory = fixtureDirectoryV01("managed-no-path-fallback-bin");
+  nativeFixtureV01(path.join(pathDirectory, "codex"), "global-newer-runtime");
+  const managedRoot = fixtureDirectoryV01("managed-empty-store");
+  assert.throws(
+    () =>
+      resolveCodexProductionRuntimeV01({
+        environment: {
+          NODE_ENV: "test",
+          PATH: pathDirectory,
+          AUGNES_MANAGED_CODEX_RUNTIME_ROOT: managedRoot,
+        },
+      }),
+    (error: unknown) =>
+      error instanceof CodexManagedRuntimeStoreErrorV01 &&
+      error.code === "codex_managed_runtime_absent",
   );
 }
 

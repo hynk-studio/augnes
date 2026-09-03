@@ -14,6 +14,12 @@ import {
 import path from "node:path";
 
 import {
+  assertCodexManagedRuntimeSelectionUnchangedV01,
+  managedRootFromEnvironmentV01,
+  selectCodexManagedRuntimeV01,
+  type CodexManagedRuntimeSelectionV01,
+} from "@/lib/vnext/native-host/codex-managed-runtime-store";
+import {
   assertCurrentCodexQualifiedRuntimeSelectionV01,
   selectPinnedCodexQualifiedRuntimeV01,
   type CodexQualifiedRuntimeSelectionV01,
@@ -53,6 +59,10 @@ export interface CodexProductionRuntimeIdentityV01 {
   registry_authority:
     | "checked_in_human_reviewed_manifest"
     | "test_injected_identity";
+  runtime_ownership: "managed_store" | "path_discovery_test";
+  managed_runtime_root: string | null;
+  managed_store_manifest_fingerprint: string | null;
+  managed_runtime_selection: CodexManagedRuntimeSelectionV01 | null;
   official_package_shape:
     | "not_applicable"
     | "nested_platform_package"
@@ -92,26 +102,14 @@ export function resolveCodexProductionRuntimeV01(input: {
   cwd?: string;
 } = {}): CodexProductionRuntimeIdentityV01 {
   const environment = input.environment ?? process.env;
-  const qualifiedRuntimeSelection = selectPinnedCodexQualifiedRuntimeV01({
+  const managedRoot = managedRootFromEnvironmentV01(environment);
+  const managedSelection = selectCodexManagedRuntimeV01({
+    root: managedRoot,
+    mode: "pinned_exact",
     lane: "ordinary_chatgpt_auth",
+    environment,
   });
-  return resolveCodexProductionRuntimeWithDependenciesV01(
-    {
-      environment,
-      cwd: input.cwd ?? process.cwd(),
-    },
-    {
-      qualified_runtime_selection: qualifiedRuntimeSelection,
-      registry_authority: "checked_in_human_reviewed_manifest",
-      expected_executable_fingerprint:
-        qualifiedRuntimeSelection.artifact.native_executable_sha256,
-      expected_cli_version: qualifiedRuntimeSelection.artifact.version,
-      platform: process.platform,
-      architecture: process.arch,
-      read_cli_version: (nativeExecutable) =>
-        readCodexCliVersionV01(nativeExecutable, environment),
-    },
-  );
+  return managedProductionIdentityV01(managedRoot, managedSelection, environment);
 }
 
 /** Test-only injected identity owner. It cannot be used by the adapter. */
@@ -160,9 +158,24 @@ export function assertCodexProductionRuntimeIdentityUnchangedV01(
       assertCurrentCodexQualifiedRuntimeSelectionV01(
         identity.qualified_runtime_selection,
       );
+      if (
+        identity.runtime_ownership !== "managed_store" ||
+        identity.managed_runtime_root === null ||
+        identity.managed_runtime_selection === null ||
+        identity.managed_store_manifest_fingerprint !==
+          identity.managed_runtime_selection.store_manifest_fingerprint
+      ) throw new Error();
+      assertCodexManagedRuntimeSelectionUnchangedV01(
+        identity.managed_runtime_selection,
+        { root: identity.managed_runtime_root },
+      );
     } else if (
       identity.registry_authority !== "test_injected_identity" ||
-      process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1"
+      process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1" ||
+      identity.runtime_ownership !== "path_discovery_test" ||
+      identity.managed_runtime_root !== null ||
+      identity.managed_store_manifest_fingerprint !== null ||
+      identity.managed_runtime_selection !== null
     ) {
       throw new Error();
     }
@@ -327,6 +340,10 @@ function resolveCodexProductionRuntimeWithDependenciesV01(
       dependencies.qualified_runtime_selection.compatibility_profile.fingerprint,
     qualified_runtime_selection: dependencies.qualified_runtime_selection,
     registry_authority: dependencies.registry_authority,
+    runtime_ownership: "path_discovery_test",
+    managed_runtime_root: null,
+    managed_store_manifest_fingerprint: null,
+    managed_runtime_selection: null,
     official_package_shape: officialPackageShape,
     admission: {
       path_candidate: pathCandidate,
@@ -338,6 +355,53 @@ function resolveCodexProductionRuntimeWithDependenciesV01(
     },
   };
   dependencies.before_final_identity_check?.();
+  assertCodexProductionRuntimeIdentityUnchangedV01(identity);
+  return Object.freeze(identity);
+}
+
+function managedProductionIdentityV01(
+  managedRoot: string,
+  managedSelection: CodexManagedRuntimeSelectionV01,
+  environment: NodeJS.ProcessEnv,
+): CodexProductionRuntimeIdentityV01 {
+  const qualified = managedSelection.qualified_runtime_selection;
+  const native = managedSelection.canonical_native_executable;
+  const nativeIdentity = fileIdentityV01(native);
+  const identity: CodexProductionRuntimeIdentityV01 = {
+    resolution_version: CODEX_PRODUCTION_RUNTIME_RESOLUTION_VERSION_V01,
+    availability: "exact_selected_runtime_available",
+    launch_shape: "direct_native",
+    path_candidate_was_symlink: false,
+    canonical_native_executable: native,
+    executable_fingerprint: qualified.artifact.native_executable_sha256,
+    cli_version: readCodexCliVersionV01(native, environment),
+    upstream_tag: qualified.artifact.release_tag,
+    upstream_source_commit: qualified.artifact.tagged_source_commit,
+    upstream_target_triple: qualified.artifact.upstream_target_triple,
+    semantic_profile_fingerprint:
+      qualified.artifact.legacy_exact_qualification_evidence
+        .semantic_profile_fingerprint,
+    qualified_runtime_entry_id: qualified.artifact.entry_id,
+    compatibility_profile_id: qualified.compatibility_profile.profile_id,
+    compatibility_profile_fingerprint:
+      qualified.compatibility_profile.fingerprint,
+    qualified_runtime_selection: qualified,
+    registry_authority: "checked_in_human_reviewed_manifest",
+    runtime_ownership: "managed_store",
+    managed_runtime_root: managedRoot,
+    managed_store_manifest_fingerprint:
+      managedSelection.store_manifest_fingerprint,
+    managed_runtime_selection: managedSelection,
+    official_package_shape: "not_applicable",
+    admission: {
+      path_candidate: native,
+      resolved_path_entry: native,
+      path_candidate_identity: nativeIdentity,
+      resolved_path_entry_identity: nativeIdentity,
+      native_target_identity: nativeIdentity,
+      official_launcher_fingerprint: null,
+    },
+  };
   assertCodexProductionRuntimeIdentityUnchangedV01(identity);
   return Object.freeze(identity);
 }

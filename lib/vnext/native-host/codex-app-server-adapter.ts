@@ -21,6 +21,13 @@ import {
   observeCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import {
+  CodexManagedRuntimeStoreErrorV01,
+  ensurePinnedCodexManagedRuntimeV01,
+  managedRootFromEnvironmentV01,
+  recordCodexManagedRuntimeLastKnownGoodV01,
+  type CodexManagedRuntimeSelectionV01,
+} from "@/lib/vnext/native-host/codex-managed-runtime-store";
+import {
   CodexProductionRuntimeErrorV01,
   assertCodexProductionRuntimeIdentityUnchangedV01,
   resolveCodexProductionRuntimeV01,
@@ -31,6 +38,12 @@ import {
   selectPinnedCodexQualifiedRuntimeV01,
   type CodexQualifiedRuntimeSelectionV01,
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
+import {
+  CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01,
+  codexRuntimeSelectionHasImplementedCompatibilityV01,
+} from "@/lib/vnext/native-host/codex-runtime-implementation-binding";
+
+export { CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 } from "@/lib/vnext/native-host/codex-runtime-implementation-binding";
 import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
@@ -214,22 +227,10 @@ export function requestSourceBindingMetadataForLifecycleEventV01(input: {
 
 const CURRENT_PINNED_ORDINARY_RUNTIME_V01 =
   selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
-export const CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 =
-  "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a" as const;
-
 function assertCodexAppServerCompatibilityImplementedV01(
   selection: CodexQualifiedRuntimeSelectionV01,
 ): void {
-  if (
-    selection.compatibility_profile.profile_id !==
-      "codex_app_server_augnes_operator.v0.1" ||
-    selection.compatibility_profile.fingerprint !==
-      CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 ||
-    selection.artifact.compatibility_profile_id !==
-      selection.compatibility_profile.profile_id ||
-    selection.artifact.compatibility_profile_fingerprint !==
-      selection.compatibility_profile.fingerprint
-  ) {
+  if (!codexRuntimeSelectionHasImplementedCompatibilityV01(selection)) {
     throw new CodexProductionRuntimeErrorV01(
       "codex_production_runtime_protocol_drift",
     );
@@ -1478,6 +1479,8 @@ class CodexAppServerInvocationV01 {
   private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
   private qualifiedRuntimeSelection = CURRENT_PINNED_ORDINARY_RUNTIME_V01;
+  private managedRuntimeSelection: CodexManagedRuntimeSelectionV01 | null = null;
+  private managedRuntimeRoot: string | null = null;
   private readonly sandboxProjection: CodexAppServerSandboxProjectionV01;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
@@ -1667,6 +1670,15 @@ class CodexAppServerInvocationV01 {
           this.onServerRequest(id, method, params),
       });
     } else {
+      if (
+        !this.options.launch &&
+        process.env.AUGNES_CANONICAL_TEST_MODE !== "1"
+      ) {
+        await ensurePinnedCodexManagedRuntimeV01({
+          root: managedRootFromEnvironmentV01(process.env),
+          environment: process.env,
+        });
+      }
       const launch =
         this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
       const selectedRuntime =
@@ -1694,6 +1706,10 @@ class CodexAppServerInvocationV01 {
         }
       }
       this.qualifiedRuntimeSelection = selectedRuntime;
+      this.managedRuntimeSelection =
+        launch.production_runtime_identity?.managed_runtime_selection ?? null;
+      this.managedRuntimeRoot =
+        launch.production_runtime_identity?.managed_runtime_root ?? null;
       this.transport = new CodexStdioJsonRpcTransportV01({
         command: launch.command,
         args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
@@ -1779,6 +1795,19 @@ class CodexAppServerInvocationV01 {
         throw new CodexCapabilityErrorV01(
           "codex_account_state_unsupported",
         );
+      if (this.managedRuntimeSelection && this.managedRuntimeRoot) {
+        try {
+          recordCodexManagedRuntimeLastKnownGoodV01({
+            root: this.managedRuntimeRoot,
+            selection: this.managedRuntimeSelection,
+            observed_at: this.now(),
+          });
+        } catch {
+          throw new CodexManagedRuntimeStoreErrorV01(
+            "codex_managed_runtime_state_failed",
+          );
+        }
+      }
     }
     await this.reportLifecycle({
       event_kind: "capability_confirmed",
@@ -5372,6 +5401,7 @@ function uniqueSortedV01(values: string[]): string[] {
 function isCapabilityUnavailableV01(error: Error): boolean {
   return (
     error instanceof CodexCapabilityErrorV01 ||
+    error instanceof CodexManagedRuntimeStoreErrorV01 ||
     error instanceof CodexProductionRuntimeErrorV01 ||
     (error instanceof CodexIsolatedAuthProjectionErrorV01 &&
       error.code ===
@@ -5395,6 +5425,7 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexRpcErrorV01 ||
     error instanceof CodexCredentialBrokerErrorV01 ||
     error instanceof CodexIsolatedAuthProjectionErrorV01 ||
+    error instanceof CodexManagedRuntimeStoreErrorV01 ||
     error instanceof CodexProductionRuntimeErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01

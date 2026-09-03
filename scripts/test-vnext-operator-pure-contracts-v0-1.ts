@@ -605,6 +605,14 @@ for (const retiredCommand of [
 }
 const canonicalSuite = source("scripts/run-canonical-test-suite.mjs");
 assert.equal(
+  packageScripts.includes('"test:codex-managed-runtime-store"'),
+  true,
+);
+assert.equal(
+  canonicalSuite.includes("scripts/test-codex-managed-runtime-store.ts"),
+  true,
+);
+assert.equal(
   canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
   false,
 );
