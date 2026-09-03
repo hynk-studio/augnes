@@ -18,6 +18,10 @@ const projectExperienceSource = readFileSync(
   path.join(root, "scripts/browser-validate-project-experience-v1.mjs"),
   "utf8",
 );
+const canonicalSuiteSource = readFileSync(
+  path.join(root, "scripts/run-canonical-test-suite.mjs"),
+  "utf8",
+);
 
 const deterministicCompletionExpression = projectExperienceSource.match(
   /await waitForCondition\(\s*`([^`]+)`,\s*"deterministic GuideBrief utterance result",\s*\);/u,
@@ -59,6 +63,36 @@ assert.deepEqual(manifest.canonical_phase_order, [
   "e2e-continuity",
   "e2e-golden",
 ]);
+
+const navigationDiagnosticStep = sourceBlock(
+  canonicalSuiteSource,
+  "const operatorBrowserNavigationDiagnosticsStep = {",
+  "const operatorNativeHostExecutionStep = {",
+);
+for (const expected of [
+  'id: "operator-browser-navigation-diagnostics"',
+  'group: "operator-execution"',
+  "requirements: operatorExecutionRequirements",
+  'label: "operator Browser navigation diagnostic regressions"',
+  'rootNode("scripts/test-operator-browser-navigation-diagnostics-v1.mjs")',
+  "timeoutMs: 240_000",
+  "requireNaturalExit: true",
+]) {
+  assert.equal(navigationDiagnosticStep.includes(expected), true, expected);
+}
+for (const suite of [
+  "e2e",
+  '"e2e-operator-review-control"',
+  '"e2e-operator-execution"',
+]) {
+  assert.equal(
+    suiteBlock(canonicalSuiteSource, suite).includes(
+      "{ ...operatorBrowserNavigationDiagnosticsStep }",
+    ),
+    true,
+    suite,
+  );
+}
 
 const permanentOwners = [
   manifest.owners.project_experience,
@@ -141,3 +175,20 @@ process.stdout.write(`${JSON.stringify({
   continuity_fields: 29,
   deterministic_completion_states: 4,
 })}\n`);
+
+function sourceBlock(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(start, -1, startMarker);
+  assert.equal(end > start, true, endMarker);
+  return source.slice(start, end);
+}
+
+function suiteBlock(source, key) {
+  const startMarker = `  ${key}: [`;
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf("\n  ],", start + startMarker.length);
+  assert.notEqual(start, -1, startMarker);
+  assert.equal(end > start, true, key);
+  return source.slice(start, end);
+}

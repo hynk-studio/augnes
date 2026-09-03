@@ -125,6 +125,8 @@ export async function runOperatorExecutionBrowserChildV1({
     reference_headroom_ms: null,
     acceptance_bound_ms: ACCEPTANCE_BOUND_MS,
     e2e_timing_summary: null,
+    browser_failure_diagnostic: null,
+    supervisor_exit_diagnostic: null,
     failure: null,
   };
 
@@ -214,6 +216,11 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unowned_effect_count = 0;
     functionalExecutionSucceeded = true;
   } catch (error) {
+    const failureEvidence = lifecycle?.captureFailureEvidence?.() ?? null;
+    result.browser_failure_diagnostic =
+      failureEvidence?.browser_failure_diagnostic ?? null;
+    result.supervisor_exit_diagnostic =
+      failureEvidence?.supervisor_exit_diagnostic ?? null;
     if (observedEffectDiff) {
       result.effect_mismatch_material =
         boundedOperatorExecutionEffectDiffEntriesV1(observedEffectDiff);
@@ -287,6 +294,12 @@ export async function runOperatorExecutionBrowserChildV1({
     const evidence = lifecycle
       ? await lifecycle.evidence().catch(() => null)
       : null;
+    if (evidence?.browser_failure_diagnostic) {
+      result.browser_failure_diagnostic = evidence.browser_failure_diagnostic;
+    }
+    if (evidence?.supervisor_exit_diagnostic) {
+      result.supervisor_exit_diagnostic = evidence.supervisor_exit_diagnostic;
+    }
     result.owned_process_residue_count =
       evidence?.owned_process_residue_count ?? 0;
     result.listener_residue_count = evidence?.listener_residue_count ?? 0;

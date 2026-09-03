@@ -25,6 +25,7 @@ import {
 } from "./test-harness-process-lifecycle.mjs";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
+const DOCUMENT_RESPONSE_TIMEOUT_MS = 5_000;
 const REQUEST_QUIET_MS = 500;
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
@@ -95,6 +96,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let failedRequestDeliverySequence = 0;
   let pausedSemanticTransition = null;
   let pausedGuideBriefInterpretation = null;
+  let lastNavigationDocument = null;
+  let browserFailureDiagnostic = null;
+  let retainedFailureEvidence = null;
   let activeRuntimeProjectId = project_id;
 
   const requestForId = (requestId) => {
@@ -281,6 +285,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         const classified = classifyUrl(params.request?.url);
         const entry = {
           request_id: params.requestId,
+          frame_id: params.frameId ?? null,
+          loader_id: params.loaderId ?? null,
           phase: currentPhase,
           navigation_epoch: navigationCount,
           path: classified.path,
@@ -297,7 +303,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         const request = requestForId(params.requestId);
         responses.push({
           request_id: params.requestId,
+          frame_id: params.frameId ?? request?.frame_id ?? null,
+          loader_id: params.loaderId ?? request?.loader_id ?? null,
           phase: request?.phase ?? currentPhase,
+          navigation_epoch: request?.navigation_epoch ?? navigationCount,
           path: classified.path,
           method: request?.method ?? null,
           status: params.response?.status ?? null,
@@ -468,11 +477,84 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const navigate = async (url) => {
     navigationCount += 1;
     const started = Date.now();
-    await cdp.send("Page.navigate", { url });
+    const navigationEpoch = navigationCount;
+    const navigationPhase = currentPhase;
+    const classifiedTarget = classifyUrl(url);
+    const responseStart = responses.length;
+    const navigation = await cdp.send("Page.navigate", { url });
+    const route = classifyOperatorDocumentRoute(classifiedTarget.path);
+    if (typeof navigation.errorText === "string") {
+      setBrowserFailureDiagnostic({
+        category: "browser_navigation_failure",
+        route,
+        http_status: null,
+        detail: "page_navigate_error",
+      });
+      throw new Error(
+        `operator_browser_navigation_failure:page_navigate_error:route_${route}`,
+      );
+    }
+    const newDocumentLoaderId =
+      typeof navigation.loaderId === "string" && navigation.loaderId.length > 0
+        ? navigation.loaderId
+        : null;
+    let documentResponse = null;
+    let successfulDocument = null;
+    if (newDocumentLoaderId !== null) {
+      lastNavigationDocument = null;
+    }
+    if (classifiedTarget.http && newDocumentLoaderId !== null) {
+      try {
+        await waitForHostCondition(
+          () => {
+            documentResponse = correlateOperatorDocumentResponseV1({
+              responses,
+              response_start: responseStart,
+              navigation_epoch: navigationEpoch,
+              phase: navigationPhase,
+              loader_id: newDocumentLoaderId,
+              frame_id: navigation.frameId,
+            });
+            return documentResponse !== null;
+          },
+          `document response ${navigationEpoch}`,
+          DOCUMENT_RESPONSE_TIMEOUT_MS,
+        );
+      } catch {
+        throwDocumentResponseMissing(route);
+      }
+      const status = documentResponse?.status;
+      if (
+        documentResponse === null ||
+        !isValidOperatorDocumentHttpStatusV1(status)
+      ) {
+        throwDocumentResponseMissing(route);
+      }
+      const documentRoute = classifyOperatorDocumentRoute(documentResponse.path);
+      if (status >= 400) {
+        setBrowserFailureDiagnostic({
+          category: "http_error_document",
+          route: documentRoute,
+          http_status: status,
+          detail: null,
+        });
+        throw new Error(
+          `operator_browser_navigation_failure:http_error_document:status_${status}:route_${documentRoute}`,
+        );
+      }
+      successfulDocument = Object.freeze({
+        route: documentRoute,
+        http_status: status,
+        navigation_epoch: navigationEpoch,
+      });
+    }
     await waitForCondition(
       `["interactive", "complete"].includes(document.readyState)`,
       `document readiness ${navigationCount}`,
     );
+    if (successfulDocument !== null) {
+      lastNavigationDocument = successfulDocument;
+    }
     timing.duration(
       "navigation",
       `navigation ${String(navigationCount).padStart(2, "0")}`,
@@ -511,7 +593,88 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       }
       await delay(100);
     }
+    if (
+      publicToken(label) === "operator_bootstrap_input" &&
+      lastNavigationDocument?.http_status >= 200 &&
+      lastNavigationDocument.http_status < 400
+    ) {
+      setBrowserFailureDiagnostic({
+        category: "expected_selector_missing_on_successful_document",
+        route: lastNavigationDocument.route,
+        http_status: lastNavigationDocument.http_status,
+        detail: "operator_bootstrap_input",
+      });
+    }
     throw new Error(`operator_condition_timeout:${publicToken(label)}`);
+  };
+
+  const throwDocumentResponseMissing = (route) => {
+    setBrowserFailureDiagnostic({
+      category: "document_response_missing",
+      route,
+      http_status: null,
+      detail: null,
+    });
+    throw new Error(
+      `operator_browser_navigation_failure:document_response_missing:route_${route}`,
+    );
+  };
+
+  const setBrowserFailureDiagnostic = ({
+    category,
+    route,
+    http_status,
+    detail,
+  }) => {
+    browserFailureDiagnostic = Object.freeze({
+      diagnostic_version: "operator_browser_failure_diagnostic.v1",
+      category: publicToken(category),
+      route: publicToken(route),
+      http_status:
+        Number.isInteger(http_status) && http_status >= 100 && http_status <= 599
+          ? http_status
+          : null,
+      detail: detail === null ? null : publicToken(detail),
+    });
+  };
+
+  const boundedSupervisorDiagnostic = () => {
+    const diagnostic = runtimeDiagnostic?.diagnostic({
+      supervisorExitCode: runtimeProcess?.exitCode ?? null,
+      supervisorSignal: runtimeProcess?.signalCode ?? null,
+    });
+    if (!diagnostic) return null;
+    return Object.freeze({
+      diagnostic_version: "operator_browser_supervisor_diagnostic.v1",
+      last_supervisor_result_code: publicToken(
+        diagnostic.last_supervisor_result_code ?? "none",
+      ),
+      last_public_reason_code: publicToken(
+        diagnostic.last_public_reason_code ?? "none",
+      ),
+      database_state: publicToken(diagnostic.database_state ?? "none"),
+      bootstrap_recovery_phase: publicToken(
+        diagnostic.bootstrap_recovery_phase ?? "none",
+      ),
+      child_exit_code: Number.isInteger(diagnostic.child_exit_code)
+        ? diagnostic.child_exit_code
+        : null,
+      supervisor_exit_code: Number.isInteger(diagnostic.supervisor_exit_code)
+        ? diagnostic.supervisor_exit_code
+        : null,
+      supervisor_signal:
+        typeof diagnostic.supervisor_signal === "string"
+          ? publicToken(diagnostic.supervisor_signal)
+          : null,
+    });
+  };
+
+  const captureFailureEvidence = () => {
+    retainedFailureEvidence = Object.freeze({
+      browser_failure_diagnostic: browserFailureDiagnostic,
+      supervisor_exit_diagnostic: boundedSupervisorDiagnostic(),
+    });
+    return retainedFailureEvidence;
   };
 
   const waitForHostCondition = async (
@@ -663,6 +826,13 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       supervisorExitCode: runtimeProcess?.exitCode ?? null,
       supervisorSignal: runtimeProcess?.signalCode ?? null,
     });
+    setBrowserFailureDiagnostic({
+      category: "runtime_start_failure",
+      route: "runtime_root",
+      http_status: null,
+      detail: null,
+    });
+    captureFailureEvidence();
     return new Error(
       `${error instanceof Error ? error.message : "operator_runtime_start_failed"}:supervisor=${publicToken(diagnostic?.last_supervisor_result_code ?? "none")}:reason=${publicToken(diagnostic?.last_public_reason_code ?? "none")}:database=${publicToken(diagnostic?.database_state ?? "none")}:child_exit=${Number.isInteger(diagnostic?.child_exit_code) ? diagnostic.child_exit_code : "none"}`,
     );
@@ -748,6 +918,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       Date.now() - started,
     );
     runtimeShutdownCount += 1;
+    if (browserFailureDiagnostic) captureFailureEvidence();
     runtimeProcess = null;
     runtimeRecord = null;
     runtimeClosePromise = null;
@@ -756,6 +927,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
 
   const cleanup = async () => {
     currentPhase = "cleanup";
+    if (browserFailureDiagnostic) captureFailureEvidence();
     const chromeStarted = Date.now();
     if (cdp) await cdp.close().catch(() => undefined);
     cdp = null;
@@ -806,10 +978,11 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     runtime_state_removed: !existsSync(runtimeStateDirectory),
     download_directory_removed: !existsSync(downloadDirectory),
     supervisor_exit_diagnostic:
-      runtimeDiagnostic?.diagnostic({
-        supervisorExitCode: runtimeProcess?.exitCode ?? null,
-        supervisorSignal: runtimeProcess?.signalCode ?? null,
-      }) ?? null,
+      retainedFailureEvidence?.supervisor_exit_diagnostic ??
+      boundedSupervisorDiagnostic(),
+    browser_failure_diagnostic:
+      retainedFailureEvidence?.browser_failure_diagnostic ??
+      browserFailureDiagnostic,
   });
 
   function recordWait(kind, label, started) {
@@ -863,6 +1036,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     waitForCondition,
     waitForHostCondition,
     waitForRequestQuiet,
+    captureFailureEvidence,
     setFormControlValue,
     authenticate,
     pauseNextSemanticTransitionRequest,
@@ -1054,11 +1228,64 @@ function classifyUrl(value) {
     const network = ["http:", "https:", "ws:", "wss:"].includes(url.protocol);
     return {
       external: network && !LOCAL_HOSTNAMES.has(url.hostname),
+      http: ["http:", "https:"].includes(url.protocol),
       path: url.pathname,
     };
   } catch {
-    return { external: false, path: null };
+    return { external: false, http: false, path: null };
   }
+}
+
+export function correlateOperatorDocumentResponseV1({
+  responses,
+  response_start,
+  navigation_epoch,
+  phase,
+  loader_id,
+  frame_id,
+}) {
+  if (
+    !Array.isArray(responses) ||
+    !Number.isInteger(response_start) ||
+    response_start < 0 ||
+    !Number.isInteger(navigation_epoch) ||
+    typeof phase !== "string" ||
+    phase.length === 0 ||
+    typeof loader_id !== "string" ||
+    loader_id.length === 0 ||
+    typeof frame_id !== "string" ||
+    frame_id.length === 0
+  ) {
+    return null;
+  }
+  let finalResponse = null;
+  for (let index = response_start; index < responses.length; index += 1) {
+    const entry = responses[index];
+    if (
+      entry?.type === "Document" &&
+      entry.navigation_epoch === navigation_epoch &&
+      entry.phase === phase &&
+      entry.loader_id === loader_id &&
+      entry.frame_id === frame_id
+    ) {
+      finalResponse = entry;
+    }
+  }
+  return finalResponse;
+}
+
+export function isValidOperatorDocumentHttpStatusV1(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599;
+}
+
+function classifyOperatorDocumentRoute(value) {
+  const route = String(value ?? "");
+  if (route.startsWith("/workbench/results/")) return "workbench_result";
+  if (route === "/workbench/semantic-review") return "semantic_review";
+  if (route === "/workbench/inspector") return "workbench_inspector";
+  if (route.startsWith("/projects/")) return "project";
+  if (route === "/") return "runtime_root";
+  return "operator_page";
 }
 
 async function assertLoopbackListener(port, child) {

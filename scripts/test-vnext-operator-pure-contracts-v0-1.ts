@@ -611,6 +611,7 @@ assert.equal(
 for (const permanentBrowserSource of [
   "browser-validate-project-experience-v1.mjs",
   "browser-validate-operator-review-control-v1.mjs",
+  "test-operator-browser-navigation-diagnostics-v1.mjs",
   "browser-validate-operator-native-host-execution-v1.mjs",
   "browser-validate-operator-multi-candidate-v1.mjs",
   "browser-validate-continuity-v1.mjs",
