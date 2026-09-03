@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
 
 import {
@@ -11,16 +12,31 @@ import {
   CANONICAL_TEST_STRATEGIC_TRANSPORT_FIXTURE_VERSION_V01,
 } from "../lib/vnext/model-gateway/canonical-test-strategic-transport.ts";
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
+import {
+  closeTrackedServer,
+  trackServerConnections,
+} from "./test-harness-process-lifecycle.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 const CHILD_ID = "operator-review-control";
 const VALIDATION_SCOPE = "operator-review-control";
+const DIAGNOSTIC_SCENARIO = process.argv[2] ?? "normal";
 const expectedInspectorConsoleDeliveries = new Map();
 const consumedInspectorConsoleDeliveries = new Map();
 assert(
   ["operator-review-control"].includes(VALIDATION_SCOPE),
   "unsupported operator review and control scope",
+);
+assert.equal(
+  [
+    "normal",
+    "http-error-document",
+    "successful-document-missing-bootstrap",
+    "document-response-missing",
+  ].includes(DIAGNOSTIC_SCENARIO),
+  true,
+  "unsupported operator Browser diagnostic scenario",
 );
 
 await runOperatorExecutionBrowserChildV1({
@@ -91,6 +107,11 @@ await runOperatorExecutionBrowserChildV1({
       entry.text ===
         "Failed to load resource: the server responded with a status of 404 (Not Found)"),
   console_allowlist_finalize: () => {
+    if (DIAGNOSTIC_SCENARIO !== "normal") {
+      assert.equal(expectedInspectorConsoleDeliveries.size, 0);
+      assert.equal(consumedInspectorConsoleDeliveries.size, 0);
+      return;
+    }
     assert.equal(expectedInspectorConsoleDeliveries.size, 2);
     assert.deepEqual(
       [...consumedInspectorConsoleDeliveries].sort(([left], [right]) =>
@@ -130,6 +151,74 @@ await runOperatorExecutionBrowserChildV1({
     const projectId = fixture.manifest.project_id;
     const encodedProjectId = encodeURIComponent(projectId);
     const observedTimelineStates = new Set();
+
+    if (DIAGNOSTIC_SCENARIO !== "normal") {
+      await lifecycle.runPhase(
+        "browser_navigation_diagnostics",
+        async () => {
+          const fixturePath =
+            "/workbench/results/run-receipt~browser-navigation-diagnostic";
+          const untrackedPath =
+            "/workbench/results/run-receipt~browser-navigation-untracked";
+          const sensitiveBody = [
+            "<!doctype html><html><body>",
+            "raw-sensitive-runtime-document",
+            "vnext_bootstrap_v01.sensitive-document-token",
+            "sk-proj-sensitive-document-key",
+            "/Users/private-operator/runtime-error",
+            lifecycle.profile_directory,
+            "</body></html>",
+          ].join("\n");
+          const diagnosticServer = await startNavigationDiagnosticServer({
+            routes: new Map([
+              [
+                fixturePath,
+                DIAGNOSTIC_SCENARIO === "http-error-document" ? 500 : 200,
+              ],
+              [untrackedPath, 200],
+            ]),
+            body: sensitiveBody,
+          });
+          try {
+            await lifecycle.navigate(`${diagnosticServer.origin}${fixturePath}`);
+            if (DIAGNOSTIC_SCENARIO === "http-error-document") {
+              assert.fail("http_error_document_navigation_was_not_rejected");
+            }
+            if (DIAGNOSTIC_SCENARIO === "document-response-missing") {
+              await lifecycle.cdp().send("Network.disable");
+              await lifecycle.navigate(
+                `${diagnosticServer.origin}${untrackedPath}`,
+              );
+              assert.fail("missing_document_response_was_not_rejected");
+            }
+            const initialDocumentResponseCount = lifecycle.responses.filter(
+              (entry) => entry.type === "Document" && entry.path === fixturePath,
+            ).length;
+            assert.equal(initialDocumentResponseCount, 1);
+            await lifecycle.navigate(
+              `${diagnosticServer.origin}${fixturePath}#same-document`,
+            );
+            assert.equal(
+              lifecycle.responses.filter(
+                (entry) =>
+                  entry.type === "Document" && entry.path === fixturePath,
+              ).length,
+              initialDocumentResponseCount,
+            );
+            await lifecycle.waitForCondition(
+              `document.querySelector('#vnext-operator-bootstrap-token') !== null`,
+              "operator bootstrap input",
+              750,
+            );
+            assert.fail("missing_bootstrap_selector_was_not_rejected");
+          } finally {
+            await closeTrackedServer(diagnosticServer.server);
+          }
+        },
+        { request_quiet: false },
+      );
+      return;
+    }
 
     await lifecycle.runPhase("project_controls_and_automation", async () => {
       await lifecycle.navigate(`${appOrigin}/projects/${encodedProjectId}`);
@@ -1290,6 +1379,34 @@ await runOperatorExecutionBrowserChildV1({
     };
   },
 });
+
+async function startNavigationDiagnosticServer({ routes, body }) {
+  const server = trackServerConnections(
+    createHttpServer((request, response) => {
+      const status = routes.get(request.url);
+      if (!Number.isInteger(status)) {
+        response.writeHead(404, { "content-type": "text/plain" });
+        response.end("not found");
+        return;
+      }
+      response.writeHead(status, {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8",
+      });
+      response.end(body);
+    }),
+  );
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+  return {
+    server,
+    origin: `http://127.0.0.1:${address.port}`,
+  };
+}
 
 function allowExpectedInspectorConsoleDelivery(entry) {
   const expected = expectedInspectorConsoleDeliveries.get(
