@@ -9085,6 +9085,12 @@ async function assertLiveCodexGoldenApprovalOnCloneV01(input: {
         assert.equal(countTraceMethodV01(trace, "account/read"), 1);
         assert.equal(countTraceMethodV01(trace, "thread/start"), 1);
         assert.equal(countTraceMethodV01(trace, "turn/start"), 1);
+        const threadStart = trace.find(
+          (entry) =>
+            entry.kind === "received" && entry.value.method === "thread/start",
+        );
+        assert(threadStart);
+        assert.equal(threadStart.value.sandbox, "workspace-write");
         const turnStart = trace.find(
           (entry) =>
             entry.kind === "received" && entry.value.method === "turn/start",

@@ -1371,6 +1371,7 @@ class CodexAppServerInvocationV01 {
   private isolatedObservedModelId: string | null = null;
   private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
+  private readonly sandboxProjection: CodexAppServerSandboxProjectionV01;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
   private readonly observedActions: string[] = [];
@@ -1389,6 +1390,18 @@ class CodexAppServerInvocationV01 {
     private readonly control: NativeHostInvocationControlV01,
     private readonly options: CodexAppServerAdapterOptionsV01,
   ) {
+    this.sandboxProjection = options.isolated_authenticated_execution
+      ? {
+          thread_sandbox: "workspace-write",
+          turn_sandbox_policy: {
+            type: "workspaceWrite",
+            writableRoots: [request.root_scope.canonical_root],
+            networkAccess: false,
+            excludeTmpdirEnvVar: true,
+            excludeSlashTmp: true,
+          },
+        }
+      : projectCodexAppServerSandboxV01(request);
     this.now = options.now ?? (() => new Date().toISOString());
     this.startedAt = this.now();
     this.public = {
@@ -1667,7 +1680,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandbox: "workspace-write",
+        sandbox: this.sandboxProjection.thread_sandbox,
         ephemeral: this.options.isolated_authenticated_execution ? true : false,
         ...(this.options.isolated_authenticated_execution
           ? { allowProviderModelFallback: false }
@@ -1826,7 +1839,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandbox: "workspace-write",
+        sandbox: this.sandboxProjection.thread_sandbox,
       }),
       "codex_thread_resume_response_invalid",
     );
@@ -1972,13 +1985,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandboxPolicy: {
-          type: "workspaceWrite",
-          writableRoots: [this.request.root_scope.canonical_root],
-          networkAccess: false,
-          excludeTmpdirEnvVar: true,
-          excludeSlashTmp: true,
-        },
+        sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
         outputSchema: CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
       }),
       "codex_turn_start_response_invalid",
@@ -4179,6 +4186,94 @@ function repositoryPathsFromPermissionProfileV01(
         : [],
     ),
   );
+}
+
+export type CodexAppServerSandboxProjectionV01 =
+  | {
+      thread_sandbox: "read-only";
+      turn_sandbox_policy: {
+        type: "readOnly";
+        networkAccess: false;
+      };
+    }
+  | {
+      thread_sandbox: "workspace-write";
+      turn_sandbox_policy: {
+        type: "workspaceWrite";
+        writableRoots: [string];
+        networkAccess: false;
+        excludeTmpdirEnvVar: true;
+        excludeSlashTmp: true;
+      };
+    };
+
+const CODEX_PROJECT_SCOPED_WRITE_OPERATION_CATEGORIES_V01 = [
+  "project_scoped_command_with_approval",
+  "project_scoped_file_change_with_approval",
+] as const;
+const CODEX_REPOSITORY_WRITE_OPERATION_CATEGORIES_V01 = [
+  "repository_file_change_inside_exact_root",
+  "bounded_local_repository_command",
+  "local_git_inspection_branch_and_commit",
+  "bounded_correction_attempt",
+] as const;
+
+/**
+ * Projects the minimum Codex filesystem sandbox from the already-admitted
+ * native-host request. Prompt text and runtime/model intent are deliberately
+ * absent: they cannot widen the structured Augnes authority envelope.
+ */
+export function projectCodexAppServerSandboxV01(
+  request: Pick<
+    NativeHostRequestV01,
+    | "mode"
+    | "root_scope"
+    | "allowed_operation_categories"
+    | "forbidden_operation_categories"
+    | "packet_capability_grant"
+    | "repository_delegation_context"
+    | "policy"
+  >,
+): CodexAppServerSandboxProjectionV01 {
+  const forbidden = new Set([
+    ...request.forbidden_operation_categories,
+    ...(request.packet_capability_grant?.forbidden_capabilities ?? []),
+  ]);
+  const allowed = new Set(request.allowed_operation_categories);
+  const permits = (category: string) =>
+    allowed.has(category) && !forbidden.has(category);
+  const projectScopedWrite =
+    request.mode !== "repository_attachment" &&
+    CODEX_PROJECT_SCOPED_WRITE_OPERATION_CATEGORIES_V01.some(permits);
+  const repositoryWrite =
+    request.mode === "repository_attachment" &&
+    request.repository_delegation_context != null &&
+    request.root_scope.repository_ref != null &&
+    request.root_scope.root_kind !== "plain_folder" &&
+    CODEX_REPOSITORY_WRITE_OPERATION_CATEGORIES_V01.some(permits);
+  if (
+    request.policy.filesystem === "selected_project_root_only" &&
+    request.policy.max_changed_files > 0 &&
+    (projectScopedWrite || repositoryWrite)
+  ) {
+    return {
+      thread_sandbox: "workspace-write",
+      turn_sandbox_policy: {
+        type: "workspaceWrite",
+        writableRoots: [request.root_scope.canonical_root],
+        networkAccess: false,
+        excludeTmpdirEnvVar: true,
+        excludeSlashTmp: true,
+      },
+    };
+  }
+  return {
+    thread_sandbox: "read-only",
+    turn_sandbox_policy: {
+      type: "readOnly",
+      networkAccess: false,
+    },
+  };
 }
 
 function normalizeGrantedPermissionsV01(

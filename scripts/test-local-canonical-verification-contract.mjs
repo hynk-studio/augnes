@@ -1037,6 +1037,7 @@ const integrationChildren = [
   "project-verify-operator-adapter",
   "reconstruction-conformance",
   "codex-production-runtime",
+  "codex-sandbox-projection",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",
   "project-controls",

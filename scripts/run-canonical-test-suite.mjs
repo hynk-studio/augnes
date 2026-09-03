@@ -437,6 +437,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "codex-sandbox-projection",
+      group: "supporting-serial",
+      requirements: ["filesystem", "project-root", "process-owning"],
+      label:
+        "ordinary Codex least-privilege sandbox projection and app-server wire contract",
+      ...rootNode("scripts/test-codex-app-server-sandbox-projection.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "codex-isolated-auth-projection",
       group: "supporting-serial",
       requirements: [
