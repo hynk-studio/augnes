@@ -112,6 +112,8 @@ import type {
 } from "@/types/vnext/native-host-adapter";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 
+const EXPECTED_PROCESS_EXECUTABLE_FINGERPRINT_V01 =
+  computeSha256FileV01(process.execPath);
 const GENERATED_AT = "2026-08-28T00:00:00.000Z";
 const EXPIRES_AT = "2099-08-29T06:00:00.000Z";
 const RAW_ACCOUNT_ID = "acct-fixture-stable-private";
@@ -636,6 +638,7 @@ async function contractsV01(roots: RootsV01): Promise<void> {
     );
     assert.equal(existsSync(path.join(roots.ordinaryHome, "auth.json")), false);
     assert.equal(readdirSync(roots.lease).length, 0);
+    assertStableProcessExecutableFingerprintV01();
 
     console.log(
       JSON.stringify({
@@ -1518,6 +1521,7 @@ async function rollbackLifecycleV01(roots: RootsV01): Promise<void> {
   );
   assert.equal(existsSync(path.join(roots.ordinaryHome, "auth.json")), false);
   assert.equal(readdirSync(roots.lease).length, 0);
+  assertStableProcessExecutableFingerprintV01();
   console.log(
     JSON.stringify({
       status: "passed",
@@ -4597,7 +4601,19 @@ function errorCodeV01(value: unknown): string | null {
       : "unknown";
 }
 function sha256FileV01(file: string): string {
+  if (file === process.execPath)
+    return EXPECTED_PROCESS_EXECUTABLE_FINGERPRINT_V01;
+  return computeSha256FileV01(file);
+}
+function computeSha256FileV01(file: string): string {
   return `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}`;
+}
+function assertStableProcessExecutableFingerprintV01(): void {
+  assert.equal(
+    computeSha256FileV01(process.execPath),
+    EXPECTED_PROCESS_EXECUTABLE_FINGERPRINT_V01,
+    "the test process executable fingerprint must remain exact for the full suite",
+  );
 }
 function officialAgentIdentityJwtStorageV01(jwt: string): string {
   return JSON.stringify({
