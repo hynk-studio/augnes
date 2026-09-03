@@ -63,6 +63,8 @@
     "test:browser-verification-owners": "node scripts/test-browser-verification-owners.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
     "test:codex-current-continuity": "node --import tsx scripts/test-vnext-codex-current-continuity.ts",
+    "test:codex-production-runtime": "node --import tsx scripts/test-codex-production-runtime.ts",
+    "test:codex-sandbox-projection": "node --import tsx scripts/test-codex-app-server-sandbox-projection.ts",
     "test:codex-repository-continuity": "node --import tsx scripts/test-codex-repository-continuity.ts",
     "test:real-work-continuity-benefit-pilot": "node --import tsx scripts/test-real-work-continuity-benefit-pilot.ts",
     "real-work-continuity-benefit-pilot": "node --import tsx scripts/real-work-continuity-benefit-pilot.ts",

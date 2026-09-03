@@ -2384,6 +2384,33 @@ unqualified until that independently owned prerequisite is satisfied. No
 credential bootstrap, provider/model turn, repository execution, semantic
 proposal, `ReviewDecision`, or `Transition` was created by CDX3C.
 
+[Issue #1197](https://github.com/hynk-studio/augnes/issues/1197) separately
+owns the ordinary ChatGPT-auth LiveNativeHost executable binding. The
+[CDX3E record](./research/CDX3E_CODEX_0_152_1_EXACT_ORDINARY_RUNTIME_V0_1.md)
+replaces the ambient `command: "codex"` production launch with fail-closed
+first-PATH resolution, exact selected native fingerprint and version
+admission, identity recheck, absolute-target spawn, and post-spawn 0.152.1
+user-agent enforcement. Canonical fake app-server routing remains isolated.
+
+CDX3E first proved the host's effective standalone first-PATH runtime was
+0.151.0 and stopped `PATH_RUNTIME_MISMATCH` before spawn. After explicit user
+authority, the official standalone installer updated its own first-PATH target
+to the exact selected 0.152.1 native bytes without changing PATH ordering or
+ordinary auth. The first real turn completed but exposed one transient Codex
+project-trust config write under the adapter's unconditional workspace-write
+projection, so that source head remained `HOLD / NOT_QUALIFIED` after exact
+cleanup.
+
+The subsequent least-privilege correction derives read-only versus
+workspace-write only from admitted NativeHostRequest operation categories,
+denials, repository binding, and mutation budget. A newly authorized
+non-mutating turn used read-only, exercised the exact admitted native target
+through ordinary ChatGPT auth, returned the expected public token, and reached
+terminal completion with zero approvals, tools, repository writes, external
+effects, or project-trust persistence. The ordinary 0.152.1 production runtime
+is therefore `ORDINARY_RUNTIME_QUALIFIED`. The separate strict Agent Identity
+lane remains `HOLD / NOT_QUALIFIED` on upstream registration HTTP 403.
+
 For RW1B, the effective ambient-condition boundary is the future merge of the
 CDX3C pull request. The cutover is not an episode and consumes no slot; prior
 observations remain valid pre-cutover history, subsequent natural observations

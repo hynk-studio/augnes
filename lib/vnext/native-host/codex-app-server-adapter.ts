@@ -21,6 +21,12 @@ import {
   observeCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import {
+  CodexProductionRuntimeErrorV01,
+  assertCodexProductionRuntimeIdentityUnchangedV01,
+  resolveCodexProductionRuntimeV01,
+  type CodexProductionRuntimeIdentityV01,
+} from "@/lib/vnext/native-host/codex-production-runtime";
+import {
   NativeHostContractErrorV01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostPublicTextV01,
@@ -250,6 +256,7 @@ export interface CodexAppServerLaunchV01 {
   command: string;
   prefix_args?: string[];
   environment?: NodeJS.ProcessEnv;
+  production_runtime_identity?: CodexProductionRuntimeIdentityV01;
 }
 
 export interface CodexAppServerAdapterObservationV01 {
@@ -772,8 +779,32 @@ export function createCodexAppServerAdapterV01(
   };
 }
 
+export function observeOrdinaryCodexAppServerUserAgentV01(
+  rawUserAgent: unknown,
+): typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01 {
+  try {
+    return observeCodexAppServerUserAgentV01({
+      raw_user_agent: rawUserAgent,
+      expected_client_name: "augnes",
+      expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+      expected_codex_cli_version:
+        CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+    }).codex_cli_version;
+  } catch (error) {
+    if (error instanceof CodexAppServerUserAgentErrorV01) {
+      throw new CodexProductionRuntimeErrorV01(
+        "codex_production_runtime_protocol_drift",
+      );
+    }
+    throw error;
+  }
+}
+
 export function resolveDefaultCodexAppServerLaunchV01(
   environment: NodeJS.ProcessEnv = process.env,
+  testDependencies?: {
+    resolve_production_runtime(): CodexProductionRuntimeIdentityV01;
+  },
 ): CodexAppServerLaunchV01 {
   if (environment.AUGNES_CANONICAL_TEST_MODE === "1") {
     return {
@@ -789,10 +820,23 @@ export function resolveDefaultCodexAppServerLaunchV01(
       environment: boundedCodexChildEnvironmentV01(environment, true),
     };
   }
+  if (
+    testDependencies &&
+    process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE !== "1"
+  ) {
+    throw new CodexProductionRuntimeErrorV01(
+      "codex_production_runtime_test_override_refused",
+    );
+  }
+  const productionRuntime = testDependencies
+    ? testDependencies.resolve_production_runtime()
+    : resolveCodexProductionRuntimeV01({ environment });
+  assertCodexProductionRuntimeIdentityUnchangedV01(productionRuntime);
   return {
-    command: "codex",
+    command: productionRuntime.canonical_native_executable,
     prefix_args: [],
     environment: boundedCodexChildEnvironmentV01(environment, false),
+    production_runtime_identity: productionRuntime,
   };
 }
 
@@ -1327,6 +1371,7 @@ class CodexAppServerInvocationV01 {
   private isolatedObservedModelId: string | null = null;
   private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
+  private readonly sandboxProjection: CodexAppServerSandboxProjectionV01;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
   private readonly observedChangedFiles: NativeHostChangedFileV01[] = [];
   private readonly observedActions: string[] = [];
@@ -1345,6 +1390,18 @@ class CodexAppServerInvocationV01 {
     private readonly control: NativeHostInvocationControlV01,
     private readonly options: CodexAppServerAdapterOptionsV01,
   ) {
+    this.sandboxProjection = options.isolated_authenticated_execution
+      ? {
+          thread_sandbox: "workspace-write",
+          turn_sandbox_policy: {
+            type: "workspaceWrite",
+            writableRoots: [request.root_scope.canonical_root],
+            networkAccess: false,
+            excludeTmpdirEnvVar: true,
+            excludeSlashTmp: true,
+          },
+        }
+      : projectCodexAppServerSandboxV01(request);
     this.now = options.now ?? (() => new Date().toISOString());
     this.startedAt = this.now();
     this.public = {
@@ -1502,6 +1559,19 @@ class CodexAppServerInvocationV01 {
     } else {
       const launch =
         this.options.launch ?? resolveDefaultCodexAppServerLaunchV01();
+      if (launch.production_runtime_identity) {
+        assertCodexProductionRuntimeIdentityUnchangedV01(
+          launch.production_runtime_identity,
+        );
+        if (
+          launch.command !==
+          launch.production_runtime_identity.canonical_native_executable
+        ) {
+          throw new CodexProductionRuntimeErrorV01(
+            "codex_production_runtime_identity_changed",
+          );
+        }
+      }
       this.transport = new CodexStdioJsonRpcTransportV01({
         command: launch.command,
         args: [...(launch.prefix_args ?? []), "app-server", "--stdio"],
@@ -1565,7 +1635,9 @@ class CodexAppServerInvocationV01 {
         }),
         "codex_initialize_response_invalid",
       );
-      this.cliVersion = publicCliVersionV01(initialized.userAgent);
+      this.cliVersion = observeOrdinaryCodexAppServerUserAgentV01(
+        initialized.userAgent,
+      );
       this.transport!.notify("initialized", {});
       this.observe("initialized");
       const account = objectV01(
@@ -1608,7 +1680,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandbox: "workspace-write",
+        sandbox: this.sandboxProjection.thread_sandbox,
         ephemeral: this.options.isolated_authenticated_execution ? true : false,
         ...(this.options.isolated_authenticated_execution
           ? { allowProviderModelFallback: false }
@@ -1767,7 +1839,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandbox: "workspace-write",
+        sandbox: this.sandboxProjection.thread_sandbox,
       }),
       "codex_thread_resume_response_invalid",
     );
@@ -1913,13 +1985,7 @@ class CodexAppServerInvocationV01 {
         cwd: this.request.root_scope.canonical_root,
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        sandboxPolicy: {
-          type: "workspaceWrite",
-          writableRoots: [this.request.root_scope.canonical_root],
-          networkAccess: false,
-          excludeTmpdirEnvVar: true,
-          excludeSlashTmp: true,
-        },
+        sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
         outputSchema: CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
       }),
       "codex_turn_start_response_invalid",
@@ -4122,6 +4188,94 @@ function repositoryPathsFromPermissionProfileV01(
   );
 }
 
+export type CodexAppServerSandboxProjectionV01 =
+  | {
+      thread_sandbox: "read-only";
+      turn_sandbox_policy: {
+        type: "readOnly";
+        networkAccess: false;
+      };
+    }
+  | {
+      thread_sandbox: "workspace-write";
+      turn_sandbox_policy: {
+        type: "workspaceWrite";
+        writableRoots: [string];
+        networkAccess: false;
+        excludeTmpdirEnvVar: true;
+        excludeSlashTmp: true;
+      };
+    };
+
+const CODEX_PROJECT_SCOPED_WRITE_OPERATION_CATEGORIES_V01 = [
+  "project_scoped_command_with_approval",
+  "project_scoped_file_change_with_approval",
+] as const;
+const CODEX_REPOSITORY_WRITE_OPERATION_CATEGORIES_V01 = [
+  "repository_file_change_inside_exact_root",
+  "bounded_local_repository_command",
+  "local_git_inspection_branch_and_commit",
+  "bounded_correction_attempt",
+] as const;
+
+/**
+ * Projects the minimum Codex filesystem sandbox from the already-admitted
+ * native-host request. Prompt text and runtime/model intent are deliberately
+ * absent: they cannot widen the structured Augnes authority envelope.
+ */
+export function projectCodexAppServerSandboxV01(
+  request: Pick<
+    NativeHostRequestV01,
+    | "mode"
+    | "root_scope"
+    | "allowed_operation_categories"
+    | "forbidden_operation_categories"
+    | "packet_capability_grant"
+    | "repository_delegation_context"
+    | "policy"
+  >,
+): CodexAppServerSandboxProjectionV01 {
+  const forbidden = new Set([
+    ...request.forbidden_operation_categories,
+    ...(request.packet_capability_grant?.forbidden_capabilities ?? []),
+  ]);
+  const allowed = new Set(request.allowed_operation_categories);
+  const permits = (category: string) =>
+    allowed.has(category) && !forbidden.has(category);
+  const projectScopedWrite =
+    request.mode !== "repository_attachment" &&
+    CODEX_PROJECT_SCOPED_WRITE_OPERATION_CATEGORIES_V01.some(permits);
+  const repositoryWrite =
+    request.mode === "repository_attachment" &&
+    request.repository_delegation_context != null &&
+    request.root_scope.repository_ref != null &&
+    request.root_scope.root_kind !== "plain_folder" &&
+    CODEX_REPOSITORY_WRITE_OPERATION_CATEGORIES_V01.some(permits);
+  if (
+    request.policy.filesystem === "selected_project_root_only" &&
+    request.policy.max_changed_files > 0 &&
+    (projectScopedWrite || repositoryWrite)
+  ) {
+    return {
+      thread_sandbox: "workspace-write",
+      turn_sandbox_policy: {
+        type: "workspaceWrite",
+        writableRoots: [request.root_scope.canonical_root],
+        networkAccess: false,
+        excludeTmpdirEnvVar: true,
+        excludeSlashTmp: true,
+      },
+    };
+  }
+  return {
+    thread_sandbox: "read-only",
+    turn_sandbox_policy: {
+      type: "readOnly",
+      networkAccess: false,
+    },
+  };
+}
+
 function normalizeGrantedPermissionsV01(
   request: NativeHostRequestV01,
   value: unknown,
@@ -4748,22 +4902,6 @@ function boundedTextV01(
     : fallback;
 }
 
-function publicCliVersionV01(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > 160 ||
-    !/^[a-zA-Z0-9._+ /-]+$/u.test(value) ||
-    path.posix.isAbsolute(value) ||
-    path.win32.isAbsolute(value) ||
-    /(?:^|\s)\//u.test(value) ||
-    value.includes("//")
-  ) {
-    return "unknown";
-  }
-  return value.trim() || "unknown";
-}
-
 function observeIsolatedAuthUserAgentV01(
   input: Parameters<typeof observeCodexAppServerUserAgentV01>[0],
 ): ReturnType<typeof observeCodexAppServerUserAgentV01> {
@@ -5048,6 +5186,7 @@ function uniqueSortedV01(values: string[]): string[] {
 function isCapabilityUnavailableV01(error: Error): boolean {
   return (
     error instanceof CodexCapabilityErrorV01 ||
+    error instanceof CodexProductionRuntimeErrorV01 ||
     (error instanceof CodexIsolatedAuthProjectionErrorV01 &&
       error.code ===
         "codex_isolated_auth_external_execution_authorization_required") ||
@@ -5070,6 +5209,7 @@ function publicErrorCodeV01(error: Error): string {
     error instanceof CodexRpcErrorV01 ||
     error instanceof CodexCredentialBrokerErrorV01 ||
     error instanceof CodexIsolatedAuthProjectionErrorV01 ||
+    error instanceof CodexProductionRuntimeErrorV01 ||
     error instanceof NativeHostContractErrorV01 ||
     error instanceof NativeHostReconciliationRequiredErrorV01
   ) {
