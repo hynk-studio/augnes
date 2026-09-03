@@ -14,6 +14,7 @@ import {
   renameSync,
   rmSync,
   writeFileSync,
+  type Stats,
 } from "node:fs";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -93,6 +94,7 @@ interface StoreTestDependenciesV01 extends StoreValidationDependenciesV01 {
   now?: () => number;
   lock_wait_ms?: number;
   before_publish?: () => void | Promise<void>;
+  after_publish_before_final_seal?: () => void | Promise<void>;
   process_identity?: (pid: number) =>
     | { state: "present"; identity: string }
     | { state: "missing" | "unavailable" };
@@ -118,29 +120,68 @@ export async function ensurePinnedCodexManagedRuntimeV01(input: {
   root: string;
   environment?: NodeJS.ProcessEnv;
 }): Promise<CodexManagedRuntimeSelectionV01> {
-  const selection = selectCodexQualifiedRuntimeEntryV01({
-    entry_id: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01.production_selection.entry_id,
-    lane: "ordinary_chatgpt_auth",
-    selection_mode: "pinned_exact",
-  });
   const dependencies = productionValidationDependenciesV01(
     input.environment ?? process.env,
   );
+  return await ensurePinnedFromRegistryV01({
+    root: input.root,
+    registry: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
+    dependencies,
+    observed_at: () => new Date().toISOString(),
+    download_reviewed_archive: downloadReviewedArchiveV01,
+  });
+}
+
+/** Test-only production bootstrap probe. Registry and downloader injection never reach production callers. */
+export async function ensurePinnedCodexManagedRuntimeForTestV01(input: {
+  root: string;
+  dependencies: StoreTestDependenciesV01;
+  download_reviewed_archive(
+    artifact: CodexQualifiedRuntimeArtifactV01,
+  ): Promise<Buffer>;
+}): Promise<CodexManagedRuntimeSelectionV01> {
+  requireTestModeV01();
+  return await ensurePinnedFromRegistryV01({
+    root: input.root,
+    registry: registryForTestV01(input.dependencies.registry),
+    dependencies: input.dependencies,
+    observed_at: () =>
+      new Date(input.dependencies.now?.() ?? Date.now()).toISOString(),
+    download_reviewed_archive: input.download_reviewed_archive,
+  });
+}
+
+async function ensurePinnedFromRegistryV01(input: {
+  root: string;
+  registry: CodexQualifiedRuntimeRegistryV01;
+  dependencies: StoreValidationDependenciesV01;
+  observed_at(): string;
+  download_reviewed_archive(
+    artifact: CodexQualifiedRuntimeArtifactV01,
+  ): Promise<Buffer>;
+}): Promise<CodexManagedRuntimeSelectionV01> {
+  const selection = selectCodexQualifiedRuntimeEntryV01({
+    registry: input.registry,
+    entry_id: input.registry.production_selection.entry_id,
+    lane: "ordinary_chatgpt_auth",
+    selection_mode: "pinned_exact",
+  });
+  assertManagedDirectNativeAdmittedV01(selection);
   try {
     const selected = selectFromStoreV01({
       root: input.root,
       mode: "pinned_exact",
       lane: "ordinary_chatgpt_auth",
-      registry: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
-      observed_at: new Date().toISOString(),
-      dependencies,
+      registry: input.registry,
+      observed_at: input.observed_at(),
+      dependencies: input.dependencies,
     });
     enforceRetentionV01({
       root: input.root,
       active: selected,
-      registry: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
-      observed_at: new Date().toISOString(),
-      dependencies,
+      registry: input.registry,
+      observed_at: input.observed_at(),
+      dependencies: input.dependencies,
     });
     return selected;
   } catch (error) {
@@ -151,23 +192,23 @@ export async function ensurePinnedCodexManagedRuntimeV01(input: {
   await stageSelectionV01({
     root: input.root,
     selection,
-    archive_bytes: await downloadReviewedArchiveV01(selection.artifact),
-    dependencies,
+    archive_bytes: await input.download_reviewed_archive(selection.artifact),
+    dependencies: input.dependencies,
   });
   const selected = selectFromStoreV01({
     root: input.root,
     mode: "pinned_exact",
     lane: "ordinary_chatgpt_auth",
-    registry: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
-    observed_at: new Date().toISOString(),
-    dependencies,
+    registry: input.registry,
+    observed_at: input.observed_at(),
+    dependencies: input.dependencies,
   });
   enforceRetentionV01({
     root: input.root,
     active: selected,
-    registry: CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
-    observed_at: new Date().toISOString(),
-    dependencies,
+    registry: input.registry,
+    observed_at: input.observed_at(),
+    dependencies: input.dependencies,
   });
   return selected;
 }
@@ -420,8 +461,8 @@ function enforceRetentionV01(input: {
       "codex_managed_runtime_retention_invalid",
     );
   }
-  const artifactsDirectory = storePathV01(input.root, "artifacts");
-  if (!existsSync(artifactsDirectory)) {
+  const artifactsDirectory = assertArtifactsRootV01(input.root);
+  if (!artifactsDirectory) {
     return Object.freeze({ removed_entry_ids: [], protected_entry_ids: [] });
   }
   const protectedIds = new Set<string>([
@@ -443,17 +484,38 @@ function enforceRetentionV01(input: {
       path.dirname(path.dirname(rollback.canonical_native_executable)),
     );
   }
+  if (assertArtifactsRootV01(input.root) !== artifactsDirectory) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_store_root_invalid",
+    );
+  }
+  const registeredDirectories = new Set(
+    input.registry.artifacts.map((artifact) => artifactKeyV01(artifact)),
+  );
   const entries = readdirSync(artifactsDirectory)
     .map((name) => {
       const directory = path.join(artifactsDirectory, name);
       const stat = lstatSync(directory);
-      const protected_entry =
-        stat.isDirectory() &&
-        !stat.isSymbolicLink() &&
-        protectedDirectories.has(realpathSync.native(directory));
-      return { name, directory, stat, protected_entry };
+      if (
+        !registeredDirectories.has(name) ||
+        !stat.isDirectory() ||
+        stat.isSymbolicLink() ||
+        realpathSync.native(directory) !== directory ||
+        !isPhysicalChildV01(artifactsDirectory, directory)
+      ) {
+        throw new CodexManagedRuntimeStoreErrorV01(
+          "codex_managed_runtime_corrupt",
+        );
+      }
+      const protected_entry = protectedDirectories.has(directory);
+      return {
+        name,
+        directory,
+        stat,
+        identity: directoryIdentityV01(stat),
+        protected_entry,
+      };
     })
-    .filter(({ stat }) => stat.isDirectory() && !stat.isSymbolicLink())
     .sort(
       (left, right) =>
         Number(right.protected_entry) - Number(left.protected_entry) ||
@@ -463,19 +525,26 @@ function enforceRetentionV01(input: {
   let keptBytes = 0;
   const removed: string[] = [];
   for (const entry of entries) {
-    const manifest = readStoreManifestLooseV01(entry.directory);
+    const manifest = readStoreManifestLooseV01(
+      entry.directory,
+      artifactsDirectory,
+    );
     const entryId = manifest?.artifact_identity.registry_entry_id ?? entry.name;
     const protectedEntry = entry.protected_entry;
     let size = 0;
     try {
-      size = directoryByteSizeV01(entry.directory);
+      size = directoryByteSizeV01(entry.directory, artifactsDirectory);
     } catch {
       if (protectedEntry) {
         keptCount += 1;
         continue;
       }
-      makeTreeWritableV01(entry.directory);
-      rmSync(entry.directory, { recursive: true, force: true });
+      removeProvablyOwnedArtifactDirectoryV01({
+        root: input.root,
+        artifacts_directory: artifactsDirectory,
+        directory: entry.directory,
+        identity: entry.identity,
+      });
       removed.push(entryId);
       continue;
     }
@@ -489,8 +558,12 @@ function enforceRetentionV01(input: {
       keptBytes += size;
       continue;
     }
-    makeTreeWritableV01(entry.directory);
-    rmSync(entry.directory, { recursive: true, force: true });
+    removeProvablyOwnedArtifactDirectoryV01({
+      root: input.root,
+      artifacts_directory: artifactsDirectory,
+      directory: entry.directory,
+      identity: entry.identity,
+    });
     removed.push(entryId);
   }
   return Object.freeze({
@@ -509,6 +582,7 @@ function selectFromStoreV01(input: {
   dependencies: StoreValidationDependenciesV01;
 }): CodexManagedRuntimeSelectionV01 {
   assertStoreRootV01(input.root);
+  assertArtifactsRootV01(input.root);
   const candidateIds = input.mode === "pinned_exact"
     ? [input.pinned_entry_id ?? input.registry.production_selection.entry_id]
     : newestEligibleEntryIdsV01(input);
@@ -529,15 +603,16 @@ function selectFromStoreV01(input: {
       if (input.mode === "pinned_exact") throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_ineligible");
       continue;
     }
-    eligibleCount += 1;
     if (
       registrySelection.artifact.platform !== input.dependencies.platform ||
       registrySelection.artifact.architecture !== input.dependencies.architecture ||
-      !codexRuntimeSelectionHasImplementedCompatibilityV01(registrySelection)
+      !codexRuntimeSelectionHasImplementedCompatibilityV01(registrySelection) ||
+      !managedDirectNativeAdmittedV01(registrySelection.artifact)
     ) {
       if (input.mode === "pinned_exact") throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_ineligible");
       continue;
     }
+    eligibleCount += 1;
     try {
       valid.push(validateStoredArtifactV01(input.root, registrySelection, input.dependencies));
     } catch (error) {
@@ -592,16 +667,33 @@ function validateStoredArtifactV01(
   selection: CodexQualifiedRuntimeSelectionV01,
   dependencies: StoreValidationDependenciesV01,
 ): CodexManagedRuntimeSelectionV01 {
-  const directory = artifactDirectoryV01(root, selection.artifact);
-  if (!existsSync(directory)) {
+  assertManagedDirectNativeAdmittedV01(selection);
+  const artifactsDirectory = assertArtifactsRootV01(root);
+  if (!artifactsDirectory) {
     throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_absent");
   }
+  const directory = path.join(artifactsDirectory, artifactKeyV01(selection.artifact));
+  const directoryStat = lstatIfExistsV01(directory);
+  if (!directoryStat) throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_absent");
   try {
-    assertExactDirectoryV01(directory);
+    if (
+      !directoryStat.isDirectory() ||
+      directoryStat.isSymbolicLink() ||
+      (directoryStat.mode & 0o7777) !== 0o555 ||
+      realpathSync.native(directory) !== directory ||
+      !isPhysicalChildV01(artifactsDirectory, directory)
+    ) throw new Error();
     const top = readdirSync(directory).sort();
     if (canonicalizeProtocolValueV01(top) !== canonicalizeProtocolValueV01(["bin", STORE_MANIFEST_NAME_V01])) throw new Error();
     const binDirectory = path.join(directory, "bin");
-    assertExactDirectoryV01(binDirectory);
+    const binStat = lstatSync(binDirectory);
+    if (
+      !binStat.isDirectory() ||
+      binStat.isSymbolicLink() ||
+      (binStat.mode & 0o7777) !== 0o555 ||
+      realpathSync.native(binDirectory) !== binDirectory ||
+      !isPhysicalChildV01(artifactsDirectory, binDirectory)
+    ) throw new Error();
     if (canonicalizeProtocolValueV01(readdirSync(binDirectory)) !== canonicalizeProtocolValueV01(["codex"])) throw new Error();
     const nativeExecutable = path.join(
       directory,
@@ -611,7 +703,7 @@ function validateStoredArtifactV01(
     if (
       !nativeStat.isFile() ||
       nativeStat.isSymbolicLink() ||
-      (nativeStat.mode & 0o777) !== 0o555
+      (nativeStat.mode & 0o7777) !== 0o555
     ) throw new Error();
     const canonicalNativeExecutable = realpathSync.native(nativeExecutable);
     if (
@@ -619,10 +711,20 @@ function validateStoredArtifactV01(
       path.join(
         realpathSync.native(directory),
         ...STORE_NATIVE_RELATIVE_PATH_V01.split("/"),
-      )
+      ) ||
+      !isPhysicalChildV01(artifactsDirectory, canonicalNativeExecutable)
+    ) throw new Error();
+    const manifestPath = path.join(directory, STORE_MANIFEST_NAME_V01);
+    const manifestStat = lstatSync(manifestPath);
+    if (
+      !manifestStat.isFile() ||
+      manifestStat.isSymbolicLink() ||
+      (manifestStat.mode & 0o7777) !== 0o444 ||
+      realpathSync.native(manifestPath) !== manifestPath ||
+      !isPhysicalChildV01(artifactsDirectory, manifestPath)
     ) throw new Error();
     const manifest = parseStoreManifestV01(
-      readFileSync(path.join(directory, STORE_MANIFEST_NAME_V01), "utf8"),
+      readFileSync(manifestPath, "utf8"),
     );
     const expectedIdentity = storeArtifactIdentityV01(selection.artifact);
     if (
@@ -653,6 +755,7 @@ async function stageSelectionV01(input: {
   archive_bytes: Buffer;
   dependencies: StoreValidationDependenciesV01 & Partial<StoreTestDependenciesV01>;
 }): Promise<void> {
+  assertManagedDirectNativeAdmittedV01(input.selection);
   assertStoreRootV01(input.root, true);
   if (
     input.selection.artifact.platform !== input.dependencies.platform ||
@@ -668,6 +771,10 @@ async function stageSelectionV01(input: {
     dependencies: input.dependencies,
   });
   let stageDirectory: string | null = null;
+  let publishedDirectory: {
+    directory: string;
+    identity: DirectoryIdentityV01;
+  } | null = null;
   try {
     recoverInterruptedStagesV01(
       input.root,
@@ -722,15 +829,29 @@ async function stageSelectionV01(input: {
       input.selection,
       input.dependencies,
     );
-    const finalDirectory = artifactDirectoryV01(input.root, input.selection.artifact);
-    ensureDirectoryV01(path.dirname(finalDirectory));
+    const artifactsDirectory = assertArtifactsRootV01(input.root, true)!;
+    const finalDirectory = path.join(
+      artifactsDirectory,
+      artifactKeyV01(input.selection.artifact),
+    );
     chmodSync(nativePath, 0o555);
     chmodSync(path.join(stageDirectory, STORE_MANIFEST_NAME_V01), 0o444);
     chmodSync(path.join(stageDirectory, "bin"), 0o555);
+    const stageIdentity = directoryIdentityV01(lstatSync(stageDirectory));
     try {
       renameSync(stageDirectory, finalDirectory);
       stageDirectory = null;
+      publishedDirectory = { directory: finalDirectory, identity: stageIdentity };
+      await input.dependencies.after_publish_before_final_seal?.();
+      assertOwnedArtifactDirectoryV01({
+        root: input.root,
+        artifacts_directory: artifactsDirectory,
+        directory: finalDirectory,
+        identity: stageIdentity,
+      });
       chmodSync(finalDirectory, 0o555);
+      validateStoredArtifactV01(input.root, input.selection, input.dependencies);
+      publishedDirectory = null;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST" && (error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
       validateStoredArtifactV01(input.root, input.selection, input.dependencies);
@@ -739,6 +860,18 @@ async function stageSelectionV01(input: {
     if (error instanceof CodexManagedRuntimeStoreErrorV01) throw error;
     throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_stage_failed");
   } finally {
+    if (publishedDirectory) {
+      try {
+        removeProvablyOwnedArtifactDirectoryV01({
+          root: input.root,
+          artifacts_directory: path.dirname(publishedDirectory.directory),
+          directory: publishedDirectory.directory,
+          identity: publishedDirectory.identity,
+        });
+      } catch {
+        // Preserve ambiguous material rather than following or deleting it.
+      }
+    }
     if (stageDirectory) {
       makeTreeWritableV01(stageDirectory);
       rmSync(stageDirectory, { recursive: true, force: true });
@@ -996,9 +1129,20 @@ function parseStoreManifestV01(raw: string): StoreManifestV01 {
   return record as unknown as StoreManifestV01;
 }
 
-function readStoreManifestLooseV01(directory: string): StoreManifestV01 | null {
+function readStoreManifestLooseV01(
+  directory: string,
+  artifactsDirectory: string,
+): StoreManifestV01 | null {
   try {
-    return parseStoreManifestV01(readFileSync(path.join(directory, STORE_MANIFEST_NAME_V01), "utf8"));
+    const manifestPath = path.join(directory, STORE_MANIFEST_NAME_V01);
+    const stat = lstatSync(manifestPath);
+    if (
+      !stat.isFile() ||
+      stat.isSymbolicLink() ||
+      realpathSync.native(manifestPath) !== manifestPath ||
+      !isPhysicalChildV01(artifactsDirectory, manifestPath)
+    ) return null;
+    return parseStoreManifestV01(readFileSync(manifestPath, "utf8"));
   } catch {
     return null;
   }
@@ -1015,6 +1159,24 @@ function artifactKeyV01(artifact: CodexQualifiedRuntimeArtifactV01): string {
   return `${artifact.entry_id}--${tupleFingerprint}`;
 }
 
+function managedDirectNativeAdmittedV01(
+  artifact: CodexQualifiedRuntimeArtifactV01,
+): boolean {
+  return artifact.admitted_discovery_launch_shapes.some(
+    ({ shape }) => shape === "direct_native",
+  );
+}
+
+function assertManagedDirectNativeAdmittedV01(
+  selection: CodexQualifiedRuntimeSelectionV01,
+): void {
+  if (!managedDirectNativeAdmittedV01(selection.artifact)) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_ineligible",
+    );
+  }
+}
+
 function storePathV01(root: string, ...segments: string[]): string {
   if (!path.isAbsolute(root)) throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_store_root_invalid");
   const resolvedRoot = path.resolve(root);
@@ -1026,16 +1188,123 @@ function storePathV01(root: string, ...segments: string[]): string {
   return target;
 }
 
-function assertStoreRootV01(root: string, create = false): void {
+function assertStoreRootV01(root: string, create = false): string | null {
   if (!path.isAbsolute(root)) throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_store_root_invalid");
-  if (create) ensureDirectoryV01(path.resolve(root));
-  if (!existsSync(root)) return;
-  assertExactDirectoryV01(root);
-  if (realpathSync.native(root) !== path.resolve(root)) {
+  const expected = path.resolve(root);
+  const existing = lstatIfExistsV01(expected);
+  if (!existing && create) mkdirSync(expected, { recursive: true, mode: 0o700 });
+  const stat = lstatIfExistsV01(expected);
+  if (!stat) return null;
+  if (
+    !stat.isDirectory() ||
+    stat.isSymbolicLink() ||
+    realpathSync.native(expected) !== expected
+  ) {
     throw new CodexManagedRuntimeStoreErrorV01(
       "codex_managed_runtime_store_root_invalid",
     );
   }
+  return expected;
+}
+
+function assertArtifactsRootV01(
+  root: string,
+  create = false,
+): string | null {
+  const managedRoot = assertStoreRootV01(root, create);
+  if (!managedRoot) return null;
+  const artifactsRoot = path.join(managedRoot, "artifacts");
+  const existing = lstatIfExistsV01(artifactsRoot);
+  if (!existing && create) mkdirSync(artifactsRoot, { mode: 0o700 });
+  const stat = lstatIfExistsV01(artifactsRoot);
+  if (!stat) return null;
+  if (
+    !stat.isDirectory() ||
+    stat.isSymbolicLink() ||
+    realpathSync.native(artifactsRoot) !== artifactsRoot ||
+    !isPhysicalChildV01(managedRoot, artifactsRoot)
+  ) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_store_root_invalid",
+    );
+  }
+  return artifactsRoot;
+}
+
+interface DirectoryIdentityV01 {
+  dev: number;
+  ino: number;
+}
+
+function directoryIdentityV01(stat: Stats): DirectoryIdentityV01 {
+  return { dev: stat.dev, ino: stat.ino };
+}
+
+function sameDirectoryIdentityV01(
+  stat: Stats,
+  identity: DirectoryIdentityV01,
+): boolean {
+  return stat.dev === identity.dev && stat.ino === identity.ino;
+}
+
+function isPhysicalChildV01(parent: string, candidate: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function lstatIfExistsV01(target: string): Stats | null {
+  try {
+    return lstatSync(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function assertOwnedArtifactDirectoryV01(input: {
+  root: string;
+  artifacts_directory: string;
+  directory: string;
+  identity: DirectoryIdentityV01;
+}): void {
+  const currentArtifactsRoot = assertArtifactsRootV01(input.root);
+  if (
+    currentArtifactsRoot !== input.artifacts_directory ||
+    path.dirname(input.directory) !== currentArtifactsRoot
+  ) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_store_root_invalid",
+    );
+  }
+  const stat = lstatSync(input.directory);
+  if (
+    !stat.isDirectory() ||
+    stat.isSymbolicLink() ||
+    !sameDirectoryIdentityV01(stat, input.identity) ||
+    realpathSync.native(input.directory) !== input.directory ||
+    !isPhysicalChildV01(currentArtifactsRoot, input.directory)
+  ) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_corrupt",
+    );
+  }
+}
+
+function removeProvablyOwnedArtifactDirectoryV01(input: {
+  root: string;
+  artifacts_directory: string;
+  directory: string;
+  identity: DirectoryIdentityV01;
+}): void {
+  assertOwnedArtifactDirectoryV01(input);
+  makeTreeWritableV01(input.directory);
+  assertOwnedArtifactDirectoryV01(input);
+  rmSync(input.directory, { recursive: true, force: true });
 }
 
 function ensureDirectoryV01(directory: string): void {
@@ -1325,7 +1594,21 @@ function makeTreeWritableV01(directory: string): void {
   }
 }
 
-function directoryByteSizeV01(directory: string): number {
+function directoryByteSizeV01(
+  directory: string,
+  artifactsDirectory: string,
+): number {
+  const directoryStat = lstatSync(directory);
+  if (
+    !directoryStat.isDirectory() ||
+    directoryStat.isSymbolicLink() ||
+    realpathSync.native(directory) !== directory ||
+    !isPhysicalChildV01(artifactsDirectory, directory)
+  ) {
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_corrupt",
+    );
+  }
   let total = 0;
   for (const name of readdirSync(directory)) {
     const candidate = path.join(directory, name);
@@ -1335,7 +1618,9 @@ function directoryByteSizeV01(directory: string): number {
         "codex_managed_runtime_corrupt",
       );
     }
-    if (stat.isDirectory()) total += directoryByteSizeV01(candidate);
+    if (stat.isDirectory()) {
+      total += directoryByteSizeV01(candidate, artifactsDirectory);
+    }
     else if (stat.isFile()) total += stat.size;
     else {
       throw new CodexManagedRuntimeStoreErrorV01(

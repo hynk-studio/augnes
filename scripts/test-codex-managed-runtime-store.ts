@@ -9,6 +9,7 @@ import {
   readFileSync,
   realpathSync,
   readdirSync,
+  readlinkSync,
   rmSync,
   symlinkSync,
   truncateSync,
@@ -25,6 +26,7 @@ import {
   assertCodexManagedRuntimeSelectionUnchangedForTestV01,
   codexManagedRuntimeArtifactDirectoryForTestV01,
   enforceCodexManagedRuntimeRetentionForTestV01,
+  ensurePinnedCodexManagedRuntimeForTestV01,
   recordCodexManagedRuntimeLastKnownGoodV01,
   selectCodexManagedRuntimeForTestV01,
   stageCodexManagedRuntimeForTestV01,
@@ -51,6 +53,9 @@ interface FixtureArtifact {
 
 async function main(): Promise<void> {
  try {
+  await testPhysicalContainmentAndExternalCanary();
+  await testDirectNativeRegistryAuthority();
+  await testPublishedSealContract();
   await testExactStagingAndSafety();
   await testSelectionPoliciesAndLanes();
   await testConcurrencyAndRecovery();
@@ -59,6 +64,12 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({
     passed: true,
     store_schema_validated: true,
+    physical_managed_root_containment: "passed",
+    external_canary_names_modes_and_bytes_preserved: true,
+    direct_native_registry_authority: "refused_before_download_stage_select_or_revalidate",
+    complete_published_seal_contract: "passed",
+    incomplete_final_seal_accepted: false,
+    ambiguous_retention_residue_preserved_fail_closed: true,
     exact_fixture_staging: "passed",
     archive_safety: "passed",
     pinned_exact: "passed",
@@ -81,6 +92,298 @@ async function main(): Promise<void> {
   rmSync(temporaryRoot, { recursive: true, force: true });
   delete process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE;
  }
+}
+
+async function testPhysicalContainmentAndExternalCanary(): Promise<void> {
+  const older = fixtureArtifact("0.151.0", 901);
+  const active = fixtureArtifact("0.152.1", 902);
+  const registry = registryWith(
+    [older.artifact, active.artifact],
+    active.artifact.entry_id,
+  );
+  const externalRoot = rootFor("physical-containment-external");
+  await stage(externalRoot, older, registry);
+  const activeSelection = await stage(externalRoot, active, registry);
+  const olderDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
+    externalRoot,
+    older.artifact,
+  );
+  chmodSync(olderDirectory, 0o700);
+  const old = new Date("2025-01-01T00:00:00.000Z");
+  utimesSync(olderDirectory, old, old);
+  chmodSync(olderDirectory, 0o555);
+
+  const managedRoot = scenarioRoot("physical-containment-managed");
+  symlinkSync(
+    path.join(externalRoot, "artifacts"),
+    path.join(managedRoot, "artifacts"),
+    "dir",
+  );
+  const before = snapshotTree(externalRoot);
+  const selectionError = captureSyncStoreCode(() =>
+    select(managedRoot, registry, "pinned_exact"),
+  );
+  const retentionError = captureSyncStoreCode(() =>
+    enforceCodexManagedRuntimeRetentionForTestV01({
+      root: managedRoot,
+      active: activeSelection,
+      observed_at: "2026-09-03T12:00:00.000Z",
+      dependencies: dependencies(registry),
+    }),
+  );
+  const after = snapshotTree(externalRoot);
+
+  assert.equal(
+    sha256(Buffer.from(JSON.stringify(after))),
+    sha256(Buffer.from(JSON.stringify(before))),
+    "containment refusal must preserve external names, types, modes, and bytes exactly",
+  );
+  assert.equal(selectionError, "codex_managed_runtime_store_root_invalid");
+  assert.equal(retentionError, "codex_managed_runtime_store_root_invalid");
+
+  const symlinkedManagedRoot = rootFor("physical-containment-symlinked-root");
+  symlinkSync(externalRoot, symlinkedManagedRoot, "dir");
+  const rootSymlinkBefore = snapshotTree(externalRoot);
+  expectSyncCode(
+    () => select(symlinkedManagedRoot, registry, "pinned_exact"),
+    "codex_managed_runtime_store_root_invalid",
+  );
+  expectSyncCode(
+    () =>
+      enforceCodexManagedRuntimeRetentionForTestV01({
+        root: symlinkedManagedRoot,
+        active: activeSelection,
+        observed_at: "2026-09-03T12:00:00.000Z",
+        dependencies: dependencies(registry),
+      }),
+    "codex_managed_runtime_store_root_invalid",
+  );
+  assert.deepEqual(snapshotTree(externalRoot), rootSymlinkBefore);
+
+  const residueRoot = rootFor("physical-containment-residue");
+  const residueSelection = await stage(residueRoot, active, registry);
+  const externalCanary = scenarioRoot("physical-containment-residue-canary");
+  const canaryPath = path.join(externalCanary, "preserve.txt");
+  writeFileSync(canaryPath, "external-canary-bytes\n", { mode: 0o640 });
+  const canaryBefore = snapshotTree(externalCanary);
+  const residueArtifacts = path.join(residueRoot, "artifacts");
+  symlinkSync(externalCanary, path.join(residueArtifacts, "unknown-symlink"), "dir");
+  writeFileSync(path.join(residueArtifacts, "unknown-file"), "preserve\n");
+  expectSyncCode(
+    () =>
+      enforceCodexManagedRuntimeRetentionForTestV01({
+        root: residueRoot,
+        active: residueSelection,
+        observed_at: "2026-09-03T12:00:00.000Z",
+        dependencies: dependencies(registry),
+      }),
+    "codex_managed_runtime_corrupt",
+  );
+  assert.deepEqual(snapshotTree(externalCanary), canaryBefore);
+  assert.equal(existsSync(path.join(residueArtifacts, "unknown-symlink")), true);
+  assert.equal(existsSync(path.join(residueArtifacts, "unknown-file")), true);
+}
+
+async function testDirectNativeRegistryAuthority(): Promise<void> {
+  const fixture = fixtureArtifact("0.152.1", 903);
+  const admittedRegistry = registryWith([fixture.artifact]);
+  const admittedRoot = rootFor("direct-native-admitted");
+  const admittedSelection = await stage(admittedRoot, fixture, admittedRegistry);
+
+  const withoutDirect = structuredClone(fixture.artifact);
+  withoutDirect.admitted_discovery_launch_shapes =
+    withoutDirect.admitted_discovery_launch_shapes.filter(
+      ({ shape }) => shape !== "direct_native",
+    );
+  const withoutDirectRegistry = registryWith([withoutDirect]);
+  const refusedStageRoot = rootFor("direct-native-stage-refused");
+  const stageError = await captureAsyncStoreCode(() =>
+    stage(
+      refusedStageRoot,
+      { ...fixture, artifact: withoutDirect },
+      withoutDirectRegistry,
+    ),
+  );
+  const preArchiveError = await captureAsyncStoreCode(() =>
+    stage(
+      rootFor("direct-native-pre-archive-refused"),
+      { ...fixture, artifact: withoutDirect },
+      withoutDirectRegistry,
+      Buffer.from("not-the-reviewed-archive"),
+    ),
+  );
+  const pinnedError = captureSyncStoreCode(() =>
+    select(admittedRoot, withoutDirectRegistry, "pinned_exact"),
+  );
+  const latestError = captureSyncStoreCode(() =>
+    select(admittedRoot, withoutDirectRegistry, "latest_qualified"),
+  );
+  let downloadCalls = 0;
+  const preDownloadRoot = rootFor("direct-native-pre-download-refused");
+  const ensureError = await captureAsyncStoreCode(() =>
+    ensurePinnedCodexManagedRuntimeForTestV01({
+      root: preDownloadRoot,
+      dependencies: dependencies(withoutDirectRegistry),
+      download_reviewed_archive: async () => {
+        downloadCalls += 1;
+        return fixture.archive;
+      },
+    }),
+  );
+
+  assert.equal(stageError, "codex_managed_runtime_ineligible");
+  assert.equal(existsSync(refusedStageRoot), false);
+  assert.equal(preArchiveError, "codex_managed_runtime_ineligible");
+  assert.equal(pinnedError, "codex_managed_runtime_ineligible");
+  assert.equal(latestError, "codex_managed_runtime_no_qualified_runtime");
+  assert.equal(ensureError, "codex_managed_runtime_ineligible");
+  assert.equal(downloadCalls, 0);
+  assert.equal(existsSync(preDownloadRoot), false);
+  expectSyncCode(
+    () =>
+      assertCodexManagedRuntimeSelectionUnchangedForTestV01(
+        admittedSelection,
+        {
+          root: admittedRoot,
+          dependencies: dependencies(withoutDirectRegistry),
+        },
+      ),
+    "codex_managed_runtime_identity_changed",
+  );
+
+  const directOnly = structuredClone(fixture.artifact);
+  directOnly.admitted_discovery_launch_shapes =
+    directOnly.admitted_discovery_launch_shapes.filter(
+      ({ shape }) => shape === "direct_native",
+    );
+  const directOnlyRegistry = registryWith([directOnly]);
+  const directOnlySelection = await stage(
+    rootFor("direct-native-only"),
+    { ...fixture, artifact: directOnly },
+    directOnlyRegistry,
+  );
+  assert.equal(
+    directOnlySelection.qualified_runtime_selection.artifact.entry_id,
+    directOnly.entry_id,
+  );
+}
+
+async function testPublishedSealContract(): Promise<void> {
+  const fixture = fixtureArtifact("0.152.1", 904);
+  const registry = registryWith([fixture.artifact]);
+  const mutationCodes: Record<string, string | null> = {};
+
+  const sealedRoot = rootFor("seal-exact-contract");
+  await stage(sealedRoot, fixture, registry);
+  const sealedDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
+    sealedRoot,
+    fixture.artifact,
+  );
+  assert.equal(lstatSync(sealedDirectory).isDirectory(), true);
+  assert.equal(lstatSync(sealedDirectory).isSymbolicLink(), false);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin")).isDirectory(), true);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin")).isSymbolicLink(), false);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin/codex")).isFile(), true);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin/codex")).isSymbolicLink(), false);
+  assert.equal(lstatSync(path.join(sealedDirectory, "store.json")).isFile(), true);
+  assert.equal(lstatSync(path.join(sealedDirectory, "store.json")).isSymbolicLink(), false);
+  assert.equal(lstatSync(sealedDirectory).mode & 0o7777, 0o555);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin")).mode & 0o7777, 0o555);
+  assert.equal(lstatSync(path.join(sealedDirectory, "bin/codex")).mode & 0o7777, 0o555);
+  assert.equal(lstatSync(path.join(sealedDirectory, "store.json")).mode & 0o7777, 0o444);
+
+  for (const [name, relativePath, mode] of [
+    ["artifact-directory-mode", "", 0o755],
+    ["bin-directory-mode", "bin", 0o755],
+    ["native-mode", "bin/codex", 0o755],
+    ["manifest-mode", "store.json", 0o644],
+  ] as const) {
+    const root = rootFor(`seal-${name}`);
+    await stage(root, fixture, registry);
+    const directory = codexManagedRuntimeArtifactDirectoryForTestV01(
+      root,
+      fixture.artifact,
+    );
+    chmodSync(path.join(directory, relativePath), mode);
+    mutationCodes[name] = captureSyncStoreCode(() =>
+      select(root, registry, "pinned_exact"),
+    );
+  }
+
+  const symlinkManifestRoot = rootFor("seal-symlink-manifest");
+  await stage(symlinkManifestRoot, fixture, registry);
+  const symlinkManifestDirectory =
+    codexManagedRuntimeArtifactDirectoryForTestV01(
+      symlinkManifestRoot,
+      fixture.artifact,
+    );
+  const manifestPath = path.join(symlinkManifestDirectory, "store.json");
+  const outsideManifest = path.join(symlinkManifestRoot, "outside-store.json");
+  writeFileSync(outsideManifest, readFileSync(manifestPath));
+  chmodSync(symlinkManifestDirectory, 0o700);
+  rmSync(manifestPath);
+  symlinkSync(outsideManifest, manifestPath);
+  chmodSync(symlinkManifestDirectory, 0o555);
+  mutationCodes["symlink-manifest"] = captureSyncStoreCode(() =>
+    select(symlinkManifestRoot, registry, "pinned_exact"),
+  );
+
+  const unexpectedEntryRoot = rootFor("seal-unexpected-entry");
+  await stage(unexpectedEntryRoot, fixture, registry);
+  const unexpectedEntryDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
+    unexpectedEntryRoot,
+    fixture.artifact,
+  );
+  chmodSync(unexpectedEntryDirectory, 0o700);
+  writeFileSync(path.join(unexpectedEntryDirectory, "unexpected"), "unexpected\n");
+  chmodSync(unexpectedEntryDirectory, 0o555);
+  mutationCodes["unexpected-entry"] = captureSyncStoreCode(() =>
+    select(unexpectedEntryRoot, registry, "pinned_exact"),
+  );
+
+  const unexpectedTypeRoot = rootFor("seal-unexpected-manifest-type");
+  await stage(unexpectedTypeRoot, fixture, registry);
+  const unexpectedTypeDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
+    unexpectedTypeRoot,
+    fixture.artifact,
+  );
+  chmodSync(unexpectedTypeDirectory, 0o700);
+  rmSync(path.join(unexpectedTypeDirectory, "store.json"));
+  mkdirSync(path.join(unexpectedTypeDirectory, "store.json"));
+  chmodSync(unexpectedTypeDirectory, 0o555);
+  mutationCodes["unexpected-manifest-type"] = captureSyncStoreCode(() =>
+    select(unexpectedTypeRoot, registry, "pinned_exact"),
+  );
+
+  const incompletePublishRoot = rootFor("seal-incomplete-publish");
+  await expectCode(
+    () =>
+      stage(incompletePublishRoot, fixture, registry, undefined, {
+        afterPublishBeforeFinalSeal: () => {
+          throw new Error("injected final-seal failure");
+        },
+      }),
+    "codex_managed_runtime_stage_failed",
+  );
+  const incompleteDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
+    incompletePublishRoot,
+    fixture.artifact,
+  );
+  assert.equal(existsSync(incompleteDirectory), false);
+  expectSyncCode(
+    () => select(incompletePublishRoot, registry, "pinned_exact"),
+    "codex_managed_runtime_absent",
+  );
+
+  assert.deepEqual(mutationCodes, {
+    "artifact-directory-mode": "codex_managed_runtime_corrupt",
+    "bin-directory-mode": "codex_managed_runtime_corrupt",
+    "native-mode": "codex_managed_runtime_corrupt",
+    "manifest-mode": "codex_managed_runtime_corrupt",
+    "symlink-manifest": "codex_managed_runtime_corrupt",
+    "unexpected-entry": "codex_managed_runtime_corrupt",
+    "unexpected-manifest-type": "codex_managed_runtime_corrupt",
+  });
 }
 
 void main();
@@ -476,6 +779,7 @@ async function testRetentionAndImmediateRevalidation(): Promise<void> {
     const old = new Date("2025-01-01T00:00:00.000Z");
     chmodSync(directory, 0o700);
     utimesSync(directory, old, old);
+    chmodSync(directory, 0o555);
   }
   const result = enforceCodexManagedRuntimeRetentionForTestV01({
     root,
@@ -564,6 +868,7 @@ async function testRetentionBounds(
     );
     chmodSync(directory, 0o700);
     utimesSync(directory, current, current);
+    chmodSync(directory, 0o555);
   }
   const countResult = enforceCodexManagedRuntimeRetentionForTestV01({
     root: countRoot,
@@ -597,12 +902,12 @@ async function testRetentionBounds(
 
   const byteRoot = rootFor("retention-byte-bound");
   const byteActive = await stage(byteRoot, fixtures[3]!, registry);
-  const oversizedDirectory = path.join(
+  await stage(byteRoot, fixtures[0]!, registry);
+  const oversizedDirectory = codexManagedRuntimeArtifactDirectoryForTestV01(
     byteRoot,
-    "artifacts",
-    "unqualified-oversized-artifact",
+    fixtures[0]!.artifact,
   );
-  mkdirSync(oversizedDirectory, { recursive: true });
+  chmodSync(oversizedDirectory, 0o700);
   const oversizedPayload = path.join(oversizedDirectory, "payload");
   writeFileSync(oversizedPayload, "");
   truncateSync(
@@ -616,7 +921,7 @@ async function testRetentionBounds(
     dependencies: dependencies(registry),
   });
   assert.equal(
-    byteResult.removed_entry_ids.includes("unqualified-oversized-artifact"),
+    byteResult.removed_entry_ids.includes(fixtures[0]!.artifact.entry_id),
     true,
   );
   assert.equal(existsSync(oversizedDirectory), false);
@@ -687,6 +992,7 @@ function dependencies(
     architecture?: string;
     now?: () => number;
     beforePublish?: () => void | Promise<void>;
+    afterPublishBeforeFinalSeal?: () => void | Promise<void>;
     processIdentity?: (pid: number) => { state: "present"; identity: string } | { state: "missing" | "unavailable" };
     lockWait?: number;
     environmentPath?: string;
@@ -701,6 +1007,7 @@ function dependencies(
     inspect_native: () => options.inspect ?? true,
     now: options.now,
     before_publish: options.beforePublish,
+    after_publish_before_final_seal: options.afterPublishBeforeFinalSeal,
     process_identity: options.processIdentity,
     lock_wait_ms: options.lockWait ?? 2_000,
   };
@@ -799,8 +1106,67 @@ async function expectCode(action: () => Promise<unknown>, code: string): Promise
   await assert.rejects(action, (error: unknown) => error instanceof CodexManagedRuntimeStoreErrorV01 && error.code === code);
 }
 
+async function captureAsyncStoreCode(
+  action: () => Promise<unknown>,
+): Promise<string | null> {
+  try {
+    await action();
+    return null;
+  } catch (error) {
+    if (error instanceof CodexManagedRuntimeStoreErrorV01) return error.code;
+    throw error;
+  }
+}
+
+function captureSyncStoreCode(action: () => unknown): string | null {
+  try {
+    action();
+    return null;
+  } catch (error) {
+    if (error instanceof CodexManagedRuntimeStoreErrorV01) return error.code;
+    throw error;
+  }
+}
+
 function expectSyncCode(action: () => unknown, code: string): void {
   assert.throws(action, (error: unknown) => error instanceof CodexManagedRuntimeStoreErrorV01 && error.code === code);
+}
+
+function snapshotTree(root: string): readonly Readonly<Record<string, unknown>>[] {
+  const entries: Readonly<Record<string, unknown>>[] = [];
+  const visit = (target: string, relativePath: string): void => {
+    const stat = lstatSync(target);
+    const common = {
+      path: relativePath || ".",
+      mode: stat.mode & 0o777,
+    };
+    if (stat.isSymbolicLink()) {
+      entries.push({ ...common, type: "symlink", target: readlinkSync(target) });
+      return;
+    }
+    if (stat.isDirectory()) {
+      entries.push({ ...common, type: "directory" });
+      for (const name of readdirSync(target).sort()) {
+        visit(
+          path.join(target, name),
+          relativePath ? path.join(relativePath, name) : name,
+        );
+      }
+      return;
+    }
+    if (stat.isFile()) {
+      entries.push({
+        ...common,
+        type: "file",
+        size: stat.size,
+        digest: sha256(readFileSync(target)),
+      });
+      return;
+    }
+    entries.push({ ...common, type: "other" });
+  };
+  visit(root, "");
+  return entries;
 }
 
 function countOwnedStagingRoots(): number {
