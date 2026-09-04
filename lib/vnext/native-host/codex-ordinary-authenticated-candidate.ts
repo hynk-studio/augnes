@@ -159,6 +159,15 @@ const AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01 = Object.freeze([
   "analytics.enabled=false",
 ] as const);
 
+/**
+ * Read-only reuse for the Phase 4B initialize-only diagnostic. This exposes no
+ * candidate capability and grants no qualification, thread, turn, provider,
+ * or production-selection authority.
+ */
+export function codex01532OrdinaryCanaryConfigOverrideArgsForDiagnosticV01(): readonly string[] {
+  return Object.freeze([...AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01]);
+}
+
 export const CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01 = Object.freeze([
   "transport_spawned",
   "initialize_request_sent",

@@ -26,6 +26,7 @@ import {
   createCodex01532OrdinaryAuthenticatedCanaryReceiptV01,
   createCodex01532OrdinaryAuthenticatedCandidateCapabilityForTestV01,
   inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01,
+  codex01532OrdinaryCanaryConfigOverrideArgsForDiagnosticV01,
   validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01,
   type CodexOrdinaryAuthenticatedCandidateCapabilityV01,
 } from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
@@ -36,6 +37,13 @@ import {
   evaluateCodex01532CandidateCredentialFreeV01,
   validateCodex01532CandidateQualificationReceiptV01,
 } from "@/lib/vnext/native-host/codex-ordinary-runtime-candidate";
+import {
+  CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
+  runCodex01532InitializeDiagnosticSequenceV01,
+  runCodex01532InitializeOnlyProbeV01,
+  type Codex01532InitializeDiagnosticProbeLabelV01,
+  type Codex01532InitializeDiagnosticProbeResultV01,
+} from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
   CodexQualifiedRuntimeRegistryErrorV01,
@@ -65,9 +73,12 @@ const previousProductionTestMode =
   process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE;
 const previousAuthenticatedCandidateTestMode =
   process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE;
+const previousInitializeDiagnosticTestMode =
+  process.env.AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE;
 process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE = "1";
 process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE = "1";
 process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE = "1";
+process.env.AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE = "1";
 
 const root = realpathSync.native(
   mkdtempSync(path.join(os.tmpdir(), "augnes-codex-candidate-test-")),
@@ -83,6 +94,7 @@ async function mainV01(): Promise<void> {
     await candidateNeverBecomesProductionAuthorityV01();
     await emulatedCredentialFreeConformanceRemainsHoldV01();
     await authenticatedCandidateCapabilityAndLifecycleV01();
+    await initializeOnlyDiagnosticContractV01();
     report = {
       status: "passed",
       contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
@@ -102,6 +114,7 @@ async function mainV01(): Promise<void> {
         repository_task_routes_enabled: false,
         repository_write_routes_enabled: false,
         owned_processes_settled: true,
+        initialize_diagnostic_post_initialize_requests: 0,
       },
       not_observed: {
         os_keychain_access_count: "not_observed",
@@ -123,6 +136,10 @@ async function mainV01(): Promise<void> {
     restoreEnvironmentV01(
       "AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE",
       previousAuthenticatedCandidateTestMode,
+    );
+    restoreEnvironmentV01(
+      "AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE",
+      previousInitializeDiagnosticTestMode,
     );
   }
   console.log(JSON.stringify(report));
@@ -997,6 +1014,268 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
       ),
     /codex_candidate_authenticated_receipt_semantics_invalid/u,
   );
+}
+
+async function initializeOnlyDiagnosticContractV01(): Promise<void> {
+  assert.equal(CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01, 10_000);
+  const sharedOverrides =
+    codex01532OrdinaryCanaryConfigOverrideArgsForDiagnosticV01();
+  assert.equal(Object.isFrozen(sharedOverrides), true);
+  assert.equal(sharedOverrides.includes("--strict-config"), false);
+  assert.equal(sharedOverrides.includes('model_provider="openai"'), true);
+  assert.equal(sharedOverrides.includes("features.use_agent_identity=false"), true);
+
+  const passed = await runInitializeDiagnosticFixtureV01(
+    "candidate_0_153_2_initialize_diagnostic_pass",
+    500,
+  );
+  assert.equal(passed.result.valid_initialize_response_received, true);
+  assert.equal(passed.result.initialize_user_agent_validated, true);
+  assert.equal(passed.result.returned_codex_home_validated_locally, true);
+  assert.equal(passed.result.public_error_class, null);
+  assert.equal(passed.result.process_settled, true);
+  assert.equal(passed.result.streams_closed, true);
+  assert.equal(passed.result.remaining_owned_processes, 0);
+  assert.deepEqual(passed.receivedMethods, ["initialize"]);
+
+  const exited = await runInitializeDiagnosticFixtureV01(
+    "candidate_0_153_2_authenticated_exit_before_initialize_response",
+    500,
+  );
+  assert.equal(exited.result.initialize_request_sent, true);
+  assert.equal(exited.result.valid_initialize_response_received, false);
+  assert.equal(exited.result.public_error_class, "initialize_process_exited");
+  assert.deepEqual(exited.receivedMethods, ["initialize"]);
+  assert.equal(JSON.stringify(exited.result).includes("sk-never-retained"), false);
+  assert.equal(JSON.stringify(exited.result).includes("/Users/private"), false);
+
+  const timedOut = await runInitializeDiagnosticFixtureV01(
+    "candidate_0_153_2_initialize_diagnostic_timeout",
+    100,
+  );
+  assert.equal(timedOut.result.initialize_request_sent, true);
+  assert.equal(timedOut.result.valid_initialize_response_received, false);
+  assert.equal(timedOut.result.public_error_class, "initialize_timeout");
+  assert.equal(timedOut.result.process_settled, true);
+  assert.equal(timedOut.result.remaining_owned_processes, 0);
+  assert.deepEqual(timedOut.receivedMethods, ["initialize"]);
+
+  const rpcFailure = await runInitializeDiagnosticFixtureV01(
+    "candidate_0_153_2_authenticated_initialize_rpc_failure",
+    500,
+  );
+  assert.equal(rpcFailure.result.public_error_class, "initialize_rpc_failure");
+  assert.deepEqual(rpcFailure.receivedMethods, ["initialize"]);
+
+  const unexpected = await runInitializeDiagnosticFixtureV01(
+    "candidate_0_153_2_initialize_diagnostic_unexpected_notification",
+    500,
+  );
+  assert.equal(
+    unexpected.result.public_error_class,
+    "initialize_unexpected_protocol_message",
+  );
+  assert.equal(JSON.stringify(unexpected.result).includes("secret-looking"), false);
+  assert.equal(JSON.stringify(unexpected.result).includes("/Users/private"), false);
+  assert.deepEqual(unexpected.receivedMethods, ["initialize"]);
+
+  const callsA: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
+  const baselineFailure = await runCodex01532InitializeDiagnosticSequenceV01({
+    run_probe: async (probe) => {
+      callsA.push(probe);
+      return syntheticDiagnosticProbeV01(probe, "timeout");
+    },
+  });
+  assert.equal(baselineFailure.disposition, "BASELINE_INITIALIZE_FAILURE");
+  assert.deepEqual(callsA, ["A_private_control"]);
+  assert.deepEqual(baselineFailure.skipped_probes, [
+    "B_split_home_real_codex_home",
+    "C_real_home_real_codex_home",
+  ]);
+
+  const callsB: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
+  const notReproduced = await runCodex01532InitializeDiagnosticSequenceV01({
+    run_probe: async (probe) => {
+      callsB.push(probe);
+      return syntheticDiagnosticProbeV01(probe, "pass");
+    },
+  });
+  assert.equal(
+    notReproduced.disposition,
+    "FAILED_CANARY_ENVIRONMENT_TIMEOUT_NOT_REPRODUCED",
+  );
+  assert.deepEqual(callsB, [
+    "A_private_control",
+    "B_split_home_real_codex_home",
+  ]);
+  assert.deepEqual(notReproduced.skipped_probes, [
+    "C_real_home_real_codex_home",
+  ]);
+  assert.equal(notReproduced.post_initialize_requests_sent, 0);
+
+  const callsC: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
+  const splitCause = await runCodex01532InitializeDiagnosticSequenceV01({
+    run_probe: async (probe) => {
+      callsC.push(probe);
+      return syntheticDiagnosticProbeV01(
+        probe,
+        probe === "B_split_home_real_codex_home" ? "timeout" : "pass",
+      );
+    },
+  });
+  assert.equal(
+    splitCause.disposition,
+    "SPLIT_HOME_CODEX_HOME_STARTUP_CAUSE_STRONG_EVIDENCE",
+  );
+  assert.deepEqual(callsC, [
+    "A_private_control",
+    "B_split_home_real_codex_home",
+    "C_real_home_real_codex_home",
+  ]);
+
+  const unresolved = await runCodex01532InitializeDiagnosticSequenceV01({
+    run_probe: async (probe) =>
+      syntheticDiagnosticProbeV01(
+        probe,
+        probe === "A_private_control" ? "pass" : "timeout",
+      ),
+  });
+  assert.equal(
+    unresolved.disposition,
+    "REAL_CODEX_HOME_STARTUP_PATH_UNRESOLVED",
+  );
+
+  const unexpectedCalls: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
+  const unexpectedSequence =
+    await runCodex01532InitializeDiagnosticSequenceV01({
+      run_probe: async (probe) => {
+        unexpectedCalls.push(probe);
+        return syntheticDiagnosticProbeV01(
+          probe,
+          probe === "A_private_control" ? "pass" : "rpc_failure",
+        );
+      },
+    });
+  assert.equal(
+    unexpectedSequence.disposition,
+    "UNEXPECTED_DIAGNOSTIC_FAILURE",
+  );
+  assert.deepEqual(unexpectedCalls, [
+    "A_private_control",
+    "B_split_home_real_codex_home",
+  ]);
+
+  await assert.rejects(
+    () =>
+      runCodex01532InitializeDiagnosticSequenceV01({
+        run_probe: async (probe) =>
+          ({
+            ...syntheticDiagnosticProbeV01(probe, "pass"),
+            raw_private_path: "/Users/private/auth.json",
+          }) as Codex01532InitializeDiagnosticProbeResultV01,
+      }),
+    /codex_initialize_diagnostic_private_material_forbidden/u,
+  );
+}
+
+async function runInitializeDiagnosticFixtureV01(
+  scenario: string,
+  responseBoundMs: number,
+): Promise<{
+  result: Codex01532InitializeDiagnosticProbeResultV01;
+  receivedMethods: string[];
+}> {
+  const fixtureRoot = realpathSync.native(
+    mkdtempSync(path.join(root, "initialize-diagnostic-")),
+  );
+  chmodSync(fixtureRoot, 0o700);
+  const directories = Object.fromEntries(
+    ["execution", "home", "codex-home", "sqlite-home", "tmp", "path"].map(
+      (name) => {
+        const target = path.join(fixtureRoot, name);
+        mkdirSync(target, { mode: 0o700 });
+        chmodSync(target, 0o700);
+        return [name, realpathSync.native(target)];
+      },
+    ),
+  );
+  const tracePath = path.join(fixtureRoot, "trace.jsonl");
+  try {
+    const result = await runCodex01532InitializeOnlyProbeV01({
+      probe: "A_private_control",
+      command: process.execPath,
+      expected_native_sha256: expectedNodeFingerprintV01(),
+      private_root: fixtureRoot,
+      execution_root: directories.execution!,
+      environment: {
+        NODE_ENV: "test",
+        HOME: directories.home,
+        CODEX_HOME: directories["codex-home"],
+        CODEX_SQLITE_HOME: directories["sqlite-home"],
+        TMPDIR: directories.tmp,
+        PATH: directories.path,
+        LANG: "C",
+        LC_ALL: "C",
+        TZ: "UTC",
+        NO_COLOR: "1",
+        FAKE_CODEX_SCENARIO: scenario,
+        FAKE_CODEX_TRACE_PATH: tracePath,
+      },
+      protected_surfaces_unchanged: true,
+      test_only: {
+        fixture_path: fixturePathV01(),
+        response_bound_ms: responseBoundMs,
+      },
+    });
+    const traces = existsSync(tracePath)
+      ? readFileSync(tracePath, "utf8")
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => JSON.parse(line) as Record<string, any>)
+      : [];
+    const receivedMethods = traces
+      .filter(({ kind }) => kind === "received")
+      .map(({ value }) => String(value?.method ?? ""));
+    return { result, receivedMethods };
+  } finally {
+    removeAuthenticatedFixtureRootsV01(fixtureRoot);
+  }
+}
+
+function syntheticDiagnosticProbeV01(
+  probe: Codex01532InitializeDiagnosticProbeLabelV01,
+  outcome: "pass" | "timeout" | "rpc_failure",
+): Codex01532InitializeDiagnosticProbeResultV01 {
+  const passed = outcome === "pass";
+  return {
+    diagnostic_version: "codex_0_153_2_initialize_only_diagnostic.v0.1",
+    probe,
+    environment_shape:
+      probe === "A_private_control"
+        ? "private_home_private_codex_home"
+        : probe === "B_split_home_real_codex_home"
+          ? "private_home_real_codex_home"
+          : "real_home_real_codex_home",
+    native_sha256: `sha256:${"a".repeat(64)}`,
+    initialize_request_sent: true,
+    valid_initialize_response_received: passed,
+    initialize_user_agent_validated: passed,
+    returned_codex_home_validated_locally: passed,
+    elapsed_ms: passed ? 25 : 10_000,
+    response_bound_ms: 10_000,
+    response_bound_met: passed,
+    public_error_class:
+      outcome === "timeout"
+        ? "initialize_timeout"
+        : outcome === "rpc_failure"
+          ? "initialize_rpc_failure"
+          : null,
+    process_settled: true,
+    streams_closed: true,
+    remaining_owned_processes: 0,
+    protected_surfaces_unchanged: true,
+  };
 }
 
 async function ordinaryProductionAdapterRejectsCandidateV01(): Promise<void> {

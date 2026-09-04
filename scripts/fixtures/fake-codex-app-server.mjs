@@ -242,6 +242,19 @@ async function handle(message) {
         setTimeout(() => process.exit(24), 20);
         return;
       }
+      if (scenario === "candidate_0_153_2_initialize_diagnostic_timeout") {
+        return;
+      }
+      if (
+        scenario ===
+        "candidate_0_153_2_initialize_diagnostic_unexpected_notification"
+      ) {
+        notify("configWarning", {
+          summary: "secret-looking warning",
+          path: "/Users/private/config.toml",
+        });
+        return;
+      }
       if (
         scenario === "candidate_0_153_2_authenticated_initialize_rpc_failure"
       ) {
