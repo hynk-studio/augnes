@@ -4,6 +4,7 @@ import {
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import {
   chmodSync,
   lstatSync,
@@ -62,6 +63,7 @@ import {
   assertNativeHostPublicTextV01,
 } from "@/lib/vnext/native-host/native-host-contract";
 import {
+  isProcessAliveV01,
   listOwnedDescendantProcessIdsV01,
   stopOwnedProcessTreeV01,
 } from "@/lib/vnext/native-host/owned-process-tree";
@@ -3899,6 +3901,71 @@ export function classifyRepositoryEnvelopeCommandV01(
   return "approval_required";
 }
 
+export const CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01 =
+  "codex_stdio_initialize_transport_diagnosis.v0.1" as const;
+
+export type CodexStdioTransportDiagnosisObservationKindV01 =
+  | "child_spawn_observed"
+  | "initialize_pending_registered"
+  | "initialize_write_started"
+  | "initialize_write_returned"
+  | "initialize_timeout_deadline"
+  | "initialize_timeout_callback_fired"
+  | "stdout_chunk_observed"
+  | "first_stdout_chunk_observed"
+  | "first_complete_jsonl_line_observed"
+  | "json_envelope_parsed"
+  | "response_envelope_classified"
+  | "response_id_matched_pending"
+  | "response_deferred_resolved"
+  | "response_deferred_rejected"
+  | "transport_protocol_failure"
+  | "process_tree_observation_started"
+  | "process_tree_observation_completed";
+
+export interface CodexStdioTransportDiagnosisObservationV01 {
+  diagnosis_version: typeof CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01;
+  sequence: number;
+  kind: CodexStdioTransportDiagnosisObservationKindV01;
+  monotonic_elapsed_ms: number;
+  after_rpc_deadline: boolean | null;
+  rpc_timeout_ms?: number;
+  deadline_monotonic_elapsed_ms?: number;
+  timeout_callback_lateness_ms?: number;
+  stdout_chunk_bytes?: number;
+  stdout_chunk_count?: number;
+  total_stdout_bytes?: number;
+  process_tree_observation_index?: number;
+  process_tree_reason?: "periodic" | "child_close" | "shutdown";
+  process_tree_elapsed_ms?: number;
+  known_owned_process_count_before?: number;
+  known_owned_process_count_after?: number;
+  descendant_scan_call_count?: number;
+  response_match?: "pending" | "timed_out" | "unknown";
+  public_error_class?: string;
+}
+
+export interface CodexStdioInitializeTransportDiagnosisResultV01 {
+  diagnosis_version: typeof CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01;
+  public_error_class: string | null;
+  initialize_response_validated: boolean;
+  initialize_user_agent_validated: boolean;
+  returned_codex_home_validated_locally: boolean;
+  observations: readonly CodexStdioTransportDiagnosisObservationV01[];
+  observation_overflow: boolean;
+  process_settled: boolean;
+  streams_closed: boolean;
+  remaining_owned_processes: number;
+}
+
+interface CodexStdioTransportDiagnosisControlV01 {
+  periodic_process_tree_observer: "enabled" | "disabled_control";
+  on_observation(
+    observation: CodexStdioTransportDiagnosisObservationV01,
+  ): void;
+  test_only_process_tree_observation_delay_ms: number;
+}
+
 class CodexStdioJsonRpcTransportV01 {
   readonly started: Promise<void>;
   readonly closed: Promise<{
@@ -3926,6 +3993,18 @@ class CodexStdioJsonRpcTransportV01 {
   private protocolFailure: Error | null = null;
   private readonly knownOwnedProcessIds = new Set<number>();
   private readonly processTreeObserver: ReturnType<typeof setInterval> | null;
+  private readonly diagnosis: CodexStdioTransportDiagnosisControlV01 | null;
+  private readonly diagnosisStartedAt: number;
+  private diagnosisSequence = 0;
+  private diagnosisProcessTreeObservationIndex = 0;
+  private diagnosisStdoutChunkCount = 0;
+  private diagnosisTotalStdoutBytes = 0;
+  private diagnosisCompleteLineObserved = false;
+  private diagnosisInitializeRequest: {
+    id: string;
+    deadline: number;
+    timed_out: boolean;
+  } | null = null;
   private handlers: {
     onNotification(method: string, params: unknown): Promise<void>;
     onServerRequest(
@@ -3958,8 +4037,11 @@ class CodexStdioJsonRpcTransportV01 {
         method: string,
         params: unknown,
       ): Promise<unknown>;
+      transport_diagnosis?: CodexStdioTransportDiagnosisControlV01;
     },
   ) {
+    this.diagnosis = input.transport_diagnosis ?? null;
+    this.diagnosisStartedAt = this.diagnosis ? performance.now() : 0;
     this.handlers = {
       onNotification: input.onNotification,
       onServerRequest: input.onServerRequest,
@@ -3977,14 +4059,21 @@ class CodexStdioJsonRpcTransportV01 {
           });
     this.processId = this.child.pid ?? null;
     if (this.processId) this.knownOwnedProcessIds.add(this.processId);
-    this.processTreeObserver = this.processId
-      ? setInterval(() => this.captureOwnedProcessTree(), 250)
+    this.processTreeObserver =
+      this.processId &&
+      this.diagnosis?.periodic_process_tree_observer !== "disabled_control"
+      ? setInterval(() => this.captureOwnedProcessTree("periodic"), 250)
       : null;
     this.processTreeObserver?.unref();
+    if (this.processId) this.observeDiagnosisV01("child_spawn_observed");
     this.started = this.startedDeferred.promise;
     this.closed = this.closedDeferred.promise;
     if (this.child.pid !== undefined) this.startedDeferred.resolve();
-    else this.child.once("spawn", () => this.startedDeferred.resolve());
+    else
+      this.child.once("spawn", () => {
+        this.observeDiagnosisV01("child_spawn_observed");
+        this.startedDeferred.resolve();
+      });
     this.child.once("error", (error) => {
       const normalized =
         (error as NodeJS.ErrnoException).code === "ENOENT"
@@ -3994,7 +4083,7 @@ class CodexStdioJsonRpcTransportV01 {
       this.fail(normalized);
     });
     this.child.once("close", (code, signal) => {
-      this.captureOwnedProcessTree();
+      this.captureOwnedProcessTree("child_close");
       this.closedDeferred.resolve({ code, signal });
       if (!this.closing && !this.protocolFailure) {
         this.rejectPending(
@@ -4048,13 +4137,51 @@ class CodexStdioJsonRpcTransportV01 {
     }
     const id = `augnes:${randomUUID()}`;
     const deferred = deferredV01<unknown>();
+    if (this.diagnosis) {
+      if (method !== "initialize" || this.diagnosisInitializeRequest) {
+        return Promise.reject(
+          new CodexProtocolErrorV01(
+            "codex_transport_diagnosis_initialize_only",
+          ),
+        );
+      }
+      const registeredAt = performance.now();
+      this.diagnosisInitializeRequest = {
+        id,
+        deadline: registeredAt + timeoutMs,
+        timed_out: false,
+      };
+    }
     const timer = setTimeout(() => {
+      if (this.diagnosisInitializeRequest?.id === id) {
+        const firedAt = performance.now();
+        this.observeDiagnosisV01("initialize_timeout_callback_fired", {
+          timeout_callback_lateness_ms: boundedDurationV01(
+            firedAt - this.diagnosisInitializeRequest.deadline,
+          ),
+        });
+      }
       if (!this.pending.delete(id)) return;
+      if (this.diagnosisInitializeRequest?.id === id)
+        this.diagnosisInitializeRequest.timed_out = true;
       deferred.reject(new CodexProtocolErrorV01("codex_rpc_timeout"));
     }, timeoutMs);
     this.pending.set(id, { method, deferred, timer });
+    if (this.diagnosisInitializeRequest?.id === id) {
+      this.observeDiagnosisV01("initialize_pending_registered");
+      this.observeDiagnosisV01("initialize_timeout_deadline", {
+        rpc_timeout_ms: timeoutMs,
+        deadline_monotonic_elapsed_ms: boundedDurationV01(
+          this.diagnosisInitializeRequest.deadline - this.diagnosisStartedAt,
+        ),
+      });
+    }
     try {
+      if (this.diagnosisInitializeRequest?.id === id)
+        this.observeDiagnosisV01("initialize_write_started");
       this.write({ id, method, params });
+      if (this.diagnosisInitializeRequest?.id === id)
+        this.observeDiagnosisV01("initialize_write_returned");
       onSent?.();
     } catch (error) {
       clearTimeout(timer);
@@ -4106,6 +4233,31 @@ class CodexStdioJsonRpcTransportV01 {
 
   private onStdout(chunk: Buffer): void {
     if (this.protocolFailure) return;
+    if (this.diagnosis) {
+      this.diagnosisStdoutChunkCount += 1;
+      this.diagnosisTotalStdoutBytes = Math.min(
+        MAX_JSONL_BUFFER_BYTES + 1,
+        this.diagnosisTotalStdoutBytes + chunk.byteLength,
+      );
+      this.observeDiagnosisV01("stdout_chunk_observed", {
+        stdout_chunk_bytes: Math.min(
+          MAX_JSONL_BUFFER_BYTES + 1,
+          chunk.byteLength,
+        ),
+        stdout_chunk_count: this.diagnosisStdoutChunkCount,
+        total_stdout_bytes: this.diagnosisTotalStdoutBytes,
+      });
+      if (this.diagnosisStdoutChunkCount === 1) {
+        this.observeDiagnosisV01("first_stdout_chunk_observed", {
+          stdout_chunk_bytes: Math.min(
+            MAX_JSONL_BUFFER_BYTES + 1,
+            chunk.byteLength,
+          ),
+          stdout_chunk_count: 1,
+          total_stdout_bytes: this.diagnosisTotalStdoutBytes,
+        });
+      }
+    }
     this.stdoutBuffer = Buffer.concat([this.stdoutBuffer, chunk]);
     if (this.stdoutBuffer.byteLength > MAX_JSONL_BUFFER_BYTES) {
       this.fail(new CodexProtocolErrorV01("codex_jsonl_buffer_bound_exceeded"));
@@ -4117,6 +4269,13 @@ class CodexStdioJsonRpcTransportV01 {
       const line = this.stdoutBuffer.subarray(0, newline);
       this.stdoutBuffer = this.stdoutBuffer.subarray(newline + 1);
       if (line.byteLength === 0) continue;
+      if (!this.diagnosisCompleteLineObserved) {
+        this.diagnosisCompleteLineObserved = true;
+        this.observeDiagnosisV01("first_complete_jsonl_line_observed", {
+          stdout_chunk_count: this.diagnosisStdoutChunkCount,
+          total_stdout_bytes: this.diagnosisTotalStdoutBytes,
+        });
+      }
       if (line.byteLength > MAX_JSONL_LINE_BYTES) {
         this.fail(new CodexProtocolErrorV01("codex_jsonl_line_bound_exceeded"));
         return;
@@ -4124,6 +4283,7 @@ class CodexStdioJsonRpcTransportV01 {
       let message: unknown;
       try {
         message = JSON.parse(line.toString("utf8"));
+        this.observeDiagnosisV01("json_envelope_parsed");
       } catch {
         this.fail(new CodexProtocolErrorV01("codex_jsonl_malformed"));
         return;
@@ -4156,6 +4316,7 @@ class CodexStdioJsonRpcTransportV01 {
       hasId &&
       (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))
     ) {
+      this.observeDiagnosisV01("response_envelope_classified");
       if (method) throw new CodexProtocolErrorV01("codex_rpc_response_invalid");
       this.handleResponse(message);
       return;
@@ -4214,6 +4375,19 @@ class CodexStdioJsonRpcTransportV01 {
       canonicalizeProtocolValueV01(message),
     );
     const pending = this.pending.get(id);
+    if (this.diagnosis) {
+      const diagnosisRequest = this.diagnosisInitializeRequest;
+      this.observeDiagnosisV01("response_id_matched_pending", {
+        response_match:
+          diagnosisRequest?.id === id
+            ? pending
+              ? "pending"
+              : diagnosisRequest.timed_out
+                ? "timed_out"
+                : "unknown"
+            : "unknown",
+      });
+    }
     if (!pending) {
       const prior = this.recentResponses.get(id);
       if (prior === fingerprint) return;
@@ -4238,9 +4412,11 @@ class CodexStdioJsonRpcTransportV01 {
           pending.method,
         ),
       );
+      this.observeDiagnosisV01("response_deferred_rejected");
       return;
     }
     pending.deferred.resolve(message.result);
+    this.observeDiagnosisV01("response_deferred_resolved");
   }
 
   private write(value: unknown): void {
@@ -4272,6 +4448,9 @@ class CodexStdioJsonRpcTransportV01 {
   private fail(error: Error): void {
     if (this.protocolFailure) return;
     this.protocolFailure = error;
+    this.observeDiagnosisV01("transport_protocol_failure", {
+      public_error_class: publicErrorCodeV01(error),
+    });
     this.rejectPending(error);
     void this.shutdown();
   }
@@ -4291,13 +4470,13 @@ class CodexStdioJsonRpcTransportV01 {
         this.protocolFailure ??
           new CodexProtocolErrorV01("codex_transport_closed"),
       );
-      this.captureOwnedProcessTree();
+      this.captureOwnedProcessTree("shutdown");
       this.child.stdin.end();
       const alreadyClosed = await withinV01(
         this.closed,
         GRACEFUL_PROCESS_STOP_MS,
       );
-      this.captureOwnedProcessTree();
+      this.captureOwnedProcessTree("shutdown");
       const stopped = await stopOwnedProcessTreeV01(this.child, {
         graceful_timeout_ms: alreadyClosed ? 100 : GRACEFUL_PROCESS_STOP_MS,
         forced_timeout_ms: FORCED_PROCESS_STOP_MS,
@@ -4320,13 +4499,247 @@ class CodexStdioJsonRpcTransportV01 {
     }
   }
 
-  private captureOwnedProcessTree(): void {
+  remainingOwnedProcessCountForDiagnosisV01(): number {
+    return [...this.knownOwnedProcessIds].filter(isProcessAliveV01).length;
+  }
+
+  private captureOwnedProcessTree(
+    reason: "periodic" | "child_close" | "shutdown",
+  ): void {
+    if (!this.diagnosis) {
+      for (const pid of [...this.knownOwnedProcessIds]) {
+        for (const descendant of listOwnedDescendantProcessIdsV01(pid)) {
+          this.knownOwnedProcessIds.add(descendant);
+        }
+      }
+      return;
+    }
+    const observationIndex = ++this.diagnosisProcessTreeObservationIndex;
+    const startedAt = performance.now();
+    const knownBefore = this.knownOwnedProcessIds.size;
+    this.observeDiagnosisV01("process_tree_observation_started", {
+      process_tree_observation_index: observationIndex,
+      process_tree_reason: reason,
+      known_owned_process_count_before: knownBefore,
+    });
+    if (
+      reason === "periodic" &&
+      this.diagnosis &&
+      this.diagnosis.test_only_process_tree_observation_delay_ms > 0
+    ) {
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        this.diagnosis.test_only_process_tree_observation_delay_ms,
+      );
+    }
+    let scanCalls = 0;
     for (const pid of [...this.knownOwnedProcessIds]) {
+      scanCalls += 1;
       for (const descendant of listOwnedDescendantProcessIdsV01(pid)) {
         this.knownOwnedProcessIds.add(descendant);
       }
     }
+    this.observeDiagnosisV01("process_tree_observation_completed", {
+      process_tree_observation_index: observationIndex,
+      process_tree_reason: reason,
+      process_tree_elapsed_ms: boundedDurationV01(
+        performance.now() - startedAt,
+      ),
+      known_owned_process_count_before: knownBefore,
+      known_owned_process_count_after: this.knownOwnedProcessIds.size,
+      descendant_scan_call_count: scanCalls,
+    });
   }
+
+  private observeDiagnosisV01(
+    kind: CodexStdioTransportDiagnosisObservationKindV01,
+    details: Omit<
+      CodexStdioTransportDiagnosisObservationV01,
+      | "diagnosis_version"
+      | "sequence"
+      | "kind"
+      | "monotonic_elapsed_ms"
+      | "after_rpc_deadline"
+    > = {},
+  ): void {
+    if (!this.diagnosis) return;
+    const now = performance.now();
+    const deadline = this.diagnosisInitializeRequest?.deadline ?? null;
+    const observation = Object.freeze({
+      diagnosis_version:
+        CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
+      sequence: ++this.diagnosisSequence,
+      kind,
+      monotonic_elapsed_ms: boundedDurationV01(
+        now - this.diagnosisStartedAt,
+      ),
+      after_rpc_deadline: deadline === null ? null : now > deadline,
+      ...details,
+    });
+    try {
+      this.diagnosis.on_observation(observation);
+    } catch {
+      // Diagnosis must remain observational and cannot alter transport behavior.
+    }
+  }
+}
+
+export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
+  spawned_child: ChildProcessWithoutNullStreams;
+  expected_codex_home: string;
+  periodic_process_tree_observer: "enabled" | "disabled_control";
+  test_only?: Readonly<{
+    response_timeout_ms: number;
+    post_timeout_observation_ms: number;
+    process_tree_observation_delay_ms: number;
+  }>;
+}): Promise<CodexStdioInitializeTransportDiagnosisResultV01> {
+  const testOnly = input.test_only !== undefined;
+  if (
+    !input.spawned_child.pid ||
+    !["enabled", "disabled_control"].includes(
+      input.periodic_process_tree_observer,
+    ) ||
+    (testOnly &&
+      process.env.AUGNES_CODEX_ADAPTER_TRANSPORT_DIAGNOSIS_TEST_MODE !== "1")
+  )
+    throw new CodexProtocolErrorV01(
+      "codex_transport_diagnosis_input_invalid",
+    );
+  const responseTimeoutMs = testOnly
+    ? input.test_only!.response_timeout_ms
+    : RPC_TIMEOUT_MS;
+  const postTimeoutObservationMs = testOnly
+    ? input.test_only!.post_timeout_observation_ms
+    : 2_500;
+  const processTreeDelayMs = testOnly
+    ? input.test_only!.process_tree_observation_delay_ms
+    : 0;
+  if (
+    !Number.isSafeInteger(responseTimeoutMs) ||
+    responseTimeoutMs < 50 ||
+    responseTimeoutMs > RPC_TIMEOUT_MS ||
+    (!testOnly && responseTimeoutMs !== 10_000) ||
+    !Number.isSafeInteger(postTimeoutObservationMs) ||
+    postTimeoutObservationMs < 50 ||
+    postTimeoutObservationMs > 2_500 ||
+    !Number.isSafeInteger(processTreeDelayMs) ||
+    processTreeDelayMs < 0 ||
+    processTreeDelayMs > 1_000 ||
+    (!testOnly && processTreeDelayMs !== 0)
+  )
+    throw new CodexProtocolErrorV01(
+      "codex_transport_diagnosis_bounds_invalid",
+    );
+
+  const observations: CodexStdioTransportDiagnosisObservationV01[] = [];
+  let observationOverflow = false;
+  const transport = new CodexStdioJsonRpcTransportV01({
+    spawned_child: input.spawned_child,
+    onNotification: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_transport_diagnosis_notification_refused",
+      );
+    },
+    onServerRequest: async () => {
+      throw new CodexProtocolErrorV01(
+        "codex_transport_diagnosis_server_request_refused",
+      );
+    },
+    transport_diagnosis: {
+      periodic_process_tree_observer: input.periodic_process_tree_observer,
+      on_observation: (observation) => {
+        if (observations.length >= 256) {
+          observationOverflow = true;
+          return;
+        }
+        observations.push(observation);
+      },
+      test_only_process_tree_observation_delay_ms: processTreeDelayMs,
+    },
+  });
+  let publicError: string | null = null;
+  let initializeResponseValidated = false;
+  let userAgentValidated = false;
+  let codexHomeValidated = false;
+  try {
+    await transport.started;
+    const initialized = objectV01(
+      await transport.request(
+        CURRENT_REQUIRED_APP_SERVER_METHODS_V01.initialize,
+        {
+          clientInfo: {
+            name: "augnes-ordinary-canary",
+            title: "Augnes ordinary candidate canary",
+            version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+          },
+          capabilities: null,
+        },
+        responseTimeoutMs,
+      ),
+      "codex_initialize_response_invalid",
+    );
+    const responseEvent = [...observations]
+      .reverse()
+      .find(({ kind }) => kind === "response_deferred_resolved");
+    if (!responseEvent || responseEvent.after_rpc_deadline !== false)
+      throw new CodexProtocolErrorV01(
+        "codex_transport_diagnosis_response_after_deadline",
+      );
+    observeReviewedCandidateCodexAppServerUserAgentV01({
+      raw_user_agent: initialized.userAgent,
+      expected_client_name: "augnes-ordinary-canary",
+      expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+      expected_codex_cli_version: "0.153.2",
+    });
+    userAgentValidated = true;
+    if (typeof initialized.codexHome !== "string")
+      throw new CodexProtocolErrorV01("codex_initialize_response_invalid");
+    codexHomeValidated =
+      realpathSync.native(initialized.codexHome) ===
+      realpathSync.native(input.expected_codex_home);
+    if (!codexHomeValidated)
+      throw new CodexProtocolErrorV01(
+        "codex_transport_diagnosis_codex_home_mismatch",
+      );
+    initializeResponseValidated = true;
+  } catch (error) {
+    publicError = publicErrorCodeV01(asErrorV01(error));
+    if (publicError === "codex_rpc_timeout")
+      await delayV01(postTimeoutObservationMs);
+  }
+  const processSettled = await transport.shutdown();
+  await withinV01(transport.closed, FORCED_PROCESS_STOP_MS);
+  const remainingOwnedProcesses =
+    transport.remainingOwnedProcessCountForDiagnosisV01();
+  const streamsClosed =
+    input.spawned_child.stdin.destroyed &&
+    input.spawned_child.stdout.destroyed &&
+    input.spawned_child.stderr.destroyed;
+  if (
+    observationOverflow ||
+    !processSettled ||
+    !streamsClosed ||
+    remainingOwnedProcesses !== 0
+  )
+    publicError = observationOverflow
+      ? "codex_transport_diagnosis_observation_bound_exceeded"
+      : "codex_transport_diagnosis_cleanup_failed";
+  return Object.freeze({
+    diagnosis_version:
+      CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
+    public_error_class: publicError,
+    initialize_response_validated: initializeResponseValidated,
+    initialize_user_agent_validated: userAgentValidated,
+    returned_codex_home_validated_locally: codexHomeValidated,
+    observations: Object.freeze([...observations]),
+    observation_overflow: observationOverflow,
+    process_settled: processSettled,
+    streams_closed: streamsClosed,
+    remaining_owned_processes: remainingOwnedProcesses,
+  });
 }
 
 interface PendingRpcV01 {
@@ -6048,6 +6461,15 @@ function publicCleanupDiagnosticCodeV01(error: Error): string {
 
 function asErrorV01(error: unknown): Error {
   return error instanceof Error ? error : new Error("codex_app_server_failed");
+}
+
+function boundedDurationV01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Number(value.toFixed(3)));
+}
+
+function delayV01(timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, timeoutMs));
 }
 
 function deferredV01<T>(): DeferredV01<T> {

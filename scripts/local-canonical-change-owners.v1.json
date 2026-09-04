@@ -79,6 +79,7 @@
           "lib/vnext/native-host/codex-ordinary-initialize-diagnostic.ts",
           "scripts/canary-codex-0-153-2-candidate.ts",
           "scripts/canary-codex-0-153-2-ordinary-authenticated.ts",
+          "scripts/diagnose-codex-0-153-2-adapter-transport.ts",
           "scripts/diagnose-codex-0-153-2-initialize.ts",
           "scripts/test-codex-ordinary-runtime-candidate.ts"
         ]

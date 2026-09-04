@@ -15,6 +15,12 @@ import {
   codex01532OrdinaryCanaryConfigOverrideArgsForDiagnosticV01,
   CODEX_0_153_2_ORDINARY_CANARY_ENTRY_ID_V01,
 } from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
+import {
+  CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
+  runCodex01532StdioInitializeTransportDiagnosisV01,
+  type CodexStdioInitializeTransportDiagnosisResultV01,
+  type CodexStdioTransportDiagnosisObservationV01,
+} from "@/lib/vnext/native-host/codex-app-server-adapter";
 import { observeReviewedCandidateCodexAppServerUserAgentV01 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import {
   getCodexReviewedRuntimeArtifactV01,
@@ -432,6 +438,482 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
   assertProbeResultV01(result, input.probe);
   assertPublicSafeV01(result);
   return result;
+}
+
+export const CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01 =
+  "codex_0_153_2_adapter_transport_initialize_diagnostic.v0.1" as const;
+
+export type Codex01532AdapterTransportDiagnosticProbeLabelV01 =
+  | "T1_normal_observer_1"
+  | "T1_normal_observer_2"
+  | "T2_observer_disabled_control";
+
+export type Codex01532AdapterTransportDiagnosticDispositionV01 =
+  | "INSTRUMENTED_ADAPTER_TIMEOUT_NOT_REPRODUCED"
+  | "INSTRUMENTED_ADAPTER_TIMEOUT_INTERMITTENT"
+  | "PROCESS_TREE_OBSERVER_CAUSAL_STRONG_EVIDENCE"
+  | "NO_CHILD_STDOUT_RESPONSE_OBSERVED"
+  | "FRAMING_PARTIAL_OUTPUT_BOUNDARY"
+  | "RESPONSE_MATCHING_DISPATCH_BOUNDARY"
+  | "TRANSPORT_INTERNAL_SCHEDULING_INVARIANT_FAILURE"
+  | "LATE_RESPONSE_AFTER_TIMEOUT"
+  | "PROCESS_TREE_POLLING_INSUFFICIENT"
+  | "UNEXPECTED_DIAGNOSTIC_FAILURE";
+
+export interface Codex01532AdapterTransportDiagnosticProbeResultV01 {
+  diagnostic_version: typeof CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01;
+  transport_diagnosis_version: typeof CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01;
+  probe: Codex01532AdapterTransportDiagnosticProbeLabelV01;
+  periodic_process_tree_observer: "enabled" | "disabled_control";
+  native_sha256: string;
+  initialize_request_sent: boolean;
+  valid_initialize_response_received: boolean;
+  initialize_user_agent_validated: boolean;
+  returned_codex_home_validated_locally: boolean;
+  response_bound_ms: number;
+  deadline_monotonic_elapsed_ms: number | null;
+  timeout_callback_fired: boolean;
+  timeout_callback_lateness_ms: number | null;
+  first_stdout_chunk_elapsed_ms: number | null;
+  first_complete_jsonl_line_elapsed_ms: number | null;
+  first_response_classified_elapsed_ms: number | null;
+  response_id_match: "pending" | "timed_out" | "unknown" | null;
+  response_deferred_resolved_elapsed_ms: number | null;
+  stdout_chunk_count: number;
+  total_stdout_bytes: number;
+  response_observed_after_deadline: boolean;
+  process_tree_observation_count: number;
+  periodic_process_tree_observation_count: number;
+  process_tree_descendant_scan_call_count: number;
+  process_tree_max_observation_ms: number;
+  process_tree_cumulative_observation_ms_before_rpc_outcome: number;
+  process_tree_known_owned_process_count_min: number;
+  process_tree_known_owned_process_count_max: number;
+  process_tree_observation_overlapped_rpc_deadline: boolean;
+  public_error_class: string | null;
+  process_settled: boolean;
+  streams_closed: boolean;
+  remaining_owned_processes: number;
+  protected_surfaces_unchanged: boolean;
+  post_initialize_requests_sent: 0;
+  observations: readonly CodexStdioTransportDiagnosisObservationV01[];
+}
+
+export interface Codex01532AdapterTransportDiagnosticSequenceV01 {
+  diagnostic_version: typeof CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01;
+  disposition: Codex01532AdapterTransportDiagnosticDispositionV01;
+  probes: readonly Codex01532AdapterTransportDiagnosticProbeResultV01[];
+  skipped_probes: readonly Codex01532AdapterTransportDiagnosticProbeLabelV01[];
+  initialize_requests_sent: number;
+  post_initialize_requests_sent: 0;
+  diagnostic_fingerprint: string;
+}
+
+export async function runCodex01532AdapterTransportDiagnosticSequenceV01(input: {
+  run_probe(
+    probe: Codex01532AdapterTransportDiagnosticProbeLabelV01,
+  ): Promise<Codex01532AdapterTransportDiagnosticProbeResultV01>;
+}): Promise<Codex01532AdapterTransportDiagnosticSequenceV01> {
+  if (typeof input.run_probe !== "function")
+    throw new Error("codex_adapter_transport_diagnostic_runner_invalid");
+  const probes: Codex01532AdapterTransportDiagnosticProbeResultV01[] = [];
+  const run = async (
+    probe: Codex01532AdapterTransportDiagnosticProbeLabelV01,
+  ) => {
+    const result = await input.run_probe(probe);
+    assertAdapterTransportProbeResultV01(result, probe);
+    probes.push(result);
+    return result;
+  };
+
+  const first = await run("T1_normal_observer_1");
+  let disposition: Codex01532AdapterTransportDiagnosticDispositionV01;
+  let skipped: Codex01532AdapterTransportDiagnosticProbeLabelV01[];
+  if (adapterTransportProbePassedV01(first)) {
+    const second = await run("T1_normal_observer_2");
+    skipped = ["T2_observer_disabled_control"];
+    disposition = adapterTransportProbePassedV01(second)
+      ? "INSTRUMENTED_ADAPTER_TIMEOUT_NOT_REPRODUCED"
+      : adapterTransportProbeTimedOutV01(second)
+        ? "INSTRUMENTED_ADAPTER_TIMEOUT_INTERMITTENT"
+        : "UNEXPECTED_DIAGNOSTIC_FAILURE";
+  } else if (adapterTransportProbeTimedOutV01(first)) {
+    const control = await run("T2_observer_disabled_control");
+    skipped = ["T1_normal_observer_2"];
+    if (adapterTransportProbePassedV01(control)) {
+      disposition = "PROCESS_TREE_OBSERVER_CAUSAL_STRONG_EVIDENCE";
+    } else if (adapterTransportProbeTimedOutV01(control)) {
+      disposition = classifyAdapterTransportTimeoutV01(first, control);
+    } else {
+      disposition = "UNEXPECTED_DIAGNOSTIC_FAILURE";
+    }
+  } else {
+    disposition = "UNEXPECTED_DIAGNOSTIC_FAILURE";
+    skipped = ["T1_normal_observer_2", "T2_observer_disabled_control"];
+  }
+
+  const material = {
+    diagnostic_version:
+      CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+    disposition,
+    probes,
+    skipped_probes: skipped,
+    initialize_requests_sent: probes.filter(
+      ({ initialize_request_sent }) => initialize_request_sent,
+    ).length,
+    post_initialize_requests_sent: 0 as const,
+  };
+  const result = Object.freeze({
+    ...material,
+    diagnostic_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  });
+  assertPublicSafeV01(result);
+  return result;
+}
+
+export async function runCodex01532AdapterTransportInitializeProbeV01(input: {
+  probe: Codex01532AdapterTransportDiagnosticProbeLabelV01;
+  command: string;
+  expected_native_sha256: string;
+  private_root: string;
+  execution_root: string;
+  environment: NodeJS.ProcessEnv;
+  protected_surfaces_unchanged: boolean;
+  test_only?: Readonly<{
+    fixture_path: string;
+    response_bound_ms: number;
+    post_timeout_observation_ms: number;
+    process_tree_observation_delay_ms: number;
+  }>;
+}): Promise<Codex01532AdapterTransportDiagnosticProbeResultV01> {
+  const testOnly = input.test_only !== undefined;
+  assertProbeLaunchV01(
+    {
+      probe: "B_split_home_real_codex_home",
+      command: input.command,
+      expected_native_sha256: input.expected_native_sha256,
+      private_root: input.private_root,
+      execution_root: input.execution_root,
+      environment: input.environment,
+      protected_surfaces_unchanged: input.protected_surfaces_unchanged,
+      ...(testOnly
+        ? {
+            test_only: {
+              fixture_path: input.test_only!.fixture_path,
+              response_bound_ms: input.test_only!.response_bound_ms,
+            },
+          }
+        : {}),
+    },
+    REVIEWED,
+    testOnly,
+  );
+  if (
+    input.probe === "T2_observer_disabled_control" &&
+    input.test_only?.process_tree_observation_delay_ms
+  )
+    throw new Error("codex_adapter_transport_diagnostic_control_invalid");
+  const command = realpathSync.native(input.command);
+  const observedDigest = await sha256FileV01(command);
+  const expectedDigest = testOnly
+    ? input.expected_native_sha256
+    : REVIEWED.artifact.native_executable_sha256;
+  if (observedDigest !== expectedDigest)
+    throw new Error("codex_adapter_transport_diagnostic_native_mismatch");
+  const child = spawn(
+    command,
+    [
+      ...(testOnly ? [input.test_only!.fixture_path] : []),
+      ...codex01532OrdinaryCanaryConfigOverrideArgsForDiagnosticV01(),
+      "app-server",
+      "--stdio",
+    ],
+    {
+      cwd: realpathSync.native(input.execution_root),
+      env: input.environment,
+      detached: false,
+      shell: false,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  const transportResult =
+    await runCodex01532StdioInitializeTransportDiagnosisV01({
+      spawned_child: child,
+      expected_codex_home: input.environment.CODEX_HOME!,
+      periodic_process_tree_observer:
+        input.probe === "T2_observer_disabled_control"
+          ? "disabled_control"
+          : "enabled",
+      ...(testOnly
+        ? {
+            test_only: {
+              response_timeout_ms: input.test_only!.response_bound_ms,
+              post_timeout_observation_ms:
+                input.test_only!.post_timeout_observation_ms,
+              process_tree_observation_delay_ms:
+                input.test_only!.process_tree_observation_delay_ms,
+            },
+          }
+        : {}),
+    });
+  const result = summarizeAdapterTransportProbeV01({
+    probe: input.probe,
+    native_sha256: observedDigest,
+    response_bound_ms: testOnly
+      ? input.test_only!.response_bound_ms
+      : CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
+    protected_surfaces_unchanged: input.protected_surfaces_unchanged,
+    transport: transportResult,
+  });
+  assertAdapterTransportProbeResultV01(result, input.probe);
+  assertPublicSafeV01(result);
+  return result;
+}
+
+function summarizeAdapterTransportProbeV01(input: {
+  probe: Codex01532AdapterTransportDiagnosticProbeLabelV01;
+  native_sha256: string;
+  response_bound_ms: number;
+  protected_surfaces_unchanged: boolean;
+  transport: CodexStdioInitializeTransportDiagnosisResultV01;
+}): Codex01532AdapterTransportDiagnosticProbeResultV01 {
+  const observations = input.transport.observations;
+  const first = (kind: CodexStdioTransportDiagnosisObservationV01["kind"]) =>
+    observations.find((entry) => entry.kind === kind) ?? null;
+  const deadline = first("initialize_timeout_deadline");
+  const timeout = first("initialize_timeout_callback_fired");
+  const stdout = first("first_stdout_chunk_observed");
+  const line = first("first_complete_jsonl_line_observed");
+  const classified = first("response_envelope_classified");
+  const matched = first("response_id_matched_pending");
+  const resolved = first("response_deferred_resolved");
+  const outcomeElapsed =
+    resolved?.monotonic_elapsed_ms ??
+    timeout?.monotonic_elapsed_ms ??
+    observations.at(-1)?.monotonic_elapsed_ms ??
+    0;
+  const starts = new Map(
+    observations
+      .filter(
+        (entry) =>
+          entry.kind === "process_tree_observation_started" &&
+          entry.process_tree_observation_index !== undefined,
+      )
+      .map((entry) => [entry.process_tree_observation_index!, entry]),
+  );
+  const completed = observations.filter(
+    (entry) => entry.kind === "process_tree_observation_completed",
+  );
+  const completedBeforeOutcome = completed.filter((entry) => {
+    const started = starts.get(entry.process_tree_observation_index ?? -1);
+    return Boolean(started && started.monotonic_elapsed_ms <= outcomeElapsed);
+  });
+  const durations = completed.map(
+    ({ process_tree_elapsed_ms }) => process_tree_elapsed_ms ?? 0,
+  );
+  const knownCounts = completed.flatMap((entry) => [
+    entry.known_owned_process_count_before ?? 0,
+    entry.known_owned_process_count_after ?? 0,
+  ]);
+  const deadlineElapsed = deadline?.deadline_monotonic_elapsed_ms ?? null;
+  const overlapsDeadline =
+    deadlineElapsed !== null &&
+    completed.some((entry) => {
+      const started = starts.get(entry.process_tree_observation_index ?? -1);
+      return Boolean(
+        started &&
+          started.monotonic_elapsed_ms <= deadlineElapsed &&
+          entry.monotonic_elapsed_ms >= deadlineElapsed,
+      );
+    });
+  const result = Object.freeze({
+    diagnostic_version:
+      CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+    transport_diagnosis_version: input.transport.diagnosis_version,
+    probe: input.probe,
+    periodic_process_tree_observer:
+      input.probe === "T2_observer_disabled_control"
+        ? ("disabled_control" as const)
+        : ("enabled" as const),
+    native_sha256: input.native_sha256,
+    initialize_request_sent: Boolean(first("initialize_write_returned")),
+    valid_initialize_response_received:
+      input.transport.initialize_response_validated,
+    initialize_user_agent_validated:
+      input.transport.initialize_user_agent_validated,
+    returned_codex_home_validated_locally:
+      input.transport.returned_codex_home_validated_locally,
+    response_bound_ms: input.response_bound_ms,
+    deadline_monotonic_elapsed_ms: deadlineElapsed,
+    timeout_callback_fired: timeout !== null,
+    timeout_callback_lateness_ms:
+      timeout?.timeout_callback_lateness_ms ?? null,
+    first_stdout_chunk_elapsed_ms: stdout?.monotonic_elapsed_ms ?? null,
+    first_complete_jsonl_line_elapsed_ms: line?.monotonic_elapsed_ms ?? null,
+    first_response_classified_elapsed_ms:
+      classified?.monotonic_elapsed_ms ?? null,
+    response_id_match: matched?.response_match ?? null,
+    response_deferred_resolved_elapsed_ms:
+      resolved?.monotonic_elapsed_ms ?? null,
+    stdout_chunk_count: observations.filter(
+      ({ kind }) => kind === "stdout_chunk_observed",
+    ).length,
+    total_stdout_bytes:
+      [...observations]
+        .reverse()
+        .find(({ total_stdout_bytes }) => total_stdout_bytes !== undefined)
+        ?.total_stdout_bytes ?? 0,
+    response_observed_after_deadline: observations.some(
+      (entry) =>
+        entry.after_rpc_deadline === true &&
+        [
+          "first_stdout_chunk_observed",
+          "first_complete_jsonl_line_observed",
+          "json_envelope_parsed",
+          "response_envelope_classified",
+          "response_id_matched_pending",
+          "response_deferred_resolved",
+        ].includes(entry.kind),
+    ),
+    process_tree_observation_count: completed.length,
+    periodic_process_tree_observation_count: completed.filter(
+      ({ process_tree_reason }) => process_tree_reason === "periodic",
+    ).length,
+    process_tree_descendant_scan_call_count: completed.reduce(
+      (sum, entry) => sum + (entry.descendant_scan_call_count ?? 0),
+      0,
+    ),
+    process_tree_max_observation_ms: Math.max(0, ...durations),
+    process_tree_cumulative_observation_ms_before_rpc_outcome:
+      completedBeforeOutcome.reduce(
+        (sum, entry) => sum + (entry.process_tree_elapsed_ms ?? 0),
+        0,
+      ),
+    process_tree_known_owned_process_count_min:
+      knownCounts.length > 0 ? Math.min(...knownCounts) : 0,
+    process_tree_known_owned_process_count_max: Math.max(
+      0,
+      ...knownCounts,
+    ),
+    process_tree_observation_overlapped_rpc_deadline: overlapsDeadline,
+    public_error_class: input.transport.public_error_class,
+    process_settled: input.transport.process_settled,
+    streams_closed: input.transport.streams_closed,
+    remaining_owned_processes: input.transport.remaining_owned_processes,
+    protected_surfaces_unchanged: input.protected_surfaces_unchanged,
+    post_initialize_requests_sent: 0 as const,
+    observations,
+  });
+  return result;
+}
+
+function classifyAdapterTransportTimeoutV01(
+  first: Codex01532AdapterTransportDiagnosticProbeResultV01,
+  control: Codex01532AdapterTransportDiagnosticProbeResultV01,
+): Codex01532AdapterTransportDiagnosticDispositionV01 {
+  const probes = [first, control];
+  if (probes.every(({ first_stdout_chunk_elapsed_ms }) => first_stdout_chunk_elapsed_ms === null))
+    return "NO_CHILD_STDOUT_RESPONSE_OBSERVED";
+  if (
+    probes.some(
+      (probe) =>
+        probe.first_stdout_chunk_elapsed_ms !== null &&
+        probe.first_complete_jsonl_line_elapsed_ms === null,
+    )
+  )
+    return "FRAMING_PARTIAL_OUTPUT_BOUNDARY";
+  if (
+    probes.some(
+      (probe) =>
+        probe.first_response_classified_elapsed_ms !== null &&
+        probe.response_id_match !== "pending",
+    )
+  )
+    return "RESPONSE_MATCHING_DISPATCH_BOUNDARY";
+  if (
+    probes.some(
+      (probe) =>
+        probe.response_id_match === "pending" &&
+        probe.response_deferred_resolved_elapsed_ms !== null &&
+        probe.timeout_callback_fired,
+    )
+  )
+    return "TRANSPORT_INTERNAL_SCHEDULING_INVARIANT_FAILURE";
+  if (probes.some(({ response_observed_after_deadline }) => response_observed_after_deadline))
+    return "LATE_RESPONSE_AFTER_TIMEOUT";
+  return "PROCESS_TREE_POLLING_INSUFFICIENT";
+}
+
+function adapterTransportProbePassedV01(
+  value: Codex01532AdapterTransportDiagnosticProbeResultV01,
+): boolean {
+  return (
+    value.initialize_request_sent &&
+    value.valid_initialize_response_received &&
+    value.initialize_user_agent_validated &&
+    value.returned_codex_home_validated_locally &&
+    value.response_deferred_resolved_elapsed_ms !== null &&
+    value.response_deferred_resolved_elapsed_ms <= value.response_bound_ms &&
+    !value.timeout_callback_fired &&
+    value.public_error_class === null &&
+    value.process_settled &&
+    value.streams_closed &&
+    value.remaining_owned_processes === 0 &&
+    value.protected_surfaces_unchanged &&
+    value.post_initialize_requests_sent === 0
+  );
+}
+
+function adapterTransportProbeTimedOutV01(
+  value: Codex01532AdapterTransportDiagnosticProbeResultV01,
+): boolean {
+  return (
+    value.public_error_class === "codex_rpc_timeout" ||
+    value.public_error_class ===
+      "codex_transport_diagnosis_response_after_deadline"
+  );
+}
+
+function assertAdapterTransportProbeResultV01(
+  value: Codex01532AdapterTransportDiagnosticProbeResultV01,
+  expectedProbe: Codex01532AdapterTransportDiagnosticProbeLabelV01,
+): void {
+  if (
+    value.diagnostic_version !==
+      CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01 ||
+    value.transport_diagnosis_version !==
+      CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01 ||
+    value.probe !== expectedProbe ||
+    value.periodic_process_tree_observer !==
+      (expectedProbe === "T2_observer_disabled_control"
+        ? "disabled_control"
+        : "enabled") ||
+    !HASH_PATTERN.test(value.native_sha256) ||
+    !Number.isSafeInteger(value.response_bound_ms) ||
+    value.response_bound_ms < 50 ||
+    value.response_bound_ms > 10_000 ||
+    !Number.isSafeInteger(value.stdout_chunk_count) ||
+    value.stdout_chunk_count < 0 ||
+    !Number.isSafeInteger(value.total_stdout_bytes) ||
+    value.total_stdout_bytes < 0 ||
+    value.total_stdout_bytes > MAX_JSONL_BUFFER_BYTES + 1 ||
+    !Number.isSafeInteger(value.process_tree_observation_count) ||
+    value.process_tree_observation_count < 0 ||
+    !Number.isSafeInteger(value.remaining_owned_processes) ||
+    value.remaining_owned_processes < 0 ||
+    value.post_initialize_requests_sent !== 0 ||
+    value.observations.length > 256 ||
+    value.observations.some(
+      (entry, index) =>
+        entry.sequence !== index + 1 ||
+        !Number.isFinite(entry.monotonic_elapsed_ms) ||
+        entry.monotonic_elapsed_ms < 0,
+    )
+  )
+    throw new Error("codex_adapter_transport_diagnostic_result_invalid");
 }
 
 export function protectedCodexConfigurationFingerprintV01(

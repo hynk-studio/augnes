@@ -255,6 +255,59 @@ async function handle(message) {
         });
         return;
       }
+      const adapterTransportInitializeResult = {
+        userAgent: fakeCodexUserAgentV01(
+          scenario,
+          message.params?.clientInfo,
+        ),
+        codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
+        platformFamily: process.platform === "win32" ? "windows" : "unix",
+        platformOs: process.platform,
+      };
+      if (
+        scenario ===
+        "candidate_0_153_2_adapter_transport_delayed_before_deadline"
+      ) {
+        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 40);
+        return;
+      }
+      if (
+        scenario ===
+        "candidate_0_153_2_adapter_transport_delayed_after_deadline"
+      ) {
+        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 160);
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_partial_jsonl"
+      ) {
+        const encoded = `${JSON.stringify({
+          id: message.id,
+          result: adapterTransportInitializeResult,
+        })}\n`;
+        const middle = Math.floor(encoded.length / 2);
+        process.stdout.write(encoded.slice(0, middle));
+        setTimeout(() => process.stdout.write(encoded.slice(middle)), 30);
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_malformed_envelope"
+      ) {
+        process.stdout.write("{secret-looking malformed /Users/private/auth.json\n");
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_unknown_response_id"
+      ) {
+        respond("unknown-diagnostic-id", adapterTransportInitializeResult);
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_observer_delay"
+      ) {
+        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 300);
+        return;
+      }
       if (
         scenario === "candidate_0_153_2_authenticated_initialize_rpc_failure"
       ) {

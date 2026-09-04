@@ -38,9 +38,14 @@ import {
   validateCodex01532CandidateQualificationReceiptV01,
 } from "@/lib/vnext/native-host/codex-ordinary-runtime-candidate";
 import {
+  CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
   CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
+  runCodex01532AdapterTransportDiagnosticSequenceV01,
+  runCodex01532AdapterTransportInitializeProbeV01,
   runCodex01532InitializeDiagnosticSequenceV01,
   runCodex01532InitializeOnlyProbeV01,
+  type Codex01532AdapterTransportDiagnosticProbeLabelV01,
+  type Codex01532AdapterTransportDiagnosticProbeResultV01,
   type Codex01532InitializeDiagnosticProbeLabelV01,
   type Codex01532InitializeDiagnosticProbeResultV01,
 } from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
@@ -75,10 +80,13 @@ const previousAuthenticatedCandidateTestMode =
   process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE;
 const previousInitializeDiagnosticTestMode =
   process.env.AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE;
+const previousAdapterTransportDiagnosticTestMode =
+  process.env.AUGNES_CODEX_ADAPTER_TRANSPORT_DIAGNOSIS_TEST_MODE;
 process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE = "1";
 process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE = "1";
 process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE = "1";
 process.env.AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE = "1";
+process.env.AUGNES_CODEX_ADAPTER_TRANSPORT_DIAGNOSIS_TEST_MODE = "1";
 
 const root = realpathSync.native(
   mkdtempSync(path.join(os.tmpdir(), "augnes-codex-candidate-test-")),
@@ -95,6 +103,7 @@ async function mainV01(): Promise<void> {
     await emulatedCredentialFreeConformanceRemainsHoldV01();
     await authenticatedCandidateCapabilityAndLifecycleV01();
     await initializeOnlyDiagnosticContractV01();
+    await adapterTransportInitializeDiagnosticContractV01();
     report = {
       status: "passed",
       contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
@@ -140,6 +149,10 @@ async function mainV01(): Promise<void> {
     restoreEnvironmentV01(
       "AUGNES_CODEX_INITIALIZE_DIAGNOSTIC_TEST_MODE",
       previousInitializeDiagnosticTestMode,
+    );
+    restoreEnvironmentV01(
+      "AUGNES_CODEX_ADAPTER_TRANSPORT_DIAGNOSIS_TEST_MODE",
+      previousAdapterTransportDiagnosticTestMode,
     );
   }
   console.log(JSON.stringify(report));
@@ -1241,6 +1254,293 @@ async function runInitializeDiagnosticFixtureV01(
   } finally {
     removeAuthenticatedFixtureRootsV01(fixtureRoot);
   }
+}
+
+async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> {
+  assert.equal(
+    CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+    "codex_0_153_2_adapter_transport_initialize_diagnostic.v0.1",
+  );
+
+  const immediate = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_initialize_diagnostic_pass",
+    responseBoundMs: 500,
+  });
+  assert.equal(immediate.result.valid_initialize_response_received, true);
+  assert.equal(immediate.result.public_error_class, null);
+  assert.equal(immediate.result.timeout_callback_fired, false);
+  assert.equal(immediate.result.response_id_match, "pending");
+  assert.notEqual(
+    immediate.result.response_deferred_resolved_elapsed_ms,
+    null,
+  );
+  assert.deepEqual(immediate.receivedMethods, ["initialize"]);
+
+  const delayedBefore = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_delayed_before_deadline",
+    responseBoundMs: 500,
+  });
+  assert.equal(delayedBefore.result.valid_initialize_response_received, true);
+  assert.equal(delayedBefore.result.public_error_class, null);
+  assert.equal(delayedBefore.result.response_observed_after_deadline, false);
+
+  const delayedAfter = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_delayed_after_deadline",
+    responseBoundMs: 100,
+    postTimeoutObservationMs: 250,
+  });
+  assert.equal(delayedAfter.result.valid_initialize_response_received, false);
+  assert.equal(delayedAfter.result.public_error_class, "codex_rpc_timeout");
+  assert.equal(delayedAfter.result.timeout_callback_fired, true);
+  assert.equal(delayedAfter.result.response_observed_after_deadline, true);
+  assert.equal(delayedAfter.result.response_id_match, "timed_out");
+
+  const partial = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_partial_jsonl",
+    responseBoundMs: 500,
+  });
+  assert.equal(partial.result.valid_initialize_response_received, true);
+  assert.equal(partial.result.stdout_chunk_count, 2);
+  assert.notEqual(partial.result.first_complete_jsonl_line_elapsed_ms, null);
+
+  const malformed = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_malformed_envelope",
+    responseBoundMs: 500,
+  });
+  assert.equal(malformed.result.public_error_class, "codex_jsonl_malformed");
+  assert.equal(JSON.stringify(malformed.result).includes("sk-never-retained"), false);
+  assert.equal(JSON.stringify(malformed.result).includes("/Users/private"), false);
+
+  const unknownId = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_unknown_response_id",
+    responseBoundMs: 500,
+  });
+  assert.equal(
+    unknownId.result.public_error_class,
+    "codex_rpc_response_unknown_id",
+  );
+  assert.equal(unknownId.result.response_id_match, "unknown");
+
+  const observerDelayed = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T1_normal_observer_1",
+    scenario: "candidate_0_153_2_adapter_transport_observer_delay",
+    responseBoundMs: 400,
+    postTimeoutObservationMs: 250,
+    processTreeObservationDelayMs: 500,
+  });
+  assert.equal(
+    observerDelayed.result.public_error_class,
+    "codex_transport_diagnosis_response_after_deadline",
+  );
+  assert.equal(observerDelayed.result.response_observed_after_deadline, true);
+  assert.equal(
+    observerDelayed.result.periodic_process_tree_observation_count > 0,
+    true,
+  );
+  assert.equal(
+    observerDelayed.result.process_tree_observation_overlapped_rpc_deadline,
+    true,
+  );
+
+  const observerDisabled = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T2_observer_disabled_control",
+    scenario: "candidate_0_153_2_adapter_transport_observer_delay",
+    responseBoundMs: 400,
+    postTimeoutObservationMs: 250,
+  });
+  assert.equal(observerDisabled.result.valid_initialize_response_received, true);
+  assert.equal(observerDisabled.result.public_error_class, null);
+  assert.equal(
+    observerDisabled.result.periodic_process_tree_observation_count,
+    0,
+  );
+  assert.deepEqual(observerDelayed.receivedMethods, ["initialize"]);
+  assert.deepEqual(observerDisabled.receivedMethods, ["initialize"]);
+
+  const passCalls: Codex01532AdapterTransportDiagnosticProbeLabelV01[] = [];
+  const notReproduced =
+    await runCodex01532AdapterTransportDiagnosticSequenceV01({
+      run_probe: async (probe) => {
+        passCalls.push(probe);
+        return syntheticAdapterTransportProbeV01(probe, "pass");
+      },
+    });
+  assert.equal(
+    notReproduced.disposition,
+    "INSTRUMENTED_ADAPTER_TIMEOUT_NOT_REPRODUCED",
+  );
+  assert.deepEqual(passCalls, [
+    "T1_normal_observer_1",
+    "T1_normal_observer_2",
+  ]);
+  assert.deepEqual(notReproduced.skipped_probes, [
+    "T2_observer_disabled_control",
+  ]);
+
+  const causalCalls: Codex01532AdapterTransportDiagnosticProbeLabelV01[] = [];
+  const causal = await runCodex01532AdapterTransportDiagnosticSequenceV01({
+    run_probe: async (probe) => {
+      causalCalls.push(probe);
+      return syntheticAdapterTransportProbeV01(
+        probe,
+        probe === "T2_observer_disabled_control" ? "pass" : "timeout",
+      );
+    },
+  });
+  assert.equal(
+    causal.disposition,
+    "PROCESS_TREE_OBSERVER_CAUSAL_STRONG_EVIDENCE",
+  );
+  assert.deepEqual(causalCalls, [
+    "T1_normal_observer_1",
+    "T2_observer_disabled_control",
+  ]);
+
+  const noStdout = await runCodex01532AdapterTransportDiagnosticSequenceV01({
+    run_probe: async (probe) =>
+      syntheticAdapterTransportProbeV01(probe, "timeout"),
+  });
+  assert.equal(noStdout.disposition, "NO_CHILD_STDOUT_RESPONSE_OBSERVED");
+  assert.equal(noStdout.post_initialize_requests_sent, 0);
+  assert.equal(noStdout.probes.length, 2);
+  assert.equal(
+    JSON.stringify(noStdout).includes("OPENAI_API_KEY"),
+    false,
+  );
+}
+
+async function runAdapterTransportDiagnosticFixtureV01(input: {
+  probe: Codex01532AdapterTransportDiagnosticProbeLabelV01;
+  scenario: string;
+  responseBoundMs: number;
+  postTimeoutObservationMs?: number;
+  processTreeObservationDelayMs?: number;
+}): Promise<{
+  result: Codex01532AdapterTransportDiagnosticProbeResultV01;
+  receivedMethods: string[];
+}> {
+  const fixtureRoot = realpathSync.native(
+    mkdtempSync(path.join(root, "adapter-transport-diagnostic-")),
+  );
+  chmodSync(fixtureRoot, 0o700);
+  const sharedCodexHome = path.join(root, "adapter-transport-codex-home");
+  if (!existsSync(sharedCodexHome)) mkdirSync(sharedCodexHome, { mode: 0o700 });
+  chmodSync(sharedCodexHome, 0o700);
+  const directories = Object.fromEntries(
+    ["execution", "home", "sqlite-home", "tmp", "path"].map((name) => {
+      const target = path.join(fixtureRoot, name);
+      mkdirSync(target, { mode: 0o700 });
+      chmodSync(target, 0o700);
+      return [name, realpathSync.native(target)];
+    }),
+  );
+  const tracePath = path.join(fixtureRoot, "trace.jsonl");
+  try {
+    const result = await runCodex01532AdapterTransportInitializeProbeV01({
+      probe: input.probe,
+      command: process.execPath,
+      expected_native_sha256: expectedNodeFingerprintV01(),
+      private_root: fixtureRoot,
+      execution_root: directories.execution!,
+      environment: {
+        NODE_ENV: "test",
+        HOME: directories.home,
+        CODEX_HOME: realpathSync.native(sharedCodexHome),
+        CODEX_SQLITE_HOME: directories["sqlite-home"],
+        TMPDIR: directories.tmp,
+        PATH: directories.path,
+        LANG: "C",
+        LC_ALL: "C",
+        TZ: "UTC",
+        NO_COLOR: "1",
+        FAKE_CODEX_SCENARIO: input.scenario,
+        FAKE_CODEX_TRACE_PATH: tracePath,
+      },
+      protected_surfaces_unchanged: true,
+      test_only: {
+        fixture_path: fixturePathV01(),
+        response_bound_ms: input.responseBoundMs,
+        post_timeout_observation_ms: input.postTimeoutObservationMs ?? 100,
+        process_tree_observation_delay_ms:
+          input.processTreeObservationDelayMs ?? 0,
+      },
+    });
+    const traces = existsSync(tracePath)
+      ? readFileSync(tracePath, "utf8")
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => JSON.parse(line) as Record<string, any>)
+      : [];
+    const receivedMethods = traces
+      .filter(({ kind }) => kind === "received")
+      .map(({ value }) => String(value?.method ?? ""));
+    assert.equal(result.process_settled, true);
+    assert.equal(result.streams_closed, true);
+    assert.equal(result.remaining_owned_processes, 0);
+    assert.deepEqual(receivedMethods, ["initialize"]);
+    return { result, receivedMethods };
+  } finally {
+    removeAuthenticatedFixtureRootsV01(fixtureRoot);
+  }
+}
+
+function syntheticAdapterTransportProbeV01(
+  probe: Codex01532AdapterTransportDiagnosticProbeLabelV01,
+  outcome: "pass" | "timeout",
+): Codex01532AdapterTransportDiagnosticProbeResultV01 {
+  const passed = outcome === "pass";
+  const responseBoundMs = 10_000;
+  return {
+    diagnostic_version:
+      "codex_0_153_2_adapter_transport_initialize_diagnostic.v0.1",
+    transport_diagnosis_version:
+      "codex_stdio_initialize_transport_diagnosis.v0.1",
+    probe,
+    periodic_process_tree_observer:
+      probe === "T2_observer_disabled_control"
+        ? "disabled_control"
+        : "enabled",
+    native_sha256: `sha256:${"a".repeat(64)}`,
+    initialize_request_sent: true,
+    valid_initialize_response_received: passed,
+    initialize_user_agent_validated: passed,
+    returned_codex_home_validated_locally: passed,
+    response_bound_ms: responseBoundMs,
+    deadline_monotonic_elapsed_ms: responseBoundMs,
+    timeout_callback_fired: !passed,
+    timeout_callback_lateness_ms: passed ? null : 1,
+    first_stdout_chunk_elapsed_ms: passed ? 10 : null,
+    first_complete_jsonl_line_elapsed_ms: passed ? 10 : null,
+    first_response_classified_elapsed_ms: passed ? 10 : null,
+    response_id_match: passed ? "pending" : null,
+    response_deferred_resolved_elapsed_ms: passed ? 10 : null,
+    stdout_chunk_count: passed ? 1 : 0,
+    total_stdout_bytes: passed ? 128 : 0,
+    response_observed_after_deadline: false,
+    process_tree_observation_count: 1,
+    periodic_process_tree_observation_count:
+      probe === "T2_observer_disabled_control" ? 0 : 1,
+    process_tree_descendant_scan_call_count: 1,
+    process_tree_max_observation_ms: 1,
+    process_tree_cumulative_observation_ms_before_rpc_outcome: 1,
+    process_tree_known_owned_process_count_min: 1,
+    process_tree_known_owned_process_count_max: 1,
+    process_tree_observation_overlapped_rpc_deadline: false,
+    public_error_class: passed ? null : "codex_rpc_timeout",
+    process_settled: true,
+    streams_closed: true,
+    remaining_owned_processes: 0,
+    protected_surfaces_unchanged: true,
+    post_initialize_requests_sent: 0,
+    observations: [],
+  };
 }
 
 function syntheticDiagnosticProbeV01(
