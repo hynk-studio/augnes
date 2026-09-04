@@ -21,6 +21,7 @@ import { gunzipSync } from "node:zlib";
 
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
+  getCodexReviewedRuntimeArtifactV01,
   selectCodexQualifiedRuntimeEntryV01,
   validateCodexQualifiedRuntimeRegistryV01,
   type CodexQualifiedRuntimeArtifactV01,
@@ -114,6 +115,102 @@ export class CodexManagedRuntimeStoreErrorV01 extends Error {
     super(code);
     this.name = "CodexManagedRuntimeStoreErrorV01";
   }
+}
+
+/**
+ * Qualification-only extraction into a caller-owned empty disposable root.
+ * This does not publish to the managed store and grants no lane eligibility.
+ */
+export function extractReviewedCodexCandidateArchiveV01(input: {
+  entry_id: string;
+  archive_bytes: Buffer;
+  destination: string;
+  environment?: NodeJS.ProcessEnv;
+}): {
+  native_executable: string;
+  archive_size_bytes: number;
+  archive_digest: string;
+  archive_member_name: string;
+  extracted_native_size_bytes: number;
+  native_executable_sha256: string;
+  cli_version: string;
+} {
+  const reviewed = getCodexReviewedRuntimeArtifactV01({
+    entry_id: input.entry_id,
+  });
+  const artifact = reviewed.artifact;
+  const evidence = artifact.qualification_evidence;
+  if (
+    evidence.kind !== "candidate_source_schema_review_v0_1" ||
+    artifact.lanes.ordinary_chatgpt_auth.status !== "candidate" ||
+    evidence.source_schema_review.compatibility_profile_decision !==
+      "reuse_supported_pending_authenticated_ordinary_canary" ||
+    evidence.source_schema_review.deltas.some(
+      ({ classification }) =>
+        classification === "changed_profile_required" ||
+        classification === "incompatible_or_unresolved",
+    )
+  )
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_ineligible",
+    );
+  const destination = realpathSync.native(input.destination);
+  const destinationStat = lstatSync(destination);
+  if (
+    destination !== path.resolve(input.destination) ||
+    !destinationStat.isDirectory() ||
+    destinationStat.isSymbolicLink() ||
+    (destinationStat.mode & 0o077) !== 0 ||
+    readdirSync(destination).length !== 0
+  )
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_store_root_invalid",
+    );
+  verifyArchiveIdentityV01(input.archive_bytes, artifact);
+  const extracted = extractReviewedArchiveV01(input.archive_bytes, artifact);
+  const expected = evidence.source_schema_review.candidate;
+  if (
+    expected.archive_member_name !== `codex-${artifact.upstream_target_triple}` ||
+    extracted.bytes.length !== expected.extracted_native_size_bytes
+  )
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_native_identity_mismatch",
+    );
+  const nativeExecutable = path.join(destination, expected.archive_member_name);
+  writeFileSync(nativeExecutable, extracted.bytes, { flag: "wx", mode: 0o555 });
+  chmodSync(nativeExecutable, 0o555);
+  const canonicalNative = realpathSync.native(nativeExecutable);
+  const stat = lstatSync(canonicalNative);
+  if (
+    canonicalNative !== nativeExecutable ||
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.size !== expected.extracted_native_size_bytes ||
+    (stat.mode & 0o7777) !== 0o555 ||
+    !isPhysicalChildV01(destination, canonicalNative) ||
+    sha256FileV01(canonicalNative) !== artifact.native_executable_sha256 ||
+    !inspectNativeV01(canonicalNative, artifact)
+  )
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_native_identity_mismatch",
+    );
+  const cliVersion = readCliVersionV01(
+    canonicalNative,
+    input.environment ?? process.env,
+  );
+  if (cliVersion !== artifact.version)
+    throw new CodexManagedRuntimeStoreErrorV01(
+      "codex_managed_runtime_native_identity_mismatch",
+    );
+  return Object.freeze({
+    native_executable: canonicalNative,
+    archive_size_bytes: input.archive_bytes.length,
+    archive_digest: sha256BufferV01(input.archive_bytes),
+    archive_member_name: expected.archive_member_name,
+    extracted_native_size_bytes: stat.size,
+    native_executable_sha256: sha256FileV01(canonicalNative),
+    cli_version: cliVersion,
+  });
 }
 
 export async function ensurePinnedCodexManagedRuntimeV01(input: {

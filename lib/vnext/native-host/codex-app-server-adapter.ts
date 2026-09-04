@@ -1187,29 +1187,36 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
 
 type CredentialFreeExactProfileStateV01 =
   CodexIsolatedAuthCredentialFreePreflightV01["state"];
-type CredentialFreeExactProfileResultV01 = {
+export type CredentialFreeExactProfileResultV01 = {
   state: CredentialFreeExactProfileStateV01;
   observed_cli_version: string | null;
   cli_reported_version: string | null;
   observed_policy_fingerprint: string | null;
   runtime_exercised_methods: string[];
+  observed_notifications: string[];
   executable_fingerprint: string;
   private_environment_observed: boolean;
+  account_disposition: "unauthenticated_empty_state" | null;
+  process_settled: boolean;
   cleanup_completed: boolean;
   observed_at: string;
 };
 
-async function probeCodexCredentialFreeExactProfileV01(input: {
+export async function probeCodexCredentialFreeExactProfileV01(input: {
   command: string;
   expected_executable_fingerprint: string;
   executable_identity_class:
     | "production_pinned_codex"
     | "qualification_candidate_codex_0_152_1"
-    | "test_emulated_profile";
+    | "qualification_candidate_codex_0_153_2"
+    | "test_emulated_profile"
+    | "test_emulated_candidate_0_153_2";
   accepted_exact_identity: boolean;
   expected_cli_version: string;
   config_override_args: readonly string[];
   run_cli_version_probe: boolean;
+  require_unauthenticated_account?: boolean;
+  allowed_notifications?: readonly string[];
   observe_semantic_profile: (input: {
     initialized: Record<string, unknown>;
     config: Record<string, unknown>;
@@ -1238,10 +1245,13 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
   let cliReportedVersion: string | null = null;
   let observedPolicyFingerprint: string | null = null;
   const runtimeExercisedMethods: string[] = [];
+  const observedNotifications: string[] = [];
   let executableFingerprint = input.expected_executable_fingerprint;
   let privateEnvironmentObserved = false;
+  let accountDisposition: "unauthenticated_empty_state" | null = null;
   let state: CredentialFreeExactProfileStateV01 = "unavailable";
   let cleanupCompleted = false;
+  let processSettled = true;
   let root: string | null = null;
   let transport: CodexStdioJsonRpcTransportV01 | null = null;
   try {
@@ -1252,8 +1262,10 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
       .digest("hex")}`;
     executableFingerprint = commandFingerprint;
     const testExact =
-      input.executable_identity_class === "test_emulated_profile" &&
-      process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1";
+      (input.executable_identity_class === "test_emulated_profile" &&
+        process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE === "1") ||
+      (input.executable_identity_class === "test_emulated_candidate_0_153_2" &&
+        process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE === "1");
     if (
       !commandStat.isFile() ||
       commandStat.isSymbolicLink() ||
@@ -1267,8 +1279,11 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
         cli_reported_version: cliReportedVersion,
         observed_policy_fingerprint: observedPolicyFingerprint,
         runtime_exercised_methods: runtimeExercisedMethods,
+        observed_notifications: observedNotifications,
         executable_fingerprint: executableFingerprint,
         private_environment_observed: privateEnvironmentObserved,
+        account_disposition: accountDisposition,
+        process_settled: processSettled,
         cleanup_completed: true,
         observed_at: observedAt,
       };
@@ -1357,7 +1372,16 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
       ],
       cwd: realpathSync(input.repository_root),
       environment,
-      onNotification: async () => undefined,
+      onNotification: async (method) => {
+        if (
+          input.allowed_notifications &&
+          !input.allowed_notifications.includes(method)
+        )
+          throw new CodexProtocolErrorV01(
+            "codex_candidate_unexpected_notification",
+          );
+        observedNotifications.push(method);
+      },
       onServerRequest: async () => {
         throw new CodexProtocolErrorV01(
           "codex_isolated_auth_preflight_server_request_refused",
@@ -1379,6 +1403,18 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
     );
     transport.notify("initialized", {});
     runtimeExercisedMethods.push("initialized");
+    if (input.require_unauthenticated_account) {
+      runtimeExercisedMethods.push("account/read");
+      const account = objectV01(
+        await transport.request("account/read", { refreshToken: false }),
+        "codex_account_response_invalid",
+      );
+      if (account.account !== null || account.requiresOpenaiAuth !== true)
+        throw new CodexProtocolErrorV01(
+          "codex_candidate_account_disposition_mismatch",
+        );
+      accountDisposition = "unauthenticated_empty_state";
+    }
     runtimeExercisedMethods.push("config/read");
     const config = objectV01(
       await transport.request("config/read", {
@@ -1415,6 +1451,8 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
     else if (
       code === "codex_required_method_unavailable" ||
       code === "codex_initialize_response_invalid" ||
+      code === "codex_account_response_invalid" ||
+      code === "codex_candidate_account_disposition_mismatch" ||
       code === "codex_config_response_invalid" ||
       (typeof code === "string" &&
         code.startsWith("codex_app_server_user_agent_"))
@@ -1422,11 +1460,12 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
       state = "method_shape_mismatch";
     else state = "unavailable";
   } finally {
-    if (transport) await transport.shutdown().catch(() => false);
+    if (transport)
+      processSettled = await transport.shutdown().catch(() => false);
     if (root) {
       try {
         rmSync(root, { recursive: true, force: false });
-        cleanupCompleted = true;
+        cleanupCompleted = processSettled;
       } catch {
         cleanupCompleted = false;
       }
@@ -1438,8 +1477,11 @@ async function probeCodexCredentialFreeExactProfileV01(input: {
     cli_reported_version: cliReportedVersion,
     observed_policy_fingerprint: observedPolicyFingerprint,
     runtime_exercised_methods: runtimeExercisedMethods,
+    observed_notifications: observedNotifications,
     executable_fingerprint: executableFingerprint,
     private_environment_observed: privateEnvironmentObserved,
+    account_disposition: accountDisposition,
+    process_settled: processSettled,
     cleanup_completed: cleanupCompleted,
     observed_at: observedAt,
   };

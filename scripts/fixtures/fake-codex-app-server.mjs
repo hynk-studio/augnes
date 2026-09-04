@@ -27,6 +27,7 @@ const scenario =
     ? "browser_two_sequential_approvals"
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
+const candidate01532Scenario = scenario.startsWith("candidate_0_153_2_");
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -278,6 +279,7 @@ async function handle(message) {
       respond(
         message.id,
         scenario === "unauthenticated" ||
+        candidate01532Scenario ||
         scenario === "isolated_auth_unauthenticated"
           ? { account: null, requiresOpenaiAuth: true }
           : {
@@ -317,6 +319,24 @@ async function handle(message) {
       return;
     }
     if (message.method === "config/read") {
+      if (candidate01532Scenario) {
+        const entries = isolatedAuthRuntimeOverrideEntriesV01(
+          process.argv.slice(2, -2),
+        );
+        const config = isolatedAuthRuntimeOverrideProjectionV01(entries);
+        config.features = {
+          background_paginated_rollout_migration: false,
+          remote_control: false,
+          ...(config.features ?? {}),
+        };
+        respond(message.id, {
+          config,
+          origins: {},
+          layers: [],
+          requirements: [],
+        });
+        return;
+      }
       const provenance = isolatedAuthScenario
         ? isolatedAuthConfigReadProvenanceV01(scenario)
         : { origins: {}, layers: [], requirements: [] };
@@ -838,6 +858,12 @@ function fakeCodexUserAgentV01(value, clientInfo) {
     typeof clientInfo?.version === "string"
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
+  if (value.startsWith("candidate_0_153_2_")) {
+    const cliVersion = value === "candidate_0_153_2_wrong_user_agent"
+      ? "0.153.1"
+      : "0.153.2";
+    return `${name}/${cliVersion} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
+  }
   if (!value.startsWith("isolated_auth_"))
     return `${name}/0.152.1 (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
   const qualification01521 = value.startsWith(

@@ -8,6 +8,7 @@ import {
   CodexQualifiedRuntimeRegistryErrorV01,
   codexRuntimeCompatibilityProfileFingerprintV01,
   getPinnedCodexReviewedRuntimeArtifactV01,
+  legacyExactCodexQualificationEvidenceV01,
   selectPinnedCodexQualifiedRuntimeV01,
   validateCodexQualifiedRuntimeRegistryV01,
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
@@ -49,7 +50,10 @@ console.log(
     selected_version: selected.artifact.version,
     ordinary_lane: selected.artifact.lanes.ordinary_chatgpt_auth.status,
     strict_lane: selected.artifact.lanes.strict_agent_identity.status,
-    production_entry_count: registry.artifacts.length,
+    registry_artifact_count: registry.artifacts.length,
+    ordinary_qualified_entry_count: registry.artifacts.filter(
+      (artifact) => artifact.lanes.ordinary_chatgpt_auth.status === "qualified",
+    ).length,
     runtime_manifest_mutation_available: false,
     provider_model_calls: 0,
     strict_agent_identity_registration_attempts: 0,
@@ -65,7 +69,7 @@ function exactSeedIdentityV01(): void {
     production_promotion: "checked_in_reviewed_manifest_change_required",
   });
   assert.equal(registry.compatibility_profiles.length, 1);
-  assert.equal(registry.artifacts.length, 1);
+  assert.equal(registry.artifacts.length, 2);
   assert.deepEqual(registry.production_selection, {
     mode: "pinned_exact",
     lane: "ordinary_chatgpt_auth",
@@ -118,11 +122,12 @@ function exactSeedIdentityV01(): void {
   assert.equal(artifact.not_after, null);
   assert.equal(artifact.security_floor, null);
   assert.equal(
-    artifact.legacy_exact_qualification_evidence.semantic_profile_fingerprint,
+    legacyExactCodexQualificationEvidenceV01(artifact)
+      .semantic_profile_fingerprint,
     CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01,
   );
   assert.equal(
-    artifact.legacy_exact_qualification_evidence
+    legacyExactCodexQualificationEvidenceV01(artifact)
       .ordinary_deciding_receipt_fingerprint,
     "6382188b98b4cf9388861428adc1219962f586c5e47ecd6c0ab09a9ae4fc1178",
   );
@@ -304,10 +309,12 @@ function laneSelectionIsIndependentV01(): void {
     getPinnedCodexReviewedRuntimeArtifactV01().artifact.entry_id,
     selected.artifact.entry_id,
   );
-  assert.equal(
-    registry.artifacts.some((artifact) => artifact.version === "0.153.0"),
-    false,
+  const candidate = registry.artifacts.find(
+    (artifact) => artifact.version === "0.153.2",
   );
+  assert.ok(candidate);
+  assert.equal(candidate.lanes.ordinary_chatgpt_auth.status, "candidate");
+  assert.equal(candidate.lanes.strict_agent_identity.status, "hold");
 }
 
 function implementedProfileBindingRefusesSemanticMutationV01(): void {
@@ -350,8 +357,8 @@ function implementedProfileBindingRefusesSemanticMutationV01(): void {
         profile_schema_version: profile.profile_schema_version,
         semantics: profile.semantics,
       });
-      value.artifacts[0]!.compatibility_profile_fingerprint =
-        profile.fingerprint;
+      for (const artifact of value.artifacts)
+        artifact.compatibility_profile_fingerprint = profile.fingerprint;
       const unsupported = selectPinnedCodexQualifiedRuntimeV01({
         registry: value,
         lane: "ordinary_chatgpt_auth",

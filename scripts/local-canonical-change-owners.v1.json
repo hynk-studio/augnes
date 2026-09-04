@@ -66,6 +66,21 @@
       }
     },
     {
+      "id": "codex-ordinary-runtime-candidate",
+      "phase_ids": [
+        "typecheck",
+        "integration"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "exact_paths": [
+          "lib/vnext/native-host/codex-ordinary-runtime-candidate.ts",
+          "scripts/canary-codex-0-153-2-candidate.ts",
+          "scripts/test-codex-ordinary-runtime-candidate.ts"
+        ]
+      }
+    },
+    {
       "id": "temporal-interpretation-preview",
       "phase_ids": [
         "typecheck",

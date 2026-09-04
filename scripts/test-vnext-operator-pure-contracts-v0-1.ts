@@ -613,6 +613,14 @@ assert.equal(
   true,
 );
 assert.equal(
+  packageScripts.includes('"test:codex-ordinary-runtime-candidate"'),
+  true,
+);
+assert.equal(
+  canonicalSuite.includes("scripts/test-codex-ordinary-runtime-candidate.ts"),
+  true,
+);
+assert.equal(
   canonicalSuite.includes("browser-validate-vnext-native-host-result-v0-1.mjs"),
   false,
 );
