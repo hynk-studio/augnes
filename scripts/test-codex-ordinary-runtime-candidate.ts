@@ -42,6 +42,7 @@ import {
   CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
   CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
   CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
+  CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01,
   runCodex01532AdapterTransportDiagnosticSequenceV01,
   runCodex01532AdapterTransportInitializeProbeV01,
   runCodex01532InitializeDiagnosticSequenceV01,
@@ -116,6 +117,7 @@ async function mainV01(): Promise<void> {
     await adapterTransportInitializeDiagnosticContractV01();
     await parentStdinBoundaryDiagnosticContractV01();
     await initializeWireFieldIsolationDiagnosticContractV01();
+    await initializeRequestIdBracketDiagnosticContractV01();
     report = {
       status: "passed",
       contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
@@ -1840,6 +1842,86 @@ async function initializeWireFieldIsolationDiagnosticContractV01(): Promise<void
   assert.equal(w2Timeout.post_initialize_requests_sent, 0);
 }
 
+async function initializeRequestIdBracketDiagnosticContractV01(): Promise<void> {
+  const labels = ["F0_fixed_baseline", "U1_generated_uuid", "F2_fixed_bracket"] as const;
+  const received: Record<string, any>[] = [];
+  const pair = await runCodex01532InitializeWireIsolationSequenceV01({
+    sequence_kind: "request_id_bracket",
+    run_probe: async (probe) => {
+      const observed = await runFakeInitializeWireIsolationProbeV01(probe);
+      received.push(observed.received);
+      return observed.result;
+    },
+  });
+  assert.equal(pair.disposition, "REQUEST_ID_TIMEOUT_NOT_REPRODUCED_CONTEMPORANEOUSLY");
+  assert.deepEqual(pair.probes.map(({ probe }) => probe), labels.slice(0, 2));
+  assert.deepEqual(pair.skipped_probes, [labels[2]]);
+  const repeat = await runFakeInitializeWireIsolationProbeV01(labels[2]);
+  received.push(repeat.received);
+  assert.equal(received[0]!.id, CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01);
+  assert.match(received[1]!.id, /^augnes:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
+  assert.equal(received[2]!.id, received[0]!.id);
+  for (const wire of received) {
+    const { id: _privateId, ...common } = wire;
+    const { id: _baselineId, ...baseline } = received[0]!;
+    assert.deepEqual(common, baseline);
+    assert.deepEqual(wire.client_info, {
+      name: "augnes-initialize-diagnostic",
+      title: "Augnes initialize-only diagnostic",
+      version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    });
+    assert.equal(wire.capabilities, null);
+    assert.equal(wire.method, "initialize");
+    assert.equal(JSON.stringify([pair, repeat.result]).includes(String(wire.id)), false);
+  }
+  assert.deepEqual([...pair.probes, repeat.result].map(({ request_id_class }) => request_id_class),
+    ["fixed_baseline", "generated_uuid", "fixed_baseline"]);
+
+  const cases = [
+    { outcomes: ["timeout"], disposition: "FIXED_ID_BASELINE_NOW_TIMEOUT" },
+    { outcomes: ["pass", "pass"], disposition: "REQUEST_ID_TIMEOUT_NOT_REPRODUCED_CONTEMPORANEOUSLY" },
+    { outcomes: ["pass", "timeout", "pass"], disposition: "REQUEST_ID_SHAPE_EFFECT_CONTEMPORANEOUSLY_BRACKETED" },
+    { outcomes: ["pass", "timeout", "timeout"], disposition: "REQUEST_ID_EFFECT_CONFOUNDED_BY_SEQUENCE_STATE_DRIFT" },
+  ] as const;
+  for (const { outcomes, disposition } of cases) {
+    const calls: Codex01532InitializeWireIsolationProbeLabelV01[] = [];
+    const result = await runCodex01532InitializeWireIsolationSequenceV01({
+      sequence_kind: "request_id_bracket",
+      run_probe: async (probe) => {
+        assert.equal(probe, labels[calls.length]);
+        const outcome = outcomes[calls.length];
+        assert.ok(outcome, "no extra probe or retry");
+        calls.push(probe);
+        return syntheticInitializeWireIsolationProbeV01(probe, outcome);
+      },
+    });
+    assert.equal(result.disposition, disposition);
+    assert.deepEqual(calls, labels.slice(0, outcomes.length));
+    assert.deepEqual(result.skipped_probes, labels.slice(outcomes.length));
+    assert.equal(result.initialize_requests_sent, outcomes.length);
+    assert.equal(result.post_initialize_requests_sent, 0);
+  }
+  // Neither a changed protected surface nor incomplete cleanup can admit F2.
+  for (const drift of [
+    { protected_surfaces_unchanged: false }, { remaining_owned_processes: 1 },
+    { streams_closed: false }, { public_error_class: "initialize_rpc_failure" as const },
+  ]) {
+    const calls: string[] = [];
+    const result = await runCodex01532InitializeWireIsolationSequenceV01({
+      sequence_kind: "request_id_bracket",
+      run_probe: async (probe) => {
+        calls.push(probe);
+        assert.notEqual(probe, labels[2]);
+        return probe === labels[0]
+          ? syntheticInitializeWireIsolationProbeV01(probe, "pass")
+          : { ...syntheticInitializeWireIsolationProbeV01(probe, "timeout"), ...drift };
+      },
+    });
+    assert.equal(result.disposition, "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE");
+    assert.deepEqual(calls, labels.slice(0, 2));
+  }
+}
+
 async function runFakeInitializeWireIsolationProbeV01(
   probe: Codex01532InitializeWireIsolationProbeLabelV01,
 ): Promise<{
@@ -1973,15 +2055,19 @@ function syntheticInitializeWireIsolationProbeV01(
     changed_field_from_prior_control:
       probe === "W1_adapter_request_id_control"
         ? "request_id_class_only_from_passing_baseline"
-        : "title_only_from_W1",
+        : probe === "W2_canary_title_control" ? "title_only_from_W1"
+          : probe === "F0_fixed_baseline" ? "current_fixed_baseline"
+            : probe === "U1_generated_uuid" ? "request_id_only_from_F0" : "fixed_id_bracket_repeat",
     client_name: "augnes-initialize-diagnostic",
     client_title:
-      probe === "W1_adapter_request_id_control"
-        ? "Augnes initialize-only diagnostic"
-        : "Augnes ordinary candidate canary",
+      probe === "W2_canary_title_control"
+        ? "Augnes ordinary candidate canary"
+        : "Augnes initialize-only diagnostic",
     client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
     capabilities: null,
-    request_id_class: "augnes_uuid_v4",
+    request_id_class: probe === "U1_generated_uuid" ? "generated_uuid"
+      : probe === "F0_fixed_baseline" || probe === "F2_fixed_bracket" ? "fixed_baseline"
+        : "augnes_uuid_v4",
   };
 }
 

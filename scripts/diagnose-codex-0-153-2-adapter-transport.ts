@@ -29,7 +29,7 @@ import {
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 
 const REQUIRED_FLAG =
-  "--exact-reviewed-initialize-wire-field-isolation-0.153.2-once";
+  "--exact-reviewed-initialize-request-id-bracket-0.153.2-once";
 const BASE_COMMIT = "8eb6b7af220fe8d7e244bb616205c797d7965142";
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 
@@ -143,6 +143,7 @@ async function mainV01(): Promise<void> {
       poisonPath,
     });
     const result = await runCodex01532InitializeWireIsolationSequenceV01({
+      sequence_kind: "request_id_bracket",
       run_probe: async (probe) => {
         const observed = await runCodex01532InitializeWireIsolationProbeV01({
           probe,
@@ -170,6 +171,7 @@ async function mainV01(): Promise<void> {
     disposableRoot = null;
     const report = {
       diagnostic_version: result.diagnostic_version,
+      sequence_kind: result.sequence_kind,
       disposition: result.disposition,
       diagnostic_fingerprint: result.diagnostic_fingerprint,
       augnes_head: source.head_commit,

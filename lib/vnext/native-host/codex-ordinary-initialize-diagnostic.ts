@@ -308,12 +308,19 @@ export const CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01 =
 
 export type Codex01532InitializeWireIsolationProbeLabelV01 =
   | "W1_adapter_request_id_control"
-  | "W2_canary_title_control";
+  | "W2_canary_title_control"
+  | "F0_fixed_baseline"
+  | "U1_generated_uuid"
+  | "F2_fixed_bracket";
 
 export type Codex01532InitializeWireIsolationDispositionV01 =
   | "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED"
   | "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED"
   | "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED"
+  | "FIXED_ID_BASELINE_NOW_TIMEOUT"
+  | "REQUEST_ID_TIMEOUT_NOT_REPRODUCED_CONTEMPORANEOUSLY"
+  | "REQUEST_ID_SHAPE_EFFECT_CONTEMPORANEOUSLY_BRACKETED"
+  | "REQUEST_ID_EFFECT_CONFOUNDED_BY_SEQUENCE_STATE_DRIFT"
   | "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
 
 export interface Codex01532InitializeWireIsolationProbeResultV01
@@ -328,22 +335,26 @@ export interface Codex01532InitializeWireIsolationProbeResultV01
   probe: Codex01532InitializeWireIsolationProbeLabelV01;
   changed_field_from_prior_control:
     | "request_id_class_only_from_passing_baseline"
-    | "title_only_from_W1";
+    | "title_only_from_W1"
+    | "current_fixed_baseline"
+    | "request_id_only_from_F0"
+    | "fixed_id_bracket_repeat";
   client_name: typeof CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01;
   client_title:
     | "Augnes initialize-only diagnostic"
     | "Augnes ordinary candidate canary";
   client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
   capabilities: null;
-  request_id_class: "augnes_uuid_v4";
+  request_id_class: "augnes_uuid_v4" | "fixed_baseline" | "generated_uuid";
 }
 
 export interface Codex01532InitializeWireIsolationSequenceV01 {
   diagnostic_version: typeof CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01;
+  sequence_kind: "wire_field_isolation" | "request_id_bracket";
   disposition: Codex01532InitializeWireIsolationDispositionV01;
   probes: readonly Codex01532InitializeWireIsolationProbeResultV01[];
   skipped_probes: readonly Codex01532InitializeWireIsolationProbeLabelV01[];
-  initialize_requests_sent: 1 | 2;
+  initialize_requests_sent: number;
   post_initialize_requests_sent: 0;
   diagnostic_fingerprint: string;
 }
@@ -357,10 +368,16 @@ export async function runCodex01532InitializeWireIsolationProbeV01(
   const observed = await runCodex01532DirectInitializeProbeCoreV01(
     { ...input, probe: "B_split_home_real_codex_home" },
     {
-      request_id: `augnes:${randomUUID()}`,
+      request_id:
+        wire.request_id_class === "fixed_baseline"
+          ? CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01
+          : `augnes:${randomUUID()}`,
       client_name: wire.client_name,
       client_title: wire.client_title,
-      request_id_class: "augnes_uuid_v4",
+      request_id_class:
+        wire.request_id_class === "fixed_baseline"
+          ? "fixed_diagnostic"
+          : "augnes_uuid_v4",
     },
   );
   const {
@@ -373,15 +390,12 @@ export async function runCodex01532InitializeWireIsolationProbeV01(
     diagnostic_version: CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
     probe: input.probe,
     environment_shape: "private_home_real_codex_home" as const,
-    changed_field_from_prior_control:
-      input.probe === "W1_adapter_request_id_control"
-        ? ("request_id_class_only_from_passing_baseline" as const)
-        : ("title_only_from_W1" as const),
+    changed_field_from_prior_control: wire.changed_field_from_prior_control,
     client_name: wire.client_name,
     client_title: wire.client_title,
     client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
     capabilities: null,
-    request_id_class: "augnes_uuid_v4" as const,
+    request_id_class: wire.request_id_class,
   });
   assertInitializeWireIsolationProbeResultV01(result, input.probe);
   assertPublicSafeV01(result);
@@ -389,44 +403,91 @@ export async function runCodex01532InitializeWireIsolationProbeV01(
 }
 
 export async function runCodex01532InitializeWireIsolationSequenceV01(input: {
+  sequence_kind?: "wire_field_isolation" | "request_id_bracket";
   run_probe(
     probe: Codex01532InitializeWireIsolationProbeLabelV01,
   ): Promise<Codex01532InitializeWireIsolationProbeResultV01>;
 }): Promise<Codex01532InitializeWireIsolationSequenceV01> {
   if (typeof input.run_probe !== "function")
     throw new Error("codex_initialize_wire_isolation_runner_invalid");
+  const sequenceKind = input.sequence_kind ?? "wire_field_isolation";
+  if (!["wire_field_isolation", "request_id_bracket"].includes(sequenceKind))
+    throw new Error("codex_initialize_wire_isolation_sequence_invalid");
   const probes: Codex01532InitializeWireIsolationProbeResultV01[] = [];
   const run = async (probe: Codex01532InitializeWireIsolationProbeLabelV01) => {
     const result = await input.run_probe(probe);
     assertInitializeWireIsolationProbeResultV01(result, probe);
+    assertPublicSafeV01(result);
     probes.push(result);
     return result;
   };
 
-  const w1 = await run("W1_adapter_request_id_control");
   let disposition: Codex01532InitializeWireIsolationDispositionV01;
   let skipped: readonly Codex01532InitializeWireIsolationProbeLabelV01[] = [];
-  if (!initializeWireIsolationProbePassedV01(w1)) {
-    disposition =
-      w1.public_error_class === "initialize_timeout"
-        ? "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED"
+  if (sequenceKind === "request_id_bracket") {
+    // A timeout is usable for bracketing only after safe settlement. An
+    // integrity/cleanup failure must never authorize the next child.
+    const safeTimeout = (
+      result: Codex01532InitializeWireIsolationProbeResultV01,
+    ) =>
+      result.public_error_class === "initialize_timeout" &&
+      !result.valid_initialize_response_received &&
+      !result.response_bound_met &&
+      result.initialize_request_sent &&
+      result.process_settled &&
+      result.streams_closed &&
+      result.remaining_owned_processes === 0 &&
+      result.protected_surfaces_unchanged;
+    const f0 = await run("F0_fixed_baseline");
+    if (!initializeWireIsolationProbePassedV01(f0)) {
+      disposition = safeTimeout(f0)
+        ? "FIXED_ID_BASELINE_NOW_TIMEOUT"
         : "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
-    skipped = ["W2_canary_title_control"];
+      skipped = ["U1_generated_uuid", "F2_fixed_bracket"];
+    } else {
+      const u1 = await run("U1_generated_uuid");
+      if (initializeWireIsolationProbePassedV01(u1)) {
+        disposition = "REQUEST_ID_TIMEOUT_NOT_REPRODUCED_CONTEMPORANEOUSLY";
+        skipped = ["F2_fixed_bracket"];
+      } else if (!safeTimeout(u1)) {
+        disposition = "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+        skipped = ["F2_fixed_bracket"];
+      } else {
+        const f2 = await run("F2_fixed_bracket");
+        disposition = initializeWireIsolationProbePassedV01(f2)
+          ? "REQUEST_ID_SHAPE_EFFECT_CONTEMPORANEOUSLY_BRACKETED"
+          : safeTimeout(f2)
+            ? "REQUEST_ID_EFFECT_CONFOUNDED_BY_SEQUENCE_STATE_DRIFT"
+            : "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+      }
+    }
   } else {
-    const w2 = await run("W2_canary_title_control");
-    if (initializeWireIsolationProbePassedV01(w2))
-      disposition = "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED";
-    else if (w2.public_error_class === "initialize_timeout")
-      disposition = "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED";
-    else disposition = "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+    const w1 = await run("W1_adapter_request_id_control");
+    if (!initializeWireIsolationProbePassedV01(w1)) {
+      disposition =
+        w1.public_error_class === "initialize_timeout"
+          ? "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED"
+          : "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+      skipped = ["W2_canary_title_control"];
+    } else {
+      const w2 = await run("W2_canary_title_control");
+      if (initializeWireIsolationProbePassedV01(w2))
+        disposition = "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED";
+      else if (w2.public_error_class === "initialize_timeout")
+        disposition = "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED";
+      else disposition = "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+    }
   }
 
   const material = {
     diagnostic_version: CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
+    sequence_kind: sequenceKind,
     disposition,
     probes,
     skipped_probes: skipped,
-    initialize_requests_sent: probes.length as 1 | 2,
+    initialize_requests_sent: probes.filter(
+      (probe) => probe.initialize_request_sent,
+    ).length,
     post_initialize_requests_sent: 0 as const,
   };
   const result = Object.freeze({
@@ -441,21 +502,38 @@ export async function runCodex01532InitializeWireIsolationSequenceV01(input: {
 
 function initializeWireIsolationTupleV01(
   probe: Codex01532InitializeWireIsolationProbeLabelV01,
-): Readonly<{
-  client_name: typeof CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01;
-  client_title:
-    | "Augnes initialize-only diagnostic"
-    | "Augnes ordinary candidate canary";
-}> {
+): Readonly<
+  Pick<Codex01532InitializeWireIsolationProbeResultV01,
+    | "client_name" | "client_title" | "request_id_class"
+    | "changed_field_from_prior_control"
+  >
+> {
+  if (["F0_fixed_baseline", "U1_generated_uuid", "F2_fixed_bracket"].includes(probe))
+    return Object.freeze({
+      client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
+      client_title: "Augnes initialize-only diagnostic",
+      request_id_class:
+        probe === "U1_generated_uuid" ? "generated_uuid" : "fixed_baseline",
+      changed_field_from_prior_control:
+        probe === "F0_fixed_baseline"
+          ? "current_fixed_baseline"
+          : probe === "U1_generated_uuid"
+            ? "request_id_only_from_F0"
+            : "fixed_id_bracket_repeat",
+    });
   if (probe === "W1_adapter_request_id_control")
     return Object.freeze({
       client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
       client_title: "Augnes initialize-only diagnostic" as const,
+      request_id_class: "augnes_uuid_v4",
+      changed_field_from_prior_control: "request_id_class_only_from_passing_baseline",
     });
   if (probe === "W2_canary_title_control")
     return Object.freeze({
       client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
       client_title: "Augnes ordinary candidate canary" as const,
+      request_id_class: "augnes_uuid_v4",
+      changed_field_from_prior_control: "title_only_from_W1",
     });
   throw new Error("codex_initialize_wire_isolation_probe_invalid");
 }
@@ -1595,14 +1673,12 @@ function assertInitializeWireIsolationProbeResultV01(
     value.probe !== expectedProbe ||
     value.environment_shape !== "private_home_real_codex_home" ||
     value.changed_field_from_prior_control !==
-      (expectedProbe === "W1_adapter_request_id_control"
-        ? "request_id_class_only_from_passing_baseline"
-        : "title_only_from_W1") ||
+      expected.changed_field_from_prior_control ||
     value.client_name !== expected.client_name ||
     value.client_title !== expected.client_title ||
     value.client_version !== CODEX_APP_SERVER_CLIENT_VERSION_V01 ||
     value.capabilities !== null ||
-    value.request_id_class !== "augnes_uuid_v4" ||
+    value.request_id_class !== expected.request_id_class ||
     value.post_initialize_requests_sent !== 0
   )
     throw new Error("codex_initialize_wire_isolation_result_invalid");
