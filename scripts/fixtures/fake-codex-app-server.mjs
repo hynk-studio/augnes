@@ -81,6 +81,12 @@ trace("fixture_started", { scenario });
 if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
   process.exit(2);
 }
+if (
+  candidate01532AuthenticatedScenario &&
+  process.argv.includes("--strict-config")
+) {
+  process.exit(6);
+}
 
 if (isolatedAuthScenario) {
   const authSnapshotPath = path.join(process.env.CODEX_HOME ?? "", "auth.json");
@@ -221,6 +227,31 @@ process.on("exit", persistNetworkCount);
 async function handle(message) {
   if (Object.hasOwn(message, "method") && Object.hasOwn(message, "id")) {
     if (message.method === "initialize") {
+      if (
+        scenario ===
+        "candidate_0_153_2_authenticated_exit_before_initialize_response"
+      ) {
+        process.stderr.write(
+          "OPENAI_API_KEY=sk-never-retained /Users/private/auth.json\n",
+        );
+        process.exit(23);
+      }
+      if (
+        scenario === "candidate_0_153_2_authenticated_initialize_no_response"
+      ) {
+        setTimeout(() => process.exit(24), 20);
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_authenticated_initialize_rpc_failure"
+      ) {
+        respondError(
+          message.id,
+          -32000,
+          "secret-looking initialization failure",
+        );
+        return;
+      }
       if (scenario === "unsupported_app_server") {
         respondError(message.id, -32601, "Method not found");
         return;
@@ -323,6 +354,13 @@ async function handle(message) {
     }
     if (message.method === "config/read") {
       if (candidate01532Scenario) {
+        if (scenario === "candidate_0_153_2_authenticated_config_warning") {
+          notify("configWarning", {
+            summary: "unknown behavior-bearing configuration warning",
+            details: "secret-looking value at /Users/private/config.toml",
+          });
+          return;
+        }
         const entries = isolatedAuthRuntimeOverrideEntriesV01(
           process.argv.slice(2, -2),
         );
@@ -332,6 +370,14 @@ async function handle(message) {
           remote_control: false,
           ...(config.features ?? {}),
         };
+        if (
+          scenario === "candidate_0_153_2_authenticated_effective_config_drift"
+        )
+          config.features.plugins = true;
+        if (scenario === "candidate_0_153_2_authenticated_inert_unknown_config")
+          config.ignored_unknown_user_config_field = {
+            effective_behavior: false,
+          };
         respond(message.id, {
           config,
           origins: {},
@@ -527,6 +573,12 @@ async function handle(message) {
         respondError(message.id, -32602, "candidate canary request mismatch");
         return;
       }
+      if (
+        scenario === "candidate_0_153_2_authenticated_turn_start_rpc_failure"
+      ) {
+        respondError(message.id, -32000, "turn start failed");
+        return;
+      }
       turnActive = true;
       persistState({ threadId, sessionId, turnId, status: "inProgress" });
       if (scenario === "browser_two_sequential_approvals") {
@@ -569,7 +621,10 @@ async function handle(message) {
           });
         }
         if (candidate01532AuthenticatedScenario) {
-          if (scenario.endsWith("_success"))
+          if (
+            scenario.endsWith("_success") ||
+            scenario.endsWith("_inert_unknown_config")
+          )
             completeCandidateAuthenticatedSuccess();
           else if (scenario.endsWith("_malformed_terminal"))
             completeCandidateAuthenticatedMalformedTerminal();
@@ -1168,15 +1223,18 @@ function isolatedAuthConfigReadProvenanceV01(activeScenario) {
 }
 
 function isolatedAuthRuntimeOverrideEntriesV01(args) {
+  const strictConfig = args[0] === "--strict-config";
+  const firstOverrideIndex = strictConfig ? 1 : 0;
   if (
-    args[0] !== "--strict-config" ||
-    args.length < 3 ||
-    (args.length - 1) % 2 !== 0
+    (isolatedAuthScenario && !strictConfig) ||
+    (candidate01532AuthenticatedScenario && strictConfig) ||
+    args.length - firstOverrideIndex < 2 ||
+    (args.length - firstOverrideIndex) % 2 !== 0
   )
     throw new Error("fake_isolated_auth_config_override_shape_invalid");
   const entries = [];
   const paths = new Set();
-  for (let index = 1; index < args.length; index += 2) {
+  for (let index = firstOverrideIndex; index < args.length; index += 2) {
     if (args[index] !== "-c")
       throw new Error("fake_isolated_auth_config_override_shape_invalid");
     const expression = args[index + 1];

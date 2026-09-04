@@ -86,7 +86,7 @@ async function main(): Promise<void> {
     process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
   );
   assert.equal(physicallyContainedV01(codexHome, disposableRoot), false);
-  const integrityBefore = integritySnapshotV01(codexHome);
+  const integrityBefore = protectedConfigurationIntegritySnapshotV01(codexHome);
   let officialSourceApiReads = 0;
   let binaryArchiveAcquisitions = 0;
   let invocation: NativeHostInvocationV01 | null = null;
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
         () => false,
       );
     }
-    integrityAfter = integritySnapshotV01(codexHome);
+    integrityAfter = protectedConfigurationIntegritySnapshotV01(codexHome);
     makeWritableV01(disposableRoot);
     rmSync(disposableRoot, { recursive: true, force: false });
     assert.equal(existsSync(disposableRoot), false);
@@ -247,7 +247,8 @@ async function main(): Promise<void> {
         passed: false,
         disposition: "HOLD_PRE_PROVIDER_CANARY_SETUP_FAILED",
         public_reason: failureCode ?? "codex_candidate_canary_setup_failed",
-        provider_model_invocations: 0,
+        provider_model_bearing_turn_capability_consumed: false,
+        provider_backend_request_count: "not_observed",
         binary_archive_acquisitions: binaryArchiveAcquisitions,
         disposable_roots_removed: true,
       })}\n`,
@@ -267,8 +268,7 @@ async function main(): Promise<void> {
     failure_code: failureCode,
     integrity_before_fingerprint: integrityBefore,
     integrity_after_fingerprint: integrityAfter,
-    streams_closed: streamsClosed,
-    remaining_owned_processes: 0,
+    streams_and_owned_processes_settled: streamsClosed,
     disposable_roots_removed: true,
     observed_at: new Date().toISOString(),
   });
@@ -296,7 +296,7 @@ async function main(): Promise<void> {
       receipt.disposition ===
       "ORDINARY_AUTHENTICATED_CANARY_PASS_CANDIDATE_EVIDENCE",
     disposition: receipt.disposition,
-    receipt_path: receiptPath,
+    receipt_file_name: path.basename(receiptPath),
     receipt_fingerprint: receipt.receipt_fingerprint,
     augnes_head: source.head_commit,
     augnes_tree: source.head_tree,
@@ -308,21 +308,38 @@ async function main(): Promise<void> {
     exercised_methods: receipt.exercised_methods,
     expected_public_token: CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
     observed_public_token: receipt.observed_public_token,
-    provider_model_invocations: receipt.observations.provider_model_invocations,
-    approvals: receipt.observations.approvals,
-    tools: receipt.observations.tools,
-    commands: receipt.observations.commands,
-    writes: receipt.observations.writes,
-    repository_tasks: receipt.observations.repository_tasks,
-    external_effects: receipt.observations.external_effects,
-    keychain_direct_accesses: receipt.observations.keychain_direct_accesses,
-    agent_identity_attempts: receipt.observations.agent_identity_attempts,
+    public_failure_code: receipt.public_failure_code,
+    protocol_progress: receipt.protocol_progress,
+    provider_model_bearing_turn_capability_consumed:
+      receipt.evidence.contract_bounded
+        .provider_model_bearing_turn_capabilities_consumed === 1,
+    provider_model_bearing_invocation_ceiling:
+      receipt.evidence.contract_bounded
+        .provider_model_bearing_invocation_ceiling,
+    provider_backend_request_count:
+      receipt.evidence.not_observed.provider_backend_request_count,
+    approvals: receipt.evidence.directly_observed.protocol_approvals,
+    tools: receipt.evidence.directly_observed.protocol_tools,
+    commands: receipt.evidence.directly_observed.protocol_commands,
+    writes: receipt.evidence.directly_observed.protocol_writes,
+    external_effects:
+      receipt.evidence.directly_observed.protocol_external_effects,
+    augnes_direct_credential_store_accesses:
+      receipt.evidence.contract_bounded.augnes_direct_credential_store_accesses,
+    auth_manager_internal_keychain_access_count:
+      receipt.evidence.not_observed.auth_manager_internal_keychain_access_count,
+    agent_identity_attempts:
+      receipt.evidence.directly_observed.protocol_agent_identity_attempts,
     official_source_api_reads: officialSourceApiReads,
     binary_archive_acquisitions: binaryArchiveAcquisitions,
-    other_network_destinations: 0,
-    auth_config_integrity_unchanged: receipt.integrity.unchanged,
-    streams_closed: receipt.settlement.streams_closed,
-    remaining_owned_processes: receipt.settlement.remaining_owned_processes,
+    os_network_destination_count:
+      receipt.evidence.not_observed.os_network_destination_count,
+    protected_configuration_integrity_unchanged:
+      receipt.protected_configuration_integrity.unchanged,
+    credential_material_integrity:
+      receipt.protected_configuration_integrity.credential_material_integrity,
+    streams_and_owned_processes_settled:
+      receipt.settlement.streams_and_owned_processes_settled,
     disposable_roots_removed: receipt.settlement.disposable_roots_removed,
     global_path_fallback_used: false,
   };
@@ -439,9 +456,8 @@ function candidateRequestV01(
   };
 }
 
-function integritySnapshotV01(codexHome: string): string {
+function protectedConfigurationIntegritySnapshotV01(codexHome: string): string {
   const targets = [
-    "auth.json",
     "config.toml",
     "history.jsonl",
     "state_5.sqlite",

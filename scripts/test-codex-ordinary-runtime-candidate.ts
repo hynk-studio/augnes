@@ -91,15 +91,22 @@ async function mainV01(): Promise<void> {
       strict_lane: "hold",
       production_selected_version: "0.152.1",
       emulated_exact_evidence_available: false,
-      provider_model_calls: 0,
-      keychain_accesses: 0,
-      agent_identity_attempts: 0,
-      repository_task_calls: 0,
-      repository_writes: 0,
-      external_network_calls: 0,
-      authenticated_candidate_provider_model_calls: 0,
-      remaining_owned_processes: 0,
-      disposable_roots_removed: true,
+      directly_observed: {
+        fixture_external_network_attempts: 0,
+        disposable_roots_removed: true,
+      },
+      contract_bounded: {
+        real_provider_model_routes_enabled: false,
+        augnes_direct_credential_store_accesses: 0,
+        agent_identity_routes_enabled: false,
+        repository_task_routes_enabled: false,
+        repository_write_routes_enabled: false,
+        owned_processes_settled: true,
+      },
+      not_observed: {
+        os_keychain_access_count: "not_observed",
+        os_network_destination_count: "not_observed",
+      },
     };
   } finally {
     makeWritableV01(root);
@@ -556,30 +563,166 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
     success.receipt.observed_public_token,
     CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
   );
-  assert.deepEqual(success.receipt.exercised_methods, [
-    "initialize",
-    "initialized",
+  assert.deepEqual([...success.receipt.exercised_methods].sort(), [
     "account/read",
     "config/read",
+    "initialize",
+    "item/completed",
     "thread/start",
+    "thread/status/changed",
+    "turn/completed",
     "turn/start",
     "turn/started",
-    "thread/status/changed",
-    "item/completed",
-    "turn/completed",
   ]);
-  assert.equal(success.receipt.observations.provider_model_invocations, 1);
-  assert.equal(success.receipt.observations.approvals, 0);
-  assert.equal(success.receipt.observations.tools, 0);
-  assert.equal(success.receipt.observations.commands, 0);
-  assert.equal(success.receipt.observations.writes, 0);
-  assert.equal(success.receipt.observations.external_effects, 0);
+  assert.deepEqual(success.receipt.protocol_progress, {
+    stages: [
+      "transport_spawned",
+      "initialize_request_sent",
+      "initialize_response_received",
+      "initialized_notification_sent",
+      "account_request_sent",
+      "account_response_received",
+      "config_request_sent",
+      "config_response_received",
+      "thread_request_sent",
+      "thread_response_received",
+      "turn_request_sent",
+      "turn_response_received",
+      "terminal_observed",
+      "settled",
+    ],
+    last_completed_stage: "settled",
+    pending_or_failed_stage: null,
+  });
+  assert.equal(
+    success.receipt.evidence.contract_bounded
+      .provider_model_bearing_turn_capabilities_consumed,
+    1,
+  );
+  assert.equal(
+    success.receipt.evidence.directly_observed.protocol_approvals,
+    0,
+  );
+  assert.equal(success.receipt.evidence.directly_observed.protocol_tools, 0);
+  assert.equal(success.receipt.evidence.directly_observed.protocol_commands, 0);
+  assert.equal(success.receipt.evidence.directly_observed.protocol_writes, 0);
+  assert.equal(
+    success.receipt.evidence.directly_observed.protocol_external_effects,
+    0,
+  );
   assert.deepEqual(
     validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
       success.receipt,
       authenticatedCandidateSourceV01(),
     ),
     success.receipt,
+  );
+
+  const inertUnknownConfig = await runAuthenticatedCandidateFixtureV01(
+    "inert_unknown_config",
+  );
+  assert.equal(inertUnknownConfig.result?.outcome, "completed");
+  assert.equal(
+    inertUnknownConfig.receipt.disposition,
+    "HOLD_TEST_EMULATED_NOT_EXACT",
+  );
+
+  for (const [scenario, expectedFailureCode] of [
+    ["exit_before_initialize_response", "codex_app_server_exited_unexpectedly"],
+    ["initialize_no_response", "codex_app_server_exited_unexpectedly"],
+    ["initialize_rpc_failure", "codex_initialization_failed"],
+  ] as const) {
+    const beforeInitialize =
+      await runAuthenticatedCandidateFixtureV01(scenario);
+    assert.equal(beforeInitialize.result?.outcome, "failed", scenario);
+    assert.equal(
+      beforeInitialize.receipt.public_failure_code,
+      expectedFailureCode,
+      scenario,
+    );
+    assert.deepEqual(beforeInitialize.receipt.exercised_methods, [], scenario);
+    assert.deepEqual(
+      beforeInitialize.receipt.protocol_progress.stages,
+      ["transport_spawned", "initialize_request_sent", "settled"],
+      scenario,
+    );
+    assert.equal(
+      beforeInitialize.receipt.protocol_progress.pending_or_failed_stage,
+      "initialize_response_received",
+      scenario,
+    );
+    assert.equal(beforeInitialize.receipt.capability_consumed, false, scenario);
+    assert.equal(
+      JSON.stringify(beforeInitialize.receipt).includes("sk-never-retained"),
+      false,
+      scenario,
+    );
+    assert.equal(
+      JSON.stringify(beforeInitialize.result).includes("sk-never-retained"),
+      false,
+      scenario,
+    );
+    assert.equal(
+      JSON.stringify(beforeInitialize.receipt).includes("/Users/private"),
+      false,
+      scenario,
+    );
+    assert.equal(
+      JSON.stringify(beforeInitialize.result).includes("/Users/private"),
+      false,
+      scenario,
+    );
+  }
+
+  const effectiveConfigDrift = await runAuthenticatedCandidateFixtureV01(
+    "effective_config_drift",
+  );
+  assert.equal(effectiveConfigDrift.result?.outcome, "failed");
+  assert.equal(
+    effectiveConfigDrift.receipt.public_failure_code,
+    "codex_candidate_config_policy_mismatch",
+  );
+  assert.equal(effectiveConfigDrift.receipt.capability_consumed, false);
+  assert.equal(
+    effectiveConfigDrift.receipt.protocol_progress.stages.includes(
+      "thread_request_sent",
+    ),
+    false,
+  );
+
+  const behaviorBearingConfigWarning =
+    await runAuthenticatedCandidateFixtureV01("config_warning");
+  assert.equal(behaviorBearingConfigWarning.result?.outcome, "failed");
+  assert.equal(
+    behaviorBearingConfigWarning.receipt.public_failure_code,
+    "codex_candidate_runtime_policy_drift",
+  );
+  assert.equal(behaviorBearingConfigWarning.receipt.capability_consumed, false);
+  assert.equal(
+    JSON.stringify(behaviorBearingConfigWarning.receipt).includes(
+      "/Users/private",
+    ),
+    false,
+  );
+
+  const turnStartFailure = await runAuthenticatedCandidateFixtureV01(
+    "turn_start_rpc_failure",
+  );
+  assert.equal(turnStartFailure.result?.outcome, "failed");
+  assert.equal(turnStartFailure.receipt.capability_consumed, true);
+  assert.equal(
+    turnStartFailure.receipt.evidence.directly_observed
+      .turn_start_response_received,
+    false,
+  );
+  assert.equal(
+    turnStartFailure.receipt.evidence.not_observed
+      .provider_backend_request_count,
+    "not_observed",
+  );
+  assert.equal(
+    turnStartFailure.receipt.exercised_methods.includes("turn/start"),
+    false,
   );
 
   const replayRoot = createAuthenticatedFixtureRootsV01("capability-replay");
@@ -593,11 +736,28 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
       request,
       scenario: "success",
     });
-    inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
-      capability,
-      request,
-      now: new Date().toISOString(),
-    });
+    const binding =
+      inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+        capability,
+        request,
+        now: new Date().toISOString(),
+      });
+    assert.equal(
+      binding.config_override_args.includes("--strict-config"),
+      false,
+    );
+    assert.equal(
+      binding.config_override_args.includes('forced_login_method="chatgpt"'),
+      true,
+    );
+    assert.equal(
+      binding.config_override_args.includes('model_provider="openai"'),
+      true,
+    );
+    assert.equal(
+      binding.config_override_args.includes("model_providers={}"),
+      true,
+    );
     const wrongRequest = structuredClone(request);
     wrongRequest.run_id = "host-run:wrong";
     assert.throws(
@@ -714,7 +874,8 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
   );
   assert.equal(authUnavailable.receipt.capability_consumed, false);
   assert.equal(
-    authUnavailable.receipt.observations.provider_model_invocations,
+    authUnavailable.receipt.evidence.contract_bounded
+      .provider_model_bearing_turn_capabilities_consumed,
     0,
   );
 
@@ -739,24 +900,46 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
     );
     assert.equal(observed.receipt.capability_consumed, true, scenario);
     assert.equal(
-      observed.receipt.observations.provider_model_invocations,
+      observed.receipt.evidence.contract_bounded
+        .provider_model_bearing_turn_capabilities_consumed,
       1,
       scenario,
     );
     if (scenario === "approval") {
-      assert.equal(observed.receipt.observations.approvals, 1);
-      assert.equal(observed.receipt.observations.external_effects, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_approvals,
+        1,
+      );
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_external_effects,
+        1,
+      );
     }
     if (scenario === "command")
-      assert.equal(observed.receipt.observations.commands, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_commands,
+        1,
+      );
     if (scenario === "write")
-      assert.equal(observed.receipt.observations.writes, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_writes,
+        1,
+      );
     if (scenario === "tool")
-      assert.equal(observed.receipt.observations.tools, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_tools,
+        1,
+      );
     if (scenario === "reroute")
-      assert.equal(observed.receipt.observations.reroutes, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_reroutes,
+        1,
+      );
     if (scenario === "auth_recovery")
-      assert.equal(observed.receipt.observations.fallbacks, 1);
+      assert.equal(
+        observed.receipt.evidence.directly_observed.protocol_fallbacks,
+        1,
+      );
   }
 
   const unsafe = structuredClone(success.receipt) as any;
@@ -793,7 +976,7 @@ async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> 
     /codex_candidate_authenticated_receipt_private_material_forbidden/u,
   );
   const invalidCount = structuredClone(success.receipt) as any;
-  invalidCount.observations.tools = -1;
+  invalidCount.evidence.directly_observed.protocol_tools = -1;
   refingerprintAuthenticatedReceiptV01(invalidCount);
   assert.throws(
     () =>
@@ -939,8 +1122,7 @@ async function runAuthenticatedCandidateFixtureV01(scenario: string): Promise<{
     failure_code: failureCode,
     integrity_before_fingerprint: stableIntegrity,
     integrity_after_fingerprint: stableIntegrity,
-    streams_closed: streamsClosed,
-    remaining_owned_processes: 0,
+    streams_and_owned_processes_settled: streamsClosed,
     disposable_roots_removed: !existsSync(roots.privateRoot),
     observed_at: "2026-09-04T00:00:00.000Z",
   });

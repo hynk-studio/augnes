@@ -28,7 +28,7 @@ export const CODEX_0_153_2_ORDINARY_CANARY_ENTRY_ID_V01 =
 export const CODEX_0_153_2_ORDINARY_CANARY_CAPABILITY_VERSION_V01 =
   "codex_ordinary_authenticated_candidate_execution.v0.1" as const;
 export const CODEX_0_153_2_ORDINARY_CANARY_RECEIPT_VERSION_V01 =
-  "codex_ordinary_authenticated_candidate_canary.v0.1" as const;
+  "codex_ordinary_authenticated_candidate_canary.v0.2" as const;
 export const CODEX_0_153_2_ORDINARY_CANARY_INSTRUCTION_V01 =
   "Return exactly AUGNES_CODEX_01532_ORDINARY_CANARY_OK and do not use tools, run commands, read or write files, or add any explanation." as const;
 export const CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01 =
@@ -48,12 +48,19 @@ const GIT_HASH_PATTERN_V01 = /^[a-f0-9]{40}$/u;
 const FORBIDDEN_ENVIRONMENT_NAME_V01 =
   /(?:TOKEN|SECRET|PASSWORD|COOKIE|CREDENTIAL|OPENAI_API_KEY|CODEX_ACCESS_TOKEN)/iu;
 
+// Exact rust-v0.153.2 app-server supports --strict-config but does not support
+// exec's --ignore-user-config. Non-strict loading preserves the same ordered
+// session-flag (-c) layer after ambient user/project layers; the adapter then
+// requires config/read to equal this reviewed effective policy before it may
+// create a thread or consume the one-turn capability. Any emitted configWarning
+// remains fail-closed because it can indicate behavior-bearing fallback.
 const AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01 = Object.freeze([
-  "--strict-config",
   "-c",
   'forced_login_method="chatgpt"',
   "-c",
   'model_provider="openai"',
+  "-c",
+  "model_providers={}",
   "-c",
   'web_search="disabled"',
   "-c",
@@ -64,6 +71,8 @@ const AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01 = Object.freeze([
   "skills={}",
   "-c",
   "apps={}",
+  "-c",
+  "notify=[]",
   "-c",
   "features.auth_elicitation=false",
   "-c",
@@ -117,6 +126,10 @@ const AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01 = Object.freeze([
   "-c",
   "features.context_management=false",
   "-c",
+  "features.remote_control=false",
+  "-c",
+  "features.background_paginated_rollout_migration=false",
+  "-c",
   "orchestrator.skills.enabled=false",
   "-c",
   "orchestrator.mcp.enabled=false",
@@ -142,7 +155,35 @@ const AUTHENTICATED_CANARY_CONFIG_OVERRIDE_ARGS_V01 = Object.freeze([
   'otel.trace_exporter="none"',
   "-c",
   'otel.metrics_exporter="none"',
+  "-c",
+  "analytics.enabled=false",
 ] as const);
+
+export const CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01 = Object.freeze([
+  "transport_spawned",
+  "initialize_request_sent",
+  "initialize_response_received",
+  "initialized_notification_sent",
+  "account_request_sent",
+  "account_response_received",
+  "config_request_sent",
+  "config_response_received",
+  "thread_request_sent",
+  "thread_response_received",
+  "turn_request_sent",
+  "turn_response_received",
+  "terminal_observed",
+  "settled",
+] as const);
+
+export type CodexOrdinaryAuthenticatedCandidateProtocolStageV01 =
+  (typeof CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01)[number];
+
+export interface CodexOrdinaryAuthenticatedCandidateProtocolProgressV01 {
+  stages: readonly CodexOrdinaryAuthenticatedCandidateProtocolStageV01[];
+  last_completed_stage: CodexOrdinaryAuthenticatedCandidateProtocolStageV01 | null;
+  pending_or_failed_stage: CodexOrdinaryAuthenticatedCandidateProtocolStageV01 | null;
+}
 
 export class CodexOrdinaryAuthenticatedCandidateErrorV01 extends Error {
   constructor(readonly code: string) {
@@ -458,32 +499,50 @@ export interface CodexOrdinaryAuthenticatedCandidateCanaryReceiptV01 {
   root_scope_fingerprint: string;
   sandbox_fingerprint: string;
   user_agent_observation_fingerprint: string | null;
+  protocol_progress: CodexOrdinaryAuthenticatedCandidateProtocolProgressV01;
+  exercised_methods_semantics: "successful_response_or_observed_notification";
   exercised_methods: readonly string[];
+  public_failure_code: string | null;
   expected_public_token: typeof CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01;
   observed_public_token: typeof CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01 | null;
   terminal_status: "completed" | null;
-  observations: Readonly<{
-    ordinary_account_available: boolean;
-    provider_model_invocations: number;
-    approvals: number;
-    tools: number;
-    commands: number;
-    writes: number;
-    repository_tasks: number;
-    external_effects: number;
-    keychain_direct_accesses: number;
-    agent_identity_attempts: number;
-    fallbacks: number;
-    reroutes: number;
+  evidence: Readonly<{
+    directly_observed: Readonly<{
+      ordinary_account_available: boolean;
+      turn_start_response_received: boolean;
+      successful_terminal_result_observed: boolean;
+      protocol_approvals: number;
+      protocol_tools: number;
+      protocol_commands: number;
+      protocol_writes: number;
+      protocol_external_effects: number;
+      protocol_fallbacks: number;
+      protocol_reroutes: number;
+      protocol_agent_identity_attempts: number;
+    }>;
+    contract_bounded: Readonly<{
+      authentication_owner: "official_codex_auth_manager";
+      augnes_direct_credential_store_accesses: 0;
+      provider_model_bearing_turn_capabilities_consumed: 0 | 1;
+      provider_model_bearing_invocation_ceiling: 1;
+      repository_task_routes_enabled: false;
+      non_provider_external_routes_enabled: false;
+      global_path_fallback_available: false;
+    }>;
+    not_observed: Readonly<{
+      auth_manager_internal_keychain_access_count: "not_observed";
+      os_network_destination_count: "not_observed";
+      provider_backend_request_count: "not_observed";
+    }>;
   }>;
-  integrity: Readonly<{
+  protected_configuration_integrity: Readonly<{
     before_fingerprint: string;
     after_fingerprint: string;
     unchanged: boolean;
+    credential_material_integrity: "not_observed_auth_manager_owned";
   }>;
   settlement: Readonly<{
-    streams_closed: boolean;
-    remaining_owned_processes: number;
+    streams_and_owned_processes_settled: boolean;
     disposable_roots_removed: boolean;
   }>;
   capability_consumed: boolean;
@@ -504,8 +563,7 @@ export function createCodex01532OrdinaryAuthenticatedCanaryReceiptV01(input: {
   failure_code: string | null;
   integrity_before_fingerprint: string;
   integrity_after_fingerprint: string;
-  streams_closed: boolean;
-  remaining_owned_processes: number;
+  streams_and_owned_processes_settled: boolean;
   disposable_roots_removed: boolean;
   observed_at: string;
 }): CodexOrdinaryAuthenticatedCandidateCanaryReceiptV01 {
@@ -520,9 +578,34 @@ export function createCodex01532OrdinaryAuthenticatedCanaryReceiptV01(input: {
         (value): value is string => typeof value === "string",
       )
     : [];
+  const progressMetadata = recordV01(metadata?.candidate_protocol_progress);
+  const progressStages = Array.isArray(progressMetadata?.stages)
+    ? progressMetadata.stages.filter(
+        (value): value is CodexOrdinaryAuthenticatedCandidateProtocolStageV01 =>
+          typeof value === "string" &&
+          CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01.includes(
+            value as CodexOrdinaryAuthenticatedCandidateProtocolStageV01,
+          ),
+      )
+    : [];
+  if (
+    input.streams_and_owned_processes_settled &&
+    !progressStages.includes("settled")
+  )
+    progressStages.push("settled");
+  const protocolProgress: CodexOrdinaryAuthenticatedCandidateProtocolProgressV01 =
+    {
+      stages: progressStages,
+      last_completed_stage: input.streams_and_owned_processes_settled
+        ? "settled"
+        : candidateProtocolStageV01(progressMetadata?.last_completed_stage),
+      pending_or_failed_stage:
+        input.failure_code !== null || input.result?.outcome !== "completed"
+          ? candidateProtocolStageV01(progressMetadata?.pending_or_failed_stage)
+          : null,
+    };
   const expectedMethods = [
     "initialize",
-    "initialized",
     "account/read",
     "config/read",
     "thread/start",
@@ -533,27 +616,42 @@ export function createCodex01532OrdinaryAuthenticatedCanaryReceiptV01(input: {
     input.result?.summary === CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01
       ? CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01
       : null;
-  const providerInvocations = state.consumed ? 1 : 0;
-  const observations = {
+  const publicFailureCode =
+    input.failure_code ?? input.result?.public_stop_reason ?? null;
+  const directlyObserved = {
     ordinary_account_available:
       metadata?.candidate_ordinary_account_available === true,
-    provider_model_invocations: providerInvocations,
-    approvals: safeCountV01(metadata?.candidate_approval_requests),
-    tools: safeCountV01(metadata?.candidate_tool_items),
-    commands: safeCountV01(metadata?.candidate_command_items),
-    writes: safeCountV01(metadata?.candidate_write_items),
-    repository_tasks: 0,
-    external_effects: safeCountV01(metadata?.candidate_external_effects),
-    keychain_direct_accesses: 0,
-    agent_identity_attempts: 0,
-    fallbacks: safeCountV01(metadata?.candidate_fallbacks),
-    reroutes: safeCountV01(metadata?.candidate_reroutes),
+    turn_start_response_received: progressStages.includes(
+      "turn_response_received",
+    ),
+    successful_terminal_result_observed:
+      input.result?.outcome === "completed" &&
+      observedToken !== null &&
+      metadata?.candidate_terminal_status === "completed" &&
+      progressStages.includes("terminal_observed"),
+    protocol_approvals: safeCountV01(metadata?.candidate_approval_requests),
+    protocol_tools: safeCountV01(metadata?.candidate_tool_items),
+    protocol_commands: safeCountV01(metadata?.candidate_command_items),
+    protocol_writes: safeCountV01(metadata?.candidate_write_items),
+    protocol_external_effects: safeCountV01(
+      metadata?.candidate_external_effects,
+    ),
+    protocol_fallbacks: safeCountV01(metadata?.candidate_fallbacks),
+    protocol_reroutes: safeCountV01(metadata?.candidate_reroutes),
+    protocol_agent_identity_attempts: safeCountV01(
+      metadata?.candidate_agent_identity_attempts,
+    ),
   };
+  const observedCounts = Object.entries(directlyObserved)
+    .filter(([, value]) => typeof value === "number")
+    .map(([, value]) => value as number);
   const invariantPass =
-    input.failure_code === null &&
+    publicFailureCode === null &&
     input.result?.outcome === "completed" &&
     observedToken !== null &&
     metadata?.candidate_terminal_status === "completed" &&
+    metadata?.candidate_exercised_methods_semantics ===
+      "successful_response_or_observed_notification" &&
     metadata?.candidate_user_agent_observation_fingerprint !== null &&
     HASH_PATTERN_V01.test(
       String(metadata?.candidate_user_agent_observation_fingerprint ?? ""),
@@ -566,23 +664,20 @@ export function createCodex01532OrdinaryAuthenticatedCanaryReceiptV01(input: {
         method.length <= 160 &&
         /^[A-Za-z0-9._/-]+$/u.test(method),
     ) &&
-    observations.ordinary_account_available &&
-    Object.entries(observations).every(([key, value]) =>
-      key === "ordinary_account_available" ||
-      key === "provider_model_invocations"
-        ? true
-        : value === 0,
-    ) &&
-    observations.provider_model_invocations === 1 &&
+    candidatePassProgressValidV01(protocolProgress) &&
+    directlyObserved.ordinary_account_available &&
+    directlyObserved.turn_start_response_received &&
+    directlyObserved.successful_terminal_result_observed &&
+    observedCounts.every((value) => value === 0) &&
+    state.consumed &&
     input.integrity_before_fingerprint === input.integrity_after_fingerprint &&
     HASH_PATTERN_V01.test(input.integrity_before_fingerprint) &&
-    input.streams_closed &&
-    input.remaining_owned_processes === 0 &&
+    input.streams_and_owned_processes_settled &&
     input.disposable_roots_removed;
   const disposition: CodexOrdinaryAuthenticatedCandidateCanaryReceiptV01["disposition"] =
     !invariantPass
       ? !state.consumed &&
-        (input.failure_code === "codex_not_authenticated" ||
+        (publicFailureCode === "codex_not_authenticated" ||
           input.result?.public_stop_reason === "codex_not_authenticated")
         ? "HOLD_AUTHENTICATION_UNAVAILABLE"
         : "HOLD_CANARY_CONTRACT_FAILED"
@@ -635,35 +730,59 @@ export function createCodex01532OrdinaryAuthenticatedCanaryReceiptV01(input: {
       typeof metadata?.candidate_user_agent_observation_fingerprint === "string"
         ? metadata.candidate_user_agent_observation_fingerprint
         : null,
+    protocol_progress: protocolProgress,
+    exercised_methods_semantics:
+      "successful_response_or_observed_notification" as const,
     exercised_methods: exercisedMethods,
+    public_failure_code: publicFailureCode,
     expected_public_token: CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
     observed_public_token: observedToken,
     terminal_status:
       metadata?.candidate_terminal_status === "completed" ? "completed" : null,
-    observations,
-    integrity: {
+    evidence: {
+      directly_observed: directlyObserved,
+      contract_bounded: {
+        authentication_owner: "official_codex_auth_manager" as const,
+        augnes_direct_credential_store_accesses: 0 as const,
+        provider_model_bearing_turn_capabilities_consumed: state.consumed
+          ? (1 as const)
+          : (0 as const),
+        provider_model_bearing_invocation_ceiling: 1 as const,
+        repository_task_routes_enabled: false as const,
+        non_provider_external_routes_enabled: false as const,
+        global_path_fallback_available: false as const,
+      },
+      not_observed: {
+        auth_manager_internal_keychain_access_count: "not_observed" as const,
+        os_network_destination_count: "not_observed" as const,
+        provider_backend_request_count: "not_observed" as const,
+      },
+    },
+    protected_configuration_integrity: {
       before_fingerprint: input.integrity_before_fingerprint,
       after_fingerprint: input.integrity_after_fingerprint,
       unchanged:
         input.integrity_before_fingerprint ===
         input.integrity_after_fingerprint,
+      credential_material_integrity: "not_observed_auth_manager_owned" as const,
     },
     settlement: {
-      streams_closed: input.streams_closed,
-      remaining_owned_processes: input.remaining_owned_processes,
+      streams_and_owned_processes_settled:
+        input.streams_and_owned_processes_settled,
       disposable_roots_removed: input.disposable_roots_removed,
     },
     capability_consumed: state.consumed,
     emulated_input: state.emulated,
     disposition,
   };
+  const candidateReceipt = {
+    ...material,
+    receipt_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  };
   return validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
-    {
-      ...material,
-      receipt_fingerprint: createProtocolSha256V01(
-        canonicalizeProtocolValueV01(material),
-      ),
-    },
+    candidateReceipt,
     input.augnes_source,
   );
 }
@@ -687,12 +806,15 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
     "root_scope_fingerprint",
     "sandbox_fingerprint",
     "user_agent_observation_fingerprint",
+    "protocol_progress",
+    "exercised_methods_semantics",
     "exercised_methods",
+    "public_failure_code",
     "expected_public_token",
     "observed_public_token",
     "terminal_status",
-    "observations",
-    "integrity",
+    "evidence",
+    "protected_configuration_integrity",
     "settlement",
     "capability_consumed",
     "emulated_input",
@@ -718,34 +840,114 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
     fingerprint
   )
     failV01("codex_candidate_authenticated_receipt_fingerprint_mismatch");
+  const canonical = canonicalizeProtocolValueV01(receipt);
+  for (const forbidden of [
+    "access_token",
+    "refresh_token",
+    "auth.json",
+    "BEGIN PRIVATE KEY",
+    "@example",
+    "/Users/",
+    "/private/var/",
+    "prompt_transcript",
+    "provider_payload",
+  ])
+    if (canonical.includes(forbidden))
+      failV01(
+        "codex_candidate_authenticated_receipt_private_material_forbidden",
+      );
+  if (containsPrivateMaterialV01(receipt))
+    failV01("codex_candidate_authenticated_receipt_private_material_forbidden");
   const source = recordV01(receipt.augnes_source);
   const candidate = recordV01(receipt.candidate_identity);
   const profile = recordV01(receipt.compatibility_profile);
-  const observations = recordV01(receipt.observations);
-  const integrity = recordV01(receipt.integrity);
+  const progress = recordV01(receipt.protocol_progress);
+  const evidence = recordV01(receipt.evidence);
+  const directlyObserved = recordV01(evidence?.directly_observed);
+  const contractBounded = recordV01(evidence?.contract_bounded);
+  const notObserved = recordV01(evidence?.not_observed);
+  const integrity = recordV01(receipt.protected_configuration_integrity);
   const settlement = recordV01(receipt.settlement);
-  const counts = observations
+  const counts = directlyObserved
     ? [
-        observations.provider_model_invocations,
-        observations.approvals,
-        observations.tools,
-        observations.commands,
-        observations.writes,
-        observations.repository_tasks,
-        observations.external_effects,
-        observations.keychain_direct_accesses,
-        observations.agent_identity_attempts,
-        observations.fallbacks,
-        observations.reroutes,
+        directlyObserved.protocol_approvals,
+        directlyObserved.protocol_tools,
+        directlyObserved.protocol_commands,
+        directlyObserved.protocol_writes,
+        directlyObserved.protocol_external_effects,
+        directlyObserved.protocol_fallbacks,
+        directlyObserved.protocol_reroutes,
+        directlyObserved.protocol_agent_identity_attempts,
       ]
     : [];
   if (
     !source ||
     !candidate ||
     !profile ||
-    !observations ||
+    !progress ||
+    !evidence ||
+    !directlyObserved ||
+    !contractBounded ||
+    !notObserved ||
     !integrity ||
     !settlement ||
+    !recordHasExactKeysV01(source, [
+      "base_commit",
+      "head_commit",
+      "head_tree",
+    ]) ||
+    !recordHasExactKeysV01(profile, [
+      "profile_id",
+      "fingerprint",
+      "decision",
+    ]) ||
+    !recordHasExactKeysV01(progress, [
+      "stages",
+      "last_completed_stage",
+      "pending_or_failed_stage",
+    ]) ||
+    !recordHasExactKeysV01(evidence, [
+      "directly_observed",
+      "contract_bounded",
+      "not_observed",
+    ]) ||
+    !recordHasExactKeysV01(directlyObserved, [
+      "ordinary_account_available",
+      "turn_start_response_received",
+      "successful_terminal_result_observed",
+      "protocol_approvals",
+      "protocol_tools",
+      "protocol_commands",
+      "protocol_writes",
+      "protocol_external_effects",
+      "protocol_fallbacks",
+      "protocol_reroutes",
+      "protocol_agent_identity_attempts",
+    ]) ||
+    !recordHasExactKeysV01(contractBounded, [
+      "authentication_owner",
+      "augnes_direct_credential_store_accesses",
+      "provider_model_bearing_turn_capabilities_consumed",
+      "provider_model_bearing_invocation_ceiling",
+      "repository_task_routes_enabled",
+      "non_provider_external_routes_enabled",
+      "global_path_fallback_available",
+    ]) ||
+    !recordHasExactKeysV01(notObserved, [
+      "auth_manager_internal_keychain_access_count",
+      "os_network_destination_count",
+      "provider_backend_request_count",
+    ]) ||
+    !recordHasExactKeysV01(integrity, [
+      "before_fingerprint",
+      "after_fingerprint",
+      "unchanged",
+      "credential_material_integrity",
+    ]) ||
+    !recordHasExactKeysV01(settlement, [
+      "streams_and_owned_processes_settled",
+      "disposable_roots_removed",
+    ]) ||
     source.base_commit !== PHASE4B_BASE_COMMIT_V01 ||
     !GIT_HASH_PATTERN_V01.test(String(source.head_commit ?? "")) ||
     !GIT_HASH_PATTERN_V01.test(String(source.head_tree ?? "")) ||
@@ -776,6 +978,18 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
       "sha256:195ace4100a634a9df39147f493e730e666b5bd87795f3c9f3251d8542400424" ||
     candidate.platform !== "darwin" ||
     candidate.architecture !== "arm64" ||
+    !recordHasExactKeysV01(candidate, [
+      "entry_id",
+      "version",
+      "release_tag",
+      "release_id",
+      "source_commit",
+      "asset_id",
+      "archive_sha256",
+      "native_sha256",
+      "platform",
+      "architecture",
+    ]) ||
     !HASH_PATTERN_V01.test(String(receipt.capability_fingerprint ?? "")) ||
     !HASH_PATTERN_V01.test(String(receipt.request_fingerprint ?? "")) ||
     !HASH_PATTERN_V01.test(String(receipt.root_scope_fingerprint ?? "")) ||
@@ -783,13 +997,49 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
     !counts.every(
       (value) => Number.isSafeInteger(value) && Number(value) >= 0,
     ) ||
-    typeof observations.ordinary_account_available !== "boolean" ||
+    receipt.exercised_methods_semantics !==
+      "successful_response_or_observed_notification" ||
+    !Array.isArray(receipt.exercised_methods) ||
+    receipt.exercised_methods.length > 64 ||
+    receipt.exercised_methods.some(
+      (method) =>
+        typeof method !== "string" ||
+        method.length === 0 ||
+        method.length > 160 ||
+        !/^[A-Za-z0-9._/-]+$/u.test(method),
+    ) ||
+    !candidateProgressValidV01(progress) ||
+    (receipt.public_failure_code !== null &&
+      (typeof receipt.public_failure_code !== "string" ||
+        !/^[a-z0-9_.:-]{1,160}$/u.test(receipt.public_failure_code))) ||
+    typeof directlyObserved.ordinary_account_available !== "boolean" ||
+    typeof directlyObserved.turn_start_response_received !== "boolean" ||
+    typeof directlyObserved.successful_terminal_result_observed !== "boolean" ||
+    typeof receipt.capability_consumed !== "boolean" ||
+    typeof receipt.emulated_input !== "boolean" ||
+    contractBounded.provider_model_bearing_turn_capabilities_consumed !==
+      (receipt.capability_consumed ? 1 : 0) ||
+    contractBounded.authentication_owner !== "official_codex_auth_manager" ||
+    contractBounded.augnes_direct_credential_store_accesses !== 0 ||
+    ![0, 1].includes(
+      Number(contractBounded.provider_model_bearing_turn_capabilities_consumed),
+    ) ||
+    contractBounded.provider_model_bearing_invocation_ceiling !== 1 ||
+    contractBounded.repository_task_routes_enabled !== false ||
+    contractBounded.non_provider_external_routes_enabled !== false ||
+    contractBounded.global_path_fallback_available !== false ||
+    notObserved.auth_manager_internal_keychain_access_count !==
+      "not_observed" ||
+    notObserved.os_network_destination_count !== "not_observed" ||
+    notObserved.provider_backend_request_count !== "not_observed" ||
     typeof integrity.unchanged !== "boolean" ||
     !HASH_PATTERN_V01.test(String(integrity.before_fingerprint ?? "")) ||
     !HASH_PATTERN_V01.test(String(integrity.after_fingerprint ?? "")) ||
-    typeof settlement.streams_closed !== "boolean" ||
-    !Number.isSafeInteger(settlement.remaining_owned_processes) ||
-    Number(settlement.remaining_owned_processes) < 0 ||
+    integrity.unchanged !==
+      (integrity.before_fingerprint === integrity.after_fingerprint) ||
+    integrity.credential_material_integrity !==
+      "not_observed_auth_manager_owned" ||
+    typeof settlement.streams_and_owned_processes_settled !== "boolean" ||
     typeof settlement.disposable_roots_removed !== "boolean" ||
     ![
       "ORDINARY_AUTHENTICATED_CANARY_PASS_CANDIDATE_EVIDENCE",
@@ -798,29 +1048,17 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
       "HOLD_CANARY_CONTRACT_FAILED",
     ].includes(String(receipt.disposition)) ||
     receipt.expected_public_token !== CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01 ||
-    !Array.isArray(receipt.exercised_methods)
+    (receipt.observed_public_token !== null &&
+      receipt.observed_public_token !==
+        CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01) ||
+    (receipt.terminal_status !== null &&
+      receipt.terminal_status !== "completed") ||
+    (receipt.user_agent_observation_fingerprint !== null &&
+      !HASH_PATTERN_V01.test(
+        String(receipt.user_agent_observation_fingerprint),
+      ))
   )
     failV01("codex_candidate_authenticated_receipt_semantics_invalid");
-  const canonical = canonicalizeProtocolValueV01(receipt);
-  for (const forbidden of [
-    "access_token",
-    "refresh_token",
-    "auth.json",
-    "BEGIN PRIVATE KEY",
-    "@example",
-    "/Users/",
-    "/private/var/",
-    "prompt_transcript",
-    "provider_payload",
-  ])
-    if (canonical.includes(forbidden))
-      failV01(
-        "codex_candidate_authenticated_receipt_private_material_forbidden",
-      );
-  if (containsPrivateMaterialV01(receipt))
-    failV01(
-      "codex_candidate_authenticated_receipt_private_material_forbidden",
-    );
   if (
     receipt.disposition ===
       "ORDINARY_AUTHENTICATED_CANARY_PASS_CANDIDATE_EVIDENCE" &&
@@ -829,13 +1067,16 @@ export function validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
       receipt.observed_public_token !==
         CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01 ||
       receipt.terminal_status !== "completed" ||
-      observations.ordinary_account_available !== true ||
-      observations.provider_model_invocations !== 1 ||
-      counts.slice(1).some((value) => value !== 0) ||
+      receipt.public_failure_code !== null ||
+      directlyObserved.ordinary_account_available !== true ||
+      directlyObserved.turn_start_response_received !== true ||
+      directlyObserved.successful_terminal_result_observed !== true ||
+      counts.some((value) => value !== 0) ||
+      contractBounded.provider_model_bearing_turn_capabilities_consumed !== 1 ||
       integrity.unchanged !== true ||
-      settlement.streams_closed !== true ||
-      settlement.remaining_owned_processes !== 0 ||
+      settlement.streams_and_owned_processes_settled !== true ||
       settlement.disposable_roots_removed !== true ||
+      !candidatePassProgressValidV01(receipt.protocol_progress) ||
       !candidatePassMethodsValidV01(receipt.exercised_methods))
   )
     failV01("codex_candidate_authenticated_receipt_pass_invalid");
@@ -1098,6 +1339,55 @@ function safeCountV01(value: unknown): number {
   return Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : 0;
 }
 
+function candidateProtocolStageV01(
+  value: unknown,
+): CodexOrdinaryAuthenticatedCandidateProtocolStageV01 | null {
+  return typeof value === "string" &&
+    CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01.includes(
+      value as CodexOrdinaryAuthenticatedCandidateProtocolStageV01,
+    )
+    ? (value as CodexOrdinaryAuthenticatedCandidateProtocolStageV01)
+    : null;
+}
+
+function candidateProgressValidV01(value: Record<string, unknown>): boolean {
+  if (
+    !Array.isArray(value.stages) ||
+    value.stages.length >
+      CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01.length ||
+    value.stages.some((stage) => candidateProtocolStageV01(stage) === null) ||
+    new Set(value.stages).size !== value.stages.length ||
+    candidateProtocolStageV01(value.last_completed_stage) !==
+      value.last_completed_stage ||
+    (value.pending_or_failed_stage !== null &&
+      candidateProtocolStageV01(value.pending_or_failed_stage) !==
+        value.pending_or_failed_stage)
+  )
+    return false;
+  const indexes = value.stages.map((stage) =>
+    CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01.indexOf(
+      stage as CodexOrdinaryAuthenticatedCandidateProtocolStageV01,
+    ),
+  );
+  return indexes.every(
+    (index, position) => position === 0 || index > indexes[position - 1]!,
+  );
+}
+
+function candidatePassProgressValidV01(value: unknown): boolean {
+  const progress = recordV01(value);
+  return (
+    progress !== null &&
+    candidateProgressValidV01(progress) &&
+    canonicalizeProtocolValueV01(progress.stages) ===
+      canonicalizeProtocolValueV01(
+        CODEX_0_153_2_ORDINARY_CANARY_PROTOCOL_STAGES_V01,
+      ) &&
+    progress.last_completed_stage === "settled" &&
+    progress.pending_or_failed_stage === null
+  );
+}
+
 function methodsContainOrderedSubsequenceV01(
   observed: readonly string[],
   required: readonly string[],
@@ -1114,10 +1404,12 @@ function candidatePassMethodsValidV01(value: unknown): boolean {
     (method): method is string => typeof method === "string",
   );
   if (methods.length !== value.length) return false;
-  const profile = CODEX_QUALIFIED_RUNTIME_REGISTRY_V01.compatibility_profiles.find(
-    ({ profile_id }) =>
-      profile_id === CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_ID_V01,
-  );
+  const profile =
+    CODEX_QUALIFIED_RUNTIME_REGISTRY_V01.compatibility_profiles.find(
+      ({ profile_id }) =>
+        profile_id ===
+        CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_ID_V01,
+    );
   if (!profile) return false;
   const allowed = new Set([
     "initialize",
@@ -1132,7 +1424,6 @@ function candidatePassMethodsValidV01(value: unknown): boolean {
   if (methods.some((method) => !allowed.has(method))) return false;
   return methodsContainOrderedSubsequenceV01(methods, [
     "initialize",
-    "initialized",
     "account/read",
     "config/read",
     "thread/start",
@@ -1159,6 +1450,16 @@ function recordV01(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function recordHasExactKeysV01(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  return (
+    canonicalizeProtocolValueV01(Object.keys(value).sort()) ===
+    canonicalizeProtocolValueV01([...expected].sort())
+  );
 }
 
 function failV01(code: string): never {
