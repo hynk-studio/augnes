@@ -28,6 +28,9 @@ const scenario =
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
 const candidate01532Scenario = scenario.startsWith("candidate_0_153_2_");
+const candidate01532AuthenticatedScenario = scenario.startsWith(
+  "candidate_0_153_2_authenticated_",
+);
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -78,6 +81,12 @@ trace("fixture_started", { scenario });
 if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
   process.exit(2);
 }
+if (
+  candidate01532AuthenticatedScenario &&
+  process.argv.includes("--strict-config")
+) {
+  process.exit(6);
+}
 
 if (isolatedAuthScenario) {
   const authSnapshotPath = path.join(process.env.CODEX_HOME ?? "", "auth.json");
@@ -119,8 +128,7 @@ if (isolatedAuthScenario) {
     writeFileSync(
       authBoundaryPath,
       `${JSON.stringify({
-        app_server_material_present:
-          authSnapshotKind !== null,
+        app_server_material_present: authSnapshotKind !== null,
         environment_material_present:
           typeof process.env.CODEX_ACCESS_TOKEN === "string" &&
           process.env.CODEX_ACCESS_TOKEN.length > 0,
@@ -219,6 +227,101 @@ process.on("exit", persistNetworkCount);
 async function handle(message) {
   if (Object.hasOwn(message, "method") && Object.hasOwn(message, "id")) {
     if (message.method === "initialize") {
+      if (
+        scenario ===
+        "candidate_0_153_2_authenticated_exit_before_initialize_response"
+      ) {
+        process.stderr.write(
+          "OPENAI_API_KEY=sk-never-retained /Users/private/auth.json\n",
+        );
+        process.exit(23);
+      }
+      if (
+        scenario === "candidate_0_153_2_authenticated_initialize_no_response"
+      ) {
+        setTimeout(() => process.exit(24), 20);
+        return;
+      }
+      if (scenario === "candidate_0_153_2_initialize_diagnostic_timeout") {
+        return;
+      }
+      if (
+        scenario ===
+        "candidate_0_153_2_initialize_diagnostic_unexpected_notification"
+      ) {
+        notify("configWarning", {
+          summary: "secret-looking warning",
+          path: "/Users/private/config.toml",
+        });
+        return;
+      }
+      const adapterTransportInitializeResult = {
+        userAgent: fakeCodexUserAgentV01(scenario, message.params?.clientInfo),
+        codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
+        platformFamily: process.platform === "win32" ? "windows" : "unix",
+        platformOs: process.platform,
+      };
+      if (
+        scenario ===
+        "candidate_0_153_2_adapter_transport_delayed_before_deadline"
+      ) {
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          40,
+        );
+        return;
+      }
+      if (
+        scenario ===
+        "candidate_0_153_2_adapter_transport_delayed_after_deadline"
+      ) {
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          160,
+        );
+        return;
+      }
+      if (scenario === "candidate_0_153_2_adapter_transport_partial_jsonl") {
+        const encoded = `${JSON.stringify({
+          id: message.id,
+          result: adapterTransportInitializeResult,
+        })}\n`;
+        const middle = Math.floor(encoded.length / 2);
+        process.stdout.write(encoded.slice(0, middle));
+        setTimeout(() => process.stdout.write(encoded.slice(middle)), 30);
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_malformed_envelope"
+      ) {
+        process.stdout.write(
+          "{secret-looking malformed /Users/private/auth.json\n",
+        );
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_adapter_transport_unknown_response_id"
+      ) {
+        respond("unknown-diagnostic-id", adapterTransportInitializeResult);
+        return;
+      }
+      if (scenario === "candidate_0_153_2_adapter_transport_observer_delay") {
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          300,
+        );
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_authenticated_initialize_rpc_failure"
+      ) {
+        respondError(
+          message.id,
+          -32000,
+          "secret-looking initialization failure",
+        );
+        return;
+      }
       if (scenario === "unsupported_app_server") {
         respondError(message.id, -32601, "Method not found");
         return;
@@ -279,8 +382,9 @@ async function handle(message) {
       respond(
         message.id,
         scenario === "unauthenticated" ||
-        candidate01532Scenario ||
-        scenario === "isolated_auth_unauthenticated"
+          (candidate01532Scenario && !candidate01532AuthenticatedScenario) ||
+          scenario === "candidate_0_153_2_authenticated_auth_unavailable" ||
+          scenario === "isolated_auth_unauthenticated"
           ? { account: null, requiresOpenaiAuth: true }
           : {
               account: {
@@ -320,6 +424,13 @@ async function handle(message) {
     }
     if (message.method === "config/read") {
       if (candidate01532Scenario) {
+        if (scenario === "candidate_0_153_2_authenticated_config_warning") {
+          notify("configWarning", {
+            summary: "unknown behavior-bearing configuration warning",
+            details: "secret-looking value at /Users/private/config.toml",
+          });
+          return;
+        }
         const entries = isolatedAuthRuntimeOverrideEntriesV01(
           process.argv.slice(2, -2),
         );
@@ -329,6 +440,14 @@ async function handle(message) {
           remote_control: false,
           ...(config.features ?? {}),
         };
+        if (
+          scenario === "candidate_0_153_2_authenticated_effective_config_drift"
+        )
+          config.features.plugins = true;
+        if (scenario === "candidate_0_153_2_authenticated_inert_unknown_config")
+          config.ignored_unknown_user_config_field = {
+            effective_behavior: false,
+          };
         respond(message.id, {
           config,
           origins: {},
@@ -375,17 +494,17 @@ async function handle(message) {
                       ? { openai: { auth: { command: "foreign-auth" } } }
                       : scenario === "isolated_auth_provider_aws_drift"
                         ? { openai: { aws: { region: "us-east-1" } } }
-                      : scenario === "isolated_auth_provider_headers_drift"
-                        ? {
-                            openai: {
-                              query_params: { source: "foreign" },
-                              http_headers: { Authorization: "foreign" },
-                              env_http_headers: {
-                                Authorization: "FOREIGN_AUTH",
+                        : scenario === "isolated_auth_provider_headers_drift"
+                          ? {
+                              openai: {
+                                query_params: { source: "foreign" },
+                                http_headers: { Authorization: "foreign" },
+                                env_http_headers: {
+                                  Authorization: "FOREIGN_AUTH",
+                                },
                               },
-                            },
-                          }
-                        : null,
+                            }
+                          : null,
           web_search:
             isolatedAuthScenario && scenario !== "isolated_auth_config_mismatch"
               ? "disabled"
@@ -511,6 +630,25 @@ async function handle(message) {
       return;
     }
     if (message.method === "turn/start") {
+      if (
+        candidate01532AuthenticatedScenario &&
+        (message.params?.input?.length !== 1 ||
+          message.params.input[0]?.type !== "text" ||
+          message.params.input[0]?.text !==
+            "Return exactly AUGNES_CODEX_01532_ORDINARY_CANARY_OK and do not use tools, run commands, read or write files, or add any explanation." ||
+          message.params?.sandboxPolicy?.type !== "readOnly" ||
+          message.params?.sandboxPolicy?.networkAccess !== false ||
+          Object.hasOwn(message.params ?? {}, "outputSchema"))
+      ) {
+        respondError(message.id, -32602, "candidate canary request mismatch");
+        return;
+      }
+      if (
+        scenario === "candidate_0_153_2_authenticated_turn_start_rpc_failure"
+      ) {
+        respondError(message.id, -32000, "turn start failed");
+        return;
+      }
       turnActive = true;
       persistState({ threadId, sessionId, turnId, status: "inProgress" });
       if (scenario === "browser_two_sequential_approvals") {
@@ -552,7 +690,70 @@ async function handle(message) {
             threadName: "Bounded fixture name",
           });
         }
-        if (
+        if (candidate01532AuthenticatedScenario) {
+          if (
+            scenario.endsWith("_success") ||
+            scenario.endsWith("_inert_unknown_config")
+          )
+            completeCandidateAuthenticatedSuccess();
+          else if (scenario.endsWith("_malformed_terminal"))
+            completeCandidateAuthenticatedMalformedTerminal();
+          else if (scenario.endsWith("_failure")) completeFailure();
+          else if (scenario.endsWith("_interrupted")) completeInterrupted();
+          else if (scenario.endsWith("_reroute")) {
+            notify("model/rerouted", {
+              threadId,
+              turnId,
+              fromModel: "expected",
+              toModel: "fallback",
+            });
+          } else if (scenario.endsWith("_auth_recovery")) {
+            notify("modelProvider/authRecoveryStarted", {
+              threadId,
+              turnId,
+              provider: "openai",
+              message: "retry",
+            });
+          } else if (scenario.endsWith("_approval")) requestCommandApproval();
+          else if (scenario.endsWith("_command")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "commandExecution",
+                id: "candidate-command",
+                status: "completed",
+                command: "true",
+              },
+            });
+          } else if (scenario.endsWith("_write")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "fileChange",
+                id: "candidate-write",
+                status: "completed",
+                changes: [],
+              },
+            });
+          } else if (scenario.endsWith("_tool")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "webSearch",
+                id: "candidate-tool",
+                status: "completed",
+              },
+            });
+          } else if (scenario.endsWith("_unexpected_notification")) {
+            notify("modelProvider/unqualifiedFutureEvent", {
+              threadId,
+              turnId,
+            });
+          }
+        } else if (
           [
             "auth_recovery_notifications",
             "isolated_auth_auth_recovery_notifications",
@@ -859,9 +1060,8 @@ function fakeCodexUserAgentV01(value, clientInfo) {
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
   if (value.startsWith("candidate_0_153_2_")) {
-    const cliVersion = value === "candidate_0_153_2_wrong_user_agent"
-      ? "0.153.1"
-      : "0.153.2";
+    const cliVersion =
+      value === "candidate_0_153_2_wrong_user_agent" ? "0.153.1" : "0.153.2";
     return `${name}/${cliVersion} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
   }
   if (!value.startsWith("isolated_auth_"))
@@ -1093,15 +1293,18 @@ function isolatedAuthConfigReadProvenanceV01(activeScenario) {
 }
 
 function isolatedAuthRuntimeOverrideEntriesV01(args) {
+  const strictConfig = args[0] === "--strict-config";
+  const firstOverrideIndex = strictConfig ? 1 : 0;
   if (
-    args[0] !== "--strict-config" ||
-    args.length < 3 ||
-    (args.length - 1) % 2 !== 0
+    (isolatedAuthScenario && !strictConfig) ||
+    (candidate01532AuthenticatedScenario && strictConfig) ||
+    args.length - firstOverrideIndex < 2 ||
+    (args.length - firstOverrideIndex) % 2 !== 0
   )
     throw new Error("fake_isolated_auth_config_override_shape_invalid");
   const entries = [];
   const paths = new Set();
-  for (let index = 1; index < args.length; index += 2) {
+  for (let index = firstOverrideIndex; index < args.length; index += 2) {
     if (args[index] !== "-c")
       throw new Error("fake_isolated_auth_config_override_shape_invalid");
     const expression = args[index + 1];
@@ -1222,8 +1425,7 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     mcp_2026_07_28:
       activeScenario === "isolated_auth_feature_mcp_2026_07_28_enabled",
     memories: activeScenario === "isolated_auth_feature_memories_enabled",
-    mentions_v2:
-      activeScenario === "isolated_auth_feature_mentions_v2_enabled",
+    mentions_v2: activeScenario === "isolated_auth_feature_mentions_v2_enabled",
     multi_agent: false,
     network_proxy: false,
     plugins: false,
@@ -1539,6 +1741,29 @@ function completeUnsafeTextStructuredResult(summary) {
   });
 }
 
+function completeCandidateAuthenticatedSuccess() {
+  if (completed) return;
+  completed = true;
+  const item = agentMessage("AUGNES_CODEX_01532_ORDINARY_CANARY_OK");
+  notify("item/completed", { threadId, turnId, item });
+  notify("turn/completed", {
+    threadId,
+    turn: turn("completed", [item]),
+  });
+}
+
+function completeCandidateAuthenticatedMalformedTerminal() {
+  if (completed) return;
+  completed = true;
+  notify("turn/completed", {
+    threadId,
+    turn: turn("completed", [
+      agentMessage("AUGNES_CODEX_01532_ORDINARY_CANARY_OK"),
+      agentMessage("unexpected second response"),
+    ]),
+  });
+}
+
 function structuredResult() {
   const changedPath = "src/live-result.ts";
   return JSON.stringify({
@@ -1585,7 +1810,7 @@ function structuredResult() {
 }
 
 function threadResponse(options = {}) {
-  const isolated = isolatedAuthScenario;
+  const isolated = isolatedAuthScenario || candidate01532AuthenticatedScenario;
   return {
     thread: thread({ ...options, ephemeral: isolated }),
     model: "configured-default",
@@ -1601,13 +1826,15 @@ function threadResponse(options = {}) {
         : [],
     approvalPolicy: "on-request",
     approvalsReviewer: "user",
-    sandbox: {
-      type: "workspaceWrite",
-      writableRoots: [root],
-      networkAccess: false,
-      excludeTmpdirEnvVar: true,
-      excludeSlashTmp: true,
-    },
+    sandbox: candidate01532AuthenticatedScenario
+      ? { type: "readOnly", networkAccess: false }
+      : {
+          type: "workspaceWrite",
+          writableRoots: [root],
+          networkAccess: false,
+          excludeTmpdirEnvVar: true,
+          excludeSlashTmp: true,
+        },
     reasoningEffort: null,
   };
 }
@@ -1630,7 +1857,11 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: isolatedAuthScenario ? "0.152.1" : "0.147.0",
+    cliVersion: candidate01532AuthenticatedScenario
+      ? "0.153.2"
+      : isolatedAuthScenario
+        ? "0.152.1"
+        : "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,
@@ -1713,6 +1944,13 @@ function minimized(message) {
   if (message?.method === "initialize") {
     summary.fixture_scenario = scenario;
     summary.capabilities = message.params?.capabilities ?? null;
+    if (candidate01532Scenario) {
+      summary.client_info = {
+        name: message.params?.clientInfo?.name ?? null,
+        title: message.params?.clientInfo?.title ?? null,
+        version: message.params?.clientInfo?.version ?? null,
+      };
+    }
   }
   if (message?.error && typeof message.error === "object") {
     summary.error_code = Number.isSafeInteger(message.error.code)

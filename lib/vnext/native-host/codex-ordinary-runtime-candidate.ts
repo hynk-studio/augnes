@@ -255,10 +255,20 @@ export async function evaluateCodex01532CandidateCredentialFreeV01(input: {
   test_prefix_args?: string[];
   test_environment?: Record<string, string | undefined>;
   test_expected_executable_fingerprint?: string;
+  test_registry?: unknown;
   observed_at?: string;
 }): Promise<CodexOrdinaryRuntimeCandidateQualificationReceiptV01> {
+  if (
+    input.test_registry !== undefined &&
+    (input.executable_identity_class !== "test_emulated_candidate_0_153_2" ||
+      process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE !== "1")
+  )
+    throw new Error("codex_candidate_test_registry_refused");
   const reviewed = getCodexReviewedRuntimeArtifactV01({
     entry_id: CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
+    ...(input.test_registry !== undefined
+      ? { registry: input.test_registry }
+      : {}),
   });
   const artifact = reviewed.artifact;
   const evidence = artifact.qualification_evidence;
