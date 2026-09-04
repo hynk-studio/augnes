@@ -19,9 +19,8 @@ import { extractReviewedCodexCandidateArchiveV01 } from "@/lib/vnext/native-host
 import { CODEX_0_153_2_ORDINARY_CANARY_ENTRY_ID_V01 } from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
 import {
   protectedCodexConfigurationFingerprintV01,
-  runCodex01532AdapterTransportInitializeProbeV01,
-  runCodex01532ExactWireDirectInitializeProbeV01,
-  runCodex01532ParentStdinDiagnosticSequenceV01,
+  runCodex01532InitializeWireIsolationProbeV01,
+  runCodex01532InitializeWireIsolationSequenceV01,
 } from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -30,7 +29,7 @@ import {
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 
 const REQUIRED_FLAG =
-  "--exact-reviewed-parent-stdin-delivery-diagnostic-0.153.2-once";
+  "--exact-reviewed-initialize-wire-field-isolation-0.153.2-once";
 const BASE_COMMIT = "8eb6b7af220fe8d7e244bb616205c797d7965142";
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 
@@ -143,26 +142,10 @@ async function mainV01(): Promise<void> {
       tmp,
       poisonPath,
     });
-    const result = await runCodex01532ParentStdinDiagnosticSequenceV01({
-      run_direct_probe: async () => {
-        const observed = await runCodex01532ExactWireDirectInitializeProbeV01({
-          command: extraction.native_executable,
-          expected_native_sha256: reviewed.artifact.native_executable_sha256,
-          private_root: disposableRoot!,
-          execution_root: executionRoot,
-          environment,
-          protected_surfaces_unchanged: true,
-        });
-        return Object.freeze({
-          ...observed,
-          protected_surfaces_unchanged:
-            protectedCodexConfigurationFingerprintV01(realCodexHome) ===
-            protectedBefore,
-        });
-      },
-      run_adapter_probe: async () => {
-        const observed = await runCodex01532AdapterTransportInitializeProbeV01({
-          probe: "T3_write_completion_control",
+    const result = await runCodex01532InitializeWireIsolationSequenceV01({
+      run_probe: async (probe) => {
+        const observed = await runCodex01532InitializeWireIsolationProbeV01({
+          probe,
           command: extraction.native_executable,
           expected_native_sha256: reviewed.artifact.native_executable_sha256,
           private_root: disposableRoot!,
@@ -202,8 +185,7 @@ async function mainV01(): Promise<void> {
       native_size_bytes: 220_551_344,
       native_sha256: reviewed.artifact.native_executable_sha256,
       archive_acquisitions: archiveAcquisitions,
-      direct_probe: result.direct_probe,
-      adapter_probe: result.adapter_probe,
+      probes: result.probes,
       skipped_probes: result.skipped_probes,
       initialize_requests_sent: result.initialize_requests_sent,
       initialized_notifications_sent: 0,
@@ -223,17 +205,15 @@ async function mainV01(): Promise<void> {
     };
     process.stdout.write(`${JSON.stringify(report)}\n`);
     if (
-      result.disposition === "UNEXPECTED_PARENT_STDIN_DIAGNOSTIC_FAILURE" ||
+      result.disposition === "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE" ||
       !protectedUnchanged ||
       !disposableRootRemoved ||
-      [result.direct_probe, result.adapter_probe]
-        .filter(Boolean)
-        .some(
-          (probe) =>
-            !probe!.process_settled ||
-            !probe!.streams_closed ||
-            probe!.remaining_owned_processes !== 0,
-        )
+      result.probes.some(
+        (probe) =>
+          !probe.process_settled ||
+          !probe.streams_closed ||
+          probe.remaining_owned_processes !== 0,
+      )
     )
       process.exitCode = 2;
   } catch (error) {

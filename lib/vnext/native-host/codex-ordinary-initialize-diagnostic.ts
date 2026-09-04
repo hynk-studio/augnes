@@ -126,6 +126,8 @@ export interface Codex01532ExactWireDirectInitializeProbeResultV01 {
   drain_observed: boolean;
   drain_elapsed_ms: number | null;
   first_stdout_chunk_elapsed_ms: number | null;
+  stdout_chunk_count: number;
+  total_stdout_bytes: number;
   first_complete_jsonl_line_elapsed_ms: number | null;
   response_envelope_elapsed_ms: number | null;
   timeout_callback_elapsed_ms: number | null;
@@ -257,6 +259,8 @@ interface Codex01532DirectInitializeCoreResultV01 extends Codex01532InitializeDi
   drain_observed: boolean;
   drain_elapsed_ms: number | null;
   first_stdout_chunk_elapsed_ms: number | null;
+  stdout_chunk_count: number;
+  total_stdout_bytes: number;
   first_complete_jsonl_line_elapsed_ms: number | null;
   response_envelope_elapsed_ms: number | null;
   timeout_callback_elapsed_ms: number | null;
@@ -297,6 +301,163 @@ export async function runCodex01532ExactWireDirectInitializeProbeV01(
   assertExactWireDirectProbeResultV01(result);
   assertPublicSafeV01(result);
   return result;
+}
+
+export const CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01 =
+  "codex_0_153_2_initialize_wire_field_isolation.v0.1" as const;
+
+export type Codex01532InitializeWireIsolationProbeLabelV01 =
+  | "W1_adapter_request_id_control"
+  | "W2_canary_title_control";
+
+export type Codex01532InitializeWireIsolationDispositionV01 =
+  | "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED"
+  | "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED"
+  | "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED"
+  | "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+
+export interface Codex01532InitializeWireIsolationProbeResultV01
+  extends Omit<
+    Codex01532ExactWireDirectInitializeProbeResultV01,
+    | "diagnostic_version"
+    | "probe"
+    | "exact_canary_wire_identity"
+    | "generated_request_id_class"
+  > {
+  diagnostic_version: typeof CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01;
+  probe: Codex01532InitializeWireIsolationProbeLabelV01;
+  changed_field_from_prior_control:
+    | "request_id_class_only_from_passing_baseline"
+    | "title_only_from_W1";
+  client_name: typeof CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01;
+  client_title:
+    | "Augnes initialize-only diagnostic"
+    | "Augnes ordinary candidate canary";
+  client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
+  capabilities: null;
+  request_id_class: "augnes_uuid_v4";
+}
+
+export interface Codex01532InitializeWireIsolationSequenceV01 {
+  diagnostic_version: typeof CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01;
+  disposition: Codex01532InitializeWireIsolationDispositionV01;
+  probes: readonly Codex01532InitializeWireIsolationProbeResultV01[];
+  skipped_probes: readonly Codex01532InitializeWireIsolationProbeLabelV01[];
+  initialize_requests_sent: 1 | 2;
+  post_initialize_requests_sent: 0;
+  diagnostic_fingerprint: string;
+}
+
+export async function runCodex01532InitializeWireIsolationProbeV01(
+  input: Omit<Codex01532InitializeOnlyProbeInputV01, "probe"> & {
+    probe: Codex01532InitializeWireIsolationProbeLabelV01;
+  },
+): Promise<Codex01532InitializeWireIsolationProbeResultV01> {
+  const wire = initializeWireIsolationTupleV01(input.probe);
+  const observed = await runCodex01532DirectInitializeProbeCoreV01(
+    { ...input, probe: "B_split_home_real_codex_home" },
+    {
+      request_id: `augnes:${randomUUID()}`,
+      client_name: wire.client_name,
+      client_title: wire.client_title,
+      request_id_class: "augnes_uuid_v4",
+    },
+  );
+  const {
+    exact_canary_wire_identity: _exactCanaryWireIdentity,
+    generated_request_id_class: _generatedRequestIdClass,
+    ...bounded
+  } = observed;
+  const result = Object.freeze({
+    ...bounded,
+    diagnostic_version: CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
+    probe: input.probe,
+    environment_shape: "private_home_real_codex_home" as const,
+    changed_field_from_prior_control:
+      input.probe === "W1_adapter_request_id_control"
+        ? ("request_id_class_only_from_passing_baseline" as const)
+        : ("title_only_from_W1" as const),
+    client_name: wire.client_name,
+    client_title: wire.client_title,
+    client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    capabilities: null,
+    request_id_class: "augnes_uuid_v4" as const,
+  });
+  assertInitializeWireIsolationProbeResultV01(result, input.probe);
+  assertPublicSafeV01(result);
+  return result;
+}
+
+export async function runCodex01532InitializeWireIsolationSequenceV01(input: {
+  run_probe(
+    probe: Codex01532InitializeWireIsolationProbeLabelV01,
+  ): Promise<Codex01532InitializeWireIsolationProbeResultV01>;
+}): Promise<Codex01532InitializeWireIsolationSequenceV01> {
+  if (typeof input.run_probe !== "function")
+    throw new Error("codex_initialize_wire_isolation_runner_invalid");
+  const probes: Codex01532InitializeWireIsolationProbeResultV01[] = [];
+  const run = async (probe: Codex01532InitializeWireIsolationProbeLabelV01) => {
+    const result = await input.run_probe(probe);
+    assertInitializeWireIsolationProbeResultV01(result, probe);
+    probes.push(result);
+    return result;
+  };
+
+  const w1 = await run("W1_adapter_request_id_control");
+  let disposition: Codex01532InitializeWireIsolationDispositionV01;
+  let skipped: readonly Codex01532InitializeWireIsolationProbeLabelV01[] = [];
+  if (!initializeWireIsolationProbePassedV01(w1)) {
+    disposition =
+      w1.public_error_class === "initialize_timeout"
+        ? "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED"
+        : "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+    skipped = ["W2_canary_title_control"];
+  } else {
+    const w2 = await run("W2_canary_title_control");
+    if (initializeWireIsolationProbePassedV01(w2))
+      disposition = "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED";
+    else if (w2.public_error_class === "initialize_timeout")
+      disposition = "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED";
+    else disposition = "UNEXPECTED_INITIALIZE_WIRE_ISOLATION_FAILURE";
+  }
+
+  const material = {
+    diagnostic_version: CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
+    disposition,
+    probes,
+    skipped_probes: skipped,
+    initialize_requests_sent: probes.length as 1 | 2,
+    post_initialize_requests_sent: 0 as const,
+  };
+  const result = Object.freeze({
+    ...material,
+    diagnostic_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  });
+  assertPublicSafeV01(result);
+  return result;
+}
+
+function initializeWireIsolationTupleV01(
+  probe: Codex01532InitializeWireIsolationProbeLabelV01,
+): Readonly<{
+  client_name: typeof CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01;
+  client_title:
+    | "Augnes initialize-only diagnostic"
+    | "Augnes ordinary candidate canary";
+}> {
+  if (probe === "W1_adapter_request_id_control")
+    return Object.freeze({
+      client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
+      client_title: "Augnes initialize-only diagnostic" as const,
+    });
+  if (probe === "W2_canary_title_control")
+    return Object.freeze({
+      client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
+      client_title: "Augnes ordinary candidate canary" as const,
+    });
+  throw new Error("codex_initialize_wire_isolation_probe_invalid");
 }
 
 async function runCodex01532DirectInitializeProbeCoreV01(
@@ -361,6 +522,8 @@ async function runCodex01532DirectInitializeProbeCoreV01(
   let drainObserved = false;
   let drainElapsedMs: number | null = null;
   let firstStdoutChunkElapsedMs: number | null = null;
+  let stdoutChunkCount = 0;
+  let totalStdoutBytes = 0;
   let firstCompleteJsonlLineElapsedMs: number | null = null;
   let responseEnvelopeElapsedMs: number | null = null;
   let timeoutCallbackElapsedMs: number | null = null;
@@ -390,6 +553,11 @@ async function runCodex01532DirectInitializeProbeCoreV01(
   });
   child.stdout.on("data", (chunk: Buffer) => {
     if (outcomeSettled) return;
+    stdoutChunkCount += 1;
+    totalStdoutBytes = Math.min(
+      MAX_JSONL_BUFFER_BYTES + 1,
+      totalStdoutBytes + chunk.byteLength,
+    );
     firstStdoutChunkElapsedMs ??= directProbeElapsedV01(
       responseStartedMonotonic,
     );
@@ -599,6 +767,8 @@ async function runCodex01532DirectInitializeProbeCoreV01(
     drain_observed: drainObserved,
     drain_elapsed_ms: drainElapsedMs,
     first_stdout_chunk_elapsed_ms: firstStdoutChunkElapsedMs,
+    stdout_chunk_count: stdoutChunkCount,
+    total_stdout_bytes: totalStdoutBytes,
     first_complete_jsonl_line_elapsed_ms: firstCompleteJsonlLineElapsedMs,
     response_envelope_elapsed_ms: responseEnvelopeElapsedMs,
     timeout_callback_elapsed_ms: timeoutCallbackElapsedMs,
@@ -1408,6 +1578,76 @@ function assertExactWireDirectProbeResultV01(
     value.environment_shape !== "private_home_real_codex_home" ||
     value.exact_canary_wire_identity !== true ||
     value.generated_request_id_class !== "augnes_uuid_v4" ||
+    value.post_initialize_requests_sent !== 0
+  )
+    throw new Error("codex_exact_wire_direct_diagnostic_result_invalid");
+  assertDirectInitializeObservationV01(value);
+}
+
+function assertInitializeWireIsolationProbeResultV01(
+  value: Codex01532InitializeWireIsolationProbeResultV01,
+  expectedProbe: Codex01532InitializeWireIsolationProbeLabelV01,
+): void {
+  const expected = initializeWireIsolationTupleV01(expectedProbe);
+  if (
+    value.diagnostic_version !==
+      CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01 ||
+    value.probe !== expectedProbe ||
+    value.environment_shape !== "private_home_real_codex_home" ||
+    value.changed_field_from_prior_control !==
+      (expectedProbe === "W1_adapter_request_id_control"
+        ? "request_id_class_only_from_passing_baseline"
+        : "title_only_from_W1") ||
+    value.client_name !== expected.client_name ||
+    value.client_title !== expected.client_title ||
+    value.client_version !== CODEX_APP_SERVER_CLIENT_VERSION_V01 ||
+    value.capabilities !== null ||
+    value.request_id_class !== "augnes_uuid_v4" ||
+    value.post_initialize_requests_sent !== 0
+  )
+    throw new Error("codex_initialize_wire_isolation_result_invalid");
+  assertProbeResultV01(
+    {
+      ...value,
+      diagnostic_version: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_VERSION_V01,
+      probe: "B_split_home_real_codex_home",
+      environment_shape: "private_home_real_codex_home",
+    },
+    "B_split_home_real_codex_home",
+  );
+  assertDirectInitializeObservationV01(value);
+}
+
+function assertDirectInitializeObservationV01(
+  value: Pick<
+    Codex01532ExactWireDirectInitializeProbeResultV01,
+    | "native_sha256"
+    | "stdin_write_called"
+    | "stdin_write_sync_returned"
+    | "stdin_write_returned_boolean"
+    | "stdin_writable_length_after_return"
+    | "stdin_writable_need_drain_after_return"
+    | "stdin_write_completion_callback_observed"
+    | "stdin_write_completion_callback_elapsed_ms"
+    | "drain_observed"
+    | "drain_elapsed_ms"
+    | "first_stdout_chunk_elapsed_ms"
+    | "stdout_chunk_count"
+    | "total_stdout_bytes"
+    | "first_complete_jsonl_line_elapsed_ms"
+    | "response_envelope_elapsed_ms"
+    | "timeout_callback_elapsed_ms"
+  >,
+): void {
+  const nullableElapsedFields = [
+    value.stdin_write_completion_callback_elapsed_ms,
+    value.drain_elapsed_ms,
+    value.first_stdout_chunk_elapsed_ms,
+    value.first_complete_jsonl_line_elapsed_ms,
+    value.response_envelope_elapsed_ms,
+    value.timeout_callback_elapsed_ms,
+  ];
+  if (
     !HASH_PATTERN.test(value.native_sha256) ||
     typeof value.stdin_write_called !== "boolean" ||
     typeof value.stdin_write_sync_returned !== "boolean" ||
@@ -1421,13 +1661,43 @@ function assertExactWireDirectProbeResultV01(
       typeof value.stdin_writable_need_drain_after_return !== "boolean") ||
     typeof value.stdin_write_completion_callback_observed !== "boolean" ||
     typeof value.drain_observed !== "boolean" ||
-    value.post_initialize_requests_sent !== 0
+    !Number.isSafeInteger(value.stdout_chunk_count) ||
+    value.stdout_chunk_count < 0 ||
+    !Number.isSafeInteger(value.total_stdout_bytes) ||
+    value.total_stdout_bytes < 0 ||
+    value.total_stdout_bytes > MAX_JSONL_BUFFER_BYTES + 1 ||
+    nullableElapsedFields.some(
+      (elapsed) =>
+        elapsed !== null &&
+        (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 120_000),
+    )
   )
-    throw new Error("codex_exact_wire_direct_diagnostic_result_invalid");
+    throw new Error("codex_direct_initialize_observation_invalid");
 }
 
 function exactWireDirectProbePassedV01(
   value: Codex01532ExactWireDirectInitializeProbeResultV01,
+): boolean {
+  return (
+    value.stdin_write_called &&
+    value.stdin_write_sync_returned &&
+    value.stdin_write_completion_callback_observed &&
+    value.initialize_request_sent &&
+    value.valid_initialize_response_received &&
+    value.initialize_user_agent_validated &&
+    value.returned_codex_home_validated_locally &&
+    value.response_bound_met &&
+    value.public_error_class === null &&
+    value.process_settled &&
+    value.streams_closed &&
+    value.remaining_owned_processes === 0 &&
+    value.protected_surfaces_unchanged &&
+    value.post_initialize_requests_sent === 0
+  );
+}
+
+function initializeWireIsolationProbePassedV01(
+  value: Codex01532InitializeWireIsolationProbeResultV01,
 ): boolean {
   return (
     value.stdin_write_called &&

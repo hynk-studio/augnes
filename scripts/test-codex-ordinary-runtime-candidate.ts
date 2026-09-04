@@ -39,18 +39,23 @@ import {
 } from "@/lib/vnext/native-host/codex-ordinary-runtime-candidate";
 import {
   CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+  CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
   CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
   CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
   runCodex01532AdapterTransportDiagnosticSequenceV01,
   runCodex01532AdapterTransportInitializeProbeV01,
   runCodex01532InitializeDiagnosticSequenceV01,
   runCodex01532InitializeOnlyProbeV01,
+  runCodex01532InitializeWireIsolationProbeV01,
+  runCodex01532InitializeWireIsolationSequenceV01,
   runCodex01532ExactWireDirectInitializeProbeV01,
   runCodex01532ParentStdinDiagnosticSequenceV01,
   type Codex01532AdapterTransportDiagnosticProbeLabelV01,
   type Codex01532AdapterTransportDiagnosticProbeResultV01,
   type Codex01532InitializeDiagnosticProbeLabelV01,
   type Codex01532InitializeDiagnosticProbeResultV01,
+  type Codex01532InitializeWireIsolationProbeLabelV01,
+  type Codex01532InitializeWireIsolationProbeResultV01,
   type Codex01532ExactWireDirectInitializeProbeResultV01,
 } from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
 import {
@@ -110,6 +115,7 @@ async function mainV01(): Promise<void> {
     await initializeOnlyDiagnosticContractV01();
     await adapterTransportInitializeDiagnosticContractV01();
     await parentStdinBoundaryDiagnosticContractV01();
+    await initializeWireFieldIsolationDiagnosticContractV01();
     report = {
       status: "passed",
       contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
@@ -1747,6 +1753,165 @@ async function parentStdinBoundaryDiagnosticContractV01(): Promise<void> {
   );
 }
 
+async function initializeWireFieldIsolationDiagnosticContractV01(): Promise<void> {
+  assert.equal(
+    CODEX_0_153_2_INITIALIZE_WIRE_ISOLATION_VERSION_V01,
+    "codex_0_153_2_initialize_wire_field_isolation.v0.1",
+  );
+  const receivedByProbe = new Map<
+    Codex01532InitializeWireIsolationProbeLabelV01,
+    Record<string, any>
+  >();
+  const actual = await runCodex01532InitializeWireIsolationSequenceV01({
+    run_probe: async (probe) => {
+      const observed = await runFakeInitializeWireIsolationProbeV01(probe);
+      receivedByProbe.set(probe, observed.received);
+      return observed.result;
+    },
+  });
+  assert.equal(
+    actual.disposition,
+    "CANARY_CLIENT_NAME_TIMEOUT_STRONGLY_ISOLATED",
+  );
+  assert.deepEqual(
+    actual.probes.map(({ probe }) => probe),
+    ["W1_adapter_request_id_control", "W2_canary_title_control"],
+  );
+  assert.deepEqual(actual.skipped_probes, []);
+  assert.equal(actual.initialize_requests_sent, 2);
+  assert.equal(actual.post_initialize_requests_sent, 0);
+  const w1 = receivedByProbe.get("W1_adapter_request_id_control")!;
+  const w2 = receivedByProbe.get("W2_canary_title_control")!;
+  assert.match(w1.id, /^augnes:[0-9a-f-]{36}$/u);
+  assert.match(w2.id, /^augnes:[0-9a-f-]{36}$/u);
+  assert.notEqual(w1.id, w2.id);
+  assert.deepEqual(w1.client_info, {
+    name: "augnes-initialize-diagnostic",
+    title: "Augnes initialize-only diagnostic",
+    version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+  });
+  assert.deepEqual(w2.client_info, {
+    ...w1.client_info,
+    title: "Augnes ordinary candidate canary",
+  });
+  assert.equal(w1.capabilities, null);
+  assert.equal(w2.capabilities, null);
+  assert.equal(w1.method, "initialize");
+  assert.equal(w2.method, "initialize");
+  assert.equal(JSON.stringify(actual).includes(String(w1.id)), false);
+  assert.equal(JSON.stringify(actual).includes(String(w2.id)), false);
+
+  const w1Calls: Codex01532InitializeWireIsolationProbeLabelV01[] = [];
+  const w1Timeout = await runCodex01532InitializeWireIsolationSequenceV01({
+    run_probe: async (probe) => {
+      w1Calls.push(probe);
+      return syntheticInitializeWireIsolationProbeV01(probe, "timeout");
+    },
+  });
+  assert.equal(
+    w1Timeout.disposition,
+    "ADAPTER_STYLE_REQUEST_ID_DIRECT_TIMEOUT_REPRODUCED",
+  );
+  assert.deepEqual(w1Calls, ["W1_adapter_request_id_control"]);
+  assert.deepEqual(w1Timeout.skipped_probes, [
+    "W2_canary_title_control",
+  ]);
+  assert.equal(w1Timeout.initialize_requests_sent, 1);
+
+  const w2Calls: Codex01532InitializeWireIsolationProbeLabelV01[] = [];
+  const w2Timeout = await runCodex01532InitializeWireIsolationSequenceV01({
+    run_probe: async (probe) => {
+      w2Calls.push(probe);
+      return syntheticInitializeWireIsolationProbeV01(
+        probe,
+        probe === "W1_adapter_request_id_control" ? "pass" : "timeout",
+      );
+    },
+  });
+  assert.equal(
+    w2Timeout.disposition,
+    "CANARY_TITLE_DIRECT_TIMEOUT_REPRODUCED",
+  );
+  assert.deepEqual(w2Calls, [
+    "W1_adapter_request_id_control",
+    "W2_canary_title_control",
+  ]);
+  assert.equal(w2Timeout.initialize_requests_sent, 2);
+  assert.equal(w2Timeout.post_initialize_requests_sent, 0);
+}
+
+async function runFakeInitializeWireIsolationProbeV01(
+  probe: Codex01532InitializeWireIsolationProbeLabelV01,
+): Promise<{
+  result: Codex01532InitializeWireIsolationProbeResultV01;
+  received: Record<string, any>;
+}> {
+  const fixtureRoot = realpathSync.native(
+    mkdtempSync(path.join(root, `initialize-wire-${probe}-`)),
+  );
+  chmodSync(fixtureRoot, 0o700);
+  const sharedCodexHome = path.join(root, "initialize-wire-codex-home");
+  if (!existsSync(sharedCodexHome)) mkdirSync(sharedCodexHome, { mode: 0o700 });
+  chmodSync(sharedCodexHome, 0o700);
+  const directories = Object.fromEntries(
+    ["execution", "home", "sqlite-home", "tmp", "path"].map((name) => {
+      const target = path.join(fixtureRoot, name);
+      mkdirSync(target, { mode: 0o700 });
+      chmodSync(target, 0o700);
+      return [name, realpathSync.native(target)];
+    }),
+  );
+  const tracePath = path.join(fixtureRoot, "trace.jsonl");
+  try {
+    const result = await runCodex01532InitializeWireIsolationProbeV01({
+      probe,
+      command: process.execPath,
+      expected_native_sha256: expectedNodeFingerprintV01(),
+      private_root: fixtureRoot,
+      execution_root: directories.execution!,
+      environment: {
+        NODE_ENV: "test",
+        HOME: directories.home,
+        CODEX_HOME: realpathSync.native(sharedCodexHome),
+        CODEX_SQLITE_HOME: directories["sqlite-home"],
+        TMPDIR: directories.tmp,
+        PATH: directories.path,
+        LANG: "C",
+        LC_ALL: "C",
+        TZ: "UTC",
+        NO_COLOR: "1",
+        FAKE_CODEX_SCENARIO: "candidate_0_153_2_initialize_diagnostic_pass",
+        FAKE_CODEX_TRACE_PATH: tracePath,
+      },
+      protected_surfaces_unchanged: true,
+      test_only: {
+        fixture_path: fixturePathV01(),
+        response_bound_ms: 500,
+      },
+    });
+    const records = readFileSync(tracePath, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, any>);
+    const received = records.find(({ kind }) => kind === "received")?.value;
+    assert.ok(received);
+    assert.deepEqual(
+      records
+        .filter(({ kind }) => kind === "received")
+        .map(({ value }) => value.method),
+      ["initialize"],
+    );
+    assert.equal(result.process_settled, true);
+    assert.equal(result.streams_closed, true);
+    assert.equal(result.remaining_owned_processes, 0);
+    assert.equal(result.post_initialize_requests_sent, 0);
+    return { result, received };
+  } finally {
+    removeAuthenticatedFixtureRootsV01(fixtureRoot);
+  }
+}
+
 function syntheticExactWireDirectProbeV01(
   outcome: "pass" | "timeout",
 ): Codex01532ExactWireDirectInitializeProbeResultV01 {
@@ -1768,6 +1933,8 @@ function syntheticExactWireDirectProbeV01(
     drain_observed: false,
     drain_elapsed_ms: null,
     first_stdout_chunk_elapsed_ms: passed ? 10 : null,
+    stdout_chunk_count: passed ? 1 : 0,
+    total_stdout_bytes: passed ? 128 : 0,
     first_complete_jsonl_line_elapsed_ms: passed ? 10 : null,
     response_envelope_elapsed_ms: passed ? 10 : null,
     timeout_callback_elapsed_ms: passed ? null : 10_001,
@@ -1784,6 +1951,37 @@ function syntheticExactWireDirectProbeV01(
     remaining_owned_processes: 0,
     protected_surfaces_unchanged: true,
     post_initialize_requests_sent: 0,
+  };
+}
+
+function syntheticInitializeWireIsolationProbeV01(
+  probe: Codex01532InitializeWireIsolationProbeLabelV01,
+  outcome: "pass" | "timeout",
+): Codex01532InitializeWireIsolationProbeResultV01 {
+  const {
+    diagnostic_version: _diagnosticVersion,
+    probe: _probe,
+    exact_canary_wire_identity: _exactCanaryWireIdentity,
+    generated_request_id_class: _generatedRequestIdClass,
+    ...base
+  } = syntheticExactWireDirectProbeV01(outcome);
+  return {
+    ...base,
+    diagnostic_version:
+      "codex_0_153_2_initialize_wire_field_isolation.v0.1",
+    probe,
+    changed_field_from_prior_control:
+      probe === "W1_adapter_request_id_control"
+        ? "request_id_class_only_from_passing_baseline"
+        : "title_only_from_W1",
+    client_name: "augnes-initialize-diagnostic",
+    client_title:
+      probe === "W1_adapter_request_id_control"
+        ? "Augnes initialize-only diagnostic"
+        : "Augnes ordinary candidate canary",
+    client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    capabilities: null,
+    request_id_class: "augnes_uuid_v4",
   };
 }
 
