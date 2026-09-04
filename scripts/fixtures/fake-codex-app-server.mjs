@@ -256,10 +256,7 @@ async function handle(message) {
         return;
       }
       const adapterTransportInitializeResult = {
-        userAgent: fakeCodexUserAgentV01(
-          scenario,
-          message.params?.clientInfo,
-        ),
+        userAgent: fakeCodexUserAgentV01(scenario, message.params?.clientInfo),
         codexHome: process.env.CODEX_HOME ?? process.env.HOME ?? root,
         platformFamily: process.platform === "win32" ? "windows" : "unix",
         platformOs: process.platform,
@@ -268,19 +265,23 @@ async function handle(message) {
         scenario ===
         "candidate_0_153_2_adapter_transport_delayed_before_deadline"
       ) {
-        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 40);
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          40,
+        );
         return;
       }
       if (
         scenario ===
         "candidate_0_153_2_adapter_transport_delayed_after_deadline"
       ) {
-        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 160);
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          160,
+        );
         return;
       }
-      if (
-        scenario === "candidate_0_153_2_adapter_transport_partial_jsonl"
-      ) {
+      if (scenario === "candidate_0_153_2_adapter_transport_partial_jsonl") {
         const encoded = `${JSON.stringify({
           id: message.id,
           result: adapterTransportInitializeResult,
@@ -293,7 +294,9 @@ async function handle(message) {
       if (
         scenario === "candidate_0_153_2_adapter_transport_malformed_envelope"
       ) {
-        process.stdout.write("{secret-looking malformed /Users/private/auth.json\n");
+        process.stdout.write(
+          "{secret-looking malformed /Users/private/auth.json\n",
+        );
         return;
       }
       if (
@@ -302,10 +305,11 @@ async function handle(message) {
         respond("unknown-diagnostic-id", adapterTransportInitializeResult);
         return;
       }
-      if (
-        scenario === "candidate_0_153_2_adapter_transport_observer_delay"
-      ) {
-        setTimeout(() => respond(message.id, adapterTransportInitializeResult), 300);
+      if (scenario === "candidate_0_153_2_adapter_transport_observer_delay") {
+        setTimeout(
+          () => respond(message.id, adapterTransportInitializeResult),
+          300,
+        );
         return;
       }
       if (
@@ -1940,6 +1944,13 @@ function minimized(message) {
   if (message?.method === "initialize") {
     summary.fixture_scenario = scenario;
     summary.capabilities = message.params?.capabilities ?? null;
+    if (candidate01532Scenario) {
+      summary.client_info = {
+        name: message.params?.clientInfo?.name ?? null,
+        title: message.params?.clientInfo?.title ?? null,
+        version: message.params?.clientInfo?.version ?? null,
+      };
+    }
   }
   if (message?.error && typeof message.error === "object") {
     summary.error_code = Number.isSafeInteger(message.error.code)

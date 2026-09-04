@@ -39,15 +39,19 @@ import {
 } from "@/lib/vnext/native-host/codex-ordinary-runtime-candidate";
 import {
   CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+  CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
   CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01,
   runCodex01532AdapterTransportDiagnosticSequenceV01,
   runCodex01532AdapterTransportInitializeProbeV01,
   runCodex01532InitializeDiagnosticSequenceV01,
   runCodex01532InitializeOnlyProbeV01,
+  runCodex01532ExactWireDirectInitializeProbeV01,
+  runCodex01532ParentStdinDiagnosticSequenceV01,
   type Codex01532AdapterTransportDiagnosticProbeLabelV01,
   type Codex01532AdapterTransportDiagnosticProbeResultV01,
   type Codex01532InitializeDiagnosticProbeLabelV01,
   type Codex01532InitializeDiagnosticProbeResultV01,
+  type Codex01532ExactWireDirectInitializeProbeResultV01,
 } from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -71,6 +75,7 @@ import type {
   NativeHostRequestV01,
   NativeHostResultV01,
 } from "@/types/vnext/native-host-adapter";
+import { CODEX_APP_SERVER_CLIENT_VERSION_V01 } from "@/types/vnext/codex-isolated-auth-projection";
 
 const previousCandidateTestMode =
   process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE;
@@ -104,6 +109,7 @@ async function mainV01(): Promise<void> {
     await authenticatedCandidateCapabilityAndLifecycleV01();
     await initializeOnlyDiagnosticContractV01();
     await adapterTransportInitializeDiagnosticContractV01();
+    await parentStdinBoundaryDiagnosticContractV01();
     report = {
       status: "passed",
       contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
@@ -1036,7 +1042,10 @@ async function initializeOnlyDiagnosticContractV01(): Promise<void> {
   assert.equal(Object.isFrozen(sharedOverrides), true);
   assert.equal(sharedOverrides.includes("--strict-config"), false);
   assert.equal(sharedOverrides.includes('model_provider="openai"'), true);
-  assert.equal(sharedOverrides.includes("features.use_agent_identity=false"), true);
+  assert.equal(
+    sharedOverrides.includes("features.use_agent_identity=false"),
+    true,
+  );
 
   const passed = await runInitializeDiagnosticFixtureV01(
     "candidate_0_153_2_initialize_diagnostic_pass",
@@ -1059,7 +1068,10 @@ async function initializeOnlyDiagnosticContractV01(): Promise<void> {
   assert.equal(exited.result.valid_initialize_response_received, false);
   assert.equal(exited.result.public_error_class, "initialize_process_exited");
   assert.deepEqual(exited.receivedMethods, ["initialize"]);
-  assert.equal(JSON.stringify(exited.result).includes("sk-never-retained"), false);
+  assert.equal(
+    JSON.stringify(exited.result).includes("sk-never-retained"),
+    false,
+  );
   assert.equal(JSON.stringify(exited.result).includes("/Users/private"), false);
 
   const timedOut = await runInitializeDiagnosticFixtureV01(
@@ -1088,8 +1100,14 @@ async function initializeOnlyDiagnosticContractV01(): Promise<void> {
     unexpected.result.public_error_class,
     "initialize_unexpected_protocol_message",
   );
-  assert.equal(JSON.stringify(unexpected.result).includes("secret-looking"), false);
-  assert.equal(JSON.stringify(unexpected.result).includes("/Users/private"), false);
+  assert.equal(
+    JSON.stringify(unexpected.result).includes("secret-looking"),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(unexpected.result).includes("/Users/private"),
+    false,
+  );
   assert.deepEqual(unexpected.receivedMethods, ["initialize"]);
 
   const callsA: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
@@ -1159,8 +1177,8 @@ async function initializeOnlyDiagnosticContractV01(): Promise<void> {
   );
 
   const unexpectedCalls: Codex01532InitializeDiagnosticProbeLabelV01[] = [];
-  const unexpectedSequence =
-    await runCodex01532InitializeDiagnosticSequenceV01({
+  const unexpectedSequence = await runCodex01532InitializeDiagnosticSequenceV01(
+    {
       run_probe: async (probe) => {
         unexpectedCalls.push(probe);
         return syntheticDiagnosticProbeV01(
@@ -1168,11 +1186,9 @@ async function initializeOnlyDiagnosticContractV01(): Promise<void> {
           probe === "A_private_control" ? "pass" : "rpc_failure",
         );
       },
-    });
-  assert.equal(
-    unexpectedSequence.disposition,
-    "UNEXPECTED_DIAGNOSTIC_FAILURE",
+    },
   );
+  assert.equal(unexpectedSequence.disposition, "UNEXPECTED_DIAGNOSTIC_FAILURE");
   assert.deepEqual(unexpectedCalls, [
     "A_private_control",
     "B_split_home_real_codex_home",
@@ -1271,10 +1287,10 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
   assert.equal(immediate.result.public_error_class, null);
   assert.equal(immediate.result.timeout_callback_fired, false);
   assert.equal(immediate.result.response_id_match, "pending");
-  assert.notEqual(
-    immediate.result.response_deferred_resolved_elapsed_ms,
-    null,
-  );
+  assert.notEqual(immediate.result.response_deferred_resolved_elapsed_ms, null);
+  assert.equal(immediate.result.stdin_write_completion_callback_observed, true);
+  assert.equal(immediate.result.stdin_write_returned_boolean, true);
+  assert.equal(immediate.result.stdin_error_observed, false);
   assert.deepEqual(immediate.receivedMethods, ["initialize"]);
 
   const delayedBefore = await runAdapterTransportDiagnosticFixtureV01({
@@ -1313,8 +1329,14 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
     responseBoundMs: 500,
   });
   assert.equal(malformed.result.public_error_class, "codex_jsonl_malformed");
-  assert.equal(JSON.stringify(malformed.result).includes("sk-never-retained"), false);
-  assert.equal(JSON.stringify(malformed.result).includes("/Users/private"), false);
+  assert.equal(
+    JSON.stringify(malformed.result).includes("sk-never-retained"),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(malformed.result).includes("/Users/private"),
+    false,
+  );
 
   const unknownId = await runAdapterTransportDiagnosticFixtureV01({
     probe: "T1_normal_observer_1",
@@ -1354,7 +1376,10 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
     responseBoundMs: 400,
     postTimeoutObservationMs: 250,
   });
-  assert.equal(observerDisabled.result.valid_initialize_response_received, true);
+  assert.equal(
+    observerDisabled.result.valid_initialize_response_received,
+    true,
+  );
   assert.equal(observerDisabled.result.public_error_class, null);
   assert.equal(
     observerDisabled.result.periodic_process_tree_observation_count,
@@ -1362,6 +1387,88 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
   );
   assert.deepEqual(observerDelayed.receivedMethods, ["initialize"]);
   assert.deepEqual(observerDisabled.receivedMethods, ["initialize"]);
+
+  const backpressure = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T3_write_completion_control",
+    scenario: "candidate_0_153_2_adapter_transport_delayed_before_deadline",
+    responseBoundMs: 500,
+    stdinWriteBehavior: {
+      force_reported_backpressure: true,
+      synthetic_drain_observation_delay_ms: 5,
+    },
+  });
+  assert.equal(backpressure.result.stdin_write_returned_boolean, false);
+  assert.equal(backpressure.result.drain_observed, true);
+  assert.notEqual(backpressure.result.drain_elapsed_ms, null);
+  assert.equal(
+    backpressure.result.stdin_write_completion_callback_observed,
+    true,
+  );
+
+  const delayedWriteCompletion = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T3_write_completion_control",
+    scenario: "candidate_0_153_2_initialize_diagnostic_timeout",
+    responseBoundMs: 100,
+    postTimeoutObservationMs: 200,
+    stdinWriteBehavior: {
+      completion_observation_delay_ms: 50,
+    },
+  });
+  assert.equal(
+    delayedWriteCompletion.result.public_error_class,
+    "codex_rpc_timeout",
+  );
+  assert.equal(
+    delayedWriteCompletion.result.stdin_write_completion_callback_observed,
+    true,
+  );
+  assert.equal(
+    delayedWriteCompletion.result.stdin_write_completion_callback_elapsed_ms! >=
+      50,
+    true,
+  );
+  assert.equal(delayedWriteCompletion.result.stdout_chunk_count, 0);
+
+  const unresolvedWriteCompletion =
+    await runAdapterTransportDiagnosticFixtureV01({
+      probe: "T3_write_completion_control",
+      scenario: "candidate_0_153_2_initialize_diagnostic_timeout",
+      responseBoundMs: 100,
+      postTimeoutObservationMs: 100,
+      stdinWriteBehavior: {
+        suppress_completion_observation: true,
+      },
+    });
+  assert.equal(
+    unresolvedWriteCompletion.result.public_error_class,
+    "codex_rpc_timeout",
+  );
+  assert.equal(
+    unresolvedWriteCompletion.result.stdin_write_completion_callback_observed,
+    false,
+  );
+
+  const writeError = await runAdapterTransportDiagnosticFixtureV01({
+    probe: "T3_write_completion_control",
+    scenario: "candidate_0_153_2_initialize_diagnostic_timeout",
+    responseBoundMs: 500,
+    stdinWriteBehavior: {
+      synthetic_write_error_delay_ms: 10,
+    },
+  });
+  assert.equal(
+    writeError.result.public_error_class,
+    "codex_transport_write_failed",
+  );
+  assert.equal(writeError.result.stdin_error_observed, true);
+  assert.equal(
+    JSON.stringify(writeError.result).includes("sk-never-retained"),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(writeError.result).includes("/Users/private"),
+    false,
+  );
 
   const passCalls: Codex01532AdapterTransportDiagnosticProbeLabelV01[] = [];
   const notReproduced =
@@ -1375,10 +1482,7 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
     notReproduced.disposition,
     "INSTRUMENTED_ADAPTER_TIMEOUT_NOT_REPRODUCED",
   );
-  assert.deepEqual(passCalls, [
-    "T1_normal_observer_1",
-    "T1_normal_observer_2",
-  ]);
+  assert.deepEqual(passCalls, ["T1_normal_observer_1", "T1_normal_observer_2"]);
   assert.deepEqual(notReproduced.skipped_probes, [
     "T2_observer_disabled_control",
   ]);
@@ -1409,10 +1513,7 @@ async function adapterTransportInitializeDiagnosticContractV01(): Promise<void> 
   assert.equal(noStdout.disposition, "NO_CHILD_STDOUT_RESPONSE_OBSERVED");
   assert.equal(noStdout.post_initialize_requests_sent, 0);
   assert.equal(noStdout.probes.length, 2);
-  assert.equal(
-    JSON.stringify(noStdout).includes("OPENAI_API_KEY"),
-    false,
-  );
+  assert.equal(JSON.stringify(noStdout).includes("OPENAI_API_KEY"), false);
 }
 
 async function runAdapterTransportDiagnosticFixtureV01(input: {
@@ -1421,6 +1522,13 @@ async function runAdapterTransportDiagnosticFixtureV01(input: {
   responseBoundMs: number;
   postTimeoutObservationMs?: number;
   processTreeObservationDelayMs?: number;
+  stdinWriteBehavior?: Readonly<{
+    completion_observation_delay_ms?: number;
+    suppress_completion_observation?: boolean;
+    force_reported_backpressure?: boolean;
+    synthetic_drain_observation_delay_ms?: number | null;
+    synthetic_write_error_delay_ms?: number | null;
+  }>;
 }): Promise<{
   result: Codex01532AdapterTransportDiagnosticProbeResultV01;
   receivedMethods: string[];
@@ -1469,6 +1577,9 @@ async function runAdapterTransportDiagnosticFixtureV01(input: {
         post_timeout_observation_ms: input.postTimeoutObservationMs ?? 100,
         process_tree_observation_delay_ms:
           input.processTreeObservationDelayMs ?? 0,
+        ...(input.stdinWriteBehavior
+          ? { stdin_write_behavior: input.stdinWriteBehavior }
+          : {}),
       },
     });
     const traces = existsSync(tracePath)
@@ -1491,6 +1602,191 @@ async function runAdapterTransportDiagnosticFixtureV01(input: {
   }
 }
 
+async function parentStdinBoundaryDiagnosticContractV01(): Promise<void> {
+  assert.equal(
+    CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
+    "codex_0_153_2_parent_stdin_delivery_diagnostic.v0.1",
+  );
+  const fixtureRoot = realpathSync.native(
+    mkdtempSync(path.join(root, "exact-wire-direct-diagnostic-")),
+  );
+  chmodSync(fixtureRoot, 0o700);
+  const sharedCodexHome = path.join(root, "exact-wire-direct-codex-home");
+  if (!existsSync(sharedCodexHome)) mkdirSync(sharedCodexHome, { mode: 0o700 });
+  chmodSync(sharedCodexHome, 0o700);
+  const directories = Object.fromEntries(
+    ["execution", "home", "sqlite-home", "tmp", "path"].map((name) => {
+      const target = path.join(fixtureRoot, name);
+      mkdirSync(target, { mode: 0o700 });
+      chmodSync(target, 0o700);
+      return [name, realpathSync.native(target)];
+    }),
+  );
+  const tracePath = path.join(fixtureRoot, "trace.jsonl");
+  try {
+    const direct = await runCodex01532ExactWireDirectInitializeProbeV01({
+      command: process.execPath,
+      expected_native_sha256: expectedNodeFingerprintV01(),
+      private_root: fixtureRoot,
+      execution_root: directories.execution!,
+      environment: {
+        NODE_ENV: "test",
+        HOME: directories.home,
+        CODEX_HOME: realpathSync.native(sharedCodexHome),
+        CODEX_SQLITE_HOME: directories["sqlite-home"],
+        TMPDIR: directories.tmp,
+        PATH: directories.path,
+        LANG: "C",
+        LC_ALL: "C",
+        TZ: "UTC",
+        NO_COLOR: "1",
+        FAKE_CODEX_SCENARIO: "candidate_0_153_2_initialize_diagnostic_pass",
+        FAKE_CODEX_TRACE_PATH: tracePath,
+      },
+      protected_surfaces_unchanged: true,
+      test_only: {
+        fixture_path: fixturePathV01(),
+        response_bound_ms: 500,
+      },
+    });
+    assert.equal(direct.exact_canary_wire_identity, true);
+    assert.equal(direct.generated_request_id_class, "augnes_uuid_v4");
+    assert.equal(direct.stdin_write_called, true);
+    assert.equal(direct.stdin_write_sync_returned, true);
+    assert.equal(direct.stdin_write_completion_callback_observed, true);
+    assert.equal(direct.valid_initialize_response_received, true);
+    assert.equal(direct.post_initialize_requests_sent, 0);
+    const received = readFileSync(tracePath, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, any>)
+      .find(({ kind }) => kind === "received")?.value;
+    assert.match(received.id, /^augnes:[0-9a-f-]{36}$/u);
+    assert.equal(received.method, "initialize");
+    assert.equal(received.capabilities, null);
+    assert.deepEqual(received.client_info, {
+      name: "augnes-ordinary-canary",
+      title: "Augnes ordinary candidate canary",
+      version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
+    });
+  } finally {
+    removeAuthenticatedFixtureRootsV01(fixtureRoot);
+  }
+
+  let adapterCalls = 0;
+  const directTimeout = await runCodex01532ParentStdinDiagnosticSequenceV01({
+    run_direct_probe: async () => syntheticExactWireDirectProbeV01("timeout"),
+    run_adapter_probe: async () => {
+      adapterCalls += 1;
+      return syntheticAdapterTransportProbeV01(
+        "T3_write_completion_control",
+        "pass",
+      );
+    },
+  });
+  assert.equal(
+    directTimeout.disposition,
+    "CANARY_WIRE_DIRECT_INITIALIZE_TIMEOUT_REPRODUCED",
+  );
+  assert.equal(adapterCalls, 0);
+  assert.deepEqual(directTimeout.skipped_probes, [
+    "T3_write_completion_control",
+  ]);
+
+  const deliveryUnresolved =
+    await runCodex01532ParentStdinDiagnosticSequenceV01({
+      run_direct_probe: async () => syntheticExactWireDirectProbeV01("pass"),
+      run_adapter_probe: async () => ({
+        ...syntheticAdapterTransportProbeV01(
+          "T3_write_completion_control",
+          "timeout",
+        ),
+        stdin_write_completion_callback_observed: false,
+        stdin_write_completion_callback_elapsed_ms: null,
+        stdin_writable_length_at_completion: null,
+        stdin_writable_need_drain_at_completion: null,
+      }),
+    });
+  assert.equal(
+    deliveryUnresolved.disposition,
+    "PARENT_STDIN_DELIVERY_UNRESOLVED",
+  );
+
+  const childBoundary = await runCodex01532ParentStdinDiagnosticSequenceV01({
+    run_direct_probe: async () => syntheticExactWireDirectProbeV01("pass"),
+    run_adapter_probe: async () =>
+      syntheticAdapterTransportProbeV01(
+        "T3_write_completion_control",
+        "timeout",
+      ),
+  });
+  assert.equal(
+    childBoundary.disposition,
+    "CHILD_OR_STDIO_EMISSION_BOUNDARY_STRONGLY_ISOLATED",
+  );
+
+  const instrumentationSensitive =
+    await runCodex01532ParentStdinDiagnosticSequenceV01({
+      run_direct_probe: async () => syntheticExactWireDirectProbeV01("pass"),
+      run_adapter_probe: async () =>
+        syntheticAdapterTransportProbeV01(
+          "T3_write_completion_control",
+          "pass",
+        ),
+    });
+  assert.equal(
+    instrumentationSensitive.disposition,
+    "ADAPTER_TIMEOUT_NOT_REPRODUCED_AFTER_WRITE_INSTRUMENTATION",
+  );
+  assert.equal(instrumentationSensitive.initialize_requests_sent, 2);
+  assert.equal(instrumentationSensitive.post_initialize_requests_sent, 0);
+  assert.equal(
+    JSON.stringify(instrumentationSensitive).includes("/Users/private"),
+    false,
+  );
+}
+
+function syntheticExactWireDirectProbeV01(
+  outcome: "pass" | "timeout",
+): Codex01532ExactWireDirectInitializeProbeResultV01 {
+  const passed = outcome === "pass";
+  return {
+    diagnostic_version: "codex_0_153_2_parent_stdin_delivery_diagnostic.v0.1",
+    probe: "D0_exact_wire_direct_control",
+    environment_shape: "private_home_real_codex_home",
+    native_sha256: `sha256:${"a".repeat(64)}`,
+    exact_canary_wire_identity: true,
+    generated_request_id_class: "augnes_uuid_v4",
+    stdin_write_called: true,
+    stdin_write_sync_returned: true,
+    stdin_write_returned_boolean: true,
+    stdin_writable_length_after_return: 0,
+    stdin_writable_need_drain_after_return: false,
+    stdin_write_completion_callback_observed: true,
+    stdin_write_completion_callback_elapsed_ms: 1,
+    drain_observed: false,
+    drain_elapsed_ms: null,
+    first_stdout_chunk_elapsed_ms: passed ? 10 : null,
+    first_complete_jsonl_line_elapsed_ms: passed ? 10 : null,
+    response_envelope_elapsed_ms: passed ? 10 : null,
+    timeout_callback_elapsed_ms: passed ? null : 10_001,
+    initialize_request_sent: true,
+    valid_initialize_response_received: passed,
+    initialize_user_agent_validated: passed,
+    returned_codex_home_validated_locally: passed,
+    elapsed_ms: passed ? 10 : 10_001,
+    response_bound_ms: 10_000,
+    response_bound_met: passed,
+    public_error_class: passed ? null : "initialize_timeout",
+    process_settled: true,
+    streams_closed: true,
+    remaining_owned_processes: 0,
+    protected_surfaces_unchanged: true,
+    post_initialize_requests_sent: 0,
+  };
+}
+
 function syntheticAdapterTransportProbeV01(
   probe: Codex01532AdapterTransportDiagnosticProbeLabelV01,
   outcome: "pass" | "timeout",
@@ -1503,10 +1799,12 @@ function syntheticAdapterTransportProbeV01(
     transport_diagnosis_version:
       "codex_stdio_initialize_transport_diagnosis.v0.1",
     probe,
-    periodic_process_tree_observer:
-      probe === "T2_observer_disabled_control"
-        ? "disabled_control"
-        : "enabled",
+    periodic_process_tree_observer: [
+      "T2_observer_disabled_control",
+      "T3_write_completion_control",
+    ].includes(probe)
+      ? "disabled_control"
+      : "enabled",
     native_sha256: `sha256:${"a".repeat(64)}`,
     initialize_request_sent: true,
     valid_initialize_response_received: passed,
@@ -1521,12 +1819,26 @@ function syntheticAdapterTransportProbeV01(
     first_response_classified_elapsed_ms: passed ? 10 : null,
     response_id_match: passed ? "pending" : null,
     response_deferred_resolved_elapsed_ms: passed ? 10 : null,
+    stdin_write_returned_boolean: true,
+    stdin_writable_length_after_return: 0,
+    stdin_writable_need_drain_after_return: false,
+    stdin_write_completion_callback_observed: true,
+    stdin_write_completion_callback_elapsed_ms: 1,
+    stdin_writable_length_at_completion: 0,
+    stdin_writable_need_drain_at_completion: false,
+    drain_observed: false,
+    drain_elapsed_ms: null,
+    stdin_error_observed: false,
     stdout_chunk_count: passed ? 1 : 0,
     total_stdout_bytes: passed ? 128 : 0,
     response_observed_after_deadline: false,
     process_tree_observation_count: 1,
-    periodic_process_tree_observation_count:
-      probe === "T2_observer_disabled_control" ? 0 : 1,
+    periodic_process_tree_observation_count: [
+      "T2_observer_disabled_control",
+      "T3_write_completion_control",
+    ].includes(probe)
+      ? 0
+      : 1,
     process_tree_descendant_scan_call_count: 1,
     process_tree_max_observation_ms: 1,
     process_tree_cumulative_observation_ms_before_rpc_outcome: 1,

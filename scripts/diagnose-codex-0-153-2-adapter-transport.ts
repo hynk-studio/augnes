@@ -19,9 +19,9 @@ import { extractReviewedCodexCandidateArchiveV01 } from "@/lib/vnext/native-host
 import { CODEX_0_153_2_ORDINARY_CANARY_ENTRY_ID_V01 } from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
 import {
   protectedCodexConfigurationFingerprintV01,
-  runCodex01532AdapterTransportDiagnosticSequenceV01,
   runCodex01532AdapterTransportInitializeProbeV01,
-  type Codex01532AdapterTransportDiagnosticProbeLabelV01,
+  runCodex01532ExactWireDirectInitializeProbeV01,
+  runCodex01532ParentStdinDiagnosticSequenceV01,
 } from "@/lib/vnext/native-host/codex-ordinary-initialize-diagnostic";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -30,7 +30,7 @@ import {
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
 
 const REQUIRED_FLAG =
-  "--exact-reviewed-adapter-transport-initialize-diagnostic-0.153.2-once";
+  "--exact-reviewed-parent-stdin-delivery-diagnostic-0.153.2-once";
 const BASE_COMMIT = "8eb6b7af220fe8d7e244bb616205c797d7965142";
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 
@@ -136,25 +136,40 @@ async function mainV01(): Promise<void> {
     );
     const protectedBefore =
       protectedCodexConfigurationFingerprintV01(realCodexHome);
-    const result = await runCodex01532AdapterTransportDiagnosticSequenceV01({
-      run_probe: async (probe) => {
-        const observed =
-          await runCodex01532AdapterTransportInitializeProbeV01({
-            probe,
-            command: extraction.native_executable,
-            expected_native_sha256:
-              reviewed.artifact.native_executable_sha256,
-            private_root: disposableRoot!,
-            execution_root: executionRoot,
-            environment: diagnosticEnvironmentV01({
-              privateHome,
-              realCodexHome,
-              sqliteHome,
-              tmp,
-              poisonPath,
-            }),
-            protected_surfaces_unchanged: true,
-          });
+    const environment = diagnosticEnvironmentV01({
+      privateHome,
+      realCodexHome,
+      sqliteHome,
+      tmp,
+      poisonPath,
+    });
+    const result = await runCodex01532ParentStdinDiagnosticSequenceV01({
+      run_direct_probe: async () => {
+        const observed = await runCodex01532ExactWireDirectInitializeProbeV01({
+          command: extraction.native_executable,
+          expected_native_sha256: reviewed.artifact.native_executable_sha256,
+          private_root: disposableRoot!,
+          execution_root: executionRoot,
+          environment,
+          protected_surfaces_unchanged: true,
+        });
+        return Object.freeze({
+          ...observed,
+          protected_surfaces_unchanged:
+            protectedCodexConfigurationFingerprintV01(realCodexHome) ===
+            protectedBefore,
+        });
+      },
+      run_adapter_probe: async () => {
+        const observed = await runCodex01532AdapterTransportInitializeProbeV01({
+          probe: "T3_write_completion_control",
+          command: extraction.native_executable,
+          expected_native_sha256: reviewed.artifact.native_executable_sha256,
+          private_root: disposableRoot!,
+          execution_root: executionRoot,
+          environment,
+          protected_surfaces_unchanged: true,
+        });
         return Object.freeze({
           ...observed,
           protected_surfaces_unchanged:
@@ -187,7 +202,8 @@ async function mainV01(): Promise<void> {
       native_size_bytes: 220_551_344,
       native_sha256: reviewed.artifact.native_executable_sha256,
       archive_acquisitions: archiveAcquisitions,
-      probes: result.probes,
+      direct_probe: result.direct_probe,
+      adapter_probe: result.adapter_probe,
       skipped_probes: result.skipped_probes,
       initialize_requests_sent: result.initialize_requests_sent,
       initialized_notifications_sent: 0,
@@ -207,15 +223,17 @@ async function mainV01(): Promise<void> {
     };
     process.stdout.write(`${JSON.stringify(report)}\n`);
     if (
-      result.disposition === "UNEXPECTED_DIAGNOSTIC_FAILURE" ||
+      result.disposition === "UNEXPECTED_PARENT_STDIN_DIAGNOSTIC_FAILURE" ||
       !protectedUnchanged ||
       !disposableRootRemoved ||
-      result.probes.some(
-        (probe) =>
-          !probe.process_settled ||
-          !probe.streams_closed ||
-          probe.remaining_owned_processes !== 0,
-      )
+      [result.direct_probe, result.adapter_probe]
+        .filter(Boolean)
+        .some(
+          (probe) =>
+            !probe!.process_settled ||
+            !probe!.streams_closed ||
+            probe!.remaining_owned_processes !== 0,
+        )
     )
       process.exitCode = 2;
   } catch (error) {
@@ -335,7 +353,9 @@ function gitV01(args: string[]): string {
     },
   });
   if (result.status !== 0 || result.signal || result.error)
-    throw new DiagnosticSetupErrorV01("adapter_transport_diagnostic_git_failed");
+    throw new DiagnosticSetupErrorV01(
+      "adapter_transport_diagnostic_git_failed",
+    );
   return result.stdout.trim();
 }
 

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import {
   createReadStream,
   existsSync,
@@ -105,6 +106,44 @@ export interface Codex01532InitializeDiagnosticProbeResultV01 {
   protected_surfaces_unchanged: boolean;
 }
 
+export const CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01 =
+  "codex_0_153_2_parent_stdin_delivery_diagnostic.v0.1" as const;
+
+export interface Codex01532ExactWireDirectInitializeProbeResultV01 {
+  diagnostic_version: typeof CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01;
+  probe: "D0_exact_wire_direct_control";
+  environment_shape: "private_home_real_codex_home";
+  native_sha256: string;
+  exact_canary_wire_identity: true;
+  generated_request_id_class: "augnes_uuid_v4";
+  stdin_write_called: boolean;
+  stdin_write_sync_returned: boolean;
+  stdin_write_returned_boolean: boolean | null;
+  stdin_writable_length_after_return: number | null;
+  stdin_writable_need_drain_after_return: boolean | null;
+  stdin_write_completion_callback_observed: boolean;
+  stdin_write_completion_callback_elapsed_ms: number | null;
+  drain_observed: boolean;
+  drain_elapsed_ms: number | null;
+  first_stdout_chunk_elapsed_ms: number | null;
+  first_complete_jsonl_line_elapsed_ms: number | null;
+  response_envelope_elapsed_ms: number | null;
+  timeout_callback_elapsed_ms: number | null;
+  initialize_request_sent: boolean;
+  valid_initialize_response_received: boolean;
+  initialize_user_agent_validated: boolean;
+  returned_codex_home_validated_locally: boolean;
+  elapsed_ms: number;
+  response_bound_ms: number;
+  response_bound_met: boolean;
+  public_error_class: Codex01532InitializeDiagnosticPublicErrorV01 | null;
+  process_settled: boolean;
+  streams_closed: boolean;
+  remaining_owned_processes: number;
+  protected_surfaces_unchanged: boolean;
+  post_initialize_requests_sent: 0;
+}
+
 export type Codex01532InitializeDiagnosticDispositionV01 =
   | "BASELINE_INITIALIZE_FAILURE"
   | "FAILED_CANARY_ENVIRONMENT_TIMEOUT_NOT_REPRODUCED"
@@ -142,10 +181,7 @@ export async function runCodex01532InitializeDiagnosticSequenceV01(input: {
   let skipped: Codex01532InitializeDiagnosticProbeLabelV01[];
   if (!probePassedV01(a)) {
     disposition = "BASELINE_INITIALIZE_FAILURE";
-    skipped = [
-      "B_split_home_real_codex_home",
-      "C_real_home_real_codex_home",
-    ];
+    skipped = ["B_split_home_real_codex_home", "C_real_home_real_codex_home"];
   } else {
     const b = await run("B_split_home_real_codex_home");
     if (probePassedV01(b)) {
@@ -185,7 +221,7 @@ export async function runCodex01532InitializeDiagnosticSequenceV01(input: {
   return result;
 }
 
-export async function runCodex01532InitializeOnlyProbeV01(input: {
+interface Codex01532InitializeOnlyProbeInputV01 {
   probe: Codex01532InitializeDiagnosticProbeLabelV01;
   command: string;
   expected_native_sha256: string;
@@ -197,7 +233,76 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
     fixture_path: string;
     response_bound_ms: number;
   }>;
-}): Promise<Codex01532InitializeDiagnosticProbeResultV01> {
+}
+
+interface Codex01532DirectInitializeWireV01 {
+  request_id: string;
+  client_name:
+    | typeof CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01
+    | "augnes-ordinary-canary";
+  client_title: string;
+  request_id_class: "fixed_diagnostic" | "augnes_uuid_v4";
+}
+
+interface Codex01532DirectInitializeCoreResultV01 extends Codex01532InitializeDiagnosticProbeResultV01 {
+  exact_canary_wire_identity: boolean;
+  generated_request_id_class: "fixed_diagnostic" | "augnes_uuid_v4";
+  stdin_write_called: boolean;
+  stdin_write_sync_returned: boolean;
+  stdin_write_returned_boolean: boolean | null;
+  stdin_writable_length_after_return: number | null;
+  stdin_writable_need_drain_after_return: boolean | null;
+  stdin_write_completion_callback_observed: boolean;
+  stdin_write_completion_callback_elapsed_ms: number | null;
+  drain_observed: boolean;
+  drain_elapsed_ms: number | null;
+  first_stdout_chunk_elapsed_ms: number | null;
+  first_complete_jsonl_line_elapsed_ms: number | null;
+  response_envelope_elapsed_ms: number | null;
+  timeout_callback_elapsed_ms: number | null;
+  post_initialize_requests_sent: 0;
+}
+
+export async function runCodex01532InitializeOnlyProbeV01(
+  input: Codex01532InitializeOnlyProbeInputV01,
+): Promise<Codex01532InitializeDiagnosticProbeResultV01> {
+  return runCodex01532DirectInitializeProbeCoreV01(input, {
+    request_id: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01,
+    client_name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
+    client_title: "Augnes initialize-only diagnostic",
+    request_id_class: "fixed_diagnostic",
+  });
+}
+
+export async function runCodex01532ExactWireDirectInitializeProbeV01(
+  input: Omit<Codex01532InitializeOnlyProbeInputV01, "probe">,
+): Promise<Codex01532ExactWireDirectInitializeProbeResultV01> {
+  const observed = await runCodex01532DirectInitializeProbeCoreV01(
+    { ...input, probe: "B_split_home_real_codex_home" },
+    {
+      request_id: `augnes:${randomUUID()}`,
+      client_name: "augnes-ordinary-canary",
+      client_title: "Augnes ordinary candidate canary",
+      request_id_class: "augnes_uuid_v4",
+    },
+  );
+  const result = Object.freeze({
+    ...observed,
+    diagnostic_version: CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
+    probe: "D0_exact_wire_direct_control" as const,
+    environment_shape: "private_home_real_codex_home" as const,
+    exact_canary_wire_identity: true as const,
+    generated_request_id_class: "augnes_uuid_v4" as const,
+  });
+  assertExactWireDirectProbeResultV01(result);
+  assertPublicSafeV01(result);
+  return result;
+}
+
+async function runCodex01532DirectInitializeProbeCoreV01(
+  input: Codex01532InitializeOnlyProbeInputV01,
+  wire: Codex01532DirectInitializeWireV01,
+): Promise<Codex01532DirectInitializeCoreResultV01> {
   const reviewed = REVIEWED;
   const testOnly = input.test_only !== undefined;
   assertProbeLaunchV01(input, reviewed, testOnly);
@@ -216,8 +321,7 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
     responseBoundMs < 50 ||
     (testOnly
       ? responseBoundMs > CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01
-      : responseBoundMs !==
-        CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01)
+      : responseBoundMs !== CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_TIMEOUT_MS_V01)
   )
     throw new Error("codex_initialize_diagnostic_response_bound_invalid");
 
@@ -240,12 +344,26 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
     },
   );
   let responseStartedAt: number | null = null;
+  let responseStartedMonotonic: number | null = null;
   let initializeRequestSent = false;
   let validResponseReceived = false;
   let userAgentValidated = false;
   let codexHomeValidated = false;
   let publicError: Codex01532InitializeDiagnosticPublicErrorV01 | null = null;
   let stdoutBuffer = Buffer.alloc(0);
+  let stdinWriteCalled = false;
+  let stdinWriteSyncReturned = false;
+  let stdinWriteReturnedBoolean: boolean | null = null;
+  let stdinWritableLengthAfterReturn: number | null = null;
+  let stdinWritableNeedDrainAfterReturn: boolean | null = null;
+  let stdinWriteCompletionCallbackObserved = false;
+  let stdinWriteCompletionCallbackElapsedMs: number | null = null;
+  let drainObserved = false;
+  let drainElapsedMs: number | null = null;
+  let firstStdoutChunkElapsedMs: number | null = null;
+  let firstCompleteJsonlLineElapsedMs: number | null = null;
+  let responseEnvelopeElapsedMs: number | null = null;
+  let timeoutCallbackElapsedMs: number | null = null;
   let outcomeSettled = false;
   let settleOutcome!: () => void;
   const outcome = new Promise<void>((resolve) => {
@@ -272,6 +390,9 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
   });
   child.stdout.on("data", (chunk: Buffer) => {
     if (outcomeSettled) return;
+    firstStdoutChunkElapsedMs ??= directProbeElapsedV01(
+      responseStartedMonotonic,
+    );
     stdoutBuffer = Buffer.concat([stdoutBuffer, chunk]);
     if (stdoutBuffer.byteLength > MAX_JSONL_BUFFER_BYTES) {
       finish("initialize_response_invalid");
@@ -283,6 +404,9 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
       const line = stdoutBuffer.subarray(0, newline);
       stdoutBuffer = stdoutBuffer.subarray(newline + 1);
       if (line.byteLength === 0) continue;
+      firstCompleteJsonlLineElapsedMs ??= directProbeElapsedV01(
+        responseStartedMonotonic,
+      );
       if (line.byteLength > MAX_JSONL_LINE_BYTES) {
         finish("initialize_response_invalid");
         break;
@@ -290,6 +414,9 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
       let envelope: unknown;
       try {
         envelope = JSON.parse(line.toString("utf8"));
+        responseEnvelopeElapsedMs ??= directProbeElapsedV01(
+          responseStartedMonotonic,
+        );
       } catch {
         finish("initialize_response_invalid");
         break;
@@ -300,7 +427,7 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
         break;
       }
       if (
-        response.id !== CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01 ||
+        response.id !== wire.request_id ||
         Object.hasOwn(response, "method")
       ) {
         finish("initialize_unexpected_protocol_message");
@@ -328,8 +455,7 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
       try {
         observeReviewedCandidateCodexAppServerUserAgentV01({
           raw_user_agent: initialized.userAgent,
-          expected_client_name:
-            CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
+          expected_client_name: wire.client_name,
           expected_client_version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
           expected_codex_cli_version: reviewed.artifact.version,
         });
@@ -361,25 +487,46 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
         child.once("error", reject);
       }
     });
-    const line = `${JSON.stringify({
-      id: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_REQUEST_ID_V01,
+    const exactLine = `${JSON.stringify({
+      id: wire.request_id,
       method: "initialize",
       params: {
         clientInfo: {
-          name: CODEX_0_153_2_INITIALIZE_DIAGNOSTIC_CLIENT_NAME_V01,
-          title: "Augnes initialize-only diagnostic",
+          name: wire.client_name,
+          title: wire.client_title,
           version: CODEX_APP_SERVER_CLIENT_VERSION_V01,
         },
         capabilities: null,
       },
     })}\n`;
     responseStartedAt = Date.now();
-    timer = setTimeout(
-      () => finish("initialize_timeout"),
-      responseBoundMs,
-    );
+    responseStartedMonotonic = performance.now();
+    timer = setTimeout(() => {
+      timeoutCallbackElapsedMs = directProbeElapsedV01(
+        responseStartedMonotonic,
+      );
+      finish("initialize_timeout");
+    }, responseBoundMs);
     timer.unref();
-    child.stdin.write(line, "utf8");
+    stdinWriteCalled = true;
+    const writeReturned = child.stdin.write(exactLine, "utf8", () => {
+      stdinWriteCompletionCallbackObserved = true;
+      stdinWriteCompletionCallbackElapsedMs = directProbeElapsedV01(
+        responseStartedMonotonic,
+      );
+    });
+    stdinWriteSyncReturned = true;
+    stdinWriteReturnedBoolean = writeReturned;
+    stdinWritableLengthAfterReturn = Math.min(
+      MAX_JSONL_LINE_BYTES,
+      Math.max(0, child.stdin.writableLength),
+    );
+    stdinWritableNeedDrainAfterReturn = child.stdin.writableNeedDrain;
+    if (!writeReturned)
+      child.stdin.once("drain", () => {
+        drainObserved = true;
+        drainElapsedMs = directProbeElapsedV01(responseStartedMonotonic);
+      });
     initializeRequestSent = true;
     await outcome;
   } catch {
@@ -409,7 +556,9 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
   child.stdin.destroy();
   child.stdout.destroy();
   child.stderr.destroy();
-  const remainingOwnedProcesses = [...knownPids].filter(isProcessAliveV01).length;
+  const remainingOwnedProcesses = [...knownPids].filter(
+    isProcessAliveV01,
+  ).length;
   const streamsClosed =
     child.stdin.destroyed && child.stdout.destroyed && child.stderr.destroyed;
   const processSettled = stopped.settled && remainingOwnedProcesses === 0;
@@ -428,12 +577,32 @@ export async function runCodex01532InitializeOnlyProbeV01(input: {
     elapsed_ms: elapsedMs,
     response_bound_ms: responseBoundMs,
     response_bound_met:
-      validResponseReceived && elapsedMs <= responseBoundMs && publicError === null,
+      validResponseReceived &&
+      elapsedMs <= responseBoundMs &&
+      publicError === null,
     public_error_class: publicError,
     process_settled: processSettled,
     streams_closed: streamsClosed,
     remaining_owned_processes: remainingOwnedProcesses,
     protected_surfaces_unchanged: input.protected_surfaces_unchanged,
+    exact_canary_wire_identity: wire.request_id_class === "augnes_uuid_v4",
+    generated_request_id_class: wire.request_id_class,
+    stdin_write_called: stdinWriteCalled,
+    stdin_write_sync_returned: stdinWriteSyncReturned,
+    stdin_write_returned_boolean: stdinWriteReturnedBoolean,
+    stdin_writable_length_after_return: stdinWritableLengthAfterReturn,
+    stdin_writable_need_drain_after_return: stdinWritableNeedDrainAfterReturn,
+    stdin_write_completion_callback_observed:
+      stdinWriteCompletionCallbackObserved,
+    stdin_write_completion_callback_elapsed_ms:
+      stdinWriteCompletionCallbackElapsedMs,
+    drain_observed: drainObserved,
+    drain_elapsed_ms: drainElapsedMs,
+    first_stdout_chunk_elapsed_ms: firstStdoutChunkElapsedMs,
+    first_complete_jsonl_line_elapsed_ms: firstCompleteJsonlLineElapsedMs,
+    response_envelope_elapsed_ms: responseEnvelopeElapsedMs,
+    timeout_callback_elapsed_ms: timeoutCallbackElapsedMs,
+    post_initialize_requests_sent: 0 as const,
   });
   assertProbeResultV01(result, input.probe);
   assertPublicSafeV01(result);
@@ -446,7 +615,8 @@ export const CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01 =
 export type Codex01532AdapterTransportDiagnosticProbeLabelV01 =
   | "T1_normal_observer_1"
   | "T1_normal_observer_2"
-  | "T2_observer_disabled_control";
+  | "T2_observer_disabled_control"
+  | "T3_write_completion_control";
 
 export type Codex01532AdapterTransportDiagnosticDispositionV01 =
   | "INSTRUMENTED_ADAPTER_TIMEOUT_NOT_REPRODUCED"
@@ -479,6 +649,16 @@ export interface Codex01532AdapterTransportDiagnosticProbeResultV01 {
   first_response_classified_elapsed_ms: number | null;
   response_id_match: "pending" | "timed_out" | "unknown" | null;
   response_deferred_resolved_elapsed_ms: number | null;
+  stdin_write_returned_boolean: boolean | null;
+  stdin_writable_length_after_return: number | null;
+  stdin_writable_need_drain_after_return: boolean | null;
+  stdin_write_completion_callback_observed: boolean;
+  stdin_write_completion_callback_elapsed_ms: number | null;
+  stdin_writable_length_at_completion: number | null;
+  stdin_writable_need_drain_at_completion: boolean | null;
+  drain_observed: boolean;
+  drain_elapsed_ms: number | null;
+  stdin_error_observed: boolean;
   stdout_chunk_count: number;
   total_stdout_bytes: number;
   response_observed_after_deadline: boolean;
@@ -507,6 +687,89 @@ export interface Codex01532AdapterTransportDiagnosticSequenceV01 {
   initialize_requests_sent: number;
   post_initialize_requests_sent: 0;
   diagnostic_fingerprint: string;
+}
+
+export type Codex01532ParentStdinDiagnosticDispositionV01 =
+  | "CANARY_WIRE_DIRECT_INITIALIZE_TIMEOUT_REPRODUCED"
+  | "PARENT_STDIN_DELIVERY_UNRESOLVED"
+  | "CHILD_OR_STDIO_EMISSION_BOUNDARY_STRONGLY_ISOLATED"
+  | "ADAPTER_TIMEOUT_NOT_REPRODUCED_AFTER_WRITE_INSTRUMENTATION"
+  | "UNEXPECTED_PARENT_STDIN_DIAGNOSTIC_FAILURE";
+
+export interface Codex01532ParentStdinDiagnosticSequenceV01 {
+  diagnostic_version: typeof CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01;
+  disposition: Codex01532ParentStdinDiagnosticDispositionV01;
+  direct_probe: Codex01532ExactWireDirectInitializeProbeResultV01;
+  adapter_probe: Codex01532AdapterTransportDiagnosticProbeResultV01 | null;
+  skipped_probes: readonly "T3_write_completion_control"[];
+  initialize_requests_sent: 1 | 2;
+  post_initialize_requests_sent: 0;
+  diagnostic_fingerprint: string;
+}
+
+export async function runCodex01532ParentStdinDiagnosticSequenceV01(input: {
+  run_direct_probe(): Promise<Codex01532ExactWireDirectInitializeProbeResultV01>;
+  run_adapter_probe(): Promise<Codex01532AdapterTransportDiagnosticProbeResultV01>;
+}): Promise<Codex01532ParentStdinDiagnosticSequenceV01> {
+  if (
+    typeof input.run_direct_probe !== "function" ||
+    typeof input.run_adapter_probe !== "function"
+  )
+    throw new Error("codex_parent_stdin_diagnostic_runner_invalid");
+  const direct = await input.run_direct_probe();
+  assertExactWireDirectProbeResultV01(direct);
+  let adapter: Codex01532AdapterTransportDiagnosticProbeResultV01 | null = null;
+  let disposition: Codex01532ParentStdinDiagnosticDispositionV01;
+  let skipped: readonly "T3_write_completion_control"[] = [];
+  if (!exactWireDirectProbePassedV01(direct)) {
+    disposition =
+      direct.public_error_class === "initialize_timeout"
+        ? "CANARY_WIRE_DIRECT_INITIALIZE_TIMEOUT_REPRODUCED"
+        : "UNEXPECTED_PARENT_STDIN_DIAGNOSTIC_FAILURE";
+    skipped = ["T3_write_completion_control"];
+  } else {
+    adapter = await input.run_adapter_probe();
+    assertAdapterTransportProbeResultV01(
+      adapter,
+      "T3_write_completion_control",
+    );
+    if (adapterTransportProbePassedV01(adapter)) {
+      disposition =
+        "ADAPTER_TIMEOUT_NOT_REPRODUCED_AFTER_WRITE_INSTRUMENTATION";
+    } else if (adapterTransportProbeTimedOutV01(adapter)) {
+      const callbackBeforeDeadline =
+        adapter.stdin_write_completion_callback_observed &&
+        adapter.stdin_write_completion_callback_elapsed_ms !== null &&
+        adapter.stdin_write_completion_callback_elapsed_ms <=
+          adapter.response_bound_ms;
+      const drainedAtCompletion =
+        adapter.stdin_writable_length_at_completion === 0 &&
+        adapter.stdin_writable_need_drain_at_completion === false;
+      disposition =
+        callbackBeforeDeadline && drainedAtCompletion
+          ? "CHILD_OR_STDIO_EMISSION_BOUNDARY_STRONGLY_ISOLATED"
+          : "PARENT_STDIN_DELIVERY_UNRESOLVED";
+    } else {
+      disposition = "UNEXPECTED_PARENT_STDIN_DIAGNOSTIC_FAILURE";
+    }
+  }
+  const material = {
+    diagnostic_version: CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01,
+    disposition,
+    direct_probe: direct,
+    adapter_probe: adapter,
+    skipped_probes: skipped,
+    initialize_requests_sent: (adapter ? 2 : 1) as 1 | 2,
+    post_initialize_requests_sent: 0 as const,
+  };
+  const result = Object.freeze({
+    ...material,
+    diagnostic_fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  });
+  assertPublicSafeV01(result);
+  return result;
 }
 
 export async function runCodex01532AdapterTransportDiagnosticSequenceV01(input: {
@@ -553,8 +816,7 @@ export async function runCodex01532AdapterTransportDiagnosticSequenceV01(input: 
   }
 
   const material = {
-    diagnostic_version:
-      CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+    diagnostic_version: CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
     disposition,
     probes,
     skipped_probes: skipped,
@@ -586,6 +848,13 @@ export async function runCodex01532AdapterTransportInitializeProbeV01(input: {
     response_bound_ms: number;
     post_timeout_observation_ms: number;
     process_tree_observation_delay_ms: number;
+    stdin_write_behavior?: Readonly<{
+      completion_observation_delay_ms?: number;
+      suppress_completion_observation?: boolean;
+      force_reported_backpressure?: boolean;
+      synthetic_drain_observation_delay_ms?: number | null;
+      synthetic_write_error_delay_ms?: number | null;
+    }>;
   }>;
 }): Promise<Codex01532AdapterTransportDiagnosticProbeResultV01> {
   const testOnly = input.test_only !== undefined;
@@ -611,7 +880,9 @@ export async function runCodex01532AdapterTransportInitializeProbeV01(input: {
     testOnly,
   );
   if (
-    input.probe === "T2_observer_disabled_control" &&
+    ["T2_observer_disabled_control", "T3_write_completion_control"].includes(
+      input.probe,
+    ) &&
     input.test_only?.process_tree_observation_delay_ms
   )
     throw new Error("codex_adapter_transport_diagnostic_control_invalid");
@@ -643,10 +914,12 @@ export async function runCodex01532AdapterTransportInitializeProbeV01(input: {
     await runCodex01532StdioInitializeTransportDiagnosisV01({
       spawned_child: child,
       expected_codex_home: input.environment.CODEX_HOME!,
-      periodic_process_tree_observer:
-        input.probe === "T2_observer_disabled_control"
-          ? "disabled_control"
-          : "enabled",
+      periodic_process_tree_observer: [
+        "T2_observer_disabled_control",
+        "T3_write_completion_control",
+      ].includes(input.probe)
+        ? "disabled_control"
+        : "enabled",
       ...(testOnly
         ? {
             test_only: {
@@ -655,6 +928,11 @@ export async function runCodex01532AdapterTransportInitializeProbeV01(input: {
                 input.test_only!.post_timeout_observation_ms,
               process_tree_observation_delay_ms:
                 input.test_only!.process_tree_observation_delay_ms,
+              ...(input.test_only!.stdin_write_behavior
+                ? {
+                    stdin_write_behavior: input.test_only!.stdin_write_behavior,
+                  }
+                : {}),
             },
           }
         : {}),
@@ -690,6 +968,10 @@ function summarizeAdapterTransportProbeV01(input: {
   const classified = first("response_envelope_classified");
   const matched = first("response_id_matched_pending");
   const resolved = first("response_deferred_resolved");
+  const writeReturned = first("initialize_write_returned");
+  const writeCompleted = first("initialize_write_completion_callback_observed");
+  const drain = first("initialize_drain_observed");
+  const stdinError = first("initialize_stdin_error_observed");
   const outcomeElapsed =
     resolved?.monotonic_elapsed_ms ??
     timeout?.monotonic_elapsed_ms ??
@@ -725,19 +1007,20 @@ function summarizeAdapterTransportProbeV01(input: {
       const started = starts.get(entry.process_tree_observation_index ?? -1);
       return Boolean(
         started &&
-          started.monotonic_elapsed_ms <= deadlineElapsed &&
-          entry.monotonic_elapsed_ms >= deadlineElapsed,
+        started.monotonic_elapsed_ms <= deadlineElapsed &&
+        entry.monotonic_elapsed_ms >= deadlineElapsed,
       );
     });
   const result = Object.freeze({
-    diagnostic_version:
-      CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
+    diagnostic_version: CODEX_0_153_2_ADAPTER_TRANSPORT_DIAGNOSTIC_VERSION_V01,
     transport_diagnosis_version: input.transport.diagnosis_version,
     probe: input.probe,
-    periodic_process_tree_observer:
-      input.probe === "T2_observer_disabled_control"
-        ? ("disabled_control" as const)
-        : ("enabled" as const),
+    periodic_process_tree_observer: [
+      "T2_observer_disabled_control",
+      "T3_write_completion_control",
+    ].includes(input.probe)
+      ? ("disabled_control" as const)
+      : ("enabled" as const),
     native_sha256: input.native_sha256,
     initialize_request_sent: Boolean(first("initialize_write_returned")),
     valid_initialize_response_received:
@@ -749,8 +1032,7 @@ function summarizeAdapterTransportProbeV01(input: {
     response_bound_ms: input.response_bound_ms,
     deadline_monotonic_elapsed_ms: deadlineElapsed,
     timeout_callback_fired: timeout !== null,
-    timeout_callback_lateness_ms:
-      timeout?.timeout_callback_lateness_ms ?? null,
+    timeout_callback_lateness_ms: timeout?.timeout_callback_lateness_ms ?? null,
     first_stdout_chunk_elapsed_ms: stdout?.monotonic_elapsed_ms ?? null,
     first_complete_jsonl_line_elapsed_ms: line?.monotonic_elapsed_ms ?? null,
     first_response_classified_elapsed_ms:
@@ -758,6 +1040,22 @@ function summarizeAdapterTransportProbeV01(input: {
     response_id_match: matched?.response_match ?? null,
     response_deferred_resolved_elapsed_ms:
       resolved?.monotonic_elapsed_ms ?? null,
+    stdin_write_returned_boolean:
+      writeReturned?.stdin_write_returned_boolean ?? null,
+    stdin_writable_length_after_return:
+      writeReturned?.stdin_writable_length ?? null,
+    stdin_writable_need_drain_after_return:
+      writeReturned?.stdin_writable_need_drain ?? null,
+    stdin_write_completion_callback_observed: writeCompleted !== null,
+    stdin_write_completion_callback_elapsed_ms:
+      writeCompleted?.monotonic_elapsed_ms ?? null,
+    stdin_writable_length_at_completion:
+      writeCompleted?.stdin_writable_length ?? null,
+    stdin_writable_need_drain_at_completion:
+      writeCompleted?.stdin_writable_need_drain ?? null,
+    drain_observed: drain !== null,
+    drain_elapsed_ms: drain?.monotonic_elapsed_ms ?? null,
+    stdin_error_observed: stdinError !== null,
     stdout_chunk_count: observations.filter(
       ({ kind }) => kind === "stdout_chunk_observed",
     ).length,
@@ -794,10 +1092,7 @@ function summarizeAdapterTransportProbeV01(input: {
       ),
     process_tree_known_owned_process_count_min:
       knownCounts.length > 0 ? Math.min(...knownCounts) : 0,
-    process_tree_known_owned_process_count_max: Math.max(
-      0,
-      ...knownCounts,
-    ),
+    process_tree_known_owned_process_count_max: Math.max(0, ...knownCounts),
     process_tree_observation_overlapped_rpc_deadline: overlapsDeadline,
     public_error_class: input.transport.public_error_class,
     process_settled: input.transport.process_settled,
@@ -815,7 +1110,12 @@ function classifyAdapterTransportTimeoutV01(
   control: Codex01532AdapterTransportDiagnosticProbeResultV01,
 ): Codex01532AdapterTransportDiagnosticDispositionV01 {
   const probes = [first, control];
-  if (probes.every(({ first_stdout_chunk_elapsed_ms }) => first_stdout_chunk_elapsed_ms === null))
+  if (
+    probes.every(
+      ({ first_stdout_chunk_elapsed_ms }) =>
+        first_stdout_chunk_elapsed_ms === null,
+    )
+  )
     return "NO_CHILD_STDOUT_RESPONSE_OBSERVED";
   if (
     probes.some(
@@ -842,7 +1142,12 @@ function classifyAdapterTransportTimeoutV01(
     )
   )
     return "TRANSPORT_INTERNAL_SCHEDULING_INVARIANT_FAILURE";
-  if (probes.some(({ response_observed_after_deadline }) => response_observed_after_deadline))
+  if (
+    probes.some(
+      ({ response_observed_after_deadline }) =>
+        response_observed_after_deadline,
+    )
+  )
     return "LATE_RESPONSE_AFTER_TIMEOUT";
   return "PROCESS_TREE_POLLING_INSUFFICIENT";
 }
@@ -888,7 +1193,9 @@ function assertAdapterTransportProbeResultV01(
       CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01 ||
     value.probe !== expectedProbe ||
     value.periodic_process_tree_observer !==
-      (expectedProbe === "T2_observer_disabled_control"
+      (["T2_observer_disabled_control", "T3_write_completion_control"].includes(
+        expectedProbe,
+      )
         ? "disabled_control"
         : "enabled") ||
     !HASH_PATTERN.test(value.native_sha256) ||
@@ -900,6 +1207,26 @@ function assertAdapterTransportProbeResultV01(
     !Number.isSafeInteger(value.total_stdout_bytes) ||
     value.total_stdout_bytes < 0 ||
     value.total_stdout_bytes > MAX_JSONL_BUFFER_BYTES + 1 ||
+    (value.stdin_write_returned_boolean !== null &&
+      typeof value.stdin_write_returned_boolean !== "boolean") ||
+    (value.stdin_writable_length_after_return !== null &&
+      (!Number.isSafeInteger(value.stdin_writable_length_after_return) ||
+        value.stdin_writable_length_after_return < 0 ||
+        value.stdin_writable_length_after_return > MAX_JSONL_LINE_BYTES)) ||
+    (value.stdin_writable_need_drain_after_return !== null &&
+      typeof value.stdin_writable_need_drain_after_return !== "boolean") ||
+    typeof value.stdin_write_completion_callback_observed !== "boolean" ||
+    (value.stdin_write_completion_callback_elapsed_ms !== null &&
+      (!Number.isFinite(value.stdin_write_completion_callback_elapsed_ms) ||
+        value.stdin_write_completion_callback_elapsed_ms < 0)) ||
+    (value.stdin_writable_length_at_completion !== null &&
+      (!Number.isSafeInteger(value.stdin_writable_length_at_completion) ||
+        value.stdin_writable_length_at_completion < 0 ||
+        value.stdin_writable_length_at_completion > MAX_JSONL_LINE_BYTES)) ||
+    (value.stdin_writable_need_drain_at_completion !== null &&
+      typeof value.stdin_writable_need_drain_at_completion !== "boolean") ||
+    typeof value.drain_observed !== "boolean" ||
+    typeof value.stdin_error_observed !== "boolean" ||
     !Number.isSafeInteger(value.process_tree_observation_count) ||
     value.process_tree_observation_count < 0 ||
     !Number.isSafeInteger(value.remaining_owned_processes) ||
@@ -1071,6 +1398,55 @@ function assertProbeResultV01(
     throw new Error("codex_initialize_diagnostic_result_invalid");
 }
 
+function assertExactWireDirectProbeResultV01(
+  value: Codex01532ExactWireDirectInitializeProbeResultV01,
+): void {
+  if (
+    value.diagnostic_version !==
+      CODEX_0_153_2_PARENT_STDIN_DIAGNOSTIC_VERSION_V01 ||
+    value.probe !== "D0_exact_wire_direct_control" ||
+    value.environment_shape !== "private_home_real_codex_home" ||
+    value.exact_canary_wire_identity !== true ||
+    value.generated_request_id_class !== "augnes_uuid_v4" ||
+    !HASH_PATTERN.test(value.native_sha256) ||
+    typeof value.stdin_write_called !== "boolean" ||
+    typeof value.stdin_write_sync_returned !== "boolean" ||
+    (value.stdin_write_returned_boolean !== null &&
+      typeof value.stdin_write_returned_boolean !== "boolean") ||
+    (value.stdin_writable_length_after_return !== null &&
+      (!Number.isSafeInteger(value.stdin_writable_length_after_return) ||
+        value.stdin_writable_length_after_return < 0 ||
+        value.stdin_writable_length_after_return > MAX_JSONL_LINE_BYTES)) ||
+    (value.stdin_writable_need_drain_after_return !== null &&
+      typeof value.stdin_writable_need_drain_after_return !== "boolean") ||
+    typeof value.stdin_write_completion_callback_observed !== "boolean" ||
+    typeof value.drain_observed !== "boolean" ||
+    value.post_initialize_requests_sent !== 0
+  )
+    throw new Error("codex_exact_wire_direct_diagnostic_result_invalid");
+}
+
+function exactWireDirectProbePassedV01(
+  value: Codex01532ExactWireDirectInitializeProbeResultV01,
+): boolean {
+  return (
+    value.stdin_write_called &&
+    value.stdin_write_sync_returned &&
+    value.stdin_write_completion_callback_observed &&
+    value.initialize_request_sent &&
+    value.valid_initialize_response_received &&
+    value.initialize_user_agent_validated &&
+    value.returned_codex_home_validated_locally &&
+    value.response_bound_met &&
+    value.public_error_class === null &&
+    value.process_settled &&
+    value.streams_closed &&
+    value.remaining_owned_processes === 0 &&
+    value.protected_surfaces_unchanged &&
+    value.post_initialize_requests_sent === 0
+  );
+}
+
 function probePassedV01(
   value: Codex01532InitializeDiagnosticProbeResultV01,
 ): boolean {
@@ -1091,8 +1467,7 @@ function probePassedV01(
 function environmentShapeV01(
   probe: Codex01532InitializeDiagnosticProbeLabelV01,
 ): Codex01532InitializeDiagnosticEnvironmentShapeV01 {
-  if (probe === "A_private_control")
-    return "private_home_private_codex_home";
+  if (probe === "A_private_control") return "private_home_private_codex_home";
   if (probe === "B_split_home_real_codex_home")
     return "private_home_real_codex_home";
   return "real_home_real_codex_home";
@@ -1172,4 +1547,10 @@ function recordV01(value: unknown): Record<string, unknown> | null {
 
 function delayV01(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function directProbeElapsedV01(startedAt: number | null): number | null {
+  return startedAt === null
+    ? null
+    : Math.round(Math.max(0, performance.now() - startedAt) * 1_000) / 1_000;
 }

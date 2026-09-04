@@ -3909,6 +3909,9 @@ export type CodexStdioTransportDiagnosisObservationKindV01 =
   | "initialize_pending_registered"
   | "initialize_write_started"
   | "initialize_write_returned"
+  | "initialize_write_completion_callback_observed"
+  | "initialize_drain_observed"
+  | "initialize_stdin_error_observed"
   | "initialize_timeout_deadline"
   | "initialize_timeout_callback_fired"
   | "stdout_chunk_observed"
@@ -3942,6 +3945,9 @@ export interface CodexStdioTransportDiagnosisObservationV01 {
   known_owned_process_count_after?: number;
   descendant_scan_call_count?: number;
   response_match?: "pending" | "timed_out" | "unknown";
+  stdin_write_returned_boolean?: boolean;
+  stdin_writable_length?: number;
+  stdin_writable_need_drain?: boolean;
   public_error_class?: string;
 }
 
@@ -3960,10 +3966,15 @@ export interface CodexStdioInitializeTransportDiagnosisResultV01 {
 
 interface CodexStdioTransportDiagnosisControlV01 {
   periodic_process_tree_observer: "enabled" | "disabled_control";
-  on_observation(
-    observation: CodexStdioTransportDiagnosisObservationV01,
-  ): void;
+  on_observation(observation: CodexStdioTransportDiagnosisObservationV01): void;
   test_only_process_tree_observation_delay_ms: number;
+  test_only_stdin_write_behavior: Readonly<{
+    completion_observation_delay_ms: number;
+    suppress_completion_observation: boolean;
+    force_reported_backpressure: boolean;
+    synthetic_drain_observation_delay_ms: number | null;
+    synthetic_write_error_delay_ms: number | null;
+  }> | null;
 }
 
 class CodexStdioJsonRpcTransportV01 {
@@ -4000,6 +4011,7 @@ class CodexStdioJsonRpcTransportV01 {
   private diagnosisStdoutChunkCount = 0;
   private diagnosisTotalStdoutBytes = 0;
   private diagnosisCompleteLineObserved = false;
+  private readonly diagnosisTimers = new Set<ReturnType<typeof setTimeout>>();
   private diagnosisInitializeRequest: {
     id: string;
     deadline: number;
@@ -4062,8 +4074,8 @@ class CodexStdioJsonRpcTransportV01 {
     this.processTreeObserver =
       this.processId &&
       this.diagnosis?.periodic_process_tree_observer !== "disabled_control"
-      ? setInterval(() => this.captureOwnedProcessTree("periodic"), 250)
-      : null;
+        ? setInterval(() => this.captureOwnedProcessTree("periodic"), 250)
+        : null;
     this.processTreeObserver?.unref();
     if (this.processId) this.observeDiagnosisV01("child_spawn_observed");
     this.started = this.startedDeferred.promise;
@@ -4101,6 +4113,9 @@ class CodexStdioJsonRpcTransportV01 {
     });
     this.child.stdin.on("error", () => {
       if (this.closing) return;
+      this.observeDiagnosisV01("initialize_stdin_error_observed", {
+        public_error_class: "codex_transport_write_failed",
+      });
       this.fail(new CodexProtocolErrorV01("codex_transport_write_failed"));
     });
     this.child.stderr.setEncoding("utf8");
@@ -4179,9 +4194,10 @@ class CodexStdioJsonRpcTransportV01 {
     try {
       if (this.diagnosisInitializeRequest?.id === id)
         this.observeDiagnosisV01("initialize_write_started");
-      this.write({ id, method, params });
-      if (this.diagnosisInitializeRequest?.id === id)
-        this.observeDiagnosisV01("initialize_write_returned");
+      this.write(
+        { id, method, params },
+        this.diagnosisInitializeRequest?.id === id,
+      );
       onSent?.();
     } catch (error) {
       clearTimeout(timer);
@@ -4419,7 +4435,7 @@ class CodexStdioJsonRpcTransportV01 {
     this.observeDiagnosisV01("response_deferred_resolved");
   }
 
-  private write(value: unknown): void {
+  private write(value: unknown, diagnoseInitializeWrite = false): void {
     if (this.closing || this.protocolFailure) {
       throw (
         this.protocolFailure ??
@@ -4430,10 +4446,105 @@ class CodexStdioJsonRpcTransportV01 {
     if (Buffer.byteLength(line, "utf8") > MAX_JSONL_LINE_BYTES) {
       throw new CodexProtocolErrorV01("codex_client_jsonl_line_bound_exceeded");
     }
-    if (!this.child.stdin.write(line, "utf8")) {
+    if (!diagnoseInitializeWrite || !this.diagnosis) {
+      if (!this.child.stdin.write(line, "utf8")) {
+        // Backpressure is bounded by the small pending-request map. Node resumes
+        // writes itself; no unbounded user payload queue is retained here.
+      }
+      return;
+    }
+
+    const testBehavior = this.diagnosis.test_only_stdin_write_behavior;
+    const observeCompletion = (error?: Error | null) => {
+      const observe = () => {
+        if (testBehavior?.suppress_completion_observation) return;
+        if (error) {
+          this.observeDiagnosisV01("initialize_stdin_error_observed", {
+            public_error_class: "codex_transport_write_failed",
+          });
+          return;
+        }
+        this.observeDiagnosisV01(
+          "initialize_write_completion_callback_observed",
+          this.stdinWriteStateV01(),
+        );
+      };
+      const delayMs = testBehavior?.completion_observation_delay_ms ?? 0;
+      if (delayMs === 0) {
+        observe();
+        return;
+      }
+      this.scheduleDiagnosisTimerV01(observe, delayMs);
+    };
+    const actualReturned = this.child.stdin.write(
+      line,
+      "utf8",
+      observeCompletion,
+    );
+    const returned = testBehavior?.force_reported_backpressure
+      ? false
+      : actualReturned;
+    this.observeDiagnosisV01("initialize_write_returned", {
+      stdin_write_returned_boolean: returned,
+      ...this.stdinWriteStateV01(),
+    });
+    if (!returned) {
+      this.child.stdin.once("drain", () => {
+        this.observeDiagnosisV01(
+          "initialize_drain_observed",
+          this.stdinWriteStateV01(),
+        );
+      });
+      if (
+        testBehavior?.synthetic_drain_observation_delay_ms !== null &&
+        testBehavior?.synthetic_drain_observation_delay_ms !== undefined
+      )
+        this.scheduleDiagnosisTimerV01(
+          () => this.child.stdin.emit("drain"),
+          testBehavior.synthetic_drain_observation_delay_ms,
+        );
+    }
+    if (
+      testBehavior?.synthetic_write_error_delay_ms !== null &&
+      testBehavior?.synthetic_write_error_delay_ms !== undefined
+    )
+      this.scheduleDiagnosisTimerV01(
+        () =>
+          this.child.stdin.emit(
+            "error",
+            new Error("sk-never-retained /Users/private/auth.json"),
+          ),
+        testBehavior.synthetic_write_error_delay_ms,
+      );
+    if (!returned) {
       // Backpressure is bounded by the small pending-request map. Node resumes
       // writes itself; no unbounded user payload queue is retained here.
     }
+  }
+
+  private stdinWriteStateV01(): Readonly<{
+    stdin_writable_length: number;
+    stdin_writable_need_drain: boolean;
+  }> {
+    return {
+      stdin_writable_length: Math.min(
+        MAX_JSONL_LINE_BYTES,
+        Math.max(0, this.child.stdin.writableLength),
+      ),
+      stdin_writable_need_drain: this.child.stdin.writableNeedDrain,
+    };
+  }
+
+  private scheduleDiagnosisTimerV01(
+    callback: () => void,
+    delayMs: number,
+  ): void {
+    const timer = setTimeout(() => {
+      this.diagnosisTimers.delete(timer);
+      callback();
+    }, delayMs);
+    timer.unref();
+    this.diagnosisTimers.add(timer);
   }
 
   private writeServerResponseSafely(value: unknown): void {
@@ -4487,6 +4598,8 @@ class CodexStdioJsonRpcTransportV01 {
       return stopped.settled;
     } finally {
       if (this.processTreeObserver) clearInterval(this.processTreeObserver);
+      for (const timer of this.diagnosisTimers) clearTimeout(timer);
+      this.diagnosisTimers.clear();
       this.child.stdout.removeAllListeners();
       this.child.stderr.removeAllListeners();
       this.child.stdin.removeAllListeners();
@@ -4568,13 +4681,10 @@ class CodexStdioJsonRpcTransportV01 {
     const now = performance.now();
     const deadline = this.diagnosisInitializeRequest?.deadline ?? null;
     const observation = Object.freeze({
-      diagnosis_version:
-        CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
+      diagnosis_version: CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
       sequence: ++this.diagnosisSequence,
       kind,
-      monotonic_elapsed_ms: boundedDurationV01(
-        now - this.diagnosisStartedAt,
-      ),
+      monotonic_elapsed_ms: boundedDurationV01(now - this.diagnosisStartedAt),
       after_rpc_deadline: deadline === null ? null : now > deadline,
       ...details,
     });
@@ -4594,6 +4704,13 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
     response_timeout_ms: number;
     post_timeout_observation_ms: number;
     process_tree_observation_delay_ms: number;
+    stdin_write_behavior?: Readonly<{
+      completion_observation_delay_ms?: number;
+      suppress_completion_observation?: boolean;
+      force_reported_backpressure?: boolean;
+      synthetic_drain_observation_delay_ms?: number | null;
+      synthetic_write_error_delay_ms?: number | null;
+    }>;
   }>;
 }): Promise<CodexStdioInitializeTransportDiagnosisResultV01> {
   const testOnly = input.test_only !== undefined;
@@ -4605,9 +4722,7 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
     (testOnly &&
       process.env.AUGNES_CODEX_ADAPTER_TRANSPORT_DIAGNOSIS_TEST_MODE !== "1")
   )
-    throw new CodexProtocolErrorV01(
-      "codex_transport_diagnosis_input_invalid",
-    );
+    throw new CodexProtocolErrorV01("codex_transport_diagnosis_input_invalid");
   const responseTimeoutMs = testOnly
     ? input.test_only!.response_timeout_ms
     : RPC_TIMEOUT_MS;
@@ -4617,6 +4732,25 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
   const processTreeDelayMs = testOnly
     ? input.test_only!.process_tree_observation_delay_ms
     : 0;
+  const writeBehavior = testOnly
+    ? {
+        completion_observation_delay_ms:
+          input.test_only!.stdin_write_behavior
+            ?.completion_observation_delay_ms ?? 0,
+        suppress_completion_observation:
+          input.test_only!.stdin_write_behavior
+            ?.suppress_completion_observation ?? false,
+        force_reported_backpressure:
+          input.test_only!.stdin_write_behavior?.force_reported_backpressure ??
+          false,
+        synthetic_drain_observation_delay_ms:
+          input.test_only!.stdin_write_behavior
+            ?.synthetic_drain_observation_delay_ms ?? null,
+        synthetic_write_error_delay_ms:
+          input.test_only!.stdin_write_behavior
+            ?.synthetic_write_error_delay_ms ?? null,
+      }
+    : null;
   if (
     !Number.isSafeInteger(responseTimeoutMs) ||
     responseTimeoutMs < 50 ||
@@ -4628,11 +4762,25 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
     !Number.isSafeInteger(processTreeDelayMs) ||
     processTreeDelayMs < 0 ||
     processTreeDelayMs > 1_000 ||
-    (!testOnly && processTreeDelayMs !== 0)
+    (!testOnly && processTreeDelayMs !== 0) ||
+    (writeBehavior !== null &&
+      (!Number.isSafeInteger(writeBehavior.completion_observation_delay_ms) ||
+        writeBehavior.completion_observation_delay_ms < 0 ||
+        writeBehavior.completion_observation_delay_ms > 2_500 ||
+        (writeBehavior.synthetic_drain_observation_delay_ms !== null &&
+          (!Number.isSafeInteger(
+            writeBehavior.synthetic_drain_observation_delay_ms,
+          ) ||
+            writeBehavior.synthetic_drain_observation_delay_ms < 0 ||
+            writeBehavior.synthetic_drain_observation_delay_ms > 2_500)) ||
+        (writeBehavior.synthetic_write_error_delay_ms !== null &&
+          (!Number.isSafeInteger(
+            writeBehavior.synthetic_write_error_delay_ms,
+          ) ||
+            writeBehavior.synthetic_write_error_delay_ms < 0 ||
+            writeBehavior.synthetic_write_error_delay_ms > 2_500))))
   )
-    throw new CodexProtocolErrorV01(
-      "codex_transport_diagnosis_bounds_invalid",
-    );
+    throw new CodexProtocolErrorV01("codex_transport_diagnosis_bounds_invalid");
 
   const observations: CodexStdioTransportDiagnosisObservationV01[] = [];
   let observationOverflow = false;
@@ -4658,6 +4806,7 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
         observations.push(observation);
       },
       test_only_process_tree_observation_delay_ms: processTreeDelayMs,
+      test_only_stdin_write_behavior: writeBehavior,
     },
   });
   let publicError: string | null = null;
@@ -4728,8 +4877,7 @@ export async function runCodex01532StdioInitializeTransportDiagnosisV01(input: {
       ? "codex_transport_diagnosis_observation_bound_exceeded"
       : "codex_transport_diagnosis_cleanup_failed";
   return Object.freeze({
-    diagnosis_version:
-      CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
+    diagnosis_version: CODEX_STDIO_INITIALIZE_TRANSPORT_DIAGNOSIS_VERSION_V01,
     public_error_class: publicError,
     initialize_response_validated: initializeResponseValidated,
     initialize_user_agent_validated: userAgentValidated,
