@@ -870,6 +870,7 @@ assert.deepEqual(
     "codex-user-reuse-hook",
     "augnes-operator-plugin-setup",
     "codex-qualified-runtime-registry",
+    "codex-ordinary-runtime-candidate",
     "temporal-interpretation-preview",
     "codex-managed-runtime-store",
     "local-canonical-owner-contract-fixture",
@@ -1039,6 +1040,7 @@ const integrationChildren = [
   "project-verify-operator-adapter",
   "reconstruction-conformance",
   "codex-qualified-runtime-registry",
+  "codex-ordinary-runtime-candidate",
   "codex-production-runtime",
   "codex-managed-runtime-store",
   "codex-sandbox-projection",
@@ -1127,6 +1129,27 @@ for (const fragment of [
     qualifiedRuntimeRegistryRegistration.block,
     fragment,
     `qualified runtime registry canonical registration is missing: ${fragment}`,
+  );
+}
+const ordinaryRuntimeCandidateRegistration = readCanonicalChildRegistration(
+  integrationSource,
+  "codex-ordinary-runtime-candidate",
+);
+for (const fragment of [
+  `group: "supporting-serial"`,
+  `"filesystem"`,
+  `"process-owning"`,
+  `"project-root"`,
+  `"mutable-module-state"`,
+  `label:\n        "credential-free exact Codex ordinary-runtime candidate evidence and non-production boundary"`,
+  `rootNode("scripts/test-codex-ordinary-runtime-candidate.ts")`,
+  `timeoutMs: 30_000`,
+  `requireNaturalExit: true`,
+]) {
+  requireText(
+    ordinaryRuntimeCandidateRegistration.block,
+    fragment,
+    `ordinary runtime candidate canonical registration is missing: ${fragment}`,
   );
 }
 const managedRuntimeStoreRegistration = readCanonicalChildRegistration(
@@ -1348,6 +1371,7 @@ requireText(
 for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-codex-qualified-runtime-registry.ts", "30_000"],
+  ["scripts/test-codex-ordinary-runtime-candidate.ts", "30_000"],
   ["scripts/test-codex-managed-runtime-store.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],

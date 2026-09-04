@@ -21,6 +21,7 @@ import {
 } from "@/lib/vnext/native-host/codex-managed-runtime-store";
 import {
   assertCurrentCodexQualifiedRuntimeSelectionV01,
+  legacyExactCodexQualificationEvidenceV01,
   selectPinnedCodexQualifiedRuntimeV01,
   type CodexQualifiedRuntimeSelectionV01,
   type CodexRuntimeLaunchShapeV01,
@@ -198,8 +199,9 @@ export function assertCodexProductionRuntimeIdentityUnchangedV01(
       identity.cli_version !==
         identity.qualified_runtime_selection.artifact.version ||
       identity.semantic_profile_fingerprint !==
-        identity.qualified_runtime_selection.artifact
-          .legacy_exact_qualification_evidence.semantic_profile_fingerprint ||
+        legacyExactCodexQualificationEvidenceV01(
+          identity.qualified_runtime_selection.artifact,
+        ).semantic_profile_fingerprint ||
       (identity.registry_authority === "checked_in_human_reviewed_manifest" &&
         identity.executable_fingerprint !==
           identity.qualified_runtime_selection.artifact
@@ -330,8 +332,9 @@ function resolveCodexProductionRuntimeWithDependenciesV01(
     upstream_target_triple:
       dependencies.qualified_runtime_selection.artifact.upstream_target_triple,
     semantic_profile_fingerprint:
-      dependencies.qualified_runtime_selection.artifact
-        .legacy_exact_qualification_evidence.semantic_profile_fingerprint,
+      legacyExactCodexQualificationEvidenceV01(
+        dependencies.qualified_runtime_selection.artifact,
+      ).semantic_profile_fingerprint,
     qualified_runtime_entry_id:
       dependencies.qualified_runtime_selection.artifact.entry_id,
     compatibility_profile_id:
@@ -379,7 +382,7 @@ function managedProductionIdentityV01(
     upstream_source_commit: qualified.artifact.tagged_source_commit,
     upstream_target_triple: qualified.artifact.upstream_target_triple,
     semantic_profile_fingerprint:
-      qualified.artifact.legacy_exact_qualification_evidence
+      legacyExactCodexQualificationEvidenceV01(qualified.artifact)
         .semantic_profile_fingerprint,
     qualified_runtime_entry_id: qualified.artifact.entry_id,
     compatibility_profile_id: qualified.compatibility_profile.profile_id,

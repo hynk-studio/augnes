@@ -86,6 +86,39 @@ export class CodexAppServerUserAgentErrorV01 extends Error {
   }
 }
 
+export interface CodexReviewedCandidateUserAgentObservationV01 {
+  codex_cli_version: string;
+  architecture: "arm64" | "x86_64";
+  exact_originator_match: true;
+  exact_client_version_match: true;
+  fingerprint: string;
+}
+
+/**
+ * Parse one reviewed candidate's runtime-bound user agent without granting
+ * qualification or production-selection authority.
+ */
+export function observeReviewedCandidateCodexAppServerUserAgentV01(input: {
+  raw_user_agent: unknown;
+  expected_client_name: "augnes-semantic-preflight";
+  expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
+  expected_codex_cli_version: string;
+}): CodexReviewedCandidateUserAgentObservationV01 {
+  const parsed = parseCodexAppServerUserAgentV01(input);
+  const material = {
+    codex_cli_version: input.expected_codex_cli_version,
+    architecture: parsed.architecture,
+    exact_originator_match: true,
+    exact_client_version_match: true,
+  } as const;
+  return Object.freeze({
+    ...material,
+    fingerprint: createProtocolSha256V01(
+      canonicalizeProtocolValueV01(material),
+    ),
+  });
+}
+
 export function observeCodexAppServerUserAgentV01(input: {
   raw_user_agent: unknown;
   expected_client_name: "augnes" | "augnes-semantic-preflight";

@@ -121,6 +121,20 @@ try {
     },
   );
   runPlanCase(
+    "ordinary-runtime-candidate-test-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write(
+        "scripts/test-codex-ordinary-runtime-candidate.ts",
+        "export {};\n",
+      );
+    },
+    {
+      ownerIds: ["codex-ordinary-runtime-candidate"],
+      phaseIds: targetedPhaseIds("typecheck", "integration"),
+    },
+  );
+  runPlanCase(
     "managed-runtime-store-test-owner",
     "owner-targeted",
     ({ write }) => {

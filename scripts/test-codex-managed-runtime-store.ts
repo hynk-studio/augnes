@@ -575,7 +575,11 @@ async function testSelectionPoliciesAndLanes(): Promise<void> {
   );
 
   for (const [name, mutate] of [
-    ["candidate", (artifact: any) => { artifact.lanes.ordinary_chatgpt_auth.status = "candidate"; artifact.lanes.ordinary_chatgpt_auth.qualified_at = null; }],
+    ["candidate", (artifact: any) => {
+      artifact.lanes.ordinary_chatgpt_auth.status = "candidate";
+      artifact.lanes.ordinary_chatgpt_auth.qualified_at = null;
+      artifact.qualification_evidence = candidateEvidenceFixtureV01();
+    }],
     ["revoked", (artifact: CodexQualifiedRuntimeArtifactV01) => { artifact.revocation = { revoked_at: "2026-09-03T00:00:00.000Z", reason: "test_revocation", evidence_refs: ["test:evidence"] }; }],
     ["expired", (artifact: CodexQualifiedRuntimeArtifactV01) => { artifact.not_after = "2026-09-03T00:00:00.000Z"; }],
     ["below-floor", (artifact: CodexQualifiedRuntimeArtifactV01) => { artifact.security_floor = { floor_id: "test-floor", evaluation: "unsatisfied", evidence_refs: ["test:evidence"] }; }],
@@ -601,6 +605,7 @@ async function testSelectionPoliciesAndLanes(): Promise<void> {
   const candidateOnly = structuredClone(v099.artifact);
   (candidateOnly.lanes.ordinary_chatgpt_auth as any).status = "candidate";
   (candidateOnly.lanes.ordinary_chatgpt_auth as any).qualified_at = null;
+  (candidateOnly as any).qualification_evidence = candidateEvidenceFixtureV01();
   expectSyncCode(
     () =>
       select(
@@ -946,6 +951,14 @@ function fixtureArtifact(version: string, index: number): FixtureArtifact {
   (artifact.lanes.ordinary_chatgpt_auth as any).qualified_at =
     "2026-09-03T01:17:35.000Z";
   return { artifact, archive, native };
+}
+
+function candidateEvidenceFixtureV01(): CodexQualifiedRuntimeArtifactV01["qualification_evidence"] {
+  return structuredClone(
+    CODEX_QUALIFIED_RUNTIME_REGISTRY_V01.artifacts.find(
+      ({ version }) => version === "0.153.2",
+    )!.qualification_evidence,
+  );
 }
 
 function bindArchive(fixture: FixtureArtifact, archive: Buffer): FixtureArtifact {

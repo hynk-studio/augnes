@@ -20,6 +20,7 @@ import {
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
 import {
   getPinnedCodexReviewedRuntimeArtifactV01,
+  legacyExactCodexQualificationEvidenceV01,
   selectPinnedCodexQualifiedRuntimeV01,
   type CodexQualifiedRuntimeSelectionV01,
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
@@ -599,8 +600,9 @@ if (
   REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
     .native_executable_sha256 !==
     CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_EXECUTABLE_FINGERPRINT_V01 ||
-  REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact
-    .legacy_exact_qualification_evidence.semantic_profile_fingerprint !==
+  legacyExactCodexQualificationEvidenceV01(
+      REVIEWED_PRODUCTION_RUNTIME_SELECTION_V01.artifact,
+    ).semantic_profile_fingerprint !==
     CODEX_ISOLATED_AUTH_PINNED_PRODUCTION_SEMANTIC_PROFILE_FINGERPRINT_V01
 ) {
   throw new Error("codex_isolated_auth_production_registry_binding_mismatch");

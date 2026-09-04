@@ -138,10 +138,22 @@ export interface CodexQualifiedRuntimeArtifactV01 {
       }>
     >
   >;
-  legacy_exact_qualification_evidence: Readonly<{
-    semantic_profile_fingerprint: string;
-    ordinary_deciding_receipt_fingerprint: string;
-  }>;
+  qualification_evidence:
+    | Readonly<{
+        kind: "legacy_exact_ordinary_qualified_v0_1";
+        semantic_profile_fingerprint: string;
+        ordinary_deciding_receipt_fingerprint: string;
+      }>
+    | Readonly<{
+        kind: "candidate_source_schema_review_v0_1";
+        ordinary_deciding_receipt_fingerprint: null;
+        source_schema_review: CodexRuntimeCandidateSourceSchemaReviewV01;
+      }>
+    | Readonly<{
+        kind: "reviewed_exact_ordinary_qualified_v0_1";
+        ordinary_deciding_receipt_fingerprint: string;
+        source_schema_review: CodexRuntimeCandidateSourceSchemaReviewV01;
+      }>;
   revocation: null | Readonly<{
     revoked_at: string;
     reason: string;
@@ -153,6 +165,41 @@ export interface CodexQualifiedRuntimeArtifactV01 {
     evaluation: "satisfied" | "unsatisfied";
     evidence_refs: readonly string[];
   }>;
+}
+
+export type CodexRuntimeSourceDeltaClassificationV01 =
+  | "unchanged_exact"
+  | "additive_unused_bounded_non_authoritative"
+  | "behavior_preserving_after_exact_source_review_and_focused_verification"
+  | "changed_profile_required"
+  | "incompatible_or_unresolved";
+
+export interface CodexRuntimeCandidateSourceSchemaReviewV01 {
+  review_version: "codex_runtime_candidate_source_schema_review.v0.1";
+  baseline: Readonly<{
+    release_tag: string;
+    tagged_source_commit: string;
+    source_tree: string;
+  }>;
+  candidate: Readonly<{
+    release_tag: string;
+    tagged_source_commit: string;
+    source_tree: string;
+    release_published_at: string;
+    archive_member_name: string;
+    extracted_native_size_bytes: number;
+    executable_format: string;
+  }>;
+  compatibility_profile_decision:
+    | "reuse_supported_pending_authenticated_ordinary_canary"
+    | "new_profile_required"
+    | "hold_unresolved";
+  deltas: readonly Readonly<{
+    area: string;
+    classification: CodexRuntimeSourceDeltaClassificationV01;
+    evidence: string;
+  }>[];
+  fingerprint: string;
 }
 
 export interface CodexQualifiedRuntimeRegistryV01 {
@@ -183,6 +230,30 @@ export interface CodexReviewedRuntimeArtifactV01 {
   selection_mode: "pinned_exact";
   artifact: CodexQualifiedRuntimeArtifactV01;
   compatibility_profile: CodexRuntimeCompatibilityProfileV01;
+}
+
+export function codexRuntimeCandidateSourceSchemaReviewFingerprintV01(input: {
+  review_version: string;
+  baseline: unknown;
+  candidate: unknown;
+  compatibility_profile_decision: string;
+  deltas: unknown;
+}): string {
+  return createProtocolSha256V01(canonicalizeProtocolValueV01(input));
+}
+
+export function legacyExactCodexQualificationEvidenceV01(
+  artifact: CodexQualifiedRuntimeArtifactV01,
+): Extract<
+  CodexQualifiedRuntimeArtifactV01["qualification_evidence"],
+  { kind: "legacy_exact_ordinary_qualified_v0_1" }
+> {
+  if (
+    artifact.qualification_evidence.kind !==
+    "legacy_exact_ordinary_qualified_v0_1"
+  )
+    failV01("codex_qualified_runtime_registry_legacy_evidence_unavailable");
+  return artifact.qualification_evidence;
 }
 
 export class CodexQualifiedRuntimeRegistryErrorV01 extends Error {
@@ -421,6 +492,35 @@ export function getPinnedCodexReviewedRuntimeArtifactV01(input: {
     : CODEX_QUALIFIED_RUNTIME_REGISTRY_V01;
   const artifact = registry.artifacts.find(
     (entry) => entry.entry_id === registry.production_selection.entry_id,
+  );
+  if (!artifact)
+    failV01("codex_qualified_runtime_registry_selection_missing");
+  const compatibilityProfile = registry.compatibility_profiles.find(
+    (profile) => profile.profile_id === artifact.compatibility_profile_id,
+  );
+  if (
+    !compatibilityProfile ||
+    compatibilityProfile.fingerprint !==
+      artifact.compatibility_profile_fingerprint
+  )
+    failV01("codex_qualified_runtime_registry_profile_reference_mismatch");
+  return deepFreezeV01({
+    selection_mode: "pinned_exact",
+    artifact,
+    compatibility_profile: compatibilityProfile,
+  });
+}
+
+/** Exact reviewed identity/profile lookup only; this grants no lane eligibility. */
+export function getCodexReviewedRuntimeArtifactV01(input: {
+  entry_id: string;
+  registry?: unknown;
+}): CodexReviewedRuntimeArtifactV01 {
+  const registry = input.registry !== undefined
+    ? validateCodexQualifiedRuntimeRegistryV01(input.registry)
+    : CODEX_QUALIFIED_RUNTIME_REGISTRY_V01;
+  const artifact = registry.artifacts.find(
+    (entry) => entry.entry_id === input.entry_id,
   );
   if (!artifact)
     failV01("codex_qualified_runtime_registry_selection_missing");
@@ -874,7 +974,7 @@ function validateArtifactV01(value: unknown): CodexQualifiedRuntimeArtifactV01 {
       "compatibility_profile_id",
       "compatibility_profile_fingerprint",
       "lanes",
-      "legacy_exact_qualification_evidence",
+      "qualification_evidence",
       "revocation",
       "not_after",
       "security_floor",
@@ -939,7 +1039,7 @@ function validateArtifactV01(value: unknown): CodexQualifiedRuntimeArtifactV01 {
   idV01(artifact.compatibility_profile_id, "codex_qualified_runtime_registry_profile_reference_invalid");
   sha256V01(artifact.compatibility_profile_fingerprint, "codex_qualified_runtime_registry_profile_reference_invalid");
   validateLanesV01(artifact.lanes);
-  validateLegacyEvidenceV01(artifact.legacy_exact_qualification_evidence);
+  validateQualificationEvidenceV01(artifact.qualification_evidence, artifact.lanes);
   validateRevocationV01(artifact.revocation);
   if (artifact.not_after !== null) strictTimestampMsV01(artifact.not_after);
   validateSecurityFloorV01(artifact.security_floor);
@@ -1030,15 +1130,214 @@ function validateProvenanceV01(value: unknown): void {
     failV01("codex_qualified_runtime_registry_provenance_invalid");
 }
 
-function validateLegacyEvidenceV01(value: unknown): void {
-  const evidence = exactRecordV01(
+function validateQualificationEvidenceV01(
+  value: unknown,
+  rawLanes: unknown,
+): void {
+  const evidence = recordV01(
     value,
-    ["semantic_profile_fingerprint", "ordinary_deciding_receipt_fingerprint"],
-    "codex_qualified_runtime_registry_legacy_evidence_invalid",
+    "codex_qualified_runtime_registry_qualification_evidence_invalid",
   );
-  sha256V01(evidence.semantic_profile_fingerprint, "codex_qualified_runtime_registry_legacy_evidence_invalid");
-  if (typeof evidence.ordinary_deciding_receipt_fingerprint !== "string" || !BARE_SHA256_PATTERN_V01.test(evidence.ordinary_deciding_receipt_fingerprint))
-    failV01("codex_qualified_runtime_registry_legacy_evidence_invalid");
+  const lanes = recordV01(
+    rawLanes,
+    "codex_qualified_runtime_registry_qualification_evidence_invalid",
+  );
+  const ordinary = recordV01(
+    lanes.ordinary_chatgpt_auth,
+    "codex_qualified_runtime_registry_qualification_evidence_invalid",
+  );
+  if (evidence.kind === "legacy_exact_ordinary_qualified_v0_1") {
+    exactKeysV01(
+      evidence,
+      [
+        "kind",
+        "semantic_profile_fingerprint",
+        "ordinary_deciding_receipt_fingerprint",
+      ],
+      "codex_qualified_runtime_registry_qualification_evidence_invalid",
+    );
+    sha256V01(
+      evidence.semantic_profile_fingerprint,
+      "codex_qualified_runtime_registry_qualification_evidence_invalid",
+    );
+    bareSha256V01(
+      evidence.ordinary_deciding_receipt_fingerprint,
+      "codex_qualified_runtime_registry_qualification_evidence_invalid",
+    );
+    if (ordinary.status === "candidate")
+      failV01("codex_qualified_runtime_registry_qualification_evidence_conflict");
+    return;
+  }
+  if (
+    evidence.kind !== "candidate_source_schema_review_v0_1" &&
+    evidence.kind !== "reviewed_exact_ordinary_qualified_v0_1"
+  )
+    failV01("codex_qualified_runtime_registry_qualification_evidence_invalid");
+  exactKeysV01(
+    evidence,
+    ["kind", "ordinary_deciding_receipt_fingerprint", "source_schema_review"],
+    "codex_qualified_runtime_registry_qualification_evidence_invalid",
+  );
+  validateCandidateSourceSchemaReviewV01(evidence.source_schema_review);
+  if (evidence.kind === "candidate_source_schema_review_v0_1") {
+    if (
+      evidence.ordinary_deciding_receipt_fingerprint !== null ||
+      ordinary.status === "qualified" ||
+      ordinary.qualified_at !== null
+    )
+      failV01("codex_qualified_runtime_registry_qualification_evidence_conflict");
+    return;
+  }
+  bareSha256V01(
+    evidence.ordinary_deciding_receipt_fingerprint,
+    "codex_qualified_runtime_registry_qualification_evidence_invalid",
+  );
+  if (ordinary.status === "candidate")
+    failV01("codex_qualified_runtime_registry_qualification_evidence_conflict");
+}
+
+function validateCandidateSourceSchemaReviewV01(value: unknown): void {
+  const review = exactRecordV01(
+    value,
+    [
+      "review_version",
+      "baseline",
+      "candidate",
+      "compatibility_profile_decision",
+      "deltas",
+      "fingerprint",
+    ],
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  if (
+    review.review_version !==
+    "codex_runtime_candidate_source_schema_review.v0.1"
+  )
+    failV01("codex_qualified_runtime_registry_source_review_invalid");
+  const baseline = exactRecordV01(
+    review.baseline,
+    ["release_tag", "tagged_source_commit", "source_tree"],
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  const candidate = exactRecordV01(
+    review.candidate,
+    [
+      "release_tag",
+      "tagged_source_commit",
+      "source_tree",
+      "release_published_at",
+      "archive_member_name",
+      "extracted_native_size_bytes",
+      "executable_format",
+    ],
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  for (const source of [baseline, candidate]) {
+    boundedStringV01(
+      source.release_tag,
+      96,
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+    const commit = boundedStringV01(
+      source.tagged_source_commit,
+      40,
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+    const tree = boundedStringV01(
+      source.source_tree,
+      40,
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+    if (!SOURCE_COMMIT_PATTERN_V01.test(commit) || !SOURCE_COMMIT_PATTERN_V01.test(tree))
+      failV01("codex_qualified_runtime_registry_source_review_invalid");
+  }
+  strictTimestampMsV01(candidate.release_published_at);
+  boundedStringV01(
+    candidate.archive_member_name,
+    256,
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  positiveSafeIntegerV01(
+    candidate.extracted_native_size_bytes,
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  boundedStringV01(
+    candidate.executable_format,
+    128,
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  if (
+    review.compatibility_profile_decision !==
+      "reuse_supported_pending_authenticated_ordinary_canary" &&
+    review.compatibility_profile_decision !== "new_profile_required" &&
+    review.compatibility_profile_decision !== "hold_unresolved"
+  )
+    failV01("codex_qualified_runtime_registry_source_review_invalid");
+  const deltas = arrayV01(
+    review.deltas,
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  if (deltas.length === 0)
+    failV01("codex_qualified_runtime_registry_source_review_invalid");
+  const areas = new Set<string>();
+  for (const rawDelta of deltas) {
+    const delta = exactRecordV01(
+      rawDelta,
+      ["area", "classification", "evidence"],
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+    const area = boundedStringV01(
+      delta.area,
+      128,
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+    if (areas.has(area))
+      failV01("codex_qualified_runtime_registry_source_review_invalid");
+    areas.add(area);
+    if (
+      !(
+        [
+          "unchanged_exact",
+          "additive_unused_bounded_non_authoritative",
+          "behavior_preserving_after_exact_source_review_and_focused_verification",
+          "changed_profile_required",
+          "incompatible_or_unresolved",
+        ] as const
+      ).includes(delta.classification as never)
+    )
+      failV01("codex_qualified_runtime_registry_source_review_invalid");
+    boundedStringV01(
+      delta.evidence,
+      512,
+      "codex_qualified_runtime_registry_source_review_invalid",
+    );
+  }
+  if (
+    review.compatibility_profile_decision ===
+      "reuse_supported_pending_authenticated_ordinary_canary" &&
+    deltas.some((rawDelta) => {
+      const delta = rawDelta as Record<string, unknown>;
+      return (
+        delta.classification === "changed_profile_required" ||
+        delta.classification === "incompatible_or_unresolved"
+      );
+    })
+  )
+    failV01("codex_qualified_runtime_registry_source_review_conflict");
+  const fingerprint = sha256V01(
+    review.fingerprint,
+    "codex_qualified_runtime_registry_source_review_invalid",
+  );
+  const computed = codexRuntimeCandidateSourceSchemaReviewFingerprintV01({
+    review_version: review.review_version as string,
+    baseline,
+    candidate,
+    compatibility_profile_decision:
+      review.compatibility_profile_decision as string,
+    deltas,
+  });
+  if (fingerprint !== computed)
+    failV01("codex_qualified_runtime_registry_source_review_fingerprint_mismatch");
 }
 
 function validateRevocationV01(value: unknown): void {
@@ -1120,6 +1419,12 @@ function idV01(value: unknown, code: string): string {
 
 function sha256V01(value: unknown, code: string): string {
   if (typeof value !== "string" || !SHA256_PATTERN_V01.test(value)) failV01(code);
+  return value;
+}
+
+function bareSha256V01(value: unknown, code: string): string {
+  if (typeof value !== "string" || !BARE_SHA256_PATTERN_V01.test(value))
+    failV01(code);
   return value;
 }
 

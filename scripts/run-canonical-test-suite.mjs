@@ -449,6 +449,21 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "codex-ordinary-runtime-candidate",
+      group: "supporting-serial",
+      requirements: [
+        "filesystem",
+        "process-owning",
+        "project-root",
+        "mutable-module-state",
+      ],
+      label:
+        "credential-free exact Codex ordinary-runtime candidate evidence and non-production boundary",
+      ...rootNode("scripts/test-codex-ordinary-runtime-candidate.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-production-runtime",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "mutable-module-state"],

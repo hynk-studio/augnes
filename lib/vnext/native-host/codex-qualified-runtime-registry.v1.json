@@ -280,9 +280,165 @@
           ]
         }
       },
-      "legacy_exact_qualification_evidence": {
+      "qualification_evidence": {
+        "kind": "legacy_exact_ordinary_qualified_v0_1",
         "semantic_profile_fingerprint": "sha256:795aefcda75d4b169dec3df4db3b3b30fc583c7202f1be7fc9eb6b809a694529",
         "ordinary_deciding_receipt_fingerprint": "6382188b98b4cf9388861428adc1219962f586c5e47ecd6c0ab09a9ae4fc1178"
+      },
+      "revocation": null,
+      "not_after": null,
+      "security_floor": null
+    },
+    {
+      "entry_id": "codex-rust-v0.153.2-darwin-arm64",
+      "version": "0.153.2",
+      "release_tag": "rust-v0.153.2",
+      "tagged_source_commit": "657a993cbee87acf52d14b758ce49dbd46d1b8eb",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "upstream_target_triple": "aarch64-apple-darwin",
+      "official_release": {
+        "repository": "openai/codex",
+        "release_id": 382394608,
+        "url": "https://github.com/openai/codex/releases/tag/rust-v0.153.2"
+      },
+      "qualified_provenance_asset": {
+        "acquisition_route": "standalone_release_tarball",
+        "asset_id": 543503024,
+        "asset_name": "codex-aarch64-apple-darwin.tar.gz",
+        "size_bytes": 87314265,
+        "digest": "sha256:91dfc270f0dfbaec16d814f1aa90d4f27e74dc9e3784e64006bef3b79fe9e09c",
+        "digest_mechanism": "official_github_release_asset_digest_sha256"
+      },
+      "native_executable_sha256": "sha256:195ace4100a634a9df39147f493e730e666b5bd87795f3c9f3251d8542400424",
+      "provenance_method": {
+        "method": "official_github_release_metadata_and_asset_digest",
+        "post_extraction_native_sha256_required": true,
+        "upstream_macos_signature_claimed": false
+      },
+      "admitted_discovery_launch_shapes": [
+        {
+          "shape": "direct_native",
+          "contract": "reviewed_standalone_archive_regular_macos_arm64_native_resolving_to_exact_sha256"
+        }
+      ],
+      "unsupported_acquisition_routes": [
+        {
+          "route": "codex_package_archive",
+          "example_asset_name": "codex-package-aarch64-apple-darwin.tar.gz",
+          "status": "unsupported"
+        }
+      ],
+      "compatibility_profile_id": "codex_app_server_augnes_operator.v0.1",
+      "compatibility_profile_fingerprint": "sha256:a4cfb0e38fd6a2af0d29a467c2c5db2579cdc784e93a820f3482fa2c8a1d663a",
+      "lanes": {
+        "ordinary_chatgpt_auth": {
+          "status": "candidate",
+          "qualified_at": null,
+          "reason": "source_review_complete_authenticated_ordinary_canary_separately_authorized",
+          "evidence_refs": [
+            "github_issue_comment:https://github.com/hynk-studio/augnes/issues/1199#issuecomment-5534821273"
+          ],
+          "review_refs": [
+            "github_issue:https://github.com/hynk-studio/augnes/issues/1199"
+          ]
+        },
+        "strict_agent_identity": {
+          "status": "hold",
+          "qualified_at": null,
+          "reason": "not_evaluated_no_documented_restart_trigger",
+          "evidence_refs": [
+            "github_issue:https://github.com/hynk-studio/augnes/issues/1195"
+          ],
+          "review_refs": [
+            "github_issue:https://github.com/hynk-studio/augnes/issues/1199"
+          ]
+        }
+      },
+      "qualification_evidence": {
+        "kind": "candidate_source_schema_review_v0_1",
+        "ordinary_deciding_receipt_fingerprint": null,
+        "source_schema_review": {
+          "review_version": "codex_runtime_candidate_source_schema_review.v0.1",
+          "baseline": {
+            "release_tag": "rust-v0.152.1",
+            "tagged_source_commit": "5adb68a49933ae446bf11935662c83dba55a0804",
+            "source_tree": "3e643e5ef6195a3881be9f8d6b394019786155ee"
+          },
+          "candidate": {
+            "release_tag": "rust-v0.153.2",
+            "tagged_source_commit": "657a993cbee87acf52d14b758ce49dbd46d1b8eb",
+            "source_tree": "8b5502927b418f0e6476f01aa331b687b27d798f",
+            "release_published_at": "2026-09-03T23:53:12Z",
+            "archive_member_name": "codex-aarch64-apple-darwin",
+            "extracted_native_size_bytes": 220551344,
+            "executable_format": "Mach-O 64-bit arm64"
+          },
+          "compatibility_profile_decision": "reuse_supported_pending_authenticated_ordinary_canary",
+          "deltas": [
+            {
+              "area": "initialize_initialized_user_agent",
+              "classification": "unchanged_exact",
+              "evidence": "initialize processor and required user-agent construction are unchanged between the exact peeled source trees"
+            },
+            {
+              "area": "account_read_auth_storage_default_client",
+              "classification": "unchanged_exact",
+              "evidence": "account processor and login auth, storage, and default-client owners are unchanged"
+            },
+            {
+              "area": "thread_turn_schema",
+              "classification": "additive_unused_bounded_non_authoritative",
+              "evidence": "Thread adds nullable model and reasoningEffort and agentMessage adds nullable questions; required status and notification enums are unchanged"
+            },
+            {
+              "area": "plugin_reconcile",
+              "classification": "additive_unused_bounded_non_authoritative",
+              "evidence": "plugin/reconcile is a new client request that Augnes does not invoke or treat as authority"
+            },
+            {
+              "area": "permission_transforms",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "permission normalization and approval resolution now bind executor PathUri context while invalid or cross-convention paths remain fail-closed"
+            },
+            {
+              "area": "active_turn_approval_reviewer",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "live turn settings now carry approvalsReviewer; the reviewed Augnes on-request user reviewer contract remains explicit and unchanged"
+            },
+            {
+              "area": "chatgpt_turn_cost_telemetry",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "ChatGPT cost queries were added behind configured OTLP export and turn events; credential-free preflight starts no thread or turn and configures no exporter"
+            },
+            {
+              "area": "shell_snapshot_prewarming",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "eligible-turn prewarming is turn-only, explicitly disabled for candidate preflight, and its task is aborted during shutdown"
+            },
+            {
+              "area": "structured_async_user_input",
+              "classification": "additive_unused_bounded_non_authoritative",
+              "evidence": "structured asynchronous user input and nullable questions are not invoked during the bounded candidate preflight"
+            },
+            {
+              "area": "experimental_context_and_mcp_oauth",
+              "classification": "additive_unused_bounded_non_authoritative",
+              "evidence": "context management and MCP OAuth refresh coordination are new disabled-by-default features and are explicitly disabled for candidate preflight"
+            },
+            {
+              "area": "process_lifecycle_cleanup",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "shutdown retains task and process termination and adds bounded shell snapshot prewarm cancellation"
+            },
+            {
+              "area": "standalone_archive_cli_launcher",
+              "classification": "behavior_preserving_after_exact_source_review_and_focused_verification",
+              "evidence": "candidate admission is direct native from the exact standalone archive; Node launcher package changes are not an admitted candidate route"
+            }
+          ],
+          "fingerprint": "sha256:09edf14c59a5e294254c418966336f77e27e2961caadedcd6096501cc86ccaac"
+        }
       },
       "revocation": null,
       "not_after": null,

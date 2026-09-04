@@ -65,6 +65,7 @@
     "test:codex-current-continuity": "node --import tsx scripts/test-vnext-codex-current-continuity.ts",
     "test:codex-qualified-runtime-registry": "node --import tsx scripts/test-codex-qualified-runtime-registry.ts",
     "test:codex-managed-runtime-store": "node --import tsx scripts/test-codex-managed-runtime-store.ts",
+    "test:codex-ordinary-runtime-candidate": "node --import tsx scripts/test-codex-ordinary-runtime-candidate.ts",
     "test:codex-production-runtime": "node --import tsx scripts/test-codex-production-runtime.ts",
     "test:codex-sandbox-projection": "node --import tsx scripts/test-codex-app-server-sandbox-projection.ts",
     "test:codex-repository-continuity": "node --import tsx scripts/test-codex-repository-continuity.ts",
