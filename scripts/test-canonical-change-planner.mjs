@@ -135,6 +135,22 @@ try {
     },
   );
   runPlanCase(
+    "ordinary-authenticated-runtime-candidate-owner",
+    "full-canonical",
+    ({ write }) => {
+      write(
+        "lib/vnext/native-host/codex-ordinary-authenticated-candidate.ts",
+        "export {};\n",
+      );
+    },
+    {
+      ownerIds: ["shared-native-host-runtime"],
+      fullReasons: [
+        "shared_native_host_or_runtime_composition:lib/vnext/native-host/codex-ordinary-authenticated-candidate.ts",
+      ],
+    },
+  );
+  runPlanCase(
     "managed-runtime-store-test-owner",
     "owner-targeted",
     ({ write }) => {

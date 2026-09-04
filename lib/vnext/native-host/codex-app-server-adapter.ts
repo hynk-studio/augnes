@@ -19,7 +19,17 @@ import path from "node:path";
 import {
   CodexAppServerUserAgentErrorV01,
   observeCodexAppServerUserAgentV01,
+  observeReviewedCandidateCodexAppServerUserAgentV01,
 } from "@/lib/vnext/native-host/codex-app-server-user-agent";
+import {
+  CODEX_0_153_2_ORDINARY_CANARY_INSTRUCTION_V01,
+  CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+  CodexOrdinaryAuthenticatedCandidateErrorV01,
+  consumeCodex01532OrdinaryAuthenticatedCandidateCapabilityV01,
+  inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01,
+  type CodexOrdinaryAuthenticatedCandidateAdapterBindingV01,
+  type CodexOrdinaryAuthenticatedCandidateCapabilityV01,
+} from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
 import {
   CodexManagedRuntimeStoreErrorV01,
   ensurePinnedCodexManagedRuntimeV01,
@@ -377,6 +387,7 @@ export interface CodexAppServerAdapterOptionsV01 {
   launch?: CodexAppServerLaunchV01;
   isolated_authenticated_execution?: CodexIsolatedAuthenticatedExecutionOwnerV01;
   isolated_authenticated_external_execution_authorization?: CodexIsolatedAuthTestExecutionAuthorizationV01;
+  ordinary_authenticated_candidate_execution?: CodexOrdinaryAuthenticatedCandidateCapabilityV01;
   now?: () => string;
   observe?: (observation: CodexAppServerAdapterObservationV01) => void;
   observe_isolated_auth?: (
@@ -567,9 +578,7 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
       if (account.account === null && account.requiresOpenaiAuth === true)
         throw new CodexCapabilityErrorV01("codex_not_authenticated");
       if (account.account === null || typeof account.account !== "object")
-        throw new CodexCapabilityErrorV01(
-          "codex_account_state_unsupported",
-        );
+        throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
       const authStatus = objectV01(
         await binding.transport.request("getAuthStatus", {
           includeToken: false,
@@ -595,10 +604,7 @@ async function createAuthenticatedPreflightFromBrokerChildV01(input: {
           "codex_isolated_auth_model_configuration_missing",
         );
       const mcpStatus = objectV01(
-        await binding.transport.request(
-          "mcpServerStatus/list",
-          { limit: 100 },
-        ),
+        await binding.transport.request("mcpServerStatus/list", { limit: 100 }),
         "codex_mcp_status_response_invalid",
       );
       if (!binding.initialized)
@@ -703,10 +709,7 @@ function exactBrokerAuthenticatedChildV01(value: unknown): {
 
 function privatePreflightBindingV01(
   session: CodexIsolatedAuthenticatedPreflightSessionV01,
-  expectedState:
-    | "preflight"
-    | "initialized"
-    | "preflight_complete",
+  expectedState: "preflight" | "initialized" | "preflight_complete",
 ): PrivateIsolatedPreflightSessionStateV01 {
   const binding = PRIVATE_ISOLATED_PREFLIGHT_SESSIONS_V01.get(session);
   if (!binding || binding.state !== expectedState)
@@ -842,6 +845,13 @@ export function createCodexAppServerAdapterV01(
     );
   }
   if (
+    options.ordinary_authenticated_candidate_execution &&
+    (options.launch || options.isolated_authenticated_execution)
+  )
+    throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+      "codex_candidate_parallel_launch_refused",
+    );
+  if (
     options.isolated_authenticated_external_execution_authorization &&
     !options.isolated_authenticated_execution
   )
@@ -865,8 +875,9 @@ export function createCodexAppServerAdapterV01(
 
 export function observeOrdinaryCodexAppServerUserAgentV01(
   rawUserAgent: unknown,
-  selectedRuntime: CodexQualifiedRuntimeSelectionV01 =
-    selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" }),
+  selectedRuntime: CodexQualifiedRuntimeSelectionV01 = selectPinnedCodexQualifiedRuntimeV01(
+    { lane: "ordinary_chatgpt_auth" },
+  ),
 ): string {
   try {
     assertCurrentCodexQualifiedRuntimeSelectionV01(selectedRuntime);
@@ -889,8 +900,8 @@ export function observeOrdinaryCodexAppServerUserAgentV01(
       raw_user_agent: rawUserAgent,
       expected_client_name: "augnes",
       expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
-      expected_codex_cli_version:
-        selectedRuntime.artifact.version as typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
+      expected_codex_cli_version: selectedRuntime.artifact
+        .version as typeof CODEX_ISOLATED_AUTH_SUPPORTED_CLI_VERSION_V01,
     }).codex_cli_version;
   } catch (error) {
     if (error instanceof CodexAppServerUserAgentErrorV01) {
@@ -947,29 +958,26 @@ export function resolveDefaultCodexAppServerLaunchV01(
   };
 }
 
-export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(
-  input: {
-    command: string;
-    expected_executable_fingerprint: string;
-    executable_identity_class:
-      | "production_pinned_codex"
-      | "test_emulated_profile";
-    state_parent: string;
-    repository_root: string;
-    base_environment?: {
-      PATH?: string;
-      LANG?: string;
-      LC_ALL?: string;
-      LC_CTYPE?: string;
-      TZ?: string;
-      TERM?: string;
-      NO_COLOR?: string;
-    };
-    test_prefix_args?: string[];
-    test_environment?: Record<string, string | undefined>;
-    observed_at?: string;
-  },
-): Promise<CodexIsolatedAuthCredentialFreePreflightV01> {
+export async function probeCodexIsolatedAuthCredentialFreeCompatibilityV01(input: {
+  command: string;
+  expected_executable_fingerprint: string;
+  executable_identity_class:
+    "production_pinned_codex" | "test_emulated_profile";
+  state_parent: string;
+  repository_root: string;
+  base_environment?: {
+    PATH?: string;
+    LANG?: string;
+    LC_ALL?: string;
+    LC_CTYPE?: string;
+    TZ?: string;
+    TERM?: string;
+    NO_COLOR?: string;
+  };
+  test_prefix_args?: string[];
+  test_environment?: Record<string, string | undefined>;
+  observed_at?: string;
+}): Promise<CodexIsolatedAuthCredentialFreePreflightV01> {
   const result = await probeCodexCredentialFreeExactProfileV01({
     ...input,
     accepted_exact_identity:
@@ -1010,8 +1018,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
   upstream_source_commit: string;
   semantic_profile_fingerprint: string;
   executable_identity_class:
-    | "qualification_candidate_codex_0_152_1"
-    | "test_emulated_profile";
+    "qualification_candidate_codex_0_152_1" | "test_emulated_profile";
   state_parent: string;
   repository_root: string;
   base_environment?: {
@@ -1036,8 +1043,7 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
   let releaseArchiveFingerprint =
     input.test_release_archive_fingerprint ?? "unavailable";
   if (
-    input.executable_identity_class ===
-    "qualification_candidate_codex_0_152_1"
+    input.executable_identity_class === "qualification_candidate_codex_0_152_1"
   ) {
     try {
       const archive = realpathSync(input.release_archive_path ?? "");
@@ -1068,10 +1074,8 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
       input.executable_identity_class !==
         "qualification_candidate_codex_0_152_1") ||
     input.upstream_tag !== CODEX_0_152_1_UPSTREAM_TAG_V01 ||
-    input.upstream_source_commit !==
-      CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01 ||
-    releaseArchiveFingerprint !==
-      CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01
+    input.upstream_source_commit !== CODEX_0_152_1_UPSTREAM_SOURCE_COMMIT_V01 ||
+    releaseArchiveFingerprint !== CODEX_0_152_1_RELEASE_ARCHIVE_FINGERPRINT_V01
   )
     return codex01521QualificationResultV01({
       state: "release_identity_mismatch",
@@ -1123,20 +1127,18 @@ export async function qualifyCodex01521ExactCompatibilityV01(input: {
     });
   const probe = await probeCodexCredentialFreeExactProfileV01({
     command: input.command,
-    expected_executable_fingerprint:
-      testExact
-        ? input.test_expected_executable_fingerprint ??
-          `sha256:${createHash("sha256")
-            .update(readFileSync(realpathSync(input.command)))
-            .digest("hex")}`
-        : CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
+    expected_executable_fingerprint: testExact
+      ? (input.test_expected_executable_fingerprint ??
+        `sha256:${createHash("sha256")
+          .update(readFileSync(realpathSync(input.command)))
+          .digest("hex")}`)
+      : CODEX_0_152_1_EXECUTABLE_FINGERPRINT_V01,
     executable_identity_class: input.executable_identity_class,
     accepted_exact_identity:
       input.executable_identity_class ===
       "qualification_candidate_codex_0_152_1",
     expected_cli_version: CODEX_0_152_1_SUPPORTED_CLI_VERSION_V01,
-    config_override_args:
-      CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01,
+    config_override_args: CODEX_0_152_1_QUALIFICATION_CONFIG_OVERRIDE_ARGS_V01,
     run_cli_version_probe: !testExact,
     observe_semantic_profile: ({ initialized, config, sqlite_home }) =>
       observeCodex01521CredentialFreeSemanticProfileV01({
@@ -1429,8 +1431,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
       sqlite_home: sqliteHome,
     });
     observedCliVersion = profile.observed_cli_version;
-    observedPolicyFingerprint =
-      profile.observed_security_policy_fingerprint;
+    observedPolicyFingerprint = profile.observed_security_policy_fingerprint;
     state = "compatible_exact";
   } catch (error) {
     const code = error instanceof Error && "code" in error ? error.code : null;
@@ -1521,7 +1522,22 @@ class CodexAppServerInvocationV01 {
   private isolatedObservedReasoningEffort: string | null = null;
   private isolatedInstructionSourcesObservedEmpty = false;
   private qualifiedRuntimeSelection = CURRENT_PINNED_ORDINARY_RUNTIME_V01;
-  private managedRuntimeSelection: CodexManagedRuntimeSelectionV01 | null = null;
+  private candidateBinding: CodexOrdinaryAuthenticatedCandidateAdapterBindingV01 | null =
+    null;
+  private readonly candidateExercisedMethods: string[] = [];
+  private candidateUserAgentObservationFingerprint: string | null = null;
+  private candidateOrdinaryAccountAvailable = false;
+  private candidateObservedToken: string | null = null;
+  private candidateTerminalStatus: string | null = null;
+  private candidateApprovalRequests = 0;
+  private candidateToolItems = 0;
+  private candidateCommandItems = 0;
+  private candidateWriteItems = 0;
+  private candidateExternalEffects = 0;
+  private candidateFallbacks = 0;
+  private candidateReroutes = 0;
+  private managedRuntimeSelection: CodexManagedRuntimeSelectionV01 | null =
+    null;
   private managedRuntimeRoot: string | null = null;
   private readonly sandboxProjection: CodexAppServerSandboxProjectionV01;
   private readonly observedCommands: NativeHostObservedCommandV01[] = [];
@@ -1542,18 +1558,26 @@ class CodexAppServerInvocationV01 {
     private readonly control: NativeHostInvocationControlV01,
     private readonly options: CodexAppServerAdapterOptionsV01,
   ) {
-    this.sandboxProjection = options.isolated_authenticated_execution
+    this.sandboxProjection = options.ordinary_authenticated_candidate_execution
       ? {
-          thread_sandbox: "workspace-write",
+          thread_sandbox: "read-only",
           turn_sandbox_policy: {
-            type: "workspaceWrite",
-            writableRoots: [request.root_scope.canonical_root],
+            type: "readOnly",
             networkAccess: false,
-            excludeTmpdirEnvVar: true,
-            excludeSlashTmp: true,
           },
         }
-      : projectCodexAppServerSandboxV01(request);
+      : options.isolated_authenticated_execution
+        ? {
+            thread_sandbox: "workspace-write",
+            turn_sandbox_policy: {
+              type: "workspaceWrite",
+              writableRoots: [request.root_scope.canonical_root],
+              networkAccess: false,
+              excludeTmpdirEnvVar: true,
+              excludeSlashTmp: true,
+            },
+          }
+        : projectCodexAppServerSandboxV01(request);
     this.now = options.now ?? (() => new Date().toISOString());
     this.startedAt = this.now();
     this.public = {
@@ -1574,6 +1598,7 @@ class CodexAppServerInvocationV01 {
       await this.startTransport();
       await this.initializeAndCheckAccount();
       this.requireIsolatedExternalExecutionAuthorization();
+      this.requireCandidateExternalExecutionAuthorization();
       if (this.control.resume_binding) await this.resumeKnownTurn();
       else await this.startNewThreadAndTurn();
 
@@ -1611,7 +1636,13 @@ class CodexAppServerInvocationV01 {
     } catch (error) {
       const normalized = asErrorV01(error);
       this.fatalError = normalized;
-      if (normalized instanceof NativeHostReconciliationRequiredErrorV01) {
+      if (this.candidateBinding) {
+        this.resultDeferred.resolve(
+          this.buildBoundaryResult("failed", publicErrorCodeV01(normalized)),
+        );
+      } else if (
+        normalized instanceof NativeHostReconciliationRequiredErrorV01
+      ) {
         await this.reportLifecycle({
           event_kind: "reconciliation_required",
           state: "paused",
@@ -1681,7 +1712,45 @@ class CodexAppServerInvocationV01 {
 
   private async startTransport(): Promise<void> {
     const isolatedOwner = this.options.isolated_authenticated_execution;
-    if (isolatedOwner) {
+    const candidateCapability =
+      this.options.ordinary_authenticated_candidate_execution;
+    if (candidateCapability) {
+      if (this.control.resume_binding)
+        throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+          "codex_candidate_resume_refused",
+        );
+      const binding =
+        inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+          capability: candidateCapability,
+          request: this.request,
+          now: this.now(),
+        });
+      if (
+        binding.reviewed.compatibility_profile.profile_id !==
+          "codex_app_server_augnes_operator.v0.1" ||
+        binding.reviewed.compatibility_profile.fingerprint !==
+          CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01
+      )
+        throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+          "codex_candidate_compatibility_profile_unsupported",
+        );
+      this.candidateBinding = binding;
+      this.transport = new CodexStdioJsonRpcTransportV01({
+        command: binding.command,
+        args: [
+          ...binding.prefix_args,
+          ...binding.config_override_args,
+          "app-server",
+          "--stdio",
+        ],
+        cwd: this.request.root_scope.canonical_root,
+        environment: binding.environment,
+        onNotification: (method, params) => this.onNotification(method, params),
+        onServerRequest: (id, method, params) =>
+          this.onServerRequest(id, method, params),
+      });
+      await this.transport.started;
+    } else if (isolatedOwner) {
       assertCodexAppServerCompatibilityImplementedV01(
         this.qualifiedRuntimeSelection,
       );
@@ -1803,6 +1872,56 @@ class CodexAppServerInvocationV01 {
       this.isolatedObservedReasoningEffort = preflight.reasoning_effort;
       this.isolatedAuthObservation = preflight.observation;
       this.options.observe_isolated_auth?.(this.isolatedAuthObservation);
+    } else if (this.candidateBinding) {
+      const initialized = objectV01(
+        await this.transport!.request(
+          CURRENT_REQUIRED_APP_SERVER_METHODS_V01.initialize,
+          {
+            clientInfo: {
+              name: "augnes-ordinary-canary",
+              title: "Augnes ordinary candidate canary",
+              version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+            },
+            capabilities: null,
+          },
+        ),
+        "codex_initialize_response_invalid",
+      );
+      this.candidateExercisedMethods.push("initialize");
+      const userAgent = observeReviewedCandidateCodexAppServerUserAgentV01({
+        raw_user_agent: initialized.userAgent,
+        expected_client_name: "augnes-ordinary-canary",
+        expected_client_version: CODEX_APP_SERVER_ADAPTER_VERSION_V01,
+        expected_codex_cli_version:
+          this.candidateBinding.reviewed.artifact.version,
+      });
+      this.cliVersion = userAgent.codex_cli_version;
+      this.candidateUserAgentObservationFingerprint = userAgent.fingerprint;
+      this.transport!.notify("initialized", {});
+      this.candidateExercisedMethods.push("initialized");
+      this.observe("initialized");
+      const account = objectV01(
+        await this.transport!.request(
+          CURRENT_REQUIRED_APP_SERVER_METHODS_V01.account_read,
+          { refreshToken: false },
+        ),
+        "codex_account_response_invalid",
+      );
+      this.candidateExercisedMethods.push("account/read");
+      if (account.account === null && account.requiresOpenaiAuth === true)
+        throw new CodexCapabilityErrorV01("codex_not_authenticated");
+      if (account.account === null || typeof account.account !== "object")
+        throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
+      this.candidateOrdinaryAccountAvailable = true;
+      const config = objectV01(
+        await this.transport!.request("config/read", {
+          includeLayers: true,
+          cwd: this.request.root_scope.canonical_root,
+        }),
+        "codex_config_response_invalid",
+      );
+      this.candidateExercisedMethods.push("config/read");
+      assertCodex01532AuthenticatedCandidateConfigV01(config);
     } else {
       const initialized = objectV01(
         await this.transport!.request(
@@ -1834,9 +1953,7 @@ class CodexAppServerInvocationV01 {
       if (account.account === null && account.requiresOpenaiAuth === true)
         throw new CodexCapabilityErrorV01("codex_not_authenticated");
       if (account.account === null || typeof account.account !== "object")
-        throw new CodexCapabilityErrorV01(
-          "codex_account_state_unsupported",
-        );
+        throw new CodexCapabilityErrorV01("codex_account_state_unsupported");
       if (this.managedRuntimeSelection && this.managedRuntimeRoot) {
         try {
           recordCodexManagedRuntimeLastKnownGoodV01({
@@ -1887,10 +2004,13 @@ class CodexAppServerInvocationV01 {
             this.qualifiedRuntimeSelection.compatibility_profile.semantics
               .server_requests.approvals_reviewer,
           sandbox: this.sandboxProjection.thread_sandbox,
-          ephemeral: this.options.isolated_authenticated_execution
-            ? true
-            : false,
-          ...(this.options.isolated_authenticated_execution
+          ephemeral:
+            this.options.isolated_authenticated_execution ||
+            this.candidateBinding
+              ? true
+              : false,
+          ...(this.options.isolated_authenticated_execution ||
+          this.candidateBinding
             ? { allowProviderModelFallback: false }
             : {}),
         },
@@ -1911,6 +2031,36 @@ class CodexAppServerInvocationV01 {
           "codex_isolated_auth_provider_mismatch",
         );
       }
+    }
+    if (this.candidateBinding) {
+      const thread = objectV01(
+        response.thread,
+        "codex_candidate_thread_binding_invalid",
+      );
+      const instructionSources = Array.isArray(response.instructionSources)
+        ? response.instructionSources
+        : [];
+      const sandbox = objectV01(
+        response.sandbox,
+        "codex_candidate_thread_sandbox_invalid",
+      );
+      if (
+        response.modelProvider !== "openai" ||
+        thread.ephemeral !== true ||
+        instructionSources.length !== 0 ||
+        response.approvalPolicy !==
+          this.qualifiedRuntimeSelection.compatibility_profile.semantics
+            .server_requests.approval_policy ||
+        response.approvalsReviewer !==
+          this.qualifiedRuntimeSelection.compatibility_profile.semantics
+            .server_requests.approvals_reviewer ||
+        sandbox.type !== "readOnly" ||
+        sandbox.networkAccess !== false
+      )
+        throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+          "codex_candidate_thread_policy_mismatch",
+        );
+      this.candidateExercisedMethods.push("thread/start");
     }
     await this.bindThreadResponse(response, "thread_started");
     this.observe("thread_started");
@@ -2008,6 +2158,20 @@ class CodexAppServerInvocationV01 {
     });
   }
 
+  private requireCandidateExternalExecutionAuthorization(): void {
+    const capability = this.options.ordinary_authenticated_candidate_execution;
+    if (!capability) return;
+    if (!this.candidateBinding)
+      throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+        "codex_candidate_capability_binding_missing",
+      );
+    inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+      capability,
+      request: this.request,
+      now: this.now(),
+    });
+  }
+
   private async resumeKnownTurn(): Promise<void> {
     const resume = this.control.resume_binding!;
     this.threadId = resume.host_thread_ref.external_id;
@@ -2047,8 +2211,7 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (
-      readStatus !==
-      CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
+      readStatus !== CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status
     ) {
       throw this.reconciliationError("codex_resume_turn_state_unsupported");
     }
@@ -2197,7 +2360,8 @@ class CodexAppServerInvocationV01 {
       (turn) =>
         isObjectV01(turn) &&
         turn.id !== this.turnId &&
-        turn.status === CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status,
+        turn.status ===
+          CURRENT_THREAD_TURN_COMPATIBILITY_V01.nonterminal_status,
     );
     if (conflictingActive) {
       throw this.reconciliationError("codex_resume_conflicting_active_turn");
@@ -2206,6 +2370,73 @@ class CodexAppServerInvocationV01 {
   }
 
   private async startTurn(): Promise<void> {
+    if (this.candidateBinding) {
+      const capability =
+        this.options.ordinary_authenticated_candidate_execution;
+      if (!capability)
+        throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+          "codex_candidate_capability_binding_missing",
+        );
+      consumeCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+        capability,
+        request: this.request,
+        now: this.now(),
+      });
+      this.packetDeliveryInitiated = true;
+      this.turnStartSent = true;
+      this.candidateExercisedMethods.push("turn/start");
+      const response = objectV01(
+        await this.transport!.request(
+          CURRENT_REQUIRED_APP_SERVER_METHODS_V01.turn_start,
+          {
+            threadId: this.threadId,
+            clientUserMessageId: this.request.request_id,
+            input: [
+              {
+                type: "text",
+                text: CODEX_0_153_2_ORDINARY_CANARY_INSTRUCTION_V01,
+                text_elements: [],
+              },
+            ],
+            cwd: this.request.root_scope.canonical_root,
+            approvalPolicy:
+              this.qualifiedRuntimeSelection.compatibility_profile.semantics
+                .server_requests.approval_policy,
+            approvalsReviewer:
+              this.qualifiedRuntimeSelection.compatibility_profile.semantics
+                .server_requests.approvals_reviewer,
+            sandboxPolicy: this.sandboxProjection.turn_sandbox_policy,
+          },
+        ),
+        "codex_turn_start_response_invalid",
+      );
+      const turn = objectV01(response.turn, "codex_turn_start_binding_invalid");
+      const turnId = requiredOpaqueIdV01(turn.id, "codex_turn_id_invalid");
+      if (this.turnId && this.turnId !== turnId)
+        throw this.reconciliationError("codex_turn_identity_mismatch");
+      if (!this.turnId) {
+        this.turnId = turnId;
+        this.turnRef = externalRefV01(
+          "host_turn",
+          turnId,
+          this.now(),
+          "direct_local_observation",
+        );
+      }
+      await this.reportLifecycle({
+        event_kind: "turn_started",
+        state: "running",
+        coverage: "observed",
+        host_refs: this.currentHostRefs(),
+        bounded_metadata: {
+          packet_delivery_initiated: true,
+          structured_output_required: false,
+          candidate_qualification_only: true,
+        },
+      });
+      this.observe("turn_started");
+      return;
+    }
     const renderedPacket = renderPacketV01(this.request);
     this.packetDeliveryInitiated = true;
     this.turnStartSent = true;
@@ -2257,6 +2488,32 @@ class CodexAppServerInvocationV01 {
   }
 
   private async onNotification(method: string, params: unknown): Promise<void> {
+    if (this.candidateBinding) {
+      if (this.candidateExercisedMethods.length >= 64)
+        throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+          "codex_candidate_method_sequence_bound_exceeded",
+        );
+      this.candidateExercisedMethods.push(method);
+    }
+    if (
+      this.candidateBinding &&
+      [
+        "account/updated",
+        "configWarning",
+        "mcpServer/startupStatus/updated",
+        "model/rerouted",
+        "remoteControl/status/changed",
+        "modelProvider/authRecoveryStarted",
+        "modelProvider/authRecoveryCompleted",
+      ].includes(method)
+    ) {
+      if (method === "model/rerouted") this.candidateReroutes += 1;
+      if (method.startsWith("modelProvider/authRecovery"))
+        this.candidateFallbacks += 1;
+      throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+        "codex_candidate_runtime_policy_drift",
+      );
+    }
     if (
       this.options.isolated_authenticated_execution &&
       [
@@ -2326,6 +2583,25 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "turn/completed") {
+      if (this.candidateBinding) {
+        const turn = objectV01(value.turn, "codex_turn_completed_invalid");
+        const items = Array.isArray(turn.items) ? turn.items : [];
+        const messages = items.filter(
+          (item) => isObjectV01(item) && item.type === "agentMessage",
+        ) as Record<string, unknown>[];
+        const exactMessages = messages.filter(
+          (item) => item.text === CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+        );
+        if (
+          items.length !== 1 ||
+          messages.length !== 1 ||
+          exactMessages.length !== 1
+        )
+          throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+            "codex_candidate_terminal_payload_invalid",
+          );
+        this.candidateObservedToken = CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01;
+      }
       this.resolveTerminalFromTurn(value.turn);
       return;
     }
@@ -2365,6 +2641,26 @@ class CodexAppServerInvocationV01 {
       return;
     }
     if (method === "item/started" || method === "item/completed") {
+      if (this.candidateBinding) {
+        const item = objectV01(value.item, "codex_item_invalid");
+        if (item.type !== "agentMessage") {
+          if (item.type === "commandExecution") this.candidateCommandItems += 1;
+          else if (item.type === "fileChange") this.candidateWriteItems += 1;
+          else this.candidateToolItems += 1;
+          this.candidateExternalEffects += 1;
+          throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+            "codex_candidate_effect_refused",
+          );
+        }
+        if (
+          method === "item/completed" &&
+          item.text !== CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01
+        )
+          throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+            "codex_candidate_public_token_mismatch",
+          );
+        return;
+      }
       await this.observeItem(value.item, method === "item/completed", value);
       return;
     }
@@ -2451,6 +2747,15 @@ class CodexAppServerInvocationV01 {
     method: string,
     params: unknown,
   ): Promise<unknown> {
+    if (this.candidateBinding) {
+      if (this.candidateExercisedMethods.length < 64)
+        this.candidateExercisedMethods.push(method);
+      this.candidateApprovalRequests += 1;
+      this.candidateExternalEffects += 1;
+      throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+        "codex_candidate_approval_refused",
+      );
+    }
     if (
       !this.qualifiedRuntimeSelection.compatibility_profile.semantics.server_requests.approval_methods.includes(
         method,
@@ -2912,6 +3217,9 @@ class CodexAppServerInvocationV01 {
     }
     const terminal = { turn, status, fingerprint } as CodexTurnTerminalV01;
     this.terminalObserved = terminal;
+    if (this.candidateBinding) {
+      this.candidateTerminalStatus = status;
+    }
     this.observe("terminal_observed", status);
     this.terminalDeferred.resolve(terminal);
   }
@@ -2919,6 +3227,36 @@ class CodexAppServerInvocationV01 {
   private async finishFromTerminal(
     terminal: CodexTurnTerminalV01,
   ): Promise<void> {
+    if (this.candidateBinding) {
+      if (
+        terminal.status !== "completed" ||
+        this.candidateObservedToken !== CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01
+      ) {
+        this.resultDeferred.resolve(
+          this.buildBoundaryResult(
+            "failed",
+            "codex_candidate_terminal_invalid",
+          ),
+        );
+        return;
+      }
+      this.resultDeferred.resolve(
+        this.buildCompletedResult({
+          result_version: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
+          summary: CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+          changed_files: [],
+          artifacts: [],
+          observed_actions: ["candidate_exact_public_token_observed"],
+          commands: [],
+          checks: [],
+          skipped_checks: [],
+          uncertainty: [],
+          gaps: [],
+          proposed_next_steps: [],
+        }),
+      );
+      return;
+    }
     if (terminal.status === "completed") {
       const payload = parseStructuredResultFromTurnV01(
         terminal.turn,
@@ -3051,6 +3389,7 @@ class CodexAppServerInvocationV01 {
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...this.candidateResultMetadataV01(),
           ...(this.isolatedAuthObservation
             ? {
                 isolated_auth_projection_fingerprint:
@@ -3151,6 +3490,7 @@ class CodexAppServerInvocationV01 {
           experimental_api: false,
           cli_version: this.cliVersion,
           raw_provider_payload_included: false,
+          ...this.candidateResultMetadataV01(),
           ...(this.isolatedAuthObservation
             ? {
                 isolated_auth_projection_fingerprint:
@@ -3170,6 +3510,35 @@ class CodexAppServerInvocationV01 {
             : {}),
         },
       },
+    };
+  }
+
+  private candidateResultMetadataV01(): Record<string, unknown> {
+    if (!this.candidateBinding) return {};
+    return {
+      candidate_qualification_only: true,
+      candidate_entry_id: this.candidateBinding.reviewed.artifact.entry_id,
+      candidate_capability_fingerprint:
+        this.candidateBinding.capability_fingerprint,
+      candidate_user_agent_observation_fingerprint:
+        this.candidateUserAgentObservationFingerprint,
+      candidate_ordinary_account_available:
+        this.candidateOrdinaryAccountAvailable,
+      candidate_exercised_methods: [...this.candidateExercisedMethods],
+      candidate_terminal_status: this.candidateTerminalStatus,
+      candidate_approval_requests: this.candidateApprovalRequests,
+      candidate_tool_items: this.candidateToolItems,
+      candidate_command_items: this.candidateCommandItems,
+      candidate_write_items: this.candidateWriteItems,
+      candidate_external_effects: this.candidateExternalEffects,
+      candidate_fallbacks: this.candidateFallbacks,
+      candidate_reroutes: this.candidateReroutes,
+      provider_model_bearing_invocation_ceiling: 1,
+      no_fallback: true,
+      read_only_sandbox: true,
+      tool_network_access: false,
+      raw_account_identity_included: false,
+      raw_prompt_transcript_included: false,
     };
   }
 
@@ -3278,9 +3647,7 @@ class CodexAppServerInvocationV01 {
           const settled =
             await this.isolatedPreflightSession.shutdownAndCleanupV01();
           if (!settled)
-            throw new CodexProtocolErrorV01(
-              "codex_process_tree_unsettled",
-            );
+            throw new CodexProtocolErrorV01("codex_process_tree_unsettled");
           this.isolatedPreflightSession = null;
         }
         this.cleanupSettled = true;
@@ -4960,6 +5327,89 @@ function minimizedTurnTerminalMaterialV01(
   };
 }
 
+function assertCodex01532AuthenticatedCandidateConfigV01(
+  value: Record<string, unknown>,
+): void {
+  const config = objectV01(
+    value.config,
+    "codex_candidate_config_response_invalid",
+  );
+  const features = objectV01(
+    config.features,
+    "codex_candidate_config_features_invalid",
+  );
+  const orchestrator = objectV01(
+    config.orchestrator,
+    "codex_candidate_config_orchestrator_invalid",
+  );
+  const orchestratorSkills = objectV01(
+    orchestrator.skills,
+    "codex_candidate_config_orchestrator_invalid",
+  );
+  const orchestratorMcp = objectV01(
+    orchestrator.mcp,
+    "codex_candidate_config_orchestrator_invalid",
+  );
+  const otel = objectV01(
+    config.otel,
+    "codex_candidate_config_telemetry_invalid",
+  );
+  const disabledFeatures = [
+    "auth_elicitation",
+    "use_agent_identity",
+    "apps",
+    "plugins",
+    "remote_plugin",
+    "network_proxy",
+    "request_permissions_tool",
+    "hooks",
+    "multi_agent",
+    "in_app_browser",
+    "mcp_2026_07_28",
+    "mcp_oauth_refresh_coordination",
+    "memories",
+    "mentions_v2",
+    "browser_use",
+    "browser_use_full_cdp_access",
+    "browser_use_external",
+    "computer_use",
+    "image_generation",
+    "tool_suggest",
+    "recommended_plugins",
+    "web_search_request",
+    "web_search_cached",
+    "standalone_web_search",
+    "shell_snapshot_v2",
+    "context_management",
+    "sleep_tool",
+    "content_item_kinds",
+  ];
+  const emptyRecord = (candidate: unknown) =>
+    isObjectV01(candidate) && Object.keys(candidate).length === 0;
+  if (
+    config.forced_login_method !== "chatgpt" ||
+    config.model_provider !== "openai" ||
+    config.web_search !== "disabled" ||
+    config.check_for_update_on_startup !== false ||
+    config.allow_login_shell !== false ||
+    config.project_doc_max_bytes !== 0 ||
+    !Array.isArray(config.project_doc_fallback_filenames) ||
+    config.project_doc_fallback_filenames.length !== 0 ||
+    !emptyRecord(config.mcp_servers) ||
+    !emptyRecord(config.plugins) ||
+    !emptyRecord(config.skills) ||
+    orchestratorSkills.enabled !== false ||
+    orchestratorMcp.enabled !== false ||
+    otel.exporter !== "none" ||
+    otel.trace_exporter !== "none" ||
+    otel.metrics_exporter !== "none" ||
+    disabledFeatures.some((key) => features[key] !== false)
+  )
+    throw new CodexOrdinaryAuthenticatedCandidateErrorV01(
+      "codex_candidate_config_policy_mismatch",
+    );
+}
+
 function uniqueChangedFilesV01(
   values: NativeHostChangedFileV01[],
 ): NativeHostChangedFileV01[] {
@@ -5177,7 +5627,8 @@ function observedModelConfigurationFingerprintV01(
   executableIdentityClass: CodexIsolatedAuthProjectionV01["executable_identity_class"],
 ): string | null {
   const config = value.config;
-  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  if (!config || typeof config !== "object" || Array.isArray(config))
+    return null;
   const record = config as Record<string, unknown>;
   const model = stringV01(record.model);
   const reasoningEffort = stringV01(record.model_reasoning_effort);
@@ -5243,8 +5694,7 @@ function preflightResultV01(input: {
   state: CodexIsolatedAuthCredentialFreePreflightV01["state"];
   executable_fingerprint: string;
   executable_identity_class:
-    | "production_pinned_codex"
-    | "test_emulated_profile";
+    "production_pinned_codex" | "test_emulated_profile";
   observed_cli_version: string | null;
   observed_policy_fingerprint: string | null;
   cleanup_completed: boolean;
@@ -5261,8 +5711,7 @@ function preflightResultV01(input: {
     codex_executable_fingerprint: input.executable_fingerprint,
     executable_identity_class: input.executable_identity_class,
     observed_cli_version: input.observed_cli_version,
-    observed_security_policy_fingerprint:
-      input.observed_policy_fingerprint,
+    observed_security_policy_fingerprint: input.observed_policy_fingerprint,
     credential_access_attempted: false,
     provider_model_call_attempted: false,
     repository_turn_started: false,
@@ -5286,8 +5735,7 @@ function codex01521QualificationResultV01(input: {
   release_archive_fingerprint: string;
   executable_fingerprint: string;
   executable_identity_class:
-    | "qualification_candidate_codex_0_152_1"
-    | "test_emulated_profile";
+    "qualification_candidate_codex_0_152_1" | "test_emulated_profile";
   cli_reported_version: string | null;
   app_server_reported_cli_version: string | null;
   observed_policy_fingerprint: string | null;
@@ -5340,8 +5788,7 @@ function codex01521QualificationResultV01(input: {
       "modelProvider/authRecoveryStarted",
       "modelProvider/authRecoveryCompleted",
     ],
-    observed_security_policy_fingerprint:
-      input.observed_policy_fingerprint,
+    observed_security_policy_fingerprint: input.observed_policy_fingerprint,
     private_environment_observed: input.private_environment_observed,
     private_environment_policy: {
       home: true as const,

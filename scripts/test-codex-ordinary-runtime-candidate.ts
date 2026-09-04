@@ -10,13 +10,26 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { ensurePinnedCodexManagedRuntimeForTestV01 } from "@/lib/vnext/native-host/codex-managed-runtime-store";
 import {
-  ensurePinnedCodexManagedRuntimeForTestV01,
-} from "@/lib/vnext/native-host/codex-managed-runtime-store";
+  CODEX_0_153_2_ORDINARY_CANARY_CAPABILITY_VERSION_V01,
+  CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+  CodexOrdinaryAuthenticatedCandidateErrorV01,
+  assertCodex01532CandidateCapabilitySourceV01,
+  codex01532CandidateCapabilityConsumedV01,
+  consumeCodex01532OrdinaryAuthenticatedCandidateCapabilityV01,
+  createCodex01532OrdinaryAuthenticatedCanaryReceiptV01,
+  createCodex01532OrdinaryAuthenticatedCandidateCapabilityForTestV01,
+  inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01,
+  validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01,
+  type CodexOrdinaryAuthenticatedCandidateCapabilityV01,
+} from "@/lib/vnext/native-host/codex-ordinary-authenticated-candidate";
+import { createCodexAppServerAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import {
   CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
   assertCodex01532CandidateReviewedIdentityForTestV01,
@@ -28,21 +41,33 @@ import {
   CodexQualifiedRuntimeRegistryErrorV01,
   codexRuntimeCandidateSourceSchemaReviewFingerprintV01,
   codexRuntimeCompatibilityProfileFingerprintV01,
+  getCodexReviewedRuntimeArtifactV01,
   selectCodexQualifiedRuntimeEntryV01,
   selectPinnedCodexQualifiedRuntimeV01,
   validateCodexQualifiedRuntimeRegistryV01,
 } from "@/lib/vnext/native-host/codex-qualified-runtime-registry";
+import { genericCliBuilderInputFixture } from "@/fixtures/vnext/protocol/task-context-packet-v0-1";
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
+import { buildTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import type { ExternalRefV01 } from "@/types/vnext/external-ref";
+import type {
+  NativeHostInvocationV01,
+  NativeHostRequestV01,
+  NativeHostResultV01,
+} from "@/types/vnext/native-host-adapter";
 
 const previousCandidateTestMode =
   process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE;
 const previousProductionTestMode =
   process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE;
+const previousAuthenticatedCandidateTestMode =
+  process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE;
 process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE = "1";
 process.env.AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE = "1";
+process.env.AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE = "1";
 
 const root = realpathSync.native(
   mkdtempSync(path.join(os.tmpdir(), "augnes-codex-candidate-test-")),
@@ -57,23 +82,25 @@ async function mainV01(): Promise<void> {
     evidenceAndLaneConflictsFailClosedV01();
     await candidateNeverBecomesProductionAuthorityV01();
     await emulatedCredentialFreeConformanceRemainsHoldV01();
+    await authenticatedCandidateCapabilityAndLifecycleV01();
     report = {
-        status: "passed",
-        contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
-        candidate_entry_id: CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
-        ordinary_lane: "candidate",
-        strict_lane: "hold",
-        production_selected_version: "0.152.1",
-        emulated_exact_evidence_available: false,
-        provider_model_calls: 0,
-        keychain_accesses: 0,
-        agent_identity_attempts: 0,
-        repository_task_calls: 0,
-        repository_writes: 0,
-        external_network_calls: 0,
-        remaining_owned_processes: 0,
-        disposable_roots_removed: true,
-      };
+      status: "passed",
+      contract: "codex_ordinary_runtime_candidate_qualification.v0.1",
+      candidate_entry_id: CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
+      ordinary_lane: "candidate",
+      strict_lane: "hold",
+      production_selected_version: "0.152.1",
+      emulated_exact_evidence_available: false,
+      provider_model_calls: 0,
+      keychain_accesses: 0,
+      agent_identity_attempts: 0,
+      repository_task_calls: 0,
+      repository_writes: 0,
+      external_network_calls: 0,
+      authenticated_candidate_provider_model_calls: 0,
+      remaining_owned_processes: 0,
+      disposable_roots_removed: true,
+    };
   } finally {
     makeWritableV01(root);
     rmSync(root, { recursive: true, force: false });
@@ -85,6 +112,10 @@ async function mainV01(): Promise<void> {
     restoreEnvironmentV01(
       "AUGNES_CODEX_PRODUCTION_RUNTIME_TEST_MODE",
       previousProductionTestMode,
+    );
+    restoreEnvironmentV01(
+      "AUGNES_CODEX_ORDINARY_AUTHENTICATED_CANDIDATE_TEST_MODE",
+      previousAuthenticatedCandidateTestMode,
     );
   }
   console.log(JSON.stringify(report));
@@ -144,10 +175,19 @@ function exactCandidateMetadataV01(): void {
     candidate.lanes.strict_agent_identity.reason,
     "not_evaluated_no_documented_restart_trigger",
   );
-  assert.equal(candidate.qualification_evidence.kind, "candidate_source_schema_review_v0_1");
-  if (candidate.qualification_evidence.kind !== "candidate_source_schema_review_v0_1")
+  assert.equal(
+    candidate.qualification_evidence.kind,
+    "candidate_source_schema_review_v0_1",
+  );
+  if (
+    candidate.qualification_evidence.kind !==
+    "candidate_source_schema_review_v0_1"
+  )
     assert.fail("candidate evidence kind mismatch");
-  assert.equal(candidate.qualification_evidence.ordinary_deciding_receipt_fingerprint, null);
+  assert.equal(
+    candidate.qualification_evidence.ordinary_deciding_receipt_fingerprint,
+    null,
+  );
   assert.equal(
     candidate.qualification_evidence.source_schema_review.fingerprint,
     "sha256:09edf14c59a5e294254c418966336f77e27e2961caadedcd6096501cc86ccaac",
@@ -285,7 +325,9 @@ function evidenceAndLaneConflictsFailClosedV01(): void {
         "2026-09-04T00:00:00Z";
     },
     (registry) => {
-      candidateV01(registry).qualification_evidence.ordinary_deciding_receipt_fingerprint =
+      candidateV01(
+        registry,
+      ).qualification_evidence.ordinary_deciding_receipt_fingerprint =
         "0".repeat(64);
     },
     (registry) => {
@@ -342,7 +384,10 @@ async function candidateNeverBecomesProductionAuthorityV01(): Promise<void> {
       error.code === "codex_qualified_runtime_registry_lane_not_qualified",
   );
   assert.equal(downloaderCalls, 0);
-  assert.equal(existsSync(path.join(root, "must-not-exist-managed-root")), false);
+  assert.equal(
+    existsSync(path.join(root, "must-not-exist-managed-root")),
+    false,
+  );
 
   const semverOnly = mutableRegistryV01();
   const candidate = candidateV01(semverOnly);
@@ -431,7 +476,10 @@ async function emulatedCredentialFreeConformanceRemainsHoldV01(): Promise<void> 
     "account/read",
     "config/read",
   ]);
-  assert.equal(receipt.credential_free_account_disposition, "unauthenticated_empty_state");
+  assert.equal(
+    receipt.credential_free_account_disposition,
+    "unauthenticated_empty_state",
+  );
   assert.equal(receipt.process_settlement.remaining_owned_processes, 0);
   assert.equal(receipt.process_settlement.streams_closed, true);
   assert.equal(receipt.process_settlement.disposable_state_removed, true);
@@ -480,10 +528,632 @@ async function emulatedCredentialFreeConformanceRemainsHoldV01(): Promise<void> 
     },
     test_expected_executable_fingerprint: expectedNodeFingerprint,
   });
-  assert.equal(wrongUserAgent.disposition, "HOLD_CREDENTIAL_FREE_CONFORMANCE_FAILED");
+  assert.equal(
+    wrongUserAgent.disposition,
+    "HOLD_CREDENTIAL_FREE_CONFORMANCE_FAILED",
+  );
   assert.deepEqual(
     validateCodex01532CandidateQualificationReceiptV01(wrongUserAgent),
     wrongUserAgent,
+  );
+}
+
+async function authenticatedCandidateCapabilityAndLifecycleV01(): Promise<void> {
+  await ordinaryProductionAdapterRejectsCandidateV01();
+  const success = await runAuthenticatedCandidateFixtureV01("success");
+  assert.equal(
+    success.result?.outcome,
+    "completed",
+    JSON.stringify(success.result),
+  );
+  assert.equal(
+    success.result?.summary,
+    CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+  );
+  assert.equal(success.receipt.disposition, "HOLD_TEST_EMULATED_NOT_EXACT");
+  assert.equal(success.receipt.capability_consumed, true);
+  assert.equal(
+    success.receipt.observed_public_token,
+    CODEX_0_153_2_ORDINARY_CANARY_TOKEN_V01,
+  );
+  assert.deepEqual(success.receipt.exercised_methods, [
+    "initialize",
+    "initialized",
+    "account/read",
+    "config/read",
+    "thread/start",
+    "turn/start",
+    "turn/started",
+    "thread/status/changed",
+    "item/completed",
+    "turn/completed",
+  ]);
+  assert.equal(success.receipt.observations.provider_model_invocations, 1);
+  assert.equal(success.receipt.observations.approvals, 0);
+  assert.equal(success.receipt.observations.tools, 0);
+  assert.equal(success.receipt.observations.commands, 0);
+  assert.equal(success.receipt.observations.writes, 0);
+  assert.equal(success.receipt.observations.external_effects, 0);
+  assert.deepEqual(
+    validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+      success.receipt,
+      authenticatedCandidateSourceV01(),
+    ),
+    success.receipt,
+  );
+
+  const replayRoot = createAuthenticatedFixtureRootsV01("capability-replay");
+  try {
+    const request = authenticatedCandidateRequestV01(
+      replayRoot.executionRoot,
+      "capability-replay",
+    );
+    const capability = authenticatedCandidateCapabilityV01({
+      roots: replayRoot,
+      request,
+      scenario: "success",
+    });
+    inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+      capability,
+      request,
+      now: new Date().toISOString(),
+    });
+    const wrongRequest = structuredClone(request);
+    wrongRequest.run_id = "host-run:wrong";
+    assert.throws(
+      () =>
+        inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+          capability,
+          request: wrongRequest,
+          now: new Date().toISOString(),
+        }),
+      (error: unknown) =>
+        error instanceof CodexOrdinaryAuthenticatedCandidateErrorV01 &&
+        error.code === "codex_candidate_capability_binding_mismatch",
+    );
+    const wrongRootRequest = structuredClone(request);
+    wrongRootRequest.root_scope.canonical_root = replayRoot.home;
+    assert.throws(
+      () =>
+        inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+          capability,
+          request: wrongRootRequest,
+          now: new Date().toISOString(),
+        }),
+      /codex_candidate_capability_binding_mismatch/u,
+    );
+    assert.throws(
+      () =>
+        assertCodex01532CandidateCapabilitySourceV01({
+          capability,
+          augnes_source: {
+            ...authenticatedCandidateSourceV01(),
+            head_tree: "9".repeat(40),
+          },
+        }),
+      /codex_candidate_capability_source_mismatch/u,
+    );
+    consumeCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+      capability,
+      request,
+      now: new Date().toISOString(),
+    });
+    assert.equal(codex01532CandidateCapabilityConsumedV01(capability), true);
+    assert.throws(
+      () =>
+        consumeCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+          capability,
+          request,
+          now: new Date().toISOString(),
+        }),
+      /codex_candidate_capability_already_consumed/u,
+    );
+    const forged = Object.freeze({
+      capability_version: CODEX_0_153_2_ORDINARY_CANARY_CAPABILITY_VERSION_V01,
+      candidate_entry_id: CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
+      capability_fingerprint: `sha256:${"0".repeat(64)}`,
+    }) as CodexOrdinaryAuthenticatedCandidateCapabilityV01;
+    assert.throws(
+      () =>
+        inspectCodex01532OrdinaryAuthenticatedCandidateCapabilityV01({
+          capability: forged,
+          request,
+          now: new Date().toISOString(),
+        }),
+      /codex_candidate_capability_unrecognized/u,
+    );
+    assert.throws(
+      () =>
+        createCodex01532OrdinaryAuthenticatedCandidateCapabilityForTestV01({
+          command: process.execPath,
+          prefix_args: [fixturePathV01()],
+          environment: authenticatedCandidateEnvironmentV01(
+            replayRoot,
+            "success",
+          ),
+          private_root: replayRoot.privateRoot,
+          execution_root: replayRoot.executionRoot,
+          request,
+          augnes_source: authenticatedCandidateSourceV01(),
+          expires_at: new Date(Date.now() - 1_000).toISOString(),
+          expected_executable_sha256: expectedNodeFingerprintV01(),
+        }),
+      /codex_candidate_capability_expiry_invalid/u,
+    );
+    const wrongProfile = mutableRegistryV01();
+    candidateV01(wrongProfile).compatibility_profile_fingerprint =
+      `sha256:${"1".repeat(64)}`;
+    assert.throws(
+      () =>
+        createCodex01532OrdinaryAuthenticatedCandidateCapabilityForTestV01({
+          command: process.execPath,
+          prefix_args: [fixturePathV01()],
+          environment: authenticatedCandidateEnvironmentV01(
+            replayRoot,
+            "success",
+          ),
+          private_root: replayRoot.privateRoot,
+          execution_root: replayRoot.executionRoot,
+          request,
+          augnes_source: authenticatedCandidateSourceV01(),
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+          registry: wrongProfile,
+          expected_executable_sha256: expectedNodeFingerprintV01(),
+        }),
+      /codex_qualified_runtime_registry_profile_reference_mismatch/u,
+    );
+  } finally {
+    removeAuthenticatedFixtureRootsV01(replayRoot.privateRoot);
+  }
+
+  const authUnavailable =
+    await runAuthenticatedCandidateFixtureV01("auth_unavailable");
+  assert.equal(
+    authUnavailable.receipt.disposition,
+    "HOLD_AUTHENTICATION_UNAVAILABLE",
+  );
+  assert.equal(authUnavailable.receipt.capability_consumed, false);
+  assert.equal(
+    authUnavailable.receipt.observations.provider_model_invocations,
+    0,
+  );
+
+  for (const scenario of [
+    "malformed_terminal",
+    "failure",
+    "interrupted",
+    "reroute",
+    "auth_recovery",
+    "approval",
+    "command",
+    "write",
+    "tool",
+    "unexpected_notification",
+    "timeout",
+  ]) {
+    const observed = await runAuthenticatedCandidateFixtureV01(scenario);
+    assert.equal(
+      observed.receipt.disposition,
+      "HOLD_CANARY_CONTRACT_FAILED",
+      scenario,
+    );
+    assert.equal(observed.receipt.capability_consumed, true, scenario);
+    assert.equal(
+      observed.receipt.observations.provider_model_invocations,
+      1,
+      scenario,
+    );
+    if (scenario === "approval") {
+      assert.equal(observed.receipt.observations.approvals, 1);
+      assert.equal(observed.receipt.observations.external_effects, 1);
+    }
+    if (scenario === "command")
+      assert.equal(observed.receipt.observations.commands, 1);
+    if (scenario === "write")
+      assert.equal(observed.receipt.observations.writes, 1);
+    if (scenario === "tool")
+      assert.equal(observed.receipt.observations.tools, 1);
+    if (scenario === "reroute")
+      assert.equal(observed.receipt.observations.reroutes, 1);
+    if (scenario === "auth_recovery")
+      assert.equal(observed.receipt.observations.fallbacks, 1);
+  }
+
+  const unsafe = structuredClone(success.receipt) as any;
+  unsafe.disposition = "QUALIFIED";
+  refingerprintAuthenticatedReceiptV01(unsafe);
+  assert.throws(
+    () =>
+      validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+        unsafe,
+        authenticatedCandidateSourceV01(),
+      ),
+    /codex_candidate_authenticated_receipt_invalid/u,
+  );
+  const promotion = structuredClone(success.receipt) as any;
+  promotion.qualified_at = "2026-09-04T00:00:00Z";
+  refingerprintAuthenticatedReceiptV01(promotion);
+  assert.throws(
+    () =>
+      validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+        promotion,
+        authenticatedCandidateSourceV01(),
+      ),
+    /codex_candidate_authenticated_receipt_invalid/u,
+  );
+  const secret = structuredClone(success.receipt) as any;
+  secret.observed_public_token = "/Users/private/auth.json";
+  refingerprintAuthenticatedReceiptV01(secret);
+  assert.throws(
+    () =>
+      validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+        secret,
+        authenticatedCandidateSourceV01(),
+      ),
+    /codex_candidate_authenticated_receipt_private_material_forbidden/u,
+  );
+  const invalidCount = structuredClone(success.receipt) as any;
+  invalidCount.observations.tools = -1;
+  refingerprintAuthenticatedReceiptV01(invalidCount);
+  assert.throws(
+    () =>
+      validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+        invalidCount,
+        authenticatedCandidateSourceV01(),
+      ),
+    /codex_candidate_authenticated_receipt_semantics_invalid/u,
+  );
+  const mismatchedSource = structuredClone(success.receipt) as any;
+  mismatchedSource.augnes_source.head_tree = "8".repeat(40);
+  refingerprintAuthenticatedReceiptV01(mismatchedSource);
+  assert.throws(
+    () =>
+      validateCodex01532OrdinaryAuthenticatedCanaryReceiptV01(
+        mismatchedSource,
+        authenticatedCandidateSourceV01(),
+      ),
+    /codex_candidate_authenticated_receipt_semantics_invalid/u,
+  );
+}
+
+async function ordinaryProductionAdapterRejectsCandidateV01(): Promise<void> {
+  const roots = createAuthenticatedFixtureRootsV01("production-refusal");
+  try {
+    const request = authenticatedCandidateRequestV01(
+      roots.executionRoot,
+      "production-refusal",
+    );
+    const reviewed = getCodexReviewedRuntimeArtifactV01({
+      entry_id: CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
+    });
+    const observations: string[] = [];
+    const adapter = createCodexAppServerAdapterV01({
+      launch: {
+        command: process.execPath,
+        prefix_args: [fixturePathV01()],
+        environment: authenticatedCandidateEnvironmentV01(roots, "success"),
+        qualified_runtime_selection: {
+          selection_mode: "pinned_exact",
+          lane: "ordinary_chatgpt_auth",
+          artifact: reviewed.artifact,
+          compatibility_profile: reviewed.compatibility_profile,
+        },
+      },
+      observe: ({ kind }) => observations.push(kind),
+    });
+    const invocation = adapter.invoke(request, {
+      cancellation_signal: new AbortController().signal,
+      timeout_ms: 2_000,
+      stop_settle_timeout_ms: 1_000,
+    });
+    const result = await invocation.result;
+    await invocation.settled;
+    assert.equal(result.outcome, "failed");
+    assert.equal(observations.includes("spawned"), false);
+    assert.equal(existsSync(roots.networkCountPath), false);
+  } finally {
+    removeAuthenticatedFixtureRootsV01(roots.privateRoot);
+  }
+}
+
+interface AuthenticatedFixtureRootsV01 {
+  privateRoot: string;
+  executionRoot: string;
+  home: string;
+  codexHome: string;
+  sqliteHome: string;
+  tmp: string;
+  poisonPath: string;
+  networkCountPath: string;
+}
+
+async function runAuthenticatedCandidateFixtureV01(scenario: string): Promise<{
+  result: NativeHostResultV01 | null;
+  receipt: ReturnType<
+    typeof createCodex01532OrdinaryAuthenticatedCanaryReceiptV01
+  >;
+}> {
+  const roots = createAuthenticatedFixtureRootsV01(`run-${scenario}`);
+  const request = authenticatedCandidateRequestV01(
+    roots.executionRoot,
+    `authenticated-${scenario}`,
+  );
+  const capability = authenticatedCandidateCapabilityV01({
+    roots,
+    request,
+    scenario,
+  });
+  let timeout: NodeJS.Timeout | null = null;
+  let invocation: NativeHostInvocationV01;
+  const adapter = createCodexAppServerAdapterV01({
+    ordinary_authenticated_candidate_execution: capability,
+    observe(observation) {
+      if (scenario === "timeout" && observation.kind === "turn_started") {
+        timeout = setTimeout(() => {
+          void invocation
+            .request_stop({ reason: "timeout" })
+            .catch(() => undefined);
+        }, 100);
+        timeout.unref();
+      }
+    },
+  });
+  invocation = adapter.invoke(request, {
+    cancellation_signal: new AbortController().signal,
+    timeout_ms: 2_000,
+    stop_settle_timeout_ms: 1_000,
+  });
+  let result: NativeHostResultV01 | null = null;
+  let failureCode: string | null = null;
+  let streamsClosed = false;
+  if (scenario !== "timeout") {
+    timeout = setTimeout(() => {
+      void invocation
+        .request_stop({ reason: "timeout" })
+        .catch(() => undefined);
+    }, 2_000);
+    timeout.unref();
+  }
+  try {
+    result = await invocation.result;
+  } catch (error) {
+    failureCode = error instanceof Error ? error.message : "unknown_failure";
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    try {
+      await invocation.settled;
+      streamsClosed = true;
+    } catch (error) {
+      failureCode ??=
+        error instanceof Error ? error.message : "settlement_failure";
+    }
+  }
+  assert.equal(readFileSync(roots.networkCountPath, "utf8"), "0\n");
+  removeAuthenticatedFixtureRootsV01(roots.privateRoot);
+  const stableIntegrity = `sha256:${"7".repeat(64)}`;
+  const receipt = createCodex01532OrdinaryAuthenticatedCanaryReceiptV01({
+    capability,
+    augnes_source: authenticatedCandidateSourceV01(),
+    request,
+    result,
+    failure_code: failureCode,
+    integrity_before_fingerprint: stableIntegrity,
+    integrity_after_fingerprint: stableIntegrity,
+    streams_closed: streamsClosed,
+    remaining_owned_processes: 0,
+    disposable_roots_removed: !existsSync(roots.privateRoot),
+    observed_at: "2026-09-04T00:00:00.000Z",
+  });
+  assert.equal(existsSync(roots.privateRoot), false);
+  return { result, receipt };
+}
+
+function authenticatedCandidateCapabilityV01(input: {
+  roots: AuthenticatedFixtureRootsV01;
+  request: NativeHostRequestV01;
+  scenario: string;
+}): CodexOrdinaryAuthenticatedCandidateCapabilityV01 {
+  return createCodex01532OrdinaryAuthenticatedCandidateCapabilityForTestV01({
+    command: process.execPath,
+    prefix_args: [fixturePathV01()],
+    environment: authenticatedCandidateEnvironmentV01(
+      input.roots,
+      input.scenario,
+    ),
+    private_root: input.roots.privateRoot,
+    execution_root: input.roots.executionRoot,
+    request: input.request,
+    augnes_source: authenticatedCandidateSourceV01(),
+    expires_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    expected_executable_sha256: expectedNodeFingerprintV01(),
+  });
+}
+
+function authenticatedCandidateSourceV01() {
+  return {
+    base_commit: "8eb6b7af220fe8d7e244bb616205c797d7965142" as const,
+    head_commit: "1".repeat(40),
+    head_tree: "2".repeat(40),
+  };
+}
+
+function createAuthenticatedFixtureRootsV01(
+  id: string,
+): AuthenticatedFixtureRootsV01 {
+  const privateRoot = realpathSync.native(
+    mkdtempSync(path.join(root, `authenticated-${id}-`)),
+  );
+  chmodSync(privateRoot, 0o700);
+  const executionRoot = path.join(privateRoot, "execution");
+  const home = path.join(privateRoot, "home");
+  const codexHome = path.join(privateRoot, "codex-home");
+  const sqliteHome = path.join(privateRoot, "sqlite-home");
+  const tmp = path.join(privateRoot, "tmp");
+  const poisonPath = path.join(privateRoot, "poison-path");
+  for (const directory of [
+    executionRoot,
+    home,
+    codexHome,
+    sqliteHome,
+    tmp,
+    poisonPath,
+  ]) {
+    mkdirSync(directory, { mode: 0o700 });
+    chmodSync(directory, 0o700);
+  }
+  return {
+    privateRoot,
+    executionRoot: realpathSync.native(executionRoot),
+    home: realpathSync.native(home),
+    codexHome: realpathSync.native(codexHome),
+    sqliteHome: realpathSync.native(sqliteHome),
+    tmp: realpathSync.native(tmp),
+    poisonPath: realpathSync.native(poisonPath),
+    networkCountPath: path.join(privateRoot, "network-count.txt"),
+  };
+}
+
+function authenticatedCandidateEnvironmentV01(
+  roots: AuthenticatedFixtureRootsV01,
+  scenario: string,
+): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: "test",
+    HOME: roots.home,
+    CODEX_HOME: roots.codexHome,
+    CODEX_SQLITE_HOME: roots.sqliteHome,
+    TMPDIR: roots.tmp,
+    PATH: roots.poisonPath,
+    LANG: "C",
+    LC_ALL: "C",
+    TZ: "UTC",
+    NO_COLOR: "1",
+    FAKE_CODEX_SCENARIO: `candidate_0_153_2_authenticated_${scenario}`,
+    FAKE_CODEX_NETWORK_COUNT_PATH: roots.networkCountPath,
+  };
+}
+
+function authenticatedCandidateRequestV01(
+  executionRoot: string,
+  id: string,
+): NativeHostRequestV01 {
+  const packet = buildTaskContextPacketV01(
+    structuredClone(genericCliBuilderInputFixture),
+  );
+  const stat = statSync(executionRoot, { bigint: true });
+  const rootFingerprint = createProtocolSha256V01(`root:${id}`);
+  return {
+    request_version: "native_host_request.v0.1",
+    request_id: `candidate-request:${id}`,
+    run_id: `candidate-run:${id}`,
+    idempotency_key: createProtocolSha256V01(`idempotency:${id}`),
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    work_ref: refV01("work", `candidate-work:${id}`),
+    task_ref: refV01("task", `candidate-task:${id}`),
+    task_context_packet_ref: refV01("task_context_packet", packet.packet_id),
+    packet,
+    packet_lineage: {
+      source_transition_receipt_ref: refV01(
+        "state_transition_receipt",
+        `candidate-transition:${id}`,
+      ),
+      packet_source_refs: [],
+      selected_context_refs: [],
+    },
+    mode: "policy_triggered",
+    root_scope: {
+      canonical_root: executionRoot,
+      path_flavor: "posix",
+      root_kind: "plain_folder",
+      root_fingerprint: rootFingerprint,
+      physical_root_identity: {
+        identity_version: "native_host_physical_root_identity.v0.1",
+        canonical_realpath_fingerprint: rootFingerprint,
+        device: String(stat.dev),
+        inode: String(stat.ino),
+      },
+      root_scope_ref: refV01("project_root_scope", `candidate-scope:${id}`),
+      repository_ref: null,
+      selected_worktree_ref: null,
+    },
+    requested_capability: CODEX_0_153_2_ORDINARY_CANARY_CAPABILITY_VERSION_V01,
+    allowed_operation_categories: [
+      "read_validated_task_context",
+      "return_bounded_public_token",
+    ],
+    forbidden_operation_categories: [
+      "all_external_effects",
+      "network_egress",
+      "tool_use",
+      "command_execution",
+      "file_change",
+      "repository_task",
+    ],
+    packet_capability_grant: packet.capability_grant,
+    execution_grant_ref: null,
+    automation_context: null,
+    repository_delegation_context: null,
+    repository_resume_context: null,
+    policy: {
+      filesystem: "selected_project_root_only",
+      network: "forbidden",
+      commands: "approval_required",
+      model: "native_host_managed",
+      host_egress: "bounded_capability_grant",
+      max_changed_files: 0,
+      max_artifacts: 0,
+      max_commands: 0,
+      max_checks: 8,
+      timeout_ms: 2_000,
+      stop_settle_timeout_ms: 1_000,
+      stop_conditions: ["timeout", "cancellation_requested"],
+    },
+    result_return: {
+      return_version: "native_host_result_return.v0.1",
+      structured_result_required: true,
+      legacy_result_text_allowed: false,
+      raw_output_allowed: false,
+      max_result_bytes: 8 * 1024,
+    },
+  };
+}
+
+function refV01(refType: string, externalId: string): ExternalRefV01 {
+  return {
+    ref_version: "external_ref.v0.1",
+    ref_type: refType,
+    external_id: externalId,
+    observed_at: "2026-09-04T00:00:00.000Z",
+    trust_class: "direct_local_observation",
+  };
+}
+
+function fixturePathV01(): string {
+  return realpathSync.native(
+    path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs"),
+  );
+}
+
+let cachedNodeFingerprintV01: string | null = null;
+function expectedNodeFingerprintV01(): string {
+  cachedNodeFingerprintV01 ??= `sha256:${createHash("sha256")
+    .update(readFileSync(process.execPath))
+    .digest("hex")}`;
+  return cachedNodeFingerprintV01;
+}
+
+function removeAuthenticatedFixtureRootsV01(privateRoot: string): void {
+  if (!existsSync(privateRoot)) return;
+  makeWritableV01(privateRoot);
+  rmSync(privateRoot, { recursive: true, force: false });
+  assert.equal(existsSync(privateRoot), false);
+}
+
+function refingerprintAuthenticatedReceiptV01(value: any): void {
+  const { receipt_fingerprint: _fingerprint, ...material } = value;
+  value.receipt_fingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01(material),
   );
 }
 
@@ -495,7 +1165,8 @@ function mutableRegistryV01(): any {
 
 function candidateV01(registry: MutableRegistryV01): any {
   return registry.artifacts.find(
-    (artifact: any) => artifact.entry_id === CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
+    (artifact: any) =>
+      artifact.entry_id === CODEX_0_153_2_CANDIDATE_ENTRY_ID_V01,
   );
 }
 
@@ -505,7 +1176,8 @@ function sourceReviewV01(registry: MutableRegistryV01): any {
 
 function recomputeSourceReviewFingerprintV01(review: any): void {
   const { fingerprint: _fingerprint, ...material } = review;
-  review.fingerprint = codexRuntimeCandidateSourceSchemaReviewFingerprintV01(material);
+  review.fingerprint =
+    codexRuntimeCandidateSourceSchemaReviewFingerprintV01(material);
 }
 
 function makeWritableV01(target: string): void {
@@ -514,7 +1186,8 @@ function makeWritableV01(target: string): void {
   if (stat.isSymbolicLink()) return;
   if (stat.isDirectory()) {
     chmodSync(target, 0o700);
-    for (const name of readdirSync(target)) makeWritableV01(path.join(target, name));
+    for (const name of readdirSync(target))
+      makeWritableV01(path.join(target, name));
   } else if (stat.isFile()) chmodSync(target, 0o600);
 }
 

@@ -100,7 +100,7 @@ export interface CodexReviewedCandidateUserAgentObservationV01 {
  */
 export function observeReviewedCandidateCodexAppServerUserAgentV01(input: {
   raw_user_agent: unknown;
-  expected_client_name: "augnes-semantic-preflight";
+  expected_client_name: "augnes-semantic-preflight" | "augnes-ordinary-canary";
   expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
   expected_codex_cli_version: string;
 }): CodexReviewedCandidateUserAgentObservationV01 {
@@ -158,7 +158,10 @@ export function observeCodexAppServerUserAgent01521V01(input: {
 
 function parseCodexAppServerUserAgentV01(input: {
   raw_user_agent: unknown;
-  expected_client_name: "augnes" | "augnes-semantic-preflight";
+  expected_client_name:
+    | "augnes"
+    | "augnes-semantic-preflight"
+    | "augnes-ordinary-canary";
   expected_client_version: typeof CODEX_APP_SERVER_CLIENT_VERSION_V01;
   expected_codex_cli_version: string;
 }): { architecture: "arm64" | "x86_64" } {

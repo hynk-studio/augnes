@@ -28,6 +28,9 @@ const scenario =
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
 const candidate01532Scenario = scenario.startsWith("candidate_0_153_2_");
+const candidate01532AuthenticatedScenario = scenario.startsWith(
+  "candidate_0_153_2_authenticated_",
+);
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -119,8 +122,7 @@ if (isolatedAuthScenario) {
     writeFileSync(
       authBoundaryPath,
       `${JSON.stringify({
-        app_server_material_present:
-          authSnapshotKind !== null,
+        app_server_material_present: authSnapshotKind !== null,
         environment_material_present:
           typeof process.env.CODEX_ACCESS_TOKEN === "string" &&
           process.env.CODEX_ACCESS_TOKEN.length > 0,
@@ -279,8 +281,9 @@ async function handle(message) {
       respond(
         message.id,
         scenario === "unauthenticated" ||
-        candidate01532Scenario ||
-        scenario === "isolated_auth_unauthenticated"
+          (candidate01532Scenario && !candidate01532AuthenticatedScenario) ||
+          scenario === "candidate_0_153_2_authenticated_auth_unavailable" ||
+          scenario === "isolated_auth_unauthenticated"
           ? { account: null, requiresOpenaiAuth: true }
           : {
               account: {
@@ -375,17 +378,17 @@ async function handle(message) {
                       ? { openai: { auth: { command: "foreign-auth" } } }
                       : scenario === "isolated_auth_provider_aws_drift"
                         ? { openai: { aws: { region: "us-east-1" } } }
-                      : scenario === "isolated_auth_provider_headers_drift"
-                        ? {
-                            openai: {
-                              query_params: { source: "foreign" },
-                              http_headers: { Authorization: "foreign" },
-                              env_http_headers: {
-                                Authorization: "FOREIGN_AUTH",
+                        : scenario === "isolated_auth_provider_headers_drift"
+                          ? {
+                              openai: {
+                                query_params: { source: "foreign" },
+                                http_headers: { Authorization: "foreign" },
+                                env_http_headers: {
+                                  Authorization: "FOREIGN_AUTH",
+                                },
                               },
-                            },
-                          }
-                        : null,
+                            }
+                          : null,
           web_search:
             isolatedAuthScenario && scenario !== "isolated_auth_config_mismatch"
               ? "disabled"
@@ -511,6 +514,19 @@ async function handle(message) {
       return;
     }
     if (message.method === "turn/start") {
+      if (
+        candidate01532AuthenticatedScenario &&
+        (message.params?.input?.length !== 1 ||
+          message.params.input[0]?.type !== "text" ||
+          message.params.input[0]?.text !==
+            "Return exactly AUGNES_CODEX_01532_ORDINARY_CANARY_OK and do not use tools, run commands, read or write files, or add any explanation." ||
+          message.params?.sandboxPolicy?.type !== "readOnly" ||
+          message.params?.sandboxPolicy?.networkAccess !== false ||
+          Object.hasOwn(message.params ?? {}, "outputSchema"))
+      ) {
+        respondError(message.id, -32602, "candidate canary request mismatch");
+        return;
+      }
       turnActive = true;
       persistState({ threadId, sessionId, turnId, status: "inProgress" });
       if (scenario === "browser_two_sequential_approvals") {
@@ -552,7 +568,67 @@ async function handle(message) {
             threadName: "Bounded fixture name",
           });
         }
-        if (
+        if (candidate01532AuthenticatedScenario) {
+          if (scenario.endsWith("_success"))
+            completeCandidateAuthenticatedSuccess();
+          else if (scenario.endsWith("_malformed_terminal"))
+            completeCandidateAuthenticatedMalformedTerminal();
+          else if (scenario.endsWith("_failure")) completeFailure();
+          else if (scenario.endsWith("_interrupted")) completeInterrupted();
+          else if (scenario.endsWith("_reroute")) {
+            notify("model/rerouted", {
+              threadId,
+              turnId,
+              fromModel: "expected",
+              toModel: "fallback",
+            });
+          } else if (scenario.endsWith("_auth_recovery")) {
+            notify("modelProvider/authRecoveryStarted", {
+              threadId,
+              turnId,
+              provider: "openai",
+              message: "retry",
+            });
+          } else if (scenario.endsWith("_approval")) requestCommandApproval();
+          else if (scenario.endsWith("_command")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "commandExecution",
+                id: "candidate-command",
+                status: "completed",
+                command: "true",
+              },
+            });
+          } else if (scenario.endsWith("_write")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "fileChange",
+                id: "candidate-write",
+                status: "completed",
+                changes: [],
+              },
+            });
+          } else if (scenario.endsWith("_tool")) {
+            notify("item/completed", {
+              threadId,
+              turnId,
+              item: {
+                type: "webSearch",
+                id: "candidate-tool",
+                status: "completed",
+              },
+            });
+          } else if (scenario.endsWith("_unexpected_notification")) {
+            notify("modelProvider/unqualifiedFutureEvent", {
+              threadId,
+              turnId,
+            });
+          }
+        } else if (
           [
             "auth_recovery_notifications",
             "isolated_auth_auth_recovery_notifications",
@@ -859,9 +935,8 @@ function fakeCodexUserAgentV01(value, clientInfo) {
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
   if (value.startsWith("candidate_0_153_2_")) {
-    const cliVersion = value === "candidate_0_153_2_wrong_user_agent"
-      ? "0.153.1"
-      : "0.153.2";
+    const cliVersion =
+      value === "candidate_0_153_2_wrong_user_agent" ? "0.153.1" : "0.153.2";
     return `${name}/${cliVersion} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
   }
   if (!value.startsWith("isolated_auth_"))
@@ -1222,8 +1297,7 @@ function isolatedAuthFeatureProjectionV01(activeScenario) {
     mcp_2026_07_28:
       activeScenario === "isolated_auth_feature_mcp_2026_07_28_enabled",
     memories: activeScenario === "isolated_auth_feature_memories_enabled",
-    mentions_v2:
-      activeScenario === "isolated_auth_feature_mentions_v2_enabled",
+    mentions_v2: activeScenario === "isolated_auth_feature_mentions_v2_enabled",
     multi_agent: false,
     network_proxy: false,
     plugins: false,
@@ -1539,6 +1613,29 @@ function completeUnsafeTextStructuredResult(summary) {
   });
 }
 
+function completeCandidateAuthenticatedSuccess() {
+  if (completed) return;
+  completed = true;
+  const item = agentMessage("AUGNES_CODEX_01532_ORDINARY_CANARY_OK");
+  notify("item/completed", { threadId, turnId, item });
+  notify("turn/completed", {
+    threadId,
+    turn: turn("completed", [item]),
+  });
+}
+
+function completeCandidateAuthenticatedMalformedTerminal() {
+  if (completed) return;
+  completed = true;
+  notify("turn/completed", {
+    threadId,
+    turn: turn("completed", [
+      agentMessage("AUGNES_CODEX_01532_ORDINARY_CANARY_OK"),
+      agentMessage("unexpected second response"),
+    ]),
+  });
+}
+
 function structuredResult() {
   const changedPath = "src/live-result.ts";
   return JSON.stringify({
@@ -1585,7 +1682,7 @@ function structuredResult() {
 }
 
 function threadResponse(options = {}) {
-  const isolated = isolatedAuthScenario;
+  const isolated = isolatedAuthScenario || candidate01532AuthenticatedScenario;
   return {
     thread: thread({ ...options, ephemeral: isolated }),
     model: "configured-default",
@@ -1601,13 +1698,15 @@ function threadResponse(options = {}) {
         : [],
     approvalPolicy: "on-request",
     approvalsReviewer: "user",
-    sandbox: {
-      type: "workspaceWrite",
-      writableRoots: [root],
-      networkAccess: false,
-      excludeTmpdirEnvVar: true,
-      excludeSlashTmp: true,
-    },
+    sandbox: candidate01532AuthenticatedScenario
+      ? { type: "readOnly", networkAccess: false }
+      : {
+          type: "workspaceWrite",
+          writableRoots: [root],
+          networkAccess: false,
+          excludeTmpdirEnvVar: true,
+          excludeSlashTmp: true,
+        },
     reasoningEffort: null,
   };
 }
@@ -1630,7 +1729,11 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: isolatedAuthScenario ? "0.152.1" : "0.147.0",
+    cliVersion: candidate01532AuthenticatedScenario
+      ? "0.153.2"
+      : isolatedAuthScenario
+        ? "0.152.1"
+        : "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,

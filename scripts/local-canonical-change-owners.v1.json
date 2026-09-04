@@ -75,7 +75,9 @@
       "path_rules": {
         "exact_paths": [
           "lib/vnext/native-host/codex-ordinary-runtime-candidate.ts",
+          "lib/vnext/native-host/codex-ordinary-authenticated-candidate.ts",
           "scripts/canary-codex-0-153-2-candidate.ts",
+          "scripts/canary-codex-0-153-2-ordinary-authenticated.ts",
           "scripts/test-codex-ordinary-runtime-candidate.ts"
         ]
       }
