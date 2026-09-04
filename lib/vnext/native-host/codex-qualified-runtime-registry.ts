@@ -173,7 +173,7 @@ export interface CodexQualifiedRuntimeRegistryV01 {
 }
 
 export interface CodexQualifiedRuntimeSelectionV01 {
-  selection_mode: "pinned_exact";
+  selection_mode: "pinned_exact" | "latest_qualified";
   lane: CodexRuntimeLaneV01;
   artifact: CodexQualifiedRuntimeArtifactV01;
   compatibility_profile: CodexRuntimeCompatibilityProfileV01;
@@ -347,7 +347,46 @@ export function selectPinnedCodexQualifiedRuntimeV01(input: {
   if (!(["ordinary_chatgpt_auth", "strict_agent_identity"] as const).includes(lane))
     failV01("codex_qualified_runtime_registry_lane_invalid");
   const reviewed = getPinnedCodexReviewedRuntimeArtifactV01({ registry });
-  const { artifact } = reviewed;
+  return selectCodexQualifiedRuntimeEntryV01({
+    registry,
+    entry_id: reviewed.artifact.entry_id,
+    lane,
+    observed_at: input.observed_at,
+    selection_mode: "pinned_exact",
+  });
+}
+
+/**
+ * Resolve lane eligibility for one exact reviewed entry. This does not assert
+ * that the artifact is locally present and does not grant acquisition or
+ * launch authority.
+ */
+export function selectCodexQualifiedRuntimeEntryV01(input: {
+  entry_id: string;
+  lane: CodexRuntimeLaneV01;
+  observed_at?: string;
+  selection_mode?: "pinned_exact" | "latest_qualified";
+  registry?: unknown;
+}): CodexQualifiedRuntimeSelectionV01 {
+  const registry = input.registry !== undefined
+    ? validateCodexQualifiedRuntimeRegistryV01(input.registry)
+    : CODEX_QUALIFIED_RUNTIME_REGISTRY_V01;
+  const lane = input.lane;
+  if (!(["ordinary_chatgpt_auth", "strict_agent_identity"] as const).includes(lane))
+    failV01("codex_qualified_runtime_registry_lane_invalid");
+  const artifact = registry.artifacts.find(
+    (entry) => entry.entry_id === input.entry_id,
+  );
+  if (!artifact)
+    failV01("codex_qualified_runtime_registry_selection_missing");
+  const compatibilityProfile = registry.compatibility_profiles.find(
+    (profile) => profile.profile_id === artifact.compatibility_profile_id,
+  );
+  if (
+    !compatibilityProfile ||
+    compatibilityProfile.fingerprint !== artifact.compatibility_profile_fingerprint
+  )
+    failV01("codex_qualified_runtime_registry_profile_reference_mismatch");
   const laneState = artifact.lanes[lane];
   if (artifact.revocation !== null || laneState.status === "revoked")
     failV01("codex_qualified_runtime_registry_selection_revoked");
@@ -366,10 +405,10 @@ export function selectPinnedCodexQualifiedRuntimeV01(input: {
   )
     failV01("codex_qualified_runtime_registry_security_floor_unsatisfied");
   return deepFreezeV01({
-    selection_mode: "pinned_exact",
+    selection_mode: input.selection_mode ?? "pinned_exact",
     lane,
     artifact,
-    compatibility_profile: reviewed.compatibility_profile,
+    compatibility_profile: compatibilityProfile,
   });
 }
 

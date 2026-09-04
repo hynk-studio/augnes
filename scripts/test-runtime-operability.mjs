@@ -3859,6 +3859,10 @@ function assertRuntimeEnvironmentIsolation() {
     AUGNES_CORE_MODE: "file",
     AUGNES_USE_MOCK: "false",
     AUGNES_ENABLE_AGENT_BRIDGE: "false",
+    AUGNES_MANAGED_CODEX_RUNTIME_ROOT: path.join(
+      tempRoot,
+      "ambient-path-must-not-be-forwarded",
+    ),
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "false",
     AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: "reviewed-workspace",
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: "reviewed-project",
@@ -3869,7 +3873,16 @@ function assertRuntimeEnvironmentIsolation() {
     ...reviewedBridgeCompatibilityEnvironment,
   };
   const sharedArguments = {
-    paths: { bridgeEnvironment: bridgeEnvironmentPath },
+    paths: {
+      bridgeEnvironment: bridgeEnvironmentPath,
+      local: {
+        managed_codex_runtime_directory: path.join(
+          tempRoot,
+          "application-data",
+          "managed-codex-runtimes",
+        ),
+      },
+    },
     instanceId: "environment-isolation-instance",
     companionProxyToken: "companion-proxy-token-environment-isolation",
     effectiveUrl: "http://127.0.0.1:3000",
@@ -3909,6 +3922,10 @@ function assertRuntimeEnvironmentIsolation() {
     path.join(tempRoot, "codex-sqlite-home"),
   );
   assert.equal(uiValues.AUGNES_DB_PATH, databasePath);
+  assert.equal(
+    uiValues.AUGNES_MANAGED_CODEX_RUNTIME_ROOT,
+    sharedArguments.paths.local.managed_codex_runtime_directory,
+  );
   assert.equal(uiValues.NODE_ENV, "development");
   assert.equal(uiValues.NODE_OPTIONS, null);
   assert.equal(uiValues.HOSTNAME, null);
@@ -3935,6 +3952,10 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_PREVIEW_MAX_AGE_MS, "45000");
   assert.equal(uiEnvironment.AUGNES_VNEXT_OPERATOR_GATE_TTL_MS, "60000");
   assert.equal(uiEnvironment.AUGNES_COMPANION_PROXY_TOKEN, sharedArguments.companionProxyToken);
+  assert.equal(
+    uiEnvironment.AUGNES_MANAGED_CODEX_RUNTIME_ROOT,
+    sharedArguments.paths.local.managed_codex_runtime_directory,
+  );
   assert.equal(Object.hasOwn(uiEnvironment, "NODE_OPTIONS"), false);
 
   const bridgeValues = buildSupervisorChildValues({
@@ -3974,6 +3995,7 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(Object.hasOwn(bridgeEnvironment, "NODE_OPTIONS"), false);
   for (const uiOnlyKey of [
     "AUGNES_DB_PATH",
+    "AUGNES_MANAGED_CODEX_RUNTIME_ROOT",
     "AUGNES_VNEXT_OPERATOR_PILOT_ENABLED",
     "AUGNES_VNEXT_OPERATOR_WORKSPACE_ID",
     "AUGNES_VNEXT_OPERATOR_PROJECT_ID",

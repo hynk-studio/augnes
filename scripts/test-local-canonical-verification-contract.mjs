@@ -871,6 +871,7 @@ assert.deepEqual(
     "augnes-operator-plugin-setup",
     "codex-qualified-runtime-registry",
     "temporal-interpretation-preview",
+    "codex-managed-runtime-store",
     "local-canonical-owner-contract-fixture",
   ],
 );
@@ -1039,6 +1040,7 @@ const integrationChildren = [
   "reconstruction-conformance",
   "codex-qualified-runtime-registry",
   "codex-production-runtime",
+  "codex-managed-runtime-store",
   "codex-sandbox-projection",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",
@@ -1125,6 +1127,24 @@ for (const fragment of [
     qualifiedRuntimeRegistryRegistration.block,
     fragment,
     `qualified runtime registry canonical registration is missing: ${fragment}`,
+  );
+}
+const managedRuntimeStoreRegistration = readCanonicalChildRegistration(
+  integrationSource,
+  "codex-managed-runtime-store",
+);
+for (const fragment of [
+  `group: "supporting-serial"`,
+  `requirements: ["filesystem", "project-root", "mutable-module-state"]`,
+  `label:\n        "managed Codex runtime staging, exact lane selection, rollback, and retention authority"`,
+  `rootNode("scripts/test-codex-managed-runtime-store.ts")`,
+  `timeoutMs: 30_000`,
+  `requireNaturalExit: true`,
+]) {
+  requireText(
+    managedRuntimeStoreRegistration.block,
+    fragment,
+    `managed runtime store canonical registration is missing: ${fragment}`,
   );
 }
 for (const childId of [
@@ -1328,6 +1348,7 @@ requireText(
 for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-codex-qualified-runtime-registry.ts", "30_000"],
+  ["scripts/test-codex-managed-runtime-store.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],
   ["scripts/test-recovery-canonical-record-validator.ts", "300_000"],

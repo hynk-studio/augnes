@@ -121,6 +121,17 @@ try {
     },
   );
   runPlanCase(
+    "managed-runtime-store-test-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write("scripts/test-codex-managed-runtime-store.ts", "export {};\n");
+    },
+    {
+      ownerIds: ["codex-managed-runtime-store"],
+      phaseIds: targetedPhaseIds("typecheck", "integration"),
+    },
+  );
+  runPlanCase(
     "fixture-only-leaf-known-owner",
     "owner-targeted",
     ({ write }) => {

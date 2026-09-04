@@ -79,6 +79,21 @@
       }
     },
     {
+      "id": "codex-managed-runtime-store",
+      "phase_ids": [
+        "typecheck",
+        "integration"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "exact_paths": [
+          "lib/vnext/native-host/codex-managed-runtime-store.ts",
+          "lib/vnext/native-host/codex-runtime-implementation-binding.ts",
+          "scripts/test-codex-managed-runtime-store.ts"
+        ]
+      }
+    },
+    {
       "id": "local-canonical-owner-contract-fixture",
       "phase_ids": [
         "unit"

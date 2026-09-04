@@ -213,6 +213,10 @@ function testPurePathResolution() {
   assert.equal(linuxXdg.config_directory, `/xdg/config/augnes/v1/checkouts/${scope}/config`);
   assert.equal(linuxXdg.backup_directory, `/xdg/state/augnes/v1/checkouts/${scope}/backups`);
   assert.equal(linuxXdg.runtime_directory, `/run/user/1000/${scope}`);
+  assert.equal(
+    linuxXdg.managed_codex_runtime_directory,
+    "/xdg/data/augnes/v1/managed-codex-runtimes",
+  );
   assert.equal(linuxXdg.database_path, `${linuxXdg.data_directory}/augnes.db`);
 
   const linuxFallback = resolveAugnesLocalPaths({
@@ -246,6 +250,10 @@ function testPurePathResolution() {
     mac.runtime_directory,
     `/Users/tester/Library/Application Support/Augnes/runtime/${scope}`,
   );
+  assert.equal(
+    mac.managed_codex_runtime_directory,
+    "/Users/tester/Library/Application Support/Augnes/v1/managed-codex-runtimes",
+  );
 
   const windows = resolveAugnesLocalPaths({
     platform: "win32",
@@ -268,6 +276,10 @@ function testPurePathResolution() {
     `E:\\Roaming\\Augnes\\v1\\checkouts\\${scope}\\config`,
   );
   assert.equal(windows.runtime_directory, `D:\\Local\\Augnes\\runtime\\${scope}`);
+  assert.equal(
+    windows.managed_codex_runtime_directory,
+    "D:\\Local\\Augnes\\v1\\managed-codex-runtimes",
+  );
 
   const windowsFallback = resolveAugnesLocalPaths({
     platform: "win32",
@@ -305,6 +317,11 @@ function testPurePathResolution() {
     validatePhysicalPaths: false,
   });
   assert.notEqual(otherCheckout.database_path, linuxFallback.database_path);
+  assert.equal(
+    otherCheckout.managed_codex_runtime_directory,
+    linuxFallback.managed_codex_runtime_directory,
+    "immutable reviewed artifacts must be application-wide rather than checkout-scoped",
+  );
   assert.equal(
     resolveAugnesLocalPaths({
       platform: "linux",
@@ -2251,6 +2268,7 @@ function disposableSupervisorEnvironment(
 function assertChildEnvironmentBoundaries(environment, paths, ready, providerPresent) {
   const supervisorPaths = {
     bridgeEnvironment: path.join(paths.runtime_directory, "bridge-supervisor.env"),
+    local: paths,
   };
   const common = {
     environment,
@@ -2267,6 +2285,10 @@ function assertChildEnvironmentBoundaries(environment, paths, ready, providerPre
     values: uiValues,
   });
   assert.equal(ui.AUGNES_DB_PATH, paths.database_path);
+  assert.equal(
+    ui.AUGNES_MANAGED_CODEX_RUNTIME_ROOT,
+    paths.managed_codex_runtime_directory,
+  );
   assert.equal(ui.AUGNES_RUNTIME_INSTANCE_ID, ready.instance_id);
   if (providerPresent) {
     assert.equal(ui.OPENAI_API_KEY, credentialSentinel);
@@ -2298,6 +2320,7 @@ function assertChildEnvironmentBoundaries(environment, paths, ready, providerPre
     "HTTP_PROXY",
     "HTTPS_PROXY",
     "ALL_PROXY",
+    "AUGNES_MANAGED_CODEX_RUNTIME_ROOT",
     "AUGNES_UNRELATED_PARENT_VALUE",
   ]) {
     assert.equal(Object.hasOwn(bridge, key), false, `${key} must not reach bridge`);

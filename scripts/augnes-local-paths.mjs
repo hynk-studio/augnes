@@ -46,22 +46,33 @@ export function resolveAugnesLocalPaths({
   let dataDirectory;
   let configDirectory;
   let backupDirectory;
+  let managedCodexRuntimeDirectory;
   if (platform === "darwin") {
-    const checkoutRoot = pathApi.join(
+    const applicationRoot = pathApi.join(
       roots.data,
       "Augnes",
       `v${AUGNES_LOCAL_PATH_LAYOUT_VERSION}`,
+    );
+    const checkoutRoot = pathApi.join(
+      applicationRoot,
       "checkouts",
       checkoutScope,
     );
     dataDirectory = pathApi.join(checkoutRoot, "data");
     configDirectory = pathApi.join(checkoutRoot, "config");
     backupDirectory = pathApi.join(checkoutRoot, "backups");
+    managedCodexRuntimeDirectory = pathApi.join(
+      applicationRoot,
+      "managed-codex-runtimes",
+    );
   } else if (platform === "win32") {
-    const dataRoot = pathApi.join(
+    const applicationDataRoot = pathApi.join(
       roots.data,
       "Augnes",
       `v${AUGNES_LOCAL_PATH_LAYOUT_VERSION}`,
+    );
+    const dataRoot = pathApi.join(
+      applicationDataRoot,
       "checkouts",
       checkoutScope,
     );
@@ -75,6 +86,10 @@ export function resolveAugnesLocalPaths({
     dataDirectory = pathApi.join(dataRoot, "data");
     configDirectory = pathApi.join(configRoot, "config");
     backupDirectory = pathApi.join(dataRoot, "backups");
+    managedCodexRuntimeDirectory = pathApi.join(
+      applicationDataRoot,
+      "managed-codex-runtimes",
+    );
   } else {
     const relativeCheckout = [
       "augnes",
@@ -85,6 +100,12 @@ export function resolveAugnesLocalPaths({
     dataDirectory = pathApi.join(roots.data, ...relativeCheckout, "data");
     configDirectory = pathApi.join(roots.config, ...relativeCheckout, "config");
     backupDirectory = pathApi.join(roots.state, ...relativeCheckout, "backups");
+    managedCodexRuntimeDirectory = pathApi.join(
+      roots.data,
+      "augnes",
+      `v${AUGNES_LOCAL_PATH_LAYOUT_VERSION}`,
+      "managed-codex-runtimes",
+    );
   }
 
   const runtimeDirectory = resolveRuntimeDirectory({
@@ -109,13 +130,20 @@ export function resolveAugnesLocalPaths({
       [configDirectory, "config_path_must_be_outside_repository"],
       [backupDirectory, "backup_path_must_be_outside_repository"],
       [runtimeDirectory, "runtime_state_path_must_be_outside_repository"],
+      [
+        managedCodexRuntimeDirectory,
+        "managed_codex_runtime_path_must_be_outside_repository",
+      ],
     ]) {
-      resolvePhysicalLocalDestination({
+      const resolved = resolvePhysicalLocalDestination({
         candidate,
         repositoryRoot,
         insideRepositoryCode: code,
       });
       assertDirectoryIsNotSymlink(candidate, directoryErrorCode(code));
+      if (code === "managed_codex_runtime_path_must_be_outside_repository") {
+        managedCodexRuntimeDirectory = resolved.physical_destination;
+      }
     }
   }
 
@@ -126,6 +154,7 @@ export function resolveAugnesLocalPaths({
     config_directory: configDirectory,
     backup_directory: backupDirectory,
     runtime_directory: runtimeDirectory,
+    managed_codex_runtime_directory: managedCodexRuntimeDirectory,
     database_path: databasePath,
     database_override_active: Boolean(explicitDatabasePath),
   };

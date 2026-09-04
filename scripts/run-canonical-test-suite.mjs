@@ -458,6 +458,16 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "codex-managed-runtime-store",
+      group: "supporting-serial",
+      requirements: ["filesystem", "project-root", "mutable-module-state"],
+      label:
+        "managed Codex runtime staging, exact lane selection, rollback, and retention authority",
+      ...rootNode("scripts/test-codex-managed-runtime-store.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-sandbox-projection",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "process-owning"],
