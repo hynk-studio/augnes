@@ -47,7 +47,44 @@ app-server probe. It exercises only `--version`, `initialize`, `initialized`,
 `account/read` with refresh disabled, and `config/read`. It does not load the
 user's Codex home or use their globally installed binary. No authenticated
 canary, thread, turn, provider request, production registry mutation, or Strict
-Agent Identity operation is available through this owner.
+Agent Identity operation is available through the rolling cycle command.
+
+## Separately authorized ordinary candidate canary binding
+
+`prepareCodexCandidateCanaryV01` prepares an opaque single-use adapter binding.
+It requires the persisted Phase 5 receipt, a run-scoped
+`COMPATIBLE_PROFILE_REUSE_SUPPORTED` decision bound to that receipt and its
+profile/config fingerprints, and the exact standalone archive bytes. It
+revalidates only frozen official release/tag/source/asset metadata, never
+`latest`. The existing managed-store extractor checks archive/native identity
+in private qualification-only staging; nothing is published to production.
+
+The adapter's `candidate_canary` option is mutually exclusive with ordinary
+launch overrides and Strict Agent Identity. Compatibility semantics still come
+from the current implemented qualified profile, while the candidate artifact
+is never represented as a qualified selection. Consumption burns both the
+in-memory token and an exclusive `.ordinary-canary-claimed` marker beside the
+receipt before execution. Do not remove or relocate evidence to renew a budget.
+An unused preparation can be disposed without invoking the adapter.
+
+The later invocation uses only official ordinary AuthManager access through
+the ordinary credential-owner directory. Augnes does not read or project
+credentials. HOME, SQLite, temporary state, and the empty execution root are
+private and disposable; PATH is controlled. Exact CLI/user-agent identity,
+ordinary account availability, and `observeCandidateConfigPolicyV01` must pass
+before thread creation. The existing candidate overrides, including
+`features.shell_snapshot_v2=false`, remain mandatory.
+Ambient custom provider definitions and SQLite redirection also fail closed.
+
+Only an ephemeral fresh thread with the exact root, read-only sandbox,
+approval policy, and no instruction sources may receive one fixed non-tool
+canary prompt. Resume and all server requests are refused. Unexpected effect
+items/results fail closed through the existing adapter/transport owners.
+Callers must await both result and settlement; cleanup failure is HOLD, even
+if a terminal result arrived. Unsettled children retain disposable state for
+separate cleanup rather than claiming successful removal. Neither preparation
+nor a future successful canary qualifies or adopts a runtime. Actual
+authenticated execution always requires separate authority.
 
 ## Bounded outcomes
 
@@ -115,6 +152,10 @@ Synthetic tests cover one-time freeze, later latest drift, frozen identity
 conflicts, supported acquisition,
 archive safety, first-pass/two-failure/fail-pass outcomes, cleanup refusal,
 replay budgets, conservative source classification, and production isolation.
+The rolling test also invokes `scripts/test-codex-candidate-canary-binding.ts`
+for synthetic candidate admission, pre-thread gates, refusal, replay, and
+descendant cleanup. Its fixture substitution is test-only and cannot select an
+arbitrary executable or access ordinary authentication state.
 They acquire no upstream runtime and cannot produce live qualification.
 The existing candidate responsibility owner includes the rolling files; the
 new process-owning integration child uses the existing bounded Canonical

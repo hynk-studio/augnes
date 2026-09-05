@@ -4,6 +4,9 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { CODEX_APP_SERVER_ADAPTER_VERSION_V01, probeCodexCredentialFreeExactProfileV01 } from "./codex-app-server-adapter";
 import { observeReviewedCandidateCodexAppServerUserAgentV01 } from "./codex-app-server-user-agent";
@@ -421,3 +424,181 @@ function record(value: unknown): Record<string, unknown> {
 }
 function positive(value: unknown): boolean { return typeof value === "number" && Number.isSafeInteger(value) && value > 0; }
 function sha(value: unknown): value is string { return typeof value === "string" && SHA.test(value); }
+
+/** Run-scoped review input, not a registry entry or qualification decision. */
+export interface CodexCandidateCanaryReviewV01 {
+  decision: "COMPATIBLE_PROFILE_REUSE_SUPPORTED";
+  receipt_fingerprint: string;
+  compatibility_profile_fingerprint: string;
+  config_policy_fingerprint: string;
+}
+export interface CodexCandidateCanaryBindingV01 {
+  readonly kind: "ordinary_candidate_canary.v0.1";
+  readonly execution_root: string;
+  readonly receipt_fingerprint: string;
+}
+interface CanaryStateV01 {
+  receipt: CodexRollingReceiptV01;
+  root: string;
+  directories: Map<string, { dev: number; ino: number }>;
+  command: string;
+  executable_hash: string;
+  claim: string;
+  state: "prepared" | "consumed" | "closed";
+  fixture?: "success" | "config_mismatch" | "user_agent_mismatch" | "server_request" | "effect" | "descendant_cleanup" | "prethread_request" | "provider_mismatch" | "sqlite_mismatch";
+  fixture_file?: { path: string; hash: string };
+}
+const CANARY_BINDINGS_V01 = new WeakMap<CodexCandidateCanaryBindingV01, CanaryStateV01>();
+const canaryHashV01 = (file: string) => `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}`;
+
+/** No latest read, credential access, CLI execution, or provider operation. */
+export async function prepareCodexCandidateCanaryV01(input: {
+  receipt_path: string;
+  review: CodexCandidateCanaryReviewV01;
+  archive_bytes: Buffer;
+}): Promise<CodexCandidateCanaryBindingV01> {
+  const receiptPath = input.receipt_path;
+  if (!/^rust-v[0-9]+\.[0-9]+\.[0-9]+-darwin-arm64\.json$/u.test(path.basename(receiptPath)))
+    throw new Error("codex_candidate_canary_receipt_invalid");
+  const stat = lstatSync(receiptPath);
+  if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) !== 0 || stat.size > 16 * 1024 * 1024 ||
+      realpathSync.native(receiptPath) !== receiptPath)
+    throw new Error("codex_candidate_canary_receipt_invalid");
+  const receipt = JSON.parse(readFileSync(receiptPath, "utf8")) as CodexRollingReceiptV01;
+  const { receipt_fingerprint, ...material } = receipt;
+  const selected = selectPinnedCodexQualifiedRuntimeV01({ lane: "ordinary_chatgpt_auth" });
+  const probe = receipt.attempts?.[0];
+  if (receipt.receipt_version !== CODEX_ROLLING_CANDIDATE_VERSION_V01 ||
+      receipt_fingerprint !== codexRollingFingerprintV01(material) ||
+      path.basename(receiptPath) !== `${receipt.candidate.release_tag}-darwin-arm64.json` ||
+      receipt.registry_fingerprint !== CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01 ||
+      receipt.compatibility_profile_fingerprint !== selected.compatibility_profile.fingerprint ||
+      codexRollingFingerprintV01(receipt.production_selection) !== codexRollingFingerprintV01({
+        mode: "pinned_exact", lane: "ordinary_chatgpt_auth", entry_id: selected.artifact.entry_id, version: selected.artifact.version }) ||
+      codexRollingFingerprintV01(receipt.authority) !== codexRollingFingerprintV01({
+        candidate_evidence_only: true, qualified: false, production_adoption: false, provider_turn_authorized: false }) ||
+      !probe || receipt.attempts.length !== 1 || !passed(probe) || !receipt.native || receipt.failure_reason !== null ||
+      !receipt.cleanup.disposable_staging_removed || !receipt.cleanup.process_settled || !receipt.cleanup.streams_closed ||
+      !["AUTHENTICATED_CANARY_REQUIRED", "HOLD_EXPLICIT_SEMANTIC_REVIEW_REQUIRED", "HOLD_INCOMPATIBLE_OR_UNCLEAR_DELTA"].includes(receipt.disposition) ||
+      probe.observed_cli_version !== receipt.candidate.version ||
+      probe.executable_fingerprint !== receipt.native.native_executable_sha256 ||
+      receipt.delta?.baseline_source_commit !== selected.artifact.tagged_source_commit ||
+      receipt.delta?.candidate_source_commit !== receipt.candidate.tagged_source_commit ||
+      receipt.delta?.candidate_tree !== receipt.candidate.source_tree ||
+      !isNewerCodexRollingStableV01(receipt.candidate.version, selected.artifact.version) ||
+      codexRollingFingerprintV01(input.review) !== codexRollingFingerprintV01({
+        decision: "COMPATIBLE_PROFILE_REUSE_SUPPORTED", receipt_fingerprint,
+        compatibility_profile_fingerprint: selected.compatibility_profile.fingerprint,
+        config_policy_fingerprint: probe.observed_policy_fingerprint }))
+    throw new Error("codex_candidate_canary_evidence_or_review_invalid");
+  await reverifyCodexRollingIdentityV01(receipt.candidate);
+  const root = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "augnes-candidate-canary-")));
+  try {
+    chmodSync(root, 0o700);
+    const directories: CanaryStateV01["directories"] = new Map();
+    for (const name of ["", "artifact", "execution", "home", "sqlite", "tmp", "fixture-auth"]) {
+      const directory = path.join(root, name);
+      if (name) mkdirSync(directory, { mode: 0o700 });
+      const identity = lstatSync(directory);
+      directories.set(directory, { dev: identity.dev, ino: identity.ino });
+    }
+    const native = extractDiscoveredCodexCandidateArchiveV01({
+      artifact: receipt.candidate, archive_bytes: input.archive_bytes, destination: path.join(root, "artifact"),
+    });
+    if (native.native_executable_sha256 !== receipt.native!.native_executable_sha256 ||
+        native.extracted_native_size_bytes !== receipt.native!.extracted_native_size_bytes ||
+        native.archive_member_name !== receipt.native!.archive_member_name)
+      throw new Error("codex_candidate_canary_native_identity_mismatch");
+    const binding: CodexCandidateCanaryBindingV01 = Object.freeze({
+      kind: "ordinary_candidate_canary.v0.1", execution_root: path.join(root, "execution"), receipt_fingerprint,
+    });
+    CANARY_BINDINGS_V01.set(binding, { receipt, root, directories, command: native.native_executable,
+      executable_hash: native.native_executable_sha256, claim: `${receiptPath}.ordinary-canary-claimed`, state: "prepared" });
+    return binding;
+  } catch (error) { rmSync(root, { recursive: true, force: false }); throw error; }
+}
+
+function canaryStateV01(binding: CodexCandidateCanaryBindingV01): CanaryStateV01 {
+  const state = CANARY_BINDINGS_V01.get(binding);
+  if (!state || state.state !== "prepared") throw new Error("codex_candidate_canary_binding_invalid_or_consumed");
+  return state;
+}
+function assertCanaryDirectoriesV01(state: CanaryStateV01): void {
+  for (const [directory, expected] of state.directories) {
+    const stat = lstatSync(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync.native(directory) !== directory ||
+        stat.dev !== expected.dev || stat.ino !== expected.ino || (stat.mode & 0o077) !== 0)
+      throw new Error("codex_candidate_canary_private_state_changed");
+  }
+}
+function removeCanaryStateV01(state: CanaryStateV01): void {
+  assertCanaryDirectoriesV01(state);
+  rmSync(state.root, { recursive: true, force: false });
+  if (existsSync(state.root)) throw new Error("codex_candidate_canary_cleanup_failed");
+  state.state = "closed";
+}
+/** Dispose an unused preparation only; an active child remains adapter-owned. */
+export function disposeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBindingV01): void {
+  removeCanaryStateV01(canaryStateV01(binding));
+}
+
+/** Adapter-only consumption. Neither the token nor its launch is a qualified selection. */
+export function consumeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBindingV01) {
+  const state = canaryStateV01(binding);
+  // Burn before validation/spawn. A new object/process cannot renew this receipt's attempt budget.
+  state.state = "consumed";
+  try {
+    writeFileSync(state.claim, `${binding.receipt_fingerprint}\n`, { flag: "wx", mode: 0o600 });
+    assertCanaryDirectoriesV01(state);
+    if (readdirSync(binding.execution_root).length !== 0 ||
+        canaryHashV01(state.command) !== state.executable_hash || lstatSync(state.command).isSymbolicLink() ||
+        !lstatSync(state.command).isFile() || realpathSync.native(state.command) !== state.command)
+      throw new Error("codex_candidate_canary_native_identity_mismatch");
+    // Only upstream AuthManager accesses ordinary credentials. Augnes passes the
+    // ordinary owner directory; it never reads or projects credential material.
+    const environment: NodeJS.ProcessEnv = {
+      NODE_ENV: state.fixture ? "test" : "production", PATH: "/usr/bin:/bin:/usr/sbin:/sbin", NO_COLOR: "1",
+      HOME: path.join(state.root, "home"), CODEX_SQLITE_HOME: path.join(state.root, "sqlite"), TMPDIR: path.join(state.root, "tmp"),
+      CODEX_HOME: state.fixture ? path.join(state.root, "fixture-auth") : realpathSync.native(process.env.CODEX_HOME || path.join(os.homedir(), ".codex")),
+    };
+    const prefix = state.fixture_file ? [state.fixture_file.path] : [];
+    if (state.fixture_file && canaryHashV01(state.fixture_file.path) !== state.fixture_file.hash)
+      throw new Error("codex_candidate_canary_fixture_changed");
+    if (state.fixture) {
+      environment.FAKE_CODEX_SCENARIO = `candidate_canary_${state.fixture}`;
+      environment.FAKE_CODEX_CANARY_VERSION = state.receipt.candidate.version;
+      environment.FAKE_CODEX_TRACE_PATH = `${state.claim}.synthetic-trace`;
+      environment.FAKE_CODEX_NETWORK_COUNT_PATH = `${state.claim}.synthetic-network`;
+      environment.FAKE_CODEX_CLEANUP_MARKER_PATH = `${state.claim}.synthetic-cleanup`;
+    }
+    const version = spawnSync(state.command, [...prefix, "--version"], {
+      cwd: binding.execution_root, env: environment, encoding: "utf8", timeout: 10_000, maxBuffer: 64 * 1024,
+    });
+    if (version.error || version.status !== 0 || version.signal !== null ||
+        /^codex-cli ([0-9]+\.[0-9]+\.[0-9]+)\s*$/u.exec(version.stdout)?.[1] !== state.receipt.candidate.version)
+      throw new Error("codex_candidate_canary_cli_identity_mismatch");
+    if (canaryHashV01(state.command) !== state.executable_hash)
+      throw new Error("codex_candidate_canary_native_identity_mismatch");
+    return {
+      command: state.command, args: [...prefix, ...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"], environment,
+      version: state.receipt.candidate.version,
+      profile_fingerprint: state.receipt.compatibility_profile_fingerprint, synthetic: Boolean(state.fixture),
+      policy_fingerprint: state.receipt.attempts[0]!.observed_policy_fingerprint,
+      cleanup: () => removeCanaryStateV01(state),
+    };
+  } catch (error) { removeCanaryStateV01(state); throw error; }
+}
+
+/** Synthetic substitution is restricted to the checked-in zero-network fixture;
+ * no caller-supplied executable, environment, credential owner, or launch args. */
+export function emulateCodexCandidateCanaryForTestV01(binding: CodexCandidateCanaryBindingV01, scenario: NonNullable<CanaryStateV01["fixture"]>): void {
+  if (process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE !== "1" ||
+      !["success", "config_mismatch", "user_agent_mismatch", "server_request", "effect", "descendant_cleanup", "prethread_request", "provider_mismatch", "sqlite_mismatch"].includes(scenario))
+    throw new Error("codex_candidate_canary_test_controls_refused");
+  const state = canaryStateV01(binding);
+  state.fixture = scenario;
+  state.command = realpathSync.native(process.execPath);
+  state.executable_hash = canaryHashV01(state.command);
+  const fixture = realpathSync.native(fileURLToPath(new URL("../../../scripts/fixtures/fake-codex-app-server.mjs", import.meta.url)));
+  state.fixture_file = { path: fixture, hash: canaryHashV01(fixture) };
+}

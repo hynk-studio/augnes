@@ -10,6 +10,7 @@ import {
 } from "../lib/vnext/native-host/codex-rolling-stable-candidate";
 import { extractDiscoveredCodexCandidateArchiveV01 } from "../lib/vnext/native-host/codex-managed-runtime-store";
 import { CODEX_QUALIFIED_RUNTIME_REGISTRY_V01, selectPinnedCodexQualifiedRuntimeV01 } from "../lib/vnext/native-host/codex-qualified-runtime-registry";
+import { testCodexCandidateCanaryBindingV01 } from "./test-codex-candidate-canary-binding";
 
 const hash = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const root = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "augnes-rolling-test-")));
@@ -180,6 +181,7 @@ async function fullFailureAndReplay(): Promise<void> {
   const { receipt_fingerprint, ...material } = first.receipt;
   assert.equal(receipt_fingerprint, codexRollingFingerprintV01(material));
   assert.equal(JSON.parse(readFileSync(first.receipt_path, "utf8")).receipt_fingerprint, receipt_fingerprint);
+  await testCodexCandidateCanaryBindingV01(root, first.receipt, archive);
   reads = []; latestVersion = selectedVersion; releaseReads = commitReads = 0;
   const replay = await runCodexRollingStableCandidateV01(input);
   assert.equal(replay.reused, true); assert.deepEqual(replay.receipt, first.receipt);
