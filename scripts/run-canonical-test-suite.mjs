@@ -464,6 +464,16 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "codex-rolling-stable-candidate",
+      group: "supporting-serial",
+      requirements: ["filesystem", "process-owning", "project-root", "mutable-module-state"],
+      label:
+        "synthetic rolling Codex discovery, bounded candidate gates, replay refusal, and production isolation",
+      ...rootNode("scripts/test-codex-rolling-stable-candidate.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-production-runtime",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "mutable-module-state"],

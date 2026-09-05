@@ -1041,6 +1041,7 @@ const integrationChildren = [
   "reconstruction-conformance",
   "codex-qualified-runtime-registry",
   "codex-ordinary-runtime-candidate",
+  "codex-rolling-stable-candidate",
   "codex-production-runtime",
   "codex-managed-runtime-store",
   "codex-sandbox-projection",
@@ -1152,6 +1153,17 @@ for (const fragment of [
     `ordinary runtime candidate canonical registration is missing: ${fragment}`,
   );
 }
+const rollingCandidateRegistration = readCanonicalChildRegistration(
+  integrationSource,
+  "codex-rolling-stable-candidate",
+);
+for (const fragment of [
+  `group: "supporting-serial"`,
+  `"process-owning"`,
+  `rootNode("scripts/test-codex-rolling-stable-candidate.ts")`,
+  `timeoutMs: 30_000`,
+  `requireNaturalExit: true`,
+]) requireText(rollingCandidateRegistration.block, fragment, "rolling candidate lifecycle owner missing");
 const managedRuntimeStoreRegistration = readCanonicalChildRegistration(
   integrationSource,
   "codex-managed-runtime-store",
@@ -1372,6 +1384,7 @@ for (const [pathName, timeout] of [
   ["scripts/test-vnext-operator-pure-contracts-v0-1.ts", "30_000"],
   ["scripts/test-codex-qualified-runtime-registry.ts", "30_000"],
   ["scripts/test-codex-ordinary-runtime-candidate.ts", "30_000"],
+  ["scripts/test-codex-rolling-stable-candidate.ts", "30_000"],
   ["scripts/test-codex-managed-runtime-store.ts", "30_000"],
   ["scripts/test-vnext-operator-browser-fixture-v0-1.ts", "45_000"],
   ["scripts/smoke-vnext-operator-pilot-v0-1.ts", "780_000"],

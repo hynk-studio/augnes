@@ -1198,6 +1198,7 @@ export type CredentialFreeExactProfileResultV01 = {
   private_environment_observed: boolean;
   account_disposition: "unauthenticated_empty_state" | null;
   process_settled: boolean;
+  streams_closed: boolean;
   cleanup_completed: boolean;
   observed_at: string;
 };
@@ -1209,6 +1210,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
     | "production_pinned_codex"
     | "qualification_candidate_codex_0_152_1"
     | "qualification_candidate_codex_0_153_2"
+    | "qualification_candidate_rolling_stable"
     | "test_emulated_profile"
     | "test_emulated_candidate_0_153_2";
   accepted_exact_identity: boolean;
@@ -1252,6 +1254,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
   let state: CredentialFreeExactProfileStateV01 = "unavailable";
   let cleanupCompleted = false;
   let processSettled = true;
+  let streamsClosed = true;
   let root: string | null = null;
   let transport: CodexStdioJsonRpcTransportV01 | null = null;
   try {
@@ -1284,6 +1287,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
         private_environment_observed: privateEnvironmentObserved,
         account_disposition: accountDisposition,
         process_settled: processSettled,
+        streams_closed: streamsClosed,
         cleanup_completed: true,
         observed_at: observedAt,
       };
@@ -1388,6 +1392,10 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
         );
       },
     });
+    streamsClosed = false;
+    void transport.closed.then(() => {
+      streamsClosed = true;
+    });
     await transport.started;
     runtimeExercisedMethods.push("initialize");
     const initialized = objectV01(
@@ -1465,7 +1473,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
     if (root) {
       try {
         rmSync(root, { recursive: true, force: false });
-        cleanupCompleted = processSettled;
+        cleanupCompleted = processSettled && streamsClosed;
       } catch {
         cleanupCompleted = false;
       }
@@ -1482,6 +1490,7 @@ export async function probeCodexCredentialFreeExactProfileV01(input: {
     private_environment_observed: privateEnvironmentObserved,
     account_disposition: accountDisposition,
     process_settled: processSettled,
+    streams_closed: streamsClosed,
     cleanup_completed: cleanupCompleted,
     observed_at: observedAt,
   };

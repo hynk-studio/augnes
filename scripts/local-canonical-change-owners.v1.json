@@ -76,7 +76,10 @@
         "exact_paths": [
           "lib/vnext/native-host/codex-ordinary-runtime-candidate.ts",
           "scripts/canary-codex-0-153-2-candidate.ts",
-          "scripts/test-codex-ordinary-runtime-candidate.ts"
+          "scripts/test-codex-ordinary-runtime-candidate.ts",
+          "lib/vnext/native-host/codex-rolling-stable-candidate.ts",
+          "scripts/run-codex-rolling-stable-candidate.ts",
+          "scripts/test-codex-rolling-stable-candidate.ts"
         ]
       }
     },

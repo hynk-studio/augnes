@@ -23,7 +23,7 @@ export const CODEX_0_153_2_CANDIDATE_QUALIFICATION_RECEIPT_VERSION_V01 =
 export const CODEX_0_153_2_CANDIDATE_READY_DISPOSITION_V01 =
   "READY_FOR_SEPARATELY_AUTHORIZED_ORDINARY_CANARY" as const;
 
-const CANDIDATE_CONFIG_OVERRIDE_ARGS_V01 = [
+export const CANDIDATE_CONFIG_OVERRIDE_ARGS_V01 = [
   "--strict-config",
   "-c",
   'forced_login_method="chatgpt"',
@@ -763,7 +763,7 @@ function assertExactCandidateInputV01(
     throw new Error("codex_candidate_acquisition_accounting_invalid");
 }
 
-function observeCandidateConfigPolicyV01(value: Record<string, unknown>): string {
+export function observeCandidateConfigPolicyV01(value: Record<string, unknown>): string {
   const config = recordV01(value.config);
   const features = recordV01(config?.features);
   const shell = recordV01(config?.shell_environment_policy);
