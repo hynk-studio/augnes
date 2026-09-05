@@ -12,6 +12,7 @@ import { CODEX_APP_SERVER_ADAPTER_VERSION_V01, probeCodexCredentialFreeExactProf
 import { observeReviewedCandidateCodexAppServerUserAgentV01 } from "./codex-app-server-user-agent";
 import { extractDiscoveredCodexCandidateArchiveV01 } from "./codex-managed-runtime-store";
 import { CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, observeCandidateConfigPolicyV01 } from "./codex-ordinary-runtime-candidate";
+import { codexCandidateOrdinaryBrokerProfileFingerprintV01, provisionCodexCandidateOrdinaryAuthV01 } from "./codex-credential-broker";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01,
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -431,6 +432,7 @@ export interface CodexCandidateCanaryReviewV01 {
   receipt_fingerprint: string;
   compatibility_profile_fingerprint: string;
   config_policy_fingerprint: string;
+  credential_profile_fingerprint: string;
 }
 export interface CodexCandidateCanaryBindingV01 {
   readonly kind: "ordinary_candidate_canary.v0.1";
@@ -444,7 +446,10 @@ interface CanaryStateV01 {
   command: string;
   executable_hash: string;
   claim: string;
+  credential_profile_fingerprint: string;
   state: "prepared" | "consumed" | "closed";
+  broker_claimed?: boolean;
+  assert_source_integrity?: () => void;
   fixture?: "success" | "config_mismatch" | "user_agent_mismatch" | "server_request" | "effect" | "descendant_cleanup" | "prethread_request" | "provider_mismatch" | "sqlite_mismatch";
   fixture_file?: { path: string; hash: string };
 }
@@ -489,14 +494,15 @@ export async function prepareCodexCandidateCanaryV01(input: {
       codexRollingFingerprintV01(input.review) !== codexRollingFingerprintV01({
         decision: "COMPATIBLE_PROFILE_REUSE_SUPPORTED", receipt_fingerprint,
         compatibility_profile_fingerprint: selected.compatibility_profile.fingerprint,
-        config_policy_fingerprint: probe.observed_policy_fingerprint }))
+        config_policy_fingerprint: probe.observed_policy_fingerprint,
+        credential_profile_fingerprint: codexCandidateOrdinaryBrokerProfileFingerprintV01() }))
     throw new Error("codex_candidate_canary_evidence_or_review_invalid");
   await reverifyCodexRollingIdentityV01(receipt.candidate);
   const root = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "augnes-candidate-canary-")));
   try {
     chmodSync(root, 0o700);
     const directories: CanaryStateV01["directories"] = new Map();
-    for (const name of ["", "artifact", "execution", "home", "sqlite", "tmp", "fixture-auth"]) {
+    for (const name of ["", "artifact", "execution", "home", "sqlite", "tmp", "codex-home"]) {
       const directory = path.join(root, name);
       if (name) mkdirSync(directory, { mode: 0o700 });
       const identity = lstatSync(directory);
@@ -513,6 +519,7 @@ export async function prepareCodexCandidateCanaryV01(input: {
       kind: "ordinary_candidate_canary.v0.1", execution_root: path.join(root, "execution"), receipt_fingerprint,
     });
     CANARY_BINDINGS_V01.set(binding, { receipt, root, directories, command: native.native_executable,
+      credential_profile_fingerprint: input.review.credential_profile_fingerprint,
       executable_hash: native.native_executable_sha256, claim: `${receiptPath}.ordinary-canary-claimed`, state: "prepared" });
     return binding;
   } catch (error) { rmSync(root, { recursive: true, force: false }); throw error; }
@@ -533,9 +540,29 @@ function assertCanaryDirectoriesV01(state: CanaryStateV01): void {
 }
 function removeCanaryStateV01(state: CanaryStateV01): void {
   assertCanaryDirectoriesV01(state);
-  rmSync(state.root, { recursive: true, force: false });
-  if (existsSync(state.root)) throw new Error("codex_candidate_canary_cleanup_failed");
-  state.state = "closed";
+  try { state.assert_source_integrity?.(); }
+  finally {
+    // A source-integrity failure must not retain private credentials. Refreshed
+    // auth belongs solely to this disposable tree, including replaced inodes.
+    rmSync(state.root, { recursive: true, force: false });
+    if (existsSync(state.root)) throw new Error("codex_candidate_canary_cleanup_failed");
+    state.state = "closed";
+  }
+}
+
+/** Broker admission only: no caller-selected source/destination, argv or auth.
+ * This capability exists only inside consumption, after the persistent claim. */
+export function claimCodexCandidateOrdinaryBrokerContextV01(binding: CodexCandidateCanaryBindingV01) {
+  const state = CANARY_BINDINGS_V01.get(binding);
+  if (!state || state.state !== "consumed" || state.broker_claimed ||
+      readFileSync(state.claim, "utf8") !== `${binding.receipt_fingerprint}\n`)
+    throw new Error("codex_candidate_canary_broker_admission_refused");
+  assertCanaryDirectoriesV01(state);
+  const codexHome = path.join(state.root, "codex-home");
+  if (readdirSync(codexHome).length !== 0)
+    throw new Error("codex_candidate_canary_private_home_not_empty");
+  state.broker_claimed = true;
+  return { root: state.root, codex_home: codexHome };
 }
 /** Dispose an unused preparation only; an active child remains adapter-owned. */
 export function disposeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBindingV01): void {
@@ -550,16 +577,18 @@ export function consumeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBind
   try {
     writeFileSync(state.claim, `${binding.receipt_fingerprint}\n`, { flag: "wx", mode: 0o600 });
     assertCanaryDirectoriesV01(state);
+    if (state.credential_profile_fingerprint !== codexCandidateOrdinaryBrokerProfileFingerprintV01())
+      throw new Error("codex_candidate_canary_credential_profile_changed");
     if (readdirSync(binding.execution_root).length !== 0 ||
         canaryHashV01(state.command) !== state.executable_hash || lstatSync(state.command).isSymbolicLink() ||
         !lstatSync(state.command).isFile() || realpathSync.native(state.command) !== state.command)
       throw new Error("codex_candidate_canary_native_identity_mismatch");
-    // Only upstream AuthManager accesses ordinary credentials. Augnes passes the
-    // ordinary owner directory; it never reads or projects credential material.
+    // Every child state directory is private. Only the credential broker may
+    // resolve/read the ordinary source; no source-home path reaches the child.
     const environment: NodeJS.ProcessEnv = {
       NODE_ENV: state.fixture ? "test" : "production", PATH: "/usr/bin:/bin:/usr/sbin:/sbin", NO_COLOR: "1",
       HOME: path.join(state.root, "home"), CODEX_SQLITE_HOME: path.join(state.root, "sqlite"), TMPDIR: path.join(state.root, "tmp"),
-      CODEX_HOME: state.fixture ? path.join(state.root, "fixture-auth") : realpathSync.native(process.env.CODEX_HOME || path.join(os.homedir(), ".codex")),
+      CODEX_HOME: path.join(state.root, "codex-home"),
     };
     const prefix = state.fixture_file ? [state.fixture_file.path] : [];
     if (state.fixture_file && canaryHashV01(state.fixture_file.path) !== state.fixture_file.hash)
@@ -571,6 +600,8 @@ export function consumeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBind
       environment.FAKE_CODEX_NETWORK_COUNT_PATH = `${state.claim}.synthetic-network`;
       environment.FAKE_CODEX_CLEANUP_MARKER_PATH = `${state.claim}.synthetic-cleanup`;
     }
+    const auth = provisionCodexCandidateOrdinaryAuthV01(binding);
+    state.assert_source_integrity = auth.assert_source_integrity;
     const version = spawnSync(state.command, [...prefix, "--version"], {
       cwd: binding.execution_root, env: environment, encoding: "utf8", timeout: 10_000, maxBuffer: 64 * 1024,
     });
@@ -579,6 +610,8 @@ export function consumeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBind
       throw new Error("codex_candidate_canary_cli_identity_mismatch");
     if (canaryHashV01(state.command) !== state.executable_hash)
       throw new Error("codex_candidate_canary_native_identity_mismatch");
+    assertCanaryDirectoriesV01(state);
+    auth.assert_before_launch();
     return {
       command: state.command, args: [...prefix, ...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"], environment,
       version: state.receipt.candidate.version,

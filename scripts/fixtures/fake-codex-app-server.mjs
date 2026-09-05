@@ -6,6 +6,7 @@ import dns from "node:dns";
 import {
   appendFileSync,
   existsSync,
+  lstatSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -85,6 +86,26 @@ if (candidateCanaryScenario && process.argv.at(-1) === "--version") {
 
 if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
   process.exit(2);
+}
+
+if (candidateCanaryScenario) {
+  // Synthetic auth only. Public trace contains structural booleans, never
+  // credential values, source paths or the serialized snapshot.
+  const privateRoot = path.dirname(root);
+  const privateHome = process.env.CODEX_HOME;
+  const storedPath = path.join(privateHome, "auth.json");
+  const stored = JSON.parse(readFileSync(storedPath, "utf8"));
+  const observation = {
+    state_private: ["HOME", "CODEX_HOME", "CODEX_SQLITE_HOME", "TMPDIR"].every((key) =>
+      path.dirname(process.env[key] ?? "") === privateRoot && (lstatSync(process.env[key]).mode & 0o077) === 0),
+    ordinary_chatgpt: stored.auth_mode === "chatgpt" && Boolean(stored.tokens?.id_token && stored.tokens?.access_token && stored.tokens?.refresh_token),
+    agent_identity_absent: stored.agent_identity === undefined,
+    agent_identity_disabled: process.argv.includes("features.use_agent_identity=false") && !process.argv.includes("features.use_agent_identity=true"),
+    source_state_absent: ["config.toml", "rules", "sessions", "archived_sessions", "environments.toml", "skills", "plugins", "apps", "memories"].every((name) => !existsSync(path.join(privateHome, name))),
+    snapshot_private_regular: lstatSync(storedPath).isFile() && !lstatSync(storedPath).isSymbolicLink() && (lstatSync(storedPath).mode & 0o777) === 0o600,
+  };
+  trace("candidate_private_auth", observation);
+  if (!Object.values(observation).every(Boolean)) process.exit(6);
 }
 
 if (isolatedAuthScenario) {
