@@ -117,6 +117,51 @@ export class CodexManagedRuntimeStoreErrorV01 extends Error {
   }
 }
 
+/** Archive-bound discovery only; never creates a registry entry or store selection. */
+export function extractDiscoveredCodexCandidateArchiveV01(input: {
+  artifact: Pick<CodexQualifiedRuntimeArtifactV01,
+    "version" | "platform" | "architecture" | "upstream_target_triple" | "qualified_provenance_asset">;
+  archive_bytes: Buffer;
+  destination: string;
+}): {
+  native_executable: string;
+  native_executable_sha256: string;
+  extracted_native_size_bytes: number;
+  archive_member_name: string;
+} {
+  const artifact = input.artifact;
+  if (process.platform !== "darwin" || process.arch !== "arm64" ||
+      artifact.platform !== "darwin" || artifact.architecture !== "arm64" ||
+      artifact.upstream_target_triple !== "aarch64-apple-darwin" ||
+      !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u.test(artifact.version) ||
+      artifact.qualified_provenance_asset.acquisition_route !== "standalone_release_tarball" ||
+      artifact.qualified_provenance_asset.asset_name !== "codex-aarch64-apple-darwin.tar.gz" ||
+      artifact.qualified_provenance_asset.digest_mechanism !== "official_github_release_asset_digest_sha256")
+    throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_ineligible");
+  const destination = realpathSync.native(input.destination);
+  const stat = lstatSync(input.destination);
+  if (destination !== path.resolve(input.destination) || !stat.isDirectory() ||
+      stat.isSymbolicLink() || (stat.mode & 0o077) !== 0 || readdirSync(destination).length !== 0)
+    throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_store_root_invalid");
+  verifyArchiveIdentityV01(input.archive_bytes, artifact);
+  const extracted = extractReviewedArchiveV01(input.archive_bytes, artifact);
+  const member = `codex-${artifact.upstream_target_triple}`;
+  const native = path.join(destination, member);
+  writeFileSync(native, extracted.bytes, { flag: "wx", mode: 0o555 });
+  chmodSync(native, 0o555);
+  if (!inspectNativeV01(native, artifact) || realpathSync.native(native) !== native ||
+      !lstatSync(native).isFile() || (lstatSync(native).mode & 0o7777) !== 0o555 ||
+      sha256FileV01(native) !== sha256BufferV01(extracted.bytes))
+    throw new CodexManagedRuntimeStoreErrorV01("codex_managed_runtime_native_identity_mismatch");
+  // CLI version execution belongs to the existing isolated provider-free probe.
+  return Object.freeze({
+    native_executable: native,
+    native_executable_sha256: sha256FileV01(native),
+    extracted_native_size_bytes: extracted.bytes.length,
+    archive_member_name: member,
+  });
+}
+
 /**
  * Qualification-only extraction into a caller-owned empty disposable root.
  * This does not publish to the managed store and grants no lane eligibility.
@@ -1026,7 +1071,7 @@ function validateStagingDirectoryV01(
 
 function extractReviewedArchiveV01(
   archive: Buffer,
-  artifact: CodexQualifiedRuntimeArtifactV01,
+  artifact: Pick<CodexQualifiedRuntimeArtifactV01, "upstream_target_triple">,
 ): { bytes: Buffer; mode: number } {
   let tar: Buffer;
   try {
@@ -1079,7 +1124,7 @@ function extractReviewedArchiveV01(
 
 function verifyArchiveIdentityV01(
   archive: Buffer,
-  artifact: CodexQualifiedRuntimeArtifactV01,
+  artifact: Pick<CodexQualifiedRuntimeArtifactV01, "qualified_provenance_asset">,
 ): void {
   if (
     archive.length !== artifact.qualified_provenance_asset.size_bytes ||
@@ -1135,7 +1180,7 @@ function productionValidationDependenciesV01(
 
 function inspectNativeV01(
   nativeExecutable: string,
-  artifact: CodexQualifiedRuntimeArtifactV01,
+  artifact: Pick<CodexQualifiedRuntimeArtifactV01, "platform" | "architecture">,
 ): boolean {
   let descriptor: number | null = null;
   try {

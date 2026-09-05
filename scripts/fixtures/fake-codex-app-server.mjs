@@ -6,6 +6,7 @@ import dns from "node:dns";
 import {
   appendFileSync,
   existsSync,
+  lstatSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -28,6 +29,8 @@ const scenario =
     : "command_approval");
 const isolatedAuthScenario = scenario.startsWith("isolated_auth_");
 const candidate01532Scenario = scenario.startsWith("candidate_0_153_2_");
+const candidateCanaryScenario = scenario.startsWith("candidate_canary_");
+const candidateCanaryVersion = process.env.FAKE_CODEX_CANARY_VERSION;
 const threadId =
   process.env.FAKE_CODEX_THREAD_ID ?? "01900000-0000-7000-8000-000000000001";
 const sessionId =
@@ -65,6 +68,7 @@ const networkCountPath = process.env.FAKE_CODEX_NETWORK_COUNT_PATH ?? null;
 const authBoundaryPath = process.env.FAKE_CODEX_AUTH_BOUNDARY_PATH ?? null;
 let externalNetworkAttempts = 0;
 let initialized = false;
+let initializedCandidatePolicy = false;
 let turnActive = false;
 const pendingApprovalRequestIds = new Set();
 const approvalRequestParams = new Map();
@@ -75,8 +79,33 @@ let descendant = null;
 installZeroNetworkGuard();
 trace("fixture_started", { scenario });
 
+if (candidateCanaryScenario && process.argv.at(-1) === "--version") {
+  process.stdout.write(`codex-cli ${candidateCanaryVersion}\n`);
+  process.exit(0);
+}
+
 if (process.argv.at(-2) !== "app-server" || process.argv.at(-1) !== "--stdio") {
   process.exit(2);
+}
+
+if (candidateCanaryScenario) {
+  // Synthetic auth only. Public trace contains structural booleans, never
+  // credential values, source paths or the serialized snapshot.
+  const privateRoot = path.dirname(root);
+  const privateHome = process.env.CODEX_HOME;
+  const storedPath = path.join(privateHome, "auth.json");
+  const stored = JSON.parse(readFileSync(storedPath, "utf8"));
+  const observation = {
+    state_private: ["HOME", "CODEX_HOME", "CODEX_SQLITE_HOME", "TMPDIR"].every((key) =>
+      path.dirname(process.env[key] ?? "") === privateRoot && (lstatSync(process.env[key]).mode & 0o077) === 0),
+    ordinary_chatgpt: stored.auth_mode === "chatgpt" && Boolean(stored.tokens?.id_token && stored.tokens?.access_token && stored.tokens?.refresh_token),
+    agent_identity_absent: stored.agent_identity === undefined,
+    agent_identity_disabled: process.argv.includes("features.use_agent_identity=false") && !process.argv.includes("features.use_agent_identity=true"),
+    source_state_absent: ["config.toml", "rules", "sessions", "archived_sessions", "environments.toml", "skills", "plugins", "apps", "memories"].every((name) => !existsSync(path.join(privateHome, name))),
+    snapshot_private_regular: lstatSync(storedPath).isFile() && !lstatSync(storedPath).isSymbolicLink() && (lstatSync(storedPath).mode & 0o777) === 0o600,
+  };
+  trace("candidate_private_auth", observation);
+  if (!Object.values(observation).every(Boolean)) process.exit(6);
 }
 
 if (isolatedAuthScenario) {
@@ -173,7 +202,7 @@ if (isolatedAuthScenario) {
   }
 }
 
-if (scenario === "descendant_cleanup") {
+if (scenario === "descendant_cleanup" || scenario === "candidate_canary_descendant_cleanup") {
   descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
     stdio: "ignore",
     windowsHide: true,
@@ -319,7 +348,7 @@ async function handle(message) {
       return;
     }
     if (message.method === "config/read") {
-      if (candidate01532Scenario) {
+      if (candidate01532Scenario || candidateCanaryScenario) {
         const entries = isolatedAuthRuntimeOverrideEntriesV01(
           process.argv.slice(2, -2),
         );
@@ -329,12 +358,17 @@ async function handle(message) {
           remote_control: false,
           ...(config.features ?? {}),
         };
+        if (scenario === "candidate_canary_config_mismatch") config.features.shell_snapshot_v2 = true;
+        if (scenario === "candidate_canary_provider_mismatch") config.model_providers = { openai: { base_url: "https://example.invalid/v1" } };
+        if (scenario === "candidate_canary_sqlite_mismatch") config.sqlite_home = "/not-the-private-state";
+        if (scenario === "candidate_canary_prethread_request") requestUnknownApproval();
         respond(message.id, {
           config,
           origins: {},
           layers: [],
           requirements: [],
         });
+        if (candidateCanaryScenario) initializedCandidatePolicy = true;
         return;
       }
       const provenance = isolatedAuthScenario
@@ -461,6 +495,9 @@ async function handle(message) {
       return;
     }
     if (message.method === "thread/start") {
+      if (candidateCanaryScenario && (!initializedCandidatePolicy || message.params?.ephemeral !== true ||
+          message.params?.allowProviderModelFallback !== false || message.params?.sandbox !== "read-only"))
+        throw new Error("candidate_canary_prethread_gate_missing");
       if (scenario === "crash_before_thread_id") {
         process.exit(17);
       }
@@ -589,13 +626,18 @@ async function handle(message) {
           emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
           completeSuccess();
         } else if (
-          scenario === "success" ||
+          scenario === "success" || scenario === "candidate_canary_success" || scenario === "candidate_canary_descendant_cleanup" ||
           isolatedAuthScenario ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
         )
           completeSuccess();
         else if (scenario === "turn_failure") completeFailure();
+        else if (scenario === "candidate_canary_server_request") requestCommandApproval();
+        else if (scenario === "candidate_canary_effect") {
+          notify("item/started", { threadId, turnId, item: { id: "unexpected-tool", type: "webSearch" } });
+          completeSuccess();
+        }
         else if (scenario === "structured_result_invalid")
           completeInvalidStructuredResult();
         else if (scenario === "structured_result_oversized")
@@ -858,6 +900,10 @@ function fakeCodexUserAgentV01(value, clientInfo) {
     typeof clientInfo?.version === "string"
       ? clientInfo.version
       : "codex_app_server_adapter.v0.1";
+  if (candidateCanaryScenario) {
+    const cli = scenario === "candidate_canary_user_agent_mismatch" ? "0.0.0" : candidateCanaryVersion;
+    return `${name}/${cli} (Mac OS 15.7.1; arm64) fake-terminal/1.0 (${name}; ${version})`;
+  }
   if (value.startsWith("candidate_0_153_2_")) {
     const cliVersion = value === "candidate_0_153_2_wrong_user_agent"
       ? "0.153.1"
@@ -1540,6 +1586,11 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
+  if (candidateCanaryScenario) return JSON.stringify({
+    result_version: "codex_host_structured_result.v0.1", summary: "AUGNES_CANARY_OK",
+    changed_files: [], artifacts: [], observed_actions: [], commands: [], checks: [],
+    skipped_checks: [], uncertainty: [], gaps: [], proposed_next_steps: [],
+  });
   const changedPath = "src/live-result.ts";
   return JSON.stringify({
     result_version: "codex_host_structured_result.v0.1",
@@ -1585,7 +1636,7 @@ function structuredResult() {
 }
 
 function threadResponse(options = {}) {
-  const isolated = isolatedAuthScenario;
+  const isolated = isolatedAuthScenario || candidateCanaryScenario;
   return {
     thread: thread({ ...options, ephemeral: isolated }),
     model: "configured-default",
@@ -1601,7 +1652,7 @@ function threadResponse(options = {}) {
         : [],
     approvalPolicy: "on-request",
     approvalsReviewer: "user",
-    sandbox: {
+    sandbox: candidateCanaryScenario ? { type: "readOnly", networkAccess: false } : {
       type: "workspaceWrite",
       writableRoots: [root],
       networkAccess: false,
@@ -1630,7 +1681,7 @@ function thread(options = {}) {
     status: turnActive ? { type: "active", activeFlags: [] } : { type: "idle" },
     path: null,
     cwd: root,
-    cliVersion: isolatedAuthScenario ? "0.152.1" : "0.147.0",
+    cliVersion: candidateCanaryScenario ? candidateCanaryVersion : isolatedAuthScenario ? "0.152.1" : "0.147.0",
     source: "appServer",
     threadSource: null,
     agentNickname: null,

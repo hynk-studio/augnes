@@ -135,6 +135,25 @@ try {
     },
   );
   runPlanCase(
+    "rolling-stable-candidate-owner",
+    "owner-targeted",
+    ({ write }) => {
+      write("scripts/run-codex-rolling-stable-candidate.ts", "export {};\n");
+      write("scripts/test-codex-rolling-stable-candidate.ts", "export {};\n");
+    },
+    {
+      ownerIds: ["codex-ordinary-runtime-candidate"],
+      phaseIds: targetedPhaseIds("typecheck", "integration"),
+    },
+  );
+  runPlanCase(
+    "rolling-stable-runtime-shared-owner",
+    "full-canonical",
+    ({ write }) => {
+      write("lib/vnext/native-host/codex-rolling-stable-candidate.ts", "export {};\n");
+    },
+  );
+  runPlanCase(
     "managed-runtime-store-test-owner",
     "owner-targeted",
     ({ write }) => {

@@ -21,6 +21,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { CANDIDATE_CONFIG_OVERRIDE_ARGS_V01 } from "./codex-ordinary-runtime-candidate";
+import { claimCodexCandidateOrdinaryBrokerContextV01, type CodexCandidateCanaryBindingV01 } from "./codex-rolling-stable-candidate";
 
 import {
   canonicalizeProtocolValueV01,
@@ -50,6 +53,108 @@ const MAX_BROKER_OUTPUT_BYTES_V01 = 64 * 1024;
 const MACOS_KEYCHAIN_READ_TIMEOUT_MS_V01 = 60_000;
 const CHILD_ROLLBACK_TIMEOUT_MS_V01 = 5_000;
 const CREDENTIAL_EXPIRY_SAFETY_MARGIN_SECONDS_V01 = 60;
+
+/** A distinct ordinary profile; the existing isolated Agent Identity profile
+ * and its private launch/attestation owners remain unchanged. No argv input. */
+export function codexCandidateOrdinaryBrokerProfileFingerprintV01(): string {
+  return createProtocolSha256V01(canonicalizeProtocolValueV01({
+    profile: "brokered_private_home_ordinary_canary.v0.1",
+    auth_storage: "AuthDotJson.Chatgpt.TokenData",
+    projection: "tokens_and_optional_last_refresh_only",
+    source_writeback: false,
+    child_state: "private_history_empty",
+    args: [...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"],
+  }));
+}
+
+/** Credential values never leave this broker. Only an already-consumed exact
+ * candidate binding can provision a snapshot; paths and argv are not inputs. */
+export function provisionCodexCandidateOrdinaryAuthV01(binding: CodexCandidateCanaryBindingV01): {
+  assert_before_launch: () => void;
+  assert_source_integrity: () => void;
+} {
+  const context = claimCodexCandidateOrdinaryBrokerContextV01(binding);
+  try {
+    const destination = exactLaunchStateDirectoryV01(context.root, context.codex_home);
+    const sourceHome = realpathSync(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"));
+    if (sourceHome === context.root || sourceHome.startsWith(`${context.root}${path.sep}`) ||
+        context.root.startsWith(`${sourceHome}${path.sep}`)) throw new Error("source_overlap");
+    const policy = codexAuthFilePlatformPolicyV01(process.platform === "win32" ? "non_unix" : "unix");
+    const source = exactCodexAuthFileIdentityV01(path.join(sourceHome, "auth.json"), policy);
+    const configPath = path.join(sourceHome, "config.toml");
+    const configMetadata = candidateProtectedFileMetadataV01(configPath);
+    const sourceDirectory = lstatSync(sourceHome, { bigint: true });
+    const assertSource = () => {
+      let fd = -1;
+      try {
+        const current = lstatSync(sourceHome, { bigint: true });
+        if (!current.isDirectory() || current.isSymbolicLink() || current.dev !== sourceDirectory.dev ||
+            current.ino !== sourceDirectory.ino || current.mode !== sourceDirectory.mode ||
+            realpathSync(sourceHome) !== sourceHome || candidateProtectedFileMetadataV01(configPath) !== configMetadata)
+          throw new Error("source_changed");
+        fd = openSync(source.path, codexAuthFileOpenFlagsV01(policy));
+        assertExactCodexAuthFileIdentityV01(source, fd);
+      } catch { throw new CodexCredentialBrokerErrorV01("codex_candidate_auth_source_integrity_failed"); }
+      finally { if (fd >= 0) closeSync(fd); }
+    };
+    const material = JSON.parse(readExactCodexAuthFileV01(sourceHome, policy, null)) as unknown;
+    const serialized = ordinaryCandidateAuthDotJsonV01(material);
+    assertSource();
+    const snapshot = writePrivateAuthSnapshotV01({ codex_home: destination, serialized_auth_dot_json: serialized });
+    const assertBeforeLaunch = () => {
+      try {
+        assertSource();
+        assertExactLaunchDirectoryIdentityV01(destination);
+        assertPrivateAuthSnapshotIdentityV01(snapshot);
+        if (existsSync(path.join(destination.path, "sessions")) || existsSync(path.join(destination.path, "archived_sessions")))
+          throw new Error("private_history_not_empty");
+      } catch { throw new CodexCredentialBrokerErrorV01("codex_candidate_auth_private_snapshot_refused"); }
+    };
+    assertBeforeLaunch();
+    return Object.freeze({ assert_before_launch: assertBeforeLaunch, assert_source_integrity: assertSource });
+  } catch {
+    // Never propagate parse, filesystem, credential, or private-path messages.
+    // Consumption's rollback owner removes the entire private tree on failure.
+    throw new CodexCredentialBrokerErrorV01("codex_candidate_ordinary_auth_projection_refused");
+  }
+}
+
+function candidateProtectedFileMetadataV01(file: string): string {
+  try {
+    const s = lstatSync(file, { bigint: true });
+    return [s.dev, s.ino, s.mode, s.uid, s.nlink, s.size, s.mtimeNs, s.ctimeNs].join(":");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
+    throw error;
+  }
+}
+
+/** Exact upstream login/src/auth/storage.rs AuthDotJson and token_data.rs
+ * serialize TokenData.id_token as its raw JWT. auth/manager.rs constructs
+ * ChatgptAuth with private file storage for AuthMode::Chatgpt, independently of
+ * AgentIdentity. Verified at source 3d2ee51ca2d5db578f328aa75e20aa22c0197c9a.
+ * Deliberately reconstruct the ordinary fields; never copy raw source bytes. */
+function ordinaryCandidateAuthDotJsonV01(material: unknown): string {
+  if (!isPlainObjectV01(material) ||
+      ![undefined, null, "chatgpt"].includes(material.auth_mode as string | null | undefined) ||
+      ["OPENAI_API_KEY", "personal_access_token", "bedrock_api_key", "bedrock_access_keys"].some((key) => material[key] != null))
+    throw new Error("ordinary_auth_required");
+  managedChatGptBindingV01(material.tokens);
+  const tokens = material.tokens as Record<string, unknown>;
+  if (!boundedClaimStringV01(tokens.refresh_token, 1, 32_768) ||
+      (tokens.account_id !== null && !boundedClaimStringV01(tokens.account_id, 1, 512)) ||
+      (material.last_refresh != null && (typeof material.last_refresh !== "string" ||
+        material.last_refresh.length > 64 ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(material.last_refresh) ||
+        !Number.isFinite(Date.parse(material.last_refresh)))))
+    throw new Error("ordinary_auth_incomplete");
+  return JSON.stringify({
+    auth_mode: "chatgpt", OPENAI_API_KEY: null,
+    tokens: { id_token: tokens.id_token, access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token, account_id: tokens.account_id },
+    ...(material.last_refresh != null ? { last_refresh: material.last_refresh } : {}),
+  });
+}
 export const CODEX_ISOLATED_AUTHENTICATED_CHILD_BINDING_VERSION_V01 =
   "codex_isolated_authenticated_child_binding.v0.1" as const;
 const SOURCE_OWNED_BROKERS_V01 = new WeakSet<object>();
