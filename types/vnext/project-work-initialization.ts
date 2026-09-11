@@ -3,6 +3,7 @@ import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision"
 
 // Shared leaf identity: safe for both task normalization and runtime owners.
 export const AUTHORED_SUCCESSOR_TASK_V01 = "augnes.authored-successor-task.v0.1" as const;
+export const AUTHORED_SUCCESSOR_REVALIDATION_V01 = "augnes.authored-successor-revalidation.v0.1" as const;
 
 export const PROJECT_WORK_INITIALIZATION_VERSION_V01 =
   "project_work_initialization.v0.1" as const;

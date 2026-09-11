@@ -1,5 +1,5 @@
-import { readProjectRunResultDetailV01 } from "../lib/vnext/runtime/project-run-result-read-model";
-import { defineAuthoredSuccessorTaskV01, prepareAuthoredSuccessorHandoffV01 } from "../lib/vnext/runtime/authored-successor-task";
+import { readProjectRunResultDetailV01, readProjectRunResultSourceBindingV01 } from "../lib/vnext/runtime/project-run-result-read-model";
+import { defineAuthoredSuccessorTaskV01, prepareAuthoredSuccessorHandoffV01, inspectAuthoredSuccessorPacketV01 } from "../lib/vnext/runtime/authored-successor-task";
 import { assertAuthoredSuccessorInventoryV01, readAuthoredSuccessorDefinitionV01, normalizeAuthoredSuccessorTaskV01 } from "../lib/vnext/authored-successor-task";
 import { validateRunReceiptV01 } from "../lib/vnext/run-receipt";
 import { createRecordedCodexAppServerAdapterV01 } from "./codex-app-server-observation-recorder";
@@ -22,6 +22,7 @@ import { recallRetainedWorkSources, resolveRetainedWorkSources } from "../lib/in
 
 import {
   insertVNextCoreRecordV01,
+  VNEXT_CORE_RECORD_KINDS_V01,
   listVNextCoreRecordsV01,
   type VNextCoreRecordKindV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -127,6 +128,14 @@ async function main(): Promise<void> {
     if (process.argv.includes("--executed-follow-up-only")) {
       await assertExecutedReviewedFollowUpV01();
       await assertResultAdmissionV01();
+      return;
+    }
+    if (process.argv.includes("--settled-expired-successor-refusals-only")) {
+      await assertPersistedScopedContinuationV01(["settled_expired_refusals"]);
+      return;
+    }
+    if (process.argv.includes("--settled-expired-successor-only")) {
+      await assertPersistedScopedContinuationV01(["settled_expired"]);
       return;
     }
     if (process.argv.includes("--successor-handoff-only")) {
@@ -731,6 +740,8 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
   "expired_start", "wrong_scope", "failed_B", "wrong_context", "wrong_prior", "superseded", "request_refusal"]): Promise<void> {
   for (const scenario of scenarios) {
     const started = performance.now();
+    const expiredScenario = scenario === "settled_expired" || scenario === "settled_expired_refusals";
+    const authoredScenario = scenario === "handoff" || expiredScenario;
     const wallBase = Date.now() - 60_000;
     const wall = (seconds: number) => new Date(wallBase + seconds * 1_000).toISOString();
     const name = `persisted-${scenario}`;
@@ -747,7 +758,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
       const file = path.join(fixture.root, "sample.txt");
       writeFileSync(file, "Synthetic sample 9; reference 4. Later calibration is separate.\n");
       const files = [{ relative_path: "sample.txt", sha256: createHash("sha256").update(readFileSync(file)).digest("hex") }];
-      if (scenario === "handoff") {
+      if (authoredScenario) {
         for (const [relative_path, content] of [["TASK.md", "Read only TASK.md, sample.txt and notes.md. Compare recorded X with its reference. Stop after X; do not read calibration-B.json."], ["notes.md", "X is a bounded recorded sample; cause unknown. Y untested."]]) {
           writeFileSync(path.join(fixture.root, relative_path!), content!);
           files.push({ relative_path: relative_path!, sha256: createHash("sha256").update(content!).digest("hex") });
@@ -756,7 +767,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
       const bootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock: fixedClock(wall(0)) });
       const session = consumeVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, bootstrap_token: bootstrap.bootstrap_token, clock: fixedClock(wall(1)) });
       const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config, credential: session.credential,
-        request: requestV01(fixture, { goal: scenario === "handoff" ? readFileSync(path.join(fixture.root, "TASK.md"), "utf8") : "Review a bounded sample and choose a calibration follow-up", success_criteria: [scenario === "handoff" ? "Fulfil TASK.md and stop after X." : "Compare the recorded sample with its reference"], non_goals: ["No unmeasured-condition execution"] }), clock: fixedClock(wall(2)) });
+        request: requestV01(fixture, { goal: authoredScenario ? readFileSync(path.join(fixture.root, "TASK.md"), "utf8") : "Review a bounded sample and choose a calibration follow-up", success_criteria: [authoredScenario ? "Fulfil TASK.md and stop after X." : "Compare the recorded sample with its reference"], non_goals: ["No unmeasured-condition execution"] }), clock: fixedClock(wall(2)) });
       let credential = credentialFromCookieV01(initial.session_admission.cookie_value); sessionId = credential.session_id;
       let xInvocations = 0;
       let originalRequest: NativeHostRequestV01 | undefined;
@@ -907,7 +918,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         await assert.rejects(coordinator.prepareStage2({ files }), /project_not_active/);
         continue;
       }
-      if (scenario === "handoff") {
+      if (authoredScenario) {
         const content = '{"calibration":3,"reference":3}\n';
         writeFileSync(path.join(fixture.root, "calibration-B.json"), content);
         files.push({ relative_path: "calibration-B.json", sha256: createHash("sha256").update(content).digest("hex") });
@@ -966,7 +977,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
           observe: observation => { if (observation.kind === "spawned" && observation.process_id) { fakeLaunches += 1; processes.add(observation.process_id); } },
           launch: { command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
             environment: { NODE_ENV: "test", HOME: hostHome, CODEX_HOME: hostHome, PATH: process.env.PATH,
-              FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_SCOPED_RESULT_KIND: scenario === "handoff" ? "x_only" : undefined, FAKE_CODEX_COMMAND_CWD: scenario === "failed_B" ? fixture.root : snapshot.root,
+              FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_SCOPED_RESULT_KIND: authoredScenario ? "x_only" : undefined, FAKE_CODEX_COMMAND_CWD: scenario === "failed_B" ? fixture.root : snapshot.root,
               FAKE_CODEX_COMMAND_TERMINAL: scenario === "failed_B" ? "withhold" : "complete", FAKE_CODEX_TRACE_PATH: trace, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanup } } }),
       });
       const startInput = { config: fixture.config, mode: "interactive" as const, operator_mutation: { credential, clock: fixedClock(wall(12)) } };
@@ -994,7 +1005,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         assert(receipt.observations.some(observation => observation.observation_kind === "source_bound_input_snapshot" && observation.source_refs.some(ref => ref.external_id === snapshot.fingerprint)));
         assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["episode_delta_proposal"], limit: 10 }).length, 3);
       }
-      if (scenario === "handoff") {
+      if (authoredScenario) {
         assert.deepEqual(prepared.admission.packet.task, initial.packet.task);
         assert.equal(prepared.guide.current_goal, initial.packet.task.goal);
         assert(readCodexScopedSnapshotV01(prepared.scope).files.some(file => file.relative_path === "calibration-B.json"));
@@ -1010,7 +1021,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
       const originalReceipt = receipts.find(row => row.receipt_id === first.receipt.receipt_id)!;
       const source = readVNextOperatorPilotSemanticReviewV01(fixture.db, { config: fixture.config, proposal_id: original.proposal_id, authenticated_session_id: null }).proposal;
       assert.equal(canonicalizeProtocolValueV01({ receipt: originalReceipt, proposal: source }), historical);
-      if (scenario === "handoff") {
+      if (authoredScenario) {
         const laterReceipt = receipts.find(r => r.run_id === projection.run_ref)!;
         const oldDispositionPath = coordinator.disposition_path;
         await service.shutdown(); service = undefined;
@@ -1022,6 +1033,12 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { config: fixture.config,
           packet_id: prepared.admission.packet.packet_id, packet_fingerprint: prepared.admission.packet.integrity.fingerprint }), /authored_definition_required/);
         assert.equal(fakeLaunches, 1, "An X-only task plus B context does not admit an authored B handoff");
+        const approvedInstructionFiles: { path: string; sha256: string }[] = [];
+        if (expiredScenario) {
+          const instructionPath = path.join(ROOT, `${name}-instruction.md`), text = "Return bounded public descriptions and relative task filenames. Preserve uncertainty.\n";
+          writeFileSync(instructionPath, text);
+          approvedInstructionFiles.push({ path: instructionPath, sha256: createHash("sha256").update(text).digest("hex") });
+        }
         const handoffRequest = { action: "define_authored_successor_task" as const,
           expected_current_packet_id: prepared.admission.packet.packet_id,
           expected_current_packet_fingerprint: prepared.admission.packet.integrity.fingerprint,
@@ -1031,13 +1048,15 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
           definition: { objective: "Read calibration-B.json and compare its calibration value with its reference. Report both values, their difference and comparison. Preserve the accepted declared-sample scope and uncertainty for X; do not repeat X.",
             checks: [{ check_id: "calibration_comparison_completed", criterion: "Compare the calibration artifact with its task reference and report the comparison, whether matching or not." }],
             stop_conditions: ["Stop after the calibration comparison.", "Leave Y untested and deferred.", "Do not repeat X, write files, use network or accept another proposal."],
-            approved_instruction_hashes: [],
+            approved_instruction_hashes: approvedInstructionFiles.map(f => f.sha256),
             materials: files.map(f => ({ ...f, role: f.relative_path === "calibration-B.json" ? "task_data" as const : "historical_material" as const })) } };
-        for (const request of [{ ...handoffRequest, expected_root_fingerprint: `sha256:${"0".repeat(64)}` },
-          { ...handoffRequest, expected_latest_receipt_id: first.receipt.receipt_id, expected_latest_receipt_fingerprint: first.receipt.integrity.fingerprint }]) {
-          await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request, clock: { now: () => new Date().toISOString() } }), /root_changed|predecessor_unsettled_or_mismatched/);
+        if (scenario === "handoff") {
+          for (const request of [{ ...handoffRequest, expected_root_fingerprint: `sha256:${"0".repeat(64)}` },
+            { ...handoffRequest, expected_latest_receipt_id: first.receipt.receipt_id, expected_latest_receipt_fingerprint: first.receipt.integrity.fingerprint }]) {
+            await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request, clock: { now: () => new Date().toISOString() } }), /root_changed|predecessor_unsettled_or_mismatched/);
         }
         await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: { ...credential, session_id: "session:forged" }, request: handoffRequest, clock: { now: () => new Date().toISOString() } }), /session/);
+        }
         const authored = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: handoffRequest, clock: { now: () => new Date().toISOString() } });
         credential = credentialFromCookieV01(authored.session_admission.cookie_value);
         assert.equal(authored.status, "inserted"); assert.equal(authored.execution_authority_granted, false); assert.equal(authored.semantic_transition_created, false);
@@ -1046,25 +1065,31 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         assert.equal(canonicalizeProtocolValueV01(listVNextCoreRecordsV01(fixture.db, { ...fixture,
           record_kinds: ["episode_delta_proposal", "review_decision", "state_transition_receipt", "run_receipt"], limit: 100 })), canonicalizeProtocolValueV01(semanticPrefix), "Task authorship never reapplies clarification or accepts the later proposal");
         assert.equal(readFileSync(oldDispositionPath, "utf8"), consumedDisposition);
-        await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: handoffRequest, clock: { now: () => new Date().toISOString() } }), /superseded|stale|current_packet_changed/);
-        await assert.rejects(createPersistedCodexFeasibilityContinuationV01(fixture.db, input), /superseded|stale|later_run|disposition/);
+        if (scenario === "handoff") {
+          await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: handoffRequest, clock: { now: () => new Date().toISOString() } }), /superseded|stale|current_packet_changed/);
+          await assert.rejects(createPersistedCodexFeasibilityContinuationV01(fixture.db, input), /superseded|stale|later_run|disposition/);
+        }
         const laterProposal = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: laterReceipt.receipt_id }).proposal;
         assert.equal(laterProposal.status, "available");
-        if (laterProposal.status === "available") await assert.rejects(createPersistedCodexFeasibilityContinuationV01(fixture.db,
-          { config: fixture.config, receipt_id: laterReceipt.receipt_id, proposal_id: laterProposal.proposal_id }), /superseded|stale/);
+        if (scenario === "handoff") {
+          if (laterProposal.status === "available") await assert.rejects(createPersistedCodexFeasibilityContinuationV01(fixture.db,
+            { config: fixture.config, receipt_id: laterReceipt.receipt_id, proposal_id: laterProposal.proposal_id }), /superseded|stale/);
+        }
         const packetBinding = { config: fixture.config, packet_id: authored.packet.packet_id, packet_fingerprint: authored.packet.integrity.fingerprint };
         const bPath = path.join(fixture.root, "calibration-B.json"), approvedB = readFileSync(bPath);
-        writeFileSync(bPath, '{"unapproved":true}');
-        try { await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, packetBinding), /stage_hash_changed/); }
-        finally { writeFileSync(bPath, approvedB); }
-        const movedRoot = fixture.root + "-task-moved";
-        renameSync(fixture.root, movedRoot); mkdirSync(fixture.root);
-        try { await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, packetBinding), /root_changed/); }
-        finally { rmSync(fixture.root, { recursive: true }); renameSync(movedRoot, fixture.root); }
-        await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { ...packetBinding, packet_fingerprint: `sha256:${"0".repeat(64)}` }), /fingerprint_mismatch/);
+        if (scenario === "handoff") {
+          writeFileSync(bPath, '{"unapproved":true}');
+          try { await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, packetBinding), /stage_hash_changed/); }
+          finally { writeFileSync(bPath, approvedB); }
+          const movedRoot = fixture.root + "-task-moved";
+          renameSync(fixture.root, movedRoot); mkdirSync(fixture.root);
+          try { await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, packetBinding), /root_changed/); }
+          finally { rmSync(fixture.root, { recursive: true }); renameSync(movedRoot, fixture.root); }
+          await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { ...packetBinding, packet_fingerprint: `sha256:${"0".repeat(64)}` }), /fingerprint_mismatch/);
+        }
         const beforeFakeCalls = processes.size;
         const successor = await prepareAuthoredSuccessorHandoffV01(fixture.db, { config: fixture.config,
-          packet_id: authored.packet.packet_id, packet_fingerprint: authored.packet.integrity.fingerprint }); scopes.push(successor.scope);
+          packet_id: authored.packet.packet_id, packet_fingerprint: authored.packet.integrity.fingerprint, approved_instruction_files: approvedInstructionFiles }); scopes.push(successor.scope);
         assert.equal(processes.size, beforeFakeCalls, "Preparation and consistency checks cannot invoke a worker");
         assert.equal(successor.execution_window_created, false);
         const successorSnapshot = readCodexScopedSnapshotV01(successor.scope);
@@ -1078,26 +1103,31 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         const transitionRefs = prepared.admission.packet.compatibility.source_refs.filter(r => r.ref_type === "state_transition_receipt");
         assert(transitionRefs.length > 0);
         for (const r of transitionRefs) assert(successor.admission.packet.compatibility.source_refs.some(v => canonicalizeProtocolValueV01(v) === canonicalizeProtocolValueV01(r)));
-        assert.throws(() => assertAuthoredSuccessorInventoryV01(authored.packet, { files, historical_files: [], approved_instruction_hashes: [] }), /inventory_role_conflict/);
-        await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { config: fixture.config,
-          packet_id: authored.packet.packet_id, packet_fingerprint: authored.packet.integrity.fingerprint,
-          approved_instruction_files: [{ path: file, sha256: files[0]!.sha256 }] }), /instruction_hashes_changed/);
+        if (scenario === "handoff") {
+          assert.throws(() => assertAuthoredSuccessorInventoryV01(authored.packet, { files, historical_files: [], approved_instruction_hashes: [] }), /inventory_role_conflict/);
+          await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { config: fixture.config,
+            packet_id: authored.packet.packet_id, packet_fingerprint: authored.packet.integrity.fingerprint,
+            approved_instruction_files: [{ path: file, sha256: files[0]!.sha256 }] }), /instruction_hashes_changed/);
+        }
         const successorTrace = path.join(ROOT, `${name}-successor-trace.jsonl`);
         const successorHome = path.join(ROOT, `${name}-successor-home`); mkdirSync(successorHome);
-        let successorFakeLaunches = 0;
+        let successorFakeLaunches = 0, successorNativeCompleted = false;
         const successorAdapter = createCodexAppServerAdapterV01({ scoped_task: successor.scope,
-          observe: observation => { if (observation.kind === "spawned" && observation.process_id) { successorFakeLaunches += 1; processes.add(observation.process_id); } },
+          observe: observation => { if (observation.kind === "terminal_observed" && observation.public_reason === "completed") successorNativeCompleted = true; if (observation.kind === "spawned" && observation.process_id) { successorFakeLaunches += 1; processes.add(observation.process_id); } },
           launch: { command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
             environment: { NODE_ENV: "test", HOME: successorHome, CODEX_HOME: successorHome, PATH: process.env.PATH,
-              FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_COMMAND_CWD: successorSnapshot.root, FAKE_CODEX_SCOPED_RESULT_KIND: "x_only",
+              FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_COMMAND_CWD: successorSnapshot.root, FAKE_CODEX_SCOPED_RESULT_KIND: expiredScenario ? "rejected_result" : "x_only",
+              FAKE_CODEX_RESULT_CASE: "private_summary",
               FAKE_CODEX_TRACE_PATH: successorTrace } } });
-        const runsBeforeRefusal = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 100 });
-        await assert.rejects(runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
-          operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: base, now: () => new Date().toISOString() }), /authored_successor_scope_required/);
-        await assert.rejects(runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
-          operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: base, scoped_task: successor.scope, now: () => new Date().toISOString() }), /adapter_binding_missing/);
-        assert.equal(successorFakeLaunches, 0);
-        assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 100 }), runsBeforeRefusal);
+        if (scenario === "handoff") {
+          const runsBeforeRefusal = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 100 });
+          await assert.rejects(runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+            operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: base, now: () => new Date().toISOString() }), /authored_successor_scope_required/);
+          await assert.rejects(runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+            operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: base, scoped_task: successor.scope, now: () => new Date().toISOString() }), /adapter_binding_missing/);
+          assert.equal(successorFakeLaunches, 0);
+          assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 100 }), runsBeforeRefusal);
+        }
         let finalRequest: NativeHostRequestV01 | undefined;
         // Explicit synthetic executor seam, no feasibility window renewal. Its
         // fixed answer deliberately lacks the calibration check. Request capture,
@@ -1115,6 +1145,179 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         assert.equal(sent.packet_payload_sha256, createProtocolSha256V01(canonicalizeProtocolValueV01(finalRequest.packet)));
         assert.equal(sent.packet_fingerprint, authored.packet.integrity.fingerprint);
         assert.equal(sent.cwd, successorSnapshot.root); assert.equal(sent.guide_before_task_context_packet, true);
+        if (expiredScenario) {
+          assert.equal(successorNativeCompleted, true);
+          const failedRun = readAutonomyRunLedgerRecord(next.receipt.run_id, { db: fixture.db })!;
+          assert.equal(next.host_result?.public_stop_reason, "native_host_result_absolute_path_forbidden");
+          assert.equal(next.receipt.execution.status, "failed"); assert.equal(next.receipt.verification.status, "partial");
+          assert.equal(failedRun.status, "failed"); assert.equal(failedRun.metadata.reconciliation_required, false);
+          assert.equal(failedRun.metadata.terminal_receipt_persisted, true); assert.equal(next.proposal.status, "available");
+          assert(next.receipt.skipped_checks.some(c => c.check_id === "calibration_comparison_completed"));
+          const reauthorRequest = { ...handoffRequest, expected_current_packet_id: authored.packet.packet_id,
+            expected_current_packet_fingerprint: authored.packet.integrity.fingerprint,
+            expected_latest_receipt_id: next.receipt.receipt_id, expected_latest_receipt_fingerprint: next.receipt.integrity.fingerprint };
+          await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: reauthorRequest }), /predecessor_unsettled_or_mismatched/);
+          assert(authored.packet.expires_at);
+          const expiredAt = new Date(Date.parse(authored.packet.expires_at) + 1_000).toISOString();
+          const clock = fixedClock(expiredAt);
+          await assert.rejects(admitPersistedHostTaskContextPacketV01(fixture.db, { ...packetBinding, evaluated_at: expiredAt }), /direct_host_packet_expired/);
+          await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: reauthorRequest, clock }), /direct_host_packet_expired/);
+          console.log(JSON.stringify({ settled_expired_baseline: { native_completed: true, durable_status: failedRun.status,
+            verification: next.receipt.verification.status, terminal_receipt_persisted: true,
+            legacy_before_expiry: "predecessor_unsettled_or_mismatched", legacy_after_expiry: "direct_host_packet_expired" } }));
+          const refreshedBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
+          const refreshedSession = consumeVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, bootstrap_token: refreshedBootstrap.bootstrap_token, clock });
+          let freshCredential = refreshedSession.credential;
+          try {
+            const revalidated = { ...reauthorRequest, revalidation: { profile: "augnes.authored-successor-revalidation.v0.1" as const,
+              expires_at: new Date(Date.parse(expiredAt) + 60_000).toISOString() } };
+            let authorCalls = 0;
+            const author = (request: unknown = revalidated) => {
+              console.log(JSON.stringify({ revalidated_authorship_check: ++authorCalls, elapsed_ms: performance.now() - started }));
+              return defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: freshCredential, request, clock, approved_instruction_files: approvedInstructionFiles });
+            };
+            const history = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 });
+            if (scenario === "settled_expired_refusals") {
+              for (const expires_at of [null, expiredAt, "invalid", new Date(Date.parse(expiredAt) + 8 * 3_600_000 + 1).toISOString()])
+                await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, expires_at } }), /revalidation_invalid|lifetime_invalid/);
+              const shortBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
+              const shortSession = consumeVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config,
+                bootstrap_token: shortBootstrap.bootstrap_token, session_ttl_ms: 30_000, clock });
+              try { await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
+                credential: shortSession.credential, request: revalidated, clock, approved_instruction_files: approvedInstructionFiles }), /lifetime_invalid/); }
+              finally { revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: shortSession.credential.session_id, clock }); }
+              await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, profile: "unsupported.v9" } }), /revalidation_invalid/);
+              await assert.rejects(author({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
+                expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }), /predecessor_unsettled_or_mismatched/);
+              await assert.rejects(author({ ...revalidated, expected_active_selection_revision: revalidated.expected_active_selection_revision + 1 }), /selection_changed/);
+              await assert.rejects(author({ ...revalidated, expected_root_fingerprint: `sha256:${"0".repeat(64)}` }), /root_changed/);
+              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition,
+                materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } }), /reviewed_inputs_changed/);
+              await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition, approved_instruction_hashes: ["0".repeat(64)] } }), /reviewed_inputs_changed/);
+              await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential: freshCredential,
+                request: revalidated, clock, approved_instruction_files: [{ path: file, sha256: files[0]!.sha256 }] }), /instruction_hashes_changed/);
+              for (const bad of [{ status: "paused" as const }, { status: "running" as const }, { status: "completed" as const },
+                { finished_at: null },
+                { metadata: { ...failedRun.metadata, reconciliation_required: true } },
+                { metadata: { ...failedRun.metadata, terminal_receipt_persisted: false } },
+                { metadata: { ...failedRun.metadata, run_receipt_id: "run-receipt:missing" } }]) {
+                updateAutonomyRunLedgerFields(failedRun.run_id, bad, { db: fixture.db });
+                try { await assert.rejects(author(), /predecessor_unsettled_or_mismatched|receipt|local_predecessor/); }
+                finally { updateAutonomyRunLedgerFields(failedRun.run_id, { status: failedRun.status, finished_at: failedRun.finished_at, metadata: failedRun.metadata }, { db: fixture.db }); }
+              }
+              const olderRun = readAutonomyRunLedgerRecord(first.receipt.run_id, { db: fixture.db })!;
+              updateAutonomyRunLedgerFields(olderRun.run_id, { status: "paused", metadata: { ...olderRun.metadata, reconciliation_required: true } }, { db: fixture.db });
+              try { await assert.rejects(author(), /conflicting_run/); }
+              finally { updateAutonomyRunLedgerFields(olderRun.run_id, { status: olderRun.status, metadata: olderRun.metadata }, { db: fixture.db }); }
+              for (const material of revalidated.definition.materials) {
+                const sourcePath = path.join(fixture.root, material.relative_path), bytes = readFileSync(sourcePath);
+                writeFileSync(sourcePath, "synthetic changed material\n");
+                try { await assert.rejects(author(), /stage_hash_changed/); } finally { writeFileSync(sourcePath, bytes); }
+              }
+              const instruction = approvedInstructionFiles[0]!, instructionBytes = readFileSync(instruction.path);
+              writeFileSync(instruction.path, "Changed synthetic instruction.\n");
+              try { await assert.rejects(author(), /instruction_hash_changed/); }
+              finally { writeFileSync(instruction.path, instructionBytes); }
+              const replaced = fixture.root + "-revalidated-moved";
+              renameSync(fixture.root, replaced); mkdirSync(fixture.root);
+              try { await assert.rejects(author(), /root|inventory/); } finally { rmSync(fixture.root, { recursive: true }); renameSync(replaced, fixture.root); }
+              assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }), history, "Refusals do not persist a task or mutate history");
+              assert.equal(readFileSync(oldDispositionPath, "utf8"), consumedDisposition);
+              // Only after preservation assertions, independently change accepted
+              // context through its normal synthetic review/Transition owners.
+              assert(laterProposal.status === "available");
+              const driftSource = readVNextOperatorPilotSemanticReviewV01(fixture.db, { config: fixture.config,
+                proposal_id: laterProposal.proposal_id, authenticated_session_id: freshCredential.session_id });
+              const driftCandidate = driftSource.candidates[0]!;
+              const driftRevision = recordVNextOperatorPilotProposalRevisionV01(fixture.db, { config: fixture.config, credential: freshCredential, clock,
+                request: { ...revision, proposal_id: driftSource.proposal.proposal_id, proposal_fingerprint: driftSource.proposal_fingerprint,
+                  candidate_id: driftCandidate.candidate.candidate_id, candidate_fingerprint: driftCandidate.candidate_fingerprint,
+                  operation: "revise", proposed_state_summary: "A separate synthetic user declaration changes the previously selected state." } });
+              freshCredential = credentialFromCookieV01(driftRevision.session_cookie.value);
+              const driftDelta = driftRevision.proposal.proposed_deltas[0]!;
+              const driftDecision = recordVNextOperatorPilotReviewDecisionV01(fixture.db, { config: fixture.config, credential: freshCredential, clock,
+                request: { ...decisionRequest, proposal_id: driftRevision.proposal.proposal_id, proposal_fingerprint: driftRevision.proposal.integrity.fingerprint,
+                  candidate_id: driftDelta.candidate_id, candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(driftDelta) } });
+              freshCredential = credentialFromCookieV01(driftDecision.session_cookie.value);
+              const driftBinding = { proposal_id: driftRevision.proposal.proposal_id, proposal_fingerprint: driftRevision.proposal.integrity.fingerprint,
+                decision_id: driftDecision.decision.decision_id, decision_fingerprint: driftDecision.decision.integrity.fingerprint };
+              const driftPreview = prepareVNextOperatorPilotSemanticCommitPreviewV01(fixture.db, { config: fixture.config, credential: freshCredential, clock, request: driftBinding });
+              const driftGate = confirmVNextOperatorPilotSemanticCommitV01(fixture.db, { config: fixture.config, credential: freshCredential, clock,
+                request: { ...driftBinding, confirmation_digest: driftPreview.preview.confirmation_digest }, preview_binding_cookie: driftPreview.preview_binding_cookie });
+              freshCredential = credentialFromCookieV01(driftGate.session_admission.cookie_value);
+              const driftApplied = applyVNextOperatorPilotReviewedSemanticTransitionV01(fixture.db, { config: fixture.config, credential: freshCredential, clock,
+                request: { ...driftBinding, gate_record_id: driftGate.gate_record.gate_record_id, gate_record_fingerprint: driftGate.gate_record.integrity.fingerprint,
+                  prior_packet_id: prepared.admission.packet.packet_id, prior_packet_fingerprint: prepared.admission.packet.integrity.fingerprint } });
+              freshCredential = credentialFromCookieV01(driftApplied.session_admission.cookie_value);
+              assert.equal(driftApplied.status, "applied");
+              const stale = inspectVNextOperatorPilotPacketLineageV01(fixture.db, packetBinding);
+              assert(stale.lineage_kind === "authored_successor_task"); assert.equal(stale.inherited_context_current, false);
+              await assert.rejects(author(), /historical_context_stale_or_invalid/);
+              console.log(JSON.stringify({ settled_expired_refusals: "passed", cases: authorCalls, history_preserved_before_separate_semantic_drift: true, stale_context_refused: true, new_task_worker_launches: 0 }));
+              continue;
+            }
+            const historicalExport = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: expiredAt });
+            const importedDb = new Database(":memory:");
+            try {
+              importedDb.pragma("foreign_keys = ON"); applyCanonicalDatabaseMigrations(importedDb);
+              const destinationRoot = path.join(ROOT, `${name}-portable`); mkdirSync(destinationRoot);
+              importPortableProjectV01(importedDb, { bytes: historicalExport.bytes, destination_root_base: destinationRoot, imported_at: expiredAt });
+              const importedConfig = { ...fixture.config, database_path: importedDb.name };
+              assert.equal(readProjectRunResultSourceBindingV01(importedDb, { ...fixture, receipt_id: next.receipt.receipt_id }).run, null);
+              const importedBootstrap = issueVNextLocalOperatorBootstrapV01(importedDb, { config: importedConfig, clock });
+              const importedSession = consumeVNextLocalOperatorBootstrapV01(importedDb, { config: importedConfig, bootstrap_token: importedBootstrap.bootstrap_token, clock });
+              try { await assert.rejects(defineAuthoredSuccessorTaskV01(importedDb, { config: importedConfig,
+                credential: importedSession.credential, request: revalidated, clock, approved_instruction_files: approvedInstructionFiles }), /local_predecessor_required/); }
+              finally { revokeVNextLocalOperatorSessionByIdV01(importedDb, { config: importedConfig, session_id: importedSession.credential.session_id, clock }); }
+            } finally { importedDb.close(); }
+            const concurrent = await Promise.allSettled([author(), author()]);
+            assert.equal(concurrent.filter(r => r.status === "fulfilled").length, 1);
+            const success = concurrent.find(r => r.status === "fulfilled")!;
+            assert(success.status === "fulfilled");
+            const renewed = success.value;
+            freshCredential = credentialFromCookieV01(renewed.session_admission.cookie_value);
+            assert.equal(renewed.status, "inserted");
+            assert.equal(renewed.execution_authority_granted, false); assert.equal(renewed.semantic_transition_created, false);
+            assert.equal(renewed.packet.generated_at, expiredAt); assert.equal(renewed.packet.expires_at, revalidated.revalidation.expires_at);
+            assert.notEqual(renewed.packet.packet_id, authored.packet.packet_id); assert.notDeepEqual(renewed.packet.work_ref, authored.packet.work_ref);
+            await assert.rejects(author(), /stale|current_packet_changed/);
+            const currentBinding = { config: fixture.config, packet_id: renewed.packet.packet_id, packet_fingerprint: renewed.packet.integrity.fingerprint, clock, approved_instruction_files: approvedInstructionFiles };
+            const fresh = projectVNextOperatorPilotContinuityV01(fixture.db, { config: fixture.config, clock });
+            assert.equal(fresh.latest_compiled_packet?.packet_id, renewed.packet.packet_id); assert.equal(fresh.packet_currentness, "fresh");
+            const initialization = readProjectWorkInitializationV01(fixture.db, fixture);
+            assert.equal(initialization.state, "defined_successor_work"); assert.equal(initialization.current_packet?.packet_id, renewed.packet.packet_id);
+            const handoff = await prepareAuthoredSuccessorHandoffV01(fixture.db, currentBinding); scopes.push(handoff.scope);
+            assert.equal(handoff.execution_authority_granted, false); assert.equal(handoff.execution_window_created, false);
+            assert.equal(handoff.guide.current_goal, revalidated.definition.objective);
+            assert.deepEqual(handoff.admission.packet.constraints.required_checks, revalidated.definition.checks.map(c => c.check_id));
+            assert.deepEqual(handoff.admission.packet.return_contract.required_checks, handoff.admission.packet.constraints.required_checks);
+            assert.deepEqual(handoff.admission.packet.task.non_goals, normalizeAuthoredSuccessorTaskV01(revalidated.definition).stop_conditions);
+            assert.deepEqual(readCodexScopedSnapshotV01(handoff.scope).files.map(f => f.relative_path), ["calibration-B.json"]);
+            assert.deepEqual(renewed.packet.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), authored.packet.selected_context.filter(e => e.entry_kind === "accepted_state_ref"));
+            assert.deepEqual(renewed.packet.compatibility.source_refs.filter(r => r.ref_type === "state_transition_receipt"), transitionRefs);
+            assert.equal(inspectVNextOperatorPilotPacketLineageV01(fixture.db, packetBinding).projection_current, false);
+            await assert.rejects(prepareAuthoredSuccessorHandoffV01(fixture.db, { ...packetBinding, clock }), /expired|stale/);
+            const unsupported = structuredClone(renewed.packet);
+            unsupported.compatibility.source_contracts.push("augnes.authored-successor-revalidation.v9");
+            assert.throws(() => inspectAuthoredSuccessorPacketV01(fixture.db, { config: fixture.config, packet: unsupported }), /compiler_binding/);
+            const after = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 });
+            assert.deepEqual(after.filter(r => r.record_id !== renewed.packet.packet_id), history);
+            assert.equal(readFileSync(oldDispositionPath, "utf8"), consumedDisposition);
+            await assert.rejects(createPersistedCodexFeasibilityContinuationV01(fixture.db, input), /expired|stale|disposition/);
+            const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db); assert.equal(recovery.status, "valid", recovery.code);
+            const exported = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: expiredAt });
+            const portable = parseAndValidatePortableProjectV01(exported.bytes);
+            assert(portable.records.some(r => r.record_id === renewed.packet.packet_id));
+            console.log(JSON.stringify({ settled_expired_successor: "passed", currentness: fresh.packet_currentness,
+              legacy_expired_execution: "refused", failed_partial_receipt_preserved: true, historical_records_unchanged: true,
+              concurrent_writes: 1, new_lifetime_ms: 60_000, recovery: "valid", portable: "valid",
+              fake_app_server_substitution: true, new_task_worker_launches: 0, execution_windows_created: 0 }));
+          } finally {
+            assert(revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config,
+              session_id: refreshedSession.credential.session_id, clock }).revoked_at);
+          }
+          continue;
+        }
         assert.equal(next.receipt.execution.status, "completed"); assert.notEqual(next.receipt.verification.status, "passed");
         assert(next.receipt.verification.required_check_ids.includes("calibration_comparison_completed"));
         assert(next.receipt.skipped_checks.some(c => c.check_id === "calibration_comparison_completed"));
@@ -1226,7 +1429,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
           try {
             for (const scope of scopes) await releaseCodexScopedTaskV01(scope);
             for (const pid of processes) assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
-            if (sessionId) assert(revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: sessionId, clock: fixedClock(scenario === "handoff" ? new Date().toISOString() : wall(60)) }).revoked_at);
+            if (sessionId) assert(revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: sessionId, clock: fixedClock(authoredScenario ? new Date().toISOString() : wall(60)) }).revoked_at);
           } finally { if (fixture.db.open) fixture.db.close(); globalThis.fetch = originalFetch; }
         }
       }

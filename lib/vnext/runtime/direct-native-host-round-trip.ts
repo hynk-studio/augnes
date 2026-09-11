@@ -372,60 +372,7 @@ export async function admitPersistedHostTaskContextPacketV01(
   ) {
     refuse("direct_host_packet_scope_mismatch", 409);
   }
-  const registration = readCanonicalProjectWithRootV01(db, input.config);
-  if (!registration) refuse("direct_host_project_scope_missing", 409);
-  if (input.require_active_project !== false) {
-    const active = readActiveProjectSelectionV01(
-      db,
-      input.config.workspace_id,
-    );
-    if (active?.project_id !== input.config.project_id) {
-      refuse("direct_host_project_not_active", 409);
-    }
-  }
-  const inspection = await inspectLocalProjectRootV01(
-    registration.root_binding.local_root.normalized_path,
-    {
-      db,
-      workspace_id: input.config.workspace_id,
-      now: () => input.evaluated_at,
-    },
-  );
-  if (
-    canonicalizeProtocolValueV01(inspection.local_root) !==
-    canonicalizeProtocolValueV01(registration.root_binding.local_root)
-  ) {
-    refuse("direct_host_root_scope_mismatch", 409);
-  }
-  const rootFingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01({
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      local_root: registration.root_binding.local_root,
-      binding_version: registration.root_binding.binding_version,
-      bound_at: registration.root_binding.bound_at,
-    }),
-  );
-  const rootKind = await resolveRootKind(
-    registration.root_binding.local_root.normalized_path,
-    inspection.folder_kind,
-  );
-  const physicalRootIdentity =
-    await inspectNativeHostPhysicalRootIdentityV01(
-      registration.root_binding.local_root.normalized_path,
-    );
-  const repositoryRef =
-    listProjectExternalRefsV01(db, input.config)
-      .map((binding) => binding.external_ref)
-      .find((ref) => ref.ref_type === "repository_remote") ??
-    inspection.repository_ref;
-  const rootScopeRef = localRef(
-    "project_root_scope",
-    input.config.project_id,
-    input.evaluated_at,
-    rootFingerprint,
-    PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01,
-  );
+  const rootScope = await inspectPersistedHostProjectRootV01(db, input);
   const workRef = resolveWorkRef(packet, input.evaluated_at);
   const taskFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01(packet.task),
@@ -492,27 +439,90 @@ export async function admitPersistedHostTaskContextPacketV01(
                   lineage.operational_continuation_materialization_ref,
                 immediate_prior_packet_ref: lineage.immediate_prior_packet_ref,
               },
-    root_scope: {
-      canonical_root: registration.root_binding.local_root.normalized_path,
-      path_flavor: registration.root_binding.local_root.path_flavor,
-      root_kind: rootKind,
-      root_fingerprint: rootFingerprint,
-      physical_root_identity: physicalRootIdentity,
-      root_scope_ref: rootScopeRef,
-      repository_ref: repositoryRef ?? null,
-      selected_worktree_ref:
-        rootKind === "git_worktree"
-          ? localRef(
-              "repository_worktree",
-              rootFingerprint,
-              input.evaluated_at,
-              rootFingerprint,
-              PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01,
-            )
-          : null,
-    },
+    root_scope: rootScope,
   };
 }
+
+/** Current registered/physical root inspection only. This does not admit a
+ * packet or grant execution; authorship revalidation uses the same root owner. */
+export async function inspectPersistedHostProjectRootV01(db: Database.Database, input: {
+  config: VNextLocalOperatorPilotConfigV01; evaluated_at: string; require_active_project?: boolean;
+}): Promise<NativeHostRootScopeV01> {
+  const registration = readCanonicalProjectWithRootV01(db, input.config);
+  if (!registration) refuse("direct_host_project_scope_missing", 409);
+  if (input.require_active_project !== false) {
+    const active = readActiveProjectSelectionV01(
+      db,
+      input.config.workspace_id,
+    );
+    if (active?.project_id !== input.config.project_id) {
+      refuse("direct_host_project_not_active", 409);
+    }
+  }
+  const inspection = await inspectLocalProjectRootV01(
+    registration.root_binding.local_root.normalized_path,
+    {
+      db,
+      workspace_id: input.config.workspace_id,
+      now: () => input.evaluated_at,
+    },
+  );
+  if (
+    canonicalizeProtocolValueV01(inspection.local_root) !==
+    canonicalizeProtocolValueV01(registration.root_binding.local_root)
+  ) {
+    refuse("direct_host_root_scope_mismatch", 409);
+  }
+  const rootFingerprint = createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      workspace_id: input.config.workspace_id,
+      project_id: input.config.project_id,
+      local_root: registration.root_binding.local_root,
+      binding_version: registration.root_binding.binding_version,
+      bound_at: registration.root_binding.bound_at,
+    }),
+  );
+  const rootKind = await resolveRootKind(
+    registration.root_binding.local_root.normalized_path,
+    inspection.folder_kind,
+  );
+  const physicalRootIdentity =
+    await inspectNativeHostPhysicalRootIdentityV01(
+      registration.root_binding.local_root.normalized_path,
+    );
+  const repositoryRef =
+    listProjectExternalRefsV01(db, input.config)
+      .map((binding) => binding.external_ref)
+      .find((ref) => ref.ref_type === "repository_remote") ??
+    inspection.repository_ref;
+  const rootScopeRef = localRef(
+    "project_root_scope",
+    input.config.project_id,
+    input.evaluated_at,
+    rootFingerprint,
+    PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01,
+  );
+  return {
+    canonical_root: registration.root_binding.local_root.normalized_path,
+    path_flavor: registration.root_binding.local_root.path_flavor,
+    root_kind: rootKind,
+    root_fingerprint: rootFingerprint,
+    physical_root_identity: physicalRootIdentity,
+    root_scope_ref: rootScopeRef,
+    repository_ref: repositoryRef ?? null,
+    selected_worktree_ref:
+      rootKind === "git_worktree"
+        ? localRef(
+            "repository_worktree",
+            rootFingerprint,
+            input.evaluated_at,
+            rootFingerprint,
+            PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01,
+          )
+        : null,
+  };
+}
+
 
 /**
  * Resolves the exact packet/root/host identity while the caller owns the

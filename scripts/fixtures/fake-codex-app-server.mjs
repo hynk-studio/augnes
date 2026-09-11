@@ -1771,7 +1771,7 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
-  if (scenario === "result_admission") {
+  if (scenario === "result_admission" || process.env.FAKE_CODEX_SCOPED_RESULT_KIND === "rejected_result") {
     const variant = process.env.FAKE_CODEX_RESULT_CASE;
     const labels = variant !== "label_free";
     const value = {

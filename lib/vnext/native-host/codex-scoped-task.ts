@@ -118,7 +118,7 @@ function fileBytes(filename: string, limit = 128 * 1024): Buffer {
 }
 
 /** The trusted disposable operator supplies reviewed hashes, not worker flags. */
-export async function createCodexScopedTaskV01(input: {
+export interface CodexScopedTaskInputV01 {
   stage: 1 | 2;
   canonical_root: string;
   packet_id: string;
@@ -128,7 +128,10 @@ export async function createCodexScopedTaskV01(input: {
   /** Authored successor only: retained source material excluded from execution. */
   historical_files?: readonly Readonly<{ relative_path: string; sha256: string }>[];
   approved_instruction_files?: readonly Readonly<{ path: string; sha256: string }>[];
-}): Promise<CodexScopedTaskV01> {
+}
+
+/** Read-only input inspection; returns no scope, snapshot or execution grant. */
+export async function inspectCodexScopedTaskSourceV01(input: CodexScopedTaskInputV01) {
   if (![1, 2].includes(input.stage) || !input.packet_id || !/^sha256:[a-f0-9]{64}$/u.test(input.packet_fingerprint) ||
     !/^sha256:[a-f0-9]{64}$/u.test(input.guide_brief_fingerprint) ||
     input.files.length < 1 || input.files.length > 8) refuse("stage_invalid");
@@ -150,6 +153,12 @@ export async function createCodexScopedTaskV01(input: {
     source.approved_instruction_files.length > 4 || source.approved_instruction_files.some(f =>
       !path.isAbsolute(f.path) || !/^[a-f0-9]{64}$/u.test(f.sha256))) refuse("files_invalid");
   assertInventory(source.root, sourceFiles);
+  for (const f of source.approved_instruction_files) if (digest(fileBytes(f.path)) !== f.sha256) refuse("instruction_hash_changed");
+  return source;
+}
+
+export async function createCodexScopedTaskV01(input: CodexScopedTaskInputV01): Promise<CodexScopedTaskV01> {
+  const source = await inspectCodexScopedTaskSourceV01(input);
   const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "augnes-scoped-input-")));
   let scope: CodexScopedTaskV01 | undefined;
   try {
