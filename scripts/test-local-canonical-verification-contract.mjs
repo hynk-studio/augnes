@@ -1064,6 +1064,8 @@ const integrationChildren = [
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
   "authored-successor-handoff",
+  "settled-expired-successor",
+  "settled-expired-successor-refusals",
   "persisted-scoped-continuation",
   "blank-state",
   "guide-brief-current-project",
@@ -1143,6 +1145,14 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"pro
   requireText(successorRegistration.block, fragment, "authored successor retains one bounded serial owner");
 assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["handoff"]);'), 1,
   "the handoff profile must run once without extending the legacy continuation child");
+const expiredSuccessorRegistration = readCanonicalChildRegistration(integrationSource, "settled-expired-successor");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--settled-expired-successor-only"'])
+  requireText(expiredSuccessorRegistration.block, fragment, "expired successor uses the existing bounded serial owner");
+assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["settled_expired"]);'), 1);
+const expiredRefusalRegistration = readCanonicalChildRegistration(integrationSource, "settled-expired-successor-refusals");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--settled-expired-successor-refusals-only"'])
+  requireText(expiredRefusalRegistration.block, fragment, "expired successor refusals retain bounded serial ownership");
+assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["settled_expired_refusals"]);'), 1);
 const continuationRegistration = readCanonicalChildRegistration(integrationSource, "persisted-scoped-continuation");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--persisted-continuation-only"'])
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");

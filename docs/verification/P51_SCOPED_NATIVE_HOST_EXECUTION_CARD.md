@@ -900,6 +900,54 @@ This amendment is prospective. It does not modify the real prefix, activate a
 successor, grant a live attempt, accept the later proposal, or establish B/X/Y
 success, stronger file attribution, or P5.1 usefulness.
 
+## Explicit authorship after a settled failed result and expired task
+
+The retained structured-result rejection is a failed, settled invocation with a
+partial receipt, not a B comparison. Its packet remains expired and its allowance
+consumed. This source extension does not readmit the rejected answer, backfill
+its missing diagnostic, modify the study or authorize another invocation.
+
+A separately authorized local caller may use `defineAuthoredSuccessorTaskV01`
+with the normal compare-and-set fields and explicit `revalidation` containing
+`profile: "augnes.authored-successor-revalidation.v0.1"` and a reviewed finite
+`expires_at`. It must supply the actual approved instruction files in their bound
+order. This is explicit new task authorship, not ordinary refresh or semantic
+recompilation. The owner requires the exact latest locally settled completed or
+failed run/receipt pair, terminal persistence, no reconciliation/conflicting run,
+current selection/context and unchanged registered physical root. It reads and
+hashes every approved task/historical file and instruction through the existing
+scoped input owner without creating a snapshot or grant. Changed roles, hashes,
+inventory or instructions refuse rather than silently becoming new approval.
+
+The expired predecessor is inspected at current time; only its envelope expiry
+is tolerated as history. All other validation and accepted-context lineage checks
+remain effective. The requested new expiry must be after the authenticated action,
+within the existing eight-hour later-packet ceiling, and within that session's
+expiry. The transaction rechecks current state and latest local result, then
+inspects the generated packet before commit. Duplicate/concurrent authorship
+cannot create competing current tasks. The writer never rewrites the predecessor
+or touches continuation dispositions. A portable receipt without a local run is
+historical evidence only. Process loss requires current-state inspection; it does
+not reconstruct an invocation authorization or automatically resubmit authorship.
+
+Read back the new definition/packet and use `prepareAuthoredSuccessorHandoffV01`
+for a fresh, current B-only snapshot. It still returns no execution authority or
+window. Release unused resources after inspection. A later live dispatch must
+separately review this exact packet and authorize a bounded invocation; expiry or
+a consumed attempt never supplies retry authority.
+
+Model-free coverage starts with a normal synthetic applied/consumed prefix and
+uses the production adapter/parser/direct result consumer with a fixed fake App
+Server and a genuinely prohibited public result. After advancing the supported
+test clock, the new writer, continuity, handoff, recovery and portable owners are
+exercised together. Separate synthetic negative checks cover settlement, source,
+material/instruction drift, lifetime, concurrent/replay and accepted-state drift.
+These two cases each use an existing supporting-serial child with a 30-second
+ceiling; they add 60 seconds of aggregate permitted child time. Legacy children,
+production execution limits and outer phase deadlines are unchanged. No native
+helper/model or real study is used. This proves the bounded owner connection,
+not live B success, observed file consumption or P5.1 usefulness.
+
 ## Trusted-local snapshot connection (#1241, revised product scope)
 
 The supported input profile is `trusted_local_read_snapshot.v0.1`; the scoped

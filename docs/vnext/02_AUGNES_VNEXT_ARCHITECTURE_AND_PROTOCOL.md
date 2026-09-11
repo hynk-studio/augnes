@@ -591,6 +591,27 @@ Authorship requires the actual settled local run. Recovery and portable readers
 revalidate the retained receipt and authenticated authorship without rebuilding
 a machine-local run or granting execution on a different root.
 
+The additive local `augnes.authored-successor-revalidation.v0.1` request profile
+also permits an exact latest **failed run / failed terminal receipt** when the
+local ledger confirms terminal persistence and no reconciliation is required.
+It does not broaden eligibility to other terminal statuses or import execution
+authority from a portable receipt. Failure, verification, proposals and consumed
+allowances remain unchanged. The legacy request still requires completed
+execution and a fresh predecessor, and still inherits its expiry.
+
+Explicit revalidation distinguishes historical task-envelope expiry from current
+authorship admission. Normal current selection, accepted-state lineage, registered
+physical root, and the predecessor's exact material roles/hashes and ordered
+instruction hashes are rechecked at the authenticated action. Only packet expiry
+may be historical; independent validation errors, supersession, changed inputs,
+unresolved runs and stale context refuse. The request supplies a new finite
+`expires_at`, later than the action and no later than the existing eight-hour
+later-packet limit or the authorizing session's expiry. No read, handoff or
+execution renews it. The new packet binds this profile and authenticated request;
+historical timestamps, input cutoff and fingerprints are retained. Compatible
+readers reconstruct that provenance, while older strict request readers refuse
+the new material. There is no schema migration or automatic recovery grant.
+
 Accepted context retains its original Transition lineage; the latest settled
 result remains evidence and its proposal remains unreviewed. Current goal,
 criteria/check identifiers and stop conditions come from the explicit authored
