@@ -1022,3 +1022,61 @@ and cleanup failures are reported together. This test-only ownership neither
 reconstructs a dead production scope nor changes snapshot lifetime semantics.
 Expected interruption regressions require both a failed child result and actual
 resource absence; cleanup cannot turn an unexpected deciding timeout into a pass.
+
+
+## Public structured-result admission (#1234)
+
+Public descriptions may use a single-letter prose label followed by horizontal
+whitespace and a word or number, for example `B: comparison reported.` or
+`Y: untested.`. The lexical rule applies to every letter. Bare drive tokens
+(`C:`), drive-relative tokens without whitespace (`C:private.txt`), drive-absolute
+paths, UNC paths, file URIs and the existing POSIX/root-disclosure patterns
+remain refused. `C: notes` is lexically ambiguous and treated as prose; this is
+not a general natural-language or filesystem-path detector. Filesystem/path
+fields retain their strict canonicalization and do not use the label exception.
+A label does not exempt a prohibited path or credential elsewhere in its text.
+
+The public-text owner is used by the adapter parser, final `NativeHostResult`
+validator, live-service lifecycle/approval text and strategic-transfer source
+text. Their error and authority boundaries remain distinct. The directly
+implicated `RunReceipt` reader shares the label rule only for its public prose
+fields; identifiers and path references retain their previous treatment. No
+receipt format, fingerprint algorithm, semantic acceptance rule or execution
+grant changes. Existing records and historical outcomes are not rewritten.
+
+The model-facing output schema descriptions and rendered output instructions
+both require bounded descriptions and relative task filenames, excluding
+absolute source/snapshot/home paths, file URIs, credentials, raw commands or
+output, transcripts, hidden reasoning and environment dumps. Task content and
+accepted context remain unchanged. This reminder supplements validation; it
+neither proves compliance nor repairs rejected output.
+
+The adapter records `result_admission_rejected` separately from native terminal
+status. It distinguishes `structured_result_parsing` from
+`native_result_validation`: the same final result validator is now also called
+before adapter result publication while the invocation recorder is connected;
+the normal direct consumer retains its independent validation. A closed
+implementation-owned vocabulary carries the field category, rule family and
+public error code, or `unknown`/`unclassified`/null where unavailable. Existing
+run/thread/turn references link the observation to its invocation. Rejected
+values, arbitrary JSON keys, answer snippets, raw errors and value-derived
+fingerprints are excluded. This is an optional local observation, not a new
+Core record or the failed-terminal incident-message channel.
+
+The bounded category recorder retains the observation and reports
+`result_admission_diagnostic_written` in its closed disk status. Observation and
+byte ceilings are unchanged. Emission follows owned cleanup attempts; it does
+not prove settlement. Recorder I/O failure stays explicit without changing the
+result. A general observer exception still refuses settlement, while all
+cleanup and the settled observation are attempted. No failure grants a retry.
+
+Model-free coverage uses the fixed fake App Server through the production
+adapter, direct executor and normal receipt/proposal producers. It covers
+labeled and label-free admission, nested prose, private paths/credentials,
+parser/final rejection categories, disk readback, absent required B checks,
+attestation preservation and capture/observer failure. No real study state or
+native/helper/model execution is used. The historical rejected field/value and
+answer remain unknown; the reproduced label defect does not prove that it
+triggered the historical attempt. That attempt remains consumed, with no
+admitted B comparison. Review/merge, activation and any future live invocation
+remain separate decisions.

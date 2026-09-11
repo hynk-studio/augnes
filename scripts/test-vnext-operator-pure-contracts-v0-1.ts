@@ -10,6 +10,7 @@ import { ProductShell } from "../components/product-shell";
 import {
   CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
   publicSafeCommandSummaryV01,
+  projectCodexResultAdmissionDiagnosticV01,
 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import {
   MAX_REFRESHED_PROJECT_HOME_PROJECTIONS_V01,
@@ -25,7 +26,38 @@ import {
 } from "../lib/vnext/runtime/semantic-workbench-entry";
 import { buildManagementSafetyViewV01 } from "../lib/vnext/management-safety/management-safety-view";
 
+import { assertNativeHostPublicTextV01, NativeHostContractErrorV01 } from "../lib/vnext/native-host/native-host-contract";
+import { canonicalizeRepositoryRelativePathV01 } from "../lib/vnext/repository-relative-path";
+import { assertStrategicAdvantageTransferSourceTextSafeV01 } from "../lib/vnext/strategic-advantage-transfer-protocol";
+
 const assertions: string[] = [];
+const proseLabels = ["B: reference=12; expected=12; difference=0; match.", "Y: untested.",
+  "Calibration B reference=12; expected=12; difference=0; match.", "Read calibration-B.json.",
+  "Note (C: notes retained)", "C: private.txt", "c: 설명 보존", "Z:\t2 cases remain."];
+for (const value of [...proseLabels, ...Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", letter => `${letter}: a bounded description.`)]) {
+  assert.doesNotThrow(() => assertNativeHostPublicTextV01(value));
+  assert.doesNotThrow(() => assertStrategicAdvantageTransferSourceTextSafeV01({ summary: value }));
+}
+const forbiddenPublicText = ["/private/synthetic/file", "/Users/synthetic/home/file", "Read /private/synthetic/file.",
+  "C:\\private\\file.txt", "C:/private/file.txt", "C:private.txt", "C:", "C: ", "Read (C:)", "Read C:private.txt",
+  "\\\\synthetic-server\\private\\file.txt", "Read \\\\synthetic-server\\private\\file.txt", "file:///private/synthetic/file",
+  "B: read /private/synthetic/file", "B: C:private.txt", "B: C:\\private\\file.txt", "B: file:///private/synthetic/file",
+  "B: api_key=SYNTHETIC_CREDENTIAL", "Y: sk-syntheticfixturecredential123456", "password=SYNTHETIC_CREDENTIAL"];
+for (const value of forbiddenPublicText) {
+  assert.throws(() => assertNativeHostPublicTextV01(value), NativeHostContractErrorV01);
+  assert.throws(() => assertStrategicAdvantageTransferSourceTextSafeV01({ nested: [value] }), /source_text_unsafe/);
+}
+// The prose exception must never reach the strict filesystem-path owner.
+for (const value of ["C:", "C:private.txt", "C: private.txt", "B: notes", "C:\\private\\file.txt", "/private/file", "../outside"]) {
+  assert.throws(() => canonicalizeRepositoryRelativePathV01(value), /repository_relative_path_invalid/);
+}
+assert.equal(canonicalizeRepositoryRelativePathV01("reports/../calibration-B.json"), "calibration-B.json");
+for (const error of [Object.assign(new Error("SYNTHETIC_REJECTED_VALUE"), { code: "SYNTHETIC_REJECTED_VALUE", result_field: "SYNTHETIC_REJECTED_KEY" }),
+  new NativeHostContractErrorV01("SYNTHETIC_REJECTED_VALUE", "SYNTHETIC_REJECTED_KEY" as never)]) {
+  assert.deepEqual(projectCodexResultAdmissionDiagnosticV01(error, "native_result_validation"),
+    { gate: "native_result_validation", field: "unknown", rule_family: "unclassified", code: null });
+}
+record("public_prose_labels_relative_filenames_and_transfer_text_admit_private_paths_credentials_and_strict_path_fields_refuse");
 
 assertTypedStructuredOutputLiteralsV01(
   CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01,
@@ -876,6 +908,7 @@ function requireRefreshKey(
 
 assert.equal(new Set(assertions).size, assertions.length);
 assert.deepEqual(assertions, [
+  "public_prose_labels_relative_filenames_and_transfer_text_admit_private_paths_credentials_and_strict_path_fields_refuse",
   "live_codex_structured_output_literals_declare_json_schema_types",
   "live_codex_public_command_summary_redacts_credentials_and_absolute_paths",
   "live_codex_public_command_summary_preserves_safe_relative_commands",

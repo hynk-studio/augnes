@@ -717,6 +717,7 @@ async function handle(message) {
           scenario === "status_only_notifications"
         )
           completeSuccess();
+        else if (scenario === "result_admission") completeSuccess();
         else if (scenario.startsWith("terminal_diagnostic_")) completeDiagnosticFailure();
         else if (scenario === "turn_failure" || scenario === "candidate_canary_failed") completeFailure();
         else if (scenario === "scoped_command_cwd" || scenario === "command_cwd") {
@@ -1770,6 +1771,39 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
+  if (scenario === "result_admission") {
+    const variant = process.env.FAKE_CODEX_RESULT_CASE;
+    const labels = variant !== "label_free";
+    const value = {
+      result_version: "codex_host_structured_result.v0.1",
+      summary: labels ? "B: reference=12; expected=12; difference=0; match." : "Calibration B reference=12; expected=12; difference=0; match.",
+      changed_files: [],
+      artifacts: [{ artifact_ref: { ref_version: "external_ref.v0.1", ref_type: "repository_relative_artifact",
+        external_id: "reports/comparison.json", observed_at: "2026-08-01T00:00:05.000Z", trust_class: "host_attestation" },
+        summary: labels ? "B: bounded artifact reference." : "Bounded artifact reference." }],
+      observed_actions: [labels ? "B: comparison reported." : "Comparison reported."],
+      commands: [{ command_id: "synthetic-comparison-command", summary: labels ? "B: comparison attested." : "Comparison attested.",
+        command_fingerprint: null, started_at: null, finished_at: null, exit_code: 0, status: "completed" }],
+      checks: [{ check_id: "calibration_b_comparison", required: true, status: "passed", summary: labels ? "B: comparison reported." : "Calibration comparison reported." },
+        { check_id: "inherited_context_bounds", required: true, status: "passed", summary: labels ? "Y: untested." : "Y remains untested." }],
+      skipped_checks: ["labels_skipped", "private_skipped"].includes(variant) ? [{ check_id: "synthetic_optional_check", required: false, reason: "Y: untested." }] : [],
+      uncertainty: [labels ? "Y: untested." : "Y remains untested."],
+      gaps: [labels ? "B: fixed synthetic response, no observed file consumption." : "Fixed synthetic response, no observed file consumption."],
+      proposed_next_steps: [labels ? "B: return for review." : "Return for review."],
+    };
+    const privateText = "B: read /private/synthetic/RESULT_ADMISSION_PRIVATE_SENTINEL";
+    if (["private_summary", "capture_failure", "observer_failure"].includes(variant)) value.summary = privateText;
+    if (variant === "private_check") value.checks[0].summary = privateText;
+    if (variant === "private_command") value.commands[0].summary = privateText;
+    if (variant === "private_skipped") value.skipped_checks[0].reason = privateText;
+    if (variant === "private_array") value.uncertainty[0] = privateText;
+    if (variant === "credential") value.summary = "B: api_key=RESULT_ADMISSION_CREDENTIAL_SENTINEL";
+    if (variant === "final_root") value.artifacts[0].artifact_ref = { ...value.artifacts[0].artifact_ref,
+      ref_type: "opaque_synthetic_ref", external_id: root + "/RESULT_ADMISSION_PRIVATE_SENTINEL" };
+    if (variant === "unknown_field") value["RESULT_ADMISSION_UNKNOWN_KEY_SENTINEL"] = privateText;
+    if (variant === "missing_checks") value.checks = [];
+    return JSON.stringify(value);
+  }
   if (scenario === "scoped_command_cwd" && process.env.FAKE_CODEX_SCOPED_RESULT_KIND === "x_only") return JSON.stringify({
     result_version: "codex_host_structured_result.v0.1", summary: "Repeated the recorded X comparison: sample 9 exceeds reference 4. Calibration was not checked; Y remains untested.",
     changed_files: [], artifacts: [], observed_actions: [], commands: [],
@@ -2052,6 +2086,17 @@ function minimized(message) {
       summary.sandbox_policy = message.params?.sandboxPolicy ?? null;
     }
     summary.output_schema = Boolean(message.params?.outputSchema);
+    if (scenario === "result_admission") {
+      const schema = message.params?.outputSchema;
+      const guidance = schema?.description;
+      summary.result_guidance_rendered_and_schema = typeof guidance === "string" &&
+        typeof rendered === "string" && rendered.includes(guidance) &&
+        guidance.includes("relative task filenames") && guidance.includes("absolute source, snapshot or home paths") &&
+        guidance.includes("file URIs, credentials, raw commands or output") && guidance.includes("hidden reasoning");
+      summary.result_guidance_nested_schema = [schema?.properties?.summary,
+        schema?.properties?.commands?.items?.properties?.summary, schema?.properties?.checks?.items?.properties?.summary,
+        schema?.properties?.skipped_checks?.items?.properties?.reason].every(field => field?.description === guidance);
+    }
     summary.rendered_input_bytes =
       typeof rendered === "string" ? Buffer.byteLength(rendered, "utf8") : 0;
     summary.rendered_input_sha256 =

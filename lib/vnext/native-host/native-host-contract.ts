@@ -6,6 +6,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import {
   canonicalizeRepositoryRelativePathV01,
+  containsPublicTextLocalPathV01,
   externalRefUsesRepositoryRelativePathV01,
 } from "@/lib/vnext/repository-relative-path";
 import {
@@ -53,8 +54,30 @@ const PUBLIC_TEXT_KEYS = new Set([
   "proposed_next_steps",
 ]);
 
+// Diagnostic vocabulary is implementation-owned. Neither paths through unknown
+// JSON keys nor rejected values (including their hashes) belong in observations.
+export const NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01 = [
+  "summary", "checks[].summary", "commands[].summary", "skipped_checks[].reason",
+  "artifacts[].summary", "artifacts[].artifact_ref.external_id",
+  "changed_files[].repository_relative_path", "observed_actions[]",
+  "uncertainty[]", "gaps[]", "proposed_next_steps[]", "public_stop_reason", "unknown",
+] as const;
+export type NativeHostResultFieldV01 = typeof NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01[number];
+export function withNativeHostResultFieldV01<T>(field: NativeHostResultFieldV01, validate: () => T): T {
+  try { return validate(); }
+  catch (error) {
+    if (error instanceof NativeHostContractErrorV01)
+      throw new NativeHostContractErrorV01(error.code, resultFieldV01(field));
+    throw error;
+  }
+}
+
+function resultFieldV01(value: string): NativeHostResultFieldV01 {
+  return NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01.find(field => field === value) ?? "unknown";
+}
+
 export class NativeHostContractErrorV01 extends Error {
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly result_field: NativeHostResultFieldV01 = "unknown") {
     super(code);
     this.name = "NativeHostContractErrorV01";
   }
@@ -122,9 +145,9 @@ export function assertNativeHostResultV01(
     ...value,
     changed_files: value.changed_files.map((changed) => ({
       ...changed,
-      repository_relative_path: repositoryRelativePath(
+      repository_relative_path: withNativeHostResultFieldV01("changed_files[].repository_relative_path", () => repositoryRelativePath(
         changed.repository_relative_path,
-      ),
+      )),
     })),
     artifacts: value.artifacts.map((artifact) =>
       externalRefUsesRepositoryRelativePathV01(artifact.artifact_ref)
@@ -132,15 +155,15 @@ export function assertNativeHostResultV01(
             ...artifact,
             artifact_ref: {
               ...artifact.artifact_ref,
-              external_id: repositoryRelativePath(
+              external_id: withNativeHostResultFieldV01("artifacts[].artifact_ref.external_id", () => repositoryRelativePath(
                 artifact.artifact_ref.external_id,
-              ),
+              )),
             },
           }
         : artifact,
     ),
   };
-  walk(normalizedValue, (key, candidate) => {
+  walk(normalizedValue, (key, candidate, field) => withNativeHostResultFieldV01(resultFieldV01(field), () => {
     if (typeof candidate === "string" && PUBLIC_TEXT_KEYS.has(key)) {
       assertNativeHostPublicTextV01(candidate);
     }
@@ -166,7 +189,7 @@ export function assertNativeHostResultV01(
     ) {
       fail("native_host_result_raw_material_forbidden");
     }
-  });
+  }));
   const bytes = Buffer.byteLength(
     canonicalizeProtocolValueV01(normalizedValue),
     "utf8",
@@ -178,16 +201,7 @@ export function assertNativeHostResultV01(
 }
 
 export function assertNativeHostPublicTextV01(value: string): void {
-  const trimmed = value.trim();
-  if (
-    path.posix.isAbsolute(trimmed) ||
-    path.win32.isAbsolute(trimmed) ||
-    /\bfile:\/\//iu.test(value) ||
-    /(?:^|[\s("'`])\/(?!\/)(?:[^/\s"'`]+\/)+[^/\s"'`]+/u.test(value) ||
-    /(?:^|[\s("'`])(?:[a-zA-Z]:[^\s"'`]*|\\\\[^\s"'`]+\\[^\s"'`]+)/u.test(
-      value,
-    )
-  ) {
+  if (containsPublicTextLocalPathV01(value)) {
     fail("native_host_result_absolute_path_forbidden");
   }
   const credential =
@@ -212,15 +226,16 @@ function repositoryRelativePath(value: string): string {
 
 function walk(
   value: unknown,
-  visit: (key: string, value: unknown) => void,
+  visit: (key: string, value: unknown, field: string) => void,
   key = "",
+  field = "",
 ): void {
-  visit(key, value);
+  visit(key, value, field);
   if (Array.isArray(value)) {
-    for (const item of value) walk(item, visit, key);
+    for (const item of value) walk(item, visit, key, `${field}[]`);
   } else if (value && typeof value === "object") {
     for (const [childKey, child] of Object.entries(value)) {
-      walk(child, visit, childKey);
+      walk(child, visit, childKey, field ? `${field}.${childKey}` : childKey);
     }
   }
 }

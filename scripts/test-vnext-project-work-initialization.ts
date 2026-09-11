@@ -1,6 +1,9 @@
 import { readProjectRunResultDetailV01 } from "../lib/vnext/runtime/project-run-result-read-model";
 import { defineAuthoredSuccessorTaskV01, prepareAuthoredSuccessorHandoffV01 } from "../lib/vnext/runtime/authored-successor-task";
 import { assertAuthoredSuccessorInventoryV01, readAuthoredSuccessorDefinitionV01, normalizeAuthoredSuccessorTaskV01 } from "../lib/vnext/authored-successor-task";
+import { validateRunReceiptV01 } from "../lib/vnext/run-receipt";
+import { createRecordedCodexAppServerAdapterV01 } from "./codex-app-server-observation-recorder";
+import { assertNativeHostResultV01, assertNativeHostPublicTextV01 } from "../lib/vnext/native-host/native-host-contract";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -116,12 +119,14 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
     if (process.argv.includes("--scoped-host-only") || scopedInterruptionPoint()) {
       await assertScopedNativeHostConnectionV01();
       return;
     }
     if (process.argv.includes("--executed-follow-up-only")) {
       await assertExecutedReviewedFollowUpV01();
+      await assertResultAdmissionV01();
       return;
     }
     if (process.argv.includes("--successor-handoff-only")) {
@@ -176,6 +181,150 @@ async function main(): Promise<void> {
     }, null, 2));
   } finally {
     rmSync(ROOT, { recursive: true, force: true });
+  }
+}
+
+// Fixed credential-free App Server transport; the adapter parser, direct
+// executor, result validator and durable receipt/proposal producers are real.
+async function assertResultAdmissionV01(): Promise<void> {
+  for (const scenario of ["label_free", "labels", "labels_skipped", "private_summary", "private_check", "private_command", "private_skipped",
+    "private_array", "credential", "final_root", "unknown_field", "capture_failure", "observer_failure"] as const) {
+    const fixture = createFixtureV01(`result-admission-${scenario}`);
+    const output = path.join(ROOT, `capture-${scenario}`); mkdirSync(output);
+    const home = path.join(output, "home"); mkdirSync(home);
+    const trace = path.join(output, "trace.jsonl"), cleanup = path.join(output, "cleanup"), network = path.join(output, "network");
+    const pids = new Set<number>();
+    let sessionId: string | undefined;
+    const observations: import("../lib/vnext/native-host/codex-app-server-adapter").CodexAppServerAdapterObservationV01[] = [];
+    let request: NativeHostRequestV01 | undefined;
+    const now = timestampSequenceV01("2026-08-01T00:00:04.000Z");
+    const recorded = createRecordedCodexAppServerAdapterV01({ directory: output, stage: 2,
+      adapter_options: { now,
+        launch: { command: process.execPath, prefix_args: [path.resolve("scripts/fixtures/fake-codex-app-server.mjs")],
+          environment: { NODE_ENV: "test", HOME: home, CODEX_HOME: home, TMPDIR: output, PATH: process.env.PATH,
+            FAKE_CODEX_SCENARIO: "result_admission", FAKE_CODEX_RESULT_CASE: scenario,
+            FAKE_CODEX_TRACE_PATH: trace, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanup, FAKE_CODEX_NETWORK_COUNT_PATH: network } },
+        observe: event => {
+          observations.push(event);
+          if (event.kind === "spawned" && event.process_id) pids.add(event.process_id);
+          if (event.kind === "turn_started" && scenario === "capture_failure") {
+            rmSync(path.join(output, "events.jsonl")); mkdirSync(path.join(output, "events.jsonl"));
+          }
+          if (event.kind === "result_admission_rejected" && scenario === "observer_failure")
+            throw new Error("SYNTHETIC_ADMISSION_OBSERVER_FAILURE");
+        },
+      } });
+    try {
+      const defined = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+        credential: authenticatedSessionV01(fixture, "admission"), request: requestV01(fixture, {
+          goal: "Compare the bounded synthetic calibration artifact and preserve uncertainty.",
+          success_criteria: ["Return a bounded comparison"], non_goals: ["No later experiment or semantic acceptance"],
+        }), clock: fixedClock(T2) });
+      const credential = credentialFromCookieV01(defined.session_admission.cookie_value); sessionId = credential.session_id;
+      const invoke = () => runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+        operator_mutation: { credential, clock: fixedClock("2026-08-01T00:00:04.000Z") } }, {
+        adapter: recorded.adapter, now, lifecycle_mode: "managed_live", live_host_egress_authorized: true,
+        timeout_ms: 10_000, stop_settle_timeout_ms: 3_000,
+        on_invocation_admitted: observed => { request = observed.request; },
+      });
+      if (scenario === "observer_failure") {
+        await assert.rejects(invoke(), errorCode("direct_host_stop_unconfirmed"));
+        assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 10 }).length, 0);
+        assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["episode_delta_proposal"], limit: 10 }).length, 0);
+        assert(request);
+        const run = readAutonomyRunLedgerRecord(request.run_id, { db: fixture.db });
+        assert.equal(run?.status, "paused");
+        assert.equal(run?.metadata.reconciliation_required, true);
+        assert.equal(observations.some(event => event.kind === "terminal_observed" && event.public_reason === "completed"), true);
+        assert.equal(observations.some(event => event.kind === "settled"), true, "Observer failure does not prevent cleanup/readback attempt");
+        assert.equal(recorded.closeCapture().result_admission_diagnostic_written, true);
+        assert.equal(readFileSync(cleanup, "utf8"), "settled\n");
+        assert.equal(readFileSync(network, "utf8"), "0\n");
+        const capture = readFileSync(path.join(output, "events.jsonl"), "utf8");
+        assert(!capture.includes("RESULT_ADMISSION_PRIVATE_SENTINEL"));
+        assert(!capture.includes("SYNTHETIC_ADMISSION_OBSERVER_FAILURE"));
+        for (const pid of pids) assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+        console.log(JSON.stringify({ result_admission_owner: { scenario, expected_observer_failure: true, receipt_count: 0, native_completed: true, cleanup: "settled" } }));
+        continue;
+      }
+      const result = await invoke();
+      recorded.closeCapture();
+      const traceRows = readFileSync(trace, "utf8").trim().split("\n").map(line => JSON.parse(line));
+      const turnInput = traceRows.find(row => row.kind === "received" && row.value.method === "turn/start");
+      assert.equal(turnInput?.value.result_guidance_rendered_and_schema, true);
+      assert.equal(turnInput?.value.result_guidance_nested_schema, true);
+      const captureText = scenario === "capture_failure" ? "" : readFileSync(path.join(output, "events.jsonl"), "utf8");
+      const diskObservations = captureText.trim() ? captureText.trim().split("\n").map(line => JSON.parse(line)) : [];
+      const diagnostic = diskObservations.find(event => event.kind === "result_admission_rejected")?.result_admission_diagnostic;
+      const expectedCompleted = scenario === "labels" || scenario === "label_free" || scenario === "labels_skipped";
+      const ownerResult = { scenario, host_outcome: result.host_result?.outcome,
+        public_stop_reason: result.host_result?.public_stop_reason, verification: result.receipt.verification.status,
+        native_completed: observations.some(event => event.kind === "terminal_observed" && event.public_reason === "completed"),
+        receipt_persisted: listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt"], limit: 10 }).length,
+        proposal_status: result.proposal.status, admission_diagnostic: diagnostic ?? null, capture: recorded.readCaptureStatus(),
+        owned_processes_settled: [...pids].every(pid => { try { process.kill(pid, 0); return false; } catch { return true; } }),
+        network_requests: readFileSync(network, "utf8").trim(), cleanup: readFileSync(cleanup, "utf8").trim() };
+      console.log(JSON.stringify({ result_admission_owner: ownerResult }));
+      assert.equal(ownerResult.native_completed, true);
+      assert.equal(ownerResult.host_outcome, expectedCompleted ? "completed" : "failed");
+      assert.equal(ownerResult.verification, expectedCompleted && scenario !== "labels_skipped" ? "passed" : "partial");
+      assert(request);
+      assert.equal(readAutonomyRunLedgerRecord(request.run_id, { db: fixture.db })?.metadata.reconciliation_required, false);
+      assert.equal(recorded.readCaptureStatus().failed_terminal_diagnostic_written, false, "No failed native terminal is invented");
+      if (scenario === "capture_failure") {
+        assert.equal(recorded.readCaptureStatus().capture_failure, "artifact_write_failed");
+        assert.equal(recorded.readCaptureStatus().result_admission_diagnostic_written, false);
+      } else if (expectedCompleted) {
+        assert.equal(diagnostic, undefined);
+        assert.equal(result.host_result!.checks.find(check => check.check_id === "calibration_b_comparison")?.status, "passed");
+        assert(result.receipt.attestations.some(item => item.summary.includes("reference=12")));
+        assert(!result.receipt.observations.some(item => /reference=12|comparison attested/u.test(item.summary)), "Model text stays attested");
+        assert.equal(assertNativeHostResultV01(request, result.host_result!).summary, result.host_result!.summary);
+        if (scenario === "labels") {
+          // Exercise both final result and receipt privacy readers independently
+          // of parser prechecks. Mutations stay in test input, never in the DB.
+          for (const value of ["B: read /private/synthetic/forbidden", "B: C:private.txt", "B: file:///private/synthetic/forbidden"]) {
+            assert.throws(() => assertNativeHostResultV01(request!, { ...result.host_result!, summary: value }), /absolute_path_forbidden/);
+            const receipt = structuredClone(result.receipt); receipt.result_summary.summary = value;
+            assert(validateRunReceiptV01(receipt).errors.some(issue => issue.code === "absolute_local_path_forbidden"));
+          }
+          const receipt = structuredClone(result.receipt); receipt.commands[0]!.command_id = "C: private.txt";
+          assert(validateRunReceiptV01(receipt).errors.some(issue => issue.code === "absolute_local_path_forbidden"), "Identifiers are not prose");
+        }
+      } else {
+        const fields: Record<string, string> = { private_summary: "summary", private_check: "checks[].summary",
+          private_command: "commands[].summary", private_skipped: "skipped_checks[].reason", private_array: "uncertainty[]",
+          credential: "summary", final_root: "artifacts[].artifact_ref.external_id", unknown_field: "unknown" };
+        const diagnosticEvent = diskObservations.find(event => event.kind === "result_admission_rejected");
+        assert.equal(diagnosticEvent.run_id, request.run_id);
+        assert.equal(typeof diagnosticEvent.thread_id, "string"); assert.equal(typeof diagnosticEvent.turn_id, "string");
+        assert.equal(diskObservations.filter(event => event.kind === "result_admission_rejected").length, 1);
+        assert.deepEqual(diagnostic, { gate: scenario === "final_root" ? "native_result_validation" : "structured_result_parsing",
+          field: fields[scenario], rule_family: scenario === "credential" ? "raw_material" : scenario === "unknown_field" ? "shape_or_bound" : "path_disclosure",
+          code: scenario === "credential" ? "native_host_result_raw_material_forbidden" : scenario === "unknown_field" ? "codex_structured_result_shape_invalid" : "native_host_result_absolute_path_forbidden" });
+        assert.equal(result.host_result!.checks.some(check => check.check_id === "calibration_b_comparison"), false);
+        assert.equal(result.host_result!.summary.includes("reference=12"), false);
+      }
+      const retained = JSON.stringify({ records: listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["run_receipt", "episode_delta_proposal"], limit: 128 }),
+        run: readAutonomyRunLedgerRecord(request.run_id, { db: fixture.db }) }) + captureText + readFileSync(trace, "utf8") + readFileSync(path.join(output, "adapter-capture-status.json"), "utf8");
+      for (const value of ["RESULT_ADMISSION_PRIVATE_SENTINEL", "RESULT_ADMISSION_CREDENTIAL_SENTINEL", "RESULT_ADMISSION_UNKNOWN_KEY_SENTINEL",
+        "B: read /private/synthetic/RESULT_ADMISSION_PRIVATE_SENTINEL", "B: api_key=RESULT_ADMISSION_CREDENTIAL_SENTINEL", request.root_scope.canonical_root + "/RESULT_ADMISSION_PRIVATE_SENTINEL"]) {
+        assert(!retained.includes(value));
+        assert(!retained.includes(createHash("sha256").update(value).digest("hex")), "No value-derived diagnostic hash");
+      }
+      assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["review_decision", "state_transition_receipt"], limit: 10 }).length, 0);
+      const statusOnDisk = JSON.parse(readFileSync(path.join(output, "adapter-capture-status.json"), "utf8"));
+      assert.deepEqual(statusOnDisk, recorded.readCaptureStatus());
+      assert.equal(ownerResult.receipt_persisted, 1);
+      assert.equal(ownerResult.proposal_status, "available");
+      assert.equal(ownerResult.owned_processes_settled, true);
+      assert.equal(ownerResult.network_requests, "0"); assert.equal(ownerResult.cleanup, "settled");
+      assertNativeHostPublicTextV01(result.host_result!.summary);
+    } finally {
+      recorded.closeCapture();
+      if (sessionId) assert(revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: fixture.config, session_id: sessionId, clock: fixedClock("2026-08-01T00:01:00.000Z") }).revoked_at);
+      fixture.db.close(); assert.equal(fixture.db.open, false);
+    }
   }
 }
 

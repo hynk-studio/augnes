@@ -24,6 +24,7 @@ export function createRecordedCodexAppServerAdapterV01(input: {
   let closed = false;
   let observationsWritten = 0;
   let diagnosticWritten = false;
+  let admissionDiagnosticWritten = false;
   let captureFailure: "artifact_create_failed" | "artifact_write_failed" | "observation_limit" | "observation_too_large" | "capture_closed" | null = null;
   let statusWriteFailed = false;
   try { writeFileSync(eventsPath, "", { flag: "wx", mode: 0o600 }); }
@@ -39,12 +40,14 @@ export function createRecordedCodexAppServerAdapterV01(input: {
       appendFileSync(eventsPath, line, { mode: 0o600 });
       observationsWritten++;
       diagnosticWritten ||= observation.failed_terminal_diagnostic !== undefined;
+      admissionDiagnosticWritten ||= observation.result_admission_diagnostic !== undefined;
     } catch { captureFailure = "artifact_write_failed"; }
   }
   function readCaptureStatus() {
     return {
       closed, observations_written: observationsWritten,
       failed_terminal_diagnostic_written: diagnosticWritten,
+      result_admission_diagnostic_written: admissionDiagnosticWritten,
       capture_failure: captureFailure, status_write_failed: statusWriteFailed,
       // Closing a recorder says nothing about host settlement or remote usage.
     };

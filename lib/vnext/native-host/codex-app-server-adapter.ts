@@ -59,8 +59,12 @@ import {
 export { CODEX_APP_SERVER_IMPLEMENTED_COMPATIBILITY_PROFILE_FINGERPRINT_V01 } from "@/lib/vnext/native-host/codex-runtime-implementation-binding";
 import {
   NativeHostContractErrorV01,
+  NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01,
   NativeHostReconciliationRequiredErrorV01,
   assertNativeHostPublicTextV01,
+  assertNativeHostResultV01,
+  withNativeHostResultFieldV01,
+  type NativeHostResultFieldV01,
 } from "@/lib/vnext/native-host/native-host-contract";
 import {
   listOwnedDescendantProcessIdsV01,
@@ -356,6 +360,62 @@ export interface CodexAppServerLaunchV01 {
   qualified_runtime_selection?: CodexQualifiedRuntimeSelectionV01;
 }
 
+export interface CodexResultAdmissionDiagnosticV01 {
+  gate: "structured_result_parsing" | "native_result_validation";
+  field: NativeHostResultFieldV01;
+  rule_family: "path_disclosure" | "raw_material" | "shape_or_bound" | "unclassified";
+  code: keyof typeof RESULT_REJECTION_RULES | null;
+}
+const RESULT_REJECTION_RULES = {
+  native_host_result_absolute_path_forbidden: "path_disclosure",
+  native_host_result_file_scope_invalid: "path_disclosure",
+  native_host_result_raw_material_forbidden: "raw_material",
+  native_host_result_invalid: "shape_or_bound",
+  native_host_result_shape_invalid: "shape_or_bound",
+  native_host_result_binding_invalid: "shape_or_bound",
+  native_host_result_timing_invalid: "shape_or_bound",
+  native_host_result_bound_exceeded: "shape_or_bound",
+  native_host_result_byte_bound_exceeded: "shape_or_bound",
+  codex_structured_result_missing_or_oversized: "shape_or_bound",
+  codex_structured_result_malformed: "shape_or_bound",
+  codex_structured_result_invalid: "shape_or_bound",
+  codex_structured_result_shape_invalid: "shape_or_bound",
+  codex_structured_result_bound_exceeded: "shape_or_bound",
+  codex_public_text_invalid: "shape_or_bound",
+  codex_result_artifact_invalid: "shape_or_bound",
+  codex_result_artifact_ref_invalid: "shape_or_bound",
+  codex_result_artifact_summary_invalid: "shape_or_bound",
+  codex_result_changed_file_invalid: "shape_or_bound",
+  codex_result_changed_file_path_invalid: "shape_or_bound",
+  codex_result_check_id_invalid: "shape_or_bound",
+  codex_result_check_invalid: "shape_or_bound",
+  codex_result_check_status_invalid: "shape_or_bound",
+  codex_result_check_summary_invalid: "shape_or_bound",
+  codex_result_command_id_invalid: "shape_or_bound",
+  codex_result_command_invalid: "shape_or_bound",
+  codex_result_command_status_invalid: "shape_or_bound",
+  codex_result_command_summary_invalid: "shape_or_bound",
+  codex_result_hash_invalid: "shape_or_bound",
+  codex_result_skipped_check_id_invalid: "shape_or_bound",
+  codex_result_skipped_check_invalid: "shape_or_bound",
+  codex_result_skipped_check_reason_invalid: "shape_or_bound",
+  codex_result_string_invalid: "shape_or_bound",
+  codex_result_summary_invalid: "shape_or_bound",
+  codex_result_text_invalid: "shape_or_bound",
+} as const;
+
+export function projectCodexResultAdmissionDiagnosticV01(
+  error: unknown,
+  gate: CodexResultAdmissionDiagnosticV01["gate"],
+): CodexResultAdmissionDiagnosticV01 {
+  // Do not copy an arbitrary Error.code/message/property into the recorder.
+  const code = error instanceof NativeHostContractErrorV01 &&
+    Object.hasOwn(RESULT_REJECTION_RULES, error.code) ? error.code as keyof typeof RESULT_REJECTION_RULES : null;
+  return Object.freeze({ gate, field: error instanceof NativeHostContractErrorV01
+    ? (NATIVE_HOST_RESULT_FIELD_CATEGORIES_V01.find(field => field === error.result_field) ?? "unknown") : "unknown", code,
+    rule_family: code ? RESULT_REJECTION_RULES[code] : "unclassified" });
+}
+
 export interface CodexAppServerAdapterObservationV01 {
   kind:
     | "invocation_created"
@@ -368,6 +428,7 @@ export interface CodexAppServerAdapterObservationV01 {
     | "provider_auth_recovery_started"
     | "provider_auth_recovery_completed"
     | "terminal_observed"
+    | "result_admission_rejected"
     | "approval_requested"
     | "approval_resolved"
     | "server_request_state_cleared"
@@ -388,6 +449,9 @@ export interface CodexAppServerAdapterObservationV01 {
   // a failed turn (including same-batch conflict checks). Not task authority
   // or proof that settlement succeeded; settlement_failed remains separate.
   failed_terminal_diagnostic?: CodexFailedTerminalDiagnosticV01;
+  // Separate from native terminal status and incident messages. No rejected
+  // value, arbitrary key, error message, or value-derived fingerprint.
+  result_admission_diagnostic?: CodexResultAdmissionDiagnosticV01;
   failed_terminal_diagnostic_capture_failure?: "projection_failed";
   // Closed status only. Incident text never enters this general observer.
   incident_message_capture_status?: "delivered" | "projection_failed" | "hook_failed";
@@ -1713,6 +1777,7 @@ class CodexAppServerInvocationV01 {
   private turnStartSent = false;
   private packetDeliveryInitiated = false;
   private terminalObserved: CodexTurnTerminalV01 | null = null;
+  private resultAdmissionDiagnostic: CodexResultAdmissionDiagnosticV01 | undefined;
   private failedTerminalDiagnostic: CodexFailedTerminalDiagnosticV01 | undefined;
   private failedTerminalDiagnosticCaptureFailure: "projection_failed" | undefined;
   private incidentMessageCaptureStatus: CodexAppServerAdapterObservationV01["incident_message_capture_status"];
@@ -1896,7 +1961,16 @@ class CodexAppServerInvocationV01 {
       }
       if (!cleanupError && this.options.scoped_task) settleCodexScopedTaskV01(this.options.scoped_task);
       this.cleanupSettled = cleanupError === null;
+      // Observe only after finite cleanup. A general observer exception still
+      // refuses settlement, but cannot replace the original result refusal or
+      // prevent an attempt to report settled. Recorder I/O policy is unchanged.
+      let admissionObserverError: Error | null = null;
+      if (this.resultAdmissionDiagnostic) {
+        try { this.observe("result_admission_rejected"); }
+        catch (error) { admissionObserverError = asErrorV01(error); }
+      }
       this.observe("settled");
+      if (admissionObserverError) throw admissionObserverError;
       if (cleanupError) this.settledDeferred.reject(cleanupError);
       else this.settledDeferred.resolve();
     }
@@ -3298,10 +3372,13 @@ class CodexAppServerInvocationV01 {
     terminal: CodexTurnTerminalV01,
   ): Promise<void> {
     if (terminal.status === "completed") {
-      const payload = parseStructuredResultFromTurnV01(
-        terminal.turn,
-        this.request.result_return.max_result_bytes,
-      );
+      let payload: CodexHostStructuredResultV01;
+      try {
+        payload = parseStructuredResultFromTurnV01(terminal.turn, this.request.result_return.max_result_bytes);
+      } catch (error) {
+        this.resultAdmissionDiagnostic = projectCodexResultAdmissionDiagnosticV01(error, "structured_result_parsing");
+        throw error;
+      }
       if (this.scopedLaunch && (payload.changed_files.length || payload.artifacts.length || this.observedChangedFiles.length))
         throw new CodexProtocolErrorV01("codex_scoped_result_effect_refused");
       if (this.candidateCanary && (payload.commands.length || payload.changed_files.length || payload.artifacts.length || payload.observed_actions.length))
@@ -3309,7 +3386,16 @@ class CodexAppServerInvocationV01 {
       if (this.candidateCanary?.native_auth && (payload.summary !== "AUGNES_CANARY_OK" || payload.checks.length ||
           payload.skipped_checks.length || payload.uncertainty.length || payload.gaps.length || payload.proposed_next_steps.length))
         throw new CodexProtocolErrorV01("codex_candidate_canary_expected_output_missing");
-      this.resultDeferred.resolve(this.buildCompletedResult(payload));
+      // Apply the same final contract before handing off the result, while the
+      // invocation's bounded recorder is still connected. The normal consumer
+      // independently retains its final validation; no repaired answer is used.
+      let result: NativeHostResultV01;
+      try { result = assertNativeHostResultV01(this.request, this.buildCompletedResult(payload)); }
+      catch (error) {
+        this.resultAdmissionDiagnostic = projectCodexResultAdmissionDiagnosticV01(error, "native_result_validation");
+        throw error;
+      }
+      this.resultDeferred.resolve(result);
       return;
     }
     if (terminal.status === "interrupted") {
@@ -3863,6 +3949,8 @@ class CodexAppServerInvocationV01 {
       recent_resolved_server_request_count:
         this.recentResolvedServerRequests.size,
       ...(publicReason ? { public_reason: publicReason } : {}),
+      ...(kind === "result_admission_rejected" && this.resultAdmissionDiagnostic
+        ? { result_admission_diagnostic: this.resultAdmissionDiagnostic } : {}),
       ...(kind === "settled" && this.failedTerminalDiagnostic
         ? { failed_terminal_diagnostic: this.failedTerminalDiagnostic } : {}),
       ...(kind === "settled" && this.failedTerminalDiagnosticCaptureFailure
@@ -4416,7 +4504,11 @@ class CodexRpcErrorV01 extends Error {
   }
 }
 
+export const CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 =
+  "Use bounded descriptions and relative task filenames. Do not include absolute source, snapshot or home paths, file URIs, credentials, raw commands or output, transcripts, hidden reasoning or environment dumps.";
+
 export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
+  description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01,
   type: "object",
   additionalProperties: false,
   required: [
@@ -4437,7 +4529,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
       type: "string",
       const: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
     },
-    summary: { type: "string", maxLength: 4096 },
+    summary: { type: "string", maxLength: 4096, description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 },
     changed_files: {
       type: "array",
       maxItems: 128,
@@ -4452,6 +4544,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         ],
         properties: {
           repository_relative_path: {
+            description: "Canonical relative task filename, never an absolute path, drive-qualified path or file URI.",
             type: "string",
             minLength: 1,
             maxLength: 4096,
@@ -4507,7 +4600,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
               },
             },
           },
-          summary: { type: "string", minLength: 1, maxLength: 1024 },
+          summary: { type: "string", minLength: 1, maxLength: 1024, description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 },
         },
       },
     },
@@ -4533,7 +4626,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         ],
         properties: {
           command_id: { type: "string", minLength: 1, maxLength: 512 },
-          summary: { type: "string", minLength: 1, maxLength: 1024 },
+          summary: { type: "string", minLength: 1, maxLength: 1024, description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 },
           command_fingerprint: {
             anyOf: [
               { type: "null" },
@@ -4568,7 +4661,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
             type: "string",
             enum: ["passed", "failed", "blocked", "unknown"],
           },
-          summary: { type: "string", minLength: 1, maxLength: 1024 },
+          summary: { type: "string", minLength: 1, maxLength: 1024, description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 },
         },
       },
     },
@@ -4582,7 +4675,7 @@ export const CODEX_HOST_STRUCTURED_RESULT_SCHEMA_V01 = {
         properties: {
           check_id: { type: "string", minLength: 1, maxLength: 512 },
           required: { type: "boolean" },
-          reason: { type: "string", minLength: 1, maxLength: 1024 },
+          reason: { type: "string", minLength: 1, maxLength: 1024, description: CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01 },
         },
       },
     },
@@ -4621,7 +4714,8 @@ function renderPacketV01(request: NativeHostRequestV01): string {
     "Augnes native-host task. Treat this exact TaskContextPacket as selected working context, not project truth.",
     "Stay inside the supplied cwd and sandbox. Ask through the host approval protocol when required.",
     "Before editing, inspect the bounded repository enough to identify task-relevant repository instructions and existing local validation. Run relevant repository-provided validation when present; do not replace it with an ad hoc substitute. An empty required_checks list does not waive this discovery step or authorize inventing a check.",
-    "Return only JSON matching the supplied output schema. Do not return a transcript, hidden reasoning, credentials, environment data, or raw command output.",
+    "Return only JSON matching the supplied output schema.",
+    CODEX_HOST_RESULT_PUBLIC_TEXT_GUIDANCE_V01,
     `Request binding: ${request.request_id}`,
     `Packet fingerprint: ${request.packet.integrity.fingerprint}`,
     canonicalizeProtocolValueV01(request.packet),
@@ -4700,7 +4794,7 @@ function parseStructuredResultFromTurnV01(
     result_version: CODEX_HOST_STRUCTURED_RESULT_VERSION_V01,
     summary: publicTextV01(
       requiredStringV01(value.summary, "codex_result_summary_invalid"),
-      4096,
+      4096, "summary",
     ),
     changed_files: arrayV01(value.changed_files, 128).map((item) => {
       const changed = exactObjectV01(
@@ -4726,15 +4820,15 @@ function parseStructuredResultFromTurnV01(
       };
     }),
     artifacts: arrayV01(value.artifacts, 128).map(normalizeArtifactV01),
-    observed_actions: stringArrayV01(value.observed_actions, 64, 512),
+    observed_actions: stringArrayV01(value.observed_actions, 64, 512, "observed_actions[]"),
     commands: arrayV01(value.commands, 128).map(normalizeCommandV01),
     checks: arrayV01(value.checks, 128).map(normalizeCheckV01),
     skipped_checks: arrayV01(value.skipped_checks, 128).map(
       normalizeSkippedCheckV01,
     ),
-    uncertainty: stringArrayV01(value.uncertainty, 64, 1024),
-    gaps: stringArrayV01(value.gaps, 64, 1024),
-    proposed_next_steps: stringArrayV01(value.proposed_next_steps, 64, 1024),
+    uncertainty: stringArrayV01(value.uncertainty, 64, 1024, "uncertainty[]"),
+    gaps: stringArrayV01(value.gaps, 64, 1024, "gaps[]"),
+    proposed_next_steps: stringArrayV01(value.proposed_next_steps, 64, 1024, "proposed_next_steps[]"),
   };
 }
 
@@ -4784,7 +4878,7 @@ function normalizeArtifactV01(value: unknown): NativeHostArtifactV01 {
         artifact.summary,
         "codex_result_artifact_summary_invalid",
       ),
-      1024,
+      1024, "artifacts[].summary",
     ),
   };
 }
@@ -4816,7 +4910,7 @@ function normalizeCommandV01(value: unknown): NativeHostObservedCommandV01 {
         command.summary,
         "codex_result_command_summary_invalid",
       ),
-      1024,
+      1024, "commands[].summary",
     ),
     command_fingerprint: nullableHashV01(command.command_fingerprint),
     started_at: nullableStringV01(command.started_at),
@@ -4848,7 +4942,7 @@ function normalizeCheckV01(value: unknown): NativeHostObservedCheckV01 {
     status: status as NativeHostObservedCheckV01["status"],
     summary: publicTextV01(
       requiredStringV01(check.summary, "codex_result_check_summary_invalid"),
-      1024,
+      1024, "checks[].summary",
     ),
   };
 }
@@ -4870,7 +4964,7 @@ function normalizeSkippedCheckV01(value: unknown): NativeHostSkippedCheckV01 {
         check.reason,
         "codex_result_skipped_check_reason_invalid",
       ),
-      1024,
+      1024, "skipped_checks[].reason",
     ),
   };
 }
@@ -5585,11 +5679,12 @@ function stringArrayV01(
   value: unknown,
   maxItems: number,
   maxLength: number,
+  field: NativeHostResultFieldV01,
 ): string[] {
   return arrayV01(value, maxItems).map((entry) =>
     publicTextV01(
       requiredStringV01(entry, "codex_result_text_invalid"),
-      maxLength,
+      maxLength, field,
     ),
   );
 }
@@ -5603,15 +5698,21 @@ function arrayV01(value: unknown, maxItems: number): unknown[] {
   return value;
 }
 
-function publicTextV01(value: string, maxLength: number): string {
-  const normalized = value
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ")
-    .trim();
-  if (!normalized || normalized.length > maxLength) {
-    throw new NativeHostContractErrorV01("codex_public_text_invalid");
-  }
-  assertNativeHostPublicTextV01(normalized);
-  return normalized;
+function publicTextV01(
+  value: string,
+  maxLength: number,
+  field: NativeHostResultFieldV01 = "unknown",
+): string {
+  return withNativeHostResultFieldV01(field, () => {
+    const normalized = value
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ")
+      .trim();
+    if (!normalized || normalized.length > maxLength) {
+      throw new NativeHostContractErrorV01("codex_public_text_invalid");
+    }
+    assertNativeHostPublicTextV01(normalized);
+    return normalized;
+  });
 }
 
 function boundedTextV01(

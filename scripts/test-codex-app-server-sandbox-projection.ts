@@ -28,6 +28,8 @@ import type {
   NativeHostLifecycleEventV01,
   NativeHostRequestV01,
 } from "@/types/vnext/native-host-adapter";
+import { assertNativeHostResultV01 } from "../lib/vnext/native-host/native-host-contract";
+import { normalizeNativeHostResultResidueV01 } from "../lib/vnext/native-host/native-host-result-normalization";
 import { scopedCodeModeNativeV01 } from "./test-codex-scoped-code-mode";
 
 const ownedScopes: Awaited<ReturnType<typeof createOwnedScopeV01>>[] = [];
@@ -44,6 +46,7 @@ async function main(): Promise<void> {
     mkdtempSync(path.join(tmpdir(), "augnes-codex-sandbox-test-")),
   );
   try {
+  if (process.argv.includes("--result-admission-only")) { await resultAdmissionRequiredChecksV01(testRoot); return; }
   if (process.argv.includes("--fifo-only")) { await fifoBindingsV01(testRoot); return; }
   const helperIndex = process.argv.indexOf("--scoped-code-mode-native");
   if (helperIndex >= 0) {
@@ -51,6 +54,7 @@ async function main(): Promise<void> {
     await scopedCodeModeNativeV01(testRoot, process.argv[helperIndex + 1]!, process.argv[helperIndex + 2]!); return;
   }
   if (process.argv.includes("--incident-message-only")) { await incidentMessageCaptureV01(testRoot); return; }
+  await resultAdmissionRequiredChecksV01(testRoot);
   await failedTerminalDiagnosticCaptureV01(testRoot);
   if (process.argv.includes("--failed-terminal-diagnostic-only")) return;
   await incidentMessageCaptureV01(testRoot);
@@ -143,6 +147,22 @@ async function main(): Promise<void> {
     for (const scope of ownedScopes) await releaseCodexScopedTaskV01(scope);
     rmSync(testRoot, { recursive: true, force: true });
   }
+}
+
+async function resultAdmissionRequiredChecksV01(testRoot: string): Promise<void> {
+  const required = ["calibration_b_comparison", "inherited_context_bounds"];
+  const captured = await runCapturedDiagnosticV01(testRoot, "result-missing-checks", {
+    scenario: "result_admission", result_case: "missing_checks", required_checks: required,
+  });
+  assert(captured.result);
+  assert.equal(captured.result.outcome, "completed");
+  assert.equal(captured.result.checks.some(check => required.includes(check.check_id)), false);
+  assert.deepEqual(captured.result.skipped_checks.filter(check => required.includes(check.check_id)).map(check => check.check_id).sort(), required.sort());
+  const normalized = normalizeNativeHostResultResidueV01({ result: captured.result, required_check_ids: required });
+  assert.equal(normalized.result.checks.some(check => required.includes(check.check_id) && check.status === "passed"), false);
+  assert.equal(normalized.result.skipped_checks.filter(check => required.includes(check.check_id) && check.required).length, 2);
+  assert.equal(captured.captureStatus.result_admission_diagnostic_written, false);
+  console.log("result admission required checks: actual fake App Server -> parser/final result -> required-check normalizer; native completed, both absent B checks skipped/unverified; no native/helper/model execution");
 }
 
 async function fifoOwnerChildV01(source: string, scenario: string): Promise<void> {
@@ -350,6 +370,7 @@ async function failedTerminalDiagnosticCaptureV01(testRoot: string): Promise<voi
 
 async function runCapturedDiagnosticV01(testRoot: string, name: string, incident?: {
   scenario: string; capture?: boolean;
+  result_case?: string; required_checks?: string[];
   hook?: CodexAppServerAdapterOptionsV01["incident_message"];
   break_artifact?: boolean; break_status?: boolean;
   observer_failure?: boolean;
@@ -357,7 +378,7 @@ async function runCapturedDiagnosticV01(testRoot: string, name: string, incident
   const directory = path.join(testRoot, `diagnostic-${name}`);
   mkdirSync(directory);
   const home = path.join(directory, "home"); mkdirSync(home);
-  const request = requestV01(directory);
+  const request = requestV01(directory, incident?.required_checks);
   request.request_id += `-${name}`; request.run_id += `-${name}`;
   const lifecycle: NativeHostLifecycleEventV01[] = [];
   const cancellation = new AbortController();
@@ -372,7 +393,7 @@ async function runCapturedDiagnosticV01(testRoot: string, name: string, incident
     launch: { command: process.execPath,
       prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
       environment: { NODE_ENV: "test", HOME: home, TMPDIR: directory, PATH: process.env.PATH,
-        FAKE_CODEX_SCENARIO: incident?.scenario ?? scenario, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupPath, FAKE_CODEX_NETWORK_COUNT_PATH: networkPath } },
+        FAKE_CODEX_SCENARIO: incident?.scenario ?? scenario, FAKE_CODEX_RESULT_CASE: incident?.result_case, FAKE_CODEX_CLEANUP_MARKER_PATH: cleanupPath, FAKE_CODEX_NETWORK_COUNT_PATH: networkPath } },
     ...(incident?.hook ? { incident_message: incident.hook } : {}),
     observe: (observation: { kind: string }) => {
       if (incident?.observer_failure && observation.kind === "settled") throw new Error("SYNTHETIC_GENERAL_OBSERVER_FAILURE");
@@ -411,6 +432,7 @@ async function runCapturedDiagnosticV01(testRoot: string, name: string, incident
       incidentRecorder?.closeIncidentCapture();
     }
   }
+  if (result) assertNativeHostResultV01(request, result);
   assert.equal(deadlineExpired, false, name);
   assert.equal(readFileSync(cleanupPath, "utf8"), "settled\n", name);
   assert.equal(readFileSync(networkPath, "utf8"), "0\n", name);
@@ -986,10 +1008,12 @@ void main().catch((error: unknown) => {
   process.exitCode = 1;
 });
 
-function requestV01(root: string): NativeHostRequestV01 {
-  const packet = buildTaskContextPacketV01(
-    structuredClone(genericCliBuilderInputFixture),
-  );
+function requestV01(root: string, requiredChecks?: string[]): NativeHostRequestV01 {
+  const input = structuredClone(genericCliBuilderInputFixture);
+  if (requiredChecks) {
+    input.constraints.required_checks = [...requiredChecks]; input.return_contract.required_checks = [...requiredChecks];
+  }
+  const packet = buildTaskContextPacketV01(input);
   const canonicalRoot = realpathSync(root);
   const stat = statSync(canonicalRoot, { bigint: true });
   const fingerprint = createProtocolSha256V01(`sandbox-root:${canonicalRoot}`);

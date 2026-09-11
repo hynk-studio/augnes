@@ -411,18 +411,11 @@ try {
     operationId: "contract:stale-stopped-supervisor-current",
   });
 
-  const liveProcessGroup = currentProcessGroupOwnership(1);
-  writeJson(stoppedFixture.layout.manager_state_path, {
-    ...historicalLiveManagerState,
-    runtime_ownership: makeRuntimeOwnership({
-      uiGroup: liveProcessGroup,
-      bridgeGroup: liveProcessGroup,
-    }),
-  });
-  await assertMaintenanceUpdateRequired({
+  await assertOwnedStaleRuntimeMaintenance({
+    fixture: stoppedFixture,
+    historicalLiveManagerState,
     options,
     launchctl,
-    operationId: "contract:stale-stopped-runtime-owner-current",
   });
 
   writeFileSync(stoppedFixture.layout.manager_state_path, "not-json\n", {
@@ -459,25 +452,6 @@ try {
     launchctl,
     operationId: "contract:stale-stopped-manager-ownership-incomplete",
   });
-  writeJson(stoppedFixture.layout.manager_state_path, {
-    ...historicalLiveManagerState,
-    runtime_ownership: makeRuntimeOwnership({
-      uiGroup: { ...liveProcessGroup, identity: "c".repeat(64), members: [{
-        pid: liveProcessGroup.pid,
-        identity: "c".repeat(64),
-      }] },
-      bridgeGroup: liveProcessGroup,
-    }),
-  });
-  await assert.rejects(
-    acquireCompanionServiceMaintenance({
-      ...options,
-      launchctl,
-      operationId: "contract:stale-stopped-runtime-group-changed",
-    }),
-    (error) =>
-      error?.code === "companion_service_runtime_ownership_unverifiable",
-  );
   writeJson(stoppedFixture.layout.manager_state_path, exactStoppedManagerState);
 
   const managerLock = {
@@ -2279,6 +2253,106 @@ function currentProcessIdentity(pid = process.pid) {
     .digest("hex");
 }
 
+async function assertOwnedStaleRuntimeMaintenance({
+  fixture, historicalLiveManagerState, options: fixtureOptions, launchctl,
+}) {
+  const owned = new Set();
+  const observedPids = new Set();
+  const failures = [];
+  try {
+    // Both members wait on their parent IPC channel. Readiness is an event,
+    // not a delay or repeated sampling of a system/runner-owned process group.
+    const memberSource = `
+      process.on("message", () => {});
+      process.on("disconnect", () => process.exit(0));
+      process.send({ pid: process.pid });
+    `;
+    const leaderSource = `
+      const { spawn } = require("node:child_process");
+      process.on("message", () => {});
+      process.on("disconnect", () => process.exit(0));
+      const member = spawn(process.execPath, ["-e", ${JSON.stringify(memberSource)}], {
+        detached: false, stdio: ["ignore", "ignore", "ignore", "ipc"],
+      });
+      member.once("error", () => process.exit(1));
+      member.once("exit", () => process.exit(1));
+      member.once("message", (message) => {
+        if (message.pid !== member.pid) process.exit(1);
+        process.send({ leader_pid: process.pid, member_pid: member.pid });
+      });
+    `;
+    const child = spawn(process.execPath, ["-e", leaderSource], {
+      cwd: repositoryRoot,
+      env: buildCanonicalChildEnvironment({ ambientEnvironment: process.env, temporaryRoot: root }),
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "ignore", "ignore", "ipc"],
+    });
+    const tracked = registerOwnedChild(owned, child, { label: "stale-maintenance-owned-group" });
+    observedPids.add(child.pid);
+    const [ready] = await once(child, "message", { signal: AbortSignal.timeout(5_000) });
+    assert.equal(ready.leader_pid, child.pid);
+    assert(Number.isInteger(ready.member_pid) && ready.member_pid > 1);
+    observedPids.add(ready.member_pid);
+    const exact = currentProcessGroupOwnership(child.pid);
+    assert.deepEqual(exact.members.map(member => member.pid), [...observedPids].sort((a, b) => a - b));
+    assert.equal(exact.members.length, 2);
+    const reversed = { ...exact, members: [...exact.members].reverse() };
+    const mismatched = { ...exact, members: exact.members.map(member => member.pid === ready.member_pid
+      ? { ...member, identity: (member.identity[0] === "a" ? "b" : "a") + member.identity.slice(1) }
+      : member) };
+    // Keep the pre-existing changed leader/group identity negative inside this
+    // owned lifetime too, rather than referring to a foreign or released group.
+    const changedIdentity = (exact.identity[0] === "c" ? "d" : "c") + exact.identity.slice(1);
+    const changedGroup = { ...exact, identity: changedIdentity,
+      members: [{ pid: exact.pid, identity: changedIdentity }] };
+    const readOnlyLaunchctl = (args) => {
+      assert.equal(args[0], "print", "Maintenance refusal must not change a launch job");
+      return launchctl(args);
+    };
+    for (const [name, uiGroup, bridgeGroup, expectedCode] of [
+      ["same-members-reversed-order", reversed, reversed, "companion_service_runtime_ownership_unverifiable"],
+      ["current", exact, exact, "companion_service_update_required"],
+      ["mismatched-member-identity", mismatched, exact, "companion_service_runtime_ownership_unverifiable"],
+      ["group-changed", changedGroup, exact, "companion_service_runtime_ownership_unverifiable"],
+    ]) {
+      assert.equal(tracked.exited, false);
+      assert.deepEqual(currentProcessGroupOwnership(child.pid), exact);
+      writeJson(fixture.layout.manager_state_path, {
+        ...historicalLiveManagerState,
+        runtime_ownership: makeRuntimeOwnership({ uiGroup, bridgeGroup }),
+      });
+      const materialBefore = serviceMaterialFingerprint(fixture.layout);
+      const managerBefore = readFileSync(fixture.layout.manager_state_path, "utf8");
+      const entriesBefore = readdirSync(fixture.layout.service_directory).sort();
+      assert.equal(existsSync(fixture.layout.maintenance_lease_path), false);
+      await assert.rejects(acquireCompanionServiceMaintenance({
+        ...fixtureOptions, launchctl: readOnlyLaunchctl,
+        operationId: `contract:stale-stopped-runtime-owner-${name}`,
+      }), (error) => error?.code === expectedCode);
+      assert.equal(existsSync(fixture.layout.maintenance_lease_path), false);
+      assert.equal(serviceMaterialFingerprint(fixture.layout), materialBefore);
+      assert.equal(readFileSync(fixture.layout.manager_state_path, "utf8"), managerBefore);
+      assert.deepEqual(readdirSync(fixture.layout.service_directory).sort(), entriesBefore);
+      assert.equal(tracked.exited, false);
+      assert.deepEqual(currentProcessGroupOwnership(child.pid), exact);
+      console.log(`stale maintenance owned group: ${JSON.stringify({
+        scenario: name, expected_refusal: expectedCode, owned_pids: [...observedPids],
+        canonical_members_stable: true, maintenance_lease_created: false, lifecycle_effect: false,
+      })}`);
+    }
+  } catch (error) {
+    failures.push(error);
+  } finally {
+    try {
+      await cleanupOwnedProcesses(owned);
+      assert.equal(owned.size, 0);
+      for (const pid of observedPids) assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+      console.log("stale maintenance owned group: cleanup completed; all observed owned members absent");
+    } catch (error) { failures.push(error); }
+  }
+  if (failures.length) throw new AggregateError(failures, "stale maintenance owned-group fixture or cleanup failed");
+}
+
 function currentProcessGroupOwnership(pid) {
   const groupResult = spawnSync(
     "/bin/ps",
@@ -2302,7 +2376,7 @@ function currentProcessGroupOwnership(pid) {
     if (!match || Number(match[2]) !== pid) return [];
     const memberPid = Number(match[1]);
     return [{ pid: memberPid, identity: currentProcessIdentity(memberPid) }];
-  });
+  }).sort((left, right) => left.pid - right.pid);
   assert.equal(members.some((member) => member.pid === pid), true);
   return {
     pid,

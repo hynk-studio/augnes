@@ -62,3 +62,27 @@ function invalidRepositoryRelativePath(): never {
     "repository_relative_path_invalid",
   );
 }
+
+/** Prose-only label exception, never a filesystem-path or identifier rule.
+ * "C: notes" is lexically ambiguous and classified as prose here. */
+export function isPublicProseDriveLabelV01(value: string): boolean {
+  return /^[A-Za-z]:[ \t]+[\p{L}\p{N}]/u.test(value);
+}
+
+/** Lexical privacy guard for public descriptions, not path canonicalization. */
+export function containsPublicTextLocalPathV01(value: string): boolean {
+  const trimmed = value.trim();
+  if (
+    path.posix.isAbsolute(trimmed) || path.win32.isAbsolute(trimmed) ||
+    /\bfile:\/\//iu.test(value) ||
+    /(?:^|[\s("'`])\/(?!\/)(?:[^/\s"'`]+\/)+[^/\s"'`]+/u.test(value) ||
+    /(?:^|[\s("'`])\\\\[^\s"'`]+\\[^\s"'`]+/u.test(value)
+  ) return true;
+  for (const match of value.matchAll(/(?:^|[\s("'`])[a-zA-Z]:/gu)) {
+    const token = value.slice(match.index + match[0].length - 2);
+    // All letters, not task-specific labels. Bare drives, drive-relative paths
+    // without a space and drive-absolute paths retain their refusal.
+    if (!isPublicProseDriveLabelV01(token)) return true;
+  }
+  return false;
+}

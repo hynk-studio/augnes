@@ -19,7 +19,7 @@ import {
 } from "@/lib/vnext/protocol-primitives";
 import { EXTERNAL_REF_VERSION_V01, type ExternalRefV01 } from "@/types/vnext/external-ref";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
-import { externalRefUsesRepositoryRelativePathV01 } from "@/lib/vnext/repository-relative-path";
+import { externalRefUsesRepositoryRelativePathV01, isPublicProseDriveLabelV01, containsPublicTextLocalPathV01 } from "@/lib/vnext/repository-relative-path";
 import {
   RUN_RECEIPT_ATTESTATION_TRUST_CLASSES_V01,
   RUN_RECEIPT_CANONICALIZATION_V01,
@@ -2430,15 +2430,19 @@ function validateIntegrity(input: ProtocolJsonRecordV01, accumulator: Validation
   if (integrity.algorithm !== "sha256" || integrity.canonicalization !== RUN_RECEIPT_CANONICALIZATION_V01 || integrity.fingerprint_scope !== "receipt_without_integrity_fingerprint") addError(accumulator, "integrity_metadata_invalid", "$.integrity", "RunReceipt integrity metadata is invalid.");
 }
 
+const RECEIPT_PUBLIC_PROSE_FIELDS = new Set(["summary", "reason", "notes", "resource_summary", "limitations"]);
+
 function scanAbsoluteLocalPaths(
   value: unknown,
   path: string,
   accumulator: ValidationAccumulator,
   opaqueExternalId = false,
+  publicProse = false,
 ) {
   if (typeof value === "string") {
     if (
       !opaqueExternalId &&
+      !(publicProse && isPublicProseDriveLabelV01(value) && !containsPublicTextLocalPathV01(value)) &&
       /^(?:file:\/\/|\/|\\|[A-Za-z]:)/u.test(value)
     ) {
       addError(
@@ -2453,7 +2457,7 @@ function scanAbsoluteLocalPaths(
   }
   if (Array.isArray(value)) {
     value.forEach((child, index) =>
-      scanAbsoluteLocalPaths(child, `${path}[${index}]`, accumulator),
+      scanAbsoluteLocalPaths(child, `${path}[${index}]`, accumulator, false, publicProse),
     );
     return;
   }
@@ -2472,6 +2476,7 @@ function scanAbsoluteLocalPaths(
       `${path}.${key}`,
       accumulator,
       isExternalRef && key === "external_id" && !pathLikeExternalRef,
+      RECEIPT_PUBLIC_PROSE_FIELDS.has(key),
     );
   }
 }
