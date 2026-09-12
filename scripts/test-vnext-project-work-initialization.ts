@@ -87,6 +87,7 @@ import {
 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import { recordVNextOperatorPilotProposalRevisionV01 } from "../lib/vnext/runtime/operator-pilot-proposal-revision";
+import { buildSelectedChangeRevisionV01 } from "../lib/vnext/ai-workplane/selected-change-revision";
 import { readVNextOperatorPilotSemanticReviewV01, recordVNextOperatorPilotReviewDecisionV01 } from "../lib/vnext/runtime/operator-pilot-review-material";
 import { prepareVNextOperatorPilotSemanticCommitPreviewV01, confirmVNextOperatorPilotSemanticCommitV01, applyVNextOperatorPilotReviewedSemanticTransitionV01 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
@@ -649,10 +650,84 @@ async function assertExecutedReviewedFollowUpV01(): Promise<void> {
     assert.equal(revised.proposal.run_receipt_refs[0]!.external_id, first.receipt.receipt_id);
     assert.equal(revised.proposal.operation_revision!.authored_by_ref.trust_class, "user_declaration");
     const candidate = revised.proposal.proposed_deltas.find((candidate) => candidate.candidate_id === revised.proposal.operation_revision!.revised_candidate.candidate_id)!;
+    // P3.1 expectations are fixed by the input above: the original X reading,
+    // Y untested, unknown cause and B-before-Y check survive the narrowed
+    // explanation. Reading never applies it or adds an action requirement.
+    const readRevision = () => readVNextOperatorPilotSemanticReviewV01(fixture.db, {
+      config: fixture.config, proposal_id: revised.proposal.proposal_id,
+      authenticated_session_id: credential.session_id,
+    });
+    const revisionRead = readRevision();
+    const selectedRevision = revisionRead.candidates.find((entry) => entry.candidate.candidate_id === candidate.candidate_id)!;
+    const beforeComparison = fixture.db.serialize();
+    const contrast = buildSelectedChangeRevisionV01(revisionRead, selectedRevision)!;
+    assert.notEqual(contrast.status, "unavailable");
+    assert.equal(contrast.prior!.proposed_state_summary, sourceCandidate.candidate.proposed_state_summary);
+    assert.equal(contrast.rationale, revisionRequest.rationale_summary);
+    assert.equal(contrast.author_basis, "user_declaration");
+    assert(contrast.source_href!.includes(encodeURIComponent(source.integrity.fingerprint)));
+    assert(contrast.materials.some((item) => item.lane === "observation"), "The originating observation remains distinct from a revised explanation");
+    assert(contrast.result_reports.some((item) => /X measured 7 against limit 5; Y was not measured/u.test(item.summary)), "The X result report reaches the comparison without being promoted to direct observation");
+    assert.deepEqual(contrast.result_reports[0]!.limitations, first.receipt.result_summary.limitations);
+    assert.equal(selectedRevision.candidate.proposed_state_summary, correction);
+    assert(selectedRevision.candidate.uncertainties.includes("The cause and Y behavior remain unknown."));
+    assert.equal(selectedRevision.pilot_admission.decision_allowed.accept, true);
+    assert.equal(revisionRead.decision_count, 0);
+    assert.equal(revisionRead.transition.status, "not_applied");
+    assert(beforeComparison.equals(fixture.db.serialize()));
+    assert.equal(buildSelectedChangeRevisionV01(revisionRead, revisionRead.candidates.find((entry) => entry.candidate.candidate_id === sourceCandidate.candidate.candidate_id)!), null, "Selecting the earlier candidate does not inherit the revised candidate's comparison");
+    for (const mutation of ["missing_predecessor", "changed_source_fingerprint", "foreign_envelope", "ambiguous_candidate"] as const) {
+      // Pure read-payload negatives; no canonical lineage is fabricated in storage.
+      const partial = structuredClone(revisionRead);
+      if (mutation === "missing_predecessor") partial.candidates = partial.candidates.filter((entry) => entry.candidate.candidate_id !== sourceCandidate.candidate.candidate_id);
+      if (mutation === "changed_source_fingerprint") partial.proposal.operation_revision!.source.proposal_fingerprint = `sha256:${"0".repeat(64)}`;
+      if (mutation === "foreign_envelope") partial.proposal_id = "episode-delta-proposal:another-project";
+      if (mutation === "ambiguous_candidate") partial.candidates.push(structuredClone(selectedRevision));
+      const unavailable = buildSelectedChangeRevisionV01(partial, selectedRevision)!;
+      assert.equal(unavailable.status, "unavailable", mutation);
+      assert.equal(unavailable.prior, null, mutation);
+      assert.equal(unavailable.rationale, null, mutation);
+      assert.deepEqual(partial.candidate_admissions, revisionRead.candidate_admissions, "Comparison availability does not rewrite action eligibility");
+    }
+    const staleRead = structuredClone(revisionRead);
+    staleRead.proposal.source_status.currentness = "stale";
+    assert.equal(buildSelectedChangeRevisionV01(staleRead, selectedRevision)!.status, "partial");
+    const changedSelection = structuredClone(selectedRevision);
+    changedSelection.candidate_fingerprint = `sha256:${"0".repeat(64)}`;
+    assert.equal(buildSelectedChangeRevisionV01(revisionRead, changedSelection)!.status, "unavailable");
+    const originCondition = structuredClone(revisionRead);
+    originCondition.proposal.missing_information.push({
+      missing_id: "p31-origin-check", knowledge_status: "unknown", code: "origin_check",
+      bounded_summary: "The originating observation still needs its bounded follow-up check.",
+      related_material_ids: [contrast.materials.find((item) => item.lane === "observation")!.material_id],
+      related_delta_ids: [], source_refs: [], review_required: true,
+    });
+    assert(buildSelectedChangeRevisionV01(originCondition, selectedRevision)!.unresolved.some((item) => item.id === "p31-origin-check"), "A check bound to the originating observation survives a changed explanation");
+    for (const mutation of ["missing", "foreign_project", "changed_fingerprint"] as const) {
+      const incomplete = structuredClone(revisionRead);
+      if (mutation === "missing") incomplete.source_run_receipts = [];
+      else for (const receipt of incomplete.source_run_receipts) {
+        if (mutation === "foreign_project") receipt.project_id = "project:p31-foreign";
+        else receipt.integrity.fingerprint = `sha256:${"0".repeat(64)}`;
+      }
+      const missingReport = buildSelectedChangeRevisionV01(incomplete, selectedRevision)!;
+      assert.equal(missingReport.status, "partial");
+      assert.deepEqual(missingReport.result_reports, [], mutation);
+      assert(missingReport.gaps.some((gap) => gap.includes("result reports are unavailable")));
+      assert.deepEqual(missingReport.prior, contrast.prior, "A missing result does not discard the exact proposal comparison");
+    }
+    assert.throws(() => readVNextOperatorPilotSemanticReviewV01(fixture.db, {
+      config: { ...fixture.config, project_id: "project:p31-foreign" },
+      proposal_id: revised.proposal.proposal_id, authenticated_session_id: credential.session_id,
+    }), /operator_pilot_proposal_missing/u);
     const decisionRequest = { proposal_id: revised.proposal.proposal_id, proposal_fingerprint: revised.proposal.integrity.fingerprint, candidate_id: candidate.candidate_id,
       candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(candidate), decision: "accept", rationale_summary: "Accept the conditional validation follow-up. Y is still deferred and no test is authorized by this decision." };
     const accepted = recordVNextOperatorPilotReviewDecisionV01(fixture.db, { config: fixture.config, credential, request: decisionRequest, clock: fixedClock("2026-08-01T00:00:08.000Z") });
     credential = credentialFromCookieV01(accepted.session_cookie.value);
+    const decisionRead = readRevision();
+    assert.equal(decisionRead.decision_count, 1);
+    assert.equal(decisionRead.transition.status, "not_applied", "Saved decision is not application");
+    assert.deepEqual(buildSelectedChangeRevisionV01(decisionRead, selectedRevision), contrast);
     const binding = { proposal_id: revised.proposal.proposal_id, proposal_fingerprint: revised.proposal.integrity.fingerprint, decision_id: accepted.decision.decision_id, decision_fingerprint: accepted.decision.integrity.fingerprint };
     const previewBefore = fixture.db.serialize();
     const preview = prepareVNextOperatorPilotSemanticCommitPreviewV01(fixture.db, { config: fixture.config, credential, request: binding, clock: fixedClock("2026-08-01T00:00:09.000Z") });
@@ -665,6 +740,9 @@ async function assertExecutedReviewedFollowUpV01(): Promise<void> {
     const applyRequest = { ...binding, gate_record_id: gate.gate_record.gate_record_id, gate_record_fingerprint: gate.gate_record.integrity.fingerprint, prior_packet_id: selected.packet.packet_id, prior_packet_fingerprint: selected.packet.integrity.fingerprint };
     const applied = applyVNextOperatorPilotReviewedSemanticTransitionV01(fixture.db, { config: fixture.config, credential, request: applyRequest, clock: fixedClock("2026-08-01T00:00:11.000Z") });
     credential = credentialFromCookieV01(applied.session_admission.cookie_value);
+    const appliedRead = readRevision();
+    assert.equal(appliedRead.transition_receipts.some((receipt) => receipt.source_candidate.candidate_id === candidate.candidate_id && receipt.source_decision.decision_id === accepted.decision.decision_id), true);
+    assert.deepEqual(buildSelectedChangeRevisionV01(appliedRead, selectedRevision), contrast, "Application does not rewrite the recorded before/revised material or resurrect an earlier obligation");
     const writerMs = performance.now() - writerStarted;
     assert.equal(applied.status, "applied");
     assert.equal(applied.transition_receipt.source_proposal.proposal_id, revised.proposal.proposal_id);
