@@ -157,6 +157,48 @@ function sendToolResult(harness: WidgetHarness, params: Record<string, unknown>)
   });
 }
 
+export async function assertWorkReadWidgetProjection(results: {
+  listed: Record<string, unknown>;
+  opened: Record<string, unknown>;
+  empty: Record<string, unknown>;
+  failed: Record<string, unknown>;
+}) {
+  const harness = createWidgetHarness();
+  await completeInitialization(harness);
+  const facts = () => harness.elements.get("facts")!.children.map((child) => child.textContent);
+  const summary = () => harness.elements.get("summary")!.textContent;
+
+  sendToolResult(harness, { structuredContent: results.listed });
+  assert.equal(harness.elements.get("title")!.textContent, "Choose a work item");
+  assert.match(summary(), /same scope/);
+  assert.doesNotMatch(summary(), /starting|active work|native host/);
+  assert.ok(facts().includes(String(results.listed.recommended_work_id)));
+
+  sendToolResult(harness, { structuredContent: results.opened });
+  const brief = results.opened.brief as {
+    work_id: string; as_of: string; next_action: string;
+    work: { status: string };
+    related_proof: { docs: string[]; prs: string[] };
+  };
+  for (const value of [brief.work_id, brief.work.status, brief.as_of, brief.next_action]) {
+    assert.ok(facts().includes(value), `widget must preserve the returned work fact: ${value}`);
+  }
+  for (const link of [...brief.related_proof.docs, ...brief.related_proof.prs]) {
+    assert.ok(facts().some((value) => value.includes(link)));
+  }
+  assert.match(summary(), /not a native TaskContextPacket or accepted semantic history/);
+  assert.match(summary(), /currentness and proof validity are not verified/);
+
+  sendToolResult(harness, { structuredContent: results.empty });
+  assert.match(summary(), /No recorded work items/);
+  assert.match(summary(), /does not establish.*gaps are resolved/);
+  sendToolResult(harness, { structuredContent: results.failed });
+  assert.equal(harness.elements.get("title")!.textContent, "Work context unavailable");
+  assert.match(summary(), /missing_optional_runtime_table/);
+  assert.ok(facts().includes("Unavailable; no conclusion about unresolved work"));
+  assert.equal(harness.timers.size, 0);
+}
+
 export async function assertConsoleWidgetBridge() {
   const initialToolOutput = createWidgetHarness({
     toolOutput: workBrief("Initial tool output"),

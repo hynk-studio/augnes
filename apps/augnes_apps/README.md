@@ -8,7 +8,7 @@ This app is intentionally narrow:
 
 - ChatGPT is the surface host only.
 - Augnes Core remains the authority holder.
-- v1 is strictly read-only.
+- The public/default tool surface is strictly read-only.
 - No canonical memory writes happen from ChatGPT.
 - Narrator text is never treated as Evidence.
 - Repo search/explore stay view-only; fetch is the only repo path that can later become an evidence candidate.
@@ -29,6 +29,68 @@ Public/default mode also exposes the two read-only Augnes work tools:
 
 - `augnes_list_work_items`
 - `augnes_get_work_brief`
+
+### Read selected work
+
+Use this path when the user needs recorded Augnes project work context:
+
+1. Call `augnes_list_work_items`, optionally with the intended `scope`.
+2. Select a returned `work_id`.
+3. Call `augnes_get_work_brief` with that identifier as `workId` and the same
+   `scope`. No token, database path or manually discovered internal ID is needed
+   in these tool arguments.
+
+Omitted scope means the legacy scope `project:augnes`; it does not follow the
+active Browser project or resolve a native project identity. The picker
+recommendation is a display heuristic over returned order/status, not a current
+work selection, priority decision or execution grant. Do not use these tools for
+unrelated questions or independent audits that do not need project context.
+
+The brief contains recorded status, next action, attention flag, recent events,
+state-key references and source/proof links. Work IDs and events are operational
+trace anchors. Linked action records retain their proof-only versus committed
+state marker distinction; links are not verification that proof passed or that
+the referenced source is current. `as_of` is the read time. Missing links,
+unrecorded next actions and unverified source/proof information remain gaps;
+neither a completed work status nor an empty list proves all work is resolved.
+WorkBrief is a historical compatibility input, not a native `TaskContextPacket`
+or accepted semantic history. See the
+[protocol owner](../../docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#historical-compatibility-inputs).
+
+`createMcpAppServer` registers both tools against its separate
+`StateRuntimeBridgeAdapter`. The normal `StateRuntimeHttpAdapter` calls
+`GET /api/work?scope=...` and `GET /api/work/:work_id/brief?scope=...`.
+Those routes read through `lib/work.ts` (`listWorkItems` / `buildWorkBrief`),
+using stored work items, events, coordination events and linked action records.
+The App validates the responses, preserves the brief in structured output and
+metadata, and renders a bounded narrative/widget projection. It does not fetch
+linked proof or infer canonical currentness. The existing demo seed writer and
+mock bridge adapter supply test fixtures only, not connected-project evidence.
+
+A valid empty scope returns an empty picker. A missing optional work-table
+fallback from the runtime is reported as unavailable by this adapter, preserving
+the route's explicit fallback distinction. Transport, malformed-response and
+missing/wrong-scope brief errors remain errors in MCP, text and the work widget;
+they do not trigger fixture fallback or another project's work.
+
+### Exposure controls
+
+`AUGNES_APP_TOOL_SURFACE` defaults to `public`. Both work-read tools are registered
+on every existing surface; the following controls determine the additional tools.
+
+| Tool surface | Bridge disabled (default) | Bridge explicitly enabled |
+|---|---|---|
+| `public` | Nine legacy + two work-read tools | Public tools plus the existing gated bridge |
+| `work_loop_readonly` | Two work-read tools | Two work-read tools |
+| `companion_repository_readonly` | Two work-read tools | Work reads plus repository continuity read |
+| `companion_repository_attachment` | Two work-read tools | Work reads plus existing repository attachment/delegation tools |
+
+Registration does not establish backend availability. `AUGNES_APP_PROFILE`
+controls presentation independently; `AUGNES_CORE_MODE` selects only the legacy
+adapter. In normal mock, file and HTTP configurations, work reads still require
+the state-runtime HTTP backend at `AUGNES_API_BASE_URL`. Injected test adapters
+are explicitly mock evidence. A health `mode` label alone does not identify the
+backing data of every tool.
 
 Bridge-gated tools may be enabled for local operator workflows with
 `AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
@@ -95,11 +157,12 @@ Or explicitly:
 AUGNES_CORE_MODE=mock
 ```
 
-This uses `MockAugnesCoreAdapter` and does not require a live Augnes Core backend.
+This uses `MockAugnesCoreAdapter` for the nine legacy tools without a live legacy
+Core backend. The two work-read tools still require the state-runtime backend.
 
 ### File mode
 
-File mode adds non-mock read paths for all nine public tools: `get_working_view`, `open_casefile`, `search`, `fetch`, `get_continuity_report`, `get_boundary_packet`, `explain_strategy`, `get_governance_audit`, and `navigate_repo`:
+File mode adds file-backed read paths for the nine legacy tools: `get_working_view`, `open_casefile`, `search`, `fetch`, `get_continuity_report`, `get_boundary_packet`, `explain_strategy`, `get_governance_audit`, and `navigate_repo`:
 
 ```bash
 npm run start:file
@@ -113,9 +176,9 @@ npm run dev:file
 
 `start:file` and `dev:file` load `.env.file` when present, otherwise they use the built-in checked-in fixture defaults. To customize local fixture paths, create an untracked `.env.file`.
 
-In file mode, `FileAugnesCoreAdapter` reads configured JSON files for all nine public tools, including the Repo Navigation JSON file on `navigate_repo` calls. Payloads are validated against existing schemas. The adapter never writes to files.
+In file mode, `FileAugnesCoreAdapter` reads configured JSON files for the nine legacy tools, including the Repo Navigation JSON file on `navigate_repo` calls. Payloads are validated against existing schemas. The adapter never writes to files.
 
-Remaining mock-backed tools in file mode: none. Mock mode itself remains available.
+Remaining mock-backed legacy tools in file mode: none. Mock mode itself remains available. Work reads use the separate state-runtime HTTP adapter and do not read these files.
 
 The current `ContinuityReport`, `BoundaryPacket`, and `StrategyRationale` schemas have no evidence-reference fields, so continuity, boundary, and strategy evidence linkage are planned for a later schema pass. File-backed strategy currently returns the configured fixture for any subject; subject-specific resolution is planned for a later adapter pass.
 
@@ -197,6 +260,8 @@ Set these in the shell or in an untracked local `.env` file:
 - `AUGNES_USE_MOCK=true`
 - `AUGNES_CORE_MODE=mock` (optional; allowed values are `mock`, `file`, `http`)
 - `AUGNES_APP_PROFILE=public` (optional; allowed values are `public`, `chrono_lab`)
+- `AUGNES_APP_TOOL_SURFACE=public` (optional; see exposure controls above)
+- `AUGNES_ENABLE_AGENT_BRIDGE=false` (only the literal `true` enables the existing gated bridge)
 - `AUGNES_API_BASE_URL=http://localhost:3000`
 - `AUGNES_WORKING_VIEW_FILE=./data/working-view.example.json`
 - `AUGNES_CASEFILE_FILE=./data/casefile.example.json`

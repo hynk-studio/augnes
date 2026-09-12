@@ -724,6 +724,15 @@ const suites = {
       ...nestedNode("scripts/smoke.ts"),
     },
     {
+      id: "work-read",
+      group: "supporting-serial",
+      requirements: ["database", "filesystem", "mutable-module-state"],
+      label: "MCP work list to brief, route availability, and widget meaning",
+      // Root tsx configuration owns the real routes' @/ imports.
+      ...rootNode("apps/augnes_apps/scripts/work-read-contract.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "cross-session-read",
       group: "supporting-serial",
       requirements: [
