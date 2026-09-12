@@ -16,6 +16,7 @@ import {
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
+import { createOperatorBrowserFailureSnapshotV1 } from "./operator-browser-failure-snapshot-v1.mjs";
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createOperatorRequestFailureEvidenceV1 } from "./operator-execution-result-contract-v1.mjs";
@@ -96,6 +97,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let browserFailureDiagnostic = null;
   let retainedFailureEvidence = null;
   let activeRuntimeProjectId = project_id;
+  const failureSnapshot = createOperatorBrowserFailureSnapshotV1({ repository_root: appRepo });
+  const isRuntimeOrigin = (url) => {
+    try { return new URL(url).origin === appOrigin; } catch { return false; }
+  };
 
   const requestForId = (requestId) => {
     for (let index = requests.length - 1; index >= 0; index -= 1) {
@@ -133,6 +138,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const startRuntime = (activeProjectId = project_id) => {
     activeRuntimeProjectId = activeProjectId;
     runtimeStartCount += 1;
+    const generation = runtimeStartCount;
+    failureSnapshot.beginRuntime(generation);
     const finish = timing.start(
       "runtime_startup",
       `runtime startup ${String(runtimeStartCount).padStart(2, "0")}`,
@@ -172,9 +179,11 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       const text = chunk.toString("utf8");
       runtimeLog = `${runtimeLog}${text}`.slice(-128 * 1024);
       capture.append(text);
+      failureSnapshot.append(generation, "stdout", chunk);
     });
     runtimeProcess.stderr.on("data", (chunk) => {
       runtimeLog = `${runtimeLog}${chunk.toString("utf8")}`.slice(-128 * 1024);
+      failureSnapshot.append(generation, "stderr", chunk);
     });
     runtimeProcess.once("spawn", finish);
   };
@@ -286,6 +295,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           phase: currentPhase,
           navigation_epoch: navigationCount,
           path: classified.path,
+          runtime_origin: isRuntimeOrigin(params.request?.url),
           external: classified.external,
           method: params.request?.method ?? null,
           post_data: params.request?.postData ?? null,
@@ -304,6 +314,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           phase: request?.phase ?? currentPhase,
           navigation_epoch: request?.navigation_epoch ?? navigationCount,
           path: classified.path,
+          runtime_origin: isRuntimeOrigin(params.response?.url),
           method: request?.method ?? null,
           status: params.response?.status ?? null,
           type: params.type ?? null,
@@ -477,8 +488,13 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     const navigationPhase = currentPhase;
     const classifiedTarget = classifyUrl(url);
     const responseStart = responses.length;
-    const navigation = await cdp.send("Page.navigate", { url });
     const route = classifyOperatorDocumentRoute(classifiedTarget.path);
+    failureSnapshot.beginNavigation({
+      epoch: navigationEpoch, phase: navigationPhase, route,
+      runtime_origin: isRuntimeOrigin(url),
+    });
+    const navigation = await cdp.send("Page.navigate", { url });
+    failureSnapshot.document({ frame_id: navigation.frameId, loader_id: navigation.loaderId });
     if (typeof navigation.errorText === "string") {
       setBrowserFailureDiagnostic({
         category: "browser_navigation_failure",
@@ -520,6 +536,11 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         throwDocumentResponseMissing(route);
       }
       const status = documentResponse?.status;
+      failureSnapshot.document({
+        frame_id: navigation.frameId, loader_id: newDocumentLoaderId,
+        response: documentResponse,
+        request: requestForId(documentResponse?.request_id),
+      });
       if (
         documentResponse === null ||
         !isValidOperatorDocumentHttpStatusV1(status)
@@ -622,7 +643,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     http_status,
     detail,
   }) => {
-    browserFailureDiagnostic = Object.freeze({
+    browserFailureDiagnostic ??= Object.freeze({
       diagnostic_version: "operator_browser_failure_diagnostic.v1",
       category: publicToken(category),
       route: publicToken(route),
@@ -632,6 +653,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           : null,
       detail: detail === null ? null : publicToken(detail),
     });
+    captureFailureEvidence();
   };
 
   const boundedSupervisorDiagnostic = () => {
@@ -666,11 +688,19 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   };
 
   const captureFailureEvidence = () => {
-    retainedFailureEvidence = Object.freeze({
-      browser_failure_diagnostic: browserFailureDiagnostic,
-      supervisor_exit_diagnostic: boundedSupervisorDiagnostic(),
+    const snapshot = failureSnapshot.capture({
+      phase: currentPhase, diagnostic: browserFailureDiagnostic,
+      readSupervisor: boundedSupervisorDiagnostic,
     });
-    return retainedFailureEvidence;
+    let supervisor = null;
+    try { supervisor = boundedSupervisorDiagnostic(); } catch {
+      // The snapshot records this capture failure without masking the test error.
+    }
+    retainedFailureEvidence ??= Object.freeze({
+      browser_failure_diagnostic: browserFailureDiagnostic,
+      supervisor_exit_diagnostic: supervisor,
+    });
+    return { ...retainedFailureEvidence, browser_failure_snapshot: snapshot };
   };
 
   const waitForHostCondition = async (
@@ -914,7 +944,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       Date.now() - started,
     );
     runtimeShutdownCount += 1;
-    if (browserFailureDiagnostic) captureFailureEvidence();
+    failureSnapshot.shutdown(runtimeStartCount, boundedSupervisorDiagnostic);
     runtimeProcess = null;
     runtimeRecord = null;
     runtimeClosePromise = null;
@@ -922,8 +952,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   };
 
   const cleanup = async () => {
-    currentPhase = "cleanup";
     if (browserFailureDiagnostic) captureFailureEvidence();
+    currentPhase = "cleanup";
     const chromeStarted = Date.now();
     if (cdp) await cdp.close().catch(() => undefined);
     cdp = null;
@@ -952,7 +982,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     }
   };
 
-  const evidence = async () => ({
+  const evidence = async () => {
+    const observation = {
     app_origin: appOrigin,
     requests,
     responses,
@@ -979,7 +1010,10 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     browser_failure_diagnostic:
       retainedFailureEvidence?.browser_failure_diagnostic ??
       browserFailureDiagnostic,
-  });
+    };
+    failureSnapshot.cleanup(observation);
+    return { ...observation, browser_failure_snapshot: failureSnapshot.snapshot() };
+  };
 
   function recordWait(kind, label, started) {
     const duration = Date.now() - started;

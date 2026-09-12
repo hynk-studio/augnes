@@ -126,6 +126,8 @@ export async function runOperatorExecutionBrowserChildV1({
     acceptance_bound_ms: ACCEPTANCE_BOUND_MS,
     e2e_timing_summary: null,
     browser_failure_diagnostic: null,
+    browser_failure_snapshot: null,
+    failure_evidence_capture_errors: [],
     supervisor_exit_diagnostic: null,
     failure: null,
   };
@@ -216,7 +218,11 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unowned_effect_count = 0;
     functionalExecutionSucceeded = true;
   } catch (error) {
-    const failureEvidence = lifecycle?.captureFailureEvidence?.() ?? null;
+    let failureEvidence = null;
+    try { failureEvidence = lifecycle?.captureFailureEvidence?.() ?? null; } catch {
+      result.failure_evidence_capture_errors.push("primary_capture_failed");
+    }
+    result.browser_failure_snapshot = failureEvidence?.browser_failure_snapshot ?? null;
     result.browser_failure_diagnostic =
       failureEvidence?.browser_failure_diagnostic ?? null;
     result.supervisor_exit_diagnostic =
@@ -292,8 +298,14 @@ export async function runOperatorExecutionBrowserChildV1({
       process.exitCode = 1;
     }
     const evidence = lifecycle
-      ? await lifecycle.evidence().catch(() => null)
+      ? await lifecycle.evidence().catch(() => {
+          result.failure_evidence_capture_errors.push("cleanup_capture_failed");
+          return null;
+        })
       : null;
+    if (evidence?.browser_failure_snapshot) {
+      result.browser_failure_snapshot = evidence.browser_failure_snapshot;
+    }
     if (evidence?.browser_failure_diagnostic) {
       result.browser_failure_diagnostic = evidence.browser_failure_diagnostic;
     }
@@ -301,13 +313,13 @@ export async function runOperatorExecutionBrowserChildV1({
       result.supervisor_exit_diagnostic = evidence.supervisor_exit_diagnostic;
     }
     result.owned_process_residue_count =
-      evidence?.owned_process_residue_count ?? 0;
-    result.listener_residue_count = evidence?.listener_residue_count ?? 0;
+      evidence?.owned_process_residue_count ?? null;
+    result.listener_residue_count = evidence?.listener_residue_count ?? null;
     result.owned_streams_settled = result.owned_process_residue_count === 0;
     result.runtime_shutdown_complete =
-      evidence?.runtime_shutdown_complete ?? true;
+      evidence?.runtime_shutdown_complete ?? null;
     result.chrome_cdp_shutdown_complete =
-      evidence?.chrome_cdp_shutdown_complete ?? true;
+      evidence?.chrome_cdp_shutdown_complete ?? null;
     result.temporary_root_removed = !existsSync(roots.temporary_root);
     result.temporary_process_root_removed = !existsSync(roots.process_root);
     result.temporary_profile_removed =
@@ -341,10 +353,10 @@ export async function runOperatorExecutionBrowserChildV1({
       (entry) => !request_failure_allowlist(entry),
     );
     result.unexpected_external_request_count =
-      evidence?.external_requests.length ?? 0;
-    result.unexpected_console_failure_count = unexpectedConsole.length;
-    result.unexpected_page_failure_count = evidence?.page_errors.length ?? 0;
-    result.unexpected_request_failure_count = unexpectedFailedRequests.length;
+      evidence?.external_requests.length ?? null;
+    result.unexpected_console_failure_count = evidence ? unexpectedConsole.length : null;
+    result.unexpected_page_failure_count = evidence?.page_errors.length ?? null;
+    result.unexpected_request_failure_count = evidence ? unexpectedFailedRequests.length : null;
     if (observedEffectDiff) {
       const memoryPerspectiveMutations = ["inserted", "updated", "deleted"]
         .map(
@@ -369,14 +381,14 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unexpected_refusal_accounting_failure_count =
       refusalAccounting.failure_count;
     result.request_response_console_page_refusal_summary = {
-      request_count: evidence?.requests.length ?? 0,
-      response_count: evidence?.responses.length ?? 0,
-      raw_console_failure_count: classifiedConsole.length,
-      raw_console_warning_count: evidence?.console_warnings.length ?? 0,
+      request_count: evidence?.requests.length ?? null,
+      response_count: evidence?.responses.length ?? null,
+      raw_console_failure_count: evidence ? classifiedConsole.length : null,
+      raw_console_warning_count: evidence?.console_warnings.length ?? null,
       expected_console_classification_count:
-        classifiedConsole.length - unexpectedConsole.length,
-      page_failure_count: evidence?.page_errors.length ?? 0,
-      request_failure_count: evidence?.failed_requests.length ?? 0,
+        evidence ? classifiedConsole.length - unexpectedConsole.length : null,
+      page_failure_count: evidence?.page_errors.length ?? null,
+      request_failure_count: evidence?.failed_requests.length ?? null,
       refusal_accounting_failure_count: refusalAccounting.failure_count,
       refusal_accounting: refusalAccounting.summary,
       unexpected_console_failures: unexpectedConsole
