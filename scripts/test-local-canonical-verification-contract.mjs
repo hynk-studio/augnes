@@ -1155,7 +1155,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"pro
   requireText(expiredRefusalRegistration.block, fragment, "expired successor refusals retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["settled_expired_refusals"]);'), 1);
 const continuationRegistration = readCanonicalChildRegistration(integrationSource, "persisted-scoped-continuation");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--persisted-continuation-only"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--persisted-continuation-only"'])
   requireText(continuationRegistration.block, fragment, "persisted continuation must retain bounded serial ownership");
 assert.equal(countOccurrences(firstWorkFixture, "await assertPersistedScopedContinuationV01();"), 1,
   "persisted continuation cases run once through their complete child");

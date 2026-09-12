@@ -30,20 +30,47 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
-## Current P2.2 work-read surface slice
+## Completed P2.2 work-read surface slice
 
 Under [P2 #1212](https://github.com/hynk-studio/augnes/issues/1212), the bounded
-slice on `codex/p2-work-read-surface` is **Current / for Draft review**:
+slice merged in [PR #1250](https://github.com/hynk-studio/augnes/pull/1250) and is
+**Completed within that bounded scope**:
 list work items -> select a returned work identifier -> read that work's brief.
 It reconciles App-local public-tool guidance, clarifies use/non-use and adapter
 backing, preserves unavailable work data as an error, and aligns the read-only
 widget with operational work/proof context. The existing
 [App README](../../apps/augnes_apps/README.md#read-selected-work) holds the compact
-path and exposure map. Completion requires this slice's PR to merge; source and
-local protocol tests do not establish connected-client selection or usefulness.
+path and exposure map. Source and local protocol tests do not establish
+connected-client selection or usefulness.
 This does not complete P2, grant new tool authority, or authorize a later phase.
 #1212, #1209 and #1215 remain open; #1130 assignments and study allowances are
 unchanged.
+
+## Current P3.1 selected-change revision review
+
+Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and the
+[integrated plan #1209](https://github.com/hynk-studio/augnes/issues/1209),
+`codex/p3-meaningful-change-review` is **Current / for Draft review**. The
+bounded consumer in `DecisionCenteredProposalDetail` compares one selected
+operation-aware revision with its exact earlier proposal/candidate, shows the
+recorded user rationale, and preserves source lanes, result reports and
+unresolved conditions in the normal review flow. It reuses the protected
+reader's validated immutable predecessor copy; no additional history read,
+durable record or model interpretation is introduced. Timeline, decision and
+Transition owners retain lifecycle and action eligibility.
+
+This slice becomes completed only when its substantive PR merges. Disposable
+producer/read/UI checks establish mechanics, not improved human judgment,
+connected-client delivery or G usefulness. Missing or conflicting persisted
+lineage retains the protected reader's existing refusal; incomplete comparison
+material supplies no substitute baseline or new action gate.
+
+P3.2's bounded expectation/outcome question remains a separate **Next
+candidate**, requiring its own authorization. P3.2–P3.5, P4/P5 experiments and
+RW1B protocol changes do not follow from this implementation. #1213, #1212,
+#1209 and #1215 remain open. The P5.1 completed/Narrow disposition and its
+original `no_change_needed_with_evidence` conclusion below remain scoped to
+that pilot.
 
 ## P1/P5 status and next decision
 

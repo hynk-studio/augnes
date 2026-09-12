@@ -1882,11 +1882,57 @@ await runOperatorExecutionBrowserChildV1({
         assert.deepEqual(revisedDetail.proposal.observations, sourceDetail.proposal.observations);
         assert.deepEqual(revisedDetail.proposal.attestations, sourceDetail.proposal.attestations);
         assert.equal(revisedDetail.proposal.operation_revision.authored_by_ref.trust_class, "user_declaration");
+        // P3.1: consume the authenticated revision on the normal screen. These
+        // expected facts come from the predeclared correction and exact source,
+        // not from wording generated after observing the UI.
+        const revisionBinding = revisedDetail.proposal.operation_revision;
+        const priorCandidate = sourceDetail.candidates.find((entry) => entry.candidate.candidate_id === revisionBinding.source.candidate_id);
+        assert(priorCandidate);
+        const comparison = '[data-selected-change-revision]';
+        const beforeSelection = db.serialize();
+        const screenContrast = await lifecycle.evaluateJson(`(() => {
+          const element = document.querySelector(${JSON.stringify(comparison)});
+          return {
+            status: element?.getAttribute('data-selected-change-revision'),
+            before: element?.querySelector('[data-revision-before]')?.textContent,
+            after: element?.querySelector('[data-revision-after]')?.textContent,
+            rationale: element?.querySelector('[data-revision-rationale]')?.textContent,
+            source: element?.querySelector('[data-revision-source]')?.getAttribute('href'),
+            observation: Boolean(element?.querySelector('[data-revision-source-lane="observation"]')),
+            report: element?.querySelector('[data-revision-result-report]')?.textContent,
+            in_closed_disclosure: Boolean(element?.closest('details:not([open])')),
+            action_owner: document.querySelector('[data-selected-work-current-stage]')?.getAttribute('data-selected-work-primary-action-owner')
+          };
+        })()`);
+        assert.equal(screenContrast.status, "partial");
+        assert.equal(screenContrast.before, priorCandidate.candidate.proposed_state_summary);
+        assert.equal(screenContrast.after, postResultCorrection);
+        assert.equal(screenContrast.rationale, "The executed host result is bounded; this user correction does not verify untested conditions.");
+        assert.equal(screenContrast.observation, true);
+        assert(screenContrast.report.includes(sourceReceipt.result_summary.summary));
+        assert.equal(screenContrast.in_closed_disclosure, false);
+        const sourceLink = new URL(screenContrast.source, appOrigin);
+        assert.equal(sourceLink.pathname, "/workbench/inspector");
+        assert.equal(sourceLink.searchParams.get("record_id"), revisionBinding.source.proposal_id);
+        assert.equal(sourceLink.searchParams.get("fingerprint"), revisionBinding.source.proposal_fingerprint);
+        assert.equal(screenContrast.action_owner, "decision");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-work-decision [data-vnext-operator-decision-form]') !== null`), true);
+        await lifecycle.setFormControlValue('[data-vnext-candidate-selector]', revisionBinding.source.candidate_id);
+        await lifecycle.waitForCondition(`document.querySelector(${JSON.stringify(comparison)}) === null`, "earlier selection clears revised comparison");
+        await lifecycle.setFormControlValue('[data-vnext-candidate-selector]', revisionBinding.revised_candidate.candidate_id);
+        await lifecycle.waitForCondition(`document.querySelector('[data-revision-after]')?.textContent === ${JSON.stringify(postResultCorrection)}`, "exact revised selection restores comparison");
+        for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
+          await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= innerWidth + 1 && document.querySelector('[data-revision-after]').scrollWidth <= document.querySelector('[data-revision-after]').clientWidth + 1`), true, `revision comparison fits ${width}px`);
+        }
+        assert(beforeSelection.equals(db.serialize()), "Reading and selecting the comparison create no decision, Transition or other record");
         const eligibleForm = '[data-vnext-candidate-accept-eligible="true"] [data-vnext-operator-decision-form]';
         await lifecycle.setFormControlValue(`${eligibleForm} select`, "accept");
         await lifecycle.setFormControlValue(`${eligibleForm} textarea`, "Accept only the corrected validation state. Y remains deferred; execution requires its separate action.");
         await clickSelector(lifecycle, `${eligibleForm} button[type="submit"]`);
         await lifecycle.waitForCondition(`document.querySelector('[data-vnext-transition-action="preview"]:not(:disabled)') !== null`, "reviewed correction awaits independent Transition");
+        assert.equal(await lifecycle.evaluateString(`document.querySelector('[data-revision-after]')?.textContent`), postResultCorrection);
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-work-decision [data-vnext-operator-decision-form]') === null && document.querySelector('[data-vnext-transition-action="apply"]') === null`), true, "Saved decision still requires the existing Transition workflow");
         assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), { ...revisionCounts, decisions: before.decisions + 1 });
         const previewBefore = db.serialize();
         await lifecycle.waitForCondition(`document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`, "GuideBrief settled before correction impact review");
@@ -1902,6 +1948,7 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.waitForCondition(`document.querySelector('[data-vnext-transition-action="apply"]:not(:disabled)') !== null`, "reviewed correction application is enabled");
         await clickSelector(lifecycle, '[data-vnext-transition-action="apply"]');
         await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-current-stage="project_updated"]') !== null`, "reviewed correction applied and later packet persisted");
+        assert.equal(await lifecycle.evaluateString(`document.querySelector('[data-revision-after]')?.textContent`), postResultCorrection, "Application preserves the recorded comparison while lifecycle changes");
         await lifecycle.waitForCondition(`document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-loading="false"]') !== null`, "GuideBrief settled after correction application");
         assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), { ...before, proposals: before.proposals + 1, decisions: before.decisions + 1, transitions: before.transitions + 1, semantic_state: before.semantic_state + 1, packets: before.packets + 1 });
         assert.deepEqual(historyRows().filter((row) => originalRows.some((prior) => prior.record_id === row.record_id)), originalRows);
