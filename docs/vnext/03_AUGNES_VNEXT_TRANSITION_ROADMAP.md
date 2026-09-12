@@ -30,6 +30,38 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## P1/P5 status and next decision
+
+The user-reviewed P5.1 matched F/G pilot is **completed / Narrow — no
+comparative G usefulness advantage established**. This is a completed study
+disposition, not a claim that its documentation reconciliation was already
+merged. The [pilot closeout](../verification/P51_MATCHED_HANDOFF_PILOT_CLOSEOUT.md)
+records two matched cases, four completed and settled executions, four partial
+receipt verification values, and the evidence limits.
+
+P1, P5.1a and the historical bounded live work loop remain completed within
+their accepted scopes. The first-loop and F/G execution cards are historical
+records, not unfinished feasibility or current execution authority. The
+bounded feasibility reconciliation for [#1234](https://github.com/hynk-studio/augnes/issues/1234)
+is proposed separately from the broader plan: [#1209](https://github.com/hynk-studio/augnes/issues/1209)
+and P5 [#1215](https://github.com/hynk-studio/augnes/issues/1215) remain open.
+Issue reconciliation remains a proposal until adopted after documentation
+review; this record does not claim those issue changes occurred.
+
+Current scope is documentation closeout and plan reconciliation. Product/Core
+implementation remains `no_change_needed_with_evidence`. The next planning
+decision is to prefer the strong-note route where it meets the user's
+requirements, without promoting G as more useful or cheaper for this small,
+fully supplied task family. This supersedes any earlier "F/G pilot next"
+pointer; it changes no runtime default, selector or safety/authority boundary.
+
+No P5.2, another model, optional-use comparison, learned retrieval or
+relationship-engine implementation follows automatically. Further comparison
+requires a distinct user-relevant continuity question and separately reviewed
+authority. Common discovery/validation friction remains a bounded observation
+with untested downstream effects, not an owner defect or a mandatory readiness
+phase. No subsequent study or development phase is authorized here.
+
 ## Canonical repository migration and local cutover
 
 The sole current repository/root pair is `hynk-studio/augnes` and
