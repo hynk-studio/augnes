@@ -1469,7 +1469,13 @@ function readProposalHistoryV01(
   const decisionHistory = index.filter((entry) => selectedIds.has(entry.decision_id)).map((entry) => {
     const decision = readVNextOperatorPilotReviewDecisionV01(db, input.config, proposal, entry.decision_id);
     if (!decision) throw reviewError("operator_pilot_persisted_decision_missing", 422);
-    return { decision, ...validateVNextOperatorPilotReviewDecisionProvenanceV01(db, { ...input, proposal, decision }) };
+    const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(db, { ...input, proposal, decision });
+    return {
+      decision, ...provenance,
+      pilot_actionable: provenance.pilot_actionable && effectiveCandidateIndexes.some(
+        (current) => current.decision_id === decision.decision_id,
+      ),
+    };
   });
   const byId = new Map(decisionHistory.map((entry) => [entry.decision.decision_id, entry]));
   const effectiveByCandidate = new Map(effectiveCandidateIndexes.map((entry) =>
@@ -1930,14 +1936,23 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
     add("operator_pilot_decision_record_provenance_mismatch");
   }
 
+  // authenticated_session_id is an application-local read context supplied
+  // only after normal credential authentication. It is not Decision provenance
+  // or an execution grant. Mutating owners authenticate again inside their CAS.
+  const currentActionSession = input.authenticated_session_id
+    ? readVNextLocalOperatorSessionHistoryV01(db, { session_id: input.authenticated_session_id })
+    : null;
   const valid = errors.length === 0;
   return {
     status: valid ? "valid" : "invalid",
     pilot_session_bound: valid,
     pilot_actionable:
-      valid &&
-      applyingDecision &&
-      sessionId === input.authenticated_session_id,
+      valid && applyingDecision && currentActionSession !== null &&
+      currentActionSession.workspace_id === config.workspace_id &&
+      currentActionSession.project_id === config.project_id &&
+      currentActionSession.operator_id === config.operator_id &&
+      currentActionSession.bootstrap_consumed_at !== null &&
+      currentActionSession.revoked_at === null,
     session_id: valid ? sessionId : null,
     request_fingerprint: valid ? requestFingerprint : null,
     errors,

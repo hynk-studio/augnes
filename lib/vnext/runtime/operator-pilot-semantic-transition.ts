@@ -231,7 +231,7 @@ export function prepareVNextOperatorPilotSemanticCommitPreviewV01(
   const authentication = authenticateVNextLocalOperatorSessionV01(db, input);
   const material = requirePilotAcceptedOperationMaterial(db, input.config, request, {
     require_current_admission: true,
-    required_session_id: authentication.session.session_id,
+    current_action_session_id: authentication.session.session_id,
   });
   const preview =
     prepareVNextSemanticCommitPreviewWithOperatorPilotCapabilityV01(db, {
@@ -314,7 +314,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
   );
   requirePilotAcceptedOperationMaterial(db, input.config, request, {
     require_current_admission: true,
-    required_session_id: input.credential.session_id,
+    current_action_session_id: input.credential.session_id,
   });
   assertPilotPreview(prevalidated.preview, prevalidated.material, reviewWindowConfig);
   if (db.inTransaction) throw transitionError("operator_pilot_nested_transaction", 409);
@@ -323,7 +323,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
     const material = requirePilotAcceptedOperationMaterial(db, input.config, request, {
       require_current_admission: true,
-      required_session_id: admission.session.session_id,
+      current_action_session_id: admission.session.session_id,
     });
     const exact = rebuildBoundPreview(
       db,
@@ -336,6 +336,10 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
       createVNextOperatorPilotSemanticConfirmationBasisRefV01({
         config: input.config,
         session_id: admission.session.session_id,
+        session_relation:
+          admission.session.session_id === material.decision.authorization_basis_refs[0]?.external_id
+            ? "decision_session"
+            : "fresh_action_session",
         proposal_id: exact.preview.proposal_id,
         proposal_fingerprint: exact.preview.proposal_fingerprint,
         decision_id: exact.preview.decision_id,
@@ -370,7 +374,7 @@ export function confirmVNextOperatorPilotSemanticCommitV01(
         proposal: material.proposal,
         decision: material.decision,
         gate: result.gate_record,
-        required_session_id: admission.session.session_id,
+        current_action_session_id: admission.session.session_id,
         review_window_config: reviewWindowConfig,
       });
     if (gateProvenance.status !== "valid") {
@@ -427,7 +431,7 @@ export function applyVNextOperatorPilotReviewedSemanticTransitionV01(
     request,
     {
       require_current_admission: false,
-      required_session_id: input.credential.session_id,
+      current_action_session_id: input.credential.session_id,
     },
   );
   assertPilotGateAndDecision(
@@ -457,7 +461,7 @@ export function applyVNextOperatorPilotReviewedSemanticTransitionV01(
       request,
       {
         require_current_admission: false,
-        required_session_id: admission.session.session_id,
+        current_action_session_id: admission.session.session_id,
       },
     );
     const gate = assertPilotGateAndDecision(
@@ -678,7 +682,7 @@ function rebuildBoundPreview(
 } {
   const material = requirePilotAcceptedOperationMaterial(db, config, binding, {
     require_current_admission: true,
-    required_session_id: binding.session_id,
+    current_action_session_id: binding.session_id,
   });
   const values = [binding.current_state_observed_at, binding.previewed_at];
   let index = 0;
@@ -707,7 +711,7 @@ function requirePilotAcceptedOperationMaterial(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   binding: ExactDecisionBindingV01,
-  options: { require_current_admission: boolean; required_session_id?: string },
+  options: { require_current_admission: boolean; current_action_session_id: string },
 ): {
   decision: ReviewDecisionV01;
   proposal: VNextOperatorPilotReviewDetailV01["proposal"];
@@ -717,7 +721,7 @@ function requirePilotAcceptedOperationMaterial(
   const detail = readVNextOperatorPilotSemanticReviewV01(db, {
     config,
     proposal_id: binding.proposal_id,
-    authenticated_session_id: options.required_session_id ?? null,
+    authenticated_session_id: options.current_action_session_id ?? null,
   });
   if (detail.proposal_fingerprint !== binding.proposal_fingerprint) {
     throw transitionError("operator_pilot_proposal_fingerprint_mismatch", 409);
@@ -740,7 +744,9 @@ function requirePilotAcceptedOperationMaterial(
       config,
       proposal: detail.proposal,
       decision,
-      authenticated_session_id: options.required_session_id ?? null,
+      // Decision attribution is historical; current action authority was
+      // authenticated separately by the preview/confirmation/application owner.
+      authenticated_session_id: null,
     },
   );
   if (provenance.status !== "valid") {
@@ -749,11 +755,19 @@ function requirePilotAcceptedOperationMaterial(
       409,
     );
   }
-  if (
-    options.required_session_id &&
-    provenance.session_id !== options.required_session_id
-  ) {
-    throw transitionError("operator_pilot_decision_session_mismatch", 409);
+  const currentDecision = detail.effective_candidate_decisions?.some(
+      (entry) => entry.decision_id === decision.decision_id &&
+        entry.decision_fingerprint === decision.integrity.fingerprint,
+    );
+  // An already applied exact replay is validated by the durable commit owner.
+  // An unapplied gate cannot revive a superseded Decision under fresh auth.
+  const appliedDecisionReplay = !options.require_current_admission &&
+    detail.transition_receipts.some((receipt) =>
+      receipt.source_decision.decision_id === decision.decision_id &&
+      receipt.source_decision.decision_fingerprint === decision.integrity.fingerprint,
+    );
+  if (!currentDecision && !appliedDecisionReplay) {
+    throw transitionError("operator_pilot_decision_not_current", 409);
   }
   const candidate = detail.candidates.find(
     (item) =>
@@ -840,10 +854,17 @@ function assertPilotPreview(
   }
 }
 
+// The legacy namespace preserves same-session confirmation semantics. This
+// additive ExternalRef profile records a distinct current confirmation session;
+// older strict readers refuse the unknown namespace rather than misattribute it.
+export const VNEXT_OPERATOR_PILOT_FRESH_CONFIRMATION_SESSION_NAMESPACE_V01 =
+  "augnes.vnext.fresh-confirmation-session.v0.1" as const;
+
 export function createVNextOperatorPilotSemanticConfirmationBasisRefV01(
   input: {
     config: VNextLocalOperatorPilotConfigV01;
     session_id: string;
+    session_relation?: "decision_session" | "fresh_action_session";
     proposal_id: string;
     proposal_fingerprint: string;
     decision_id: string;
@@ -860,6 +881,9 @@ export function createVNextOperatorPilotSemanticConfirmationBasisRefV01(
   const sourceRef = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       action: "confirm_semantic_commit",
+      ...(input.session_relation === "fresh_action_session"
+        ? { session_authority_profile: VNEXT_OPERATOR_PILOT_FRESH_CONFIRMATION_SESSION_NAMESPACE_V01 }
+        : {}),
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
       operator_id: input.config.operator_id,
@@ -881,7 +905,9 @@ export function createVNextOperatorPilotSemanticConfirmationBasisRefV01(
     trust_class: "direct_local_observation",
     observed_at: input.confirmed_at,
     source_ref: sourceRef,
-    compatibility_namespace: VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01,
+    compatibility_namespace: input.session_relation === "fresh_action_session"
+      ? VNEXT_OPERATOR_PILOT_FRESH_CONFIRMATION_SESSION_NAMESPACE_V01
+      : VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01,
   };
 }
 
@@ -892,7 +918,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
     proposal: VNextOperatorPilotReviewDetailV01["proposal"];
     decision: ReviewDecisionV01;
     gate: VNextSemanticCommitGateRecordV01;
-    required_session_id?: string;
+    current_action_session_id?: string;
     review_window_config?: VNextOperatorPilotReviewWindowConfigV01;
   },
 ): VNextOperatorPilotGateProvenanceValidationV01 {
@@ -906,7 +932,7 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
       config,
       proposal,
       decision,
-      authenticated_session_id: input.required_session_id ?? null,
+      authenticated_session_id: null,
     });
   if (decisionProvenance.status !== "valid") {
     add("operator_pilot_gate_decision_provenance_invalid");
@@ -922,7 +948,8 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
     !basis ||
     basis.ref_type !== "local_operator_session_action" ||
     basis.trust_class !== "direct_local_observation" ||
-    basis.compatibility_namespace !== VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 ||
+    (basis.compatibility_namespace !== VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 &&
+      basis.compatibility_namespace !== VNEXT_OPERATOR_PILOT_FRESH_CONFIRMATION_SESSION_NAMESPACE_V01) ||
     basis.observed_at !== gate.confirmed_at ||
     !basis.source_ref
   ) {
@@ -931,9 +958,10 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
   const sessionId = basis?.external_id ?? null;
   if (
     !sessionId ||
-    sessionId !== decisionProvenance.session_id ||
-    (input.required_session_id !== undefined &&
-      sessionId !== input.required_session_id)
+    (basis?.compatibility_namespace === VNEXT_LOCAL_OPERATOR_SESSION_NAMESPACE_V01 &&
+      sessionId !== decisionProvenance.session_id) ||
+    (input.current_action_session_id !== undefined &&
+      sessionId !== input.current_action_session_id)
   ) {
     add("operator_pilot_gate_session_continuity_mismatch");
   }
@@ -1036,6 +1064,10 @@ export function validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01(
       createVNextOperatorPilotSemanticConfirmationBasisRefV01({
         config,
         session_id: sessionId,
+        session_relation:
+          basis.compatibility_namespace === VNEXT_OPERATOR_PILOT_FRESH_CONFIRMATION_SESSION_NAMESPACE_V01
+            ? "fresh_action_session"
+            : "decision_session",
         proposal_id: gate.proposal_id,
         proposal_fingerprint: gate.proposal_fingerprint,
         decision_id: gate.decision_id,
@@ -1200,12 +1232,12 @@ function assertPilotGateAndDecision(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   request: CommitRequestV01,
-  requiredSessionId: string,
+  currentActionSessionId: string,
   reviewWindowConfig: VNextOperatorPilotReviewWindowConfigV01,
 ): VNextSemanticCommitGateRecordV01 {
   const material = requirePilotAcceptedOperationMaterial(db, config, request, {
     require_current_admission: false,
-    required_session_id: requiredSessionId,
+    current_action_session_id: currentActionSessionId,
   });
   const record = readVNextCoreRecordV01(db, {
     record_kind: "semantic_commit_gate",
@@ -1277,7 +1309,7 @@ function assertPilotGateAndDecision(
       proposal: material.proposal,
       decision: material.decision,
       gate: gate as VNextSemanticCommitGateRecordV01,
-      required_session_id: requiredSessionId,
+      current_action_session_id: currentActionSessionId,
       review_window_config: reviewWindowConfig,
     });
   if (provenance.status !== "valid") {

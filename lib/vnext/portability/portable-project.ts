@@ -1049,6 +1049,14 @@ function readPortableOperatorProvenanceSessionsV01(
       refs = decision.authorization_basis_refs?.filter(
         (ref) => ref.ref_type === "local_operator_session_action",
       ) ?? [];
+    } else if (record.record_kind === "semantic_commit_gate") {
+      // A fresh confirmation session need not have authored a ReviewDecision.
+      // Retain its public history independently; imported sessions stay revoked.
+      const gate = record.payload as VNextSemanticCommitGateRecordV01;
+      refs = gate.operator_confirmation_basis_refs?.filter(
+        (ref) => ref.ref_type === "local_operator_session_action",
+      ) ?? [];
+      provenanceRequired = refs.length > 0;
     } else if (record.record_kind === "operational_continuation_admission") {
       provenanceRequired = true;
       const admission = record.payload as OperationalContinuationAdmissionV01;

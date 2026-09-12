@@ -13352,8 +13352,8 @@ async function assertCrossSessionDecisionReplayAndActionability(input: {
       (item) => item.decision.decision_id === input.priorDecision.decision_id,
     );
     assert.equal(priorClassification?.pilot_session_bound, true);
-    assert.equal(priorClassification?.pilot_actionable, false);
-    pass("historical_session_decision_visible_but_not_currently_actionable");
+    assert.equal(priorClassification?.pilot_actionable, true);
+    pass("historical_decision_actionable_under_fresh_authenticated_session");
 
     input.clock.set("2026-07-11T09:03:00.000Z");
     const nextDecisionResponse = await reviewHandlers.POST(
@@ -13481,8 +13481,8 @@ async function assertCrossSessionDecisionReplayAndActionability(input: {
         }),
       ),
       409,
-      "operator_pilot_decision_session_mismatch",
-      "new_session_preview_of_historical_decision_rejected",
+      "operator_pilot_decision_not_current",
+      "superseded_decision_preview_rejected",
     );
 
     input.clock.set("2026-07-11T09:04:00.000Z");
@@ -13798,7 +13798,7 @@ function assertGateProvenanceCoverage(input: {
         proposal: input.proposal,
         decision: input.decision,
         gate: input.gate,
-        required_session_id: input.requiredSessionId,
+        current_action_session_id: input.requiredSessionId,
       });
     assert.equal(exact.status, "valid");
     assert.equal(exact.session_id, input.requiredSessionId);
@@ -13949,7 +13949,7 @@ function assertInvalidGateProvenance(
       proposal: input.proposal,
       decision: input.decision,
       gate,
-      required_session_id: input.requiredSessionId,
+      current_action_session_id: input.requiredSessionId,
     });
   assert.equal(validation.status, "invalid");
   assert(validation.errors.includes(expectedCode), validation.errors.join(","));

@@ -194,6 +194,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "fresh-session-semantic-application",
+      label: "persisted Decision fresh-session semantic application",
+      requirements: ["database", "filesystem"],
+      ...rootNode("scripts/test-vnext-fresh-session-semantic-application.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",
