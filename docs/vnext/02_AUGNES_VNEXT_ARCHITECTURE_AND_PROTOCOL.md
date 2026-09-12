@@ -1391,6 +1391,31 @@ digest를 표시하지만 write하지 않는다. Confirmation은 gate만 기록�
 current-state observation 또는 after-state JSON을 받지 않고 기존 M3C writer를 호출한다. Packet compile은
 receipt inspection 뒤 별도 POST로만 실행되며 commit 성공이 자동 compiler trigger가 되지 않는다.
 
+A persisted applying ReviewDecision retains its original actor and session-action
+provenance. Later revocation or expiry of that session does not invalidate an
+action recorded inside its valid lifetime. The authenticated local operator may
+use a fresh session in the same workspace/project/operator scope to preview,
+confirm and apply that exact still-current Decision. This path creates no second
+Decision. Read-only actionability requires an authenticated action context and
+the effective candidate Decision; historical validity alone grants no action.
+
+Preview and confirmation remain bound to one current session secret. Application
+requires that same confirmation session; a third session cannot consume its gate.
+For a distinct Decision/confirmation session pair, the gate's separate
+`local_operator_session_action` basis uses
+`augnes.vnext.fresh-confirmation-session.v0.1`; its source binding includes that
+profile and the exact Decision/digest/operator scope. The gate's operator actor
+remains the original Decision actor. Legacy
+`augnes.vnext.local-operator-session.v0.1` confirmation bases retain their original
+same-session interpretation and byte identity. Older strict pilot readers refuse
+the new namespace. No ReviewDecision, gate or Transition record family, table,
+secret persistence, review-window limit or execution authority is added. Current
+state, target generation, proposal/candidate/Decision identity, original session
+history, fresh credential, preview and gate checks remain independent refusals.
+Portable export retains the public histories referenced by both the Decision
+and confirmation gate. Import reconstructs those histories as revoked sessions;
+it does not transfer credentials or current action authority.
+
 초기 real-pilot admission policy는 one enrolled project, one candidate, one target, `accept/create`, observed
 absent state로 제한한다. Replace, supersede, retract와 multi-target behavior는 M3C Core conformance에 남지만
 M3D product pilot route가 허용하지 않는다. Direct route call도 동일 policy를 다시 검사한다.
