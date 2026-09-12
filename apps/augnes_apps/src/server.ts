@@ -558,7 +558,7 @@ function describeWorkPickerCard(card: WorkPickerCard): string {
 }
 
 function describeWorkBrief(brief: WorkBrief): string {
-  return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
+  return `Work brief for ${brief.work_id}: ${brief.work.title}. Recorded status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). Next action: ${brief.next_action || "not recorded"}. Read at ${brief.as_of}; source currentness and proof validity are not verified by this read. work_id is a trace anchor; this operational context is not a native TaskContextPacket or accepted semantic history. Committed state remains authoritative.`;
 }
 
 type WorkPickerCandidate = {
@@ -2665,7 +2665,7 @@ export function createMcpAppServer(
     {
       title: "List Augnes work items",
       description:
-        "Show a read-only Work Picker for a project scope so the user can choose a work item before opening its current brief.",
+        "Use when the user needs to choose recorded work in an Augnes project scope. Returns read-only operational work items; pass a returned work_id as workId to augnes_get_work_brief with the same scope. Omitted scope defaults to project:augnes, not the active Browser project. Requires the state-runtime work backend even in legacy mock/file mode. Do not use for unrelated questions or independent audits that do not need project context; this does not identify native current work or accepted Core state.",
       inputSchema: { scope: z.string().min(1).optional() },
       annotations: bridgeReadAnnotations,
       _meta: widgetToolMeta,
@@ -2694,7 +2694,7 @@ export function createMcpAppServer(
           _meta: structuredContent,
         };
       } catch (error) {
-        return buildBridgeToolError("augnes_list_work_items", error);
+        return { ...buildBridgeToolError("augnes_list_work_items", error), isError: true };
       }
     }
   );
@@ -2704,7 +2704,7 @@ export function createMcpAppServer(
     "augnes_get_work_brief",
     {
       title: "Get Augnes work brief",
-      description: "Return a read-only current work brief with metadata, recent events, and proof links.",
+      description: "Use after selecting a returned work_id from augnes_list_work_items: pass it as workId with the same scope (default project:augnes). Returns recorded status, next action, operational events and source/proof references from the state-runtime work backend. References and read time do not verify source currentness, proof validity or resolution of all gaps. Do not use for unrelated questions, independent audits without project context, native TaskContextPacket retrieval or accepted semantic history. A missing work or unavailable backend is an error, not an empty-work result.",
       inputSchema: {
         scope: z.string().min(1).optional(),
         workId: z.string().min(1),
@@ -2731,11 +2731,11 @@ export function createMcpAppServer(
         });
         return {
           structuredContent,
-          content: narrative(describeWorkBrief(brief)),
+          content: narrative(describeWorkBrief(sanitizePayload(brief))),
           _meta: structuredContent,
         };
       } catch (error) {
-        return buildBridgeToolError("augnes_get_work_brief", error);
+        return { ...buildBridgeToolError("augnes_get_work_brief", error), isError: true };
       }
     }
   );

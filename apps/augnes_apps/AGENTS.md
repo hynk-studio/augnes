@@ -36,7 +36,8 @@ You are implementing the first ChatGPT App version of Augnes.
 
 ## Public app profile
 
-The public directory-safe profile must only expose:
+The default public tool surface must expose the original nine legacy tools
+plus the two existing read-only work tools:
 
 - search
 - fetch
@@ -47,8 +48,22 @@ The public directory-safe profile must only expose:
 - get_continuity_report
 - navigate_repo
 - get_governance_audit
+- augnes_list_work_items
+- augnes_get_work_brief
 
-No hidden write tools should be left in the same app during submission.
+The work-read path is list -> select a returned work_id -> read that work's
+brief with the same scope. Describe when project work context is useful and
+when it is unnecessary; do not prime unrelated questions or independent audits.
+Work IDs, events and WorkBrief are operational context, not native
+TaskContextPackets or accepted Core state. Preserve unavailable/error results
+and source/proof limitations.
+
+Tool surface, presentation profile, bridge enablement and adapter configuration
+are separate axes. `src/server.ts` owns registration gates; `README.md` describes
+them. The work tools use the separate state-runtime adapter even when the nine
+legacy tools use mock or file data. Presentation profile does not grant tool
+authority. No bridge write tools may be included in a directory-safe submission;
+the explicitly enabled local bridge is a separate operator configuration.
 
 ## Engineering bias
 

@@ -533,6 +533,14 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       }
     );
 
+    // The route deliberately labels startup fallback data. The array-only
+    // adapter contract must not discard that label and claim a verified empty scope.
+    if (result.empty_runtime === true) {
+      throw new AugnesStateRuntimeHttpError(
+        "Augnes state runtime work list is unavailable: missing_optional_runtime_table. No empty-work conclusion is available."
+      );
+    }
+
     return result.work_items;
   }
 

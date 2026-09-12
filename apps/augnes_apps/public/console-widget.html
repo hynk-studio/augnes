@@ -257,18 +257,29 @@
         function render(payload) {
           const data = record(payload);
           const panel = text(data.panel, "read_only_context");
+          const error = record(data.error);
+
+          if (error.tool === "augnes_list_work_items" || error.tool === "augnes_get_work_brief") {
+            title.textContent = "Work context unavailable";
+            summary.textContent = text(error.message, "The work read failed. No empty-work conclusion is available.");
+            setFacts([["Source", "State runtime work read"], ["Result", "Unavailable; no conclusion about unresolved work"]]);
+            return;
+          }
 
           if (panel === "work_picker_card") {
             const picker = record(data.work_picker_card);
-            title.textContent = "Choose current work";
+            title.textContent = "Choose a work item";
             summary.textContent =
               list(data.workItems).length > 0
-                ? "Select the active work item in Augnes before starting the native host."
-                : "No current work item was returned for this project scope.";
+                ? "Use a returned work_id to read its brief in the same scope. Work IDs are operational trace anchors, not accepted Core state."
+                : "No recorded work items were returned for this scope. This does not establish that all project work or gaps are resolved.";
             setFacts([
+              ["Scope", text(data.scope)],
               ["Candidates", list(data.workItems).length],
               ["Recommendation", text(picker.recommended_work_title)],
+              ["Recommended work ID", text(picker.recommended_work_id)],
               ["Reason", text(picker.selection_reason)],
+              ["Next read", text(picker.next_action_hint)],
             ]);
             return;
           }
@@ -276,13 +287,21 @@
           if (panel === "work_brief") {
             const brief = record(data.brief);
             const work = record(brief.work);
-            title.textContent = text(work.title, "Current work brief");
+            const proof = record(brief.related_proof);
+            title.textContent = text(work.title, "Recorded work brief");
             summary.textContent =
-              "Current metadata and recorded coordination residue are shown without a mutation action.";
+              "Operational work context, not a native TaskContextPacket or accepted semantic history. Source currentness and proof validity are not verified by this read.";
             setFacts([
-              ["Status", text(work.status)],
+              ["Work ID", text(brief.work_id)],
+              ["Scope", text(brief.scope)],
+              ["Recorded status", text(work.status)],
               ["Priority", text(work.priority)],
+              ["Summary", text(work.summary)],
+              ["Read at", text(brief.as_of)],
+              ["User attention", typeof brief.user_attention_required === "boolean" ? String(brief.user_attention_required) : "Not returned"],
               ["Recent events", list(brief.recent_events).length],
+              ["Linked action records", list(proof.action_ids).length],
+              ["Source/proof links", [...list(proof.prs), ...list(proof.docs)].filter((value) => typeof value === "string").join(", ") || "No links returned; verification unavailable"],
               ["Next action", text(brief.next_action || work.next_action)],
             ]);
             return;
