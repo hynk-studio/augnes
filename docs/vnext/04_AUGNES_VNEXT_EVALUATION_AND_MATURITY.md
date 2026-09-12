@@ -226,6 +226,24 @@ Do not claim usefulness from one synthetic fixture, one model judgment, one
 feedback record, or apparent consensus. Persistent actors, debate turns, graph
 structure, model count, and strategy volume receive no credit by themselves.
 
+### Worker-facing contracts and observable retention
+
+For future comparisons, every scored output convention must appear in the
+worker-facing task contract; expected answers remain evaluator-only. Declare
+conventions such as signed-margin subtraction order before execution, and
+distinguish a strict key mismatch from task ambiguity or arithmetic failure.
+
+Give historical-condition retention an observable consequence for the next
+task. Neither spontaneous restatement nor correct current arithmetic alone
+establishes retention. Use the existing source-bound distinctions below;
+insufficient evidence remains unsupported/unknown rather than a pass or proven
+loss. Do not require a new Core state or an evaluator-model call by default.
+
+These are prospective lessons from the
+[completed P5.1 pilot](../verification/P51_MATCHED_HANDOFF_PILOT_CLOSEOUT.md).
+They do not revise its frozen task, key, scores or records, reopen completed
+scopes, or authorize another comparison. Sequence remains owned by the roadmap.
+
 ### Repeated-handoff evaluation (P5.2)
 
 This bounded refinement belongs to the existing P5.2 scope in
