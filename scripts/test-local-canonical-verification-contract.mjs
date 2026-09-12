@@ -1073,6 +1073,7 @@ const integrationChildren = [
   "project-onboarding",
   "project-identity",
   "mcp-adapter-runtime",
+  "work-read",
   "cross-session-read",
   "durable-semantic-loop",
   "operator-pilot",
