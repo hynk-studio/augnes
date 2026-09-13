@@ -22,6 +22,7 @@ import { AI_WORKPLANE_PRESENTATION_VERSION_V01 } from "@/types/vnext/ai-workplan
 import type { SemanticReviewProposalDetailV01 } from "@/components/workbench/semantic-review/semantic-review-types";
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
+import { buildSelectedChangeRevisionV01 } from "@/lib/vnext/ai-workplane/selected-change-revision";
 
 const MAX_QUEUE_ITEMS = 5;
 const MAX_UNCERTAINTIES = 6;
@@ -408,7 +409,7 @@ export function buildAIWorkplaneChangeReviewViewV01(input: {
         ? "Accept an operational hypothesis for review only"
         : operationLabel(selected.candidate.operation),
     effect_summary: bounded(selected.candidate.proposed_state_summary),
-    reason: bounded(read.proposal.bounded_summary),
+    reason: bounded(buildSelectedChangeRevisionV01(read, selected)?.rationale ?? read.proposal.bounded_summary),
     verification: verificationFromChange(read),
     uncertainties,
     decision_status: decisionStatus,

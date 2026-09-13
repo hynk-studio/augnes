@@ -52,6 +52,8 @@ import type {
 } from "@/types/vnext/selected-work-timeline";
 
 import { ContextUseReviewForm } from "./context-use-review-form";
+import { SelectedChangeRevision } from "./selected-change-revision";
+import { buildSelectedChangeRevisionV01 } from "@/lib/vnext/ai-workplane/selected-change-revision";
 import { OperationAwareRevisionForm } from "./operation-aware-revision-form";
 import { ProjectVerificationWorkbench } from "./project-verification-workbench";
 import {
@@ -142,6 +144,7 @@ export function DecisionCenteredProposalDetail({
     read,
     selected_candidate_id: selected?.candidate.candidate_id ?? null,
   });
+  const revisionComparison = selected ? buildSelectedChangeRevisionV01(read, selected) : null;
   const selectedDecisions = selected
     ? read.decision_history.filter(
         (entry) => entry.decision.candidate.candidate_id === selected.candidate.candidate_id,
@@ -331,7 +334,13 @@ export function DecisionCenteredProposalDetail({
                 <h3>{view.title}</h3>
               </div>
             </div>
-            <p className={styles.copy}>{view.effect_summary}</p>
+            {revisionComparison ? (
+              <SelectedChangeRevision
+                key={relationshipScopeKey}
+                comparison={revisionComparison}
+                selected={selected}
+              />
+            ) : <p className={styles.copy}>{view.effect_summary}</p>}
             {operationalBinding ? (
               <div data-vnext-operational-proposal-only="true">
                 <DataPoint

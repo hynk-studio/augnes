@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import "./test-operator-browser-failure-snapshot-v1.mjs";
 
 import {
   assertOperatorRequestFailureEvidenceV1,

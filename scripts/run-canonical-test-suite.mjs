@@ -671,7 +671,10 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
       label: "persisted completed predecessor, bounded review clock, Transition-gated scoped service",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--persisted-continuation-only"),
-      timeoutMs: 30_000,
+      // Reviewed aggregate watchdog: twelve scenarios consumed 28,993.582 ms.
+      // Allow startup/exit within 45s; this is not a product latency target.
+      // The historical timing difference remains unexplained.
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {

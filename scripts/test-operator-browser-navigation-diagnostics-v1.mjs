@@ -70,6 +70,34 @@ try {
   assertSupervisorDiagnostic(httpError.result);
   assertSanitized(httpError);
   assertCompleteCleanup(httpError.result);
+  assert.equal(
+    httpError.result.browser_failure_snapshot?.primary?.phase,
+    "browser_navigation_diagnostics",
+    "first document failure must survive cleanup and child serialization",
+  );
+  const failureSnapshot = httpError.result.browser_failure_snapshot;
+  assert.equal(failureSnapshot.snapshot_version, "operator_browser_failure_snapshot.v1");
+  assert.equal(failureSnapshot.primary.failure.http_status, 500);
+  assert.equal(failureSnapshot.primary.runtime.generation, 1);
+  const document = failureSnapshot.primary.navigation;
+  assert.equal(document.route, "workbench_result");
+  assert.equal(document.correlation, "request_response_and_navigation");
+  assert.equal(document.document.http_status, 500);
+  assert.deepEqual(document.document.response, document.document.request);
+  assert.equal(document.expected.frame_id, document.document.response.frame_id);
+  assert.equal(document.expected.loader_id, document.document.response.loader_id);
+  assert.match(document.document.response.request_id, /^local:[0-9a-f]{24}$/u);
+  // The deliberate server has its own origin. Supervised-runtime output must
+  // not be attributed to this synthetic response.
+  assert.equal(failureSnapshot.primary.server.association, "unavailable_foreign_or_non_http_origin");
+  assert.equal(failureSnapshot.primary.server.evidence, null);
+  assert.equal(failureSnapshot.subsequent.supervisor_shutdown.last_supervisor_result_code, "stopped");
+  assert.deepEqual(failureSnapshot.subsequent.cleanup, {
+    runtime_shutdown_complete: true, chrome_cdp_shutdown_complete: true,
+    owned_process_residue_count: 0, listener_residue_count: 0,
+  });
+  assert.deepEqual(failureSnapshot.capture_failures, []);
+  assert.deepEqual(httpError.result.failure_evidence_capture_errors, []);
 
   const missingBootstrap = await runScenario(
     "successful-document-missing-bootstrap",
@@ -143,6 +171,11 @@ try {
       http_status: httpError.result.browser_failure_diagnostic.http_status,
       bootstrap_timeout_reported: false,
       cleanup_complete: httpError.result.cleanup_complete,
+      first_failure_snapshot_retained_after_cleanup: true,
+      exact_document_correlation_retained: true,
+      foreign_origin_server_evidence_unavailable: true,
+      duration_ms: httpError.result.total_duration_ms,
+      failure_snapshot: failureSnapshot,
     },
     successful_document_missing_bootstrap: {
       failure_category:
@@ -151,17 +184,20 @@ try {
         missingBootstrap.result.browser_failure_diagnostic.http_status,
       same_document_navigation_preserved: true,
       cleanup_complete: missingBootstrap.result.cleanup_complete,
+      duration_ms: missingBootstrap.result.total_duration_ms,
     },
     document_response_missing: {
       failure_category:
         missingDocumentResponse.result.browser_failure_diagnostic.category,
       stale_document_response_rejected: true,
       cleanup_complete: missingDocumentResponse.result.cleanup_complete,
+      duration_ms: missingDocumentResponse.result.total_duration_ms,
     },
     non_http_new_document: {
       stale_successful_document_context_reused: false,
       failure_category: "operator_bootstrap_input",
       cleanup_complete: nonHttpNewDocument.result.cleanup_complete,
+      duration_ms: nonHttpNewDocument.result.total_duration_ms,
     },
     diagnostic_sanitization: "pass",
     provider_calls: 0,
@@ -357,6 +393,7 @@ function assertSanitized(observation) {
   const diagnostic = JSON.stringify({
     browser: observation.result.browser_failure_diagnostic,
     supervisor: observation.result.supervisor_exit_diagnostic,
+    snapshot: observation.result.browser_failure_snapshot,
   });
   assert.equal(/vnext_(?:bootstrap|session|action)_v01\./u.test(diagnostic), false);
   assert.equal(/(?:OPENAI_API_KEY|GITHUB_TOKEN|sk-|ghp_)/u.test(diagnostic), false);
