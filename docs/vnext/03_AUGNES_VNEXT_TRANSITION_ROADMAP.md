@@ -66,10 +66,11 @@ connected-client delivery or G usefulness. Missing or conflicting persisted
 lineage retains the protected reader's existing refusal; incomplete comparison
 material supplies no substitute baseline or new action gate.
 
-## Current P3.2 / F1 optional pre-outcome expectation
+## Completed P3.2 / F1 optional pre-outcome expectation
 
 Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213),
-`codex/p3-pre-outcome-expectation` is **Current / for Draft review**. The
+[PR #1252](https://github.com/hynk-studio/augnes/pull/1252) merged and is
+**Completed within its bounded scope**. The
 supported path is first-work preparation (including explicit pre-start task
 revisions) -> optional operator-authored expectation for one selected criterion
 -> existing authorized first interactive attempt -> existing result review.
@@ -81,8 +82,7 @@ expectation. Import preserves history without establishing local prospective
 chronology. Record semantics belong to [02](02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#optional-pre-outcome-expectation),
 and evaluation distinctions belong to [04](04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#prospective-expectation-mechanics).
 
-This slice remains Current/Draft until its substantive PR merges. Disposable
-fixtures establish recording, binding, comparison and delivery mechanics only.
+Disposable fixtures establish recording, binding, comparison and delivery mechanics only.
 Actual-work collection, predictive accuracy, calibration, forecast learning,
 improved judgment and reduced burden remain unmeasured. Authored successors,
 automation, retries, restart lineages and cross-project comparisons are outside
