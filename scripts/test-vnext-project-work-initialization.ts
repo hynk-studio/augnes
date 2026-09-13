@@ -92,6 +92,7 @@ import {
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import { recordVNextOperatorPilotProposalRevisionV01 } from "../lib/vnext/runtime/operator-pilot-proposal-revision";
 import { buildSelectedChangeRevisionV01 } from "../lib/vnext/ai-workplane/selected-change-revision";
+import { buildAIWorkplaneResultViewV01 } from "../lib/vnext/ai-workplane/ai-workplane-view";
 import { readVNextOperatorPilotSemanticReviewV01, recordVNextOperatorPilotReviewDecisionV01 } from "../lib/vnext/runtime/operator-pilot-review-material";
 import { prepareVNextOperatorPilotSemanticCommitPreviewV01, confirmVNextOperatorPilotSemanticCommitV01, applyVNextOperatorPilotReviewedSemanticTransitionV01 } from "../lib/vnext/runtime/operator-pilot-semantic-transition";
 import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
@@ -125,6 +126,7 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--minimum-discriminating-check-only")) { await assertMinimumDiscriminatingCheckV01(); return; }
     if (process.argv.includes("--expectation-only")) { await assertWorkExpectationMechanics(); return; }
     if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
     if (process.argv.includes("--scoped-host-only") || scopedInterruptionPoint()) {
@@ -133,6 +135,7 @@ async function main(): Promise<void> {
     }
     if (process.argv.includes("--executed-follow-up-only")) {
       await assertExecutedReviewedFollowUpV01();
+      await assertMinimumDiscriminatingCheckV01();
       await assertResultAdmissionV01();
       return;
     }
@@ -813,6 +816,223 @@ async function assertExecutedReviewedFollowUpV01(): Promise<void> {
       packet_characters: [...text].length, packet_utf8_bytes: Buffer.byteLength(text), packet_estimated_tokens: admitted.packet.constraints.context_budget.estimated_tokens,
       returned_selected_entries: admitted.packet.selected_context.length, actions, requests: requests.map((request) => ({ request_id: request.request_id, run_id: request.run_id, packet_id: request.packet.packet_id, packet_fingerprint: request.packet.integrity.fingerprint })),
       record_counts: counts(), live_provider_calls: 0, billed_tokens: 0, disk_io_measured: false, human_burden_measured: false, local_context_use_probe_required: false, application_reconstruction: true, cold_model_isolation: false }));
+  } finally { if (fixture.db.open) fixture.db.close(); globalThis.fetch = originalFetch; }
+}
+
+// P3.3a adds a comparability distinction missing from the X/calibration-B case:
+// an export-count discrepancy can mean different things depending on whether
+// its two inputs name the same revision. The operator authors this decision
+// table BEFORE any follow-up result; Augnes does not invent or rank the check.
+// All variants are outcomes of this one check, not independent corroboration.
+async function assertMinimumDiscriminatingCheckV01(): Promise<void> {
+  const observation = "Disposable export-17: cold CSV export has 9 rows; source preview has 10 rows. Happened 2026-08-01T00:00:00Z; observed 2026-08-01T00:00:01Z; recorded 2026-08-01T00:00:02Z in counts.json. Warm export is untested.";
+  const disposition = "Fixture operator rejects the empty-input explanation: the recorded source preview has 10 rows. This does not reject or change the count observation.";
+  const alternatives = "Remaining alternatives: different input revisions, or row omission within the same revision. A full exporter rerun is unselected, not disproven; warm export remains untested.";
+  const check = "Selected check: compare the export manifest revision with the preview revision for export-17 under cold CSV. Read manifest.json once; do not rerun the exporter.";
+  const same = "SAME: revision mismatch is unsupported for this event; row omission remains possible, not proved. A separate row audit may be proposed.";
+  const different = "DIFFERENT: counts are not comparable at one input revision; do not infer row omission. A comparison on aligned inputs may be proposed.";
+  const unknown = "UNKNOWN: missing, conflicting, foreign or non-applicable metadata, or a check not performed, leaves both alternatives unresolved.";
+  const limitation = "Checking revision identity does not establish the whole hypothesis or task success. Repeated summaries of export-17 are one source, not corroboration.";
+  const revisit = "Re-review only when an exact export-17 manifest becomes available or a separately authorized aligned-input result arrives. No automatic rerun, warm test or scheduling.";
+  // These are exactly the two prose fields available in the normal revision
+  // form. No private test-only uncertainty field or final-consumer packet is used.
+  const selectedSummary = [disposition, alternatives, check, same, different, unknown, limitation, revisit].join("\n");
+  assert(selectedSummary.length <= 2000);
+  const rationale = "Fixture operator selected revision identity because equal and different revisions change whether the count discrepancy supports a same-input omission inquiry; both results still require review. The check is tentative until separately selected and authorized.";
+  const outcomes = [
+    { name: "same", event: "export-17", revisions: ["rev-2"], performed: true, interpretation: same },
+    { name: "different", event: "export-17", revisions: ["rev-1"], performed: true, interpretation: different },
+    { name: "not_performed", event: "export-17", revisions: [], performed: false, interpretation: unknown },
+  ];
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => { fetchCalls += 1; throw new Error("p33a_live_network_forbidden"); }) as typeof fetch;
+  const fixture = createFixtureV01("discriminating-check", false, true);
+  try {
+    const requests: NativeHostRequestV01[] = [];
+    const actions: string[] = [];
+    const history = () => fixture.db.prepare("SELECT record_id, payload_json FROM vnext_core_records WHERE project_id = ? ORDER BY record_id").all(fixture.project_id) as { record_id: string; payload_json: string }[];
+    const count = (kind: VNextCoreRecordKindV01) => listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [kind], limit: 20 }).length;
+    writeFileSync(path.join(fixture.root, "counts.json"), JSON.stringify({ observation }));
+    function adapter(stage: "observe" | "check") {
+      const base = createDeterministicCodexAdapterV01({ now: timestampSequenceV01(stage === "observe" ? "2026-08-01T00:00:05.000Z" : "2026-08-01T00:00:15.000Z"), observe: ({ request }) => requests.push(structuredClone(request)) });
+      return {
+        ...base, invoke(request: NativeHostRequestV01, control: Parameters<typeof base.invoke>[1]) {
+          const handle = base.invoke(request, control);
+          const result = handle.result.then(result => {
+            if (stage === "observe") {
+              actions.push("read_counts");
+              return {
+                ...result, summary: JSON.parse(readFileSync(path.join(fixture.root, "counts.json"), "utf8")).observation,
+                uncertainty: ["The export and preview revisions have not been compared; the cause is unresolved."]
+              };
+            }
+            // Consumption evidence is the request produced by the real
+            // admission/round-trip owner, not a saved record or preview alone.
+            const delivered = request.packet.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref");
+            assert.equal(delivered.length, 1);
+            const lines = delivered[0]!.bounded_summary!.split("\n");
+            for (const required of [disposition, alternatives, check, same, different, unknown, limitation, revisit]) assert(lines.includes(required));
+            assert(readSelectedWorkSources(request.packet).some(entry => entry.bounded_summary?.includes(observation)));
+            actions.push("read_manifest_once");
+            const manifest = JSON.parse(readFileSync(path.join(fixture.root, "manifest.json"), "utf8"));
+            const applicable = manifest.performed && manifest.event === "export-17" && manifest.condition === "cold CSV" && manifest.export_revisions.length === 1;
+            const resultKey = !applicable ? "UNKNOWN:" : manifest.export_revisions[0] === manifest.preview_revision ? "SAME:" : "DIFFERENT:";
+            const interpretation = lines.find(line => line.startsWith(resultKey))!;
+            // This fixture consumer follows the delivered operator-authored
+            // table. It is not autonomous inquiry or a usefulness evaluator.
+            return {
+              ...result, summary: interpretation,
+              checks: [...result.checks, ...(manifest.performed ? [{
+                check_id: "export_revision_comparison", required: false,
+                status: applicable ? "passed" as const : "unknown" as const,
+                summary: applicable ? `Compared preview ${manifest.preview_revision} with export ${manifest.export_revisions[0]}; ${interpretation}` : interpretation
+              }] : [])],
+              skipped_checks: [...result.skipped_checks, ...(!manifest.performed ? [{ check_id: "export_revision_comparison", required: false, reason: "Not performed: exact export revision is missing. Both alternatives remain unresolved." }] : [])],
+              uncertainty: [limitation, "Warm export is still untested; no whole-hypothesis conclusion is established.", ...(!applicable ? [unknown] : [])],
+              proposed_next_steps: [revisit]
+            };
+          });
+          return { ...handle, result, settled: result.then(() => undefined, () => undefined) };
+        }
+      };
+    }
+    const initial = defineInitialProjectWorkV01(fixture.db, {
+      config: fixture.config, credential: authenticatedSessionV01(fixture, "p33a"),
+      request: requestV01(fixture, { goal: "Explain the disposable cold CSV count discrepancy while preserving the source and testing only an explicitly selected follow-up", success_criteria: ["Establish the cause of the count discrepancy with applicable source evidence"], non_goals: ["No model, network, exporter rerun, warm test or automatic inquiry"] }), clock: fixedClock(T2)
+    });
+    let credential = credentialFromCookieV01(initial.session_admission.cookie_value);
+    const inputs = [
+      buildSelectedWorkSourceEntry(fixture, { source: "counts.json, export-17, revision 1", observed_at: T1, provenance: "user_declaration", label: "Open question", text: observation }),
+      buildSelectedWorkSourceEntry(fixture, { source: "counts.json, export-17, revision 1", observed_at: T1, provenance: "derived_interpretation", label: "Unclassified / needs review", text: "Summary of the same export-17: 9 versus 10 rows. Possible empty-input explanation is unreviewed; this summary is not a second observation." }),
+    ];
+    const comparison = compareSelectedWorkSources(initial.packet, inputs);
+    const selected = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config, credential,
+      request: { ...revisionRequestV01(fixture, initial.packet, "initial_user_defined", initial.definition), selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint }, clock: fixedClock("2026-08-01T00:00:03.000Z")
+    });
+    credential = credentialFromCookieV01(selected.session_admission.cookie_value);
+    const first = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive", operator_mutation: { credential, clock: fixedClock("2026-08-01T00:00:04.000Z") } }, { adapter: adapter("observe"), now: timestampSequenceV01("2026-08-01T00:00:04.000Z") });
+    credential = credentialFromCookieV01(first.session_admission!.cookie_value);
+    assert.equal(first.receipt.result_summary.summary, observation);
+    const source = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["episode_delta_proposal"], limit: 1 })[0]!.payload as EpisodeDeltaProposalV01;
+    const read = readVNextOperatorPilotSemanticReviewV01(fixture.db, { config: fixture.config, proposal_id: source.proposal_id, authenticated_session_id: credential.session_id });
+    const sourceCandidate = read.candidates[0]!;
+    const originalHistory = history();
+    const revised = recordVNextOperatorPilotProposalRevisionV01(fixture.db, {
+      config: fixture.config, credential, clock: fixedClock("2026-08-01T00:00:07.000Z"), request: {
+        action: "revise", proposal_id: source.proposal_id, proposal_fingerprint: source.integrity.fingerprint, candidate_id: sourceCandidate.candidate.candidate_id, candidate_fingerprint: sourceCandidate.candidate_fingerprint,
+        delta_type: "validation_delta", operation: "add", title: "Compare exact export input revisions before interpreting the row discrepancy", proposed_state_summary: selectedSummary, rationale_summary: rationale, uncertainties: [], limitations: [],
+      }
+    });
+    credential = credentialFromCookieV01(revised.session_cookie.value);
+    assert.deepEqual(revised.proposal.observations, source.observations);
+    assert.deepEqual(revised.proposal.attestations, source.attestations);
+    assert.deepEqual(revised.proposal.inferences, source.inferences);
+    assert.equal(revised.proposal.operation_revision!.authored_by_ref.external_id, fixture.config.operator_id);
+    assert(revised.proposal.operation_revision!.author_basis_refs.some(ref => ref.external_id === credential.session_id));
+    assert.equal(revised.proposal.created_at, "2026-08-01T00:00:07.000Z");
+    assert.equal(count("review_decision"), 0, "Authoring an explanation disposition or tentative check needs no semantic acceptance");
+    assert.equal(count("state_transition_receipt"), 0);
+    const revisionRead = readVNextOperatorPilotSemanticReviewV01(fixture.db, { config: fixture.config, proposal_id: revised.proposal.proposal_id, authenticated_session_id: credential.session_id });
+    const chosen = revisionRead.candidates.find(entry => entry.candidate.candidate_id === revised.proposal.operation_revision!.revised_candidate.candidate_id)!;
+    const beforeSelection = fixture.db.serialize();
+    const operatorComparison = buildSelectedChangeRevisionV01(revisionRead, chosen)!;
+    assert.notEqual(operatorComparison.status, "unavailable");
+    assert.equal(operatorComparison.rationale, rationale);
+    assert.equal(operatorComparison.author_basis, "user_declaration");
+    assert(operatorComparison.result_reports.some(report => report.summary === observation));
+    assert.equal(chosen.candidate.proposed_state_summary, selectedSummary);
+    assert.equal(buildSelectedChangeRevisionV01(revisionRead, sourceCandidate), null, "Unselected original suggestion is not a rejected or disproven observation");
+    assert(beforeSelection.equals(fixture.db.serialize()), "Reading and choosing a comparison do not mutate semantic state");
+    assert.equal(requests.length, 1, "Authoring and selection alone deliver no new request");
+    // This chosen normal follow-up route uses reviewed validation state.
+    // Acceptance applies only this plan in disposable state, never the
+    // hypothesis, source observation, execution grant or a verified outcome.
+    const decision = recordVNextOperatorPilotReviewDecisionV01(fixture.db, {
+      config: fixture.config, credential, clock: fixedClock("2026-08-01T00:00:08.000Z"), request: {
+        proposal_id: revised.proposal.proposal_id, proposal_fingerprint: revised.proposal.integrity.fingerprint, candidate_id: chosen.candidate.candidate_id, candidate_fingerprint: chosen.candidate_fingerprint,
+        decision: "accept", rationale_summary: "Select only the authored revision-identity check for follow-up review. Neither remaining explanation is accepted and execution requires a separate Start.",
+      }
+    });
+    credential = credentialFromCookieV01(decision.session_cookie.value);
+    assert.equal(count("state_transition_receipt"), 0);
+    const binding = { proposal_id: revised.proposal.proposal_id, proposal_fingerprint: revised.proposal.integrity.fingerprint, decision_id: decision.decision.decision_id, decision_fingerprint: decision.decision.integrity.fingerprint };
+    const preview = prepareVNextOperatorPilotSemanticCommitPreviewV01(fixture.db, { config: fixture.config, credential, request: binding, clock: fixedClock("2026-08-01T00:00:09.000Z") });
+    const gate = confirmVNextOperatorPilotSemanticCommitV01(fixture.db, { config: fixture.config, credential, request: { ...binding, confirmation_digest: preview.preview.confirmation_digest }, preview_binding_cookie: preview.preview_binding_cookie, clock: fixedClock("2026-08-01T00:00:10.000Z") });
+    credential = credentialFromCookieV01(gate.session_admission.cookie_value);
+    const applied = applyVNextOperatorPilotReviewedSemanticTransitionV01(fixture.db, { config: fixture.config, credential, request: { ...binding, gate_record_id: gate.gate_record.gate_record_id, gate_record_fingerprint: gate.gate_record.integrity.fingerprint, prior_packet_id: selected.packet.packet_id, prior_packet_fingerprint: selected.packet.integrity.fingerprint }, clock: fixedClock("2026-08-01T00:00:11.000Z") });
+    credential = credentialFromCookieV01(applied.session_admission.cookie_value);
+    fixture.db.close();
+    fixture.db = new Database(fixture.config.database_path);
+    const beforePreparation = fixture.db.serialize();
+    const current = projectVNextOperatorPilotContinuityV01(fixture.db, { config: fixture.config, clock: fixedClock("2026-08-01T00:00:13.000Z") }).latest_compiled_packet!;
+    const admission = await admitPersistedHostTaskContextPacketV01(fixture.db, { config: fixture.config, packet_id: current.packet_id, packet_fingerprint: current.packet_fingerprint, evaluated_at: "2026-08-01T00:00:13.000Z" });
+    assert.deepEqual(readSelectedWorkSources(admission.packet), comparison.entries, "Both summaries retain their exact single-source provenance and chronology");
+    assert.equal(new Set(comparison.entries.map(entry => entry.compatibility_source_ref!.external_id)).size, 1);
+    assert(comparison.entries.every(entry => entry.currentness.status === "unknown"), "Unverified external-source currentness stays unknown without blocking this bounded read");
+    const deliveredState = admission.packet.selected_context.find(entry => entry.entry_kind === "accepted_state_ref")!;
+    assert.equal(deliveredState.bounded_summary, selectedSummary);
+    assert.equal(deliveredState.compatibility_source_ref?.external_id, applied.transition_receipt.transition_receipt_id);
+    assert.equal(deliveredState.compatibility_source_ref?.source_ref, applied.transition_receipt.integrity.fingerprint);
+    for (const invalid of [
+      { packet_id: selected.packet.packet_id, packet_fingerprint: selected.packet.integrity.fingerprint, error: /direct_host_packet_stale/ },
+      { packet_id: current.packet_id, packet_fingerprint: `sha256:${"0".repeat(64)}`, error: /operator_pilot_packet_fingerprint_mismatch/ },
+      { packet_id: "task-context:missing", packet_fingerprint: current.packet_fingerprint, error: /operator_pilot_packet_missing/ },
+    ]) await assert.rejects(admitPersistedHostTaskContextPacketV01(fixture.db, { config: fixture.config, packet_id: invalid.packet_id, packet_fingerprint: invalid.packet_fingerprint, evaluated_at: "2026-08-01T00:00:13.000Z" }), invalid.error);
+    assert(beforePreparation.equals(fixture.db.serialize()), "Preparation and stale/missing/mismatched refusal never substitute or write a baseline");
+    // Alternative fixture outcomes share one immutable pre-check database,
+    // produced entirely by normal writers. Each fresh SQLite copy receives
+    // its own normal Start, request, receipt and review; no result is edited
+    // or replayed as another result. This is not independent/cold-model data.
+    const preCheckState = fixture.db.serialize();
+    const preCheckCredential = credential;
+    fixture.db.close();
+    for (const outcome of outcomes) {
+      fixture.db = new Database(preCheckState);
+      credential = preCheckCredential;
+      requests.splice(1);
+      actions.splice(1);
+      writeFileSync(path.join(fixture.root, "manifest.json"), JSON.stringify({ event: outcome.event, condition: "cold CSV", preview_revision: "rev-2", export_revisions: outcome.revisions, performed: outcome.performed }));
+      const next = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive", operator_mutation: { credential, clock: fixedClock("2026-08-01T00:00:14.000Z") } }, { adapter: adapter("check"), now: timestampSequenceV01("2026-08-01T00:00:14.000Z") });
+      credential = credentialFromCookieV01(next.session_admission!.cookie_value);
+      assert.equal(requests.length, 2);
+      assert.notEqual(requests[0]!.request_id, requests[1]!.request_id);
+      assert.deepEqual(requests[1]!.packet, admission.packet);
+      assert.deepEqual(actions, ["read_counts", "read_manifest_once"]);
+      const beforeReview = fixture.db.serialize();
+      const resultReview = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: next.receipt.receipt_id });
+      const resultView = buildAIWorkplaneResultViewV01(resultReview);
+      assert.equal(resultReview.summary.summary, outcome.interpretation);
+      assert.equal(resultView.outcome, outcome.interpretation);
+      assert(resultReview.uncertainty.includes(limitation));
+      assert(resultReview.proposed_next_steps.some(step => step.summary === revisit));
+      assert.equal(resultReview.identity.packet_ref!.external_id, admission.packet.packet_id);
+      assert.equal(resultReview.identity.packet_ref!.source_ref, admission.packet.integrity.fingerprint);
+      assert.equal(resultReview.expectation, null, "This does not establish or inherit a P3.2 expectation");
+      if (outcome.name === "not_performed") assert(resultReview.skipped_checks.some(item => item.check_id === "export_revision_comparison"));
+      else assert.equal(resultReview.checks.find(item => item.check_id === "export_revision_comparison")!.status, ["same", "different"].includes(outcome.name) ? "passed" : "unknown");
+      assert.equal(resultReview.proposal.status, "available");
+      if (resultReview.proposal.status !== "available") throw new Error("p33a_result_proposal_unavailable");
+      const followUpReview = readVNextOperatorPilotSemanticReviewV01(fixture.db, { config: fixture.config, proposal_id: resultReview.proposal.proposal_id, authenticated_session_id: credential.session_id });
+      assert.equal(followUpReview.proposal.source_assessment!.comparison.task_success_status, "unknown", "A performed/passing identity check does not establish the task criterion");
+      assert.equal(followUpReview.decision_count, 0);
+      assert.equal(followUpReview.transition.status, "not_applied");
+      assert(beforeReview.equals(fixture.db.serialize()));
+      assert.equal(count("review_decision"), 1);
+      assert.equal(count("state_transition_receipt"), 1, "Result interpretation causes no automatic semantic application or next task");
+      assert.deepEqual(history().filter(row => originalHistory.some(prior => prior.record_id === row.record_id)), originalHistory);
+      if (outcome.name === "not_performed") {
+        const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
+        assert.equal(recovery.status, "valid", recovery.code);
+      }
+      console.log(JSON.stringify({
+        fixture: "consumer_bound_minimum_discriminating_check", outcome: outcome.name, status: "pass", requests: requests.length, selected_check: "export_revision_comparison", interpretation: resultView.outcome,
+        task_success: "unknown", operator_authored: true, deterministic_consumer: true, live_provider_calls: 0, browser_case_executed: false, human_usefulness: "unverified"
+      }));
+      fixture.db.close();
+    }
+    assert.equal(fetchCalls, 0);
   } finally { if (fixture.db.open) fixture.db.close(); globalThis.fetch = originalFetch; }
 }
 
