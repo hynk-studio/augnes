@@ -67,56 +67,77 @@ try {
     new Set(fixtures.map((fixture) => fixture.manifest.fixture_fingerprint)).size,
     fixtures.length,
   );
-  assert.equal(fixtures[0].manifest.execution_capability, "none");
+  const review = fixtures.find(f => f.manifest.profile === "review_control")!;
+  const native = fixtures.find(f => f.manifest.profile === "native_host_execution")!;
+  const expectation = fixtures.find(f => f.manifest.profile === "work_expectation")!;
+  const multi = fixtures.find(f => f.manifest.profile === "multi_candidate")!;
+  assert.equal(OPERATOR_EXECUTION_FIXTURE_PROFILES_V1.length, 4);
+  assert.equal(expectation.manifest.execution_capability, "deterministic_local_only");
+  assert.equal(native.manifest.expectation_project_id, null);
+  assert.match(expectation.manifest.expectation_project_id ?? "", /^project:/u);
+  assert.equal(expectation.manifest.profile_project_id, null);
+  assert.equal(expectation.manifest.automation_project_id, null);
+  assert.equal(expectation.manifest.multi_candidate_fixture, null);
+  assert.equal(expectation.manifest.inspector_route_fixture, null);
+  const expectationDatabase = new Database(expectation.writable_database_path, { readonly: true, fileMustExist: true });
+  try {
+    const projectId = expectation.manifest.expectation_project_id;
+    for (const [table, column] of [["vnext_core_records", "project_id"], ["autonomy_runs", "scope"], ["vnext_local_operator_sessions", "project_id"]]) {
+      assert.equal(expectationDatabase.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${column} = ?`).get(projectId).count, 0, `F1 starts without borrowed ${table}`);
+    }
+  } finally {
+    expectationDatabase.close();
+  }
+  assert.equal(review.manifest.execution_capability, "none");
   assert.equal(
-    fixtures[1].manifest.execution_capability,
+    native.manifest.execution_capability,
     "deterministic_local_only",
   );
-  assert.equal(fixtures[2].manifest.execution_capability, "none");
-  assert.match(fixtures[0].manifest.profile_project_id ?? "", /^project:/u);
+  assert.equal(multi.manifest.execution_capability, "none");
+  assert.match(review.manifest.profile_project_id ?? "", /^project:/u);
   assert.notEqual(
-    fixtures[0].manifest.profile_project_id,
-    fixtures[0].manifest.project_id,
+    review.manifest.profile_project_id,
+    review.manifest.project_id,
   );
-  assert.match(fixtures[1].manifest.profile_project_id ?? "", /^project:/u);
-  assert.equal(fixtures[2].manifest.profile_project_id, null);
-  assert.equal(fixtures[0].manifest.multi_candidate_fixture, null);
-  assert.equal(fixtures[1].manifest.multi_candidate_fixture, null);
-  assert.equal(fixtures[2].manifest.multi_candidate_fixture?.candidate_ids.length, 2);
+  assert.match(native.manifest.profile_project_id ?? "", /^project:/u);
+  assert.equal(multi.manifest.profile_project_id, null);
+  assert.equal(review.manifest.multi_candidate_fixture, null);
+  assert.equal(native.manifest.multi_candidate_fixture, null);
+  assert.equal(multi.manifest.multi_candidate_fixture?.candidate_ids.length, 2);
   assert.match(
-    fixtures[2].manifest.multi_candidate_fixture?.exact_binding
+    multi.manifest.multi_candidate_fixture?.exact_binding
       .pending_proposal_id ?? "",
     /^episode-delta-proposal:/u,
   );
   assert.notEqual(
-    fixtures[2].manifest.multi_candidate_fixture?.exact_binding
+    multi.manifest.multi_candidate_fixture?.exact_binding
       .pending_proposal_id,
-    fixtures[2].manifest.multi_candidate_fixture?.exact_binding
+    multi.manifest.multi_candidate_fixture?.exact_binding
       .newer_proposal_id,
   );
   assert.equal(
-    fixtures[2].manifest.permitted_effect_contract.core_insert_counts
+    multi.manifest.permitted_effect_contract.core_insert_counts
       .review_decision,
     4,
   );
   assert.equal(
-    fixtures[0].manifest.inspector_route_fixture?.fixture_version,
+    review.manifest.inspector_route_fixture?.fixture_version,
     OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1,
   );
   assert.equal(
-    fixtures[0].manifest.inspector_route_fixture?.admitted_record_count,
+    review.manifest.inspector_route_fixture?.admitted_record_count,
     2,
   );
   assert.match(
-    fixtures[0].manifest.inspector_route_fixture?.bounded_receipt_id ?? "",
+    review.manifest.inspector_route_fixture?.bounded_receipt_id ?? "",
     /^run-receipt:/u,
   );
-  const inspectorDatabase = new Database(fixtures[0].writable_database_path, {
+  const inspectorDatabase = new Database(review.writable_database_path, {
     readonly: true,
     fileMustExist: true,
   });
   try {
-    const inspectorFixture = fixtures[0].manifest.inspector_route_fixture!;
+    const inspectorFixture = review.manifest.inspector_route_fixture!;
     const receiptRow = inspectorDatabase
       .prepare(
         `SELECT workspace_id, project_id, fingerprint, payload_json
@@ -129,7 +150,7 @@ try {
       fingerprint: string;
       payload_json: string;
     };
-    assert.equal(receiptRow.workspace_id, fixtures[0].manifest.workspace_id);
+    assert.equal(receiptRow.workspace_id, review.manifest.workspace_id);
     assert.equal(receiptRow.project_id, inspectorFixture.project_id);
     assert.equal(
       receiptRow.fingerprint,
@@ -143,8 +164,8 @@ try {
   } finally {
     inspectorDatabase.close();
   }
-  assert.equal(fixtures[1].manifest.inspector_route_fixture, null);
-  assert.equal(fixtures[2].manifest.inspector_route_fixture, null);
+  assert.equal(native.manifest.inspector_route_fixture, null);
+  assert.equal(multi.manifest.inspector_route_fixture, null);
   process.stdout.write(
     `${JSON.stringify({
       test: "operator-execution-browser-fixture-v1",

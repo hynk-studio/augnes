@@ -42,7 +42,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
 }) {
   assert.match(
     child_id,
-    /^(?:operator-(?:review-control|native-host-execution|multi-candidate)|cross-boundary-golden)$/u,
+    /^(?:operator-(?:review-control|native-host-execution|work-expectation|multi-candidate)|cross-boundary-golden)$/u,
   );
   assert.equal(path.isAbsolute(database_path), true);
   assert.equal(path.isAbsolute(temp_root), true);

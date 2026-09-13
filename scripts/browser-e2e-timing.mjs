@@ -12,7 +12,7 @@ export function createBrowserE2ETimingRecorder({
   maxEvents = MAX_EVENTS,
 } = {}) {
   if (
-    !/^(?:continuity|project-experience|operator-review-control|operator-native-host-execution|operator-multi-candidate|cross-boundary-golden)$/u.test(
+    !/^(?:continuity|project-experience|operator-review-control|operator-native-host-execution|operator-work-expectation|operator-multi-candidate|cross-boundary-golden)$/u.test(
       scope ?? "",
     )
   ) {

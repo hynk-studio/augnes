@@ -41,6 +41,7 @@ assert.equal(
   createBrowserE2ETimingRecorder({ scope: "project-experience" }).summary().scope,
   "project-experience",
 );
+assert.equal(createBrowserE2ETimingRecorder({ scope: "operator-work-expectation" }).summary().scope, "operator-work-expectation");
 assert.throws(() => createBrowserE2ETimingRecorder({ scope: "unknown" }), /scope_invalid/u);
 assert.throws(
   () => createBrowserE2ETimingRecorder({ scope: "continuity", maxEvents: 513 }),
@@ -50,5 +51,5 @@ timing.milestone("terminal result");
 assert.throws(() => timing.milestone("overflow"), /event_bound_exceeded/u);
 
 process.stdout.write(
-  `${JSON.stringify({ test: "browser-e2e-timing", status: "pass", assertions: 14 })}\n`,
+  `${JSON.stringify({ test: "browser-e2e-timing", status: "pass", assertions: 15 })}\n`,
 );

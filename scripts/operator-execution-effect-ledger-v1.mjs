@@ -100,49 +100,46 @@ const PROFILE_CONTRACTS = Object.freeze({
       "vnext_semantic_state_entries",
       "vnext_semantic_target_heads",
       "vnext_active_project_selections",
-      "vnext_recent_projects",
       "vnext_local_operator_sessions",
       "autonomy_runs",
       "autonomy_run_steps",
       "autonomy_run_events",
       "autonomy_run_delta_batches",
     ]),
-    allowed_projects: Object.freeze(["primary", "profile", "automation", "expectation"]),
+    allowed_projects: Object.freeze(["primary", "profile", "automation"]),
     core_insert_counts: Object.freeze({
       automation_work_item: 4,
       capability_grant: 1,
       // P1.5 adds exactly two explicit first-work revisions: exclude a note,
       // then reselect it from retained history. P5.1a adds one reviewed
       // correction, its atomic semantic successor and one next host result.
-      task_context_packet: 8,
-      run_receipt: 6,
-      episode_delta_proposal: 7,
+      task_context_packet: 7,
+      run_receipt: 5,
+      episode_delta_proposal: 6,
       review_decision: 1,
       semantic_commit_gate: 1,
       semantic_state: 1,
       state_transition_receipt: 1,
       context_use_review: 1,
-      work_expectation_record: 6,
+      work_expectation_record: 2,
     }),
-    operator_session_insert_count: 5,
+    operator_session_insert_count: 4,
     operator_session_project_counts: Object.freeze({
       primary: 1,
       profile: 2,
       automation: 1,
-      expectation: 1,
     }),
     operator_session_status_counts: Object.freeze({
-      active_consumed: 4,
+      active_consumed: 3,
       revoked: 1,
     }),
     table_operation_counts: Object.freeze({
       inserted: Object.freeze({
-        autonomy_run_events: 62,
-        autonomy_run_steps: 6,
-        autonomy_runs: 6,
-        vnext_core_records: 37,
-        vnext_local_operator_sessions: 5,
-        vnext_recent_projects: 1,
+        autonomy_run_events: 57,
+        autonomy_run_steps: 5,
+        autonomy_runs: 5,
+        vnext_core_records: 30,
+        vnext_local_operator_sessions: 4,
         vnext_semantic_state_entries: 1,
         vnext_semantic_target_heads: 1,
       }),
@@ -155,15 +152,15 @@ const PROFILE_CONTRACTS = Object.freeze({
       host_event_observed: 22,
       run_cancelled: 1,
       run_cancelling: 1,
-      run_completed: 5,
-      run_created: 6,
+      run_completed: 4,
+      run_created: 5,
       run_needs_review: 1,
       run_queued: 3,
-      run_started: 3,
+      run_started: 2,
       run_starting: 3,
       step_cancelled: 1,
-      step_completed: 5,
-      step_started: 6,
+      step_completed: 4,
+      step_started: 5,
     }),
     event_type_status_counts: Object.freeze({
       "approval_decided:waiting_for_approval": 2,
@@ -172,16 +169,16 @@ const PROFILE_CONTRACTS = Object.freeze({
       "host_event_observed:starting": 6,
       "run_cancelled:cancelled": 1,
       "run_cancelling:cancelling": 1,
-      "run_completed:completed": 5,
+      "run_completed:completed": 4,
       "run_created:queued": 3,
-      "run_created:running": 3,
+      "run_created:running": 2,
       "run_needs_review:needs_review": 1,
       "run_queued:queued": 3,
-      "run_started:running": 3,
+      "run_started:running": 2,
       "run_starting:starting": 3,
       "step_cancelled:cancelled": 1,
-      "step_completed:completed": 5,
-      "step_started:running": 6,
+      "step_completed:completed": 4,
+      "step_started:running": 5,
     }),
     host_event_observed_running_or_waiting_count: 14,
     approval_trace_event_kinds: NATIVE_APPROVAL_TRACE_EVENT_KINDS_V1,
@@ -192,7 +189,27 @@ const PROFILE_CONTRACTS = Object.freeze({
       "transport_fixture_path",
       "transport_counter_path",
     ]),
-    active_selection_contract: "profile_to_automation_revision_plus_5",
+    active_selection_contract: "profile_to_automation_revision_plus_4",
+    project_control_contract: "unchanged",
+    run_update_contract: "no_preexisting_run_update",
+  }),
+  work_expectation: Object.freeze({
+    allowed_tables: Object.freeze(["vnext_core_records", "vnext_active_project_selections", "vnext_recent_projects", "vnext_local_operator_sessions", "autonomy_runs", "autonomy_run_steps", "autonomy_run_events"]),
+    allowed_projects: Object.freeze(["primary", "expectation"]),
+    core_insert_counts: Object.freeze({ task_context_packet: 1, run_receipt: 1, episode_delta_proposal: 1, work_expectation_record: 4 }),
+    operator_session_insert_count: 2,
+    operator_session_project_counts: Object.freeze({ primary: 1, expectation: 1 }),
+    operator_session_status_counts: Object.freeze({ active_consumed: 2 }),
+    table_operation_counts: Object.freeze({
+      inserted: Object.freeze({ autonomy_run_events: 5, autonomy_run_steps: 1, autonomy_runs: 1, vnext_core_records: 7, vnext_local_operator_sessions: 2, vnext_recent_projects: 1 }),
+      updated: Object.freeze({ vnext_active_project_selections: 1 }),
+      deleted: Object.freeze({}),
+    }),
+    event_type_counts: Object.freeze({ run_completed: 1, run_created: 1, run_started: 1, step_completed: 1, step_started: 1 }),
+    event_type_status_counts: Object.freeze({ "run_completed:completed": 1, "run_created:running": 1, "run_started:running": 1, "step_completed:completed": 1, "step_started:running": 1 }),
+    approval_trace_event_kinds: Object.freeze([]),
+    allowed_seam_keys: Object.freeze([]),
+    active_selection_contract: "expectation_to_primary_revision_plus_1",
     project_control_contract: "unchanged",
     run_update_contract: "no_preexisting_run_update",
   }),
@@ -603,6 +620,22 @@ function publicIdentity(table, row, stableKey) {
   }
   if (table === "vnext_core_records" && typeof row.payload_json === "string") {
     identity.semantic_bindings = semanticBindings(JSON.parse(row.payload_json));
+    if (row.record_kind === "work_expectation_record") {
+      const value = JSON.parse(row.payload_json);
+      identity.expectation_binding = {
+        kind: value.kind, revision: value.revision ?? null,
+        packet_id: value.packet_ref.external_id, packet_fingerprint: value.packet_ref.source_ref,
+        expectation_id: value.expectation_ref?.external_id ?? null,
+        expectation_fingerprint: value.expectation_ref?.source_ref ?? null,
+        attempt_id: value.attempt_ref?.external_id ?? null,
+        attempt_fingerprint: value.attempt_ref?.source_ref ?? null,
+        receipt_id: value.receipt_ref?.external_id ?? null,
+        receipt_fingerprint: value.receipt_ref?.source_ref ?? null,
+        previous_id: value.previous_ref?.external_id ?? null,
+        previous_fingerprint: value.previous_ref?.source_ref ?? null,
+        run_id: value.run_id ?? null,
+      };
+    }
   }
   if (table === "autonomy_run_events" && typeof row.payload_json === "string") {
     identity.event_bindings = publicEventBindings(JSON.parse(row.payload_json));
@@ -621,6 +654,8 @@ function publicRunBindings(metadata) {
       "root_fingerprint",
       "root_physical_identity_fingerprint",
       "request_id",
+      "work_expectation_binding_id",
+      "work_expectation_binding_fingerprint",
       "policy_ref_id",
       "capability_grant_ref_id",
       "automation_control_revision",
@@ -817,7 +852,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
   const events = diff.inserted.filter(
     (entry) => entry.table === "autonomy_run_events",
   );
-  if (manifest.profile !== "native_host_execution") {
+  if (!["native_host_execution", "work_expectation"].includes(manifest.profile)) {
     assert.equal(runs.length, 0);
     assert.equal(events.length, 0);
     if (
@@ -864,7 +899,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     return;
   }
   assert.equal(updatedRuns.length, 0);
-  assert.equal(runs.length, 6, "operator_effect_native_run_set_mismatch");
+  assert.equal(runs.length, contract.table_operation_counts.inserted.autonomy_runs, "operator_effect_native_run_set_mismatch");
   assert.deepEqual(
     countBy(events, (entry) => entry.identity.event_type),
     contract.event_type_counts,
@@ -874,19 +909,21 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     events,
     (entry) => `${entry.identity.event_type}:${entry.identity.status}`,
   );
-  const observedRunningCount =
-    eventTypeStatusCounts["host_event_observed:running"] ?? 0;
-  const observedWaitingForApprovalCount =
-    eventTypeStatusCounts["host_event_observed:waiting_for_approval"] ?? 0;
-  assert.equal(observedRunningCount > 0, true);
-  assert.equal(observedWaitingForApprovalCount > 0, true);
-  assert.equal(
-    observedRunningCount + observedWaitingForApprovalCount,
-    contract.host_event_observed_running_or_waiting_count,
-    "operator_effect_native_active_host_event_count_mismatch",
-  );
-  delete eventTypeStatusCounts["host_event_observed:running"];
-  delete eventTypeStatusCounts["host_event_observed:waiting_for_approval"];
+  if (manifest.profile === "native_host_execution") {
+    const observedRunningCount =
+      eventTypeStatusCounts["host_event_observed:running"] ?? 0;
+    const observedWaitingForApprovalCount =
+      eventTypeStatusCounts["host_event_observed:waiting_for_approval"] ?? 0;
+    assert.equal(observedRunningCount > 0, true);
+    assert.equal(observedWaitingForApprovalCount > 0, true);
+    assert.equal(
+      observedRunningCount + observedWaitingForApprovalCount,
+      contract.host_event_observed_running_or_waiting_count,
+      "operator_effect_native_active_host_event_count_mismatch",
+    );
+    delete eventTypeStatusCounts["host_event_observed:running"];
+    delete eventTypeStatusCounts["host_event_observed:waiting_for_approval"];
+  }
   assert.deepEqual(
     eventTypeStatusCounts,
     contract.event_type_status_counts,
@@ -913,14 +950,20 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
       (entry) =>
         `${entry.identity.scope}:${entry.identity.status}:${entry.identity.autonomy_contract_ref}`,
     ),
-    {
+    manifest.profile === "work_expectation" ? {
+      [`${manifest.expectation_project_id}:completed:direct_native_host_round_trip.v0.1`]: 1,
+    } : {
       [`${manifest.automation_project_id}:needs_review:direct_native_host_round_trip.v0.1`]: 1,
       [`${manifest.profile_project_id}:cancelled:direct_native_host_round_trip.v0.1`]: 1,
-      [`${manifest.expectation_project_id}:completed:direct_native_host_round_trip.v0.1`]: 1,
       [`${manifest.project_id}:completed:direct_native_host_round_trip.v0.1`]: 3,
     },
     "operator_effect_native_run_scope_status_contract_mismatch",
   );
+  if (manifest.profile === "work_expectation") {
+    assert.deepEqual([...events].sort((a, b) => a.identity.row_order - b.identity.row_order).map(e => e.identity.event_type),
+      ["run_created", "run_started", "step_started", "step_completed", "run_completed"], "operator_effect_expectation_event_order");
+    assertExpectationRecordBindings(diff, manifest, runs[0]);
+  }
   const rootFingerprintByProject = new Map(
     before.rows
       .filter((entry) => entry.table === "vnext_project_root_bindings")
@@ -970,6 +1013,40 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
   }
 }
 
+function assertExpectationRecordBindings(diff, manifest, run) {
+  const core = diff.inserted.filter(e => e.table === "vnext_core_records");
+  assert(core.every(e => e.identity.project_id === manifest.expectation_project_id), "operator_effect_expectation_core_scope");
+  const packet = core.find(e => e.identity.record_kind === "task_context_packet").identity;
+  const receipt = core.find(e => e.identity.record_kind === "run_receipt").identity;
+  assert.equal(receipt.semantic_bindings.run_id, run.identity.run_id, "operator_effect_expectation_receipt_run");
+  const rows = core.filter(e => e.identity.record_kind === "work_expectation_record").map(e => e.identity);
+  assert.deepEqual(countBy(rows, e => e.expectation_binding?.kind), { attempt_binding: 1, expectation: 1, outcome_report: 2 });
+  const forecast = rows.find(e => e.expectation_binding.kind === "expectation");
+  const binding = rows.find(e => e.expectation_binding.kind === "attempt_binding");
+  const reports = rows.filter(e => e.expectation_binding.kind === "outcome_report").sort((a, b) => a.expectation_binding.revision - b.expectation_binding.revision);
+  for (const row of rows) {
+    assert.equal(row.expectation_binding.packet_id, packet.record_id, "operator_effect_expectation_packet");
+    assert.equal(row.expectation_binding.packet_fingerprint, packet.fingerprint, "operator_effect_expectation_packet_fingerprint");
+    if (row !== forecast) {
+      assert.equal(row.expectation_binding.expectation_id, forecast.record_id, "operator_effect_expectation_forecast");
+      assert.equal(row.expectation_binding.expectation_fingerprint, forecast.fingerprint);
+    }
+  }
+  assert.equal(binding.expectation_binding.run_id, run.identity.run_id, "operator_effect_expectation_attempt_run");
+  assert.equal(run.identity.metadata_bindings.work_expectation_binding_id, binding.record_id);
+  assert.equal(run.identity.metadata_bindings.work_expectation_binding_fingerprint, binding.fingerprint);
+  assert.equal(forecast.expectation_binding.revision, 1);
+  assert.equal(forecast.expectation_binding.previous_id, null);
+  reports.forEach((report, index) => {
+    const b = report.expectation_binding;
+    assert.equal(b.attempt_id, binding.record_id); assert.equal(b.attempt_fingerprint, binding.fingerprint);
+    assert.equal(b.receipt_id, receipt.record_id, "operator_effect_expectation_report_receipt"); assert.equal(b.receipt_fingerprint, receipt.fingerprint);
+    assert.equal(b.revision, index + 1);
+    assert.equal(b.previous_id, index ? reports[0].record_id : null, "operator_effect_expectation_report_history");
+    assert.equal(b.previous_fingerprint, index ? reports[0].fingerprint : null);
+  });
+}
+
 function assertSessionContract(sessions, contract, manifest) {
   const roleForProject = new Map(
     [
@@ -1008,7 +1085,7 @@ function assertSessionContract(sessions, contract, manifest) {
 function assertRecentProjectInsert(diff, manifest) {
   const changes = diff.inserted.filter(entry => entry.table === "vnext_recent_projects");
   assert.equal(diff.updated.filter(entry => entry.table === "vnext_recent_projects").length, 0);
-  if (manifest.profile !== "native_host_execution") { assert.equal(changes.length, 0); return; }
+  if (manifest.profile !== "work_expectation") { assert.equal(changes.length, 0); return; }
   assert.equal(changes.length, 1);
   const identity = changes[0].identity;
   assert.equal(identity.project_id, manifest.project_id);
@@ -1049,16 +1126,11 @@ function assertActiveSelectionContract(diff, contract, manifest) {
     return;
   }
   assert.equal(updated.length, 1);
-  assert.equal(
-    contract.active_selection_contract,
-    "profile_to_automation_revision_plus_5",
-  );
-  assert.equal(updated[0].before_identity.project_id, manifest.profile_project_id);
-  assert.equal(updated[0].after_identity.project_id, manifest.automation_project_id);
-  assert.equal(
-    updated[0].after_identity.selection_revision,
-    updated[0].before_identity.selection_revision + 5,
-  );
+  const expectation = contract.profile === "work_expectation";
+  assert.equal(contract.active_selection_contract, expectation ? "expectation_to_primary_revision_plus_1" : "profile_to_automation_revision_plus_4");
+  assert.equal(updated[0].before_identity.project_id, expectation ? manifest.expectation_project_id : manifest.profile_project_id);
+  assert.equal(updated[0].after_identity.project_id, expectation ? manifest.project_id : manifest.automation_project_id);
+  assert.equal(updated[0].after_identity.selection_revision, updated[0].before_identity.selection_revision + (expectation ? 1 : 4));
 }
 
 function assertScopeAllowed(entry, manifest, contract) {
@@ -1100,7 +1172,7 @@ function assertSeamContract(seamDiff, contract, manifest) {
       `operator_effect_seam_unowned:${entry.key}`,
     );
   }
-  if (contract.profile === "multi_candidate") {
+  if (["multi_candidate", "work_expectation"].includes(contract.profile)) {
     assert.deepEqual(seamDiff, { inserted: [], updated: [], deleted: [] });
     return;
   }

@@ -111,6 +111,7 @@ for (const contract of owner.children) {
       (candidate) => delete candidate.e2e_timing_summary.totals_ms.fixture_construction,
     ],
     ["duration bound", (candidate) => (candidate.total_duration_ms = 300_000)],
+    ["reference headroom", (candidate) => (candidate.reference_headroom_ms = 179_999)],
   ]) {
     const candidate = structuredClone(result);
     mutate(candidate);
@@ -142,11 +143,15 @@ for (const contract of owner.children) {
     /operator_detailed_field_completion_mismatch/u,
   );
   const duplicateMarkerOwner = createOperatorSemanticMarkerOwnerV1(contract);
-  duplicateMarkerOwner.complete(contract.marker_ids[0]);
-  assert.throws(
+  if (contract.marker_ids.length > 0) {
+    duplicateMarkerOwner.complete(contract.marker_ids[0]);
+    assert.throws(
     () => duplicateMarkerOwner.complete(contract.marker_ids[0]),
-    /duplicate_operator_semantic_marker/u,
-  );
+      /duplicate_operator_semantic_marker/u,
+    );
+  } else {
+    duplicateMarkerOwner.assertExact();
+  }
   assert.throws(
     () => duplicateMarkerOwner.complete("foreign_operator_marker"),
     /foreign_operator_semantic_marker/u,
@@ -161,7 +166,7 @@ process.stdout.write(
     detailed_fields: owner.field_ids.length,
     semantic_markers: owner.marker_ids.length,
     request_failure_evidence_contracts: 1,
-    staged_finalization_negatives: owner.children.length * 10,
+    staged_finalization_negatives: owner.children.length * 11,
   })}\n`,
 );
 

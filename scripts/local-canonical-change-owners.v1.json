@@ -13,6 +13,7 @@
     "e2e-project-experience",
     "e2e-operator-review-control",
     "e2e-operator-native-host-execution",
+    "e2e-operator-work-expectation",
     "e2e-operator-multi-candidate",
     "e2e-continuity",
     "e2e-golden"
@@ -161,7 +162,8 @@
       "e2e-operator-review-control": "product-operator-review-control",
       "e2e-operator-native-host-execution": "product-native-host-execution",
       "e2e-operator-multi-candidate": "product-multi-candidate",
-      "e2e-continuity": "product-continuity"
+      "e2e-continuity": "product-continuity",
+      "e2e-operator-work-expectation": "product-work-expectation"
     },
     "deletion_policy": "full"
   },

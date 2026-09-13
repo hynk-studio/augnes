@@ -738,11 +738,6 @@
               ]
             },
             {
-              "id": "work_expectation_recording",
-              "fields": ["work_expectation_preparation_result_reload_source", "work_expectation_selection_isolated"],
-              "markers": []
-            },
-            {
               "id": "first_work_definition_and_start",
               "fields": [
                 "first_work_composer_validation",
@@ -860,8 +855,6 @@
               "work_revision_no_protocol_leakage",
               "work_revision_saved_without_execution",
               "work_revision_stale_cas_refused",
-              "work_expectation_preparation_result_reload_source",
-              "work_expectation_selection_isolated",
               "live_codex_approved_once",
               "live_codex_leave_return_no_new_turn",
               "live_codex_leave_return_same_run",
@@ -884,6 +877,29 @@
             },
             "approval_barrier_timing": [
               "approval_barrier_timing"
+            ]
+          }
+        },
+        {
+          "id": "operator-work-expectation",
+          "canonical_suite": "e2e-operator-work-expectation",
+          "canonical_phase_id": "e2e-operator-work-expectation",
+          "executable_source": "scripts/browser-validate-operator-work-expectation-v1.mjs",
+          "fixture_profile": "work_expectation",
+          "families": [
+            {
+              "id": "work_expectation_recording",
+              "fields": [
+                "work_expectation_preparation_result_reload_source",
+                "work_expectation_selection_isolated"
+              ],
+              "markers": []
+            }
+          ],
+          "value_contracts": {
+            "boolean_true": [
+              "work_expectation_preparation_result_reload_source",
+              "work_expectation_selection_isolated"
             ]
           }
         },
@@ -1132,6 +1148,7 @@
     "e2e-project-experience",
     "e2e-operator-review-control",
     "e2e-operator-native-host-execution",
+    "e2e-operator-work-expectation",
     "e2e-operator-multi-candidate",
     "e2e-continuity",
     "e2e-golden"
@@ -1196,7 +1213,8 @@
     "shared_cross_boundary": {
       "exact_paths": [
         "package.json",
-        "package-lock.json"
+        "package-lock.json",
+        "scripts/operator-work-expectation-browser-actions-v1.mjs"
       ],
       "path_fragments": [
         "browser-verification-owners",
@@ -1225,6 +1243,11 @@
     },
     "full_canonical": "all_permanent_browser_phases",
     "unknown_or_ambiguous": "all_permanent_browser_phases",
-    "shared_or_cross_boundary": "golden_plus_all_affected_detailed_owners"
+    "shared_or_cross_boundary": "golden_plus_all_affected_detailed_owners",
+    "operator_work_expectation": {
+      "exact_paths": [
+        "scripts/browser-validate-operator-work-expectation-v1.mjs"
+      ]
+    }
   }
 }

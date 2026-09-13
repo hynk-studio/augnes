@@ -48,6 +48,7 @@ export const OPERATOR_EXECUTION_FIXTURE_VERSION_V1 =
 export const OPERATOR_EXECUTION_FIXTURE_PROFILES_V1 = [
   "review_control",
   "native_host_execution",
+  "work_expectation",
   "multi_candidate",
 ] as const;
 export const OPERATOR_EXECUTION_INSPECTOR_ROUTE_FIXTURE_VERSION_V1 =
@@ -231,18 +232,6 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
         now: input.reference_time,
       });
       if (input.profile === "native_host_execution") {
-        const expectationRoot = path.join(writableRoot, "expectation-project-root");
-        mkdirSync(expectationRoot, { mode: 0o700 });
-        expectationProjectId = getOrCreateCanonicalProjectForLocalRootV01(database, {
-          workspace_id: sourceManifest.workspace_id,
-          local_root: normalizeLocalProjectRootRefV01(expectationRoot, { base_path: path.parse(expectationRoot).root }),
-          display_name: "Operator Expectation Fixture",
-        }, { create_uuid: () => "269125dc-f334-4bbc-ab6d-26aa8500bf25", now: () => input.reference_time }).project.project_id;
-        touchRecentProjectV01(database, {
-          workspace_id: sourceManifest.workspace_id,
-          project_id: expectationProjectId,
-          now: input.reference_time,
-        });
         const automationProjectRoot = path.join(
           writableRoot,
           "bounded-automation-project-root",
@@ -277,6 +266,21 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
         });
       }
     }
+    if (input.profile === "work_expectation") {
+      const expectationRoot = path.join(writableRoot, "expectation-project-root");
+      mkdirSync(expectationRoot, { mode: 0o700 });
+      expectationProjectId = getOrCreateCanonicalProjectForLocalRootV01(database, {
+        workspace_id: sourceManifest.workspace_id,
+        local_root: normalizeLocalProjectRootRefV01(expectationRoot, { base_path: path.parse(expectationRoot).root }),
+        display_name: "Operator Expectation Fixture",
+      }, { create_uuid: () => "269125dc-f334-4bbc-ab6d-26aa8500bf25", now: () => input.reference_time }).project.project_id;
+      touchRecentProjectV01(database, {
+        workspace_id: sourceManifest.workspace_id,
+        project_id: expectationProjectId,
+        now: input.reference_time,
+      });
+      profileProjectRoot = expectationRoot;
+    }
     if (input.profile === "multi_candidate") {
       multiCandidateFixture = admitMultiCandidateFixture(database, {
         workspace_id: requiredString(sourceManifest.workspace_id),
@@ -286,8 +290,10 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
     const selectedProjectId =
       input.profile === "native_host_execution"
         ? requiredString(profileProjectId)
-        : requiredString(sourceManifest.project_id);
-    if (input.profile !== "native_host_execution") {
+        : input.profile === "work_expectation"
+          ? requiredString(expectationProjectId)
+          : requiredString(sourceManifest.project_id);
+    if (input.profile !== "native_host_execution" && input.profile !== "work_expectation") {
       touchRecentProjectV01(database, {
         workspace_id: sourceManifest.workspace_id,
         project_id: selectedProjectId,
@@ -408,7 +414,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
       "local_operator_session_v0_1",
     ],
     execution_capability:
-      input.profile === "native_host_execution"
+      (input.profile === "native_host_execution" || input.profile === "work_expectation")
         ? "deterministic_local_only"
         : "none",
     provider_network_capability: "none",
@@ -742,6 +748,13 @@ function profileEffectContract(profile: OperatorExecutionFixtureProfileV1) {
         "work_closure",
         "memory_mutation",
       ],
+    };
+  }
+  if (profile === "work_expectation") {
+    return {
+      records_present_at_start: ["source_bound_other_project_packet", "clean_expectation_project"],
+      records_intentionally_absent: ["expectation_project_first_work", "pre_outcome_expectation", "expectation_attempt", "expectation_outcome_reports"],
+      forbidden_effects: ["semantic_acceptance", "provider_call", "external_network_call", "work_closure", "memory_mutation"],
     };
   }
   if (profile === "native_host_execution") {

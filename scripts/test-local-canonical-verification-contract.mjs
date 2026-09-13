@@ -58,6 +58,7 @@ const browserE2e = [
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/browser-validate-operator-review-control-v1.mjs",
   "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+  "scripts/browser-validate-operator-work-expectation-v1.mjs",
   "scripts/browser-validate-operator-multi-candidate-v1.mjs",
   "scripts/browser-validate-continuity-v1.mjs",
   "scripts/browser-validate-cross-boundary-golden-v1.mjs",
@@ -490,6 +491,7 @@ for (const fragment of [
   `"e2e-project-experience"`,
   `"e2e-operator-review-control"`,
   `"e2e-operator-native-host-execution"`,
+  `"e2e-operator-work-expectation"`,
   `"e2e-operator-multi-candidate"`,
   `"e2e-continuity"`,
   `"e2e-golden"`,
@@ -911,7 +913,7 @@ for (const requiredHighRiskOwner of [
 for (const fragment of [
   `known single detailed Browser owner`,
   `multiple detailed Browser owners require \`full-canonical\``,
-  `unknown or ambiguous verification ownership selects all six phases`,
+  `unknown or ambiguous verification ownership selects all seven phases`,
   `deletion is not targeted in this version`,
   `arbitrary standalone focused run is diagnostic evidence`,
 ]) {

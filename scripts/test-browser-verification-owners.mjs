@@ -59,6 +59,7 @@ assert.deepEqual(manifest.canonical_phase_order, [
   "e2e-project-experience",
   "e2e-operator-review-control",
   "e2e-operator-native-host-execution",
+  "e2e-operator-work-expectation",
   "e2e-operator-multi-candidate",
   "e2e-continuity",
   "e2e-golden",
@@ -117,9 +118,24 @@ const project = loadProjectExperienceResultContractV1();
 assert.equal(project.field_ids.length, 69);
 assert.equal(project.marker_ids.length, 8);
 const operator = loadOperatorExecutionOwnerContractV1();
-assert.equal(operator.children.length, 3);
+assert.equal(operator.children.length, 4);
 assert.equal(operator.field_ids.length, 140);
 assert.equal(operator.marker_ids.length, 64);
+const native = operator.children.find(child => child.child_id === "operator-native-host-execution");
+const expectation = operator.children.find(child => child.child_id === "operator-work-expectation");
+assert.equal(native.field_ids.length, 48);
+assert.equal(native.marker_ids.length, 11);
+assert.deepEqual(expectation.field_ids, ["work_expectation_preparation_result_reload_source", "work_expectation_selection_isolated"]);
+assert.deepEqual(expectation.marker_ids, []);
+assert.equal(native.field_ids.some(id => expectation.field_ids.includes(id)), false);
+const expectationStep = sourceBlock(canonicalSuiteSource, "const operatorWorkExpectationStep = {", "const operatorMultiCandidateStep = {");
+for (const required of ['id: "operator-work-expectation"', 'requirements: operatorExecutionRequirements', 'rootNode("scripts/browser-validate-operator-work-expectation-v1.mjs")', 'timeoutMs: 360_000', 'requireNaturalExit: true']) assert(expectationStep.includes(required), required);
+for (const suite of ['e2e', '"e2e-operator-execution"']) {
+  const block = suiteBlock(canonicalSuiteSource, suite);
+  for (const step of ['operatorReviewControlStep', 'operatorNativeHostExecutionStep', 'operatorWorkExpectationStep', 'operatorMultiCandidateStep']) assert.equal(block.split(`{ ...${step} }`).length - 1, 1, `${suite}:${step}:exactly_once`);
+}
+assert.equal(canonicalSuiteSource.split('  "e2e-operator-work-expectation": [{ ...operatorWorkExpectationStep }],').length - 1, 1);
+
 assert.equal(
   manifest.owners.continuity.families.flatMap((family) => family.fields).length,
   29,

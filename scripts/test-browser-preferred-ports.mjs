@@ -40,6 +40,7 @@ let scenarios = 0;
 const childIds = [
   "operator-review-control",
   "operator-native-host-execution",
+  "operator-work-expectation",
   "operator-multi-candidate",
   "cross-boundary-golden",
 ];
