@@ -1,3 +1,4 @@
+import { WorkExpectationResult } from "../semantic-review/work-expectation";
 import type { ReactNode } from "react";
 
 import { AIWorkplaneShell } from "@/components/workbench/ai-workplane/ai-workplane-shell";
@@ -18,8 +19,10 @@ export function RunResultReviewSurface({
   guidePacket,
   guideLoading = false,
   guideRequestCount,
+  onExpectationSaved,
 }: {
   result: ProjectRunResultDetailV01;
+  onExpectationSaved?: () => Promise<void>;
   accessBoundary?: ReactNode;
   guidePacket: ProjectGuideBriefV02 | null;
   guideLoading?: boolean;
@@ -80,7 +83,7 @@ export function RunResultReviewSurface({
         className={styles.page}
         data-run-result-review="v0.1"
         data-ai-workplane-result-review="v0.1"
-        data-result-review-read-only="true"
+        data-result-review-read-only={result.expectation?.report_allowed ? "false" : "true"}
         data-semantic-mutation="false"
         data-ai-workplane-presentation={view.presentation_version}
       >
@@ -177,6 +180,19 @@ export function RunResultReviewSurface({
             )}
           </section>
 
+          {result.expectation ? (
+            <WorkExpectationResult
+              key={`${result.project_id}:${result.identity.receipt_ref}`}
+              comparison={result.expectation}
+              receiptId={result.identity.receipt_ref}
+              receiptFingerprint={result.identity.receipt_fingerprint}
+              selectionRevision={result.expectation_active_selection_revision ?? null}
+              onSaved={onExpectationSaved}
+            />
+          ) : null}
+          {result.expectation_unavailable ? (
+            <p>Expectation history is unavailable. The original result and review controls remain available.</p>
+          ) : null}
           <details
             className={styles.advancedDisclosure}
             data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.rawRecord}

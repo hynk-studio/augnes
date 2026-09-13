@@ -49,6 +49,7 @@ await runOperatorExecutionBrowserChildV1({
   console_allowlist: (entry) =>
     ([
       "first_work_definition_and_start",
+      "work_expectation_recording",
       "live_native_host_approval_lifecycle",
       // The following project's existing authentication bootstrap is now
       // attributed to this final primary-project phase.
@@ -65,6 +66,7 @@ await runOperatorExecutionBrowserChildV1({
         "Failed to load resource: the server responded with a status of 409 (Conflict)") ||
     ([
       "first_work_definition_and_start",
+      "work_expectation_recording",
       "direct_native_host_round_trip",
       "live_native_host_approval_lifecycle",
       "bounded_automation_execution",
@@ -80,6 +82,7 @@ await runOperatorExecutionBrowserChildV1({
       entry.path === "/workbench/semantic-review") ||
       ([
         "first_work_definition_and_start",
+      "work_expectation_recording",
         "live_native_host_approval_lifecycle",
         // Review navigation replaces the GuideBrief read and its owner
         // aborts the prior read; only this exact read cancellation is expected.
@@ -1013,6 +1016,7 @@ await runOperatorExecutionBrowserChildV1({
           runs: 0,
         },
       );
+      await saveBrowserExpectation(lifecycle, "satisfied", "P32_FORECAST_ONLY_PRESTART");
       const firstWorkStartResponse = lifecycle.responses.length;
       assert.equal(
         await lifecycle.evaluateBoolean(`(() => {
@@ -1062,6 +1066,7 @@ await runOperatorExecutionBrowserChildV1({
         (entry) =>
           entry.kind === "received" && entry.value?.method === "turn/start",
       );
+      assert.equal(initialTurnStart?.value.work_expectation_sentinel_present, false, "The actual rendered worker input excludes the expectation");
       assert.deepEqual(
         {
           guide_brief_section: initialTurnStart?.value.guide_brief_section,
@@ -1237,18 +1242,81 @@ await runOperatorExecutionBrowserChildV1({
       );
       result.work_revision_definition_label_truthful = true;
       completeDetailedField("work_revision_definition_label_truthful");
+      const cancelledReceipt = directState(fixture.writable_database_path, firstWorkProjectId).latest_receipt;
+      assert(cancelledReceipt);
+      await lifecycle.navigate(`${appOrigin}/workbench/results/${cancelledReceipt.receipt_id.replace(":", "~")}`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-eligibility="not_observed"]') !== null`, "cancelled expectation remains unobserved");
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="mismatch"]') === null && document.querySelector('[data-expectation-action="report"]') === null`), true);
       await lifecycle.navigate("about:blank");
       await lifecycle.terminateRuntime();
     }, { request_quiet: false });
 
-    selectFixtureActiveProject(
-      fixture.writable_database_path,
-      fixture.manifest.workspace_id,
-      fixture.manifest.project_id,
-    );
+    selectFixtureActiveProject(fixture.writable_database_path, fixture.manifest.workspace_id, fixture.manifest.expectation_project_id);
+    await lifecycle.restartRuntime(fixture.manifest.expectation_project_id);
+    await lifecycle.runPhase("work_expectation_recording", async () => {
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+      assert.equal(await lifecycle.authenticate(), true);
+      await lifecycle.waitForCondition(`document.querySelector('[data-first-work-composer]') !== null`, "expectation fixture first work");
+      await lifecycle.setFormControlValue('#first-work-goal', 'Inspect the exact disposable result');
+      await lifecycle.setFormControlValue('#first-work-success-criteria', 'The result establishes the requested criterion');
+      await clickSelector(lifecycle, '[data-first-work-action="save"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-current-work-definition]') !== null`, "expectation work prepared");
+      await saveBrowserExpectation(lifecycle, "unsatisfied", "P32_FORECAST_ONLY_RESULT");
+      assert.equal(readFirstWorkState(fixture.writable_database_path, fixture.manifest.expectation_project_id).runs, 0);
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?expectation-reload=1`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-work-expectation="preparation"]') !== null`, "reloaded expectation preparation");
+      await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-expectation="preparation"]').open = true; return true; })()`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-history="1"]')?.textContent.includes('P32_FORECAST_ONLY_RESULT') === true`, "saved expectation survived reload");
+      await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(fixture.manifest.expectation_project_id)}`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated expectation Project Home");
+      await openProjectOptions(lifecycle);
+      await clickSelector(lifecycle, '[data-direct-host-action="deterministic"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null`, "normal deterministic attempt completed");
+      const completedReceipt = directState(fixture.writable_database_path, fixture.manifest.expectation_project_id).latest_receipt;
+      assert(completedReceipt);
+      const resultUrl = `${appOrigin}/workbench/results/${completedReceipt.receipt_id.replace(":", "~")}`;
+      await lifecycle.navigate(resultUrl);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, "normal result consumer has original expectation");
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="unassessed"]').getBoundingClientRect().height > 0`), true, "The comparison is visible in normal result review");
+      await reportBrowserExpectation(lifecycle, "unsatisfied", "This exact result did not establish the criterion.");
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="match"]') !== null`, "expected criterion failure matches without task success");
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
+      await reportBrowserExpectation(lifecycle, "satisfied", "Correction: the operator now attests that the criterion was met.");
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "report correction preserves expectation and changes comparison");
+      await lifecycle.navigate(resultUrl + '?expectation-reload=1');
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null && document.body.textContent.includes('corrections (2)')`, "comparison and report history survived reload");
+      const sourceHref = await lifecycle.evaluateString(`document.querySelector('[data-expectation-source="packet"]').getAttribute('href')`);
+      await lifecycle.navigate(new URL(sourceHref, appOrigin).toString());
+      await lifecycle.waitForCondition(`document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="task_context_packet"]') !== null`, "expectation exact source navigation");
+      await lifecycle.navigate(resultUrl);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "return to original comparison");
+      for (const width of [390, 768, 1280]) {
+        await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width === 390 });
+        assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth`), true, `expectation viewport ${width}`);
+      }
+      await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
+      await lifecycle.navigate('about:blank');
+      await lifecycle.terminateRuntime();
+      await lifecycle.restartRuntimePreservingBrowserSession(fixture.manifest.expectation_project_id);
+      await lifecycle.navigate(resultUrl);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "comparison survives runtime restart");
+      result.work_expectation_preparation_result_reload_source = true;
+      completeDetailedField('work_expectation_preparation_result_reload_source');
+      await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(fixture.manifest.project_id)}`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="false"][data-blank-state-project-management-hydrated="true"]') !== null`, "normal project selection is available");
+      await activateProject(lifecycle);
+      assert.equal(await lifecycle.evaluateBoolean(`!document.body.textContent.includes('P32_FORECAST_ONLY_RESULT') && document.querySelector('[data-expectation-comparison]') === null`), true, "Normal project activation leaves no other work's expectation on screen");
+      await lifecycle.navigate('about:blank');
+      await lifecycle.terminateRuntime();
+    }, { request_quiet: false });
+
     await lifecycle.restartRuntime(fixture.manifest.project_id);
     await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
     assert.equal(await lifecycle.authenticate(), true);
+    await lifecycle.waitForCondition(`document.querySelector('[data-current-work-definition]') !== null`, "primary project after expectation selection");
+    assert.equal(await lifecycle.evaluateBoolean(`!document.body.textContent.includes('P32_FORECAST_ONLY_RESULT') && document.querySelector('[data-expectation-comparison]') === null`), true);
+    result.work_expectation_selection_isolated = true;
+    completeDetailedField('work_expectation_selection_isolated');
     rmSync(prepared.approval_trace_path, { force: true });
 
     let directAfter;
@@ -2888,4 +2956,22 @@ function readApprovalTiming(tracePath) {
     timing_version: "browser_approval_barriers.v0.1",
     events: publicEntries,
   };
+}
+
+async function saveBrowserExpectation(lifecycle, prediction, reason) {
+  await lifecycle.waitForCondition(`document.querySelector('[data-work-expectation="preparation"]') !== null`, 'optional expectation preparation');
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-expectation="preparation"]').open = true; return true; })()`);
+  await lifecycle.waitForCondition(`document.querySelector('#expectation-reason') !== null`, 'authenticated expectation form');
+  await lifecycle.setFormControlValue('#expectation-prediction', prediction);
+  await lifecycle.setFormControlValue('#expectation-reason', reason);
+  await lifecycle.setFormControlValue('#expectation-conditions', 'Only the exact first interactive attempt is observed.');
+  await clickSelector(lifecycle, '[data-expectation-action="save"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-history="1"]') !== null`, 'prospective expectation saved');
+}
+async function reportBrowserExpectation(lifecycle, outcome, observation) {
+  await lifecycle.evaluateBoolean(`(() => { const form = document.querySelector('[data-expectation-action="report"]')?.closest('details'); if (!form) return false; form.open = true; return true; })()`);
+  await lifecycle.setFormControlValue('#expectation-outcome', outcome);
+  await lifecycle.setFormControlValue('#expectation-observation', observation);
+  await lifecycle.evaluateBoolean(`(() => { const box = document.querySelector('#expectation-applicability'); if (!box.checked) box.click(); return true; })()`);
+  await clickSelector(lifecycle, '[data-expectation-action="report"]');
 }

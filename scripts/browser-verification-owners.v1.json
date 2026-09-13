@@ -738,6 +738,11 @@
               ]
             },
             {
+              "id": "work_expectation_recording",
+              "fields": ["work_expectation_preparation_result_reload_source", "work_expectation_selection_isolated"],
+              "markers": []
+            },
+            {
               "id": "first_work_definition_and_start",
               "fields": [
                 "first_work_composer_validation",
@@ -855,6 +860,8 @@
               "work_revision_no_protocol_leakage",
               "work_revision_saved_without_execution",
               "work_revision_stale_cas_refused",
+              "work_expectation_preparation_result_reload_source",
+              "work_expectation_selection_isolated",
               "live_codex_approved_once",
               "live_codex_leave_return_no_new_turn",
               "live_codex_leave_return_same_run",

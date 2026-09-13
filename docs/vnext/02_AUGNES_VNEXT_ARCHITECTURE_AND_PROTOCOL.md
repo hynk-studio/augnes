@@ -578,6 +578,73 @@ unchanged. Portable project v0.1, backup, restore, and recovery preserve and
 canonically revalidate the entire chain without a schema or portable-contract
 version bump.
 
+#### Optional pre-outcome expectation
+
+`work_expectation_record.v0.1` adds one non-authoritative record kind to the
+existing immutable, project-scoped Core ledger. Its three shapes are an
+operator-authored `expectation`, a server-owned `attempt_binding`, and an
+operator-attested `outcome_report`. Existing packets and expected/observed
+previews cannot preserve prospective chronology without exposing the prediction
+as task context. The separate record preserves that distinction; it is not an
+Evidence acceptance, Claim, Decision, Transition or new authority principal.
+
+The protected `/api/vnext/operator/work-expectations` route resolves the current
+workspace/project, active selection, packet ID/fingerprint, criterion ID/text and
+source snapshot from normal preparation/read owners. The author supplies only a
+predicted satisfied/unsatisfied outcome, short reason and applicability
+conditions. The server records operator/session provenance, time, information
+cutoff, source-currentness limits and exposure. External knowledge and external
+source currentness are unknown. Revision is an explicit append with a predecessor
+ref and compare-and-set admission, never replacement. The first scope is one
+criterion on the first upcoming interactive attempt of an initial or pre-start
+revised work packet. Packet changes retain the earlier record and require a new
+explicit binding. History is bounded to 32 versions per packet and 256 records
+per project; this does not add a Start or review action requirement.
+
+Prospective saves use the same immediate transaction, authenticated mutation and
+managed-run-history/currentness owners as pre-start work revision. Start freezes
+the exact latest eligible version inside its run-creation transaction, recording
+the immutable binding ID/fingerprint in local run metadata. A save racing with or
+following admitted execution refuses. Client timestamps cannot establish an
+earlier commitment. The binding does not change the packet, worker-rendered
+instructions, task criteria, verification plan, grant or execution admission.
+An absent or invalid optional record does not supply new execution authority.
+No expectation is automatically selected for worker or later context. The
+operator can see it; the workflow is not blinded, and attention/copying remain
+unknown.
+
+The fixed rule `exact_criterion_or_operator_report.v0.1` compares only the bound
+attempt's exact result. A supported typed criterion plan retains its existing
+CriterionAssessment outcome and observed/attested/mixed/insufficient basis;
+reports cannot override it. An unplanned natural-language criterion needs an
+explicit source-linked operator report. Overall completion and worker summaries
+are not criterion proof. A conclusive comparison also requires an operator
+attestation that the recorded applicability conditions held. Report corrections
+append provenance-preserving versions tied to the same expectation, attempt and
+receipt; they do not change the forecast, receipt, assessment or accepted state.
+
+Run disposition, actual criterion outcome/basis, local comparison eligibility and
+match/mismatch remain separate. Cancelled, blocked, failed, timed-out or unexecuted
+windows receive no match/mismatch. Missing, skipped, conflicting or insufficient
+evidence remains unknown; non-observation is not a failed prediction or successful
+avoidance. A prediction of criterion failure may match while the requirement
+remains unmet. Foreign packets, changed criteria and later retries cannot settle
+the original expectation. Normal result review shows the original version,
+history, uncertainty and exact packet/source navigation without creating an
+obligation, warning campaign or automatic perspective update.
+
+The existing ledger constraint upgrade, recovery validator and portable-project
+record registry admit the additive kind. Historical records are unchanged.
+Backup/restore retain the records and local run linkage; portable export/import
+retain records and public author provenance while imported sessions remain
+revoked. Imported timestamps/bindings alone never qualify as locally established
+pre-execution chronology: comparison also needs the exact local run metadata
+written during Start. No local run ledger is reconstructed by import. Older
+readers that do not support the kind refuse the new material. Pins and generic
+Inspector targets do not promote the record; the protected result consumer owns
+its presentation. There is no new database, scheduler, model call, registry
+service or approval workflow.
+
 #### Explicit post-execution task authorship
 
 The local `augnes.authored-successor-task.v0.1` compiler appends a new task

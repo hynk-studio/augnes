@@ -1,3 +1,5 @@
+import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { readWorkExpectationComparison } from "@/lib/vnext/persistence/work-expectation-store";
 import type Database from "better-sqlite3";
 
 import {
@@ -129,6 +131,11 @@ export function readProjectRunResultDetailV01(
   const binding = readProjectRunResultSourceBindingV01(db, input);
   const { receipt, packet, criterion_assessment: criterionAssessment } = binding;
   const summary = projectReceiptSummaryV01(receipt);
+  let expectation: ProjectRunResultDetailV01["expectation"] = null;
+  let expectationUnavailable = false;
+  try {
+    if (packet) expectation = readWorkExpectationComparison(db, { ...input, packet, receipt, assessment: criterionAssessment });
+  } catch { expectationUnavailable = true; }
   const sourceTransitionRef = findRefV01(
     receipt.source_refs,
     "state_transition_receipt",
@@ -200,6 +207,9 @@ export function readProjectRunResultDetailV01(
           selected_context_refs: [],
           source_ref_count: null,
         },
+    expectation,
+    expectation_unavailable: expectationUnavailable,
+    expectation_active_selection_revision: expectation ? readActiveProjectSelectionV01(db, input.workspace_id)?.selection_revision ?? null : null,
     criterion_assessment: criterionAssessment,
     proposal: projectProposalReadbackV01(db, binding),
     automation: projectAutomationLineageV01(binding),

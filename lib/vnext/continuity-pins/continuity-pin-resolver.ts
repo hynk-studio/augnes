@@ -79,7 +79,7 @@ function resolveManagedRunV01(
     } catch {
       return unavailableResolutionV01(
         createSharedInspectorHrefV01({
-          target_kind: receipt.record_kind,
+          target_kind: "run_receipt",
           record_id: receipt.record_id,
           expected_fingerprint: receipt.fingerprint,
         }),
@@ -135,6 +135,7 @@ function resolveCoreRecordV01(
   target: ContinuityPinTargetRefV01,
   record: VNextCoreRecordEnvelopeV01,
 ): ContinuityPinOwnerResolutionV01 {
+  if (record.record_kind === "work_expectation_record") return unsupportedResolutionV01();
   const exactDetail = createSharedInspectorHrefV01({
     target_kind: record.record_kind,
     record_id: record.record_id,

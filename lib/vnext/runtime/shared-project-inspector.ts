@@ -1578,6 +1578,8 @@ function validateAndDescribeCoreRecordV01(
   observedAt: string,
 ): ResolvedInspectorFocusV01 {
   switch (record.record_kind) {
+    case "work_expectation_record":
+      refuseV01("shared_inspector_expectation_use_result_review");
     case "task_context_packet": {
       const packet = assertPacketV01(record, observedAt);
       let proposalId: string | null = null;

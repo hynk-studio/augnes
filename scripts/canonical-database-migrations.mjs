@@ -117,6 +117,12 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // package identity guard removed. The continuation-admission record kind
     // is present; arbitrary partial schemas remain unsupported.
     "542b04dcf26b7fc95480438e8ac4fe2e60e29817fce07b2af141def313eab2e5",
+    // Exact merged P3.1 predecessor. F1 adds only the optional immutable
+    // work-expectation record kind; existing rows retain their original bytes.
+    "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980",
+    // Exact F1 schema with only the migration ledger and package identity
+    // guard absent, for the existing bounded ledgerless recovery lane.
+    "548df1c54ff6bafff41cdc1ad09b9a724c4e0ac5087d5b20d1b2651ad06dd0b1",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

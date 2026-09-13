@@ -16,6 +16,7 @@ const manifest = {
   project_id: "project:primary",
   profile_project_id: "project:profile",
   automation_project_id: "project:automation",
+  expectation_project_id: "project:expectation",
   baseline_run_id: "run:baseline-review",
   baseline_run_contract: "direct_native_host_round_trip.v0.1",
   strategic_source_catalog_fingerprint: sha("strategic-source-catalog"),
@@ -206,6 +207,10 @@ assert.throws(
 );
 
 const validReview = reviewSnapshots();
+const changedRecentIdentity = nativeSnapshots();
+changedRecentIdentity.after.rows.find(entry => entry.table === "vnext_recent_projects").identity.created_at = "2026-08-03T00:00:00.000Z";
+assert.throws(() => validate(changedRecentIdentity.before, changedRecentIdentity.after, { ...manifest, profile: "native_host_execution" }, result), /operator_effect_recent_creation_time_mismatch/u);
+
 assert.doesNotThrow(() =>
   validate(
     validReview.before,
@@ -239,7 +244,7 @@ process.stdout.write(
     test: "operator-execution-effect-ledger-v1",
     status: "pass",
     valid_profiles: 3,
-    equal_count_and_scope_negatives: negativeCases.length + 3,
+    equal_count_and_scope_negatives: negativeCases.length + 4,
   })}\n`,
 );
 
@@ -300,9 +305,10 @@ function nativeSnapshots() {
   const coreCounts = {
     automation_work_item: 4,
     capability_grant: 1,
-    task_context_packet: 7,
-    run_receipt: 5,
-    episode_delta_proposal: 6,
+    task_context_packet: 8,
+    run_receipt: 6,
+    episode_delta_proposal: 7,
+    work_expectation_record: 6,
     review_decision: 1,
     semantic_commit_gate: 1,
     semantic_state: 1,
@@ -316,6 +322,7 @@ function nativeSnapshots() {
   );
   const runs = [
     runRow("run:profile", "project:profile", "cancelled"),
+    runRow("run:expectation", "project:expectation", "completed"),
     runRow("run:direct", "project:primary", "completed"),
     runRow("run:live", "project:primary", "completed"),
     runRow("run:follow-up", "project:primary", "completed"),
@@ -326,14 +333,16 @@ function nativeSnapshots() {
     rootBindingRow("project:primary"),
     rootBindingRow("project:profile"),
     rootBindingRow("project:automation"),
+    rootBindingRow("project:expectation"),
   ];
   const beforeSelection = activeSelectionRow("project:profile", 1);
-  const afterSelection = activeSelectionRow("project:automation", 5);
+  const afterSelection = activeSelectionRow("project:automation", 6);
   afterSelection.stable_key = beforeSelection.stable_key;
   const value = snapshots(
     [beforeSelection, ...roots],
     [
       afterSelection,
+      recentRow("2026-08-02T00:00:00.000Z"),
       ...roots,
       ...core,
       ...semanticStateRows(),
@@ -346,6 +355,7 @@ function nativeSnapshots() {
       sessionRow("session:revoked", "project:profile", "revoked"),
       sessionRow("session:two", "project:profile"),
       sessionRow("session:three", "project:automation"),
+      sessionRow("session:expectation", "project:expectation"),
     ],
   );
   const contract = buildOperatorExecutionPermittedEffectContractV1(
@@ -383,6 +393,7 @@ function nativeSnapshots() {
 
 function nativeEventRows() {
   const definitions = [
+    ["run:expectation", [["run_created", "running"], ["run_started", "running"], ["step_started", "running"], ["step_completed", "completed"], ["run_completed", "completed"]]],
     ["run:profile", [
       ["run_created", "queued"],
       ["run_queued", "queued"],
@@ -629,6 +640,14 @@ function controlRow(projectId, revision) {
       revision,
     },
   });
+}
+
+function recentRow(lastOpenedAt) {
+  const value = row({ table: "vnext_recent_projects", category: "project_state", id: "project:primary",
+    identity: { workspace_id: "workspace:test", project_id: "project:primary", created_at: lastOpenedAt,
+      recent_project_entry_version: "recent_project_entry.v0.1", last_opened_at: lastOpenedAt } });
+  value.row_fingerprint = sha(lastOpenedAt);
+  return value;
 }
 
 function activeSelectionRow(projectId, revision) {

@@ -2103,6 +2103,7 @@ function minimized(message) {
       typeof rendered === "string"
         ? `sha256:${createHash("sha256").update(rendered).digest("hex")}`
         : null;
+    summary.work_expectation_sentinel_present = typeof rendered === "string" && rendered.includes("P32_FORECAST_ONLY_");
     summary.guide_brief_section = guideIndex >= 0;
     summary.guide_brief_version_v0_2 =
       typeof rendered === "string" && rendered.includes("guide_brief.v0.2");

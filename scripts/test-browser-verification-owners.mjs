@@ -118,7 +118,7 @@ assert.equal(project.field_ids.length, 69);
 assert.equal(project.marker_ids.length, 8);
 const operator = loadOperatorExecutionOwnerContractV1();
 assert.equal(operator.children.length, 3);
-assert.equal(operator.field_ids.length, 138);
+assert.equal(operator.field_ids.length, 140);
 assert.equal(operator.marker_ids.length, 64);
 assert.equal(
   manifest.owners.continuity.families.flatMap((family) => family.fields).length,

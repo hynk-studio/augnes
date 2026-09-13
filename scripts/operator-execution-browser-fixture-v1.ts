@@ -82,6 +82,7 @@ export interface OperatorExecutionFixtureManifestV1 {
   baseline_run_id: string;
   baseline_run_contract: string;
   profile_project_id: string | null;
+  expectation_project_id: string | null;
   automation_project_id: string | null;
   automation_packet_id: string | null;
   automation_packet_fingerprint: string | null;
@@ -173,6 +174,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
   const sourceDatabaseSha256 = sha256File(sourceDatabasePath);
 
   let profileProjectId: string | null = null;
+  let expectationProjectId: string | null = null;
   let profileProjectRoot: string | null = null;
   let automationProjectId: string | null = null;
   let automationPacketId: string | null = null;
@@ -229,6 +231,18 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
         now: input.reference_time,
       });
       if (input.profile === "native_host_execution") {
+        const expectationRoot = path.join(writableRoot, "expectation-project-root");
+        mkdirSync(expectationRoot, { mode: 0o700 });
+        expectationProjectId = getOrCreateCanonicalProjectForLocalRootV01(database, {
+          workspace_id: sourceManifest.workspace_id,
+          local_root: normalizeLocalProjectRootRefV01(expectationRoot, { base_path: path.parse(expectationRoot).root }),
+          display_name: "Operator Expectation Fixture",
+        }, { create_uuid: () => "269125dc-f334-4bbc-ab6d-26aa8500bf25", now: () => input.reference_time }).project.project_id;
+        touchRecentProjectV01(database, {
+          workspace_id: sourceManifest.workspace_id,
+          project_id: expectationProjectId,
+          now: input.reference_time,
+        });
         const automationProjectRoot = path.join(
           writableRoot,
           "bounded-automation-project-root",
@@ -371,6 +385,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
     baseline_run_id: baselineRunId,
     baseline_run_contract: baselineRunContract,
     profile_project_id: profileProjectId,
+    expectation_project_id: expectationProjectId,
     automation_project_id: automationProjectId,
     automation_packet_id: automationPacketId,
     automation_packet_fingerprint: automationPacketFingerprint,

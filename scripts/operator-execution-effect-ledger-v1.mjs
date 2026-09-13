@@ -100,45 +100,49 @@ const PROFILE_CONTRACTS = Object.freeze({
       "vnext_semantic_state_entries",
       "vnext_semantic_target_heads",
       "vnext_active_project_selections",
+      "vnext_recent_projects",
       "vnext_local_operator_sessions",
       "autonomy_runs",
       "autonomy_run_steps",
       "autonomy_run_events",
       "autonomy_run_delta_batches",
     ]),
-    allowed_projects: Object.freeze(["primary", "profile", "automation"]),
+    allowed_projects: Object.freeze(["primary", "profile", "automation", "expectation"]),
     core_insert_counts: Object.freeze({
       automation_work_item: 4,
       capability_grant: 1,
       // P1.5 adds exactly two explicit first-work revisions: exclude a note,
       // then reselect it from retained history. P5.1a adds one reviewed
       // correction, its atomic semantic successor and one next host result.
-      task_context_packet: 7,
-      run_receipt: 5,
-      episode_delta_proposal: 6,
+      task_context_packet: 8,
+      run_receipt: 6,
+      episode_delta_proposal: 7,
       review_decision: 1,
       semantic_commit_gate: 1,
       semantic_state: 1,
       state_transition_receipt: 1,
       context_use_review: 1,
+      work_expectation_record: 6,
     }),
-    operator_session_insert_count: 4,
+    operator_session_insert_count: 5,
     operator_session_project_counts: Object.freeze({
       primary: 1,
       profile: 2,
       automation: 1,
+      expectation: 1,
     }),
     operator_session_status_counts: Object.freeze({
-      active_consumed: 3,
+      active_consumed: 4,
       revoked: 1,
     }),
     table_operation_counts: Object.freeze({
       inserted: Object.freeze({
-        autonomy_run_events: 57,
-        autonomy_run_steps: 5,
-        autonomy_runs: 5,
-        vnext_core_records: 28,
-        vnext_local_operator_sessions: 4,
+        autonomy_run_events: 62,
+        autonomy_run_steps: 6,
+        autonomy_runs: 6,
+        vnext_core_records: 37,
+        vnext_local_operator_sessions: 5,
+        vnext_recent_projects: 1,
         vnext_semantic_state_entries: 1,
         vnext_semantic_target_heads: 1,
       }),
@@ -151,15 +155,15 @@ const PROFILE_CONTRACTS = Object.freeze({
       host_event_observed: 22,
       run_cancelled: 1,
       run_cancelling: 1,
-      run_completed: 4,
-      run_created: 5,
+      run_completed: 5,
+      run_created: 6,
       run_needs_review: 1,
       run_queued: 3,
-      run_started: 2,
+      run_started: 3,
       run_starting: 3,
       step_cancelled: 1,
-      step_completed: 4,
-      step_started: 5,
+      step_completed: 5,
+      step_started: 6,
     }),
     event_type_status_counts: Object.freeze({
       "approval_decided:waiting_for_approval": 2,
@@ -168,16 +172,16 @@ const PROFILE_CONTRACTS = Object.freeze({
       "host_event_observed:starting": 6,
       "run_cancelled:cancelled": 1,
       "run_cancelling:cancelling": 1,
-      "run_completed:completed": 4,
+      "run_completed:completed": 5,
       "run_created:queued": 3,
-      "run_created:running": 2,
+      "run_created:running": 3,
       "run_needs_review:needs_review": 1,
       "run_queued:queued": 3,
-      "run_started:running": 2,
+      "run_started:running": 3,
       "run_starting:starting": 3,
       "step_cancelled:cancelled": 1,
-      "step_completed:completed": 4,
-      "step_started:running": 5,
+      "step_completed:completed": 5,
+      "step_started:running": 6,
     }),
     host_event_observed_running_or_waiting_count: 14,
     approval_trace_event_kinds: NATIVE_APPROVAL_TRACE_EVENT_KINDS_V1,
@@ -188,7 +192,7 @@ const PROFILE_CONTRACTS = Object.freeze({
       "transport_fixture_path",
       "transport_counter_path",
     ]),
-    active_selection_contract: "profile_to_automation_revision_plus_4",
+    active_selection_contract: "profile_to_automation_revision_plus_5",
     project_control_contract: "unchanged",
     run_update_contract: "no_preexisting_run_update",
   }),
@@ -460,6 +464,7 @@ export function assertOperatorExecutionEffectDiffV1({
   }
   assertProjectControlContract(diff, contract, manifest);
   assertActiveSelectionContract(diff, contract, manifest);
+  assertRecentProjectInsert(diff, manifest);
   assertRunAndEventBindings(diff, contract, manifest, before);
   assertSeamContract(diff.seam_diff, contract, manifest);
   const normalized = exactDiffMaterial(diff);
@@ -555,6 +560,10 @@ function publicIdentity(table, row, stableKey) {
           ? "active_consumed"
           : "bootstrap_issued";
     delete identity.record_id;
+  }
+  if (table === "vnext_recent_projects") {
+    identity.recent_project_entry_version = row.recent_project_entry_version;
+    identity.last_opened_at = row.last_opened_at;
   }
   if (table === "autonomy_run_events") {
     identity.row_order = Number(row.__snapshot_rowid__);
@@ -720,6 +729,7 @@ function assertTransitionBindings(rows, manifest, result) {
             manifest.project_id,
             manifest.profile_project_id,
             manifest.automation_project_id,
+        manifest.expectation_project_id,
           ].includes(value),
       ),
       true,
@@ -854,7 +864,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     return;
   }
   assert.equal(updatedRuns.length, 0);
-  assert.equal(runs.length, 5, "operator_effect_native_run_set_mismatch");
+  assert.equal(runs.length, 6, "operator_effect_native_run_set_mismatch");
   assert.deepEqual(
     countBy(events, (entry) => entry.identity.event_type),
     contract.event_type_counts,
@@ -892,6 +902,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
         manifest.project_id,
         manifest.profile_project_id,
         manifest.automation_project_id,
+        manifest.expectation_project_id,
       ].includes(entry.identity.scope),
     ),
     true,
@@ -905,6 +916,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     {
       [`${manifest.automation_project_id}:needs_review:direct_native_host_round_trip.v0.1`]: 1,
       [`${manifest.profile_project_id}:cancelled:direct_native_host_round_trip.v0.1`]: 1,
+      [`${manifest.expectation_project_id}:completed:direct_native_host_round_trip.v0.1`]: 1,
       [`${manifest.project_id}:completed:direct_native_host_round_trip.v0.1`]: 3,
     },
     "operator_effect_native_run_scope_status_contract_mismatch",
@@ -964,6 +976,7 @@ function assertSessionContract(sessions, contract, manifest) {
       [manifest.project_id, "primary"],
       [manifest.profile_project_id, "profile"],
       [manifest.automation_project_id, "automation"],
+      [manifest.expectation_project_id, "expectation"],
     ].filter(([projectId]) => typeof projectId === "string"),
   );
   assert.deepEqual(
@@ -990,6 +1003,19 @@ function assertSessionContract(sessions, contract, manifest) {
     true,
     "operator_effect_session_public_state_mismatch",
   );
+}
+
+function assertRecentProjectInsert(diff, manifest) {
+  const changes = diff.inserted.filter(entry => entry.table === "vnext_recent_projects");
+  assert.equal(diff.updated.filter(entry => entry.table === "vnext_recent_projects").length, 0);
+  if (manifest.profile !== "native_host_execution") { assert.equal(changes.length, 0); return; }
+  assert.equal(changes.length, 1);
+  const identity = changes[0].identity;
+  assert.equal(identity.project_id, manifest.project_id);
+  assert.equal(identity.workspace_id, manifest.workspace_id);
+  assert.equal(identity.recent_project_entry_version, "recent_project_entry.v0.1");
+  assert.equal(identity.created_at, identity.last_opened_at, "operator_effect_recent_creation_time_mismatch");
+  assert(Number.isFinite(Date.parse(identity.created_at)));
 }
 
 function assertProjectControlContract(diff, contract, manifest) {
@@ -1025,13 +1051,13 @@ function assertActiveSelectionContract(diff, contract, manifest) {
   assert.equal(updated.length, 1);
   assert.equal(
     contract.active_selection_contract,
-    "profile_to_automation_revision_plus_4",
+    "profile_to_automation_revision_plus_5",
   );
   assert.equal(updated[0].before_identity.project_id, manifest.profile_project_id);
   assert.equal(updated[0].after_identity.project_id, manifest.automation_project_id);
   assert.equal(
     updated[0].after_identity.selection_revision,
-    updated[0].before_identity.selection_revision + 4,
+    updated[0].before_identity.selection_revision + 5,
   );
 }
 
@@ -1043,7 +1069,7 @@ function assertScopeAllowed(entry, manifest, contract) {
           ? manifest.project_id
           : role === "profile"
             ? manifest.profile_project_id
-            : manifest.automation_project_id,
+            : role === "expectation" ? manifest.expectation_project_id : manifest.automation_project_id,
       )
       .filter(Boolean),
   );

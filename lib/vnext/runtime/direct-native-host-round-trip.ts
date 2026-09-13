@@ -1,3 +1,4 @@
+import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { assertCodexScopedAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import { assertCodexAuthoredSuccessorScopeV01 } from "@/lib/vnext/native-host/codex-scoped-task";
@@ -2081,6 +2082,11 @@ function createRunLedgerRecord(
         ]
       : []),
   ];
+  const expectationBinding = bindWorkExpectationToAttempt(db, { ...input.input.config, packet, run_id: input.run_id, started_at: input.started_at, mode: input.input.mode });
+  if (expectationBinding) {
+    run.metadata.work_expectation_binding_id = expectationBinding.record_id;
+    run.metadata.work_expectation_binding_fingerprint = expectationBinding.integrity.fingerprint;
+  }
   insertAutonomyRunLedgerRecord(run, [step], events, { db });
 }
 
