@@ -85,6 +85,15 @@ const operatorNativeHostExecutionStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const operatorWorkExpectationStep = {
+  id: "operator-work-expectation",
+  group: "operator-execution",
+  requirements: operatorExecutionRequirements,
+  label: "independent operator work-expectation Browser child",
+  ...rootNode("scripts/browser-validate-operator-work-expectation-v1.mjs"),
+  timeoutMs: 360_000,
+  requireNaturalExit: true,
+};
 const operatorMultiCandidateStep = {
   id: "operator-multi-candidate",
   group: "operator-execution",
@@ -613,6 +622,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "project-work-expectation",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "prospective expectation, exact attempt comparison, revision, isolation and recovery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--expectation-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-scoped-host",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],
@@ -1109,6 +1127,7 @@ const suites = {
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
+    { ...operatorWorkExpectationStep },
     { ...operatorMultiCandidateStep },
     { ...continuityStep },
     { ...goldenStep },
@@ -1121,11 +1140,13 @@ const suites = {
   "e2e-operator-native-host-execution": [
     { ...operatorNativeHostExecutionStep },
   ],
+  "e2e-operator-work-expectation": [{ ...operatorWorkExpectationStep }],
   "e2e-operator-multi-candidate": [{ ...operatorMultiCandidateStep }],
   "e2e-operator-execution": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
+    { ...operatorWorkExpectationStep },
     { ...operatorMultiCandidateStep },
   ],
   "e2e-continuity": [{ ...continuityStep }],

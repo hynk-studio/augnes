@@ -483,6 +483,7 @@ for (const required of [
   "e2e-project-experience",
   "e2e-operator-review-control",
   "e2e-operator-native-host-execution",
+  "e2e-operator-work-expectation",
   "e2e-operator-multi-candidate",
   "e2e-continuity",
   "e2e-golden",

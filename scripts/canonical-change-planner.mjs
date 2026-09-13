@@ -218,6 +218,10 @@ export function classifyCanonicalBrowserOwnership(changes) {
         add("e2e-operator-native-host-execution");
         matchedPath = true;
       }
+      if (matchesOwnershipRule(normalized, rules.operator_work_expectation)) {
+        add("e2e-operator-work-expectation");
+        matchedPath = true;
+      }
       if (matchesOwnershipRule(normalized, rules.operator_multi_candidate)) {
         add("e2e-operator-multi-candidate");
         matchedPath = true;
@@ -229,6 +233,7 @@ export function classifyCanonicalBrowserOwnership(changes) {
       if (matchesOwnershipRule(normalized, rules.project_composition)) {
         add("e2e-project-experience");
         add("e2e-operator-native-host-execution");
+        add("e2e-operator-work-expectation");
         composition = true;
         matchedPath = true;
       }

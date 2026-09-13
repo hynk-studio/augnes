@@ -212,8 +212,8 @@ export function readProjectWorkRevisionEligibilityStrictV01(
   }>;
   const otherHistory = coreRows.some(
     (row) =>
-      row.record_kind !== "task_context_packet" ||
-      !allowedPackets.has(row.record_id),
+      row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" ||
+      !allowedPackets.has(row.record_id)),
   );
   const semanticState = countScopedRowsV01(
     db,

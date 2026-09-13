@@ -31,6 +31,7 @@ import {
 import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-detail";
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
+import { WorkExpectationPreparation } from "./work-expectation";
 import { FirstWorkComposer } from "./first-work-composer";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type {
@@ -898,6 +899,11 @@ export function SemanticReviewSurface({
                 ownsPrimaryAction={delegatedOwnsFocus}
                 onAction={delegatedState.act}
               />
+              {firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
+                ["initial_user_defined", "pre_execution_user_revision"].includes(firstWorkInitialization.current_packet.lineage_kind) ? (
+                <WorkExpectationPreparation key={`${firstWorkInitialization.project_id}:${firstWorkInitialization.active_selection_revision}:${firstWorkInitialization.current_packet.packet_id}:${firstWorkInitialization.current_packet.packet_fingerprint}`}
+                  initialization={firstWorkInitialization} />
+              ) : null}
               {firstWorkInitialization?.current_work ? (
                 <CurrentWorkDefinitionPanel
                   definition={firstWorkInitialization.current_work}

@@ -16,6 +16,7 @@ const manifest = {
   project_id: "project:primary",
   profile_project_id: "project:profile",
   automation_project_id: "project:automation",
+  expectation_project_id: "project:expectation",
   baseline_run_id: "run:baseline-review",
   baseline_run_contract: "direct_native_host_round_trip.v0.1",
   strategic_source_catalog_fingerprint: sha("strategic-source-catalog"),
@@ -205,7 +206,28 @@ assert.throws(
   "bind run to the wrong project-root fingerprint",
 );
 
+const validExpectation = expectationSnapshots();
+assert.doesNotThrow(() => validate(validExpectation.before, validExpectation.after, { ...manifest, profile: "work_expectation" }, result));
+const expectationNegatives = [
+  ["foreign receipt with equal counts", rows => { rows.find(e => e.identity.expectation_binding?.kind === "outcome_report").identity.expectation_binding.receipt_id = "receipt:foreign"; }],
+  ["different frozen prediction", rows => { rows.find(e => e.identity.expectation_binding?.kind === "attempt_binding").identity.expectation_binding.expectation_id = "expectation:foreign"; }],
+  ["report correction loses predecessor", rows => { rows.find(e => e.identity.expectation_binding?.revision === 2).identity.expectation_binding.previous_id = null; }],
+  ["expected kinds in the other allowed project", rows => { rows.find(e => e.identity.record_kind === "task_context_packet").identity.project_id = "project:primary"; }],
+  ["different exact packet fingerprint", rows => { rows.find(e => e.identity.expectation_binding).identity.expectation_binding.packet_fingerprint = sha("foreign-packet"); }],
+  ["run omits its expectation binding", rows => { delete rows.find(e => e.table === "autonomy_runs").identity.metadata_bindings.work_expectation_binding_id; }],
+  ["out-of-order deterministic events", rows => { rows.find(e => e.identity.event_type === "step_completed").identity.row_order = 0; }],
+  ["extra run", rows => rows.push(runRow("run:extra", "project:expectation"))],
+];
+for (const [label, mutate] of expectationNegatives) {
+  const candidate = expectationSnapshots(); mutate(candidate.after.rows);
+  assert.throws(() => validate(candidate.before, candidate.after, { ...manifest, profile: "work_expectation" }, result), undefined, label);
+}
+
 const validReview = reviewSnapshots();
+const changedRecentIdentity = expectationSnapshots();
+changedRecentIdentity.after.rows.find(entry => entry.table === "vnext_recent_projects").identity.created_at = "2026-08-03T00:00:00.000Z";
+assert.throws(() => validate(changedRecentIdentity.before, changedRecentIdentity.after, { ...manifest, profile: "work_expectation" }, result), /operator_effect_recent_creation_time_mismatch/u);
+
 assert.doesNotThrow(() =>
   validate(
     validReview.before,
@@ -238,8 +260,8 @@ process.stdout.write(
   `${JSON.stringify({
     test: "operator-execution-effect-ledger-v1",
     status: "pass",
-    valid_profiles: 3,
-    equal_count_and_scope_negatives: negativeCases.length + 3,
+    valid_profiles: 4,
+    equal_count_and_scope_negatives: negativeCases.length + 4 + expectationNegatives.length,
   })}\n`,
 );
 
@@ -296,6 +318,29 @@ function multiCandidateSnapshots() {
   );
 }
 
+function expectationSnapshots() {
+  const scopedCore = (kind, id, bindings = {}) => {
+    const value = coreRow(kind, id, bindings); value.identity.project_id = "project:expectation"; return value;
+  };
+  const packet = scopedCore("task_context_packet", "packet:expectation");
+  const receipt = scopedCore("run_receipt", "receipt:expectation", { run_id: "run:expectation" });
+  const forecast = scopedCore("work_expectation_record", "expectation:original");
+  const binding = scopedCore("work_expectation_record", "expectation:attempt");
+  const reports = [scopedCore("work_expectation_record", "report:first"), scopedCore("work_expectation_record", "report:corrected")];
+  const empty = { packet_id: packet.identity.record_id, packet_fingerprint: packet.identity.fingerprint, expectation_id: null, expectation_fingerprint: null, attempt_id: null, attempt_fingerprint: null, receipt_id: null, receipt_fingerprint: null, previous_id: null, previous_fingerprint: null, run_id: null };
+  forecast.identity.expectation_binding = { ...empty, kind: "expectation", revision: 1 };
+  binding.identity.expectation_binding = { ...empty, kind: "attempt_binding", revision: null, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, run_id: "run:expectation" };
+  reports.forEach((r, index) => { r.identity.expectation_binding = { ...empty, kind: "outcome_report", revision: index + 1, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, attempt_id: binding.identity.record_id, attempt_fingerprint: binding.identity.fingerprint, receipt_id: receipt.identity.record_id, receipt_fingerprint: receipt.identity.fingerprint, previous_id: index ? reports[0].identity.record_id : null, previous_fingerprint: index ? reports[0].identity.fingerprint : null }; });
+  const run = runRow("run:expectation", "project:expectation");
+  Object.assign(run.identity.metadata_bindings, { work_expectation_binding_id: binding.identity.record_id, work_expectation_binding_fingerprint: binding.identity.fingerprint });
+  const beforeSelection = activeSelectionRow("project:expectation", 1);
+  const afterSelection = activeSelectionRow("project:primary", 2);
+  afterSelection.stable_key = beforeSelection.stable_key;
+  const roots = [rootBindingRow("project:expectation"), rootBindingRow("project:primary")];
+  const events = [["run_created", "running"], ["run_started", "running"], ["step_started", "running"], ["step_completed", "completed"], ["run_completed", "completed"]].map(([event, status], i) => eventRow(`expectation-event:${i}`, "run:expectation", event, status, i + 1));
+  return snapshots([beforeSelection, ...roots], [afterSelection, ...roots, recentRow("2026-08-02T00:00:00.000Z"), packet, receipt, scopedCore("episode_delta_proposal", "proposal:expectation"), forecast, binding, ...reports, run, runStepRow("step:expectation", "run:expectation"), ...events, sessionRow("session:expectation", "project:expectation"), sessionRow("session:primary")]);
+}
+
 function nativeSnapshots() {
   const coreCounts = {
     automation_work_item: 4,
@@ -303,6 +348,7 @@ function nativeSnapshots() {
     task_context_packet: 7,
     run_receipt: 5,
     episode_delta_proposal: 6,
+    work_expectation_record: 2,
     review_decision: 1,
     semantic_commit_gate: 1,
     semantic_state: 1,
@@ -629,6 +675,14 @@ function controlRow(projectId, revision) {
       revision,
     },
   });
+}
+
+function recentRow(lastOpenedAt) {
+  const value = row({ table: "vnext_recent_projects", category: "project_state", id: "project:primary",
+    identity: { workspace_id: "workspace:test", project_id: "project:primary", created_at: lastOpenedAt,
+      recent_project_entry_version: "recent_project_entry.v0.1", last_opened_at: lastOpenedAt } });
+  value.row_fingerprint = sha(lastOpenedAt);
+  return value;
 }
 
 function activeSelectionRow(projectId, revision) {

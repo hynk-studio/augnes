@@ -19,6 +19,7 @@ const PHASES = new Set([
   "strategic_analysis_and_proposal_review", "result_review_and_inspector",
   "review_decision_and_transition", "operator_session_refusal_recovery",
   "first_work_definition_and_start", "direct_native_host_round_trip",
+  "work_expectation_recording",
   "live_native_host_approval_lifecycle", "executed_reviewed_follow_up",
   "bounded_automation_execution", "multi_candidate_session_and_scope",
   "multi_candidate_guidebrief_read_only", "multi_candidate_decisions_and_preview",

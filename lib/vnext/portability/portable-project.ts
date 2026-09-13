@@ -1,3 +1,4 @@
+import type { WorkExpectationRecord } from "@/types/vnext/work-expectation";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { isStandaloneAuthoredSuccessorV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import { TextDecoder } from "node:util";
@@ -76,6 +77,7 @@ export const PORTABLE_PROJECT_SUPPORTED_RECORD_KINDS_V01 = Object.freeze([
   "run_receipt",
   "context_use_review",
   "operational_continuation_admission",
+  "work_expectation_record",
 ] as const satisfies readonly VNextCoreRecordKindV01[]);
 
 export const PORTABLE_PROJECT_EXCLUDED_CATEGORIES_V01 = Object.freeze([
@@ -1063,6 +1065,12 @@ function readPortableOperatorProvenanceSessionsV01(
       refs = [admission.authenticated_action?.local_session_action_ref].filter(
         (ref): ref is NonNullable<typeof ref> => Boolean(ref),
       );
+    } else if (record.record_kind === "work_expectation_record") {
+      const material = record.payload as WorkExpectationRecord;
+      if (material.kind !== "attempt_binding") {
+        provenanceRequired = true;
+        refs = [{ ref_type: "local_operator_session_action", external_id: material.author.session_id }];
+      }
     } else if (record.record_kind === "task_context_packet") {
       const packet = record.payload as TaskContextPacketV01;
       if (isStandaloneAuthoredSuccessorV01(packet)) {

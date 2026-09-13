@@ -1,3 +1,5 @@
+import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
+import { readWorkExpectationRecords } from "../lib/vnext/persistence/work-expectation-store";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "../lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
 
@@ -120,6 +122,7 @@ const RECORD_KINDS_V01 = [
   "run_receipt",
   "context_use_review",
   "operational_continuation_admission",
+  "work_expectation_record",
 ] as const;
 
 type CanonicalRecordKindV01 = (typeof RECORD_KINDS_V01)[number];
@@ -613,6 +616,13 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         idempotency_key: requiredStringV01(payload.idempotency_key),
         created_at: payload.recorded_at,
       });
+      return;
+    }
+    case "work_expectation_record": {
+      assertWorkExpectationRecord(record.payload);
+      const material = record.payload;
+      exactEnvelopeV01(record, { record_id: material.record_id, workspace_id: material.workspace_id,
+        project_id: material.project_id, fingerprint: material.integrity.fingerprint, idempotency_key: null, created_at: material.recorded_at });
       return;
     }
     case "context_use_review": {
@@ -1154,6 +1164,9 @@ function validateDatabaseRelationsV01(
           transition_receipt_fingerprint: record.fingerprint,
         });
         break;
+      case "work_expectation_record":
+        readWorkExpectationRecords(db, record);
+        break;
       case "context_use_review":
         validateContextUseReviewRelationV01(db, record, byIdentity);
         break;
@@ -1235,6 +1248,12 @@ function databaseTableExistsV01(
 function currentProductReaderSchemaAvailableV01(
   db: Database.Database,
 ): boolean {
+  // The exact pre-F1 Core table cannot satisfy the new protected-reader schema
+  // assertion until migrated. Record/relation validation still runs here;
+  // bootstrap separately admits only exact supported whole-schema signatures
+  // and repeats all current readers on the migrated staging database.
+  const coreTable = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'").get() as { sql: string } | undefined;
+  if (coreTable && createProtocolSha256V01(coreTable.sql.replace(/\s+/gu, " ").trim()) === "sha256:13b7d31c67078c570490007ffe217e2a2101b613f7f1847d360e07a28a6d1214") return false;
   // The one supported pre-R8-B source schema is validated again after its
   // additive migration. Only a current staged database carries both of these
   // operational tables, so old data is not judged against readers it has not

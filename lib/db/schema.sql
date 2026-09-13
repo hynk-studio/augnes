@@ -3840,7 +3840,8 @@ CREATE TABLE IF NOT EXISTS vnext_core_records (
     'task_context_packet',
     'run_receipt',
     'context_use_review',
-    'operational_continuation_admission'
+    'operational_continuation_admission',
+          'work_expectation_record'
   )),
   record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
   workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),

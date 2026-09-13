@@ -30,6 +30,11 @@ const setup = (generation = 1) => {
   owner.beginNavigation({ epoch: 7, phase, route: "workbench_result", runtime_origin: true });
   return owner;
 };
+const expectationPhase = "work_expectation_recording";
+const expectationOwner = createOperatorBrowserFailureSnapshotV1({ repository_root: root });
+expectationOwner.beginRuntime(1);
+expectationOwner.beginNavigation({ epoch: 1, phase: expectationPhase, route: "workbench_result", runtime_origin: true });
+assert.equal(expectationOwner.capture({ ...failure, phase: expectationPhase }).primary.phase, expectationPhase);
 const bind = (owner, response = document, request = document) => owner.document({
   frame_id: document.frame_id, loader_id: document.loader_id, response, request,
 });

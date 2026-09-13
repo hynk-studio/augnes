@@ -37,9 +37,11 @@ export function RunResultReviewLoader({
   const [result, setResult] = useState<ProjectRunResultDetailV01 | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const proposalSettlementPolls = useRef(0);
+  const resultReadGeneration = useRef(0);
 
   const loadResult = useCallback(
     async (options: { preserve_result?: boolean } = {}) => {
+      const generation = ++resultReadGeneration.current;
       if (options.preserve_result !== true) setResult(null);
       setErrorCode(null);
       try {
@@ -48,6 +50,7 @@ export function RunResultReviewLoader({
           { method: "GET", cache: "no-store", credentials: "same-origin" },
         );
         const body = (await response.json()) as ResultRouteResponseV01;
+        if (generation !== resultReadGeneration.current) return;
         if (response.status === 401 || response.status === 403) {
           setSession({
             status: "locked",
@@ -62,6 +65,7 @@ export function RunResultReviewLoader({
         }
         setResult(body.result);
       } catch {
+        if (generation !== resultReadGeneration.current) return;
         setErrorCode("run_result_request_failed");
       }
     },
@@ -136,6 +140,7 @@ export function RunResultReviewLoader({
       }
     })();
     return () => {
+      resultReadGeneration.current += 1;
       active = false;
     };
   }, [loadResult]);
@@ -161,10 +166,11 @@ export function RunResultReviewLoader({
       onLocked={locked}
     />
   );
-  if (session.status === "authenticated" && result) {
+  if (session.status === "authenticated" && result?.identity.receipt_ref === receiptId) {
     return (
       <RunResultReviewSurface
         result={result}
+        onExpectationSaved={() => loadResult({ preserve_result: true })}
         accessBoundary={accessBoundary}
         guidePacket={guideState.guide}
         guideLoading={guideState.status === "loading"}

@@ -488,6 +488,12 @@ try {
   assert.equal(pushPlan.plan, "full-canonical");
   assert.equal(pushPlan.reason, "main_push_always_full");
   results.push("main-push-always-full");
+  assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: "scripts/browser-validate-operator-work-expectation-v1.mjs" }]), ["e2e-operator-work-expectation"]);
+  for (const changedPath of ["scripts/operator-work-expectation-browser-actions-v1.mjs", "scripts/operator-execution-browser-fixture-v1.ts", "unclassified/expectation-source.ts"]) {
+    assert.deepEqual(selectCanonicalBrowserPhasesForChanges([{ oldPath: null, newPath: changedPath }]), PERMANENT_BROWSER_PHASE_IDS, changedPath);
+  }
+  assert.equal(PERMANENT_BROWSER_PHASE_IDS.length, 7);
+
 
   assert.deepEqual(
     selectCanonicalBrowserPhasesForChanges([
@@ -514,6 +520,7 @@ try {
     [
       "e2e-project-experience",
       "e2e-operator-native-host-execution",
+      "e2e-operator-work-expectation",
       "e2e-golden",
     ],
   );

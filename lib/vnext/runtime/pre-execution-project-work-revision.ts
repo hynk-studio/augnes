@@ -711,7 +711,7 @@ function validatePreExecutionHistoryAtEachRevisionV01(
     if (
       coreRows.some(
         (row) =>
-          row.record_kind !== "task_context_packet" || !allowed.has(row.record_id),
+          row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" || !allowed.has(row.record_id)),
       )
     ) {
       refuse("work_revision_history_predates_revision", 409);

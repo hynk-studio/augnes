@@ -46,11 +46,12 @@ This does not complete P2, grant new tool authority, or authorize a later phase.
 #1212, #1209 and #1215 remain open; #1130 assignments and study allowances are
 unchanged.
 
-## Current P3.1 selected-change revision review
+## Completed P3.1 selected-change revision review
 
 Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and the
 [integrated plan #1209](https://github.com/hynk-studio/augnes/issues/1209),
-`codex/p3-meaningful-change-review` is **Current / for Draft review**. The
+[PR #1251](https://github.com/hynk-studio/augnes/pull/1251) merged and is
+**Completed within its bounded scope**. The
 bounded consumer in `DecisionCenteredProposalDetail` compares one selected
 operation-aware revision with its exact earlier proposal/candidate, shows the
 recorded user rationale, and preserves source lanes, result reports and
@@ -59,18 +60,43 @@ reader's validated immutable predecessor copy; no additional history read,
 durable record or model interpretation is introduced. Timeline, decision and
 Transition owners retain lifecycle and action eligibility.
 
-This slice becomes completed only when its substantive PR merges. Disposable
+Disposable
 producer/read/UI checks establish mechanics, not improved human judgment,
 connected-client delivery or G usefulness. Missing or conflicting persisted
 lineage retains the protected reader's existing refusal; incomplete comparison
 material supplies no substitute baseline or new action gate.
 
-P3.2's bounded expectation/outcome question remains a separate **Next
-candidate**, requiring its own authorization. P3.2–P3.5, P4/P5 experiments and
-RW1B protocol changes do not follow from this implementation. #1213, #1212,
-#1209 and #1215 remain open. The P5.1 completed/Narrow disposition and its
-original `no_change_needed_with_evidence` conclusion below remain scoped to
-that pilot.
+## Current P3.2 / F1 optional pre-outcome expectation
+
+Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213),
+`codex/p3-pre-outcome-expectation` is **Current / for Draft review**. The
+supported path is first-work preparation (including explicit pre-start task
+revisions) -> optional operator-authored expectation for one selected criterion
+-> existing authorized first interactive attempt -> existing result review.
+The immutable expectation version is frozen with the exact attempt at Start.
+An optional source-linked operator outcome report supports natural-language
+criteria without changing the receipt, CriterionAssessment or task success.
+Reload and restart use normal persistence; changed work requires an explicit new
+expectation. Import preserves history without establishing local prospective
+chronology. Record semantics belong to [02](02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#optional-pre-outcome-expectation),
+and evaluation distinctions belong to [04](04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#prospective-expectation-mechanics).
+
+This slice remains Current/Draft until its substantive PR merges. Disposable
+fixtures establish recording, binding, comparison and delivery mechanics only.
+Actual-work collection, predictive accuracy, calibration, forecast learning,
+improved judgment and reduced burden remain unmeasured. Authored successors,
+automation, retries, restart lineages and cross-project comparisons are outside
+this first-work scope. The expectation is operator-visible with no automatic
+worker delivery; human attention and external copying are unknown.
+
+The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
+[#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
+and [#1215](https://github.com/hynk-studio/augnes/issues/1215).
+P3.3–P3.5, P4/P5 experiments and RW1B protocol changes require separate authority.
+The P5.1 completed/Narrow disposition, #1130 assignments and original
+`no_change_needed_with_evidence` conclusion remain scoped to that pilot.
+Earlier failed and successful receipts, the 45-second watchdog, unknown
+historical failure causes and timing uncertainty retain their original meaning.
 
 ## P1/P5 status and next decision
 

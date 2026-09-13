@@ -15,6 +15,7 @@ import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
+import { activateProject, openProjectOptions, clickSelector, saveBrowserExpectation } from "./operator-work-expectation-browser-actions-v1.mjs";
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
 import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
@@ -1013,6 +1014,7 @@ await runOperatorExecutionBrowserChildV1({
           runs: 0,
         },
       );
+      await saveBrowserExpectation(lifecycle, "satisfied", "P32_FORECAST_ONLY_PRESTART");
       const firstWorkStartResponse = lifecycle.responses.length;
       assert.equal(
         await lifecycle.evaluateBoolean(`(() => {
@@ -1062,6 +1064,7 @@ await runOperatorExecutionBrowserChildV1({
         (entry) =>
           entry.kind === "received" && entry.value?.method === "turn/start",
       );
+      assert.equal(initialTurnStart?.value.work_expectation_sentinel_present, false, "The actual rendered worker input excludes the expectation");
       assert.deepEqual(
         {
           guide_brief_section: initialTurnStart?.value.guide_brief_section,
@@ -1237,18 +1240,20 @@ await runOperatorExecutionBrowserChildV1({
       );
       result.work_revision_definition_label_truthful = true;
       completeDetailedField("work_revision_definition_label_truthful");
+      const cancelledReceipt = directState(fixture.writable_database_path, firstWorkProjectId).latest_receipt;
+      assert(cancelledReceipt);
+      await lifecycle.navigate(`${appOrigin}/workbench/results/${cancelledReceipt.receipt_id.replace(":", "~")}`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-expectation-eligibility="not_observed"]') !== null`, "cancelled expectation remains unobserved");
+      assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="mismatch"]') === null && document.querySelector('[data-expectation-action="report"]') === null`), true);
       await lifecycle.navigate("about:blank");
       await lifecycle.terminateRuntime();
     }, { request_quiet: false });
 
-    selectFixtureActiveProject(
-      fixture.writable_database_path,
-      fixture.manifest.workspace_id,
-      fixture.manifest.project_id,
-    );
+    selectFixtureActiveProject(fixture.writable_database_path, fixture.manifest.workspace_id, fixture.manifest.project_id);
     await lifecycle.restartRuntime(fixture.manifest.project_id);
     await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
     assert.equal(await lifecycle.authenticate(), true);
+    await lifecycle.waitForCondition(`document.querySelector('[data-current-work-definition]') !== null`, "primary project for native execution");
     rmSync(prepared.approval_trace_path, { force: true });
 
     let directAfter;
@@ -2425,55 +2430,6 @@ await runOperatorExecutionBrowserChildV1({
     result.credential_private_material_boundary = true;
   },
 });
-
-async function activateProject(lifecycle) {
-  if (
-    await lifecycle.evaluateBoolean(
-      `Array.from(document.querySelectorAll('[data-blank-state="v0.1"][data-blank-state-active="false"]')).some((entry) => entry.getBoundingClientRect().width > 0)`,
-    )
-  ) {
-    assert.equal(
-      await lifecycle.evaluateBoolean(`(() => {
-        const root = Array.from(document.querySelectorAll('[data-blank-state="v0.1"][data-blank-state-active="false"]')).find((entry) => entry.getBoundingClientRect().width > 0);
-        const button = root?.querySelector('button[data-blank-state-primary-action="make_active"]');
-        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
-        button.click();
-        return true;
-      })()`),
-      true,
-    );
-    await lifecycle.waitForCondition(
-      `Array.from(document.querySelectorAll('[data-blank-state="v0.1"][data-blank-state-active="true"]')).some((entry) => entry.getBoundingClientRect().width > 0)`,
-      "active execution project",
-    );
-  }
-}
-
-async function openProjectOptions(lifecycle) {
-  await lifecycle.waitForCondition(
-    `(() => {
-      const directOptions = Array.from(document.querySelectorAll('[data-blank-state-project-options="true"]')).find((entry) => entry.getBoundingClientRect().width > 0);
-      if (directOptions) return true;
-      const details = Array.from(document.querySelectorAll('details[data-blank-state-project-settings-recovery="true"]')).find((entry) => entry.closest('[data-blank-state-project-management-hydrated="true"]'));
-      if (!(details instanceof HTMLDetailsElement)) return false;
-      details.open = true;
-      return details.querySelector('[data-blank-state-project-options="true"]')?.getBoundingClientRect().width > 0;
-    })()`,
-    "visible native-host project options",
-  );
-}
-
-async function clickSelector(lifecycle, selector) {
-  assert.equal(
-    await lifecycle.evaluateBoolean(`(() => {
-      const candidates = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
-      const element = candidates.find((entry) => entry.getBoundingClientRect().width > 0);
-      if (!(element instanceof HTMLElement)) return false;
-      element.click(); return true;
-    })()`),
-    true,
-  );
-}
 
 async function visibleButton(lifecycle, text) {
   return await lifecycle.evaluateBoolean(

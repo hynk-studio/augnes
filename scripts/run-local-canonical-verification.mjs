@@ -122,6 +122,7 @@ export const FULL_PHASE_IDS = Object.freeze([
   "e2e-project-experience",
   "e2e-operator-review-control",
   "e2e-operator-native-host-execution",
+  "e2e-operator-work-expectation",
   "e2e-operator-multi-candidate",
   "e2e-continuity",
   "e2e-golden",
@@ -138,6 +139,7 @@ export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "e2e-project-experience",
   "e2e-operator-review-control",
   "e2e-operator-native-host-execution",
+  "e2e-operator-work-expectation",
   "e2e-operator-multi-candidate",
   "e2e-continuity",
   "e2e-golden",
@@ -1205,6 +1207,11 @@ function browserPhaseDefinition(id, { baseSha, headSha }) {
     "e2e-operator-native-host-execution": {
       label: "Canonical operator native-host Browser owner",
       suite: "e2e-operator-native-host-execution",
+      timeoutMs: 420_000,
+    },
+    "e2e-operator-work-expectation": {
+      label: "Canonical operator work-expectation Browser owner",
+      suite: "e2e-operator-work-expectation",
       timeoutMs: 420_000,
     },
     "e2e-operator-multi-candidate": {

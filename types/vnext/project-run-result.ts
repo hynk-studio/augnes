@@ -1,3 +1,4 @@
+import type { WorkExpectationComparison } from "./work-expectation";
 import type { AutonomyRunnerStatus } from "../autonomy-runner-execution";
 import type { CriterionAssessmentReadbackV01 } from "./criterion-assessment";
 import type { ExternalRefV01 } from "./external-ref";
@@ -136,6 +137,9 @@ export type ProjectRunResultProposalReadbackV01 =
     };
 
 export interface ProjectRunResultDetailV01 {
+  expectation?: WorkExpectationComparison | null;
+  expectation_unavailable?: boolean;
+  expectation_active_selection_revision?: number | null;
   read_model_version: typeof PROJECT_RUN_RESULT_READ_MODEL_VERSION_V01;
   workspace_id: string;
   project_id: string;

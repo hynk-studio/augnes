@@ -38,6 +38,32 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Prospective expectation mechanics
+
+Keep task requirements, an author's prediction and the result's established
+outcome distinct. A predicted unsatisfied criterion can match the observed
+failure while the task remains unsuccessful. Comparison eligibility requires an
+exact pre-start version/attempt binding and an observation supported by the
+recorded rule. Run disposition, criterion outcome, evidence basis and prediction
+match are separate evaluation dimensions. Unknown applicability, missing/skipped
+or conflicting evidence and cancellation do not become conclusive mismatches.
+
+Predeclare disposable expectations before their fixture outcomes, then check the
+authenticated producers, immutable history, save/Start transaction boundary,
+exact result reader and normal UI. Reload, selection isolation, source navigation,
+report corrections, portability and actual worker-input omission are mechanical
+evidence. Existing typed criterion conformance owns its supported relations;
+natural-language observations are explicitly operator-attested and cannot rewrite
+CriterionAssessment or receipt verification. Legacy expected/observed previews,
+task criteria and expected checks are not historical forecasts.
+
+This establishes only the chronology the application can prove. Operator-visible
+expectations are not blinded or causally pure shadow exposure; human attention,
+prior external knowledge and copying are unknown. Disposable tests establish no
+predictive accuracy, calibration, prevented errors, improved judgment or reduced
+burden. Actual-work collection and forecast learning need separate authorization
+and deciding evidence. Sequence and completion status belong only to 03.
+
 ## Product-continuity merge gates
 
 These are blocking correctness requirements for any affected product change.

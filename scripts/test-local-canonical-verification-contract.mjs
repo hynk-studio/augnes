@@ -58,6 +58,7 @@ const browserE2e = [
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/browser-validate-operator-review-control-v1.mjs",
   "scripts/browser-validate-operator-native-host-execution-v1.mjs",
+  "scripts/browser-validate-operator-work-expectation-v1.mjs",
   "scripts/browser-validate-operator-multi-candidate-v1.mjs",
   "scripts/browser-validate-continuity-v1.mjs",
   "scripts/browser-validate-cross-boundary-golden-v1.mjs",
@@ -490,6 +491,7 @@ for (const fragment of [
   `"e2e-project-experience"`,
   `"e2e-operator-review-control"`,
   `"e2e-operator-native-host-execution"`,
+  `"e2e-operator-work-expectation"`,
   `"e2e-operator-multi-candidate"`,
   `"e2e-continuity"`,
   `"e2e-golden"`,
@@ -911,7 +913,7 @@ for (const requiredHighRiskOwner of [
 for (const fragment of [
   `known single detailed Browser owner`,
   `multiple detailed Browser owners require \`full-canonical\``,
-  `unknown or ambiguous verification ownership selects all six phases`,
+  `unknown or ambiguous verification ownership selects all seven phases`,
   `deletion is not targeted in this version`,
   `arbitrary standalone focused run is diagnostic evidence`,
 ]) {
@@ -1061,6 +1063,7 @@ const integrationChildren = [
   "policy-triggered-model-run",
   "project-home",
   "project-work-initialization",
+  "project-work-expectation",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
   "authored-successor-handoff",
@@ -1130,8 +1133,8 @@ for (const childId of integrationChildren) {
     `integration child must have exactly one owner: ${childId}`,
   );
 }
-// Both complete owners retain their own 30s ceiling; no duplicate scoped run.
-for (const id of ["project-work-initialization", "project-work-scoped-host"]) {
+// Separate complete owners retain their own 30s ceiling and run once each.
+for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
   const registration = readCanonicalChildRegistration(integrationSource, id);
   requireText(registration.block, `timeoutMs: 30_000`, `${id} deadline changed`);
   requireText(registration.block, `group: "supporting-serial"`, `${id} scheduling changed`);
@@ -1139,6 +1142,11 @@ for (const id of ["project-work-initialization", "project-work-scoped-host"]) {
 requireText(readCanonicalChildRegistration(integrationSource, "project-work-scoped-host").block,
   `"--scoped-host-only"`, "scoped matrix must have one complete child");
 const firstWorkFixture = readFileSync(path.join(repositoryRoot, "scripts/test-vnext-project-work-initialization.ts"), "utf8");
+const expectationRegistration = readCanonicalChildRegistration(integrationSource, "project-work-expectation");
+requireText(expectationRegistration.block, '"--expectation-only"', "expectation mechanics must have one complete child");
+requireText(expectationRegistration.block, 'requireNaturalExit: true', "expectation mechanics require completed cleanup");
+assert.equal(countOccurrences(firstWorkFixture, "await assertWorkExpectationMechanics();"), 1,
+  "the default initialization path must not repeat the expectation cases");
 assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostConnectionV01();"), 1,
   "the default initialization path must not repeat the scoped matrix");
 const successorRegistration = readCanonicalChildRegistration(integrationSource, "authored-successor-handoff");
