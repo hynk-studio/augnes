@@ -168,7 +168,6 @@ async function main(): Promise<void> {
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
     await assertRevisedNativeHostStartV01();
-    await assertWorkExpectationMechanics();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
     console.log(JSON.stringify({
       status: "pass",

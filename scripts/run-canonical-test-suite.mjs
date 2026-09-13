@@ -613,6 +613,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "project-work-expectation",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "prospective expectation, exact attempt comparison, revision, isolation and recovery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--expectation-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-scoped-host",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],
