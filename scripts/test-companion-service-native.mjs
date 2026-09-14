@@ -939,7 +939,7 @@ try {
     review_decision_transition_and_state_unchanged: authorityStateUnchanged,
     project_files_unchanged: projectFilesUnchanged,
     provider_model_calls: 0,
-    external_network_calls: proxyNetworkBlockedAttempts(),
+    ...proxyNetworkEvidence(),
     real_provider_calls: 0,
   }, null, 2));
 } finally {
@@ -1078,28 +1078,50 @@ function createProxyNetworkGuard() {
   const guardModule = path.join(repositoryRoot, "scripts", "test-harness-zero-network-guard.mjs");
   writeFileSync(preloadPath, [
     'import { appendFileSync } from "node:fs";',
+    'import net from "node:net";',
+    'import os from "node:os";',
+    'import path from "node:path";',
     `import { installZeroNetworkGuard } from ${JSON.stringify(guardModule)};`,
     `const evidencePath = ${JSON.stringify(networkEvidencePath)};`,
+    `const issuerPath = ${JSON.stringify(path.join(repositoryRoot, "scripts", "issue-vnext-local-review-access.ts"))};`,
+    `const tsxClientPrefix = ${JSON.stringify(path.join(repositoryRoot, "node_modules", "tsx", "dist", "client-"))};`,
+    "let localIssuerParentPipe = false;",
     "const guard = installZeroNetworkGuard({",
     "  allowLoopback: true,",
     '  errorPrefix: "companion_proxy_external_network_forbidden",',
-    "  onBlockedAttempt: (attempt) => appendFileSync(evidencePath, `${JSON.stringify({ type: \"blocked\", pid: process.pid, method: attempt.method })}\\n`),",
+    "  onBlockedAttempt: (attempt) => appendFileSync(evidencePath, `${JSON.stringify({ type: \"blocked\", pid: process.pid, method: attempt.method, local_issuer_parent_pipe: localIssuerParentPipe })}\\n`),",
     "});",
+    // The ordinary tsx issuer probes its parent's Unix pipe twice. Keep both
+    // guard refusals; attribute only that exact local IPC separately from egress.
+    "const guardedCreateConnection = net.createConnection;",
+    "net.createConnection = (...args) => {",
+    "  const previous = localIssuerParentPipe;",
+    "  localIssuerParentPipe = process.argv[1] === issuerPath &&",
+    "    args[0] === path.join(os.tmpdir(), `tsx-${process.geteuid()}`, `${process.ppid}.pipe`) &&",
+    "    new Error().stack.includes(tsxClientPrefix);",
+    "  try { return Reflect.apply(guardedCreateConnection, net, args); }",
+    "  finally { localIssuerParentPipe = previous; }",
+    "};",
     "appendFileSync(evidencePath, `${JSON.stringify({ type: \"ready\", pid: process.pid, guarded_methods: guard.guarded_methods.length })}\\n`);",
     "",
   ].join("\n"), { mode: 0o600 });
   return preloadPath;
 }
 
-function proxyNetworkBlockedAttempts() {
+function proxyNetworkEvidence() {
   const records = readFileSync(networkEvidencePath, "utf8")
     .split(/\r?\n/u)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
   assert(records.filter((record) => record.type === "ready").length >= 2);
   const blocked = records.filter((record) => record.type === "blocked");
-  assert.deepEqual(blocked, []);
-  return blocked.length;
+  const issuerIpc = blocked.filter((record) => record.local_issuer_parent_pipe);
+  assert.equal(issuerIpc.length, 2);
+  assert.equal(new Set(issuerIpc.map((record) => record.pid)).size, 1);
+  assert(issuerIpc.every((record) => record.method === "net.createConnection"));
+  const external = blocked.filter((record) => !record.local_issuer_parent_pipe);
+  assert.deepEqual(external, []);
+  return { external_network_calls: external.length, blocked_issuer_parent_ipc_attempts: issuerIpc.length };
 }
 
 function projectFileFingerprint() {
