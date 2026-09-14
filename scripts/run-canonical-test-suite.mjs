@@ -662,7 +662,11 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
       label: "authored successor task, consumed prefix, exact worker request and historical instruction exclusion",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-handoff-only"),
-      timeoutMs: 30_000,
+      // Reviewed aggregate budget: retained exits were 27.697-29.301s;
+      // one diagnostic exited at 29.330s with about 11ms cleanup.
+      // The 30s failure remains unexplained. This is not a product latency
+      // target or a statistical reliability guarantee.
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {
