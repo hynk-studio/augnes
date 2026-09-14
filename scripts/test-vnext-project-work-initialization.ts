@@ -42,6 +42,7 @@ import {
 } from "../lib/vnext/persistence/project-identity-registry";
 import {
   readActiveProjectSelectionV01,
+  removeRecentProjectV01,
   selectActiveProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
@@ -112,6 +113,7 @@ import type { RevisePreExecutionProjectWorkRequestV01 } from "../types/vnext/pro
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-access";
+import { localReviewAccessIssuerFailure } from "./augnes-runtime-supervisor-core.mjs";
 
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-first-work-"));
 const T0 = "2026-08-01T00:00:00.000Z";
@@ -126,7 +128,11 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
-    if (process.argv.includes("--companion-first-work-only")) { await assertCompanionFirstWorkAccessV01(); return; }
+    if (process.argv.includes("--companion-first-work-only")) {
+      assertLocalReviewAccessIssuanceV01();
+      await assertCompanionFirstWorkAccessV01();
+      return;
+    }
     if (process.argv.includes("--minimum-discriminating-check-only")) { await assertMinimumDiscriminatingCheckV01(); return; }
     if (process.argv.includes("--expectation-only")) { await assertWorkExpectationMechanics(); return; }
     if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
@@ -2186,6 +2192,8 @@ async function assertSelectedSourceNextWorkV01(): Promise<void> {
 function assertLocalReviewAccessIssuanceV01(): void {
   const fixture = createFixtureV01("local-review-access");
   try {
+    const sessions = () => fixture.db.prepare("SELECT COUNT(*) AS count FROM vnext_local_operator_sessions").get() as { count: number };
+    const before = sessions().count;
     const issued = issueVNextLocalReviewAccessV01(fixture.db, {
       database_path: "/tmp/augnes-local-review-access.db",
       clock: fixedClock(T0),
@@ -2193,6 +2201,13 @@ function assertLocalReviewAccessIssuanceV01(): void {
     assert.equal(issued.config.workspace_id, fixture.workspace_id);
     assert.equal(issued.config.project_id, fixture.project_id);
     assert.equal(issued.config.operator_id, "operator:local-review");
+    assert.equal(sessions().count, before + 1);
+    // Reporting an unexpected exception after issuance must not reveal, revoke,
+    // duplicate, or roll back the credential that the existing issuer wrote.
+    const failure = localReviewAccessIssuerFailure(new Error(issued.bootstrap.bootstrap_token));
+    assert.equal(JSON.stringify(failure).includes(issued.bootstrap.bootstrap_token), false);
+    assert.deepEqual(failure, { ok: false, error_code: "local_review_access_unavailable", failure_kind: "unknown_exception" });
+    assert.equal(sessions().count, before + 1);
     const consumed = consumeVNextLocalOperatorBootstrapV01(fixture.db, {
       config: issued.config,
       bootstrap_token: issued.bootstrap.bootstrap_token,
@@ -2200,6 +2215,30 @@ function assertLocalReviewAccessIssuanceV01(): void {
     });
     assert.equal(consumed.session.authenticated, true);
     assert.equal(consumed.session.project_id, fixture.project_id);
+    assert.equal(sessions().count, before + 1);
+    const movedRoot = `${fixture.root}-temporarily-moved`;
+    renameSync(fixture.root, movedRoot);
+    try {
+      assert.throws(() => issueVNextLocalReviewAccessV01(fixture.db, { database_path: fixture.config.database_path }), error => {
+        assert.deepEqual(localReviewAccessIssuerFailure(error), {
+          ok: false, error_code: "local_review_project_root_unavailable", failure_kind: "refusal",
+        });
+        return true;
+      });
+      assert.equal(sessions().count, before + 1);
+    } finally { renameSync(movedRoot, fixture.root); }
+    const selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    removeRecentProjectV01(fixture.db, {
+      workspace_id: fixture.workspace_id, project_id: fixture.project_id,
+      expected_project_id: fixture.project_id, expected_revision: selection.selection_revision,
+    });
+    assert.throws(() => issueVNextLocalReviewAccessV01(fixture.db, { database_path: fixture.config.database_path }), error => {
+      assert.deepEqual(localReviewAccessIssuerFailure(error), {
+        ok: false, error_code: "local_review_active_project_required", failure_kind: "refusal",
+      });
+      return true;
+    });
+    assert.equal(sessions().count, before + 1);
   } finally {
     fixture.db.close();
   }

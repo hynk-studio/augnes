@@ -251,6 +251,104 @@ export async function runRuntimeSupervisorCli(
   });
 }
 
+const LOCAL_REVIEW_ISSUER_REFUSAL_ACTIONS = Object.freeze({
+  local_review_workspace_unavailable:
+    "Inspect the existing workspace and project registration in Project settings; do not create a replacement.",
+  local_review_active_project_required:
+    "Select an existing project with the normal Augnes project selector.",
+  local_review_project_unavailable:
+    "Inspect the existing project registration in Project settings; do not register a replacement project.",
+  local_review_project_root_unavailable:
+    "Inspect the existing project's registered folder and its availability in Project settings; do not replace the root.",
+  local_review_database_path_required:
+    "Read npm run augnes:service:status and review the existing documented database binding; do not expose private paths or database contents.",
+  operator_pilot_schema_uninitialized:
+    "Read npm run augnes:service:status and provide its public status and this schema prerequisite code for review; do not migrate or replace the database.",
+  operator_session_conflict:
+    "Provide this session conflict code for review; do not retry issuance, revoke credentials, or alter the database to diagnose it.",
+});
+const UNKNOWN_LOCAL_REVIEW_ISSUER_ACTION =
+  "Cause unknown. Read node --version and npm --version in the same terminal and provide those versions and this diagnostic for review; do not repeat issuance or change the service to diagnose it.";
+
+function knownLocalReviewIssuerRefusal(code) {
+  return typeof code === "string" && Object.hasOwn(LOCAL_REVIEW_ISSUER_REFUSAL_ACTIONS, code);
+}
+
+// Shared with the existing issuer. Error text, even code-shaped text, is not a
+// public contract. Never serialize the error, its stack, or unknown properties.
+export function localReviewAccessIssuerFailure(error) {
+  const code = error instanceof Error ? error.message : null;
+  const known = knownLocalReviewIssuerRefusal(code);
+  return {
+    ok: false,
+    error_code: known ? code : "local_review_access_unavailable",
+    failure_kind: known ? "refusal" : "unknown_exception",
+  };
+}
+
+function localReviewIssuerDiagnostic(stage, category, reason = "local_review_access_unavailable") {
+  return {
+    reason,
+    diagnostic: {
+      stage,
+      category,
+      next_action: knownLocalReviewIssuerRefusal(reason)
+        ? LOCAL_REVIEW_ISSUER_REFUSAL_ACTIONS[reason] : UNKNOWN_LOCAL_REVIEW_ISSUER_ACTION,
+      // The issuer may have written a credential before losing its response.
+      // Reporting never retries, revokes, rolls back, or cleans up credentials.
+      credential_issuance: "unknown",
+    },
+  };
+}
+
+function inspectLocalReviewIssuerResult(issued) {
+  if (!isObject(issued)) {
+    return localReviewIssuerDiagnostic("issuer_process", "issuer_process_outcome_unknown");
+  }
+  if (issued.error && issued.pid === 0 && issued.status === null && issued.signal === null) {
+    return localReviewIssuerDiagnostic("issuer_launch", "issuer_launch_failed");
+  }
+  if (issued.signal) {
+    return localReviewIssuerDiagnostic("issuer_process", "issuer_signal_terminated");
+  }
+  if (issued.error) {
+    return localReviewIssuerDiagnostic("issuer_process", "issuer_process_error_unknown");
+  }
+  if (!Number.isInteger(issued.status) || issued.status < 0) {
+    return localReviewIssuerDiagnostic("issuer_process", "issuer_process_outcome_unknown");
+  }
+  if (issued.status !== 0) {
+    let failure;
+    try { failure = JSON.parse(issued.stderr); } catch { /* No raw output leaves this owner. */ }
+    if (isObject(failure) && failure.ok === false) {
+      if (knownLocalReviewIssuerRefusal(failure.error_code)) {
+        return localReviewIssuerDiagnostic("issuer_response", "issuer_refused", failure.error_code);
+      }
+      if (failure.error_code === "local_review_access_unavailable" &&
+          failure.failure_kind === "unknown_exception") {
+        return localReviewIssuerDiagnostic("issuer_response", "issuer_exception_unknown");
+      }
+    }
+    return localReviewIssuerDiagnostic("issuer_process", "issuer_nonzero_exit_unknown");
+  }
+  if (typeof issued.stdout !== "string") {
+    return localReviewIssuerDiagnostic("issuer_response", "issuer_output_invalid");
+  }
+  if (!issued.stdout.trim()) {
+    return localReviewIssuerDiagnostic("issuer_response", "issuer_output_empty");
+  }
+  let access;
+  try { access = JSON.parse(issued.stdout); } catch {
+    return localReviewIssuerDiagnostic("issuer_response", "issuer_output_malformed");
+  }
+  if (!isObject(access) || access.ok !== true ||
+      ![access.workspace_id, access.project_id, access.operator_id,
+        access.bootstrap_token, access.expires_at].every(validDiagnosticString)) {
+    return localReviewIssuerDiagnostic("issuer_response", "issuer_output_invalid");
+  }
+  return { access };
+}
+
 async function runLocalReviewAccessCommand({
   environment,
   options,
@@ -265,20 +363,58 @@ async function runLocalReviewAccessCommand({
       result: "refused",
       state: "unavailable",
       reason: "local_review_access_source_runtime_required",
+      diagnostic: {
+        stage: "access_configuration",
+        category: "local_review_access_source_runtime_required",
+        next_action: "Inspect the documented access entry point for the existing source checkout; do not replace or restart the installed runtime.",
+      },
     });
     return 2;
   }
   if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== undefined &&
       environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== "1") {
     emitResult({ command: "access", result: "refused", state: "disabled",
-      reason: "operator_pilot_disabled" });
+      reason: "operator_pilot_disabled",
+      diagnostic: {
+        stage: "access_configuration",
+        category: "operator_pilot_disabled",
+        next_action: "Review why local review is explicitly disabled in the existing configuration; do not enable it automatically.",
+      },
+    });
     return 2;
   }
-  const service = await inspectCompanionService({
-    repositoryRoot,
-    environment,
-    testScope: environment.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
-  });
+  const verificationActions = {
+    local_review_companion_not_live:
+      "Read npm run augnes:service:status and provide its public status for review; do not start or repair the service from this access command.",
+    local_review_companion_binding_mismatch:
+      "Read npm run augnes:service:status and review the existing checkout, runtime and database bindings without changing them or exposing private paths.",
+    local_review_companion_profile_unavailable:
+      "Read npm run augnes:service:status and review the installed access-profile support; do not restart or reinstall the service to diagnose it.",
+  };
+  let verificationStage = "installed_service_verification";
+  const reportVerificationFailure = (error, state) => {
+    const known = typeof error?.message === "string" && Object.hasOwn(verificationActions, error.message);
+    const reason = known ? error.message : "local_review_companion_profile_unavailable";
+    emitResult({ command: "access", result: "refused", state, reason,
+      diagnostic: {
+        stage: verificationStage,
+        category: known ? reason : "installed_verification_unknown",
+        next_action: known ? verificationActions[reason]
+          : "Cause unknown. Read npm run augnes:service:status and provide its public status and this diagnostic for review; do not change the service.",
+      },
+    });
+    return 2;
+  };
+  let service;
+  try {
+    service = await (dependencies.inspectCompanionService ?? inspectCompanionService)({
+      repositoryRoot,
+      environment,
+      testScope: environment.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
+    });
+  } catch (error) {
+    return reportVerificationFailure(error, "unavailable");
+  }
   let installedRuntime = null;
   if (!["not_installed", "unsupported"].includes(service.status)) {
     try {
@@ -286,6 +422,7 @@ async function runLocalReviewAccessCommand({
           !service.runtime?.verified || !service.configuration) {
         throw new Error("local_review_companion_not_live");
       }
+      verificationStage = "runtime_binding_verification";
       const installedPaths = resolveRuntimePaths({
         repositoryFingerprint,
         environment: {
@@ -299,11 +436,12 @@ async function runLocalReviewAccessCommand({
           paths.local.database_path !== installedPaths.local.database_path) {
         throw new Error("local_review_companion_binding_mismatch");
       }
-      const current = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
+      const current = await (dependencies.readVerifiedRuntimeStatus ?? readVerifiedRuntimeStatus)({ paths, repositoryFingerprint });
       if (!current.verified || current.manifest.generation_id !== service.runtime.generation_id) {
         throw new Error("local_review_companion_binding_mismatch");
       }
-      const readiness = await fetch(`${current.manifest.effective_url}/api/vnext/operator/session`, {
+      verificationStage = "access_profile_verification";
+      const readiness = await (dependencies.fetch ?? fetch)(`${current.manifest.effective_url}/api/vnext/operator/session`, {
         redirect: "error",
         signal: AbortSignal.timeout(15_000),
       });
@@ -314,10 +452,7 @@ async function runLocalReviewAccessCommand({
       }
       installedRuntime = current.manifest;
     } catch (error) {
-      emitResult({ command: "access", result: "refused", state: service.status,
-        reason: /^local_review_[a-z_]+$/u.test(error?.message ?? "")
-          ? error.message : "local_review_companion_profile_unavailable" });
-      return 2;
+      return reportVerificationFailure(error, service.status);
     }
   } else {
     // Retain the historical standalone source/pilot lifecycle. Never use it
@@ -331,47 +466,31 @@ async function runLocalReviewAccessCommand({
     "scripts",
     "issue-vnext-local-review-access.ts",
   );
-  const issued = spawnSync(
-    process.execPath,
-    ["--import", "tsx", issuerPath],
-    {
-      cwd: repositoryRoot,
-      env: {
-        ...environment,
-        AUGNES_DB_PATH: paths.local.database_path,
-      },
-      encoding: "utf8",
-      maxBuffer: 64 * 1024,
-    },
-  );
-  let access;
+  let issued;
   try {
-    access = JSON.parse(issued.stdout.trim());
-  } catch {
-    access = null;
+    issued = (dependencies.spawnSync ?? spawnSync)(
+      process.execPath,
+      ["--import", "tsx", issuerPath],
+      {
+        cwd: repositoryRoot,
+        env: {
+          ...environment,
+          AUGNES_DB_PATH: paths.local.database_path,
+        },
+        encoding: "utf8",
+        maxBuffer: 64 * 1024,
+      },
+    );
+  } catch (error) {
+    issued = { error, pid: 0, status: null, signal: null };
   }
-  if (
-    issued.status !== 0 ||
-    access?.ok !== true ||
-    !validDiagnosticString(access.workspace_id) ||
-    !validDiagnosticString(access.project_id) ||
-    !validDiagnosticString(access.operator_id) ||
-    !validDiagnosticString(access.bootstrap_token) ||
-    !validDiagnosticString(access.expires_at)
-  ) {
-    let failure;
-    try {
-      failure = JSON.parse(issued.stderr.trim());
-    } catch {
-      failure = null;
-    }
+  const { access, ...failure } = inspectLocalReviewIssuerResult(issued);
+  if (!access) {
     emitResult({
       command: "access",
       result: "failed",
       state: installedRuntime ? "running" : "stopped",
-      reason: validDiagnosticString(failure?.error_code)
-        ? failure.error_code
-        : "local_review_access_unavailable",
+      ...failure,
     });
     return 2;
   }

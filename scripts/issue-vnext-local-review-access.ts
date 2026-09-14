@@ -3,6 +3,7 @@
 import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { localReviewAccessIssuerFailure } from "./augnes-runtime-supervisor-core.mjs";
 
 import {
   readCanonicalProjectWithRootV01,
@@ -65,12 +66,6 @@ function requiredDatabasePath(environment: NodeJS.ProcessEnv): string {
   return value;
 }
 
-function publicErrorCode(error: unknown): string {
-  return error instanceof Error && /^[a-z0-9_]+$/u.test(error.message)
-    ? error.message
-    : "local_review_access_unavailable";
-}
-
 async function main(): Promise<void> {
   const databasePath = requiredDatabasePath(process.env);
   const db = new Database(databasePath, { fileMustExist: true });
@@ -97,10 +92,7 @@ if (
   pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
   void main().catch((error) => {
-    process.stderr.write(`${JSON.stringify({
-      ok: false,
-      error_code: publicErrorCode(error),
-    })}\n`);
+    process.stderr.write(`${JSON.stringify(localReviewAccessIssuerFailure(error))}\n`);
     process.exitCode = 1;
   });
 }

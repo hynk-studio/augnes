@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { mock } from "node:test";
 import {
   chmodSync,
   copyFileSync,
@@ -28,6 +29,11 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import {
+  localReviewAccessIssuerFailure,
+  resolveRuntimePaths,
+  runRuntimeSupervisorCli,
+} from "./augnes-runtime-supervisor-core.mjs";
 
 import {
   COMPANION_SERVICE_CONTRACT,
@@ -70,6 +76,7 @@ const options = {
 };
 
 try {
+  await assertInstalledAccessDiagnostics();
   await assertSupervisorOutputTransport();
   assert.equal(COMPANION_SERVICE_CONTRACT, "augnes-companion-service.v0.1");
   assert.equal(
@@ -2116,6 +2123,190 @@ function makeServiceRepositoryFixture({ root: fixtureRoot, name, sourceRepositor
     copyFileSync(path.join(sourceRepository, relativePath), destination);
   }
   return realpathSync(repository);
+}
+
+async function assertInstalledAccessDiagnostics() {
+  // Exercise the command with isolated existing test-owner paths and controlled
+  // service/read/process boundaries. No live issuer, service, listener or DB.
+  const accessEnvironment = buildCanonicalChildEnvironment({ temporaryRoot: root });
+  const paths = resolveRuntimePaths({ environment: accessEnvironment });
+  const manifest = { generation_id: "test-generation", effective_url: "http://127.0.0.1:3000" };
+  const service = {
+    status: "live", checkout_relation: "exact",
+    runtime: { verified: true, generation_id: manifest.generation_id },
+    configuration: {
+      runtime_home_directory: accessEnvironment.HOME,
+      runtime_state_directory: paths.directory,
+      database_path: paths.local.database_path,
+    },
+  };
+  const sensitive = `test-only-secret-${randomUUID()}`;
+  const privateMaterial = `${root}/private-${sensitive}`;
+  const valid = {
+    ok: true, workspace_id: "workspace:test", project_id: "project:test",
+    operator_id: "operator:local-review", bootstrap_token: sensitive,
+    expires_at: "2099-01-01T00:00:00.000Z",
+  };
+  const success = { pid: 123, status: 0, signal: null, stdout: JSON.stringify(valid), stderr: "" };
+  const rootBefore = readdirSync(root, { recursive: true }).sort();
+  let cases = 0;
+  const invoke = async ({ outcome = success, overrides = {}, environmentOverride = {} } = {}) => {
+    const calls = [];
+    let simulatedCredentialWrites = 0;
+    const dependencies = {
+      inspectCompanionService: async () => { calls.push("service"); return service; },
+      readVerifiedRuntimeStatus: async () => { calls.push("binding"); return { verified: true, manifest }; },
+      fetch: async (url, options) => {
+        calls.push("profile");
+        assert.equal(url, `${manifest.effective_url}/api/vnext/operator/session`);
+        assert.equal(options.redirect, "error");
+        assert(options.signal instanceof AbortSignal);
+        return new Response(null, { status: 401, headers: { "Augnes-Local-Review-Profile": "companion_first_work_v1" } });
+      },
+      spawnSync: (executable, args, options) => {
+        calls.push("issuer");
+        assert.equal(executable, process.execPath);
+        assert.deepEqual(args, ["--import", "tsx", path.join(repositoryRoot, "scripts/issue-vnext-local-review-access.ts")]);
+        assert.equal(options.env.AUGNES_DB_PATH, paths.local.database_path);
+        assert.equal(options.maxBuffer, 64 * 1024);
+        assert.equal(options.encoding, "utf8");
+        // Some failures occur after a credential write. Reporting must neither
+        // repeat it nor pretend it was rolled back.
+        simulatedCredentialWrites += 1;
+        if (outcome instanceof Error) throw outcome;
+        return outcome;
+      },
+      ...overrides,
+    };
+    const output = [];
+    const capture = mock.method(console, "log", line => output.push(JSON.parse(line)));
+    let exit;
+    try { exit = await runRuntimeSupervisorCli(["access"], { ...accessEnvironment, ...environmentOverride }, dependencies); }
+    finally { capture.mock.restore(); }
+    assert.equal(output.length, 1, "one command response only");
+    assert.equal(simulatedCredentialWrites, calls.includes("issuer") ? 1 : 0, "no additional issuance or credential side effect");
+    assert.deepEqual(readdirSync(root, { recursive: true }).sort(), rootBefore, "no runtime, database or lifecycle material created");
+    const result = output[0];
+    if (exit !== 0) {
+      const serialized = JSON.stringify(result);
+      for (const forbidden of [sensitive, privateMaterial, root, "bootstrap_token", "authorization", "stdout", "stderr", "stack"]) {
+        assert.equal(serialized.includes(forbidden), false, "failure output must be redacted");
+      }
+      assert.equal(serialized.length < 1600, true, "bounded public failure");
+      assert.deepEqual(Object.keys(result).sort(), ["command", "contract", "diagnostic", "reason", "result", "schema_version", "state"]);
+    }
+    cases += 1;
+    return { exit, result, calls };
+  };
+  const failures = [
+    [new Error(privateMaterial), "issuer_launch", "issuer_launch_failed"],
+    [{ ...success, pid: 0, status: null, error: new Error(sensitive) }, "issuer_launch", "issuer_launch_failed"],
+    [{ ...success, status: null, signal: "SIGTERM" }, "issuer_process", "issuer_signal_terminated"],
+    [{ ...success, status: null, signal: sensitive, error: new Error(sensitive) }, "issuer_process", "issuer_signal_terminated"],
+    [{ ...success, error: new Error(privateMaterial) }, "issuer_process", "issuer_process_error_unknown"],
+    [{ status: null, signal: null, error: new Error(sensitive) }, "issuer_process", "issuer_process_error_unknown"],
+    [{ ...success, status: null }, "issuer_process", "issuer_process_outcome_unknown"],
+    [{ ...success, status: -1 }, "issuer_process", "issuer_process_outcome_unknown"],
+    [null, "issuer_process", "issuer_process_outcome_unknown"],
+    [{ ...success, status: 1, stderr: `authorization: ${sensitive}\n${privateMaterial}` }, "issuer_process", "issuer_nonzero_exit_unknown"],
+    [{ ...success, status: 1, stderr: "" }, "issuer_process", "issuer_nonzero_exit_unknown"],
+    [{ ...success, status: 1, stderr: JSON.stringify({ ok: false, error_code: sensitive, bootstrap_token: sensitive }) }, "issuer_process", "issuer_nonzero_exit_unknown"],
+    [{ ...success, status: 1, stderr: JSON.stringify({ ok: false, error_code: "local_review_access_unavailable" }) }, "issuer_process", "issuer_nonzero_exit_unknown"],
+    [{ ...success, status: 1, stderr: JSON.stringify({ ok: true, error_code: "local_review_active_project_required" }) }, "issuer_process", "issuer_nonzero_exit_unknown"],
+    [{ ...success, status: 1, stderr: JSON.stringify({ ...localReviewAccessIssuerFailure(new Error(sensitive)), stack: privateMaterial }) }, "issuer_response", "issuer_exception_unknown"],
+    [{ ...success, stdout: " \n\t", stderr: sensitive }, "issuer_response", "issuer_output_empty"],
+    [{ ...success, stdout: `{"bootstrap_token":"${sensitive}"` }, "issuer_response", "issuer_output_malformed"],
+    [{ ...success, stdout: null }, "issuer_response", "issuer_output_invalid"],
+    ...[null, [], "unexpected", { ...valid, ok: false }, { ...valid, project_id: "" }, { ...valid, expires_at: {} }]
+      .map(value => [{ ...success, stdout: JSON.stringify(value) }, "issuer_response", "issuer_output_invalid"]),
+  ];
+  for (const [outcome, stage, category] of failures) {
+    const { exit, result, calls } = await invoke({ outcome });
+    assert.equal(exit, 2);
+    assert.equal(result.result, "failed");
+    assert.equal(result.state, "running");
+    assert.equal(result.reason, "local_review_access_unavailable");
+    assert.equal(result.diagnostic.stage, stage);
+    assert.equal(result.diagnostic.category, category);
+    assert.equal(result.diagnostic.credential_issuance, "unknown");
+    assert.match(result.diagnostic.next_action, /Cause unknown.*node --version.*npm --version/u);
+    assert.deepEqual(calls, ["service", "binding", "profile", "issuer"]);
+  }
+  const refusals = {
+    local_review_workspace_unavailable: /existing workspace/u,
+    local_review_active_project_required: /normal Augnes project selector/u,
+    local_review_project_unavailable: /existing project registration/u,
+    local_review_project_root_unavailable: /registered folder/u,
+    local_review_database_path_required: /database binding/u,
+    operator_pilot_schema_uninitialized: /schema prerequisite/u,
+    operator_session_conflict: /session conflict/u,
+  };
+  for (const [reason, nextAction] of Object.entries(refusals)) {
+    const safe = localReviewAccessIssuerFailure(new Error(reason));
+    assert.deepEqual(safe, { ok: false, error_code: reason, failure_kind: "refusal" });
+    for (const payload of [safe, { ok: false, error_code: reason }]) {
+      const { result, calls } = await invoke({ outcome: { ...success, status: 1, stderr: JSON.stringify({ ...payload, unexpected: sensitive, stack: privateMaterial }) } });
+      assert.equal(result.reason, reason);
+      assert.equal(result.diagnostic.category, "issuer_refused");
+      assert.equal(result.diagnostic.credential_issuance, "unknown");
+      assert.match(result.diagnostic.next_action, nextAction);
+      assert.deepEqual(calls, ["service", "binding", "profile", "issuer"]);
+    }
+  }
+  for (const error of [new Error("unknown_code_shaped_error"), new Error(sensitive), { message: sensitive, stack: privateMaterial }, sensitive]) {
+    assert.deepEqual(localReviewAccessIssuerFailure(error), { ok: false, error_code: "local_review_access_unavailable", failure_kind: "unknown_exception" });
+  }
+  const issued = await invoke();
+  assert.equal(issued.exit, 0);
+  assert.equal(issued.result.result, "issued");
+  assert.equal(issued.result.state, "running");
+  assert.equal(issued.result.one_time_local_review_token === sensitive, true, "successful access still delivers the one-time token");
+  assert.equal(issued.result.project_id, valid.project_id);
+  assert.equal(issued.result.expires_at, valid.expires_at);
+  assert.equal(issued.result.access_profile, "companion_first_work_v1");
+  assert.equal(issued.result.runtime_generation_id, manifest.generation_id);
+  assert.equal(issued.result.runtime_lifecycle_changed, false);
+  assert.equal(issued.result.next_action, "paste_the_token_into_the_visible_augnes_browser");
+  assert.equal(issued.result.diagnostic, undefined);
+  assert.deepEqual(issued.calls, ["service", "binding", "profile", "issuer"]);
+
+  const disabled = await invoke({ environmentOverride: { AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "0" } });
+  assert.equal(disabled.exit, 2);
+  assert.equal(disabled.result.state, "disabled");
+  assert.equal(disabled.result.reason, "operator_pilot_disabled");
+  assert.equal(disabled.result.diagnostic.stage, "access_configuration");
+  assert.deepEqual(disabled.calls, []);
+
+  const guards = [
+    [{ inspectCompanionService: async () => { throw new Error("local_review_unrecognized_private_code"); } }, "installed_service_verification", "local_review_companion_profile_unavailable"],
+    ...["installed_stopped", "service_update_required", "ambiguous", "maintenance"].map(status => [
+      { inspectCompanionService: async () => ({ ...service, status }) }, "installed_service_verification", "local_review_companion_not_live",
+    ]),
+    ...[{ checkout_relation: "different" }, { runtime: { verified: false } }, { configuration: null }].map(value => [
+      { inspectCompanionService: async () => ({ ...service, ...value }) }, "installed_service_verification", "local_review_companion_not_live",
+    ]),
+    ...["database_path", "runtime_state_directory"].map(key => [
+      { inspectCompanionService: async () => ({ ...service, configuration: { ...service.configuration, [key]: path.join(root, "mismatched") } }) },
+      "runtime_binding_verification", "local_review_companion_binding_mismatch",
+    ]),
+    ...[{ verified: false, manifest }, { verified: true, manifest: { ...manifest, generation_id: "other" } }].map(value => [
+      { readVerifiedRuntimeStatus: async () => value }, "runtime_binding_verification", "local_review_companion_binding_mismatch",
+    ]),
+    ...[new Response(null, { status: 200 }), new Response(null, { status: 401 })].map(response => [
+      { fetch: async () => response }, "access_profile_verification", "local_review_companion_profile_unavailable",
+    ]),
+    [{ fetch: async () => { throw new Error(privateMaterial); } }, "access_profile_verification", "local_review_companion_profile_unavailable"],
+  ];
+  for (const [overrides, stage, reason] of guards) {
+    const { exit, result, calls } = await invoke({ overrides });
+    assert.equal(exit, 2);
+    assert.equal(result.result, "refused");
+    assert.equal(result.reason, reason);
+    assert.equal(result.diagnostic.stage, stage);
+    assert.equal(calls.includes("issuer"), false, "installed guards never issue or fall back to standalone lifecycle");
+    assert.equal(result.diagnostic.credential_issuance, undefined);
+  }
+  console.log(JSON.stringify({ case: "installed-access-diagnostics", cases, status: "passed", live_issuance_attempts: 0, live_service_actions: 0 }));
 }
 
 function serviceMaterialFingerprint(layout) {
