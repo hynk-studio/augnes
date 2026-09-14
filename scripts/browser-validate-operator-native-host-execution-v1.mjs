@@ -1034,9 +1034,39 @@ await runOperatorExecutionBrowserChildV1({
           ),
         "first-work explicit start",
       );
-      await lifecycle.waitForCondition(
-        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Work definition') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes('Unstarted work') === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]'))`,
-        "queued revision work uses neutral definition label while stale tab remains mounted",
+      try {
+        await lifecycle.waitForCondition(
+          `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="current_context"]')?.textContent?.includes('Work definition') === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes('Unstarted work') === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]'))`,
+          "queued revision work uses neutral definition label while stale tab remains mounted",
+        );
+      } catch (error) {
+        // Read each term without navigation, refresh, private text or a new wait.
+        try {
+          console.log(JSON.stringify({ queued_revision_definition_terms: await lifecycle.evaluateJson(`(() => {
+            const definition = document.querySelector('[data-current-work-definition="read-only"]');
+            return {
+              current_context_phase: definition?.getAttribute('data-current-work-definition-phase') === 'current_context',
+              neutral_definition_text: definition?.textContent?.includes('Work definition') === true,
+              unstarted_text_absent: definition?.textContent?.includes('Unstarted work') === false,
+              stale_composer_mounted: Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]')),
+              main_revision_action_present: Boolean(document.querySelector('[data-work-revision-action="open"]')),
+              main_revision_composer_mounted: Boolean(document.querySelector('[data-work-revision-composer]'))
+            };
+          })()`) }));
+        } catch {
+          console.log(JSON.stringify({ queued_revision_definition_terms: "capture_unavailable" }));
+        }
+        throw error;
+      }
+      assert.equal(
+        await lifecycle.evaluateJson(`Boolean(document.querySelector('[data-work-revision-action="open"], [data-work-revision-composer]'))`),
+        false,
+        "The observing tab invalidates pre-execution editing on admission",
+      );
+      assert.equal(
+        readFirstWorkState(fixture.writable_database_path, firstWorkProjectId).receipts,
+        0,
+        "Neutral definition and stale-tab checks complete before any result receipt exists",
       );
       const firstRun = await waitForLiveState(
         fixture.writable_database_path,
@@ -1136,10 +1166,27 @@ await runOperatorExecutionBrowserChildV1({
         `window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]') === null`,
         "stale revision editor closed after start refusal",
       );
-      await lifecycle.waitForCondition(
-        `window.__cux7StaleSubmitTab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true`,
-        "stale revision refusal explanation settled",
-      );
+      try {
+        await lifecycle.waitForCondition(
+          `window.__cux7StaleSubmitTab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true`,
+          "stale revision refusal explanation settled",
+        );
+      } catch (error) {
+        try {
+          console.log(JSON.stringify({ stale_revision_refusal_terms: await lifecycle.evaluateJson(`(() => {
+            const tab = window.__cux7StaleSubmitTab;
+            return {
+              response_status: tab?.__cux7RevisionMutationResponse?.status ?? null,
+              execution_started_refusal: tab?.__cux7RevisionMutationResponse?.body?.error_code === 'work_revision_execution_started',
+              composer_mounted: Boolean(tab?.document.querySelector('[data-work-revision-composer]')),
+              refusal_copy_visible: tab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true
+            };
+          })()`) }));
+        } catch {
+          console.log(JSON.stringify({ stale_revision_refusal_terms: "capture_unavailable" }));
+        }
+        throw error;
+      }
       const staleTabState = await lifecycle.evaluateJson(`(async () => {
         const tab = window.__cux7StaleSubmitTab;
         const response = tab.__cux7RevisionMutationResponse;

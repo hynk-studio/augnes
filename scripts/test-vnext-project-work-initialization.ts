@@ -2229,7 +2229,8 @@ async function assertCompanionFirstWorkAccessV01(): Promise<void> {
     assert(cookie, "normal session route must deliver the cookie");
     return cookie.split(";")[0];
   };
-  const options = { environment, clock: fixedClock(T1) };
+  let observedAt = T1;
+  const options = { environment, clock: { now: () => observedAt } };
   const session = createVNextLocalOperatorSessionHandlersV01(options);
   const read = createVNextOperatorProjectContinuityHandlerV01(options);
   const save = createVNextOperatorContextUseReviewHandlerV01(options);
@@ -2275,7 +2276,9 @@ async function assertCompanionFirstWorkAccessV01(): Promise<void> {
     assert.equal(form.status, 200);
     assert.equal(JSON.stringify(await form.json()).includes('"state":"not_defined"'), true);
     assert.equal((await review.POST(request("semantic-review", {}, cookie))).status, 404);
-    assert.equal((await save(request("project-continuity", { action: "revise_pre_execution_project_work" }, cookie))).status, 404);
+    for (const action of ["record_context_use_review", "start", "resume", "unknown"]) {
+      assert.equal((await save(request("project-continuity", { action }, cookie))).status, 404);
+    }
 
     const firstRequest = requestV01(fixture);
     const otherRoot = path.join(ROOT, "companion-other-project"); mkdirSync(otherRoot);
@@ -2306,6 +2309,108 @@ async function assertCompanionFirstWorkAccessV01(): Promise<void> {
     const readback = await read(request("project-continuity", undefined, cookie));
     assert.equal(readback.status, 200);
     assert.equal((await readback.json()).work_initialization.current_work.goal, firstRequest.goal);
+
+    // The actual Companion profile uses the ordinary session, comparison and
+    // append-only writer. No managed-work configuration or execution is set up.
+    observedAt = T2;
+    let chain = inspectPreExecutionProjectWorkRevisionChainV01(fixture.db, fixture);
+    const originalDefinition = chain.tip_packet.task;
+    const originalPacket = canonicalizeProtocolValueV01(chain.tip_packet);
+    const initialNote = { source: "IMAGE-r1", text: "이미지에 타월 세 장이 보인다. 주문 단위는 알 수 없어 3개 세트라고 확정할 수 없다.",
+      observed_at: null, provenance: "imported_unverified", label: "Unclassified / needs review" };
+    const compareRequest = (notes: unknown[]) => ({ action: "compare_selected_work_sources",
+      expected_current_packet_id: chain.tip_packet.packet_id,
+      expected_current_packet_fingerprint: chain.tip_packet.integrity.fingerprint,
+      expected_active_project_id: fixture.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!.selection_revision,
+      notes, retained_source_refs: [] });
+    const comparisonRequest = compareRequest([initialNote]);
+    const beforeComparison = fixture.db.serialize();
+    const compared = await save(request("project-continuity", comparisonRequest, cookie));
+    assert.equal(compared.status, 200);
+    const comparison = (await compared.json()).comparison;
+    assert(beforeComparison.equals(fixture.db.serialize()), "comparison must be read-only");
+    const revision = { ...revisionRequestV01(fixture, chain.tip_packet, chain.tip_lineage_kind, originalDefinition),
+      selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint };
+    for (const [changed, expectedStatus] of [
+      [{ ...revision, project_id: other.project.project_id }, 422],
+      [{ ...revision, expected_active_selection_revision: 999 }, 409],
+      [{ ...revision, expected_current_packet_fingerprint: `sha256:${"0".repeat(64)}` }, 409],
+      [{ ...revision, expected_source_comparison: `sha256:${"0".repeat(64)}` }, 409],
+    ] as const) {
+      const refused = await save(request("project-continuity", changed, cookie));
+      assert.equal(refused.status, expectedStatus, (await refused.json()).error_code);
+      assert(beforeComparison.equals(fixture.db.serialize()), "refusal must not rotate credentials or write work");
+    }
+    // Active selection is required even when no retained-source refs are sent.
+    const { retained_source_refs: _refs, expected_active_selection_revision: _selection, ...unboundComparison } = comparisonRequest;
+    assert.equal((await save(request("project-continuity", unboundComparison, cookie))).status, 400);
+    assert.equal((await save(request("project-continuity", { ...comparisonRequest, expected_active_selection_revision: 999 }, cookie))).status, 409);
+    assert.equal((await save(request("project-continuity", comparisonRequest, cookie, { origin: "http://foreign.invalid" }))).status, 403);
+    const noteSaved = await save(request("project-continuity", revision, cookie));
+    assert.equal(noteSaved.status, 201);
+    assert.equal((await save(request("project-continuity", revision, cookie))).status, 409);
+    cookie = cookieOf(noteSaved);
+    const noteReplay = await save(request("project-continuity", revision, cookie));
+    assert.equal((await noteReplay.json()).status, "exact_replay");
+    cookie = cookieOf(noteReplay);
+    chain = inspectPreExecutionProjectWorkRevisionChainV01(fixture.db, fixture);
+    const priorNotePacket = canonicalizeProtocolValueV01(chain.tip_packet);
+    assert.equal(chain.revision_count, 1);
+    assert.equal(canonicalizeProtocolValueV01(chain.packets[0]), originalPacket);
+    assert.deepEqual(chain.tip_packet.task, originalDefinition);
+    assert.equal(readSelectedWorkSources(chain.tip_packet)[0]!.bounded_summary, initialNote.text);
+    assert.equal((await save(request("project-continuity", comparisonRequest, cookie))).status, 409);
+
+    observedAt = "2026-08-01T00:00:05.000Z";
+    const correctedNotes = [
+      { ...initialNote, source: "PACK-r5", text: "가상 자료 PACK-r5: 주문 단위는 타월 한 장이다." },
+      { ...initialNote, source: "검토 정정-r2", provenance: "user_declaration",
+        text: "이미지의 타월 세 장 관측은 유지한다. PACK-r5에 따라 주문 단위는 한 장으로 정정한다. 실제 상품 페이지의 수정 여부는 확인하지 않았다." },
+    ];
+    const correctionComparison = await save(request("project-continuity", compareRequest(correctedNotes), cookie));
+    assert.equal(correctionComparison.status, 200);
+    const corrected = (await correctionComparison.json()).comparison;
+    const correction = { ...revisionRequestV01(fixture, chain.tip_packet, chain.tip_lineage_kind, originalDefinition),
+      selected_source_context: corrected.entries, expected_source_comparison: corrected.fingerprint };
+    const correctedSave = await save(request("project-continuity", correction, cookie));
+    assert.equal(correctedSave.status, 201);
+    cookie = cookieOf(correctedSave);
+    const reopened = await review.GET(request("semantic-review", undefined, cookie));
+    const reopenedWork = (await reopened.json()).work_initialization;
+    assert.deepEqual(reopenedWork.current_work, originalDefinition);
+    assert.deepEqual(reopenedWork.selected_source_context, corrected.entries);
+    assert(reopenedWork.selected_source_context.every((entry: ReturnType<typeof buildSelectedWorkSourceEntry>) =>
+      entry.currentness.status === "unknown" && entry.currentness.as_of === null && (entry.external_ref?.observed_at ?? null) === null));
+    chain = inspectPreExecutionProjectWorkRevisionChainV01(fixture.db, fixture);
+    assert.equal(chain.revision_count, 2);
+    assert.equal(canonicalizeProtocolValueV01(chain.packets[0]), originalPacket);
+    assert.equal(canonicalizeProtocolValueV01(chain.packets[1]), priorNotePacket);
+    const lookupRequest = { action: "lookup_retained_work_sources", query: "IMAGE-r1",
+      expected_current_packet_id: chain.tip_packet.packet_id,
+      expected_current_packet_fingerprint: chain.tip_packet.integrity.fingerprint,
+      expected_active_project_id: fixture.project_id,
+      expected_active_selection_revision: reopenedWork.active_selection_revision };
+    const beforeLookup = fixture.db.serialize();
+    const lookup = await save(request("project-continuity", lookupRequest, cookie));
+    assert.equal(lookup.status, 200);
+    const recalled = (await lookup.json()).recall.results;
+    assert.equal(recalled.length, 1);
+    assert.equal(recalled[0].entry.bounded_summary, initialNote.text);
+    assert.equal(recalled[0].selection, "historical_not_selected");
+    assert(beforeLookup.equals(fixture.db.serialize()), "lookup must be read-only");
+    // Fault/history admission happens only in disposable state, after the
+    // successful normal path. Missing projection is never zero-history proof.
+    for (const metadata of ["invalid-json", JSON.stringify({ workspace_id: fixture.workspace_id, project_id: fixture.project_id })]) {
+      insertManagedRunV01(fixture, { run_id: "run:companion-history", scope: fixture.project_id, status: "running", metadata_json: metadata });
+      const faultBytes = fixture.db.serialize();
+      assert.equal(readProjectWorkRevisionEligibilityV01(fixture.db, fixture).eligible, false);
+      assert.equal((await save(request("project-continuity", compareRequest(correctedNotes), cookie))).status, 409);
+      assert.equal((await save(request("project-continuity", lookupRequest, cookie))).status, 409);
+      assert.equal((await save(request("project-continuity", correction, cookie))).status, 409);
+      assert(faultBytes.equals(fixture.db.serialize()), "history refusal must roll back session and packet writes");
+      fixture.db.prepare("DELETE FROM autonomy_runs WHERE run_id = ?").run("run:companion-history");
+    }
     assert.equal((await session.GET(request("session", undefined, `${cookie}x`))).status, 409);
     const expired = createVNextLocalOperatorSessionHandlersV01({ environment, clock: fixedClock("2026-08-02T00:00:00.000Z") });
     assert.equal((await expired.GET(request("session", undefined, cookie))).status, 401);
@@ -2317,7 +2422,8 @@ async function assertCompanionFirstWorkAccessV01(): Promise<void> {
     assert.equal((await read(request("project-continuity", undefined, cookie))).status, 401);
     assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture,
       record_kinds: ["episode_delta_proposal", "review_decision", "state_transition_receipt", "run_receipt"], limit: 100 }), []);
-    console.log(JSON.stringify({ companion_first_work_access: "passed", scope_retained: true, execution_started: false }));
+    console.log(JSON.stringify({ companion_first_work_access: "passed", companion_note_preparation: "passed",
+      immutable_prior_revisions: true, scope_retained: true, execution_started: false }));
   } finally { fixture.db.close(); }
 }
 

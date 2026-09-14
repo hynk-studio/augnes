@@ -101,9 +101,12 @@ it into the visible Browser unlock form. The token establishes local project rev
 it grants no execution, semantic, external-effect, or merge authority. Do not
 copy it into project files, prompts, issue comments, or verification evidence.
 
-The installed Companion profile supports authenticated reads and saving the
-initial unexecuted work definition. Selecting another project never moves an
-existing session's access; issue a separate token for that project. Other review
+The installed Companion profile supports authenticated reads, saving the
+initial work definition, and comparing and revising selected source notes and
+work definitions while the existing revision owner confirms unexecuted work.
+The editor's bounded retained-note lookup is read-only. These preparation
+actions do not require managed-execution readiness. Selecting another project
+never moves an existing session's access; issue a separate token for that project. Other review
 mutations and execution retain their existing gates. A standalone source/pilot
 runtime retains the historical stop, issue, and project-scoped restart path.
 An installed service with unavailable access support is refused without a

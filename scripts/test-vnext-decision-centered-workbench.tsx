@@ -21,6 +21,7 @@ import {
   effectiveSelectedWorkRelationshipQuestionV01,
   selectedWorkRelationshipScopeKeyV01,
 } from "@/components/workbench/semantic-review/selected-work-relationship-selection";
+import { SemanticReviewReadGuardV01 } from "@/components/workbench/semantic-review/semantic-review-read-guard";
 import { semanticReviewDetailEntryPresentationV01 } from "@/components/workbench/semantic-review/semantic-review-entry-presentation";
 import { refreshAIWorkplaneAfterProjectApplicationV01 } from "@/lib/vnext/ai-workplane/ai-workplane-refresh";
 import {
@@ -92,6 +93,55 @@ const networkGuard = installZeroNetworkGuard({
 });
 
 try {
+  const readGuard = new SemanticReviewReadGuardV01();
+  const session = {
+    session_id: "session:preparation-invalidation",
+    workspace_id: WORKSPACE_ID,
+    project_id: PROJECT_ID,
+    operator_id: "operator:preparation-invalidation",
+    issued_at: OBSERVED_AT,
+    expires_at: "2026-07-20T04:00:00.000Z",
+    authenticated: true,
+  };
+  readGuard.setSession(session);
+  const beforeStart = readGuard.beginRead()!;
+  assert.equal(readGuard.isCurrentRead(beforeStart), true);
+  assert.equal(readGuard.preparationInvalidated(session, null), false,
+    "No execution profile/projection is needed for authoritative preparation eligibility");
+  const admitted = { ...delegatedWorkV01("working"), result: null };
+  assert.ok(admitted.run_ref);
+  assert.equal(readGuard.preparationInvalidated(session, admitted), true,
+    "Accepted same-scope execution vetoes stale preparation in the observing render before a receipt");
+  assert.equal(readGuard.observeExecution(admitted), true);
+  assert.equal(readGuard.isCurrentRead(beforeStart), false,
+    "A late pre-start private read cannot replace the admission reconciliation");
+  const afterStart = readGuard.beginRead()!;
+  assert.equal(readGuard.isCurrentRead(afterStart), true);
+  assert.equal(readGuard.matchesProject(session), true);
+  assert.equal(readGuard.matchesProject({ ...session, project_id: "project:foreign" }), false);
+  assert.equal(readGuard.matchesProject({ ...session, workspace_id: "workspace:foreign" }), false);
+  assert.equal(readGuard.preparationInvalidated(session, null), true,
+    "A late eligible snapshot or missing projection cannot undo observed admission");
+  assert.equal(readGuard.preparationInvalidated(session, delegatedWorkV01("not_started")), true);
+  assert.equal(readGuard.observeExecution({ ...admitted, control_revision: admitted.control_revision + 1 }), false,
+    "Progress polling does not schedule another admission refresh");
+  assert.equal(readGuard.isCurrentRead(afterStart), true);
+  const newestRead = readGuard.beginRead()!;
+  assert.equal(readGuard.isCurrentRead(afterStart), false,
+    "Out-of-order reads cannot replace the newest authoritative response");
+  readGuard.setSession(null);
+  assert.equal(readGuard.isCurrentRead(newestRead), false);
+  assert.equal(readGuard.beginRead(), null);
+  const foreignSession = { ...session, session_id: "session:other", project_id: "project:other" };
+  readGuard.setSession(foreignSession);
+  const foreignRead = readGuard.beginRead()!;
+  assert.equal(readGuard.observeExecution(admitted), false,
+    "An old/foreign project observation cannot invalidate or retarget the authenticated scope");
+  assert.equal(readGuard.preparationInvalidated(foreignSession, admitted), false);
+  assert.equal(readGuard.isCurrentRead(foreignRead), true);
+  assert.equal(readGuard.matchesProject(session), false);
+  assert.equal(readGuard.matchesProject(foreignSession), true);
+
   const reconciliation = reconciliationFixtureV01();
   const lineage = lineageFixtureV01();
   const presentation = projectVerificationWorkbenchPresentationV01(

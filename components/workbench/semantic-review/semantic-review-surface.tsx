@@ -32,6 +32,7 @@ import { DecisionCenteredProposalDetail } from "./decision-centered-proposal-det
 import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import { WorkExpectationPreparation } from "./work-expectation";
+import { SemanticReviewReadGuardV01 } from "./semantic-review-read-guard";
 import { FirstWorkComposer } from "./first-work-composer";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type {
@@ -78,11 +79,19 @@ export function SemanticReviewSurface({
 }) {
   const router = useRouter();
   const guideState = useProjectGuideBriefV02(initialGuide);
+  const privateReadGuard = useRef(new SemanticReviewReadGuardV01());
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
     error_code: null,
   });
+  const updateSessionState = useCallback((next: OperatorSessionStateV01) => {
+    privateReadGuard.current.setSession(
+      next.status === "authenticated" ? next.session : null,
+    );
+    if (next.status !== "authenticated") setLoadingPrivateView(false);
+    setSessionState(next);
+  }, []);
   const [privateView, setPrivateView] =
     useState<PrivateSemanticReviewViewV01 | null>(null);
   const [loadingPrivateView, setLoadingPrivateView] = useState(false);
@@ -108,10 +117,13 @@ export function SemanticReviewSurface({
 
   const loadPrivateView = useCallback(async (options?: {
     announceLoading?: boolean;
+    preserveFeedback?: boolean;
   }) => {
+    const read = privateReadGuard.current.beginRead();
+    if (!read) return;
     const announceLoading = options?.announceLoading ?? true;
     if (announceLoading) setLoadingPrivateView(true);
-    setPrivateError(null);
+    if (!options?.preserveFeedback) setPrivateError(null);
     try {
       const url = proposalId
         ? `${SEMANTIC_REVIEW_ROUTE}?${new URLSearchParams({
@@ -124,10 +136,11 @@ export function SemanticReviewSurface({
         credentials: "same-origin",
       });
       const body = (await response.json()) as SemanticReviewReadResponseV01;
+      if (!privateReadGuard.current.isCurrentRead(read)) return;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           setPrivateView(null);
-          setSessionState({
+          updateSessionState({
             status: "locked",
             session: null,
             error_code: publicErrorCode(body.error_code),
@@ -136,7 +149,14 @@ export function SemanticReviewSurface({
         }
         throw new Error(publicErrorCode(body.error_code));
       }
+      if (body.project && !privateReadGuard.current.matchesProject(body.project)) {
+        throw new Error("semantic_review_project_scope_changed");
+      }
       if (body.status === "proposal_list" && body.project && body.proposals) {
+        if (body.work_initialization &&
+          !privateReadGuard.current.matchesProject(body.work_initialization)) {
+          throw new Error("semantic_review_project_scope_changed");
+        }
         setPrivateView({
           kind: "list",
           value: body as SemanticReviewListRouteResponseV01,
@@ -152,6 +172,7 @@ export function SemanticReviewSurface({
       }
       throw new Error("semantic_review_response_invalid");
     } catch (error) {
+      if (!privateReadGuard.current.isCurrentRead(read)) return;
       setPrivateView(null);
       setPrivateError(
         error instanceof Error
@@ -159,11 +180,14 @@ export function SemanticReviewSurface({
           : "semantic_review_request_failed",
       );
     } finally {
-      if (announceLoading) setLoadingPrivateView(false);
+      if (privateReadGuard.current.isCurrentRead(read)) {
+        setLoadingPrivateView(false);
+      }
     }
-  }, [proposalId]);
+  }, [proposalId, updateSessionState]);
 
   const checkSession = useCallback(async () => {
+    updateSessionState({ status: "checking", session: null, error_code: null });
     setPrivateView(null);
     setPrivateError(null);
     try {
@@ -174,7 +198,7 @@ export function SemanticReviewSurface({
       });
       const body = (await response.json()) as SessionCheckResponseV01;
       if (response.status === 404) {
-        setSessionState({
+        updateSessionState({
           status: "disabled",
           session: null,
           error_code: "not_found",
@@ -183,7 +207,7 @@ export function SemanticReviewSurface({
       }
       if (!response.ok || body.status !== "authenticated" || !body.session) {
         const errorCode = publicErrorCode(body.error_code);
-        setSessionState({
+        updateSessionState({
           status: "locked",
           session: null,
           error_code:
@@ -191,20 +215,20 @@ export function SemanticReviewSurface({
         });
         return;
       }
-      setSessionState({
+      updateSessionState({
         status: "authenticated",
         session: body.session,
         error_code: null,
       });
       await loadPrivateView();
     } catch {
-      setSessionState({
+      updateSessionState({
         status: "locked",
         session: null,
         error_code: "operator_session_request_failed",
       });
     }
-  }, [loadPrivateView]);
+  }, [loadPrivateView, updateSessionState]);
 
   useEffect(() => {
     void checkSession();
@@ -237,7 +261,7 @@ export function SemanticReviewSurface({
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           setPrivateView(null);
-          setSessionState({
+          updateSessionState({
             status: "locked",
             session: null,
             error_code: publicErrorCode(body.error_code),
@@ -291,7 +315,7 @@ export function SemanticReviewSurface({
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           setPrivateView(null);
-          setSessionState({
+          updateSessionState({
             status: "locked",
             session: null,
             error_code: publicErrorCode(body.error_code),
@@ -349,7 +373,7 @@ export function SemanticReviewSurface({
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           setPrivateView(null);
-          setSessionState({
+          updateSessionState({
             status: "locked",
             session: null,
             error_code: publicErrorCode(body.error_code),
@@ -455,6 +479,7 @@ export function SemanticReviewSurface({
     if (
       sessionState.status !== "authenticated" ||
       !initialization ||
+      preparationInvalidated ||
       initialization.state !== "not_defined" ||
       !initialization.mutation_eligible ||
       initialization.active_project_id !== initialization.project_id ||
@@ -527,13 +552,12 @@ export function SemanticReviewSurface({
       session:
         sessionState.status === "authenticated" ? sessionState.session : null,
       initialization,
-      delegated_stage: delegatedState.projection?.stage ?? null,
-      start_eligible: delegatedState.projection?.start_eligible ?? false,
     });
     const submittedBinding = revisionEditorBinding;
     if (
       sessionState.status !== "authenticated" ||
       !initialization ||
+      preparationInvalidated ||
       !submittedBinding ||
       !currentBinding ||
       workRevisionEditorBindingKeyV01(submittedBinding) !==
@@ -632,7 +656,7 @@ export function SemanticReviewSurface({
   function authenticated(session: OperatorSessionViewV01) {
     setRevisionEditorBinding(null);
     setPrivateView(null);
-    setSessionState({
+    updateSessionState({
       status: "authenticated",
       session,
       error_code: null,
@@ -644,7 +668,7 @@ export function SemanticReviewSurface({
     setRevisionEditorBinding(null);
     setPrivateView(null);
     setDecisionStatus(null);
-    setSessionState({
+    updateSessionState({
       status: "locked",
       session: null,
       error_code: errorCode ? publicErrorCode(errorCode) : null,
@@ -698,12 +722,32 @@ export function SemanticReviewSurface({
     proposalId,
   ]);
 
+  const authenticatedSession = sessionState.status === "authenticated"
+    ? sessionState.session
+    : null;
+  const preparationInvalidated = privateReadGuard.current.preparationInvalidated(
+    authenticatedSession,
+    delegatedState.projection,
+  );
+
+  useEffect(() => {
+    if (proposalId || !authenticatedSession) return;
+    if (privateReadGuard.current.observeExecution(delegatedState.projection)) {
+      setRevisionEditorBinding(null);
+      // One admission refresh per authenticated scope, not one per polling tick.
+      // A concurrent stale submission must retain the writer's refusal message.
+      void loadPrivateView({ announceLoading: false, preserveFeedback: true });
+    }
+  }, [authenticatedSession, delegatedState.projection, loadPrivateView, proposalId]);
+
   useEffect(() => {
     const resultRef = delegatedState.projection?.result?.receipt_ref ?? null;
     if (
       !resultRef ||
       resultRef === lastTrustedResultRef.current ||
       sessionState.status !== "authenticated" ||
+      !delegatedState.projection ||
+      !privateReadGuard.current.matchesProject(delegatedState.projection) ||
       proposalId
     ) {
       return;
@@ -711,7 +755,7 @@ export function SemanticReviewSurface({
     lastTrustedResultRef.current = resultRef;
     void loadPrivateView({ announceLoading: false });
   }, [
-    delegatedState.projection?.result?.receipt_ref,
+    delegatedState.projection,
     loadPrivateView,
     proposalId,
     sessionState.status,
@@ -775,15 +819,14 @@ export function SemanticReviewSurface({
       : null;
   const firstWorkOwnsFocus =
     exactReviewAvailable &&
+    !preparationInvalidated &&
     firstWorkInitialization?.state === "not_defined" &&
     firstWorkInitialization.mutation_eligible;
-  const currentRevisionEditorBinding = exactReviewAvailable
+  const currentRevisionEditorBinding = exactReviewAvailable && !preparationInvalidated
     ? workRevisionEditorBindingV01({
         session:
           sessionState.status === "authenticated" ? sessionState.session : null,
         initialization: firstWorkInitialization,
-        delegated_stage: delegatedState.projection?.stage ?? null,
-        start_eligible: delegatedState.projection?.start_eligible ?? false,
       })
     : null;
   const currentRevisionEditorBindingKey = currentRevisionEditorBinding
@@ -792,6 +835,7 @@ export function SemanticReviewSurface({
   const revisionAvailable = currentRevisionEditorBinding !== null;
   const workDefinitionIsUnstarted = Boolean(
     exactReviewAvailable &&
+      !preparationInvalidated &&
       sessionState.status === "authenticated" &&
       firstWorkInitialization?.current_work &&
       firstWorkInitialization.current_packet &&
@@ -807,9 +851,7 @@ export function SemanticReviewSurface({
         firstWorkInitialization.current_packet.packet_fingerprint &&
       (firstWorkInitialization.revision_eligibility.eligible ||
         firstWorkInitialization.revision_eligibility.status ===
-          "revision_limit_reached") &&
-      delegatedState.projection?.stage === "not_started" &&
-      delegatedState.projection.start_eligible,
+          "revision_limit_reached"),
   );
   const delegatedOwnsFocus =
     !proposalId &&
@@ -1046,9 +1088,9 @@ export function SemanticReviewSurface({
 function workRevisionEditorBindingV01(input: {
   session: OperatorSessionViewV01 | null;
   initialization: ProjectWorkInitializationV01 | null;
-  delegated_stage: string | null;
-  start_eligible: boolean;
 }): WorkRevisionEditorBindingV01 | null {
+  // Revision eligibility already checks authoritative lineage and run history;
+  // it remains available independently of the managed-execution projection.
   const { session, initialization } = input;
   const packet = initialization?.current_packet;
   const eligibility = initialization?.revision_eligibility;
@@ -1069,9 +1111,7 @@ function workRevisionEditorBindingV01(input: {
       initialization.active_selection_revision ||
     eligibility.current_packet_id !== packet.packet_id ||
     eligibility.current_packet_fingerprint !== packet.packet_fingerprint ||
-    eligibility.current_lineage_kind !== packet.lineage_kind ||
-    input.delegated_stage !== "not_started" ||
-    !input.start_eligible
+    eligibility.current_lineage_kind !== packet.lineage_kind
   ) {
     return null;
   }
@@ -1188,6 +1228,7 @@ interface SemanticReviewRouteErrorV01 {
 interface SemanticReviewReadResponseV01 extends SemanticReviewRouteErrorV01 {
   status?: string;
   project?: SemanticReviewListRouteResponseV01["project"];
+  work_initialization?: SemanticReviewListRouteResponseV01["work_initialization"];
   proposals?: SemanticReviewListRouteResponseV01["proposals"];
   proposal?: SemanticReviewDetailRouteResponseV01["proposal"];
 }

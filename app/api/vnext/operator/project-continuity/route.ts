@@ -141,24 +141,30 @@ export function createVNextOperatorContextUseReviewHandlerV01(
       });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
-      if (readVNextLocalReviewProfileV01(environment) === "companion_first_work_v1" &&
-          body.action !== "define_initial_project_work") {
+      const companionPreparation = readVNextLocalReviewProfileV01(environment) === "companion_first_work_v1";
+      if (companionPreparation && ![
+        "define_initial_project_work",
+        "compare_selected_work_sources",
+        "lookup_retained_work_sources",
+        "revise_pre_execution_project_work",
+      ].includes(body.action as string)) {
         throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
       }
       if (body.action === "compare_selected_work_sources" || body.action === "lookup_retained_work_sources") {
         authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
         const lookup = body.action === "lookup_retained_work_sources";
         const retained = lookup || body.retained_source_refs !== undefined;
+        const selectionBound = retained || companionPreparation;
         const keys = ["action", "expected_current_packet_fingerprint", "expected_current_packet_id",
           ...(lookup ? ["query"] : ["notes"]),
-          ...(retained ? ["expected_active_project_id", "expected_active_selection_revision"] : []),
+          ...(selectionBound ? ["expected_active_project_id", "expected_active_selection_revision"] : []),
           ...(!lookup && retained ? ["retained_source_refs"] : [])];
         if (Object.keys(body).sort().join(",") !== keys.sort().join(",") ||
           (!lookup && (!Array.isArray(body.notes) || body.notes.length > 8))) {
           throw new ProjectWorkRevisionErrorV01("selected_source_context_invalid", 400);
         }
         const result = db.transaction(() => {
-          if (retained) {
+          if (selectionBound) {
             const eligibility = readProjectWorkRevisionEligibilityStrictV01(db!, config);
             if (!eligibility.eligible || eligibility.active_project_id !== body.expected_active_project_id ||
               eligibility.active_selection_revision !== body.expected_active_selection_revision) {

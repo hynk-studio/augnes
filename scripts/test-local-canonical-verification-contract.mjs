@@ -1150,7 +1150,7 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertWorkExpectationMech
 assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostConnectionV01();"), 1,
   "the default initialization path must not repeat the scoped matrix");
 const successorRegistration = readCanonicalChildRegistration(integrationSource, "authored-successor-handoff");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', '"process-owning"', '"--successor-handoff-only"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--successor-handoff-only"'])
   requireText(successorRegistration.block, fragment, "authored successor retains one bounded serial owner");
 assert.equal(countOccurrences(firstWorkFixture, 'await assertPersistedScopedContinuationV01(["handoff"]);'), 1,
   "the handoff profile must run once without extending the legacy continuation child");
