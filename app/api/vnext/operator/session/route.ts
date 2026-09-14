@@ -9,7 +9,9 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  assertVNextLocalReviewEnabledV01,
+  readVNextLocalReviewProfileV01,
+  resolveVNextLocalReviewConfigV01,
   revokeVNextLocalOperatorSessionByCredentialV01,
   serializeVNextLocalOperatorSessionCookieClearV01,
   serializeVNextLocalOperatorSessionCookieV01,
@@ -50,15 +52,21 @@ export function createVNextLocalOperatorSessionHandlersV01(
 
   async function getSession(request: Request): Promise<NextResponse> {
     let db: Database.Database | null = null;
+    let profile: ReturnType<typeof readVNextLocalReviewProfileV01> = null;
     try {
       const environment = options.environment ?? process.env;
-      assertPilotEnabled(environment);
+      assertVNextLocalReviewEnabledV01(environment);
       const requestUrl = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: false,
       });
       assertNoCredentialQuery(requestUrl);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
+      profile = readVNextLocalReviewProfileV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({
+        environment,
+        credential,
+        clock: options.clock,
+      });
       db = openDatabase(config);
       const authentication = authenticateVNextLocalOperatorSessionV01(db, {
         config,
@@ -75,7 +83,11 @@ export function createVNextLocalOperatorSessionHandlersV01(
         semantic_authority_granted: false,
       });
     } catch (error) {
-      return routeErrorResponse(error);
+      const response = routeErrorResponse(error);
+      // Scope-free availability, used by the local issuer only after the
+      // Companion owner has verified this exact runtime. No credential here.
+      if (profile) response.headers.set("Augnes-Local-Review-Profile", profile);
+      return response;
     } finally {
       db?.close();
     }
@@ -85,12 +97,11 @@ export function createVNextLocalOperatorSessionHandlersV01(
     let db: Database.Database | null = null;
     try {
       const environment = options.environment ?? process.env;
-      assertPilotEnabled(environment);
+      assertVNextLocalReviewEnabledV01(environment);
       const requestUrl = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: true,
       });
       assertNoCredentialQuery(requestUrl);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       const action = body.action;
       if (action === "bootstrap") {
@@ -101,6 +112,11 @@ export function createVNextLocalOperatorSessionHandlersV01(
             401,
           );
         }
+        const config = resolveVNextLocalReviewConfigV01({
+          environment,
+          bootstrap_token: body.bootstrap_token,
+          clock: options.clock,
+        });
         db = openDatabase(config);
         const admission = consumeVNextLocalOperatorBootstrapV01(db, {
           config,
@@ -141,6 +157,11 @@ export function createVNextLocalOperatorSessionHandlersV01(
         assertExactBodyKeys(body, ["action"]);
         const credential =
           readVNextLocalOperatorCredentialFromRequestV01(request);
+        const config = resolveVNextLocalReviewConfigV01({
+        environment,
+        credential,
+        clock: options.clock,
+      });
         db = openDatabase(config);
         const session = revokeVNextLocalOperatorSessionByCredentialV01(db, {
           config,
@@ -184,15 +205,6 @@ const handlers = createVNextLocalOperatorSessionHandlersV01();
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;
-
-function assertPilotEnabled(environment: NodeJS.ProcessEnv): void {
-  if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== "1") {
-    throw new VNextLocalOperatorSessionErrorV01(
-      "operator_pilot_disabled",
-      404,
-    );
-  }
-}
 
 function assertNoCredentialQuery(url: URL): void {
   if ([...url.searchParams.keys()].length > 0) {

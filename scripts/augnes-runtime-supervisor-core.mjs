@@ -94,6 +94,7 @@ import {
   withRuntimeReconciliationPath,
 } from "./runtime-reconciliation.mjs";
 import { reconcileDurableRunsAtStartup } from "./runtime-run-reconciliation.mjs";
+import { inspectCompanionService } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 export {
   RUNTIME_CONTRACT,
@@ -267,8 +268,63 @@ async function runLocalReviewAccessCommand({
     });
     return 2;
   }
-  const stopResult = await runStopCommand({ paths, repositoryFingerprint });
-  if (stopResult !== 0) return stopResult;
+  if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== undefined &&
+      environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== "1") {
+    emitResult({ command: "access", result: "refused", state: "disabled",
+      reason: "operator_pilot_disabled" });
+    return 2;
+  }
+  const service = await inspectCompanionService({
+    repositoryRoot,
+    environment,
+    testScope: environment.AUGNES_COMPANION_SERVICE_TEST_SCOPE ?? null,
+  });
+  let installedRuntime = null;
+  if (!["not_installed", "unsupported"].includes(service.status)) {
+    try {
+      if (service.status !== "live" || service.checkout_relation !== "exact" ||
+          !service.runtime?.verified || !service.configuration) {
+        throw new Error("local_review_companion_not_live");
+      }
+      const installedPaths = resolveRuntimePaths({
+        repositoryFingerprint,
+        environment: {
+          HOME: service.configuration.runtime_home_directory,
+          AUGNES_RUNTIME_STATE_DIR: service.configuration.runtime_state_directory,
+          ...(service.configuration.database_path
+            ? { AUGNES_DB_PATH: service.configuration.database_path } : {}),
+        },
+      });
+      if (paths.directory !== installedPaths.directory ||
+          paths.local.database_path !== installedPaths.local.database_path) {
+        throw new Error("local_review_companion_binding_mismatch");
+      }
+      const current = await readVerifiedRuntimeStatus({ paths, repositoryFingerprint });
+      if (!current.verified || current.manifest.generation_id !== service.runtime.generation_id) {
+        throw new Error("local_review_companion_binding_mismatch");
+      }
+      const readiness = await fetch(`${current.manifest.effective_url}/api/vnext/operator/session`, {
+        redirect: "error",
+        signal: AbortSignal.timeout(15_000),
+      });
+      await readiness.body?.cancel();
+      if (readiness.status !== 401 ||
+          readiness.headers.get("Augnes-Local-Review-Profile") !== "companion_first_work_v1") {
+        throw new Error("local_review_companion_profile_unavailable");
+      }
+      installedRuntime = current.manifest;
+    } catch (error) {
+      emitResult({ command: "access", result: "refused", state: service.status,
+        reason: /^local_review_[a-z_]+$/u.test(error?.message ?? "")
+          ? error.message : "local_review_companion_profile_unavailable" });
+      return 2;
+    }
+  } else {
+    // Retain the historical standalone source/pilot lifecycle. Never use it
+    // as a fallback for an installed service that failed verification.
+    const stopResult = await runStopCommand({ paths, repositoryFingerprint });
+    if (stopResult !== 0) return stopResult;
+  }
 
   const issuerPath = path.join(
     repositoryRoot,
@@ -312,7 +368,7 @@ async function runLocalReviewAccessCommand({
     emitResult({
       command: "access",
       result: "failed",
-      state: "stopped",
+      state: installedRuntime ? "running" : "stopped",
       reason: validDiagnosticString(failure?.error_code)
         ? failure.error_code
         : "local_review_access_unavailable",
@@ -323,11 +379,18 @@ async function runLocalReviewAccessCommand({
   emitResult({
     command: "access",
     result: "issued",
-    state: "restarting",
+    state: installedRuntime ? "running" : "restarting",
+    ...(installedRuntime ? {
+      access_profile: "companion_first_work_v1",
+      project_id: access.project_id,
+      runtime_generation_id: installedRuntime.generation_id,
+      runtime_lifecycle_changed: false,
+    } : {}),
     one_time_local_review_token: access.bootstrap_token,
     expires_at: access.expires_at,
     next_action: "paste_the_token_into_the_visible_augnes_browser",
   });
+  if (installedRuntime) return 0;
   return runStartCommand({
     environment: {
       ...environment,
@@ -1812,6 +1875,10 @@ export function buildSupervisorChildValues({
       AUGNES_MANAGED_CODEX_RUNTIME_ROOT:
         paths.local?.managed_codex_runtime_directory ?? null,
       AUGNES_RECOVERY_MODE: recoveryMode ? "1" : null,
+      AUGNES_LOCAL_REVIEW_PROFILE:
+        !packaged && !recoveryMode && environment.AUGNES_COMPANION_SERVICE === "1" &&
+        environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED === undefined
+          ? "companion_first_work_v1" : null,
       ...ownershipValues,
       ...diagnosticValues,
       OPENAI_API_KEY: recoveryMode

@@ -126,6 +126,7 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--companion-first-work-only")) { await assertCompanionFirstWorkAccessV01(); return; }
     if (process.argv.includes("--minimum-discriminating-check-only")) { await assertMinimumDiscriminatingCheckV01(); return; }
     if (process.argv.includes("--expectation-only")) { await assertWorkExpectationMechanics(); return; }
     if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
@@ -159,6 +160,7 @@ async function main(): Promise<void> {
     assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
     assertLocalReviewAccessIssuanceV01();
+    await assertCompanionFirstWorkAccessV01();
     assertMutationAndReplayV01();
     assertRevisionMutationAndReplayV01();
     assertExactSuccessorReplayHistoryBoundaryV01();
@@ -2201,6 +2203,122 @@ function assertLocalReviewAccessIssuanceV01(): void {
   } finally {
     fixture.db.close();
   }
+}
+
+async function assertCompanionFirstWorkAccessV01(): Promise<void> {
+  const { createVNextLocalOperatorSessionHandlersV01 } = await import("../app/api/vnext/operator/session/route");
+  const { createVNextOperatorProjectContinuityHandlerV01, createVNextOperatorContextUseReviewHandlerV01 } = await import("../app/api/vnext/operator/project-continuity/route");
+  const { createVNextOperatorSemanticReviewHandlersV01 } = await import("../app/api/vnext/operator/semantic-review/route");
+  const fixture = createFixtureV01("companion-first-work", false, true);
+  const environment: NodeJS.ProcessEnv = {
+    NODE_ENV: "test",
+    AUGNES_DB_PATH: fixture.config.database_path,
+    AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1",
+    AUGNES_RUNTIME_CONTRACT: "augnes-local-runtime-supervisor-v1",
+    AUGNES_RUNTIME_CHILD_ROLE: "ui",
+    AUGNES_DISTRIBUTION_MODE: "source",
+  };
+  const origin = "http://127.0.0.1:3000";
+  const request = (route: string, body?: unknown, cookie?: string, headers: Record<string, string> = {}) => new Request(`${origin}/api/vnext/operator/${route}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { host: "127.0.0.1:3000", ...(body === undefined ? {} : { origin, "content-type": "application/json" }), ...(cookie ? { cookie } : {}), ...headers },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const cookieOf = (response: Response) => {
+    const cookie = response.headers.getSetCookie().find(value => value.startsWith(`${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=`));
+    assert(cookie, "normal session route must deliver the cookie");
+    return cookie.split(";")[0];
+  };
+  const options = { environment, clock: fixedClock(T1) };
+  const session = createVNextLocalOperatorSessionHandlersV01(options);
+  const read = createVNextOperatorProjectContinuityHandlerV01(options);
+  const save = createVNextOperatorContextUseReviewHandlerV01(options);
+  const review = createVNextOperatorSemanticReviewHandlersV01(options);
+  const issue = () => issueVNextLocalReviewAccessV01(fixture.db, { database_path: fixture.config.database_path, clock: fixedClock(T0) });
+  const bootstrap = (token: string) => session.POST(request("session", { action: "bootstrap", bootstrap_token: token }));
+  try {
+    const missing = await session.GET(request("session"));
+    assert.equal(missing.status, 401);
+    assert.equal(missing.headers.get("Augnes-Local-Review-Profile"), "companion_first_work_v1");
+    assert.equal((await read(request("project-continuity"))).status, 401);
+    assert.equal((await review.GET(request("semantic-review"))).status, 401);
+    assert.equal((await save(request("project-continuity", requestV01(fixture)))).status, 401);
+    assert.equal((await read(request("project-continuity", undefined, undefined, { authorization: "Bearer readonly-companion-credential" }))).status, 401);
+    for (const override of [
+      { AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "0" },
+      { AUGNES_LOCAL_REVIEW_PROFILE: "" },
+      { AUGNES_RUNTIME_CHILD_ROLE: "bridge" },
+      { AUGNES_DISTRIBUTION_MODE: "packaged" },
+      { AUGNES_RECOVERY_MODE: "1" },
+    ]) {
+      assert.equal((await createVNextLocalOperatorSessionHandlersV01({ environment: { ...environment, ...override } }).GET(request("session"))).status, 404);
+    }
+    assert.equal((await bootstrap("invalid")).status, 401);
+    const issued = issue();
+    const foreignDatabase = createFixtureV01("companion-foreign-database", false, true);
+    try {
+      const foreignSession = createVNextLocalOperatorSessionHandlersV01({ ...options,
+        environment: { ...environment, AUGNES_DB_PATH: foreignDatabase.config.database_path } });
+      assert.equal((await foreignSession.POST(request("session", { action: "bootstrap", bootstrap_token: issued.bootstrap.bootstrap_token }))).status, 401);
+    } finally { foreignDatabase.db.close(); }
+    const foreignOperator = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock: fixedClock(T0) });
+    assert.equal((await bootstrap(foreignOperator.bootstrap_token)).status, 403);
+    assert.equal((await bootstrap(`${issued.bootstrap.bootstrap_token}x`)).status, 401);
+    assert.equal((await session.POST(request("session", { action: "bootstrap", bootstrap_token: issued.bootstrap.bootstrap_token, project_id: fixture.project_id }))).status, 400);
+    assert.equal((await session.POST(request("session", { action: "bootstrap", bootstrap_token: issued.bootstrap.bootstrap_token }, undefined, { origin: "http://foreign.invalid" }))).status, 403);
+    const admitted = await bootstrap(issued.bootstrap.bootstrap_token);
+    assert.equal(admitted.status, 200);
+    let cookie = cookieOf(admitted);
+    assert.equal((await bootstrap(issued.bootstrap.bootstrap_token)).status, 409);
+    assert.equal((await session.GET(request("session", undefined, cookie))).status, 200);
+    const form = await review.GET(request("semantic-review", undefined, cookie));
+    assert.equal(form.status, 200);
+    assert.equal(JSON.stringify(await form.json()).includes('"state":"not_defined"'), true);
+    assert.equal((await review.POST(request("semantic-review", {}, cookie))).status, 404);
+    assert.equal((await save(request("project-continuity", { action: "revise_pre_execution_project_work" }, cookie))).status, 404);
+
+    const firstRequest = requestV01(fixture);
+    const otherRoot = path.join(ROOT, "companion-other-project"); mkdirSync(otherRoot);
+    const other = getOrCreateCanonicalProjectForLocalRootV01(fixture.db, { workspace_id: fixture.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(otherRoot, { base_path: ROOT }), display_name: "Other disposable project" });
+    let selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    selectActiveProjectV01(fixture.db, { workspace_id: fixture.workspace_id, project_id: other.project.project_id,
+      expected_project_id: selection.project_id, expected_revision: selection.selection_revision, now: T1 });
+    assert.equal((await (await session.GET(request("session", undefined, cookie))).json()).session.project_id, fixture.project_id);
+    assert.equal((await save(request("project-continuity", { ...firstRequest, project_id: other.project.project_id, expected_active_project_id: other.project.project_id }, cookie))).status, 403);
+    assert.equal((await save(request("project-continuity", firstRequest, cookie))).status, 409);
+    const otherIssue = issue();
+    assert.equal(otherIssue.config.project_id, other.project.project_id);
+    const otherAdmitted = await bootstrap(otherIssue.bootstrap.bootstrap_token);
+    assert.equal(otherAdmitted.status, 200);
+    assert.equal((await (await session.GET(request("session", undefined, cookieOf(otherAdmitted)))).json()).session.project_id, other.project.project_id);
+    selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    selectActiveProjectV01(fixture.db, { workspace_id: fixture.workspace_id, project_id: fixture.project_id,
+      expected_project_id: selection.project_id, expected_revision: selection.selection_revision, now: T1 });
+    const saved = await save(request("project-continuity", requestV01(fixture), cookie));
+    assert.equal(saved.status, 201);
+    assert.equal((await save(request("project-continuity", requestV01(fixture), cookie))).status, 409);
+    cookie = cookieOf(saved);
+    const replay = await save(request("project-continuity", requestV01(fixture), cookie));
+    assert.equal(replay.status, 200);
+    assert.equal((await replay.json()).status, "exact_replay");
+    cookie = cookieOf(replay);
+    const readback = await read(request("project-continuity", undefined, cookie));
+    assert.equal(readback.status, 200);
+    assert.equal((await readback.json()).work_initialization.current_work.goal, firstRequest.goal);
+    assert.equal((await session.GET(request("session", undefined, `${cookie}x`))).status, 409);
+    const expired = createVNextLocalOperatorSessionHandlersV01({ environment, clock: fixedClock("2026-08-02T00:00:00.000Z") });
+    assert.equal((await expired.GET(request("session", undefined, cookie))).status, 401);
+    assert.equal((await expired.POST(request("session", { action: "bootstrap", bootstrap_token: issue().bootstrap.bootstrap_token }))).status, 401);
+    const revoked = issue();
+    revokeVNextLocalOperatorSessionByIdV01(fixture.db, { config: revoked.config, session_id: revoked.bootstrap.session.session_id, clock: fixedClock(T1) });
+    assert.equal((await bootstrap(revoked.bootstrap.bootstrap_token)).status, 401);
+    assert.equal((await session.POST(request("session", { action: "logout" }, cookie))).status, 200);
+    assert.equal((await read(request("project-continuity", undefined, cookie))).status, 401);
+    assert.deepEqual(listVNextCoreRecordsV01(fixture.db, { ...fixture,
+      record_kinds: ["episode_delta_proposal", "review_decision", "state_transition_receipt", "run_receipt"], limit: 100 }), []);
+    console.log(JSON.stringify({ companion_first_work_access: "passed", scope_retained: true, execution_started: false }));
+  } finally { fixture.db.close(); }
 }
 
 function assertInitialWorkPortabilityV01(): void {

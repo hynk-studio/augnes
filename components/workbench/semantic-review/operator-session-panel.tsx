@@ -141,9 +141,10 @@ export function OperatorSessionPanel({
           material.
         </p>
         <p className={styles.copy}>
-          From the Augnes source checkout, run <code>npm run augnes -- access</code>
-          {" "}to restart the supervised runtime and issue one expiring local
-          review token for the current project.
+          This runtime has no enabled local review profile. An installed
+          Companion must support local first-work access. For a standalone
+          source runtime, <code>npm run augnes -- access</code> still restarts
+          that runtime with access limited to the current project.
         </p>
       </section>
     );
@@ -209,6 +210,11 @@ export function OperatorSessionPanel({
               : "Unlock protected project review"}
           </h2>
       </div>
+      <p className={styles.copy}>
+        From the Augnes source checkout, run <code>npm run augnes -- access</code>
+        {" "}to issue an expiring token for the selected project. A supported
+        installed Companion stays running.
+      </p>
       <p className={styles.copy}>
         Enter the one-time local token. It is submitted only to this local form
         and is not placed in the URL or rendered back into the page.

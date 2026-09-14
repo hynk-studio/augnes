@@ -23,6 +23,7 @@ import {
   issueVNextLocalOperatorBootstrapV01,
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
+import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-access.ts";
 import {
   createRepositoryExecutionDecisionRequestV01,
 } from "../lib/vnext/repository-execution/repository-execution.ts";
@@ -137,6 +138,7 @@ let bridgePort = null;
 let debugPort = null;
 let appOrigin = null;
 let serverProcess = null;
+let companionFirstWorkProfile = false;
 let serverProcessRecord = null;
 let serverClosePromise = null;
 let serverPublicDiagnosticCapture = null;
@@ -1636,6 +1638,54 @@ async function main() {
     await cdp.send("Network.clearBrowserCookies");
   });
 
+  await runPhase("companion_first_work_access", async () => {
+    // Exercise the production child profile and Browser owners in this
+    // disposable supervisor. The native Companion test separately proves
+    // installed-service issuance with no lifecycle change. A consistent backup
+    // keeps this normal save separate from the later expired-context fixture.
+    const accessDatabasePath = path.join(tempRoot, "companion-first-work.db");
+    const source = new Database(fixture.writable_database_path, { readonly: true, fileMustExist: true });
+    try { await source.backup(accessDatabasePath); } finally { source.close(); }
+    companionFirstWorkProfile = true;
+    await restartRuntime(accessDatabasePath, manifest, projectAlphaId);
+    const startsBeforeAccess = runtimeStartCount;
+    const healthBefore = await (await fetch(`${appOrigin}/api/healthz`)).json();
+    await navigate(`${appOrigin}/workbench/semantic-review#first-work`);
+    await waitForCondition(`document.querySelector('[data-vnext-operator-session="locked"]') !== null && document.querySelector('[data-first-work-composer]') === null`, "protected Companion first work");
+    await authenticateCurrentPage(accessDatabasePath, manifest, projectAlphaId);
+    const preparation = await browserFetchJson("/api/vnext/operator/semantic-review");
+    assert.equal(preparation.status, 200, preparation.body.error_code);
+    assert.equal(preparation.body.work_initialization.state, "not_defined", preparation.body.work_initialization.reason);
+    assert.equal(preparation.body.work_initialization.mutation_eligible, true, preparation.body.work_initialization.reason);
+    console.log(JSON.stringify({ companion_first_work_preparation: {
+      project_id: preparation.body.project.project_id,
+      initialization_project_id: preparation.body.work_initialization.project_id,
+      active_project_id: preparation.body.work_initialization.active_project_id,
+      ui: await evaluateJson(`({ session: document.querySelector('[data-vnext-operator-session]')?.getAttribute('data-vnext-operator-session'), consistency: document.querySelector('[data-ai-workplane-guide-consistency]')?.getAttribute('data-ai-workplane-guide-consistency'), alerts: [...document.querySelectorAll('[role="alert"]')].map(node => node.textContent?.slice(0, 200)) })`),
+    } }));
+    await waitForCondition(`document.querySelector('[data-first-work-state="not_defined"]') !== null`, "Companion first-work form");
+    const goal = "Keep a small unexecuted first work available for review";
+    await setFormControlValue('textarea[name="first-work-goal"]', goal);
+    await setFormControlValue('textarea[name="first-work-success-criteria"]', "The saved definition reads back in the Browser");
+    await setFormControlValue('textarea[name="first-work-non-goals"]', "Do not start execution");
+    await waitForCondition(`document.querySelector('[data-first-work-action="save"]:not(:disabled)') !== null`, "Companion first-work save enabled");
+    await clickSelector('[data-first-work-action="save"]');
+    await waitForCondition(`document.querySelector('[data-current-work-definition="read-only"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "Companion first-work saved readback");
+    await navigate(`${appOrigin}/workbench/semantic-review#first-work`);
+    await waitForCondition(`document.querySelector('[data-current-work-definition="read-only"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "Companion first-work readback after refresh");
+    const readback = await browserFetchJson("/api/vnext/operator/project-continuity");
+    assert.equal(readback.status, 200);
+    assert.equal(readback.body.work_initialization.current_work.goal, goal);
+    const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
+    assert.equal(healthAfter.runtime_generation_id, healthBefore.runtime_generation_id);
+    assert.equal(runtimeStartCount, startsBeforeAccess);
+    assert.deepEqual(semanticAuthorityCounts(accessDatabasePath), semanticAuthorityBaseline);
+    console.log(JSON.stringify({ companion_first_work_browser: "passed", normal_form_save_refresh_readback: true,
+      access_restart_count: 0, installed_service_observation: false }));
+    companionFirstWorkProfile = false;
+    await restartRuntime(fixture.writable_database_path, manifest, projectAlphaId);
+  });
+
   await runPhase("project_home_lifecycle_presentation", async () => {
     await navigate(`${appOrigin}/projects`);
     await waitForCondition(
@@ -3053,13 +3103,13 @@ async function terminateRuntime() {
 
 async function authenticateCurrentPage(databasePath, manifest, projectId) {
   const environment = runtimeEnvironment(databasePath, manifest, projectId);
-  const config = readVNextLocalOperatorPilotConfigV01(environment);
+  const config = companionFirstWorkProfile ? { database_path: databasePath } : readVNextLocalOperatorPilotConfigV01(environment);
   const database = openVNextLocalOperatorDatabaseV01(config);
   let bootstrapToken;
   try {
-    bootstrapToken = issueVNextLocalOperatorBootstrapV01(database, {
-      config,
-    }).bootstrap_token;
+    bootstrapToken = companionFirstWorkProfile
+      ? issueVNextLocalReviewAccessV01(database, { database_path: databasePath }).bootstrap.bootstrap_token
+      : issueVNextLocalOperatorBootstrapV01(database, { config }).bootstrap_token;
   } finally {
     database.close();
   }
@@ -3270,6 +3320,13 @@ function runtimeEnvironment(databasePath, manifest, projectId) {
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: projectId,
     AUGNES_VNEXT_OPERATOR_ID: manifest.operator_id,
   };
+  if (companionFirstWorkProfile) {
+    delete environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED;
+    delete environment.AUGNES_VNEXT_OPERATOR_WORKSPACE_ID;
+    delete environment.AUGNES_VNEXT_OPERATOR_PROJECT_ID;
+    delete environment.AUGNES_VNEXT_OPERATOR_ID;
+    environment.AUGNES_COMPANION_SERVICE = "1";
+  }
   if (REAL_PROVIDER_ACCEPTANCE) {
     environment.AUGNES_CANONICAL_TEST_NODE_IMPORT =
       providerEgressObserverImportPath;
@@ -5026,6 +5083,10 @@ function expectedConsoleError(entry) {
 }
 
 function expectedStatusResponseIdentity(response) {
+  if (response.phase === "companion_first_work_access") {
+    return (response.status === 401 && response.path === "/api/vnext/operator/session") ||
+      (response.status === 404 && response.path === "/api/vnext/operator/host-round-trip");
+  }
   if (
     response.status === 409 &&
     ["project_onboarding_and_naming", "project_home_lifecycle_presentation"].includes(
@@ -5101,6 +5162,7 @@ function expectedFailedRequest(entry) {
     ],
     project_shell_and_locked_entry: ["/workbench", "/workbench/semantic-review", "/workbench/inspector"],
     responsive_first_work_presentation: ["/workbench/semantic-review"],
+    companion_first_work_access: ["/workbench/semantic-review", "/api/augnes/read/guide-brief"],
     project_home_lifecycle_presentation: ["/", "/projects"],
     rendered_state_responsive_matrix: [
       "/workbench/semantic-review",
