@@ -3890,6 +3890,19 @@ function assertRuntimeEnvironmentIsolation() {
   };
 
   const absentProviderEnvironment = { ...ambientEnvironment };
+  const companionEnvironment = { ...ambientEnvironment, AUGNES_COMPANION_SERVICE: "1" };
+  delete companionEnvironment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED;
+  const companionValues = buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: companionEnvironment });
+  assert.equal(companionValues.AUGNES_LOCAL_REVIEW_PROFILE, "companion_first_work_v1");
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", values: companionValues }).AUGNES_LOCAL_REVIEW_PROFILE, "companion_first_work_v1");
+  for (const input of [
+    { environment: { ...companionEnvironment, AUGNES_COMPANION_SERVICE: "0", AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1" } },
+    { environment: { ...companionEnvironment, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "0" } },
+    { environment: { ...companionEnvironment, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1" } },
+    { environment: companionEnvironment, recoveryMode: true },
+  ]) assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "ui", ...input }).AUGNES_LOCAL_REVIEW_PROFILE, null);
+  assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "bridge", environment: companionEnvironment }).AUGNES_LOCAL_REVIEW_PROFILE, undefined);
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", ambientEnvironment: { AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1" } }).AUGNES_LOCAL_REVIEW_PROFILE, undefined);
   delete absentProviderEnvironment.OPENAI_API_KEY;
   delete absentProviderEnvironment.OPENAI_MODEL;
   delete absentProviderEnvironment.CODEX_HOME;

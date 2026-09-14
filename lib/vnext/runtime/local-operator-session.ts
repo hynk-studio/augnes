@@ -323,7 +323,7 @@ export function readVNextLocalOperatorPilotConfigV01(
 }
 
 export function openVNextLocalOperatorDatabaseV01(
-  config: VNextLocalOperatorPilotConfigV01,
+  config: Pick<VNextLocalOperatorPilotConfigV01, "database_path">,
 ): Database.Database {
   if (!existsSync(config.database_path)) {
     throw sessionError("operator_pilot_db_missing", 503);
@@ -342,6 +342,72 @@ export function openVNextLocalOperatorDatabaseV01(
     db?.close();
     if (error instanceof VNextLocalOperatorSessionErrorV01) throw error;
     throw sessionError("operator_pilot_db_missing", 503);
+  }
+}
+
+// Availability is authored by the supervised UI, never by a Browser project ID
+// or a Companion bridge credential. An explicit pilot setting keeps precedence.
+export function readVNextLocalReviewProfileV01(
+  environment: NodeJS.ProcessEnv = process.env,
+): "legacy_pilot" | "companion_first_work_v1" | null {
+  if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== undefined) {
+    return environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED === "1"
+      ? "legacy_pilot" : null;
+  }
+  return environment.AUGNES_LOCAL_REVIEW_PROFILE === "companion_first_work_v1" &&
+    environment.AUGNES_RUNTIME_CONTRACT === "augnes-local-runtime-supervisor-v1" &&
+    environment.AUGNES_RUNTIME_CHILD_ROLE === "ui" &&
+    environment.AUGNES_DISTRIBUTION_MODE === "source" &&
+    environment.AUGNES_RECOVERY_MODE !== "1"
+    ? "companion_first_work_v1" : null;
+}
+
+export function assertVNextLocalReviewEnabledV01(environment: NodeJS.ProcessEnv): void {
+  if (!readVNextLocalReviewProfileV01(environment)) {
+    throw sessionError("operator_pilot_disabled", 404);
+  }
+}
+
+// Resolve only an existing credential's immutable scope in the runtime-owned
+// database. Selection changes never retarget it. The route then performs its
+// ordinary authentication/admission again, including transactional nonce CAS.
+export function resolveVNextLocalReviewConfigV01(input: {
+  environment: NodeJS.ProcessEnv;
+  credential?: VNextLocalOperatorSessionCredentialV01;
+  bootstrap_token?: string;
+  clock?: VNextLocalRuntimeClockV01;
+}): VNextLocalOperatorPilotConfigV01 {
+  assertVNextLocalReviewEnabledV01(input.environment);
+  if (readVNextLocalReviewProfileV01(input.environment) === "legacy_pilot") {
+    return readVNextLocalOperatorPilotConfigV01(input.environment);
+  }
+  const databasePath = normalizeExplicitDatabasePath(input.environment.AUGNES_DB_PATH ?? "");
+  if (!databasePath) throw sessionError("operator_pilot_db_path_invalid", 503);
+  const bootstrap = input.bootstrap_token === undefined
+    ? null : parseBootstrapToken(input.bootstrap_token);
+  const sessionId = bootstrap?.session_id ?? input.credential?.session_id;
+  if (!sessionId) throw sessionError("operator_session_invalid", 401);
+  const db = openVNextLocalOperatorDatabaseV01({ database_path: databasePath });
+  try {
+    const row = selectSession(db, sessionId);
+    if (!row) throw sessionError("operator_session_invalid", 401);
+    if (row.operator_id !== "operator:local-review" || row.session_id.startsWith(RECOVERY_SESSION_ID_PREFIX)) {
+      throw sessionError("operator_session_scope_mismatch", 403);
+    }
+    const config: VNextLocalOperatorPilotConfigV01 = {
+      enabled: true,
+      database_path: databasePath,
+      workspace_id: row.workspace_id,
+      project_id: row.project_id,
+      operator_id: row.operator_id,
+    };
+    const now = readVNextLocalRuntimeClockNowV01(input.clock, "local_review_scope");
+    if (bootstrap) assertBootstrapCanBeConsumed(row, config, bootstrap.token, now);
+    else if (input.credential) assertSessionCanAuthenticate(row, config, input.credential, now);
+    else throw sessionError("operator_session_invalid", 401);
+    return config;
+  } finally {
+    db.close();
   }
 }
 

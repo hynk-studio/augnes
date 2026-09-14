@@ -140,6 +140,8 @@ try {
   assert.equal(freshStatus.status, 0, freshStatus.stderr);
   assert.equal(JSON.parse(freshStatus.stdout).status, "live");
 
+  await assertInstalledFirstWorkAccess(live);
+
   const initialProjectFingerprint = projectFileFingerprint();
   const initialAuthorityState = authorityStateSnapshot();
   const client = new Client({ name: "augnes-clh1-native", version: "0.1.0" });
@@ -957,11 +959,11 @@ try {
   rmSync(testRoot, { recursive: true, force: true });
 }
 
-async function runCli(args) {
+async function runCli(args, entry = serviceEntry, childEnvironment = environment) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [serviceEntry, ...args], {
+    const child = spawn(process.execPath, [entry, ...args], {
       cwd: repositoryRoot,
-      env: environment,
+      env: childEnvironment,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -976,6 +978,76 @@ async function runCli(args) {
       stderr,
     }));
   });
+}
+
+async function assertInstalledFirstWorkAccess(live) {
+  const before = verifiedRuntimeIdentity(live);
+  const manifest = JSON.parse(readFileSync(layout.runtime_manifest_path, "utf8"));
+  const origin = manifest.effective_url;
+  const projectRoot = path.join(testRoot, "first-work-project");
+  mkdirSync(projectRoot);
+  let cookie = "";
+  const call = async (route, body) => {
+    const response = await fetch(`${origin}${route}`, {
+      method: body ? "POST" : "GET",
+      headers: { origin, "content-type": "application/json", cookie,
+        "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", "sec-fetch-dest": "empty" },
+      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000),
+    });
+    const cookies = response.headers.getSetCookie();
+    if (cookies.length) cookie = cookies.map(value => value.split(";")[0]).join("; ");
+    const result = await response.json();
+    assert(response.ok, `normal route refused: ${response.status}:${result.error_code}`);
+    return result;
+  };
+  const locked = await fetch(`${origin}/api/vnext/operator/session`);
+  assert.equal(locked.status, 401);
+  assert.equal(locked.headers.get("Augnes-Local-Review-Profile"), "companion_first_work_v1");
+  await locked.body.cancel();
+  const declared = await call("/api/vnext/projects", { action: "declare_path", path: projectRoot });
+  const fields = { selection_token: declared.picker.selection_token,
+    inspection_fingerprint: declared.picker.inspection.inspection_fingerprint,
+    display_name: "Disposable Companion first work" };
+  const prepared = await call("/api/vnext/projects", { action: "prepare_onboarding_confirmation", ...fields });
+  await call("/api/vnext/projects", { action: "confirm_declared_path", ...fields,
+    challenge_fingerprint: prepared.confirmation.challenge_fingerprint });
+  const entry = path.join(repositoryRoot, "scripts", "augnes-runtime-supervisor.mjs");
+  const accessEnvironment = { ...environment, AUGNES_DB_PATH: live.configuration.database_path };
+  const disabled = await runCli(["access"], entry, { ...accessEnvironment, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "0" });
+  assert.equal(disabled.status, 2);
+  assert.equal(JSON.parse(disabled.stdout).reason, "operator_pilot_disabled");
+  const mismatched = await runCli(["access"], entry, { ...accessEnvironment, AUGNES_DB_PATH: path.join(testRoot, "wrong.db") });
+  assert.equal(mismatched.status, 2);
+  assert.equal(JSON.parse(mismatched.stdout).reason, "local_review_companion_binding_mismatch");
+  assert.equal(existsSync(path.join(testRoot, "wrong.db")), false);
+  const authorityBefore = authorityStateSnapshot();
+  const access = await runCli(["access"], entry, accessEnvironment);
+  // Never put issuer stdout (which intentionally contains a token) in a failure.
+  assert.equal(access.status, 0, "installed Companion access command refused");
+  const issued = JSON.parse(access.stdout);
+  assert.equal(issued.state, "running");
+  assert.equal(issued.runtime_lifecycle_changed, false);
+  assert.equal(issued.runtime_generation_id, before.generation_id);
+  assert.deepEqual(verifiedRuntimeIdentity(await inspectCompanionService(options)), before);
+  assert.deepEqual(authorityStateSnapshot(), authorityBefore);
+  await call("/api/vnext/operator/session", { action: "bootstrap", bootstrap_token: issued.one_time_local_review_token });
+  const scope = await call("/api/vnext/operator/session");
+  const initial = await call("/api/vnext/operator/project-continuity");
+  assert.equal(initial.work_initialization.state, "not_defined");
+  const goal = "Save one unexecuted local work definition";
+  const saved = await call("/api/vnext/operator/project-continuity", {
+    action: "define_initial_project_work", workspace_id: scope.session.workspace_id,
+    project_id: scope.session.project_id, expected_active_project_id: scope.session.project_id,
+    expected_active_selection_revision: initial.work_initialization.active_selection_revision,
+    expected_initialization_state: "not_defined", goal,
+    success_criteria: ["The same definition reads back"], non_goals: ["No execution"],
+  });
+  for (const key of ["run_created", "execution_started", "provider_called", "project_files_written", "proposal_created", "review_decision_created", "transition_created", "semantic_state_changed"]) assert.equal(saved[key], false);
+  assert.equal((await call("/api/vnext/operator/project-continuity")).work_initialization.current_work.goal, goal);
+  await call("/api/vnext/operator/session", { action: "logout" });
+  assert.deepEqual(verifiedRuntimeIdentity(await inspectCompanionService(options)), before);
+  console.log(JSON.stringify({ case: "installed-companion-first-work-access", status: "passed",
+    same_runtime_generation: true, normal_bootstrap_save_readback: true, execution_started: false }));
 }
 
 function installFailureDiagnostic(result) {

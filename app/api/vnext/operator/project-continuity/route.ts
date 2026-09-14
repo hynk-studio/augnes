@@ -10,7 +10,9 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  assertVNextLocalReviewEnabledV01,
+  readVNextLocalReviewProfileV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -63,7 +65,7 @@ export function createVNextOperatorProjectContinuityHandlerV01(
     let db: Database.Database | null = null;
     try {
       const environment = options.environment ?? process.env;
-      assertEnabled(environment);
+      assertVNextLocalReviewEnabledV01(environment);
       const url = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: false,
       });
@@ -73,8 +75,12 @@ export function createVNextOperatorProjectContinuityHandlerV01(
           400,
         );
       }
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({
+        environment,
+        credential,
+        clock: options.clock,
+      });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
       authenticateVNextLocalOperatorSessionV01(db, {
         config,
@@ -117,7 +123,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
     let db: Database.Database | null = null;
     try {
       const environment = options.environment ?? process.env;
-      assertEnabled(environment);
+      assertVNextLocalReviewEnabledV01(environment);
       const url = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: true,
       });
@@ -127,10 +133,18 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           400,
         );
       }
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({
+        environment,
+        credential,
+        clock: options.clock,
+      });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
+      if (readVNextLocalReviewProfileV01(environment) === "companion_first_work_v1" &&
+          body.action !== "define_initial_project_work") {
+        throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
+      }
       if (body.action === "compare_selected_work_sources" || body.action === "lookup_retained_work_sources") {
         authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
         const lookup = body.action === "lookup_retained_work_sources";
@@ -272,12 +286,6 @@ export function createVNextOperatorContextUseReviewHandlerV01(
 }
 
 export const POST = createVNextOperatorContextUseReviewHandlerV01();
-
-function assertEnabled(environment: NodeJS.ProcessEnv): void {
-  if (environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED !== "1") {
-    throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
-  }
-}
 
 function errorResponse(error: unknown): NextResponse {
   const known =

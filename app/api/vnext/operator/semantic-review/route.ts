@@ -9,6 +9,8 @@ import {
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
   readVNextLocalOperatorPilotConfigV01,
+  assertVNextLocalReviewEnabledV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -86,13 +88,17 @@ export function createVNextOperatorSemanticReviewHandlersV01(
     let db: Database.Database | null = null;
     try {
       const environment = options.environment ?? process.env;
-      assertPilotEnabled(environment);
+      assertVNextLocalReviewEnabledV01(environment);
       const requestUrl = assertVNextLocalOperatorRequestBoundaryV01(request, {
         mutating: false,
       });
       assertReadQuery(requestUrl);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({
+        environment,
+        credential,
+        clock: options.clock,
+      });
       db = openDatabase(config);
       const authentication = authenticateVNextLocalOperatorSessionV01(db, {
         config,

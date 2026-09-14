@@ -888,18 +888,19 @@ export function SemanticReviewSurface({
               onCancel={cancelWorkRevision}
             />
           ) : exactReviewAvailable &&
-          privateView?.kind === "list" &&
-          delegatedState.projection ? (
+          privateView?.kind === "list" ? (
             <>
-              <DelegatedWorkPanel
-                projection={delegatedState.projection}
-                status={delegatedState.status}
-                error={delegatedState.error}
-                requestCount={delegatedState.requestCountRef.current}
-                ownsPrimaryAction={delegatedOwnsFocus}
-                onAction={delegatedState.act}
-              />
-              {firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
+              {delegatedState.projection ? (
+                <DelegatedWorkPanel
+                  projection={delegatedState.projection}
+                  status={delegatedState.status}
+                  error={delegatedState.error}
+                  requestCount={delegatedState.requestCountRef.current}
+                  ownsPrimaryAction={delegatedOwnsFocus}
+                  onAction={delegatedState.act}
+                />
+              ) : null}
+              {delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
                 ["initial_user_defined", "pre_execution_user_revision"].includes(firstWorkInitialization.current_packet.lineage_kind) ? (
                 <WorkExpectationPreparation key={`${firstWorkInitialization.project_id}:${firstWorkInitialization.active_selection_revision}:${firstWorkInitialization.current_packet.packet_id}:${firstWorkInitialization.current_packet.packet_fingerprint}`}
                   initialization={firstWorkInitialization} />
