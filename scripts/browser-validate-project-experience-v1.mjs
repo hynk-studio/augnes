@@ -1676,11 +1676,99 @@ async function main() {
     const readback = await browserFetchJson("/api/vnext/operator/project-continuity");
     assert.equal(readback.status, 200);
     assert.equal(readback.body.work_initialization.current_work.goal, goal);
+    assert.equal(readback.body.work_initialization.revision_eligibility.eligible, true);
+    const unavailableExecution = await browserFetchJson("/api/vnext/operator/host-round-trip");
+    assert.equal(unavailableExecution.status, 404, "preparation must work without the managed-execution profile");
+    const savedDefinition = readback.body.work_initialization.current_work;
+    const noteDatabase = new Database(accessDatabasePath, { readonly: true, fileMustExist: true });
+    try {
+      const packets = () => noteDatabase.prepare("SELECT record_id, payload_json FROM vnext_core_records WHERE project_id = ? AND record_kind = 'task_context_packet' ORDER BY record_id").all(projectAlphaId);
+      const effects = () => Object.fromEntries(["autonomy_runs", "vnext_semantic_state_entries", "vnext_semantic_target_heads"].map(table =>
+        [table, noteDatabase.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count]));
+      const effectsBefore = effects();
+      const originalPackets = packets();
+      async function openNotes() {
+        await waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, "Companion preparation editor entry");
+        await clickSelector('[data-work-revision-action="open"]');
+        await waitForCondition(`document.querySelector('[data-work-revision-composer]') !== null`, "Companion note editor");
+        await clickSelector('[data-selected-work-sources] > summary');
+      }
+      async function addNote(source, text, provenance = "imported_unverified") {
+        await setFormControlValue('#selected-note-source', source);
+        await setFormControlValue('#selected-note-text', text);
+        await setFormControlValue('#selected-note-provenance', provenance);
+        await waitForCondition(`document.querySelector('[data-selected-source-action="add"]:not(:disabled)') !== null`, "selected note ready");
+        await clickSelector('[data-selected-source-action="add"]');
+        await waitForCondition(`document.querySelector('[data-work-revision-action="save"]')?.disabled === true`, "comparison required before note save");
+      }
+      async function compareAndSave(noteCount) {
+        const beforeCompare = noteDatabase.serialize();
+        await clickSelector('[data-selected-source-action="compare"]');
+        await waitForCondition(`document.querySelector('[data-selected-work-sources] > [role="status"]')?.textContent.includes('${noteCount} selected') === true`, "Companion selected-note comparison");
+        assert(beforeCompare.equals(noteDatabase.serialize()), "comparison saves nothing");
+        await waitForCondition(`document.querySelector('[data-work-revision-action="save"]:not(:disabled)') !== null`, "note-only revision save enabled");
+        await clickSelector('[data-work-revision-action="save"]');
+        await waitForCondition(`document.querySelector('[data-work-revision-composer]') === null && document.querySelector('[data-current-work-definition-phase="pre_execution"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "note-only revision saved without execution");
+      }
+      async function reopenNotes() {
+        await navigate(appOrigin);
+        await waitForCondition(`document.querySelector('[data-blank-state="v0.1"]') !== null`, "leave work for Continuities");
+        await navigate(`${appOrigin}/workbench/semantic-review`);
+        await openNotes();
+      }
+      const firstNote = "이미지에 타월 세 장이 보인다. 주문 단위는 알 수 없어 3개 세트라고 확정할 수 없다.";
+      const suppliedSource = "가상 자료 PACK-r5: 주문 단위는 타월 한 장이다.";
+      const correction = "이미지의 타월 세 장 관측은 유지한다. PACK-r5에 따라 주문 단위는 한 장으로 정정한다. 실제 상품 페이지의 수정 여부는 확인하지 않았다.";
+      await openNotes();
+      await addNote("IMAGE-r1", firstNote);
+      await compareAndSave(1);
+      const firstNotePackets = packets();
+      assert.equal(firstNotePackets.length, originalPackets.length + 1);
+      await reopenNotes();
+      assert.equal(await evaluateBoolean(`document.querySelector('[data-selected-work-sources]')?.textContent.includes(${JSON.stringify(firstNote)}) === true`), true);
+      await clickSelector('[data-selected-source-action="exclude"]');
+      await addNote("PACK-r5", suppliedSource);
+      await addNote("검토 정정-r2", correction, "user_declaration");
+      await compareAndSave(2);
+      await reopenNotes();
+      assert.equal(await evaluateBoolean(`(() => {
+        const text = document.querySelector('[data-selected-work-sources]')?.textContent ?? '';
+        return text.includes(${JSON.stringify(suppliedSource)}) && text.includes(${JSON.stringify(correction)}) && !text.includes(${JSON.stringify(firstNote)});
+      })()`), true);
+      const correctedReadback = await browserFetchJson("/api/vnext/operator/project-continuity");
+      assert.deepEqual(correctedReadback.body.work_initialization.current_work, savedDefinition);
+      const selected = correctedReadback.body.work_initialization.selected_source_context;
+      assert.deepEqual(selected.map(entry => entry.bounded_summary).sort(), [suppliedSource, correction].sort());
+      assert(selected.every(entry => entry.currentness.status === "unknown" && entry.currentness.as_of === null && (entry.external_ref.observed_at ?? null) === null));
+      const finalPackets = packets();
+      assert.equal(finalPackets.length, originalPackets.length + 2);
+      assert.deepEqual(finalPackets.filter(row => firstNotePackets.some(prior => prior.record_id === row.record_id)), firstNotePackets);
+      await clickSelector('[data-retained-work-sources] > summary');
+      await setFormControlValue('#retained-source-query', 'IMAGE-r1');
+      await waitForCondition(`document.querySelector('[data-retained-source-action="search"]:not(:disabled)') !== null`, "retained-note query ready");
+      const beforeLookup = noteDatabase.serialize();
+      await clickSelector('[data-retained-source-action="search"]');
+      await waitForCondition(`document.querySelector('[data-retained-source-hit]')?.textContent.includes(${JSON.stringify(firstNote)}) === true`, "prior immutable note remains readable");
+      assert.equal(await evaluateBoolean(`document.querySelector('[data-retained-source-hit]')?.textContent.includes('Historical — not selected in current work') === true`), true);
+      assert(beforeLookup.equals(noteDatabase.serialize()), "retained-note lookup saves nothing");
+      // Exercise the exposed reselect/compare control, then cancel without a write.
+      await clickSelector('[data-retained-source-action="select"]');
+      await waitForCondition(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 3 && document.querySelector('[data-work-revision-action="save"]')?.disabled === true`, "retained selection requires comparison");
+      await clickSelector('[data-selected-source-action="compare"]');
+      await waitForCondition(`document.querySelector('[data-selected-work-sources] > [role="status"]')?.textContent.includes('3 selected') === true`, "retained-note selection comparison");
+      await clickSelector('[data-work-revision-action="cancel"]');
+      await waitForCondition(`document.querySelector('[data-work-revision-composer]') === null`, "cancel retained-note reselection");
+      assert(beforeLookup.equals(noteDatabase.serialize()), "cancelled reselection saves nothing");
+      assert.deepEqual(effects(), effectsBefore);
+    } finally { noteDatabase.close(); }
     const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
     assert.equal(healthAfter.runtime_generation_id, healthBefore.runtime_generation_id);
     assert.equal(runtimeStartCount, startsBeforeAccess);
     assert.deepEqual(semanticAuthorityCounts(accessDatabasePath), semanticAuthorityBaseline);
     console.log(JSON.stringify({ companion_first_work_browser: "passed", normal_form_save_refresh_readback: true,
+      selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,
+      previous_source_bytes_preserved: true, retained_lookup_select_compare_cancel: true,
+      managed_execution_unavailable: true, note_operation_restart_count: 0,
       access_restart_count: 0, installed_service_observation: false }));
     companionFirstWorkProfile = false;
     await restartRuntime(fixture.writable_database_path, manifest, projectAlphaId);

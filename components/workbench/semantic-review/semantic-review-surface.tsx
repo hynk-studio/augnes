@@ -527,8 +527,6 @@ export function SemanticReviewSurface({
       session:
         sessionState.status === "authenticated" ? sessionState.session : null,
       initialization,
-      delegated_stage: delegatedState.projection?.stage ?? null,
-      start_eligible: delegatedState.projection?.start_eligible ?? false,
     });
     const submittedBinding = revisionEditorBinding;
     if (
@@ -782,8 +780,6 @@ export function SemanticReviewSurface({
         session:
           sessionState.status === "authenticated" ? sessionState.session : null,
         initialization: firstWorkInitialization,
-        delegated_stage: delegatedState.projection?.stage ?? null,
-        start_eligible: delegatedState.projection?.start_eligible ?? false,
       })
     : null;
   const currentRevisionEditorBindingKey = currentRevisionEditorBinding
@@ -807,9 +803,7 @@ export function SemanticReviewSurface({
         firstWorkInitialization.current_packet.packet_fingerprint &&
       (firstWorkInitialization.revision_eligibility.eligible ||
         firstWorkInitialization.revision_eligibility.status ===
-          "revision_limit_reached") &&
-      delegatedState.projection?.stage === "not_started" &&
-      delegatedState.projection.start_eligible,
+          "revision_limit_reached"),
   );
   const delegatedOwnsFocus =
     !proposalId &&
@@ -1046,9 +1040,9 @@ export function SemanticReviewSurface({
 function workRevisionEditorBindingV01(input: {
   session: OperatorSessionViewV01 | null;
   initialization: ProjectWorkInitializationV01 | null;
-  delegated_stage: string | null;
-  start_eligible: boolean;
 }): WorkRevisionEditorBindingV01 | null {
+  // Revision eligibility already checks authoritative lineage and run history;
+  // it remains available independently of the managed-execution projection.
   const { session, initialization } = input;
   const packet = initialization?.current_packet;
   const eligibility = initialization?.revision_eligibility;
@@ -1069,9 +1063,7 @@ function workRevisionEditorBindingV01(input: {
       initialization.active_selection_revision ||
     eligibility.current_packet_id !== packet.packet_id ||
     eligibility.current_packet_fingerprint !== packet.packet_fingerprint ||
-    eligibility.current_lineage_kind !== packet.lineage_kind ||
-    input.delegated_stage !== "not_started" ||
-    !input.start_eligible
+    eligibility.current_lineage_kind !== packet.lineage_kind
   ) {
     return null;
   }

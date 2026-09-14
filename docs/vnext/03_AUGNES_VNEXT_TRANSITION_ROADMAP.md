@@ -30,6 +30,21 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Current P2.1 pre-execution selected-note preparation
+
+Under [P2 #1212](https://github.com/hynk-studio/augnes/issues/1212), parent
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209), branch
+`codex/p2-1-pre-execution-selected-notes` continues the merged
+[PR #1254](https://github.com/hynk-studio/augnes/pull/1254) access path.
+The existing Companion profile admits selected-source comparison, bounded
+read-only retained-note lookup, and append-only pre-execution revision.
+The editor uses authoritative revision eligibility independently of managed
+execution readiness. Note-only revisions preserve the work definition and
+earlier source bytes; Start/Resume and semantic mutations retain their gates.
+This bounded implementation is Current pending review. Disposable Browser
+verification is separate from the later installed-project observation; no live
+synthetic project exercise or next phase is authorized here.
+
 ## Completed P2.2 work-read surface slice
 
 Under [P2 #1212](https://github.com/hynk-studio/augnes/issues/1212), the bounded
