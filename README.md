@@ -112,6 +112,31 @@ runtime retains the historical stop, issue, and project-scoped restart path.
 An installed service with unavailable access support is refused without a
 lifecycle change; the access command does not repair or reconfigure it.
 
+If access fails, read the additive `diagnostic.stage`, `diagnostic.category`,
+and `diagnostic.next_action` fields. Existing result/exit semantics and known
+public refusal reasons are preserved. The stages distinguish installed-service,
+runtime-binding and access-profile verification from issuer launch, process
+completion and response validation. Categories report only the current attempt:
+
+| Diagnostic category | Evidence and safe next step |
+| --- | --- |
+| `local_review_access_source_runtime_required`, `operator_pilot_disabled` | Access configuration refused before service inspection. Review the existing entry point or explicit disabled setting without enabling or replacing it automatically. |
+| `local_review_companion_not_live`, `local_review_companion_binding_mismatch`, `local_review_companion_profile_unavailable` | The corresponding installed-access check refused. Read `npm run augnes:service:status` and review the existing binding/profile; no automatic repair. |
+| `installed_verification_unknown` | Verification raised an unrecognized error. Share the public service status and diagnostic for review. |
+| `issuer_launch_failed`, `issuer_signal_terminated`, `issuer_process_error_unknown`, `issuer_process_outcome_unknown` | The process result identifies a launch failure, termination, process error, or no normal exit. It does not establish a dependency, permission, ABI, or database cause. |
+| `issuer_refused` | A nonzero exit supplied a recognized structured refusal. Missing active project means use the normal project selector; unavailable project/root means inspect that existing registration/folder. Other allowlisted prerequisites carry their own review action. |
+| `issuer_nonzero_exit_unknown`, `issuer_exception_unknown` | A nonzero exit lacked a recognized explanation, or the issuer explicitly reported an unexpected exception. The cause remains unknown. |
+| `issuer_output_empty`, `issuer_output_malformed`, `issuer_output_invalid` | The issuer exited zero but its success response was empty, invalid JSON, or missing/invalid required fields. |
+
+For unidentified issuer failures, read `node --version` and `npm --version` in
+the same terminal and provide those versions and the sanitized diagnostic for
+review. Do not repeat issuance merely to diagnose it. Failure diagnostics omit
+raw output, arbitrary error text, tokens, cookies, private paths and database
+contents. `credential_issuance: "unknown"` means no valid token was returned;
+a credential may already have been written. Reporting adds no issuance,
+revocation, rollback, retry, or service lifecycle action. A successful explicit
+access command still returns its one-time token through the normal channel.
+
 If an existing project's saved folder later becomes unavailable, **Locate
 folder** opens the same verified folder-selection experience for that exact
 project. **Choose a folder** and **Enter the folder path instead** converge on
