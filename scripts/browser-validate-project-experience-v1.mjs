@@ -30,6 +30,7 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
+import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import {
   MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
   PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
@@ -168,6 +169,7 @@ const productShellRouteClassifications = [];
 const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
+const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -393,10 +395,13 @@ let functionalExecutionSucceeded = false;
 try {
   await main();
   functionalExecutionSucceeded = true;
+  emitRequestDiagnostics("scenario_complete");
 } catch (error) {
   result.failure = safeError(error);
   process.exitCode = 1;
+  emitRequestDiagnostics("scenario_failure");
 } finally {
+  requestDiagnostics.cleanup();
   process.stdout.write(
     `[browser-e2e] cleanup_start scope=${VALIDATION_SCOPE} phase=${currentPhase} owned_processes=${ownedBrowserProcesses.size}\n`,
   );
@@ -486,7 +491,18 @@ try {
   process.stdout.write(
     `[browser-e2e] cleanup_result scope=${VALIDATION_SCOPE} owned_processes=${ownedBrowserProcesses.size} listener_residue=${result.listener_residue_count}\n`,
   );
+  emitRequestDiagnostics("after_cleanup");
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+}
+
+function emitRequestDiagnostics(checkpoint) {
+  try {
+    const snapshot = requestDiagnostics.snapshot(checkpoint) ?? "report_unavailable";
+    process.stdout.write(`${JSON.stringify({ project_experience_request_diagnostic: snapshot })}\n`);
+  } catch {
+    // Reporting cannot replace the original verdict or throw over its failure.
+    try { process.stderr.write('{"project_experience_request_diagnostic":"report_unavailable"}\n'); } catch { /* Existing lifecycle still owns settlement. */ }
+  }
 }
 
 async function main() {
@@ -1713,6 +1729,7 @@ async function main() {
         await waitForCondition(`document.querySelector('[data-work-revision-composer]') === null && document.querySelector('[data-current-work-definition-phase="pre_execution"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "note-only revision saved without execution");
       }
       async function readCurrentNotes(expectedText) {
+        requestDiagnostics.step("read_current_notes");
         await waitForCondition(`document.querySelector('[data-current-work-sources="read-only"]') !== null`, "current selected notes without revision mode");
         const beforeReading = noteDatabase.serialize();
         const requestOffset = requests.length;
@@ -1755,6 +1772,7 @@ async function main() {
         assert(beforeReading.equals(noteDatabase.serialize()), "reading and disclosure controls save nothing");
       }
       async function rereadCurrentNotes(expectedText) {
+        requestDiagnostics.step("reread_current_notes");
         const beforeNavigation = noteDatabase.serialize();
         await navigate(appOrigin);
         await waitForCondition(`document.querySelector('[data-blank-state="v0.1"]') !== null`, "leave work for Continuities");
@@ -1813,6 +1831,7 @@ async function main() {
       // response. No production state, session store or writer is changed.
       const beforeReadBoundaries = noteDatabase.serialize();
       for (const mode of ['revision_unavailable', 'source_unavailable', 'projection_missing', 'project_changed', 'session_refused']) {
+        requestDiagnostics.step("boundary_install", mode);
         const injected = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
           const read = window.fetch.bind(window);
           window.fetch = async (...args) => {
@@ -1837,6 +1856,7 @@ async function main() {
             return Response.json(body);
           };
         })()` });
+        requestDiagnostics.step("boundary_active", mode);
         try {
           await navigate(`${appOrigin}/workbench/semantic-review`);
           if (mode === 'revision_unavailable') {
@@ -1854,7 +1874,9 @@ async function main() {
               `${mode} hides note content without manufacturing an empty current selection`);
           }
         } finally {
+          requestDiagnostics.step("boundary_remove", mode);
           await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: injected.identifier });
+          requestDiagnostics.step("boundary_removed", null);
         }
       }
       await navigate(`${appOrigin}/workbench/semantic-review`);
@@ -3005,6 +3027,7 @@ async function runPhase(phase, action, options = {}) {
   }
   const phaseStartedAt = Date.now();
   currentPhase = phase;
+  requestDiagnostics.phase(phase);
   process.stdout.write(
     `[browser-e2e] phase_start scope=${VALIDATION_SCOPE} phase=${phase} expected_next=phase_completion\n`,
   );
@@ -3194,7 +3217,9 @@ async function openCdpPage() {
 }
 
 function attachCdpObservers() {
+  const diagnosticConnection = requestDiagnostics.connection();
   cdp.on((payload) => {
+    requestDiagnostics.observe(diagnosticConnection, payload);
     const params = payload.params ?? {};
     if (payload.method === "Network.requestWillBeSent") {
       lastObserverActivityAt = Date.now();
@@ -3568,6 +3593,7 @@ async function waitForFolderPickerSequenceIndex(expectedIndex) {
 }
 
 async function navigate(url) {
+  requestDiagnostics.navigation(url);
   navigationCount += 1;
   const navigationStartedAt = Date.now();
   await cdp.send("Page.navigate", { url });
