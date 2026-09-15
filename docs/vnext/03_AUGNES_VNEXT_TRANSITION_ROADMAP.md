@@ -30,20 +30,77 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
-## Current P2.1 pre-execution selected-note preparation
+## Completed P2.1 bounded access and selected-note workflow
 
 Under [P2 #1212](https://github.com/hynk-studio/augnes/issues/1212), parent
-[plan #1209](https://github.com/hynk-studio/augnes/issues/1209), branch
-`codex/p2-1-pre-execution-selected-notes` continues the merged
-[PR #1254](https://github.com/hynk-studio/augnes/pull/1254) access path.
-The existing Companion profile admits selected-source comparison, bounded
-read-only retained-note lookup, and append-only pre-execution revision.
-The editor uses authoritative revision eligibility independently of managed
-execution readiness. Note-only revisions preserve the work definition and
-earlier source bytes; Start/Resume and semantic mutations retain their gates.
-This bounded implementation is Current pending review. Disposable Browser
-verification is separate from the later installed-project observation; no live
-synthetic project exercise or next phase is authorized here.
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209), P2.1 is
+**Completed within its implemented bounded scope** through these merged outcomes:
+
+- [PR #1254](https://github.com/hynk-studio/augnes/pull/1254): the installed
+  Companion can obtain project-scoped first-work access without a runtime
+  restart. Explicit access, session and security boundaries remain in place.
+- [PR #1255](https://github.com/hynk-studio/augnes/pull/1255): selected-source
+  comparison, bounded read-only retained-note lookup and append-only
+  pre-execution selected-note revision are available without managed-execution
+  readiness. Revision eligibility remains separate from Start/Resume and
+  semantic gates. Note-only revisions preserve the work definition and earlier
+  source bytes.
+- [PR #1257](https://github.com/hynk-studio/augnes/pull/1257): current selected
+  source excerpts can be reread directly from the current-work view without
+  opening the revision editor. Stored text, provenance, review labels and source
+  time remain read-only. Passive Browser request diagnostics remain
+  diagnostic-only.
+- [PR #1256](https://github.com/hynk-studio/augnes/pull/1256): installed-Companion
+  access failures expose bounded sanitized stage, category and next-action
+  diagnostics. Known refusals remain allowlisted; unknown issuer/process
+  failures remain unknown without speculative causes. Diagnostics do not retry
+  issuance, repair/restart the service or grant authority. No returned token
+  does not prove that no credential was minted.
+
+The combined path is current work read → selected-source preparation/comparison
+→ note-only pre-execution revision → direct rereading of the saved current
+selection. The implemented path materially reduces Companion access/restart
+and failure-diagnosis friction. Broader P2 work and operator friction remain
+open.
+
+The historical live installed-access failure remains unexplained; #1256 does
+not establish live access recovery. Passing disposable/Canonical Browser
+evidence is not a retained real-project walkthrough. No provider/model
+usefulness or reduced-human-burden result is established. One-time local review
+credential/session requirements remain authority boundaries. Selected-note
+visibility and preparation grant no Start/Resume, semantic acceptance,
+ReviewDecision, Transition or external-effect authority.
+
+Broader cross-work/post-execution recall is outside this P2.1 completion.
+WebMCP, Sites, public discovery, connected-client delivery and downstream
+utility also remain outside the completed slice. Historical failures retain
+their original meaning. The parent and coordination issues remain open:
+#1212 and #1209.
+
+## Next P2.3 — Thin WebMCP adapter feasibility / first bounded interface slice
+
+This is a candidate for separate explicit authorization. This documentation
+closeout does not authorize P2.3 implementation. Preserve this order:
+
+- **A.** Re-read current App/MCP/Web surface owners and actual supported WebMCP
+  capability.
+- **B.** Identify one concrete supported client/browser, account context and
+  model/host context.
+- **C.** Before building an adapter, distinguish registration/discovery, tool
+  exposure, correct selection or correct non-selection, invocation, result
+  delivery and downstream use.
+- **D.** Start from the smallest current read owner that can truthfully expose
+  current work identity/scope, selected/source-bound material, unverified or
+  unresolved status, and currentness limitations.
+- **E.** Only after actual support is established, choose the smallest
+  implementation slice.
+
+UI and agent interfaces must reuse the same scoped/currentness/revision owners
+rather than create a second workflow or approval system. This Next candidate
+does not pre-authorize remote local-PC tunneling, scheduler behavior, persistent
+agent runtime, a new authority engine, semantic Transition, external-effect
+approval, Sites deployment, public publication or large adapter/harness
+construction.
 
 ## Completed P2.2 work-read surface slice
 
