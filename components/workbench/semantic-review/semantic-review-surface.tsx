@@ -949,7 +949,9 @@ export function SemanticReviewSurface({
               ) : null}
               {firstWorkInitialization?.current_work ? (
                 <CurrentWorkDefinitionPanel
+                  key={`${authenticatedSession?.session_id}:${firstWorkInitialization.project_id}:${firstWorkInitialization.current_packet?.packet_fingerprint}`}
                   definition={firstWorkInitialization.current_work}
+                  selectedSources={firstWorkInitialization.selected_source_context}
                   isUnstarted={workDefinitionIsUnstarted}
                   revisionAvailable={revisionAvailable}
                   revisionButtonRef={revisionButtonRef}
@@ -1148,12 +1150,14 @@ function workRevisionEditorBindingKeyV01(
 
 function CurrentWorkDefinitionPanel({
   definition,
+  selectedSources,
   isUnstarted,
   revisionAvailable,
   revisionButtonRef,
   onRevise,
 }: {
   definition: ProjectWorkDefinitionV01;
+  selectedSources: ProjectWorkInitializationV01["selected_source_context"];
   isUnstarted: boolean;
   revisionAvailable: boolean;
   revisionButtonRef: RefObject<HTMLButtonElement | null>;
@@ -1198,6 +1202,29 @@ function CurrentWorkDefinitionPanel({
           <p>No out-of-scope entries were defined.</p>
         )}
       </div>
+      <details className={styles.disclosure} data-current-work-sources="read-only">
+        <summary>Current selected source notes ({selectedSources?.length ?? 0})</summary>
+        <p className={styles.muted}>
+          Saved selected excerpts for this work. Selection does not verify or
+          accept their claims or authorize execution. Original source availability
+          is not verified; earlier revisions are outside this view.
+        </p>
+        {selectedSources?.length ? selectedSources.map((entry) => (
+          <article key={entry.entry_id} className={styles.materialCard} data-current-work-source>
+            <strong>{entry.why_included}</strong>
+            <p style={{ whiteSpace: "pre-wrap" }} data-current-work-source-identity>
+              {entry.compatibility_source_ref?.external_id}
+            </p>
+            <p className={styles.muted} data-current-work-source-provenance>
+              {entry.trust_class.replaceAll("_", " ")}
+            </p>
+            {entry.external_ref?.observed_at ? (
+              <p className={styles.muted}>Source time: <time dateTime={entry.external_ref.observed_at}>{entry.external_ref.observed_at}</time></p>
+            ) : null}
+            <p style={{ whiteSpace: "pre-wrap" }} data-current-work-source-text>{entry.bounded_summary}</p>
+          </article>
+        )) : <p className={styles.muted}>No source notes are selected in this current work.</p>}
+      </details>
       {revisionAvailable ? (
         <div className={styles.buttonRow}>
           <button

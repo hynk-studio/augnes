@@ -30,6 +30,7 @@ import {
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
+import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import {
   MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
   PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
@@ -168,6 +169,7 @@ const productShellRouteClassifications = [];
 const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
+const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -393,10 +395,13 @@ let functionalExecutionSucceeded = false;
 try {
   await main();
   functionalExecutionSucceeded = true;
+  emitRequestDiagnostics("scenario_complete");
 } catch (error) {
   result.failure = safeError(error);
   process.exitCode = 1;
+  emitRequestDiagnostics("scenario_failure");
 } finally {
+  requestDiagnostics.cleanup();
   process.stdout.write(
     `[browser-e2e] cleanup_start scope=${VALIDATION_SCOPE} phase=${currentPhase} owned_processes=${ownedBrowserProcesses.size}\n`,
   );
@@ -486,7 +491,18 @@ try {
   process.stdout.write(
     `[browser-e2e] cleanup_result scope=${VALIDATION_SCOPE} owned_processes=${ownedBrowserProcesses.size} listener_residue=${result.listener_residue_count}\n`,
   );
+  emitRequestDiagnostics("after_cleanup");
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+}
+
+function emitRequestDiagnostics(checkpoint) {
+  try {
+    const snapshot = requestDiagnostics.snapshot(checkpoint) ?? "report_unavailable";
+    process.stdout.write(`${JSON.stringify({ project_experience_request_diagnostic: snapshot })}\n`);
+  } catch {
+    // Reporting cannot replace the original verdict or throw over its failure.
+    try { process.stderr.write('{"project_experience_request_diagnostic":"report_unavailable"}\n'); } catch { /* Existing lifecycle still owns settlement. */ }
+  }
 }
 
 async function main() {
@@ -1693,10 +1709,12 @@ async function main() {
         await waitForCondition(`document.querySelector('[data-work-revision-composer]') !== null`, "Companion note editor");
         await clickSelector('[data-selected-work-sources] > summary');
       }
-      async function addNote(source, text, provenance = "imported_unverified") {
+      async function addNote(source, text, provenance = "imported_unverified", label = "Unclassified / needs review", sourceTime = "") {
         await setFormControlValue('#selected-note-source', source);
         await setFormControlValue('#selected-note-text', text);
         await setFormControlValue('#selected-note-provenance', provenance);
+        await setFormControlValue('#selected-note-kind', label);
+        if (sourceTime) await setFormControlValue('#selected-note-time', sourceTime);
         await waitForCondition(`document.querySelector('[data-selected-source-action="add"]:not(:disabled)') !== null`, "selected note ready");
         await clickSelector('[data-selected-source-action="add"]');
         await waitForCondition(`document.querySelector('[data-work-revision-action="save"]')?.disabled === true`, "comparison required before note save");
@@ -1710,27 +1728,76 @@ async function main() {
         await clickSelector('[data-work-revision-action="save"]');
         await waitForCondition(`document.querySelector('[data-work-revision-composer]') === null && document.querySelector('[data-current-work-definition-phase="pre_execution"]')?.textContent.includes(${JSON.stringify(goal)}) === true`, "note-only revision saved without execution");
       }
-      async function reopenNotes() {
+      async function readCurrentNotes(expectedText) {
+        requestDiagnostics.step("read_current_notes");
+        await waitForCondition(`document.querySelector('[data-current-work-sources="read-only"]') !== null`, "current selected notes without revision mode");
+        const beforeReading = noteDatabase.serialize();
+        const requestOffset = requests.length;
+        assert.equal(await evaluateBoolean(`document.querySelector('[data-work-revision-composer], [data-selected-work-sources], [data-retained-work-sources]') === null`), true);
+        await clickSelector('[data-current-work-sources] > summary');
+        const rendered = await evaluateJson(`(() => {
+          const section = document.querySelector('[data-current-work-sources]');
+          return {
+            open: section.open,
+            summary: section.querySelector('summary').textContent,
+            empty: section.textContent.includes('No source notes are selected in this current work.'),
+            controls: section.querySelectorAll('button, input, textarea, select, form').length,
+            executableMarkup: section.querySelectorAll('script, img').length,
+            notes: [...section.querySelectorAll('[data-current-work-source]')].map(note => ({
+              text: note.querySelector('[data-current-work-source-text]').textContent,
+              source: note.querySelector('[data-current-work-source-identity]').textContent,
+              provenance: note.querySelector('[data-current-work-source-provenance]').textContent,
+              label: note.querySelector('strong').textContent,
+              sourceTime: note.querySelector('time')?.textContent ?? null,
+              whiteSpace: getComputedStyle(note.querySelector('[data-current-work-source-text]')).whiteSpace,
+            })),
+          };
+        })()`);
+        assert.equal(rendered.open, true);
+        assert.equal(rendered.summary, `Current selected source notes (${expectedText.length})`);
+        assert.equal(rendered.empty, expectedText.length === 0);
+        assert.equal(rendered.controls, 0);
+        assert.equal(rendered.executableMarkup, 0, "markup-looking excerpts render only as text");
+        assert.deepEqual(rendered.notes.map(note => note.text).sort(), [...expectedText].sort());
+        const saved = await browserFetchJson('/api/vnext/operator/project-continuity');
+        const entries = saved.body.work_initialization.selected_source_context ?? [];
+        assert.deepEqual(rendered.notes, entries.map(entry => ({
+          text: entry.bounded_summary, source: entry.compatibility_source_ref.external_id,
+          provenance: entry.trust_class.replaceAll('_', ' '), label: entry.why_included,
+          sourceTime: entry.external_ref.observed_at ?? null, whiteSpace: 'pre-wrap',
+        })), "exact current saved text and metadata, without history or editor state");
+        await clickSelector('[data-current-work-sources] > summary');
+        assert.equal(await evaluateBoolean(`document.querySelector('[data-current-work-sources]').open === false && document.querySelector('[data-work-revision-composer], [data-selected-work-sources]') === null`), true);
+        assert.deepEqual(requests.slice(requestOffset).filter(request => request.method !== 'GET'), [], "disclosure and rereading issue no mutation-shaped requests");
+        assert(beforeReading.equals(noteDatabase.serialize()), "reading and disclosure controls save nothing");
+      }
+      async function rereadCurrentNotes(expectedText) {
+        requestDiagnostics.step("reread_current_notes");
+        const beforeNavigation = noteDatabase.serialize();
         await navigate(appOrigin);
         await waitForCondition(`document.querySelector('[data-blank-state="v0.1"]') !== null`, "leave work for Continuities");
         await navigate(`${appOrigin}/workbench/semantic-review`);
-        await openNotes();
+        await readCurrentNotes(expectedText);
+        assert(beforeNavigation.equals(noteDatabase.serialize()), "navigate away and return reads the saved selection without writes");
       }
       const firstNote = "이미지에 타월 세 장이 보인다. 주문 단위는 알 수 없어 3개 세트라고 확정할 수 없다.";
-      const suppliedSource = "가상 자료 PACK-r5: 주문 단위는 타월 한 장이다.";
+      const suppliedSource = "가상 자료 PACK-r5 / 합성 D2: 주문 단위는 타월 한 장이다.\n\n  조건과 한계: 실제 수정이나 승인을 입증하지 않는다.\n<script>throw new Error('SOURCE_TEXT_ONLY')</script>\n<img src=x onerror=alert('SOURCE_TEXT_ONLY')>\n" + "보존된 문장. ".repeat(180) + "\n끝 조건도 보존한다.";
       const correction = "이미지의 타월 세 장 관측은 유지한다. PACK-r5에 따라 주문 단위는 한 장으로 정정한다. 실제 상품 페이지의 수정 여부는 확인하지 않았다.";
+      await readCurrentNotes([]);
       await openNotes();
-      await addNote("IMAGE-r1", firstNote);
+      await addNote("IMAGE-r1", firstNote, "imported_unverified", "Open question", "2026-08-01T08:45");
       await compareAndSave(1);
       const firstNotePackets = packets();
       assert.equal(firstNotePackets.length, originalPackets.length + 1);
-      await reopenNotes();
+      await rereadCurrentNotes([firstNote]);
+      await openNotes();
       assert.equal(await evaluateBoolean(`document.querySelector('[data-selected-work-sources]')?.textContent.includes(${JSON.stringify(firstNote)}) === true`), true);
       await clickSelector('[data-selected-source-action="exclude"]');
-      await addNote("PACK-r5", suppliedSource);
-      await addNote("검토 정정-r2", correction, "user_declaration");
+      await addNote("PACK-r5 / 합성 D2 / 선택 발췌", suppliedSource);
+      await addNote("검토 정정-r2", correction, "derived_interpretation", "Changed assumption / user correction");
       await compareAndSave(2);
-      await reopenNotes();
+      await rereadCurrentNotes([suppliedSource, correction]);
+      await openNotes();
       assert.equal(await evaluateBoolean(`(() => {
         const text = document.querySelector('[data-selected-work-sources]')?.textContent ?? '';
         return text.includes(${JSON.stringify(suppliedSource)}) && text.includes(${JSON.stringify(correction)}) && !text.includes(${JSON.stringify(firstNote)});
@@ -1759,6 +1826,62 @@ async function main() {
       await clickSelector('[data-work-revision-action="cancel"]');
       await waitForCondition(`document.querySelector('[data-work-revision-composer]') === null`, "cancel retained-note reselection");
       assert(beforeLookup.equals(noteDatabase.serialize()), "cancelled reselection saves nothing");
+      await readCurrentNotes([suppliedSource, correction]);
+      // Exercise consumer boundaries on the isolated Browser's existing read
+      // response. No production state, session store or writer is changed.
+      const beforeReadBoundaries = noteDatabase.serialize();
+      for (const mode of ['revision_unavailable', 'source_unavailable', 'projection_missing', 'project_changed', 'session_refused']) {
+        requestDiagnostics.step("boundary_install", mode);
+        const injected = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+          const read = window.fetch.bind(window);
+          window.fetch = async (...args) => {
+            const response = await read(...args);
+            if (new URL(String(args[0]), location.origin).pathname !== '/api/vnext/operator/semantic-review' || !response.ok) return response;
+            const body = await response.clone().json();
+            if (body.status !== 'proposal_list') return response;
+            const mode = ${JSON.stringify(mode)};
+            if (mode === 'session_refused') return Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });
+            const initialization = body.work_initialization;
+            if (mode === 'revision_unavailable') initialization.revision_eligibility = {
+              ...initialization.revision_eligibility, eligible: false,
+              status: 'blocked_work_history', reason: 'durable_work_history_present',
+            };
+            if (mode === 'source_unavailable') {
+              initialization.state = 'unavailable'; initialization.reason = 'source_unavailable';
+              initialization.current_work = null; initialization.current_packet = null;
+              delete initialization.selected_source_context;
+            }
+            if (mode === 'projection_missing') delete body.work_initialization;
+            if (mode === 'project_changed') initialization.project_id = 'project:other-controlled-scope';
+            return Response.json(body);
+          };
+        })()` });
+        requestDiagnostics.step("boundary_active", mode);
+        try {
+          await navigate(`${appOrigin}/workbench/semantic-review`);
+          if (mode === 'revision_unavailable') {
+            await readCurrentNotes([suppliedSource, correction]);
+            assert.equal(await evaluateBoolean(`document.querySelector('[data-work-revision-action="open"]') === null`), true,
+              'saved note reading does not require permission to revise');
+          } else {
+            await waitForCondition(mode === 'session_refused'
+              ? `document.querySelector('[data-vnext-operator-session="locked"]') !== null`
+              : mode === 'project_changed'
+                ? `document.querySelector('[role="alert"]')?.textContent.includes('semantic_review_project_scope_changed') === true`
+                : `document.querySelector('[data-vnext-semantic-review-state="authenticated_loaded"]') !== null`,
+            `selected-note read boundary: ${mode}`);
+            assert.equal(await evaluateBoolean(`document.querySelector('[data-current-work-sources], [data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(suppliedSource)}) && !document.body.textContent.includes(${JSON.stringify(correction)}) && !document.body.textContent.includes('No source notes are selected in this current work.')`), true,
+              `${mode} hides note content without manufacturing an empty current selection`);
+          }
+        } finally {
+          requestDiagnostics.step("boundary_remove", mode);
+          await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: injected.identifier });
+          requestDiagnostics.step("boundary_removed", null);
+        }
+      }
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await readCurrentNotes([suppliedSource, correction]);
+      assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'read-boundary cases do not alter stored state');
       assert.deepEqual(effects(), effectsBefore);
     } finally { noteDatabase.close(); }
     const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
@@ -1767,6 +1890,8 @@ async function main() {
     assert.deepEqual(semanticAuthorityCounts(accessDatabasePath), semanticAuthorityBaseline);
     console.log(JSON.stringify({ companion_first_work_browser: "passed", normal_form_save_refresh_readback: true,
       selected_note_save_correction_reopened_readback: true, work_definition_unchanged: true,
+      current_selected_notes_read_without_editor: true, current_note_disclosure_zero_write: true,
+      current_note_scope_and_unavailable_boundaries: true, current_note_read_without_revision_permission: true,
       previous_source_bytes_preserved: true, retained_lookup_select_compare_cancel: true,
       managed_execution_unavailable: true, note_operation_restart_count: 0,
       access_restart_count: 0, installed_service_observation: false }));
@@ -2902,6 +3027,7 @@ async function runPhase(phase, action, options = {}) {
   }
   const phaseStartedAt = Date.now();
   currentPhase = phase;
+  requestDiagnostics.phase(phase);
   process.stdout.write(
     `[browser-e2e] phase_start scope=${VALIDATION_SCOPE} phase=${phase} expected_next=phase_completion\n`,
   );
@@ -3091,7 +3217,9 @@ async function openCdpPage() {
 }
 
 function attachCdpObservers() {
+  const diagnosticConnection = requestDiagnostics.connection();
   cdp.on((payload) => {
+    requestDiagnostics.observe(diagnosticConnection, payload);
     const params = payload.params ?? {};
     if (payload.method === "Network.requestWillBeSent") {
       lastObserverActivityAt = Date.now();
@@ -3465,6 +3593,7 @@ async function waitForFolderPickerSequenceIndex(expectedIndex) {
 }
 
 async function navigate(url) {
+  requestDiagnostics.navigation(url);
   navigationCount += 1;
   const navigationStartedAt = Date.now();
   await cdp.send("Page.navigate", { url });
