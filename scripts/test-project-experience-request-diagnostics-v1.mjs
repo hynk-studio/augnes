@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createProjectExperienceRequestDiagnosticsV1 } from './project-experience-request-diagnostics-v1.mjs';
+import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 
 const route = '/api/vnext/operator/host-round-trip';
 const url = `http://localhost:3000${route}`;
@@ -227,6 +228,7 @@ function ownerObserver(diagnostic) {
   let listener;
   const state = {
     requestDiagnostics: diagnostic,
+    requestVerdicts: createProjectExperienceRequestVerdictV1(),
     cdp: { on: callback => { listener = callback; }, send: (...args) => { state.sent.push(args); return Promise.resolve({}); } },
     sent: [], requests: [], responses: [], failedRequests: [], externalRequests: [],
     pausedGuideBriefInterpretationRequests: [], consoleErrors: [], pageErrors: [],
@@ -268,6 +270,17 @@ function ownerObserver(diagnostic) {
     }
     assert.equal(state.expectedFailedRequest({ phase, path: '/api/augnes/read/guide-brief', error_text: 'net::ERR_ABORTED' }), true);
   }
+}
+
+// The new verdict-owned exception also has identical behavior with diagnostics off/on.
+for (const diagnostic of [{ connection: () => null, observe() {} }, createProjectExperienceRequestDiagnosticsV1()]) {
+  const owner = ownerObserver(diagnostic);
+  owner.state.requestVerdicts.beginUnavailableExecutionProbe();
+  owner.observe(request('completed-probe'));
+  owner.observe(response('completed-probe'));
+  owner.state.requestVerdicts.completeUnavailableExecutionProbe();
+  owner.observe(failed('completed-probe', { canceled: true }));
+  assert.equal(owner.state.expectedFailedRequest(owner.state.failedRequests[0]), true);
 }
 
 // Reporting failure cannot replace a failing result or alter its exit semantics.

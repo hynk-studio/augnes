@@ -31,6 +31,7 @@ import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-superv
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
+import { createProjectExperienceRequestVerdictV1 } from "./project-experience-request-verdict-v1.mjs";
 import {
   MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
   PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
@@ -170,6 +171,7 @@ const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
 const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
+const requestVerdicts = createProjectExperienceRequestVerdictV1();
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -1693,8 +1695,11 @@ async function main() {
     assert.equal(readback.status, 200);
     assert.equal(readback.body.work_initialization.current_work.goal, goal);
     assert.equal(readback.body.work_initialization.revision_eligibility.eligible, true);
+    requestVerdicts.beginUnavailableExecutionProbe();
     const unavailableExecution = await browserFetchJson("/api/vnext/operator/host-round-trip");
     assert.equal(unavailableExecution.status, 404, "preparation must work without the managed-execution profile");
+    // browserFetchJson has also awaited response.json(); status alone is insufficient.
+    requestVerdicts.completeUnavailableExecutionProbe();
     const savedDefinition = readback.body.work_initialization.current_work;
     const noteDatabase = new Database(accessDatabasePath, { readonly: true, fileMustExist: true });
     try {
@@ -3218,6 +3223,7 @@ async function openCdpPage() {
 
 function attachCdpObservers() {
   const diagnosticConnection = requestDiagnostics.connection();
+  const verdictConnection = requestVerdicts.connection();
   cdp.on((payload) => {
     requestDiagnostics.observe(diagnosticConnection, payload);
     const params = payload.params ?? {};
@@ -3231,6 +3237,7 @@ function attachCdpObservers() {
         external: classified.external,
         method: params.request?.method ?? null,
       };
+      requestVerdicts.observe(verdictConnection, payload, request);
       requests.push(request);
       if (classified.external) externalRequests.push(request);
     } else if (payload.method === "Fetch.requestPaused") {
@@ -3253,16 +3260,16 @@ function attachCdpObservers() {
     } else if (payload.method === "Network.responseReceived") {
       lastObserverActivityAt = Date.now();
       const classified = classifyUrl(params.response?.url);
-      responses.push({
+      const response = {
         request_id: params.requestId,
         phase: currentPhase,
         path: classified.path,
-        method:
-          requests.find((entry) => entry.request_id === params.requestId)
-            ?.method ?? null,
+        method: null,
         status: params.response?.status ?? null,
         type: params.type ?? null,
-      });
+      };
+      requestVerdicts.observe(verdictConnection, payload, response);
+      responses.push(response);
     } else if (payload.method === "Runtime.consoleAPICalled") {
       lastObserverActivityAt = Date.now();
       if (params.type === "error") {
@@ -3281,14 +3288,13 @@ function attachCdpObservers() {
       });
     } else if (payload.method === "Network.loadingFailed") {
       lastObserverActivityAt = Date.now();
-      const request = requests.find(
-        (entry) => entry.request_id === params.requestId,
-      );
-      failedRequests.push({
+      const failure = {
         phase: currentPhase,
-        path: request?.path ?? null,
+        path: null,
         error_text: params.errorText ?? "request_failed",
-      });
+      };
+      requestVerdicts.observe(verdictConnection, payload, failure);
+      failedRequests.push(failure);
     }
   });
 }
@@ -5345,6 +5351,7 @@ function expectedStatusResponseIdentity(response) {
 }
 
 function expectedFailedRequest(entry) {
+  if (requestVerdicts.expectedUnavailableExecutionAbort(entry)) return true;
   if (
     [
       "project_onboarding_and_naming",
