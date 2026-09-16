@@ -142,6 +142,11 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      label: "bounded hosted research projection adapter contract",
+      ...rootNode("scripts/test-hosted-research-projection.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "vNext provider-neutral protocol conformance",
       ...rootNode("scripts/vnext-protocol-conformance.ts"),
     },

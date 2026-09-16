@@ -77,6 +77,19 @@ utility also remain outside the completed slice. Historical failures retain
 their original meaning. The parent and coordination issues remain open:
 #1212 and #1209.
 
+## Current P2.4.1 — Bounded local hosted snapshot contract
+
+[#1259](https://github.com/hynk-studio/augnes/issues/1259) on
+`codex/p2-4-1-hosted-snapshot-contract` adds only a non-Core deterministic
+projection adapter over current-work readers and a fictional cross-system
+fixture. See the [contract and owner audit](../verification/P2_4_1_HOSTED_SNAPSHOT_PROJECTION_CONTRACT.md).
+The distinct v0.2 local-export contract does not widen the qualified Site v0.1
+synthetic-only contract. No user-facing export, retained-data transfer, Site
+mutation, live sync or authority is added. The next separately authorized step
+for this slice is Site importer compatibility and private qualification using
+only the committed synthetic fixture. P2.4 and P2 remain open; P2.3 remains a
+separate candidate below.
+
 ## Next P2.3 — Thin WebMCP adapter feasibility / first bounded interface slice
 
 This is a candidate for separate explicit authorization. This documentation
