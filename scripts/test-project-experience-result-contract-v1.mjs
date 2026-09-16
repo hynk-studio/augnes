@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import "./test-project-experience-hydration-boundary-v1.mjs";
 import "./test-project-experience-request-diagnostics-v1.mjs";
+import "./test-project-experience-request-verdict-v1.mjs";
 
 import {
   assertProjectExperienceDetailedValuesV1,
