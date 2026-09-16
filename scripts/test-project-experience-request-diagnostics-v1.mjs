@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createProjectExperienceRequestDiagnosticsV1 } from './project-experience-request-diagnostics-v1.mjs';
-import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
+import { createProjectExperienceRequestVerdictV1, UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 } from './project-experience-request-verdict-v1.mjs';
 
 const route = '/api/vnext/operator/host-round-trip';
 const url = `http://localhost:3000${route}`;
@@ -275,12 +275,20 @@ function ownerObserver(diagnostic) {
 // The new verdict-owned exception also has identical behavior with diagnostics off/on.
 for (const diagnostic of [{ connection: () => null, observe() {} }, createProjectExperienceRequestDiagnosticsV1()]) {
   const owner = ownerObserver(diagnostic);
-  owner.state.requestVerdicts.beginUnavailableExecutionProbe();
-  owner.observe(request('completed-probe'));
+  const generation = owner.state.requestVerdicts.armUnavailableExecutionProbe();
+  owner.observe(request('background-read'));
+  const marked = request('completed-probe');
+  marked.params.request.headers = UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1;
+  owner.observe(marked);
   owner.observe(response('completed-probe'));
-  owner.state.requestVerdicts.completeUnavailableExecutionProbe();
+  owner.state.requestVerdicts.completeUnavailableExecutionProbe(generation);
   owner.observe(failed('completed-probe', { canceled: true }));
   assert.equal(owner.state.expectedFailedRequest(owner.state.failedRequests[0]), true);
+  assert.equal(owner.state.requestVerdicts.unavailableExecutionAbortReason(owner.state.failedRequests[0]), 'completed_marked_probe_abort');
+  owner.observe(response('background-read'));
+  owner.observe(failed('background-read', { canceled: true }));
+  assert.equal(owner.state.expectedFailedRequest(owner.state.failedRequests[1]), false);
+  assert.equal(owner.state.requestVerdicts.unavailableExecutionAbortReason(owner.state.failedRequests[1]), 'probe_marker_absent');
 }
 
 // Reporting failure cannot replace a failing result or alter its exit semantics.

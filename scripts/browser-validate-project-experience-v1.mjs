@@ -31,7 +31,10 @@ import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-superv
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
-import { createProjectExperienceRequestVerdictV1 } from "./project-experience-request-verdict-v1.mjs";
+import {
+  createProjectExperienceRequestVerdictV1,
+  UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
+} from "./project-experience-request-verdict-v1.mjs";
 import {
   MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
   PROJECT_EXPERIENCE_MANAGEMENT_HYDRATED_CONDITION_V1,
@@ -1695,11 +1698,13 @@ async function main() {
     assert.equal(readback.status, 200);
     assert.equal(readback.body.work_initialization.current_work.goal, goal);
     assert.equal(readback.body.work_initialization.revision_eligibility.eligible, true);
-    requestVerdicts.beginUnavailableExecutionProbe();
-    const unavailableExecution = await browserFetchJson("/api/vnext/operator/host-round-trip");
+    const unavailableExecutionProbe = requestVerdicts.armUnavailableExecutionProbe();
+    const unavailableExecution = await browserFetchJson("/api/vnext/operator/host-round-trip", {
+      headers: UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
+    });
     assert.equal(unavailableExecution.status, 404, "preparation must work without the managed-execution profile");
     // browserFetchJson has also awaited response.json(); status alone is insufficient.
-    requestVerdicts.completeUnavailableExecutionProbe();
+    requestVerdicts.completeUnavailableExecutionProbe(unavailableExecutionProbe);
     const savedDefinition = readback.body.work_initialization.current_work;
     const noteDatabase = new Database(accessDatabasePath, { readonly: true, fileMustExist: true });
     try {
@@ -2910,13 +2915,16 @@ async function main() {
     const unexpectedFailedRequests = failedRequests.filter(
       (entry) => !expectedFailedRequest(entry),
     );
+    console.log(JSON.stringify({
+      project_experience_unavailable_execution_verdict: unavailableExecutionVerdictSummary(),
+    }));
     assert.deepEqual(pageErrors, []);
     assert.equal(
       managementSafetyHydrationRegressionWarnings.length,
       MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
     );
     assert.deepEqual(unexpectedConsoleErrors, []);
-    assert.deepEqual(unexpectedFailedRequests, []);
+    assert.deepEqual(unexpectedFailedRequests.map(failedRequestAssertionEntry), []);
     assert.deepEqual(externalRequests, []);
     assert.equal(
       serverLog.includes(onboardingFolder),
@@ -3793,7 +3801,10 @@ async function browserFetchJson(pathname, options = {}) {
     }
     const response = await fetch(${JSON.stringify(pathname)}, {
       method: ${JSON.stringify(options.method ?? "GET")},
-      headers: body ? { 'content-type': 'application/json' } : undefined,
+      headers: body || ${options.headers !== undefined} ? {
+        ...(body ? { 'content-type': 'application/json' } : {}),
+        ...${JSON.stringify(options.headers ?? {})}
+      } : undefined,
       body: body ? JSON.stringify(body) : undefined,
       cache: 'no-store'
     });
@@ -5400,6 +5411,26 @@ function expectedFailedRequest(entry) {
       entry.path === expectedPath ||
       (expectedPath === "/projects" && entry.path?.startsWith("/projects/")),
   );
+}
+
+function failedRequestAssertionEntry(entry) {
+  if (entry.path !== "/api/vnext/operator/host-round-trip") return entry;
+  return {
+    phase: entry.phase,
+    path: entry.path,
+    error_text: entry.error_text,
+    verdict_reason: requestVerdicts.unavailableExecutionAbortReason(entry),
+  };
+}
+
+function unavailableExecutionVerdictSummary() {
+  const reasons = {};
+  for (const entry of failedRequests) {
+    if (entry.path !== "/api/vnext/operator/host-round-trip") continue;
+    const reason = requestVerdicts.unavailableExecutionAbortReason(entry);
+    reasons[reason] = (reasons[reason] ?? 0) + 1;
+  }
+  return reasons;
 }
 
 function classifyUrl(value) {
