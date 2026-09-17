@@ -12,29 +12,69 @@ interface. The product is continuous work, not a collection of surfaces.
 
 **Resume / Verify / Decide.**
 
-[Quickstart](#quickstart) · [What works today](#what-works-today) ·
+[Why Augnes](#why-augnes) · [What works today](#what-works-today) ·
+[Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
-## Canonical repository migration
+## Why Augnes
 
-`hynk-studio/augnes` is the canonical repository and
-`/Users/hynk/code/augnes` is the canonical macOS root. The complete
-perspective-lab Git history through the migration point remains ancestry and
-historical provenance; historical Issue, PR, release, receipt, and research
-links stay bound to `hynk-studio/augnes-perspective-lab`.
+Long-horizon AI-assisted work crosses sessions, tools, and hosts. Evidence
+accumulates, work is revised, and unresolved judgments carry forward. Resuming
+requires knowing the current goal and scope, how the work changed, what
+supports a claim, and what needs attention next.
 
-The local cutover is complete: the existing workspace/project identity,
-database, project-root binding, Companion, Codex operator plugin, and active
-RW1/RW1A artifacts now continue at the canonical root. [Augnes Issue
-#1130](https://github.com/hynk-studio/augnes/issues/1130) is the Current RW1B
-owner; perspective-lab Issue #268 is historical/migrated, not completed
-research. Completed perspective-lab artifacts remain readable only as isolated
-historical evidence. Neither the legacy repository/root nor historical
-readability grants current execution, Local Canonical, project, Companion,
-provider, or GitHub transport authority. No general multi-repository or
-configurable-root mode exists.
+Augnes is local-first and provider-neutral. Browser, ChatGPT Apps/MCP, Codex,
+and future hosts keep their own interaction and execution strengths. Augnes
+owns continuity around that work rather than rebuilding chat, editors,
+terminals, browsers, diffs, pull requests, worktrees, or schedulers.
+
+In practice, continuity means preserving the current goal, scope, and
+constraints; meaningful history; source-linked evidence; unresolved
+uncertainty and judgment; reviewed decisions; and the next meaningful action.
+These responsibilities come from the
+[Product and Continuity Doctrine](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md).
+
+## The continuity loop
+
+> Resume current work → act in ChatGPT, Codex, or another native host within
+> the authorized scope → return results and evidence → verify what happened
+> and what remains unknown → review the proposed consequential change → decide
+> → apply only a separately authorized state change → resume later from the
+> accepted state.
+
+Execution completion is not verified success. Recommendation is not decision.
+Candidate is not accepted state. A review decision (`ReviewDecision`) is not an
+applied Transition.
+
+## What works today
+
+The checked-in runtime currently provides:
+
+- local workspace/project onboarding and project isolation;
+- supervised startup, persistence, migration, backup, restore, recovery, and
+  run reconciliation;
+- a two-zone product shell with Blank State and AI Workplane;
+- project-scoped deterministic and live native-host/Codex work;
+- structured receipts, source-linked criterion assessment, reviewable
+  proposals, explicit decisions, authorized Transitions, later context, and
+  bounded feedback;
+- GuideBrief v0.2 projections across current Browser, ChatGPT/MCP, and Codex
+  paths;
+- contextual, read-only Exact details;
+- bounded interactive and policy-triggered execution;
+- compatible portability and recovery paths;
+- limited project-scoped Personal Perspective controls and bounded research
+  capabilities where runtime/tests prove them.
+
+Exact current status and sequencing belong to the
+[current implementation roadmap](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
+Current code remains the source of truth for exact routes, schemas, commands,
+records, and behavior.
+
+Supported operation and detailed managed-run/platform qualifications are in
+[Quickstart](#quickstart) below.
 
 ## Quickstart
 
@@ -60,6 +100,15 @@ provider, semantic, external-effect, publication, or merge authority. Stop or
 remove it reversibly with `npm run augnes:service:stop` or
 `npm run augnes:service:uninstall`. Linux and Windows service installation are
 unsupported; their source development flow remains foreground-only.
+
+Normal startup prepares the application-owned local database and does not
+reset or seed operator data. `npm run augnes:service:status` returns bounded
+lifecycle state without exposing service paths, Node paths, PIDs, ports,
+tokens, manifests, or database paths.
+
+<details>
+<summary>Companion lifecycle and recovery boundaries</summary>
+
 Uninstall also has one destruction-only fail-closed path for an exact stored
 service whose same logical repository root has been physically replaced, as
 shown by device or inode drift. That path authenticates the stored service,
@@ -72,10 +121,7 @@ an explicit Start or Install returns that exact service to running. One
 production Companion service may be installed per local user session, so setup
 or Start for another checkout refuses without changing the existing service.
 
-Normal startup prepares the application-owned local database and does not
-reset or seed operator data. `npm run augnes:service:status` returns bounded
-lifecycle state without exposing service paths, Node paths, PIDs, ports,
-tokens, manifests, or database paths.
+</details>
 
 Open the URL and connect a local project. The primary path uses **Choose a
 folder**. If the native picker is unavailable, remains invisible, is cancelled,
@@ -112,6 +158,9 @@ runtime retains the historical stop, issue, and project-scoped restart path.
 An installed service with unavailable access support is refused without a
 lifecycle change; the access command does not repair or reconfigure it.
 
+<details>
+<summary>Access-failure diagnostics and safe next steps</summary>
+
 If access fails, read the additive `diagnostic.stage`, `diagnostic.category`,
 and `diagnostic.next_action` fields. Existing result/exit semantics and known
 public refusal reasons are preserved. The stages distinguish installed-service,
@@ -136,6 +185,8 @@ contents. `credential_issuance: "unknown"` means no valid token was returned;
 a credential may already have been written. Reporting adds no issuance,
 revocation, rollback, retry, or service lifecycle action. A successful explicit
 access command still returns its one-time token through the normal channel.
+
+</details>
 
 If an existing project's saved folder later becomes unavailable, **Locate
 folder** opens the same verified folder-selection experience for that exact
@@ -162,10 +213,8 @@ fallback is required.
 fallbacks without it. A locally installed and authenticated Codex CLI with App
 Server support is required only for live Codex work.
 
-For the prepared historical Build Week evaluation path and its limitations, see
-the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
-
-## What works today
+<details>
+<summary>Managed repository execution, Resume, and platform qualifications</summary>
 
 Repository-scoped Codex continuity, trusted local execution preparation, and
 one attachment-backed managed run are
@@ -204,31 +253,22 @@ blocked. Files already inside the exact repository are nevertheless within the
 repository read scope; Augnes does not claim content-based secret unreadability
 for those files.
 
-The checked-in runtime currently provides:
+Attachment-backed managed runs retain one private exact safe-operation
+checkpoint history and expose one bounded read-only resume-eligibility status
+through repository continuity, Browser, Apps MCP, and the Augnes Operator.
+This distinguishes the immutable consumed start attachment from the latest
+confirmed post-operation repository state. Exact `resume_ready` material may
+now create one expiring Browser-only Resume decision and one atomic same-run,
+same-attachment, same-thread attempt. The provider path uses `thread/resume`,
+not `thread/start`; ambiguous effects require reconciliation and pending
+operation approval remains separate. Resume completion does not create a
+ReviewDecision, Transition, accepted state, or work closure, and Companion
+startup never resumes automatically.
 
-- local workspace/project onboarding and project isolation;
-- supervised startup, persistence, migration, backup, restore, recovery, and
-  run reconciliation;
-- a two-zone product shell with Blank State and AI Workplane;
-- project-scoped deterministic and live native-host/Codex work;
-- structured receipts, source-linked criterion assessment, reviewable
-  proposals, explicit decisions, authorized Transitions, later context, and
-  bounded feedback;
-- GuideBrief v0.2 projections across current Browser, ChatGPT/MCP, and Codex
-  paths;
-- contextual, read-only Exact details;
-- bounded interactive and policy-triggered execution;
-- compatible portability and recovery paths;
-- limited project-scoped Personal Perspective controls and bounded research
-  capabilities where runtime/tests prove them.
+</details>
 
-Execution completion is not verified success. Recommendation is not decision.
-Candidate is not accepted state. A decision is not an applied Transition.
-
-Exact current status and sequencing belong to the
-[current implementation roadmap](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
-Current code remains the source of truth for exact routes, schemas, commands,
-records, and behavior.
+For the prepared historical Build Week evaluation path and its limitations, see
+the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
 
 ## Product direction
 
@@ -277,11 +317,13 @@ active owner per durable topic:
 Implementation contracts, research, operator manuals, compatibility material,
 and historical records do not silently override those owners.
 
-C0–C8 are merged. RR0 was completed in
+RR0 was completed in
 [issue #69](https://github.com/hynk-studio/augnes-perspective-lab/issues/69)
 and [PR #70](https://github.com/hynk-studio/augnes-perspective-lab/pull/70).
-RR1 is documentation authority reconciliation defined by
-[issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71).
+RR1 was defined by
+[Issue #71](https://github.com/hynk-studio/augnes-perspective-lab/issues/71);
+[PR #72](https://github.com/hynk-studio/augnes-perspective-lab/pull/72) is its
+completed documentation-authority reconciliation and outcome record.
 
 The temporary C0–C9 correction and post-CW1 cleanup program is completed.
 [`07`](docs/vnext/07_AUGNES_POST_BUILD_WEEK_PRODUCT_UX_CORRECTION_CHARTER.md)
@@ -292,17 +334,24 @@ authorization under the durable
 [repository reduction policy](docs/REPOSITORY_REDUCTION_SCOPE.md) and current
 verification rules. Current research status remains owned by `03`.
 
-Attachment-backed managed runs retain one private exact safe-operation
-checkpoint history and expose one bounded read-only resume-eligibility status
-through repository continuity, Browser, Apps MCP, and the Augnes Operator.
-This distinguishes the immutable consumed start attachment from the latest
-confirmed post-operation repository state. Exact `resume_ready` material may
-now create one expiring Browser-only Resume decision and one atomic same-run,
-same-attachment, same-thread attempt. The provider path uses `thread/resume`,
-not `thread/start`; ambiguous effects require reconciliation and pending
-operation approval remains separate. Resume completion does not create a
-ReviewDecision, Transition, accepted state, or work closure, and Companion
-startup never resumes automatically.
+## Canonical repository migration
+
+`hynk-studio/augnes` is the canonical repository and
+`/Users/hynk/code/augnes` is the canonical macOS root. The complete
+perspective-lab Git history through the migration point remains ancestry and
+historical provenance; historical Issue, PR, release, receipt, and research
+links stay bound to `hynk-studio/augnes-perspective-lab`.
+
+The local cutover is complete: the existing workspace/project identity,
+database, project-root binding, Companion, Codex operator plugin, and active
+RW1/RW1A artifacts now continue at the canonical root. [Augnes Issue
+#1130](https://github.com/hynk-studio/augnes/issues/1130) is the Current RW1B
+owner; perspective-lab Issue #268 is historical/migrated, not completed
+research. Completed perspective-lab artifacts remain readable only as isolated
+historical evidence. Neither the legacy repository/root nor historical
+readability grants current execution, Local Canonical, project, Companion,
+provider, or GitHub transport authority. No general multi-repository or
+configurable-root mode exists.
 
 ## Canonical verification
 
