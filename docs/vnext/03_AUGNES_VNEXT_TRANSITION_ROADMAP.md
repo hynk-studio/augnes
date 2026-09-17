@@ -97,25 +97,49 @@ binds the exact saved version, source checkpoint, committed fictional fixture,
 preview and published checks. Repository closeout merged in
 [PR #1264](https://github.com/hynk-studio/augnes/pull/1264).
 
-## P2.4.3 — Explicit local hosted snapshot export
+## Completed P2.4.3 — Explicit local hosted snapshot export
 
-Under [#1266](https://github.com/hynk-studio/augnes/issues/1266), the current-work
-view offers **Export hosted snapshot (.json)**. The authenticated local
+Under [#1266](https://github.com/hynk-studio/augnes/issues/1266), merged
+[PR #1267](https://github.com/hynk-studio/augnes/pull/1267) adds
+**Export hosted snapshot (.json)** to the current-work view. The authenticated local
 project-continuity route captures current identity, work, selection and packet
 lineage together, refuses stale bindings, and returns the unchanged v0.2
 projection for an explicit browser download. The
 [implementation and evidence record](../verification/P2_4_3_EXPLICIT_LOCAL_HOSTED_EXPORT.md)
 separates local production-shaped tests, Browser download/reload checks and
-compatibility with the unchanged private Workbench Version 2. Phase completion
-follows the reviewed-and-merged rule above; this outcome does not close P2.4.
+compatibility with the unchanged private Workbench Version 2. PR #1267 preserves
+the first non-deciding Node-header environment failure and the separately
+authorized fresh Full Canonical pass on unchanged source after correcting the
+official Node distribution prerequisite. No historical receipt is reclassified.
 
-P2.4 and P2 remain open; #1212 and #1209 stay open. Export creates no canonical
-import, semantic/execution authority, upload, sync or write-back. No retained
-real project was inspected or transferred. The smallest next step is a
-separately authorized bounded P2.4 evidence/closeout review. Disposable reload
-and importer checks do not establish retained real-work usability; such a
-walkthrough would require its own data/egress authorization. P2.3 remains
-separate below, and no P2.5 work is included.
+## Completed P2.4 — Bounded private hosted/export scope
+
+The [nine-area closeout review](../verification/P2_4_BOUNDED_PRIVATE_HOSTED_CLOSEOUT.md)
+under [#1268](https://github.com/hynk-studio/augnes/issues/1268) records
+**completed_bounded** for the merged P2.4.1–P2.4.3 implementation: an owner-only
+private hosted reading/draft workbench over an explicitly exported, bounded,
+non-authoritative current-work projection, with truthful currentness/authority
+limitations and no sync, write-back or canonical import. The qualified consumer
+is Augnes Research Workbench v0 Version 2, owner-only custom; this is not a
+general Sites, account/browser or collaboration claim. This documentation's own
+review/merge lifecycle follows the phase-state rule above.
+
+The qualified chain is coherent current local read → unchanged v0.2 producer →
+explicit JSON download → unchanged private importer → transient render/draft →
+reload restores the bundled sample. Locally current at capture does not mean
+hosted currentness is verified after export. Code rollback and canonical data
+recovery remain separate; the projection is not a backup or recovery package.
+No semantic/execution authority, automatic upload or hosted canonical state is
+granted. No Workbench/local-export model inference, new API-key use or new cloud
+DB/relay/storage service was introduced; total operational cost is unmeasured.
+
+P2 overall, parent #1212 and coordination #1209 remain open. Retained real-work
+usefulness/reduced operator burden, shared editing, continuous freshness,
+authenticity/signing and arbitrary-client support remain residual questions,
+not failed criteria for this bounded completion. A retained-work walkthrough
+requires separate explicit data/egress authorization and was not performed.
+P2.3 remains separate Next below. P2.5 remains Later public-first-read/discovery;
+no public discovery or later implementation is implied or started.
 
 ## Next P2.3 — Thin WebMCP adapter feasibility / first bounded interface slice
 
