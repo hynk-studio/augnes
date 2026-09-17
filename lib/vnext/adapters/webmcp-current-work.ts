@@ -23,7 +23,7 @@ export interface CurrentWorkWebMcpTool {
   // These two hints were observed in native Chrome 153. ConsequentialHint is
   // in the newer draft but is not exposed by that qualified implementation.
   annotations: { readOnlyHint: true; untrustedContentHint: true };
-  execute(input: unknown, options: { signal: AbortSignal }): Promise<string>;
+  execute(input: unknown, options?: unknown): Promise<string>;
 }
 export interface CurrentWorkModelContext {
   registerTool(tool: CurrentWorkWebMcpTool, options: { signal: AbortSignal }): Promise<void>;
@@ -117,6 +117,17 @@ function unavailable(status: string) {
   return { status, semantic_authority_granted: false, execution_authority_granted: false };
 }
 
+function invocationSignal(options: unknown): AbortSignal {
+  const supplied = options === undefined ? undefined : object(options).signal;
+  // A host that omits cancellation cannot cancel this invocation. Keep its
+  // fallback separate from both other invocations and registration lifetime.
+  if (supplied === undefined) return new AbortController().signal;
+  // Use the native brand check, including genuine signals from another realm;
+  // instanceof alone accepts prototype impostors and rejects cross-realm signals.
+  Object.getOwnPropertyDescriptor(AbortSignal.prototype, "aborted")!.get!.call(supplied);
+  return supplied as AbortSignal;
+}
+
 export function projectWebMcpCurrentWork(payload: unknown, displayedKey: string) {
   try {
     const response = object(payload);
@@ -170,18 +181,21 @@ export function registerCurrentWorkWebMcp(
       const result = (status: string) => JSON.stringify(unavailable(status));
       if (registration.signal.aborted) return result("refresh_current_work_required");
       if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length) return result("invalid_arguments");
-      if (options.signal.aborted) return result("read_cancelled");
+      let signal: AbortSignal;
+      try { signal = invocationSignal(options); }
+      catch { return result("current_work_read_refused"); }
+      if (signal.aborted) return result("read_cancelled");
       try {
         const response = await read(ROUTE, {
           method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
-          headers: { Accept: "application/json" }, signal: options.signal,
+          headers: { Accept: "application/json" }, signal,
         });
         if (!response.ok) return result(response.status === 401 || response.status === 403 ? "authentication_required" : "current_work_read_refused");
         const body: unknown = await response.json();
         if (registration.signal.aborted) return result("refresh_current_work_required");
-        if (options.signal.aborted) return result("read_cancelled");
+        if (signal.aborted) return result("read_cancelled");
         return JSON.stringify(projectWebMcpCurrentWork(body, displayedKey));
-      } catch { return result(options.signal.aborted ? "read_cancelled" : "current_work_read_refused"); }
+      } catch { return result(signal.aborted ? "read_cancelled" : "current_work_read_refused"); }
     },
   };
   try {
