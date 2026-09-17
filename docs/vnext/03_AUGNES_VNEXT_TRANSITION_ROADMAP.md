@@ -138,33 +138,33 @@ usefulness/reduced operator burden, shared editing, continuous freshness,
 authenticity/signing and arbitrary-client support remain residual questions,
 not failed criteria for this bounded completion. A retained-work walkthrough
 requires separate explicit data/egress authorization and was not performed.
-P2.3 remains separate Next below. P2.5 remains Later public-first-read/discovery;
+P2.3 remains separate below. P2.5 remains Later public-first-read/discovery;
 no public discovery or later implementation is implied or started.
 
-## Next P2.3 — Thin WebMCP adapter feasibility / first bounded interface slice
+## Current P2.3.1 — Native current-work read / deterministic client qualification
 
-This is a candidate for separate explicit authorization. This documentation
-closeout does not authorize P2.3 implementation. Preserve this order:
+Under [#1271](https://github.com/hynk-studio/augnes/issues/1271), the
+[bounded qualification record](../verification/P2_3_1_NATIVE_WEBMCP_CURRENT_WORK.md)
+separates native support, deterministic source tests, actual Augnes Browser
+discovery/execution, and external-client list/invoke/result delivery. The
+qualified environment is Chrome 153.0.8010.47 with the official local WebMCP
+testing feature and pinned chrome-devtools-mcp 1.9.0. Ordinary launch remains a
+harmless no-op. The outcome follows the review/merge phase-state rule above.
 
-- **A.** Re-read current App/MCP/Web surface owners and actual supported WebMCP
-  capability.
-- **B.** Identify one concrete supported client/browser, account context and
-  model/host context.
-- **C.** Before building an adapter, distinguish registration/discovery, tool
-  exposure, correct selection or correct non-selection, invocation, result
-  delivery and downstream use.
-- **D.** Start from the smallest current read owner that can truthfully expose
-  current work identity/scope, selected/source-bound material, unverified or
-  unresolved status, and currentness limitations.
-- **E.** Only after actual support is established, choose the smallest
-  implementation slice.
+Exactly one page-local `augnes_get_current_work_context` tool reuses the
+authenticated project-continuity/current-work owner. Registration follows the
+displayed binding; stale unseen work refuses. Results contain bounded literal
+untrusted source context, preserve unknowns, omit project-wide unresolved state,
+and grant no semantic/execution authority. Existing App/MCP work-read tools
+remain distinct and unchanged. No polyfill, provider call, Site mutation,
+source fetch, export/upload or new write/approval system is introduced.
 
-UI and agent interfaces must reuse the same scoped/currentness/revision owners
-rather than create a second workflow or approval system. This Next candidate
-does not pre-authorize remote local-PC tunneling, scheduler behavior, persistent
-agent runtime, a new authority engine, semantic Transition, external-effect
-approval, Sites deployment, public publication or large adapter/harness
-construction.
+P2.3 is **not complete**. Model selection/non-selection and result use are
+**NOT TESTED IN P2.3.1**. The smallest Next candidate is separately authorized
+P2.3.2 evaluation of connected agent/model selection versus correct non-selection
+and result use, before adding selection/comparison/review-preparation tools.
+No later slice is activated here. P2.4 remains completed_bounded; P2.5 remains
+Later; #1212 and #1209 remain open.
 
 ## Completed P2.2 work-read surface slice
 

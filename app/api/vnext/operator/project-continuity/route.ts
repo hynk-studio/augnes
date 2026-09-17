@@ -86,15 +86,15 @@ export function createVNextOperatorProjectContinuityHandlerV01(
         clock: options.clock,
       });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
-      authenticateVNextLocalOperatorSessionV01(db, {
-        config,
-        credential,
-        clock: options.clock,
-      });
-      const continuity = projectVNextOperatorPilotContinuityV01(db, {
-        config,
-        clock: options.clock,
-      });
+      // All consumers of this current read share one SQLite snapshot. The
+      // existing owners still determine scope, selection and packet lineage.
+      const { continuity, work_initialization } = db.transaction(() => {
+        authenticateVNextLocalOperatorSessionV01(db!, { config, credential, clock: options.clock });
+        return {
+          continuity: projectVNextOperatorPilotContinuityV01(db!, { config, clock: options.clock }),
+          work_initialization: readProjectWorkInitializationV01(db!, config),
+        };
+      })();
       return jsonResponse({
         ok: true,
         route_version: ROUTE_VERSION,
@@ -104,7 +104,7 @@ export function createVNextOperatorProjectContinuityHandlerV01(
           project_id: config.project_id,
         },
         continuity,
-        work_initialization: readProjectWorkInitializationV01(db, config),
+        work_initialization,
         projection_is_read_only: true,
         authentication_boundary:
           "local_secret_possession_only_not_external_identity",

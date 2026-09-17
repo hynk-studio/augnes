@@ -35,6 +35,7 @@ import { WorkExpectationPreparation } from "./work-expectation";
 import { SemanticReviewReadGuardV01 } from "./semantic-review-read-guard";
 import { FirstWorkComposer } from "./first-work-composer";
 import { HostedSnapshotExport } from "./hosted-snapshot-export";
+import { CurrentWorkWebMcp } from "./current-work-webmcp";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type {
   ProjectWorkDefinitionV01,
@@ -894,6 +895,10 @@ export function SemanticReviewSurface({
         }
         : null}
     >
+      <CurrentWorkWebMcp
+        initialization={exactReviewAvailable && !loadingPrivateView ? firstWorkInitialization : null}
+        sessionKey={authenticatedSession?.session_id ?? null}
+      />
       <main
         className={styles.page}
         data-vnext-semantic-review="v0.1"
