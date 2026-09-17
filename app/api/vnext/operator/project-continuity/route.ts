@@ -17,10 +17,14 @@ import {
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
 } from "@/lib/vnext/runtime/local-operator-session";
-import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
+import { readVNextLocalRuntimeClockNowV01, type VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
+import { buildHostedResearchProjectionV02, HostedResearchProjectionErrorV02 } from "@/lib/vnext/adapters/hosted-research-projection";
+import { readCanonicalProjectIdentityV01 } from "@/lib/vnext/persistence/project-identity-registry";
+import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   VNextOperatorPilotContinuityErrorV01,
   projectVNextOperatorPilotContinuityV01,
+  inspectVNextOperatorPilotPacketLineageV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   VNextOperatorPilotContextUseReviewErrorV01,
@@ -147,8 +151,55 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         "compare_selected_work_sources",
         "lookup_retained_work_sources",
         "revise_pre_execution_project_work",
+        "export_hosted_snapshot",
       ].includes(body.action as string)) {
         throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
+      }
+      if (body.action === "export_hosted_snapshot") {
+        const keys = ["action", "expected_active_project_id", "expected_active_selection_revision",
+          "expected_current_packet_id", "expected_current_packet_fingerprint"];
+        if (Object.keys(body).sort().join(",") !== keys.sort().join(",") ||
+          typeof body.expected_active_project_id !== "string" ||
+          !Number.isSafeInteger(body.expected_active_selection_revision) ||
+          (body.expected_active_selection_revision as number) < 1 ||
+          typeof body.expected_current_packet_id !== "string" ||
+          typeof body.expected_current_packet_fingerprint !== "string") {
+          throw new VNextOperatorPilotContinuityErrorV01("hosted_snapshot_request_invalid", 400);
+        }
+        // One SQLite read snapshot, including authentication. These existing
+        // owners determine currentness; never mix captures or retry a subset.
+        const projection = db.transaction(() => {
+          authenticateVNextLocalOperatorSessionV01(db!, { config, credential, clock: options.clock });
+          const project = readCanonicalProjectIdentityV01(db!, config);
+          const initialization = readProjectWorkInitializationV01(db!, config);
+          const active_selection = readActiveProjectSelectionV01(db!, config.workspace_id);
+          if (!initialization.current_packet || !initialization.current_work) {
+            throw new HostedResearchProjectionErrorV02("current_work_unavailable");
+          }
+          if (body.expected_active_project_id !== config.project_id ||
+            active_selection?.project_id !== body.expected_active_project_id ||
+            active_selection.selection_revision !== body.expected_active_selection_revision ||
+            initialization.current_packet.packet_id !== body.expected_current_packet_id ||
+            initialization.current_packet.packet_fingerprint !== body.expected_current_packet_fingerprint) {
+            throw new HostedResearchProjectionErrorV02("current_read_binding_mismatch");
+          }
+          const packet_lineage = inspectVNextOperatorPilotPacketLineageV01(db!, {
+            config, ...initialization.current_packet,
+          });
+          return buildHostedResearchProjectionV02({
+            project, initialization, active_selection, packet_lineage,
+            captured_at: readVNextLocalRuntimeClockNowV01(options.clock, "hosted_snapshot_capture"),
+          });
+        })();
+        // Construct the complete file only after admission. No server-side file,
+        // export record, session rotation, or product write is involved.
+        return new NextResponse(`${JSON.stringify(projection, null, 2)}\n`, {
+          headers: {
+            ...SECURITY_HEADERS,
+            "Content-Type": "application/json; charset=utf-8",
+            "Content-Disposition": 'attachment; filename="augnes-hosted-research-projection.v0.2.json"',
+          },
+        });
       }
       if (body.action === "compare_selected_work_sources" || body.action === "lookup_retained_work_sources") {
         authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
@@ -294,6 +345,14 @@ export function createVNextOperatorContextUseReviewHandlerV01(
 export const POST = createVNextOperatorContextUseReviewHandlerV01();
 
 function errorResponse(error: unknown): NextResponse {
+  if (error instanceof HostedResearchProjectionErrorV02) {
+    return jsonResponse({
+      ok: false, route_version: ROUTE_VERSION, status: "error",
+      error_code: `hosted_snapshot_${error.code}`,
+      semantic_authority_granted: false,
+      execution_authority_granted: false,
+    }, 409);
+  }
   const known =
     error instanceof VNextLocalOperatorSessionErrorV01 ||
     error instanceof VNextOperatorPilotContinuityErrorV01 ||

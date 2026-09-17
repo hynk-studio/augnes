@@ -8,6 +8,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -24,6 +25,12 @@ import {
   readVNextLocalOperatorPilotConfigV01,
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { issueVNextLocalReviewAccessV01 } from "./issue-vnext-local-review-access.ts";
+import { buildHostedResearchProjectionV02 } from "../lib/vnext/adapters/hosted-research-projection.ts";
+import { readCanonicalProjectIdentityV01 } from "../lib/vnext/persistence/project-identity-registry.ts";
+import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
+import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
+import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
+import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "../lib/vnext/protocol-primitives.ts";
 import {
   createRepositoryExecutionDecisionRequestV01,
 } from "../lib/vnext/repository-execution/repository-execution.ts";
@@ -1669,6 +1676,15 @@ async function main() {
     try { await source.backup(accessDatabasePath); } finally { source.close(); }
     companionFirstWorkProfile = true;
     await restartRuntime(accessDatabasePath, manifest, projectAlphaId);
+    let exportRequests = 0;
+    cdp.on(payload => {
+      if (payload.method !== "Network.requestWillBeSent" ||
+        classifyUrl(payload.params.request?.url).path !== "/api/vnext/operator/project-continuity" ||
+        payload.params.request?.method !== "POST") return;
+      try {
+        if (JSON.parse(payload.params.request.postData).action === "export_hosted_snapshot") exportRequests++;
+      } catch { /* Other bounded route actions are outside this counter. */ }
+    });
     const startsBeforeAccess = runtimeStartCount;
     const healthBefore = await (await fetch(`${appOrigin}/api/healthz`)).json();
     await navigate(`${appOrigin}/workbench/semantic-review#first-work`);
@@ -1678,6 +1694,7 @@ async function main() {
     assert.equal(preparation.status, 200, preparation.body.error_code);
     assert.equal(preparation.body.work_initialization.state, "not_defined", preparation.body.work_initialization.reason);
     assert.equal(preparation.body.work_initialization.mutation_eligible, true, preparation.body.work_initialization.reason);
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-hosted-snapshot-action="export"]') === null`), true, "no export control without current work");
     console.log(JSON.stringify({ companion_first_work_preparation: {
       project_id: preparation.body.project.project_id,
       initialization_project_id: preparation.body.work_initialization.project_id,
@@ -1807,6 +1824,65 @@ async function main() {
       await addNote("검토 정정-r2", correction, "derived_interpretation", "Changed assumption / user correction");
       await compareAndSave(2);
       await rereadCurrentNotes([suppliedSource, correction]);
+      await waitForRequestQuiet();
+      assert.equal(exportRequests, 0, "page load, reload, navigation, current reads and polling never export");
+      assert.deepEqual(readdirSync(downloadDirectory), [], "no automatic local file");
+      await cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDirectory, eventsEnabled: true });
+      await evaluateBoolean(`(() => {
+        const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
+        const probe = window.__hostedSnapshotDownload = { created: 0, revoked: 0, active: new Set() };
+        URL.createObjectURL = blob => { const url = create(blob); probe.created++; probe.active.add(url); return url; };
+        URL.revokeObjectURL = url => { probe.revoked++; probe.active.delete(url); revoke(url); };
+        return true;
+      })()`);
+      for (const width of [390, 768, 1440]) {
+        await setViewport(width, 1000);
+        assert.equal(await evaluateBoolean(`(() => {
+          const control = document.querySelector('[data-hosted-snapshot-action="export"]');
+          const rect = control?.getBoundingClientRect();
+          return control?.textContent === 'Export hosted snapshot (.json)' && !control.disabled &&
+            rect.left >= 0 && rect.right <= innerWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1;
+        })()`), true, "normal export control fits mobile, tablet and desktop");
+      }
+      const beforeExport = noteDatabase.serialize();
+      await clickSelector('[data-hosted-snapshot-action="export"]');
+      await waitForCondition(`document.querySelector('[data-hosted-snapshot-export] [role="status"]')?.textContent.includes('Snapshot download started') === true`, "explicit hosted snapshot download");
+      const exportedPath = path.join(downloadDirectory, "augnes-hosted-research-projection.v0.2.json");
+      const downloadStarted = Date.now();
+      while (!existsSync(exportedPath) && Date.now() - downloadStarted < DEFAULT_TIMEOUT_MS) await delay(100);
+      assert.equal(existsSync(exportedPath), true, "Browser completed the local JSON file");
+      const exportedBytes = readFileSync(exportedPath);
+      const exported = JSON.parse(exportedBytes.toString("utf8"));
+      const exportConfig = { enabled: true, workspace_id: manifest.workspace_id, project_id: projectAlphaId,
+        operator_id: "operator:local-review", database_path: accessDatabasePath };
+      const expected = noteDatabase.transaction(() => {
+        const initialization = readProjectWorkInitializationV01(noteDatabase, exportConfig);
+        return buildHostedResearchProjectionV02({
+          project: readCanonicalProjectIdentityV01(noteDatabase, exportConfig), initialization,
+          active_selection: readActiveProjectSelectionV01(noteDatabase, exportConfig.workspace_id),
+          packet_lineage: inspectVNextOperatorPilotPacketLineageV01(noteDatabase, { config: exportConfig, ...initialization.current_packet }),
+          captured_at: exported.captured_at,
+        });
+      })();
+      assert.equal(exportedBytes.toString("utf8"), `${JSON.stringify(expected, null, 2)}\n`);
+      const { integrity, ...exportMaterial } = exported;
+      assert.equal(integrity.content_fingerprint, createProtocolSha256V01(canonicalizeProtocolValueV01(exportMaterial)));
+      assert.deepEqual(exported.selected_source_context.map(entry => entry.excerpt_text).sort(), [suppliedSource, correction].sort());
+      assert.equal(exportRequests, 1, "one explicit click produces one export request");
+      assert.deepEqual(await evaluateJson(`({ created: __hostedSnapshotDownload.created, revoked: __hostedSnapshotDownload.revoked,
+        active: __hostedSnapshotDownload.active.size, leftoverLinks: document.querySelectorAll('a[download]').length })`),
+      { created: 1, revoked: 1, active: 0, leftoverLinks: 0 });
+      assert(beforeExport.equals(noteDatabase.serialize()), "export changes no product, session, selection or canonical rows");
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await waitForCondition(`document.querySelector('[data-hosted-snapshot-action="export"]:not(:disabled)') !== null`, "export remains an explicit action after reload");
+      await waitForRequestQuiet();
+      assert.equal(exportRequests, 1, "reload never exports again");
+      assert.deepEqual(readdirSync(downloadDirectory), [path.basename(exportedPath)]);
+      assert(beforeExport.equals(noteDatabase.serialize()), "reload after export writes nothing");
+      console.log(JSON.stringify({ hosted_snapshot_browser: "pass", file: exportedPath,
+        file_sha256: createHash("sha256").update(exportedBytes).digest("hex"),
+        content_fingerprint: integrity.content_fingerprint, selected_sources: 2, automatic_exports: 0,
+        explicit_downloads: exportRequests, database_writes: 0, object_urls_remaining: 0 }));
       await openNotes();
       assert.equal(await evaluateBoolean(`(() => {
         const text = document.querySelector('[data-selected-work-sources]')?.textContent ?? '';

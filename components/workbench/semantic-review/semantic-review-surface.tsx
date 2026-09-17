@@ -34,6 +34,7 @@ import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entr
 import { WorkExpectationPreparation } from "./work-expectation";
 import { SemanticReviewReadGuardV01 } from "./semantic-review-read-guard";
 import { FirstWorkComposer } from "./first-work-composer";
+import { HostedSnapshotExport } from "./hosted-snapshot-export";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type {
   ProjectWorkDefinitionV01,
@@ -952,6 +953,8 @@ export function SemanticReviewSurface({
                   key={`${authenticatedSession?.session_id}:${firstWorkInitialization.project_id}:${firstWorkInitialization.current_packet?.packet_fingerprint}`}
                   definition={firstWorkInitialization.current_work}
                   selectedSources={firstWorkInitialization.selected_source_context}
+                  snapshotExport={<HostedSnapshotExport initialization={firstWorkInitialization}
+                    disabled={loadingPrivateView || !privateReadGuard.current.matchesProject(firstWorkInitialization)} />}
                   isUnstarted={workDefinitionIsUnstarted}
                   revisionAvailable={revisionAvailable}
                   revisionButtonRef={revisionButtonRef}
@@ -1151,6 +1154,7 @@ function workRevisionEditorBindingKeyV01(
 function CurrentWorkDefinitionPanel({
   definition,
   selectedSources,
+  snapshotExport,
   isUnstarted,
   revisionAvailable,
   revisionButtonRef,
@@ -1158,6 +1162,7 @@ function CurrentWorkDefinitionPanel({
 }: {
   definition: ProjectWorkDefinitionV01;
   selectedSources: ProjectWorkInitializationV01["selected_source_context"];
+  snapshotExport: React.ReactNode;
   isUnstarted: boolean;
   revisionAvailable: boolean;
   revisionButtonRef: RefObject<HTMLButtonElement | null>;
@@ -1225,6 +1230,7 @@ function CurrentWorkDefinitionPanel({
           </article>
         )) : <p className={styles.muted}>No source notes are selected in this current work.</p>}
       </details>
+      {snapshotExport}
       {revisionAvailable ? (
         <div className={styles.buttonRow}>
           <button
