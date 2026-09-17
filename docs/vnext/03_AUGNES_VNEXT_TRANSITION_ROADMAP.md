@@ -81,11 +81,12 @@ their original meaning. The parent and coordination issues remain open:
 
 [#1259](https://github.com/hynk-studio/augnes/issues/1259) completed through
 [PR #1260](https://github.com/hynk-studio/augnes/pull/1260). Its non-Core
-deterministic adapter and committed fictional v0.2 fixture remain non-user-facing.
+deterministic adapter and committed fictional v0.2 fixture defined the contract
+before user-facing activation in P2.4.3 below.
 The [contract and owner audit](../verification/P2_4_1_HOSTED_SNAPSHOT_PROJECTION_CONTRACT.md)
 records that local producer scope. V0.1 remains synthetic-only.
 
-## P2.4.2 — Qualified private Site importer outcome
+## Completed P2.4.2 — Qualified private Site importer outcome
 
 Under [#1263](https://github.com/hynk-studio/augnes/issues/1263), external consumer
 implementation and qualification are complete within the existing owner-only
@@ -93,15 +94,28 @@ Workbench Site: Version 2 admits distinct v0.1 synthetic and v0.2
 local-export-shaped projections. The
 [qualification record](../verification/P2_4_2_PRIVATE_SITE_IMPORTER_QUALIFICATION.md)
 binds the exact saved version, source checkpoint, committed fictional fixture,
-preview and published checks. Repository closeout follows the phase-state rule
-above: its Draft PR is review material, and phase completion requires merge.
+preview and published checks. Repository closeout merged in
+[PR #1264](https://github.com/hynk-studio/augnes/pull/1264).
 
-P2.4 and P2 remain open; #1212 and #1209 stay open. Local user-facing export
-is still **not activated**. No retained real project was exported or transferred.
-The smallest next step is a separately authorized local explicit-export
-activation slice using the existing producer and current-read owners; this
-consumer qualification does not authorize or implement it. P2.3 remains separate
-below, and no P2.5 work is included.
+## P2.4.3 — Explicit local hosted snapshot export
+
+Under [#1266](https://github.com/hynk-studio/augnes/issues/1266), the current-work
+view offers **Export hosted snapshot (.json)**. The authenticated local
+project-continuity route captures current identity, work, selection and packet
+lineage together, refuses stale bindings, and returns the unchanged v0.2
+projection for an explicit browser download. The
+[implementation and evidence record](../verification/P2_4_3_EXPLICIT_LOCAL_HOSTED_EXPORT.md)
+separates local production-shaped tests, Browser download/reload checks and
+compatibility with the unchanged private Workbench Version 2. Phase completion
+follows the reviewed-and-merged rule above; this outcome does not close P2.4.
+
+P2.4 and P2 remain open; #1212 and #1209 stay open. Export creates no canonical
+import, semantic/execution authority, upload, sync or write-back. No retained
+real project was inspected or transferred. The smallest next step is a
+separately authorized bounded P2.4 evidence/closeout review. Disposable reload
+and importer checks do not establish retained real-work usability; such a
+walkthrough would require its own data/egress authorization. P2.3 remains
+separate below, and no P2.5 work is included.
 
 ## Next P2.3 — Thin WebMCP adapter feasibility / first bounded interface slice
 

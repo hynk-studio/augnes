@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import Database from "better-sqlite3";
 import { buildHostedResearchProjectionV02, type HostedResearchProjectionInputV02 } from "../lib/vnext/adapters/hosted-research-projection";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, SELECTED_WORK_SOURCE_LIMITS } from "../lib/intake/selected-work-source-comparison";
-import { getOrCreateCanonicalProjectForLocalRootV01, getOrCreateDefaultWorkspaceIdentityV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
+import { getOrCreateCanonicalProjectForLocalRootV01, getOrCreateDefaultWorkspaceIdentityV01, normalizeLocalProjectRootRefV01, renameCanonicalProjectDisplayNameV01 } from "../lib/vnext/persistence/project-identity-registry";
+import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { defineInitialProjectWorkV01, readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
@@ -33,7 +36,7 @@ const clock = (value: string) => ({ now: () => value });
 // Disposable, production-shaped data only. No retained database or project is
 // opened. Actual registry, authenticated writers and strict read owners supply
 // the adapter inputs; deterministic test-only entropy never leaves this file.
-function createFixture() {
+function createFixture(localRoot = "/synthetic/observatory-fixture") {
   const db = new Database(":memory:");
   applyCanonicalDatabaseMigrations(db);
   let identity = 0;
@@ -41,7 +44,7 @@ function createFixture() {
   const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, dependencies);
   const { project } = getOrCreateCanonicalProjectForLocalRootV01(db, {
     workspace_id: workspace.workspace_id,
-    local_root: normalizeLocalProjectRootRefV01("/synthetic/observatory-fixture", { base_path: "/synthetic" }),
+    local_root: normalizeLocalProjectRootRefV01(localRoot, { base_path: "/synthetic" }),
     display_name: "Fictional Observatory — disposable contract fixture",
   }, dependencies);
   selectActiveProjectV01(db, { ...project, expected_project_id: null, expected_revision: null, now: T0 });
@@ -52,7 +55,9 @@ function createFixture() {
   let entropy = 0;
   const secret_source = { bytes: (size: number) => Uint8Array.from({ length: size }, () => ++entropy % 256) };
   const issue = issueVNextLocalOperatorBootstrapV01(db, { config, clock: clock(T0), secret_source });
-  let credential = consumeVNextLocalOperatorBootstrapV01(db, { config, bootstrap_token: issue.bootstrap_token, clock: clock(T1), secret_source }).credential;
+  const admitted = consumeVNextLocalOperatorBootstrapV01(db, { config, bootstrap_token: issue.bootstrap_token, clock: clock(T1), secret_source });
+  let credential = admitted.credential;
+  let cookieValue = admitted.cookie_value;
   const read = (): HostedResearchProjectionInputV02 => db.transaction(() => {
     const initialization = readProjectWorkInitializationV01(db, config, rootAvailable);
     return {
@@ -64,6 +69,7 @@ function createFixture() {
     };
   })();
   const updateCredential = (cookie: string) => {
+    cookieValue = cookie;
     credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1/", {
       headers: { cookie: `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookie}` },
     }));
@@ -100,7 +106,7 @@ function createFixture() {
     }, rootAvailable);
     updateCredential(result.session_admission.cookie_value);
   };
-  return { db, project, read, define, selectSources };
+  return { db, project, config, read, define, selectSources, get cookie() { return `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookieValue}`; } };
 }
 
 function sourceEntries(scope: { workspace_id: string; project_id: string }) {
@@ -284,3 +290,131 @@ try {
   assert.equal(read.initialization.state, "existing_history_without_current_packet");
   rejects(read, "current_work_unavailable");
 } finally { history.db.close(); }
+
+async function testExplicitExportRoute() {
+  const root = mkdtempSync(path.join(tmpdir(), "augnes-hosted-export-test-"));
+  const local = createFixture(root);
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("export_network_forbidden"); };
+  try {
+    let routeClock = CAPTURE;
+    let opened: Database.Database | null = null;
+    let closed = 0;
+    const handler = createVNextOperatorContextUseReviewHandlerV01({
+      environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_DB_PATH: path.join(root, "unused.db"),
+        AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: local.project.workspace_id,
+        AUGNES_VNEXT_OPERATOR_PROJECT_ID: local.project.project_id,
+        AUGNES_VNEXT_OPERATOR_ID: local.config.operator_id },
+      clock: { now: () => {
+        assert.equal(opened?.inTransaction, true, "authentication and capture time share the read transaction");
+        return routeClock;
+      } },
+      open_database: () => {
+        const db = new Database(local.db.serialize());
+        opened = db;
+        const before = db.serialize();
+        const close = db.close.bind(db);
+        db.close = () => {
+          assert.deepEqual(db.serialize(), before, "success and refusal must not change any DB rows, including sessions");
+          closed++;
+          return close();
+        };
+        return db;
+      },
+    });
+    const binding = () => {
+      const input = local.read();
+      return { action: "export_hosted_snapshot", expected_active_project_id: local.project.project_id,
+        expected_active_selection_revision: input.active_selection!.selection_revision,
+        expected_current_packet_id: input.initialization.current_packet?.packet_id ?? "missing",
+        expected_current_packet_fingerprint: input.initialization.current_packet?.packet_fingerprint ?? "missing" };
+    };
+    let requests = 0;
+    const post = async (body: unknown, headers: Record<string, string> = {}, query = "") => {
+      requests++;
+      return handler(new Request(`http://127.0.0.1/api/vnext/operator/project-continuity${query}`, {
+        method: "POST", headers: { host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json", cookie: local.cookie, ...headers },
+        body: JSON.stringify(body),
+      }));
+    };
+    const refusal = async (body: unknown, code: string) => {
+      const response = await post(body);
+      assert.equal(response.status, 409);
+      assert.equal(response.headers.get("content-disposition"), null, "no partial downloadable file on refusal");
+      assert.equal(response.headers.get("set-cookie"), null);
+      const error = await response.json();
+      assert.equal(error.error_code, code);
+      assert.equal(error.schema, undefined);
+    };
+    await refusal(binding(), "hosted_snapshot_current_work_unavailable");
+    local.define();
+    const initialBinding = binding();
+    local.selectSources([...sourceEntries(local.project), buildSelectedWorkSourceEntry(local.project, {
+      source: "/Users/fictional/notes", observed_at: null, provenance: "user_declaration",
+      label: "Open question", text: "A deliberately omitted fictional locator; no source is fetched.",
+    })]);
+    const input = local.read();
+    const response = await post(binding());
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "application/json; charset=utf-8");
+    assert.equal(response.headers.get("content-disposition"), 'attachment; filename="augnes-hosted-research-projection.v0.2.json"');
+    assert.equal(response.headers.get("cache-control"), "no-store, max-age=0");
+    assert.equal(response.headers.get("set-cookie"), null);
+    const text = await response.text();
+    const direct = buildHostedResearchProjectionV02(input);
+    assert.equal(text, `${JSON.stringify(direct, null, 2)}\n`, "route file equals the direct producer at the same capture boundary");
+    const { integrity, ...material } = JSON.parse(text);
+    assert.equal(integrity.content_fingerprint, createProtocolSha256V01(canonicalizeProtocolValueV01(material)));
+    assert.equal(direct.selected_source_context.length, 3);
+    assert(direct.selected_source_context.some(entry => entry.excerpt_text === EXCERPT));
+    assert.equal(direct.selected_source_context.filter(entry => entry.source_locator_status === "included_export_safe").length, 2);
+    assert.equal(direct.selected_source_context.find(entry => entry.source_locator_status === "omitted_not_export_safe")?.source_locator, null);
+    await refusal(initialBinding, "hosted_snapshot_current_read_binding_mismatch");
+    await refusal({ ...binding(), expected_active_project_id: "project:other" }, "hosted_snapshot_current_read_binding_mismatch");
+    await refusal({ ...binding(), expected_active_selection_revision: 900 }, "hosted_snapshot_current_read_binding_mismatch");
+    await refusal({ ...binding(), expected_current_packet_fingerprint: `sha256:${"0".repeat(64)}` }, "hosted_snapshot_current_read_binding_mismatch");
+    const oldSelection = binding();
+    const selection = input.active_selection!;
+    selectActiveProjectV01(local.db, { ...local.project, expected_project_id: local.project.project_id,
+      expected_revision: selection.selection_revision, now: CAPTURE });
+    await refusal(oldSelection, "hosted_snapshot_current_read_binding_mismatch");
+    assert.equal((await post({ ...binding(), extra: true })).status, 400);
+    assert.equal((await post(binding(), { origin: "https://example.org" })).status, 403);
+    assert.equal((await post(binding(), { cookie: "" })).status, 401);
+    assert.equal((await post(binding(), {}, "?download=1")).status, 400);
+    // Capture earlier than fresh work/selection is refused, not silently repaired.
+    routeClock = T1;
+    await refusal(binding(), "hosted_snapshot_capture_time_invalid");
+    routeClock = CAPTURE;
+    renameCanonicalProjectDisplayNameV01(local.db, { ...local.project,
+      requested_display_name: "cookie: fictional-test-only", expected_current_display_name: local.project.display_name });
+    await refusal(binding(), "hosted_snapshot_unsafe_projection_metadata");
+    renameCanonicalProjectDisplayNameV01(local.db, { ...local.project,
+      requested_display_name: local.project.display_name!, expected_current_display_name: "cookie: fictional-test-only" });
+    const other = getOrCreateCanonicalProjectForLocalRootV01(local.db, {
+      workspace_id: local.project.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(path.join(root, "other"), { base_path: root }),
+      display_name: "Other disposable project",
+    }).project;
+    const beforeSwitch = binding();
+    selectActiveProjectV01(local.db, { ...other, expected_project_id: local.project.project_id,
+      expected_revision: beforeSwitch.expected_active_selection_revision, now: CAPTURE });
+    await refusal(beforeSwitch, "hosted_snapshot_current_read_binding_mismatch");
+    const malformed = { deliberately_invalid_disposable_packet: true };
+    insertVNextCoreRecordV01(local.db, { ...local.project, record_kind: "task_context_packet",
+      record_id: "packet:malformed-disposable", fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(malformed)),
+      idempotency_key: null, payload: malformed, created_at: CAPTURE });
+    await refusal(binding(), "hosted_snapshot_current_work_unavailable");
+    assert.equal(calls, 0);
+    assert.equal(closed, requests - 3, "every opened route handle is closed, including refusals");
+    console.log(JSON.stringify({ explicit_export_route: "pass", producer_parity: true, database_writes: 0,
+      network_calls: calls, refusal_downloads: 0, route_handles_closed: closed }));
+  } finally {
+    globalThis.fetch = previousFetch;
+    local.db.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+testExplicitExportRoute().catch(error => { console.error(error); process.exitCode = 1; });
