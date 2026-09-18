@@ -139,8 +139,8 @@ authenticity/signing and arbitrary-client support remain residual questions,
 not failed criteria for this bounded completion. A retained-work walkthrough
 requires separate explicit data/egress authorization and was not performed.
 P2.3 remains separate below. The local P2.5.1 artifact boundary is Completed
-within its bounded scope below; public deployment and discovery remain
-separately authorized later work.
+within its bounded scope below; the separately authorized P2.5.2 public
+deployment and discovery qualification is recorded below.
 
 ## Completed P2.5.1 — Public first-read artifact boundary
 
@@ -165,13 +165,41 @@ The historical failed receipt remains historical/non-deciding and is not
 reclassified. The historical host-round-trip Browser abort cause remains
 unknown; merged diagnostics do not establish a behavioral fix.
 
-P2.5 overall is **not complete**. P2.5.2 remains deferred and requires separate
-authorization for actual public deployment, stable public URL verification/readback,
-deployed-byte privacy audit, public HTML/Markdown/JSON retrieval,
-indexing/ranking/search observation, ChatGPT/global discovery, independent
-readership, utility and selection evaluation. The local path is not evidence of
-public reachability or discovery, and this closeout does not authorize or begin
-P2.5.2. #1273 remains stopped and unrelated; #1212 and #1209 remain open.
+P2.5 overall is **not complete**. P2.5.1's local qualification alone does not
+establish public reachability or discovery. The separately authorized P2.5.2
+outcome follows below; #1273 remains stopped and unrelated, and #1212 and #1209
+remain open.
+
+## P2.5.2 — Public deployment and external retrieval/discovery qualification
+
+[#1288](https://github.com/hynk-studio/augnes/issues/1288) owns this single bounded
+phase on `codex/1288-p2-5-2-public-qualification`.
+[PR #1289](https://github.com/hynk-studio/augnes/pull/1289) and the
+[qualification record](../verification/P2_5_2_PUBLIC_DEPLOYMENT_DISCOVERY_QUALIFICATION.md)
+record **DEPLOYED_QUALIFIED / DISCOVERY_NOT_YET_OBSERVED /
+INDEPENDENT_UTILITY_UNESTABLISHED**. Under the phase-state rule, the repository
+lifecycle is **Current while PR #1289 remains open**. If PR #1289 merges,
+P2.5.2 is **Completed within this bounded scope**; this does not complete P2.5.
+Discovery, independent readership, selection, utility, unrestricted crawler
+compatibility and all other explicitly unestablished claims remain unestablished
+after merge.
+
+The existing Augnes Research Workbench v0 Site was reused. Version 3 adds the
+exact committed fictional P2.5.1 HTML/Markdown/JSON outputs and a reading link;
+its audience changed from owner-only custom revision 1 to public revision 2.
+Anonymous production Workbench and artifact retrieval passed. Markdown and JSON
+match the local bytes; HTML preserves the complete no-JS semantics but includes
+a hosting-layer challenge script. Imports and drafts remain transient,
+non-authoritative browser state. The configured secret is unused by the static
+application and was not exposed in the audited source, package or readback.
+
+One bounded public search observation did not return the Site. Direct URL
+retrieval is not discovery. Fresh independent ChatGPT search, independent
+readership, selection and utility remain unestablished; no indexing wait or
+repeated discovery tuning was performed. P2.5 remains incomplete. P2.4 remains
+completed_bounded and P2.5.1 remains Completed within its bounded local scope.
+No retained-data publication, semantic/execution authority or P2.3 Site-tool
+evaluation was introduced. #1273 remains open/stopped; #1212 and #1209 remain open.
 
 ## Completed P2.3.1 — Native current-work read / deterministic client qualification
 
@@ -215,8 +243,8 @@ that direct-host evidence.
 P2.3 is **not complete**. Model selection/non-selection and result use are
 **NOT TESTED IN P2.3.1**. This closeout does not authorize or begin P2.3.2 or
 activate any later P2.3 slice. P2.4 remains completed_bounded; the local
-P2.5.1 slice is Completed within its bounded scope above. Public P2.5 deployment
-and discovery remain separately authorized later work; #1212 and #1209 remain open.
+P2.5.1 slice is Completed within its bounded scope above. The separately
+authorized P2.5.2 qualification is recorded above; #1212 and #1209 remain open.
 
 ## Completed P2.2 work-read surface slice
 
