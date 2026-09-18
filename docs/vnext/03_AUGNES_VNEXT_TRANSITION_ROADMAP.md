@@ -138,8 +138,25 @@ usefulness/reduced operator burden, shared editing, continuous freshness,
 authenticity/signing and arbitrary-client support remain residual questions,
 not failed criteria for this bounded completion. A retained-work walkthrough
 requires separate explicit data/egress authorization and was not performed.
-P2.3 remains separate below. P2.5 remains Later public-first-read/discovery;
-no public discovery or later implementation is implied or started.
+P2.3 remains separate below. The local P2.5.1 artifact boundary is Current below;
+public deployment and discovery remain separately authorized later work.
+
+## Current P2.5.1 — Public first-read artifact boundary
+
+Under [#1276](https://github.com/hynk-studio/augnes/issues/1276), branch
+`codex/p2-5-1-public-first-read-artifact` implements one committed fictional
+tool-library case as equivalent static/no-JS HTML, Markdown and closed public
+JSON. The [owner audit and local qualification record](../verification/P2_5_1_PUBLIC_FIRST_READ_ARTIFACT.md)
+separates authored review labels from source material and authority, documents
+privacy/parity/determinism checks, and records zero render-time external calls
+and unchanged disposable product/canonical/session bytes.
+
+This is Current pending repository review/merge, not completed P2.5. No retained
+project export, new semantic database, anonymous upload or inference is added.
+P2.5.2 public deployment, exact public retrieval/privacy re-audit and
+discovery/selection/readership/utility evaluation require separate authorization.
+The local path is not evidence of public reachability or discovery. #1273 remains
+stopped; this slice does not resume its campaign. Parent #1212 remains open.
 
 ## Current P2.3.1 — Native current-work read / deterministic client qualification
 
@@ -163,8 +180,9 @@ P2.3 is **not complete**. Model selection/non-selection and result use are
 **NOT TESTED IN P2.3.1**. The smallest Next candidate is separately authorized
 P2.3.2 evaluation of connected agent/model selection versus correct non-selection
 and result use, before adding selection/comparison/review-preparation tools.
-No later slice is activated here. P2.4 remains completed_bounded; P2.5 remains
-Later; #1212 and #1209 remain open.
+No later P2.3 slice is activated here. P2.4 remains completed_bounded; the
+separately authorized local P2.5.1 slice is Current above. Public P2.5 deployment
+and discovery remain later; #1212 and #1209 remain open.
 
 ## Completed P2.2 work-read surface slice
 

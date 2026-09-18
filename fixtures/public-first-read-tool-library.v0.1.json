@@ -1,0 +1,60 @@
+{
+  "schema": "augnes.public-first-read.v0.1",
+  "case_id": "fictional-tool-library-pickup-queue",
+  "title": "Can staggered pickup slots reduce a tool library's evening queue? A fictional case",
+  "question": "For a fictional volunteer tool library with two checkout desks, does a quiet final half-hour show that the opening queue can be removed by offering pickup slots?",
+  "reviewed_at": "2026-09-18T00:00:00.000Z",
+  "summary": "The invented counts support a narrow conclusion: total evening capacity is adequate under the stated service assumptions, but the opening burst exceeds capacity. Staggered slots are a plausible experiment, not a demonstrated improvement. Retain a walk-in option and measure waiting time before changing the schedule. These calculations describe only this disposable scenario; they do not estimate any real library's performance.",
+  "claims": [
+    {
+      "id": "evening-capacity",
+      "statement": "The two desks have enough nominal capacity for all 36 pickups over the 90-minute evening.",
+      "state": "confirmed",
+      "review_note": "At five minutes per pickup and with both desks continuously available, each desk can complete 18 pickups, or 36 together. This confirms an arithmetic capacity bound within the fictional assumptions, not observed completion or an absence of waiting.",
+      "source_ids": ["arrival-counts", "service-assumptions"]
+    },
+    {
+      "id": "opening-backlog",
+      "statement": "At least 15 of the 27 opening-period arrivals cannot finish checkout in the first 30 minutes.",
+      "state": "confirmed",
+      "review_note": "Two desks can finish at most 12 pickups in 30 minutes. Subtracting that upper bound from 27 arrivals leaves at least 15 unfinished pickups. Late arrivals within that interval could make the unfinished count larger. The count is not a measured waiting-time distribution.",
+      "source_ids": ["arrival-counts", "service-assumptions"]
+    },
+    {
+      "id": "slots-reduce-wait",
+      "statement": "Offering three pickup windows will reduce actual waiting without making access worse for walk-in visitors.",
+      "state": "unconfirmed",
+      "review_note": "The proposal aims for 12 arrivals in each half-hour, matching nominal capacity. No trial measures whether visitors can follow those windows, whether returns interrupt service, or whether people without reservations lose access. Three references explain the hypothesis; their presence does not confirm it.",
+      "source_ids": ["arrival-counts", "service-assumptions", "slot-proposal"]
+    },
+    {
+      "id": "quiet-end-proves-no-queue",
+      "statement": "A low arrival count in the final half-hour proves that the existing schedule has no queue problem.",
+      "state": "rejected",
+      "review_note": "The last interval has only three new arrivals, but arrival counts are not queue-length measurements. Unfinished work can carry forward from the opening burst. Rejecting this inference preserves the source counts and does not establish how long any visitor actually waited.",
+      "source_ids": ["arrival-counts", "service-assumptions"]
+    }
+  ],
+  "sources": [
+    {
+      "id": "arrival-counts",
+      "title": "Invented evening arrival tally",
+      "material": "Fictional source material, authored for this case: 27 pickup arrivals between 18:00 and 18:30, six between 18:30 and 19:00, and three between 19:00 and 19:30; 36 total. The tally records arrivals only. It contains no visitor identities, exact arrival times, checkout completion times, or measured waits. It is not an observation from a real organization."
+    },
+    {
+      "id": "service-assumptions",
+      "title": "Invented checkout capacity assumptions",
+      "material": "Fictional source material, authored for this case: two desks operate from 18:00 to 19:30, start with no existing queue, and each takes exactly five minutes per pickup. Both are continuously available. There are no interruptions, returns, missing tools, or early closures in this simplified calculation. Actual service variability and unfinished work after closing are unmeasured."
+    },
+    {
+      "id": "slot-proposal",
+      "title": "Untested pickup-window proposal",
+      "material": "Fictional source material, authored for this case: offer 18:00, 18:30, and 19:00 pickup windows targeting 12 pickups per window while retaining walk-in access. A possible disposable trial would record arrival time, service start, completion, missed windows, and walk-in deferrals in aggregate. No trial was run. A useful comparison would report both waiting and access outcomes, including people who could not use their offered window."
+    }
+  ],
+  "unresolved": [
+    "Actual waiting times, arrival times within each interval, interruptions, and service-time variation are unknown; the arithmetic cannot reconstruct them.",
+    "Whether visitors can attend later windows, and how to preserve walk-in access when reservations fill a window, remain unresolved.",
+    "The proposal has no measured result. A future trial would need comparable evenings and explicit waiting-time and access criteria; this note neither authorizes nor schedules one."
+  ]
+}
