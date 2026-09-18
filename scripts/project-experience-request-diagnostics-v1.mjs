@@ -1,4 +1,5 @@
 // Passive, private-test-owner diagnostics. None of these records decide acceptance.
+import { createHostRoundTripPinsV1 } from './project-experience-host-round-trip-pins-v1.mjs';
 const PHASES = new Set(['setup', 'project_onboarding_and_naming', 'guidebrief_model_interpretation',
   'project_shell_and_locked_entry', 'responsive_first_work_presentation', 'companion_first_work_access',
   'project_home_lifecycle_presentation', 'rendered_state_responsive_matrix', 'retired_route_safety',
@@ -39,7 +40,7 @@ function route(value) {
 }
 
 export function createProjectExperienceRequestDiagnosticsV1({ now = () => performance.now(),
-  maxEvents = 512, maxRequests = 256, maxAliases = 1024, maxFailures = 16 } = {}) {
+  maxEvents = 512, maxRequests = 256, maxAliases = 1024, maxFailures = 16, maxPins = 32 } = {}) {
   for (const [value, bound] of [[maxEvents, 512], [maxRequests, 256], [maxAliases, 1024], [maxFailures, 16]]) {
     if (!Number.isInteger(value) || value < 1 || value > bound) throw new Error('request_diagnostic_bound_invalid');
   }
@@ -82,8 +83,12 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
     request_start_phase: entry.start.phase, request_start_sequence: entry.start.sequence,
     frame: entry.start.frame, loader: entry.start.loader, redirect_from: entry.redirectFrom } :
     { request: null, route: 'unknown_route', method: null, request_start_phase: null, request_start_sequence: null };
+  const pins = createHostRoundTripPinsV1({ maxPins, stamp: () => append('consumer_observation').sequence });
 
   return Object.freeze({
+    browserSource: () => pins.browserSource(),
+    installationFailed() { counts.observation_errors += 1; },
+    completeProbe() { pins.completeProbe(phase); },
     connection() { return guard(() => {
       if (connections.size >= 16) { counts.aliases_dropped += 1; return null; }
       const connection = `connection-${++connectionCount}`; connections.add(connection);
@@ -97,10 +102,13 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
     navigation(value) { guard(() => append('navigation_intent', { navigation: `navigation-${++navigationCount}`, route: route(value) }, null, true)); },
     cleanup() { guard(() => { segment = 'cleanup'; append('cleanup_start', {}, null, true); }); },
     observe(connection, payload) { guard(() => {
-      if (!EVENTS.has(payload?.method)) return;
       if (!connections.has(connection)) connection = null;
       const p = payload.params ?? {};
       const session = payload.sessionId == null ? 'root-session' : alias('session', connection, payload.sessionId);
+      if (payload?.method === 'Runtime.bindingCalled') {
+        pins.consumer(connection, session, payload, phase); return;
+      }
+      if (!EVENTS.has(payload?.method)) return;
       const ctx = { ...context(connection, session, p),
         protocol_request: alias('protocol-request', `${connection}:${session}`, p.requestId) };
       if (payload.method.startsWith('Page.')) {
@@ -123,6 +131,7 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
         const start = append('request_start', { ...ctx, request: `request-${++requestCount}`, route: route(p.request?.url),
           method: allowed(METHODS, p.request?.method), resource_type: allowed(TYPES, p.type),
           redirect_from: redirectFrom, redirect_context_missing: redirected && !redirectFrom, ambiguous_request_id: ambiguous }, p.timestamp);
+        pins.start(key, start, p);
         if (key) {
           if (!requests.has(key) && requests.size >= maxRequests) { requests.delete(requests.keys().next().value); counts.request_contexts_evicted += 1; }
           requests.set(key, { request: start.request, route: start.route, method: start.method, start,
@@ -139,15 +148,18 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
       const fields = { ...ctx, ...requestFields(entry), match };
       if (payload.method === 'Network.responseReceived') {
         const event = append('response_received', { ...fields, status: status(p.response?.status), response_route: route(p.response?.url), resource_type: allowed(TYPES, p.type) }, p.timestamp);
+        pins.protocol(key, event);
         if (entry) entry.response = event;
       } else if (payload.method === 'Network.loadingFinished') {
         const event = append('loading_finished', fields, p.timestamp);
+        pins.protocol(key, event);
         if (entry) { entry.completion = event; entry.terminal = true; }
       } else {
         const event = append('loading_failed', { ...fields, failure_received_phase: phase,
           canceled: typeof p.canceled === 'boolean' ? p.canceled : null, resource_type: allowed(TYPES, p.type),
           error: allowed(ERRORS, p.errorText), response_observed_before_failure: entry ? entry.response !== null : null,
           completion_observed_before_failure: entry ? entry.completion !== null : null, application_cleanup_cause: 'unknown' }, p.timestamp);
+        pins.protocol(key, event);
         retain(failures, { failure: event, request_start: entry?.start ?? null, response: entry?.response ?? null,
           completion: entry?.completion ?? null, preceding_lifecycle: lifecycle.slice(-8),
           preceding_lifecycle_omitted: Math.max(0, lifecycle.length - 8) + counts.lifecycle_evicted,
@@ -155,17 +167,17 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
         if (entry) entry.terminal = true;
       }
     }); },
-    snapshot(checkpoint) { return guard(() => structuredClone({ diagnostic_version: 'project_experience_request_correlation.v1',
+    snapshot(checkpoint) { return guard(() => { const pinned = pins.snapshot(); return structuredClone({ diagnostic_version: 'project_experience_request_correlation.v1',
       checkpoint: allowed(new Set(['scenario_failure', 'scenario_complete', 'after_cleanup']), checkpoint),
       clocks: { host_elapsed_ms: 'performance.now milliseconds since collector creation; receipt order only',
         cdp_monotonic_seconds: 'CDP timestamp as supplied; no host/protocol epoch subtraction' },
       authority: 'diagnostic_only_no_verdict', limits: { maxEvents, maxRequests, maxAliases, maxFailures,
         lifecycle: 64, failure_lifecycle_each_side: 8 },
       counts, totals: { events: sequence, requests: requestCount, loading_failures: failures.length + counts.failures_evicted },
-      evidence_incomplete: Object.values(counts).some(value => value > 0) ||
+      evidence_incomplete: pinned.evidence_incomplete || Object.values(counts).some(value => value > 0) ||
         failures.some(failure => failure.preceding_lifecycle_omitted > 0 || failure.following_lifecycle_omitted > 0),
       limitations: ['Retention loss or missing context cannot prove event absence.', 'Temporal association does not establish cancellation cause.',
         'Step and boundary-mode labels describe harness intent, not observed application cleanup.'],
-      events, failures, application_cleanup_cause: 'unknown' })); },
+      events, failures, host_round_trip_pins: pinned, application_cleanup_cause: 'unknown' }); }); },
   });
 }
