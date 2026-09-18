@@ -173,17 +173,20 @@ readership, utility and selection evaluation. The local path is not evidence of
 public reachability or discovery, and this closeout does not authorize or begin
 P2.5.2. #1273 remains stopped and unrelated; #1212 and #1209 remain open.
 
-## Current P2.3.1 — Native current-work read / deterministic client qualification
+## Completed P2.3.1 — Native current-work read / deterministic client qualification
 
-Under [#1271](https://github.com/hynk-studio/augnes/issues/1271), the
+[#1271](https://github.com/hynk-studio/augnes/issues/1271) completed through merged
+[PR #1272](https://github.com/hynk-studio/augnes/pull/1272). P2.3.1 is
+**Completed within its implemented bounded scope**. The
 [bounded qualification record](../verification/P2_3_1_NATIVE_WEBMCP_CURRENT_WORK.md)
 separates native support, deterministic source tests, actual Augnes Browser
 discovery/execution, and external-client list/invoke/result delivery. The
 qualified environment is Chrome 153.0.8010.47 with the official local WebMCP
 testing feature and pinned chrome-devtools-mcp 1.9.0. Ordinary launch remains a
-harmless no-op. The outcome follows the review/merge phase-state rule above.
+harmless no-op. This bounded evidence does not establish model tool-selection
+quality, correct non-selection, downstream usefulness or P2.3 completion.
 
-Exactly one page-local `augnes_get_current_work_context` tool reuses the
+Exactly one page-local read-only `augnes_get_current_work_context` tool reuses the
 authenticated project-continuity/current-work owner. Registration follows the
 displayed binding; stale unseen work refuses. Results contain bounded literal
 untrusted source context, preserve unknowns, omit project-wide unresolved state,
@@ -191,11 +194,27 @@ and grant no semantic/execution authority. Existing App/MCP work-read tools
 remain distinct and unchanged. No polyfill, provider call, Site mutation,
 source fetch, export/upload or new write/approval system is introduced.
 
+The later [#1274](https://github.com/hynk-studio/augnes/issues/1274) compatibility
+correction completed through merged
+[PR #1275](https://github.com/hynk-studio/augnes/pull/1275) and is part of current
+source. It fixes the reproduced missing invocation-options / AbortSignal defect.
+The [compatibility record](../verification/P2_3_1A_WEBMCP_INVOCATION_SIGNAL_COMPATIBILITY.md)
+and #1274/#1275 causal verification do not establish successful post-fix execution
+in the actual ChatGPT desktop built-in-browser Site-tools host; that evidence
+remains **unobserved**.
+
+P2.3.2 [#1273](https://github.com/hynk-studio/augnes/issues/1273) remains
+**open/stopped**. Its consumed pre-fix R1 remains selection observed, direct
+Site-tool execution failed, and fallback answer succeeded through other paths.
+The original campaign must not be continued or relabeled. Any separately
+authorized resumption requires a fresh disposable runtime/fixture and a fresh
+campaign from R1 using actual ChatGPT desktop Site-tool evidence. Ordinary
+Chrome, chrome-devtools-mcp, local Codex automation, Codex Mobile remote control
+or other indirect evidence must not substitute for that direct-host evidence.
+
 P2.3 is **not complete**. Model selection/non-selection and result use are
-**NOT TESTED IN P2.3.1**. The smallest Next candidate is separately authorized
-P2.3.2 evaluation of connected agent/model selection versus correct non-selection
-and result use, before adding selection/comparison/review-preparation tools.
-No later P2.3 slice is activated here. P2.4 remains completed_bounded; the local
+**NOT TESTED IN P2.3.1**. This closeout does not authorize or begin P2.3.2 or
+activate any later P2.3 slice. P2.4 remains completed_bounded; the local
 P2.5.1 slice is Completed within its bounded scope above. Public P2.5 deployment
 and discovery remain separately authorized later work; #1212 and #1209 remain open.
 
