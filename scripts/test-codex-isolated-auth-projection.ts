@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { ChildProcess, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
 import {
   chmodSync,
   existsSync,
@@ -8,6 +9,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -17,6 +19,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 
 import {
@@ -3323,30 +3326,200 @@ async function runtimePolicyNegativesV01(
     assert.equal(readdirSync(probe.state_parent).length, 0);
   }
 
-  const authRecovery = await runProbeV01(
-    roots,
-    "auth-recovery-runtime-drift",
-    provisioned,
-    FAKE_JWT,
-    "isolated_auth_auth_recovery_notifications",
-  );
-  assert.equal(authRecovery.result, null);
-  assert.equal(
-    errorCodeV01(authRecovery.error),
-    "codex_isolated_auth_runtime_policy_drift",
-  );
-  assert.equal(
-    authRecovery.adapter_observations.some((observation) =>
-      [
-        "provider_auth_recovery_started",
-        "provider_auth_recovery_completed",
-        "approval_requested",
-        "approval_resolved",
-      ].includes(observation.kind),
-    ),
-    false,
-  );
-  assert.equal(readdirSync(authRecovery.state_parent).length, 0);
+  await runtimePolicySettlementCasesV01(roots, provisioned);
+}
+
+type RuntimePolicyCaseV01 = "before_terminal" | "with_terminal" | "preflight";
+type RuntimePolicyEvidenceV01 = {
+  result: NativeHostResultV01 | null;
+  error: string | null;
+  settled_error: string | null;
+  thread_start: boolean;
+  turn_start: boolean;
+  recovery_emitted: boolean;
+  terminal_emitted: boolean;
+  terminal_admitted: boolean;
+  recovery_approval_observations: string[];
+  network_attempts: number;
+  repository_unchanged: boolean;
+  state_entries: number;
+  lease_entries: number;
+  remaining_processes: number;
+  cleanup_complete: boolean;
+};
+
+function assertRuntimePolicyCaseV01(kind: RuntimePolicyCaseV01, value: RuntimePolicyEvidenceV01): void {
+  const reason = "codex_isolated_auth_runtime_policy_drift";
+  assert.equal(value.thread_start, kind !== "preflight");
+  assert.equal(value.turn_start, kind !== "preflight");
+  assert.equal(value.recovery_emitted, kind !== "preflight");
+  assert.equal(value.terminal_emitted, kind === "with_terminal");
+  assert.equal(value.terminal_admitted, kind === "with_terminal");
+  assert.equal(value.settled_error, null);
+  if (kind === "before_terminal") {
+    assert.equal(value.result, null, "A: no terminal may own a settled result");
+    assert.equal(value.error, reason);
+  } else {
+    assert.notEqual(value.result, null, "B/C: the bounded failure owns the result");
+    assert.equal(value.result!.outcome, "failed");
+    assert.equal(value.result!.public_stop_reason, reason);
+    assert.equal(value.error, null);
+    assert.deepEqual(value.result!.commands, []);
+    assert.deepEqual(value.result!.changed_files, []);
+    assert.deepEqual(value.result!.artifacts, []);
+  }
+  assert.deepEqual(value.recovery_approval_observations, []);
+  assert.equal(value.network_attempts, 0);
+  assert.equal(value.repository_unchanged, true);
+  assert.equal(value.state_entries, 0);
+  assert.equal(value.lease_entries, 0);
+  assert.equal(value.remaining_processes, 0);
+  assert.equal(value.cleanup_complete, true);
+}
+
+async function runtimePolicySettlementCasesV01(
+  roots: RootsV01,
+  provisioned: ProvisionCodexIsolatedAuthProjectionResultV01,
+): Promise<void> {
+  const evidence = new Map<RuntimePolicyCaseV01, RuntimePolicyEvidenceV01>();
+  const repositorySnapshot = () => [roots.repository, roots.ordinaryHome, roots.ordinaryTmp].map((root) => {
+    const entries: unknown[] = [];
+    const visit = (entry: string) => {
+      const stat = lstatSync(entry);
+      entries.push([path.relative(root, entry), stat.mode,
+        stat.isSymbolicLink() ? readlinkSync(entry) : stat.isFile() ? sha256FileV01(entry) : "directory"]);
+      if (stat.isDirectory() && !stat.isSymbolicLink())
+        readdirSync(entry).sort().forEach((name) => visit(path.join(entry, name)));
+    };
+    visit(root);
+    return entries;
+  });
+  for (const [kind, scenario] of [
+    // A/B are post-start. C uses the existing account-policy drift at preflight.
+    ["before_terminal", "isolated_auth_auth_recovery_before_terminal"],
+    ["with_terminal", "isolated_auth_auth_recovery_with_terminal"],
+    ["preflight", "isolated_auth_runtime_drift"],
+  ] as const) {
+    const id = `runtime-policy-${kind}`;
+    const before = repositorySnapshot();
+    const guard = installZeroNetworkGuard();
+    let probe: ProbeV01;
+    let writes: Record<string, number>;
+    try {
+      ({ probe, writes } = await accountRuntimePolicyWritesV01(roots, id, () =>
+        runProbeV01(roots, id, provisioned, FAKE_JWT, scenario)));
+    } finally {
+      guard.restore();
+    }
+    const methods = receivedMethodsV01(probe.trace_path);
+    const sent = traceValuesV01(probe.trace_path, "sent").map((entry) => entry.method);
+    const observed = probe.adapter_observations.map((entry) => entry.kind);
+    const pids = new Set(probe.adapter_observations.map((entry) => entry.process_id).filter((pid): pid is number => pid !== null));
+    assert.equal(pids.size, 1, "the owned fake App Server process must be observed");
+    const remaining = [...pids].filter((pid) => {
+      try { process.kill(pid, 0); return true; }
+      catch (error) { assert.equal((error as NodeJS.ErrnoException).code, "ESRCH"); return false; }
+    });
+    const value: RuntimePolicyEvidenceV01 = {
+      result: probe.result, error: errorCodeV01(probe.error), settled_error: errorCodeV01(probe.settled_error),
+      thread_start: methods.includes("thread/start"), turn_start: methods.includes("turn/start"),
+      recovery_emitted: sent.includes("modelProvider/authRecoveryStarted") && sent.includes("modelProvider/authRecoveryCompleted"),
+      terminal_emitted: sent.includes("turn/completed"), terminal_admitted: observed.includes("terminal_observed"),
+      recovery_approval_observations: observed.filter((kind) => ["provider_auth_recovery_started", "provider_auth_recovery_completed", "approval_requested", "approval_resolved"].includes(kind)),
+      network_attempts: guard.attempts.length + Number(readFileSync(probe.network_path, "utf8")),
+      repository_unchanged: JSON.stringify(repositorySnapshot()) === JSON.stringify(before),
+      state_entries: readdirSync(probe.state_parent).length, lease_entries: readdirSync(roots.lease).length,
+      remaining_processes: remaining.length,
+      cleanup_complete: observed.at(-1) === "settled" && !observed.includes("settlement_failed") && readFileSync(probe.cleanup_path, "utf8") === "settled\n",
+    };
+    assertRuntimePolicyCaseV01(kind, value);
+    if (kind === "with_terminal") {
+      assert.ok(sent.indexOf("turn/completed") > sent.indexOf("modelProvider/authRecoveryCompleted"));
+      assert.throws(() => assert.equal(probe.result, null), assert.AssertionError,
+        "the old null-result expectation must reject the real admitted-terminal result");
+    }
+    assert.equal(listFilesV01(path.dirname(probe.trace_path)).length, 4,
+      "only the boundary, trace, network counter and cleanup marker survive until harness cleanup");
+    assertNoSecretFilesV01(roots.root);
+    evidence.set(kind, value);
+    console.log(JSON.stringify({ runtime_policy_case: kind, status: "passed",
+      settlement: probe.result ? "failed_result" : "rejected_null_result",
+      temporary_parent_mutator_calls: writes, fixture_diagnostic_files: 4,
+      fixture_trace_appends: readFileSync(probe.trace_path, "utf8").trim().split("\n").length,
+      state_entries: value.state_entries, lease_entries: value.lease_entries,
+      network_attempts: value.network_attempts, remaining_owned_processes: value.remaining_processes }));
+  }
+  const before = evidence.get("before_terminal")!;
+  const terminal = evidence.get("with_terminal")!;
+  // These deliberately invalid observations must fail the exact case contract;
+  // accepting either shape or silently dropping a refusal invariant is not a fix.
+  assert.throws(() => assertRuntimePolicyCaseV01("before_terminal", { ...before, result: terminal.result, error: null }), assert.AssertionError);
+  assert.throws(() => assertRuntimePolicyCaseV01("with_terminal", { ...terminal, result: null, error: before.error }), assert.AssertionError);
+  for (const [kind, valid] of evidence) {
+    const reject = (patch: Partial<RuntimePolicyEvidenceV01>) =>
+      assert.throws(() => assertRuntimePolicyCaseV01(kind, { ...valid, ...patch }), assert.AssertionError);
+    reject({ terminal_admitted: !valid.terminal_admitted });
+    reject({ terminal_emitted: !valid.terminal_emitted });
+    reject({ recovery_emitted: !valid.recovery_emitted });
+    reject({ thread_start: !valid.thread_start });
+    reject({ turn_start: !valid.turn_start });
+    reject({ settled_error: "unexpected_settlement_failure" });
+    if (valid.result) {
+      reject({ result: { ...valid.result, public_stop_reason: "wrong_reason" } });
+      reject({ result: { ...valid.result, outcome: "completed" } });
+      for (const field of ["commands", "changed_files", "artifacts"] as const)
+        reject({ result: { ...valid.result, [field]: [{}] } as NativeHostResultV01 });
+    } else reject({ error: "wrong_reason" });
+    for (const observation of ["provider_auth_recovery_started", "provider_auth_recovery_completed", "approval_requested", "approval_resolved"])
+      reject({ recovery_approval_observations: [observation] });
+    reject({ network_attempts: 1 });
+    reject({ repository_unchanged: false });
+    reject({ state_entries: 1 });
+    reject({ lease_entries: 1 });
+    reject({ remaining_processes: 1 });
+    reject({ cleanup_complete: false });
+  }
+}
+
+async function accountRuntimePolicyWritesV01(roots: RootsV01, id: string, run: () => Promise<ProbeV01>) {
+  const allowed = [path.join(roots.state, id), path.join(roots.runtime, id), roots.lease];
+  const counts: Record<string, number> = {};
+  const descriptors = new Map<number, string>();
+  const restores: Array<() => void> = [];
+  // Source owners use these synchronous mutators. Count API calls, not syscalls
+  // or zero-write claims; descriptor writes include the synthetic auth snapshot.
+  for (const method of ["mkdirSync", "mkdtempSync", "chmodSync", "openSync", "writeFileSync", "unlinkSync", "rmSync"] as const) {
+    const original = fs[method];
+    Reflect.set(fs, method, (...args: unknown[]) => {
+      const writing = method !== "openSync" || args[1] !== "r";
+      const file = typeof args[0] === "number" ? descriptors.get(args[0]) : args[0];
+      if (writing) {
+        assert.equal(typeof file, "string", "every write requires an owned pathname or descriptor");
+        assert.ok(allowed.some((root) => file === root || (file as string).startsWith(`${root}${path.sep}`)),
+          "runtime-policy fixture write escaped its disposable owned roots");
+        let ancestor = file as string;
+        while (!existsSync(ancestor)) ancestor = path.dirname(ancestor);
+        const physical = realpathSync(ancestor);
+        const owned = realpathSync(roots.root);
+        assert.ok(physical === owned || physical.startsWith(`${owned}${path.sep}`),
+          "runtime-policy fixture write followed an unowned filesystem target");
+      }
+      const result = Reflect.apply(original, fs, args);
+      if (method === "openSync" && writing) descriptors.set(result as number, file as string);
+      if (writing) counts[method] = (counts[method] ?? 0) + 1;
+      return result;
+    });
+    restores.push(() => { Reflect.set(fs, method, original); });
+  }
+  syncBuiltinESMExports();
+  try {
+    const probe = await run();
+    assert.equal(counts.writeFileSync, 2, "one disposable lease and one synthetic auth snapshot");
+    return { probe, writes: counts };
+  } finally {
+    restores.reverse().forEach((restore) => restore());
+    syncBuiltinESMExports();
+  }
 }
 
 async function tmpAndFailureNegativesV01(

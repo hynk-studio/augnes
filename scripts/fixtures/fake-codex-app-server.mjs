@@ -675,11 +675,13 @@ async function handle(message) {
           });
         }
         if (
-          [
-            "auth_recovery_notifications",
-            "isolated_auth_auth_recovery_notifications",
-          ].includes(scenario)
+          scenario === "isolated_auth_auth_recovery_before_terminal" ||
+          scenario === "isolated_auth_auth_recovery_with_terminal"
         ) {
+          emitIsolatedAuthRecoveryDrift(
+            scenario === "isolated_auth_auth_recovery_with_terminal",
+          );
+        } else if (scenario === "auth_recovery_notifications") {
           notify("modelProvider/authRecoveryStarted", {
             threadId,
             turnId,
@@ -1601,6 +1603,32 @@ function respondAndRuntimeDriftInOneBatch(id) {
   process.stdout.write(
     `${messages.map((message) => JSON.stringify(message)).join("\n")}\n`,
   );
+}
+
+function emitIsolatedAuthRecoveryDrift(withTerminal) {
+  const messages = [
+    {
+      method: "modelProvider/authRecoveryStarted",
+      params: { threadId, turnId, provider: "Amazon Bedrock", message: "Synthetic recovery started." },
+    },
+    {
+      method: "modelProvider/authRecoveryCompleted",
+      params: { threadId, turnId, provider: "Amazon Bedrock", message: "Synthetic recovery completed." },
+    },
+  ];
+  if (withTerminal) {
+    completed = true;
+    turnActive = false;
+    // A terminal turn is not a successful task result. No commands, files,
+    // artifacts or structured success payload accompany this completion.
+    messages.push({ method: "turn/completed", params: { threadId, turn: turn("completed", []) } });
+    trace("terminal_state_emitted", {});
+  }
+  messages.forEach((message) => trace("sent", minimized(message)));
+  trace("isolated_auth_drift_batch", { terminal_completion_emitted: withTerminal });
+  // As with the existing preflight/resume batch fixtures, one small pipe write
+  // admits the ordered notifications without a sleep or stdout-chunk race.
+  process.stdout.write(`${messages.map((message) => JSON.stringify(message)).join("\n")}\n`);
 }
 
 function completeConflictingSuccess() {
