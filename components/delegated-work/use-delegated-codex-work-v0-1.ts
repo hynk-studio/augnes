@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
+import type { ProjectExperienceConsumerObserverV1 } from "./project-experience-test-observer";
 
 const ROUTE = "/api/vnext/operator/host-round-trip";
 const POLL_MS = 750;
@@ -21,7 +22,7 @@ export type DelegatedWorkActionV01 =
       control_revision: number;
     };
 
-export function useDelegatedCodexWorkV01(enabled: boolean) {
+export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectExperienceConsumerObserverV1 | null = null) {
   const [projection, setProjection] =
     useState<DelegatedWorkProjectionV01 | null>(null);
   const [status, setStatus] = useState<
@@ -41,14 +42,21 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
     const abort = new AbortController();
     abortRef.current = abort;
     requestCountRef.current += 1;
+    const observation = diagnostic?.beginRead(abort);
+    let bodyReadPending = false;
     try {
-      const response = await fetch(ROUTE, {
+      const response = await (observation?.fetch ?? fetch)(ROUTE, {
         method: "GET",
         credentials: "same-origin",
         cache: "no-store",
         signal: abort.signal,
       });
+      observation?.event("response_headers_received", response.status);
+      bodyReadPending = true;
+      observation?.event("body_read_started");
       const body = (await response.json()) as Record<string, unknown>;
+      bodyReadPending = false;
+      observation?.event("body_read_completed");
       if (!response.ok) {
         if (!mountedRef.current) return;
         setStatus("unavailable");
@@ -73,6 +81,7 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
         setPollGeneration((value) => value + 1);
       }
     } catch (caught) {
+      if (bodyReadPending) observation?.event("body_read_failed");
       if (!mountedRef.current || abort.signal.aborted) return;
       setStatus("unavailable");
       setError(
@@ -81,10 +90,11 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
           : "delegated_work_read_failed",
       );
     } finally {
+      observation?.event("consumer_returned");
       if (abortRef.current === abort) abortRef.current = null;
       inFlightRef.current = false;
     }
-  }, [enabled]);
+  }, [enabled, diagnostic]);
 
   const act = useCallback(
     async (action: DelegatedWorkActionV01): Promise<boolean> => {
@@ -145,7 +155,10 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
     [enabled],
   );
 
+  useEffect(() => diagnostic?.mount(), [diagnostic]);
+
   useEffect(() => {
+    diagnostic?.effectActive(enabled);
     mountedRef.current = true;
     if (!enabled) {
       initialReadRef.current = false;
@@ -153,13 +166,16 @@ export function useDelegatedCodexWorkV01(enabled: boolean) {
     if (enabled && !initialReadRef.current) {
       initialReadRef.current = true;
       setStatus("loading");
+      diagnostic?.initialRead();
       void read();
     }
     return () => {
       mountedRef.current = false;
+      diagnostic?.cleanup(abortRef.current);
       abortRef.current?.abort();
+      diagnostic?.cleanupFinished();
     };
-  }, [enabled, read]);
+  }, [enabled, read, diagnostic]);
 
   useEffect(() => {
     if (!enabled || !shouldPollDelegatedWorkV01(projection)) return;
