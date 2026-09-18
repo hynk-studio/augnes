@@ -17,6 +17,7 @@ import { useProjectGuideBriefV02 } from "@/components/guide/use-project-guide-br
 import { ProductShell } from "@/components/product-shell";
 import { DelegatedWorkPanel } from "@/components/delegated-work/delegated-work-panel";
 import { useDelegatedCodexWorkV01 } from "@/components/delegated-work/use-delegated-codex-work-v0-1";
+import { projectExperienceTestObserverV1 } from "@/components/delegated-work/project-experience-test-observer";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import {
   buildAIWorkplaneHomeViewV01,
@@ -82,6 +83,8 @@ export function SemanticReviewSurface({
   const router = useRouter();
   const guideState = useProjectGuideBriefV02(initialGuide);
   const privateReadGuard = useRef(new SemanticReviewReadGuardV01());
+  const requestDiagnosticIdentity = useRef<object>({});
+  const requestDiagnostic = projectExperienceTestObserverV1(requestDiagnosticIdentity.current);
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
@@ -93,7 +96,8 @@ export function SemanticReviewSurface({
     );
     if (next.status !== "authenticated") setLoadingPrivateView(false);
     setSessionState(next);
-  }, []);
+    requestDiagnostic?.auth(next.status);
+  }, [requestDiagnostic]);
   const [privateView, setPrivateView] =
     useState<PrivateSemanticReviewViewV01 | null>(null);
   const [loadingPrivateView, setLoadingPrivateView] = useState(false);
@@ -115,6 +119,7 @@ export function SemanticReviewSurface({
   const lastTrustedResultRef = useRef<string | null>(null);
   const delegatedState = useDelegatedCodexWorkV01(
     sessionState.status === "authenticated" && !proposalId,
+    requestDiagnostic,
   );
 
   const loadPrivateView = useCallback(async (options?: {

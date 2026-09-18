@@ -38,6 +38,7 @@ import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-superv
 import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
+import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
@@ -1718,10 +1719,13 @@ async function main() {
     const unavailableExecutionProbe = requestVerdicts.armUnavailableExecutionProbe();
     const unavailableExecution = await browserFetchJson("/api/vnext/operator/host-round-trip", {
       headers: UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
+      diagnosticProbe: true,
     });
     assert.equal(unavailableExecution.status, 404, "preparation must work without the managed-execution profile");
     // browserFetchJson has also awaited response.json(); status alone is insufficient.
     requestVerdicts.completeUnavailableExecutionProbe(unavailableExecutionProbe);
+    // Observational only; the verdict completion above remains the sole owner.
+    requestDiagnostics.completeProbe?.();
     const savedDefinition = readback.body.work_initialization.current_work;
     const noteDatabase = new Database(accessDatabasePath, { readonly: true, fileMustExist: true });
     try {
@@ -3303,6 +3307,11 @@ async function openCdpPage() {
           }),
         ]),
   ]);
+  // Installation failure is diagnostic loss, never an acceptance exception.
+  try {
+    await cdp.send("Runtime.addBinding", { name: CONSUMER_DIAGNOSTIC_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestDiagnostics.browserSource() });
+  } catch { requestDiagnostics.installationFailed(); }
 }
 
 function attachCdpObservers() {
@@ -3875,7 +3884,8 @@ async function browserFetchJson(pathname, options = {}) {
         expected_current_display_name: active?.project?.display_name ?? null
       };
     }
-    const response = await fetch(${JSON.stringify(pathname)}, {
+    const diagnostic = ${options.diagnosticProbe === true} && typeof window !== 'undefined' ? window.__augnesProjectExperienceDiagnosticsV1?.probe() : null;
+    const response = await (diagnostic?.fetch ?? fetch)(${JSON.stringify(pathname)}, {
       method: ${JSON.stringify(options.method ?? "GET")},
       headers: body || ${options.headers !== undefined} ? {
         ...(body ? { 'content-type': 'application/json' } : {}),
@@ -3884,8 +3894,18 @@ async function browserFetchJson(pathname, options = {}) {
       body: body ? JSON.stringify(body) : undefined,
       cache: 'no-store'
     });
-    return { status: response.status, body: await response.json() };
-  })()`);
+    diagnostic?.event('response_headers_received', response.status);
+    const status = response.status;
+    diagnostic?.event('body_read_started');
+    try {
+      const parsed = await response.json();
+      diagnostic?.event('body_read_completed');
+      return { status, body: parsed };
+    } catch (error) {
+      diagnostic?.event('body_read_failed');
+      throw error;
+    } finally { diagnostic?.event('consumer_returned'); }
+  })()${options.diagnosticProbe === true ? '\n//# sourceURL=augnes-project-experience-marked-probe-v1' : ''}`);
   return value;
 }
 
