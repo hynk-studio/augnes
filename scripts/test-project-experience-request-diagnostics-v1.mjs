@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import './test-project-experience-pinned-diagnostics-v1.mjs';
 import { createProjectExperienceRequestDiagnosticsV1 } from './project-experience-request-diagnostics-v1.mjs';
 import { createProjectExperienceRequestVerdictV1, UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 } from './project-experience-request-verdict-v1.mjs';
 
@@ -245,6 +246,8 @@ function ownerObserver(diagnostic) {
   const noop = ownerObserver({ connection: () => null, observe() {} });
   const collecting = ownerObserver(createProjectExperienceRequestDiagnosticsV1({ now: () => 1 }));
   const events = [request('get'), response('get'), failed('get', { canceled: true }),
+    { method: 'Runtime.bindingCalled', params: { name: '__augnesProjectExperienceDiagnosticEventV1',
+      payload: '{"channel":"foreign","kind":"signal_aborted"}' } },
     request('post', 'POST'), failed('post', { canceled: false }), failed('missing'),
     { method: 'Page.frameStoppedLoading', params: { frameId: 'frame-raw' } },
     { method: 'Fetch.requestPaused', params: { requestId: 'pause', request: { url: 'http://localhost:3000/projects' } } },
