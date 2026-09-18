@@ -65,8 +65,9 @@ Known owner enums distinguish the marked probe, delegated initial read and
 delegated refresh/poll; other traffic stays unknown. Generation/controller
 aliases join fetch start, headers, body start/completion/failure and consumer
 return with effect activation, disposal, cleanup and the exact signal abort.
-No missing body completion is inferred. A successful JSON read is distinct from
-CDP `loadingFinished`.
+No missing body completion is inferred. An unknown body settlement marks that
+pin and the aggregate evidence incomplete, even if no retention loss occurred.
+A successful JSON read is distinct from CDP `loadingFinished`.
 
 Cleanup brackets the existing abort call with observations. A positive
 `cleanup_signal_abort_proven` requires that generation's signal event inside
@@ -77,7 +78,10 @@ the lifecycle is replayed. Otherwise the reason is unknown. No supersession or
 explicit-other reason is invented from temporal proximity.
 
 Auth observations allow only authenticated, locked_or_refused, unavailable and
-unknown. Only the state enum crosses the seam. Aliases, fixed enums, booleans,
+unknown. The auth observation follows the existing session-state setter; it
+does not claim React has committed the corresponding effect yet. A fresh empty
+object identifies the consumer; no private guard or session object crosses the
+seam. Only the state enum is observed. Aliases, fixed enums, booleans,
 bounded sequences and HTTP statuses enter snapshots. Request/response bodies,
 raw protocol IDs, generated transport tokens, source URLs/stacks, user/project
 IDs, cookies, credentials and private paths do not.

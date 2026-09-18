@@ -29,7 +29,7 @@ function install(channel, binding) {
       // The unique frame belongs to this invocation, not to a URL/header label.
       // It calls the existing fetch synchronously and returns that exact Promise.
       const invoke = Function('run', `return function(...args) { return run(...args); };\n//# sourceURL=augnes-pe-diagnostic/${channel}/${documentAlias}/${id}`)(
-        (...args) => { emit('fetch_started'); return window.fetch(...args); });
+        (...args) => { emit('fetch_started'); return Reflect.apply(window.fetch, undefined, args); });
       const aborted = () => emit('signal_aborted');
       emit('read_created');
       if (controller) {
@@ -55,7 +55,7 @@ function install(channel, binding) {
           auth(value) { safe(() => { auth = authState(value); emit('auth_transition_requested'); }); },
           mount() { emit('consumer_mounted'); return () => emit('consumer_disposed'); },
           effectActive(enabled) { safe(() => { effect += 1; emit('effect_active', enabled); }); },
-          initialRead() { initial = true; },
+          initialReadInvocation(active) { initial = active === true; },
           beginRead(controller) { return safe(() => {
             const owner = initial ? 'delegated_work_initial_read' : 'delegated_work_refresh_or_poll';
             initial = false;

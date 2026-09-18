@@ -15,7 +15,7 @@ const url = `http://localhost:3000${route}`;
 function fixture(options = {}) {
   const collector = createProjectExperienceRequestDiagnosticsV1(options);
   const connection = collector.connection(); collector.phase(phase);
-  const packets = [], calls = [];
+  const packets = [], calls = [], receivers = [];
   let id = 0, throwTransport = false, returnedPromise = Promise.resolve(null), knownCallSite = true;
   const observe = payload => collector.observe(connection, payload);
   const start = (requestId, headers, frames = []) => observe({ method: 'Network.requestWillBeSent', params: {
@@ -29,6 +29,7 @@ function fixture(options = {}) {
       observe({ method: 'Runtime.bindingCalled', params: { name: CONSUMER_DIAGNOSTIC_BINDING_V1, payload } });
     },
     fetch(...args) {
+      receivers.push(this);
       const frames = [...new Error().stack.matchAll(/augnes-pe-diagnostic\/[a-f0-9]+\/[a-f0-9-]+\/\d+/g)].map(match => match[0]);
       if (knownCallSite) frames.push(args[1]?.headers?.['x-augnes-e2e-probe'] === 'unavailable-execution-v1'
         ? 'augnes-project-experience-marked-probe-v1'
@@ -47,7 +48,7 @@ function fixture(options = {}) {
   const failure = (requestId = `raw-request-${id}`) => observe({ method: 'Network.loadingFailed', params: {
     requestId, type: 'Fetch', errorText: 'net::ERR_ABORTED', canceled: true,
   } });
-  return { collector, connection, observe, start, response, failure, portal, observer, window, packets, calls,
+  return { collector, connection, observe, start, response, failure, portal, observer, window, packets, calls, receivers,
     snapshot: () => collector.snapshot('scenario_failure').host_round_trip_pins,
     promise: value => { returnedPromise = value; }, transportFailure: () => { throwTransport = true; },
     unrelatedCallSite: () => { knownCallSite = false; } };
@@ -136,10 +137,52 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
 }
 function read(f, { initial = true, controller = new AbortController() } = {}) {
   f.observer.effectActive(true); f.observer.auth('authenticated');
-  if (initial) f.observer.initialRead();
+  f.observer.initialReadInvocation(initial);
   const observation = f.observer.beginRead(controller);
   observation.fetch(route, { method: 'GET', signal: controller.signal });
+  f.observer.initialReadInvocation(false);
   return { observation, controller };
+}
+
+// An initial invocation can be skipped by the hook's existing in-flight guard.
+// Its diagnostic label must not survive into a later explicit/poll read.
+{
+  const f = fixture();
+  f.observer.initialReadInvocation(true);
+  // No beginRead: the product guard returned before starting any request.
+  f.observer.initialReadInvocation(false);
+  const read = f.observer.beginRead(new AbortController());
+  read.fetch(route, { method: 'GET' });
+  assert.equal(f.snapshot().requests[0].owner, 'delegated_work_refresh_or_poll');
+  const source = readFileSync(new URL('../components/delegated-work/use-delegated-codex-work-v0-1.ts', import.meta.url), 'utf8');
+  assert.match(source, /diagnostic\?\.initialReadInvocation\(true\);\s*void read\(\);\s*diagnostic\?\.initialReadInvocation\(false\);/);
+}
+
+// The actual session callback records only a state that reached the setter.
+// The diagnostic identity is an empty stable object, never the private guard.
+{
+  const source = readFileSync(new URL('../components/workbench/semantic-review/semantic-review-surface.tsx', import.meta.url), 'utf8');
+  const file = ts.createSourceFile('surface.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declarations = new Map();
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) declarations.set(node.name.text, node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.equal(declarations.get('requestDiagnosticIdentity').initializer.getText(file), 'useRef<object>({})');
+  assert.equal(declarations.get('requestDiagnostic').initializer.arguments[0].getText(file), 'requestDiagnosticIdentity.current');
+  const callback = declarations.get('updateSessionState').initializer.arguments[0].getText(file);
+  const code = ts.transpileModule(`globalThis.callback = ${callback};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  for (const guardThrows of [false, true]) {
+    const calls = [], error = new Error('synthetic guard failure');
+    const context = { privateReadGuard: { current: { setSession() { calls.push('guard'); if (guardThrows) throw error; } } },
+      setLoadingPrivateView: () => calls.push('loading'), setSessionState: () => calls.push('state'),
+      requestDiagnostic: { auth: value => calls.push(`auth:${value}`) } };
+    vm.runInNewContext(code, context);
+    if (guardThrows) assert.throws(() => context.callback({ status: 'locked' }), caught => caught === error);
+    else context.callback({ status: 'locked' });
+    assert.deepEqual(calls, guardThrows ? ['guard'] : ['guard', 'loading', 'state', 'auth:locked']);
+  }
 }
 
 // The actual injected invocation frame binds ownership. A URL, marker, copied
@@ -155,12 +198,30 @@ function read(f, { initial = true, controller = new AbortController() } = {}) {
   assert.equal(snapshot.requests[0].owner, 'delegated_work_initial_read');
   assert.equal(snapshot.requests[0].body_settlement, 'unknown');
   assert.equal(snapshot.requests[0].body_completed_before_abort, null);
+  assert.equal(snapshot.requests[0].evidence_incomplete, true, 'unobserved body settlement is not complete evidence');
+  assert.equal(snapshot.evidence_incomplete, true);
   assert.equal(snapshot.requests[1].owner, 'unknown');
   assert.equal(snapshot.requests[1].marker, 'exact');
 }
 {
   const f = fixture(); f.unrelatedCallSite(); read(f);
   assert.equal(f.snapshot().requests[0].owner, 'unknown', 'a portal invocation outside the real call site cannot label unrelated traffic');
+}
+
+// Protocol identity reused outside the pinned phase/route cannot inherit an old
+// owner's body or controller evidence. Preserve the old pin, mark it ambiguous.
+for (const reuse of ['phase', 'route']) {
+  const f = fixture(); read(f);
+  if (reuse === 'phase') f.collector.phase('project_home_lifecycle_presentation');
+  f.observe({ method: 'Network.requestWillBeSent', params: { requestId: 'raw-request-1',
+    request: { method: 'GET', url: reuse === 'route' ? 'http://localhost:3000/api/vnext/operator/session' : url } } });
+  f.failure('raw-request-1');
+  const snapshot = f.snapshot();
+  assert.equal(snapshot.requests.length, 1);
+  assert.equal(snapshot.requests[0].owner, 'unknown');
+  assert.equal(snapshot.requests[0].ambiguous, true);
+  assert.equal(snapshot.requests[0].cleanup_signal_abort_proven, false);
+  assert.equal(snapshot.evidence_incomplete, true);
 }
 
 // Pin lifetime is independent of both general-ring and request-context eviction.
@@ -289,7 +350,20 @@ for (const broken of [false, true]) {
   const options = { method: 'GET', cache: 'no-store', credentials: 'same-origin', signal: controller.signal };
   assert.equal(observation.fetch(route, options), promise);
   assert.equal(f.calls.length, 1); assert.equal(f.calls[0][0], route); assert.equal(f.calls[0][1], options);
+  assert.equal(f.receivers[0], undefined, 'the original unbound fetch receiver is preserved');
   assert.doesNotThrow(() => observation.event('body_read_completed'));
+}
+for (const settlement of ['throw', 'reject']) {
+  const f = fixture(), error = new Error('synthetic original fetch failure');
+  const observation = f.observer.beginRead(new AbortController());
+  let calls = 0;
+  f.window.fetch = function () { calls++; assert.equal(this, undefined);
+    if (settlement === 'throw') throw error;
+    return Promise.reject(error);
+  };
+  if (settlement === 'throw') assert.throws(() => observation.fetch(route), caught => caught === error);
+  else await assert.rejects(observation.fetch(route), caught => caught === error);
+  assert.equal(calls, 1);
 }
 
 // Production builds never read the portal. Ordinary development is inert too:

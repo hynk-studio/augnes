@@ -166,8 +166,9 @@ export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectEx
     if (enabled && !initialReadRef.current) {
       initialReadRef.current = true;
       setStatus("loading");
-      diagnostic?.initialRead();
+      diagnostic?.initialReadInvocation(true);
       void read();
+      diagnostic?.initialReadInvocation(false);
     }
     return () => {
       mountedRef.current = false;

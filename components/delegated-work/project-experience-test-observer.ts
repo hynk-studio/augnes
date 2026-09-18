@@ -11,7 +11,7 @@ export interface ProjectExperienceConsumerObserverV1 {
   auth(state: string): void;
   mount(): () => void;
   effectActive(enabled: boolean): void;
-  initialRead(): void;
+  initialReadInvocation(active: boolean): void;
   beginRead(controller: AbortController): ProjectExperienceReadObserverV1 | null;
   cleanup(controller: AbortController | null): void;
   cleanupFinished(): void;

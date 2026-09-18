@@ -72,7 +72,8 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
         cleanup !== null && requested !== null && abort !== null &&
         returned !== null && cleanup < requested && requested < abort && abort < returned,
       consumer_events: events, effect_and_auth_events: consumer?.events ?? [],
-      evidence_incomplete: !known || generation?.incomplete === true || Object.values(counts).some(value => value > 0) };
+      evidence_incomplete: !known || (bodyComplete === null && bodyFailed === null) ||
+        generation?.incomplete === true || Object.values(counts).some(value => value > 0) };
   };
   return Object.freeze({
     browserSource: () => projectExperienceConsumerScriptV1(channel),
@@ -131,9 +132,9 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
       bind();
     }); },
     start(key, start, params) { guard(() => {
+      if (key && pins.has(key)) { invalidate(pins.get(key)); return; }
       if (start.phase !== PHASE || start.route !== ROUTE) return;
       if (!key) { counts.ambiguous += 1; return; }
-      if (pins.has(key)) { invalidate(pins.get(key)); return; }
       if (pins.size >= maxPins) { counts.pin_overflow += 1; return; }
       // Only the synchronous initiator stack can bind the injected invocation.
       // URL, headers, arbitrary owner fields and asynchronous ancestors cannot.

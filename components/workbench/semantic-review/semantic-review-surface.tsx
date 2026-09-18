@@ -83,19 +83,20 @@ export function SemanticReviewSurface({
   const router = useRouter();
   const guideState = useProjectGuideBriefV02(initialGuide);
   const privateReadGuard = useRef(new SemanticReviewReadGuardV01());
-  const requestDiagnostic = projectExperienceTestObserverV1(privateReadGuard.current);
+  const requestDiagnosticIdentity = useRef<object>({});
+  const requestDiagnostic = projectExperienceTestObserverV1(requestDiagnosticIdentity.current);
   const [sessionState, setSessionState] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
     error_code: null,
   });
   const updateSessionState = useCallback((next: OperatorSessionStateV01) => {
-    requestDiagnostic?.auth(next.status);
     privateReadGuard.current.setSession(
       next.status === "authenticated" ? next.session : null,
     );
     if (next.status !== "authenticated") setLoadingPrivateView(false);
     setSessionState(next);
+    requestDiagnostic?.auth(next.status);
   }, [requestDiagnostic]);
   const [privateView, setPrivateView] =
     useState<PrivateSemanticReviewViewV01 | null>(null);
