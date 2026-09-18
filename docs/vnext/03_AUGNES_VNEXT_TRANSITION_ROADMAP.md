@@ -209,8 +209,8 @@ Site-tool execution failed, and fallback answer succeeded through other paths.
 The original campaign must not be continued or relabeled. Any separately
 authorized resumption requires a fresh disposable runtime/fixture and a fresh
 campaign from R1 using actual ChatGPT desktop Site-tool evidence. Ordinary
-Chrome, chrome-devtools-mcp, local Codex automation, Codex Mobile remote control
-or other indirect evidence must not substitute for that direct-host evidence.
+Chrome, chrome-devtools-mcp, or other indirect evidence must not substitute for
+that direct-host evidence.
 
 P2.3 is **not complete**. Model selection/non-selection and result use are
 **NOT TESTED IN P2.3.1**. This closeout does not authorize or begin P2.3.2 or
