@@ -308,8 +308,8 @@ worker delivery; human attention and external copying are unknown.
 The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
 [#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
 and [#1215](https://github.com/hynk-studio/augnes/issues/1215).
-P3.3 qualification is recorded below. P3.4/P3.5, P4/P5 experiments and RW1B
-protocol changes require separate authority.
+P3.3 and the bounded P3.4 audit/qualification are recorded below. P3.5,
+P4/P5 experiments and RW1B protocol changes require separate authority.
 The P5.1 completed/Narrow disposition, #1130 assignments and original
 `no_change_needed_with_evidence` conclusion remain scoped to that pilot.
 Earlier failed and successful receipts, the 45-second watchdog, unknown
@@ -344,9 +344,42 @@ This is mechanics/consumer qualification, not live scientific utility,
 automatic hypothesis reasoning or general cross-work/post-execution recall.
 Improved research quality, fewer errors, better model reasoning, predictive
 calibration, independent utility and cross-task generalization remain
-unestablished. P3.4/P3.5 remain separate later work; P4/P5 are unaffected.
+unestablished. P3.4's separate bounded qualification is recorded below;
+P3.5 remains later work and P4/P5 are unaffected.
 The parent and coordination issues remain open: #1213 and #1209. P2 statuses,
 #1273's open/stopped campaign and all existing authority boundaries are unchanged.
+
+## P3.4 — State-anchored critique and falsification candidate
+
+[#1292](https://github.com/hynk-studio/augnes/issues/1292) owns this one bounded
+slice under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
+[owner audit, frozen case and qualification](../verification/P3_4_STATE_ANCHORED_CRITIQUE_QUALIFICATION.md)
+records **NO_CHANGE_NEEDED_WITH_EVIDENCE** for existing representation/review
+mechanics and **live NOT_RUN**. The normal TaskContextPacket → native-host →
+receipt/proposal → result/semantic-review owners can retain source statements,
+host reports, derived inference, conditions, uncertainty and advisory checks.
+No P3.4 model-generated critique was produced or delivered to a reviewer.
+
+The current qualified production selection is ordinary ChatGPT-auth Codex
+0.153.4; Strict Agent Identity remains HOLD. The scoped native route bounds a
+host invocation, but its current owner does not expose/enforce an exact
+provider-request ceiling across internal rounds/retries. The authorized
+one-provider-call limit therefore was not established and no live attempt was
+made. A runtime canary, multi-lens transfer or research/legacy surface was not
+repurposed to bypass this boundary. A future live attempt needs separately
+reviewed enforceable budgeting or fresh authority for a different bounded
+host-attempt contract; this record schedules and authorizes neither.
+
+The lifecycle is **Current while #1292's linked Draft PR remains open**;
+if/when it merges, **Completed within the implemented bounded audit/mechanics
+scope**, with the live limitation retained. Broader P3 remains incomplete.
+The frozen case/rubric is unexecuted and all quality criteria are unevaluated.
+Deterministic source/refusal/consumer evidence does not establish useful
+critique, better reasoning/research quality, independent validation, reduced
+human error, calibration, generalization or causal benefit. P3.5 stays
+separate; P4/P5, P2's bounded statuses and unestablished discovery/utility,
+and #1273's open/stopped disposition are unaffected.
 
 ## P1/P5 status and next decision
 
