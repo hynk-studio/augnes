@@ -6,8 +6,13 @@ Owner: [#1288](https://github.com/hynk-studio/augnes/issues/1288), parent
 
 Disposition: **DEPLOYED_QUALIFIED / DISCOVERY_NOT_YET_OBSERVED /
 INDEPENDENT_UTILITY_UNESTABLISHED** within the bounded observations below.
-Repository closeout remains Current pending review and merge. P2.5 overall is
-incomplete. This is one phase, not separate deployment/discovery/utility issues.
+[PR #1289](https://github.com/hynk-studio/augnes/pull/1289) records this qualified
+outcome. Under the roadmap phase-state rule, the repository lifecycle is
+**Current while PR #1289 remains open**. If PR #1289 merges, P2.5.2 is
+**Completed within this bounded scope**; P2.5 overall remains incomplete.
+Discovery, independent readership, selection, utility, unrestricted crawler
+compatibility and all other explicitly unestablished claims remain unestablished
+after merge. This is one phase, not separate deployment/discovery/utility issues.
 
 ## Identity and authorization
 

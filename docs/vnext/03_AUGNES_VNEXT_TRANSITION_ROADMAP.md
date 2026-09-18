@@ -140,7 +140,7 @@ not failed criteria for this bounded completion. A retained-work walkthrough
 requires separate explicit data/egress authorization and was not performed.
 P2.3 remains separate below. The local P2.5.1 artifact boundary is Completed
 within its bounded scope below; the separately authorized P2.5.2 public
-deployment and discovery qualification is Current below.
+deployment and discovery qualification is recorded below.
 
 ## Completed P2.5.1 — Public first-read artifact boundary
 
@@ -170,14 +170,19 @@ establish public reachability or discovery. The separately authorized P2.5.2
 outcome follows below; #1273 remains stopped and unrelated, and #1212 and #1209
 remain open.
 
-## Current P2.5.2 — Public deployment and external retrieval/discovery qualification
+## P2.5.2 — Public deployment and external retrieval/discovery qualification
 
 [#1288](https://github.com/hynk-studio/augnes/issues/1288) owns this single bounded
-phase on `codex/1288-p2-5-2-public-qualification`. The
+phase on `codex/1288-p2-5-2-public-qualification`.
+[PR #1289](https://github.com/hynk-studio/augnes/pull/1289) and the
 [qualification record](../verification/P2_5_2_PUBLIC_DEPLOYMENT_DISCOVERY_QUALIFICATION.md)
-records **DEPLOYED_QUALIFIED / DISCOVERY_NOT_YET_OBSERVED /
-INDEPENDENT_UTILITY_UNESTABLISHED**. Repository closeout remains Current pending
-review and merge; this is not P2.5 completion.
+record **DEPLOYED_QUALIFIED / DISCOVERY_NOT_YET_OBSERVED /
+INDEPENDENT_UTILITY_UNESTABLISHED**. Under the phase-state rule, the repository
+lifecycle is **Current while PR #1289 remains open**. If PR #1289 merges,
+P2.5.2 is **Completed within this bounded scope**; this does not complete P2.5.
+Discovery, independent readership, selection, utility, unrestricted crawler
+compatibility and all other explicitly unestablished claims remain unestablished
+after merge.
 
 The existing Augnes Research Workbench v0 Site was reused. Version 3 adds the
 exact committed fictional P2.5.1 HTML/Markdown/JSON outputs and a reading link;
@@ -239,7 +244,7 @@ P2.3 is **not complete**. Model selection/non-selection and result use are
 **NOT TESTED IN P2.3.1**. This closeout does not authorize or begin P2.3.2 or
 activate any later P2.3 slice. P2.4 remains completed_bounded; the local
 P2.5.1 slice is Completed within its bounded scope above. The separately
-authorized P2.5.2 qualification is Current above; #1212 and #1209 remain open.
+authorized P2.5.2 qualification is recorded above; #1212 and #1209 remain open.
 
 ## Completed P2.2 work-read surface slice
 
