@@ -308,11 +308,45 @@ worker delivery; human attention and external copying are unknown.
 The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
 [#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
 and [#1215](https://github.com/hynk-studio/augnes/issues/1215).
-P3.3–P3.5, P4/P5 experiments and RW1B protocol changes require separate authority.
+P3.3 qualification is recorded below. P3.4/P3.5, P4/P5 experiments and RW1B
+protocol changes require separate authority.
 The P5.1 completed/Narrow disposition, #1130 assignments and original
 `no_change_needed_with_evidence` conclusion remain scoped to that pilot.
 Earlier failed and successful receipts, the 45-second watchdog, unknown
 historical failure causes and timing uncertainty retain their original meaning.
+
+## P3.3 — Anomaly retention and minimum discriminating check
+
+[#1290](https://github.com/hynk-studio/augnes/issues/1290) owns this single bounded
+slice under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209), on
+`codex/1290-p3-3-anomaly-qualification`. The
+[source audit and consumer qualification](../verification/P3_3_ANOMALY_MINIMUM_CHECK_QUALIFICATION.md)
+records **NO_CHANGE_NEEDED_WITH_EVIDENCE** for product/runtime behavior:
+merged P3.1/P3.2 and [P3.3a #1253](https://github.com/hynk-studio/augnes/pull/1253)
+already supply the bounded normal path. The repository lifecycle is **Current
+while #1290's linked Draft PR remains open**; if/when that PR merges, P3.3 is
+**Completed within the implemented bounded mechanics/consumer scope**.
+Broader P3 remains incomplete.
+
+The qualified path preserves selected source/conditions → immutable
+proposal/revision → explicit ReviewDecision → separately confirmed Transition
+of the selected check plan → fresh TaskContextPacket → deterministic native-host
+request/result → normal result and semantic review. One operator-authored
+revision-identity check distinguishes two explanations for a disposable export
+count anomaly. Same, different and unavailable revision outcomes retain the
+observation, rejected/unsupported explanation, untested alternatives,
+uncertainty and advisory revisit step separately. Repeated summaries are not
+independent evidence. A passed comparison leaves task success unknown and
+creates no automatic semantic acceptance, next task or scheduler.
+
+This is mechanics/consumer qualification, not live scientific utility,
+automatic hypothesis reasoning or general cross-work/post-execution recall.
+Improved research quality, fewer errors, better model reasoning, predictive
+calibration, independent utility and cross-task generalization remain
+unestablished. P3.4/P3.5 remain separate later work; P4/P5 are unaffected.
+The parent and coordination issues remain open: #1213 and #1209. P2 statuses,
+#1273's open/stopped campaign and all existing authority boundaries are unchanged.
 
 ## P1/P5 status and next decision
 
