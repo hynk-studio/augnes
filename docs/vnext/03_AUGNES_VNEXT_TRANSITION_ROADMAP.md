@@ -425,6 +425,40 @@ advantage and cross-task generalization remain unestablished. P4/P5, P2's
 bounded statuses and unestablished discovery/independent utility, and #1273's
 open/stopped disposition are unaffected.
 
+## P4.1 — Direct execution and static task recipe comparison
+
+[#1296](https://github.com/hynk-studio/augnes/issues/1296) owns this one bounded
+pilot under [P4 #1214](https://github.com/hynk-studio/augnes/issues/1214) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
+[frozen comparison and results](../verification/P4_1_DIRECT_STATIC_RECIPE_COMPARISON.md)
+record **NO_CHANGE_NEEDED_WITH_EVIDENCE** for product source and **no observed
+recipe advantage / simpler direct route preferred for these cases**.
+
+Two new fictional records-reconciliation cases ran through the same normal
+source/packet → ordinary native-host → receipt/proposal → result/AI Workplane
+→ authenticated review path. Four fresh Codex 0.153.4 / `gpt-6-astra` / `max`
+turns completed once each, in counterbalanced D/R then R/D order. A static
+procedure was chosen before cases; all source evidence, permissions, mandatory
+checks and limits matched. Both conditions correctly retained a material scope
+conflict and requested one targeted existing record, and both concluded the
+straightforward case needed no extra inquiry. All four candidate outputs
+survived normal reader delivery without semantic acceptance or follow-up work.
+
+The recipe added 638 authored task bytes and 2,832 actual rendered input bytes
+per case through existing packet/GuideBrief projections. Tokens and monetary
+cost remain unknown; observed timing differences do not establish speedup.
+Condition labels were masked for content scoring, with evaluator authorship
+and prior metadata knowledge disclosed. No new browser journey or independent
+human-review benefit is claimed. No live slot may be repeated for verification.
+
+The lifecycle is **Current while #1296's linked Draft PR remains open**;
+if/when it merges, **Completed within the implemented bounded comparison-pilot
+scope**. All P4.1 composition research and broader P4 remain incomplete.
+Controller learning, component mixtures, transfer, general efficiency and
+reliable causal benefit remain unestablished. #1150 stays separate source-only
+work; no product default or policy is activated. P3 parent status, P5, Sites,
+P2 discovery/independent utility and stopped #1273 are unchanged.
+
 ## P1/P5 status and next decision
 
 The user-reviewed P5.1 matched F/G pilot is **completed / Narrow — no
