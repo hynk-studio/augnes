@@ -374,7 +374,9 @@ host-attempt contract; this record schedules and authorizes neither.
 The lifecycle is **Current while #1292's linked Draft PR remains open**;
 if/when it merges, **Completed within the implemented bounded audit/mechanics
 scope**, with the live limitation retained. Broader P3 remains incomplete.
-The frozen case/rubric is unexecuted and all quality criteria are unevaluated.
+The frozen case has zero-egress normal work/selected-source/packet preparation
+and current-work consumer readback; no critique was generated and all quality
+criteria remain unevaluated.
 Deterministic source/refusal/consumer evidence does not establish useful
 critique, better reasoning/research quality, independent validation, reduced
 human error, calibration, generalization or causal benefit. P3.5 stays

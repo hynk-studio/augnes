@@ -38,8 +38,8 @@ an unrun model result.
 
 | Requirement | Classification | Existing owner and normal consumer | Evidence / limit |
 | --- | --- | --- | --- |
-| 1. Current plan/hypothesis identity | Already implemented and consumer-bound | Project work initialization/revision → persisted semantic compiler → exact TaskContextPacket admission | Current task goal, selected excerpts, packet fingerprint and lineage reach the native request; a working explanation need not become accepted truth |
-| 2. Exact supplied source/provenance | Already implemented and consumer-bound | Selected-source comparison/retained recall → work revision → selected packet context; current source-note and review readers | Exact excerpt, locator, declared time, trust and scope bind delivery; imported text and external currentness are not independently verified facts |
+| 1. Current plan/hypothesis identity | Already implemented and consumer-bound | Project work initialization/revision → persisted semantic compiler → exact TaskContextPacket admission | The frozen P3.4 case was persisted by normal authenticated work writers and read by normal packet admission/current-work consumers without execution; a working explanation need not become accepted truth |
+| 2. Exact supplied source/provenance | Already implemented and consumer-bound | Selected-source comparison/retained recall → work revision → selected packet context; current source-note and review readers | The case's three exact excerpts plus working-state note survived packet and current-work readback; forged source/packet bindings refused. Imported text and external currentness are not independently verified facts |
 | 3. Current unresolved/unknown state | Already implemented and consumer-bound | Packet context, proposal missing information/uncertainties, result gaps → AI Workplane and semantic review | P3.3 leaves alternatives, external currentness and task success unknown; omission from selection is not rejection |
 | 4. Model request boundary | Missing for the required one-provider-call ceiling | Qualified Codex adapter/scoped task and authenticated native-host service | Existing owner bounds a host invocation and permissions, but does not expose/control internal provider requests, rounds or retries; live NOT_RUN |
 | 5. Model-generated critique representation | Implemented but not connected to this use | Bounded native result → RunReceipt → run-assessment EpisodeDeltaProposal | Summary, uncertainty and advisory next step can retain externally returned candidate text; no generated P3.4 artifact was admitted |
@@ -122,6 +122,7 @@ inspection attempts, not live model attempts or an authentication diagnosis.
 
 | Other discovered surface | Classification / reason not to reuse as the critic |
 | --- | --- |
+| [GuideBrief model interpretation](../../lib/vnext/model-gateway/openai/guide-brief-interpretation-codec.ts) | Current interaction-routing owner, implemented but not connected to critique generation. It returns supplied candidate tokens and explicitly forbids answer prose/rationale; routing an utterance is not producing a critique |
 | [Strategic advantage transfer](../../lib/vnext/runtime/operator-pilot-strategic-advantage-transfer.ts) | Current bounded non-authoritative assessment capability, implemented but not connected to this one-critique use. Its [codec](../../lib/vnext/model-gateway/openai/strategic-advantage-transfer-codec.ts) requires every fixed transfer lens, base/working-frame/adverse-context and transfer/patch material. Its one-call gateway is real, but relabeling that task as this critic would change the tested question |
 | [Temporal interpretation](../../lib/vnext/model-gateway/openai/temporal-codec.ts) | Existing preview/diagnostic owner, not this native critique consumer. Its prompt preserves already supplied counterexamples, suppressed alternatives and admission interpretation; supplying the expected challenge there would compromise this case |
 | [Research-candidate review diagnostics](../../lib/research-candidate-review/temporal-handoff-diagnostic-sections.ts) | Internal/research-only for this use; `diagnostic_preview_only` is not current semantic authority or a new normal critic |
@@ -158,12 +159,34 @@ Frozen case SHA-256 (UTF-8 JSON block contents, including its final LF):
 }
 ```
 
-Exact TaskContextPacket identity: **NOT_COMPILED / NOT_ADMITTED** for this
-prospective case. The call-budget prerequisite failed before creating a
-disposable work/grant or preparing a live request. The case ID is not a packet
-ID, and no source fingerprint or persisted state is invented. Existing
-deterministic fixtures below have their own exact real packet identities;
-they are not substituted for this case.
+The initial audit stopped before compiling this case. A subsequent P3.4-only,
+zero-egress preparation on 2026-09-19 used the unchanged case above with
+`defineInitialProjectWorkV01`, selected-source comparison and
+`revisePreExecutionProjectWorkV01` in one disposable database. Its exact packet
+was then accepted by `admitPersistedHostTaskContextPacketV01` and read by the
+normal `readProjectWorkInitializationV01` consumer:
+
+- Packet: `task-context-packet:a2a99c630e4dfbbf8dffa4b`.
+- Fingerprint: `sha256:f96e75e194fc46eea17c2164ed23150e718c80abdbd1ae6a988369881cc3e3cf`.
+- Generated at: `2026-09-19T00:15:11.703Z`; observed at
+  `2026-09-19T00:15:11.797Z`.
+
+Readback preserved the exact task, three imported source excerpts and a
+separate user-declared working hypothesis/plan/uncertainty note. All source
+currentness remained unknown. Tampered excerpt fingerprint, mismatched packet
+fingerprint and missing packet refused with `selected_source_context_invalid`,
+`operator_pilot_packet_fingerprint_mismatch` and `operator_pilot_packet_missing`.
+Preparation, consumer and refusal reads left the database bytes unchanged.
+No result, proposal, ReviewDecision, Transition or semantic-state record was
+created. This is actual normal-owner preparation, not a fabricated final
+packet, generated critique or host execution.
+
+The bounded child passed in 1,174 ms, exited naturally, closed its streams and
+left zero owned processes. Its operator session was revoked and disposable
+database/root removed. These packet identities are retained preparation
+evidence, not currently reusable execution authority. Fetch, host starts and
+provider/model calls were all zero. No P3.3 fixture was rerun in this
+continuation, and no deterministic critique output replaced the unrun live case.
 
 Predeclared requested execution, had admission been available: exact qualified
 runtime/model/effort above; source-local read and bounded structured result only;
@@ -185,6 +208,10 @@ output. No raw transcript or hidden reasoning is an evaluation artifact.
 All A–F outcomes are **NOT_EVALUATED**. A grounded abstention is a valid result,
 but would not establish useful-critique generation. Unsupported facts would
 remain a recorded failure, never be silently corrected into a passing output.
+
+This preparation required no Browser interaction. The live NOT_RUN result is
+tied to the native host's provider-call accounting boundary, not a requirement
+for physical user interaction. GUI availability is not used as a blocker.
 
 ## Deterministic qualification and limits
 
