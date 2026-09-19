@@ -355,33 +355,39 @@ The parent and coordination issues remain open: #1213 and #1209. P2 statuses,
 slice under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and
 [plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
 [owner audit, frozen case and qualification](../verification/P3_4_STATE_ANCHORED_CRITIQUE_QUALIFICATION.md)
-records **NO_CHANGE_NEEDED_WITH_EVIDENCE** for existing representation/review
-mechanics and **live NOT_RUN**. The normal TaskContextPacket → native-host →
-receipt/proposal → result/semantic-review owners can retain source statements,
-host reports, derived inference, conditions, uncertainty and advisory checks.
-No P3.4 model-generated critique was produced or delivered to a reviewer.
+records **NO_CHANGE_NEEDED_WITH_EVIDENCE** for product source and
+**LIVE_COMPLETED** for one state-anchored critique candidate with one advisory
+falsification check. Actual TaskContextPacket → ordinary native host →
+RunReceipt/proposal → result/AI Workplane → authenticated semantic-review
+readers retained source statements, host reports, derived inference,
+conditions, uncertainty and the unexecuted proposed check.
 
-The current qualified production selection is ordinary ChatGPT-auth Codex
-0.153.4; Strict Agent Identity remains HOLD. The scoped native route bounds a
-host invocation, but its current owner does not expose/enforce an exact
-provider-request ceiling across internal rounds/retries. The authorized
-one-provider-call limit therefore was not established and no live attempt was
-made. A runtime canary, multi-lens transfer or research/legacy surface was not
-repurposed to bypass this boundary. A future live attempt needs separately
-reviewed enforceable budgeting or fresh authority for a different bounded
-host-attempt contract; this record schedules and authorizes neither.
+The unchanged case `p34-critique-01` ran once through ordinary ChatGPT-auth
+Codex 0.153.4 with scoped `gpt-6-astra`, effort `max`. Frozen rubric A–F passed
+for this case. B's nonblank-title discrepancy was identified as a conditional
+counterexample; the proposed aligned-input check had a meaningful falsifying
+outcome while preserving historical uncertainty. Task success remained
+unknown; no ReviewDecision, Transition, semantic acceptance or future task
+followed. Runtime-reader delivery is established; human review and a new
+Browser journey are not claimed.
 
-The lifecycle is **Current while #1292's linked Draft PR remains open**;
-if/when it merges, **Completed within the implemented bounded audit/mechanics
-scope**, with the live limitation retained. Broader P3 remains incomplete.
-The frozen case has zero-egress normal work/selected-source/packet preparation
-and current-work consumer readback; no critique was generated and all quality
-criteria remain unevaluated.
-Deterministic source/refusal/consumer evidence does not establish useful
-critique, better reasoning/research quality, independent validation, reduced
-human error, calibration, generalization or causal benefit. P3.5 stays
-separate; P4/P5, P2's bounded statuses and unestablished discovery/utility,
-and #1273's open/stopped disposition are unaffected.
+The initial **NOT_RUN** remains historical pre-execution evidence under the
+earlier literal provider-call wording. The user subsequently clarified and
+authorized one evaluation attempt / one model-bearing host turn. Exactly one
+turn started and completed, with no application/operator retry, replacement,
+fallback or prompt tuning. Internal provider requests/rounds/retries remain
+unobserved/uncontrolled, not independent critique attempts. That authorization
+is consumed. Strict Agent Identity remains HOLD; no canary or research/legacy
+executor was substituted.
+
+The lifecycle is **Current while [Draft PR #1293](https://github.com/hynk-studio/augnes/pull/1293)
+remains open**; if/when it merges, **Completed within the implemented bounded
+feasibility/consumer scope**. Broader P3 remains incomplete. One case does not
+establish better reasoning/research quality, independent validation, reduced
+human error, calibration, generalization, autonomous scientific ability,
+actor/debate usefulness or causal benefit. P3.5 stays separate; P4/P5, P2's
+bounded statuses and unestablished discovery/utility, and #1273's open/stopped
+disposition are unaffected.
 
 ## P1/P5 status and next decision
 
