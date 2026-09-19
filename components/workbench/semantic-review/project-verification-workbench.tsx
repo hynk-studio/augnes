@@ -221,7 +221,9 @@ export function ProjectVerificationWorkbench({
                     </span>
                   </div>
                   <p className={styles.copy} style={{ whiteSpace: "pre-wrap" }}>
-                    {receipt.result_summary.summary}
+                    {boundedProjectVerifyDisplayTextV01(
+                      receipt.result_summary.summary,
+                    )}
                   </p>
                   <ReceiptAdvice receipt={receipt} />
                   <dl className={styles.statusGrid}>
@@ -787,7 +789,7 @@ function ReceiptAdvice({ receipt }: { receipt: RunReceiptV01 }) {
       <ul className={styles.plainList}>
         {advice.map((entry) => (
           <li key={entry.attestation_id} style={{ whiteSpace: "pre-wrap" }}>
-            {entry.summary}
+            {boundedProjectVerifyDisplayTextV01(entry.summary)}
           </li>
         ))}
       </ul>
