@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import { runLocalContextUseProbeV01 } from "../lib/vnext/adapters/local-context-use-probe";
 
 import {
   LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
@@ -26,6 +27,7 @@ import {
   createVNextAutomationWorkSourceV01,
 } from "../lib/vnext/persistence/bounded-automation-authority";
 import { type VNextCoreRecordKindV01 } from "../lib/vnext/persistence/durable-semantic-store";
+import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
   canonicalizeProtocolValueV01,
@@ -33,6 +35,7 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  buildRunReceiptV01,
   createRunReceiptFingerprintV01,
   createRunReceiptIdempotencyKeyV01,
   deriveRunReceiptIdV01,
@@ -262,6 +265,48 @@ async function main(): Promise<void> {
         contract_version: 1,
         status: "available",
       });
+
+      const preProbePath = path.join(root, "pre-probe.db");
+      await sqliteBackupV01(fixtureDatabasePath, preProbePath);
+      const beforeProbe = readLogicalDatabaseSnapshotV01(fixtureDatabasePath);
+      const recoveryBeforeProbe = validateRecoveryCanonicalDatabaseV01(fixtureDatabasePath);
+      assert.equal(recoveryBeforeProbe.status, "valid");
+      assert.deepEqual(readLogicalDatabaseSnapshotV01(fixtureDatabasePath), beforeProbe);
+      const probeDatabase = new Database(fixtureDatabasePath, { fileMustExist: true });
+      try {
+        const lineage = loadContextReviewLineageV01(probeDatabase);
+        const probe = runLocalContextUseProbeV01(probeDatabase, {
+          workspace_id: lineage.later_packet.workspace_id,
+          project_id: lineage.later_packet.project_id,
+          prior_packet_id: lineage.prior_packet.packet_id,
+          prior_packet_fingerprint: lineage.prior_packet.integrity.fingerprint,
+          later_packet_id: lineage.later_packet.packet_id,
+          later_packet_fingerprint: lineage.later_packet.integrity.fingerprint,
+          expected_transition_receipt_id: lineage.transition_receipt.transition_receipt_id,
+          expected_transition_receipt_fingerprint: lineage.transition_receipt.integrity.fingerprint,
+          clock: { now: () => "2026-07-21T00:12:00.000Z" },
+        });
+        assert.equal(probe.status, "inserted");
+        assert.equal(probe.relation.status, "valid");
+        assert.equal(probe.receipt.task_context_packet_ref?.ref_type, "later_task_context_packet");
+        assert.equal(probe.receipt.task_context_packet_ref.external_id, lineage.later_packet.packet_id);
+        assert.equal(probe.receipt.task_context_packet_ref.source_ref, lineage.later_packet.integrity.fingerprint);
+        const afterProbe = readLogicalDatabaseSnapshotV01(fixtureDatabasePath);
+        const recoveryAfterProbe = validateRecoveryCanonicalDatabaseV01(fixtureDatabasePath);
+        assert.deepEqual(readLogicalDatabaseSnapshotV01(fixtureDatabasePath), afterProbe,
+          "recovery acceptance or refusal must not mutate probe-bearing data");
+        console.log(JSON.stringify({ probe_recovery_regression: {
+          before: recoveryBeforeProbe, after: recoveryAfterProbe,
+          packet_ref: probe.receipt.task_context_packet_ref, writes_by_validation: 0,
+        } }));
+        assert.equal(recoveryAfterProbe.status, "valid");
+        assert.equal(recoveryAfterProbe.record_count, recoveryBeforeProbe.record_count + 1);
+        await assertProbeRelationRefusalsV01(root, preProbePath, probe.receipt);
+        assert.deepEqual(readLogicalDatabaseSnapshotV01(fixtureDatabasePath), afterProbe,
+          "negative fixtures must leave the original probe receipt and all historical bytes untouched");
+      } finally {
+        probeDatabase.close();
+      }
 
       const validFileResult =
         validateRecoveryCanonicalDatabaseV01(fixtureDatabasePath);
@@ -560,6 +605,8 @@ async function main(): Promise<void> {
         canonical_record_count: validatedRecordCount,
         all_supported_record_kinds: EXPECTED_CANONICAL_RECORD_KINDS_V01.length,
         valid_file_and_open_database: true,
+        normal_probe_receipt_recovery_and_restore: true,
+        probe_packet_source_role_and_transition_refusals: true,
         exact_durable_canonical_ledger_replay_round_trip: true,
         project_home_workbench_inspector_round_trip: true,
         safety_backup_preserved_displaced_state: true,
@@ -590,6 +637,78 @@ void main().catch((error: unknown) => {
   );
   process.exitCode = 1;
 });
+
+async function assertProbeRelationRefusalsV01(
+  root: string,
+  preProbePath: string,
+  original: RunReceiptV01,
+): Promise<void> {
+  // Each candidate is newly built/admitted into a copy of the pre-probe store.
+  // No persisted record is updated, deleted or resealed; immutable triggers stay on.
+  const cases: Array<{
+    name: string;
+    mutate: (receipt: RunReceiptV01) => void;
+    code?: "database_cross_project_reference";
+    admissionRefusal?: boolean;
+  }> = [
+    { name: "malformed", admissionRefusal: true, mutate: (r) => { r.task_context_packet_ref!.external_id = ""; } },
+    { name: "missing-fingerprint", mutate: (r) => { r.task_context_packet_ref!.source_ref = null; } },
+    { name: "unsupported", mutate: (r) => { r.task_context_packet_ref!.ref_type = "other_packet"; } },
+    { name: "wrong-role", mutate: (r) => {
+      r.task_context_packet_ref = r.source_refs.find((ref) => ref.ref_type === "prior_task_context_packet")!;
+    } },
+    { name: "foreign-project", code: "database_cross_project_reference", mutate: (r) => { r.project_id = "project:foreign-probe"; } },
+    { name: "foreign-workspace", code: "database_cross_project_reference", mutate: (r) => { r.workspace_id = "workspace:foreign-probe"; } },
+    ...["prior_task_context_packet", "later_task_context_packet", "state_transition_receipt"].flatMap((role) => [
+      { name: `${role}-missing`, mutate: (r: RunReceiptV01) => visitRefs(r, role, (ref) => { ref.external_id = `${role}:missing`; }) },
+      { name: `${role}-fingerprint`, mutate: (r: RunReceiptV01) => visitRefs(r, role, (ref) => { ref.source_ref = `sha256:${"a".repeat(64)}`; }) },
+    ]),
+    { name: "namespace", mutate: (r) => visitRefs(r, "later_task_context_packet", (ref) => { ref.compatibility_namespace = "unsupported.probe.v1"; }) },
+    { name: "extra-source-attribution", mutate: (r) => visitRefs(r, "later_task_context_packet", (ref) => { ref.provider = "unobserved-provider"; }) },
+    { name: "contract", mutate: (r) => { r.compatibility.source_contracts = ["unsupported.probe.v1"]; } },
+    { name: "observer", mutate: (r) => { r.reporter_ref = { ...r.reporter_ref!, external_id: "observer:unrelated" }; } },
+    { name: "read-source", mutate: (r) => {
+      const observation = r.observations.find((o) => o.observation_kind === "local_later_task_context_packet_read")!;
+      observation.source_refs = [r.source_refs.find((ref) => ref.ref_type === "prior_task_context_packet")!];
+    } },
+    { name: "wrong-prior", mutate: (r) => visitRefs(r, "prior_task_context_packet", (ref) => {
+      ref.external_id = original.task_context_packet_ref!.external_id;
+      ref.source_ref = original.task_context_packet_ref!.source_ref;
+    }) },
+  ];
+  for (const test of cases) {
+    const databasePath = path.join(root, `probe-${test.name}.db`);
+    await sqliteBackupV01(preProbePath, databasePath);
+    const input = structuredClone(original);
+    test.mutate(input);
+    const candidate = buildRunReceiptV01(input);
+    const beforeAdmission = readLogicalDatabaseSnapshotV01(databasePath);
+    const db = new Database(databasePath, { fileMustExist: true });
+    try {
+      if (test.admissionRefusal) {
+        assert.equal(validateRunReceiptV01(candidate).status, "invalid", test.name);
+        assert.throws(() => admitStructuredRunReceiptV01(db, candidate), /structured_run_receipt_invalid/);
+        assert.deepEqual(readLogicalDatabaseSnapshotV01(databasePath), beforeAdmission);
+        continue;
+      }
+      assert.equal(validateRunReceiptV01(candidate).status, "valid", test.name);
+      assert.equal(admitStructuredRunReceiptV01(db, candidate).status, "inserted", test.name);
+    } finally { db.close(); }
+    const before = readLogicalDatabaseSnapshotV01(databasePath);
+    assertCanonicalRefusalV01(databasePath, test.code ?? "database_canonical_invariant_failed");
+    assert.deepEqual(readLogicalDatabaseSnapshotV01(databasePath), before,
+      `${test.name} recovery refusal must be read-only`);
+  }
+  console.log(JSON.stringify({ probe_relation_refusals: cases.map((test) => test.name),
+    immutable_records_rewritten: 0, writes_by_validation: 0 }));
+}
+
+function visitRefs(value: unknown, role: string, mutate: (ref: ExternalRefV01) => void): void {
+  if (!value || typeof value !== "object") return;
+  const ref = value as ExternalRefV01;
+  if (ref.ref_version === "external_ref.v0.1" && ref.ref_type === role) mutate(ref);
+  for (const child of Object.values(value)) visitRefs(child, role, mutate);
+}
 
 function canonicalTemporaryParentV01(): string {
   const configured = process.env.AUGNES_CANONICAL_TEMP_ROOT?.trim();
@@ -790,7 +909,7 @@ function loadContextReviewLineageV01(db: Database.Database): {
 
   for (const run of runs) {
     const packetRef = run.task_context_packet_ref;
-    if (!packetRef?.source_ref) continue;
+    if (packetRef?.ref_type !== "task_context_packet" || !packetRef.source_ref) continue;
     const laterPacket = packets.get(packetRef.external_id);
     if (
       !laterPacket ||

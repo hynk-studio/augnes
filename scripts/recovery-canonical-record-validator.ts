@@ -2,6 +2,10 @@ import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
 import { readWorkExpectationRecords } from "../lib/vnext/persistence/work-expectation-store";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "../lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
+import {
+  VNEXT_LOCAL_CONTEXT_USE_PROBE_NAMESPACE_V01,
+  VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01,
+} from "../lib/vnext/adapters/local-context-use-probe";
 
 import { validateBoundedAutomationCapabilityGrantV01 } from "../lib/vnext/bounded-automation-cycle";
 import {
@@ -16,6 +20,7 @@ import {
 } from "../lib/vnext/project-verify-material";
 import {
   canonicalizeProtocolValueV01,
+  compareExternalRefsV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "../lib/vnext/operational-friction-proposal";
@@ -91,6 +96,7 @@ import {
   readOperationalContinuationLineageStateV01,
 } from "../lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
+import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
@@ -994,6 +1000,110 @@ function validateCompiledTaskContextPacketRelationV01(
   if (validRelations.length !== 1) refuseV01();
 }
 
+/** Historical probe refs describe local reads, not a new generic packet alias.
+ * Validate their immutable source chain without rerunning the probe against
+ * today's mutable semantic projection or rewriting its original receipt. */
+function validateProbePacketRelationV01(
+  db: Database.Database,
+  receipt: RunReceiptV01,
+  byIdentity: Map<string, ParsedCanonicalRecordV01>,
+): void {
+  const exact = (left: unknown, right: unknown) =>
+    canonicalizeProtocolValueV01(left) === canonicalizeProtocolValueV01(right);
+  const source = (refType: string): ExternalRefV01 => {
+    const refs = receipt.source_refs.filter((ref) => ref.ref_type === refType);
+    if (refs.length !== 1) refuseV01();
+    const ref = refs[0]!;
+    if (
+      !exact(ref, {
+        ref_version: "external_ref.v0.1", ref_type: refType,
+        external_id: ref.external_id, trust_class: "direct_local_observation",
+        observed_at: receipt.recorded_at, source_ref: ref.source_ref,
+        compatibility_namespace: VNEXT_LOCAL_CONTEXT_USE_PROBE_NAMESPACE_V01,
+      }) ||
+      !ref.source_ref || !/^sha256:[a-f0-9]{64}$/.test(ref.source_ref)
+    ) refuseV01();
+    return ref;
+  };
+  if (
+    !receipt.compatibility.source_contracts.includes(VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01) ||
+    !exact(receipt.source_refs, receipt.external_refs) ||
+    !exact(receipt.source_refs, receipt.compatibility.external_refs)
+  ) refuseV01();
+  const priorRef = source("prior_task_context_packet");
+  const laterRef = source("later_task_context_packet");
+  const transitionRef = source("state_transition_receipt");
+  const observer = source("local_context_use_observer");
+  if (
+    !exact(receipt.task_context_packet_ref, laterRef) ||
+    observer.external_id !== `local-context-use-observer:${observer.source_ref!.slice(7, 31)}` ||
+    !exact(receipt.reporter_ref, observer) ||
+    !exact(receipt.worker_ref, observer) ||
+    !exact(receipt.observer_refs, [observer]) ||
+    !exact(receipt.verifier_refs, [observer]) ||
+    receipt.attestations.length !== 0 || receipt.model_invocations.length !== 0 ||
+    receipt.execution.status !== "completed" || receipt.execution.basis !== "observed" ||
+    receipt.verification.status !== "passed" || receipt.verification.basis !== "observed"
+  ) refuseV01();
+  const packet = (ref: ExternalRefV01): TaskContextPacketV01 =>
+    requireRelatedRecordV01(byIdentity, {
+      kind: "task_context_packet", id: ref.external_id,
+      fingerprint: ref.source_ref, workspace_id: receipt.workspace_id,
+      project_id: receipt.project_id,
+    }).payload as unknown as TaskContextPacketV01;
+  const prior = packet(priorRef);
+  const later = packet(laterRef);
+  requireRelatedRecordV01(byIdentity, {
+    kind: "state_transition_receipt", id: transitionRef.external_id,
+    fingerprint: transitionRef.source_ref, workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+  });
+  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+    workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+    transition_receipt_id: transitionRef.external_id,
+    transition_receipt_fingerprint: transitionRef.source_ref!,
+  });
+  if (
+    validateSemanticTransitionFullChainV01({
+      ...transition.eligibility_input, receipt: transition.receipt,
+      prior_packet: prior, later_packet: later,
+    }).status !== "valid" ||
+    exact(prior.selected_context, later.selected_context) ||
+    !later.compatibility.source_refs.some((ref) => exact(ref, {
+      ref_version: "external_ref.v0.1", ref_type: "task_context_packet",
+      external_id: prior.packet_id, trust_class: "derived_interpretation",
+      observed_at: prior.generated_at, source_ref: prior.integrity.fingerprint,
+      compatibility_namespace: VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+    })) ||
+    validateTaskContextPacketV01(later, { evaluated_at: receipt.recorded_at }).status !== "valid" ||
+    Date.parse(receipt.recorded_at) < Date.parse(later.generated_at) ||
+    Date.parse(receipt.recorded_at) < Date.parse(transition.receipt.recorded_at)
+  ) refuseV01();
+  const runIdHash = sha256V01({
+    probe_version: VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01,
+    workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+    prior_packet_id: prior.packet_id, later_packet_id: later.packet_id,
+    transition_receipt_id: transition.receipt.transition_receipt_id,
+  });
+  if (receipt.run_id !== `local-context-use-probe:${runIdHash.slice(7, 31)}`) refuseV01();
+  for (const [kind, refs] of [
+    ["local_prior_task_context_packet_read", [priorRef]],
+    ["local_later_task_context_packet_read", [laterRef]],
+    ["local_state_transition_receipt_read", [transitionRef, laterRef].sort(compareExternalRefsV01)],
+  ] as const) {
+    const observations = receipt.observations.filter((item) => item.observation_kind === kind);
+    if (observations.length !== 1) refuseV01();
+    const observation = observations[0]!;
+    if (
+      !exact(observation.source_refs, refs) ||
+      !exact(observation.observer_ref, observer) ||
+      observation.trust_class !== "direct_local_observation" ||
+      observation.observed_at !== receipt.recorded_at ||
+      observation.event_at !== receipt.recorded_at
+    ) refuseV01();
+  }
+}
+
 function validateRunReceiptRelationsV01(
   db: Database.Database,
   record: ParsedCanonicalRecordV01,
@@ -1002,7 +1112,12 @@ function validateRunReceiptRelationsV01(
   const receipt = record.payload as unknown as RunReceiptV01;
   const packetRef = receipt.task_context_packet_ref;
   if (packetRef) {
-    if (packetRef.ref_type !== "task_context_packet" || !packetRef.source_ref) {
+    if (packetRef.ref_type === "later_task_context_packet") {
+      validateProbePacketRelationV01(db, receipt, byIdentity);
+    } else if (packetRef.ref_type !== "task_context_packet") {
+      refuseV01();
+    }
+    if (!packetRef.source_ref) {
       refuseV01();
     }
     requireRelatedRecordV01(byIdentity, {
