@@ -459,6 +459,47 @@ reliable causal benefit remain unestablished. #1150 stays separate source-only
 work; no product default or policy is activated. P3 parent status, P5, Sites,
 P2 discovery/independent utility and stopped #1273 are unchanged.
 
+## P5.2 — Omitted-source recovery and condition-aware reuse
+
+[#1298](https://github.com/hynk-studio/augnes/issues/1298) owns one bounded
+pilot under [P5 #1215](https://github.com/hynk-studio/augnes/issues/1215) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
+[frozen case, route comparison and results](../verification/P5_2_OMITTED_SOURCE_REUSE_PILOT.md)
+record **NO_CHANGE_NEEDED_WITH_EVIDENCE** for product source and **both routes
+recover and reuse correctly, with no observed Augnes advantage** in this case.
+
+A new fictional source history omitted condition-specific observation,
+correction and revisit notes from current selection while retaining them in
+an eligible pre-execution revision chain. One frozen topic cue returned the
+same five originals through Augnes retained-note lookup and a readable source
+archive. Separate selector turns chose the same three historical notes.
+Normal comparison/revision owners transferred only those exact choices;
+fresh target packets retained the original text, provenance and conditions.
+The target work did not start before retrieval/reselection.
+
+Four Codex 0.153.4 / `gpt-6-astra` / `max` host turns completed once each.
+Both final results used the recovered conditions, preserved the observation
+while rejecting its overgeneralization, left the alternative untested, and
+used changed prerequisites without claiming a new performance result. All
+four outputs reached normal result/AI Workplane/authenticated review readers.
+One actual Computer Use lookup/select/compare/save journey executed the
+model's choices and exposed the saved source text without starting work.
+No model advice applied a decision, Transition, grant or follow-up task.
+
+This is cue-driven, externally orchestrated retrieval and a small workflow
+comparison, not autonomous lookup or a pure memory-format effect. Both selector
+and reuse costs, packaging refusals and UI/operator burden are recorded;
+tokens, monetary cost and active human effort remain unknown. No live slot is
+rerun during verification, and no product default is activated.
+
+The lifecycle is **Current while #1298's linked Draft PR remains open**;
+if/when it merges, **Completed within the implemented bounded retrieval-and-reuse
+pilot scope**. Broader P5.2 and P5 remain incomplete. Executed-work succession,
+post-execution/cross-project recall, spontaneous query generation, autonomous
+retrieval, general utility, reduced human burden, reliable causal benefit and
+cross-task transfer remain unestablished. P3/P4 completion records, P2 discovery
+and independent utility, Sites and stopped #1273 are unchanged.
+
 ## P1/P5 status and next decision
 
 The user-reviewed P5.1 matched F/G pilot is **completed / Narrow — no
@@ -483,8 +524,9 @@ requirements, without promoting G as more useful or cheaper for this small,
 fully supplied task family. This supersedes any earlier "F/G pilot next"
 pointer; it changes no runtime default, selector or safety/authority boundary.
 
-No P5.2, another model, optional-use comparison, learned retrieval or
-relationship-engine implementation follows automatically. Further comparison
+The P5.2 pilot above is separately authorized. No further pilot, another
+model, optional-use comparison, learned retrieval or relationship-engine
+implementation follows automatically from the P5.1 closeout. Further comparison
 requires a distinct user-relevant continuity question and separately reviewed
 authority. Common discovery/validation friction remains a bounded observation
 with untested downstream effects, not an owner defect or a mandatory readiness
