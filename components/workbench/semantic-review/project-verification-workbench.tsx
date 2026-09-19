@@ -220,11 +220,12 @@ export function ProjectVerificationWorkbench({
                       {humanize(receipt.result_summary.outcome ?? "unknown")}
                     </span>
                   </div>
-                  <p className={styles.copy}>
+                  <p className={styles.copy} style={{ whiteSpace: "pre-wrap" }}>
                     {boundedProjectVerifyDisplayTextV01(
                       receipt.result_summary.summary,
                     )}
                   </p>
+                  <ReceiptAdvice receipt={receipt} />
                   <dl className={styles.statusGrid}>
                     <DataPoint
                       label="Execution"
@@ -768,6 +769,30 @@ function LineageStop({ lineage }: { lineage: ProjectVerifyLineageV01 }) {
         the shared Inspector. This Workbench keeps the user-readable stop and
         lifecycle status needed for a decision.
       </p>
+    </section>
+  );
+}
+
+function ReceiptAdvice({ receipt }: { receipt: RunReceiptV01 }) {
+  const advice = receipt.attestations.filter(
+    (entry) => entry.attestation_kind === "proposed_next_step",
+  );
+  if (advice.length === 0) return null;
+  return (
+    <section data-receipt-advice="advisory">
+      <h4>Optional advice and questions</h4>
+      <p className={styles.muted}>
+        Reported suggestions for review, not recorded source facts. You can leave
+        them pending without answering. They do not save a decision or authorize
+        any action.
+      </p>
+      <ul className={styles.plainList}>
+        {advice.map((entry) => (
+          <li key={entry.attestation_id} style={{ whiteSpace: "pre-wrap" }}>
+            {boundedProjectVerifyDisplayTextV01(entry.summary)}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

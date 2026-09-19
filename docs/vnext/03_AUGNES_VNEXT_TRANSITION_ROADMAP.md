@@ -308,8 +308,9 @@ worker delivery; human attention and external copying are unknown.
 The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
 [#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
 and [#1215](https://github.com/hynk-studio/augnes/issues/1215).
-P3.3 and the bounded P3.4 audit/qualification are recorded below. P3.5,
-P4/P5 experiments and RW1B protocol changes require separate authority.
+P3.3, P3.4 and the separately authorized bounded P3.5 qualification are
+recorded below. P4/P5 experiments and RW1B protocol changes require separate
+authority.
 The P5.1 completed/Narrow disposition, #1130 assignments and original
 `no_change_needed_with_evidence` conclusion remain scoped to that pilot.
 Earlier failed and successful receipts, the 45-second watchdog, unknown
@@ -345,7 +346,7 @@ automatic hypothesis reasoning or general cross-work/post-execution recall.
 Improved research quality, fewer errors, better model reasoning, predictive
 calibration, independent utility and cross-task generalization remain
 unestablished. P3.4's separate bounded qualification is recorded below;
-P3.5 remains later work and P4/P5 are unaffected.
+P3.5's separate bounded qualification is recorded below; P4/P5 are unaffected.
 The parent and coordination issues remain open: #1213 and #1209. P2 statuses,
 #1273's open/stopped campaign and all existing authority boundaries are unchanged.
 
@@ -388,6 +389,41 @@ human error, calibration, generalization, autonomous scientific ability,
 actor/debate usefulness or causal benefit. P3.5 stays separate; P4/P5, P2's
 bounded statuses and unestablished discovery/utility, and #1273's open/stopped
 disposition are unaffected.
+
+## P3.5 — Valuable questions and structured disagreement
+
+[#1294](https://github.com/hynk-studio/augnes/issues/1294) owns this single bounded
+slice under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
+[frozen contrasts and consumer qualification](../verification/P3_5_QUESTIONS_DISAGREEMENT_QUALIFICATION.md)
+record **SMALL_CONSUMER_GAP_CORRECTED**: existing source/packet/native-host/result
+owners carry the material; the existing protected receipt review now displays
+saved advisory questions/alternatives and the full result summary. No new
+question schema, preference store, scheduler or approval layer was needed.
+
+One fictional print-layout family ran in two frozen variants, exactly one fresh
+ordinary ChatGPT-auth Codex 0.153.4 / `gpt-6-astra` / `max` turn per variant.
+Both resolved the source-supplied price dispute. With priority unspecified,
+the first asked one focused question and retained different consequences for
+each answer. With the current scoped answer present, the second used it with
+zero redundant requests, retaining the other layout's legitimate advantages.
+The frozen applicable content criteria passed. Both reached normal authenticated
+review readers; one actual Chrome result-to-review journey exposed and then
+qualified the presentation correction with the same saved output, no model rerun.
+
+Questions remain optional candidate material. Leaving the proposal pending
+creates no decision, acceptance, Transition, task, grant or schedule, and does
+not establish permanent suppression or resolved uncertainty. Both live slots
+are consumed. Internal provider rounds/requests/retries remain unobserved and
+uncontrolled; these contrasts are not independent samples or a causal comparison.
+
+The lifecycle is **Current while #1294's linked Draft PR remains open**;
+if/when it merges, **Completed within the implemented bounded question and
+consumer scope**. Broader P3 remains incomplete. General question-selection
+reliability, actual interruption reduction, judgment improvement, comparative
+advantage and cross-task generalization remain unestablished. P4/P5, P2's
+bounded statuses and unestablished discovery/independent utility, and #1273's
+open/stopped disposition are unaffected.
 
 ## P1/P5 status and next decision
 
