@@ -308,8 +308,8 @@ worker delivery; human attention and external copying are unknown.
 The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
 [#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
 and [#1215](https://github.com/hynk-studio/augnes/issues/1215).
-P3.3 qualification is recorded below. P3.4/P3.5, P4/P5 experiments and RW1B
-protocol changes require separate authority.
+P3.3 and the bounded P3.4 audit/qualification are recorded below. P3.5,
+P4/P5 experiments and RW1B protocol changes require separate authority.
 The P5.1 completed/Narrow disposition, #1130 assignments and original
 `no_change_needed_with_evidence` conclusion remain scoped to that pilot.
 Earlier failed and successful receipts, the 45-second watchdog, unknown
@@ -344,9 +344,50 @@ This is mechanics/consumer qualification, not live scientific utility,
 automatic hypothesis reasoning or general cross-work/post-execution recall.
 Improved research quality, fewer errors, better model reasoning, predictive
 calibration, independent utility and cross-task generalization remain
-unestablished. P3.4/P3.5 remain separate later work; P4/P5 are unaffected.
+unestablished. P3.4's separate bounded qualification is recorded below;
+P3.5 remains later work and P4/P5 are unaffected.
 The parent and coordination issues remain open: #1213 and #1209. P2 statuses,
 #1273's open/stopped campaign and all existing authority boundaries are unchanged.
+
+## P3.4 — State-anchored critique and falsification candidate
+
+[#1292](https://github.com/hynk-studio/augnes/issues/1292) owns this one bounded
+slice under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and
+[plan #1209](https://github.com/hynk-studio/augnes/issues/1209). The
+[owner audit, frozen case and qualification](../verification/P3_4_STATE_ANCHORED_CRITIQUE_QUALIFICATION.md)
+records **NO_CHANGE_NEEDED_WITH_EVIDENCE** for product source and
+**LIVE_COMPLETED** for one state-anchored critique candidate with one advisory
+falsification check. Actual TaskContextPacket → ordinary native host →
+RunReceipt/proposal → result/AI Workplane → authenticated semantic-review
+readers retained source statements, host reports, derived inference,
+conditions, uncertainty and the unexecuted proposed check.
+
+The unchanged case `p34-critique-01` ran once through ordinary ChatGPT-auth
+Codex 0.153.4 with scoped `gpt-6-astra`, effort `max`. Frozen rubric A–F passed
+for this case. B's nonblank-title discrepancy was identified as a conditional
+counterexample; the proposed aligned-input check had a meaningful falsifying
+outcome while preserving historical uncertainty. Task success remained
+unknown; no ReviewDecision, Transition, semantic acceptance or future task
+followed. Runtime-reader delivery is established; human review and a new
+Browser journey are not claimed.
+
+The initial **NOT_RUN** remains historical pre-execution evidence under the
+earlier literal provider-call wording. The user subsequently clarified and
+authorized one evaluation attempt / one model-bearing host turn. Exactly one
+turn started and completed, with no application/operator retry, replacement,
+fallback or prompt tuning. Internal provider requests/rounds/retries remain
+unobserved/uncontrolled, not independent critique attempts. That authorization
+is consumed. Strict Agent Identity remains HOLD; no canary or research/legacy
+executor was substituted.
+
+The lifecycle is **Current while [Draft PR #1293](https://github.com/hynk-studio/augnes/pull/1293)
+remains open**; if/when it merges, **Completed within the implemented bounded
+feasibility/consumer scope**. Broader P3 remains incomplete. One case does not
+establish better reasoning/research quality, independent validation, reduced
+human error, calibration, generalization, autonomous scientific ability,
+actor/debate usefulness or causal benefit. P3.5 stays separate; P4/P5, P2's
+bounded statuses and unestablished discovery/utility, and #1273's open/stopped
+disposition are unaffected.
 
 ## P1/P5 status and next decision
 
