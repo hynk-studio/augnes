@@ -4,7 +4,8 @@ import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacke
 import type Database from "better-sqlite3";
 import {
   VNEXT_LOCAL_CONTEXT_USE_PROBE_NAMESPACE_V01,
-  VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01,
+  validateLocalContextUseProbeRunReceiptV01,
+  type LocalContextUseResolvedStateBindingV01,
 } from "../lib/vnext/adapters/local-context-use-probe";
 
 import { validateBoundedAutomationCapabilityGrantV01 } from "../lib/vnext/bounded-automation-cycle";
@@ -42,8 +43,11 @@ import {
 } from "../lib/vnext/persistence/bounded-automation-authority";
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
+  buildVNextPersistedSemanticStateV01,
   readVNextCoreRecordV01,
   validateVNextPersistedSemanticStateV01,
+  type VNextPersistedSemanticStateVersionV01,
+  type VNextSemanticStateProjectionEntryV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
@@ -1025,26 +1029,10 @@ function validateProbePacketRelationV01(
     ) refuseV01();
     return ref;
   };
-  if (
-    !receipt.compatibility.source_contracts.includes(VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01) ||
-    !exact(receipt.source_refs, receipt.external_refs) ||
-    !exact(receipt.source_refs, receipt.compatibility.external_refs)
-  ) refuseV01();
   const priorRef = source("prior_task_context_packet");
   const laterRef = source("later_task_context_packet");
   const transitionRef = source("state_transition_receipt");
-  const observer = source("local_context_use_observer");
-  if (
-    !exact(receipt.task_context_packet_ref, laterRef) ||
-    observer.external_id !== `local-context-use-observer:${observer.source_ref!.slice(7, 31)}` ||
-    !exact(receipt.reporter_ref, observer) ||
-    !exact(receipt.worker_ref, observer) ||
-    !exact(receipt.observer_refs, [observer]) ||
-    !exact(receipt.verifier_refs, [observer]) ||
-    receipt.attestations.length !== 0 || receipt.model_invocations.length !== 0 ||
-    receipt.execution.status !== "completed" || receipt.execution.basis !== "observed" ||
-    receipt.verification.status !== "passed" || receipt.verification.basis !== "observed"
-  ) refuseV01();
+  if (!exact(receipt.task_context_packet_ref, laterRef)) refuseV01();
   const packet = (ref: ExternalRefV01): TaskContextPacketV01 =>
     requireRelatedRecordV01(byIdentity, {
       kind: "task_context_packet", id: ref.external_id,
@@ -1068,40 +1056,82 @@ function validateProbePacketRelationV01(
       ...transition.eligibility_input, receipt: transition.receipt,
       prior_packet: prior, later_packet: later,
     }).status !== "valid" ||
-    exact(prior.selected_context, later.selected_context) ||
-    !later.compatibility.source_refs.some((ref) => exact(ref, {
-      ref_version: "external_ref.v0.1", ref_type: "task_context_packet",
-      external_id: prior.packet_id, trust_class: "derived_interpretation",
-      observed_at: prior.generated_at, source_ref: prior.integrity.fingerprint,
-      compatibility_namespace: VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-    })) ||
-    validateTaskContextPacketV01(later, { evaluated_at: receipt.recorded_at }).status !== "valid" ||
-    Date.parse(receipt.recorded_at) < Date.parse(later.generated_at) ||
-    Date.parse(receipt.recorded_at) < Date.parse(transition.receipt.recorded_at)
+    validateTaskContextPacketV01(later, { evaluated_at: receipt.recorded_at }).status !== "valid"
   ) refuseV01();
-  const runIdHash = sha256V01({
-    probe_version: VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01,
-    workspace_id: receipt.workspace_id, project_id: receipt.project_id,
-    prior_packet_id: prior.packet_id, later_packet_id: later.packet_id,
-    transition_receipt_id: transition.receipt.transition_receipt_id,
-  });
-  if (receipt.run_id !== `local-context-use-probe:${runIdHash.slice(7, 31)}`) refuseV01();
-  for (const [kind, refs] of [
-    ["local_prior_task_context_packet_read", [priorRef]],
-    ["local_later_task_context_packet_read", [laterRef]],
-    ["local_state_transition_receipt_read", [transitionRef, laterRef].sort(compareExternalRefsV01)],
-  ] as const) {
-    const observations = receipt.observations.filter((item) => item.observation_kind === kind);
-    if (observations.length !== 1) refuseV01();
-    const observation = observations[0]!;
+
+  // Reconstruct each captured projection from its immutable state, source
+  // Transition and gate revision, as the existing portable rebuild owner does.
+  // Today's projection may have advanced; neither read nor rewrite it here.
+  const resolvedStates: LocalContextUseResolvedStateBindingV01[] = [];
+  for (const entry of later.selected_context) {
+    if (entry.entry_kind !== "accepted_state_ref") continue;
+    if (!entry.external_ref || !entry.source_ref) refuseV01();
+    const stateReadRefs = receipt.source_refs.filter((ref) =>
+      ref.ref_type === "persisted_semantic_state_record" &&
+      ref.external_id === entry.external_ref!.external_id);
+    if (stateReadRefs.length !== 1) refuseV01();
+    const state = requireRelatedRecordV01(byIdentity, {
+      kind: "semantic_state", id: stateReadRefs[0]!.external_id,
+      fingerprint: stateReadRefs[0]!.source_ref,
+      workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+    }).payload as unknown as VNextPersistedSemanticStateVersionV01;
+    if (!exact(state.state_ref, entry.external_ref) ||
+      state.state_content_fingerprint !== entry.source_ref) refuseV01();
+    const sources = [...byIdentity.values()].filter((record) =>
+      record.record_kind === "state_transition_receipt" &&
+      record.workspace_id === receipt.workspace_id && record.project_id === receipt.project_id)
+      .map((record) => record.payload as unknown as StateTransitionReceiptV01)
+      .filter((candidate) => candidate.effects.some((effect) =>
+        exact(effect.target_ref, state.target_ref) && effect.after_state.presence === "present" &&
+        exact(effect.after_state.state_ref, state.state_ref) &&
+        effect.after_state.state_fingerprint === state.state_content_fingerprint));
+    if (sources.length !== 1) refuseV01();
+    const stateSource = sources[0]!;
+    const relation = stateSource.transition_receipt_id === transition.receipt.transition_receipt_id
+      ? transition : loadValidatedVNextSemanticTransitionRelationV01(db, {
+        workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+        transition_receipt_id: stateSource.transition_receipt_id,
+        transition_receipt_fingerprint: stateSource.integrity.fingerprint,
+      });
+    const intended = relation.gate_record.intended_effects.filter((effect) => effect.target_key === state.target_key);
+    const stateCandidate = relation.decision.decision === "supersede"
+      ? relation.decision.lineage.superseding_candidate : relation.decision.candidate;
     if (
-      !exact(observation.source_refs, refs) ||
-      !exact(observation.observer_ref, observer) ||
-      observation.trust_class !== "direct_local_observation" ||
-      observation.observed_at !== receipt.recorded_at ||
-      observation.event_at !== receipt.recorded_at
+      intended.length !== 1 || !stateCandidate ||
+      !exact(state, buildVNextPersistedSemanticStateV01({
+        proposal: relation.proposal, candidate_id: stateCandidate.candidate_id,
+        target_ref: state.target_ref, created_at: stateSource.applied_at,
+        source_decision: {
+          decision_id: relation.decision.decision_id,
+          decision_fingerprint: relation.decision.integrity.fingerprint,
+        },
+      }))
     ) refuseV01();
+    const projection: VNextSemanticStateProjectionEntryV01 = {
+      workspace_id: state.workspace_id, project_id: state.project_id, presence: "present",
+      target_key: state.target_key, target_ref: state.target_ref, state_ref: state.state_ref,
+      state_fingerprint: state.state_content_fingerprint, bounded_state_summary: state.bounded_state_summary,
+      source_proposal_id: state.source_proposal_id, source_proposal_fingerprint: state.source_proposal_fingerprint,
+      source_candidate_id: state.source_candidate_id, source_candidate_fingerprint: state.source_candidate_fingerprint,
+      source_transition_receipt_id: stateSource.transition_receipt_id,
+      source_transition_receipt_fingerprint: stateSource.integrity.fingerprint,
+      revision: intended[0]!.expected_revision, updated_at: stateSource.recorded_at,
+    };
+    resolvedStates.push({
+      target_ref: state.target_ref, state_ref: state.state_ref,
+      state_fingerprint: state.state_content_fingerprint,
+      semantic_state_record_id: state.semantic_state_record_id,
+      semantic_state_record_fingerprint: state.integrity.fingerprint,
+      projection_fingerprint: sha256V01(projection), revision: projection.revision,
+    });
   }
+  resolvedStates.sort((left, right) => canonicalizeProtocolValueV01(left).localeCompare(canonicalizeProtocolValueV01(right)));
+  if (validateLocalContextUseProbeRunReceiptV01({
+    receipt, prior_packet: prior, later_packet: later, transition_receipt: transition.receipt,
+    resolved_states: resolvedStates,
+    retracted_target_refs: transition.receipt.effects.filter((effect) => effect.operation === "retract")
+      .map((effect) => effect.target_ref).sort(compareExternalRefsV01),
+  }).status !== "valid") refuseV01();
 }
 
 function validateRunReceiptRelationsV01(

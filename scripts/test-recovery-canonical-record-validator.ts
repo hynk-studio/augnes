@@ -14,6 +14,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 import { runLocalContextUseProbeV01 } from "../lib/vnext/adapters/local-context-use-probe";
+import { buildDurableLocalSemanticGateScenariosV01 } from "../fixtures/vnext/runtime/durable-local-closed-loop-v0-1";
 
 import {
   LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01,
@@ -26,7 +27,11 @@ import {
   admitQueuedVNextAutomationWorkV01,
   createVNextAutomationWorkSourceV01,
 } from "../lib/vnext/persistence/bounded-automation-authority";
-import { type VNextCoreRecordKindV01 } from "../lib/vnext/persistence/durable-semantic-store";
+import {
+  ensureVNextDurableSemanticStoreSchemaV01,
+  insertVNextCoreRecordV01,
+  type VNextCoreRecordKindV01,
+} from "../lib/vnext/persistence/durable-semantic-store";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import { readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
@@ -61,6 +66,12 @@ import { recordVNextOperatorPilotContextUseReviewV01 } from "../lib/vnext/runtim
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
 import {
+  commitVNextSemanticTransitionV01,
+  persistVNextSemanticReviewMaterialV01,
+  prepareVNextSemanticCommitPreviewV01,
+  recordVNextSemanticCommitAuthorizationV01,
+} from "../lib/vnext/runtime/durable-semantic-transition";
+import {
   compileTaskContextPacketFromPersistedSemanticStateV01,
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
@@ -80,6 +91,7 @@ import {
   getRecoveryCanonicalRecordValidatorStatusV01,
   validateRecoveryCanonicalDatabaseV01,
 } from "./recovery-canonical-record-validator.mjs";
+import { validateRecoveryCanonicalDatabaseV01 as validateRecoveryInMemoryV01 } from "./recovery-canonical-record-validator";
 import {
   inspectRecoveryDatabaseFile,
   restoreRuntimeDatabase,
@@ -247,6 +259,7 @@ async function main(): Promise<void> {
     });
     let validatedRecordCount = 0;
     try {
+      assertHistoricalProbeRecoveryV01();
       const addedRecords =
         addMissingProductionCanonicalRecordsV01(fixtureDatabasePath);
       assert.deepEqual(addedRecords, {
@@ -651,6 +664,19 @@ async function assertProbeRelationRefusalsV01(
     code?: "database_cross_project_reference";
     admissionRefusal?: boolean;
   }> = [
+    { name: "missing-state-observation", mutate: (r) => {
+      r.observations = r.observations.filter((o) => o.observation_kind !== "local_semantic_state_resolution");
+    } },
+    { name: "coherent-observer-substitution", mutate: (r) => visitRefs(r, "local_context_use_observer", (ref) => {
+      ref.source_ref = `sha256:${"a".repeat(64)}`;
+      ref.external_id = `local-context-use-observer:${ref.source_ref.slice(7, 31)}`;
+    }) },
+    { name: "state-record-fingerprint", mutate: (r) => visitRefs(r, "persisted_semantic_state_record", (ref) => {
+      ref.source_ref = `sha256:${"b".repeat(64)}`;
+    }) },
+    { name: "historical-projection-fingerprint", mutate: (r) => visitRefs(r, "current_semantic_state_projection", (ref) => {
+      ref.source_ref = `sha256:${"b".repeat(64)}`;
+    }) },
     { name: "malformed", admissionRefusal: true, mutate: (r) => { r.task_context_packet_ref!.external_id = ""; } },
     { name: "missing-fingerprint", mutate: (r) => { r.task_context_packet_ref!.source_ref = null; } },
     { name: "unsupported", mutate: (r) => { r.task_context_packet_ref!.ref_type = "other_packet"; } },
@@ -701,6 +727,86 @@ async function assertProbeRelationRefusalsV01(
   }
   console.log(JSON.stringify({ probe_relation_refusals: cases.map((test) => test.name),
     immutable_records_rewritten: 0, writes_by_validation: 0 }));
+}
+
+function assertHistoricalProbeRecoveryV01(): void {
+  for (const successor of ["retract", "supersede"] as const) {
+    const db = new Database(":memory:");
+    try {
+      ensureVNextDurableSemanticStoreSchemaV01(db);
+      const scenarios = buildDurableLocalSemanticGateScenariosV01();
+      const initial = successor === "supersede" ? {
+        ...scenarios.create, proposal: scenarios.supersede.proposal,
+        decision: scenarios.supersede_prior_accept_decision,
+      } : scenarios.create;
+      let prior = scenarios.prefix.prior_packet;
+      insertVNextCoreRecordV01(db, {
+        record_kind: "task_context_packet", record_id: prior.packet_id,
+        workspace_id: prior.workspace_id, project_id: prior.project_id,
+        fingerprint: prior.integrity.fingerprint, idempotency_key: null,
+        payload: prior, created_at: prior.generated_at,
+      });
+      const clock = (...minutes: number[]) => {
+        let index = 0;
+        return { now: () => `2026-07-10T14:${String(minutes[Math.min(index++, minutes.length - 1)]).padStart(2, "0")}:00.000Z` };
+      };
+      let originalReceiptRow: unknown;
+      let originalReceiptId = "";
+      // Normal writes advance the live projection after the first probe.
+      // Retraction removes it; supersession selects a different state candidate.
+      for (const [scenario, offset] of [[initial, 0], [scenarios[successor], 8]] as const) {
+        const scope = { workspace_id: prior.workspace_id, project_id: prior.project_id };
+        persistVNextSemanticReviewMaterialV01(db, { proposal: scenario.proposal, decision: scenario.decision });
+        const identity = {
+          ...scope, proposal_id: scenario.proposal.proposal_id,
+          proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+          decision_id: scenario.decision.decision_id, decision_fingerprint: scenario.decision.integrity.fingerprint,
+        };
+        const preview = prepareVNextSemanticCommitPreviewV01(db, {
+          ...identity, authorized_applier_identity: {
+            ref_type: "semantic_transition_applier", external_id: `local-core-applier:${scenario.scenario_id}:${scope.project_id}`,
+          }, gate_ttl_ms: 30 * 60 * 1000, clock: clock(offset, offset + 1),
+        });
+        const authorization = recordVNextSemanticCommitAuthorizationV01(db, {
+          preview, confirmation_digest: preview.confirmation_digest,
+          operator_actor_ref: scenario.decision.actor_ref, clock: clock(offset + 2, offset + 3, offset + 4),
+        });
+        const committed = commitVNextSemanticTransitionV01(db, {
+          ...identity, gate_record_id: authorization.gate_record.gate_record_id,
+          gate_record_fingerprint: authorization.gate_record.integrity.fingerprint,
+          clock: clock(offset + 5, offset + 6),
+        });
+        assert.equal(committed.status, "applied");
+        const transition = committed.transition_receipt;
+        const later = compileTaskContextPacketFromPersistedSemanticStateV01(db, {
+          ...scope, prior_packet: prior, transition_receipt_id: transition.transition_receipt_id,
+          transition_receipt_fingerprint: transition.integrity.fingerprint,
+          expiry_policy: { mode: "reuse_prior" }, clock: clock(offset + 7),
+        }).later_packet;
+        const probe = runLocalContextUseProbeV01(db, {
+          ...scope, prior_packet_id: prior.packet_id, prior_packet_fingerprint: prior.integrity.fingerprint,
+          later_packet_id: later.packet_id, later_packet_fingerprint: later.integrity.fingerprint,
+          expected_transition_receipt_id: transition.transition_receipt_id,
+          expected_transition_receipt_fingerprint: transition.integrity.fingerprint, clock: clock(offset + 8),
+        });
+        assert.equal(probe.relation.status, "valid");
+        assert.equal(probe.resolved_states.length, offset === 0 || successor === "supersede" ? 1 : 0);
+        assert.equal(probe.retracted_target_refs.length, offset === 0 || successor === "supersede" ? 0 : 1);
+        const before = db.serialize();
+        assert.equal(validateRecoveryInMemoryV01(db).status, "valid", scenario.scenario_id);
+        assert.deepEqual(db.serialize(), before, "historical recovery validation must not write");
+        if (offset === 0) {
+          originalReceiptId = probe.receipt.receipt_id;
+          originalReceiptRow = db.prepare("SELECT * FROM vnext_core_records WHERE record_kind = 'run_receipt' AND record_id = ?").get(originalReceiptId);
+        } else {
+          assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records WHERE record_kind = 'run_receipt' AND record_id = ?").get(originalReceiptId), originalReceiptRow,
+            "normal state advancement and recovery must preserve every original receipt byte and fingerprint");
+        }
+        prior = later;
+      }
+      console.log(JSON.stringify({ historical_probe_after_normal_state_advancement: successor, original_and_later_probe_recovery: "valid", writes_by_validation: 0 }));
+    } finally { db.close(); }
+  }
 }
 
 function visitRefs(value: unknown, role: string, mutate: (ref: ExternalRefV01) => void): void {
