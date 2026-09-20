@@ -2,6 +2,11 @@ import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
 import { readWorkExpectationRecords } from "../lib/vnext/persistence/work-expectation-store";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "../lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
+import {
+  VNEXT_LOCAL_CONTEXT_USE_PROBE_NAMESPACE_V01,
+  validateLocalContextUseProbeRunReceiptV01,
+  type LocalContextUseResolvedStateBindingV01,
+} from "../lib/vnext/adapters/local-context-use-probe";
 
 import { validateBoundedAutomationCapabilityGrantV01 } from "../lib/vnext/bounded-automation-cycle";
 import {
@@ -16,6 +21,7 @@ import {
 } from "../lib/vnext/project-verify-material";
 import {
   canonicalizeProtocolValueV01,
+  compareExternalRefsV01,
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import { deriveOperationalFrictionProposalAdmissionIdentityV01 } from "../lib/vnext/operational-friction-proposal";
@@ -37,8 +43,11 @@ import {
 } from "../lib/vnext/persistence/bounded-automation-authority";
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
+  buildVNextPersistedSemanticStateV01,
   readVNextCoreRecordV01,
   validateVNextPersistedSemanticStateV01,
+  type VNextPersistedSemanticStateVersionV01,
+  type VNextSemanticStateProjectionEntryV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectHomeDatabaseCompatibilityV01 } from "../lib/vnext/project-home/project-home-projection";
 import {
@@ -91,6 +100,7 @@ import {
   readOperationalContinuationLineageStateV01,
 } from "../lib/vnext/runtime/source-linked-operational-continuation-lineage";
 import type { ContextUseReviewV01 } from "../types/vnext/context-use-review";
+import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "../types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "../types/vnext/review-decision";
 import type { RunReceiptV01 } from "../types/vnext/run-receipt";
@@ -994,6 +1004,136 @@ function validateCompiledTaskContextPacketRelationV01(
   if (validRelations.length !== 1) refuseV01();
 }
 
+/** Historical probe refs describe local reads, not a new generic packet alias.
+ * Validate their immutable source chain without rerunning the probe against
+ * today's mutable semantic projection or rewriting its original receipt. */
+function validateProbePacketRelationV01(
+  db: Database.Database,
+  receipt: RunReceiptV01,
+  byIdentity: Map<string, ParsedCanonicalRecordV01>,
+): void {
+  const exact = (left: unknown, right: unknown) =>
+    canonicalizeProtocolValueV01(left) === canonicalizeProtocolValueV01(right);
+  const source = (refType: string): ExternalRefV01 => {
+    const refs = receipt.source_refs.filter((ref) => ref.ref_type === refType);
+    if (refs.length !== 1) refuseV01();
+    const ref = refs[0]!;
+    if (
+      !exact(ref, {
+        ref_version: "external_ref.v0.1", ref_type: refType,
+        external_id: ref.external_id, trust_class: "direct_local_observation",
+        observed_at: receipt.recorded_at, source_ref: ref.source_ref,
+        compatibility_namespace: VNEXT_LOCAL_CONTEXT_USE_PROBE_NAMESPACE_V01,
+      }) ||
+      !ref.source_ref || !/^sha256:[a-f0-9]{64}$/.test(ref.source_ref)
+    ) refuseV01();
+    return ref;
+  };
+  const priorRef = source("prior_task_context_packet");
+  const laterRef = source("later_task_context_packet");
+  const transitionRef = source("state_transition_receipt");
+  if (!exact(receipt.task_context_packet_ref, laterRef)) refuseV01();
+  const packet = (ref: ExternalRefV01): TaskContextPacketV01 =>
+    requireRelatedRecordV01(byIdentity, {
+      kind: "task_context_packet", id: ref.external_id,
+      fingerprint: ref.source_ref, workspace_id: receipt.workspace_id,
+      project_id: receipt.project_id,
+    }).payload as unknown as TaskContextPacketV01;
+  const prior = packet(priorRef);
+  const later = packet(laterRef);
+  requireRelatedRecordV01(byIdentity, {
+    kind: "state_transition_receipt", id: transitionRef.external_id,
+    fingerprint: transitionRef.source_ref, workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+  });
+  const transition = loadValidatedVNextSemanticTransitionRelationV01(db, {
+    workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+    transition_receipt_id: transitionRef.external_id,
+    transition_receipt_fingerprint: transitionRef.source_ref!,
+  });
+  if (
+    validateSemanticTransitionFullChainV01({
+      ...transition.eligibility_input, receipt: transition.receipt,
+      prior_packet: prior, later_packet: later,
+    }).status !== "valid" ||
+    validateTaskContextPacketV01(later, { evaluated_at: receipt.recorded_at }).status !== "valid"
+  ) refuseV01();
+
+  // Reconstruct each captured projection from its immutable state, source
+  // Transition and gate revision, as the existing portable rebuild owner does.
+  // Today's projection may have advanced; neither read nor rewrite it here.
+  const resolvedStates: LocalContextUseResolvedStateBindingV01[] = [];
+  for (const entry of later.selected_context) {
+    if (entry.entry_kind !== "accepted_state_ref") continue;
+    if (!entry.external_ref || !entry.source_ref) refuseV01();
+    const stateReadRefs = receipt.source_refs.filter((ref) =>
+      ref.ref_type === "persisted_semantic_state_record" &&
+      ref.external_id === entry.external_ref!.external_id);
+    if (stateReadRefs.length !== 1) refuseV01();
+    const state = requireRelatedRecordV01(byIdentity, {
+      kind: "semantic_state", id: stateReadRefs[0]!.external_id,
+      fingerprint: stateReadRefs[0]!.source_ref,
+      workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+    }).payload as unknown as VNextPersistedSemanticStateVersionV01;
+    if (!exact(state.state_ref, entry.external_ref) ||
+      state.state_content_fingerprint !== entry.source_ref) refuseV01();
+    const sources = [...byIdentity.values()].filter((record) =>
+      record.record_kind === "state_transition_receipt" &&
+      record.workspace_id === receipt.workspace_id && record.project_id === receipt.project_id)
+      .map((record) => record.payload as unknown as StateTransitionReceiptV01)
+      .filter((candidate) => candidate.effects.some((effect) =>
+        exact(effect.target_ref, state.target_ref) && effect.after_state.presence === "present" &&
+        exact(effect.after_state.state_ref, state.state_ref) &&
+        effect.after_state.state_fingerprint === state.state_content_fingerprint));
+    if (sources.length !== 1) refuseV01();
+    const stateSource = sources[0]!;
+    const relation = stateSource.transition_receipt_id === transition.receipt.transition_receipt_id
+      ? transition : loadValidatedVNextSemanticTransitionRelationV01(db, {
+        workspace_id: receipt.workspace_id, project_id: receipt.project_id,
+        transition_receipt_id: stateSource.transition_receipt_id,
+        transition_receipt_fingerprint: stateSource.integrity.fingerprint,
+      });
+    const intended = relation.gate_record.intended_effects.filter((effect) => effect.target_key === state.target_key);
+    const stateCandidate = relation.decision.decision === "supersede"
+      ? relation.decision.lineage.superseding_candidate : relation.decision.candidate;
+    if (
+      intended.length !== 1 || !stateCandidate ||
+      !exact(state, buildVNextPersistedSemanticStateV01({
+        proposal: relation.proposal, candidate_id: stateCandidate.candidate_id,
+        target_ref: state.target_ref, created_at: stateSource.applied_at,
+        source_decision: {
+          decision_id: relation.decision.decision_id,
+          decision_fingerprint: relation.decision.integrity.fingerprint,
+        },
+      }))
+    ) refuseV01();
+    const projection: VNextSemanticStateProjectionEntryV01 = {
+      workspace_id: state.workspace_id, project_id: state.project_id, presence: "present",
+      target_key: state.target_key, target_ref: state.target_ref, state_ref: state.state_ref,
+      state_fingerprint: state.state_content_fingerprint, bounded_state_summary: state.bounded_state_summary,
+      source_proposal_id: state.source_proposal_id, source_proposal_fingerprint: state.source_proposal_fingerprint,
+      source_candidate_id: state.source_candidate_id, source_candidate_fingerprint: state.source_candidate_fingerprint,
+      source_transition_receipt_id: stateSource.transition_receipt_id,
+      source_transition_receipt_fingerprint: stateSource.integrity.fingerprint,
+      revision: intended[0]!.expected_revision, updated_at: stateSource.recorded_at,
+    };
+    resolvedStates.push({
+      target_ref: state.target_ref, state_ref: state.state_ref,
+      state_fingerprint: state.state_content_fingerprint,
+      semantic_state_record_id: state.semantic_state_record_id,
+      semantic_state_record_fingerprint: state.integrity.fingerprint,
+      projection_fingerprint: sha256V01(projection), revision: projection.revision,
+    });
+  }
+  resolvedStates.sort((left, right) => canonicalizeProtocolValueV01(left).localeCompare(canonicalizeProtocolValueV01(right)));
+  if (validateLocalContextUseProbeRunReceiptV01({
+    receipt, prior_packet: prior, later_packet: later, transition_receipt: transition.receipt,
+    resolved_states: resolvedStates,
+    retracted_target_refs: transition.receipt.effects.filter((effect) => effect.operation === "retract")
+      .map((effect) => effect.target_ref).sort(compareExternalRefsV01),
+  }).status !== "valid") refuseV01();
+}
+
 function validateRunReceiptRelationsV01(
   db: Database.Database,
   record: ParsedCanonicalRecordV01,
@@ -1002,7 +1142,12 @@ function validateRunReceiptRelationsV01(
   const receipt = record.payload as unknown as RunReceiptV01;
   const packetRef = receipt.task_context_packet_ref;
   if (packetRef) {
-    if (packetRef.ref_type !== "task_context_packet" || !packetRef.source_ref) {
+    if (packetRef.ref_type === "later_task_context_packet") {
+      validateProbePacketRelationV01(db, receipt, byIdentity);
+    } else if (packetRef.ref_type !== "task_context_packet") {
+      refuseV01();
+    }
+    if (!packetRef.source_ref) {
       refuseV01();
     }
     requireRelatedRecordV01(byIdentity, {
