@@ -57,6 +57,12 @@ WorkBrief is a historical compatibility input, not a native `TaskContextPacket`
 or accepted semantic history. See the
 [protocol owner](../../docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#historical-compatibility-inputs).
 
+The native current packet's selected notes have a separate, explicit local
+Companion Operator tool, `augnes_read_repository_work_sources`, bound to a
+repository Resume snapshot. It is not registered on this public/default App
+surface and does not redefine WorkBrief. See the
+[local source-read contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read).
+
 `createMcpAppServer` registers both tools against its separate
 `StateRuntimeBridgeAdapter`. The normal `StateRuntimeHttpAdapter` calls
 `GET /api/work?scope=...` and `GET /api/work/:work_id/brief?scope=...`.

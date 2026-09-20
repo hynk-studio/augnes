@@ -140,6 +140,59 @@ identities used to compute it are not exposed by the public projection.
 
 ## Privacy, Bounds, and Authority
 
+### Explicit current-work source read
+
+Resume remains a compact orientation projection. The separate local Operator
+tool `augnes_read_repository_work_sources` accepts `repositoryRoot` and
+`expectedSnapshotBinding`, using the exact `continuity.snapshot.binding`
+returned by repository Resume. It does not accept project/packet IDs, database
+paths, or Browser credentials. Reading notes is explicit, never an automatic
+Resume expansion, history search, or context injection.
+
+The private Companion POST route is
+`/api/augnes/read/codex-repository-work-sources?scope=repository:local`, with
+marker `codex-repository-work-sources-v0.1`. The verified stdio proxy supplies
+its existing generation-bound Companion credential and runtime identity;
+the route and response must match instance, generation and repository identity.
+Loopback, Host/forwarding, Origin, recovery-mode and closed-input checks apply.
+Browser cookies alone cannot authorize this route. This capability is not
+registered on public/default App surfaces.
+
+`codex_repository_work_sources.v0.1` is a rebuildable projection over the same
+physical repository resolver, Resume snapshot owner and
+`readProjectWorkInitializationV01` selected-source reader used by AI Workplane.
+One query-only database connection/read transaction binds those reads. Its
+`available` result includes the matching opaque snapshot binding, packet
+fingerprint and only the current selected notes: saved excerpt text, source
+binding, authored review label, trust class, observation time and source
+currentness. Missing observation times are explicitly `null`; selected-source
+currentness remains `unknown`. The canonical whole-note limits (eight entries,
+2,000 characters each, 12,000 serialized source-entry bytes) apply before
+projection. Invalid or over-budget sources refuse; nothing is silently clipped.
+
+Locators must pass both the existing `isPublicSafeSourceLocatorV01` policy and
+the shared hosted-projection metadata privacy guard. Permitted locators are returned;
+others are `null` with `omitted_not_export_safe`. This is a documented
+difference from authenticated Browser presentation, which can show the saved
+locator. Literal user-selected text is retained, including markup or quoted
+instructions, as `untrusted_selected_context`. Locator filtering does not prove
+arbitrary selected text contains no sensitive content. Selection and authored
+labels do not verify claims; snapshot/source hashes do not prove independent
+source authenticity.
+
+An exact current packet with no notes returns `available` and `sources: []`.
+Unavailable/ambiguous work or repository resolution returns `unavailable`,
+not an empty-work claim. A changed exact Resume binding, including Browser
+selection or packet changes, returns `refresh_required` / `snapshot_changed`
+with no replacement sources or bindings. Refresh requires an explicit Resume
+read; there is no automatic retry. A fresh repository-A read still targets A
+when Browser selects B, retaining the existing selection-coupled snapshot.
+No source locators are fetched and no work/session/run/semantic state is written.
+Prepared work and externally performed Codex development remain distinct from
+Augnes-managed execution and canonical results.
+
+### Compact orientation projection
+
 The projection exposes bounded display text, result summaries, repository-
 relative artifact paths already allowed by the result privacy model, checks,
 warnings, gaps, and one advisory next action. It does not expose the registered

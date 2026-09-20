@@ -2,10 +2,9 @@ import {
   normalizeSelectedWorkSources,
   SELECTED_WORK_SOURCE_NAMESPACE,
 } from "@/lib/intake/selected-work-source-comparison";
-import { detectPrivacyRedactionRuntimeGuardFindingsV01 } from "@/lib/privacy/redaction-guard";
+import { isSafeSourceProjectionMetadataV01 } from "@/lib/research-source/projection-metadata";
 import { isPublicSafeSourceLocatorV01 } from "@/lib/research-source/sanitize-source-ref";
 import { canonicalizeProtocolValueV01, createProtocolSha256V01, parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
-import { containsPublicTextLocalPathV01 } from "@/lib/vnext/repository-relative-path";
 import { normalizeInitialProjectWorkDefinitionV01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import type { VNextOperatorPilotPacketLineageInspectionV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -170,10 +169,7 @@ function projectSource(entry: TaskContextPacketSelectedEntryV01): HostedResearch
 }
 
 function assertSafeMetadata(value: unknown): void {
-  if (typeof value === "string" && (containsPublicTextLocalPathV01(value) ||
-    /\b(?:cookie|authorization|OPENAI_API_KEY|GITHUB_TOKEN)\s*[:=]/iu.test(value) ||
-    detectPrivacyRedactionRuntimeGuardFindingsV01(value).some((finding) => finding.action !== "allowed"))) refuse("unsafe_projection_metadata");
-  if (value && typeof value === "object") Object.values(value).forEach(assertSafeMetadata);
+  if (!isSafeSourceProjectionMetadataV01(value)) refuse("unsafe_projection_metadata");
 }
 
 function same(left: unknown, right: unknown): boolean {

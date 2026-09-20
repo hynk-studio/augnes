@@ -11,6 +11,7 @@ import path from "node:path";
 import {
   candidateManifestPathsV01,
   discoverVerifiedCompanionV01,
+  parseRepositoryWorkSourcesResponseV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
@@ -87,6 +88,7 @@ let executionCalls = 0;
 let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
+let sourcesScenario = null;
 
 const ui = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -141,6 +143,17 @@ const ui = createServer(async (request, response) => {
     return response
       .writeHead(executionScenario.status)
       .end(executionScenario.body);
+  }
+  if (url.pathname === "/api/augnes/read/codex-repository-work-sources" && request.method === "POST") {
+    assert(sourcesScenario);
+    assert.equal(request.headers.cookie, undefined, "source read must not carry Browser credentials");
+    assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
+    assert.equal(request.headers["x-augnes-runtime-generation"], generation);
+    response.setHeader("x-augnes-local-readonly", "codex-repository-work-sources-v0.1");
+    response.setHeader("x-augnes-runtime-instance", instance);
+    response.setHeader("x-augnes-runtime-generation", sourcesScenario.generation ?? generation);
+    response.setHeader("x-augnes-runtime-repository", repository);
+    return response.end(JSON.stringify(sourcesScenario.body));
   }
   response.writeHead(404).end("{}");
 });
@@ -211,6 +224,7 @@ try {
       "augnes_companion_lifecycle_status",
       "augnes_start_companion_service",
       "augnes_resume_repository",
+      "augnes_read_repository_work_sources",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
       "augnes_validate_repository_execution_attachment",
@@ -241,6 +255,7 @@ try {
       );
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+    assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_start_companion_service")?.annotations?.readOnlyHint, false);
     const deferredToolInventory = tools.tools.map(({ name, description }) => ({ name, description }));
@@ -323,6 +338,29 @@ try {
     assert.equal(executionCalls, executionCallsBeforeLifecycleStart);
     assert.equal(continuityCalls, continuityCallsBeforeLifecycleStart);
     await assertRepositoryExecutionProxyRefusalContractV01(client);
+    const sourceBinding = `sha256:${"a".repeat(64)}`;
+    const sourceProjection = {
+      projection_version: "codex_repository_work_sources.v0.1", status: "available", reason: "current_selected_sources",
+      repository_resolution: "resolved_exact", snapshot_binding: sourceBinding, packet_fingerprint: sourceBinding,
+      sources: [], source_material_authority: "untrusted_selected_context", authority: unregisteredProjectionV01().authority,
+    };
+    assert.deepEqual(parseRepositoryWorkSourcesResponseV01(sourceProjection), sourceProjection);
+    for (const mutation of [
+      { ...sourceProjection, extra_private_field: "not allowed" },
+      { ...sourceProjection, status: "unavailable" },
+      { ...sourceProjection, authority: { ...sourceProjection.authority, writes_database: true } },
+    ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01(mutation), /contract_invalid/u);
+    const callSources = () => client.callTool({ name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding } });
+    sourcesScenario = { body: sourceProjection };
+    assert.equal((await callSources()).structuredContent.status, "available");
+    sourcesScenario = { body: { ...sourceProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } };
+    assert.equal((await callSources()).isError, true, "foreign/replayed snapshot response must refuse");
+    sourcesScenario = { body: sourceProjection, generation: "stale-generation" };
+    assert.equal((await callSources()).isError, true, "stale runtime response identity must refuse");
+    sourcesScenario = { body: { ...sourceProjection, extra_private_field: "not allowed" } };
+    assert.equal((await callSources()).isError, true, "unknown DTO fields must not escape the proxy");
+    sourcesScenario = { body: { ...sourceProjection, status: "refresh_required", reason: "snapshot_changed", snapshot_binding: null, packet_fingerprint: null } };
+    assert.equal((await callSources()).structuredContent.status, "refresh_required");
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;
     const result = await client.callTool({
