@@ -333,6 +333,16 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "Companion current-work revision atomicity and source preservation",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--work-revision-only"),
+      timeoutMs: 30_000,
+    },
+    {
+      label: "Companion final revision slot and exact successor replay",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--work-revision-limit-only"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "Windows physical-root identity adapter contract",
       ...rootNode("scripts/test-windows-physical-root-identity.ts"),
       timeoutMs: 30_000,

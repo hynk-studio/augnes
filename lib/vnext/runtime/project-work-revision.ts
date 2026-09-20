@@ -272,179 +272,189 @@ export function revisePreExecutionProjectWorkV01(
   },
   dependencies: ProjectWorkRevisionDependenciesV01 = {},
 ): RevisePreExecutionProjectWorkResultV01 {
+  // Preserve Browser validation order before credential admission.
   const request = parseRequestV01(input.request);
-  const definition = normalizeInitialProjectWorkDefinitionV01(request);
-  if (
-    request.workspace_id !== input.config.workspace_id ||
+  normalizeInitialProjectWorkDefinitionV01(request);
+  if (request.workspace_id !== input.config.workspace_id ||
     request.project_id !== input.config.project_id ||
-    request.expected_active_project_id !== input.config.project_id
-  ) {
+    request.expected_active_project_id !== input.config.project_id) {
     refuse("work_revision_scope_conflict", 403);
   }
   if (db.inTransaction) refuse("work_revision_transaction_conflict", 409);
   db.exec("BEGIN IMMEDIATE");
   try {
-    const sessionAdmission =
-      admitVNextLocalOperatorMutationInsideTransactionV01(db, {
-        config: input.config,
-        credential: input.credential,
-        clock: input.clock,
-        secret_source: input.secret_source,
-      });
-    const active = readActiveProjectSelectionV01(
-      db,
-      input.config.workspace_id,
-    );
-    if (
-      active?.project_id !== request.expected_active_project_id ||
-      active.selection_revision !== request.expected_active_selection_revision
-    ) {
-      refuse("work_revision_active_selection_conflict", 409);
-    }
-    const registration = readCanonicalProjectWithRootV01(db, input.config);
-    if (!registration) refuse("work_revision_project_missing", 404);
-    const rootAvailable =
-      dependencies.root_available ?? rootAvailableSynchronouslyV01;
-    if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
-      refuse("work_revision_root_unavailable", 409);
-    }
-    const chain = inspectPreExecutionProjectWorkRevisionChainV01(
-      db,
-      input.config,
-    );
-    if (request.selected_source_context !== undefined) {
-      const comparisonPacket = chain.tip_packet.packet_id === request.expected_current_packet_id
-        ? chain.tip_packet : chain.tip_revision?.prior_packet;
-      const cutoff = chain.packets.findIndex((packet) => packet.packet_id === comparisonPacket?.packet_id);
-      const retained = resolveRetainedWorkSources({ ...chain, packets: chain.packets.slice(0, cutoff + 1) }, request.retained_source_refs ?? []);
-      if (retained.entries.some((entry) => !request.selected_source_context!.some((selected) =>
-        canonicalizeProtocolValueV01(selected) === canonicalizeProtocolValueV01(entry)))) {
-        refuse("retained_source_selection_changed", 409);
-      }
-      if (!comparisonPacket || comparisonPacket.packet_id !== request.expected_current_packet_id ||
-        comparisonPacket.integrity.fingerprint !== request.expected_current_packet_fingerprint ||
-        compareSelectedWorkSources(comparisonPacket, request.selected_source_context, retained.refs).fingerprint !== request.expected_source_comparison) {
-        refuse("work_revision_source_comparison_changed", 409);
-      }
-    }
-    const exactExpectedCurrent =
-      chain.tip_packet.packet_id === request.expected_current_packet_id &&
-      chain.tip_packet.integrity.fingerprint ===
-        request.expected_current_packet_fingerprint &&
-      chain.tip_lineage_kind === request.expected_current_lineage_kind;
-    const eligibility = readProjectWorkRevisionEligibilityStrictV01(
-      db,
-      input.config,
-      { root_available: rootAvailable },
-    );
-    if (!exactExpectedCurrent) {
-      assertEligibleForExactSuccessorReplayV01(eligibility, chain);
-      const replay = exactConcurrentSuccessorV01({
-        chain,
-        request,
-        definition,
-        operator_id: input.config.operator_id,
-        session_id: sessionAdmission.session.session_id,
-        observed_at: sessionAdmission.action_observed_at,
-      });
-      if (replay) {
-        db.exec("COMMIT");
-        return resultV01(
-          "exact_replay",
-          replay,
-          definition,
-          eligibility,
-          sessionAdmission,
-        );
-      }
-      refuse("work_revision_current_packet_changed", 409);
-    }
-    assertEligibleForMutationV01(eligibility);
-    if (sameDefinitionV01(chain.tip_packet.task, definition) &&
-      canonicalizeProtocolValueV01(readSelectedWorkSources(chain.tip_packet)) ===
-      canonicalizeProtocolValueV01(request.selected_source_context ?? readSelectedWorkSources(chain.tip_packet))) {
-      db.exec("COMMIT");
-      return resultV01(
-        "exact_replay",
-        chain.tip_packet,
-        definition,
-        eligibility,
-        sessionAdmission,
-      );
-    }
-    const generatedAt = sessionAdmission.action_observed_at;
-    if (Date.parse(generatedAt) <= Date.parse(chain.tip_packet.generated_at)) {
-      refuse("work_revision_current_packet_changed", 409);
-    }
-    const built = buildPreExecutionProjectWorkRevisionPacketV01({
-      request,
-      operator_id: input.config.operator_id,
-      session_id: sessionAdmission.session.session_id,
-      revision_number: chain.revision_count + 1,
-      definition,
-      prior_packet: chain.tip_packet,
-      origin_first_work_definition_ref:
-        chain.origin_first_work_definition_ref,
-      generated_at: generatedAt,
-    });
-    if (
-      validateTaskContextPacketV01(built.packet, {
-        evaluated_at: generatedAt,
-      }).status !== "valid"
-    ) {
-      refuse("work_revision_packet_invalid", 422);
-    }
-    const write = insertVNextCoreRecordV01(db, {
-      record_kind: "task_context_packet",
-      record_id: built.packet.packet_id,
-      workspace_id: built.packet.workspace_id,
-      project_id: built.packet.project_id,
-      fingerprint: built.packet.integrity.fingerprint,
-      idempotency_key: built.lineage.idempotency_key,
-      payload: built.packet,
-      created_at: built.packet.generated_at,
-    });
-    const after = inspectPreExecutionProjectWorkRevisionChainV01(
-      db,
-      input.config,
-    );
-    if (
-      after.tip_packet.packet_id !== built.packet.packet_id ||
-      after.tip_packet.integrity.fingerprint !==
-        built.packet.integrity.fingerprint ||
-      !after.projection_current ||
-      after.revision_count !== chain.revision_count + 1
-    ) {
-      refuse("work_revision_not_eligible", 409);
-    }
-    const afterEligibility = readProjectWorkRevisionEligibilityStrictV01(
-      db,
-      input.config,
-      { root_available: rootAvailable },
-    );
+    const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
+    const result = revisePreExecutionProjectWorkInsideTransactionV01(db, {
+      scope: input.config, request: input.request, admission,
+    }, dependencies);
     db.exec("COMMIT");
-    return resultV01(
-      write.status === "inserted" ? "inserted" : "exact_replay",
-      built.packet,
-      definition,
-      afterEligibility,
-      sessionAdmission,
-    );
+    return { ...result, session_admission: {
+      cookie_value: admission.cookie_value,
+      cookie_expires_at: admission.cookie_expires_at,
+      cookie_max_age_seconds: admission.cookie_max_age_seconds,
+    } };
   } catch (error) {
     if (db.inTransaction) db.exec("ROLLBACK");
-    if (
-      error instanceof ProjectWorkRevisionErrorV01 ||
+    if (error instanceof ProjectWorkRevisionErrorV01 ||
       error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
       error instanceof VNextLocalOperatorSessionErrorV01 ||
-      error instanceof SelectedWorkSourceError
-    ) {
-      throw error;
+      error instanceof SelectedWorkSourceError) throw error;
+    throw new ProjectWorkRevisionErrorV01("work_revision_write_failed", 409);
+  }
+}
+
+/** Both authenticated transports share this writer. Caller owns IMMEDIATE,
+ * admission and commit/rollback; no credential or transport bypass lives here. */
+export function revisePreExecutionProjectWorkInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    scope: { workspace_id: string; project_id: string; operator_id: string };
+    request: unknown;
+    admission: { session: { session_id: string }; action_observed_at: string };
+  },
+  dependencies: ProjectWorkRevisionDependenciesV01 = {},
+): Omit<RevisePreExecutionProjectWorkResultV01, "session_admission"> {
+  if (!db.inTransaction) refuse("work_revision_transaction_conflict", 409);
+  const request = parseRequestV01(input.request);
+  const definition = normalizeInitialProjectWorkDefinitionV01(request);
+  if (request.workspace_id !== input.scope.workspace_id ||
+    request.project_id !== input.scope.project_id ||
+    request.expected_active_project_id !== input.scope.project_id) {
+    refuse("work_revision_scope_conflict", 403);
+  }
+  const active = readActiveProjectSelectionV01(
+    db,
+    input.scope.workspace_id,
+  );
+  if (
+    active?.project_id !== request.expected_active_project_id ||
+    active.selection_revision !== request.expected_active_selection_revision
+  ) {
+    refuse("work_revision_active_selection_conflict", 409);
+  }
+  const registration = readCanonicalProjectWithRootV01(db, input.scope);
+  if (!registration) refuse("work_revision_project_missing", 404);
+  const rootAvailable =
+    dependencies.root_available ?? rootAvailableSynchronouslyV01;
+  if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
+    refuse("work_revision_root_unavailable", 409);
+  }
+  const chain = inspectPreExecutionProjectWorkRevisionChainV01(
+    db,
+    input.scope,
+  );
+  if (request.selected_source_context !== undefined) {
+    const comparisonPacket = chain.tip_packet.packet_id === request.expected_current_packet_id
+      ? chain.tip_packet : chain.tip_revision?.prior_packet;
+    const cutoff = chain.packets.findIndex((packet) => packet.packet_id === comparisonPacket?.packet_id);
+    const retained = resolveRetainedWorkSources({ ...chain, packets: chain.packets.slice(0, cutoff + 1) }, request.retained_source_refs ?? []);
+    if (retained.entries.some((entry) => !request.selected_source_context!.some((selected) =>
+      canonicalizeProtocolValueV01(selected) === canonicalizeProtocolValueV01(entry)))) {
+      refuse("retained_source_selection_changed", 409);
     }
-    throw new ProjectWorkRevisionErrorV01(
-      "work_revision_write_failed",
-      409,
+    if (!comparisonPacket || comparisonPacket.packet_id !== request.expected_current_packet_id ||
+      comparisonPacket.integrity.fingerprint !== request.expected_current_packet_fingerprint ||
+      compareSelectedWorkSources(comparisonPacket, request.selected_source_context, retained.refs).fingerprint !== request.expected_source_comparison) {
+      refuse("work_revision_source_comparison_changed", 409);
+    }
+  }
+  const exactExpectedCurrent =
+    chain.tip_packet.packet_id === request.expected_current_packet_id &&
+    chain.tip_packet.integrity.fingerprint ===
+      request.expected_current_packet_fingerprint &&
+    chain.tip_lineage_kind === request.expected_current_lineage_kind;
+  const eligibility = readProjectWorkRevisionEligibilityStrictV01(
+    db,
+    input.scope,
+    { root_available: rootAvailable },
+  );
+  if (!exactExpectedCurrent) {
+    assertEligibleForExactSuccessorReplayV01(eligibility, chain);
+    const replay = exactConcurrentSuccessorV01({
+      chain,
+      request,
+      definition,
+      operator_id: input.scope.operator_id,
+      session_id: input.admission.session.session_id,
+      observed_at: input.admission.action_observed_at,
+    });
+    if (replay) {
+      return resultV01(
+        "exact_replay",
+        replay,
+        definition,
+        eligibility,
+      );
+    }
+    refuse("work_revision_current_packet_changed", 409);
+  }
+  assertEligibleForMutationV01(eligibility);
+  if (sameDefinitionV01(chain.tip_packet.task, definition) &&
+    canonicalizeProtocolValueV01(readSelectedWorkSources(chain.tip_packet)) ===
+    canonicalizeProtocolValueV01(request.selected_source_context ?? readSelectedWorkSources(chain.tip_packet))) {
+    return resultV01(
+      "exact_replay",
+      chain.tip_packet,
+      definition,
+      eligibility,
     );
   }
+  const generatedAt = input.admission.action_observed_at;
+  if (Date.parse(generatedAt) <= Date.parse(chain.tip_packet.generated_at)) {
+    refuse("work_revision_current_packet_changed", 409);
+  }
+  const built = buildPreExecutionProjectWorkRevisionPacketV01({
+    request,
+    operator_id: input.scope.operator_id,
+    session_id: input.admission.session.session_id,
+    revision_number: chain.revision_count + 1,
+    definition,
+    prior_packet: chain.tip_packet,
+    origin_first_work_definition_ref:
+      chain.origin_first_work_definition_ref,
+    generated_at: generatedAt,
+  });
+  if (
+    validateTaskContextPacketV01(built.packet, {
+      evaluated_at: generatedAt,
+    }).status !== "valid"
+  ) {
+    refuse("work_revision_packet_invalid", 422);
+  }
+  const write = insertVNextCoreRecordV01(db, {
+    record_kind: "task_context_packet",
+    record_id: built.packet.packet_id,
+    workspace_id: built.packet.workspace_id,
+    project_id: built.packet.project_id,
+    fingerprint: built.packet.integrity.fingerprint,
+    idempotency_key: built.lineage.idempotency_key,
+    payload: built.packet,
+    created_at: built.packet.generated_at,
+  });
+  const after = inspectPreExecutionProjectWorkRevisionChainV01(
+    db,
+    input.scope,
+  );
+  if (
+    after.tip_packet.packet_id !== built.packet.packet_id ||
+    after.tip_packet.integrity.fingerprint !==
+      built.packet.integrity.fingerprint ||
+    !after.projection_current ||
+    after.revision_count !== chain.revision_count + 1
+  ) {
+    refuse("work_revision_not_eligible", 409);
+  }
+  const afterEligibility = readProjectWorkRevisionEligibilityStrictV01(
+    db,
+    input.scope,
+    { root_available: rootAvailable },
+  );
+  return resultV01(
+    write.status === "inserted" ? "inserted" : "exact_replay",
+    built.packet,
+    definition,
+    afterEligibility,
+  );
 }
 
 function exactConcurrentSuccessorV01(input: {
@@ -573,7 +583,7 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
   return request as unknown as RevisePreExecutionProjectWorkRequestV01;
 }
 
-function packetLineageKindV01(
+export function packetLineageKindV01(
   packet: TaskContextPacketV01,
 ): RevisePreExecutionProjectWorkRequestV01["expected_current_lineage_kind"] | null {
   if (
@@ -681,20 +691,12 @@ function resultV01(
   packet: TaskContextPacketV01,
   definition: ProjectWorkDefinitionV01,
   eligibility: ProjectWorkRevisionEligibilityV01,
-  admission: ReturnType<
-    typeof admitVNextLocalOperatorMutationInsideTransactionV01
-  >,
-): RevisePreExecutionProjectWorkResultV01 {
+): Omit<RevisePreExecutionProjectWorkResultV01, "session_admission"> {
   return {
     status,
     packet,
     definition,
     revision_eligibility: eligibility,
-    session_admission: {
-      cookie_value: admission.cookie_value,
-      cookie_expires_at: admission.cookie_expires_at,
-      cookie_max_age_seconds: admission.cookie_max_age_seconds,
-    },
     run_created: false,
     provider_called: false,
     project_files_written: false,

@@ -126,6 +126,16 @@ inventory. The Companion UI must run the matching merged source through its
 normal lifecycle. Candidate qualification in a disposable runtime does not
 update the installed production plugin/service or establish rollout.
 
+The separately authorized `augnes_preview_repository_work_revision` and
+`augnes_save_repository_work_revision` tools add only bounded prepared-work
+editing over that authenticated channel. Preview does not write; save invokes
+the existing atomic revision owner with exact snapshot/content binding. No
+Browser token is issued or transferred. See the
+[revision contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
+After merge, the normal installer and exact Companion lifecycle refresh are
+needed to make this candidate capability available in a fresh installed session.
+Testing candidate code never refreshes the production installation implicitly.
+
 The same verified Companion exposes the CDX2B2A tools
 `augnes_prepare_repository_execution`,
 `augnes_validate_repository_execution_attachment`,

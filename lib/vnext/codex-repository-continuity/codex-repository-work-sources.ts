@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
 import { getDatabasePath } from "@/lib/db";
 import { isPublicSafeSourceLocatorV01 } from "@/lib/research-source/sanitize-source-ref";
 import { isSafeSourceProjectionMetadataV01 } from "@/lib/research-source/projection-metadata";
@@ -74,25 +75,7 @@ export async function readCodexRepositoryWorkSourcesV01(
     if (!work.current_packet || !work.current_work) return result;
     // This canonical reader has already reconstructed and validated each
     // selected entry, its source binding, scope, lineage and whole-note limits.
-    const sources = (work.selected_source_context ?? []).map((entry) => {
-      const source = selectedWorkSourceInput(entry).source;
-      const permitted = isSafeSourceProjectionMetadataV01(source) && (["url", "doi", "file_ref", "note_ref", "manual_text_summary"] as const)
-        .some((input_kind) => isPublicSafeSourceLocatorV01({ input_kind, source_locator: source }));
-      return {
-        source_binding: entry.source_ref!,
-        excerpt_text: entry.bounded_summary!,
-        source_locator: permitted ? source : null,
-        source_locator_status: permitted ? "included_export_safe" as const : "omitted_not_export_safe" as const,
-        trust_class: entry.trust_class,
-        review_label: entry.why_included,
-        observed_at: entry.external_ref?.observed_at ?? null,
-        currentness: {
-          status: entry.currentness.status,
-          as_of: entry.currentness.as_of,
-          basis: entry.currentness.basis,
-        },
-      };
-    });
+    const sources = projectSelectedWorkSourcesV01(work.selected_source_context ?? []);
     return {
       ...result,
       status: "available",
@@ -118,4 +101,28 @@ export async function loadCodexRepositoryWorkSourcesV01(
   } finally {
     db.close();
   }
+}
+
+/** Shared disclosure projection for read and revision preview. Canonical
+ * retained entries, including withheld fields, never round-trip through it. */
+export function projectSelectedWorkSourcesV01(entries: TaskContextPacketSelectedEntryV01[]): CodexRepositoryWorkSourcesV01["sources"] {
+  return entries.map((entry) => {
+      const source = selectedWorkSourceInput(entry).source;
+      const permitted = isSafeSourceProjectionMetadataV01(source) && (["url", "doi", "file_ref", "note_ref", "manual_text_summary"] as const)
+        .some((input_kind) => isPublicSafeSourceLocatorV01({ input_kind, source_locator: source }));
+      return {
+        source_binding: entry.source_ref!,
+        excerpt_text: entry.bounded_summary!,
+        source_locator: permitted ? source : null,
+        source_locator_status: permitted ? "included_export_safe" as const : "omitted_not_export_safe" as const,
+        trust_class: entry.trust_class,
+        review_label: entry.why_included,
+        observed_at: entry.external_ref?.observed_at ?? null,
+        currentness: {
+          status: entry.currentness.status,
+          as_of: entry.currentness.as_of,
+          basis: entry.currentness.basis,
+        },
+      };
+    });
 }

@@ -191,6 +191,81 @@ No source locators are fetched and no work/session/run/semantic state is written
 Prepared work and externally performed Codex development remain distinct from
 Augnes-managed execution and canonical results.
 
+### Explicit preview and save of prepared work
+
+The private local Operator tools `augnes_preview_repository_work_revision` and
+`augnes_save_repository_work_revision` edit only the exact active, eligible,
+unstarted repository work. They do not create initial work, switch projects,
+adopt roots, edit executed work, or track external Codex execution. Resume and
+source read remain unchanged and read-only.
+
+Both take `repositoryRoot`, the exact Resume `expectedSnapshotBinding`, and a
+closed `changes` object. Definition fields (`goal`, `success_criteria`,
+`non_goals`) are optional; omitted fields remain unchanged. Optional `sources`
+contains `add` (complete new notes), `replace` (exact `source_binding` plus a
+complete new `note`), and `deselect` (exact selected source bindings). New notes
+use the existing `source`, `text`, `observed_at`, `provenance`, and `label`
+fields and the existing whole-note limits. Replacement requires explicit
+attribution, provenance and known/null observation time; it never edits the
+historical original or automatically inherits its provenance.
+
+Unmentioned notes are resolved server-side from the validated current packet.
+Never submit the sanitized source-read projection as a complete canonical note
+set: a withheld locator is not an empty saved locator. Unchanged canonical
+entries retain their exact bytes and withheld metadata. Replacement/deselection
+is explicit; deselection is neither deletion nor refutation. Preview uses the
+same locator disclosure projection as source read. It presents normalized
+before/after definitions and notes, retained/added/deselected bindings, and an
+opaque `preview_binding`. It cannot reveal private locators simply because the
+server retains them. Literal selected text remains untrusted context.
+
+Save requires the same changes and Resume binding plus `previewBinding` from
+that preview. This is an explicit invocation within the user's existing task
+editing authorization; the preview seal is neither authentication nor new user
+authority. Already-authorized edits do not require an extra confirmation ritual.
+The private route `/api/augnes/repository-work-revision?scope=repository:local`
+accepts only `preview` and `save`, using marker
+`x-augnes-local-work-revision: codex-repository-work-revision-v0.1`. Each action
+independently verifies the opaque Companion credential, exact runtime instance,
+generation and repository, loopback Host/Origin/forwarding restrictions, UI role
+and non-recovery state. Browser cookies grant no access, and these tools are not
+registered on public/default Apps.
+
+Preview owns a dedicated read-only transaction and writes nothing. Save owns a
+dedicated `BEGIN IMMEDIATE` before repository resolution, snapshot validation,
+source normalization and authenticated provenance admission. The existing
+transaction-required revision writer retains all selection, eligibility,
+lineage, source comparison, insertion and post-write validation checks. The
+Browser wrapper keeps its existing credential admission and cookie behavior.
+No parallel revision mechanism or persistent preview store is introduced.
+
+The keyed preview seal binds the runtime, original Resume binding, normalized
+canonical request and canonical snapshot material. Only the packet and the
+three revision-specific current-work fields are omitted from its replay
+invariant; other state, including the next action, stays bound. A stale request
+can only acknowledge a validated identical immediate successor through the
+existing exact-replay owner. It cannot create a new revision. A competing
+change, altered content, runtime/selection change, source-binding conflict or
+execution/history ineligibility refuses. No refresh-and-save, rebase, polling
+or automatic retry occurs. After save, explicitly Resume again and read sources
+with the new binding.
+
+A successful save persists the normal work revision and one existing-session
+provenance row for that authenticated Companion admission. The row is born
+revoked, has a Companion-specific identity/operator, and issues no bootstrap,
+Browser cookie, action nonce, decision credential or execution grant. Existing
+session columns preserve historical action time; they do not assert Browser
+login. Failure rolls back both writes. Exact replay adds admission bookkeeping
+but no revision and acknowledges the original author's existing successor.
+The tool therefore advertises mutation, not global side-effect idempotence.
+Its boundary reports database/session changes on successful save and explicit
+replay acknowledgement when applicable; the remaining authority/effect flags
+remain false. A lost or invalid response after save dispatch is
+`outcome_unknown`: the revision may have committed. It requires deliberate
+Resume/readback, never an automatic replacement save.
+No semantic decision, Transition, accepted state, run, result, proposal, future
+task, schedule, provider call or project-file change is performed.
+
 ### Compact orientation projection
 
 The projection exposes bounded display text, result summaries, repository-

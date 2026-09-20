@@ -5,6 +5,7 @@ import {
 } from "node:crypto";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
 
 import Database from "better-sqlite3";
 
@@ -30,6 +31,8 @@ export const VNEXT_LOCAL_OPERATOR_BOOTSTRAP_TTL_MS_V01 = 10 * 60 * 1000;
 export const VNEXT_LOCAL_OPERATOR_SESSION_TTL_MS_V01 = 8 * 60 * 60 * 1000;
 
 const SESSION_ID_PREFIX = "vnext-local-operator-session:";
+const COMPANION_WORK_SESSION_ID_PREFIX = `${SESSION_ID_PREFIX}companion-work:`;
+export const COMPANION_WORK_OPERATOR_ID_V01 = "operator:companion-work-context";
 const RECOVERY_SESSION_ID_PREFIX =
   `${SESSION_ID_PREFIX}recovery-rebind:` as const;
 const BOOTSTRAP_TOKEN_PREFIX = "vnext_bootstrap_v01";
@@ -1017,6 +1020,34 @@ export function readVNextLocalOperatorSessionHistoryV01(
   return row ? publicSession(row, false) : null;
 }
 
+/** Historical admission for one authenticated Companion task-context write.
+ * No bootstrap, cookie, nonce or decision credential is issued. The existing
+ * schema's bootstrap_consumed_at records admission time (as for recovery
+ * provenance), not a claim that a Browser login occurred. The row is born
+ * revoked and survives only when the enclosing work revision commits. */
+export function recordCompanionWorkAdmissionInsideTransactionV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; observed_at: string },
+): { session: VNextLocalOperatorSessionPublicV01; action_observed_at: string } {
+  assertVNextLocalOperatorSessionSchemaV01(db);
+  if (!db.inTransaction || !requiredCanonicalId(input.workspace_id) ||
+    !requiredCanonicalId(input.project_id) || parseStrictIsoTimestampV01(input.observed_at) === null) {
+    throw sessionError("operator_session_conflict", 409);
+  }
+  const sessionId = `${COMPANION_WORK_SESSION_ID_PREFIX}${randomBase64Url(SYSTEM_SECRET_SOURCE, 16)}`;
+  const unissued = (purpose: string) => credentialHash(`companion-work-unissued-${purpose}`, sessionId);
+  db.prepare(`INSERT INTO vnext_local_operator_sessions (
+    session_id, workspace_id, project_id, operator_id, bootstrap_token_hash,
+    session_token_hash, issued_at, expires_at, bootstrap_consumed_at, revoked_at,
+    action_nonce_hash, action_nonce_expires_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    sessionId, input.workspace_id, input.project_id, COMPANION_WORK_OPERATOR_ID_V01,
+    unissued("bootstrap"), unissued("session"), input.observed_at, input.observed_at,
+    input.observed_at, input.observed_at, unissued("nonce"), input.observed_at, input.observed_at,
+  );
+  return { session: publicSession(requireSession(db, sessionId), false), action_observed_at: input.observed_at };
+}
+
 export function admitVNextLocalOperatorMutationV01(
   db: Database.Database,
   input: {
@@ -1509,6 +1540,7 @@ function assertBootstrapCanBeConsumed(
   now: string,
 ): asserts row is LocalOperatorSessionRowV01 {
   if (!row) throw sessionError("operator_bootstrap_invalid", 401);
+  if (row.session_id.startsWith(COMPANION_WORK_SESSION_ID_PREFIX)) throw sessionError("operator_session_scope_mismatch", 403);
   assertScope(row, config);
   if (row.revoked_at) throw sessionError("operator_session_revoked", 401);
   if (row.bootstrap_consumed_at) {
@@ -1528,7 +1560,7 @@ function assertSessionCanAuthenticate(
   credential: VNextLocalOperatorSessionCredentialV01,
   now: string,
 ): void {
-  if (row.session_id.startsWith(RECOVERY_SESSION_ID_PREFIX)) {
+  if (row.session_id.startsWith(RECOVERY_SESSION_ID_PREFIX) || row.session_id.startsWith(COMPANION_WORK_SESSION_ID_PREFIX)) {
     throw sessionError("operator_session_scope_mismatch", 403);
   }
   assertScope(row, config);
@@ -1561,6 +1593,7 @@ function assertRepositoryDecisionSessionCanAuthenticate(
   credential: VNextLocalOperatorSessionCredentialV01,
   now: string,
 ): void {
+  if (row.session_id.startsWith(COMPANION_WORK_SESSION_ID_PREFIX)) throw sessionError("operator_session_scope_mismatch", 403);
   if (
     row.workspace_id !== workspaceId ||
     row.project_id !== projectId
