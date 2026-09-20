@@ -19,6 +19,7 @@ import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "./test-canonical-child-groups.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -54,6 +55,7 @@ const privatePathSentinel = "/private/canonical-runner/path-sentinel";
 const observedPids = new Set();
 const observedPorts = new Set();
 const summaries = [];
+const groupResourceOwners = [];
 
 try {
   await assertParentResourceCleanup();
@@ -336,11 +338,16 @@ try {
     concurrentFailure.canonicalResults.map((result) => result.label),
     [
       "concurrent-nonzero",
-      "concurrent-after-failure",
       "concurrent-tree-timeout",
-      "concurrent-after-timeout",
     ],
   );
+  assert.equal(concurrentFailure.canonicalInventory.selected_count, 4);
+  assert.equal(concurrentFailure.canonicalInventory.started_count, 2);
+  assert.equal(concurrentFailure.canonicalInventory.completed_count, 2);
+  assert.equal(concurrentFailure.canonicalInventory.failed_count, 2);
+  assert.deepEqual(concurrentFailure.canonicalInventory.children
+    .filter((entry) => !entry.started).map((entry) => entry.label),
+  ["concurrent-after-failure", "concurrent-after-timeout"]);
   assert.equal(
     concurrentFailure.canonicalIssues.some(
       (issue) => issue.code === "child_failed",
@@ -452,7 +459,10 @@ try {
     privateResult,
   );
 } finally {
+  const groupCleanup = cleanupCanonicalTestResources(groupResourceOwners);
   rmSync(temporaryRoot, { recursive: true, force: true });
+  assert(groupCleanup.every((result) => result.completed),
+    "both started and unstarted child resource roots must be removed");
 }
 
 assert.equal(existsSync(temporaryRoot), false);
@@ -531,6 +541,9 @@ function groupFixture(label, mode, timeoutMs, statePath = path.join(
   temporaryRoot,
   `${label}.state`,
 )) {
+  const resourceOwner = createCanonicalTestResourceRoot("ag-resource-test-");
+  groupResourceOwners.push(resourceOwner);
+  writeFileSync(path.join(resourceOwner.root, "prepared-resource"), "owned fixture");
   return {
     suite: "runner-regression",
     label,
@@ -539,6 +552,7 @@ function groupFixture(label, mode, timeoutMs, statePath = path.join(
     cwd: repositoryRoot,
     env: process.env,
     timeoutMs,
+    resourceOwner,
   };
 }
 

@@ -200,124 +200,127 @@ export async function runCanonicalChildGroups({
   assertConcurrentGroupInput(groups, maxConcurrency);
   const resultsByLabel = new Map();
   const issues = [];
+  const selected = groups.flatMap((group) => group.children.map((child) => ({
+    group: group.id, label: child.label, started: false, settled: false,
+    completed: false,
+  })));
+  const selectedByLabel = new Map(selected.map((entry) => [entry.label, entry]));
+  let admissionStopped = false;
   let nextGroupIndex = 0;
-  let activeGroups = 0;
-  let completedGroups = 0;
+  const recordIssue = (issue) => {
+    issues.push(issue);
+    admissionStopped = true;
+  };
 
-  await new Promise((resolve) => {
-    const launch = () => {
-      while (
-        activeGroups < maxConcurrency &&
-        nextGroupIndex < groups.length
-      ) {
-        const groupIndex = nextGroupIndex;
-        const group = groups[groupIndex];
-        nextGroupIndex += 1;
-        activeGroups += 1;
-        void runGroup(group, groupIndex).finally(() => {
-          activeGroups -= 1;
-          completedGroups += 1;
-          if (completedGroups === groups.length) resolve();
-          else launch();
-        });
-      }
-    };
-
-    const runGroup = async (group, groupIndex) => {
-      const groupId = safeIdentifier(group.id, `group-${groupIndex + 1}`);
-      const startedAt = Date.now();
-      log(
-        `[canonical:${safeSuite}] group_start group=${groupId} child_count=${group.children.length}`,
-      );
-      for (const child of group.children) {
-        let result;
-        try {
-          result = await runChild(child);
-        } catch (error) {
-          issues.push({
-            code: "child_runner_rejected",
-            group: groupId,
-            label: safeText(child.label, "unnamed child"),
-            detail:
-              error instanceof Error
-                ? safeIdentifier(error.code, "runner_error")
-                : "runner_error",
-          });
-          continue;
-        }
-        const expectedLabel = safeText(child.label, "unnamed child");
-        if (!result || typeof result !== "object") {
-          issues.push({
-            code: "child_result_missing",
-            group: groupId,
-            label: expectedLabel,
-          });
-          continue;
-        }
-        if (result.label !== expectedLabel) {
-          issues.push({
-            code: "child_result_conflicting_label",
-            group: groupId,
-            label: expectedLabel,
-          });
-          continue;
-        }
-        if (resultsByLabel.has(expectedLabel)) {
-          issues.push({
-            code: "child_result_duplicate",
-            group: groupId,
-            label: expectedLabel,
-          });
-          continue;
-        }
-        resultsByLabel.set(expectedLabel, {
-          ...result,
-          group: groupId,
-        });
-      }
-      log(
-        `[canonical:${safeSuite}] group_result group=${groupId} duration_ms=${Date.now() - startedAt} results=${group.children.filter((child) => resultsByLabel.has(safeText(child.label, "unnamed child"))).length}/${group.children.length}`,
-      );
-    };
-
-    launch();
-  });
-
-  const orderedResults = [];
-  for (const group of groups) {
+  const runGroup = async (group) => {
+    const groupId = group.id;
+    const startedAt = Date.now();
+    log(
+      `[canonical:${safeSuite}] group_start group=${groupId} child_count=${group.children.length}`,
+    );
     for (const child of group.children) {
-      const label = safeText(child.label, "unnamed child");
-      const result = resultsByLabel.get(label);
-      if (!result) {
-        if (!issues.some((issue) => issue.label === label)) {
-          issues.push({ code: "child_result_incomplete", group: group.id, label });
-        }
+      if (admissionStopped) break;
+      const expectedLabel = child.label;
+      const entry = selectedByLabel.get(expectedLabel);
+      entry.started = true;
+      let result;
+      try {
+        result = await runChild(child);
+      } catch (error) {
+        recordIssue({
+          code: "child_runner_rejected", group: groupId, label: expectedLabel,
+          detail: safeIdentifier(error?.code, "runner_error"),
+        });
+        continue;
+      } finally {
+        // Promise settlement does not prove a returned result or resource cleanup.
+        entry.settled = true;
+      }
+      if (!result || typeof result !== "object") {
+        recordIssue({ code: "child_result_missing", group: groupId, label: expectedLabel });
         continue;
       }
-      orderedResults.push(result);
-      if (
-        result.timed_out === true ||
-        result.spawn_error_code ||
-        result.exit_code !== 0
-      ) {
-        issues.push({
-          code: result.timed_out
-            ? "child_timed_out"
-            : result.spawn_error_code
-              ? "child_spawn_failed"
-              : "child_failed",
-          group: result.group,
-          label,
+      if (result.label !== expectedLabel) {
+        recordIssue({ code: "child_result_conflicting_label", group: groupId, label: expectedLabel });
+        continue;
+      }
+      if (resultsByLabel.has(expectedLabel)) {
+        recordIssue({ code: "child_result_duplicate", group: groupId, label: expectedLabel });
+        continue;
+      }
+      resultsByLabel.set(expectedLabel, { ...result, group: groupId });
+      if (!isCompleteCanonicalChildResult(result)) {
+        recordIssue({ code: "child_result_incomplete", group: groupId, label: expectedLabel });
+        continue;
+      }
+      entry.completed = true;
+      const failure = canonicalChildAcceptanceFailure(result, {
+        suite, timeoutMs: child.timeoutMs,
+        requireNaturalExit: child.requireNaturalExit === true,
+        requireCompleteCleanup: true,
+      });
+      if (failure) {
+        recordIssue({
+          code: result.timed_out ? "child_timed_out"
+            : result.spawn_error_code ? "child_spawn_failed" : "child_failed",
+          group: groupId, label: expectedLabel,
+          detail: failure.canonicalResult?.issue ?? failure.code,
         });
       }
     }
+    log(
+      `[canonical:${safeSuite}] group_result group=${groupId} duration_ms=${Date.now() - startedAt} results=${group.children.filter((child) => resultsByLabel.has(child.label)).length}/${group.children.length}`,
+    );
+  };
+
+  // Each worker owns one serial group at a time. Stop admission, not active
+  // children: every started worker is awaited, including secondary failures.
+  // Queued groups are never part of the settlement count, so cannot deadlock it.
+  await Promise.all(Array.from({ length: maxConcurrency }, async () => {
+    while (!admissionStopped && nextGroupIndex < groups.length) {
+      const group = groups[nextGroupIndex++];
+      try {
+        await runGroup(group);
+      } catch (error) {
+        recordIssue({
+          code: "group_runner_rejected", group: group.id, label: "all",
+          detail: safeIdentifier(error?.code, "runner_error"),
+        });
+      }
+    }
+  }));
+
+  const orderedResults = selected.flatMap((entry) => {
+    const result = resultsByLabel.get(entry.label);
+    return result ? [result] : [];
+  });
+  for (const entry of selected) {
+    if (entry.started && !entry.completed && !issues.some((issue) => issue.label === entry.label)) {
+      recordIssue({ code: "child_result_incomplete", group: entry.group, label: entry.label });
+    }
   }
-  if (orderedResults.length !== groups.flatMap((group) => group.children).length) {
-    issues.push({
-      code: "concurrent_result_count_mismatch",
-      group: "all",
-      label: "all",
-    });
+  if (!admissionStopped && orderedResults.length !== selected.length) {
+    recordIssue({ code: "concurrent_result_count_mismatch", group: "all", label: "all" });
+  }
+  const children = selected.map((entry) => ({
+    ...entry,
+    outcome: !entry.started ? "not_started_after_failure"
+      : issues.some((issue) => issue.label === entry.label) ? "failed" : "passed",
+  }));
+  const inventory = {
+    selected_count: children.length,
+    started_count: children.filter((entry) => entry.started).length,
+    settled_count: children.filter((entry) => entry.settled).length,
+    completed_count: children.filter((entry) => entry.completed).length,
+    failed_count: children.filter((entry) => entry.outcome === "failed").length,
+    unstarted_count: children.filter((entry) => !entry.started).length,
+    children,
+  };
+  try {
+    log(`[canonical:${safeSuite}] group_inventory ${JSON.stringify(inventory)}`);
+  } catch (error) {
+    recordIssue({ code: "group_report_rejected", group: "all", label: "all",
+      detail: safeIdentifier(error?.code, "runner_error") });
   }
   if (issues.length > 0) {
     const error = new Error(
@@ -328,9 +331,30 @@ export async function runCanonicalChildGroups({
     error.code = "canonical_concurrent_group_failed";
     error.canonicalResults = orderedResults;
     error.canonicalIssues = issues;
+    error.canonicalInventory = inventory;
     throw error;
   }
   return orderedResults;
+}
+
+// A malformed command result cannot be successful evidence, even when its
+// exit_code happens to be zero. Acceptance still belongs to the shared owner.
+function isCompleteCanonicalChildResult(result) {
+  return (result.exit_code === null || Number.isInteger(result.exit_code)) &&
+    (result.signal === null || typeof result.signal === "string") &&
+    !(result.exit_code !== null && result.signal !== null) &&
+    typeof result.timed_out === "boolean" &&
+    Number.isFinite(result.duration_ms) && result.duration_ms >= 0 &&
+    (result.spawn_error_code === null ||
+      (typeof result.spawn_error_code === "string" && result.spawn_error_code.length > 0)) &&
+    ["exit_observed", "streams_closed", "cleanup_started", "cleanup_completed"]
+      .every((field) => typeof result[field] === "boolean") &&
+    (result.remaining_owned_processes === null ||
+      (Number.isInteger(result.remaining_owned_processes) && result.remaining_owned_processes >= 0)) &&
+    !(result.cleanup_completed && !result.cleanup_started) &&
+    ["natural_exit", "bounded_timeout", "exited_with_owned_descendant_cleanup",
+      "closed_with_owned_descendant_cleanup"].includes(result.termination_reason) &&
+    (result.termination_reason !== "bounded_timeout" || result.timed_out);
 }
 
 export function canonicalChildFailure(result, { suite, timeoutMs }) {
@@ -362,7 +386,7 @@ export function canonicalChildFailure(result, { suite, timeoutMs }) {
 
 export function canonicalChildAcceptanceFailure(
   result,
-  { suite, timeoutMs, requireNaturalExit = false },
+  { suite, timeoutMs, requireNaturalExit = false, requireCompleteCleanup = requireNaturalExit },
 ) {
   if (
     result?.timed_out === true ||
@@ -371,10 +395,10 @@ export function canonicalChildAcceptanceFailure(
   ) {
     return canonicalChildFailure(result, { suite, timeoutMs });
   }
-  if (!requireNaturalExit) return null;
+  if (!requireNaturalExit && !requireCompleteCleanup) return null;
   const lifecycleIssue = [
     [
-      result?.termination_reason !== "natural_exit",
+      requireNaturalExit && result?.termination_reason !== "natural_exit",
       "termination_not_natural",
     ],
     [result?.exit_observed !== true, "exit_not_observed"],
@@ -385,10 +409,12 @@ export function canonicalChildAcceptanceFailure(
   if (!lifecycleIssue) return null;
   const safeSuite = safeIdentifier(suite, "unknown");
   const safeLabel = safeText(result?.label, "unnamed child");
+  const contract = requireNaturalExit ? "natural-exit" : "cleanup";
   const error = new Error(
-    `canonical child natural-exit contract failed: suite=${safeSuite} label=${safeLabel} issue=${lifecycleIssue}`,
+    `canonical child ${contract} contract failed: suite=${safeSuite} label=${safeLabel} issue=${lifecycleIssue}`,
   );
-  error.code = "canonical_child_natural_exit_required";
+  error.code = requireNaturalExit
+    ? "canonical_child_natural_exit_required" : "canonical_child_cleanup_required";
   error.canonicalResult = {
     label: safeLabel,
     exit_code: result?.exit_code ?? null,

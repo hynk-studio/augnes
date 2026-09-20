@@ -283,6 +283,14 @@ deterministic ownership over throughput:
 - core and continuity E2E never run concurrently;
 - the existing integration runner alone retains its proven maximum-two isolated
   groups, `operator-process` and `supporting-serial`;
+- after an observed child acceptance failure or runner error, integration admits
+  no further child or group. Already-started work settles under its existing
+  deadlines and cleanup owners, retaining secondary failures. The group log and
+  failure inventory distinguish selected, started, settled, completed, failed,
+  and unstarted children; unstarted children are never successful results.
+  Completed means a structurally complete returned result, not accepted success
+  or complete cleanup. Rejection proves settlement only. Every selected child
+  must complete and pass the shared acceptance owner for a successful run;
 - each Canonical child keeps its own HOME, temp root, database, and runtime
   state;
 - existing measured child timeouts, heartbeats, zero-network guards, process
