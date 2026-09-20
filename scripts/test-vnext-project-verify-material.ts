@@ -27,6 +27,10 @@ import { evaluateCriterionAssessmentV01 } from "@/lib/vnext/criterion-assessment
 import { createProtocolSha256V01 } from "@/lib/vnext/protocol-primitives";
 import { admitEpisodeDeltaProposalV01 } from "@/lib/vnext/persistence/episode-delta-proposal-admission";
 import {
+  materializeProjectVerifyRelationLifecycleProposalV01,
+  ProjectVerifyLifecycleAdmissionErrorV01,
+} from "@/lib/vnext/persistence/project-verify-lifecycle-admission";
+import {
   admitClaimEvidenceRelationV01,
   admitClaimRecordV01,
   admitEvidenceRecordV01,
@@ -2578,6 +2582,125 @@ function rebuildRelationWithForgedAssessmentSourceV01(
   });
 }
 
+function assertLifecycleSelectionWorkBoundV01(): void {
+  const source = productionShapedSourceV01();
+  let receiptReads = 0;
+  let observing = false;
+  const db = new Database(":memory:", {
+    verbose: (sql) => {
+      if (observing && /^\s*SELECT/u.test(String(sql)) &&
+        String(sql).includes("FROM vnext_core_records") &&
+        String(sql).includes("WHERE record_kind = 'run_receipt' AND record_id =")) {
+        receiptReads += 1;
+      }
+    },
+  });
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    persistProductionSourcesV01(db, source);
+    const admitted = admitRunCriterionProjectVerifyMaterialV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      receipt_id: source.receipt.receipt_id,
+    });
+    const relation = admitted.material.relations[0]!;
+    const before = db.serialize();
+    db.pragma("query_only = ON");
+    observing = true;
+    const material = materializeProjectVerifyRelationLifecycleProposalV01(db, {
+      workspace_id: WORKSPACE_ID,
+      project_id: PROJECT_ID,
+      relation_id: relation.relation_id,
+      observed_at: new Date(Date.parse(relation.created_at) + 1_000).toISOString(),
+    });
+    observing = false;
+    assert.deepEqual(db.serialize(), before, "lifecycle source selection is read-only");
+    assert.deepEqual(material.proposal.project_verify_lifecycle?.lifecycle_binding.selected_record_ref,
+      { record_kind: "claim_evidence_relation", record_id: relation.relation_id,
+        record_fingerprint: relation.integrity.fingerprint });
+    assert.equal(receiptReads, 6,
+      "the three source gates retain both receipt and proposal authentication, without repeating them for the adjacent family read");
+  } finally {
+    db.close();
+  }
+}
+
+function assertLifecycleSelectionLifetimeV01(): void {
+  const directory = mkdtempSync(join(tmpdir(), "augnes-selection-lifetime-"));
+  const databasePath = join(directory, "selection.sqlite");
+  const db = new Database(databasePath);
+  const otherDb = new Database(":memory:");
+  let otherConnection: Database.Database | null = null;
+  const scope = { workspace_id: WORKSPACE_ID, project_id: PROJECT_ID };
+  const evidence = evidenceV01({ identityKey: "lifecycle-selection-lifetime" });
+  const claim = claimV01({
+    revision: 1, prior: null, operation: "create",
+    proposition: "Selection authentication stays inside one read.",
+    familySeed: "lifecycle-selection-lifetime",
+  });
+  const relation = relationV01({
+    familySeed: "lifecycle-selection-lifetime", claim, evidence, kind: "supports",
+  });
+  const replacement = relationV01({
+    familySeed: "lifecycle-selection-lifetime", claim, evidence, kind: "opposes",
+  });
+  assert.equal(replacement.relation_id, relation.relation_id);
+  assert.notEqual(replacement.integrity.fingerprint, relation.integrity.fingerprint);
+  const read = (database: Database.Database, projectId = PROJECT_ID) =>
+    materializeProjectVerifyRelationLifecycleProposalV01(database, {
+      ...scope, project_id: projectId, relation_id: relation.relation_id,
+      observed_at: new Date(Date.parse(relation.created_at) + 1_000).toISOString(),
+    });
+  const admit = (database: Database.Database, selected: ClaimEvidenceRelationV01) =>
+    admitProjectVerifyMaterialBatchV01(database, {
+      ...scope, evidence_records: [evidence], claim_records: [claim], relations: [selected],
+    });
+  const missingRelation = (error: unknown) =>
+    error instanceof ProjectVerifyLifecycleAdmissionErrorV01 &&
+    error.code === "project_verify_lifecycle_relation_missing";
+  try {
+    ensureVNextDurableSemanticStoreSchemaV01(db);
+    ensureVNextDurableSemanticStoreSchemaV01(otherDb);
+    db.exec("BEGIN; SAVEPOINT selected_material");
+    admit(db, relation);
+    const beforeRead = db.serialize();
+    const original = read(db);
+    assert.deepEqual(db.serialize(), beforeRead);
+    const callerCopy = read(db);
+    callerCopy.proposal.integrity.fingerprint = `sha256:${"0".repeat(64)}`;
+    assert.deepEqual(read(db), original, "caller mutation cannot prime a later invocation");
+    assert.throws(() => read(db, OTHER_PROJECT_ID), missingRelation,
+      "a same-id foreign-project selection cannot reuse the prior success");
+
+    db.exec("ROLLBACK TO selected_material; RELEASE selected_material");
+    assert.equal(db.inTransaction, true);
+    assert.throws(() => read(db), missingRelation,
+      "rollback invalidates prior success even while the caller's transaction stays open");
+    admit(db, replacement);
+    const replaced = read(db);
+    assert.notDeepEqual(replaced, original);
+    assert.equal(replaced.proposal.project_verify_lifecycle?.lifecycle_binding
+      .selected_record_ref.record_fingerprint, replacement.integrity.fingerprint);
+
+    admit(otherDb, relation);
+    assert.deepEqual(read(otherDb), original,
+      "a separate database with the same scope and id authenticates its own material");
+    assert.deepEqual(read(db), replaced);
+    db.exec("ROLLBACK");
+    assert.throws(() => read(db), missingRelation);
+    otherConnection = new Database(databasePath);
+    admit(otherConnection, relation);
+    assert.deepEqual(read(db), original,
+      "a later invocation observes material admitted by a separate connection");
+  } finally {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    otherConnection?.close();
+    db.close();
+    otherDb.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 function assertSourceBoundAdmissionV01(): void {
   const source = productionShapedSourceV01();
   assert.equal(
@@ -3098,6 +3221,13 @@ function assertSourceBoundAdmissionV01(): void {
     });
     for (const genericRead of [
       () =>
+        materializeProjectVerifyRelationLifecycleProposalV01(forgedRelationDb, {
+          workspace_id: WORKSPACE_ID,
+          project_id: PROJECT_ID,
+          relation_id: forgedRelation.relation_id,
+          observed_at: new Date(Date.parse(forgedRelation.created_at) + 1_000).toISOString(),
+        }),
+      () =>
         readClaimEvidenceRelationV01(forgedRelationDb, {
           workspace_id: WORKSPACE_ID,
           project_id: PROJECT_ID,
@@ -3550,6 +3680,8 @@ globalThis.fetch = (async () => {
 }) as typeof globalThis.fetch;
 
 try {
+  assertLifecycleSelectionWorkBoundV01();
+  assertLifecycleSelectionLifetimeV01();
   assertPreSr2SchemaUpgradeV01();
   assertExportedDatabaseMigrationV01();
   assertMaterialReadSessionBoundaryV01();
@@ -3569,6 +3701,9 @@ try {
       pre_sr2_upgrade_preservation_rollback_orphan_checked: true,
       exported_migration_semantic_projection_preservation_checked: true,
       call_local_material_read_session_boundaries_checked: true,
+      lifecycle_selected_relation_receipt_reads: 6,
+      lifecycle_selection_mutation_rollback_separate_database_checked: true,
+      lifecycle_resealed_relation_source_refusal_checked: true,
       immutable_replay_conflict_checked: true,
       claim_candidate_lineage_checked: true,
       family_origin_revision_producer_separation_checked: true,

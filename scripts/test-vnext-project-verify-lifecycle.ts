@@ -1776,6 +1776,7 @@ function assertRelationLifecycleV01(): void {
         },
       );
       admitProjectVerifyLifecycleProposalV01(db, material);
+      assertProjectVerifyLifecycleProposalCurrentHeadExpectationV01(db, material.proposal);
       const applied = applyLifecycleV01({
         db,
         proposal: material.proposal,
@@ -1783,6 +1784,13 @@ function assertRelationLifecycleV01(): void {
         cycle,
       });
       priorDecision = applied.decision;
+      assert.throws(
+        () => assertProjectVerifyLifecycleProposalCurrentHeadExpectationV01(db, material.proposal),
+        relation.operation_intent === "retract"
+          ? /project_verify_lifecycle_family_already_retracted/
+          : /project_verify_lifecycle_current_head_expectation_conflict/,
+        "a previously authenticated relation selection cannot hide a changed live head",
+      );
       assertCurrentBindingV01({
         db,
         proposal: material.proposal,
