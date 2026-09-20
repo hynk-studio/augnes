@@ -1508,6 +1508,11 @@ for (const fragment of [
   `child_result_conflicting_label`,
   `child_result_duplicate`,
   `child_result_incomplete`,
+  `canonicalChildAcceptanceFailure(result,`,
+  `requireCompleteCleanup: true`,
+  `canonicalInventory`,
+  `group_inventory`,
+  `not_started_after_failure`,
   `settleOwnedProcessAfterExit(record`,
 ]) {
   requireText(
@@ -1522,6 +1527,7 @@ for (const fragment of [
   `concurrent_incomplete_conflicting_and_duplicate_results_refused`,
   `concurrent-after-failure`,
   `concurrent-after-timeout`,
+  `./test-canonical-child-groups.mjs`,
   `exited_child_inherited_stream_reaped_without_timeout`,
 ]) {
   requireText(
