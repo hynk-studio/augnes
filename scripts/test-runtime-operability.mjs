@@ -111,6 +111,8 @@ import {
   validateRuntimeOperabilityLifecycleEvidence,
 } from "./runtime-operability-ownership.mjs";
 
+import { withSupervisorProcessPreservation } from "./supervisor-process-observation.mjs";
+
 const repoRoot = process.cwd();
 const runtimeOperabilityOwner = runtimeOperabilityOwnerForSelector(process.argv[2]);
 const runsLifecycleOwner = runtimeOperabilityOwner.selector === "lifecycle";
@@ -174,19 +176,20 @@ let legacyRootRequestCount = 0;
 let parentSignalCleanupVerified = false;
 let parentSignalCleanupSkipReason = null;
 
-mkdirSync(homeRoot, { recursive: true });
-mkdirSync(tempRoot, { recursive: true });
-mkdirSync(logRoot, { recursive: true });
-mkdirSync(path.dirname(databasePath), { recursive: true });
-
-const repositoryDatabaseBefore = snapshotDatabaseFamily(repositoryDatabasePath);
-const ambientRuntimeProcessesBefore = listSupervisorProcessIds();
 const ownedProcessCountBefore = observedOwnedPids.size;
+const { value: summary, preservation } = await withSupervisorProcessPreservation({
+  observationOptions: { supervisorScript },
+  run: runRuntimeOperability,
+  cleanup: cleanupRuntimeOperability,
+});
+printRuntimeOperabilitySummary(summary, preservation);
 
-let suiteError = null;
-let cleanupError = null;
-
-try {
+async function runRuntimeOperability() {
+  mkdirSync(homeRoot, { recursive: true });
+  mkdirSync(tempRoot, { recursive: true });
+  mkdirSync(logRoot, { recursive: true });
+  mkdirSync(path.dirname(databasePath), { recursive: true });
+  const repositoryDatabaseBefore = snapshotDatabaseFamily(repositoryDatabasePath);
   initializeDisposableDatabase(databasePath);
   if (runsLifecycleOwner) {
     assertManagedExecutionRefusalResultContractV01();
@@ -280,12 +283,6 @@ try {
   }
   const ownedProcessCountAfter = [...observedOwnedPids].filter(isProcessAlive).length;
   assert.equal(ownedProcessCountAfter, 0);
-  const ambientRuntimeProcessesAfter = listSupervisorProcessIds();
-  assert.deepEqual(
-    ambientRuntimeProcessesAfter,
-    ambientRuntimeProcessesBefore,
-    "the focused test must leave the ambient supervisor process count unchanged",
-  );
 
   const summary = {
     test: `canonical-runtime-supervisor-${runtimeOperabilityOwner.selector}-operability`,
@@ -413,12 +410,17 @@ try {
     repository_database_unchanged: true,
     owned_process_count_before: ownedProcessCountBefore,
     owned_process_count_after: ownedProcessCountAfter,
-    ambient_supervisor_process_count_before: ambientRuntimeProcessesBefore.length,
-    ambient_supervisor_process_count_after: ambientRuntimeProcessesAfter.length,
     owned_ports_after: 0,
     runtime_state_files_after: 0,
     disposable_database_preserved: true,
   };
+  return summary;
+}
+
+function printRuntimeOperabilitySummary(summary, preservation) {
+  summary.ambient_supervisor_observation = preservation;
+  summary.ambient_supervisor_process_count_before = preservation.before.count;
+  summary.ambient_supervisor_process_count_after = preservation.after.count;
   summary.normalized_public_result_sha256 = createHash("sha256")
     .update(
       JSON.stringify({
@@ -501,21 +503,28 @@ try {
         provider_or_proxy_requests: summary.provider_or_proxy_requests,
         repository_database_unchanged: summary.repository_database_unchanged,
         owned_process_count_after: summary.owned_process_count_after,
+        ambient_supervisor_observation: summary.ambient_supervisor_observation,
         owned_ports_after: summary.owned_ports_after,
         runtime_state_files_after: summary.runtime_state_files_after,
       }),
     )
     .digest("hex");
   console.log(JSON.stringify(summary, null, 2));
-} catch (error) {
-  suiteError = error;
-} finally {
+}
+
+async function cleanupRuntimeOperability() {
   const cleanupErrors = [];
   for (const action of [
     () => cleanupOwnedProcesses(ownedProcesses, { termGraceMs: 12_000 }),
     () => closeServer(unrelatedIdentityServer),
     () => closeServer(proxyServer),
     () => cleanupOwnedProcesses(auxiliaryProcesses),
+    () => rmSync(temporaryRoot, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    }),
   ]) {
     try {
       await action();
@@ -523,24 +532,13 @@ try {
       cleanupErrors.push(error);
     }
   }
-  rmSync(temporaryRoot, {
-    recursive: true,
-    force: true,
-    maxRetries: 5,
-    retryDelay: 100,
-  });
   if (cleanupErrors.length > 0) {
-    cleanupError = new Error("runtime operability cleanup failed");
+    const cleanupError = new Error("runtime operability cleanup failed");
     cleanupError.code = "runtime_operability_cleanup_failed";
     cleanupError.causes = cleanupErrors;
+    throw cleanupError;
   }
 }
-
-if (suiteError && cleanupError) {
-  throw new AggregateError([suiteError, cleanupError], "runtime operability and cleanup failed");
-}
-if (suiteError) throw suiteError;
-if (cleanupError) throw cleanupError;
 
 async function testRuntimeStatePathSafety() {
   const fixtureRoot = path.join(temporaryRoot, "runtime-path-safety");
@@ -4445,22 +4443,6 @@ function processTreePids(ready) {
     }
   }
   return [...pids].filter((pid) => Number.isInteger(pid) && pid > 0);
-}
-
-function listSupervisorProcessIds() {
-  if (process.platform === "win32") return [];
-  const result = spawnSync("ps", ["-axo", "pid=,command="], {
-    encoding: "utf8",
-    timeout: 2_000,
-  });
-  if (result.status !== 0) return [];
-  return result.stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.includes(supervisorScript))
-    .map((line) => Number(line.split(/\s+/, 1)[0]))
-    .filter((pid) => Number.isInteger(pid) && pid !== process.pid)
-    .sort((left, right) => left - right);
 }
 
 function initializeDisposableDatabase(targetPath) {

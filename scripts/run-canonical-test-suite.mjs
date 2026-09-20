@@ -874,6 +874,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "supervisor observation failure and exact preservation contract",
+      ...rootNode("scripts/test-supervisor-process-observation.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "canonical repository identity contract",
       ...rootNode("scripts/test-canonical-repository-identity.mjs"),
       timeoutMs: 30_000,
