@@ -168,6 +168,18 @@ for empty/unavailable distinctions and the locator projection difference from
 the authenticated Browser. Legacy `augnes_get_work_brief` and page-bound
 WebMCP retain their separate contracts.
 
+For a user-authorized update to existing eligible unstarted current work, call
+`augnes_preview_repository_work_revision` with the repository root, the same
+Resume binding and explicit `changes`. Inspect the normalized differences, then
+call `augnes_save_repository_work_revision` with that same request and the
+returned `preview_binding` as `previewBinding`. Omitted definition fields and
+notes remain unchanged. Replace/deselect sources only by exact source bindings;
+never roundtrip null projected locators. Neither action requires Browser login.
+Save is explicit and separate from reading; stale/conflicting work refuses.
+Exact replay acknowledges an existing revision while recording authentication
+bookkeeping. Explicitly Resume again before reading the saved selection.
+See the [prepared-work revision contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
+
 The supervised bridge runs in `AUGNES_CORE_MODE=http` and binds to the exact UI
 URL selected by the same supervisor. UI, bridge, manifest, and the narrow
 Companion access record must agree on runtime instance, runtime generation, and

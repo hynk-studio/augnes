@@ -12,6 +12,7 @@ import {
   candidateManifestPathsV01,
   discoverVerifiedCompanionV01,
   parseRepositoryWorkSourcesResponseV01,
+  parseRepositoryWorkRevisionResponseV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
@@ -89,6 +90,8 @@ let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
 let sourcesScenario = null;
+let workRevisionScenario = null;
+let workRevisionCalls = 0;
 
 const ui = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -143,6 +146,21 @@ const ui = createServer(async (request, response) => {
     return response
       .writeHead(executionScenario.status)
       .end(executionScenario.body);
+  }
+  if (url.pathname === "/api/augnes/repository-work-revision" && request.method === "POST") {
+    workRevisionCalls++;
+    assert(workRevisionScenario);
+    assert.equal(request.headers.cookie, undefined, "native edit must not transfer Browser credentials");
+    assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
+    assert.equal(request.headers["x-augnes-local-work-revision"], "codex-repository-work-revision-v0.1");
+    let body = ""; for await (const chunk of request) body += chunk;
+    assert.equal(JSON.parse(body).action, "save");
+    if (workRevisionScenario.disconnect) return request.socket.destroy();
+    response.setHeader("x-augnes-local-work-revision", "codex-repository-work-revision-v0.1");
+    response.setHeader("x-augnes-runtime-instance", instance);
+    response.setHeader("x-augnes-runtime-generation", generation);
+    response.setHeader("x-augnes-runtime-repository", repository);
+    return response.writeHead(workRevisionScenario.status ?? 200).end(JSON.stringify(workRevisionScenario.body));
   }
   if (url.pathname === "/api/augnes/read/codex-repository-work-sources" && request.method === "POST") {
     assert(sourcesScenario);
@@ -225,6 +243,8 @@ try {
       "augnes_start_companion_service",
       "augnes_resume_repository",
       "augnes_read_repository_work_sources",
+      "augnes_preview_repository_work_revision",
+      "augnes_save_repository_work_revision",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
       "augnes_validate_repository_execution_attachment",
@@ -256,6 +276,9 @@ try {
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
+    assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_start_companion_service")?.annotations?.readOnlyHint, false);
     const deferredToolInventory = tools.tools.map(({ name, description }) => ({ name, description }));
@@ -361,6 +384,33 @@ try {
     assert.equal((await callSources()).isError, true, "unknown DTO fields must not escape the proxy");
     sourcesScenario = { body: { ...sourceProjection, status: "refresh_required", reason: "snapshot_changed", snapshot_binding: null, packet_fingerprint: null } };
     assert.equal((await callSources()).structuredContent.status, "refresh_required");
+    const editProjection = { projection_version: "codex_repository_work_revision.v0.1", status: "saved",
+      expected_snapshot_binding: sourceBinding, preview_binding: sourceBinding, packet_fingerprint: sourceBinding,
+      definition: { before: { goal: "Before", success_criteria: ["Criterion"], non_goals: [] }, after: { goal: "After", success_criteria: ["Criterion"], non_goals: [] } },
+      sources: { before: [], after: [], retained: [], added: [], deselected: [] },
+      effects: { work_revision_created: true, authorization_record_created: true }, source_material_authority: "untrusted_selected_context",
+      authority: { ...sourceProjection.authority, writes_database: true, changes_operator_session: true } };
+    assert.deepEqual(parseRepositoryWorkRevisionResponseV01(editProjection), editProjection);
+    assert.throws(() => parseRepositoryWorkRevisionResponseV01({ ...editProjection, authority: sourceProjection.authority }));
+    const save = () => client.callTool({ name: "augnes_save_repository_work_revision", arguments: {
+      repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, previewBinding: sourceBinding, changes: { goal: "After" } } });
+    workRevisionScenario = { body: editProjection };
+    assert.equal((await save()).structuredContent.status, "saved");
+    for (const scenario of [
+      { body: { ...editProjection, extra_private_field: "must not escape" } },
+      { disconnect: true }, { status: 503, body: { error: { code: "work_revision_unavailable", status: 503 } } },
+      { status: 400, body: { unknown_error: true } },
+      { status: 500, body: { error: { code: "companion_unavailable", status: 500 } } },
+      { status: 400, body: { error: { code: "refresh_required", status: 400 } } },
+    ]) {
+      workRevisionScenario = scenario;
+      const priorCalls = workRevisionCalls, unknown = await save();
+      assert.equal(unknown.structuredContent.status, "outcome_unknown");
+      assert.equal(workRevisionCalls, priorCalls + 1, "an uncertain save never automatically retries");
+      assert.match(unknown.content[0].text, /may have committed/u);
+    }
+    workRevisionScenario = { status: 409, body: { error: { code: "refresh_required", status: 409 } } };
+    assert.equal((await save()).structuredContent.reason, "refresh_required");
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;
     const result = await client.callTool({
