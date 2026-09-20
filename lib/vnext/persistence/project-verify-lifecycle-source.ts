@@ -13,6 +13,7 @@ import {
   type VNextPersistedSemanticStateVersionV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
+  createProjectVerifyMaterialReadSessionV01,
   listClaimEvidenceRelationFamilyRevisionsV01,
   listClaimFamilyRevisionsV01,
   readClaimEvidenceRelationV01,
@@ -336,22 +337,30 @@ function resolveSelectedRecordV01(
   if (input.entity_kind !== "claim_evidence_relation") {
     refuseV01("project_verify_lifecycle_entity_kind_invalid");
   }
-  const record = readClaimEvidenceRelationV01(db, {
-    workspace_id: workspaceId,
-    project_id: projectId,
-    relation_id: selectedRecordId,
-  });
-  if (!record) refuseV01("project_verify_lifecycle_relation_missing");
-  const lineage = listClaimEvidenceRelationFamilyRevisionsV01(db, {
-    workspace_id: workspaceId,
-    project_id: projectId,
-    relation_family_id: record.relation_family_id,
-  });
-  assertSelectedRelationInLineageV01(record, lineage);
-  return {
-    selected_record: structuredClone(record),
-    lineage_revision_count: lineage.length,
-  };
+  // The record reader already authenticates its complete family. Reuse that
+  // exact material only for the adjacent family read in this private snapshot:
+  // no writes, caller callbacks, or asynchronous yield occur here, and the
+  // session cannot escape. The existing owner binds it to this database/scope
+  // and exact record/family fingerprints. Head/authority checks remain outside
+  // this interval and are read again by their existing owners.
+  return db.transaction(() => {
+    const scope = { workspace_id: workspaceId, project_id: projectId };
+    const readSession = createProjectVerifyMaterialReadSessionV01(db, scope);
+    const record = readClaimEvidenceRelationV01(db, {
+      ...scope,
+      relation_id: selectedRecordId,
+    }, readSession);
+    if (!record) refuseV01("project_verify_lifecycle_relation_missing");
+    const lineage = listClaimEvidenceRelationFamilyRevisionsV01(db, {
+      ...scope,
+      relation_family_id: record.relation_family_id,
+    }, readSession);
+    assertSelectedRelationInLineageV01(record, lineage);
+    return {
+      selected_record: structuredClone(record),
+      lineage_revision_count: lineage.length,
+    };
+  })();
 }
 
 function readLiveFamilyHeadV01(
