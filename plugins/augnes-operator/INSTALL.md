@@ -114,6 +114,18 @@ unavailability. The supported supervisor
 forwarded as a path hint and receives the same verification. The proxy is not a
 daemon, supervisor, database owner, or fallback data source.
 
+The explicit `augnes_read_repository_work_sources` tool uses that same private
+Companion channel to read the current packet's selected notes. Supply
+`repositoryRoot` and `expectedSnapshotBinding` from repository Resume. No
+Browser login/token is required for this read; Browser authentication and
+mutation controls are unchanged. See the
+[source-read contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read).
+After this change is merged, refresh the local plugin normally with
+`npm run augnes:plugin:install` and start a fresh Codex session to load its tool
+inventory. The Companion UI must run the matching merged source through its
+normal lifecycle. Candidate qualification in a disposable runtime does not
+update the installed production plugin/service or establish rollout.
+
 The same verified Companion exposes the CDX2B2A tools
 `augnes_prepare_repository_execution`,
 `augnes_validate_repository_execution_attachment`,
