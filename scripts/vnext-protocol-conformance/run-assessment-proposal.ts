@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Session, type Profiler } from "node:inspector";
 
 import Database from "better-sqlite3";
 
@@ -81,6 +82,7 @@ export interface RunAssessmentProposalConformanceSummaryV01 {
   neutral_receipt_basis_checked: true;
   exact_source_material_checked: true;
   source_material_bounds_checked: true;
+  materialization_work_and_isolation_checked: true;
   relation_aware_snapshot_checked: true;
   partial_relation_task_unknown_checked: true;
   relation_change_refused_checked: true;
@@ -100,6 +102,7 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
     receipt: clone(receipt),
     assessment: clone(assessment),
   });
+  assertMaterializationWorkAndIsolationV01({ packet, receipt, assessment }, first);
   assert.deepEqual(second, first);
   assert.equal(first.proposal.proposal_id, second.proposal.proposal_id);
   assert.equal(
@@ -702,10 +705,110 @@ export function runRunAssessmentProposalConformanceV01(): RunAssessmentProposalC
     neutral_receipt_basis_checked: true,
     exact_source_material_checked: true,
     source_material_bounds_checked: true,
+    materialization_work_and_isolation_checked: true,
     relation_aware_snapshot_checked: true,
     partial_relation_task_unknown_checked: true,
     relation_change_refused_checked: true,
   };
+}
+
+function assertMaterializationWorkAndIsolationV01(
+  source: Parameters<typeof materializeRunAssessmentProposalV01>[0],
+  expected: ReturnType<typeof materializeRunAssessmentProposalV01>,
+): void {
+  const input = clone(source);
+  const before = clone(input);
+  const session = new Session();
+  session.connect();
+  let coverage: Profiler.TakePreciseCoverageReturnType | undefined;
+  let actual: ReturnType<typeof materializeRunAssessmentProposalV01>;
+  try {
+    // Built-in call counters observe real validation; no replacement validator,
+    // inspector listener, source rewrite, loader, or production hook is used.
+    session.post("Profiler.enable", (error) => assert.ifError(error));
+    session.post(
+      "Profiler.startPreciseCoverage",
+      { callCount: true, detailed: false },
+      (error) => assert.ifError(error),
+    );
+    actual = materializeRunAssessmentProposalV01(input);
+    session.post("Profiler.takePreciseCoverage", (error, result) => {
+      assert.ifError(error);
+      coverage = result;
+    });
+  } finally {
+    session.disconnect();
+  }
+  assert(coverage, "synchronous materializer call coverage must be available");
+  const implementationLength = Function.prototype.toString.call(
+    validateCriterionAssessmentAgainstSourcesV01,
+  ).length;
+  const validators = coverage.result
+    .filter((script) => script.url.endsWith("/lib/vnext/criterion-assessment.ts"))
+    .flatMap((script) => script.functions)
+    .filter((entry) =>
+      entry.functionName === "validateCriterionAssessmentAgainstSourcesV01" &&
+      // tsx also emits an export getter with this inferred name. Match the
+      // executing implementation's exact range, never a desired count.
+      entry.ranges[0]!.endOffset - entry.ranges[0]!.startOffset === implementationLength
+    );
+  assert.equal(validators.length, 1, "the real source validator must be observed exactly once");
+  assert.equal(validators[0]!.ranges.length, 1, "function-level call coverage is required");
+  assert.equal(validators[0]!.ranges[0]!.count, 3, "one materialization must validate sources three times");
+  assert.deepEqual(actual, expected);
+  assert.equal(JSON.stringify(actual), JSON.stringify(expected));
+  assert.deepEqual(input, before);
+  const frozen = clone(before);
+  freezeSourceV01(frozen);
+  assert.deepEqual(materializeRunAssessmentProposalV01(frozen), expected);
+
+  actual.proposal.source_assessment!.assessment.criteria[0]!.uncertainty.push(
+    "Returned material was changed by its caller.",
+  );
+  assert.deepEqual(input, before);
+  assert.deepEqual(materializeRunAssessmentProposalV01(input), expected);
+
+  input.assessment.criteria[0]!.uncertainty.push(
+    "Source material was changed after the first call.",
+  );
+  input.assessment.assessment_fingerprint =
+    createCriterionAssessmentFingerprintV01(input.assessment);
+  assert.equal(validateCriterionAssessmentV01(input.assessment).status, "valid");
+  assert.throws(
+    () => materializeRunAssessmentProposalV01(input),
+    (error) => error instanceof RunAssessmentProposalMaterializationErrorV01 &&
+      error.code === "run_assessment_proposal_assessment_conflict",
+  );
+  assert.deepEqual(materializeRunAssessmentProposalV01(before), expected);
+
+  const foreign = clone(before);
+  foreign.assessment.project_id = "project-run-assessment-proposal-foreign";
+  foreign.assessment.assessment_fingerprint =
+    createCriterionAssessmentFingerprintV01(foreign.assessment);
+  assert.equal(validateCriterionAssessmentV01(foreign.assessment).status, "valid");
+  const substituted = { ...before, packet: packetV01({ goal: "Another valid source packet." }) };
+  const invalidPacket = clone(before);
+  invalidPacket.packet.integrity.fingerprint = `sha256:${"f".repeat(64)}`;
+  const invalidReceipt = clone(before);
+  invalidReceipt.receipt.integrity.fingerprint = `sha256:${"f".repeat(64)}`;
+  for (const [changed, code] of [
+    [foreign, "run_assessment_proposal_assessment_conflict"],
+    [substituted, "run_assessment_proposal_source_binding_conflict"],
+    [invalidPacket, "run_assessment_proposal_packet_invalid"],
+    [invalidReceipt, "run_assessment_proposal_receipt_invalid"],
+  ] as const) {
+    assert.throws(
+      () => materializeRunAssessmentProposalV01(changed),
+      (error) => error instanceof RunAssessmentProposalMaterializationErrorV01 &&
+        error.code === code,
+    );
+  }
+}
+
+function freezeSourceV01(value: unknown): void {
+  if (!value || typeof value !== "object") return;
+  Object.values(value).forEach(freezeSourceV01);
+  Object.freeze(value);
 }
 
 function assertRelationAwareProposalV01(): void {
@@ -733,6 +836,9 @@ function assertRelationAwareProposalV01(): void {
     assessment: partialAssessment,
   });
   const partialSource = partial.proposal.source_assessment;
+  assertMaterializationWorkAndIsolationV01({
+    packet, receipt: partialReceipt, assessment: partialAssessment,
+  }, partial);
   assert(partialSource);
   assert.equal(
     partialSource.comparison.criterion_specific_relations_available,
@@ -795,6 +901,19 @@ function assertRelationAwareProposalV01(): void {
     assessment: clone(completeAssessment),
   });
   assert.deepEqual(completeReplay, complete);
+  assertMaterializationWorkAndIsolationV01({
+    packet, receipt: completeReceipt, assessment: completeAssessment,
+  }, complete);
+  const failedReceipt = relationAwareReceiptV01(packet, true, true);
+  const failedAssessment = evaluateCriterionAssessmentV01({ packet, receipt: failedReceipt });
+  assert.equal(failedAssessment.summary.unsatisfied, 1);
+  const failed = materializeRunAssessmentProposalV01({
+    packet, receipt: failedReceipt, assessment: failedAssessment,
+  });
+  assert.equal(failed.proposal.source_assessment?.comparison.task_success_status, "unsatisfied");
+  assertMaterializationWorkAndIsolationV01({
+    packet, receipt: failedReceipt, assessment: failedAssessment,
+  }, failed);
   assert.equal(
     complete.proposal.source_assessment?.comparison.task_success_status,
     "satisfied",
@@ -1094,6 +1213,7 @@ function relationAwarePacketV01() {
 function relationAwareReceiptV01(
   packet: ReturnType<typeof relationAwarePacketV01>,
   complete: boolean,
+  failedCheck = false,
 ) {
   const input = clone(
     genericCliDirectObservationInputFixture,
@@ -1122,7 +1242,7 @@ function relationAwareReceiptV01(
     : ["project_root_scope_verified"];
   const verifierRef = input.verifier_refs[0]!;
   input.verification = {
-    status: complete ? "passed" : "partial",
+    status: failedCheck ? "failed" : complete ? "passed" : "partial",
     basis: "observed",
     required_check_ids: requiredCheckIds,
     source_refs: [verifierRef],
@@ -1130,9 +1250,9 @@ function relationAwareReceiptV01(
   input.checks = resultCheckIds.map((checkId) => ({
     check_id: checkId,
     required: true,
-    status: "passed",
+    status: failedCheck && checkId === requiredCheckIds[0] ? "failed" : "passed",
     basis: "observed",
-    summary: `Exact production check ${checkId} passed.`,
+    summary: `Exact production check ${checkId} ${failedCheck && checkId === requiredCheckIds[0] ? "failed" : "passed"}.`,
     source_refs: [verifierRef],
   }));
   input.skipped_checks = requiredCheckIds
@@ -1147,7 +1267,9 @@ function relationAwareReceiptV01(
   input.observations[0]!.related_check_ids = resultCheckIds;
   input.observations[0]!.source_refs = [verifierRef];
   input.result_summary = {
-    summary: complete
+    summary: failedCheck
+      ? "One exact production obligation failed."
+      : complete
       ? "All exact production obligations completed."
       : "Only one exact production obligation completed.",
     outcome: complete ? "completed" : "partial",
