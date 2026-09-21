@@ -162,6 +162,7 @@ export function materializeRunAssessmentProposalV01(input: {
   });
   const sourceAssessment = sourceAssessmentSnapshotV01({
     identity,
+    criterion_relations_available: criterionRelationsAvailable,
     packet: input.packet,
     receipt: input.receipt,
     assessment: input.assessment,
@@ -582,6 +583,7 @@ function proposalCandidatesV01(input: {
 
 function sourceAssessmentSnapshotV01(input: {
   identity: RunAssessmentProposalAdmissionIdentityV01;
+  criterion_relations_available: boolean;
   packet: TaskContextPacketV01;
   receipt: RunReceiptV01;
   assessment: CriterionAssessmentV01;
@@ -589,12 +591,7 @@ function sourceAssessmentSnapshotV01(input: {
   packet_ref: ExternalRefV01;
   receipt_ref: ExternalRefV01;
 }): EpisodeDeltaProposalSourceAssessmentV01 {
-  const criterionRelationsAvailable =
-    criterionSpecificRelationsAvailableV01({
-      packet: input.packet,
-      receipt: input.receipt,
-      assessment: input.assessment,
-    });
+  const criterionRelationsAvailable = input.criterion_relations_available;
   return {
     admission_profile: RUN_ASSESSMENT_PROPOSAL_PROFILE_VERSION_V01,
     admission_idempotency_key: input.identity.idempotency_key,
