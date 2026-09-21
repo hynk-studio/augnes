@@ -13,6 +13,9 @@ import { buildPreExecutionProjectWorkRevisionPacketV01, inspectPreExecutionProje
 import { inspectNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
+import { recallRetainedWorkSources } from "../lib/intake/retained-work-source-recall";
+import { readCodexRepositoryRetainedSourcesV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-retained-sources";
+import { POST as repositoryRetainedSourcesPOST } from "../app/api/augnes/read/codex-repository-retained-sources/route";
 import { POST as repositoryContinuityPOST } from "../app/api/augnes/read/codex-repository-continuity/route";
 import { POST as repositoryWorkSourcesPOST } from "../app/api/augnes/read/codex-repository-work-sources/route";
 import { readCodexRepositoryWorkSourcesV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-work-sources";
@@ -57,6 +60,7 @@ void main().finally(() => rmSync(ROOT, { recursive: true, force: true }));
 async function main(): Promise<void> {
   if (process.argv.includes("--work-revision-only") || process.argv.includes("--work-revision-limit-only")) {
     await assertCompanionWorkRevisionV01(process.argv.includes("--work-revision-limit-only"));
+    if (process.argv.includes("--work-revision-only")) await assertCompanionRetainedBoundsV01();
     return;
   }
   await assertRepositoryResolutionMatrixV01();
@@ -75,6 +79,97 @@ async function main(): Promise<void> {
     same_path_replacement_baseline: false,
     selected_sources_snapshot_and_route_contract: true,
   }, null, 2));
+}
+
+async function assertCompanionRetainedBoundsV01(): Promise<void> {
+  const db = databaseV01("retained-bounds");
+  db.pragma("journal_mode = WAL");
+  try {
+    const workspace = workspaceV01(db), root = projectRootV01("retained-bounds");
+    const registration = registerV01(db, workspace.workspace_id, root, "Retained bounds", "61000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:retained-bounds", database_path: db.name };
+    let tick = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + tick++ * 1000).toISOString() };
+    const credential = (configuration = config) => consumeVNextLocalOperatorBootstrapV01(db, { config: configuration, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config: configuration, clock }).bootstrap_token }).credential;
+    const initialize = (configuration = config) => defineInitialProjectWorkV01(db, { config: configuration, credential: credential(configuration), clock, request: {
+      action: "define_initial_project_work", workspace_id: configuration.workspace_id, project_id: configuration.project_id,
+      expected_active_project_id: configuration.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+      expected_initialization_state: "not_defined", goal: "Check explicit bounded lookup", success_criteria: ["Whole notes only"], non_goals: ["No execution"],
+    } }).packet;
+    let packet = initialize();
+    const revise = (entries: ReturnType<typeof readSelectedWorkSources>, configuration = config, prior = packet) => {
+      const result = revisePreExecutionProjectWorkV01(db, { config: configuration, credential: credential(configuration), clock, request: {
+        action: "revise_pre_execution_project_work", workspace_id: configuration.workspace_id, project_id: configuration.project_id,
+        expected_active_project_id: configuration.project_id,
+        expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+        expected_current_packet_id: prior.packet_id, expected_current_packet_fingerprint: prior.integrity.fingerprint,
+        expected_current_lineage_kind: packetLineageKindV01(prior)!, ...prior.task,
+        selected_source_context: entries, expected_source_comparison: compareSelectedWorkSources(prior, entries).fingerprint,
+      } });
+      packet = result.packet;
+      return result.packet;
+    };
+    for (let batch = 0; batch < 2; batch++) revise(Array.from({ length: 5 }, (_, i) => buildSelectedWorkSourceEntry(scope, {
+      source: `note-ref:small-${batch}-${i}`, text: `Small condition ${batch}-${i}; no corroboration claim.`, observed_at: null,
+      provenance: "imported_unverified", label: "Open question",
+    })));
+    for (let batch = 0; batch < 3; batch++) revise([buildSelectedWorkSourceEntry(scope, {
+      source: `note-ref:bulk-${batch}`, text: `Bulk ${batch}: ${"한".repeat(1980)}`, observed_at: null,
+      provenance: "imported_unverified", label: "Open question",
+    })]);
+    const snapshot = async () => (await readCodexRepositoryContinuityV01(db, { repository_root: root })).continuity!.snapshot.binding!;
+    const binding = await snapshot(), before = db.serialize();
+    const lookup = (query: string) => readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding, query });
+    const count = (await lookup("small")).lookup!;
+    assert.equal(count.returned_entries, 8); assert.equal(count.omitted_matching_entries, 2); assert.equal(count.truncated, true);
+    const bulk = (await lookup("bulk")).lookup!;
+    assert.equal(bulk.matching_entries, 3); assert(bulk.returned_entries < 3); assert(bulk.truncated);
+    assert.equal(bulk.result_utf8_bytes, Buffer.byteLength(JSON.stringify(bulk.results)));
+    assert(bulk.results.every((hit) => hit.note.excerpt_text.endsWith("한".repeat(1980))), "whole conditions cannot be clipped");
+    assert.deepEqual(db.serialize(), before);
+    // A valid original reference from another project is still unauthorized
+    // material for this root; create it only through ordinary fixture writers.
+    const originalTip = packet;
+    const other = registerV01(db, scope.workspace_id, projectRootV01("retained-foreign"), "Foreign retained notes", "61000000-0000-4000-8000-000000000002");
+    const foreignConfig = { ...config, project_id: other.project.project_id };
+    selectV01(db, scope.workspace_id, foreignConfig.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
+    const foreignInitial = initialize(foreignConfig);
+    revise([buildSelectedWorkSourceEntry(foreignConfig, { source: "note-ref:foreign", text: "Small foreign condition", observed_at: null,
+      provenance: "imported_unverified", label: "Open question" })], foreignConfig, foreignInitial);
+    const foreignRef = recallRetainedWorkSources(inspectPreExecutionProjectWorkRevisionChainV01(db, foreignConfig), "small").results[0]!.source;
+    selectV01(db, scope.workspace_id, scope.project_id, foreignConfig.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
+    const freshBinding = await snapshot(), beforeForeign = db.serialize();
+    await assert.rejects(reviseCodexRepositoryWorkV01(db, { action: "preview", repository_root: root, expected_snapshot_binding: freshBinding,
+      changes: { sources: { retained_source_refs: [foreignRef] } } }, { key: "disposable", instance_id: "instance", generation_id: "generation", repository_fingerprint: "f".repeat(64) }),
+    /retained_source_changed_or_unavailable/u);
+    assert.deepEqual(inspectPreExecutionProjectWorkRevisionChainV01(db, scope).tip_packet, originalTip);
+    assert.deepEqual(db.serialize(), beforeForeign);
+    const concurrent = new Database(db.name);
+    try {
+      let selectionChanged = false;
+      let physicalInspections = 0;
+      const coherent = await readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: freshBinding, query: "small" }, {
+        inspect_physical_root: async (value) => {
+          // The supplied path is inspected before the resolver's first SQL
+          // read. Race on a registered root after that read pins the snapshot.
+          if (++physicalInspections > 1 && !selectionChanged) {
+            selectV01(concurrent, scope.workspace_id, foreignConfig.project_id, scope.project_id, readActiveProjectSelectionV01(concurrent, scope.workspace_id)!.selection_revision);
+            selectionChanged = true;
+          }
+          return inspectNativeHostPhysicalRootIdentityV01(value);
+        },
+      });
+      assert(selectionChanged);
+      assert.equal(coherent.status, "available", "resolution, binding, eligibility and lookup share the original read snapshot");
+      assert.equal(coherent.lookup!.returned_entries, 8);
+      assert.equal((await readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: freshBinding, query: "small" })).status, "refresh_required");
+    } finally { concurrent.close(); }
+    console.log(JSON.stringify({ contract: "codex_repository_retained_sources.v0.1", whole_result_limits_foreign_reference: "pass" }));
+  } finally { db.close(); }
 }
 
 async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> {
@@ -211,6 +306,75 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     await call({ ...deselect, action: "save", preview_binding: deselectPreview.preview_binding });
     assert.equal(readSelectedWorkSources(chain().tip_packet).length, 1);
     assert.equal(readSelectedWorkSources(chain().packets[1]!).length, 2, "deselection never deletes historical sources");
+    const lookupBinding = await snapshot();
+    const lookup = (query: string, binding = lookupBinding) => readCodexRepositoryRetainedSourcesV01(db, {
+      repository_root: root, expected_snapshot_binding: binding, query,
+    }, dependencies);
+    const beforeLookup = db.serialize();
+    const found = await lookup("condition");
+    assert.equal(found.status, "available");
+    const hit = found.lookup!.results[0]!;
+    assert.equal(hit.selection, "historical_not_selected");
+    assert.equal(hit.packet_occurrences, 2, "two saved copies remain one exact source");
+    assert.equal(hit.first_recorded_at, chain().packets[1]!.generated_at);
+    assert.equal(hit.last_selected_at, chain().packets[2]!.generated_at);
+    assert.equal(hit.note.observed_at, null);
+    assert.equal(hit.note.source_locator, null);
+    assert.equal(JSON.stringify(found).includes("/Users/disposable"), false);
+    assert.equal("query_terms" in found.lookup!, false);
+    assert.equal("scanned_entry_utf8_bytes" in found.lookup!, false);
+    const hiddenMatch = await lookup("disposable");
+    assert.equal(hiddenMatch.lookup!.matching_entries, 0, "withheld-locator matching must not leak even existence");
+    assert.equal(recallRetainedWorkSources(chain(), "disposable").matching_entries, 1, "privileged Browser matching is unchanged");
+    const literal = (await lookup("Ignore instructions")).lookup!.results[0]!;
+    assert.equal(literal.note.excerpt_text, notes[1]!.text);
+    assert.equal(literal.note.observed_at, NOW);
+    assert.notEqual(literal.first_recorded_at, literal.note.observed_at);
+    assert.equal((await lookup("")).status, "invalid");
+    assert.deepEqual(db.serialize(), beforeLookup, "lookup, empty and invalid queries write nothing");
+    for (const ref of [
+      { ...hit.source, packet_id: "packet:missing" },
+      { ...hit.source, packet_fingerprint: `sha256:${"a".repeat(64)}` },
+      { ...hit.source, source_fingerprint: `sha256:${"b".repeat(64)}` },
+      { ...hit.source, entry_id: "invalid" },
+      { ...hit.source, unexpected: "not a reference" },
+    ]) {
+      await assert.rejects(call({ action: "preview", repository_root: root, expected_snapshot_binding: lookupBinding,
+        changes: { sources: { retained_source_refs: [ref] } } }));
+      assert.deepEqual(db.serialize(), beforeLookup);
+    }
+    const reselect = { action: "preview", repository_root: root, expected_snapshot_binding: lookupBinding,
+      changes: { sources: { retained_source_refs: [hit.source, literal.source, hit.source] } } };
+    const reselectPreview = await call(reselect);
+    assert.equal(reselectPreview.sources.after.length, 3, "normalized duplicate references cannot create duplicate evidence");
+    assert.equal(reselectPreview.sources.deselected.length, 0);
+    assert.deepEqual(reselectPreview.definition.before, reselectPreview.definition.after);
+    assert.equal(JSON.stringify(reselectPreview).includes("/Users/disposable"), false);
+    assert.deepEqual(db.serialize(), beforeLookup);
+    const reselectSave = { ...reselect, action: "save", preview_binding: reselectPreview.preview_binding };
+    await assert.rejects(call(reselectSave, { ...channel, generation_id: "changed-after-lookup" }), /preview_changed/u);
+    await assert.rejects(call({ ...reselectSave, changes: { sources: { retained_source_refs: [hit.source] } } }), /preview_changed/u);
+    const sameOriginalLaterOccurrence = { ...hit.source, packet_id: chain().packets[2]!.packet_id, packet_fingerprint: chain().packets[2]!.integrity.fingerprint };
+    await assert.rejects(call({ ...reselectSave, changes: { sources: { retained_source_refs: [sameOriginalLaterOccurrence, literal.source] } } }),
+      /preview_changed/u, "even identical content from a different valid packet reference must match the exact preview");
+    db.exec("CREATE TEMP TRIGGER reject_retained_revision BEFORE INSERT ON vnext_core_records BEGIN SELECT RAISE(ABORT, 'retained_rollback'); END");
+    await assert.rejects(call(reselectSave), /retained_rollback/u);
+    db.exec("DROP TRIGGER reject_retained_revision");
+    assert.deepEqual(db.serialize(), beforeLookup, "retained source write and admission roll back together");
+    assert.equal((await call(reselectSave)).status, "saved");
+    assert.equal((await call(reselectSave)).status, "exact_replay");
+    for (const original of originalSources) assert.deepEqual(readSelectedWorkSources(chain().tip_packet).find((entry) => entry.entry_id === original.entry_id), original);
+    assert.deepEqual(db.prepare("SELECT payload_json FROM vnext_core_records WHERE record_id = ?").get(chain().packets[1]!.packet_id), historical);
+    const staleLookup = await lookup("condition");
+    assert.equal(staleLookup.status, "refresh_required"); assert.equal(staleLookup.lookup, null); assert.equal(staleLookup.snapshot_binding, null);
+    const selectedAgain = await prepare({ sources: { retained_source_refs: [hit.source, hit.source] } });
+    const selectedAgainPreview = await call(selectedAgain);
+    assert.equal((await call({ ...selectedAgain, action: "save", preview_binding: selectedAgainPreview.preview_binding })).status, "exact_replay");
+    // Omit the restored entries through the normal writer again so the existing
+    // replacement/deselection refusal checks keep their original preconditions.
+    const omitAgain = await prepare({ sources: { deselect: originalSources.map((entry) => entry.source_ref!) } });
+    const omitAgainPreview = await call(omitAgain);
+    await call({ ...omitAgain, action: "save", preview_binding: omitAgainPreview.preview_binding });
     for (const changes of [
       { sources: { deselect: [withheld.source_binding] } },
       { sources: { replace: [{ source_binding: `sha256:${"a".repeat(64)}`, note: notes[0] }] } },
@@ -233,7 +397,7 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     } });
     assert.equal(chain().tip_packet.task.goal, "Browser still uses the same owner");
     assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
-    const identical = await prepare({ goal: "Identical reviewed revision from another writer" });
+    const identical = await prepare({ goal: "Identical reviewed revision from another writer", sources: { retained_source_refs: [hit.source] } });
     const identicalPreview = await call(identical);
     const prior = chain().tip_packet;
     const browserIdentical = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: {
@@ -241,12 +405,15 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
       expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
       expected_current_packet_id: prior.packet_id, expected_current_packet_fingerprint: prior.integrity.fingerprint,
       expected_current_lineage_kind: "pre_execution_user_revision", ...prior.task, goal: identicalPreview.definition.after.goal,
+      selected_source_context: [...readSelectedWorkSources(prior), originalSources.find((entry) => entry.source_ref === hit.source.source_fingerprint)!],
+      retained_source_refs: [hit.source],
+      expected_source_comparison: compareSelectedWorkSources(prior, [...readSelectedWorkSources(prior), originalSources.find((entry) => entry.source_ref === hit.source.source_fingerprint)!], [hit.source]).fingerprint,
     } });
     const acknowledge = await call({ ...identical, action: "save", preview_binding: identicalPreview.preview_binding });
     assert.equal(acknowledge.status, "exact_replay");
     assert.equal(acknowledge.packet_fingerprint, browserIdentical.packet.integrity.fingerprint);
     assert.equal(acknowledge.effects.work_revision_created, false);
-    const pending = await prepare({ goal: "Requires the same selection and zero history" });
+    const pending = await prepare({ goal: "Requires the same selection and zero history", sources: { retained_source_refs: [literal.source] } });
     const pendingPreview = await call(pending);
     const pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
     const other = registerV01(db, scope.workspace_id, projectRootV01("revision-other"), "Other project", "60000000-0000-4000-8000-000000000002");
@@ -254,9 +421,11 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     const selectionBefore = db.serialize();
     await assert.rejects(call(pendingSave), /work_revision_not_eligible/u);
     assert.deepEqual(db.serialize(), selectionBefore);
+    const inactiveLookup = await lookup("condition", await snapshot());
+    assert.equal(inactiveLookup.status, "ineligible"); assert.equal(inactiveLookup.lookup, null);
     selectV01(db, scope.workspace_id, scope.project_id, other.project.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
     await assert.rejects(call(pendingSave), /refresh_required/u, "selecting back does not restore the old snapshot");
-    const historyPending = await prepare({ goal: "Stop if managed history appears" });
+    const historyPending = await prepare({ goal: "Stop if managed history appears", sources: { retained_source_refs: [literal.source] } });
     const historyPreview = await call(historyPending);
     const historyAt = clock.now();
     insertAutonomyRunLedgerRecord({ run_id: "run:disposable-history-boundary", scope: scope.project_id,
@@ -267,6 +436,8 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     const historyBefore = db.serialize();
     await assert.rejects(call({ ...historyPending, action: "save", preview_binding: historyPreview.preview_binding }));
     assert.deepEqual(db.serialize(), historyBefore, "appearing execution history refuses without admission or revision");
+    const historyLookup = await lookup("condition", await snapshot());
+    assert.notEqual(historyLookup.status, "available"); assert.equal(historyLookup.lookup, null);
     console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", helper_atomic_rollback_race_replay_history_privacy: "pass" }));
   } finally { second.close(); db.close(); }
 }
@@ -286,6 +457,8 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
       repository_root: repositoryRoot, expected_snapshot_binding: binding,
     });
     assert.equal((await read(await snapshot())).status, "unavailable", "not-defined is not an empty current packet");
+    assert.equal((await readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: await snapshot(), query: "condition" })).status,
+      "unavailable", "no defined work is not a bounded no-match");
     const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:source-read", database_path: db.name };
     let ticks = 0;
     const clock = { now: () => new Date(Date.parse(NOW) + ticks++ * 1000).toISOString() };
@@ -438,6 +611,16 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).sources, material.sources);
     assert.equal(response.headers.get("access-control-allow-origin"), null);
+    const callRetainedRoute = (changes: Record<string, string> = {}, body: unknown = { repository_root: root, expected_snapshot_binding: currentBinding, query: "not-observed-anywhere" }) => repositoryRetainedSourcesPOST(new Request(
+      "http://127.0.0.1:3000/api/augnes/read/codex-repository-retained-sources?scope=repository:local", {
+        method: "POST", headers: { ...headers, "x-augnes-local-readonly": "codex-repository-retained-sources-v0.1", ...changes }, body: JSON.stringify(body),
+      }));
+    const emptyLookup = await callRetainedRoute();
+    assert.equal(emptyLookup.status, 200);
+    const emptyProjection = await emptyLookup.json();
+    assert.equal(emptyProjection.status, "available"); assert.equal(emptyProjection.lookup.returned_entries, 0);
+    assert.equal(emptyLookup.headers.get("set-cookie"), null);
+    assert.equal(emptyLookup.headers.get("access-control-allow-origin"), null);
     const nextRequest = new NextRequest("http://127.0.0.1:3000/api/augnes/read/codex-repository-work-sources?scope=repository:local", {
       method: "POST", headers: { ...headers, host: "127.0.0.1:3000", "x-forwarded-host": "127.0.0.1:3000", "x-forwarded-for": "127.0.0.1", "x-forwarded-proto": "http", "x-forwarded-port": "3000" },
       body: JSON.stringify({ repository_root: root, expected_snapshot_binding: currentBinding }),
@@ -456,12 +639,18 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
       const refused = await callRoute(changes);
       assert([403, 409].includes(refused.status));
       assert.equal((await refused.text()).includes("excerpt_text"), false);
+      const retainedRefused = await callRetainedRoute(changes);
+      assert([403, 409].includes(retainedRefused.status));
+      assert.equal((await retainedRefused.text()).includes("excerpt_text"), false);
     }
     assert.equal((await callRoute({}, { repository_root: root })).status, 400);
     assert.equal((await callRoute({}, { repository_root: root, expected_snapshot_binding: currentBinding, project_id: scope.project_id })).status, 400);
     assert.equal((await (await callRoute({}, { repository_root: root, expected_snapshot_binding: initialBinding })).json()).status, "refresh_required");
+    assert.equal((await callRetainedRoute({}, { repository_root: root, expected_snapshot_binding: currentBinding, query: "x", project_id: scope.project_id })).status, 400);
+    assert.equal((await (await callRetainedRoute({}, { repository_root: root, expected_snapshot_binding: initialBinding, query: "x" })).json()).status, "refresh_required");
     process.env.AUGNES_RECOVERY_MODE = "1";
     assert.equal((await callRoute()).status, 503);
+    assert.equal((await callRetainedRoute()).status, 503);
     assert.deepEqual(db.serialize(), beforeRoute, "route reads/refusals must preserve all canonical and session records");
     const alias = path.join(ROOT, "source-alias");
     createDirectoryAliasV01(root, alias);
