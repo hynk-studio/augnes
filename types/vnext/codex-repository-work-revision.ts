@@ -1,5 +1,5 @@
 import type { ProjectWorkDefinitionV01 } from "./project-work-initialization";
-import type { SelectedWorkSourceInput } from "./project-work-revision";
+import type { RetainedWorkSourceRef, SelectedWorkSourceInput } from "./project-work-revision";
 import type { CodexRepositoryWorkSourcesV01 } from "./codex-repository-work-sources";
 import type { CodexCurrentContinuityAuthorityBoundaryV01 } from "./codex-current-continuity";
 
@@ -15,6 +15,7 @@ export interface RepositoryWorkChangesV01 {
     add?: SelectedWorkSourceInput[];
     replace?: Array<{ source_binding: string; note: SelectedWorkSourceInput }>;
     deselect?: string[];
+    retained_source_refs?: RetainedWorkSourceRef[];
   };
 }
 

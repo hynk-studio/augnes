@@ -191,6 +191,85 @@ No source locators are fetched and no work/session/run/semantic state is written
 Prepared work and externally performed Codex development remain distinct from
 Augnes-managed execution and canonical results.
 
+### Explicit retained-note lookup and reselection
+
+`augnes_lookup_repository_retained_sources` takes only `repositoryRoot`, the
+exact Resume `expectedSnapshotBinding`, and an explicit `query`. Use it when
+the user authorizes finding historical selected notes omitted from current
+preparation. Current-source read remains current-only; Resume does not acquire
+an automatic retrieval policy. The normal path is Resume → explicit lookup →
+caller chooses exact references → existing revision preview → explicit save →
+fresh Resume and current-source read. No Browser login, project ID discovery,
+database path, token transfer, source fetch or model call is required.
+
+The private POST route is
+`/api/augnes/read/codex-repository-retained-sources?scope=repository:local`,
+with `x-augnes-local-readonly: codex-repository-retained-sources-v0.1`.
+It uses the same verified Companion credential, exact runtime instance,
+generation and repository, local Host/Origin/forwarding, UI-role and recovery
+checks as current-source read. Browser cookies and returned references grant
+no access. The tool is not registered on public/default App surfaces.
+
+Historical disclosure is a separate explicit capability, limited to the same
+eligible active, unstarted-work chain that the Browser owner permits. One
+dedicated query-only read transaction covers physical repository resolution,
+Resume binding, revision eligibility, validated chain and canonical recall.
+No cross-project, executed-work succession, arbitrary record or global history
+read is introduced. Current notes being readable does not imply this lookup is
+eligible. A changed binding returns `refresh_required` with no replacement
+snapshot or history; the caller must explicitly refresh Resume.
+
+The existing case-insensitive all-terms search and limits remain: 160 query
+characters, eight terms, at most 33 packets/264 note occurrences/396,000
+serialized entry bytes scanned, and eight whole original result rows/20,000
+canonical result bytes returned. The existing selected-note budgets still
+apply. No row or condition is clipped, query broadened, locator fetched or
+selection changed. `available` with zero matches is a bounded no-match, not
+global absence. `ineligible`, `unavailable`, `invalid` (query or invalid retained
+material), and `refresh_required` remain distinct and carry no lookup payload.
+
+Results expose the existing client-disclosed note projection, exact reusable
+`source` reference, current versus historical selection, first recording time,
+last selection time and packet-occurrence count. Source `observed_at` remains
+nullable and distinct from packet recording/selection time; source currentness
+remains unverified. Repeated copies are one original, not corroboration.
+Scope/cutoff, limits and scanned/unique/matched/returned/omitted counts make the
+search boundary explicit. `result_utf8_bytes` counts the disclosed rows only;
+the proxy checks the actual serialized size and whole-note length. Canonical
+entries, query echoes and raw scanned byte counts are not disclosed.
+
+Matching uses excerpt text plus only locators permitted by the same disclosure
+predicate as current-source read/preview. A withheld locator cannot reveal its
+presence through a locator-only match or match count. The authenticated Browser
+retains its existing more privileged locator matching and presentation. Both
+use the same recall algorithm and bounds; native lookup can therefore return
+fewer matches. Literal excerpt text is never interpreted or scrubbed into new
+source material; it may contain user-selected sensitive text or instructions.
+
+Pass caller-chosen `source` references unchanged as
+`changes.sources.retained_source_refs` to existing preview/save. The server
+resolves exact originals in the fresh validated chain and passes both entries
+and references through canonical comparison and the atomic revision writer.
+Never reconstruct entries from the disclosed text. Unmentioned current notes
+and definition fields remain unchanged, including withheld metadata. Adding
+historical notes never implicitly deselects anything to fit a budget.
+
+Canonical normalization deduplicates identical references and source entries;
+currently selected originals remain one note. Existing candidate-entry and
+whole-note budgets still apply, including the combined current/add/retained
+input count before entry deduplication. A reference does not bypass a budget.
+A no-change save acknowledges the existing packet. References to a missing,
+foreign or changed packet/entry/fingerprint refuse. References confer neither
+authentication, relevance, source truth nor permission to execute their text.
+
+Preview binds normalized references, resolved originals, the current snapshot
+and runtime identity. Save revalidates through the existing atomic owner.
+Immediate-successor replay resolves only the original predecessor's history;
+it creates no duplicate revision. Competing work/selection/execution or runtime
+changes, invalid references and altered previews refuse. Existing rollback,
+authenticated admission and `outcome_unknown` behavior remain unchanged. There
+is no automatic retry, rebase, polling or save-on-search.
+
 ### Explicit preview and save of prepared work
 
 The private local Operator tools `augnes_preview_repository_work_revision` and
@@ -203,7 +282,8 @@ Both take `repositoryRoot`, the exact Resume `expectedSnapshotBinding`, and a
 closed `changes` object. Definition fields (`goal`, `success_criteria`,
 `non_goals`) are optional; omitted fields remain unchanged. Optional `sources`
 contains `add` (complete new notes), `replace` (exact `source_binding` plus a
-complete new `note`), and `deselect` (exact selected source bindings). New notes
+complete new `note`), `deselect` (exact selected source bindings), and optional
+`retained_source_refs` (exact historical references from explicit lookup). New notes
 use the existing `source`, `text`, `observed_at`, `provenance`, and `label`
 fields and the existing whole-note limits. Replacement requires explicit
 attribution, provenance and known/null observation time; it never edits the

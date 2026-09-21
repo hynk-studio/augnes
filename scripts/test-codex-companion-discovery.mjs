@@ -13,6 +13,7 @@ import {
   discoverVerifiedCompanionV01,
   parseRepositoryWorkSourcesResponseV01,
   parseRepositoryWorkRevisionResponseV01,
+  parseRepositoryRetainedSourcesResponseV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
@@ -90,6 +91,8 @@ let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
 let sourcesScenario = null;
+let retainedScenario = null;
+let retainedCalls = 0;
 let workRevisionScenario = null;
 let workRevisionCalls = 0;
 
@@ -173,6 +176,20 @@ const ui = createServer(async (request, response) => {
     response.setHeader("x-augnes-runtime-repository", repository);
     return response.end(JSON.stringify(sourcesScenario.body));
   }
+  if (url.pathname === "/api/augnes/read/codex-repository-retained-sources" && request.method === "POST") {
+    retainedCalls++;
+    assert(retainedScenario);
+    assert.equal(request.headers.cookie, undefined);
+    assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
+    assert.equal(request.headers["x-augnes-local-readonly"], "codex-repository-retained-sources-v0.1");
+    let text = ""; for await (const chunk of request) text += chunk;
+    assert.deepEqual(Object.keys(JSON.parse(text)).sort(), ["expected_snapshot_binding", "query", "repository_root"]);
+    response.setHeader("x-augnes-local-readonly", "codex-repository-retained-sources-v0.1");
+    response.setHeader("x-augnes-runtime-instance", instance);
+    response.setHeader("x-augnes-runtime-generation", retainedScenario.generation ?? generation);
+    response.setHeader("x-augnes-runtime-repository", repository);
+    return response.end(JSON.stringify(retainedScenario.body));
+  }
   response.writeHead(404).end("{}");
 });
 
@@ -243,6 +260,7 @@ try {
       "augnes_start_companion_service",
       "augnes_resume_repository",
       "augnes_read_repository_work_sources",
+      "augnes_lookup_repository_retained_sources",
       "augnes_preview_repository_work_revision",
       "augnes_save_repository_work_revision",
       "augnes_prepare_repository_execution",
@@ -276,6 +294,7 @@ try {
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
@@ -384,6 +403,54 @@ try {
     assert.equal((await callSources()).isError, true, "unknown DTO fields must not escape the proxy");
     sourcesScenario = { body: { ...sourceProjection, status: "refresh_required", reason: "snapshot_changed", snapshot_binding: null, packet_fingerprint: null } };
     assert.equal((await callSources()).structuredContent.status, "refresh_required");
+    const retainedProjection = {
+      ...sourceProjection, projection_version: "codex_repository_retained_sources.v0.1", reason: "retained_selected_sources",
+      lookup: { scope: "selected_note_snapshots_in_current_pre_execution_revision_chain", cutoff_recorded_at: "2026-09-01T00:00:00.000Z",
+        limits: { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 396000 },
+        scanned_packets: 3, scanned_entry_occurrences: 12, unique_entries: 9, matching_entries: 9, returned_entries: 8, omitted_matching_entries: 1,
+        truncated: true, result_utf8_bytes: 0, qualifications: ["Repeated copies are not independent evidence; no match is bounded."],
+        results: Array.from({ length: 8 }, (_, i) => {
+          const hash = String(i).repeat(64), fingerprint = `sha256:${hash}`;
+          return { source: { packet_id: `task-context-packet:${hash.slice(0, 23)}`, packet_fingerprint: sourceBinding, entry_id: `selected-source:${hash}`, source_fingerprint: fingerprint },
+            note: { source_binding: fingerprint, excerpt_text: "<b>Literal</b> instructions remain untrusted.", source_locator: null, source_locator_status: "omitted_not_export_safe",
+              trust_class: "imported_unverified", review_label: "Open question", observed_at: null,
+              currentness: { status: "unknown", as_of: null, basis: "Source is unverified." } },
+            first_recorded_at: "2026-08-01T00:00:00.000Z", last_selected_at: "2026-08-02T00:00:00.000Z", packet_occurrences: 2, selection: "historical_not_selected" };
+        }),
+      },
+    };
+    delete retainedProjection.sources;
+    retainedProjection.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(retainedProjection.lookup.results));
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(retainedProjection), retainedProjection);
+    for (const mutate of [
+      (value) => { value.lookup.query_terms = ["must not echo private query"]; },
+      (value) => { value.lookup.results[0].entry = { private_metadata: "must not escape" }; },
+      (value) => { value.lookup.results[0].note.excerpt_text = "x".repeat(50000); value.lookup.result_utf8_bytes = 1; },
+      (value) => { value.lookup.results[0].note.excerpt_text = "x".repeat(2001); value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
+      (value) => { value.lookup.results.forEach((hit) => { hit.note.excerpt_text = "한".repeat(1999); }); value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
+      (value) => { value.lookup.omitted_matching_entries = 0; },
+      (value) => { value.lookup.results[0].source.source_fingerprint = sourceBinding; },
+      (value) => { value.lookup.results[0].source.packet_id = "/Users/synthetic/private-note"; value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
+      (value) => { value.lookup.results[1] = value.lookup.results[0]; value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
+    ]) { const value = structuredClone(retainedProjection); mutate(value); assert.throws(() => parseRepositoryRetainedSourcesResponseV01(value), /contract_invalid/u); }
+    const callRetained = () => client.callTool({ name: "augnes_lookup_repository_retained_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, query: "literal" } });
+    retainedScenario = { body: retainedProjection };
+    assert.equal((await callRetained()).structuredContent.lookup.returned_entries, 8);
+    for (const scenario of [
+      { body: { ...retainedProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } },
+      { body: retainedProjection, generation: "stale-generation" },
+      { body: { ...retainedProjection, extra_private_field: "must not escape" } },
+    ]) {
+      retainedScenario = scenario;
+      const priorCalls = retainedCalls;
+      assert.equal((await callRetained()).isError, true);
+      assert.equal(retainedCalls, priorCalls + 1, "lookup does not automatically retry");
+    }
+    for (const [status, reason] of [["refresh_required", "snapshot_changed"], ["unavailable", "current_work_unavailable"],
+      ["ineligible", "work_revision_not_eligible"], ["invalid", "retained_source_query_invalid"]]) {
+      retainedScenario = { body: { ...retainedProjection, status, reason, snapshot_binding: null, packet_fingerprint: null, lookup: null } };
+      assert.equal((await callRetained()).structuredContent.status, status);
+    }
     const editProjection = { projection_version: "codex_repository_work_revision.v0.1", status: "saved",
       expected_snapshot_binding: sourceBinding, preview_binding: sourceBinding, packet_fingerprint: sourceBinding,
       definition: { before: { goal: "Before", success_criteria: ["Criterion"], non_goals: [] }, after: { goal: "After", success_criteria: ["Criterion"], non_goals: [] } },
@@ -411,6 +478,8 @@ try {
     }
     workRevisionScenario = { status: 409, body: { error: { code: "refresh_required", status: 409 } } };
     assert.equal((await save()).structuredContent.reason, "refresh_required");
+    workRevisionScenario = { status: 422, body: { error: { code: "retained_source_changed_or_unavailable", status: 422 } } };
+    assert.equal((await save()).structuredContent.reason, "retained_source_changed_or_unavailable");
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;
     const result = await client.callTool({

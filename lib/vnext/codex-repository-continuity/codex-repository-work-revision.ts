@@ -3,6 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { getDatabasePath } from "@/lib/db";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { resolveRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 import { CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, readCodexCurrentContinuitySnapshotV01 } from "@/lib/vnext/codex-current-continuity/codex-current-continuity";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { normalizeInitialProjectWorkDefinitionV01 } from "@/lib/vnext/runtime/initial-project-work-context";
@@ -37,7 +38,7 @@ export function parseRepositoryWorkRevisionInputV01(value: unknown): RepositoryW
   only(changes, ["goal", "success_criteria", "non_goals", "sources"]);
   if (changes.sources !== undefined) {
     const sources = object(changes.sources);
-    only(sources, ["add", "replace", "deselect"]);
+    only(sources, ["add", "replace", "deselect", "retained_source_refs"]);
     for (const key of Object.keys(sources)) if (!Array.isArray(sources[key])) refuse("invalid_source_changes", 422);
     for (const replacement of (sources.replace ?? []) as unknown[]) {
       const row = object(replacement); exact(row, ["source_binding", "note"]);
@@ -82,6 +83,10 @@ export async function reviseCodexRepositoryWorkV01(
     const after = normalizeInitialProjectWorkDefinitionV01({ ...before, ...input.changes });
     const previous = readSelectedWorkSources(basis);
     const operations = input.changes.sources ?? {};
+    // Replay may resolve only the history that was visible at its original
+    // preview, matching the atomic writer's immediate-predecessor cutoff.
+    const cutoff = chain.packets.findIndex((packet) => packet.packet_id === basis.packet_id);
+    const retained = resolveRetainedWorkSources({ ...chain, packets: chain.packets.slice(0, cutoff + 1) }, operations.retained_source_refs ?? []);
     const removed = [...(operations.deselect ?? []), ...(operations.replace ?? []).map((row) => row.source_binding)];
     if (new Set(removed).size !== removed.length || removed.some((binding) => !previous.some((entry) => entry.source_ref === binding))) {
       refuse("source_binding_changed", 409);
@@ -90,8 +95,9 @@ export async function reviseCodexRepositoryWorkV01(
       ...previous.filter((entry) => !removed.includes(entry.source_ref!)),
       ...(operations.add ?? []).map((note) => buildSelectedWorkSourceEntry(scope, note)),
       ...(operations.replace ?? []).map((row) => buildSelectedWorkSourceEntry(scope, row.note)),
+      ...retained.entries,
     ]);
-    const comparison = compareSelectedWorkSources(basis, selected);
+    const comparison = compareSelectedWorkSources(basis, selected, retained.refs);
     const lineage = packetLineageKindV01(basis);
     if (!lineage) refuse("current_work_unavailable");
     const request: RevisePreExecutionProjectWorkRequestV01 = {
@@ -102,6 +108,7 @@ export async function reviseCodexRepositoryWorkV01(
       expected_current_packet_fingerprint: basis.integrity.fingerprint,
       expected_current_lineage_kind: lineage,
       ...after, selected_source_context: selected, expected_source_comparison: comparison.fingerprint,
+      ...(retained.refs.length ? { retained_source_refs: retained.refs } : {}),
     };
     const seal = sealPreview(channel, input.expected_snapshot_binding, request, material);
     if (input.action === "save" && !sameSeal(seal, input.preview_binding!)) refuse(stale ? "refresh_required" : "preview_changed");

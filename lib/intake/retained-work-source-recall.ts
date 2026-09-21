@@ -21,7 +21,8 @@ export interface RetainedWorkSourceHit {
 }
 
 /** Only the existing exact lineage owner may supply this invocation-local chain. */
-export function recallRetainedWorkSources(chain: Chain, query: unknown) {
+export function recallRetainedWorkSources(chain: Chain, query: unknown,
+  disclosure: { include_source_locator?: (locator: string) => boolean } = {}) {
   if (chain.packets.length > RETAINED_WORK_SOURCE_LIMITS.packets) throw new SelectedWorkSourceError("retained_source_scan_bound_exceeded");
   if (typeof query !== "string" || !query.trim() || [...query].length > RETAINED_WORK_SOURCE_LIMITS.query_characters ||
     /[\u0000-\u001f\u007f]/u.test(query)) throw new SelectedWorkSourceError("retained_source_query_invalid");
@@ -51,7 +52,10 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown) {
     }
   }
   const matches = [...unique.values()].filter(({ entry }) => {
-    const text = `${entry.compatibility_source_ref!.external_id}\n${entry.bounded_summary}`.toLowerCase();
+    const locator = entry.compatibility_source_ref!.external_id;
+    // Browser retains its existing privileged matching. A local-client
+    // projection must not turn a withheld locator into a search oracle.
+    const text = `${disclosure.include_source_locator?.(locator) === false ? "" : locator}\n${entry.bounded_summary}`.toLowerCase();
     return terms.every((term) => text.includes(term));
   }).sort((a, b) => {
     const left = a.entry.external_ref?.observed_at ?? "~";

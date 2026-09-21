@@ -108,8 +108,7 @@ export async function loadCodexRepositoryWorkSourcesV01(
 export function projectSelectedWorkSourcesV01(entries: TaskContextPacketSelectedEntryV01[]): CodexRepositoryWorkSourcesV01["sources"] {
   return entries.map((entry) => {
       const source = selectedWorkSourceInput(entry).source;
-      const permitted = isSafeSourceProjectionMetadataV01(source) && (["url", "doi", "file_ref", "note_ref", "manual_text_summary"] as const)
-        .some((input_kind) => isPublicSafeSourceLocatorV01({ input_kind, source_locator: source }));
+      const permitted = isDisclosedWorkSourceLocatorV01(source);
       return {
         source_binding: entry.source_ref!,
         excerpt_text: entry.bounded_summary!,
@@ -125,4 +124,10 @@ export function projectSelectedWorkSourcesV01(entries: TaskContextPacketSelected
         },
       };
     });
+}
+
+/** The same disclosure boundary applies to matching and presentation. */
+export function isDisclosedWorkSourceLocatorV01(source: string): boolean {
+  return isSafeSourceProjectionMetadataV01(source) && (["url", "doi", "file_ref", "note_ref", "manual_text_summary"] as const)
+    .some((input_kind) => isPublicSafeSourceLocatorV01({ input_kind, source_locator: source }));
 }
