@@ -46,12 +46,12 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
   }
   const origin = now();
   const events = [], lifecycle = [], failures = [];
-  const requests = new Map(), aliases = new Map(), connections = new Set();
+  const requests = new Map(), aliases = new Map(), connections = new Set(), connectionIdentities = new Map();
   const counts = { events_evicted: 0, lifecycle_evicted: 0, request_contexts_evicted: 0, aliases_dropped: 0,
     failures_evicted: 0, unmatched_events: 0, ambiguous_events: 0, observation_errors: 0 };
   let sequence = 0, connectionCount = 0, requestCount = 0, navigationCount = 0;
   let phase = 'setup', step = null, mode = null, segment = 'scenario';
-  const guard = action => { try { return action(); } catch { counts.observation_errors += 1; return null; } };
+  const guard = action => { try { return action(); } catch { counts.observation_errors += 1; pins.collectionFailed(); return null; } };
   const retain = (list, value, limit, counter) => {
     list.push(value);
     if (list.length > limit) { list.shift(); counts[counter] += 1; }
@@ -86,12 +86,21 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
   const pins = createHostRoundTripPinsV1({ maxPins, stamp: () => append('consumer_observation').sequence });
 
   return Object.freeze({
+    cancellationEvidence: pins.cancellationEvidence,
+    verdictConnection(connection) { return connectionIdentities.get(connection) ?? null; },
+    bindVerdictFailure(connection, payload, entry) { guard(() => {
+      if (!connections.has(connection) || payload.method !== 'Network.loadingFailed') return;
+      const session = payload.sessionId == null ? 'root-session' : alias('session', connection, payload.sessionId);
+      const requestId = identifier(payload.params?.requestId);
+      if (session && requestId) pins.bindFailure(JSON.stringify([connection, session, requestId]), entry);
+    }); },
     browserSource: () => pins.browserSource(),
-    installationFailed() { counts.observation_errors += 1; },
+    installationFailed() { counts.observation_errors += 1; pins.collectionFailed(); },
     completeProbe() { pins.completeProbe(phase); },
     connection() { return guard(() => {
       if (connections.size >= 16) { counts.aliases_dropped += 1; return null; }
       const connection = `connection-${++connectionCount}`; connections.add(connection);
+      connectionIdentities.set(connection, Object.freeze({}));
       append('cdp_connection', { connection }, null, true); return connection;
     }); },
     phase(value) { guard(() => { phase = allowed(PHASES, value); step = null; mode = null; append('phase_start', {}, null, true); }); },
@@ -113,6 +122,8 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
         protocol_request: alias('protocol-request', `${connection}:${session}`, p.requestId) };
       if (payload.method.startsWith('Page.')) {
         const frame = p.frame ?? p;
+        if (payload.method === 'Page.frameNavigated') pins.navigation(connection, session,
+          alias('frame', `${connection}:${session}`, frame.id), alias('loader', `${connection}:${session}`, frame.loaderId));
         append(payload.method, { ...context(connection, session, { frameId: frame.id ?? p.frameId, loaderId: frame.loaderId }),
           route: frame.url === undefined ? null : route(frame.url),
           navigation_type: allowed(new Set(['Navigation', 'BackForwardCacheRestore', 'fragment', 'historyApi', 'other']), p.type ?? p.navigationType) }, p.timestamp, true);
@@ -131,7 +142,7 @@ export function createProjectExperienceRequestDiagnosticsV1({ now = () => perfor
         const start = append('request_start', { ...ctx, request: `request-${++requestCount}`, route: route(p.request?.url),
           method: allowed(METHODS, p.request?.method), resource_type: allowed(TYPES, p.type),
           redirect_from: redirectFrom, redirect_context_missing: redirected && !redirectFrom, ambiguous_request_id: ambiguous }, p.timestamp);
-        pins.start(key, start, p);
+        pins.start(key, start, p, { connection: connectionIdentities.get(connection), session: payload.sessionId ?? null });
         if (key) {
           if (!requests.has(key) && requests.size >= maxRequests) { requests.delete(requests.keys().next().value); counts.request_contexts_evicted += 1; }
           requests.set(key, { request: start.request, route: start.route, method: start.method, start,

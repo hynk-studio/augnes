@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import "./test-project-experience-session-refusal-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
@@ -398,7 +399,7 @@ for (const outcome of ["404 body read", "wrong status", "body read failure", "ne
 }
 
 process.stdout.write(`${JSON.stringify({ test: "project-experience-request-verdict-v1", status: "pass",
-  synthetic_events_only: true, historical_shape_expected: true, negative_cases_rejected: rejected.length,
+  synthetic_events_only: true, completed_marked_probe_shape_expected: true, negative_cases_rejected: rejected.length,
   previous_negative_cases_preserved: preservedNegativeCases, marked_background_collision_distinguished: true,
   functional_body_and_status_completion_required: true, generation_bound_completion: true,
-  bounded_private_verdict_reasons: true, diagnostic_sidecar_not_used: true })}\n`);
+  bounded_private_verdict_reasons: true, public_diagnostic_snapshot_not_used: true })}\n`);

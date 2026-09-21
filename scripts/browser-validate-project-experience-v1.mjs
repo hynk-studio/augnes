@@ -182,7 +182,7 @@ const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
 const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
-const requestVerdicts = createProjectExperienceRequestVerdictV1();
+const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence });
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -1922,6 +1922,7 @@ async function main() {
       const beforeReadBoundaries = noteDatabase.serialize();
       for (const mode of ['revision_unavailable', 'source_unavailable', 'projection_missing', 'project_changed', 'session_refused']) {
         requestDiagnostics.step("boundary_install", mode);
+        const refusalScenario = mode === 'session_refused' ? requestVerdicts.armSessionRefusalScenario() : null;
         const injected = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
           const read = window.fetch.bind(window);
           window.fetch = async (...args) => {
@@ -1930,7 +1931,11 @@ async function main() {
             const body = await response.clone().json();
             if (body.status !== 'proposal_list') return response;
             const mode = ${JSON.stringify(mode)};
-            if (mode === 'session_refused') return Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });
+            if (mode === 'session_refused') {
+              const refused = Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });
+              window.__augnesProjectExperienceDiagnosticsV1?.sessionRefusal(refused, ${JSON.stringify(refusalScenario?.token ?? null)});
+              return refused;
+            }
             const initialization = body.work_initialization;
             if (mode === 'revision_unavailable') initialization.revision_eligibility = {
               ...initialization.revision_eligibility, eligible: false,
@@ -1962,9 +1967,15 @@ async function main() {
             `selected-note read boundary: ${mode}`);
             assert.equal(await evaluateBoolean(`document.querySelector('[data-current-work-sources], [data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(suppliedSource)}) && !document.body.textContent.includes(${JSON.stringify(correction)}) && !document.body.textContent.includes('No source notes are selected in this current work.')`), true,
               `${mode} hides note content without manufacturing an empty current selection`);
+            if (refusalScenario) {
+              assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'session refusal changes no stored state');
+              assert.deepEqual(effects(), effectsBefore);
+              requestVerdicts.completeSessionRefusalScenario(refusalScenario);
+            }
           }
         } finally {
           requestDiagnostics.step("boundary_remove", mode);
+          if (refusalScenario) requestVerdicts.closeSessionRefusalScenario(refusalScenario);
           await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: injected.identifier });
           requestDiagnostics.step("boundary_removed", null);
         }
@@ -3316,7 +3327,7 @@ async function openCdpPage() {
 
 function attachCdpObservers() {
   const diagnosticConnection = requestDiagnostics.connection();
-  const verdictConnection = requestVerdicts.connection();
+  const verdictConnection = requestVerdicts.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
   cdp.on((payload) => {
     requestDiagnostics.observe(diagnosticConnection, payload);
     const params = payload.params ?? {};
@@ -3387,6 +3398,7 @@ function attachCdpObservers() {
         error_text: params.errorText ?? "request_failed",
       };
       requestVerdicts.observe(verdictConnection, payload, failure);
+      requestDiagnostics.bindVerdictFailure?.(diagnosticConnection, payload, failure);
       failedRequests.push(failure);
     }
   });
@@ -5459,6 +5471,7 @@ function expectedStatusResponseIdentity(response) {
 
 function expectedFailedRequest(entry) {
   if (requestVerdicts.expectedUnavailableExecutionAbort(entry)) return true;
+  if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;
   if (
     [
       "project_onboarding_and_naming",
@@ -5516,6 +5529,7 @@ function failedRequestAssertionEntry(entry) {
     path: entry.path,
     error_text: entry.error_text,
     verdict_reason: requestVerdicts.unavailableExecutionAbortReason(entry),
+    cancellation_outcome: requestVerdicts.sessionRefusalCancellation?.(entry),
   };
 }
 
@@ -5523,7 +5537,8 @@ function unavailableExecutionVerdictSummary() {
   const reasons = {};
   for (const entry of failedRequests) {
     if (entry.path !== "/api/vnext/operator/host-round-trip") continue;
-    const reason = requestVerdicts.unavailableExecutionAbortReason(entry);
+    const cancellation = requestVerdicts.sessionRefusalCancellation?.(entry);
+    const reason = cancellation?.expected ? cancellation.reason : requestVerdicts.unavailableExecutionAbortReason(entry);
     reasons[reason] = (reasons[reason] ?? 0) + 1;
   }
   return reasons;

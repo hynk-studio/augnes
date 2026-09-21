@@ -99,9 +99,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   assert.equal(runs[0], runs[1], outcome);
 }
 
-// Exact token baselines from 7597ed20: all nine phase calls/actions/order and
-// acceptance/navigation/quiet/deadline owners are unchanged. Only the two
-// explicitly observational call-site additions are removed for comparison.
+// Keep the 7597ed20 baselines for every pre-existing action/assertion, marked
+// probe, navigation and deadline. #1316 prospectively adds B, separately tested
+// by the private verdict regressions; strip only its exact reviewed call sites.
 {
   const source = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
   const file = ts.createSourceFile('owner.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -111,6 +111,24 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     return values;
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  const prospectiveAdditions = [
+    ["        const refusalScenario = mode === 'session_refused' ? requestVerdicts.armSessionRefusalScenario() : null;\n", ''],
+    [`            if (mode === 'session_refused') {
+              const refused = Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });
+              window.__augnesProjectExperienceDiagnosticsV1?.sessionRefusal(refused, \${JSON.stringify(refusalScenario?.token ?? null)});
+              return refused;
+            }`, "            if (mode === 'session_refused') return Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });"],
+    [`            if (refusalScenario) {
+              assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'session refusal changes no stored state');
+              assert.deepEqual(effects(), effectsBefore);
+              requestVerdicts.completeSessionRefusalScenario(refusalScenario);
+            }
+`, ''],
+    ['          if (refusalScenario) requestVerdicts.closeSessionRefusalScenario(refusalScenario);\n', ''],
+    ['  if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;\n', ''],
+  ];
+  for (const [addition] of prospectiveAdditions) assert.equal(source.split(addition).length, 2, 'exact prospective call site');
+  const withoutProspectiveAdditions = text => prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text);
   const expected = {
     runPhase: '547dcdc354d69e5288144b6a888c436e546102d509cdec352673c929ec0191d2',
     navigate: '2dbcba067b8c962ccb04e72155be6129be5f4e4a2447935621ac85208cfefddf',
@@ -120,12 +138,12 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   const phases = [], found = [];
   function visit(node) {
     if (ts.isCallExpression(node) && node.expression.getText(file) === 'runPhase') {
-      const text = node.getText(file).replace(/^[ \t]*diagnosticProbe: true,\n/gm, '')
+      const text = withoutProspectiveAdditions(node.getText(file)).replace(/^[ \t]*diagnosticProbe: true,\n/gm, '')
         .replace(/^[ \t]*\/\/ Observational only; the verdict completion above remains the sole owner\.\n[ \t]*requestDiagnostics\.completeProbe\?\.\(\);\n/gm, '');
       phases.push(tokens(text));
     }
     if (ts.isFunctionDeclaration(node) && Object.hasOwn(expected, node.name?.text)) {
-      assert.equal(hash(tokens(node.getText(file))), expected[node.name.text], node.name.text); found.push(node.name.text);
+      assert.equal(hash(tokens(withoutProspectiveAdditions(node.getText(file)))), expected[node.name.text], node.name.text); found.push(node.name.text);
     }
     ts.forEachChild(node, visit);
   }
@@ -386,4 +404,4 @@ for (const settlement of ['throw', 'reject']) {
 }
 
 process.stdout.write(`${JSON.stringify({ test: 'project-experience-pinned-diagnostics-v1', status: 'pass',
-  synthetic_only: true, acceptance_unchanged: true, exact_invocation_and_controller_binding: true })}\n`);
+  synthetic_only: true, preexisting_acceptance_preserved: true, exact_invocation_and_controller_binding: true })}\n`);

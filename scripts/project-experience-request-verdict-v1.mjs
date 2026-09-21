@@ -1,4 +1,6 @@
-// Private Browser-owner verdict state. The passive diagnostic sidecar is not an input.
+// Private Browser-owner verdict state. Public diagnostic snapshots are never an
+// input. The prospective cancellation branch reads authentic private pin facts.
+import { sessionRefusalEvidenceOwnerV1 } from './project-experience-host-round-trip-pins-v1.mjs';
 const PROBE_PHASE = "companion_first_work_access";
 const PROBE_PATH = "/api/vnext/operator/host-round-trip";
 const PROBE_HEADER = "x-augnes-e2e-probe";
@@ -7,10 +9,11 @@ export const UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 = Object.freeze({
   [PROBE_HEADER]: PROBE_VALUE,
 });
 
-export function createProjectExperienceRequestVerdictV1() {
+export function createProjectExperienceRequestVerdictV1({ cancellationEvidence } = {}) {
   const connections = new WeakMap();
   const failures = new WeakMap();
   let probe = null;
+  const cancellationOwner = sessionRefusalEvidenceOwnerV1(cancellationEvidence);
 
   const rejected = reason => ({ expected: false, reason });
   function classifyFailure(entry) {
@@ -40,10 +43,100 @@ export function createProjectExperienceRequestVerdictV1() {
     return { expected: true, reason: "completed_marked_probe_abort" };
   }
 
+  function classifySessionRefusal(entry) {
+    const evidence = failures.get(entry);
+    const facts = cancellationOwner?.facts(entry);
+    if (!evidence || !facts) return rejected('cancellation_evidence_missing');
+    const { context, responseBeforeFailure: response, canceled } = evidence;
+    const request = context.request;
+    const { pin, generation, consumer, scenario, counts, documentComplete } = facts;
+    if (request.phase !== PROBE_PHASE || entry.phase !== PROBE_PHASE ||
+      request.path !== PROBE_PATH || request.method !== 'GET' || request.external !== false ||
+      context.marker !== 'absent') return rejected('cancellation_scope_mismatch');
+    if (context.ambiguous || pin.ambiguous || generation.ambiguous || consumer.incomplete ||
+      generation.incomplete || !documentComplete || Object.values(counts).some(value => value !== 0) ||
+      !pin.frameAlias || !pin.loaderAlias || !pin.delegatedCallSite) return rejected('cancellation_correlation_incomplete');
+    if (!context.correlationConnection || pin.protocolIdentity.connection !== context.correlationConnection ||
+      pin.protocolIdentity.session !== context.protocolSession || pin.protocolIdentity.request !== context.protocolRequest) {
+      return rejected('cancellation_request_identity_mismatch');
+    }
+    if (!scenario || scenario.invalid || !scenario.sealed || scenario.pin !== pin ||
+      scenario.delivery?.consumer !== consumer || scenario.delivery.documentKey !== generation.documentKey ||
+      consumer.documentKey !== generation.documentKey || generation.owner !== 'delegated_work_initial_read') {
+      return rejected('cancellation_refusal_unbound');
+    }
+    if (!response || response.path !== PROBE_PATH || response.status !== 404 || !pin.responseBeforeFailure ||
+      pin.status !== 404 || entry.error_text !== 'net::ERR_ABORTED' || pin.error !== 'net::ERR_ABORTED' ||
+      canceled !== true || pin.canceled !== true || pin.failurePhase !== PROBE_PHASE) {
+      return rejected('cancellation_response_or_failure_mismatch');
+    }
+    // Exact-once events from one consumer/effect/controller, not aggregate
+    // booleans or serialized labels. The initial invocation itself is observed.
+    const unique = (events, kind, predicate = () => true) => {
+      const matches = events.filter(event => event.kind === kind && predicate(event));
+      return matches.length === 1 ? matches[0] : null;
+    };
+    const events = generation.events;
+    const cycle = consumer.events.filter(event => event.effect === generation.effect);
+    const read = unique(events, 'read_created'), controller = unique(events, 'controller_created');
+    const fetch = unique(events, 'fetch_started'), cleanup = unique(events, 'cleanup_observed');
+    const abort = unique(events, 'abort_requested'), signal = unique(events, 'signal_aborted');
+    const returned = unique(events, 'abort_call_returned'), settled = unique(events, 'read_aborted');
+    const consumerReturned = unique(events, 'consumer_returned');
+    const enabled = unique(cycle, 'effect_active'), initial = unique(cycle, 'initial_read_invoked');
+    const refused = unique(cycle, 'refusal_delivered'), locked = unique(cycle, 'auth_transition_requested');
+    const effectCleanup = unique(cycle, 'effect_cleanup');
+    const disabled = unique(consumer.events, 'effect_active', event => event.effect === generation.effect + 1);
+    const authenticated = unique(consumer.events, 'auth_transition_requested', event =>
+      event.auth === 'authenticated' && event.sequence < (enabled?.sequence ?? 0));
+    const mounted = unique(consumer.events, 'consumer_mounted');
+    const chain = [mounted, authenticated, enabled, initial, read, controller, fetch];
+    if (chain.some(event => !event) || [refused, locked, effectCleanup, cleanup, abort, signal, returned,
+      disabled, settled, consumerReturned].some(event => !event)) return rejected('cancellation_required_event_missing_or_duplicate');
+    if (enabled.enabled !== true || enabled.auth !== 'authenticated' || initial.auth !== 'authenticated' ||
+      [read, controller, fetch, refused].some(event => event.auth !== 'authenticated') || refused.status !== 401 ||
+      scenario.delivery.event !== refused || locked.auth !== 'locked_or_refused' || disabled.enabled !== false ||
+      [effectCleanup, cleanup, abort, signal, returned, disabled].some(event => event.auth !== 'locked_or_refused') ||
+      consumer.events.some(event => event.kind === 'consumer_disposed' && event.sequence <= scenario.sealSequence) ||
+      consumer.events.some(event => event.kind === 'auth_transition_requested' &&
+        event.sequence <= scenario.sealSequence && event !== authenticated && event !== locked &&
+        !(event.auth === 'unknown' && event.sequence < authenticated.sequence))) {
+      return rejected('cancellation_auth_or_effect_mismatch');
+    }
+    const ordered = values => values.every((value, index) => Number.isInteger(value) &&
+      (index === 0 || values[index - 1] < value));
+    if (!ordered([...chain.map(event => event.sequence), pin.sequence, refused.sequence, locked.sequence,
+      effectCleanup.sequence, cleanup.sequence, abort.sequence, signal.sequence, returned.sequence]) ||
+      returned.sequence >= pin.failureSequence || !ordered([pin.responseSequence, pin.failureSequence]) ||
+      !ordered([returned.sequence, disabled.sequence, scenario.sealSequence]) ||
+      !ordered([signal.sequence, settled.sequence, consumerReturned.sequence])) {
+      return rejected('cancellation_order_mismatch');
+    }
+    // A later cleanup never repairs an independently failed read/body. Body
+    // completeness remains separate; an aborted body may be unobserved.
+    const bodyFailed = events.filter(event => event.kind === 'body_read_failed');
+    const headers = events.filter(event => event.kind === 'response_headers_received');
+    const bodyStarted = events.filter(event => event.kind === 'body_read_started');
+    if (pin.finished || events.some(event => event.kind === 'read_failed' || event.kind === 'body_read_completed' || event.kind === 'probe_completed') ||
+      bodyFailed.length > 1 || headers.length > 1 || bodyStarted.length > 1 ||
+      headers.some(event => event.status !== 404) ||
+      bodyFailed.some(event => event.sequence <= signal.sequence || event.sequence >= settled.sequence) ||
+      (bodyStarted.length !== bodyFailed.length) || (headers.length !== bodyStarted.length) ||
+      (headers.length && !ordered([headers[0].sequence, bodyStarted[0].sequence, bodyFailed[0].sequence]))) {
+      return rejected('cancellation_independent_read_failure');
+    }
+    return { expected: true, reason: 'expected_session_refusal_cleanup_cancellation',
+      body_settlement: bodyFailed.length ? 'failed' : 'unknown', completed_read: false };
+  }
+
   return Object.freeze({
-    connection() {
+    armSessionRefusalScenario() { return cancellationOwner?.arm() ?? null; },
+    completeSessionRefusalScenario(handle) { cancellationOwner?.seal(handle); },
+    closeSessionRefusalScenario(handle) { cancellationOwner?.close(handle); },
+    sessionRefusalCancellation(entry) { return classifySessionRefusal(entry); },
+    connection(correlationConnection = null) {
       const connection = Object.freeze({});
-      connections.set(connection, new Map());
+      connections.set(connection, { requests: new Map(), correlationConnection });
       return connection;
     },
     armUnavailableExecutionProbe() {
@@ -55,7 +148,8 @@ export function createProjectExperienceRequestVerdictV1() {
       if (probe && generation === probe.generation) probe.completed = true;
     },
     observe(connection, payload, entry) {
-      const requests = connections.get(connection);
+      const record = connections.get(connection);
+      const requests = record?.requests;
       const params = payload.params ?? {};
       const key = requestKey(payload.sessionId, params.requestId);
       if (!requests || key === null) return;
@@ -71,6 +165,9 @@ export function createProjectExperienceRequestVerdictV1() {
           ambiguous: reused || params.redirectResponse != null,
           marker: probeMarker(params.request?.headers),
           generation: null,
+          correlationConnection: record.correlationConnection,
+          protocolSession: payload.sessionId ?? null,
+          protocolRequest: params.requestId,
         };
         requests.set(key, context);
         if (

@@ -305,4 +305,4 @@ for (const diagnostic of [{ connection: () => null, observe() {} }, createProjec
 }
 
 process.stdout.write(`${JSON.stringify({ test: 'project-experience-request-diagnostics-v1', status: 'pass',
-  synthetic_events_only: true, bounded_redacted_correlation: true, observer_ledgers_and_classifiers_unchanged: true })}\n`);
+  synthetic_events_only: true, bounded_redacted_correlation: true, preexisting_observer_ledgers_and_classifiers_preserved: true })}\n`);

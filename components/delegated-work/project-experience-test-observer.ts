@@ -4,7 +4,8 @@
 export interface ProjectExperienceReadObserverV1 {
   fetch: typeof fetch;
   event(state: "response_headers_received" | "body_read_started" |
-    "body_read_completed" | "body_read_failed" | "consumer_returned", status?: number): void;
+    "body_read_completed" | "body_read_failed" | "consumer_returned" |
+    "read_aborted" | "read_failed", status?: number): void;
 }
 
 export interface ProjectExperienceConsumerObserverV1 {
@@ -12,6 +13,7 @@ export interface ProjectExperienceConsumerObserverV1 {
   mount(): () => void;
   effectActive(enabled: boolean): void;
   initialReadInvocation(active: boolean): void;
+  refusalConsumed(response: Response): void;
   beginRead(controller: AbortController): ProjectExperienceReadObserverV1 | null;
   cleanup(controller: AbortController | null): void;
   cleanupFinished(): void;
