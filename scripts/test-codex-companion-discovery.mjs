@@ -431,6 +431,7 @@ try {
       (value) => { value.lookup.omitted_matching_entries = 0; },
       (value) => { value.lookup.results[0].source.source_fingerprint = sourceBinding; },
       (value) => { value.lookup.results[0].source.packet_id = "/Users/synthetic/private-note"; value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
+      (value) => { value.lookup.results[0].source.packet_id = [value.lookup.results[0].source.packet_id]; value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
       (value) => { value.lookup.results[1] = value.lookup.results[0]; value.lookup.result_utf8_bytes = Buffer.byteLength(JSON.stringify(value.lookup.results)); },
     ]) { const value = structuredClone(retainedProjection); mutate(value); assert.throws(() => parseRepositoryRetainedSourcesResponseV01(value), /contract_invalid/u); }
     const callRetained = () => client.callTool({ name: "augnes_lookup_repository_retained_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, query: "literal" } });

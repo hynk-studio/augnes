@@ -404,6 +404,7 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   for (const hit of lookup.results) {
     exactObjectV01(hit, ["source", "note", "first_recorded_at", "last_selected_at", "packet_occurrences", "selection"]);
     exactObjectV01(hit.source, ["packet_id", "packet_fingerprint", "entry_id", "source_fingerprint"]);
+    stringV01(hit.source.packet_id);
     fingerprintV01(hit.source.packet_fingerprint); fingerprintV01(hit.source.source_fingerprint);
     if (!/^task-context-packet:[a-f0-9]{23}$/u.test(hit.source.packet_id) || !/^selected-source:[a-f0-9]{64}$/u.test(hit.source.entry_id) ||
       entries.has(hit.source.entry_id) || hit.source.entry_id !== `selected-source:${hit.source.source_fingerprint.slice(7)}`) invalidContractV01();
