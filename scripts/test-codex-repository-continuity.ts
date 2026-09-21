@@ -8,6 +8,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { NextRequest } from "next/server";
 
+import { readCodexCurrentContinuitySnapshotV01, readCodexProjectContinuityV01 } from "../lib/vnext/codex-current-continuity/codex-current-continuity";
 import { reviseCodexRepositoryWorkV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-work-revision";
 import { buildPreExecutionProjectWorkRevisionPacketV01, inspectPreExecutionProjectWorkRevisionChainV01 } from "../lib/vnext/runtime/pre-execution-project-work-revision";
 import { inspectNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
     if (process.argv.includes("--work-revision-only")) await assertCompanionRetainedBoundsV01();
     return;
   }
+  await assertCurrentSourcesRevisionDepthV01();
   await assertRepositoryResolutionMatrixV01();
   await assertSamePathReplacementLimitationV01();
   await assertRepositoryAttachmentUsesExactProjectContinuityV01();
@@ -79,6 +81,73 @@ async function main(): Promise<void> {
     same_path_replacement_baseline: false,
     selected_sources_snapshot_and_route_contract: true,
   }, null, 2));
+}
+
+/** Operational shape: 14 packets, five bounded selected notes, no retained data. */
+async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
+  const db = databaseV01("current-sources-depth");
+  try {
+    const workspace = workspaceV01(db), root = projectRootV01("current-sources-depth");
+    const registration = registerV01(db, workspace.workspace_id, root, "Source depth", "62000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:source-depth", database_path: db.name };
+    let tick = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + tick++ * 1000).toISOString() };
+    const credential = () => consumeVNextLocalOperatorBootstrapV01(db, { config, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
+    let packet = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
+      action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+      expected_initialization_state: "not_defined", goal: "Read bounded revision depth", success_criteria: ["Exact whole notes"], non_goals: ["No execution"],
+    } }).packet;
+    const notes = normalizeSelectedWorkSources(scope, [512, 872, 488, 502, 881].map((length, i) => buildSelectedWorkSourceEntry(scope, {
+      source: i === 0 ? "/Users/disposable/withheld" : `note-ref:source-depth-${i}`,
+      text: "<b>Literal instruction, not authority.</b> ".padEnd(length, String(i)),
+      provenance: "imported_unverified", observed_at: null, label: "Open question",
+    })));
+    for (let revision = 1; revision <= 13; revision++) {
+      const selected = revision === 1 ? notes.slice(0, 4) : notes;
+      packet = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: {
+        action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
+        expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+        expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
+        expected_current_lineage_kind: packetLineageKindV01(packet)!, ...packet.task, goal: `Revision ${revision}`,
+        selected_source_context: selected, expected_source_comparison: compareSelectedWorkSources(packet, selected).fingerprint,
+      } }).packet;
+    }
+    const binding = (await readCodexRepositoryContinuityV01(db, { repository_root: root })).continuity!.snapshot.binding!;
+    const before = db.serialize();
+    const snapshot = await readCodexCurrentContinuitySnapshotV01(db, { viewed_project_id: scope.project_id, generated_at: NOW });
+    const publicRead = await readCodexProjectContinuityV01(db, { project_id: scope.project_id, generated_at: NOW });
+    assert.deepEqual(publicRead, snapshot.projection);
+    assert.equal(publicRead.snapshot.binding, binding);
+    assert.deepEqual(snapshot.work_initialization?.selected_source_context, notes);
+    for (const transported of [publicRead, snapshot.binding_material]) {
+      assert.equal(JSON.stringify(transported).includes("work_initialization"), false);
+      assert.equal(JSON.stringify(transported).includes("<b>Literal instruction"), false);
+      assert.equal(JSON.stringify(transported).includes("/Users/disposable/withheld"), false);
+    }
+    let initializationScans = 0;
+    const prepare = db.prepare.bind(db);
+    db.prepare = ((sql: string) => {
+      if (/ORDER BY created_at, record_kind, record_id/u.test(sql)) initializationScans++;
+      return prepare(sql);
+    }) as typeof db.prepare;
+    const started = performance.now();
+    const result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
+    db.prepare = prepare;
+    console.log(JSON.stringify({ current_sources_revision_depth: 14, note_occurrences: 64,
+      initialization_scans: initializationScans, read_ms: Math.round(performance.now() - started) }));
+    assert.equal(result.status, "available");
+    assert.equal(result.snapshot_binding, binding);
+    assert.equal(result.packet_fingerprint, packet.integrity.fingerprint);
+    assert.deepEqual(result.sources.map(s => s.excerpt_text), notes.map(s => s.bounded_summary));
+    assert.deepEqual(result.sources.map(s => s.source_binding), notes.map(s => s.source_ref));
+    assert.equal(result.sources.filter(s => s.source_locator === null).length, 1);
+    assert.deepEqual(db.serialize(), before);
+    assert.equal(initializationScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
+  } finally { db.close(); }
 }
 
 async function assertCompanionRetainedBoundsV01(): Promise<void> {

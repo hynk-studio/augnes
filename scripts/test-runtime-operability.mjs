@@ -2661,6 +2661,50 @@ async function assertNativeWorkRevisionPathV01({ repositories, callRepository, c
     browser_check: "exact canonical retained-reference successor replay through Browser writer; not a visual Browser journey", managed_or_semantic_actions: 0 }));
 }
 
+async function assertCurrentSourcesRevisionDepthMcpV01({ repositories, callRepository, callExecution }) {
+  const repositoryRoot = path.join(path.dirname(repositories.repositoryA), "current-source-depth");
+  mkdirSync(repositoryRoot); writeFileSync(path.join(repositoryRoot, "README.md"), "Disposable current-source depth fixture.\n");
+  const clock = advancingClockV01();
+  const registered = await registerRepositoryThroughOnboardingV01({ repositoryRoot, displayName: "Current source depth",
+    createUuids: ["20000000-0000-4000-8000-000000000009"], clock });
+  const scope = { workspace_id: registered.workspace.workspace_id, project_id: registered.project.project_id };
+  let packet = defineFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id,
+    definition: { goal: "Read a bounded revision chain", success_criteria: ["Exact complete selection"], non_goals: ["No execution"] }, clock }).packet;
+  const notes = [512, 872, 488, 502, 881].map((length, i) => buildSelectedWorkSourceEntry(scope, {
+    source: i === 0 ? "/Users/disposable/withheld-depth" : `note-ref:depth-${i}`,
+    text: "<b>Literal instruction, not authority.</b> ".padEnd(length, String(i)),
+    provenance: "imported_unverified", observed_at: null, label: "Open question",
+  })).sort((a, b) => a.entry_id.localeCompare(b.entry_id));
+  for (let revision = 1; revision <= 13; revision++) packet = reviseFixtureWorkV01({
+    workspaceId: scope.workspace_id, projectId: scope.project_id, currentPacket: packet,
+    definition: { ...packet.task, goal: `Read bounded revision ${revision}` },
+    selectedSources: revision === 1 ? notes.slice(0, 4) : notes, clock,
+  }).packet;
+  const resumed = await callRepository(repositoryRoot);
+  const binding = resumed.structuredContent.continuity.snapshot.binding;
+  const before = snapshotDatabaseFamily(databasePath), tables = snapshotWorkRevisionTablesV01(), files = snapshotDirectoryContentV01(repositoryRoot);
+  const started = performance.now();
+  const read = await callExecution("augnes_read_repository_work_sources", { repositoryRoot, expectedSnapshotBinding: binding });
+  console.log(JSON.stringify({ current_sources_revision_depth_mcp: 14, note_occurrences: 64,
+    elapsed_ms: Math.round(performance.now() - started), is_error: read.isError === true, status: read.structuredContent?.status ?? null }));
+  assert.notEqual(read.isError, true, "valid revision-depth source read must complete through the unchanged installed-client deadline");
+  assert.equal(read.structuredContent.status, "available");
+  assert.equal(read.structuredContent.snapshot_binding, binding);
+  assert.equal(read.structuredContent.packet_fingerprint, packet.integrity.fingerprint);
+  const canonical = readSelectedWorkSources(packet);
+  assert.deepEqual(read.structuredContent.sources.map(s => s.excerpt_text), canonical.map(s => s.bounded_summary));
+  assert.deepEqual(read.structuredContent.sources.map(s => s.source_binding), canonical.map(s => s.source_ref));
+  for (const [i, s] of read.structuredContent.sources.entries()) {
+    assert.equal(s.trust_class, canonical[i].trust_class); assert.equal(s.review_label, canonical[i].why_included);
+    assert.equal(s.observed_at, null); assert.equal(s.currentness.status, "unknown");
+  }
+  assert.equal(read.structuredContent.sources.filter(s => s.source_locator === null).length, 1);
+  assert.equal(JSON.stringify(read).includes("/Users/disposable"), false);
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), before);
+  assert.deepEqual(changedWorkRevisionTablesV01(tables), []);
+  assert.deepEqual(snapshotDirectoryContentV01(repositoryRoot), files);
+}
+
 async function assertRegisteredRepositoryPositivePathV01({
   repositories,
   callRepository,
@@ -2668,6 +2712,7 @@ async function assertRegisteredRepositoryPositivePathV01({
   effectiveUrl,
 }) {
   await assertNativeWorkRevisionPathV01({ repositories, callRepository, callExecution });
+  await assertCurrentSourcesRevisionDepthMcpV01({ repositories, callRepository, callExecution });
   const clock = advancingClockV01();
   const registeredA = await registerRepositoryThroughOnboardingV01({
     repositoryRoot: repositories.repositoryA,

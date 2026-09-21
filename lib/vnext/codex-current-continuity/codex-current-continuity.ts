@@ -145,13 +145,14 @@ export async function readCodexCurrentContinuityV01(
   return (await readCodexCurrentContinuitySnapshotV01(db, input, dependencies)).projection;
 }
 
-/** Server-internal snapshot material for exact transport seals; never returned
- * by Resume. The same owner constructs both material and public projection. */
+/** Server-internal snapshot material for exact transport seals and explicit
+ * source reads; never returned by Resume. Initialization is validated by this
+ * invocation, not supplied by a caller or cached across reads. */
 export async function readCodexCurrentContinuitySnapshotV01(
   db: Database.Database,
   input: CodexCurrentContinuityReadInputV01 = {},
   dependencies: Partial<Omit<CodexCurrentContinuityDependenciesV01, "open_database">> = {},
-): Promise<{ projection: CodexCurrentContinuityV01; binding_material: unknown | null }> {
+): Promise<CodexCurrentContinuitySnapshotReadV01> {
   const generatedAt = input.generated_at ?? (dependencies.now ?? (() => new Date().toISOString()))();
   requireTimestampV01(generatedAt);
   let workspace: ReturnType<typeof readDefaultWorkspaceIdentityV01>;
@@ -366,7 +367,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
         next_action_kind: nextAction.kind,
         source_status: projection.source_status,
       };
-  return finalizeV01(projection, bindingMaterial);
+  return finalizeV01(projection, bindingMaterial, workInitialization);
 }
 
 function openCurrentContinuityDatabaseV01(): Database.Database {
@@ -1275,10 +1276,18 @@ function unavailableSnapshotV01(): CodexCurrentContinuityV01["snapshot"] {
   };
 }
 
+interface CodexCurrentContinuitySnapshotReadV01 {
+  projection: CodexCurrentContinuityV01;
+  binding_material: unknown | null;
+  /** Private validated material from the same read; not part of either seal or DTO. */
+  work_initialization: ProjectWorkInitializationV01 | null;
+}
+
 function finalizeV01(
   projection: CodexCurrentContinuityV01,
   bindingMaterial: unknown | null,
-): { projection: CodexCurrentContinuityV01; binding_material: unknown | null } {
+  workInitialization: ProjectWorkInitializationV01 | null = null,
+): CodexCurrentContinuitySnapshotReadV01 {
   const withBinding: CodexCurrentContinuityV01 = bindingMaterial === null
     ? { ...projection, snapshot: unavailableSnapshotV01() }
     : {
@@ -1291,7 +1300,11 @@ function finalizeV01(
         },
       };
   assertCodexCurrentContinuityV01(withBinding);
-  return { projection: withBinding, binding_material: bindingMaterial };
+  return {
+    projection: withBinding,
+    binding_material: bindingMaterial,
+    work_initialization: bindingMaterial === null ? null : workInitialization,
+  };
 }
 
 export function createCodexCurrentContinuitySnapshotBindingV01(
