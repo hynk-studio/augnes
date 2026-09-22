@@ -161,7 +161,11 @@ registered on public/default App surfaces.
 `codex_repository_work_sources.v0.1` is a rebuildable projection over the same
 physical repository resolver, Resume snapshot owner and
 `readProjectWorkInitializationV01` selected-source reader used by AI Workplane.
-One query-only database connection/read transaction binds those reads. Its
+One query-only database connection/read transaction binds those reads. The
+source projection uses the canonical initialization already validated by that
+snapshot invocation, avoiding a second complete work/lineage scan. This private
+material is neither part of Resume's output or snapshot hash nor a cache across
+requests; authentication, freshness and whole-note validation remain required. Its
 `available` result includes the matching opaque snapshot binding, packet
 fingerprint and only the current selected notes: saved excerpt text, source
 binding, authored review label, trust class, observation time and source

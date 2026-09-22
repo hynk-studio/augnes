@@ -9,7 +9,15 @@ const AUTH = new Set(['authenticated', 'locked_or_refused', 'unavailable', 'unkn
 const KINDS = new Set(['read_created', 'controller_created', 'fetch_started', 'response_headers_received',
   'body_read_started', 'body_read_completed', 'body_read_failed', 'consumer_returned', 'consumer_disposed',
   'cleanup_observed', 'abort_requested', 'abort_call_returned', 'signal_aborted', 'probe_completed', 'consumer_mounted',
-  'effect_active', 'effect_cleanup', 'auth_transition_requested']);
+  'effect_active', 'effect_cleanup', 'auth_transition_requested', 'initial_read_invoked',
+  'refusal_delivered', 'read_aborted', 'read_failed']);
+// Authentic handles expose only private, live correlation facts to the verdict
+// owner. A copied public pin, boolean, alias or caller-created handle cannot read
+// this registry. Public diagnostic snapshots retain their original meaning.
+const cancellationOwners = new WeakMap();
+export function sessionRefusalEvidenceOwnerV1(handle) {
+  return cancellationOwners.get(handle) ?? null;
+}
 const integer = (value, bound) => Number.isInteger(value) && value >= 0 && value <= bound;
 const marker = headers => {
   if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return 'absent';
@@ -24,10 +32,45 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
   const channel = randomBytes(16).toString('hex');
   const framePattern = new RegExp(`^augnes-pe-diagnostic/${channel}/[a-f0-9-]{36}/[1-9][0-9]?$`);
   const pins = new Map(), generations = new Map(), consumers = new Map(), documents = new Map();
+  const firstOrdinals = new Map(), failures = new WeakMap();
+  const cancellationEvidence = Object.freeze({});
+  const scenarios = new WeakMap();
+  let activeScenario = null;
   const counts = { pin_overflow: 0, consumer_overflow: 0, lifecycle_overflow: 0, ambiguous: 0, observation_errors: 0 };
   const guard = action => { try { return action(); } catch { counts.observation_errors += 1; return null; } };
   const keyFor = (connection, session, document, id) => JSON.stringify([connection, session, document, id]);
   const invalidate = entry => { entry.ambiguous = true; counts.ambiguous += 1; };
+  cancellationOwners.set(cancellationEvidence, Object.freeze({
+    arm() {
+      if (activeScenario) activeScenario.invalid = true;
+      const handle = Object.freeze({ token: randomBytes(16).toString('hex') });
+      activeScenario = { handle, pin: null, delivery: null, sealed: false, closed: false, invalid: false };
+      scenarios.set(handle, activeScenario);
+      return handle;
+    },
+    seal(handle) {
+      const scenario = scenarios.get(handle);
+      if (!scenario || scenario !== activeScenario || scenario.sealed || scenario.closed) {
+        if (scenario) scenario.invalid = true;
+        return;
+      }
+      scenario.sealed = true;
+      scenario.sealSequence = stamp();
+    },
+    close(handle) {
+      const scenario = scenarios.get(handle);
+      if (!scenario || scenario !== activeScenario) { if (scenario) scenario.invalid = true; return; }
+      scenario.closed = true;
+      activeScenario = null;
+    },
+    facts(entry) {
+      const pin = failures.get(entry);
+      const generation = pin?.generation;
+      if (!pin || !generation) return null;
+      return { pin, generation, consumer: generation.consumer, scenario: pin.scenario, counts,
+        documentComplete: firstOrdinals.get(generation.documentKey) === 1 };
+    },
+  }));
   const bind = () => {
     for (const pin of pins.values()) {
       if (!pin.frame) continue;
@@ -76,6 +119,18 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
         generation?.incomplete === true || Object.values(counts).some(value => value > 0) };
   };
   return Object.freeze({
+    cancellationEvidence,
+    bindFailure(key, entry) {
+      const pin = pins.get(key);
+      if (pin?.failed && entry && typeof entry === 'object') failures.set(entry, pin);
+    },
+    collectionFailed() { counts.observation_errors += 1; },
+    navigation(connection, session, frame, loader) {
+      for (const pin of pins.values()) {
+        if (pin.scenario && pin.connection === connection && pin.session === session && pin.frameAlias === frame &&
+          loader !== pin.loaderAlias && (!pin.failed || !pin.scenario.sealed)) pin.scenario.invalid = true;
+      }
+    },
     browserSource: () => projectExperienceConsumerScriptV1(channel),
     completeProbe(phase) { guard(() => {
       if (phase !== PHASE) return;
@@ -99,6 +154,7 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
       const documentKey = keyFor(connection, session, value.document, 0);
       if (!documents.has(documentKey) && documents.size >= 32) { counts.consumer_overflow += 1; return; }
       const previous = documents.get(documentKey);
+      if (previous === undefined) firstOrdinals.set(documentKey, value.ordinal);
       if (previous !== undefined && value.ordinal !== previous + 1) counts.observation_errors += 1;
       documents.set(documentKey, value.ordinal);
       if (value.kind === 'overflow') { counts.consumer_overflow += 1; return; }
@@ -108,12 +164,20 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
       let consumer = consumers.get(consumerKey);
       if (!consumer) {
         if (consumers.size >= 32) { counts.consumer_overflow += 1; return; }
-        consumer = { events: [], incomplete: false }; consumers.set(consumerKey, consumer);
+        consumer = { events: [], incomplete: false, documentKey }; consumers.set(consumerKey, consumer);
       }
       const event = { sequence: stamp(), kind: value.kind, effect: value.effect,
         auth: AUTH.has(value.auth) ? value.auth : 'unknown',
         enabled: typeof value.enabled === 'boolean' ? value.enabled : null,
         status: integer(value.status, 599) && value.status >= 100 ? value.status : null };
+      if (value.kind === 'refusal_delivered') {
+        const scenario = activeScenario;
+        if (!scenario || value.refusal !== scenario.handle.token || event.status !== 401 || value.generation !== undefined) {
+          counts.observation_errors += 1; return;
+        }
+        if (scenario.delivery) scenario.invalid = true;
+        scenario.delivery = { consumer, documentKey, event };
+      }
       let target = consumer;
       if (value.generation !== undefined) {
         if (!integer(value.generation, 32) || value.generation === 0) { counts.observation_errors += 1; return; }
@@ -122,7 +186,7 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
         if (!target) {
           if (generations.size >= 32 || value.kind !== 'read_created') { counts.consumer_overflow += 1; return; }
           target = { alias: `generation-${generations.size + 1}`, owner: OWNERS.has(value.owner) ? value.owner : 'unknown',
-            consumer, effect: value.effect, connection, session, events: [], incomplete: false, ambiguous: false };
+            consumer, documentKey, effect: value.effect, connection, session, events: [], incomplete: false, ambiguous: false };
           generations.set(frame, target);
         } else if (target.consumer !== consumer || target.connection !== connection || target.session !== session ||
           target.owner !== value.owner || target.effect !== value.effect || value.kind === 'read_created') invalidate(target);
@@ -131,7 +195,7 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
       else target.events.push(event);
       bind();
     }); },
-    start(key, start, params) { guard(() => {
+    start(key, start, params, identity = null) { guard(() => {
       if (key && pins.has(key)) { invalidate(pins.get(key)); return; }
       if (start.phase !== PHASE || start.route !== ROUTE) return;
       if (!key) { counts.ambiguous += 1; return; }
@@ -146,7 +210,7 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
         frame.url.startsWith('webpack-internal:///(app-pages-browser)/') &&
         frame.url.endsWith('/components/delegated-work/use-delegated-codex-work-v0-1.ts'));
       const probeCallSite = callSites.some(frame => frame.url === 'augnes-project-experience-marked-probe-v1');
-      pins.set(key, { request: start.request, connection: start.connection, session: start.session,
+      const pin = { request: start.request, connection: start.connection, session: start.session,
         phase: start.phase, sequence: start.sequence, method: start.method, marker: marker(params.request?.headers),
         frame: unique.length === 1 && start.method === 'GET' ? unique[0] : null, generation: null,
         delegatedCallSite, probeCallSite,
@@ -154,7 +218,13 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
         ambiguous: start.ambiguous_request_id || params.redirectResponse != null || unique.length > 1,
         response: false, status: null, finished: false, failed: false, error: null, canceled: null,
         responseBeforeFailure: null, finishedBeforeFailure: null,
-        failurePhase: null, failureSequence: null });
+        failurePhase: null, failureSequence: null, scenario: activeScenario,
+        protocolIdentity: { connection: identity?.connection, session: identity?.session, request: params.requestId } };
+      pins.set(key, pin);
+      if (activeScenario) {
+        if (activeScenario.pin) activeScenario.invalid = true;
+        else activeScenario.pin = pin;
+      }
       bind();
     }); },
     protocol(key, event) { guard(() => {
@@ -165,8 +235,11 @@ export function createHostRoundTripPinsV1({ stamp, maxPins = 32 } = {}) {
       if (event.kind === 'response_received') {
         if (event.response_route !== ROUTE) { invalidate(pin); return; }
         if (pin.response || pin.failed) invalidate(pin);
-        pin.response = true; pin.status = event.status;
-      } else if (event.kind === 'loading_finished') pin.finished = true;
+        pin.response = true; pin.status = event.status; pin.responseSequence = event.sequence;
+      } else if (event.kind === 'loading_finished') {
+        if (pin.finished || pin.failed) invalidate(pin);
+        pin.finished = true;
+      }
       else if (event.kind === 'loading_failed') {
         if (pin.failed) invalidate(pin);
         pin.failed = true; pin.error = event.error; pin.canceled = event.canceled;

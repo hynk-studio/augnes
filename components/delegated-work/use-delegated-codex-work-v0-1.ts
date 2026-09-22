@@ -82,6 +82,8 @@ export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectEx
       }
     } catch (caught) {
       if (bodyReadPending) observation?.event("body_read_failed");
+      observation?.event(caught instanceof Error && caught.name === "AbortError" && abort.signal.aborted
+        ? "read_aborted" : "read_failed");
       if (!mountedRef.current || abort.signal.aborted) return;
       setStatus("unavailable");
       setError(

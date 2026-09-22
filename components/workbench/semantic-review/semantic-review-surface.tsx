@@ -146,6 +146,7 @@ export function SemanticReviewSurface({
       if (!privateReadGuard.current.isCurrentRead(read)) return;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
+          if (response.status === 401) requestDiagnostic?.refusalConsumed(response);
           setPrivateView(null);
           updateSessionState({
             status: "locked",

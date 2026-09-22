@@ -12,6 +12,7 @@ function install(channel, binding) {
       typeof window[binding] !== 'function') return;
     const documentAlias = crypto.randomUUID();
     const consumers = new WeakMap();
+    const refusalResponses = new WeakMap();
     let consumerCount = 0, generation = 0, emitted = 0;
     const safe = action => { try { return action(); } catch { return null; } };
     const send = fields => safe(() => {
@@ -38,12 +39,21 @@ function install(channel, binding) {
       }
       return Object.freeze({ fetch: invoke, event(kind, status) { safe(() => {
         if (!['response_headers_received', 'body_read_started', 'body_read_completed', 'body_read_failed',
-          'consumer_returned', 'consumer_disposed', 'cleanup_observed', 'abort_requested', 'abort_call_returned'].includes(kind)) return;
+          'consumer_returned', 'consumer_disposed', 'cleanup_observed', 'abort_requested', 'abort_call_returned',
+          'read_aborted', 'read_failed'].includes(kind)) return;
         emit(kind, status);
         if (kind === 'consumer_returned') controller?.signal.removeEventListener('abort', aborted);
       }); } });
     }
     Object.defineProperty(window, '__augnesProjectExperienceDiagnosticsV1', { value: Object.freeze({
+      // Only the scenario brands its exact synthetic Response. No header or
+      // response payload is added, and consumption by another consumer cannot
+      // supply the original consumer's refusal evidence.
+      sessionRefusal(response, token) { safe(() => {
+        if (response instanceof Response && response.status === 401 && /^[a-f0-9]{32}$/.test(token)) {
+          refusalResponses.set(response, token);
+        }
+      }); },
       consumer(instance) { return safe(() => {
         if (consumers.has(instance)) return consumers.get(instance);
         if (consumerCount >= 4) { send({ kind: 'overflow' }); return null; }
@@ -55,7 +65,13 @@ function install(channel, binding) {
           auth(value) { safe(() => { auth = authState(value); emit('auth_transition_requested'); }); },
           mount() { emit('consumer_mounted'); return () => emit('consumer_disposed'); },
           effectActive(enabled) { safe(() => { effect += 1; emit('effect_active', enabled); }); },
-          initialReadInvocation(active) { initial = active === true; },
+          initialReadInvocation(active) { initial = active === true; if (initial) emit('initial_read_invoked'); },
+          refusalConsumed(response) { safe(() => {
+            const refusal = refusalResponses.get(response);
+            if (!refusal || response.status !== 401) return;
+            refusalResponses.delete(response);
+            send({ consumer, effect, kind: 'refusal_delivered', auth, status: 401, refusal });
+          }); },
           beginRead(controller) { return safe(() => {
             const owner = initial ? 'delegated_work_initial_read' : 'delegated_work_refresh_or_poll';
             initial = false;

@@ -6,9 +6,8 @@ import { isSafeSourceProjectionMetadataV01 } from "@/lib/research-source/project
 import { selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
 import {
   CODEX_CURRENT_CONTINUITY_AUTHORITY_V01,
-  readCodexProjectContinuityV01,
+  readCodexCurrentContinuitySnapshotV01,
 } from "@/lib/vnext/codex-current-continuity/codex-current-continuity";
-import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
 import {
   resolveCodexRepositoryProjectV01,
   type CodexRepositoryContinuityDependenciesV01,
@@ -53,8 +52,8 @@ export async function readCodexRepositoryWorkSourcesV01(
       authority: CODEX_CURRENT_CONTINUITY_AUTHORITY_V01,
     };
     if (resolution.status !== "resolved_exact") return result;
-    const continuity = await readCodexProjectContinuityV01(db, {
-      project_id: resolution.project_id!,
+    const { projection: continuity, work_initialization: work } = await readCodexCurrentContinuitySnapshotV01(db, {
+      viewed_project_id: resolution.project_id!,
     }, dependencies);
     result.reason = "current_work_unavailable";
     if (continuity.snapshot.status !== "exact") return result;
@@ -68,13 +67,11 @@ export async function readCodexRepositoryWorkSourcesV01(
       continuity.current_work.currentness !== "fresh" ||
       continuity.project.root_availability !== "available"
     ) return result;
-    const work = readProjectWorkInitializationV01(db, {
-      workspace_id: resolution.workspace_id!,
-      project_id: resolution.project_id!,
-    }, { root_available: () => true });
-    if (!work.current_packet || !work.current_work) return result;
-    // This canonical reader has already reconstructed and validated each
-    // selected entry, its source binding, scope, lineage and whole-note limits.
+    if (!work?.current_packet || !work.current_work) return result;
+    // The snapshot owner already reconstructed and validated this exact work,
+    // including source scope, lineage, bindings and whole-note limits. Repeating
+    // that initialization scans every packet's lineage again and can exhaust
+    // the client deadline on an otherwise valid retained revision chain.
     const sources = projectSelectedWorkSourcesV01(work.selected_source_context ?? []);
     return {
       ...result,
