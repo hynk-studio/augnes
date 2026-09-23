@@ -80,17 +80,17 @@ export function freeze(directory: string) {
     cases: Object.keys(cases), archive_bytes: Object.values(archives).reduce((sum, x) => sum + x.bytes, 0) }));
 }
 
-export async function runProbe(directory: string, task: Task, probe: string) {
+export async function runProbe(directory: string, task: Task, probe: string, createResource = createCanonicalTestResourceRoot) {
   if (!Object.hasOwn(CASES[task].probes, probe)) return { status: "refused", code: "probe_not_allowlisted", executed: false };
   const frozen = readJSON(path.join(directory, "frozen.json"));
-  const resource = createCanonicalTestResourceRoot("ag-c02-");
-  const snapshot = path.join(resource.root, "source"); mkdirSync(snapshot);
   const archive = frozen.archives[CASES[task].ref];
   const content = readFileSync(path.join(directory, archive.name)); assert.equal(sha(content), archive.sha256);
   const probeBytes = readFileSync(path.join(directory, "authored/probe.ts")); assert.equal(sha(probeBytes), frozen.authored["probe.ts"]);
   const start = performance.now();
   let output = "", stderr = "";
+  const resource = createResource("ag-c02-");
   try {
+    const snapshot = path.join(resource.root, "source"); mkdirSync(snapshot);
     execFileSync("/usr/bin/tar", ["-x", "-C", snapshot], { input: content });
     symlinkSync(path.join(root, "node_modules"), path.join(snapshot, "node_modules"), "dir");
     const probeDir = path.join(snapshot, "scripts/conditional-procedure-learning"); mkdirSync(probeDir, { recursive: true });
@@ -126,8 +126,25 @@ export async function run(directory: string) {
   assert.equal(repo.head, frozen.repo.head); assert.equal(repo.branch, frozen.repo.branch);
   assert.deepEqual(runtimeIdentity(), frozen.runtime);
   for (const [name, hash] of Object.entries(frozen.authored)) assert.equal(sha(readFileSync(path.join(sourceDir, name))), hash);
+  return runJobs(directory, { ...frozen, frozen_sha256: sha(raw) }, input => {
+    for (const [name, hash] of Object.entries(frozen.authored)) assert.equal(sha(readFileSync(path.join(sourceDir, name))), hash);
+    for (const [name, hash] of Object.entries(frozen.owner_files)) assert.equal(sha(readFileSync(path.join(root, name))), hash);
+    assert.equal(git("rev-parse", "HEAD"), frozen.repo.head); assert.equal(git("branch", "--show-current"), frozen.repo.branch);
+    assert.deepEqual(runtimeIdentity(), frozen.runtime);
+    return nativeTurn(input);
+  });
+}
+
+// The fixed dispatcher accepts an explicit turn implementation so failure paths
+// can be exercised without selecting or starting a model host. Live entry stays
+// behind run()'s unchanged repository, source and runtime checks.
+export async function runJobs(directory: string, frozen: {
+  frozen_at: string; frozen_sha256: string; seed: string; seed_sha256: string;
+  cases: Record<string, { task: string; provenance: string; source: string; probes: Record<string, string>; probe_ids: string[] }>;
+  approved_instruction_hashes?: string[];
+}, executeTurn: (input: Parameters<typeof nativeTurn>[0]) => ReturnType<typeof nativeTurn>) {
   const executionStartedAt = new Date().toISOString();
-  save(path.join(directory, "execution-started.json"), { at: executionStartedAt, frozen_sha256: sha(raw) });
+  save(path.join(directory, "execution-started.json"), { at: executionStartedAt, frozen_sha256: frozen.frozen_sha256 });
   const budget = new TurnBudget();
   const memories = new Map<string, Memory>();
   const feedback = new Map<string, unknown>();
@@ -135,13 +152,9 @@ export async function run(directory: string) {
   let stopped = false;
   const started = performance.now();
   const invoke = async (job: Job, turn: number, files: Record<string, string>, memory?: string) => {
-    for (const [name, hash] of Object.entries(frozen.authored)) assert.equal(sha(readFileSync(path.join(sourceDir, name))), hash);
-    for (const [name, hash] of Object.entries(frozen.owner_files)) assert.equal(sha(readFileSync(path.join(root, name))), hash);
-    assert.equal(git("rev-parse", "HEAD"), frozen.repo.head); assert.equal(git("branch", "--show-current"), frozen.repo.branch);
-    assert.deepEqual(runtimeIdentity(), frozen.runtime);
     const turnDir = path.join(directory, `${job}-${turn}`); mkdirSync(turnDir);
     save(path.join(turnDir, "permitted-inputs.json"), files);
-    return nativeTurn({ files, memory, directory: turnDir, approved_instruction_hashes: frozen.approved_instruction_hashes,
+    return executeTurn({ files, memory, directory: turnDir, approved_instruction_hashes: frozen.approved_instruction_hashes,
       beforeStart() { budget.claim(job, turn); appendFileSync(path.join(directory, "initiated.jsonl"), JSON.stringify({ job, turn, at: new Date().toISOString() }) + "\n"); },
       onEvent(kind) { if (["turn_started", "terminal_observed", "settled"].includes(kind)) console.log(JSON.stringify({ job, turn, event: kind, consumed: budget.initiated.length })); },
     });
@@ -212,12 +225,15 @@ export async function run(directory: string) {
       execution_elapsed_ms: performance.now() - started, initiated_study_turns: budget.initiated.length,
       ledger: budget.initiated, stopped, disposition, provider_internal_rounds_tokens_cost: "unobserved" });
   }
+  if (stopped) throw new Error("study_stopped_inspect_local_evidence");
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, directory] = process.argv.slice(2);
+export async function runCli(args = process.argv.slice(2), execute = run) {
+  const [command, directory] = args;
   if (!directory || !path.isAbsolute(directory) || path.resolve(directory).startsWith(root + path.sep)) throw new Error("external_evidence_directory_required");
   if (command === "freeze") freeze(directory);
-  else if (command === "run") run(directory).catch(() => { console.error("study_stopped_inspect_local_evidence"); process.exitCode = 1; });
+  else if (command === "run") await execute(directory).catch(() => { console.error("study_stopped_inspect_local_evidence"); process.exitCode = 1; });
   else throw new Error("usage_freeze_or_run_external_evidence_directory");
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) void runCli();

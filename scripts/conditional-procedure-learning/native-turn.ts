@@ -39,11 +39,9 @@ export function approvedInstructions() {
 export async function nativeTurn(input: {
   files: Record<string, string>; memory?: string; directory: string; approved_instruction_hashes?: string[];
   beforeStart: () => void; onEvent?: (kind: string) => void;
-}) {
-  const resource = createCanonicalTestResourceRoot("ag-c01-");
-  const root = path.join(resource.root, "input"); mkdirSync(root);
-  const databasePath = path.join(resource.root, "study.db");
-  const db = new Database(databasePath);
+}, setup = { createResource: createCanonicalTestResourceRoot, openDatabase: (file: string) => new Database(file) }) {
+  let resource: ReturnType<typeof createCanonicalTestResourceRoot> | undefined;
+  let db: Database.Database | undefined;
   let config: VNextLocalOperatorPilotConfigV01 | undefined;
   let scope: Awaited<ReturnType<typeof createCodexScopedTaskV01>> | undefined;
   const sessions = new Set<string>();
@@ -52,6 +50,10 @@ export async function nativeTurn(input: {
   const audit: Record<string, unknown> = { started_at: new Date().toISOString(), study_initiated: false };
   const save = (name: string, value: unknown) => writeFileSync(path.join(input.directory, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx", mode: 0o600 });
   try {
+    resource = setup.createResource("ag-c01-");
+    const root = path.join(resource.root, "input"); mkdirSync(root);
+    const databasePath = path.join(resource.root, "study.db");
+    db = setup.openDatabase(databasePath);
     db.pragma("foreign_keys = ON"); applyCanonicalDatabaseMigrations(db);
     const workspace = getOrCreateDefaultWorkspaceIdentityV01(db);
     const registration = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: workspace.workspace_id,
@@ -155,16 +157,17 @@ export async function nativeTurn(input: {
     let scopeReleased = !scope;
     try {
       if (scope) { await releaseCodexScopedTaskV01(scope); scopeReleased = true; }
-      if (config) for (const session_id of sessions) revokeVNextLocalOperatorSessionByIdV01(db, { config, session_id });
+      if (db && config) for (const session_id of sessions) revokeVNextLocalOperatorSessionByIdV01(db, { config, session_id });
     } finally {
-      db.close();
-      // Never remove the source root while a scope refuses consumer settlement.
-      const cleanup: { completed: boolean; failure_count: number }[] = scopeReleased
-        ? cleanupCanonicalTestResources([resource]) : [{ completed: false, failure_count: 1 }];
-      audit.cleanup = cleanup.map(({ completed, failure_count }) => ({ completed, failure_count }));
-      audit.cleanup_ms = performance.now() - cleanupStart; audit.total_ms = performance.now() - startedAt;
-      save("lifecycle.json", { ...audit, observations });
-      assert(cleanup.every(x => x.completed), "study resources must be completely removed");
+      try { db?.close(); } finally {
+        // Never remove a source root with an unsettled scope or open database.
+        const cleanup: { completed: boolean; failure_count: number }[] = scopeReleased && !db?.open
+          ? cleanupCanonicalTestResources(resource ? [resource] : []) : [{ completed: false, failure_count: 1 }];
+        audit.cleanup = cleanup.map(({ completed, failure_count }) => ({ completed, failure_count }));
+        audit.cleanup_ms = performance.now() - cleanupStart; audit.total_ms = performance.now() - startedAt;
+        save("lifecycle.json", { ...audit, observations });
+        assert(cleanup.every(x => x.completed), "study resources must be completely removed");
+      }
     }
   }
 }
