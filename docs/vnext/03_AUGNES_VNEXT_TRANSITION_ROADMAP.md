@@ -510,6 +510,30 @@ labels and expert reference remain unknown. Live-host admission, policy
 selection, behavioral usefulness and the deferred resumption comparison are
 not established or authorized by this implementation.
 
+## P4.6 — Conditional procedure learning commissioning
+
+[#1320](https://github.com/hynk-studio/augnes/issues/1320) implements opt-in,
+versioned EXTRACT/APPLY/REVISE recipes and their bounded callable composition
+through existing selected-source, scoped-host, result and cleanup owners.
+The [frozen method and observed sequence](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+record nine applications and six memory jobs in 18 initiated study turns.
+Three chosen probes actually ran against disposable historical source; later
+source-only endpoints used no unnecessary second turn. One local procedure
+revision and one justified no-change were delivered to later tasks.
+
+The strong memo, frozen procedure and adaptive procedure reached the same
+supported endpoints. The specialized method has not earned its overhead here;
+online revision showed no additional behavioral value. Optional worker
+proposal-projection failures remain recorded separately from successful normal
+result-reader consumption. This is one case-author-reviewed sequence with
+declared historical/constructed provenance, not independent utility samples.
+
+Status is **Current while the linked Draft PR is open**, then **Completed only
+within this first executable commissioning slice** if merged. Broader P4.6/P4
+and general usefulness remain unestablished. No production memory store,
+default activation, learned selector, runtime permission, grant or Core meaning
+changes. #1150/#1319, #1314 and the deferred resumption study remain separate.
+
 ## P5.2 — Omitted-source recovery and condition-aware reuse
 
 [#1298](https://github.com/hynk-studio/augnes/issues/1298) owns one bounded

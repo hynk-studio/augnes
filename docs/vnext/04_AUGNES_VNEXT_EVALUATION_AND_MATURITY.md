@@ -304,6 +304,26 @@ unnecessary rereading, and common preparation separately from arm-specific
 burden. This is an application of the existing evaluation distinctions, not a
 new framework or authorization to execute a study or change a product default.
 
+### Conditional procedure adaptation (P4.6)
+
+The [first executable #1320 sequence](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+exercised extraction, application, one local revision, justified no-change and
+later consumption in 18 initiated study turns. Strong memo, frozen-procedure
+and adaptive-procedure arms reached the same supported endpoints. The
+specialized method has not earned its overhead in this sequence; revision
+showed no additional behavioral value. Valid lineage, delivery and software
+tests establish neither learning benefit nor superiority.
+
+F/A shared exact P0, so their first-task variation cannot demonstrate adaptation.
+Later comparisons concern complete histories, not an isolated updater effect.
+The seed is solved historical work, tasks include declared reconstructions and
+constructed variants, and the implementation agent also authored and reviewed
+the cases. Source-only findings are distinct from actual coordinator probes;
+optional proposal-projection failures remain distinct from normal result reads.
+No composite score, independent-blind evaluation, general transfer, production
+activation or broader maturity promotion follows. Sequence status remains
+owned by the roadmap.
+
 ### Repeated-handoff evaluation (P5.2)
 
 This bounded refinement belongs to the existing P5.2 scope in
