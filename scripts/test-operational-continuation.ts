@@ -35,7 +35,9 @@ import {
 import {
   readOperationalContinuationV01,
   rebuildOperationalContinuationFromDurableSourcesV01,
+  type OperationalContinuationReadRequestV01,
 } from "@/lib/vnext/runtime/operational-continuation-read-model";
+import { readOperationalOptionalInspectionV01 } from "@/lib/vnext/runtime/operational-optional-inspection";
 import {
   VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01,
   consumeVNextLocalOperatorBootstrapV01,
@@ -113,6 +115,18 @@ function main(): void {
   const databasePath = path.join(temporaryRoot, "operational-continuation.sqlite");
   const fixture = createFixtureV01(databasePath);
   try {
+    if (process.argv.includes("--optional-inspection-only")) {
+      assertQueryOnlyAdapterAndReportV01(fixture, temporaryRoot, true);
+      assert.equal(fetchCalls, 0);
+      console.log(JSON.stringify({
+        suite: "operational-optional-inspection-v0.1", status: "passed",
+        full_source_to_report_path: true, same_view_replay: true,
+        changed_view_refused: true, source_refusals_preserved: true,
+        mandatory_checks_preserved: true, live_authority_unobserved: true,
+        database_unchanged: true, network_calls: fetchCalls,
+      }));
+      return;
+    }
     assertPureMaterializationV01(fixture.input);
     assertDecisionAndSourceRefusalsV01(fixture.input);
     assertQueryOnlyAdapterAndReportV01(fixture, temporaryRoot);
@@ -560,6 +574,7 @@ function assertDecisionAndSourceRefusalsV01(
 function assertQueryOnlyAdapterAndReportV01(
   fixture: TestFixtureV01,
   temporaryRoot: string,
+  optionalInspection = false,
 ): void {
   const { db, input, source_fixture: sourceFixture } = fixture;
   const requests = sourceFixture.exact_source_records.map((source) => ({
@@ -581,6 +596,10 @@ function assertQueryOnlyAdapterAndReportV01(
   };
   assert.throws(
     () => readOperationalContinuationV01(db, request),
+    /operational_continuation_query_only_required/u,
+  );
+  assert.throws(
+    () => readOperationalOptionalInspectionV01(db, request),
     /operational_continuation_query_only_required/u,
   );
   const before = databaseCountSnapshotV01(db);
@@ -664,6 +683,7 @@ function assertQueryOnlyAdapterAndReportV01(
   const parsed = JSON.parse(json) as {
     result: typeof result;
   };
+  assert.equal(Object.hasOwn(parsed, "optional_inspection"), false);
   assert.deepEqual(parsed.result, result);
   assert.match(markdown, /# Operational Continuation Candidate/u);
   assert.match(markdown, /Persisted: false/u);
@@ -673,8 +693,119 @@ function assertQueryOnlyAdapterAndReportV01(
   assert.equal(markdown.includes(fixture.database_path), false);
   assert.equal(json.includes(temporaryRoot), false);
   assert.equal(markdown.includes(temporaryRoot), false);
+  if (optionalInspection) assertOptionalInspectionConsumerV01(fixture, request);
   assert.deepEqual(databaseCountSnapshotV01(db), before);
   assert.equal(db.serialize().equals(databaseImageBefore), true);
+}
+
+function assertOptionalInspectionConsumerV01(
+  fixture: TestFixtureV01,
+  request: OperationalContinuationReadRequestV01,
+): void {
+  const read = (candidates: readonly unknown[] = [], source = request) =>
+    readOperationalOptionalInspectionV01(fixture.db, source, candidates);
+  const offered = read();
+  const candidates = offered.scenario.available_candidates;
+  const before = canonicalizeProtocolValueV01({ request, candidates });
+  const observed = read(deepFreezeV01(cloneV01(candidates)));
+  assert.deepEqual(read(candidates), observed, "same-view replay is a pure read");
+  assert.equal(canonicalizeProtocolValueV01({ request, candidates }), before);
+  assert.deepEqual(observed.scenario.observations.map((row) => row.reason), [
+    "exact_available_detail", "no_additional_optional_inspection",
+  ]);
+  assert(observed.scenario.observations.every((row) => row.status === "admitted_for_observation"));
+  assert.equal(observed.scenario.executed, false);
+  assert.equal(observed.scenario.cost_labels, null);
+  assert.equal(observed.scenario.objective_labels, null);
+  assert.equal(observed.scenario.expert_reference, null);
+  const view = observed.scenario.view;
+  assert.equal(view.host.live_eligibility, "not_observed");
+  assert.equal(view.host.current_authority_revision, null);
+  assert.equal(view.host.current_grant_stop_conditions, null);
+  assert.equal(view.mandatory.optional_choice_satisfies_required_checks, false);
+  assert.deepEqual(view.mandatory.constraints,
+    observed.source_result.continuation.candidate_task_context_packet_b.constraints);
+  assert.deepEqual(view.mandatory.constraints.required_checks, fixture.input.packet_a.constraints.required_checks);
+  assert.deepEqual(view.mandatory.constraints.forbidden_actions, fixture.input.packet_a.constraints.forbidden_actions);
+  assert.deepEqual(view.mandatory.return_required_checks, fixture.input.packet_a.return_contract.required_checks);
+  assert.deepEqual(view.work_ref, fixture.input.packet_a.work_ref);
+  assert.deepEqual(view.source_currentness, observed.source_result.continuation.selection.source_currentness);
+  assert.deepEqual(view.uncertainties, observed.source_result.continuation.selection.uncertainties);
+  assertAllBooleanAuthorityFalseV01(view.authority);
+
+  // The advertised target exists through its named current owner. Admission
+  // itself never invokes an optional inspector or executes the candidate.
+  const detail = readOperationalFrictionProposalFromExactSourcesV01(
+    fixture.db, fixture.input.operational_friction_source,
+  );
+  assert.equal(detail?.proposal.proposal_id, candidates[0]!.target!.record_id);
+  assert.equal(detail?.proposal.integrity.fingerprint, candidates[0]!.target!.record_fingerprint);
+  const refusal = (candidate: unknown, reason: string) => {
+    const observation = read([candidate]).scenario.observations[0]!;
+    assert.deepEqual(observation, { candidate_index: 0, status: "refused", reason });
+  };
+  const inspect = candidates[0]!;
+  const proceed = candidates[1]!;
+  refusal(null, "malformed_candidate");
+  refusal({ ...inspect, rule_version: "retired-rule" }, "unsupported_rule");
+  refusal({ ...inspect, kind: "start" }, "unsupported_kind");
+  refusal({ ...inspect, target: null }, "malformed_candidate");
+  refusal({ ...proceed, target: inspect.target }, "malformed_candidate");
+  refusal({ ...inspect, target: { ...inspect.target, record_id: "foreign-or-missing" } }, "unavailable_target");
+  refusal({ ...inspect, target: { ...inspect.target, record_version: "retired" } }, "unavailable_target");
+  refusal({ ...inspect, target: { ...inspect.target, record_fingerprint: `sha256:${"0".repeat(64)}` } }, "unavailable_target");
+  const forbiddenFields = [
+    "accepted_state", "capability_grant", "resume_authority", "skip_identity",
+    "skip_required_checks", "current_root", "current_run", "current_generation",
+    "current_authority_revision", "future_outcome", "shell", "raw_prompt",
+    "raw_transcript", "hidden_reasoning", "secret", "private_path",
+  ];
+  for (let offset = 0; offset < forbiddenFields.length; offset += 2) {
+    const privateMaterial = "forbidden-caller-material";
+    const invalid = forbiddenFields.slice(offset, offset + 2)
+      .map((field) => ({ ...proceed, [field]: privateMaterial }));
+    const refused = read(invalid);
+    assert(refused.scenario.observations.every((row) =>
+      row.status === "refused" && row.reason === "malformed_candidate"));
+    assert.equal(JSON.stringify(refused).includes(privateMaterial), false);
+  }
+  assert.equal(read([inspect, inspect]).scenario.observations[1]!.reason, "duplicate_candidate");
+  assert.throws(() => read([inspect, inspect, inspect]), /candidate_bound_invalid/u);
+  // Rebuild first: neither alternative can use its old binding after a source
+  // selection or decision-boundary change, even though it makes no effects.
+  for (const changed of [
+    { ...request, max_selected_candidates: request.max_selected_candidates + 1 },
+    { ...request, decision_time_cutoff: "2026-07-20T00:00:00.000Z" },
+  ]) {
+    const stale = read(candidates, changed);
+    assert.notEqual(stale.scenario.view.fingerprint, view.fingerprint);
+    assert(stale.scenario.observations.every((row) => row.reason === "stale_view"));
+  }
+  for (const invalidSource of [
+    { ...request, project_id: "foreign-project" },
+    { ...request, decision_time_cutoff: "2020-01-01T00:00:00.000Z" },
+    { ...request, frames: request.frames.map((frame) => ({ ...frame, review_id: "missing-review" })) },
+    { ...request, frames: request.frames.map((frame) => ({ ...frame, review_fingerprint: `sha256:${"f".repeat(64)}` })) },
+    { ...request, future_outcome: "not-decision-time-source" },
+  ]) {
+    // Preserve each existing owner's exact refusal, without a parallel policy.
+    let expected: unknown;
+    try { readOperationalContinuationV01(fixture.db, invalidSource); } catch (error) { expected = error; }
+    assert(expected instanceof Error);
+    assert.throws(() => read(candidates, invalidSource), (error: unknown) =>
+      error instanceof Error && error.message === expected.message);
+  }
+  const report = JSON.parse(runOperationalContinuationReportV01({
+    ...request, database_path: fixture.database_path, format: "json",
+    optional_inspection_candidates: candidates,
+  }));
+  assert.deepEqual(report.optional_inspection, observed.scenario);
+  const markdown = runOperationalContinuationReportV01({
+    ...request, database_path: fixture.database_path, format: "markdown",
+    optional_inspection_candidates: candidates,
+  });
+  assert.match(markdown, /admitted_for_observation \(exact_available_detail\)/u);
+  assert.match(markdown, /Mandatory checks remain required/u);
 }
 
 function assertDisplayHistoryConsumerBoundaryV01(temporaryRoot: string): void {
