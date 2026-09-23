@@ -425,6 +425,30 @@ advantage and cross-task generalization remain unestablished. P4/P5, P2's
 bounded statuses and unestablished discovery/independent utility, and #1273's
 open/stopped disposition are unaffected.
 
+## P3 — September Borrowed Lamp research closeout
+
+The bounded continuity-generation sequence connected to the
+[2026-09-20 amendment](https://github.com/hynk-studio/augnes/issues/1213#issuecomment-5750335143)
+is **reported complete in the final research handoff**. Its
+[supporting closeout](../verification/P3_BORROWED_LAMP_RESEARCH_CLOSEOUT.md)
+separates handoff-only findings from independently checked repository records:
+one fictional case family, 16 consumed model-bearing research turns, 14 reported
+delivery-verified study slots and two failed attempts, not 16 utility samples.
+
+No product source change is justified. The bounded continuity/input-reduction
+observation establishes no general advantage, representation treatment effect,
+whole-route cost saving, autonomous maintenance or real-work usefulness. Direct
+human numerical creative review remains unperformed. P5.1's Narrow/no comparative
+G advantage and P5.2's cue-driven/no observed Augnes advantage remain unchanged.
+
+Documentation reconciliation is **Current while its linked Draft PR is open**
+and **Completed within this documentation scope after merge**; reported local
+research completion is distinct from that lifecycle. Broader P3 remains
+incomplete. The next decision is scoping one real development-task resumption-
+burden comparison with the smallest current-supported connection and a strong
+ordinary handoff baseline, not more Borrowed Lamp variants. That proposal grants
+no implementation, research execution, product-state or policy-change authority.
+
 ## P4.1 — Direct execution and static task recipe comparison
 
 [#1296](https://github.com/hynk-studio/augnes/issues/1296) owns this one bounded
