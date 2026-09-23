@@ -12,6 +12,7 @@ import {
   type OperationalContinuationReadRequestV01,
   type OperationalContinuationReadResultV01,
 } from "@/lib/vnext/runtime/operational-continuation-read-model";
+import { readOperationalOptionalInspectionV01 } from "@/lib/vnext/runtime/operational-optional-inspection";
 
 const MAX_STDIN_BYTES = 2 * 1024 * 1024;
 
@@ -21,12 +22,14 @@ export interface OperationalContinuationReportRequestV01
   extends OperationalContinuationReadRequestV01 {
   database_path: string;
   format: OperationalContinuationReportFormatV01;
+  optional_inspection_candidates?: readonly unknown[];
 }
 
 export interface OperationalContinuationReportV01 {
   report_version: "operational_continuation_report.v0.1";
   report_kind: "bounded_local_offline_query_only_candidate_material";
   result: OperationalContinuationReadResultV01;
+  optional_inspection?: ReturnType<typeof readOperationalOptionalInspectionV01>["scenario"];
   boundary: {
     selection_is_operational_policy: false;
     proposal_accept_is_activation: false;
@@ -58,7 +61,7 @@ export function runOperationalContinuationReportV01(
   });
   try {
     db.pragma("query_only = ON");
-    const result = readOperationalContinuationV01(db, {
+    const sourceRequest: OperationalContinuationReadRequestV01 = {
       workspace_id: request.workspace_id,
       project_id: request.project_id,
       operator_id: request.operator_id,
@@ -67,11 +70,16 @@ export function runOperationalContinuationReportV01(
       paired_evaluation: request.paired_evaluation,
       decision_time_cutoff: request.decision_time_cutoff,
       max_selected_candidates: request.max_selected_candidates,
-    });
+    };
+    const optionalInspection = request.optional_inspection_candidates === undefined
+      ? null
+      : readOperationalOptionalInspectionV01(db, sourceRequest, request.optional_inspection_candidates);
+    const result = optionalInspection?.source_result ?? readOperationalContinuationV01(db, sourceRequest);
     const report: OperationalContinuationReportV01 = {
       report_version: "operational_continuation_report.v0.1",
       report_kind: "bounded_local_offline_query_only_candidate_material",
       result,
+      ...(optionalInspection ? { optional_inspection: optionalInspection.scenario } : {}),
       boundary: {
         selection_is_operational_policy: false,
         proposal_accept_is_activation: false,
@@ -149,6 +157,16 @@ export function formatOperationalContinuationMarkdownV01(
     "",
     "Canonical order is determinism only, not rank, priority, utility, superiority, policy benefit, or winner selection. This selection is not policy, Evidence, accepted state, reviewed memory, command, approval, or Transition. Candidate Packet B is pure, non-durable, not current work, and grants no attachment, Start, Resume, provider, network, GitHub, publication, or merge authority.",
     "",
+    ...(report.optional_inspection ? [
+      "## Optional inspection observation",
+      "",
+      `- View fingerprint: ${report.optional_inspection.view.fingerprint}`,
+      `- Rule: ${report.optional_inspection.view.rule_version}`,
+      ...report.optional_inspection.observations.map((row) =>
+        `- Candidate ${row.candidate_index}: ${row.status} (${row.reason})`),
+      "- Mandatory checks remain required. No detail was inspected or execution authorized. Live host eligibility, objective/cost labels and usefulness are unobserved.",
+      "",
+    ] : []),
   ].join("\n");
 }
 
@@ -192,6 +210,7 @@ function parseCliV01(
     "paired_evaluation",
     "decision_time_cutoff",
     "max_selected_candidates",
+    "optional_inspection_candidates",
   ]);
   if (Object.keys(record).some((key) => !allowed.has(key))) {
     throw new Error("operational_continuation_unknown_field");
@@ -213,6 +232,9 @@ function parseCliV01(
       record.paired_evaluation as OperationalContinuationReadRequestV01["paired_evaluation"],
     decision_time_cutoff: record.decision_time_cutoff as string,
     max_selected_candidates: record.max_selected_candidates as number,
+    ...(Object.hasOwn(record, "optional_inspection_candidates")
+      ? { optional_inspection_candidates: record.optional_inspection_candidates as readonly unknown[] }
+      : {}),
   };
 }
 

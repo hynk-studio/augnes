@@ -483,6 +483,33 @@ reliable causal benefit remain unestablished. #1150 stays separate source-only
 work; no product default or policy is activated. P3 parent status, P5, Sites,
 P2 discovery/independent utility and stopped #1273 are unchanged.
 
+## P4.2 — Source-only optional inspection observation
+
+[#1150](https://github.com/hynk-studio/augnes/issues/1150) has a bounded offline
+vertical in
+[`readOperationalOptionalInspectionV01`](../../lib/vnext/runtime/operational-optional-inspection.ts).
+It reuses exact durable-source continuation reconstruction, the decision cutoff,
+operational-context selection and pure packet materialization. The small added
+connection binds two closed candidates to the reconstructed view: inspect the
+exact proposal through the existing exact-source reader, or proceed without extra
+optional inspection. Admission is an observation; mandatory identity,
+currentness, authority and task verification remain required.
+
+The existing
+[`operational-continuation:report`](../../scripts/operational-continuation-report.ts)
+consumer accepts optional `optional_inspection_candidates`: `[]` exposes the
+view and available candidates; submitting those candidates rebuilds sources and
+reports admission/refusal. Omitting the field preserves the original report.
+Same-view replay is an idempotent read; changed bindings refuse old candidates.
+No optional detail action, persistence, grant, Start or Resume occurs.
+
+This completes only the offline observation connection, not all of #1150 or
+P4.2. Live root/run/generation/authority eligibility and grant stop conditions
+are unobserved, not supplied by this historical reconstruction. Objective/cost
+labels and expert reference remain unknown. Live-host admission, policy
+selection, behavioral usefulness and the deferred resumption comparison are
+not established or authorized by this implementation.
+
 ## P5.2 — Omitted-source recovery and condition-aware reuse
 
 [#1298](https://github.com/hynk-studio/augnes/issues/1298) owns one bounded

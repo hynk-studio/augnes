@@ -186,6 +186,11 @@ const suites = {
       timeoutMs: 45_000,
     },
     {
+      label: "source-only optional inspection observation contract",
+      ...rootNode("scripts/test-operational-continuation.ts", "--optional-inspection-only"),
+      timeoutMs: 45_000,
+    },
+    {
       label:
         "authenticated source-linked continuation admission and fresh managed Start contract",
       ...rootNode("scripts/test-operational-continuation-admission.ts"),
