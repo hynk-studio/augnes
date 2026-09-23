@@ -270,6 +270,40 @@ These are prospective lessons from the
 They do not revise its frozen task, key, scores or records, reopen completed
 scopes, or authorize another comparison. Sequence remains owned by the roadmap.
 
+### Working-note continuity and input capacity
+
+The [September Borrowed Lamp closeout](../verification/P3_BORROWED_LAMP_RESEARCH_CLOSEOUT.md)
+adds a bounded, handoff-reported observation without changing P5.1/P5.2's negative
+comparative findings. Use strong ordinary notes/direct execution with normal
+source access as baselines. Equal substantive content is needed to distinguish
+representation from added information; semantic distinctions do not require
+mandatory headings, bullets or a fixed schema.
+
+Separate successful delivery, semantic-coherence evaluation, creative-quality
+evaluation and product usefulness. The recorded qualitative evaluator was
+ChatGPT; the user's acceptance of one rationale is not direct human numerical
+creative review. Sixteen model-bearing turns in one fictional case family are
+not sixteen independent utility samples. Failed attempts and retrospective
+reviews retain their separate status.
+
+One selected successful generated note's sufficiency for one continuation is
+neither its necessity nor general note reliability, autonomous maintenance or
+statistical equivalence. Reduced writer payload/input-capacity headroom is
+distinct from whole-route calls, compute, cost and latency; include preparation,
+note generation/review and any selector call separately. A single timing pair
+does not establish speedup or regression. Unobserved tokens, monetary cost,
+internal retries and backend identity remain unknown. Retain original evidence,
+corrections, source/time lineage and uncertainty even when originals leave active
+context; notes remain derived/candidate material.
+
+For a separately authorized real-work resumption comparison, giving both arms
+the same high-quality handoff would isolate a question about transmission,
+currentness recovery, coordination and repeated explanation, not automatic
+handoff quality. Count required current-source/safety checks separately from
+unnecessary rereading, and common preparation separately from arm-specific
+burden. This is an application of the existing evaluation distinctions, not a
+new framework or authorization to execute a study or change a product default.
+
 ### Repeated-handoff evaluation (P5.2)
 
 This bounded refinement belongs to the existing P5.2 scope in
