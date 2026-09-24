@@ -375,7 +375,7 @@ async function lookupRepositoryRetainedSourcesV01(companion, args) {
 /** Closed disclosure projection: canonical entries, query echoes and private
  * locator byte counts are deliberately not part of the client contract. */
 export function parseRepositoryRetainedSourcesResponseV01(value) {
-  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "lookup", "source_material_authority", "authority", ...(value.preparation ? ["preparation"] : [])]);
+  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "lookup", "source_material_authority", "authority"]);
   if (value.projection_version !== "codex_repository_retained_sources.v0.1" || value.source_material_authority !== "untrusted_selected_context" ||
     !["resolved_exact", "project_not_registered", "project_ambiguous", "root_unavailable", "repository_input_invalid"].includes(value.repository_resolution)) invalidContractV01();
   authorityV01(value.authority);
