@@ -387,6 +387,32 @@ next-action benefit, review burden, cost, and latency against the existing
 credible baseline. Blanket deferral and sending all history are not cost-free
 successes; deterministic fixtures do not establish live model usefulness.
 
+##### Conditional case: repeated derivatives and correction uptake
+
+Where the source-first check above finds a gap, consider one disposable paired
+case in which repeated derivatives of one source compete with a justified,
+source-bound correction. Hold substantive evidence, source timestamps, revision
+lineage and decision-time cutoff fixed across the repetition contrast. Copies
+must not add independent support, broaden applicability or confer authority.
+
+For example, copied notes broaden "X works under A" to "use X by default"; a
+reviewed correction restores A. Observe the next relevant check/action outside
+A and retention of still-supported use inside A. Neither restating the
+correction nor blanket rejection of earlier knowledge establishes uptake.
+
+Report correction availability, delivery into the successor's actual input and
+appropriate downstream use separately. Distinguish unsupported reuse, missed
+needed correction, needless loss of valid knowledge and added checks/user
+review. Unobserved behavior remains unknown; deterministic source/delivery
+tests do not establish live-model behavior or usefulness.
+
+Any separately authorized comparison must give the strong-note baseline the
+same substantive correction, source access and total budget, with preparation,
+repeated-input and retrieval costs included. This conditional P5.2/P5.4 case
+requires no swarm or new runtime mechanism. It does not authorize execution,
+reopen completed findings, change execution limits or add a completion gate to
+active implementation.
+
 These are evaluation-report distinctions, not new Core states or an obligation
 database. No new continuity score, automatic goal editor, standing model judge,
 UI, or runtime mechanism is required. Implementation and sequencing remain
