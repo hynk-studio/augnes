@@ -8,8 +8,13 @@ GitHub Actions execution is intentionally absent. No pull request, push,
 schedule, dispatch, reusable workflow, status fabrication, or other repository
 event may start or impersonate verification compute.
 
-The deciding surface is one completed local run for the exact proposed head on
-the authorized shared Mac. This policy records that environment and its
+For executable, operating-policy, data, authority, packaging, or other
+behavior-affecting changes, the deciding surface is one completed local run for
+the exact proposed head on the authorized shared Mac. Pure documentation-only
+changes are exempt from Local Canonical deciding execution and receipt
+requirements because they cannot alter runtime behavior. They still require
+ordinary source review and any lightweight static documentation checks warranted
+by the edited content. This policy records the Canonical environment and its
 limitations. It does not claim that local evidence is stronger than independent
 reproduction. Local Canonical does not publish evidence or write GitHub state;
 any separately authorized repository action remains outside verification.
@@ -35,7 +40,10 @@ GitHub remains source control, pull-request, review, and history infrastructure 
 
 ## Repository-owned entry points
 
-Use the stable executor commands:
+Use the stable executor commands for behavior-affecting changes. The
+documentation validator remains available as optional feedback for pure
+documentation changes, but running it is not a merge prerequisite and its
+receipt is not required:
 
 ```bash
 npm run verify:local:quick
@@ -108,7 +116,10 @@ node scripts/canonical-change-planner.mjs \
   --head <exact-head-sha>
 ```
 
-A `documentation-only` result runs only:
+A `documentation-only` planner result requires no Local Canonical deciding
+run and no receipt. Review the exact diff and run only content-appropriate
+lightweight checks when useful (for example Markdown/link/private-path
+validation). The existing validator remains available for optional feedback:
 
 ```bash
 node scripts/validate-canonical-docs-change.mjs \
@@ -117,8 +128,8 @@ node scripts/validate-canonical-docs-change.mjs \
 ```
 
 It does not install dependencies or run unrelated runtime suites. A planner
-classification failure or ambiguous/unsupported change fails closed to the
-complete surface.
+classification failure or ambiguous/unsupported change is not documentation-only
+and fails closed to the applicable behavior-affecting verification surface.
 
 An `operating-policy-only` result is available only for one safe regular-file
 modification of the root `AGENTS.md`. It runs the exact-head Markdown/private-
@@ -218,7 +229,8 @@ npm run test:operability:package
 ## Dependency and generated-state policy
 
 Quick treats installed dependencies as feedback inputs only. Documentation-only
-and operating-policy-only changed execution do not consult or replace them.
+changes require no Local Canonical execution. Operating-policy-only changed
+execution does not consult or replace installed dependencies.
 Owner-targeted and Full Canonical execution replace both installed
 `node_modules` trees through sequential `npm ci` operations bound to the exact
 committed root and nested lockfiles. The clean preparation phases precede every
@@ -248,8 +260,9 @@ exact prior Companion lifecycle. A previously live or starting exact-checkout
 Companion may create fresh exact-head runtime `.next` state after successful
 restoration to `live`; the receipt records that final observation separately,
 and it is not input to or
-residue from a deciding phase. Documentation-only and operating-policy-only
-execution remain dependency-light and do not touch `.next`. The executor never
+residue from a deciding phase. Optional documentation validation and
+operating-policy-only execution remain dependency-light and do not touch
+`.next`. The executor never
 uses broad `git clean` or deletes unrelated files. Existing Canonical children
 continue to own their bounded OS-temporary resources; the executor does not
 create another checkout or Git working copy.
