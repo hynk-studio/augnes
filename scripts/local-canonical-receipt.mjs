@@ -196,6 +196,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   }
   const mode = receipt?.evidence?.mode;
   const selectedPlan = receipt?.evidence?.selected_plan;
+  if (selectedPlan === "documentation-only") issues.push("documentation_feedback_not_deciding");
   if (mode === "changed" || mode === "full") {
     if (!validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
         Date.parse(receipt.integration_base?.observation?.observed_at) < Date.parse(receipt?.run?.started_at) ||

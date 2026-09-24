@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
+import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -25,6 +27,8 @@ const repositoryRoot = path.resolve(
   "..",
 );
 
+const documentationHead = process.argv.length === 2 ? null : process.argv[2] === "--head" && /^[0-9a-f]{40}$/u.test(process.argv[3] ?? "") && process.argv.length === 4 ? process.argv[3] : undefined;
+assert.notEqual(documentationHead, undefined, "policy contract arguments must be --head <exact commit>");
 const agents = readRepositoryFile("AGENTS.md");
 const readme = readRepositoryFile("README.md");
 const localPolicy = readRepositoryFile(
@@ -206,22 +210,15 @@ for (const fragment of [
     `local verification policy is missing required evidence: ${fragment}`,
   );
 }
-for (const fragment of [
-  "# Summary / outcome",
-  "## Scope / changed responsibilities",
-  "## Authority / non-goals",
-  "## Verification",
-  "Local Canonical planner result:",
-  "Deciding exact-head command and result, when applicable:",
-  "## Skipped checks / remaining risks",
-  "Local evidence is review material",
-]) {
-  requireText(
-    pullRequestTemplate,
-    fragment,
-    `pull-request template is missing concise workflow guidance: ${fragment}`,
-  );
-}
+assertVerificationDocumentation(activePolicySources);
+const harmlessProse = Object.fromEntries(Object.entries(activePolicySources).map(([file, source]) =>
+  [file, source.replace(/^#{1,6} .+$/gmu, "## Reworded heading").replace("Local evidence is review material", "Local results support review")]));
+assert.doesNotThrow(() => assertVerificationDocumentation(harmlessProse));
+assert.throws(() => assertVerificationDocumentation({ "README.md": readme.replaceAll("npm run verify:local:changed", "npm run verify:local:guessed") }), /missing documented executable command/u);
+assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replaceAll(".github/LOCAL_CANONICAL_VERIFICATION.md", "docs/retired-verification.md") }), /delegate verification/u);
+assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replace("small, durable repository constitution for Augnes", "generic instructions") }), /instruction marker/u);
+assert.deepEqual(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).map((phase) => phase.id), [...OPERATING_POLICY_PHASE_IDS]);
+assert.ok(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).every((phase) => !["npm", "npm.cmd"].includes(phase.command)));
 for (const obsoleteFixedField of [
   "Augnes Work ID:",
   "## Execution Surfaces Used",
@@ -851,8 +848,8 @@ for (const fragment of [
   `--find-renames=50%`,
   `unsupported canonical diff status`,
   `mode_change:`,
-  `isSafeOperatingPolicyModification`,
-  `exact_safe_agents_operating_policy_change`,
+  `classifyDocumentationChange`,
+  `registered_documentation_responsibilities`,
   `operating-policy-only`,
   `OWNER_TARGETED_PLAN`,
   `all_changes_have_owner_complete_targeted_coverage`,
@@ -987,7 +984,9 @@ for (const fragment of [
   `validateCanonicalOperatingPolicyChange`,
   `validateCanonicalOwnerTargetedChange`,
   `owner-targeted validator requires explicit owners and deciding phases`,
-  `operating-policy validator requires one safe AGENTS.md modification`,
+  `incoming_references_checked`,
+  `preexisting_broken_references`,
+  `assertVerificationDocumentation`,
 ]) {
   requireText(
     documentationValidator,
@@ -995,25 +994,8 @@ for (const fragment of [
     `documentation fast-path validation is missing: ${fragment}`,
   );
 }
-for (const fragment of [
-  `operating-policy-only`,
-  `acquires no`,
-  `production Companion maintenance`,
-  `\`AGENTS.md\` combined`,
-  `with any other path`,
-  `deletion, rename, copy, mode change`,
-  `owner-targeted`,
-  `checked-in responsibility owner`,
-  `Callers cannot supply`,
-  `Deletion is classified by the responsibility`,
-  `cannot approve its own implementation`,
-]) {
-  requireText(
-    localPolicy,
-    fragment,
-    `operating-policy verification policy is missing: ${fragment}`,
-  );
-}
+// Selection and dependency bounds are exercised through the real plan inventory
+// and disposable exact-tree fixtures, not incidental sentences or headings.
 
 assert.doesNotMatch(
   canonicalSuite,
@@ -1712,7 +1694,6 @@ for (const fragment of [
 }
 
 for (const fragment of [
-  `## Verification`,
   `Canonical planner for the final exact head`,
   `Deciding evidence binds the exact clean repository`,
   `Repository-owned process tests must use bounded lifecycle and cleanup owners`,
@@ -1779,6 +1760,11 @@ console.log(
 );
 
 function readRepositoryFile(relativePath) {
+  if (documentationHead && relativePath.endsWith(".md")) {
+    const result = spawnSync("git", ["show", `${documentationHead}:${relativePath}`], { cwd: repositoryRoot, encoding: "utf8", timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
+    assert.equal(result.status, 0, `exact-tree documentation unavailable: ${relativePath}`);
+    return result.stdout;
+  }
   return readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 

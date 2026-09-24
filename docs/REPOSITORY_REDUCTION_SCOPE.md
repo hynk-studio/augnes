@@ -81,7 +81,11 @@ material, the reviewable change must provide:
 8. **Rollback proof** — how a failed migration or replacement is refused,
    reversed, restored, or otherwise recovered without losing current state.
 9. **Verification proof** — focused owner checks plus the repository-owned
-   planner's deciding verification for the clean exact final head.
+   planner's deciding verification for the clean exact final head when applicable.
+   A proven pure-document disposition uses exact-tree incoming-reference and
+   owner/consumer checks under [Local Canonical policy](../.github/LOCAL_CANONICAL_VERIFICATION.md),
+   not unrelated runtime qualification. Record unresolved dynamic, external,
+   authority, or retention obligations; a search with no matches is not proof.
 
 If a proof category is genuinely inapplicable, record why. Silence is not an
 inapplicability finding.

@@ -56,16 +56,16 @@ const baseReceipt = {
     mode: "changed",
     planner_event: "pull_request",
     planner_status: "pass",
-    planner_plan: "documentation-only",
-    planner_reason: "all_changes_match_documentation_allowlist",
+    planner_plan: "operating-policy-only",
+    planner_reason: "registered_documentation_responsibilities",
     planner_change_count: 1,
     planner_changed_paths: ["README.md"],
     planner_full_reasons: [],
     planner_error_code: null,
-    planner_owner_ids: ["documentation"],
+    planner_owner_ids: ["repository-verification-documentation"],
     planner_targeted_phase_ids: [],
     planner_browser_phase_ids: [],
-    selected_plan: "documentation-only",
+    selected_plan: "operating-policy-only",
     deciding: true,
     transferable: true,
     worktree_policy: "clean_exact_head_candidate",
@@ -101,7 +101,7 @@ const baseReceipt = {
     },
   },
   dependencies: {
-    policy: "documentation_only_no_dependency_install",
+    policy: "operating_policy_only_no_dependency_install",
     download_cache: "npm_cache_reuse_permitted_not_authoritative",
     installed_trees: "not_deciding_authority",
     root_lock_sha256: "3".repeat(64),
@@ -120,7 +120,7 @@ const baseReceipt = {
   },
   phases: [
     {
-      id: "documentation-validator",
+      id: "operating-policy-validator",
       label: "exact-head documentation validator",
       command:
         `node scripts/validate-canonical-docs-change.mjs --base ${"1".repeat(40)} --head ${"2".repeat(40)}`,
@@ -141,7 +141,7 @@ const baseReceipt = {
       },
       log: {
         relative_path:
-          ".augnes-local-verification/logs/run/documentation-validator.log",
+          ".augnes-local-verification/logs/run/operating-policy-validator.log",
         bytes: 100,
         truncated: false,
       },
@@ -194,6 +194,9 @@ const baseReceipt = {
   },
 };
 
+const policyPhaseIds = ["operating-policy-validator", "operating-policy-planner-contract", "operating-policy-executor-contract", "operating-policy-receipt-contract", "operating-policy-verification-contract"];
+baseReceipt.phases = policyPhaseIds.map((id) => ({ ...structuredClone(baseReceipt.phases[0]), id }));
+
 assert.equal(
   canonicalSerialize({ z: 1, a: { d: 2, c: 3 } }),
   '{"a":{"c":3,"d":2},"z":1}',
@@ -230,10 +233,10 @@ const validContext = {
     nested: "4".repeat(64),
   },
   currentExecutorFingerprint: "5".repeat(64),
-  expectedSelectedPlan: "documentation-only",
-  expectedOwnerIds: ["documentation"],
+  expectedSelectedPlan: "operating-policy-only",
+  expectedOwnerIds: ["repository-verification-documentation"],
   expectedTargetedPhaseIds: [],
-  expectedPhaseIds: ["documentation-validator"],
+  expectedPhaseIds: policyPhaseIds,
   currentEnvironment: {
     machine_fingerprint: "a".repeat(32),
     operating_system: "macOS",
@@ -297,6 +300,13 @@ for (const [current, issue] of [
 ]) {
   assert(inspectReceiptForDecision(finalized, { ...validContext, currentIntegrationBase: current }).issues.includes(issue));
 }
+
+const documentationFeedback = structuredClone(baseReceipt);
+documentationFeedback.evidence.selected_plan = "documentation-only";
+documentationFeedback.evidence.planner_plan = "documentation-only";
+assert(inspectReceiptForDecision(finalizeReceipt(documentationFeedback), {
+  ...validContext, expectedSelectedPlan: "documentation-only",
+}).issues.includes("documentation_feedback_not_deciding"), "static documentation feedback cannot impersonate deciding evidence even with a forged deciding flag");
 
 const operatingPolicyReceipt = structuredClone(baseReceipt);
 operatingPolicyReceipt.evidence.planner_plan = "operating-policy-only";
@@ -696,14 +706,14 @@ for (const [name, mutate, issue] of [
       receipt.phases[0].status = "not_run";
       receipt.phases[0].exit_status = null;
     },
-    "phase_not_passing:documentation-validator",
+    "phase_not_passing:operating-policy-validator",
   ],
   [
     "phase-timeout",
     (receipt) => {
       receipt.phases[0].timed_out = true;
     },
-    "phase_not_passing:documentation-validator",
+    "phase_not_passing:operating-policy-validator",
   ],
   [
     "phase-failed",
@@ -711,7 +721,7 @@ for (const [name, mutate, issue] of [
       receipt.phases[0].status = "failure";
       receipt.phases[0].exit_status = 1;
     },
-    "phase_not_passing:documentation-validator",
+    "phase_not_passing:operating-policy-validator",
   ],
   [
     "phase-cleanup-incomplete",
@@ -719,7 +729,7 @@ for (const [name, mutate, issue] of [
       receipt.phases[0].cleanup.completed = false;
       receipt.phases[0].cleanup.remaining_owned_processes = 1;
     },
-    "phase_not_passing:documentation-validator",
+    "phase_not_passing:operating-policy-validator",
   ],
   [
     "final-cleanup-incomplete",
@@ -873,6 +883,7 @@ console.log(
       owner_targeted_generated_next_cleanup_failure_refused: true,
       restored_service_generated_next_separate_from_execution_provenance: true,
       incomplete_failed_timed_out_and_cleanup_incomplete_refused: true,
+      documentation_feedback_cannot_be_deciding: true,
       quick_dirty_explicitly_non_deciding: true,
       canonical_node_mismatch_refused: true,
     },

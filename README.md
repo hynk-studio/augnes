@@ -373,6 +373,11 @@ npm run verify:local:receipt -- \
   --receipt .augnes-local-verification/receipts/<receipt>.json
 ```
 
+Ordinary explanatory documentation is exempt from deciding execution and receipts;
+review the exact diff and use content-appropriate checks. Authority/contract docs
+and documentation dispositions use the bounded static checks and consumer review
+in the Local Canonical policy. Static checks do not qualify runtime behavior.
+
 `quick` is non-deciding developer feedback. `changed` runs the exact-SHA
 planner-selected lane. `full` deliberately runs the complete surface. Deciding
 verification requires the exact clean head, repository-required Node/npm

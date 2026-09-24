@@ -306,5 +306,76 @@
         ]
       }
     }
+  ],
+  "documentation_owners": [
+    {
+      "id": "repository-verification-documentation",
+      "paths": [
+        "AGENTS.md",
+        "README.md",
+        ".github/LOCAL_CANONICAL_VERIFICATION.md",
+        ".github/pull_request_template.md",
+        "docs/REPOSITORY_REDUCTION_SCOPE.md",
+        "docs/CANONICAL_BROWSER_VERIFICATION_OWNERSHIP_V1.md"
+      ],
+      "checks": [
+        "verification-policy"
+      ],
+      "consumer_paths": [
+        "scripts/test-local-canonical-verification-contract.mjs",
+        "scripts/augnes-codex-doctor.mjs",
+        "scripts/lib/codex-augnes-user-hook-installer-common.mjs",
+        ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
+        ".codex/hooks/augnes-operator-session-start.mjs",
+        "lib/state/brief.ts",
+        ".gitignore",
+        "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+        "lib/vnext/native-host/codex-scoped-task.ts",
+        "scripts/conditional-procedure-learning/native-turn.ts",
+        "scripts/fixtures/fake-codex-app-server.mjs",
+        "scripts/test-c8-semantic-visual-contract.mjs",
+        "scripts/test-codex-app-server-sandbox-projection.ts",
+        "scripts/test-codex-candidate-canary-binding.ts",
+        "scripts/test-codex-repository-continuity.ts",
+        "scripts/test-distributable-package.mjs",
+        "scripts/test-operational-continuation-admission.ts",
+        "scripts/test-repository-execution-attachment.ts",
+        "scripts/test-repository-managed-delegation.ts",
+        "scripts/test-runtime-operability.mjs",
+        "scripts/test-vnext-codex-current-continuity.ts",
+        "scripts/vnext-protocol-conformance.ts",
+        "apps/augnes_apps/AGENTS.md",
+        "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+        "plugins/augnes-operator/skills/augnes-closeout-proof/SKILL.md",
+        "plugins/augnes-operator/skills/augnes-codex-surface-ops/SKILL.md",
+        "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md"
+      ],
+      "disposition": "full",
+      "consumer_scope": "Policy contract, doctor file-presence checks, repository instruction marker readers, suggested-file context, and incidental names in disposable repository/CODEX_HOME/font fixtures. Only regular in-place changes are admitted; these readers do not grant deletion or semantic authority. Nested App instructions reference their own README and AGENTS heading. Operator skills delegate root-policy authority or show changed-file examples; wording/authority review remains required, with no new executable consumer."
+    },
+    {
+      "id": "active-authority-documentation",
+      "paths": [
+        "docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md",
+        "docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md",
+        "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md",
+        "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md"
+      ],
+      "checks": [],
+      "consumer_paths": [
+        "fixtures/vnext/protocol/task-context-packet-v0-1.ts"
+      ],
+      "disposition": "full"
+    },
+    {
+      "id": "explanatory-verification-history",
+      "paths": [
+        "docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md"
+      ],
+      "checks": [],
+      "consumer_paths": [],
+      "disposition": "references",
+      "consumer_scope": "Supporting analysis only; Local Canonical policy links it as an audit record, not delegated authority. docs/ is excluded by the distributable payload owner. No retained runtime, data, package, agent-instruction or external compatibility obligation was found in the bounded source/owner review. Disposition still requires exact-tree incoming references and explicit consumer/retention review."
+    }
   ]
 }
