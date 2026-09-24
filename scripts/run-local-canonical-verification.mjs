@@ -452,10 +452,8 @@ export async function executeLocalCanonicalVerification({
     targetedPhaseIds: plan.planner_targeted_phase_ids,
   });
   const phaseReceipts = phaseDefinitions.map(notRunPhaseReceipt);
-  const serviceLifecycleBefore = boundedLifecycleState(
-    await inspectCompanionService({ repositoryRoot }),
-  );
-  let serviceLifecycleAfter = serviceLifecycleBefore;
+  let serviceLifecycleBefore = null;
+  let serviceLifecycleAfter = null;
   let dependencyMaintenance = null;
   let dependencyMaintenanceRelease = null;
   const preflightIssues = integrationBase?.status === "refused"
@@ -528,13 +526,13 @@ export async function executeLocalCanonicalVerification({
     failure_code: null,
   };
   const nextState = {
-    present_before: generatedNextEntryPresent(),
+    present_before: null,
     removed_before_execution: false,
     removed_after_execution: false,
   };
   const windowsHelperState = {
     required: process.platform === "win32" && process.arch === "x64",
-    present_before: existsSync(generatedWindowsHelperRoot),
+    present_before: null,
     removed_before_execution: false,
     removed_after_execution: false,
   };
@@ -547,10 +545,10 @@ export async function executeLocalCanonicalVerification({
   let checkoutConsumersSettled = true;
   let generatedNextPresentAfterExecutionCleanup = nextState.present_before;
   let generatedNextPresentAfter = nextState.present_before;
+  let generatedWindowsHelperPresentAfter = null;
 
   try {
     if (!executionFailure) {
-      ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
       if (checkoutOwnership.required) {
         checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot });
         Object.assign(checkoutOwnership, {
@@ -568,8 +566,22 @@ export async function executeLocalCanonicalVerification({
           repositoryRoot,
           operationId: `local-canonical-dependencies:${runId}`,
         });
+        // The maintenance owner supplies the lifecycle it will restore, as
+        // observed after checkout acquisition. An earlier snapshot can be stale.
+        serviceLifecycleBefore = dependencyMaintenance.before;
+      } else {
+        serviceLifecycleBefore = boundedLifecycleState(
+          await inspectCompanionService({ repositoryRoot }),
+        );
       }
       sharedGeneratedStateOwned = checkoutOwner !== null;
+      if (sharedGeneratedStateOwned) {
+        assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+        // These are the authoritative baselines, after both required owners.
+        // Refused/unowned attempts leave them null rather than claiming absence.
+        nextState.present_before = generatedNextEntryPresent();
+        windowsHelperState.present_before = existsSync(generatedWindowsHelperRoot);
+      }
       if (generatedNextManaged && nextState.present_before) {
         nextState.removed_before_execution = removeBoundedGeneratedNextState({ checkoutOwner });
         console.log(
@@ -588,6 +600,8 @@ export async function executeLocalCanonicalVerification({
           "[local-canonical] cleanup generated=native/windows-x64 action=removed_before_execution",
         );
       }
+      // Refused checkout contenders need a receipt, but have no phase logs.
+      ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
         execute: async (phase) => {
@@ -647,21 +661,13 @@ export async function executeLocalCanonicalVerification({
           cleanupReason = safeErrorCode(error);
         }
       }
-      generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
+      if (sharedGeneratedStateOwned) {
+        assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+        generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
+      }
       if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
         cleanupComplete = false;
         cleanupReason ??= "generated_next_cleanup_incomplete";
-      }
-      if (checkoutConsumersSettled && dependencyMaintenance && !dependencyMaintenanceRelease) {
-        try {
-          dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
-            repositoryRoot,
-            lease: dependencyMaintenance.lease,
-          });
-        } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
-        }
       }
       if (
         sharedGeneratedStateOwned &&
@@ -679,12 +685,25 @@ export async function executeLocalCanonicalVerification({
           cleanupReason = safeErrorCode(error);
         }
       }
+      if (checkoutConsumersSettled && dependencyMaintenance && !dependencyMaintenanceRelease) {
+        try {
+          dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
+            repositoryRoot,
+            lease: dependencyMaintenance.lease,
+          });
+        } catch (error) {
+          cleanupComplete = false;
+          cleanupReason = safeErrorCode(error);
+        }
+      }
       try {
         // A refused contender cannot prune the active owner's logs. Static
         // feedback leaves pruning to the next checkout-owned invocation.
         if (checkoutOwner) {
           assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
           enforceArtifactRetention({
+            checkoutOwner,
+            currentRunId: runId,
             receiptMaximum: RECEIPT_RETENTION - 1,
             logMaximum: LOG_RUN_RETENTION,
           });
@@ -693,10 +712,16 @@ export async function executeLocalCanonicalVerification({
         cleanupComplete = false;
         cleanupReason = safeErrorCode(error);
       }
-      serviceLifecycleAfter = boundedLifecycleState(
-        await inspectCompanionService({ repositoryRoot }),
-      );
-      generatedNextPresentAfter = generatedNextEntryPresent();
+      if (serviceLifecycleBefore !== null) {
+        serviceLifecycleAfter = boundedLifecycleState(
+          await inspectCompanionService({ repositoryRoot }),
+        );
+      }
+      if (sharedGeneratedStateOwned) {
+        assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+        generatedNextPresentAfter = generatedNextEntryPresent();
+        generatedWindowsHelperPresentAfter = existsSync(generatedWindowsHelperRoot);
+      }
     } catch (error) {
       cleanupComplete = false;
       cleanupReason = safeErrorCode(error);
@@ -732,7 +757,7 @@ export async function executeLocalCanonicalVerification({
     ? "unknown"
     : "0";
   console.log(
-    `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present_after_execution_cleanup=${generatedNextPresentAfterExecutionCleanup} generated_next_present_after_service_restore=${generatedNextPresentAfter} generated_windows_helper_present=${existsSync(generatedWindowsHelperRoot)}`,
+    `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present_after_execution_cleanup=${generatedNextPresentAfterExecutionCleanup} generated_next_present_after_service_restore=${generatedNextPresentAfter} generated_windows_helper_present=${generatedWindowsHelperPresentAfter}`,
   );
 
   let identityAfter;
@@ -923,7 +948,7 @@ export async function executeLocalCanonicalVerification({
       },
       generated_windows_helper: {
         ...windowsHelperState,
-        present_after: existsSync(generatedWindowsHelperRoot),
+        present_after: generatedWindowsHelperPresentAfter,
       },
       artifact_retention: {
         receipt_files: RECEIPT_RETENTION,
@@ -960,6 +985,7 @@ export async function executeLocalCanonicalVerification({
 }
 
 function lifecycleStateRestored(before, after) {
+  if (!before || !after) return false;
   if (before.status === "live" || before.status === "starting") {
     return after.status === "live";
   }
@@ -1663,19 +1689,34 @@ function resolveArtifactPath(relativeReceiptPath) {
   return realReceiptPath;
 }
 
-function enforceArtifactRetention({
+export function enforceArtifactRetention({
+  root = repositoryRoot,
+  checkoutOwner,
+  currentRunId,
   receiptMaximum = RECEIPT_RETENTION,
   logMaximum = LOG_RUN_RETENTION,
 } = {}) {
-  ensureBoundedLocalDirectory(repositoryRoot, receiptRoot);
-  ensureBoundedLocalDirectory(repositoryRoot, logRoot);
-  retainNewestFiles(receiptRoot, receiptMaximum, (entry) =>
+  assertCheckoutVerificationOwnership(checkoutOwner, root);
+  if (!/^[A-Za-z0-9_-]{1,160}$/u.test(currentRunId ?? "") ||
+      !Number.isSafeInteger(receiptMaximum) || receiptMaximum < 0 ||
+      !Number.isSafeInteger(logMaximum) || logMaximum < 1) {
+    throw Object.assign(new Error("invalid artifact retention boundary"), {
+      code: "invalid_artifact_retention_boundary",
+    });
+  }
+  const receipts = path.join(root, LOCAL_ARTIFACT_DIRECTORY, "receipts");
+  const logs = path.join(root, LOCAL_ARTIFACT_DIRECTORY, "logs");
+  ensureBoundedLocalDirectory(root, receipts);
+  ensureBoundedLocalDirectory(root, logs);
+  retainNewestFiles(receipts, receiptMaximum, (entry) =>
     entry.isFile() && entry.name.endsWith(".json"),
   );
-  retainNewestFiles(logRoot, logMaximum, (entry) => entry.isDirectory());
+  retainNewestFiles(logs, logMaximum, (entry) => entry.isDirectory(), {
+    protectedEntry: path.join(logs, currentRunId),
+  });
 }
 
-function retainNewestFiles(root, maximum, include) {
+function retainNewestFiles(root, maximum, include, { protectedEntry = null } = {}) {
   if (!existsSync(root)) return;
   const ownedEntries = readdirSync(root, { withFileTypes: true })
     .filter(include)
@@ -1687,7 +1728,11 @@ function retainNewestFiles(root, maximum, include) {
       };
     })
     .sort((left, right) => right.modified - left.modified);
-  for (const entry of ownedEntries.slice(maximum)) {
+  // The current run counts toward the bound, regardless of mtime. Newer
+  // feedback/failed attempts must never evict the logs its receipt references.
+  const protectedCount = ownedEntries.filter((entry) => entry.entryPath === protectedEntry).length;
+  const eligible = ownedEntries.filter((entry) => entry.entryPath !== protectedEntry);
+  for (const entry of eligible.slice(maximum - protectedCount)) {
     rmSync(entry.entryPath, { recursive: true, force: true });
   }
 }

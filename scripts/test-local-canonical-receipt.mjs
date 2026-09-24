@@ -507,6 +507,15 @@ assert(
   }).issues.includes("receipt_stale_lockfiles"),
 );
 const targetedPreexistingGeneratedState = structuredClone(targetedReceipt);
+const targetedUnobservedGeneratedState = structuredClone(targetedReceipt);
+targetedUnobservedGeneratedState.cleanup.generated_next.present_before = null;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedUnobservedGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+  "an unobserved/refused pre-execution baseline is not evidence of absence",
+);
 targetedPreexistingGeneratedState.cleanup.generated_next.present_before = true;
 targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution =
   false;
@@ -515,6 +524,12 @@ assert(
     finalizeReceipt(targetedPreexistingGeneratedState),
     targetedContext,
   ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution = true;
+assert.equal(
+  inspectReceiptForDecision(finalizeReceipt(targetedPreexistingGeneratedState), targetedContext).valid_deciding_evidence,
+  true,
+  "the authoritative present-and-removed baseline survives finalization and validation",
 );
 const targetedGeneratedStateSurvived = structuredClone(targetedReceipt);
 targetedGeneratedStateSurvived.cleanup.generated_next.present_after_execution_cleanup =

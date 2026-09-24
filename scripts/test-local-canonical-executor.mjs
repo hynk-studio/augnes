@@ -12,6 +12,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,6 +26,7 @@ import {
   assertCommitExists,
   assertDecidingEnvironment,
   assertExactSha,
+  ensureBoundedLocalDirectory,
   evaluateNodePolicy,
 } from "./local-canonical-environment.mjs";
 import {
@@ -39,6 +41,7 @@ import {
   RESOURCE_EXCLUSIVE_PHASE_IDS,
   buildPhasePlan,
   admitAndResolveVerificationPlan,
+  enforceArtifactRetention,
   evaluateWorktreePolicy,
   generatedNextEntryPresent,
   isPostExecutionIdentityValid,
@@ -823,17 +826,30 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "pre_lock_state_race", "maintenance_state_race"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   try {
     if (scenario === "checkout_busy") competingOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
     const next = path.join(root, ".next"), windows = path.join(root, "windows-helper");
-    mkdirSync(next); writeFileSync(path.join(next, "live-build"), "pre-existing build");
-    mkdirSync(windows); writeFileSync(path.join(windows, "live-helper"), "pre-existing helper");
-    const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0 };
+    const runLogRoot = path.join(root, ".augnes-local-verification", "logs", "synthetic");
+    const createSharedState = () => {
+      mkdirSync(next); writeFileSync(path.join(next, "live-build"), "pre-existing build");
+      mkdirSync(windows); writeFileSync(path.join(windows, "live-helper"), "pre-existing helper");
+    };
+    const racingState = ["pre_lock_state_race", "maintenance_state_race"].includes(scenario);
+    if (!racingState) createSharedState();
+    const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
+    const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
     const quick = scenario === "quick_success";
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
+    let activeOwner = null;
+    let maintenanceSettled = false;
+    let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
+    const assertObservationOwned = () => {
+      assertCheckoutVerificationOwnership(activeOwner, root);
+      assert(quick || maintenanceSettled, "authoritative generated-state reads follow maintenance admission");
+    };
     const preflightIssues = [];
     if (scenario === "wrong_npm") {
       try {
@@ -844,23 +860,62 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
     const context = {
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
       preflightIssues, phaseDefinitions: [{ id: "synthetic" }], phaseReceipts: [{ id: "synthetic", status: "not_run" }],
-      repositoryRoot: root, runLogRoot: root, runId: "synthetic", mode: "changed", hostResult: {},
+      repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
       process: { platform: "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
-      dependencyMaintenance: null, dependencyMaintenanceRelease: null, serviceLifecycleAfter: null,
-      console: { log() {}, error() {} }, RECEIPT_RETENTION: 20, LOG_RUN_RETENTION: 20,
-      managesGeneratedNextState, generatedNextEntryPresent: () => existsSync(next), existsSync,
+      dependencyMaintenance: null, dependencyMaintenanceRelease: null, serviceLifecycleBefore: null, serviceLifecycleAfter: null,
+      console: { log() {}, error() {} }, RECEIPT_RETENTION: 20, LOG_RUN_RETENTION: 5,
+      managesGeneratedNextState,
+      generatedNextEntryPresent: () => { assertObservationOwned(); return existsSync(next); },
+      existsSync: (candidate) => { if (candidate === windows) assertObservationOwned(); return existsSync(candidate); },
       requiresCheckoutVerificationOwnership, assertCheckoutVerificationOwnership,
-      acquireCheckoutVerificationOwnership: (options) => { calls.checkoutAcquire++; return acquireCheckoutVerificationOwnership(options); },
+      acquireCheckoutVerificationOwnership: (options) => {
+        calls.checkoutAcquire++;
+        if (scenario === "pre_lock_state_race") {
+          // Owner A creates state after B's diagnostic snapshot, then releases.
+          const priorOwner = acquireCheckoutVerificationOwnership(options);
+          try { createSharedState(); serviceState = { status: "live" }; }
+          finally { releaseCheckoutVerificationOwnership(priorOwner, root); }
+        }
+        activeOwner = acquireCheckoutVerificationOwnership(options);
+        return activeOwner;
+      },
       releaseCheckoutVerificationOwnership: (owner, repository, options) => { calls.checkoutRelease++; return releaseCheckoutVerificationOwnership(owner, repository, options); },
       removeBoundedGeneratedNextState: ({ checkoutOwner }) => { calls.remove++; return removeBoundedGeneratedNextState({ root, checkoutOwner }); },
       rmSync: (p, options) => { assert.equal(p, windows); calls.remove++; rmSync(p, options); },
-      ensureBoundedLocalDirectory() {}, enforceArtifactRetention() {},
+      ensureBoundedLocalDirectory: (repository, candidate) => {
+        assertCheckoutVerificationOwnership(activeOwner, root);
+        calls.logPrepare++;
+        return ensureBoundedLocalDirectory(repository, candidate);
+      },
+      enforceArtifactRetention: (options) => {
+        calls.prune++;
+        assert.equal(options.currentRunId, "synthetic");
+        return enforceArtifactRetention({ ...options, root });
+      },
       safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
-      inspectCompanionService: async () => ({ status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : "live" }),
-      acquireCompanionServiceMaintenance: async () => { calls.acquire++; if (scenario === "acquisition_failure") throw Object.assign(new Error(), { code: "synthetic_acquisition_failure" }); return { acquired: !noServiceMaintenance, lease: noServiceMaintenance ? null : {} }; },
-      releaseCompanionServiceMaintenance: async () => { calls.release++; return { released: true }; },
+      inspectCompanionService: async () => structuredClone(serviceState),
+      acquireCompanionServiceMaintenance: async () => {
+        assertCheckoutVerificationOwnership(activeOwner, root);
+        calls.acquire++;
+        if (scenario === "acquisition_failure") throw Object.assign(new Error(), { code: "synthetic_acquisition_failure" });
+        // Service-generated state may appear while maintenance is pausing it.
+        if (scenario === "maintenance_state_race") createSharedState();
+        maintenanceSettled = true;
+        const before = structuredClone(serviceState);
+        if (!noServiceMaintenance) serviceState = { status: "maintenance" };
+        return { acquired: !noServiceMaintenance, before, lease: noServiceMaintenance ? null : { before } };
+      },
+      releaseCompanionServiceMaintenance: async ({ lease }) => {
+        calls.release++;
+        assert.equal(existsSync(next), false, "Next cleanup precedes service restoration");
+        assert.equal(existsSync(windows), false, "helper cleanup precedes service restoration");
+        if (lease) serviceState = lease.before;
+        return { released: true };
+      },
       runPhasesSequentially, executePhase: async () => {
         assert.throws(() => acquireCheckoutVerificationOwnership({ repositoryRoot: root }), hasCode("checkout_owner_busy"));
+        assert.equal(existsSync(next), quick, "deciding execution starts without pre-existing Next state");
+        assert.equal(existsSync(windows), quick, "deciding execution starts without pre-existing helper state");
         calls.phases++; mkdirSync(next, { recursive: true }); writeFileSync(path.join(next, "partial-build"), "owned");
         mkdirSync(windows, { recursive: true }); writeFileSync(path.join(windows, "partial-helper"), "owned");
         return { status: ["owned_failure", "unsettled_failure"].includes(scenario) ? "fail" : "pass",
@@ -868,12 +923,17 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
           cleanup: { completed: scenario !== "unsettled_failure", remaining_owned_processes: scenario === "unsettled_failure" ? null : 0 } };
       },
     };
-    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership }; ")(...Object.values(context));
+    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
     if (["wrong_npm", "checkout_busy", "acquisition_failure"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
       assert.equal(result.nextState.removed_after_execution, false);
       assert.equal(result.windowsHelperState.removed_after_execution, false);
+      assert.equal(result.nextState.present_before, null);
+      assert.equal(result.windowsHelperState.present_before, null);
+      assert.equal(result.serviceLifecycleBefore, null);
+      assert.equal(calls.logPrepare, 0);
+      assert.equal(existsSync(runLogRoot), false, "refused attempts have no phase-log directory");
       assert.equal(readFileSync(path.join(next, "live-build"), "utf8"), "pre-existing build");
       assert.equal(readFileSync(path.join(windows, "live-helper"), "utf8"), "pre-existing helper");
       assert.equal(calls.acquire, scenario === "acquisition_failure" ? 1 : 0);
@@ -893,16 +953,69 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
       assert.equal(result.windowsHelperState.removed_after_execution, !quick && !unsettled);
       assert.equal(existsSync(next), quick || unsettled); assert.equal(existsSync(windows), quick || unsettled);
       assert.equal(result.executionFailure, scenario === "owned_failure" || unsettled);
+      assert.equal(result.nextState.present_before, true);
+      assert.equal(result.windowsHelperState.present_before, true);
+      assert.equal(result.generatedWindowsHelperPresentAfter, quick || unsettled);
+      assert.equal(calls.logPrepare, 1);
+      assert.equal(existsSync(runLogRoot), true, "retention preserves this run's phase logs");
+      if (racingState) {
+        assert.deepEqual(diagnosticBeforeLock, { next: false, windows: false });
+        assert.equal(result.nextState.removed_before_execution, true);
+        assert.equal(result.windowsHelperState.removed_before_execution, true);
+        assert.deepEqual(result.serviceLifecycleBefore, { status: "live" });
+        assert.deepEqual(result.serviceLifecycleAfter, { status: "live" });
+        const receipt = finalizeReceipt({ cleanup: { generated_next: result.nextState,
+          generated_windows_helper: result.windowsHelperState,
+          companion_service: { before: result.serviceLifecycleBefore, after: result.serviceLifecycleAfter } } });
+        assert.equal(verifyReceiptIntegrity(receipt), true);
+        assert.equal(receipt.cleanup.generated_next.present_before, true);
+      }
       if (unsettled) assert.equal(result.checkoutOwnership.failure_code, "checkout_owner_consumers_unsettled");
     }
     const acquired = !["wrong_npm", "checkout_busy"].includes(scenario);
     assert.equal(calls.checkoutRelease, acquired ? 1 : 0);
+    assert.equal(calls.prune, acquired ? 1 : 0, "a refused/non-owner invocation never prunes artifacts");
     assert.equal(result.checkoutOwnership.released, acquired && scenario !== "unsettled_failure");
     assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure"].includes(scenario));
   } finally {
     if (competingOwner) releaseCheckoutVerificationOwnership(competingOwner, root);
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+const retentionRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-log-retention-")));
+const retentionOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: retentionRoot });
+try {
+  const logs = path.join(retentionRoot, ".augnes-local-verification", "logs");
+  const receipts = path.join(retentionRoot, ".augnes-local-verification", "receipts");
+  const active = path.join(logs, "current-run");
+  mkdirSync(active, { recursive: true });
+  writeFileSync(path.join(active, "phase.log"), "current run evidence");
+  utimesSync(active, 1, 1);
+  mkdirSync(receipts);
+  for (let index = 0; index < 8; index++) {
+    const newer = path.join(logs, `newer-${index}`);
+    mkdirSync(newer); utimesSync(newer, index + 2, index + 2);
+    const failedReceipt = path.join(receipts, `failed-${index}.json`);
+    writeFileSync(failedReceipt, JSON.stringify(finalizeReceipt({ final: { result: "failure" } })));
+    utimesSync(failedReceipt, index + 2, index + 2);
+  }
+  const retentionOptions = { root: retentionRoot, currentRunId: "current-run", logMaximum: 5, receiptMaximum: 3 };
+  assert.throws(() => enforceArtifactRetention(retentionOptions), hasCode("checkout_owner_not_owned"));
+  assert.equal(readdirSync(logs).length, 9);
+  assert.throws(() => enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner, currentRunId: "../escape" }), hasCode("invalid_artifact_retention_boundary"));
+  enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner });
+  assert.equal(readFileSync(path.join(active, "phase.log"), "utf8"), "current run evidence");
+  assert.deepEqual(readdirSync(logs).sort(), ["current-run", "newer-4", "newer-5", "newer-6", "newer-7"]);
+  assert.deepEqual(readdirSync(receipts).sort(), ["failed-5.json", "failed-6.json", "failed-7.json"]);
+  for (const file of readdirSync(receipts)) {
+    const receipt = JSON.parse(readFileSync(path.join(receipts, file), "utf8"));
+    assert.equal(receipt.final.result, "failure");
+    assert.equal(verifyReceiptIntegrity(receipt), true);
+  }
+} finally {
+  releaseCheckoutVerificationOwnership(retentionOwner, retentionRoot);
+  rmSync(retentionRoot, { recursive: true, force: true });
 }
 
 assert.deepEqual(listWorkflowFiles(), []);
@@ -946,6 +1059,9 @@ console.log(
       owner_targeted_preexisting_and_generated_next_removed: true,
       generated_next_path_and_symlink_safety_fail_closed: true,
       generated_next_cleanup_precedes_companion_restoration: true,
+      generated_state_observed_after_checkout_and_maintenance: true,
+      current_run_logs_protected_within_retention_bound: true,
+      refused_contenders_preserve_receipts_without_phase_logs: true,
       owner_targeted_arbitrary_phase_selection_refused: true,
       owner_targeted_browser_phase_exact_head_bound: true,
       full_phase_inventory_complete: true,

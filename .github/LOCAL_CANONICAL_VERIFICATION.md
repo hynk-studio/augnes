@@ -257,6 +257,14 @@ It spans dependency use/replacement, generated-state cleanup, and Companion
 restoration. Companion maintenance still owns service pause/restoration and is
 not the checkout exclusion mechanism.
 
+Authoritative generated-state baselines are observed only after checkout
+acquisition and, for owner-targeted/Full, successful Companion maintenance
+admission. The maintenance owner's own `before` observation defines the lifecycle
+to restore. Root `.next` and generated Windows-helper cleanup use these in-owner
+observations; unobserved/refused baselines remain `null`, not an asserted absence.
+Both generated-state cleanup steps precede service restoration, and final shared
+state is captured before checkout release.
+
 The owner records only the contract, repository identity, opaque physical-checkout
 fingerprint, random invocation identity, PID, hashed process birth identity, and
 acquisition time. The executor retains an open file identity and a process-local
@@ -394,6 +402,10 @@ they are execution artifacts, may become stale, and are not source authority.
 Retention pruning runs only while holding the checkout owner; refused contenders
 and dependency-light feedback never prune an active owner's artifacts. The next
 checkout-owned invocation applies the existing retention bounds.
+The current run's log directory is explicitly protected regardless of mtime and
+counts toward the five-directory bound; only the remaining slots use newest-first
+retention. Refused checkout acquisition creates no phase-log directory and still
+writes a failed-attempt receipt.
 
 The public-safe receipt includes:
 
