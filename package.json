@@ -63,6 +63,7 @@
     "test:operator-execution-effect-ledger": "node scripts/test-operator-execution-effect-ledger-v1.mjs",
     "test:browser-verification-owners": "node scripts/test-browser-verification-owners.mjs",
     "test:project-work-initialization": "node --import tsx scripts/test-vnext-project-work-initialization.ts",
+    "test:conditional-procedure-learning": "node --import tsx scripts/test-conditional-procedure-learning.ts",
     "test:codex-current-continuity": "node --import tsx scripts/test-vnext-codex-current-continuity.ts",
     "test:codex-qualified-runtime-registry": "node --import tsx scripts/test-codex-qualified-runtime-registry.ts",
     "test:codex-managed-runtime-store": "node --import tsx scripts/test-codex-managed-runtime-store.ts",

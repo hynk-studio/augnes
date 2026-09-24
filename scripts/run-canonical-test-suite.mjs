@@ -142,6 +142,11 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      label: "conditional procedure recipes, lineage, limits and disposable probes (zero model)",
+      ...rootNode("scripts/test-conditional-procedure-learning.ts"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "public first-read artifact privacy and semantic parity",
       ...rootNode("scripts/test-public-first-read.ts"),
       timeoutMs: 30_000,
