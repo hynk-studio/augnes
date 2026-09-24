@@ -260,8 +260,9 @@ exact prior Companion lifecycle. A previously live or starting exact-checkout
 Companion may create fresh exact-head runtime `.next` state after successful
 restoration to `live`; the receipt records that final observation separately,
 and it is not input to or
-residue from a deciding phase. Optional documentation validation and operating-policy-only execution remain
-dependency-light and do not touch `.next`. The executor never
+residue from a deciding phase. Optional documentation validation and
+operating-policy-only execution remain dependency-light and do not touch
+`.next`. The executor never
 uses broad `git clean` or deletes unrelated files. Existing Canonical children
 continue to own their bounded OS-temporary resources; the executor does not
 create another checkout or Git working copy.
