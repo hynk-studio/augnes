@@ -217,6 +217,7 @@ assert.doesNotThrow(() => assertVerificationDocumentation(harmlessProse));
 assert.throws(() => assertVerificationDocumentation({ "README.md": readme.replaceAll("npm run verify:local:changed", "npm run verify:local:guessed") }), /missing documented executable command/u);
 assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replaceAll(".github/LOCAL_CANONICAL_VERIFICATION.md", "docs/retired-verification.md") }), /delegate verification/u);
 assert.throws(() => assertVerificationDocumentation({ "AGENTS.md": agents.replace("small, durable repository constitution for Augnes", "generic instructions") }), /instruction marker/u);
+assert.throws(() => assertVerificationDocumentation({ ".github/pull_request_template.md": pullRequestTemplate.replace("https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md", "LOCAL_CANONICAL_VERIFICATION.md") }), /absolute URL usable in copied PR text/u);
 assert.deepEqual(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).map((phase) => phase.id), [...OPERATING_POLICY_PHASE_IDS]);
 assert.ok(buildPhasePlan({ mode: "changed", selectedPlan: "operating-policy-only", baseSha: "1".repeat(40), headSha: "2".repeat(40) }).every((phase) => !["npm", "npm.cmd"].includes(phase.command)));
 for (const obsoleteFixedField of [

@@ -258,7 +258,8 @@ export function assertVerificationDocumentation(sources) {
       }
     }
     if (file === ".github/pull_request_template.md") {
-      assert.ok(extractMarkdownDestinations(source).includes("LOCAL_CANONICAL_VERIFICATION.md"), "PR template must delegate verification applicability");
+      // GitHub copies this text into a PR body, without the template's file context.
+      assert.ok(extractMarkdownDestinations(source).includes("https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md"), "PR template must delegate verification applicability with an absolute URL usable in copied PR text");
     }
   }
 }
