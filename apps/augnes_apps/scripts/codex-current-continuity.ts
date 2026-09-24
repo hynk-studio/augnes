@@ -55,6 +55,7 @@ export const ProjectionSchema = z.object({
     lineage_kind: z.enum([
       "initial_user_defined",
       "pre_execution_user_revision",
+      "pre_execution_new_task",
       "authored_successor_task",
       "semantic_transition",
       "source_linked_operational_continuation",
@@ -62,6 +63,7 @@ export const ProjectionSchema = z.object({
     currentness: z.enum(["fresh", "stale", "unavailable_or_ambiguous", "not_available"]),
     start_eligible: z.boolean(),
     start_blocker: NullableStringSchema,
+    previous_preparation: z.object({ goal: z.string(), packet_fingerprint: z.string().regex(/^sha256:[a-f0-9]{64}$/u), marked_complete: z.literal(false) }).strict().optional(),
     revision_eligible: z.boolean(),
     revision_blocker: NullableStringSchema,
   }).strict(),

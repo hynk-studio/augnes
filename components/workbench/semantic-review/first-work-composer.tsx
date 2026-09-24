@@ -23,8 +23,8 @@ export function FirstWorkComposer({
 }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
-  onSave: (definition: ProjectWorkDefinitionV01, selection?: SelectedWorkSourceSelection) => Promise<void>;
-  mode?: "initial" | "revision";
+  onSave: (definition: ProjectWorkDefinitionV01, selection?: SelectedWorkSourceSelection, omissions?: Array<{ source_binding: string; reason: string }>) => Promise<void>;
+  mode?: "initial" | "revision" | "new_task";
   initialDefinition?: ProjectWorkDefinitionV01;
   onCancel?: () => void;
 }) {
@@ -46,12 +46,16 @@ export function FirstWorkComposer({
     }),
     [criteriaText, goal, nonGoalsText],
   );
+  const [omissionReasons, setOmissionReasons] = useState<Record<string, string>>({});
+  const omitted = mode === "new_task" ? (initialization.selected_source_context ?? []).filter(entry =>
+    !sourceSelection?.selected_source_context.some(selected => selected.source_ref === entry.source_ref)) : [];
+  const selectionPending = sourcesPending || (mode === "new_task" && (!sourceSelection || omitted.some(entry => !omissionReasons[entry.source_ref!]?.trim())));
   const issues = validationIssuesV01(definition);
   const unchanged =
     mode === "revision" &&
     initialDefinition !== undefined &&
     sameDefinitionV01(definition, initialDefinition) && sourceSelection === null;
-  const prefix = mode === "revision" ? "work-revision" : "first-work";
+  const prefix = mode === "new_task" ? "new-work" : mode === "revision" ? "work-revision" : "first-work";
 
   useEffect(() => {
     if (mode === "initial" && window.location.hash !== "#first-work") return;
@@ -74,13 +78,13 @@ export function FirstWorkComposer({
     >
       <div className={styles.panelHeader}>
         <p className={styles.kicker}>
-          {mode === "revision" ? "Current project work" : "First project work"}
+          {mode !== "initial" ? "Current project work" : "First project work"}
         </p>
         <h2 id={`${prefix}-title`}>
-          {mode === "revision" ? "Revise work definition" : "Define the first work"}
+          {mode === "new_task" ? "Prepare a different task" : mode === "revision" ? "Revise work definition" : "Define the first work"}
         </h2>
         <p className={styles.copy}>
-          {mode === "revision"
+          {mode === "new_task" ? "Declare a different task and explicitly select its context. The prior work stays in history and is not marked complete. Nothing starts execution." : mode === "revision"
             ? "Save an append-only revision before work starts. This does not start Codex or change project files."
             : "Save one goal and the criteria that will show success. This does not start Codex or change project files."}
         </p>
@@ -90,8 +94,8 @@ export function FirstWorkComposer({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (issues.length > 0 || busy || unchanged || sourcesPending) return;
-          void onSave(definition, sourceSelection ?? undefined);
+          if (issues.length > 0 || busy || unchanged || selectionPending) return;
+          void onSave(definition, sourceSelection ?? undefined, omitted.map(entry => ({ source_binding: entry.source_ref!, reason: omissionReasons[entry.source_ref!].trim() })));
         }}
       >
         <label htmlFor={`${prefix}-goal`}>Goal</label>
@@ -142,20 +146,25 @@ export function FirstWorkComposer({
             {issues[0]!.message}
           </p>
         ) : null}
-        {mode === "revision" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy}
+        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"}
           onChange={(selection, pending) => { setSourceSelection(selection); setSourcesPending(pending); }} /> : null}
+        {mode === "new_task" && omitted.map(entry => <label key={entry.entry_id}>
+          Why omit this note? {entry.bounded_summary}
+          <input maxLength={500} value={omissionReasons[entry.source_ref!] ?? ""}
+            onChange={event => setOmissionReasons({ ...omissionReasons, [entry.source_ref!]: event.target.value })} />
+        </label>)}
         <div className={styles.buttonRow}>
           <button
             type="submit"
             className={styles.button}
-            disabled={issues.length > 0 || busy || unchanged || sourcesPending}
+            disabled={issues.length > 0 || busy || unchanged || selectionPending}
             data-first-work-action={mode === "initial" ? "save" : undefined}
             data-work-revision-action={mode === "revision" ? "save" : undefined}
             data-augnes-primary-action={
-              mode === "revision" ? "save-work-revision" : "save-first-work"
+              mode === "new_task" ? "preview-new-work" : mode === "revision" ? "save-work-revision" : "save-first-work"
             }
           >
-            {busy
+            {mode === "new_task" ? busy ? "Preparing preview…" : "Preview different task" : busy
               ? mode === "revision"
                 ? "Saving revision…"
                 : "Saving first work…"
@@ -163,7 +172,7 @@ export function FirstWorkComposer({
                 ? "Save revision"
                 : "Save first work"}
           </button>
-          {mode === "revision" ? (
+          {mode !== "initial" ? (
             <button
               type="button"
               className={styles.secondaryButton}

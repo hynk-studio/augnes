@@ -494,6 +494,7 @@ function readCurrentWorkV01(
       currentness,
       start_eligible: startBlocker === null,
       start_blocker: startBlocker,
+      ...(initialization.previous_preparation ? { previous_preparation: initialization.previous_preparation } : {}),
       revision_eligible: revisionEligibility.eligible,
       revision_blocker: revisionEligibility.eligible
         ? null
@@ -1327,7 +1328,14 @@ export function assertCodexCurrentContinuityV01(
   ]);
   assertExactKeysV01(projection.snapshot, ["binding_version", "algorithm", "status", "binding"]);
   assertExactKeysV01(projection.project, ["status", "project_key", "display_name", "active", "selection_revision", "root_availability"]);
-  assertExactKeysV01(projection.current_work, ["status", "goal", "success_criteria", "non_goals", "lineage_kind", "currentness", "start_eligible", "start_blocker", "revision_eligible", "revision_blocker"]);
+  assertExactKeysV01(projection.current_work, ["status", "goal", "success_criteria", "non_goals", "lineage_kind", "currentness", "start_eligible", "start_blocker", "revision_eligible", "revision_blocker", ...(projection.current_work.previous_preparation ? ["previous_preparation"] : [])]);
+  const previous = projection.current_work.previous_preparation;
+  if (previous) {
+    assertExactKeysV01(previous, ["goal", "packet_fingerprint", "marked_complete"]);
+    if (typeof previous.goal !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(previous.packet_fingerprint) || previous.marked_complete !== false) {
+      throw new Error("codex_current_continuity_preparation_invalid");
+    }
+  }
   assertExactKeysV01(projection.managed_execution, ["stage", "mode", "latest_checkpoint", "blocker_or_attention", "attention_required", "reconciliation_required", "result_available", "updated_at"]);
   assertExactKeysV01(projection.latest_result, ["state", "currentness", "outcome", "execution_status", "verification_status", "summary", "recorded_at", "artifacts", "checks", "skipped_checks", "blockers", "warnings", "gaps", "incomplete_historical_fields", "review_attention", "proposed_next_steps"]);
   assertExactKeysV01(projection.review_continuity, ["state", "summary", "decision_kind", "transition_currentness"]);

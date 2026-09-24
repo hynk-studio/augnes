@@ -1,3 +1,4 @@
+import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -29,16 +30,24 @@ export interface CompanionWorkChannelV01 {
 
 export function parseRepositoryWorkRevisionInputV01(value: unknown): RepositoryWorkRevisionInputV01 {
   const input = object(value);
-  const keys = ["action", "repository_root", "expected_snapshot_binding", "changes", ...(input.action === "save" ? ["preview_binding"] : [])];
+  const keys = [...(input.intent === "new_task" ? ["intent"] : []), "action", "repository_root", "expected_snapshot_binding", "changes", ...(input.action === "save" ? ["preview_binding"] : [])];
   exact(input, keys);
   if (!["preview", "save"].includes(String(input.action)) || typeof input.repository_root !== "string" ||
     !path.isAbsolute(input.repository_root) || input.repository_root.includes("\0") || !fingerprint(input.expected_snapshot_binding) ||
     (input.action === "save" && !fingerprint(input.preview_binding))) refuse("invalid_revision_input", 400);
   const changes = object(input.changes);
+  if (input.intent === "new_task") {
+    exact(changes, ["goal", "success_criteria", "non_goals", "sources"]);
+    if (changes.sources === undefined) refuse("invalid_source_changes", 422);
+  }
   only(changes, ["goal", "success_criteria", "non_goals", "sources"]);
   if (changes.sources !== undefined) {
     const sources = object(changes.sources);
-    only(sources, ["add", "replace", "deselect", "retained_source_refs"]);
+    if (input.intent === "new_task") {
+      only(sources, ["keep", "add", "omitted_sources"]);
+      if (!Array.isArray(sources.keep) || !Array.isArray(sources.omitted_sources)) refuse("invalid_source_changes", 422);
+      for (const binding of sources.keep) if (!fingerprint(binding)) refuse("invalid_source_binding", 422);
+    } else only(sources, ["add", "replace", "deselect", "retained_source_refs"]);
     for (const key of Object.keys(sources)) if (!Array.isArray(sources[key])) refuse("invalid_source_changes", 422);
     for (const replacement of (sources.replace ?? []) as unknown[]) {
       const row = object(replacement); exact(row, ["source_binding", "note"]);
@@ -61,6 +70,7 @@ export async function reviseCodexRepositoryWorkV01(
   if (!channel.key || !channel.instance_id || !channel.generation_id || !channel.repository_fingerprint) refuse("companion_unavailable", 503);
   if (db.inTransaction) refuse("work_revision_transaction_conflict");
   db.exec(input.action === "save" ? "BEGIN IMMEDIATE" : "BEGIN");
+  let stale = false;
   try {
     const resolution = await resolveCodexRepositoryProjectV01(db, input, dependencies);
     if (resolution.status !== "resolved_exact") refuse("repository_unresolved");
@@ -72,7 +82,7 @@ export async function reviseCodexRepositoryWorkV01(
       continuity.current_work.currentness !== "fresh" || continuity.project.root_availability !== "available") refuse("current_work_unavailable");
     const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
     const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
-    const stale = continuity.snapshot.binding !== input.expected_snapshot_binding;
+    stale = continuity.snapshot.binding !== input.expected_snapshot_binding;
     if (input.action === "preview" && stale) refuse("refresh_required");
     if (!eligibility.eligible && !(input.action === "save" && stale && eligibility.status === "revision_limit_reached")) refuse("work_revision_not_eligible");
     // Only the validated immediate predecessor is even considered for a replay.
@@ -87,12 +97,14 @@ export async function reviseCodexRepositoryWorkV01(
     // preview, matching the atomic writer's immediate-predecessor cutoff.
     const cutoff = chain.packets.findIndex((packet) => packet.packet_id === basis.packet_id);
     const retained = resolveRetainedWorkSources({ ...chain, packets: chain.packets.slice(0, cutoff + 1) }, operations.retained_source_refs ?? []);
+    if (input.intent === "new_task" && (new Set(operations.keep).size !== operations.keep!.length ||
+      operations.keep!.some(binding => !previous.some(entry => entry.source_ref === binding)))) refuse("source_binding_changed");
     const removed = [...(operations.deselect ?? []), ...(operations.replace ?? []).map((row) => row.source_binding)];
     if (new Set(removed).size !== removed.length || removed.some((binding) => !previous.some((entry) => entry.source_ref === binding))) {
       refuse("source_binding_changed", 409);
     }
     const selected = normalizeSelectedWorkSources(scope, [
-      ...previous.filter((entry) => !removed.includes(entry.source_ref!)),
+      ...previous.filter((entry) => input.intent === "new_task" ? operations.keep!.includes(entry.source_ref!) : !removed.includes(entry.source_ref!)),
       ...(operations.add ?? []).map((note) => buildSelectedWorkSourceEntry(scope, note)),
       ...(operations.replace ?? []).map((row) => buildSelectedWorkSourceEntry(scope, row.note)),
       ...retained.entries,
@@ -101,7 +113,7 @@ export async function reviseCodexRepositoryWorkV01(
     const lineage = packetLineageKindV01(basis);
     if (!lineage) refuse("current_work_unavailable");
     const request: RevisePreExecutionProjectWorkRequestV01 = {
-      action: "revise_pre_execution_project_work", ...scope,
+      action: input.intent === "new_task" ? "prepare_new_project_work" : "revise_pre_execution_project_work", ...scope,
       expected_active_project_id: scope.project_id,
       expected_active_selection_revision: eligibility.active_selection_revision!,
       expected_current_packet_id: basis.packet_id,
@@ -110,6 +122,8 @@ export async function reviseCodexRepositoryWorkV01(
       ...after, selected_source_context: selected, expected_source_comparison: comparison.fingerprint,
       ...(retained.refs.length ? { retained_source_refs: retained.refs } : {}),
     };
+    if (input.intent === "new_task") request.preparation = compareNewProjectWorkV01(basis, request,
+      currentPreparationRootBindingV01(db, scope), operations.omitted_sources).preparation;
     const seal = sealPreview(channel, input.expected_snapshot_binding, request, material);
     if (input.action === "save" && !sameSeal(seal, input.preview_binding!)) refuse(stale ? "refresh_required" : "preview_changed");
     let packet = basis;
@@ -137,7 +151,9 @@ export async function reviseCodexRepositoryWorkV01(
         added: nextBindings.filter((binding) => !priorBindings.includes(binding)),
         deselected: priorBindings.filter((binding) => !nextBindings.includes(binding)),
       },
-      effects: { work_revision_created: status === "saved", authorization_record_created: input.action === "save" },
+      effects: { work_revision_created: input.intent !== "new_task" && status === "saved", authorization_record_created: input.action === "save",
+        ...(input.intent === "new_task" ? { work_preparation_created: status === "saved" } : {}) },
+      ...(request.preparation ? { preparation: { prior_work_marked_complete: false as const, omitted_sources: request.preparation.omitted_sources } } : {}),
       source_material_authority: "untrusted_selected_context", authority: {
         ...CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, writes_database: input.action === "save",
         changes_operator_session: input.action === "save", retries_or_replays: status === "exact_replay",
@@ -149,6 +165,7 @@ export async function reviseCodexRepositoryWorkV01(
     if (db.inTransaction) db.exec("ROLLBACK");
     // The existing exact-successor owner rejected a different concurrent
     // revision. Expose a confirmed stale-state refusal, never an uncertain save.
+    if (stale && error instanceof NewProjectWorkPreparationErrorV01) refuse("refresh_required");
     if (error instanceof ProjectWorkRevisionErrorV01 && error.code === "work_revision_current_packet_changed") refuse("refresh_required");
     throw error;
   }

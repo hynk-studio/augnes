@@ -33,11 +33,14 @@ export const PROJECT_WORK_REVISION_ELIGIBILITY_VERSION_V01 =
   "project_work_revision_eligibility.v0.1" as const;
 export const PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 =
   "augnes.vnext.pre-execution-work-revision-compiler.v0.1" as const;
+export const PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 =
+  "augnes.vnext.pre-execution-new-work-compiler.v0.1" as const;
 export const MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 = 32 as const;
 
 export type PreExecutionProjectWorkLineageKindV01 =
   | "initial_user_defined"
-  | "pre_execution_user_revision";
+  | "pre_execution_user_revision"
+  | "pre_execution_new_task";
 
 export type ProjectWorkRevisionEligibilityStatusV01 =
   | "eligible_initial_packet"
@@ -82,7 +85,7 @@ export interface ProjectWorkRevisionEligibilityV01 {
 }
 
 export interface RevisePreExecutionProjectWorkRequestV01 {
-  action: "revise_pre_execution_project_work";
+  action: "revise_pre_execution_project_work" | "prepare_new_project_work";
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
@@ -97,6 +100,14 @@ export interface RevisePreExecutionProjectWorkRequestV01 {
   selected_source_context?: TaskContextPacketSelectedEntryV01[];
   expected_source_comparison?: string;
   retained_source_refs?: RetainedWorkSourceRef[];
+  /** Required only for an explicit different-task declaration. */
+  preparation?: NewWorkPreparationBindingV01;
+}
+
+export interface NewWorkPreparationBindingV01 {
+  expected_root_binding: string;
+  omitted_sources: Array<{ source_binding: string; reason: string }>;
+  preview_binding: string;
 }
 
 export interface RevisePreExecutionProjectWorkResultV01 {

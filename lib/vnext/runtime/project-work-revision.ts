@@ -1,3 +1,4 @@
+import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "./new-project-work-preparation";
 import { accessSync, constants, statSync } from "node:fs";
 
 import type Database from "better-sqlite3";
@@ -39,6 +40,7 @@ import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initia
 import {
   MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01,
   PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+  PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
   PROJECT_WORK_REVISION_ELIGIBILITY_VERSION_V01,
   type ProjectWorkRevisionEligibilityV01,
   type ProjectWorkRevisionEligibilityStatusV01,
@@ -298,7 +300,7 @@ export function revisePreExecutionProjectWorkV01(
     if (error instanceof ProjectWorkRevisionErrorV01 ||
       error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
       error instanceof VNextLocalOperatorSessionErrorV01 ||
-      error instanceof SelectedWorkSourceError) throw error;
+      error instanceof SelectedWorkSourceError || error instanceof NewProjectWorkPreparationErrorV01) throw error;
     throw new ProjectWorkRevisionErrorV01("work_revision_write_failed", 409);
   }
 }
@@ -358,6 +360,16 @@ export function revisePreExecutionProjectWorkInsideTransactionV01(
       refuse("work_revision_source_comparison_changed", 409);
     }
   }
+  if (request.action === "prepare_new_project_work") {
+    const basis = chain.tip_packet.packet_id === request.expected_current_packet_id
+      ? chain.tip_packet : chain.tip_revision?.prior_packet;
+    if (!basis || basis.packet_id !== request.expected_current_packet_id) refuse("work_revision_current_packet_changed", 409);
+    const reviewed = compareNewProjectWorkV01(basis, request,
+      currentPreparationRootBindingV01(db, input.scope), request.preparation!.omitted_sources);
+    if (canonicalizeProtocolValueV01(reviewed.preparation) !== canonicalizeProtocolValueV01(request.preparation)) {
+      refuse("new_work_preview_changed", 409);
+    }
+  }
   const exactExpectedCurrent =
     chain.tip_packet.packet_id === request.expected_current_packet_id &&
     chain.tip_packet.integrity.fingerprint ===
@@ -389,7 +401,7 @@ export function revisePreExecutionProjectWorkInsideTransactionV01(
     refuse("work_revision_current_packet_changed", 409);
   }
   assertEligibleForMutationV01(eligibility);
-  if (sameDefinitionV01(chain.tip_packet.task, definition) &&
+  if (request.action === "revise_pre_execution_project_work" && sameDefinitionV01(chain.tip_packet.task, definition) &&
     canonicalizeProtocolValueV01(readSelectedWorkSources(chain.tip_packet)) ===
     canonicalizeProtocolValueV01(request.selected_source_context ?? readSelectedWorkSources(chain.tip_packet))) {
     return resultV01(
@@ -468,6 +480,7 @@ function exactConcurrentSuccessorV01(input: {
   const revision = input.chain.tip_revision;
   if (
     !revision ||
+    (revision.lineage_kind === "pre_execution_new_task") !== (input.request.action === "prepare_new_project_work") ||
     revision.prior_packet.packet_id !==
       input.request.expected_current_packet_id ||
     revision.prior_packet.integrity.fingerprint !==
@@ -553,8 +566,8 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
     ? [] : ["selected_source_context", "expected_source_comparison", ...(request.retained_source_refs !== undefined ? ["retained_source_refs"] : [])];
   if (
     canonicalizeProtocolValueV01(Object.keys(request).sort()) !==
-      canonicalizeProtocolValueV01([...REQUEST_KEYS, ...optionalKeys].sort()) ||
-    request.action !== "revise_pre_execution_project_work" ||
+      canonicalizeProtocolValueV01([...REQUEST_KEYS, ...optionalKeys, ...(request.action === "prepare_new_project_work" ? ["preparation"] : [])].sort()) ||
+    !["revise_pre_execution_project_work", "prepare_new_project_work"].includes(String(request.action)) ||
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
@@ -568,9 +581,18 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
     ![
       "initial_user_defined",
       "pre_execution_user_revision",
+      "pre_execution_new_task",
     ].includes(String(request.expected_current_lineage_kind))
   ) {
     refuse("work_revision_request_invalid", 400);
+  }
+  if (request.action === "prepare_new_project_work") {
+    const preparation = request.preparation as Record<string, unknown> | undefined;
+    if (request.selected_source_context === undefined || request.retained_source_refs !== undefined ||
+      !preparation || typeof preparation !== "object" || Array.isArray(preparation) ||
+      Object.keys(preparation).sort().join(",") !== "expected_root_binding,omitted_sources,preview_binding" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(String(preparation.expected_root_binding)) ||
+      !/^sha256:[a-f0-9]{64}$/u.test(String(preparation.preview_binding))) refuse("work_revision_request_invalid", 400);
   }
   if (request.selected_source_context !== undefined) {
     if (typeof request.expected_source_comparison !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(request.expected_source_comparison)) {
@@ -586,6 +608,7 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
 export function packetLineageKindV01(
   packet: TaskContextPacketV01,
 ): RevisePreExecutionProjectWorkRequestV01["expected_current_lineage_kind"] | null {
+  if (packet.compatibility.source_contracts.includes(PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) return "pre_execution_new_task";
   if (
     packet.compatibility.source_contracts.includes(
       PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
@@ -712,4 +735,22 @@ function resultV01(
 
 function refuse(code: string, status = 409): never {
   throw new ProjectWorkRevisionErrorV01(code, status);
+}
+
+/** Authenticated read callers provide one coherent snapshot; never writes. */
+export function previewNewProjectWorkV01(db: Database.Database, scope: { workspace_id: string; project_id: string }, value: Record<string, unknown>) {
+  if (!db.inTransaction) refuse("work_revision_transaction_conflict", 409);
+  const { omitted_sources, action: _action, ...fields } = value;
+  const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+  const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
+  assertEligibleForMutationV01(eligibility);
+  if (fields.workspace_id !== scope.workspace_id || fields.project_id !== scope.project_id ||
+    fields.expected_active_project_id !== scope.project_id || fields.expected_active_selection_revision !== eligibility.active_selection_revision ||
+    fields.expected_current_packet_id !== chain.tip_packet.packet_id ||
+    fields.expected_current_packet_fingerprint !== chain.tip_packet.integrity.fingerprint ||
+    fields.expected_current_lineage_kind !== chain.tip_lineage_kind) refuse("work_revision_current_packet_changed", 409);
+  const draft = { ...fields, action: "prepare_new_project_work" } as RevisePreExecutionProjectWorkRequestV01;
+  const comparison = compareNewProjectWorkV01(chain.tip_packet, draft, currentPreparationRootBindingV01(db, scope), omitted_sources);
+  const request = parseRequestV01({ ...draft, preparation: comparison.preparation });
+  return { status: "new_work_preview" as const, comparison, request };
 }

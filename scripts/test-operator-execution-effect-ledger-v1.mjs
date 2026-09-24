@@ -175,7 +175,7 @@ for (const delta of [-1, 1]) {
     changedPackets.after.rows.push(coreRow("task_context_packet", "packet:unexpected-extra"));
   }
   assert.throws(() => validate(changedPackets.before, changedPackets.after, { ...manifest, profile: "native_host_execution" }, result),
-    /operator_effect_core_kind_set_mismatch/u, "Retained-source revisions must have the exact bounded packet effects");
+    /operator_effect_core_kind_set_mismatch/u, "Revisions and new preparation must have the exact bounded packet effects");
 }
 const wrongEvent = nativeSnapshots();
 wrongEvent.after.rows.find((entry) => entry.table === "autonomy_run_events")
@@ -345,7 +345,7 @@ function nativeSnapshots() {
   const coreCounts = {
     automation_work_item: 4,
     capability_grant: 1,
-    task_context_packet: 7,
+    task_context_packet: 8,
     run_receipt: 5,
     episode_delta_proposal: 6,
     work_expectation_record: 2,

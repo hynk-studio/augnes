@@ -157,7 +157,8 @@ const ui = createServer(async (request, response) => {
     assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
     assert.equal(request.headers["x-augnes-local-work-revision"], "codex-repository-work-revision-v0.1");
     let body = ""; for await (const chunk of request) body += chunk;
-    assert.equal(JSON.parse(body).action, "save");
+    assert.equal(JSON.parse(body).action, workRevisionScenario.action ?? "save");
+    if (workRevisionScenario.newTask) assert.equal(JSON.parse(body).intent, "new_task");
     if (workRevisionScenario.disconnect) return request.socket.destroy();
     response.setHeader("x-augnes-local-work-revision", "codex-repository-work-revision-v0.1");
     response.setHeader("x-augnes-runtime-instance", instance);
@@ -263,6 +264,8 @@ try {
       "augnes_lookup_repository_retained_sources",
       "augnes_preview_repository_work_revision",
       "augnes_save_repository_work_revision",
+      "augnes_preview_repository_new_work",
+      "augnes_prepare_repository_new_work",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
       "augnes_validate_repository_execution_attachment",
@@ -296,6 +299,10 @@ try {
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_preview_repository_new_work")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.readOnlyHint, false);
+    assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.idempotentHint, false);
+    assert.deepEqual(byName.get("augnes_prepare_repository_new_work")?.inputSchema.properties.changes.required, ["goal", "success_criteria", "non_goals", "sources"]);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
@@ -447,10 +454,38 @@ try {
       assert.equal((await callRetained()).isError, true);
       assert.equal(retainedCalls, priorCalls + 1, "lookup does not automatically retry");
     }
-    for (const [status, reason] of [["refresh_required", "snapshot_changed"], ["unavailable", "current_work_unavailable"],
-      ["ineligible", "work_revision_not_eligible"], ["invalid", "retained_source_query_invalid"]]) {
-      retainedScenario = { body: { ...retainedProjection, status, reason, snapshot_binding: null, packet_fingerprint: null, lookup: null } };
-      assert.equal((await callRetained()).structuredContent.status, status);
+    const retainedResponses = [retainedProjection, ...[
+      ["refresh_required", "snapshot_changed"], ["unavailable", "current_work_unavailable"],
+      ["ineligible", "work_revision_not_eligible"], ["invalid", "retained_source_query_invalid"],
+    ].map(([status, reason]) => ({ ...retainedProjection, status, reason, snapshot_binding: null, packet_fingerprint: null, lookup: null }))];
+    const syntheticMarker = "synthetic-retained-response-extra-material";
+    const unexpectedFields = [
+      ...[true, syntheticMarker, { nested: { marker: syntheticMarker } }, false, null].map((preparation) => ({ preparation })),
+      { unknown_top_level: syntheticMarker },
+    ];
+    for (const body of retainedResponses) {
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(body), body);
+      retainedScenario = { body };
+      const control = await callRetained();
+      const { companion, ...projection } = control.structuredContent;
+      assert.equal(companion.status, "live");
+      assert.deepEqual(projection, body);
+      assert.equal(control.isError, body.status === "invalid");
+      for (const extra of unexpectedFields) {
+        const malformed = { ...body, ...extra };
+        assert.throws(() => parseRepositoryRetainedSourcesResponseV01(malformed), /contract_invalid/u,
+          `${body.status} retained-source response must reject ${JSON.stringify(extra)}`);
+        retainedScenario = { body: malformed };
+        const priorCalls = retainedCalls;
+        const rejected = await callRetained();
+        assert.equal(rejected.isError, true);
+        assert.equal(rejected.structuredContent.companion.status, "unavailable");
+        for (const key of [...Object.keys(extra), "lookup", "projection_version"]) {
+          assert.equal(Object.hasOwn(rejected.structuredContent, key), false);
+        }
+        assert.equal(JSON.stringify(rejected).includes(syntheticMarker), false);
+        assert.equal(retainedCalls, priorCalls + 1, "malformed retained-source responses are not retried");
+      }
     }
     const editProjection = { projection_version: "codex_repository_work_revision.v0.1", status: "saved",
       expected_snapshot_binding: sourceBinding, preview_binding: sourceBinding, packet_fingerprint: sourceBinding,
@@ -481,6 +516,30 @@ try {
     assert.equal((await save()).structuredContent.reason, "refresh_required");
     workRevisionScenario = { status: 422, body: { error: { code: "retained_source_changed_or_unavailable", status: 422 } } };
     assert.equal((await save()).structuredContent.reason, "retained_source_changed_or_unavailable");
+    for (const status of ["previewed", "saved", "exact_replay"]) {
+      const preview = status === "previewed";
+      const preparation = { prior_work_marked_complete: false, omitted_sources: [] };
+      const body = { ...editProjection, status, preparation,
+        effects: { work_revision_created: false, work_preparation_created: status === "saved", authorization_record_created: !preview },
+        authority: { ...sourceProjection.authority, writes_database: !preview, changes_operator_session: !preview, retries_or_replays: status === "exact_replay" } };
+      assert.deepEqual(parseRepositoryWorkRevisionResponseV01(body), body);
+      assert.throws(() => parseRepositoryWorkRevisionResponseV01({ ...body, preparation: { ...preparation, prior_work_marked_complete: true } }), /contract_invalid/u);
+      workRevisionScenario = { newTask: true, action: preview ? "preview" : "save", body };
+      const result = await client.callTool({ name: preview ? "augnes_preview_repository_new_work" : "augnes_prepare_repository_new_work", arguments: {
+        repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, ...(preview ? {} : { previewBinding: sourceBinding }),
+        changes: { goal: "After", success_criteria: ["Criterion"], non_goals: [], sources: { keep: [], omitted_sources: [] } },
+      } });
+      assert.equal(result.isError, false);
+      const { companion, ...projection } = result.structuredContent;
+      assert.equal(companion.status, "live");
+      assert.deepEqual(projection, body, `valid new-work ${status} retains its validated preparation`);
+    }
+    workRevisionScenario = { newTask: true, status: 422, body: { error: { code: "new_work_selection_or_preview_invalid", status: 422 } } };
+    const newWorkRefusal = await client.callTool({ name: "augnes_prepare_repository_new_work", arguments: {
+      repositoryRoot: process.cwd(), expectedSnapshotBinding: `sha256:${"c".repeat(64)}`, previewBinding: `sha256:${"d".repeat(64)}`,
+      changes: { goal: "A declared different task", success_criteria: ["Exact preparation"], non_goals: [], sources: { keep: [], omitted_sources: [] } },
+    } });
+    assert.equal(newWorkRefusal.structuredContent.reason, "new_work_selection_or_preview_invalid");
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;
     const result = await client.callTool({
@@ -513,6 +572,8 @@ try {
     browser_decision_session_absent_from_mcp_inventory: true,
     browser_decision_session_absent_from_runtime_manifest_and_access_record: true,
     direct_ui_route_contract_parser: true,
+    retained_source_closed_response_parser_and_stdio: true,
+    new_work_preview_prepare_and_replay_responses: true,
     identity_bound_typed_execution_refusal: true,
     malformed_and_infrastructure_execution_failures_remain_mcp_errors: true,
     readonly_route_owns_ui_identity_verification: true,

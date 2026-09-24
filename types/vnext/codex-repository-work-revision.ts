@@ -13,6 +13,9 @@ export interface RepositoryWorkChangesV01 {
   non_goals?: string[];
   sources?: {
     add?: SelectedWorkSourceInput[];
+    /** New-task preparation only: every current note is explicitly kept or omitted. */
+    keep?: string[];
+    omitted_sources?: Array<{ source_binding: string; reason: string }>;
     replace?: Array<{ source_binding: string; note: SelectedWorkSourceInput }>;
     deselect?: string[];
     retained_source_refs?: RetainedWorkSourceRef[];
@@ -24,6 +27,7 @@ export interface RepositoryWorkRevisionInputV01 {
   repository_root: string;
   expected_snapshot_binding: string;
   changes: RepositoryWorkChangesV01;
+  intent?: "new_task";
   preview_binding?: string;
 }
 
@@ -42,7 +46,8 @@ export interface RepositoryWorkRevisionProjectionV01 {
     added: string[];
     deselected: string[];
   };
-  effects: { work_revision_created: boolean; authorization_record_created: boolean };
+  effects: { work_revision_created: boolean; authorization_record_created: boolean; work_preparation_created?: boolean };
+  preparation?: { prior_work_marked_complete: false; omitted_sources: Array<{ source_binding: string; reason: string }> };
   source_material_authority: "untrusted_selected_context";
   authority: Omit<CodexCurrentContinuityAuthorityBoundaryV01, "writes_database" | "changes_operator_session" | "retries_or_replays"> & {
     writes_database: boolean;

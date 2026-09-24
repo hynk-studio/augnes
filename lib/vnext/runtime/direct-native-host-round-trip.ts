@@ -197,7 +197,7 @@ export interface PersistedHostPacketAdmissionV01 {
         operator_action_ref: ExternalRefV01;
       }
     | {
-        lineage_kind: "pre_execution_user_revision";
+        lineage_kind: "pre_execution_user_revision" | "pre_execution_new_task";
         work_definition_revision_ref: ExternalRefV01;
         work_revision_request_ref: ExternalRefV01;
         operator_action_ref: ExternalRefV01;
@@ -420,9 +420,9 @@ export async function admitPersistedHostTaskContextPacketV01(
               first_work_request_ref: lineage.first_work_request_ref,
               operator_action_ref: lineage.operator_action_ref,
             }
-          : lineage.lineage_kind === "pre_execution_user_revision"
+          : ("revision_definition_ref" in lineage)
             ? {
-                lineage_kind: "pre_execution_user_revision",
+                lineage_kind: lineage.lineage_kind,
                 work_definition_revision_ref:
                   lineage.revision_definition_ref,
                 work_revision_request_ref: lineage.revision_request_ref,
@@ -1747,10 +1747,9 @@ function buildNativeHostRequest(input: {
                 entry.external_ref ? [entry.external_ref] : [],
               ),
             }
-          : input.admission.packet_lineage.lineage_kind ===
-                "pre_execution_user_revision"
+          : ("work_definition_revision_ref" in input.admission.packet_lineage)
             ? {
-                lineage_kind: "pre_execution_user_revision",
+                lineage_kind: input.admission.packet_lineage.lineage_kind,
                 work_definition_revision_ref:
                   input.admission.packet_lineage.work_definition_revision_ref,
                 work_revision_request_ref:
@@ -1954,14 +1953,12 @@ function createRunLedgerRecord(
           ? input.admission.packet_lineage.first_work_definition_ref.source_ref
           : null,
       work_definition_revision_id:
-        input.admission.packet_lineage.lineage_kind ===
-        "pre_execution_user_revision"
+        ("work_definition_revision_ref" in input.admission.packet_lineage)
           ? input.admission.packet_lineage.work_definition_revision_ref
               .external_id
           : null,
       work_definition_revision_fingerprint:
-        input.admission.packet_lineage.lineage_kind ===
-        "pre_execution_user_revision"
+        ("work_definition_revision_ref" in input.admission.packet_lineage)
           ? input.admission.packet_lineage.work_definition_revision_ref
               .source_ref
           : null,
@@ -3290,8 +3287,7 @@ export function buildDirectNativeHostRunIdentityV01(input: {
             initial_operator_action_ref:
               input.admission.packet_lineage.operator_action_ref,
           }
-        : input.admission.packet_lineage.lineage_kind ===
-              "pre_execution_user_revision"
+        : ("work_definition_revision_ref" in input.admission.packet_lineage)
           ? {
               revised_work_definition_ref:
                 input.admission.packet_lineage.work_definition_revision_ref,
@@ -3364,8 +3360,7 @@ function admissionLineageRefsV01(
           admission.packet_lineage.first_work_request_ref,
           admission.packet_lineage.operator_action_ref,
         ]
-      : admission.packet_lineage.lineage_kind ===
-            "pre_execution_user_revision"
+      : ("work_definition_revision_ref" in admission.packet_lineage)
         ? [
             admission.packet_lineage.work_definition_revision_ref,
             admission.packet_lineage.work_revision_request_ref,

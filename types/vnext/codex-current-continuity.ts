@@ -41,6 +41,7 @@ export type CodexCurrentContinuityWorkStatusV01 =
 export type CodexCurrentContinuityLineageKindV01 =
   | "initial_user_defined"
   | "pre_execution_user_revision"
+      | "pre_execution_new_task"
     | "authored_successor_task"
   | "semantic_transition"
   | "source_linked_operational_continuation";
@@ -180,6 +181,7 @@ export interface CodexCurrentContinuityV01 {
     currentness: CodexCurrentContinuityWorkCurrentnessV01;
     start_eligible: boolean;
     start_blocker: string | null;
+    previous_preparation?: { goal: string; packet_fingerprint: string; marked_complete: false };
     revision_eligible: boolean;
     revision_blocker: string | null;
   };

@@ -34,6 +34,7 @@ import { SemanticReviewProposalList } from "./proposal-list";
 import { semanticReviewDetailEntryPresentationV01 } from "./semantic-review-entry-presentation";
 import { WorkExpectationPreparation } from "./work-expectation";
 import { SemanticReviewReadGuardV01 } from "./semantic-review-read-guard";
+import { NewWorkComposer } from "./new-work-composer";
 import { FirstWorkComposer } from "./first-work-composer";
 import { HostedSnapshotExport } from "./hosted-snapshot-export";
 import { CurrentWorkWebMcp } from "./current-work-webmcp";
@@ -66,7 +67,7 @@ interface WorkRevisionEditorBindingV01 {
   active_selection_revision: number;
   current_packet_id: string;
   current_packet_fingerprint: string;
-  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision";
+  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task";
   session_id: string;
   session_workspace_id: string;
   session_project_id: string;
@@ -110,6 +111,7 @@ export function SemanticReviewSurface({
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const [firstWorkBusy, setFirstWorkBusy] = useState(false);
+  const [newTaskMode, setNewTaskMode] = useState(false);
   const [revisionEditorBinding, setRevisionEditorBinding] =
     useState<WorkRevisionEditorBindingV01 | null>(null);
   const [workRevisionBusy, setWorkRevisionBusy] = useState(false);
@@ -932,7 +934,15 @@ export function SemanticReviewSurface({
             currentRevisionEditorBindingKey ===
               workRevisionEditorBindingKeyV01(revisionEditorBinding) &&
             firstWorkInitialization?.current_work ? (
-            <FirstWorkComposer
+            newTaskMode ? <NewWorkComposer
+              key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
+              initialization={firstWorkInitialization} onCancel={cancelWorkRevision}
+              onCommitted={async () => {
+                setRevisionEditorBinding(null);
+                setDecisionStatus("Different task prepared. Prior work was not marked complete; nothing has started.");
+                await loadPrivateView({ announceLoading: false });
+                await guideState.refresh(); await delegatedState.refresh(); router.refresh();
+              }} /> : <FirstWorkComposer
               key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
               initialization={firstWorkInitialization}
               busy={workRevisionBusy}
@@ -955,7 +965,7 @@ export function SemanticReviewSurface({
                 />
               ) : null}
               {delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
-                ["initial_user_defined", "pre_execution_user_revision"].includes(firstWorkInitialization.current_packet.lineage_kind) ? (
+                ["initial_user_defined", "pre_execution_user_revision", "pre_execution_new_task"].includes(firstWorkInitialization.current_packet.lineage_kind) ? (
                 <WorkExpectationPreparation key={`${firstWorkInitialization.project_id}:${firstWorkInitialization.active_selection_revision}:${firstWorkInitialization.current_packet.packet_id}:${firstWorkInitialization.current_packet.packet_fingerprint}`}
                   initialization={firstWorkInitialization} />
               ) : null}
@@ -964,6 +974,8 @@ export function SemanticReviewSurface({
                   key={`${authenticatedSession?.session_id}:${firstWorkInitialization.project_id}:${firstWorkInitialization.current_packet?.packet_fingerprint}`}
                   definition={firstWorkInitialization.current_work}
                   selectedSources={firstWorkInitialization.selected_source_context}
+                  previousPreparation={firstWorkInitialization.previous_preparation}
+                  onPrepareNew={() => { if (currentRevisionEditorBinding) { setNewTaskMode(true); setRevisionEditorBinding(currentRevisionEditorBinding); setPrivateError(null); setDecisionStatus(null); } }}
                   snapshotExport={<HostedSnapshotExport initialization={firstWorkInitialization}
                     disabled={loadingPrivateView || !privateReadGuard.current.matchesProject(firstWorkInitialization)} />}
                   isUnstarted={workDefinitionIsUnstarted}
@@ -971,6 +983,7 @@ export function SemanticReviewSurface({
                   revisionButtonRef={revisionButtonRef}
                   onRevise={() => {
                     if (!currentRevisionEditorBinding) return;
+                    setNewTaskMode(false);
                     setDecisionStatus(null);
                     setPrivateError(null);
                     setRevisionEditorBinding(currentRevisionEditorBinding);
@@ -1163,6 +1176,7 @@ function workRevisionEditorBindingKeyV01(
 }
 
 function CurrentWorkDefinitionPanel({
+  previousPreparation, onPrepareNew,
   definition,
   selectedSources,
   snapshotExport,
@@ -1171,6 +1185,8 @@ function CurrentWorkDefinitionPanel({
   revisionButtonRef,
   onRevise,
 }: {
+  previousPreparation: ProjectWorkInitializationV01["previous_preparation"];
+  onPrepareNew: () => void;
   definition: ProjectWorkDefinitionV01;
   selectedSources: ProjectWorkInitializationV01["selected_source_context"];
   snapshotExport: React.ReactNode;
@@ -1196,7 +1212,7 @@ function CurrentWorkDefinitionPanel({
       </div>
       <div className={styles.materialCard}>
         <strong>Goal</strong>
-        <p>{definition.goal}</p>
+        <p data-current-work-goal>{definition.goal}</p>
       </div>
       <div className={styles.materialCard}>
         <strong>Success criteria</strong>
@@ -1241,6 +1257,9 @@ function CurrentWorkDefinitionPanel({
           </article>
         )) : <p className={styles.muted}>No source notes are selected in this current work.</p>}
       </details>
+      {previousPreparation ? <p data-previous-preparation>
+        Prior preparation: {previousPreparation.goal}. It was not executed or marked complete. Its unresolved matters remain in its history.
+      </p> : null}
       {snapshotExport}
       {revisionAvailable ? (
         <div className={styles.buttonRow}>
@@ -1253,6 +1272,7 @@ function CurrentWorkDefinitionPanel({
           >
             Revise work definition
           </button>
+          <button type="button" className={styles.secondaryButton} data-new-work-action="open" onClick={onPrepareNew}>Prepare a different task</button>
         </div>
       ) : null}
     </section>

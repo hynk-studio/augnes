@@ -1,3 +1,4 @@
+import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { localClientRequest, equal } from "@/lib/vnext/codex-repository-continuity/companion-local-channel";
 import { NextResponse } from "next/server";
 import { validateReadonlyApiLocalAccess } from "@/lib/readonly-api/access-guard";
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(projection, { headers: { ...HEADERS, ...identity } });
   } catch (error) {
-    if (error instanceof RepositoryWorkRevisionTransportErrorV01 || error instanceof ProjectWorkRevisionErrorV01 ||
+    if (error instanceof NewProjectWorkPreparationErrorV01 || error instanceof RepositoryWorkRevisionTransportErrorV01 || error instanceof ProjectWorkRevisionErrorV01 ||
       error instanceof InitialProjectWorkContextErrorV01 || error instanceof SelectedWorkSourceError ||
       error instanceof PreExecutionProjectWorkRevisionErrorV01 || error instanceof VNextLocalOperatorSessionErrorV01) {
       return refused(error.code, error.status);

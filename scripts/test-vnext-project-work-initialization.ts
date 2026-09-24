@@ -78,6 +78,7 @@ import {
 import {
   readProjectWorkRevisionEligibilityV01,
   revisePreExecutionProjectWorkV01,
+  previewNewProjectWorkV01,
 } from "../lib/vnext/runtime/project-work-revision";
 import {
   buildPreExecutionProjectWorkRevisionPacketV01,
@@ -136,6 +137,7 @@ async function main(): Promise<void> {
       return;
     }
     if (process.argv.includes("--minimum-discriminating-check-only")) { await assertMinimumDiscriminatingCheckV01(); return; }
+    if (process.argv.includes("--new-work-admission-only")) { await assertNewWorkAdmissionV01(); return; }
     if (process.argv.includes("--expectation-only")) { await assertWorkExpectationMechanics(); return; }
     if (process.argv.includes("--result-admission-only")) { await assertResultAdmissionV01(); return; }
     if (process.argv.includes("--scoped-host-only") || scopedInterruptionPoint()) {
@@ -182,6 +184,7 @@ async function main(): Promise<void> {
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
     await assertRevisedNativeHostStartV01();
+    await assertNewWorkAdmissionV01();
     console.log(JSON.stringify({ initialization_ms: performance.now() - initializationStarted, scoped_cases: 0 }));
     console.log(JSON.stringify({
       status: "pass",
@@ -4659,7 +4662,8 @@ function revisionRequestV01(
   currentPacket: TaskContextPacketV01,
   currentLineageKind:
     | "initial_user_defined"
-    | "pre_execution_user_revision",
+    | "pre_execution_user_revision"
+    | "pre_execution_new_task",
   definition: ProjectWorkDefinitionV01,
 ): RevisePreExecutionProjectWorkRequestV01 {
   const selection = readActiveProjectSelectionV01(
@@ -4807,4 +4811,44 @@ function timestampSequenceV01(start: string): () => string {
 function errorCode(code: string): (error: unknown) => boolean {
   return (error) =>
     Boolean(error && typeof error === "object" && "code" in error && error.code === code);
+}
+
+async function assertNewWorkAdmissionV01(): Promise<void> {
+  const fixture = createFixtureV01("new-work-admission");
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "initial"), request: requestV01(fixture), clock: fixedClock(T2) });
+    const preview = (packet: TaskContextPacketV01, kind: "initial_user_defined" | "pre_execution_new_task", goal: string) => fixture.db.transaction(() =>
+      previewNewProjectWorkV01(fixture.db, fixture, { ...revisionRequestV01(fixture, packet, kind, {
+        goal, success_criteria: ["Exact new-task packet reaches the admitted deterministic host"], non_goals: ["No provider call"] }),
+        action: "preview_new_project_work", selected_source_context: [], expected_source_comparison: compareSelectedWorkSources(packet, []).fingerprint,
+        omitted_sources: [] }))();
+    const newPreview = preview(initial.packet, "initial_user_defined", "Y: separately declared task");
+    const saved = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: credentialFromCookieV01(initial.session_admission.cookie_value), request: newPreview.request,
+      clock: fixedClock("2026-08-01T00:00:03.000Z") });
+    const pending = preview(saved.packet, "pre_execution_new_task", "Z: must not detach an admitted run");
+    const startConfig = { ...fixture.config };
+    const raceCredential = authenticatedSessionV01(fixture, "pending-save");
+    let admitted = false;
+    const result = await runDirectNativeHostRoundTripV01(fixture.db, { config: startConfig, mode: "interactive",
+      operator_mutation: { credential: credentialFromCookieV01(saved.session_admission.cookie_value), clock: fixedClock("2026-08-01T00:00:10.000Z") } }, {
+      adapter: createDeterministicCodexAdapterV01(), now: timestampSequenceV01("2026-08-01T00:00:10.000Z"),
+      on_invocation_admitted: ({ request }) => {
+        assert.equal(request.packet.packet_id, saved.packet.packet_id);
+        assert.equal("lineage_kind" in request.packet_lineage && request.packet_lineage.lineage_kind, "pre_execution_new_task");
+        const before = fixture.db.serialize();
+        assert.throws(() => revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential: raceCredential,
+          request: pending.request, clock: fixedClock("2026-08-01T00:00:11.000Z") }), /work_revision_execution_started/u);
+        assert.deepEqual(fixture.db.serialize(), before, "run admitted after preview: no packet or authentication write");
+        admitted = true;
+      },
+    });
+    assert(admitted); assert.equal(result.receipt.task_context_packet_ref?.external_id, saved.packet.packet_id);
+    assert.equal(inspectPreExecutionProjectWorkRevisionChainV01(fixture.db, fixture).tip_packet.packet_id, saved.packet.packet_id);
+    assert.equal(readProjectWorkRevisionEligibilityV01(fixture.db, fixture).status, "blocked_execution_started");
+    assert.throws(() => preview(saved.packet, "pre_execution_new_task", "No executed-work succession through preparation"), /work_revision_execution_started/u);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
+    console.log(JSON.stringify({ new_work_normal_execution_admission_and_start_after_preview: "pass", model_calls: 0 }));
+  } finally { fixture.db.close(); }
 }

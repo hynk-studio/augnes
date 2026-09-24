@@ -821,6 +821,42 @@ await runOperatorExecutionBrowserChildV1({
         `document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
         "separate first-work host start action",
       );
+      // Explicit identity is independent of wording: prepare a different task
+      // with the same definition, then the existing revision/Start cases continue.
+      const beforeNewPreparation = readFirstWorkState(fixture.writable_database_path, firstWorkProjectId);
+      const newWorkBasis = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity')).json()).work_initialization)()`);
+      await clickSelector(lifecycle, '[data-new-work-action="open"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-new-work-composer]') !== null`, "different-task composer");
+      await lifecycle.setFormControlValue('#new-work-goal', newWorkBasis.current_work.goal);
+      await lifecycle.setFormControlValue('#new-work-success-criteria', newWorkBasis.current_work.success_criteria.join('\n'));
+      await lifecycle.setFormControlValue('#new-work-non-goals', newWorkBasis.current_work.non_goals.join('\n'));
+      await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+      for (let i = 0; i < (newWorkBasis.selected_source_context ?? []).length; i++) {
+        await lifecycle.evaluateBoolean(`(() => { document.querySelectorAll('[data-new-source-carry]')[${i}].click(); return true; })()`);
+        await lifecycle.waitForCondition(`document.querySelectorAll('[data-new-source-carry]')[${i}].disabled`, "explicit selected note carry");
+      }
+      await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-augnes-primary-action="preview-new-work"]:not(:disabled)') !== null`, "new-task compared selection");
+      await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-new-work-preview]') !== null`, "new-task preview");
+      assert.deepEqual(readFirstWorkState(fixture.writable_database_path, firstWorkProjectId), beforeNewPreparation, "preview changes no preparation");
+      for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
+        await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+        assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1 && document.querySelector('[data-new-work-preview]').textContent.includes('not marked complete')`), true);
+      }
+      await clickSelector(lifecycle, '[data-new-work-action="save"]');
+      await lifecycle.waitForCondition(`document.querySelector('[data-previous-preparation]') !== null && document.querySelector('[data-current-work-definition-phase="pre_execution"]') !== null`, "new task saved without execution");
+      const afterNewPreparation = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity')).json()).work_initialization)()`);
+      assert.equal(afterNewPreparation.state, 'defined_new_task');
+      assert.equal(afterNewPreparation.current_packet.lineage_kind, 'pre_execution_new_task');
+      assert.notEqual(afterNewPreparation.current_packet.packet_fingerprint, newWorkBasis.current_packet.packet_fingerprint);
+      assert.deepEqual(afterNewPreparation.current_work, newWorkBasis.current_work);
+      assert.deepEqual(afterNewPreparation.selected_source_context, newWorkBasis.selected_source_context);
+      assert.equal(afterNewPreparation.previous_preparation.marked_complete, false);
+      assert.deepEqual(readFirstWorkState(fixture.writable_database_path, firstWorkProjectId), { ...beforeNewPreparation, packets: beforeNewPreparation.packets + 1 });
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+      await lifecycle.waitForCondition(`document.querySelector('[data-previous-preparation]') !== null && document.querySelector('[data-work-revision-action="open"]') !== null`, "independently reopened new-task Browser");
+      console.log(JSON.stringify({ new_work_browser_preview_save_reopen_viewports: 'pass', no_execution_created: true }));
       const staleRevisionTabOpen = await lifecycle.cdp().send("Runtime.evaluate", {
         expression: `(() => {
           window.__cux7StaleSubmitTab = window.open('/workbench/semantic-review?revision-stale-after-start=1', 'cux7-revision-stale-submit-tab');
@@ -999,13 +1035,13 @@ await runOperatorExecutionBrowserChildV1({
       );
       await lifecycle.cdp().send("Page.bringToFront");
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true && document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(firstRevisionGoal)}) === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]')) && document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
+        `document.querySelector('[data-current-work-definition="read-only"][data-current-work-definition-phase="pre_execution"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true && document.querySelector('[data-current-work-goal]')?.textContent?.includes(${JSON.stringify(firstRevisionGoal)}) === false && Boolean(window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]')) && document.querySelector('[data-delegated-work-action="start"]:not(:disabled)') !== null`,
         "tab A saved the exact revision while tab B remained stale",
       );
       assert.deepEqual(
         readFirstWorkState(fixture.writable_database_path, firstWorkProjectId),
         {
-          packets: 5,
+          packets: 6,
           receipts: 0,
           proposals: 0,
           decisions: 0,
@@ -1088,7 +1124,7 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(firstRun.first_work_definition_id, null);
       assert.match(
         firstRun.work_definition_revision_id,
-        /^work-definition-revision:4:/u,
+        /^work-definition-revision:5:/u,
       );
       const initialTurnStart = traceEntries(prepared.approval_trace_path).find(
         (entry) =>

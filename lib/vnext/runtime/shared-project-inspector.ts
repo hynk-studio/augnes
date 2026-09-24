@@ -1341,6 +1341,8 @@ function laterContextSectionV01(
     packet
       ? packet.lineage_kind === "authored_successor_task"
         ? "The current task was explicitly authored after a settled result. Accepted context is retained; task definition grants no execution authority."
+        : packet.lineage_kind === "pre_execution_new_task"
+          ? "Explicit different-task preparation; prior work remains uncompleted history with no invented result."
         : packet.lineage_kind === "pre_execution_user_revision"
         ? "The current packet is an append-only user revision saved before execution. Presentation, actual use, and usefulness remain separate."
         : packet.lineage_kind === "initial_user_defined"
@@ -1365,6 +1367,8 @@ function laterContextSectionV01(
           packet.packet_id,
           packet.lineage_kind === "authored_successor_task"
             ? "Authored successor TaskContextPacket"
+            : packet.lineage_kind === "pre_execution_new_task"
+              ? "Different-task preparation TaskContextPacket"
             : packet.lineage_kind === "pre_execution_user_revision"
             ? "Pre-execution revised TaskContextPacket"
             : packet.lineage_kind === "initial_user_defined"

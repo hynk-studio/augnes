@@ -78,7 +78,7 @@ import {
   INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
-import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01, PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
 import { readRootAvailabilityV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
@@ -2166,6 +2166,7 @@ function initialPacketProjectionCurrentV01(
     ![
       INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
       PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+      PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
     ].some((contract) =>
       packet.compatibility.source_contracts.includes(contract),
