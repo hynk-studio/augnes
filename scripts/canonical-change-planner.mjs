@@ -622,15 +622,30 @@ export function collectMarkdownAnchors(markdown) {
   let fence = null;
   let previous = "";
   for (const line of markdown.split(/\r?\n/u)) {
-    const fenced = line.match(/^ {0,3}(`{3,}|~{3,})/u);
-    if (fenced) { fence = fence ? (fenced[1][0] === fence ? null : fence) : fenced[1][0]; continue; }
-    if (fence) continue;
+    const fenced = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/u);
+    if (fence) {
+      if (fenced && fenced[1][0] === fence.marker &&
+          fenced[1].length >= fence.length && /^[ \t]*$/u.test(fenced[2])) {
+        fence = null;
+      }
+      continue;
+    }
+    if (fenced && (fenced[1][0] === "~" || !fenced[2].includes("`"))) {
+      fence = { marker: fenced[1][0], length: fenced[1].length };
+      previous = "";
+      continue;
+    }
     const explicitMatches = line.matchAll(/\bid=["']([^"']+)["']/giu);
     for (const match of explicitMatches) anchors.add(match[1].toLowerCase());
 
+    const underline = /^ {0,3}(?:=+|-+)[ \t]*$/u.test(line);
     const heading = line.match(/^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$/u) ??
-      (/^ {0,3}(?:=+|-+)\s*$/u.test(line) && previous.trim() ? [line, previous] : null);
-    previous = line;
+      (underline && previous ? [line, previous] : null);
+    // A setext underline consumes paragraph text, never a preceding heading,
+    // code block, thematic break, list/quote marker or reference definition.
+    const blockBoundary = /^(?: {4}|\t)|^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]|$)|\[[^\]]+\]:)/u.test(line) ||
+      /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/u.test(line);
+    previous = heading || underline || blockBoundary || !line.trim() ? "" : line;
     if (!heading) continue;
     const base = heading[1]
       .replace(/<[^>]*>/gu, "")

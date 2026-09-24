@@ -20,6 +20,7 @@ import {
   OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
   PERMANENT_BROWSER_PHASE_IDS,
   classifyCanonicalBrowserOwnership,
+  collectMarkdownAnchors,
   parseNameStatus,
   planCanonicalChange,
   selectCanonicalBrowserPhasesForChanges,
@@ -628,6 +629,7 @@ try {
 
   runIncomingReferenceCases();
   runDocumentationValidatorCases();
+  runMarkdownAnchorBoundaryCases();
 
   console.log(
     JSON.stringify(
@@ -953,6 +955,58 @@ function runIncomingReferenceCases() {
   tree.write(disposedPath, "# Uncommitted rescue cannot satisfy the proposed tree\n");
   assert.throws(() => validateCanonicalDocumentationChange({cwd: tree.cwd, baseSha: tree.baseSha, headSha: head}), /unresolved relative Markdown link/u);
   results.push("reference-proof-uses-exact-proposed-tree");
+}
+
+function runMarkdownAnchorBoundaryCases() {
+  const nestedExample = "````text\n```markdown\n## Handoff\n```\n````\n";
+  const cases = [
+    ["three-backticks-close", "```markdown\n## Hidden\n```\n## Handoff\n", "handoff", ["handoff"]],
+    ["shorter-fence-keeps-heading-in-code", nestedExample, "handoff", []],
+    ["real-heading-outside-nested-example", nestedExample + "\n## Handoff\n", "handoff", ["handoff"]],
+    ["longer-fence-closes", "````\n## Hidden\n`````\n## Handoff\n", "handoff", ["handoff"]],
+    ["tilde-does-not-close-backticks", "```\n~~~\n## Handoff\n```\n", "handoff", []],
+    ["backticks-do-not-close-tilde", "~~~\n```\n## Handoff\n~~~\n", "handoff", []],
+    ["three-tildes-close", "~~~markdown\n## Hidden\n~~~\n## Handoff\n", "handoff", ["handoff"]],
+    ["unclosed-fence-hides-heading", "```markdown\n## Handoff\n", "handoff", []],
+    ["closing-fence-cannot-have-info", "```\n```markdown\n## Handoff\n```\n", "handoff", []],
+    ["atx-before-rule-is-not-setext", "# Runbook\n---\n", "-runbook", ["runbook"]],
+    ["setext-dashes-retain-anchor", "Runbook\n-------\n", "runbook", ["runbook"]],
+    ["setext-equals-retain-anchor", "Runbook\n===\n", "runbook", ["runbook"]],
+    ["consecutive-rules-are-not-setext", "---\n---\n", "---", []],
+    ["list-before-rule-is-not-setext", "- Runbook\n---\n", "--runbook", []],
+    ["quote-before-rule-is-not-setext", "> Runbook\n---\n", "-runbook", []],
+    ["indented-code-before-rule-is-not-setext", "    Runbook\n---\n", "runbook", []],
+    ["fence-clears-setext-candidate", "Runbook\n```\ncode\n```\n---\n", "runbook", []],
+    ["setext-underline-is-not-next-heading", "Runbook\n----\n----\n", "----", ["runbook"]],
+  ];
+  for (const [name, body, target, expectedAnchors] of cases) {
+    const repo = createRepository(`anchor-${name}`, false);
+    repo.write("docs/existing.md", `# Document\n\n## ${target}\n`);
+    repo.write("docs/inbound.md", `[section](existing.md#${target})\n`);
+    commitAll(repo.cwd, "real anchor and incoming reference");
+    const baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("docs/existing.md", `# Document\n\n${body}`);
+    commitAll(repo.cwd, "proposed heading boundaries");
+    const headSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    const headMarkdown = git(repo.cwd, ["show", `${headSha}:docs/existing.md`]);
+    assert.deepEqual([...collectMarkdownAnchors(headMarkdown)], ["document", ...expectedAnchors], name);
+    assert.equal(git(repo.cwd, ["diff", "--name-only", baseSha, headSha]).trim(), "docs/existing.md", `${name}:incoming-reference-unchanged`);
+    const options = { cwd: repo.cwd, baseSha, headSha };
+    const plan = planCanonicalChange({ ...options, eventName: "pull_request" });
+    const retained = expectedAnchors.includes(target);
+    assert.equal(plan.plan, "documentation-only", name);
+    assert.equal(plan.documentation_responsibilities[0].disposition, !retained, name);
+    assert.equal(plan.documentation_responsibilities[0].responsibility, retained ? "ordinary" : "disposition", name);
+    assert.deepEqual(plan.documentation_checks, retained ? [] : ["references"], name);
+    if (retained) {
+      const checked = validateCanonicalDocumentationChange(options);
+      assert.equal(checked.status, "pass", name);
+      assert.equal(checked.incoming_references_checked, 1, name);
+    } else {
+      assert.throws(() => validateCanonicalDocumentationChange(options), /unresolved local Markdown anchor in docs\/inbound\.md/u, name);
+    }
+    results.push(`markdown-anchor-${name}`);
+  }
 }
 
 function write(cwd, relativePath, content) {
