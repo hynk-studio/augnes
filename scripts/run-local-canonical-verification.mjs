@@ -802,6 +802,7 @@ export async function executeLocalCanonicalVerification({
   const deciding =
     passing &&
     mode !== "quick" &&
+    plan.selected_plan !== "documentation-only" &&
     nodePolicy.canonical_match &&
     !identityBefore.worktree_dirty &&
     !identityAfter.worktree_dirty;
@@ -822,6 +823,7 @@ export async function executeLocalCanonicalVerification({
       .map((phase) => phase.failure_code),
     ...(!allSelectedPhasesPassed ? ["selected_phases_incomplete"] : []),
     ...(mode === "quick" ? [worktreePolicy.reason] : []),
+    ...(plan.selected_plan === "documentation-only" ? ["documentation_feedback_not_deciding"] : []),
     ...(!nodePolicy.canonical_match ? ["canonical_node_mismatch"] : []),
   ];
   const receipt = finalizeReceipt({
@@ -1162,8 +1164,8 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       id: "operating-policy-verification-contract",
       label: "repository operating-policy verification contract",
       command: process.execPath,
-      args: ["scripts/test-local-canonical-verification-contract.mjs"],
-      display: "node scripts/test-local-canonical-verification-contract.mjs",
+      args: ["scripts/test-local-canonical-verification-contract.mjs", "--head", headSha],
+      display: `node scripts/test-local-canonical-verification-contract.mjs --head ${headSha}`,
       timeoutMs: 60_000,
     }),
   ];

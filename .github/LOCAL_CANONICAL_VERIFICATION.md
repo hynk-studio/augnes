@@ -8,11 +8,13 @@ GitHub Actions execution is intentionally absent. No pull request, push,
 schedule, dispatch, reusable workflow, status fabrication, or other repository
 event may start or impersonate verification compute.
 
-For executable, operating-policy, data, authority, packaging, or other
+For executable, data, enforced authority, packaging, or other runtime
 behavior-affecting changes, the deciding surface is one completed local run for
 the exact proposed head on the authorized shared Mac. Pure documentation-only
 changes are exempt from Local Canonical deciding execution and receipt
-requirements because they cannot alter runtime behavior. They still require
+requirements after source/consumer review establishes their explanatory
+responsibility. Markdown extensions alone do not establish that responsibility.
+They still require
 ordinary source review and any lightweight static documentation checks warranted
 by the edited content. This policy records the Canonical environment and its
 limitations. It does not claim that local evidence is stronger than independent
@@ -42,9 +44,9 @@ GitHub remains source control, pull-request, review, and history infrastructure 
 ## Repository-owned entry points
 
 Use the stable executor commands for behavior-affecting changes. The
-documentation validator remains available as optional feedback for pure
-documentation changes, but running it is not a merge prerequisite and its
-receipt is not required:
+documentation validator remains available as optional feedback for ordinary
+prose. Authority/contracts and dispositions use the relevant static checks
+below; none require a Local Canonical receipt:
 
 ```bash
 npm run verify:local:quick
@@ -153,14 +155,47 @@ It does not install dependencies or run unrelated runtime suites. A planner
 classification failure or ambiguous/unsupported change is not documentation-only
 and fails closed to the applicable behavior-affecting verification surface.
 
-An `operating-policy-only` result is available only for one safe regular-file
-modification of the root `AGENTS.md`. It runs the exact-head Markdown/private-
-path/link validator plus the planner, local executor, receipt, and repository
-verification-policy contracts. It installs no dependencies, acquires no
-production Companion maintenance, and runs no product runtime, integration,
-operability, package, provider, or browser qualification. `AGENTS.md` combined
-with any other path, or an `AGENTS.md` deletion, rename, copy, mode change,
-nested path, or unsafe/unknown status, selects `full-canonical`.
+Document responsibilities are distinct from runtime qualification:
+
+| Responsibility | Selected scope and review |
+|---|---|
+| Ordinary explanatory documentation | `documentation-only`; exact diff and content review, optional standalone validator, no deciding run or receipt. Source search is a refusal screen, not proof of absent consumers. |
+| Registered authority/contract documentation | `operating-policy-only`; exact-tree validator and the affected static policy contract. Review material authority changes explicitly. No runtime Full Canonical merely for wording or file count. |
+| Proven documentation disposition (path or anchor) | Incoming-reference validation against the proposed tree, plus owner/consumer/retention review. An anchor removal is reported even in an otherwise ordinary edit. No runtime PASS is claimed. |
+| Unknown or unsupported consumers/disposition | No cheap exemption. Preserve the conservative plan and resolve the material obligation in review; Full Canonical alone cannot prove safe deletion. |
+
+The existing change-owner manifest records the audited documentation owners and
+one reference-safe supporting-analysis disposition family. Root `AGENTS.md`,
+README, verification/reduction policy, and PR-template combinations retain their
+bounded static coverage. The root agent-instruction marker has real hook/installer
+consumers and must remain intact; harmless headings are not machine contracts.
+Registered vNext owners retain meaning review and reference checks. vNext `02`
+remains excluded from this narrow admission because the managed-delegation
+security test consumes it; no runtime or security consumer is silently exempted.
+Nested agent instructions, executable/package Markdown, unknown test consumers,
+unsafe modes/statuses and unregistered path dispositions remain conservative.
+
+For a registered authority/contract edit, run the standalone validator with
+`--plan operating-policy-only`; for the verification-policy family also run
+`node scripts/test-local-canonical-verification-contract.mjs --head <exact-head-sha>`
+(the documentation is read from that Git tree). This is bounded
+static feedback, available without dependency installation or canonical-machine
+availability. The existing optional Local Canonical operating-policy executor
+still runs its five dependency-light contracts when explicitly invoked; its
+receipt describes only those contracts, not product runtime qualification.
+
+For a `documentation-only` path/anchor disposition, run the standalone validator
+and record the owner/consumer findings. It checks unchanged incoming Markdown
+links (including relative/reference-style links and anchors), changed outgoing
+links, and private-path additions using exact Git trees. Unrelated pre-existing
+broken links are reported separately. Locally available commit-pinned historical
+links are checked at their pinned tree; unavailable pinned commits are reported
+unverified, never rewritten to current source. Remote availability, unsupported
+reference syntax, semantic correctness, dynamic use and retained external
+consumers remain review questions. Unresolved material obligations block the
+exemption; absence of a text match is insufficient. No permanent audit report,
+new approval ritual, dependency install or runtime suite is required for this
+reference proof.
 
 An `owner-targeted` result is available only when every non-documentation
 change matches a checked-in responsibility owner in
@@ -179,7 +214,11 @@ path does not by itself select either targeted or full verification. Known
 single-owner product changes include the corresponding detailed Browser owner;
 multiple Browser owners, shared composition, or unknown Browser ownership fail
 closed to `full-canonical`. Documentation may accompany a targeted owner
-without adding an unrelated phase.
+without dropping its behavioral phases; the exact-change validator retains the
+affected Markdown/reference checks. The planner and validator also report any
+required static policy contract; run it separately for mixed changes. A runtime
+receipt does not replace that focused check. Full plans retain the same focused
+documentation obligations in addition to runtime qualification.
 
 The exact project-experience verification family has a separate targeted owner:
 its Browser executable, private fixture builder, keyed result contract,
@@ -192,7 +231,8 @@ Browser scripts, shared fixture/lifecycle helpers, or owner manifests. The
 [verification architecture audit](../docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md)
 records consumers, exclusions, comparative plans, and retained responsibilities.
 
-Deletion is classified by the responsibility being removed. Only an explicitly
+Deletion is classified by the responsibility being removed. The audited pure-doc
+disposition path above is separate from executable deletion. Only an explicitly
 registered owner whose manifest deletion policy is `targeted` may use the
 bounded path; this version admits that behavior only for the dedicated Local
 Canonical owner-contract fixture namespace. Renames, copies, deletions with
@@ -468,11 +508,15 @@ evidence. It rejects or marks non-deciding a receipt when:
 - the canonical Node policy does not match;
 - the receipt is quick/dirty/non-transferable.
 
-A later commit always requires a new exact-head receipt.
+When deciding execution is required, a later commit requires a new exact-head
+receipt. Earlier receipts never transfer to another head. Ordinary documentation
+and bounded static documentation checks require no receipt; an optional
+`documentation-only` executor receipt is always non-deciding.
 
 ## Pull-request evidence
 
-The Draft PR records the exact repository, base/head,
+For changes requiring deciding execution, the Draft PR records the exact
+repository, base/head,
 branch, origin check, Node policy and actual Node, lock fingerprints, selected
 plan, every command/result/duration, intermediate failure and correction,
 cleanup, zero remaining owned processes, repository-relative final receipt
@@ -483,6 +527,11 @@ path, fingerprint, and successful receipt validation. It also states:
 - no GitHub Actions or other hosted/self-hosted CI ran;
 - no status check or independent attestation was fabricated;
 - no other repository or project directory was inspected or modified.
+
+For exempt prose or static documentation responsibilities, record the exact diff,
+responsibility/consumer findings, applicable focused results, unresolved limits,
+and why deciding execution is not applicable. No fabricated planner result,
+runtime PASS, environment qualification, or receipt is required.
 
 The PR body is review material, not a machine-published status. Local Canonical
 has no pull-request comment, status, check-run, deployment, review, label,

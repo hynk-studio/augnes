@@ -20,6 +20,7 @@ import {
   OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
   PERMANENT_BROWSER_PHASE_IDS,
   classifyCanonicalBrowserOwnership,
+  collectMarkdownAnchors,
   parseNameStatus,
   planCanonicalChange,
   selectCanonicalBrowserPhasesForChanges,
@@ -75,7 +76,7 @@ try {
       path.join(snapshotRoot, "canonical-change-planner.mjs"),
     ).href)).planCanonicalChange;
   }
-  runPlanCase("README-only", "documentation-only", ({ write }) => {
+  runPlanCase("README-only", "operating-policy-only", ({ write }) => {
     write("README.md", "# Updated\n");
   });
   runPlanCase("docs-only", "documentation-only", ({ write }) => {
@@ -91,9 +92,26 @@ try {
   runPlanCase("AGENTS.md", "operating-policy-only", ({ write }) => {
     write("AGENTS.md", "# Changed instructions\n");
   });
-  runPlanCase("AGENTS-plus-documentation", "full-canonical", ({ write }) => {
+  runPlanCase("AGENTS-plus-documentation", "operating-policy-only", ({ write }) => {
     write("AGENTS.md", "# Changed instructions\n");
     write("README.md", "# Updated with policy\n");
+  });
+  runPlanCase("AGENTS-plus-verification-policy", "operating-policy-only", ({ write }) => {
+    write("AGENTS.md", "# Updated instructions\n");
+    write(".github/LOCAL_CANONICAL_VERIFICATION.md", "# Clarified policy\n");
+  });
+  runPlanCase("authority-map", "operating-policy-only", ({ write }) => {
+    write("docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md", "# Owners\n");
+  });
+  runPlanCase("known-test-consumed-document", "full-canonical", ({ write }) => {
+    write("docs/contract.md", "# Executable contract\n");
+    write("scripts/check-contract.mjs", 'readFileSync("docs/contract.md");\n');
+  });
+  runPlanCase("pure-doc-deletion", "documentation-only", ({ remove }) => {
+    remove("docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md");
+  });
+  runPlanCase("pure-doc-rename", "documentation-only", ({ rename }) => {
+    rename("docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md", "docs/verification/history.md");
   });
   runPlanCase("nested-AGENTS", "full-canonical", ({ write }) => {
     write("docs/AGENTS.md", "# Nested instructions\n");
@@ -609,7 +627,9 @@ try {
     /duplicate canonical targeted exact path/u);
   results.push("literal-owner-manifest-fail-closed");
 
+  runIncomingReferenceCases();
   runDocumentationValidatorCases();
+  runMarkdownAnchorBoundaryCases();
 
   console.log(
     JSON.stringify(
@@ -640,7 +660,7 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
     headSha,
     cwd: repository.cwd,
   });
-  if (comparisonPlanner) {
+  if (comparisonPlanner && ["docs-only", "README-only", "AGENTS.md", "AGENTS-plus-documentation", "AGENTS-plus-verification-policy", "pure-doc-deletion", "pure-doc-rename", "documentation-deletion", "targeted-owner-plus-documentation", "planner-receipt-executor-self-change"].includes(name)) {
     const oldPlan = comparisonPlanner({
       eventName: "pull_request",
       baseSha: repository.baseSha,
@@ -690,7 +710,7 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
     );
   }
   if (expectedPlan === "operating-policy-only") {
-    assert.equal(plan.reason, "exact_safe_agents_operating_policy_change", name);
+    assert.equal(plan.reason, "registered_documentation_responsibilities", name);
     assert.deepEqual(plan.full_reasons, [], name);
     assert.deepEqual(plan.browser_phase_ids, [], name);
   }
@@ -705,7 +725,11 @@ function createRepository(name, seedProjectVerification = true) {
   git(cwd, ["config", "user.name", "Canonical Tests"]);
   write(cwd, "README.md", "# Fixture\n");
   write(cwd, "AGENTS.md", "# Instructions\n");
+  write(cwd, "apps/augnes_apps/AGENTS.md", "# AGENTS.md\nThe nested README.md describes the nested app.\n");
+  write(cwd, "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md", "AGENTS.md remains the root operating contract.\n");
   write(cwd, "docs/existing.md", "# Existing\n");
+  write(cwd, ".github/LOCAL_CANONICAL_VERIFICATION.md", "# Fixture policy\n");
+  write(cwd, "docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md", "# Supporting analysis\n\nAn explanatory historical record.\n");
   write(cwd, "package.json", "{\"private\":true}\n");
   for (const relativePath of seedProjectVerification ? projectExperienceVerificationPaths : []) {
     write(cwd, relativePath, "export const baseline = true;\n");
@@ -807,7 +831,7 @@ function runDocumentationValidatorCases() {
   const operatingPolicy = createRepository("operating-policy-validator-valid");
   operatingPolicy.write(
     "AGENTS.md",
-    "# Instructions\n\n[Repository guide](README.md#fixture)\n",
+    "# Instructions\n\nThe small, durable repository constitution for Augnes.\n[Verification](.github/LOCAL_CANONICAL_VERIFICATION.md)\n[Repository guide](README.md#fixture)\n",
   );
   commitAll(operatingPolicy.cwd, "valid operating policy");
   headSha = git(operatingPolicy.cwd, ["rev-parse", "HEAD"]).trim();
@@ -843,6 +867,146 @@ function runDocumentationValidatorCases() {
     targetedPhaseIds("unit"),
   );
   results.push("owner-targeted-exact-plan-validator");
+}
+
+function runIncomingReferenceCases() {
+  const disposedPath = "docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md";
+  function fixture(name, incoming) {
+    const repo = createRepository(name);
+    repo.write("docs/inbound.md", incoming);
+    commitAll(repo.cwd, "incoming reference baseline");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    return repo;
+  }
+  function check(repo) {
+    commitAll(repo.cwd, "proposed tree");
+    return validateCanonicalDocumentationChange({ cwd: repo.cwd, baseSha: repo.baseSha,
+      headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() });
+  }
+  for (const incoming of ["[history](verification/VERIFICATION_OWNERSHIP_AUDIT.md)\n", "[history][source]\n\n[source]: verification/VERIFICATION_OWNERSHIP_AUDIT.md\n"]) {
+    const repo = fixture(`incoming-delete-${results.length}`, incoming);
+    repo.remove(disposedPath);
+    assert.throws(() => check(repo), /unresolved relative Markdown link/u);
+    results.push("unchanged-incoming-deleted-path-refused");
+  }
+  const anchor = fixture("incoming-anchor", "[section](existing.md#existing)\n");
+  anchor.write("docs/existing.md", "# Renamed section\n");
+  assert.throws(() => check(anchor), /unresolved local Markdown anchor/u);
+  results.push("unchanged-incoming-removed-anchor-refused");
+  const renamed = fixture("updated-incoming-rename", "[history](verification/VERIFICATION_OWNERSHIP_AUDIT.md)\n");
+  renamed.rename(disposedPath, "docs/verification/history.md");
+  renamed.write("docs/inbound.md", "[history](verification/history.md)\n");
+  assert.equal(check(renamed).status, "pass");
+  results.push("updated-incoming-rename-pass");
+  const updated = fixture("updated-incoming-anchor", "[section](existing.md#existing)\n");
+  updated.write("docs/existing.md", "# Renamed section\n");
+  updated.write("docs/inbound.md", "[section](existing.md#renamed-section)\n");
+  assert.equal(check(updated).status, "pass");
+  results.push("updated-incoming-anchor-pass");
+  const pinned = fixture("historical-pinned-reference", "# Incoming\n");
+  pinned.write("docs/inbound.md", `[historical](https://github.com/hynk-studio/augnes/blob/${pinned.baseSha}/${disposedPath}#supporting-analysis)\n`);
+  commitAll(pinned.cwd, "pin old reference");
+  pinned.baseSha = git(pinned.cwd, ["rev-parse", "HEAD"]).trim();
+  pinned.remove(disposedPath);
+  const historical = check(pinned);
+  assert.equal(historical.historical_references[0].status, "checked_at_pinned_commit");
+  results.push("historical-pinned-reference-preserved");
+  const preexisting = fixture("unrelated-existing-broken-link", "[old missing](existing.md#never-present)\n");
+  preexisting.write("docs/existing.md", "# Existing\n\nExtra explanatory prose.\n");
+  assert.equal(check(preexisting).preexisting_broken_references.length, 1);
+  results.push("preexisting-unrelated-reference-reported-separately");
+  const unknown = fixture("unknown-disposition-consumer", "# Incoming\n");
+  unknown.write("scripts/unknown-reader.mjs", `readFileSync("${disposedPath}");\n`);
+  commitAll(unknown.cwd, "existing executable consumer");
+  unknown.baseSha = git(unknown.cwd, ["rev-parse", "HEAD"]).trim();
+  unknown.remove(disposedPath);
+  assert.throws(() => check(unknown), /received full-canonical/u);
+  results.push("unknown-consumer-refuses-disposition-exemption");
+  const consumed = fixture("existing-test-consumed-document", "# Incoming\n");
+  consumed.write("scripts/read-contract.mjs", 'readFileSync("docs/existing.md");\n');
+  commitAll(consumed.cwd, "existing test reader");
+  consumed.baseSha = git(consumed.cwd, ["rev-parse", "HEAD"]).trim();
+  consumed.write("docs/existing.md", "# Existing\n\nChanged contract.\n");
+  assert.throws(() => check(consumed), /received full-canonical/u);
+  results.push("unchanged-test-consumer-blocks-ordinary-prose-path");
+  const dynamic = fixture("dynamic-document-consumer", "# Incoming\n");
+  dynamic.write("scripts/dynamic-reader.mjs", 'readFileSync("docs/verification/" + requestedName);\n');
+  commitAll(dynamic.cwd, "existing dynamic reader");
+  dynamic.baseSha = git(dynamic.cwd, ["rev-parse", "HEAD"]).trim();
+  dynamic.remove(disposedPath);
+  assert.throws(() => check(dynamic), /received full-canonical/u);
+  results.push("dynamic-consumer-refuses-disposition-exemption");
+  for (const [name, file, content] of [
+    ["instruction", "plugins/example/SKILL.md", `[Required source](../../${disposedPath})\n`],
+    ["packaging", "package.json", JSON.stringify({files: ["docs/verification/**"]})],
+  ]) {
+    const consumer = fixture(`${name}-document-consumer`, "# Incoming\n");
+    consumer.write(file, content);
+    commitAll(consumer.cwd, "existing non-prose consumer");
+    consumer.baseSha = git(consumer.cwd, ["rev-parse", "HEAD"]).trim();
+    consumer.remove(disposedPath);
+    assert.throws(() => check(consumer), /received full-canonical/u);
+    results.push(`${name}-consumer-refuses-disposition-exemption`);
+  }
+  const tree = fixture("exact-tree-not-worktree", "[history](verification/VERIFICATION_OWNERSHIP_AUDIT.md)\n");
+  tree.remove(disposedPath);
+  commitAll(tree.cwd, "delete in exact tree");
+  const head = git(tree.cwd, ["rev-parse", "HEAD"]).trim();
+  tree.write(disposedPath, "# Uncommitted rescue cannot satisfy the proposed tree\n");
+  assert.throws(() => validateCanonicalDocumentationChange({cwd: tree.cwd, baseSha: tree.baseSha, headSha: head}), /unresolved relative Markdown link/u);
+  results.push("reference-proof-uses-exact-proposed-tree");
+}
+
+function runMarkdownAnchorBoundaryCases() {
+  const nestedExample = "````text\n```markdown\n## Handoff\n```\n````\n";
+  const cases = [
+    ["three-backticks-close", "```markdown\n## Hidden\n```\n## Handoff\n", "handoff", ["handoff"]],
+    ["shorter-fence-keeps-heading-in-code", nestedExample, "handoff", []],
+    ["real-heading-outside-nested-example", nestedExample + "\n## Handoff\n", "handoff", ["handoff"]],
+    ["longer-fence-closes", "````\n## Hidden\n`````\n## Handoff\n", "handoff", ["handoff"]],
+    ["tilde-does-not-close-backticks", "```\n~~~\n## Handoff\n```\n", "handoff", []],
+    ["backticks-do-not-close-tilde", "~~~\n```\n## Handoff\n~~~\n", "handoff", []],
+    ["three-tildes-close", "~~~markdown\n## Hidden\n~~~\n## Handoff\n", "handoff", ["handoff"]],
+    ["unclosed-fence-hides-heading", "```markdown\n## Handoff\n", "handoff", []],
+    ["closing-fence-cannot-have-info", "```\n```markdown\n## Handoff\n```\n", "handoff", []],
+    ["atx-before-rule-is-not-setext", "# Runbook\n---\n", "-runbook", ["runbook"]],
+    ["setext-dashes-retain-anchor", "Runbook\n-------\n", "runbook", ["runbook"]],
+    ["setext-equals-retain-anchor", "Runbook\n===\n", "runbook", ["runbook"]],
+    ["consecutive-rules-are-not-setext", "---\n---\n", "---", []],
+    ["list-before-rule-is-not-setext", "- Runbook\n---\n", "--runbook", []],
+    ["quote-before-rule-is-not-setext", "> Runbook\n---\n", "-runbook", []],
+    ["indented-code-before-rule-is-not-setext", "    Runbook\n---\n", "runbook", []],
+    ["fence-clears-setext-candidate", "Runbook\n```\ncode\n```\n---\n", "runbook", []],
+    ["setext-underline-is-not-next-heading", "Runbook\n----\n----\n", "----", ["runbook"]],
+  ];
+  for (const [name, body, target, expectedAnchors] of cases) {
+    const repo = createRepository(`anchor-${name}`, false);
+    repo.write("docs/existing.md", `# Document\n\n## ${target}\n`);
+    repo.write("docs/inbound.md", `[section](existing.md#${target})\n`);
+    commitAll(repo.cwd, "real anchor and incoming reference");
+    const baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write("docs/existing.md", `# Document\n\n${body}`);
+    commitAll(repo.cwd, "proposed heading boundaries");
+    const headSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    const headMarkdown = git(repo.cwd, ["show", `${headSha}:docs/existing.md`]);
+    assert.deepEqual([...collectMarkdownAnchors(headMarkdown)], ["document", ...expectedAnchors], name);
+    assert.equal(git(repo.cwd, ["diff", "--name-only", baseSha, headSha]).trim(), "docs/existing.md", `${name}:incoming-reference-unchanged`);
+    const options = { cwd: repo.cwd, baseSha, headSha };
+    const plan = planCanonicalChange({ ...options, eventName: "pull_request" });
+    const retained = expectedAnchors.includes(target);
+    assert.equal(plan.plan, "documentation-only", name);
+    assert.equal(plan.documentation_responsibilities[0].disposition, !retained, name);
+    assert.equal(plan.documentation_responsibilities[0].responsibility, retained ? "ordinary" : "disposition", name);
+    assert.deepEqual(plan.documentation_checks, retained ? [] : ["references"], name);
+    if (retained) {
+      const checked = validateCanonicalDocumentationChange(options);
+      assert.equal(checked.status, "pass", name);
+      assert.equal(checked.incoming_references_checked, 1, name);
+    } else {
+      assert.throws(() => validateCanonicalDocumentationChange(options), /unresolved local Markdown anchor in docs\/inbound\.md/u, name);
+    }
+    results.push(`markdown-anchor-${name}`);
+  }
 }
 
 function write(cwd, relativePath, content) {

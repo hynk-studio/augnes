@@ -20,9 +20,12 @@ meaningful authority, safety, data, or compatibility effect.
 ## Verification
 
 - Focused checks and results:
-- Local Canonical planner result:
+- Local Canonical planner result, when applicable:
 - Deciding exact-head command and result, when applicable:
 - Receipt path and fingerprint, when applicable:
+
+Use the [verification policy](https://github.com/hynk-studio/augnes/blob/main/.github/LOCAL_CANONICAL_VERIFICATION.md) for applicability.
+Ordinary prose may state “not applicable”; no invented planner result or receipt.
 
 Include exact environment, Browser/App/MCP/runtime, migration, security,
 publication, or structured-evidence details only when the PR actually uses or

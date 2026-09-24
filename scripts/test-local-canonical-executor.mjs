@@ -337,6 +337,15 @@ assert.match(
   /--plan operating-policy-only$/u,
 );
 
+assert.deepEqual(operatingPolicyPhases.at(-1).args,
+  ["scripts/test-local-canonical-verification-contract.mjs", "--head", headSha]);
+const decisionExpression = executorSource.slice(executorSource.indexOf("  const deciding ="), executorSource.indexOf("  const finishedMs ="));
+assert.ok(decisionExpression.includes("plan.selected_plan"));
+const evaluateDecision = new Function("plan", "mode", "passing", "nodePolicy", "identityBefore", "identityAfter", `${decisionExpression} return deciding;`);
+for (const [selected_plan, expected] of [["documentation-only", false], ["operating-policy-only", true], ["owner-targeted", true], ["full-canonical", true]]) {
+  assert.equal(evaluateDecision({ selected_plan }, "changed", true, {canonical_match: true}, {worktree_dirty: false}, {worktree_dirty: false}), expected);
+}
+
 const ownerTargetedPlan = resolveVerificationPlan({
   mode: "changed",
   baseSha,
@@ -1053,6 +1062,8 @@ console.log(
       next_env_generated_and_ignored: true,
       typecheck_runs_next_typegen: true,
       documentation_selection_dependency_light: true,
+      documentation_receipt_always_non_deciding: true,
+      policy_documentation_read_from_exact_head: true,
       operating_policy_selection_static_and_maintenance_free: true,
       owner_targeted_selection_uses_fixed_owner_complete_phases: true,
       owner_targeted_dependencies_cleanly_prepared_before_consumers: true,

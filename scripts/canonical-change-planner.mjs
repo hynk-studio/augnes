@@ -101,31 +101,20 @@ export function planCanonicalChange({
     });
   }
 
-  const operatingPolicyOnly =
-    changes.length === 1 && isSafeOperatingPolicyModification(changes[0]);
-  const classifications = operatingPolicyOnly
-    ? []
-    : changes.map(classifyChangeResponsibility);
+  const documentContext = createDocumentationContext({ cwd, baseSha, headSha, changes });
+  const classifications = changes.map((change) => classifyChangeResponsibility(change, documentContext));
   const fullReasons = classifications
     .filter((classification) => classification.kind === "full")
     .map((classification) => classification.reason);
-  const ownerIds = operatingPolicyOnly
-    ? ["repository-operating-policy"]
-    : classifications.map((classification) => classification.ownerId);
   let uniqueReasons = [...new Set(fullReasons)].sort();
-  let uniqueOwnerIds = [...new Set(ownerIds)].sort(compareCodeUnits);
-  const documentationOnly =
-    !operatingPolicyOnly &&
-    uniqueReasons.length === 0 &&
-    classifications.every((classification) => classification.kind === "documentation");
-  const targeted =
-    !operatingPolicyOnly &&
-    !documentationOnly &&
-    uniqueReasons.length === 0 &&
-    classifications.every((classification) =>
-      classification.kind === "documentation" ||
-      classification.kind === "targeted"
-    );
+  let uniqueOwnerIds = [...new Set(classifications.map((item) => item.ownerId))].sort(compareCodeUnits);
+  const documentationOnly = uniqueReasons.length === 0 &&
+    classifications.every((item) => item.kind === "documentation");
+  const operatingPolicyOnly = uniqueReasons.length === 0 &&
+    !documentationOnly && classifications.every((item) =>
+      ["documentation", "policy-documentation"].includes(item.kind));
+  const targeted = !operatingPolicyOnly && !documentationOnly && uniqueReasons.length === 0 &&
+    classifications.every((item) => ["documentation", "policy-documentation", "targeted"].includes(item.kind));
   let targetedPhaseIds = targeted
     ? orderedTargetedPhases(
         classifications.flatMap((classification) => classification.phaseIds),
@@ -163,9 +152,9 @@ export function planCanonicalChange({
     event: "pull_request",
     plan: selectedPlan,
     reason: operatingPolicyOnly
-      ? "exact_safe_agents_operating_policy_change"
+      ? "registered_documentation_responsibilities"
       : documentationOnly
-        ? "all_changes_match_documentation_allowlist"
+        ? "ordinary_documentation_with_review_obligations"
         : selectedPlan === OWNER_TARGETED_PLAN
           ? "all_changes_have_owner_complete_targeted_coverage"
           : "one_or_more_changes_require_full_canonical",
@@ -180,6 +169,9 @@ export function planCanonicalChange({
     owner_ids: uniqueOwnerIds,
     targeted_phase_ids: targetedPhaseIds,
     browser_phase_ids: browserPhaseIds,
+    documentation_responsibilities: classifications.flatMap((item) => item.documentation ?? []),
+    documentation_checks: [...new Set(classifications.flatMap((item) => item.checks ?? []))].sort(),
+    documentation_review_required: classifications.some((item) => item.documentation),
     changes,
   });
 }
@@ -357,7 +349,7 @@ function readGitChanges({ cwd, baseSha, headSha }) {
   }));
 }
 
-function classifyChangeResponsibility(change) {
+function classifyChangeResponsibility(change, documentContext) {
   if (change.status === "T" || change.status === "U") {
     return fullClassification(
       "unknown-change-status",
@@ -392,28 +384,15 @@ function classifyChangeResponsibility(change) {
       `mode_change:${change.newPath ?? change.oldPath}`,
     );
   }
-  if (change.status === "R") {
-    if (
-      isDocumentationPath(change.oldPath) &&
-      isDocumentationPath(change.newPath)
-    ) {
-      return documentationClassification();
-    }
-    return fullClassification(
-      "unknown-rename-consumers",
-      `rename_requires_full:${change.oldPath}->${change.newPath}`,
-    );
-  }
-
   const relativePath = change.newPath ?? change.oldPath;
-  if (relativePath === "AGENTS.md" || /(^|\/)AGENTS\.md$/u.test(relativePath)) {
-    return fullClassification(
-      "repository-operating-policy",
-      `agents_change_requires_full:${relativePath}`,
-    );
+  const documentClassification = classifyDocumentationChange(change, documentContext);
+  if (documentClassification) return documentClassification;
+  if (change.status === "R") {
+    return fullClassification("unknown-rename-consumers",
+      `rename_requires_full:${change.oldPath}->${change.newPath}`);
   }
-  if (change.status !== "D" && isDocumentationPath(relativePath)) {
-    return documentationClassification();
+  if (/(^|\/)AGENTS\.md$/u.test(relativePath)) {
+    return fullClassification("repository-operating-policy", `agents_change_requires_full:${relativePath}`);
   }
 
   const highRiskOwner = changeOwnerManifest.high_risk_owners.find((owner) =>
@@ -492,23 +471,195 @@ function classifyChangeResponsibility(change) {
   );
 }
 
-function isSafeOperatingPolicyModification(change) {
-  return (
-    change.status === "M" &&
-    change.oldPath === "AGENTS.md" &&
-    change.newPath === "AGENTS.md" &&
-    isSafeRegularMode(change.oldMode) &&
-    isSafeRegularMode(change.newMode)
-  );
+// Registration covers inspected responsibilities, not arbitrary Markdown consumers.
+// The search is an additional refusal screen; absence of a match is never consumer proof.
+const DOCUMENTATION_INFRASTRUCTURE = new Set([
+  "scripts/canonical-change-planner.mjs", "scripts/validate-canonical-docs-change.mjs",
+  "scripts/local-canonical-change-owners.v1.json", "scripts/test-canonical-change-planner.mjs",
+  "scripts/test-local-canonical-executor.mjs", "scripts/test-local-canonical-receipt.mjs",
+]);
+
+function createDocumentationContext({ cwd, baseSha, headSha, changes }) {
+  if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationPath(p) || p === "AGENTS.md"))) {
+    return null;
+  }
+  const delegated = new Set();
+  const treeModes = new Map();
+  for (const revision of [baseSha, headSha]) {
+    const files = new Map(runGit(cwd, ["ls-tree", "-r", "-z", revision], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout.split("\0").filter(Boolean).map((entry) => [entry.slice(entry.indexOf("\t") + 1), entry.slice(0, 6)]));
+    treeModes.set(revision, files);
+    for (const owner of changeOwnerManifest.documentation_owners.filter((item) => item.disposition === "full")) {
+      for (const file of owner.paths) {
+        if (!files.has(file)) continue;
+        const source = runGit(cwd, ["show", `${revision}:${file}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+        for (const destination of extractMarkdownDestinations(source)) {
+          const target = destination.split("#", 1)[0];
+          if (!target || /^(?:[a-z]+:|\/)/iu.test(target)) continue;
+          const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(file), target));
+          if (resolved.endsWith(".md")) delegated.add(resolved);
+        }
+      }
+    }
+  }
+  return { cwd, baseSha, headSha, delegated, treeModes, consumers: new Map() };
 }
 
-function documentationClassification() {
+function documentationConsumers(relativePath, context) {
+  if (context.consumers.has(relativePath)) return context.consumers.get(relativePath);
+  const consumers = new Set();
+  for (const revision of [context.baseSha, context.headSha]) {
+    const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-F", "-e", relativePath, "-e", path.posix.basename(relativePath),
+      revision, "--"], {
+      cwd: context.cwd, encoding: "utf8", maxBuffer: MAX_DIFF_BYTES, timeout: 30_000,
+    });
+    if (result.error) throw result.error;
+    if (![0, 1].includes(result.status)) throw new Error("documentation consumer observation failed");
+    for (const entry of result.stdout.split("\0").filter(Boolean)) {
+      const file = entry.slice(revision.length + 1);
+      const explanatoryMarkdown = context.treeModes.get(revision).get(file) === "100644" && file.endsWith(".md") && (isDocumentationPath(file) || file === "AGENTS.md");
+      if (!explanatoryMarkdown && !DOCUMENTATION_INFRASTRUCTURE.has(file)) consumers.add(file);
+    }
+  }
+  const result = [...consumers].sort();
+  context.consumers.set(relativePath, result);
+  return result;
+}
+
+// This catches literal-prefix/directory consumers in addition to exact names.
+// Opaque computed paths and retained external use still require source review.
+function dynamicDocumentationConsumers(relativePath, context) {
+  if (!context.dynamicConsumers) {
+    context.dynamicConsumers = [];
+    for (const revision of [context.baseSha, context.headSha]) {
+      const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-E", "[\"'`]((docs|research)(/|[\"'`]))", revision, "--", ":!*.md"], {
+        cwd: context.cwd, encoding: "utf8", maxBuffer: MAX_DIFF_BYTES, timeout: 30_000,
+      });
+      if (result.error) throw result.error;
+      if (![0, 1].includes(result.status)) throw new Error("dynamic documentation consumer observation failed");
+      for (const entry of result.stdout.split("\0").filter(Boolean)) {
+        const file = entry.slice(revision.length + 1);
+        if (DOCUMENTATION_INFRASTRUCTURE.has(file)) continue;
+        const source = runGit(context.cwd, ["show", `${revision}:${file}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+        if (path.posix.basename(file) === "package.json") {
+          let config;
+          try { config = JSON.parse(source); } catch { throw new Error("unreadable documentation package consumer"); }
+          for (const candidate of config.files ?? []) {
+            if (typeof candidate !== "string") throw new Error("unknown documentation package consumer");
+            const literal = candidate.replace(/^\.\//u, "");
+            if (/^(?:docs|research)(?:\/|$)/u.test(literal)) {
+              context.dynamicConsumers.push({ file, prefix: literal.split(/[*?]/u, 1)[0].replace(/\/$/u, "") });
+            }
+          }
+        }
+        for (const match of source.matchAll(/(?:readFile(?:Sync)?|readdir(?:Sync)?|glob(?:Sync)?|copyFile(?:Sync)?)\([\s\S]{0,240}?["'`]((?:docs|research)(?:\/[^"'`]*)?)["'`]/gu)) {
+          const literal = match[1];
+          if (!path.posix.extname(literal) || literal.includes("${") || /[*?]/u.test(literal)) {
+            const prefix = literal.split(/[$*?]/u, 1)[0].replace(/\/$/u, "");
+            context.dynamicConsumers.push({ file, prefix });
+          }
+        }
+      }
+    }
+  }
+  return context.dynamicConsumers.filter(({ prefix }) => relativePath === prefix || relativePath.startsWith(`${prefix}/`)).map(({ file }) => file);
+}
+
+function classifyDocumentationChange(change, context) {
+  const paths = changedPaths(change);
+  if (!context || !paths.every((p) => isDocumentationPath(p) || p === "AGENTS.md")) return null;
+  if (paths.includes("AGENTS.md") && change.status !== "M") {
+    return fullClassification("repository-operating-policy", "agents_change_requires_safe_modification:AGENTS.md");
+  }
+  const owners = paths.map((p) => changeOwnerManifest.documentation_owners.find((owner) => owner.paths.includes(p)));
+  const pathDisposition = ["D", "R"].includes(change.status);
+  let removedAnchor = false;
+  if (change.status === "M" && change.newPath.endsWith(".md")) {
+    const previous = collectMarkdownAnchors(runGit(context.cwd, ["show", `${context.baseSha}:${change.oldPath}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout);
+    const proposed = collectMarkdownAnchors(runGit(context.cwd, ["show", `${context.headSha}:${change.newPath}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout);
+    removedAnchor = [...previous].some((anchor) => !proposed.has(anchor));
+  }
+  const isDisposition = pathDisposition || removedAnchor;
+  const authority = owners.some((owner) => owner?.disposition === "full");
+  if (pathDisposition && (authority || !owners[0] || owners[0].disposition !== "references")) {
+    return fullClassification("unproven-documentation-disposition", `unproven_documentation_consumers:${paths[0]}`);
+  }
+  for (const [index, file] of paths.entries()) {
+    const owner = owners[index];
+    if ((!owner && context.delegated.has(file)) || /(^|\/)AGENTS\.md$/u.test(file) && file !== "AGENTS.md") {
+      return fullClassification("unregistered-documentation-contract", `unregistered_documentation_contract:${file}`);
+    }
+    const unknown = [...documentationConsumers(file, context), ...dynamicDocumentationConsumers(file, context)].filter((consumer) => !owner?.consumer_paths.includes(consumer));
+    if (unknown.length) {
+      return fullClassification("unproven-documentation-consumers", `unproven_documentation_consumer:${file}:${unknown[0]}`);
+    }
+  }
+  const responsibility = authority ? "authority-contract" : isDisposition ? "disposition" : "ordinary";
   return {
-    kind: "documentation",
-    ownerId: "documentation",
+    kind: authority ? "policy-documentation" : "documentation",
+    ownerId: authority ? owners.find((owner) => owner?.disposition === "full").id : "documentation",
     phaseIds: [],
-    reason: "documentation_allowlist",
+    reason: `documentation_${responsibility}`,
+    checks: [...new Set([...(isDisposition || authority ? ["references"] : []), ...owners.flatMap((owner) => owner?.checks ?? [])])],
+    documentation: [{ paths: [...new Set(paths)], responsibility, disposition: pathDisposition || removedAnchor,
+      consumer_review: "required; static references do not prove absence of dynamic or external obligations" }],
   };
+}
+
+export function extractMarkdownDestinations(markdown) {
+  const destinations = [];
+  for (const match of markdown.matchAll(/!?\[[^\]]*\]\(\s*(?:<([^>]+)>|([^\s)]+))(?:\s+[^)]*)?\)/gmu)) {
+    destinations.push(match[1] ?? match[2]);
+  }
+  for (const match of markdown.matchAll(/^\s*\[[^\]]+\]:\s*(?:<([^>]+)>|(\S+))/gmu)) {
+    destinations.push(match[1] ?? match[2]);
+  }
+  return destinations.filter(Boolean);
+}
+
+export function collectMarkdownAnchors(markdown) {
+  const anchors = new Set();
+  const counts = new Map();
+  let fence = null;
+  let previous = "";
+  for (const line of markdown.split(/\r?\n/u)) {
+    const fenced = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/u);
+    if (fence) {
+      if (fenced && fenced[1][0] === fence.marker &&
+          fenced[1].length >= fence.length && /^[ \t]*$/u.test(fenced[2])) {
+        fence = null;
+      }
+      continue;
+    }
+    if (fenced && (fenced[1][0] === "~" || !fenced[2].includes("`"))) {
+      fence = { marker: fenced[1][0], length: fenced[1].length };
+      previous = "";
+      continue;
+    }
+    const explicitMatches = line.matchAll(/\bid=["']([^"']+)["']/giu);
+    for (const match of explicitMatches) anchors.add(match[1].toLowerCase());
+
+    const underline = /^ {0,3}(?:=+|-+)[ \t]*$/u.test(line);
+    const heading = line.match(/^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$/u) ??
+      (underline && previous ? [line, previous] : null);
+    // A setext underline consumes paragraph text, never a preceding heading,
+    // code block, thematic break, list/quote marker or reference definition.
+    const blockBoundary = /^(?: {4}|\t)|^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|[0-9]{1,9}[.)])(?:[ \t]|$)|\[[^\]]+\]:)/u.test(line) ||
+      /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/u.test(line);
+    previous = heading || underline || blockBoundary || !line.trim() ? "" : line;
+    if (!heading) continue;
+    const base = heading[1]
+      .replace(/<[^>]*>/gu, "")
+      .replace(/[`*_~]/gu, "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/\s/gu, "-");
+    if (!base) continue;
+    const duplicate = counts.get(base) ?? 0;
+    counts.set(base, duplicate + 1);
+    anchors.add(duplicate === 0 ? base : `${base}-${duplicate}`);
+  }
+  return anchors;
 }
 
 function fullClassification(ownerId, reason) {
@@ -573,6 +724,20 @@ export function validateChangeOwnerManifest(manifest) {
     manifest?.version !== 1
   ) {
     throw new Error("canonical change owner manifest identity is invalid");
+  }
+  const documented = new Set();
+  if (!Array.isArray(manifest.documentation_owners)) throw new Error("documentation owners missing");
+  for (const owner of manifest.documentation_owners) {
+    if (!Array.isArray(owner.paths) || !owner.paths.length ||
+        !Array.isArray(owner.checks) || owner.checks.some((check) => check !== "verification-policy") ||
+        !Array.isArray(owner.consumer_paths) || !["full", "references"].includes(owner.disposition) ||
+        (owner.disposition === "references" && !owner.consumer_scope)) {
+      throw new Error("invalid documentation owner contract");
+    }
+    for (const file of owner.paths) {
+      if (file !== normalizeRepositoryPath(file) || documented.has(file)) throw new Error("invalid or duplicate documentation path");
+      documented.add(file);
+    }
   }
   const phaseOrder = manifest.targeted_phase_order;
   const fixedPhaseOrder = [
@@ -724,6 +889,7 @@ function runGit(cwd, args, options) {
   const result = spawnSync("git", args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
+    timeout: 30_000,
     ...options,
   });
   if (result.error) throw result.error;

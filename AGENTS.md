@@ -123,7 +123,10 @@ compatibility, or runtime behavior.
 
 - Run focused checks owned by the changed behavior or documentation contract.
   Report exact commands and results, plus concrete reasons for skipped checks.
-- For deciding pull-request verification, ask the repository-owned Local
+- Ordinary explanatory documentation needs exact diff review and appropriate
+  content checks, not Local Canonical execution or a receipt. Authority/contracts and
+  dispositions follow the documentation responsibilities in the policy below.
+- For changes requiring deciding pull-request verification, ask the Local
   Canonical planner for the final exact head and follow the
   [Local Canonical verification policy](.github/LOCAL_CANONICAL_VERIFICATION.md).
 - Deciding evidence binds the exact clean repository, origin, base, head,
@@ -133,13 +136,14 @@ compatibility, or runtime behavior.
   and leave no owned process, port, database, runtime-state, or temporary-file
   residue.
 - Do not retry a failed exact-head deciding run merely to obtain a pass. A
-  source change creates a new verification target and requires a new deciding
-  run.
+  source change creates a new verification target; when deciding execution is
+  applicable, it requires a new deciding run.
 
 ## Pull requests
 
 Use the user-authorized branch, stage only intended files, and keep the pull
 request Draft unless the user explicitly authorizes otherwise. Report the
 changed files, user/workflow and authority impact, data/Core/execution/
-compatibility impact, focused checks, planner-selected exact-head verification,
+compatibility impact, focused checks, planner-selected exact-head verification
+when applicable (otherwise state why it is not applicable),
 skipped checks, and unresolved risks. Never merge or enable auto-merge.
