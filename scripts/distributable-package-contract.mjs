@@ -68,6 +68,9 @@ export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/runtime-run-reconciliation.mjs",
   "scripts/continuity-operational-status.mjs",
   "scripts/recovery-backup.mjs",
+  "scripts/recovery-control-operation.mjs",
+  "scripts/recovery-control-worker.mjs",
+  "scripts/recovery-control-job.mjs",
   "scripts/recovery-canonical-record-validator.mjs",
 ]);
 

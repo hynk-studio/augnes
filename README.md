@@ -123,6 +123,23 @@ or Start for another checkout refuses without changing the existing service.
 
 </details>
 
+The **Backups and recovery** page lists inventory metadata without validating
+backup databases. **Create backup** and **Verify selected backup** are explicit
+requests. The page retains a correlation identity before sending either one.
+An accepted request is still pending: use **Refresh status** to read that same
+request, including after a lost response or page reload. There is no automatic
+polling, backup retry, or fresh validation on a status read.
+
+Only a completed exact validation result confirms that operation's checkpoint
+observation. It names the backup, verification time and available validator/build
+provenance. Source-runtime build identity may remain unattested. Replacement or
+changed target metadata makes the result stale; a recorded result never promises
+perpetual freshness. An existing backup can be freshly verified without creating
+another backup or identifying the historical HTTP request that created it.
+Restore/update still require their separate explicit action and full target
+revalidation under the existing recovery lifecycle. Unknown/interrupted requests
+remain unresolved; do not send a replacement merely to hide a lost response.
+
 Open the URL and connect a local project. The primary path uses **Choose a
 folder**. If the native picker is unavailable, remains invisible, is cancelled,
 or does not return, **Enter the folder path instead** accepts one exact absolute

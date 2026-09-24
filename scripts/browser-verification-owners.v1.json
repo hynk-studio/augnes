@@ -1074,7 +1074,7 @@
             "support_report_previewed"
           ],
           "markers": [
-            "authoritative_recovery_refusal_preserves_confirmed_controls",
+            "correlated_admission_status_and_exact_validation_presentation",
             "classified_portability_refusal_replaces_prior_success_history",
             "final_r8_imported_home_workbench_and_inspector_readers_agree",
             "final_r8_portable_project_round_trip_uses_clean_isolated_destination",

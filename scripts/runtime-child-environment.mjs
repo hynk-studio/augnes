@@ -3,6 +3,7 @@ import {
 } from "./canonical-test-environment.mjs";
 
 const ROLE_VALUE_KEYS = Object.freeze({
+  recovery: new Set([]),
   ui: new Set([
     "NODE_ENV",
     "NODE_OPTIONS",

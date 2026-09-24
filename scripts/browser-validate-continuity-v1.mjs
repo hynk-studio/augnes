@@ -2420,6 +2420,12 @@ async function main() {
         status: 200,
         body,
       });
+      await evaluateJson(`(() => {
+        localStorage.removeItem('augnes.recovery.request.v1');
+        const operation = ${JSON.stringify(body.operation ?? null)};
+        if (operation) localStorage.setItem('augnes.recovery.request.v1', JSON.stringify({action: operation.action ?? 'verify_backup', request_id: operation.request_id}));
+        return true;
+      })()`);
       const requestStart = requests.length;
       await navigate(`${appOrigin}/recovery`);
       await waitForCondition(expectedSelector, label);
@@ -2482,6 +2488,7 @@ async function main() {
     currentNormalRecovery.database.schema_classification = "current";
     currentNormalRecovery.actions = {
       create_backup: true,
+      verify_backup: true,
       retry_update: false,
       restore_backup: false,
     };
@@ -2489,155 +2496,56 @@ async function main() {
     await renderInterceptedRecoveryStatus({
       body: currentNormalRecovery,
       expectedSelector:
-        `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
-      label: "confirmed recovery action state",
+        `document.querySelector('[data-recovery-action-confirmation="unverified"] [data-recovery-primary-action="create_backup"]') !== null`,
+      label: "metadata permits admission without checkpoint confirmation",
     });
-    const refusedActionRequestStart = requests.length;
-    interceptedRecoveryResponses.push({
-      method: "POST",
-      status: 409,
-      body: {
-        accepted: false,
-        outcome: "refused",
-        reason_code: "recovery_action_refused",
-        next_action: "review_the_current_status",
-      },
-    });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Create backup'
-        );
-        button?.click();
-        return Boolean(button);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null && document.body.innerText.includes('The recovery action was not scheduled.')`,
-      "authoritative refusal preserves confirmed recovery controls",
-    );
-    await waitForRequestQuiet();
-    assert.equal(
-      requests.slice(refusedActionRequestStart).filter(
-        (entry) =>
-          entry.path === "/api/recovery" && entry.method === "POST",
-      ).length,
-      1,
-      "authoritative refusal must issue one action request",
-    );
-    assert.equal(
-      requests.slice(refusedActionRequestStart).filter(
-        (entry) =>
-          entry.path === "/api/recovery" && entry.method === "GET",
-      ).length,
-      0,
-      "authoritative refusal must not force a status refresh",
-    );
-    record("authoritative_recovery_refusal_preserves_confirmed_controls");
     const unknownActionRequestStart = requests.length;
-    interceptedRecoveryResponses.push({
-      method: "POST",
-      status: 504,
-      body: {
-        outcome: "status_unknown",
-        reason_code: "recovery_action_outcome_unknown",
-        next_action: "refresh_recovery_status",
-      },
-    });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Create backup'
-        );
-        button?.click();
-        return Boolean(button);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `document.querySelector('[data-recovery-action-confirmation="refresh_required"] [data-recovery-primary-action="check_again"]') !== null && Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Refresh status' && !button.disabled)`,
-      "status-unknown recovery action lock",
-    );
+    interceptedRecoveryResponses.push({method:"POST",status:504,body:{outcome:"status_unknown",reason_code:"recovery_action_outcome_unknown",next_action:"refresh_recovery_status"}});
+    await evaluateBoolean(`(() => {const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Create backup');button.click();return true;})()`);
+    await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`,"lost admission response locks actions");
     await validateRecoveryCorrectionViewports();
     await waitForRequestQuiet();
-    assert.equal(
-      requests.slice(unknownActionRequestStart).filter(
-        (entry) =>
-          entry.path === "/api/recovery" && entry.method === "POST",
-      ).length,
-      1,
-    );
-    assert.equal(
-      requests.slice(unknownActionRequestStart).filter(
-        (entry) =>
-          entry.path === "/api/recovery" && entry.method === "GET",
-      ).length,
-      0,
-      "status_unknown must not trigger an automatic status read",
-    );
-    const lockedPostCount = requests.filter(
-      (entry) => entry.path === "/api/recovery" && entry.method === "POST",
-    ).length;
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const buttons = Array.from(document.querySelectorAll('button')).filter(
-          (candidate) => /create backup|retry update|restore selected verified backup/i.test(
-            candidate.textContent ?? ''
-          )
-        );
-        for (const button of buttons) button.click();
-        return buttons.every((button) => button.disabled);
-      })()`),
-      true,
-    );
-    await waitForRequestQuiet();
-    assert.equal(
-      requests.filter(
-        (entry) => entry.path === "/api/recovery" && entry.method === "POST",
-      ).length,
-      lockedPostCount,
-      "late acceptance lock must prevent a second mutation POST",
-    );
-
-    interceptedRecoveryResponses.push({
-      method: "GET",
-      status: 500,
-      body: { error_code: "recovery_status_unavailable" },
-    });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Refresh status'
-        );
-        button?.click();
-        return Boolean(button);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null && document.body.innerText.includes('The refresh did not succeed.')`,
-      "failed explicit refresh preserves recovery action lock",
-    );
-    interceptedRecoveryResponses.push({
-      method: "GET",
-      status: 200,
-      body: currentNormalRecovery,
-    });
-    assert.equal(
-      await evaluateBoolean(`(() => {
-        const button = Array.from(document.querySelectorAll('button')).find(
-          (candidate) => candidate.textContent?.trim() === 'Refresh status'
-        );
-        button?.click();
-        return Boolean(button);
-      })()`),
-      true,
-    );
-    await waitForCondition(
-      `document.querySelector('[data-recovery-action-confirmation="confirmed"] [data-recovery-primary-action="create_backup"]') !== null`,
-      "successful explicit refresh clears recovery action lock",
-    );
+    const retained = await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+    assert.match(retained.request_id,/^[0-9a-f-]{36}$/u);
+    const dispatched = requests.slice(unknownActionRequestStart).filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST");
+    assert.equal(dispatched.length,1);assert.deepEqual(JSON.parse(dispatched[0].post_data),retained,"caller retains exact material before dispatch");
+    assert.equal(requests.slice(unknownActionRequestStart).filter(entry=>entry.path==="/api/recovery"&&entry.method==="GET").length,0,"no automatic status read or retry");
+    const lockedPostCount = requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length;
+    assert.equal(await evaluateBoolean(`(() => {const buttons=Array.from(document.querySelectorAll('button')).filter(b=>/create backup|verify selected backup|retry update|restore selected verified backup/i.test(b.textContent??''));for(const b of buttons)b.click();return buttons.every(b=>b.disabled);})()`),true);
+    const refresh = async (body,status=200) => {
+      interceptedRecoveryResponses.push({method:"GET",status,body});
+      await evaluateBoolean(`(() => {const b=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Refresh status');b.click();return true;})()`);
+      await waitForRequestQuiet();
+    };
+    await refresh({error_code:"recovery_status_unavailable"},500);
+    await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null && document.body.innerText.includes('The refresh did not succeed.')`,"failed explicit read keeps action lock");
+    const backup={backup_id:"recovery:11111111-1111-4111-8111-111111111111",backup_identity:`sha256:${"a".repeat(64)}`,target_binding:`sha256:${"b".repeat(64)}`,label:"Browser recovery point",created_at:"2026-07-21T06:30:00.000Z",reason:"manual_recovery",source_application_version:"0.1.1",verified:false};
+    const operation={request_id:retained.request_id,action:"create_backup",accepted_at:backup.created_at,finished_at:null,state:"accepted",reason:null,result:null,observation_boundary:"exact_operation_validation_not_perpetual_freshness"};
+    const pendingStatus={...currentNormalRecovery,backups:[backup],backup_count:1,operation,actions:{create_backup:false,verify_backup:false,retry_update:false,restore_backup:false}};
+    for(const state of ["accepted","running","unknown"]){
+      await refresh({...pendingStatus,operation:{...operation,state}});
+      await waitForCondition(`document.querySelector('[data-recovery-request-state="${state}"]') !== null && document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`,`${state} HTTP 200 does not confirm checkpoint`);
+    }
+    const validated={backup_id:backup.backup_id,backup_identity:backup.backup_identity,target_binding:backup.target_binding,verified_at:backup.created_at,validator_contract:"augnes.recovery-backup.v1",application_version:"0.1.1",build_identity:null,runtime_contract:"augnes-local-runtime-supervisor-v1",runtime_schema_version:2,creation_completed:true};
+    const completedStatus={...pendingStatus,operation:{...operation,state:"completed",finished_at:backup.created_at,result:validated},actions:{create_backup:true,verify_backup:true,retry_update:false,restore_backup:false}};
+    await refresh(completedStatus);
+    await waitForCondition(`document.querySelector('[data-recovery-request-state="completed"]') !== null && document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,"exact completed result confirms observation");
+    assert.equal(requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length,lockedPostCount,"refresh never dispatches a replacement operation");
+    // A new explicit Verify click gets a new correlation and keeps the exact
+    // target. Accepted alone locks the controls again; it is not a checkpoint.
+    interceptedRecoveryResponses.push({method:"POST",status:202,body:{accepted:true,outcome:"operation_recorded"}});
+    await evaluateBoolean(`(() => {const b=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Verify selected backup');b.click();return true;})()`);
+    await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`,"accepted fresh verification remains pending");
+    const verifyRequest=await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+    assert.notEqual(verifyRequest.request_id,retained.request_id);assert.equal(verifyRequest.action,"verify_backup");assert.equal(verifyRequest.backup_id,backup.backup_id);assert.equal(verifyRequest.target_binding,backup.target_binding);
+    const verificationStatus={...completedStatus,operation:{...completedStatus.operation,request_id:verifyRequest.request_id,action:"verify_backup",result:{...validated,creation_completed:false}}};
+    await refresh(verificationStatus);
+    await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,"explicit verification result reaches page");
+    // Reload uses the retained request, never another POST.
+    const postCount=requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length;
+    await renderInterceptedRecoveryStatus({body:verificationStatus,expectedSelector:`document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,label:"retained exact operation after page reload"});
+    assert.equal(requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length,postCount);
+    record("correlated_admission_status_and_exact_validation_presentation");
 
     for (const scheduledCase of [
       {
@@ -2668,19 +2576,23 @@ async function main() {
         safety_backup_created: false,
         next_action: scheduledCase.recommendation,
       };
-      scheduledStatus.backup_inventory_state = "available";
+      scheduledStatus.backup_inventory_state = "metadata_only";
       scheduledStatus.backup_count = 1;
       scheduledStatus.backups = [
         {
-          backup_id: "backup:browser-lock",
+          backup_id: "recovery:11111111-1111-4111-8111-111111111111",
+          backup_identity: backup.backup_identity,
+          target_binding: backup.target_binding,
           label: "Browser verified recovery point",
           created_at: "2026-07-21T06:30:00.000Z",
           reason: "pre_update",
           source_application_version: "0.1.1",
-          verified: true,
+          verified: false,
         },
       ];
+      scheduledStatus.operation = verificationStatus.operation;
       scheduledStatus.actions = {
+        verify_backup: false,
         create_backup: false,
         retry_update: scheduledCase.action === "retry_update",
         restore_backup: scheduledCase.action === "restore_backup",
@@ -2745,6 +2657,7 @@ async function main() {
     assert.deepEqual(interceptedRecoveryResponses, []);
     record("recovery_mode_and_database_safety_remain_orthogonal");
     record("uncertain_and_scheduled_recovery_actions_lock_until_refresh");
+    await evaluateJson(`(() => {localStorage.removeItem("augnes.recovery.request.v1");return true;})()`);
     await navigate(`${appOrigin}/recovery`);
     await waitForCondition(
       `document.querySelector('[data-recovery-product-surface="v0.1"][data-recovery-mode="normal"]') !== null`,

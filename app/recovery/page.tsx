@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ProductShell } from "@/components/product-shell";
@@ -12,6 +12,8 @@ import {
   RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
   buildRecoveryActionControlViewV01,
   recoveryActionOutcomeRequiresRefreshV01,
+  recoveryConfirmationStateV02,
+  recoveryHasExactValidationV02,
 } from "@/lib/vnext/recovery/recovery-action-confirmation";
 import {
   buildRecoverySafetyViewV01,
@@ -44,7 +46,7 @@ interface RecoveryActionResult {
   outcome:
     | "restore_scheduled"
     | "retry_scheduled"
-    | "backup_created"
+    | "operation_recorded"
     | "refused"
     | "status_unknown";
   reason_code?: string;
@@ -56,6 +58,7 @@ export default function RecoveryPage() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<
     | "create_backup"
+    | "verify_backup"
     | "restore_backup"
     | "retry_update"
     | "preview_support_report"
@@ -68,7 +71,10 @@ export default function RecoveryPage() {
     useState<SupportReportPreview | null>(null);
   const [restoreConfirmationOpen, setRestoreConfirmationOpen] = useState(false);
   const [actionConfirmationState, setActionConfirmationState] =
-    useState<RecoveryActionConfirmationStateV01>("confirmed");
+    useState<RecoveryActionConfirmationStateV01>("unverified");
+
+  const retainedRequest = useRef<Record<string, string> | null>(null);
+  const storageKey = "augnes.recovery.request.v1";
 
   const backups = useMemo(
     () => sortBackups(status?.backups ?? []),
@@ -77,7 +83,17 @@ export default function RecoveryPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadStatus(controller.signal);
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const request = JSON.parse(saved);
+        if (!request || !/^[0-9a-f-]{36}$/.test(request.request_id) || !["create_backup", "verify_backup"].includes(request.action)) throw new Error("invalid_request");
+        retainedRequest.current = request;
+      }
+      void loadStatus(controller.signal);
+    } catch {
+      setLoading(false); setUnavailable(true); requireStatusRefresh("The retained recovery request could not be read. No replacement request was sent.");
+    }
     return () => controller.abort();
   }, []);
 
@@ -86,48 +102,45 @@ export default function RecoveryPage() {
       if (
         current !== null &&
         backups.some(
-          (backup) => backup.backup_id === current && backup.verified,
+          (backup) => backup.backup_id === current,
         )
       ) {
         return current;
       }
-      return backups.find((backup) => backup.verified)?.backup_id ?? null;
+      return backups[0]?.backup_id ?? null;
     });
   }, [backups]);
 
   async function loadStatus(
     signal?: AbortSignal,
     page = 1,
-    options: {
-      confirm_current_state?: boolean;
-    } = {},
   ): Promise<boolean> {
     setLoading(true);
     setUnavailable(false);
     try {
-      const response = await fetch(`/api/recovery?page=${page}`, {
+      const response = await fetch(`/api/recovery?page=${page}${retainedRequest.current ? `&request_id=${encodeURIComponent(retainedRequest.current.request_id)}` : ""}`, {
         method: "GET",
         cache: "no-store",
         signal,
       });
       if (!response.ok) throw new Error("recovery_unavailable");
       const value = (await response.json()) as RecoveryStatusV01;
-      if (value.contract !== "augnes.recovery-product.v1") {
+      if (value.contract !== "augnes.recovery-product.v2") {
         throw new Error("recovery_unavailable");
       }
       setStatus(value);
-      if (options.confirm_current_state) {
-        setActionConfirmationState("confirmed");
-      }
+      if (retainedRequest.current && value.operation?.request_id !== retainedRequest.current.request_id) throw new Error("request_mismatch");
+      setActionConfirmationState(recoveryConfirmationStateV02(value));
       return true;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return false;
       }
       setUnavailable(true);
+      setActionConfirmationState("refresh_required");
       if (status !== null) {
         setNotice(
-          "Recovery status could not be refreshed. The last confirmed status remains on screen.",
+          "Recovery status could not be refreshed. The last observation remains on screen; protected actions stay locked.",
         );
       }
       return false;
@@ -146,37 +159,47 @@ export default function RecoveryPage() {
     const refreshed = await loadStatus(
       undefined,
       status?.backup_page ?? 1,
-      { confirm_current_state: true },
     );
     setNotice(
       refreshed
-        ? "Recovery status refreshed. Available actions now use the current confirmed state."
+        ? "Request status refreshed. Only a completed exact validation confirms a checkpoint."
         : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The refresh did not succeed.`,
     );
   }
 
   async function runAction(
-    action: "create_backup" | "restore_backup" | "retry_update",
+    action: "create_backup" | "verify_backup" | "restore_backup" | "retry_update",
     backupId?: string,
   ) {
     if (actionConfirmationState === "refresh_required") return;
     setBusyAction(action);
     setNotice(null);
     try {
+      let material: Record<string, string>;
+      if (action === "create_backup" || action === "verify_backup") {
+        if (!status?.admission_binding) throw new Error("admission_unavailable");
+        material = {action, request_id: crypto.randomUUID(), admission_binding: status.admission_binding};
+        if (action === "verify_backup") {
+          if (!selectedBackup) throw new Error("target_unavailable");
+          Object.assign(material, {backup_id:selectedBackup.backup_id, backup_identity:selectedBackup.backup_identity, target_binding:selectedBackup.target_binding});
+        }
+        // Persist the exact correlation/material before dispatch. Storage failure
+        // refuses dispatch; reload and response loss only perform status reads.
+        localStorage.setItem(storageKey, JSON.stringify(material));
+        retainedRequest.current = material;
+      } else {
+        if (!status || !recoveryHasExactValidationV02(status) || !status.operation) throw new Error("validation_required");
+        material = {action, verification_request_id: status.operation.request_id, ...(backupId ? {backup_id:backupId} : {})};
+      }
       const response = await fetch("/api/recovery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ...(backupId === undefined ? {} : { backup_id: backupId }),
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(material),
       });
       const value = (await response.json()) as RecoveryActionResult;
       if (!response.ok || !value.accepted) {
         if (value.outcome === "status_unknown") {
           requireStatusRefresh();
         } else if (value.outcome === "refused") {
-          setNotice(
+          requireStatusRefresh(
             `The recovery action was not scheduled. ${humanize(
               value.reason_code ?? "review_the_current_status",
             )}.`,
@@ -195,17 +218,8 @@ export default function RecoveryPage() {
               : RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
         );
       }
-      if (value.outcome === "backup_created") {
-        const refreshed = await loadStatus(
-          undefined,
-          status?.backup_page ?? 1,
-          { confirm_current_state: true },
-        );
-        setNotice(
-          refreshed
-            ? "Backup created. Current recovery status was refreshed."
-            : `${RECOVERY_REFRESH_REQUIRED_NOTICE_V01} The follow-up status read did not succeed.`,
-        );
+      if (value.outcome === "operation_recorded") {
+        requireStatusRefresh("Request accepted. Validation is still pending. Refresh this request’s status explicitly; no second request was sent.");
       }
     } catch {
       requireStatusRefresh();
@@ -216,7 +230,7 @@ export default function RecoveryPage() {
 
   function restoreBackup() {
     if (actionConfirmationState === "refresh_required") return;
-    if (selectedBackup === null || !selectedBackup.verified) return;
+    if (selectedBackup === null || !status || !recoveryHasExactValidationV02(status) || status.operation?.result?.backup_id !== selectedBackup.backup_id) return;
     setRestoreConfirmationOpen(true);
   }
 
@@ -225,7 +239,7 @@ export default function RecoveryPage() {
       setRestoreConfirmationOpen(false);
       return;
     }
-    if (!selectedBackup?.verified) return;
+    if (!selectedBackup || !status || !recoveryHasExactValidationV02(status) || status.operation?.result?.backup_id !== selectedBackup.backup_id) return;
     setRestoreConfirmationOpen(false);
     void runAction("restore_backup", selectedBackup.backup_id);
   }
@@ -428,6 +442,17 @@ export default function RecoveryPage() {
               </div>
             </section>
 
+            <section className={styles.panel} aria-label="Recovery request">
+              <p data-recovery-request-state={status.operation?.state ?? "none"}>
+                {status.operation ? `Request ${status.operation.request_id}: ${status.operation.state}.` : "No request selected. Inventory alone does not confirm a recovery checkpoint."}
+              </p>
+              {status.operation?.reason ? <p>{humanize(status.operation.reason)}</p> : null}
+              {status.operation?.result ? <p>Validation observation: {formatTimestamp(status.operation.result.verified_at)}. Validator {status.operation.result.validator_contract}; application {status.operation.result.application_version}. {status.operation.result.build_identity === null ? "Loaded source build is not attested." : `Build ${status.operation.result.build_identity}.`}</p> : null}
+              <button type="button" className={styles.secondaryButton} onClick={() => void runAction("verify_backup")}
+                disabled={!status.actions.verify_backup || !selectedBackup || loading || busyAction !== null || actionConfirmationState === "refresh_required"}>
+                Verify selected backup
+              </button>
+            </section>
             <RecoveryPoints
               status={status}
               view={confirmedView ?? view}
@@ -615,7 +640,7 @@ function RecoverySecondaryAction({
       : action.kind === "retry_update"
         ? status.actions.retry_update
         : action.kind === "restore_backup"
-          ? status.actions.restore_backup && selectedBackup?.verified === true
+          ? status.actions.restore_backup && recoveryHasExactValidationV02(status) && selectedBackup?.backup_id === status.operation?.result?.backup_id
           : true;
   return (
     <button
@@ -664,11 +689,11 @@ function RecoveryPoints({
       <div className={styles.sectionHeading}>
         <div>
           <p className={styles.kicker}>Recovery points</p>
-          <h2 id="recovery-backups-title">Verified local backups</h2>
+          <h2 id="recovery-backups-title">Local backup inventory</h2>
         </div>
         <span className={styles.count}>
-          {status.backup_inventory_state === "available"
-            ? `${view.backup_summary.verified_count} verified`
+          {status.backup_inventory_state === "metadata_only"
+            ? `${status.backup_count} listed · ${view.backup_summary.verified_count} exact result`
             : "Inventory unavailable"}
         </span>
       </div>
@@ -684,7 +709,7 @@ function RecoveryPoints({
       ) : null}
       {backups.length === 0 ? (
         <p>
-          {status.backup_inventory_state === "available"
+          {status.backup_inventory_state === "metadata_only"
             ? "No recovery points are currently shown."
             : "Recovery points could not be verified. No restore action is available."}
         </p>
@@ -705,7 +730,6 @@ function RecoveryPoints({
                 checked={selectedBackupId === backup.backup_id}
                 onChange={() => onSelect(backup.backup_id)}
                 disabled={
-                  !backup.verified ||
                   busyAction !== null ||
                   consequentialMutationsLocked
                 }
@@ -719,7 +743,7 @@ function RecoveryPoints({
                   {" · "}
                   {humanize(backup.reason)}
                   {" · "}
-                  {backup.verified ? "Verified" : "Not verified"}
+                  {status.operation?.state === "completed" && status.operation.result?.target_binding === backup.target_binding ? "Exact validation completed" : "Metadata only — not verified by this read"}
                 </span>
               </span>
             </label>

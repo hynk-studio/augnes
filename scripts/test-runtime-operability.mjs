@@ -4286,6 +4286,11 @@ function assertRuntimeEnvironmentIsolation() {
   assert.equal(Object.hasOwn(absentUiEnvironment, "CODEX_HOME"), false);
   assert.equal(Object.hasOwn(absentUiEnvironment, "CODEX_SQLITE_HOME"), false);
 
+  const recoveryEnvironment = buildRuntimeChildEnvironment({role:"recovery",ambientEnvironment});
+  for (const key of ["OPENAI_API_KEY","OPENAI_MODEL","CODEX_HOME","CODEX_SQLITE_HOME","AUGNES_RUNTIME_OWNERSHIP_TOKEN","AUGNES_COMPANION_PROXY_TOKEN","NODE_OPTIONS"]) {
+    assert.equal(Object.hasOwn(recoveryEnvironment,key),false);
+  }
+
   const uiValues = buildSupervisorChildValues({
     role: "ui",
     environment: ambientEnvironment,

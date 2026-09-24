@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
   chmodSync,
@@ -1415,12 +1415,14 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assert.equal(healthyRecoveryStatus.body.actions.create_backup, true);
   const manualBackup = await postRecoveryAction(
     current.effective_url,
-    { action: "create_backup" },
+    { action: "create_backup", request_id: randomUUID(), admission_binding: healthyRecoveryStatus.body.admission_binding },
     current.effective_url,
   );
-  assert.equal(manualBackup.status, 201);
+  assert.equal(manualBackup.status, 202);
   assert.equal(manualBackup.body.accepted, true);
-  assert.equal(manualBackup.body.outcome, "backup_created");
+  assert.equal(manualBackup.body.outcome, "operation_recorded");
+  const manualResult = await waitForRecoveryResult(current.effective_url, manualBackup.body.request_id);
+  assert.equal(manualResult.operation.result.creation_completed, true);
   const manualInventory = listRecoveryBackups({
     backupDirectory: currentLocalPaths.backup_directory,
     applicationScopeFingerprint: manifest.application_scope_fingerprint,
@@ -1485,7 +1487,7 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assert.equal(malformedStatus.body.actions.restore_backup, false);
   const malformedRetry = await postRecoveryAction(
     malformedOrigin,
-    { action: "retry_update" },
+    { action: "retry_update", verification_request_id: randomUUID() },
     malformedOrigin,
   );
   assert.equal(malformedRetry.status, 409);
@@ -1535,7 +1537,7 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assert.equal(missingIdentityStatus.body.actions.restore_backup, false);
   const missingIdentityRetry = await postRecoveryAction(
     missingIdentityOrigin,
-    { action: "retry_update" },
+    { action: "retry_update", verification_request_id: randomUUID() },
     missingIdentityOrigin,
   );
   assert.equal(missingIdentityRetry.status, 409);
@@ -2705,7 +2707,9 @@ async function testPackagedMigrationAndRestore(root, manifest) {
     200,
     JSON.stringify(statusBefore.body),
   );
-  assert.equal(statusBefore.body.actions.restore_backup, true);
+  assert.equal(statusBefore.body.actions.restore_backup, false, "metadata does not confirm a checkpoint");
+  const restoreValidation = await verifyRecoveryTarget(currentForRestore.effective_url, updateBackup.manifest.backup_id);
+  assert.equal(restoreValidation.actions.restore_backup, true);
   assert.equal(
     statusBefore.body.actions.retry_update,
     false,
@@ -2737,14 +2741,14 @@ async function testPackagedMigrationAndRestore(root, manifest) {
 
   const missingOrigin = await postRecoveryAction(
     currentForRestore.effective_url,
-    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id },
+    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id, verification_request_id: restoreValidation.operation.request_id },
     null,
   );
   assert.equal(missingOrigin.status, 400);
   assert.equal(missingOrigin.body.reason_code, "recovery_request_invalid");
   const wrongOrigin = await postRecoveryAction(
     currentForRestore.effective_url,
-    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id },
+    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id, verification_request_id: restoreValidation.operation.request_id },
     "http://127.0.0.1:1",
   );
   assert.equal(wrongOrigin.status, 400);
@@ -2766,7 +2770,7 @@ async function testPackagedMigrationAndRestore(root, manifest) {
     );
     const tamperedRecovery = await postRecoveryAction(
       currentForRestore.effective_url,
-      { action: "restore_backup", backup_id: updateBackup.manifest.backup_id },
+      { action: "restore_backup", backup_id: updateBackup.manifest.backup_id, verification_request_id: restoreValidation.operation.request_id },
       currentForRestore.effective_url,
     );
     assert.equal(tamperedRecovery.status, 409);
@@ -2799,7 +2803,7 @@ async function testPackagedMigrationAndRestore(root, manifest) {
 
   const scheduled = await postRecoveryAction(
     currentForRestore.effective_url,
-    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id },
+    { action: "restore_backup", backup_id: updateBackup.manifest.backup_id, verification_request_id: restoreValidation.operation.request_id },
     currentForRestore.effective_url,
   );
   assert.equal(scheduled.status, 202, JSON.stringify(scheduled.body));
@@ -2954,11 +2958,14 @@ async function testPackagedMigrationAndRestore(root, manifest) {
   );
   assert.equal(guardRecoveryStatus.status, 200);
   assert.equal(guardRecoveryStatus.body.actions.retry_update, false);
-  assert.equal(guardRecoveryStatus.body.actions.restore_backup, true);
+  assert.equal(guardRecoveryStatus.body.actions.restore_backup, false);
+  const guardValidation = await verifyRecoveryTarget(guardRecovery.effective_url, updateBackup.manifest.backup_id);
+  assert.equal(guardValidation.actions.restore_backup, true);
   const guardRestoreScheduled = await postRecoveryAction(
     guardRecovery.effective_url,
     {
       action: "restore_backup",
+      verification_request_id: guardValidation.operation.request_id,
       backup_id: updateBackup.manifest.backup_id,
     },
     guardRecovery.effective_url,
@@ -3185,7 +3192,9 @@ async function testStartupTimeoutRecoverySurface(root, manifest) {
   assert.equal(status.body.database.schema_classification, "old");
   assert.equal(status.body.latest_operation.data_preserved, true);
   assert.equal(status.body.latest_operation.backup_verified, true);
-  assert.equal(status.body.actions.restore_backup, true);
+  assert.equal(status.body.actions.restore_backup, false);
+  const timeoutValidation = await verifyRecoveryTarget(origin, status.body.backups[0].backup_id);
+  assert.equal(timeoutValidation.actions.restore_backup, true);
 
   const localPaths = packagedLocalPaths(root, manifest, environment);
   const inventory = listRecoveryBackups({
@@ -3219,6 +3228,7 @@ async function testStartupTimeoutRecoverySurface(root, manifest) {
     origin,
     {
       action: "restore_backup",
+      verification_request_id: timeoutValidation.operation.request_id,
       backup_id: inventory.verified[0].manifest.backup_id,
     },
     origin,
@@ -3296,7 +3306,7 @@ async function testStartupTimeoutRecoverySurface(root, manifest) {
   assert.equal(wrongTargetStatus.body.actions.restore_backup, false);
   const wrongTargetAction = await postRecoveryAction(
     wrongTargetRecovery.effective_url,
-    { action: "retry_update" },
+    { action: "retry_update", verification_request_id: randomUUID() },
     wrongTargetRecovery.effective_url,
   );
   assert.equal(wrongTargetAction.status, 409);
@@ -4418,6 +4428,32 @@ function readAuthorityCounts(databasePath) {
   } finally {
     database.close();
   }
+}
+
+async function waitForRecoveryResult(origin, requestId) {
+  const end = Date.now() + 40_000;
+  while (Date.now() < end) {
+    const response = await fetchJson(`${new URL(origin).origin}/api/recovery?request_id=${requestId}`);
+    assert.equal(response.status,200,JSON.stringify(response.body));
+    assert.equal(response.body.operation.request_id,requestId);
+    if (!["accepted","running"].includes(response.body.operation.state)) {
+      assert.equal(response.body.operation.state,"completed",JSON.stringify(response.body.operation));
+      return response.body;
+    }
+    await delay(100);
+  }
+  throw new Error("bounded recovery result fixture deadline");
+}
+
+async function verifyRecoveryTarget(origin, backupId) {
+  const response = await fetchJson(`${new URL(origin).origin}/api/recovery`);
+  assert.equal(response.status,200);
+  const target = response.body.backups.find(backup => backup.backup_id === backupId);
+  assert.ok(target);assert.equal(target.verified,false);
+  const request = {action:"verify_backup",request_id:randomUUID(),admission_binding:response.body.admission_binding,backup_id:target.backup_id,backup_identity:target.backup_identity,target_binding:target.target_binding};
+  const admission = await postRecoveryAction(origin,request,origin);
+  assert.equal(admission.status,202,JSON.stringify(admission.body));
+  return waitForRecoveryResult(origin,request.request_id);
 }
 
 async function postRecoveryAction(origin, body, requestOrigin) {

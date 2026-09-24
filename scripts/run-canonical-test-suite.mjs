@@ -1081,6 +1081,15 @@ const suites = {
       timeoutMs: 300_000,
     },
     {
+      id: "recovery-control-operation",
+      shard: "operability-recovery-storage",
+      requirements: ["filesystem", "database", "process-owning", "listener-port-owning"],
+      label: "correlated recovery worker and metadata status",
+      ...rootNode("scripts/test-recovery-control-operation.mjs"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "recovery-backup",
       shard: "operability-recovery-storage",
       requirements: ["database", "backup-restore", "process-owning"],
