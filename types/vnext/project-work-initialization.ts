@@ -22,6 +22,7 @@ export type ProjectWorkInitializationStateV01 =
   | "defined_successor_work"
   | "defined_initial_work"
   | "defined_revised_work"
+  | "defined_new_task"
   | "defined_transition_work"
   | "defined_operational_continuation_work"
   | "existing_history_without_current_packet"
@@ -47,6 +48,7 @@ export interface ProjectWorkInitializationV01 {
     | "current_successor_packet"
     | "current_initial_packet"
     | "current_revision_packet"
+    | "current_new_task_packet"
     | "current_transition_packet"
     | "current_operational_continuation_packet"
     | "multiple_current_packet_candidates"
@@ -64,6 +66,8 @@ export interface ProjectWorkInitializationV01 {
   active_selection_revision: number | null;
   current_work: ProjectWorkDefinitionV01 | null;
   selected_source_context?: TaskContextPacketSelectedEntryV01[];
+  /** Reconstructed task boundary, including after ordinary revisions of the new task. */
+  previous_preparation?: { goal: string; packet_fingerprint: string; marked_complete: false };
   current_packet: null | {
     packet_id: string;
     packet_fingerprint: string;
@@ -71,6 +75,7 @@ export interface ProjectWorkInitializationV01 {
     lineage_kind:
       | "initial_user_defined"
       | "pre_execution_user_revision"
+      | "pre_execution_new_task"
       | "authored_successor_task"
       | "semantic_transition"
       | "source_linked_operational_continuation";

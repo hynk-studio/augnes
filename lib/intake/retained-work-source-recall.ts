@@ -1,6 +1,6 @@
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import type { PreExecutionProjectWorkChainInspectionV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
-import { MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
+import { PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01, MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
 import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, SelectedWorkSourceError, SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
 
@@ -23,6 +23,7 @@ export interface RetainedWorkSourceHit {
 /** Only the existing exact lineage owner may supply this invocation-local chain. */
 export function recallRetainedWorkSources(chain: Chain, query: unknown,
   disclosure: { include_source_locator?: (locator: string) => boolean } = {}) {
+  chain = currentTaskChain(chain);
   if (chain.packets.length > RETAINED_WORK_SOURCE_LIMITS.packets) throw new SelectedWorkSourceError("retained_source_scan_bound_exceeded");
   if (typeof query !== "string" || !query.trim() || [...query].length > RETAINED_WORK_SOURCE_LIMITS.query_characters ||
     /[\u0000-\u001f\u007f]/u.test(query)) throw new SelectedWorkSourceError("retained_source_query_invalid");
@@ -100,6 +101,7 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
 
 /** Recheck exact retained snapshots in the fresh owner-validated chain, never caller copies. */
 export function resolveRetainedWorkSources(chain: Chain, value: unknown) {
+  chain = currentTaskChain(chain);
   const refs = normalizeRetainedWorkSourceRefs(value);
   const entries = refs.map((ref) => {
     const packet = chain.packets.find((packet) => packet.packet_id === ref.packet_id && packet.integrity.fingerprint === ref.packet_fingerprint);
@@ -111,3 +113,8 @@ export function resolveRetainedWorkSources(chain: Chain, value: unknown) {
 }
 
 function utf8(value: unknown): number { return Buffer.byteLength(canonicalizeProtocolValueV01(value), "utf8"); }
+
+function currentTaskChain(chain: Chain): Chain {
+  const start = chain.packets.findLastIndex(packet => packet.compatibility.source_contracts.includes(PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01));
+  return start < 0 ? chain : { ...chain, packets: chain.packets.slice(start) };
+}

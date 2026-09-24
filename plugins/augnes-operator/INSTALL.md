@@ -265,3 +265,12 @@ model-mediated Codex conversation. The current
 Codex CLI has no provider-free direct `tools/call` command, so automating that
 final conversation would require a separately configured model/provider
 invocation.
+
+Explicit different-task preparation adds `augnes_preview_repository_new_work`
+and `augnes_prepare_repository_new_work` on the same private mutation channel.
+The complete definition and explicit kept/omitted/new notes are reviewed before
+atomic save; no predecessor execution, completion, approval or grant is inferred.
+Normal Resume/source read and Browser reconstruct the resulting task, and normal
+note revision remains available. See the same preparation contract above. These
+tools require the matching merged runtime/plugin and separately authorized
+installation; candidate tests do not install or change production work.

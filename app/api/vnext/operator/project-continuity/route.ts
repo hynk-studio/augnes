@@ -1,3 +1,4 @@
+import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import type Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
@@ -38,6 +39,7 @@ import {
 import {
   ProjectWorkRevisionErrorV01,
   revisePreExecutionProjectWorkV01,
+  previewNewProjectWorkV01,
   readProjectWorkRevisionEligibilityStrictV01,
 } from "@/lib/vnext/runtime/project-work-revision";
 import { PreExecutionProjectWorkRevisionErrorV01, inspectPreExecutionProjectWorkRevisionChainV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
@@ -151,6 +153,8 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         "compare_selected_work_sources",
         "lookup_retained_work_sources",
         "revise_pre_execution_project_work",
+        "preview_new_project_work",
+        "prepare_new_project_work",
         "export_hosted_snapshot",
       ].includes(body.action as string)) {
         throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
@@ -270,7 +274,14 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           }),
         );
       }
-      if (body.action === "revise_pre_execution_project_work") {
+      if (body.action === "preview_new_project_work") {
+        const preview = db.transaction(() => {
+          authenticateVNextLocalOperatorSessionV01(db!, { config, credential, clock: options.clock });
+          return previewNewProjectWorkV01(db!, config, body);
+        })();
+        return jsonResponse({ ok: true, ...preview });
+      }
+      if (body.action === "revise_pre_execution_project_work" || body.action === "prepare_new_project_work") {
         const result = revisePreExecutionProjectWorkV01(db, {
           config,
           credential,
@@ -357,7 +368,7 @@ function errorResponse(error: unknown): NextResponse {
     error instanceof VNextLocalOperatorSessionErrorV01 ||
     error instanceof VNextOperatorPilotContinuityErrorV01 ||
     error instanceof VNextOperatorPilotContextUseReviewErrorV01 ||
-    error instanceof ProjectWorkRevisionErrorV01 ||
+    error instanceof NewProjectWorkPreparationErrorV01 || error instanceof ProjectWorkRevisionErrorV01 ||
     error instanceof SelectedWorkSourceError ||
     error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
     isProjectWorkInitializationErrorV01(error);

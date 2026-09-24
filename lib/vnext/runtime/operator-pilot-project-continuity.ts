@@ -89,7 +89,7 @@ import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01, PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 import { STRATEGIC_ADVANTAGE_TRANSFER_PROFILE_VERSION_V01 } from "@/types/vnext/strategic-advantage-transfer";
 
@@ -144,6 +144,7 @@ export interface VNextOperatorPilotProjectContinuityV01 {
     lineage_kind?:
       | "initial_user_defined"
       | "pre_execution_user_revision"
+      | "pre_execution_new_task"
       | "authored_successor_task"
       | "semantic_transition"
       | "source_linked_operational_continuation";
@@ -206,7 +207,7 @@ export interface VNextOperatorPilotInitialPacketLineageInspectionV01 {
 }
 
 export interface VNextOperatorPilotRevisionPacketLineageInspectionV01 {
-  lineage_kind: "pre_execution_user_revision";
+  lineage_kind: "pre_execution_user_revision" | "pre_execution_new_task";
   packet: TaskContextPacketV01;
   prior_packet: {
     packet_id: string;
@@ -571,9 +572,7 @@ export function inspectVNextOperatorPilotPacketLineageV01(
       : lineage;
   }
   if (
-    packet.compatibility.source_contracts.includes(
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-    )
+    packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01))
   ) {
     const lineage = inspectPreExecutionProjectWorkRevisionPacketV01(db, {
       workspace_id: input.config.workspace_id,
@@ -581,7 +580,7 @@ export function inspectVNextOperatorPilotPacketLineageV01(
       packet,
     });
     return {
-      lineage_kind: "pre_execution_user_revision",
+      lineage_kind: lineage.lineage_kind,
       packet,
       prior_packet: {
         packet_id: lineage.prior_packet.packet_id,
@@ -960,9 +959,7 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
         packet.compatibility.source_contracts.includes(
           INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
         ) ||
-        packet.compatibility.source_contracts.includes(
-          PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-        ) ||
+        packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
         packet.compatibility.source_contracts.includes(
           SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
         ),

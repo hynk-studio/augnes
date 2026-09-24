@@ -11,12 +11,13 @@ type Comparison = ReturnType<typeof compareSelectedWorkSources>;
 const emptyNote = (): SelectedWorkSourceInput => ({ source: "", text: "", observed_at: null, provenance: "imported_unverified", label: "Unclassified / needs review" });
 type EditorNote = SelectedWorkSourceInput & { retainedSource?: RetainedWorkSourceRef };
 
-export function SelectedWorkSourceEditor({ initialization, busy, onChange }: {
+export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTask = false }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
+  newTask?: boolean;
   onChange: (selection: SelectedWorkSourceSelection | null, pending: boolean) => void;
 }) {
-  const [notes, setNotes] = useState<EditorNote[]>(() => (initialization.selected_source_context ?? []).map((entry) => ({
+  const [notes, setNotes] = useState<EditorNote[]>(() => (newTask ? [] : initialization.selected_source_context ?? []).map((entry) => ({
     source: entry.compatibility_source_ref!.external_id, observed_at: entry.external_ref!.observed_at ?? null,
     provenance: entry.trust_class as SelectedWorkSourceInput["provenance"],
     label: entry.why_included as SelectedWorkSourceInput["label"], text: entry.bounded_summary!,
@@ -71,7 +72,15 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange }: {
     <summary>Selected source notes for this work</summary>
     <p className={styles.copy}>Keep a selected conversation excerpt, result or history note with its source and conditions. Comparing saves nothing. Save revision includes these notes as context for preparing the next work. You can save notes without changing the work definition or setting up execution.</p>
     <p className={styles.muted}>Up to eight notes; 2,000 characters per note. Notes and source details must fit the combined context budget. Oversized selections are refused, never silently clipped. Include the source revision and meaningful chronology. Original source availability is not verified.</p>
-    <RetainedWorkSourceLookup initialization={initialization} disabled={busy || comparing} selectionFull={notes.length >= 8}
+    {newTask ? <>
+      <p>Every carried note must be selected explicitly. Keep an original and its correction together when both matter.</p>
+      {(initialization.selected_source_context ?? []).map(entry => <div key={entry.entry_id}>
+        <p>{entry.bounded_summary}</p>
+        <button type="button" data-new-source-carry className={styles.secondaryButton} disabled={busy || comparing || notes.length >= 8 || notes.some(note => note.text === entry.bounded_summary && note.source === entry.compatibility_source_ref!.external_id)}
+          onClick={() => changeNotes([...notes, { source: entry.compatibility_source_ref!.external_id, text: entry.bounded_summary!,
+            observed_at: entry.external_ref?.observed_at ?? null, provenance: entry.trust_class as SelectedWorkSourceInput["provenance"], label: entry.why_included as SelectedWorkSourceInput["label"] }])}>Carry this note</button>
+      </div>)}
+    </> : <RetainedWorkSourceLookup initialization={initialization} disabled={busy || comparing} selectionFull={notes.length >= 8}
       isSelected={(hit) => notes.some((note) => note.source === hit.entry.compatibility_source_ref!.external_id &&
         note.text === hit.entry.bounded_summary && note.observed_at === (hit.entry.external_ref?.observed_at ?? null) &&
         note.provenance === hit.entry.trust_class && note.label === hit.entry.why_included)}
@@ -79,7 +88,7 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange }: {
         source: hit.entry.compatibility_source_ref!.external_id, text: hit.entry.bounded_summary!,
         observed_at: hit.entry.external_ref?.observed_at ?? null, provenance: hit.entry.trust_class as SelectedWorkSourceInput["provenance"],
         label: hit.entry.why_included as SelectedWorkSourceInput["label"], retainedSource: hit.source,
-      }])} />
+      }])} />}
     <label htmlFor="selected-note-source">Source and revision</label>
     <input id="selected-note-source" value={draft.source} maxLength={256} onChange={(event) => setDraft({ ...draft, source: event.target.value })} placeholder="Review note, revision 2 — selected paragraphs" />
     <label htmlFor="selected-note-time">Source time, if known</label>

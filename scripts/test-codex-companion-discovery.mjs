@@ -158,6 +158,7 @@ const ui = createServer(async (request, response) => {
     assert.equal(request.headers["x-augnes-local-work-revision"], "codex-repository-work-revision-v0.1");
     let body = ""; for await (const chunk of request) body += chunk;
     assert.equal(JSON.parse(body).action, "save");
+    if (workRevisionScenario.newTask) assert.equal(JSON.parse(body).intent, "new_task");
     if (workRevisionScenario.disconnect) return request.socket.destroy();
     response.setHeader("x-augnes-local-work-revision", "codex-repository-work-revision-v0.1");
     response.setHeader("x-augnes-runtime-instance", instance);
@@ -263,6 +264,8 @@ try {
       "augnes_lookup_repository_retained_sources",
       "augnes_preview_repository_work_revision",
       "augnes_save_repository_work_revision",
+      "augnes_preview_repository_new_work",
+      "augnes_prepare_repository_new_work",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
       "augnes_validate_repository_execution_attachment",
@@ -296,6 +299,10 @@ try {
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_preview_repository_new_work")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.readOnlyHint, false);
+    assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.idempotentHint, false);
+    assert.deepEqual(byName.get("augnes_prepare_repository_new_work")?.inputSchema.properties.changes.required, ["goal", "success_criteria", "non_goals", "sources"]);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);
@@ -481,6 +488,12 @@ try {
     assert.equal((await save()).structuredContent.reason, "refresh_required");
     workRevisionScenario = { status: 422, body: { error: { code: "retained_source_changed_or_unavailable", status: 422 } } };
     assert.equal((await save()).structuredContent.reason, "retained_source_changed_or_unavailable");
+    workRevisionScenario = { newTask: true, status: 422, body: { error: { code: "new_work_selection_or_preview_invalid", status: 422 } } };
+    const newWorkRefusal = await client.callTool({ name: "augnes_prepare_repository_new_work", arguments: {
+      repositoryRoot: process.cwd(), expectedSnapshotBinding: `sha256:${"c".repeat(64)}`, previewBinding: `sha256:${"d".repeat(64)}`,
+      changes: { goal: "A declared different task", success_criteria: ["Exact preparation"], non_goals: [], sources: { keep: [], omitted_sources: [] } },
+    } });
+    assert.equal(newWorkRefusal.structuredContent.reason, "new_work_selection_or_preview_invalid");
     const strictDiscoveryHealthCalls = uiHealthCalls;
     uiHealthAvailable = false;
     const result = await client.callTool({

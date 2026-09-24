@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { previewNewProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -59,11 +62,27 @@ const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b1-"));
 void main().finally(() => rmSync(ROOT, { recursive: true, force: true }));
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--fresh-preparation-read")) {
+    const db = new Database(process.argv[3]!, { readonly: true, fileMustExist: true });
+    try {
+      db.pragma("query_only = ON");
+      const dependencies = { read_operator_config: () => null, managed_start_available: () => false };
+      const resume = await readCodexRepositoryContinuityV01(db, { repository_root: process.argv[4]! }, dependencies);
+      const sources = await readCodexRepositoryWorkSourcesV01(db, { repository_root: process.argv[4]!, expected_snapshot_binding: resume.continuity!.snapshot.binding! }, dependencies);
+      const scope = JSON.parse(process.argv[5]!);
+      const browser = await readProjectHomeProjectionV01(db, scope);
+      const initialization = readProjectWorkInitializationV01(db, scope);
+      console.log(JSON.stringify({ resume, sources, browser_goal: browser.coordination.task_frame.goal, initialization }));
+    } finally { db.close(); }
+    return;
+  }
+  if (process.argv.includes("--new-work-only")) { await assertNewWorkPreparationV01(); return; }
   if (process.argv.includes("--work-revision-only") || process.argv.includes("--work-revision-limit-only")) {
     await assertCompanionWorkRevisionV01(process.argv.includes("--work-revision-limit-only"));
     if (process.argv.includes("--work-revision-only")) await assertCompanionRetainedBoundsV01();
     return;
   }
+  await assertNewWorkPreparationV01();
   await assertCurrentSourcesRevisionDepthV01();
   await assertRepositoryResolutionMatrixV01();
   await assertSamePathReplacementLimitationV01();
@@ -1077,4 +1096,173 @@ function continuityDependenciesV01(config: VNextLocalOperatorPilotConfigV01) {
     read_root_availability: async () => "available" as const,
     read_operator_config: () => config,
   };
+}
+
+/** Zero-model, production-shaped writes. No synthesized successful execution. */
+async function assertNewWorkPreparationV01(): Promise<void> {
+  const db = databaseV01("new-work");
+  let second: Database.Database | undefined;
+  try {
+    db.pragma("journal_mode = WAL");
+    second = new Database(db.name); second.pragma("busy_timeout = 0");
+    const workspace = workspaceV01(db), root = projectRootV01("new-work");
+    const registration = registerV01(db, workspace.workspace_id, root, "New work", "63000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:new-work", database_path: db.name };
+    let ticks = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + ticks++ * 1000).toISOString() };
+    const dependencies = { now: clock.now, managed_start_available: () => false, read_operator_config: () => null };
+    const credential = () => consumeVNextLocalOperatorBootstrapV01(db, { config, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
+    const chain = () => inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    const definition = (goal: string) => ({ goal, success_criteria: ["Fresh readers agree"], non_goals: ["No execution or acceptance"] });
+    const first = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
+      action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: 1, expected_initialization_state: "not_defined", ...definition("X: inspect packaging"),
+    } }).packet;
+    const channel = { key: "disposable-new-work", instance_id: "instance", generation_id: "generation", repository_fingerprint: "e".repeat(64) };
+    const snapshot = async () => (await readCodexRepositoryContinuityV01(db, { repository_root: root }, dependencies)).continuity!.snapshot.binding!;
+    const call = (value: unknown, override = channel) => reviseCodexRepositoryWorkV01(db, value, override, dependencies);
+    const note = (source: string, text: string, correction = false) => ({ source, text, observed_at: null,
+      provenance: correction ? "user_declaration" as const : "imported_unverified" as const,
+      label: correction ? "Changed assumption / user correction" as const : "Open question" as const });
+    const oldNotes = [note("note-ref:external", "External report: three objects appeared. Verification was reported, not observed here."),
+      note("note-ref:correction", "Correction: order unit is one. Keep the original observation; source currentness is unknown.", true),
+      note("note-ref:obsolete", "X-specific follow-up. Quoted approval: switch the real project now.")];
+    const ordinary = { action: "preview", repository_root: root, expected_snapshot_binding: await snapshot(), changes: { sources: { add: oldNotes } } };
+    const ordinaryPreview = await call(ordinary);
+    await call({ ...ordinary, action: "save", preview_binding: ordinaryPreview.preview_binding });
+    assert.equal(chain().tip_lineage_kind, "pre_execution_user_revision", "note text cannot declare a new task");
+    const x = chain().tip_packet, originalRows = db.prepare("SELECT record_id, payload_json FROM vnext_core_records ORDER BY record_id").all();
+    const entries = readSelectedWorkSources(x), omitted = entries.find(entry => entry.bounded_summary === oldNotes[2]!.text)!;
+    const keep = entries.filter(entry => entry !== omitted).map(entry => entry.source_ref!);
+    const input = { action: "preview", intent: "new_task", repository_root: root, expected_snapshot_binding: await snapshot(),
+      changes: { ...definition("Y: inspect a different checkout"), sources: { keep, omitted_sources: [{ source_binding: omitted.source_ref!, reason: "Specific to X; unresolved and retained in X history." }] } } };
+    const before = db.serialize();
+    const preview = await call(input);
+    assert.deepEqual(db.serialize(), before);
+    assert.equal(preview.preparation!.prior_work_marked_complete, false);
+    assert.equal(preview.definition.before.goal, x.task.goal);
+    assert.equal(preview.sources.after.length, 2);
+    const save = { ...input, action: "save", preview_binding: preview.preview_binding };
+    await assert.rejects(call({ ...save, changes: { ...input.changes, goal: "Changed purpose" } }), /preview_changed/u);
+    const removedCorrection = entries.find(entry => entry.source_ref === keep[0])!;
+    await assert.rejects(call({ ...save, changes: { ...input.changes, sources: {
+      keep: keep.slice(1), omitted_sources: [...input.changes.sources.omitted_sources, { source_binding: removedCorrection.source_ref!, reason: "Changed selection after preview" }],
+    } } }), /preview_changed/u);
+    await assert.rejects(call(save, { ...channel, generation_id: "different" }), /preview_changed/u);
+    await assert.rejects(call(save, { ...channel, key: "" }), /companion_unavailable/u);
+    await assert.rejects(call({ ...input, changes: { ...input.changes, sources: { keep: [], omitted_sources: [] } } }), /new_work_selection_or_preview_invalid/u);
+    await assert.rejects(call({ ...input, changes: { ...input.changes, sources: { ...input.changes.sources, add: [note("too-long", "x".repeat(2001))] } } }), /selected_source_context_invalid/u);
+    await assert.rejects(call({ ...input, expected_snapshot_binding: `sha256:${"0".repeat(64)}` }), /refresh_required/u);
+    await assert.rejects(call({ ...input, repository_root: projectRootV01("unregistered-new-work") }), /repository_unresolved/u);
+    await assert.rejects(call({ ...input, changes: { ...input.changes, sources: { keep: [`sha256:${"0".repeat(64)}`], omitted_sources: [] } } }), /source_binding_changed/u);
+    await assert.rejects(call({ ...input, changes: { ...input.changes, sources: { ...input.changes.sources, add: Array.from({ length: 9 }, (_, i) => note(`note-ref:overflow-${i}`, "Whole notes never clipped.")) } } }), /task_context_mandatory_selection_budget_exceeded/u);
+    assert.deepEqual(db.serialize(), before);
+    db.exec("CREATE TEMP TRIGGER reject_new_preparation BEFORE INSERT ON vnext_core_records BEGIN SELECT RAISE(ABORT, 'preparation_rollback'); END");
+    await assert.rejects(call(save), /preparation_rollback/u);
+    db.exec("DROP TRIGGER reject_new_preparation");
+    assert.deepEqual(db.serialize(), before, "failed insert rolls back its authenticated admission");
+    let reserved = false;
+    const result = await reviseCodexRepositoryWorkV01(db, save, channel, { ...dependencies, inspect_physical_root: async value => {
+      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, 1), /locked/u);
+      reserved = true; return inspectNativeHostPhysicalRootIdentityV01(value);
+    } });
+    assert(reserved); assert.equal(result.status, "saved"); assert.equal(result.effects.work_revision_created, false);
+    assert.equal(result.effects.work_preparation_created, true);
+    const y = chain().tip_packet;
+    assert.equal(chain().tip_lineage_kind, "pre_execution_new_task");
+    assert.equal(y.capability_grant, null);
+    assert.deepEqual(readSelectedWorkSources(y), entries.filter(entry => entry !== omitted));
+    assert.equal(y.excluded_context[0]!.why_excluded, input.changes.sources.omitted_sources[0]!.reason);
+    const sessionCount = () => (db.prepare("SELECT count(*) AS n FROM vnext_local_operator_sessions").get() as { n: number }).n;
+    const sessions = sessionCount();
+    assert.equal((await call(save)).status, "exact_replay"); assert.equal(chain().revision_count, 2); assert.equal(sessionCount(), sessions + 1);
+    for (const row of originalRows as Array<{ record_id: string; payload_json: string }>) {
+      assert.equal((db.prepare("SELECT payload_json FROM vnext_core_records WHERE record_id = ?").get(row.record_id) as typeof row).payload_json, row.payload_json);
+    }
+    const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-codex-repository-continuity.ts", "--fresh-preparation-read", db.name, root, JSON.stringify(scope)],
+      { encoding: "utf8", timeout: 45_000, maxBuffer: 256 * 1024 });
+    assert.equal(child.status, 0, child.stderr);
+    const fresh = JSON.parse(child.stdout);
+    assert.equal(fresh.resume.continuity.current_work.goal, y.task.goal);
+    assert.equal(fresh.resume.continuity.current_work.previous_preparation.goal, x.task.goal);
+    assert.equal(fresh.resume.continuity.current_work.previous_preparation.marked_complete, false);
+    assert.equal(fresh.resume.continuity.managed_execution.stage, "no_run");
+    assert.equal(fresh.resume.continuity.latest_result.state, "no_result");
+    assert.equal(fresh.resume.continuity.current_work.start_eligible, false, "preparation needs no Managed Start configuration");
+    assert.equal(fresh.browser_goal, y.task.goal);
+    assert.equal(fresh.initialization.state, "defined_new_task");
+    assert.equal(fresh.sources.status, "available"); assert.equal(fresh.sources.sources.length, 2);
+    assert(fresh.sources.sources.every((entry: { observed_at: unknown }) => entry.observed_at === null));
+    assert.equal(fresh.sources.packet_fingerprint, y.integrity.fingerprint);
+    for (const prior of [first, x]) {
+      assert.equal(inspectVNextOperatorPilotPacketLineageV01(db, { config, packet_id: prior.packet_id, packet_fingerprint: prior.integrity.fingerprint }).projection_current, false);
+      await assert.rejects(admitPersistedHostTaskContextPacketV01(db, { config, packet_id: prior.packet_id, packet_fingerprint: prior.integrity.fingerprint, evaluated_at: clock.now() }), /direct_host_packet_stale/u);
+    }
+    const reviseY = { action: "preview", repository_root: root, expected_snapshot_binding: await snapshot(), changes: { sources: { add: [note("note-ref:Y", "Later Y-only check remains open.")] } } };
+    const yPreview = await call(reviseY); await call({ ...reviseY, action: "save", preview_binding: yPreview.preview_binding });
+    assert.equal(chain().tip_packet.task.goal, y.task.goal);
+    assert.equal(readProjectWorkInitializationV01(db, scope).previous_preparation!.goal, x.task.goal);
+    assert.equal(recallRetainedWorkSources(chain(), "X-specific").matching_entries, 0, "no arbitrary cross-work recall");
+    await assert.rejects(call(save), /refresh_required/u);
+    // Browser-domain preview and authenticated save share the exact same writer.
+    const prior = chain().tip_packet, selected = readSelectedWorkSources(prior);
+    const draft = { action: "preview_new_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: 1, expected_current_packet_id: prior.packet_id,
+      expected_current_packet_fingerprint: prior.integrity.fingerprint, expected_current_lineage_kind: chain().tip_lineage_kind,
+      ...definition("Z: another explicit task"), selected_source_context: [], expected_source_comparison: compareSelectedWorkSources(prior, []).fingerprint,
+      omitted_sources: selected.map(entry => ({ source_binding: entry.source_ref!, reason: "Keep as prior-task history; no relevance asserted for Z." })) };
+    const browserPreview = db.transaction(() => previewNewProjectWorkV01(db, scope, draft))();
+    const browserCredential = credential(), beforeBrowserSave = db.serialize();
+    assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: { ...browserCredential, session_secret: "wrong" }, clock, request: browserPreview.request }));
+    assert.deepEqual(db.serialize(), beforeBrowserSave);
+    assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: { ...browserPreview.request, goal: "Unreviewed change" } }), /new_work_preview_changed/u);
+    assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: {
+      ...browserPreview.request, preparation: { ...browserPreview.request.preparation!, expected_root_binding: `sha256:${"0".repeat(64)}` },
+    } }), /new_work_preview_changed/u);
+    assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: {
+      action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: 1, expected_current_packet_id: x.packet_id,
+      expected_current_packet_fingerprint: x.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
+      ...definition("An old binding must not edit X"),
+    } }), /work_revision_current_packet_changed/u);
+    assert.deepEqual(db.serialize(), beforeBrowserSave);
+    const z = revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: browserPreview.request }).packet;
+    assert.equal(readProjectWorkInitializationV01(db, scope).current_work!.goal, z.task.goal);
+    assert.equal(readProjectWorkInitializationV01(db, scope).previous_preparation!.goal, y.task.goal);
+    await assert.rejects(call(save), /refresh_required/u);
+    assert.equal(chain().tip_packet.packet_id, z.packet_id);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+    const restoredPath = path.join(ROOT, "restored-new-work.db");
+    await db.backup(restoredPath);
+    const restored = new Database(restoredPath);
+    try {
+      restored.pragma("foreign_keys = ON");
+      assert.equal(validateRecoveryCanonicalDatabaseV01(restored).status, "valid");
+      assert.deepEqual(readProjectWorkInitializationV01(restored, scope), readProjectWorkInitializationV01(db, scope));
+      // Deliberately corrupt this restored disposable copy with a second edge.
+      // This is an ambiguity refusal fixture, not a supported preparation write.
+      const conflictingDefinition = definition("Conflicting branch, never current");
+      const conflictingRequest = { action: "revise_pre_execution_project_work" as const, ...scope,
+        expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+        expected_current_packet_id: x.packet_id, expected_current_packet_fingerprint: x.integrity.fingerprint,
+        expected_current_lineage_kind: "pre_execution_user_revision" as const, ...conflictingDefinition };
+      const branch = buildPreExecutionProjectWorkRevisionPacketV01({ request: conflictingRequest, definition: conflictingDefinition,
+        prior_packet: x, revision_number: 2, origin_first_work_definition_ref: chain().origin_first_work_definition_ref,
+        operator_id: "operator:companion-work-context", session_id: y.compatibility.source_refs.find(ref => ref.ref_type === "local_operator_session_action")!.external_id,
+        generated_at: y.generated_at });
+      insertVNextCoreRecordV01(restored, { record_kind: "task_context_packet", record_id: branch.packet.packet_id, ...scope,
+        fingerprint: branch.packet.integrity.fingerprint, payload: branch.packet, idempotency_key: branch.lineage.idempotency_key, created_at: branch.packet.generated_at });
+      assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(restored, scope), /work_revision_branch_invalid/u);
+      assert.equal(readProjectWorkInitializationV01(restored, scope).state, "existing_history_without_current_packet");
+      const ambiguous = restored.serialize();
+      await assert.rejects(reviseCodexRepositoryWorkV01(restored, input, channel, dependencies), /current_work_unavailable/u);
+      assert.deepEqual(restored.serialize(), ambiguous);
+    } finally { restored.close(); }
+    assert.equal((db.prepare("SELECT count(*) AS n FROM vnext_core_records WHERE record_kind != 'task_context_packet'").get() as { n: number }).n, 0);
+    assert.equal((db.prepare("SELECT count(*) AS n FROM autonomy_runs").get() as { n: number }).n, 0);
+    console.log(JSON.stringify({ contract: "explicit_new_work_preparation", normal_writers_X_Y_revision_Z: "pass", fresh_process_resume_sources_browser: "pass", exact_replay_no_reactivation: "pass", rollback_history_recovery: "pass", model_calls: 0 }));
+  } finally { try { second?.close(); } finally { db.close(); } assert.equal(db.open, false); assert.notEqual(second?.open, true); }
 }

@@ -578,6 +578,62 @@ unchanged. Portable project v0.1, backup, restore, and recovery preserve and
 canonically revalidate the entire chain without a schema or portable-contract
 version bump.
 
+#### Explicit different-task preparation before execution
+
+Within the initial/pre-execution preparation family, an authenticated explicit
+`prepare_new_project_work` declaration may replace currentness with a different
+unexecuted task. This is distinct from `revise_pre_execution_project_work`, which
+continues to mean an edit of the same task. Identical wording does not make two
+declared tasks the same, and changing prose alone does not declare a new task.
+
+The shared revision-family writer appends a TaskContextPacket with the additive
+`augnes.vnext.pre-execution-new-work-compiler.v0.1` contract and
+`pre_execution_new_task` lineage. It retains the revision-family marker so an
+older validator sees an unsupported family member rather than overlooking a
+superseding packet. New definition/request references bind the explicit action,
+exact prior packet, authenticated operator/session, active selection, registered
+root binding, reviewed definition, complete selected-source comparison and
+omission reasons. The original first-work ancestor remains unique. The existing
+32-edge preparation-chain bound includes both revisions and new-task edges.
+There is no table, mutable current-work pointer, new Core record kind or migration.
+
+A preview shows both definitions (goal, success criteria and non-goals), selected
+context, omissions and their reasons, and that the old work is not marked
+complete. It writes nothing. Save requires the reviewed comparison and independent
+authentication. `BEGIN IMMEDIATE` covers admission, exact active selection/root/
+current-packet checks, zero managed-run/other-work/semantic-history eligibility,
+insertion and reconstruction. A run admitted after preview blocks save; invalid
+or ambiguous history, changed material or stale bindings refuse atomically.
+Only an identical immediate successor can be acknowledged as replay; a later
+switch never reactivates an old packet. Authentication bookkeeping is separate
+from product idempotency.
+
+Only explicitly reviewed notes are carried. Existing selected-source bytes,
+provenance, unknown observation times/currentness, corrections and whole-note
+budgets retain their meaning. Every omitted current note has a declared reason
+in the existing `excluded_context` envelope; its original stays in the prior
+packet. The new definition does not inherit old task-specific instructions.
+Mandatory packet checks/forbidden actions remain constraints; capability grants
+are null and prior approvals confer no authority. Selected source text, including
+quoted approval, remains untrusted context.
+
+Currentness is the unique validated chain tip, not a timestamp. Ordinary note
+revision remains available on the new task, followed by another explicit new-task
+preparation. Readers reconstruct the most recent task boundary through intervening
+same-task revisions. The prior preparation stays historical: it was not executed
+or completed, and its unresolved matters are not discharged. No result, receipt,
+cancellation, ReviewDecision, Transition or accepted state is fabricated.
+Retained-note lookup remains within the current task's preparation snapshots,
+starting at its new-task edge; this does not add arbitrary cross-work recall.
+
+Current-code recovery validates the unchanged envelopes and complete lineage,
+including old initial/revision records, and reconstructs work after reopen and
+backup restore. Older runtimes do not support the new contract; backward
+readability of new packets is not promised. First-work `not_defined` admission,
+receipt-backed authored succession, semantic Transitions and independent execution
+admission remain separate and unchanged. Preparation neither configures nor starts
+a provider, and does not require Managed Start readiness.
+
 #### Optional pre-outcome expectation
 
 `work_expectation_record.v0.1` adds one non-authoritative record kind to the

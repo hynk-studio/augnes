@@ -77,6 +77,24 @@ utility also remain outside the completed slice. Historical failures retain
 their original meaning. The parent and coordination issues remain open:
 #1212 and #1209.
 
+### P2.1 explicit new-work preparation candidate (#1322)
+
+The #1322 implementation adds an explicit different-task declaration within the
+unique unexecuted initial/revised preparation chain. Browser preview/save and
+private Companion preview/prepare tools share comparison and atomic writing;
+normal Resume, selected-source read and Browser reconstruct the new task and
+its historical prior preparation. Ordinary note revision and repeated new-task
+preparation remain supported. This is preparation, with no predecessor execution
+or completion invented. Semantics and exclusions are owned by 02.
+
+This remains an implementation candidate until its PR merges. Disposable
+zero-model tests cover X → Y → revision → Z, fresh-process readers, backup
+reconstruction, replay, ambiguity/refusal and execution-admission races. Browser
+checks exercise the real preparation controls. These are candidate-runtime
+mechanical checks, not an installed-production save or measured burden reduction.
+Installation and first real-work use require separate reviewed authority after
+merge; unrelated installed #1314 and all research conclusions remain unchanged.
+
 ## Completed P2.4.1 — Bounded local hosted snapshot contract
 
 [#1259](https://github.com/hynk-studio/augnes/issues/1259) completed through

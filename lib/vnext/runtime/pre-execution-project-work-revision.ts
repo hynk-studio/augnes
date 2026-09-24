@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
 import { normalizeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
 import {
@@ -27,6 +28,7 @@ import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initia
 import {
   MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01,
   PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+  PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
   type PreExecutionProjectWorkLineageKindV01,
   type RevisePreExecutionProjectWorkRequestV01,
 } from "@/types/vnext/project-work-revision";
@@ -37,8 +39,8 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
   "augnes.vnext.pre-execution-work-revision-request.v0.1" as const;
 
 const REVISION_DEFINITION_ID =
-  /^work-definition-revision:(\d+):([a-f0-9]{24})$/u;
-const REVISION_REQUEST_ID = /^work-revision-request:(\d+):([a-f0-9]{24})$/u;
+  /^work-definition-(?:revision|preparation):(\d+):([a-f0-9]{24})$/u;
+const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+):([a-f0-9]{24})$/u;
 const MAX_PACKET_ROWS = 256;
 const REVISION_PACKET_CONTEXT_BUDGET_V01 = Object.freeze({
   max_selected_entries: 4,
@@ -65,7 +67,7 @@ export interface PreExecutionProjectWorkRevisionMaterialV01 {
 }
 
 export interface PreExecutionProjectWorkRevisionLineageV01 {
-  lineage_kind: "pre_execution_user_revision";
+  lineage_kind: "pre_execution_user_revision" | "pre_execution_new_task";
   packet: TaskContextPacketV01;
   prior_packet: TaskContextPacketV01;
   revision_number: number;
@@ -103,11 +105,15 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
   const definition = normalizeInitialProjectWorkDefinitionV01(input.definition);
   const selectedSources = normalizeSelectedWorkSources(input.request,
     input.request.selected_source_context ?? readSelectedWorkSources(input.prior_packet));
-  const sourceIdentity = selectedSources.length > 0
-    ? { selected_source_context: selectedSources } : {};
+  const newTask = input.request.action === "prepare_new_project_work";
+  const compiler = newTask ? PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 : PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01;
+  const sourceIdentity = {
+    ...(selectedSources.length > 0 ? { selected_source_context: selectedSources } : {}),
+    ...(newTask ? { preparation: input.request.preparation } : {}),
+  };
   const definitionFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
-      compiler: PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+      compiler,
       workspace_id: input.request.workspace_id,
       project_id: input.request.project_id,
       prior_packet_id: input.prior_packet.packet_id,
@@ -119,17 +125,16 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
   const logicalDigest = definitionFingerprint.slice("sha256:".length);
   const revisionDefinitionRef: ExternalRefV01 = {
     ref_version: "external_ref.v0.1",
-    ref_type: "work_definition_revision",
-    external_id: `work-definition-revision:${input.revision_number}:${logicalDigest.slice(0, 24)}`,
+    ref_type: newTask ? "new_work_definition" : "work_definition_revision",
+    external_id: `work-definition-${newTask ? "preparation" : "revision"}:${input.revision_number}:${logicalDigest.slice(0, 24)}`,
     trust_class: "user_declaration",
     observed_at: input.observed_at,
     source_ref: definitionFingerprint,
-    compatibility_namespace:
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+    compatibility_namespace: compiler,
   };
   const requestFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
-      action: "revise_pre_execution_project_work",
+      action: input.request.action,
       workspace_id: input.request.workspace_id,
       project_id: input.request.project_id,
       expected_active_project_id: input.request.expected_active_project_id,
@@ -146,8 +151,8 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
   );
   const revisionRequestRef: ExternalRefV01 = {
     ref_version: "external_ref.v0.1",
-    ref_type: "work_revision_request",
-    external_id: `work-revision-request:${input.request.expected_active_selection_revision}:${logicalDigest.slice(0, 24)}`,
+    ref_type: newTask ? "new_work_preparation_request" : "work_revision_request",
+    external_id: `work-${newTask ? "preparation" : "revision"}-request:${input.request.expected_active_selection_revision}:${logicalDigest.slice(0, 24)}`,
     trust_class: "user_declaration",
     observed_at: input.observed_at,
     source_ref: requestFingerprint,
@@ -161,12 +166,11 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
     trust_class: "direct_local_observation",
     observed_at: input.prior_packet.generated_at,
     source_ref: input.prior_packet.integrity.fingerprint,
-    compatibility_namespace:
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+    compatibility_namespace: compiler,
   };
   const authenticationFingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
-      action: "revise_pre_execution_project_work",
+      action: input.request.action,
       workspace_id: input.request.workspace_id,
       project_id: input.request.project_id,
       operator_id: input.operator_id,
@@ -196,7 +200,7 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
     request_fingerprint: requestFingerprint,
     idempotency_key: createProtocolSha256V01(
       canonicalizeProtocolValueV01({
-        purpose: PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+        purpose: compiler,
         workspace_id: input.request.workspace_id,
         project_id: input.request.project_id,
         prior_packet_id: input.prior_packet.packet_id,
@@ -229,10 +233,21 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
     definition,
     observed_at: input.generated_at,
   });
+  const newTask = input.request.action === "prepare_new_project_work";
+  const preparation = newTask ? compareNewProjectWorkV01(input.prior_packet, input.request,
+    input.request.preparation!.expected_root_binding, input.request.preparation!.omitted_sources).preparation : null;
+  const rootRef: ExternalRefV01 | null = preparation ? {
+    ref_version: "external_ref.v0.1", ref_type: "new_work_root_binding", external_id: input.request.project_id,
+    trust_class: "direct_local_observation", observed_at: input.generated_at,
+    source_ref: preparation.expected_root_binding, compatibility_namespace: PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
+  } : null;
+  const previewRef: ExternalRefV01 | null = preparation ? {
+    ...rootRef!, ref_type: "new_work_reviewed_preview", source_ref: preparation.preview_binding,
+  } : null;
   const currentness = {
     status: "fresh" as const,
     as_of: input.generated_at,
-    basis: "Bound to the exact authenticated pre-execution work revision.",
+    basis: newTask ? "Bound to an explicit authenticated different-task preparation; the prior work is not completed." : "Bound to the exact authenticated pre-execution work revision.",
     source_ref: lineage.revision_definition_ref,
   };
   let packet: TaskContextPacketV01;
@@ -264,7 +279,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         external_refs: [lineage.revision_definition_ref],
         currentness,
         warnings: [
-          "This working projection comes from the user's latest pre-execution revision and is not canonical project state.",
+          newTask ? "This is a different unexecuted task; its predecessor remains an uncompleted historical preparation." : "This working projection comes from the user's latest pre-execution revision and is not canonical project state.",
         ],
       },
       selected_context: [
@@ -314,7 +329,11 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
           bounded_summary: null,
         },
       ],
-      excluded_context: [],
+      excluded_context: preparation ? compareSelectedWorkSources(input.prior_packet, selectedSources).unselected_previous.map(entry => ({
+        entry_id: entry.entry_id, source_ref: entry.source_ref, external_ref: entry.external_ref,
+        currentness: entry.currentness,
+        why_excluded: preparation.omitted_sources.find(row => row.source_binding === entry.source_ref)!.reason,
+      })) : [],
       tensions: [],
       risks: [],
       gaps:
@@ -331,8 +350,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
             ]
           : [],
       constraints: {
-        required_checks: [],
-        forbidden_actions: [],
+        required_checks: newTask ? input.prior_packet.constraints.required_checks : [],
+        forbidden_actions: newTask ? input.prior_packet.constraints.forbidden_actions : [],
         data_classification: "private",
         context_budget: selectedSources.length > 0
           ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: 12 }
@@ -363,12 +382,14 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
           lineage.operator_action_ref,
           lineage.immediate_prior_packet_ref,
           lineage.origin_first_work_definition_ref,
+          ...(rootRef && previewRef ? [rootRef, previewRef] : []),
         ],
         warnings: [],
       },
       compatibility: {
         source_contracts: [
           PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+          ...(newTask ? [PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01] : []),
         ],
         legacy_scope_ref: null,
         source_refs: [
@@ -377,14 +398,15 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
           lineage.operator_action_ref,
           lineage.immediate_prior_packet_ref,
           lineage.origin_first_work_definition_ref,
+          ...(rootRef && previewRef ? [rootRef, previewRef] : []),
         ],
         unmapped_fields: [],
         warnings: [
-          "This append-only packet revises unstarted user-defined work and is not a semantic Transition.",
+          newTask ? "Explicit different-task preparation supersedes currentness only; it creates no predecessor result, completion, cancellation or semantic Transition." : "This append-only packet revises unstarted user-defined work and is not a semantic Transition.",
         ],
       },
       authority_notes: [
-        "Saving this revision changes bounded working context but does not start execution.",
+        newTask ? "Preparing a different task preserves prior unresolved matters and transfers no execution grant or approval." : "Saving this revision changes bounded working context but does not start execution.",
         "This revision is not accepted semantic state, a proposal, approval, ReviewDecision, or Transition.",
       ],
     });
@@ -403,7 +425,7 @@ export function preExecutionProjectWorkRevisionIdempotencyKeyV01(
   const selectedSources = readSelectedWorkSources(packet);
   return createProtocolSha256V01(
     canonicalizeProtocolValueV01({
-      purpose: PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+      purpose: isNewTask(packet) ? PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 : PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,
       prior_packet_id: prior.external_id,
@@ -411,6 +433,7 @@ export function preExecutionProjectWorkRevisionIdempotencyKeyV01(
       definition: normalizeInitialProjectWorkDefinitionV01(packet.task),
       ...(selectedSources.length > 0
         ? { selected_source_context: selectedSources } : {}),
+      ...(isNewTask(packet) ? { preparation: preparationFromPacket(packet) } : {}),
     }),
   );
 }
@@ -508,7 +531,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
     genesis_packet: genesis,
     tip_packet: tipRevision?.packet ?? genesis,
     tip_lineage_kind: tipRevision
-      ? "pre_execution_user_revision"
+      ? tipRevision.lineage_kind
       : "initial_user_defined",
     tip_revision: tipRevision
       ? { ...tipRevision, projection_current: projectionCurrent }
@@ -588,8 +611,10 @@ function inspectRevisionPacketV01(
   recordsById: ReadonlyMap<string, PacketRecordV01>,
 ): PreExecutionProjectWorkRevisionLineageV01 {
   const packet = record.packet;
-  const definitionRef = exactRef(packet, "work_definition_revision");
-  const requestRef = exactRef(packet, "work_revision_request");
+  const newTask = isNewTask(packet);
+  const compiler = newTask ? PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 : PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01;
+  const definitionRef = exactRef(packet, newTask ? "new_work_definition" : "work_definition_revision");
+  const requestRef = exactRef(packet, newTask ? "new_work_preparation_request" : "work_revision_request");
   const operatorActionRef = exactRef(packet, "local_operator_session_action");
   const priorRef = exactRef(packet, "task_context_packet");
   const originRef = exactRef(packet, "first_work_definition");
@@ -604,8 +629,7 @@ function inspectRevisionPacketV01(
     activeRevision < 1 ||
     definitionMatch?.[2] !== requestMatch?.[2] ||
     definitionRef.trust_class !== "user_declaration" ||
-    definitionRef.compatibility_namespace !==
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 ||
+    definitionRef.compatibility_namespace !== compiler ||
     requestRef.trust_class !== "user_declaration" ||
     requestRef.compatibility_namespace !==
       PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 ||
@@ -613,8 +637,7 @@ function inspectRevisionPacketV01(
     operatorActionRef.compatibility_namespace !==
       "augnes.vnext.local-operator-session.v0.1" ||
     priorRef.trust_class !== "direct_local_observation" ||
-    priorRef.compatibility_namespace !==
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 ||
+    priorRef.compatibility_namespace !== compiler ||
     canonicalizeProtocolValueV01(originRef) !==
       canonicalizeProtocolValueV01(originDefinitionRef) ||
     definitionRef.observed_at !== packet.generated_at ||
@@ -643,7 +666,7 @@ function inspectRevisionPacketV01(
   }
   validateOperatorTimeV01(session, packet.generated_at);
   const request: RevisePreExecutionProjectWorkRequestV01 = {
-    action: "revise_pre_execution_project_work",
+    action: newTask ? "prepare_new_project_work" : "revise_pre_execution_project_work",
     workspace_id: input.workspace_id,
     project_id: input.project_id,
     expected_active_project_id: input.project_id,
@@ -659,6 +682,14 @@ function inspectRevisionPacketV01(
           expected_source_comparison: compareSelectedWorkSources(priorRecord.packet, readSelectedWorkSources(packet)).fingerprint,
         } : {}),
   };
+  if (newTask) {
+    request.selected_source_context = readSelectedWorkSources(packet);
+    request.expected_source_comparison = compareSelectedWorkSources(priorRecord.packet, request.selected_source_context).fingerprint;
+    request.preparation = preparationFromPacket(packet);
+    const comparison = compareNewProjectWorkV01(priorRecord.packet, request,
+      request.preparation.expected_root_binding, request.preparation.omitted_sources);
+    if (canonicalizeProtocolValueV01(comparison.preparation) !== canonicalizeProtocolValueV01(request.preparation)) refuse("new_work_preview_binding_invalid", 409);
+  }
   const expected = buildPreExecutionProjectWorkRevisionPacketV01({
     request,
     operator_id: session.operator_id,
@@ -677,7 +708,7 @@ function inspectRevisionPacketV01(
     refuse("work_revision_packet_binding_invalid", 409);
   }
   return {
-    lineage_kind: "pre_execution_user_revision",
+    lineage_kind: newTask ? "pre_execution_new_task" : "pre_execution_user_revision",
     packet,
     prior_packet: priorRecord.packet,
     revision_number: revisionNumber,
@@ -839,7 +870,7 @@ function packetLineageKind(
   packet: TaskContextPacketV01,
 ): PreExecutionProjectWorkLineageKindV01 | null {
   if (isStandaloneRevisionPacketV01(packet)) {
-    return "pre_execution_user_revision";
+    return isNewTask(packet) ? "pre_execution_new_task" : "pre_execution_user_revision";
   }
   return hasContract(packet, INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01) &&
     !hasContract(packet, VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01) &&
@@ -850,10 +881,10 @@ function packetLineageKind(
 
 function isStandaloneRevisionPacketV01(packet: TaskContextPacketV01): boolean {
   return (
-    hasContract(
+    (isNewTask(packet) || hasContract(
       packet,
       PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-    ) &&
+    )) &&
     !hasContract(
       packet,
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -889,4 +920,17 @@ function packetKey(packetId: string, fingerprint: string): string {
 
 function refuse(code: string, status = 422): never {
   throw new PreExecutionProjectWorkRevisionErrorV01(code, status);
+}
+
+function isNewTask(packet: TaskContextPacketV01): boolean {
+  return hasContract(packet, PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01);
+}
+
+function preparationFromPacket(packet: TaskContextPacketV01) {
+  return {
+    expected_root_binding: exactRef(packet, "new_work_root_binding").source_ref!,
+    preview_binding: exactRef(packet, "new_work_reviewed_preview").source_ref!,
+    omitted_sources: packet.excluded_context.map(entry => ({ source_binding: entry.source_ref!, reason: entry.why_excluded }))
+      .sort((a, b) => a.source_binding.localeCompare(b.source_binding)),
+  };
 }

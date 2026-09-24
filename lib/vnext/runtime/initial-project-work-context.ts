@@ -15,7 +15,7 @@ import {
 } from "@/types/vnext/project-work-initialization";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
-import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
+import { PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01, PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 } from "@/types/vnext/project-work-revision";
 import { SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01 } from "@/types/vnext/operational-context-selection";
 
 export const INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01 =
@@ -369,9 +369,7 @@ export function initialProjectWorkIdempotencyKeyV01(
     packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
     ) ||
-    packet.compatibility.source_contracts.includes(
-      PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-    ) ||
+    packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
     packet.compatibility.source_contracts.includes(
       SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
     )
@@ -439,9 +437,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
         !value.compatibility?.source_contracts?.includes(
           VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
         ) &&
-        !value.compatibility?.source_contracts?.includes(
-          PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-        ) &&
+        !value.compatibility?.source_contracts?.some(contract => contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01) &&
         !value.compatibility?.source_contracts?.includes(
           SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
         )
@@ -576,9 +572,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
     if (row.record_id === packet.packet_id) return false;
     const value = JSON.parse(row.payload_json) as TaskContextPacketV01;
     return (
-      value.compatibility?.source_contracts?.includes(
-        PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-      ) &&
+      value.compatibility?.source_contracts?.some(contract => contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01) &&
       !value.compatibility?.source_contracts?.includes(
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
       )

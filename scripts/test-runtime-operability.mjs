@@ -2653,11 +2653,44 @@ async function assertNativeWorkRevisionPathV01({ repositories, callRepository, c
     const refused = await callExecution("augnes_save_repository_work_revision", { ...pending, previewBinding: pendingPreview.structuredContent.preview_binding });
     assert.equal(refused.structuredContent.reason, "refresh_required");
     assert.equal(chain().tip_packet.task.goal, "A normal Browser writer changed the current packet");
+
+    // Exercise the new public tools through the real stdio proxy, authenticated
+    // route and shared writer. Fresh Resume/source reads reconstruct persistence.
+    const preparationBinding = (await callRepository(repositoryRoot)).structuredContent.continuity.snapshot.binding;
+    const previousSources = await callExecution("augnes_read_repository_work_sources", { repositoryRoot, expectedSnapshotBinding: preparationBinding });
+    const preparationArgs = { repositoryRoot, expectedSnapshotBinding: preparationBinding, changes: {
+      goal: "Investigate the next explicit task", success_criteria: ["Reopen the new unexecuted preparation"], non_goals: ["No execution or completion of the prior task"],
+      sources: { keep: previousSources.structuredContent.sources.map(row => row.source_binding), omitted_sources: [],
+        add: [{ source: "note-ref:new-task-correction", text: "Correction: these notes report local checks only; no execution receipt exists.", provenance: "user_declaration", observed_at: null, label: "Changed assumption / user correction" }] },
+    } };
+    const beforePreparation = snapshotDatabaseFamily(databasePath);
+    const preparationPreview = await callExecution("augnes_preview_repository_new_work", preparationArgs);
+    assert.notEqual(preparationPreview.isError, true, JSON.stringify(preparationPreview));
+    assert.equal(preparationPreview.structuredContent.status, "previewed");
+    assert.equal(preparationPreview.structuredContent.preparation.prior_work_marked_complete, false);
+    assert.deepEqual(snapshotDatabaseFamily(databasePath), beforePreparation);
+    const prepareArgs = { ...preparationArgs, previewBinding: preparationPreview.structuredContent.preview_binding };
+    const preparation = await callExecution("augnes_prepare_repository_new_work", prepareArgs);
+    assert.notEqual(preparation.isError, true, JSON.stringify(preparation));
+    assert.equal(preparation.structuredContent.status, "saved");
+    assert.deepEqual(preparation.structuredContent.effects, { work_revision_created: false, authorization_record_created: true, work_preparation_created: true });
+    const packetCount = chain().packets.length;
+    assert.equal((await callExecution("augnes_prepare_repository_new_work", prepareArgs)).structuredContent.status, "exact_replay");
+    assert.equal(chain().packets.length, packetCount);
+    const reopened = (await callRepository(repositoryRoot)).structuredContent.continuity;
+    assert.equal(reopened.current_work.lineage_kind, "pre_execution_new_task");
+    assert.equal(reopened.current_work.previous_preparation.marked_complete, false);
+    assert.equal(reopened.managed_execution.stage, "no_run");
+    assert.equal(reopened.latest_result.state, "no_result");
+    const preparedSources = await callExecution("augnes_read_repository_work_sources", { repositoryRoot, expectedSnapshotBinding: reopened.snapshot.binding });
+    assert.deepEqual(preparedSources.structuredContent.sources, preparationPreview.structuredContent.sources.after);
+    assert.equal(readProjectWorkInitializationV01(db, scope).current_work.goal, preparationArgs.changes.goal);
+    assert.deepEqual(chain().packets[0], initial.packet);
   } finally { db.close(); }
   assert.deepEqual(snapshotDirectoryContentV01(repositoryRoot), files);
   console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", actual_mcp_proxy_route_writer_readback: "pass",
     definition_sources_replay_conflict_privacy_history: true, browser_login_or_token_transfer_for_native_edit: false,
-    retained_lookup_original_reselection_readback: true, withheld_locator_matching: false, immutable_history: true,
+    retained_lookup_original_reselection_readback: true, explicit_new_task_tools_replay_fresh_resume_sources: true, withheld_locator_matching: false, immutable_history: true,
     browser_check: "exact canonical retained-reference successor replay through Browser writer; not a visual Browser journey", managed_or_semantic_actions: 0 }));
 }
 

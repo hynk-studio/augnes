@@ -276,6 +276,40 @@ is no automatic retry, rebase, polling or save-on-search.
 
 ### Explicit preview and save of prepared work
 
+For an explicitly user-declared **different task**, use
+`augnes_preview_repository_new_work` then `augnes_prepare_repository_new_work`.
+These use the same private preparation route, with `intent: "new_task"`, and the
+same authentication/runtime-identity boundaries as revision below. Inputs are
+`repositoryRoot`, a fresh Resume `expectedSnapshotBinding`, complete `changes`
+(`goal`, `success_criteria`, `non_goals`, `sources`), and `previewBinding` for
+prepare. `sources.keep` explicitly lists current selected source bindings;
+`sources.omitted_sources` supplies `{source_binding, reason}` for every omitted
+current note. Optional `sources.add` uses the existing complete note input.
+Unmentioned notes are not silently carried; omission without a reason refuses.
+The comparison resolves originals on the server, including withheld locators,
+and preserves source-read disclosure and whole-note limits.
+
+The preview shows both definitions, selected-context changes and omission reasons,
+with `prior_work_marked_complete: false`. Save appends the explicit new-task edge
+through the shared atomic preparation writer. No run/result, completion, accepted
+state or execution authority is created. The first slice requires the unique
+unexecuted initial/revised preparation family with no managed execution history;
+it is not receipt-backed succession or historical-work reactivation. Stale saves
+refuse; only the identical immediate successor can be acknowledged as replay.
+Refreshing a technical binding within the already-approved purpose is not a new
+semantic approval requirement, but changed purpose/material/authority still needs
+its corresponding review. There is no automatic refresh-and-save.
+
+After persistence, Resume again and call the selected-source reader with that
+new exact binding. `current_work.previous_preparation`, when present, is rebuilt
+from the validated task boundary, including after same-task revisions. Browser
+shows the same historical prior goal, explicitly not completed. Subsequent note
+revision and another explicit preparation are supported. Retained-note lookup is
+limited to snapshots of the current task; cross-work arbitrary recall is absent.
+The Browser action **Prepare a different task** uses normal session-authenticated
+`preview_new_project_work` / `prepare_new_project_work` actions on project-continuity,
+the same comparison and writer, and a freshly read current-work presentation.
+
 The private local Operator tools `augnes_preview_repository_work_revision` and
 `augnes_save_repository_work_revision` edit only the exact active, eligible,
 unstarted repository work. They do not create initial work, switch projects,

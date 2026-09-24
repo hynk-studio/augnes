@@ -129,7 +129,7 @@ export type NativeHostPacketLineageV01 =
       selected_context_refs: ExternalRefV01[];
     }
   | {
-      lineage_kind: "pre_execution_user_revision";
+      lineage_kind: "pre_execution_user_revision" | "pre_execution_new_task";
       work_definition_revision_ref: ExternalRefV01;
       work_revision_request_ref: ExternalRefV01;
       operator_action_ref: ExternalRefV01;
