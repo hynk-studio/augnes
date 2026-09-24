@@ -31,8 +31,12 @@ assert.deepEqual(requests, [
     args: [
       "api",
       `repos/${AUTHORIZED_GITHUB_REPOSITORY}/branches/main`,
+      "--hostname",
+      "github.com",
       "--method",
       "GET",
+      "--header",
+      "Cache-Control: no-cache",
     ],
   },
 ]);

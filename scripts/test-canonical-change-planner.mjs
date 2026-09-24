@@ -422,6 +422,17 @@ try {
       ],
     },
   );
+  for (const relativePath of [
+    "scripts/local-canonical-integration-base.mjs",
+    "scripts/local-canonical-checkout-ownership.mjs",
+    "scripts/local-process-ownership.mjs",
+  ]) {
+    runPlanCase(`verification-admission-owner-self-change:${relativePath}`, "full-canonical",
+      ({ write }) => write(relativePath, "export const changed = true;\n"), {
+        ownerIds: ["local-canonical-integrity"],
+        fullReasons: [`local_canonical_integrity_self_change:${relativePath}`],
+      });
+  }
   if (process.platform === "win32") {
     results.push("AGENTS-mode-change:posix_mode_unavailable_on_windows_ntfs");
     results.push("executable-mode-change:posix_mode_unavailable_on_windows_ntfs");

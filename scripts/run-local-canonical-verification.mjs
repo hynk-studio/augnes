@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   closeSync,
   existsSync,
@@ -25,6 +25,14 @@ import {
   planCanonicalChange,
 } from "./canonical-change-planner.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
+import {
+  acquireCheckoutVerificationOwnership,
+  assertCheckoutVerificationOwnership,
+  checkoutVerificationFingerprint,
+  releaseCheckoutVerificationOwnership,
+  requiresCheckoutVerificationOwnership,
+} from "./local-canonical-checkout-ownership.mjs";
 import {
   CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
   CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
@@ -50,6 +58,7 @@ import {
 import {
   LOCAL_CANONICAL_EXECUTOR_VERSION,
   LOCAL_CANONICAL_RECEIPT_SCHEMA,
+  LOCAL_CANONICAL_RECEIPT_VERSION,
   canonicalSerialize,
   finalizeReceipt,
   inspectReceiptForDecision,
@@ -86,6 +95,10 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-environment.mjs",
   "scripts/local-canonical-change-owners.v1.json",
   "scripts/local-canonical-receipt.mjs",
+  "scripts/local-canonical-integration-base.mjs",
+  "scripts/github-main-branch-transport.mjs",
+  "scripts/local-canonical-checkout-ownership.mjs",
+  "scripts/local-process-ownership.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "scripts/run-local-canonical-verification.mjs",
   "scripts/test-harness-process-lifecycle.mjs",
@@ -158,7 +171,9 @@ export function generatedNextEntryPresent(candidate = generatedNextRoot) {
 export function removeBoundedGeneratedNextState({
   root = repositoryRoot,
   candidate = path.join(root, GENERATED_NEXT_DIRECTORY),
+  checkoutOwner,
 } = {}) {
+  assertCheckoutVerificationOwnership(checkoutOwner, root);
   const resolvedRoot = realpathSync(root);
   const resolvedCandidate = path.resolve(candidate);
   const resolvedCandidateParent = realpathSync(
@@ -193,6 +208,24 @@ export function removeBoundedGeneratedNextState({
     throw error;
   }
   return true;
+}
+
+export async function admitAndResolveVerificationPlan({
+  mode, baseSha, headSha, root = repositoryRoot, transport, planner,
+}) {
+  const integrationBase = mode === "quick" ? null : await admitIntegrationBase({
+    repositoryRoot: root, baseSha, headSha, transport,
+  });
+  // A refused base must never reach responsibility selection, including its
+  // fail-closed-to-full fallback. Preserve a failed receipt with no phases.
+  const plan = integrationBase?.status === "refused" ? {
+    planner_event: "pull_request",
+    planner_status: "not_run",
+    planner_plan: null,
+    selected_plan: "not-admitted",
+    planner_reason: integrationBase.reason_code,
+  } : resolveVerificationPlan({ mode, baseSha, headSha, planner });
+  return { integrationBase, plan };
 }
 
 export function evaluateWorktreePolicy({ mode, worktreeDirty }) {
@@ -393,6 +426,10 @@ export async function executeLocalCanonicalVerification({
   assertCommitExists(repositoryRoot, baseSha, "base");
   assertCommitExists(repositoryRoot, headSha, "head");
 
+  const { integrationBase, plan } = await admitAndResolveVerificationPlan({
+    mode, baseSha, headSha,
+  });
+
   const hostResult = collectHostEnvironment(repositoryRoot);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
@@ -406,12 +443,7 @@ export async function executeLocalCanonicalVerification({
     mode,
     worktreeDirty: identityBefore.worktree_dirty,
   });
-  const plan = resolveVerificationPlan({
-    mode,
-    baseSha,
-    headSha,
-  });
-  const phaseDefinitions = buildPhasePlan({
+  const phaseDefinitions = integrationBase?.status === "refused" ? [] : buildPhasePlan({
     mode,
     selectedPlan: plan.selected_plan,
     baseSha,
@@ -426,7 +458,8 @@ export async function executeLocalCanonicalVerification({
   let serviceLifecycleAfter = serviceLifecycleBefore;
   let dependencyMaintenance = null;
   let dependencyMaintenanceRelease = null;
-  const preflightIssues = [];
+  const preflightIssues = integrationBase?.status === "refused"
+    ? [integrationBase.reason_code] : [];
   const selectedBrowserPhases = phaseDefinitions.filter(
     (phase) => phase.browser === true,
   );
@@ -483,6 +516,17 @@ export async function executeLocalCanonicalVerification({
   }
 
   const generatedNextManaged = managesGeneratedNextState(plan.selected_plan);
+  let checkoutOwner = null;
+  const checkoutOwnership = {
+    required: requiresCheckoutVerificationOwnership(plan.selected_plan),
+    acquired: false,
+    released: false,
+    checkout_fingerprint: null,
+    ownership_id: null,
+    acquired_at: null,
+    released_at: null,
+    failure_code: null,
+  };
   const nextState = {
     present_before: generatedNextEntryPresent(),
     removed_before_execution: false,
@@ -500,11 +544,22 @@ export async function executeLocalCanonicalVerification({
   // A selected plan is not ownership. Acquisition must return successfully
   // before this invocation may mutate (or finally remove) shared build state.
   let sharedGeneratedStateOwned = false;
+  let checkoutConsumersSettled = true;
   let generatedNextPresentAfterExecutionCleanup = nextState.present_before;
+  let generatedNextPresentAfter = nextState.present_before;
 
   try {
     if (!executionFailure) {
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
+      if (checkoutOwnership.required) {
+        checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot });
+        Object.assign(checkoutOwnership, {
+          acquired: true,
+          checkout_fingerprint: checkoutOwner.metadata.checkout_fingerprint,
+          ownership_id: checkoutOwner.metadata.ownership_id,
+          acquired_at: checkoutOwner.metadata.acquired_at,
+        });
+      }
       if (
         plan.selected_plan === "full-canonical" ||
         plan.selected_plan === OWNER_TARGETED_PLAN
@@ -513,10 +568,10 @@ export async function executeLocalCanonicalVerification({
           repositoryRoot,
           operationId: `local-canonical-dependencies:${runId}`,
         });
-        sharedGeneratedStateOwned = true;
       }
+      sharedGeneratedStateOwned = checkoutOwner !== null;
       if (generatedNextManaged && nextState.present_before) {
-        nextState.removed_before_execution = removeBoundedGeneratedNextState();
+        nextState.removed_before_execution = removeBoundedGeneratedNextState({ checkoutOwner });
         console.log(
           "[local-canonical] cleanup generated=.next action=removed_before_execution",
         );
@@ -526,6 +581,7 @@ export async function executeLocalCanonicalVerification({
         windowsHelperState.required &&
         windowsHelperState.present_before
       ) {
+        assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
         rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
         windowsHelperState.removed_before_execution = true;
         console.log(
@@ -534,12 +590,17 @@ export async function executeLocalCanonicalVerification({
       }
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
-        execute: (phase) => executePhase({
-          phase,
-          mode,
-          runLogRoot,
-          browserExecutablePath: hostResult.browserExecutablePath,
-        }),
+        execute: async (phase) => {
+          if (checkoutOwnership.required) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+          checkoutConsumersSettled = false;
+          const result = await executePhase({
+            phase, mode, runLogRoot,
+            browserExecutablePath: hostResult.browserExecutablePath,
+          });
+          checkoutConsumersSettled = result.cleanup?.completed === true &&
+            result.cleanup?.remaining_owned_processes === 0;
+          return result;
+        },
         onStart: (phase) => {
           console.log(
             `[local-canonical] phase_start id=${phase.id} timeout_ms=${phase.timeoutMs}`,
@@ -568,62 +629,90 @@ export async function executeLocalCanonicalVerification({
     executionFailure = true;
     cleanupComplete = false;
     cleanupReason = safeErrorCode(error);
+    if (checkoutOwnership.required && !checkoutOwnership.acquired) {
+      checkoutOwnership.failure_code = cleanupReason;
+    }
     console.error(
       `[local-canonical] failure phase=executor code=${cleanupReason}`,
     );
   } finally {
     console.log("[local-canonical] cleanup_start");
-    if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextEntryPresent()) {
-      try {
-        nextState.removed_after_execution =
-          removeBoundedGeneratedNextState();
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
-    generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
-    if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
-      cleanupComplete = false;
-      cleanupReason ??= "generated_next_cleanup_incomplete";
-    }
-    if (dependencyMaintenance && !dependencyMaintenanceRelease) {
-      try {
-        dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
-          repositoryRoot,
-          lease: dependencyMaintenance.lease,
-        });
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
-    if (
-      sharedGeneratedStateOwned &&
-      plan.selected_plan === "full-canonical" &&
-      windowsHelperState.required &&
-      existsSync(generatedWindowsHelperRoot)
-    ) {
-      try {
-        rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
-        windowsHelperState.removed_after_execution = true;
-      } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
-      }
-    }
     try {
-      enforceArtifactRetention({
-        receiptMaximum: RECEIPT_RETENTION - 1,
-        logMaximum: LOG_RUN_RETENTION,
-      });
+      if (sharedGeneratedStateOwned && checkoutConsumersSettled && generatedNextManaged && generatedNextEntryPresent()) {
+        try {
+          nextState.removed_after_execution =
+            removeBoundedGeneratedNextState({ checkoutOwner });
+        } catch (error) {
+          cleanupComplete = false;
+          cleanupReason = safeErrorCode(error);
+        }
+      }
+      generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
+      if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
+        cleanupComplete = false;
+        cleanupReason ??= "generated_next_cleanup_incomplete";
+      }
+      if (checkoutConsumersSettled && dependencyMaintenance && !dependencyMaintenanceRelease) {
+        try {
+          dependencyMaintenanceRelease = await releaseCompanionServiceMaintenance({
+            repositoryRoot,
+            lease: dependencyMaintenance.lease,
+          });
+        } catch (error) {
+          cleanupComplete = false;
+          cleanupReason = safeErrorCode(error);
+        }
+      }
+      if (
+        sharedGeneratedStateOwned &&
+        checkoutConsumersSettled &&
+        plan.selected_plan === "full-canonical" &&
+        windowsHelperState.required &&
+        existsSync(generatedWindowsHelperRoot)
+      ) {
+        try {
+          assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+          rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
+          windowsHelperState.removed_after_execution = true;
+        } catch (error) {
+          cleanupComplete = false;
+          cleanupReason = safeErrorCode(error);
+        }
+      }
+      try {
+        // A refused contender cannot prune the active owner's logs. Static
+        // feedback leaves pruning to the next checkout-owned invocation.
+        if (checkoutOwner) {
+          assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+          enforceArtifactRetention({
+            receiptMaximum: RECEIPT_RETENTION - 1,
+            logMaximum: LOG_RUN_RETENTION,
+          });
+        }
+      } catch (error) {
+        cleanupComplete = false;
+        cleanupReason = safeErrorCode(error);
+      }
+      serviceLifecycleAfter = boundedLifecycleState(
+        await inspectCompanionService({ repositoryRoot }),
+      );
+      generatedNextPresentAfter = generatedNextEntryPresent();
     } catch (error) {
       cleanupComplete = false;
       cleanupReason = safeErrorCode(error);
+    } finally {
+      if (checkoutOwner) {
+        try {
+          Object.assign(checkoutOwnership, releaseCheckoutVerificationOwnership(checkoutOwner, repositoryRoot, {
+            consumersSettled: checkoutConsumersSettled,
+          }));
+        } catch (error) {
+          cleanupComplete = false;
+          cleanupReason = safeErrorCode(error);
+          checkoutOwnership.failure_code = cleanupReason;
+        }
+      }
     }
-    serviceLifecycleAfter = boundedLifecycleState(
-      await inspectCompanionService({ repositoryRoot }),
-    );
   }
 
   const serviceLifecycleRestored = lifecycleStateRestored(
@@ -635,8 +724,7 @@ export async function executeLocalCanonicalVerification({
     cleanupComplete = false;
     cleanupReason ??= "companion_service_not_restored";
   }
-  const generatedNextPresentAfter = generatedNextEntryPresent();
-  const cleanupRemaining = phaseReceipts.some(
+  const cleanupRemaining = !checkoutConsumersSettled || phaseReceipts.some(
     (phase) =>
       phase.status !== "not_run" &&
       phase.cleanup.remaining_owned_processes !== 0,
@@ -694,7 +782,7 @@ export async function executeLocalCanonicalVerification({
     !identityAfter.worktree_dirty;
   const finishedMs = Date.now();
   const finishedAt = new Date(finishedMs).toISOString();
-  const remainingOwnedProcesses = phaseReceipts.some(
+  const remainingOwnedProcesses = !checkoutConsumersSettled || phaseReceipts.some(
     (phase) =>
       phase.status !== "not_run" &&
       phase.cleanup.remaining_owned_processes !== 0,
@@ -713,7 +801,7 @@ export async function executeLocalCanonicalVerification({
   ];
   const receipt = finalizeReceipt({
     schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
-    receipt_version: 1,
+    receipt_version: LOCAL_CANONICAL_RECEIPT_VERSION,
     repository: {
       repository_id: identityBefore.repository_id,
       origin: identityBefore.origin,
@@ -724,6 +812,8 @@ export async function executeLocalCanonicalVerification({
       worktree_before: identityBefore.worktree_dirty ? "dirty" : "clean",
       worktree_after: identityAfter.worktree_dirty ? "dirty" : "clean",
     },
+    integration_base: integrationBase,
+    checkout_ownership: checkoutOwnership,
     evidence: {
       mode,
       planner_event: plan.planner_event,
@@ -850,15 +940,12 @@ export async function executeLocalCanonicalVerification({
         "content integrity is not independent cryptographic attestation",
         "no hosted reproduction or external status-check identity",
         "download-cache reuse does not make cached or installed dependencies authoritative",
+        "integration base was observed at admission; validation re-observes main but does not reserve or atomically verify GitHub's later merge result",
       ],
     },
   });
 
-  const receiptRelativePath = writeReceipt(receipt, {
-    mode,
-    headSha,
-    startedAt,
-  });
+  const receiptRelativePath = writeReceipt(receipt, { runId });
   console.log(
     `[local-canonical] receipt=${receiptRelativePath} fingerprint=${receipt.integrity.content_fingerprint}`,
   );
@@ -884,7 +971,7 @@ function lifecycleStateRestored(before, after) {
     before.service_identity === after.service_identity;
 }
 
-export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
+export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
   const identity = collectRepositoryIdentity(repositoryRoot);
@@ -894,6 +981,18 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
   const host = collectHostEnvironment(repositoryRoot).public;
   const nodePolicy = evaluateNodePolicy();
   const machineFingerprint = ensureMachineFingerprint(artifactRoot);
+  let currentIntegrationBase = null;
+  if (["changed", "full"].includes(receipt?.evidence?.mode)) {
+    try {
+      currentIntegrationBase = await admitIntegrationBase({
+        repositoryRoot,
+        baseSha: receipt?.repository?.base_sha,
+        headSha: receipt?.repository?.head_sha,
+      });
+    } catch {
+      // Invalid historical identity is not current integration-base evidence.
+    }
+  }
   let expectedSelectedPlan = null;
   let expectedPhaseIds = null;
   let expectedOwnerIds = [];
@@ -934,6 +1033,8 @@ export function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
     }).map((phase) => phase.id);
   }
   return inspectReceiptForDecision(receipt, {
+    currentIntegrationBase,
+    currentCheckoutFingerprint: checkoutVerificationFingerprint(repositoryRoot),
     currentIdentity: identity,
     currentLocks: locks,
     currentExecutorFingerprint: executorFingerprint,
@@ -1497,9 +1598,9 @@ function buildLocalPhaseEnvironment(
   return environment;
 }
 
-function writeReceipt(receipt, { mode, headSha, startedAt }) {
+function writeReceipt(receipt, { runId }) {
   ensureBoundedLocalDirectory(repositoryRoot, receiptRoot);
-  const fileName = `${startedAt.replace(/[:.]/gu, "-")}-${mode}-${headSha.slice(0, 12)}.json`;
+  const fileName = `${runId}.json`;
   const receiptPath = path.join(receiptRoot, fileName);
   writeFileSync(receiptPath, `${canonicalSerialize(receipt)}\n`, {
     encoding: "utf8",
@@ -1592,7 +1693,7 @@ function retainNewestFiles(root, maximum, include) {
 }
 
 function safeRunId(startedAt, mode, headSha) {
-  return `${startedAt.replace(/[:.]/gu, "-")}-${mode}-${headSha.slice(0, 12)}`;
+  return `${startedAt.replace(/[:.]/gu, "-")}-${mode}-${headSha.slice(0, 12)}-${randomBytes(8).toString("hex")}`;
 }
 
 function safeErrorCode(error) {
@@ -1677,7 +1778,7 @@ if (
   try {
     const command = parseCli(process.argv.slice(2));
     if (command.mode === "validate") {
-      const result = validateReceiptAgainstCurrentRepository(command.receipt);
+      const result = await validateReceiptAgainstCurrentRepository(command.receipt);
       console.log(JSON.stringify(result));
       process.exitCode = result.valid_deciding_evidence ? 0 : 1;
     } else {
