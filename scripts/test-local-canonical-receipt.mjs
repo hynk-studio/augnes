@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import {
   LOCAL_CANONICAL_RECEIPT_SCHEMA,
+  LOCAL_CANONICAL_RECEIPT_VERSION,
   assertPublicSafeReceipt,
   canonicalSerialize,
   finalizeReceipt,
@@ -13,7 +14,7 @@ import {
 
 const baseReceipt = {
   schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
-  receipt_version: 1,
+  receipt_version: LOCAL_CANONICAL_RECEIPT_VERSION,
   repository: {
     repository_id: "hynk-studio/augnes",
     origin: "https://github.com/hynk-studio/augnes.git",
@@ -23,6 +24,33 @@ const baseReceipt = {
     detached: false,
     worktree_before: "clean",
     worktree_after: "clean",
+  },
+  integration_base: {
+    contract: "augnes.local-canonical-integration-base.v1",
+    requested_base_sha: "1".repeat(40),
+    tested_head_sha: "2".repeat(40),
+    status: "admitted",
+    observation: {
+      source: "github_authenticated_main_branch_get",
+      repository_id: "hynk-studio/augnes",
+      branch: "main",
+      sha: "1".repeat(40),
+      observed_at: "2026-07-24T00:00:00.000Z",
+    },
+    base_matches_current_main: true,
+    base_is_ancestor_of_head: true,
+    checked_at: "2026-07-24T00:00:00.000Z",
+    reason_code: null,
+  },
+  checkout_ownership: {
+    required: false,
+    acquired: false,
+    released: false,
+    checkout_fingerprint: null,
+    ownership_id: null,
+    acquired_at: null,
+    released_at: null,
+    failure_code: null,
   },
   evidence: {
     mode: "changed",
@@ -184,6 +212,12 @@ assert(
 );
 
 const validContext = {
+  currentIntegrationBase: {
+    ...structuredClone(baseReceipt.integration_base),
+    observation: { ...baseReceipt.integration_base.observation, observed_at: "2026-07-24T00:00:02.000Z" },
+    checked_at: "2026-07-24T00:00:02.000Z",
+  },
+  currentCheckoutFingerprint: "c".repeat(64),
   currentIdentity: {
     head_sha: "2".repeat(40),
     origin: "https://github.com/hynk-studio/augnes.git",
@@ -221,6 +255,48 @@ assert.deepEqual(inspectReceiptForDecision(finalized, validContext), {
   issues: [],
   content_fingerprint: finalized.integrity.content_fingerprint,
 });
+assert.deepEqual(finalized.integration_base, baseReceipt.integration_base);
+for (const mutate of [
+  (value) => { value.requested_base_sha = "9".repeat(40); },
+  (value) => { value.tested_head_sha = "9".repeat(40); },
+  (value) => { value.observation.sha = "9".repeat(40); },
+  (value) => { value.observation.repository_id = "other/repository"; },
+  (value) => { value.observation.branch = "other"; },
+  (value) => { value.observation.source = "local_tracking_ref"; },
+  (value) => { value.base_matches_current_main = false; },
+  (value) => { value.base_is_ancestor_of_head = false; },
+  (value) => { value.status = "refused"; },
+  (value) => { value.reason_code = "integration_base_mismatch"; },
+  (value) => { value.observation.observed_at = "2026-07-23T00:00:00.000Z"; },
+  (value) => { value.checked_at = "2026-07-25T00:00:00.000Z"; },
+]) {
+  const candidate = structuredClone(baseReceipt);
+  mutate(candidate.integration_base);
+  assert(inspectReceiptForDecision(finalizeReceipt(candidate), validContext).issues.includes("receipt_integration_base_provenance_invalid"));
+}
+const tamperedBase = structuredClone(finalized);
+tamperedBase.integration_base.observation.sha = "9".repeat(40);
+assert.equal(verifyReceiptIntegrity(tamperedBase), false);
+const lateAdmission = structuredClone(baseReceipt);
+lateAdmission.integration_base.checked_at = "2026-07-24T00:00:00.500Z";
+assert(inspectReceiptForDecision(finalizeReceipt(lateAdmission), validContext).issues.includes("receipt_phases_precede_base_admission"));
+const historical = structuredClone(baseReceipt);
+historical.receipt_version = 1;
+delete historical.integration_base;
+delete historical.checkout_ownership;
+const historicalResult = inspectReceiptForDecision(finalizeReceipt(historical), validContext);
+assert(historicalResult.issues.includes("receipt_version_mismatch"));
+assert(historicalResult.issues.includes("receipt_integration_base_provenance_invalid"));
+assert.equal(historical.integration_base, undefined, "validation never upgrades historical evidence");
+for (const [current, issue] of [
+  [null, "receipt_current_integration_base_unavailable"],
+  [{ ...validContext.currentIntegrationBase, status: "refused", observation: null }, "receipt_current_integration_base_unavailable"],
+  [{ ...validContext.currentIntegrationBase, observation: { ...validContext.currentIntegrationBase.observation, sha: "9".repeat(40) } }, "receipt_stale_integration_base"],
+  [{ ...validContext.currentIntegrationBase, base_is_ancestor_of_head: false }, "receipt_current_integration_base_invalid"],
+  [{ ...validContext.currentIntegrationBase, checked_at: "2026-07-23T00:00:00.000Z" }, "receipt_current_integration_base_invalid"],
+]) {
+  assert(inspectReceiptForDecision(finalized, { ...validContext, currentIntegrationBase: current }).issues.includes(issue));
+}
 
 const operatingPolicyReceipt = structuredClone(baseReceipt);
 operatingPolicyReceipt.evidence.planner_plan = "operating-policy-only";
@@ -262,6 +338,16 @@ assert.deepEqual(
 );
 
 const targetedReceipt = structuredClone(baseReceipt);
+targetedReceipt.checkout_ownership = {
+  required: true,
+  acquired: true,
+  released: true,
+  checkout_fingerprint: validContext.currentCheckoutFingerprint,
+  ownership_id: "d".repeat(32),
+  acquired_at: baseReceipt.run.started_at,
+  released_at: baseReceipt.run.finished_at,
+  failure_code: null,
+};
 const targetedPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
@@ -329,6 +415,22 @@ assert.deepEqual(
       finalizedTargetedReceipt.integrity.content_fingerprint,
   },
 );
+for (const mutate of [
+  (value) => { value.required = false; },
+  (value) => { value.acquired = false; },
+  (value) => { value.released = false; },
+  (value) => { value.ownership_id = null; },
+  (value) => { value.failure_code = "checkout_owner_busy"; },
+  (value) => { value.acquired_at = "2026-07-24T00:00:00.500Z"; },
+  (value) => { value.released_at = "2026-07-24T00:00:00.500Z"; },
+]) {
+  const candidate = structuredClone(targetedReceipt);
+  mutate(candidate.checkout_ownership);
+  assert(inspectReceiptForDecision(finalizeReceipt(candidate), targetedContext).issues.includes("receipt_checkout_ownership_invalid"));
+}
+assert(inspectReceiptForDecision(finalizedTargetedReceipt, {
+  ...targetedContext, currentCheckoutFingerprint: "e".repeat(64),
+}).issues.includes("receipt_stale_checkout_identity"));
 const targetedPhaseTamper = structuredClone(targetedReceipt);
 targetedPhaseTamper.phases.reverse();
 assert(
@@ -405,6 +507,15 @@ assert(
   }).issues.includes("receipt_stale_lockfiles"),
 );
 const targetedPreexistingGeneratedState = structuredClone(targetedReceipt);
+const targetedUnobservedGeneratedState = structuredClone(targetedReceipt);
+targetedUnobservedGeneratedState.cleanup.generated_next.present_before = null;
+assert(
+  inspectReceiptForDecision(
+    finalizeReceipt(targetedUnobservedGeneratedState),
+    targetedContext,
+  ).issues.includes("receipt_generated_next_provenance_invalid"),
+  "an unobserved/refused pre-execution baseline is not evidence of absence",
+);
 targetedPreexistingGeneratedState.cleanup.generated_next.present_before = true;
 targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution =
   false;
@@ -413,6 +524,12 @@ assert(
     finalizeReceipt(targetedPreexistingGeneratedState),
     targetedContext,
   ).issues.includes("receipt_generated_next_provenance_invalid"),
+);
+targetedPreexistingGeneratedState.cleanup.generated_next.removed_before_execution = true;
+assert.equal(
+  inspectReceiptForDecision(finalizeReceipt(targetedPreexistingGeneratedState), targetedContext).valid_deciding_evidence,
+  true,
+  "the authoritative present-and-removed baseline survives finalization and validation",
 );
 const targetedGeneratedStateSurvived = structuredClone(targetedReceipt);
 targetedGeneratedStateSurvived.cleanup.generated_next.present_after_execution_cleanup =
@@ -742,6 +859,9 @@ console.log(
       status: "pass",
       deterministic_canonical_serialization: true,
       content_integrity_verified: true,
+      integration_base_provenance_bound_and_reobserved: true,
+      historical_receipts_not_upgraded: true,
+      checkout_ownership_and_phase_lifetime_validated: true,
       required_fields_verified: true,
       private_material_excluded: true,
       stale_head_lock_executor_and_plan_refused: true,

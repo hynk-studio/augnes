@@ -14,8 +14,12 @@ export function createGitHubMainBranchTransport({ runner = runGhApi } = {}) {
         args: [
           "api",
           `repos/${AUTHORIZED_GITHUB_REPOSITORY}/branches/${branch}`,
+          "--hostname",
+          "github.com",
           "--method",
           "GET",
+          "--header",
+          "Cache-Control: no-cache",
         ],
       });
       return normalizeBranchHead(value, branch);

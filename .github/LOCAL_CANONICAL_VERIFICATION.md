@@ -23,6 +23,7 @@ The receipt preserves the established evidence vocabulary:
 
 - exact repository identity
 - exact base SHA
+- authenticated current integration-base observation and base-to-head ancestry
 - exact head SHA
 - dirty-worktree status
 - operating system and architecture
@@ -59,6 +60,9 @@ The executor first requires the exact authorized local root and exact authorized
 `origin`. It verifies that base and head are lowercase 40-character commit
 identities available locally. `changed` and `full` additionally require:
 
+- the requested base equals the current `main` observed through the existing
+  read-only authenticated GitHub main-branch transport for `hynk-studio/augnes`;
+- that base is an ancestor of the exact requested head;
 - current `HEAD` equals the requested head;
 - the worktree is clean before and after execution;
 - the current host satisfies the Canonical platform and resource policy;
@@ -69,6 +73,19 @@ identities available locally. `changed` and `full` additionally require:
 
 It never silently tests another commit. It never stashes, resets, cleans,
 discards, or moves user source changes.
+
+The ordinary PR lane observes `main` before responsibility planning through
+`scripts/github-main-branch-transport.mjs`: a bounded authenticated `gh api`
+GET, pinned to `github.com`, the canonical repository and `main`, without a
+cached-response request. Local tracking refs do not substitute for an unavailable
+or invalid remote response. Wrong/stale bases and unproven ancestry produce a
+failed receipt with no planner classification or deciding phases. No automatic
+fetch, source integration, retry, or GitHub write is performed.
+
+Admission and later receipt validation are observations at recorded times.
+Validation re-observes current `main` and rechecks ancestry. Neither read reserves
+the base or proves the eventual GitHub merge result: `main` may move after the
+last read, and the later merge-time TOCTOU boundary remains unclosed here.
 
 ## Node and platform policy
 
@@ -103,6 +120,11 @@ trees and runs:
 It does not install dependencies or run build, package, runtime, integration,
 operability, or browser lanes. It may run on a dirty tree or noncanonical Node,
 but its receipt is always `deciding=false` and `transferable=false`.
+Typecheck runs `next typegen`, which writes shared generated state and consumes
+installed dependencies. Quick therefore owns the same checkout boundary for its
+phase sequence; it does not acquire production Companion maintenance or remove
+the generated build tree. Read-only receipt validation and dependency-light
+documentation/operating-policy phases do not acquire this checkout owner.
 
 ### Changed
 
@@ -228,6 +250,43 @@ npm run test:operability:package
 
 ## Dependency and generated-state policy
 
+Before Quick, owner-targeted, or Full phases, the executor atomically acquires
+`.augnes-local-verification/checkout-owner.json` with exclusive creation. This
+checkout owner is independent of Companion installed/live/stopped/absent state.
+It spans dependency use/replacement, generated-state cleanup, and Companion
+restoration. Companion maintenance still owns service pause/restoration and is
+not the checkout exclusion mechanism.
+
+Authoritative generated-state baselines are observed only after checkout
+acquisition and, for owner-targeted/Full, successful Companion maintenance
+admission. The maintenance owner's own `before` observation defines the lifecycle
+to restore. Root `.next` and generated Windows-helper cleanup use these in-owner
+observations; unobserved/refused baselines remain `null`, not an asserted absence.
+Both generated-state cleanup steps precede service restoration, and final shared
+state is captured before checkout release.
+
+The owner records only the contract, repository identity, opaque physical-checkout
+fingerprint, random invocation identity, PID, hashed process birth identity, and
+acquisition time. The executor retains an open file identity and a process-local
+capability. Each phase and shared-state removal must still own that exact file;
+finally cleanup verifies ownership before unlinking it. A contender cannot remove
+another invocation's build state or lock, and failed acquisition remains failure
+evidence. No broad process signalling, daemon, global machine lock, or path supplied
+by lock metadata is used. Symlink, non-regular, redirected, replaced, oversized,
+malformed, foreign-checkout, or unverifiable ownership artifacts fail closed.
+
+A live owner's second invocation is refused immediately. Stale ownership is also
+refused and retained for explicit bounded inspection/recovery; age or a missing/
+reused parent PID alone cannot prove that all its children have stopped. There is
+no automatic stale deletion or takeover. This is cooperative local exclusion,
+not isolation against a hostile same-user process replacing filesystem entries.
+Ordinary phase failure still releases ownership after bounded child settlement
+and cleanup. If child settlement is unproven, generated state and the lock
+artifact are retained, Companion maintenance is not released, and checkout
+release is reported failed; a successor cannot replace
+the inputs of possibly surviving children. Concurrent attempts use distinct
+random-suffixed receipt/log names, including failed acquisitions.
+
 Quick treats installed dependencies as feedback inputs only. Documentation-only
 changes require no Local Canonical execution. Operating-policy-only changed
 execution does not consult or replace installed dependencies.
@@ -253,7 +312,7 @@ and removes any pre-existing entry before a deciding phase runs. A symlink,
 non-directory entry, or path outside that boundary fails closed without
 following or modifying the external target. After phases and before Companion
 maintenance release, the executor removes any newly generated `.next` while it
-still owns the runtime-maintenance boundary and verifies that the path is absent
+still owns the checkout and runtime-maintenance boundaries and verifies that the path is absent
 at that execution-cleanup boundary. Removal failure or residual state makes the
 run non-deciding and invalidates its receipt. The executor then restores the
 exact prior Companion lifecycle. A previously live or starting exact-checkout
@@ -340,10 +399,22 @@ five log-run directories and twenty receipt files are retained. The harness
 creates only real directories inside the authorized repository and refuses
 symlink redirection. Generated receipts and logs are not committed because
 they are execution artifacts, may become stale, and are not source authority.
+Retention pruning runs only while holding the checkout owner; refused contenders
+and dependency-light feedback never prune an active owner's artifacts. The next
+checkout-owned invocation applies the existing retention bounds.
+The current run's log directory is explicitly protected regardless of mtime and
+counts toward the five-directory bound; only the remaining slots use newest-first
+retention. Refused checkout acquisition creates no phase-log directory and still
+writes a failed-attempt receipt.
 
 The public-safe receipt includes:
 
 - schema and receipt version;
+- receipt version 2 integration-base admission: requested base/tested head,
+  authenticated repository/branch/SHA observation, observation/check times,
+  equality/ancestry results, and refusal reason;
+- checkout ownership requirement, acquisition/release results and times, opaque
+  checkout/invocation identities, and failure reason;
 - repository identity, exact origin, base/head, branch or detached state, and
   clean/dirty state before and after;
 - selected mode, planner event/result, selected plan, responsibility owners,
@@ -382,6 +453,12 @@ Validation exits nonzero unless the receipt is currently valid deciding
 evidence. It rejects or marks non-deciding a receipt when:
 
 - current `HEAD`, origin, branch/detached state, worktree cleanliness, or environment identity differs;
+- the fresh authenticated `main` observation is unavailable or differs from the
+  recorded base, or current ancestry cannot be established;
+- integration-base provenance is missing, inconsistent, wrongly timed, or
+  tampered; historical version 1 receipts are not upgraded into version 2 evidence;
+- required checkout ownership was not acquired/released for the phase lifetime,
+  failed, or belongs to another physical checkout;
 - either lockfile fingerprint differs;
 - executor source fingerprint or selected plan differs;
 - content integrity or required fields are invalid;

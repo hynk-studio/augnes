@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
+import { INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
+import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
-export const LOCAL_CANONICAL_EXECUTOR_VERSION = 1;
+export const LOCAL_CANONICAL_RECEIPT_VERSION = 2;
+export const LOCAL_CANONICAL_EXECUTOR_VERSION = 2;
 export const MAX_RECEIPT_BYTES = 512 * 1024;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -124,6 +128,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedPhaseIds = null,
     expectedOwnerIds = null,
     expectedTargetedPhaseIds = null,
+    currentIntegrationBase = null,
+    currentCheckoutFingerprint = null,
   } = options ?? {};
   const issues = [];
   try {
@@ -134,11 +140,16 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (receipt?.schema !== LOCAL_CANONICAL_RECEIPT_SCHEMA) {
     issues.push("receipt_schema_mismatch");
   }
+  if (receipt?.receipt_version !== LOCAL_CANONICAL_RECEIPT_VERSION) {
+    issues.push("receipt_version_mismatch");
+  }
   if (!verifyReceiptIntegrity(receipt)) {
     issues.push("receipt_integrity_mismatch");
   }
   for (const field of [
     "repository",
+    "integration_base",
+    "checkout_ownership",
     "evidence",
     "environment",
     "dependencies",
@@ -185,6 +196,45 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   }
   const mode = receipt?.evidence?.mode;
   const selectedPlan = receipt?.evidence?.selected_plan;
+  if (mode === "changed" || mode === "full") {
+    if (!validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
+        Date.parse(receipt.integration_base?.observation?.observed_at) < Date.parse(receipt?.run?.started_at) ||
+        Date.parse(receipt.integration_base?.checked_at) > Date.parse(receipt?.run?.finished_at)) {
+      issues.push("receipt_integration_base_provenance_invalid");
+    }
+    if (!currentIntegrationBase?.observation) {
+      issues.push("receipt_current_integration_base_unavailable");
+    } else if (currentIntegrationBase.observation.sha !== receipt?.repository?.base_sha) {
+      issues.push("receipt_stale_integration_base");
+    } else if (!validAdmittedIntegrationBase(currentIntegrationBase, receipt?.repository) ||
+        Date.parse(currentIntegrationBase.observation.observed_at) < Date.parse(receipt?.run?.finished_at) ||
+        Date.parse(currentIntegrationBase.checked_at) < Date.parse(receipt?.run?.finished_at)) {
+      issues.push("receipt_current_integration_base_invalid");
+    }
+    if (Array.isArray(receipt?.phases) && receipt.phases.some((phase) =>
+      Date.parse(phase?.started_at) < Date.parse(receipt?.integration_base?.checked_at))) {
+      issues.push("receipt_phases_precede_base_admission");
+    }
+  }
+  const ownership = receipt?.checkout_ownership;
+  const ownershipRequired = requiresCheckoutVerificationOwnership(selectedPlan);
+  if (ownership?.required !== ownershipRequired || (ownershipRequired && (
+    ownership?.acquired !== true || ownership?.released !== true || ownership?.failure_code !== null ||
+    !SHA256_PATTERN.test(ownership?.checkout_fingerprint ?? "") ||
+    !/^[0-9a-f]{32}$/u.test(ownership?.ownership_id ?? "") ||
+    !isIsoTimestamp(ownership?.acquired_at) || !isIsoTimestamp(ownership?.released_at) ||
+    Date.parse(ownership.acquired_at) < Date.parse(receipt?.run?.started_at) ||
+    Date.parse(ownership.released_at) < Date.parse(ownership.acquired_at) ||
+    Date.parse(ownership.released_at) > Date.parse(receipt?.run?.finished_at) ||
+    (Array.isArray(receipt?.phases) && receipt.phases.some((phase) =>
+      Date.parse(phase?.started_at) < Date.parse(ownership.acquired_at) ||
+      Date.parse(phase?.finished_at) > Date.parse(ownership.released_at)))
+  ))) {
+    issues.push("receipt_checkout_ownership_invalid");
+  }
+  if (ownershipRequired && ownership?.checkout_fingerprint !== currentCheckoutFingerprint) {
+    issues.push("receipt_stale_checkout_identity");
+  }
   if (
     !["quick", "changed", "full"].includes(mode) ||
     (mode === "quick" && selectedPlan !== "quick-feedback") ||
@@ -451,6 +501,22 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     content_fingerprint:
       receipt?.integrity?.content_fingerprint ?? null,
   };
+}
+
+function validAdmittedIntegrationBase(value, repository) {
+  const observation = value?.observation;
+  return value?.contract === INTEGRATION_BASE_CONTRACT &&
+    value?.status === "admitted" && value?.reason_code === null &&
+    value?.requested_base_sha === repository?.base_sha &&
+    value?.tested_head_sha === repository?.head_sha &&
+    value?.requested_base_sha !== value?.tested_head_sha &&
+    value?.base_matches_current_main === true && value?.base_is_ancestor_of_head === true &&
+    observation?.source === INTEGRATION_BASE_SOURCE &&
+    observation?.repository_id === CANONICAL_REPOSITORY_ID &&
+    observation?.repository_id === repository?.repository_id && observation?.branch === "main" &&
+    observation?.sha === repository?.base_sha && SHA_PATTERN.test(observation?.sha ?? "") &&
+    isIsoTimestamp(observation?.observed_at) && isIsoTimestamp(value?.checked_at) &&
+    Date.parse(value.checked_at) >= Date.parse(observation.observed_at);
 }
 
 function isIsoTimestamp(value) {
