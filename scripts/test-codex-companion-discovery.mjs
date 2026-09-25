@@ -418,12 +418,33 @@ try {
       sources: [], source_material_authority: "untrusted_selected_context", authority: unregisteredProjectionV01().authority,
     };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(sourceProjection), sourceProjection);
+    const definitionProjection = { ...sourceProjection,
+      projection_version: "codex_repository_work_definition_sources.v0.1",
+      work_definition: { goal: "Keep A  B\nwith\ttabs", success_criteria: ["A  B", "A B"], non_goals: ["No A  B", "No A B"] },
+    };
+    assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionProjection, true), definitionProjection);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01(definitionProjection), /contract_invalid/u);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01(sourceProjection, true), /contract_invalid/u);
+    for (const work_definition of [null,
+      { ...definitionProjection.work_definition, private_field: "must not escape" },
+      { ...definitionProjection.work_definition, goal: "x".repeat(2001) },
+      { ...definitionProjection.work_definition, success_criteria: Array(13).fill("item") },
+      { ...definitionProjection.work_definition, non_goals: ["x".repeat(501)] },
+      { goal: "가".repeat(2000), success_criteria: Array(4).fill("나".repeat(500)), non_goals: [] },
+    ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, work_definition }, true), /contract_invalid/u);
+    const definitionRefusal = { ...definitionProjection, status: "unavailable", reason: "work_definition_out_of_bounds",
+      snapshot_binding: null, packet_fingerprint: null, work_definition: null };
+    assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionRefusal, true), definitionRefusal);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionRefusal, work_definition: definitionProjection.work_definition }, true), /contract_invalid/u);
     for (const mutation of [
       { ...sourceProjection, extra_private_field: "not allowed" },
       { ...sourceProjection, status: "unavailable" },
       { ...sourceProjection, authority: { ...sourceProjection.authority, writes_database: true } },
     ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01(mutation), /contract_invalid/u);
     const callSources = () => client.callTool({ name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding } });
+    await assert.rejects(client.callTool({ name: "augnes_read_repository_work_sources", arguments: {
+      repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, includeWorkDefinition: true,
+    } }), /invalid_repository_tool_request/u, "private delivery mode is not a new local Operator argument");
     sourcesScenario = { body: sourceProjection };
     assert.equal((await callSources()).structuredContent.status, "available");
     sourcesScenario = { body: { ...sourceProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } };

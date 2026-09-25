@@ -2184,8 +2184,28 @@ async function assertConnectedProjectReaderV01({ environment, scenario, reposito
   const registered = await registerRepositoryThroughOnboardingV01({ repositoryRoot, displayName: "Connected read fixture",
     createUuids: ["20000000-0000-4000-8000-000000000010"], clock });
   const scope = { workspace_id: registered.workspace.workspace_id, project_id: registered.project.project_id };
-  const definition = { goal: "Read this native task", success_criteria: ["Deliver exact selected material"], non_goals: ["No execution"] };
-  let packet = defineFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id, definition, clock }).packet;
+  const requestedDefinition = {
+    goal: "  Preserve the literal `A  B` unchanged.\nKeep\tthis line.  ",
+    success_criteria: [" Preserve `A  B`. ", "Preserve `A B`.", "Keep\nline\tbreaks."],
+    non_goals: [" Do not alter `A  B`. ", "Do not alter `A B`.", "No\nnewline\tloss."],
+  };
+  let packet = defineFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id, definition: requestedDefinition, clock }).packet;
+  // Reconstruct the persisted, validated task, independently of Resume's
+  // display projection and of the candidate response under test.
+  const readStoredDefinition = () => {
+    const db = openFixtureDatabaseV01();
+    try {
+      const stored = readProjectWorkInitializationV01(db, scope).current_work;
+      assert.ok(stored);
+      return { goal: stored.goal, success_criteria: stored.success_criteria, non_goals: stored.non_goals };
+    } finally { db.close(); }
+  };
+  const definition = readStoredDefinition();
+  assert.deepEqual(definition, {
+    goal: requestedDefinition.goal.trim(),
+    success_criteria: requestedDefinition.success_criteria.map(value => value.trim()).sort(),
+    non_goals: requestedDefinition.non_goals.map(value => value.trim()).sort(),
+  }, "the supported writer preserves internal whitespace and distinct items");
   const manifestPath = path.join(scenario.stateDirectory, "runtime.json");
   const local = await withLiveCompanionProxyV01({ environment, manifestPath,
     run: ({ callRepository }) => callRepository(repositoryRoot) });
@@ -2206,7 +2226,8 @@ async function assertConnectedProjectReaderV01({ environment, scenario, reposito
     const data = response.structuredContent;
     assert.equal(data.status, "available");
     assert.equal(data.project.project_key, projectKey);
-    assert.deepEqual(data.current_work, { ...definition, lineage_kind: packetLineageKindV01(packet), currentness: "fresh" });
+    assert.deepEqual(data.current_work, { ...readStoredDefinition(), lineage_kind: packetLineageKindV01(packet), currentness: "fresh" },
+      "connected definition must equal the persisted normalized definition");
     assert.equal(data.snapshot.binding, snapshot);
     assert.equal(data.packet_fingerprint, packet.integrity.fingerprint);
     assert.deepEqual(data.sources, expectedSources);
@@ -2284,7 +2305,7 @@ async function assertConnectedProjectReaderV01({ environment, scenario, reposito
   assert.equal(sourceReads, 1, "no automatic retry");
   assert.deepEqual(snapshotDatabaseFamily(databasePath), afterRace);
   console.log(JSON.stringify({ connected_project_reader: "pass", official_stdio_real_authenticated_routes: true,
-    empty_exact_notes_project_auth_dispatch_race_readonly: true, chatgpt_invocation: "not_tested" }));
+    persisted_definition_fidelity: true, empty_exact_notes_project_auth_dispatch_race_readonly: true, chatgpt_invocation: "not_tested" }));
 }
 
 async function assertRegisteredRepositoryUnsupportedWindowsPathV01({

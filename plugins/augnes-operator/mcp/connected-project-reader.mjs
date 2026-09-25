@@ -59,7 +59,7 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
       // A change refuses the whole read: never deliver the earlier definition
       // with replacement sources, refresh automatically, or reuse cached data.
       const sources = await readSources(companion, {
-        repositoryRoot, expectedSnapshotBinding: continuity.snapshot.binding,
+        repositoryRoot, expectedSnapshotBinding: continuity.snapshot.binding, includeWorkDefinition: true,
       });
       if (sources.status !== "available") return result(sources.status, sources.reason);
       if (sources.snapshot_binding !== continuity.snapshot.binding) {
@@ -72,7 +72,7 @@ export function createConnectedProjectReaderV01({ repositoryRoot, projectKey }, 
         snapshot: continuity.snapshot,
         packet_fingerprint: sources.packet_fingerprint,
         current_work: {
-          goal: work.goal, success_criteria: work.success_criteria, non_goals: work.non_goals,
+          ...sources.work_definition,
           lineage_kind: work.lineage_kind, currentness: work.currentness,
         },
         sources: sources.sources,

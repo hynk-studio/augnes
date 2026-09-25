@@ -294,6 +294,7 @@ export async function readRepositoryWorkSourcesV01(companion, args) {
     body: JSON.stringify({
       repository_root: args.repositoryRoot,
       expected_snapshot_binding: args.expectedSnapshotBinding,
+      ...(args.includeWorkDefinition === true ? { include_work_definition: true } : {}),
     }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -306,15 +307,15 @@ export async function readRepositoryWorkSourcesV01(companion, args) {
   }
   const text = await response.text();
   if (Buffer.byteLength(text, "utf8") > MAX_CONTINUITY_RESPONSE_BYTES) invalidContractV01();
-  const projection = parseRepositoryWorkSourcesResponseV01(JSON.parse(text));
+  const projection = parseRepositoryWorkSourcesResponseV01(JSON.parse(text), args.includeWorkDefinition === true);
   if (projection.status === "available" && projection.snapshot_binding !== args.expectedSnapshotBinding) invalidContractV01();
   return projection;
 }
 
 /** Closed metadata projection; excerpt text remains literal untrusted content. */
-export function parseRepositoryWorkSourcesResponseV01(value) {
-  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority"], "work sources");
-  if (value.projection_version !== "codex_repository_work_sources.v0.1" ||
+export function parseRepositoryWorkSourcesResponseV01(value, includeWorkDefinition = false) {
+  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority", ...(includeWorkDefinition ? ["work_definition"] : [])], "work sources");
+  if (value.projection_version !== (includeWorkDefinition ? "codex_repository_work_definition_sources.v0.1" : "codex_repository_work_sources.v0.1") ||
       !["available", "refresh_required", "unavailable"].includes(value.status) ||
       !["resolved_exact", "project_not_registered", "project_ambiguous", "root_unavailable", "repository_input_invalid"].includes(value.repository_resolution) ||
       value.source_material_authority !== "untrusted_selected_context" || !Array.isArray(value.sources)) invalidContractV01();
@@ -323,14 +324,28 @@ export function parseRepositoryWorkSourcesResponseV01(value) {
     if (value.reason !== "current_selected_sources" || value.repository_resolution !== "resolved_exact") invalidContractV01();
     fingerprintV01(value.snapshot_binding);
     fingerprintV01(value.packet_fingerprint);
+    if (includeWorkDefinition) workDefinitionV01(value.work_definition);
   } else {
     if (value.snapshot_binding !== null || value.packet_fingerprint !== null || value.sources.length !== 0) invalidContractV01();
+    if (includeWorkDefinition && value.work_definition !== null) invalidContractV01();
     if (value.status === "refresh_required") {
       if (value.reason !== "snapshot_changed" || value.repository_resolution !== "resolved_exact") invalidContractV01();
-    } else if (value.reason !== (value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved")) invalidContractV01();
+    } else if (value.reason !== (value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved") &&
+      !(includeWorkDefinition && value.repository_resolution === "resolved_exact" && value.reason === "work_definition_out_of_bounds")) invalidContractV01();
   }
   parseSourceEntriesV01(value.sources);
   return value;
+}
+
+function workDefinitionV01(value) {
+  exactObjectV01(value, ["goal", "success_criteria", "non_goals"], "work definition");
+  stringV01(value.goal);
+  stringArrayV01(value.success_criteria);
+  stringArrayV01(value.non_goals);
+  // Mirrors INITIAL_PROJECT_WORK_LIMITS_V01; validation never changes text.
+  if ([...value.goal].length > 2000 || value.success_criteria.length > 12 || value.non_goals.length > 12 ||
+      [...value.success_criteria, ...value.non_goals].some(text => [...text].length > 500) ||
+      Buffer.byteLength(JSON.stringify(value), "utf8") > 12000) invalidContractV01();
 }
 
 function parseSourceEntriesV01(sources) {

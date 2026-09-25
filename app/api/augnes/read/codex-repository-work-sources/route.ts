@@ -49,7 +49,9 @@ export async function POST(request: Request) {
   try { body = JSON.parse(text); } catch { return refused("invalid_json", 400); }
   if (
     !body || Array.isArray(body) || typeof body !== "object" ||
-    Object.keys(body).sort().join(",") !== "expected_snapshot_binding,repository_root" ||
+    Object.keys(body).sort().join(",") !== (body.include_work_definition === true
+      ? "expected_snapshot_binding,include_work_definition,repository_root"
+      : "expected_snapshot_binding,repository_root") ||
     typeof body.repository_root !== "string" || typeof body.expected_snapshot_binding !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(body.expected_snapshot_binding)
   ) return refused("invalid_repository_input", 400);

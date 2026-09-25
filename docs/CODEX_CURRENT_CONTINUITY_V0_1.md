@@ -174,6 +174,22 @@ currentness remains `unknown`. The canonical whole-note limits (eight entries,
 2,000 characters each, 12,000 serialized source-entry bytes) apply before
 projection. Invalid or over-budget sources refuse; nothing is silently clipped.
 
+The opt-in connected-project reader requests `include_work_definition: true`
+on that same private route. Only this exact additional input is admitted; the
+default request and local Operator tool arguments remain unchanged. This mode
+returns the closed `codex_repository_work_definition_sources.v0.1` projection
+with `work_definition` containing only goal, success criteria and non-goals from
+the validated persisted task already reconstructed in the read transaction.
+It does not reread history, expose a packet, or copy Resume's display-normalized
+text. Stored internal whitespace and distinct entries remain intact, including
+their stored order. The existing complete-definition limits apply (2,000 goal
+characters, 12 entries per list, 500 characters per entry, 12,000 canonical UTF-8
+bytes). Out-of-bound material returns `unavailable` / `work_definition_out_of_bounds`
+without definition, notes or bindings. Other refusals likewise carry a null
+definition. The proxy requires the requested projection version and exact keys;
+it never falls back to the source-only or display projection. Source budgets,
+authentication, snapshot checks and disclosure rules are unchanged.
+
 Locators must pass both the existing `isPublicSafeSourceLocatorV01` policy and
 the shared hosted-projection metadata privacy guard. Permitted locators are returned;
 others are `null` with `omitted_not_export_safe`. This is a documented

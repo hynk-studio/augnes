@@ -697,7 +697,24 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
     const beforeRoute = db.serialize();
     const response = await callRoute();
     assert.equal(response.status, 200);
-    assert.deepEqual((await response.json()).sources, material.sources);
+    const legacySources = await response.json();
+    assert.deepEqual(legacySources.sources, material.sources);
+    assert.equal(Object.hasOwn(legacySources, "work_definition"), false);
+    const definitionRequest = { repository_root: root, expected_snapshot_binding: currentBinding, include_work_definition: true };
+    const definitionResponse = await callRoute({}, definitionRequest);
+    assert.equal(definitionResponse.status, 200);
+    const definitionMaterial = await definitionResponse.json();
+    assert.equal(definitionMaterial.projection_version, "codex_repository_work_definition_sources.v0.1");
+    const storedDefinition = readProjectWorkInitializationV01(db, scope).current_work!;
+    assert.deepEqual(definitionMaterial.work_definition, { goal: storedDefinition.goal,
+      success_criteria: storedDefinition.success_criteria, non_goals: storedDefinition.non_goals });
+    assert.deepEqual(definitionMaterial.sources, legacySources.sources);
+    assert.equal(definitionMaterial.snapshot_binding, legacySources.snapshot_binding);
+    assert.equal(definitionMaterial.packet_fingerprint, legacySources.packet_fingerprint);
+    for (const bad of [
+      { ...definitionRequest, include_work_definition: false }, { ...definitionRequest, include_work_definition: "true" },
+      { ...definitionRequest, extra: "not allowed" },
+    ]) assert.equal((await callRoute({}, bad)).status, 400);
     assert.equal(response.headers.get("access-control-allow-origin"), null);
     const callRetainedRoute = (changes: Record<string, string> = {}, body: unknown = { repository_root: root, expected_snapshot_binding: currentBinding, query: "not-observed-anywhere" }) => repositoryRetainedSourcesPOST(new Request(
       "http://127.0.0.1:3000/api/augnes/read/codex-repository-retained-sources?scope=repository:local", {
@@ -727,6 +744,9 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
       const refused = await callRoute(changes);
       assert([403, 409].includes(refused.status));
       assert.equal((await refused.text()).includes("excerpt_text"), false);
+      const definitionRefused = await callRoute(changes, definitionRequest);
+      assert([403, 409].includes(definitionRefused.status));
+      assert.equal((await definitionRefused.text()).includes("work_definition"), false);
       const retainedRefused = await callRetainedRoute(changes);
       assert([403, 409].includes(retainedRefused.status));
       assert.equal((await retainedRefused.text()).includes("excerpt_text"), false);

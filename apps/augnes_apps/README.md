@@ -119,8 +119,15 @@ Each invocation discovers one verified Companion, reads Resume, verifies the
 configured project key, and reads selected sources using the same Companion
 generation and exact snapshot. Only matching fresh work is returned. Results
 include the project label/key, snapshot observation time, packet fingerprint,
-goal/criteria/non-goals and lineage from the bounded current-continuity
-projection, and the existing whole-note source projection. No result, run or
+goal/criteria/non-goals from the validated persisted task in the same source-read
+transaction, lineage from current continuity, and the existing whole-note source
+projection. Definition fields preserve the canonical writer's stored text and
+ordering, including internal spaces, tabs, newlines and distinct list entries.
+They are not reconstructed from Resume's display summary. An explicit private
+definition/source mode checks the existing 2,000-character goal, 12 entries per
+list, 500 characters per entry and 12,000-byte complete-definition limits; an
+over-bound definition refuses the whole read without truncation. The default
+local Operator source-only response remains unchanged. No result, run or
 preparation history, runtime path, credential or Browser-link metadata is added.
 Literal definition and note text still require the authorized data scope. Both
 `structuredContent` and the JSON text content contain the same material.
