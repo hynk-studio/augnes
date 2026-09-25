@@ -83,6 +83,39 @@ compatibility, or runtime behavior.
   active owners define the exact lifecycle and tool mechanics; do not duplicate
   them here.
 
+### Joint method improvement
+
+For a method change or a claim of improved quality, capability, cost, latency,
+reliability, or user burden, connect: observed loss or improvement opportunity
+→ hypothesis → allowed change surface and resource boundary → development
+iteration → observed behavioral/result change → next decision. An approved new
+capability or simpler path can justify improvement without inventing a defect;
+vague possibility alone cannot expand scope. Scale this to the task, without a
+research form for ordinary fixes or documentation or universal search counts.
+
+- ChatGPT refines the target, separates observation from interpretation, offers
+  falsifiable or discriminable hypotheses and expected behavior, interprets
+  returned evidence, and recommends the next concrete direction with a reason
+  to continue or stop. It distinguishes implementation failure, method failure,
+  insufficient observation, and negative evidence; pass/fail alone is not enough.
+- Codex diagnoses current source and the actual execution path, challenges a
+  contradicted cause or layer, and chooses files, functions, tests, and methods
+  from that evidence. It may propose a simpler approach, find the requirement
+  already satisfied, or conclude that observation or no implementation is
+  justified. Within approved scope and budget it implements the smallest
+  sufficient change, runs focused checks, revises when observations warrant it,
+  and explains why the change should affect the target behavior.
+- These are model-neutral roles, not permanent model or subscription choices.
+  Method exploration never expands goal, authority, tools, data, provider use,
+  cost ceilings, or external effects. A failure alone need not stop a supported
+  bounded attempt; lack of evidence for further investment forbids indefinite
+  iteration. A next evidence-based decision is required, not another patch.
+- Keep development iteration, exact-source correctness verification, and fixed
+  usefulness evaluation distinct. Read the
+  [method-improvement evidence guidance](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
+  for comparisons, exposure, burden, and next-decision reporting; existing
+  verification, provenance, and deciding-run refusal rules still apply.
+
 ## Durable technical principles
 
 - Keep Core semantics provider-neutral. Provider-specific behavior belongs in
