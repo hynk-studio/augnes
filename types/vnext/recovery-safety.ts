@@ -156,12 +156,13 @@ export interface RecoverySafetyViewV01 {
 
 export interface RecoveryRequestOperationV02 {
   request_id: string;
-  state: "accepted" | "running" | "completed" | "failed" | "interrupted" | "unknown" | "stale";
+  state: "accepted" | "running" | "completed" | "failed" | "interrupted" | "unknown" | "stale" | "not_admitted";
   reason: string | null;
   action?: "create_backup" | "verify_backup";
-  accepted_at?: string;
+  accepted_at?: string | null;
   finished_at?: string | null;
-  observation_boundary?: "exact_operation_validation_not_perpetual_freshness";
+  observation_boundary?: "exact_operation_validation_not_perpetual_freshness" | "request_not_admitted";
+  request?: Record<string, string>;
   result: {
     backup_id: string; backup_identity: string; target_binding: string;
     verified_at: string; validator_contract: string; application_version: string;

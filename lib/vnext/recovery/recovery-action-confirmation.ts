@@ -56,7 +56,24 @@ export function recoveryHasExactValidationV02(status: RecoveryStatusV01): boolea
       backup.backup_id === result.backup_id && backup.backup_identity === result.backup_identity && backup.target_binding === result.target_binding);
 }
 
-export function recoveryConfirmationStateV02(status: RecoveryStatusV01): RecoveryActionConfirmationStateV01 {
+export function recoveryHasConfirmedNonAdmissionV02(
+  status: RecoveryStatusV01,
+  retainedRequest: Record<string, string> | null,
+): boolean {
+  const operation = status.operation;
+  const request = operation?.request;
+  return operation?.state === "not_admitted" && operation.accepted_at === null && operation.result === null &&
+    operation.observation_boundary === "request_not_admitted" &&
+    ["recovery_action_in_progress", "recovery_backup_changed"].includes(operation.reason ?? "") &&
+    !!request && !!retainedRequest && request.request_id === operation.request_id && request.action === operation.action &&
+    request.admission_binding === status.admission_binding &&
+    Object.keys(request).length === Object.keys(retainedRequest).length &&
+    Object.entries(request).every(([key, value]) => retainedRequest[key] === value);
+}
+
+export function recoveryConfirmationStateV02(status: RecoveryStatusV01, retainedRequest: Record<string, string> | null = null): RecoveryActionConfirmationStateV01 {
+  if (status.operation?.state === "not_admitted")
+    return recoveryHasConfirmedNonAdmissionV02(status, retainedRequest) ? "unverified" : "refresh_required";
   if (recoveryHasExactValidationV02(status)) return "confirmed";
   if (status.operation && ["accepted", "running", "unknown", "interrupted"].includes(status.operation.state)) return "refresh_required";
   return "unverified";

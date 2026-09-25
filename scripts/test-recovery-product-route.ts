@@ -204,6 +204,40 @@ async function main() {
       const accepted=await POST(recoveryRequest(material));assert.equal(accepted.status,202);assert.equal((await accepted.json()).outcome,"operation_recorded");
       globalThis.fetch=async()=>Response.json({accepted:true,outcome:"operation_recorded",request_id:"22222222-2222-4222-8222-222222222222"},{status:202});
       assert.equal((await POST(recoveryRequest(material))).status,504,"mismatched acknowledgement is unknown, never retried");
+      const refusal={accepted:false,outcome:"request_not_admitted",request_id:requestId,reason_code:"recovery_action_in_progress",next_action:"refresh_before_new_request"};
+      globalThis.fetch=async()=>Response.json(refusal,{status:409});
+      assert.deepEqual(await (await POST(recoveryRequest(material))).json(),refusal);
+      for (const altered of [
+        {...refusal,request_id:"22222222-2222-4222-8222-222222222222"},
+        {...refusal,reason_code:"recovery_request_material_conflict"},
+        {...refusal,reason_code:"recovery_request_history_unknown"},
+        {...refusal,accepted:true},
+      ]) {
+        globalThis.fetch=async()=>Response.json(altered,{status:409});
+        assert.equal((await POST(recoveryRequest(material))).status,504,"uncorrelated or unsupported refusal remains unknown");
+      }
+      const refusedStatus={...recoveryStatusFixture(),operation:{request_id:requestId,state:"not_admitted",reason:"recovery_action_in_progress",result:null,
+        action,accepted_at:null,finished_at:"2026-09-25T00:00:00.000Z",observation_boundary:"request_not_admitted",request:material}};
+      globalThis.fetch=async()=>Response.json(refusedStatus);
+      const read=()=>GET(new Request(`http://127.0.0.1:3000/api/recovery?request_id=${requestId}`,{headers:{host:"127.0.0.1:3000"}}));
+      const refusedRead=await read();assert.equal(refusedRead.status,200);
+      const normalized=await refusedRead.json();
+      assert.equal(recoveryConfirmationStateV02(normalized,material),"unverified");
+      assert.equal(recoveryConfirmationStateV02(normalized,{...material,admission_binding:"22222222-2222-4222-8222-222222222222"}),"refresh_required");
+      assert.equal(recoveryHasExactValidationV02(normalized),false);
+      for(const operation of [
+        {...refusedStatus.operation,accepted_at:"2026-09-25T00:00:00.000Z"},
+        {...refusedStatus.operation,reason:"recovery_request_material_conflict"},
+        {...refusedStatus.operation,finished_at:null},
+        {...refusedStatus.operation,request:{...material,synthetic_marker:"do_not_forward"}},
+        {...refusedStatus.operation,request:{...material,request_id:"22222222-2222-4222-8222-222222222222"}},
+      ]){
+        globalThis.fetch=async()=>Response.json({...refusedStatus,operation});
+        const malformed=await read();assert.equal(malformed.status,503);
+        assert.equal(JSON.stringify(await malformed.json()).includes("synthetic_marker"),false);
+      }
+      const uncertain={...normalized,operation:{request_id:requestId,state:"unknown",reason:"recovery_request_history_unknown",result:null}};
+      assert.equal(recoveryConfirmationStateV02(uncertain,material),"refresh_required","missing history is never a non-admission proof");
     }
     globalThis.fetch=async()=>Response.json(recoveryStatusFixture());
     const diagnosticResponse = await GET(new Request(

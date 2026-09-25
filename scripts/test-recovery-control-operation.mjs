@@ -95,7 +95,19 @@ try {
     assert.equal(controller.active.pid, pid);
     assert.equal(readRecoveryRequestHistory(backupDirectory, scope).requests.length, count);
     assert.throws(() => controller.admit({ ...request, admission_binding: randomUUID() }), { code: "recovery_request_material_conflict" });
-    assert.throws(() => controller.admit(create()), { code: "recovery_action_in_progress" });
+    const rejected = create();
+    const rejectedResponse = await fetch(`${origin}/v1/recovery`, { method: "POST", headers, body: JSON.stringify(rejected) });
+    assert.equal(rejectedResponse.status, 409);
+    const refusal = await rejectedResponse.json();
+    assert.equal(refusal.outcome, "request_not_admitted");
+    assert.equal(refusal.request_id, rejected.request_id);
+    assert.equal(controller.active.pid, pid, "refusal must not dispatch another worker");
+    const rejectedRow = readRecoveryRequestHistory(backupDirectory, scope).requests.find(row => row.request.request_id === rejected.request_id);
+    assert.equal(rejectedRow.state, "not_admitted");
+    assert.equal(rejectedRow.accepted_at, null);
+    assert.equal(rejectedRow.worker, null);
+    assert.deepEqual(controller.admit(rejected), refusal, "exact refused replay remains refused");
+    assert.throws(() => controller.admit({ ...rejected, admission_binding: randomUUID() }), { code: "recovery_request_material_conflict" });
     const foreign = await fetch(`${origin}/v1/recovery`, { method: "POST", headers: { ...headers, "x-augnes-runtime-instance": "foreign" }, body: JSON.stringify(create()) });
     assert.equal(foreign.status, 403);
     const unauthenticated = await fetch(`${origin}/v1/recovery`);
@@ -110,6 +122,21 @@ try {
     await controller.stop();
     controller = make();
     runtime.recoveryController = controller;
+    assert.deepEqual(controller.status(rejected.request_id).operation.request, rejected, "fresh controller retains exact refused material");
+    assert.deepEqual(controller.admit(rejected), refusal, "settlement never turns a refused replay into new admission");
+    assert.equal(controller.active, null);
+    assert.equal(entries().length, 1, "only the originally admitted backup exists");
+    runtime.recoveryRequest = { action: "request_pending" };
+    const blockedRequest = create();
+    try {
+        const blockedResponse = await fetch(`${origin}/v1/recovery`, { method: "POST", headers, body: JSON.stringify(blockedRequest) });
+        assert.equal((await blockedResponse.json()).outcome, "request_not_admitted", "protected-action mutex also records only proven non-admission");
+        assert.equal(controller.active, null);
+        const conflictingResponse = await fetch(`${origin}/v1/recovery`, { method: "POST", headers, body: JSON.stringify({ ...request, admission_binding: randomUUID() }) });
+        assert.equal((await conflictingResponse.json()).outcome, "refused", "generic conflict must not claim non-admission");
+        assert.equal(controller.status(request.request_id).operation.state, "completed");
+    } finally { runtime.recoveryRequest = null; }
+    assertions += 9;
     const target = readRecoveryBackupCatalog(backupDirectory, scope)[0].public;
     assert.equal(target.verified, false);
     const verification = verify(target), before = entries();
@@ -118,6 +145,29 @@ try {
     const savedEnv = Object.fromEntries(Object.keys(publicEnv).map(key => [key, process.env[key]]));
     Object.assign(process.env, publicEnv);
     try {
+        const { recoveryConfirmationStateV02 } = await import("../lib/vnext/recovery/recovery-action-confirmation.ts");
+        const readRequest = async id => {
+            const response = await GET(new Request(`http://127.0.0.1:3000/api/recovery?request_id=${id}`, { headers: { host: "127.0.0.1:3000" } }));
+            assert.equal(response.status, 200);
+            return response.json();
+        };
+        const readRefusal = await readRequest(rejected.request_id);
+        assert.equal(recoveryConfirmationStateV02(readRefusal, rejected), "unverified");
+        assert.equal(readRefusal.actions.create_backup, true);
+        assert.equal(readRefusal.actions.restore_backup, false);
+        assert.equal(readRefusal.actions.retry_update, false);
+        assert.equal(recoveryConfirmationStateV02(readRefusal, { ...rejected, admission_binding: randomUUID() }), "refresh_required");
+        const changedTargetRequest = verify({ ...target, target_binding: `sha256:${"e".repeat(64)}` });
+        const changedResponse = await POST(new Request("http://127.0.0.1:3000/api/recovery", { method: "POST", headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000", "content-type": "application/json" }, body: JSON.stringify(changedTargetRequest) }));
+        assert.equal(changedResponse.status, 409);
+        assert.equal((await changedResponse.json()).outcome, "request_not_admitted");
+        const changedStatus = await readRequest(changedTargetRequest.request_id);
+        assert.equal(changedStatus.operation.reason, "recovery_backup_changed");
+        assert.equal(recoveryConfirmationStateV02(changedStatus, changedTargetRequest), "unverified");
+        assert.equal(changedStatus.backups[0].target_binding, target.target_binding, "fresh status exposes current material for explicit selection");
+        assert.equal(controller.active, null);
+        assert.deepEqual(entries(), before);
+        assertions += 7;
         const admitted = await POST(new Request("http://127.0.0.1:3000/api/recovery", { method: "POST", headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000", "content-type": "application/json" }, body: JSON.stringify(verification) }));
         assert.equal(admitted.status, 202);
         assert.equal((await admitted.json()).request_id, verification.request_id);
@@ -170,7 +220,9 @@ try {
     renameSync(payload, `${payload}.held`);
     writeFileSync(payload, oldPayload, { mode: 0o600 });
     assert.equal(controller.status(verification.request_id).operation.state, "stale");
-    assert.throws(() => controller.admit(verify(target)), { code: "recovery_backup_changed" });
+    const replacedRequest = verify(target);
+    assert.equal(controller.admit(replacedRequest).outcome, "request_not_admitted");
+    assert.equal(controller.status(replacedRequest.request_id).operation.state, "not_admitted");
     const replaced = readRecoveryBackupCatalog(backupDirectory, scope)[0].public;
     writeFileSync(payload, "synthetic-invalid-database", { mode: 0o600 });
     const tampered = readRecoveryBackupCatalog(backupDirectory, scope)[0].public;

@@ -3345,6 +3345,17 @@ export async function handleRecoveryControlRequest(
     return;
   }
   if (runtime.recoveryRequest !== null || runtime.shutdownRequested) {
+    // A concurrent request may already have this ID. Let the identity owner
+    // distinguish replay/conflict from a durably recorded non-admission, without
+    // dispatching work while the protected-action mutex is held.
+    try {
+      const action = await readBoundedRecoveryAction(request);
+      if (runtime.recoveryController && ["create_backup", "verify_backup"].includes(action.action)) {
+        const result = runtime.recoveryController.admit(action, { admissionBlocked: true });
+        respondJson(response, result.accepted ? 202 : 409, result);
+        return;
+      }
+    } catch { /* No proof of non-admission: retain the ordinary unresolved refusal. */ }
     respondJson(response, 409, {
       accepted: false,
       outcome: "refused",
@@ -3400,7 +3411,7 @@ export async function handleRecoveryControlRequest(
     try {
       if (!runtime.recoveryController) throw new PublicRuntimeError("recovery_request_history_unavailable");
       const admitted = runtime.recoveryController.admit(action);
-      respondJson(response, 202, admitted);
+      respondJson(response, admitted.accepted ? 202 : 409, admitted);
     } catch (error) {
       respondJson(response, error?.code === "recovery_admission_outcome_unknown" ? 503 : 409, {accepted:false,outcome:"refused",reason_code:publicErrorCode(error,"recovery_admission_refused"),next_action:"read_the_same_request_status"});
     }

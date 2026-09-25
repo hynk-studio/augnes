@@ -115,13 +115,13 @@ export async function POST(request: Request): Promise<Response> {
     }
     const upstream = await requestSupervisor("POST", body);
     const result = normalizeRecoveryActionResult(upstream.value);
-    if (result.outcome === "operation_recorded" && result.request_id !== body.request_id) throw new Error("recovery_request_mismatch");
+    if ((result.outcome === "operation_recorded" || result.outcome === "request_not_admitted") && result.request_id !== body.request_id) throw new Error("recovery_request_mismatch");
 
     if (
       !upstream.ok &&
       (upstream.status < 400 ||
         upstream.status >= 500 ||
-        result.outcome !== "refused")
+        !["refused", "request_not_admitted"].includes(result.outcome))
     ) {
       return actionOutcomeUnknownResponse();
     }
@@ -248,14 +248,19 @@ async function readRecoveryAction(request: Request): Promise<RecoveryActionReque
 
   try {
     if(value.action === "create_backup" || value.action === "verify_backup") {
-      exactKeys(value, value.action === "create_backup" ? ["action","request_id","admission_binding"] : ["action","request_id","admission_binding","backup_id","backup_identity","target_binding"]);
-      return {action:value.action,request_id:uuidValue(value.request_id),admission_binding:uuidValue(value.admission_binding),...(value.action === "verify_backup"?{backup_id:backupIdValue(value.backup_id),backup_identity:shaValue(value.backup_identity),target_binding:shaValue(value.target_binding)}:{})};
+      return normalizeAdmissionMaterial(value);
     }
     if(value.action === "preview_support_report"){exactKeys(value,["action"]);return {action:value.action};}
     if(value.action === "retry_update"){exactKeys(value,["action","verification_request_id"]);return {action:value.action,verification_request_id:uuidValue(value.verification_request_id)};}
     if(value.action === "restore_backup"){exactKeys(value,["action","backup_id","verification_request_id"]);return {action:value.action,backup_id:backupIdValue(value.backup_id),verification_request_id:uuidValue(value.verification_request_id)};}
   } catch { throw new RecoveryRequestError(); }
   throw new RecoveryRequestError();
+}
+
+function normalizeAdmissionMaterial(value: Record<string, unknown>) {
+  const action = boundedEnum(value.action, ["create_backup", "verify_backup"] as const);
+  exactKeys(value, action === "create_backup" ? ["action","request_id","admission_binding"] : ["action","request_id","admission_binding","backup_id","backup_identity","target_binding"]);
+  return {action,request_id:uuidValue(value.request_id),admission_binding:uuidValue(value.admission_binding),...(action === "verify_backup"?{backup_id:backupIdValue(value.backup_id),backup_identity:shaValue(value.backup_identity),target_binding:shaValue(value.target_binding)}:{})};
 }
 
 async function requestSupervisor(
@@ -460,14 +465,16 @@ function normalizeRecoveryActionResult(value: unknown) {
     result.outcome !== "restore_scheduled" &&
     result.outcome !== "retry_scheduled" &&
     result.outcome !== "operation_recorded" &&
+    result.outcome !== "request_not_admitted" &&
     result.outcome !== "refused"
   ) {
     throw new Error("recovery_action_response_invalid");
   }
   exactKeys(result,["accepted","outcome",...(result.request_id===undefined?[]:["request_id"]),...(result.reason_code===undefined?[]:["reason_code"]),...(result.next_action===undefined?[]:["next_action"])]);
-  if((result.outcome==="operation_recorded") !== (result.request_id!==undefined)) throw new Error("recovery_action_response_invalid");
+  if((["operation_recorded", "request_not_admitted"].includes(result.outcome)) !== (result.request_id!==undefined)) throw new Error("recovery_action_response_invalid");
+  if (result.outcome === "request_not_admitted" && !["recovery_action_in_progress", "recovery_backup_changed"].includes(String(result.reason_code))) throw new Error("recovery_action_response_invalid");
   const accepted = booleanValue(result.accepted);
-  if (accepted !== (result.outcome !== "refused")) {
+  if (accepted !== (!["refused", "request_not_admitted"].includes(result.outcome))) {
     throw new Error("recovery_action_response_invalid");
   }
   return {
@@ -488,7 +495,7 @@ function publicActionStatus(
   result: ReturnType<typeof normalizeRecoveryActionResult>,
 ): number {
   if (upstreamStatus >= 200 && upstreamStatus <= 299) return upstreamStatus;
-  if (result.outcome === "refused") return 409;
+  if (result.outcome === "refused" || result.outcome === "request_not_admitted") return 409;
   return 202;
 }
 
@@ -516,8 +523,12 @@ function normalizeRequestOperation(value: unknown) {
         return null;
     const row = recordValue(value);
     const known = row.action !== undefined;
-    exactKeys(row, ["request_id", "state", "reason", "result", ...(known ? ["action", "accepted_at", "finished_at", "observation_boundary"] : [])]);
-    const state = boundedEnum(row.state, ["accepted", "running", "completed", "failed", "interrupted", "unknown", "stale"] as const);
+    const notAdmitted = row.state === "not_admitted";
+    exactKeys(row, ["request_id", "state", "reason", "result", ...(known ? ["action", "accepted_at", "finished_at", "observation_boundary"] : []), ...(notAdmitted ? ["request"] : [])]);
+    const state = boundedEnum(row.state, ["accepted", "running", "completed", "failed", "interrupted", "unknown", "stale", "not_admitted"] as const);
+    const request = notAdmitted ? normalizeAdmissionMaterial(recordValue(row.request)) : null;
+    if (notAdmitted && (!request || row.accepted_at !== null || row.finished_at === null || request.request_id !== row.request_id || request.action !== row.action ||
+        !["recovery_action_in_progress", "recovery_backup_changed"].includes(String(row.reason)))) throw new Error("recovery_operation_invalid");
     const result = row.result === null ? null : recordValue(row.result);
     if (!known && (state !== "unknown" || result !== null))
         throw new Error("recovery_operation_invalid");
@@ -528,12 +539,13 @@ function normalizeRequestOperation(value: unknown) {
     }
     if ((state === "completed" || state === "stale") !== (result !== null))
         throw new Error("recovery_validation_result_invalid");
-    if (known && (!Number.isFinite(Date.parse(String(row.accepted_at))) || (row.finished_at !== null && !Number.isFinite(Date.parse(String(row.finished_at))))))
+    if (known && ((!notAdmitted && !Number.isFinite(Date.parse(String(row.accepted_at)))) || (row.finished_at !== null && !Number.isFinite(Date.parse(String(row.finished_at))))))
         throw new Error("recovery_operation_invalid");
     if (result && booleanValue(result.creation_completed) !== (row.action === "create_backup"))
         throw new Error("recovery_validation_result_invalid");
     return { request_id: uuidValue(row.request_id), state, reason: row.reason === null ? null : boundedPublicCode(row.reason, 120),
-        ...(known ? { action: boundedEnum(row.action, ["create_backup", "verify_backup"] as const), accepted_at: boundedPublicString(row.accepted_at, 64), finished_at: nullableBoundedPublicString(row.finished_at, 64), observation_boundary: boundedEnum(row.observation_boundary, ["exact_operation_validation_not_perpetual_freshness"] as const) } : {}),
+        ...(known ? { action: boundedEnum(row.action, ["create_backup", "verify_backup"] as const), accepted_at: notAdmitted ? null : boundedPublicString(row.accepted_at, 64), finished_at: nullableBoundedPublicString(row.finished_at, 64), observation_boundary: boundedEnum(row.observation_boundary, notAdmitted ? ["request_not_admitted"] as const : ["exact_operation_validation_not_perpetual_freshness"] as const) } : {}),
+        ...(request ? {request} : {}),
         result: result ? { backup_id: backupIdValue(result.backup_id), backup_identity: shaValue(result.backup_identity), target_binding: shaValue(result.target_binding), verified_at: boundedPublicString(result.verified_at, 64), validator_contract: "augnes.recovery-backup.v1", application_version: boundedPublicString(result.application_version, 80), build_identity: nullablePublicBuildIdentity(result.build_identity), runtime_contract: "augnes-local-runtime-supervisor-v1", runtime_schema_version: 2, creation_completed: booleanValue(result.creation_completed) } : null };
 }
 

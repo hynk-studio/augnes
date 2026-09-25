@@ -13,6 +13,7 @@ export const RECOVERY_REQUEST_FILE = "augnes-recovery-requests.json";
 export const RECOVERY_WORKER_DEADLINE_MS = 120000;
 const MAX_REQUESTS = 64; // No automatic eviction: unknown history cannot replay.
 const MAX_BYTES = 256 * 1024;
+const NON_ADMISSION_REASONS = ["recovery_action_in_progress", "recovery_backup_changed"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SHA = /^sha256:[a-f0-9]{64}$/u;
 const BACKUP = /^augnes-recovery-\d{8}T\d{6}-[0-9a-f]{8}\.backup$/u;
@@ -107,7 +108,8 @@ export function readRecoveryRequestHistory(backupDirectory, scope) {
         normalizeRecoveryRequest(row.request);
         if (!exact(row, ["request", "fingerprint", "state", "accepted_at", "finished_at", "generation", "worker", "result", "reason"]) || ids.has(row.request.request_id) ||
             row.fingerprint !== hash([scope, row.request]) || row.request.admission_binding !== value.epoch ||
-            !["accepted", "running", "completed", "failed", "interrupted", "unknown"].includes(row.state) || typeof row.generation !== "string" || row.generation.length > 100 || !validDate(row.accepted_at) ||
+            !["accepted", "running", "completed", "failed", "interrupted", "unknown", "not_admitted"].includes(row.state) || typeof row.generation !== "string" || row.generation.length > 100 ||
+            (row.state === "not_admitted" ? row.accepted_at !== null || row.worker !== null || !NON_ADMISSION_REASONS.includes(row.reason) : !validDate(row.accepted_at)) ||
             (row.finished_at !== null && !validDate(row.finished_at)) ||
             (row.reason !== null && !/^[a-z][a-z0-9_]{0,100}$/u.test(row.reason)) ||
             (row.worker !== null && (!exact(row.worker, ["pid", "birth"]) || !Number.isSafeInteger(row.worker.pid) || row.worker.pid < 1 || !/^[a-f0-9]{64}$/u.test(row.worker.birth))))
@@ -188,6 +190,9 @@ export function recoveryRequestProjection(history, requestId, generation, backup
     const row = history.requests.find(r => r.request.request_id === requestId);
     if (!row)
         return { request_id: requestId, state: "unknown", reason: "recovery_request_history_unknown", result: null };
+    if (row.state === "not_admitted")
+        return { request_id: requestId, state: row.state, reason: row.reason, result: null, action: row.request.action,
+            accepted_at: null, finished_at: row.finished_at, request: row.request, observation_boundary: "request_not_admitted" };
     let state = row.state, reason = row.reason;
     if (["accepted", "running"].includes(state) && row.generation !== generation) {
         state = "interrupted";
@@ -382,23 +387,45 @@ export function createRecoveryRequestController({ backupDirectory, databasePath,
         }
         return record.done;
     }
-    function admit(material) {
+    const refusalResult = row => ({ accepted: false, outcome: "request_not_admitted", request_id: row.request.request_id,
+        reason_code: row.reason, next_action: "refresh_before_new_request" });
+    function admit(material, { admissionBlocked = false } = {}) {
         const request = normalizeRecoveryRequest(material), h = read();
         const row = h.requests.find(r => r.request.request_id === request.request_id);
         if (row) {
             if (row.fingerprint !== hash([scope, request]))
                 fail("recovery_request_material_conflict");
+            if (row.state === "not_admitted")
+                return refusalResult(row);
             return { accepted: true, outcome: "operation_recorded", request_id: request.request_id };
         }
         if (request.admission_binding !== h.epoch)
             fail("recovery_request_history_unknown");
-        if (unresolved())
-            fail("recovery_action_in_progress");
+        if (blocked)
+            fail("recovery_admission_outcome_unknown");
         if (h.requests.length >= MAX_REQUESTS)
             fail("recovery_request_history_full");
-        const target = request.action === "verify_backup" ? exactRecoveryTarget(backupDirectory, scope, request) : null;
         if (request.action === "create_backup" && readRecoveryBackupCatalog(backupDirectory, scope).some(row => row.manifest.backup_id === `recovery:${request.request_id}`))
             fail("recovery_request_identity_conflict");
+        // Only a readable current epoch and an absent exact request identity can
+        // prove non-admission. Retain that fact before responding, in the same
+        // bounded history; an ID conflict or uncertain write never takes this path.
+        const refuse = reason => {
+            const refused = { request, fingerprint: hash([scope, request]), state: "not_admitted", accepted_at: null,
+                finished_at: stamp(), generation, worker: null, result: null, reason };
+            h.requests.push(refused);
+            try { save(h); }
+            catch { blocked = true; fail("recovery_admission_outcome_unknown"); }
+            return refusalResult(refused);
+        };
+        if (admissionBlocked || unresolved())
+            return refuse("recovery_action_in_progress");
+        let target = null;
+        try { target = request.action === "verify_backup" ? exactRecoveryTarget(backupDirectory, scope, request) : null; }
+        catch (error) {
+            if (error?.code === "recovery_backup_changed") return refuse(error.code);
+            throw error;
+        }
         const next = { request, fingerprint: hash([scope, request]), state: "accepted", accepted_at: stamp(), finished_at: null, generation, worker: null, result: null, reason: null };
         h.requests.push(next);
         try {

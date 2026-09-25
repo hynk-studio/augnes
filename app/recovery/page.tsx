@@ -13,6 +13,7 @@ import {
   buildRecoveryActionControlViewV01,
   recoveryActionOutcomeRequiresRefreshV01,
   recoveryConfirmationStateV02,
+  recoveryHasConfirmedNonAdmissionV02,
   recoveryHasExactValidationV02,
 } from "@/lib/vnext/recovery/recovery-action-confirmation";
 import {
@@ -47,6 +48,7 @@ interface RecoveryActionResult {
     | "restore_scheduled"
     | "retry_scheduled"
     | "operation_recorded"
+    | "request_not_admitted"
     | "refused"
     | "status_unknown";
   reason_code?: string;
@@ -130,7 +132,7 @@ export default function RecoveryPage() {
       }
       setStatus(value);
       if (retainedRequest.current && value.operation?.request_id !== retainedRequest.current.request_id) throw new Error("request_mismatch");
-      setActionConfirmationState(recoveryConfirmationStateV02(value));
+      setActionConfirmationState(recoveryConfirmationStateV02(value, retainedRequest.current));
       return true;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -198,9 +200,11 @@ export default function RecoveryPage() {
       if (!response.ok || !value.accepted) {
         if (value.outcome === "status_unknown") {
           requireStatusRefresh();
+        } else if (value.outcome === "request_not_admitted") {
+          requireStatusRefresh("The request was not admitted. Refresh status to read its retained refusal and current choices before deliberately making a new request.");
         } else if (value.outcome === "refused") {
           requireStatusRefresh(
-            `The recovery action was not scheduled. ${humanize(
+            `The recovery action was refused; this does not establish whether an earlier operation exists for this request. ${humanize(
               value.reason_code ?? "review_the_current_status",
             )}.`,
           );
@@ -447,6 +451,9 @@ export default function RecoveryPage() {
                 {status.operation ? `Request ${status.operation.request_id}: ${status.operation.state}.` : "No request selected. Inventory alone does not confirm a recovery checkpoint."}
               </p>
               {status.operation?.reason ? <p>{humanize(status.operation.reason)}</p> : null}
+              {recoveryHasConfirmedNonAdmissionV02(status, retainedRequest.current) ? (
+                <p data-recovery-confirmed-refusal="true">This exact request was not admitted. Its refusal is retained. Review the current backup selection and available actions, then choose a new request explicitly. No checkpoint has been confirmed.</p>
+              ) : null}
               {status.operation?.result ? <p>Validation observation: {formatTimestamp(status.operation.result.verified_at)}. Validator {status.operation.result.validator_contract}; application {status.operation.result.application_version}. {status.operation.result.build_identity === null ? "Loaded source build is not attested." : `Build ${status.operation.result.build_identity}.`}</p> : null}
               <button type="button" className={styles.secondaryButton} onClick={() => void runAction("verify_backup")}
                 disabled={!status.actions.verify_backup || !selectedBackup || loading || busyAction !== null || actionConfirmationState === "refresh_required"}>

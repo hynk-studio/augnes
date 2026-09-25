@@ -2204,6 +2204,15 @@ replay returns the original operation; changed material, unknown epochs and
 unavailable history refuse. Capacity exhaustion requires separate reviewed
 history maintenance, not automatic deletion or epoch rotation.
 
+An active-operation or changed-target refusal may record `not_admitted` only
+after checking the current epoch and absence of an earlier exact request ID.
+It occupies the same bounded history, with no acceptance time, worker or result.
+Exact replay preserves the refusal. A normal status read must match its retained
+request material before the page permits a deliberate new request using current
+choices; reload follows that same read. Generic refusal, ID/material conflict,
+uncertain persistence and missing history do not prove non-admission. This path
+does not confirm a checkpoint or authorize restore/update.
+
 One supervisor-owned child executes complete backup creation or exact existing
 backup verification. It uses the existing validators, publication, retention and
 bookkeeping owners. Its 120-second deadline is separate from the unchanged

@@ -2413,6 +2413,7 @@ async function main() {
       body,
       expectedSelector,
       label,
+      preserveRetainedRequest = false,
     }) => {
       assert.deepEqual(interceptedRecoveryResponses, []);
       interceptedRecoveryResponses.push({
@@ -2420,7 +2421,7 @@ async function main() {
         status: 200,
         body,
       });
-      await evaluateJson(`(() => {
+      if (!preserveRetainedRequest) await evaluateJson(`(() => {
         localStorage.removeItem('augnes.recovery.request.v1');
         const operation = ${JSON.stringify(body.operation ?? null)};
         if (operation) localStorage.setItem('augnes.recovery.request.v1', JSON.stringify({action: operation.action ?? 'verify_backup', request_id: operation.request_id}));
@@ -2514,7 +2515,7 @@ async function main() {
     assert.equal(await evaluateBoolean(`(() => {const buttons=Array.from(document.querySelectorAll('button')).filter(b=>/create backup|verify selected backup|retry update|restore selected verified backup/i.test(b.textContent??''));for(const b of buttons)b.click();return buttons.every(b=>b.disabled);})()`),true);
     const refresh = async (body,status=200) => {
       interceptedRecoveryResponses.push({method:"GET",status,body});
-      await evaluateBoolean(`(() => {const b=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Refresh status');b.click();return true;})()`);
+      await evaluateBoolean(`(() => {const b=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Refresh status');const details=b?.closest('details');if(details&&!details.open)details.querySelector('summary').click();b.click();return true;})()`);
       await waitForRequestQuiet();
     };
     await refresh({error_code:"recovery_status_unavailable"},500);
@@ -2543,9 +2544,73 @@ async function main() {
     await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,"explicit verification result reaches page");
     // Reload uses the retained request, never another POST.
     const postCount=requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length;
-    await renderInterceptedRecoveryStatus({body:verificationStatus,expectedSelector:`document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,label:"retained exact operation after page reload"});
+    await renderInterceptedRecoveryStatus({body:verificationStatus,expectedSelector:`document.querySelector('[data-recovery-action-confirmation="confirmed"]') !== null`,label:"retained exact operation after page reload",preserveRetainedRequest:true});
     assert.equal(requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length,postCount);
     record("correlated_admission_status_and_exact_validation_presentation");
+
+    const clickRecovery = async label => {
+      assert.equal(await evaluateBoolean(`(() => {const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()===${JSON.stringify(label)});const details=button?.closest('details');if(details&&!details.open)details.querySelector('summary').click();if(!button||button.disabled)return false;button.click();return true;})()`),true,`${label} is available through normal controls`);
+      await waitForRequestQuiet();
+    };
+    const postTotal = () => requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").length;
+    const submitRefusal = async (label, reason) => {
+      const before=postTotal();
+      interceptedRecoveryResponses.push({method:"POST",status:409,body:{accepted:false,outcome:"request_not_admitted",reason_code:reason,next_action:"refresh_before_new_request"}});
+      await clickRecovery(label);
+      await waitForCondition(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`,"recorded refusal requires current status read");
+      const request=await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+      assert.equal(postTotal(),before+1);
+      assert.deepEqual(JSON.parse(requests.filter(entry=>entry.path==="/api/recovery"&&entry.method==="POST").at(-1).post_data),request);
+      return request;
+    };
+    const refusalStatus = (request, reason, extra={}) => ({...verificationStatus,...extra,operation:{request_id:request.request_id,action:request.action,state:"not_admitted",reason,result:null,accepted_at:null,finished_at:backup.created_at,request,observation_boundary:"request_not_admitted"}});
+    const rejectedRequest=await submitRefusal("Create backup","recovery_action_in_progress");
+    const refusalPostCount=postTotal();
+    // A lookup failure is still unknown even after a POST claimed refusal.
+    await refresh({...currentNormalRecovery,operation:{request_id:rejectedRequest.request_id,state:"unknown",reason:"recovery_request_history_unknown",result:null}});
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`),true);
+    await refresh(refusalStatus({...rejectedRequest,admission_binding:"22222222-2222-4222-8222-222222222222"},"recovery_action_in_progress"));
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`),true,"wrong material cannot prove non-admission of the retained request");
+    await refresh(refusalStatus(rejectedRequest,"recovery_action_in_progress",{actions:{create_backup:false,verify_backup:false,restore_backup:false,retry_update:false}}));
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-recovery-confirmed-refusal="true"]') !== null`),true);
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).filter(b=>/create backup|verify selected backup|retry update|restore selected verified backup/i.test(b.textContent??'')).every(b=>b.disabled)`),true,"unsettled competing operation still gates actions");
+    const settledRefusal=refusalStatus(rejectedRequest,"recovery_action_in_progress");
+    await refresh(settledRefusal);
+    await renderInterceptedRecoveryStatus({body:settledRefusal,expectedSelector:`document.querySelector('[data-recovery-action-confirmation="unverified"] [data-recovery-confirmed-refusal="true"]') !== null`,label:"retained refusal survives real page reload",preserveRetainedRequest:true});
+    assert.deepEqual(await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`),rejectedRequest,"reload does not rewrite retained material");
+    assert.equal(postTotal(),refusalPostCount,"refusal refresh/reload never retries or replaces the request");
+    interceptedRecoveryResponses.push({method:"POST",status:202,body:{accepted:true,outcome:"operation_recorded"}});
+    await clickRecovery("Verify selected backup");
+    const afterRefusal=await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+    assert.notEqual(afterRefusal.request_id,rejectedRequest.request_id,"only explicit click makes a new ID");
+    assert.equal(postTotal(),refusalPostCount+1);
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`),true);
+    const afterRefusalResult={...verificationStatus,operation:{...verificationStatus.operation,request_id:afterRefusal.request_id}};
+    await refresh(afterRefusalResult);
+    const changedRequest=await submitRefusal("Verify selected backup","recovery_backup_changed");
+    const currentTarget={...backup,target_binding:`sha256:${"c".repeat(64)}`,label:"Updated recovery point"};
+    const changedRefusal=refusalStatus(changedRequest,"recovery_backup_changed",{backups:[currentTarget]});
+    const changedPostCount=postTotal();
+    await refresh(changedRefusal);
+    await renderInterceptedRecoveryStatus({body:changedRefusal,expectedSelector:`document.querySelector('[data-recovery-confirmed-refusal="true"]') !== null && document.body.innerText.includes('Updated recovery point')`,label:"changed-target refusal exposes current selection after reload",preserveRetainedRequest:true});
+    assert.equal(postTotal(),changedPostCount);
+    interceptedRecoveryResponses.push({method:"POST",status:202,body:{accepted:true,outcome:"operation_recorded"}});
+    await clickRecovery("Verify selected backup");
+    const currentMaterial=await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+    assert.notEqual(currentMaterial.request_id,changedRequest.request_id);
+    assert.equal(currentMaterial.target_binding,currentTarget.target_binding,"new explicit request uses reviewed current material");
+    await refresh({...verificationStatus,backups:[currentTarget],operation:{...verificationStatus.operation,request_id:currentMaterial.request_id,result:{...verificationStatus.operation.result,target_binding:currentTarget.target_binding}}});
+    // Generic refusal, including ID/material conflict, grants no escape from an
+    // unknown lookup. No localStorage reset is used anywhere in these scenarios.
+    interceptedRecoveryResponses.push({method:"POST",status:409,body:{accepted:false,outcome:"refused",reason_code:"recovery_request_material_conflict"}});
+    await clickRecovery("Create backup");
+    const uncertainRequest=await evaluateJson(`JSON.parse(localStorage.getItem('augnes.recovery.request.v1'))`);
+    const unknownStatus={...currentNormalRecovery,operation:{request_id:uncertainRequest.request_id,state:"unknown",reason:"recovery_request_history_unknown",result:null}};
+    const unknownPostCount=postTotal();
+    await refresh(unknownStatus);
+    await renderInterceptedRecoveryStatus({body:unknownStatus,expectedSelector:`document.querySelector('[data-recovery-action-confirmation="refresh_required"]') !== null`,label:"generic refusal and unknown history remain locked across reload",preserveRetainedRequest:true});
+    assert.equal(postTotal(),unknownPostCount);
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('button')).filter(b=>/create backup|verify selected backup|retry update|restore selected verified backup/i.test(b.textContent??'')).every(b=>b.disabled)`),true);
 
     for (const scheduledCase of [
       {
