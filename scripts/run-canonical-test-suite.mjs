@@ -1086,6 +1086,7 @@ const suites = {
       requirements: ["filesystem", "database", "process-owning", "listener-port-owning"],
       label: "correlated recovery worker and metadata status",
       ...rootNode("scripts/test-recovery-control-operation.mjs"),
+      env: { AUGNES_CANONICAL_TEST_MODE: "1" },
       timeoutMs: 90_000,
       requireNaturalExit: true,
     },
