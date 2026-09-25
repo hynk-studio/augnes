@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readProcessBirthIdentity } from "./local-process-ownership.mjs";
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
+import { readVerifiedRecoveryWorkerSource } from "./distributable-package-launcher.mjs";
 export const RECOVERY_REQUEST_CONTRACT = "augnes.recovery-requests.v1";
 export const RECOVERY_REQUEST_FILE = "augnes-recovery-requests.json";
 // Separate from the unchanged 5s HTTP deadline. The incident's complete
@@ -16,6 +17,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const SHA = /^sha256:[a-f0-9]{64}$/u;
 const BACKUP = /^augnes-recovery-\d{8}T\d{6}-[0-9a-f]{8}\.backup$/u;
 const workerEntry = fileURLToPath(new URL("./recovery-control-worker.mjs", import.meta.url));
+// Fixed trusted trampoline. Packaged JavaScript arrives as already-verified
+// bytes on stdin, never through a second mutable-path import.
+// Clear the public CLI argv before evaluating bundled launcher helpers: the
+// private IPC worker must never enter the launcher's ordinary Start command.
+const packagedBootstrap = 'const {Module}=require("node:module");const filename=process.argv[1];process.argv.splice(1);const m=new Module(filename);m.filename=filename;m.paths=Module._nodeModulePaths(require("node:path").dirname(filename));m._compile(require("node:fs").readFileSync(0,"utf8"),filename);';
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const hash = value => `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
 const exact = (value, keys) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).sort().join("|") === [...keys].sort().join("|");
@@ -274,9 +280,10 @@ export function createRecoveryRequestController({ backupDirectory, databasePath,
         save(h);
     }
     function launch(input, row = null) {
-        const child = spawn(process.execPath, [workerEntry], {
+        const verified = distribution ? readVerifiedRecoveryWorkerSource({ packageRoot: path.resolve(path.dirname(workerEntry), ".."), buildIdentity: distribution.build_identity }) : null;
+        const child = spawn(process.execPath, verified ? ["-e", packagedBootstrap, verified.filename] : [workerEntry], {
             env: buildRuntimeChildEnvironment({ role: "recovery", ambientEnvironment: environment }),
-            detached: process.platform !== "win32", stdio: ["ignore", "ignore", "ignore", "ipc"], windowsHide: true,
+            detached: process.platform !== "win32", stdio: [verified ? "pipe" : "ignore", "ignore", "ignore", "ipc"], windowsHide: true,
         });
         let resolveClosed, resolveDone;
         const record = { child, pid: child.pid ?? null, exit: null, expectedExit: false, finishing: null, settled: false,
@@ -355,6 +362,7 @@ export function createRecoveryRequestController({ backupDirectory, databasePath,
         });
         child.once("close", (code, signal) => { record.exit = { code, signal }; resolveClosed(); void finish(code); });
         child.once("error", () => { void finish(1, "recovery_worker_spawn_failed"); });
+        child.stdin?.once("error", () => { void finish(1, "recovery_worker_dispatch_unknown"); });
         record.timer = setTimeout(() => void finish(1, "recovery_worker_deadline_exceeded"), deadline);
         const birth = readProcessBirthIdentity(child.pid);
         if (birth.state !== "present")
@@ -363,6 +371,7 @@ export function createRecoveryRequestController({ backupDirectory, databasePath,
             try {
                 if (row)
                     updateRow(row.request.request_id, current => { current.worker = { pid: child.pid, birth: birth.identity }; current.state = "running"; });
+                if (verified) child.stdin.end(verified.source);
                 child.send({ ...input, databasePath, backupDirectory, scope, sourceApplication, validatorApplication, distribution,
                     protectedBackupIds: protectedBackupIds(), deadline, scenario: testing ? testScenario : null }, error => { if (error)
                     void finish(1, "recovery_worker_dispatch_unknown"); });
@@ -402,8 +411,8 @@ export function createRecoveryRequestController({ backupDirectory, databasePath,
         try {
             void launch({ request, fingerprint: next.fingerprint, targetName: target?.name ?? null }, next);
         }
-        catch {
-            updateRow(request.request_id, current => { current.state = "failed"; current.finished_at = stamp(); current.reason = "recovery_worker_spawn_failed"; });
+        catch (error) {
+            updateRow(request.request_id, current => { current.state = "failed"; current.finished_at = stamp(); current.reason = error?.code === "package_integrity_failed" ? error.code : "recovery_worker_spawn_failed"; });
         }
         return { accepted: true, outcome: "operation_recorded", request_id: request.request_id };
     }

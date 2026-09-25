@@ -3,12 +3,14 @@
 import { createHash } from "node:crypto";
 import {
   chmodSync,
+  constants,
   closeSync,
   fstatSync,
   lstatSync,
   mkdtempSync,
   openSync,
   readFileSync,
+  readSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -21,6 +23,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   DISTRIBUTABLE_MANIFEST_FILE,
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
   PublicDistributablePackageError,
   compareVersions,
   detectDistributablePlatform,
@@ -377,6 +380,41 @@ function captureSupervisorIdentity(packageRoot) {
       "package_integrity_failed",
       error,
     );
+  }
+}
+
+// Cheap launch admission: pin only the fixed bootstrap bytes to the running
+// build. This does not validate the package or any backup. The isolated child
+// still performs complete fresh preflight before loading its validator.
+export function readVerifiedRecoveryWorkerSource({ packageRoot, buildIdentity }) {
+  let descriptor = null;
+  try {
+    const root = lstatSync(packageRoot);
+    if (!root.isDirectory() || root.isSymbolicLink() || realpathSync(packageRoot) !== packageRoot)
+      throw new Error("worker package root changed");
+    const manifest = readPackageManifest(packageRoot);
+    validateDistributableManifest(manifest);
+    if (manifest.build_identity !== buildIdentity) throw new Error("worker build changed");
+    const expected = manifest.files.find(entry => entry.path === DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE);
+    if (!expected || expected.size > 256 * 1024) throw new Error("worker bootstrap unavailable");
+    const filename = path.join(packageRoot, DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE);
+    const before = lstatSync(filename, { bigint: true });
+    const identity = { dev: before.dev.toString(), ino: before.ino.toString() };
+    assertSupervisorFile(before, expected, identity);
+    descriptor = openSync(filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    assertSupervisorFile(fstatSync(descriptor, { bigint: true }), expected, identity);
+    const bytes = Buffer.alloc(expected.size + 1);
+    const count = readSync(descriptor, bytes, 0, bytes.length, 0);
+    const source = bytes.subarray(0, count);
+    assertSupervisorFile(fstatSync(descriptor, { bigint: true }), expected, identity);
+    assertSupervisorFile(lstatSync(filename, { bigint: true }), expected, identity);
+    if (source.length !== expected.size || createHash("sha256").update(source).digest("hex") !== expected.sha256)
+      throw new Error("worker bootstrap changed");
+    return { filename, source };
+  } catch (error) {
+    throw new PublicDistributablePackageError("package_integrity_failed", error);
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
   }
 }
 

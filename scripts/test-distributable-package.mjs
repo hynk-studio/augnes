@@ -40,10 +40,13 @@ import {
   DISTRIBUTABLE_APPLICATION_SCOPE_FINGERPRINT,
   DISTRIBUTABLE_PACKAGE_CONTRACT_VERSION,
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_CONTROL_FILES,
   DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS,
   assertAllowedDistributablePayloadPath,
   assertSafeDistributablePath,
   createDistributableManifest,
+  calculateDistributableBuildIdentity,
   detectDistributablePlatform,
   formatDistributablePlatformLabel,
   validateDistributableManifest,
@@ -227,6 +230,12 @@ try {
   packageRoot = findPackageRoot(unpackRoot);
   assertOutsideRepository(packageRoot, "unpacked package root");
   packageManifest = validatePackageContents(packageRoot);
+  // Manifest-level compatibility only: pre-capability packages did not contain
+  // recovery worker files. Their original file requirements still apply.
+  const historicalManifest = structuredClone(packageManifest);
+  historicalManifest.files = historicalManifest.files.filter(entry => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(entry.path));
+  historicalManifest.build_identity = calculateDistributableBuildIdentity(historicalManifest);
+  validateDistributableManifest(historicalManifest);
   await assertPackagedNativeHostImports(packageRoot);
   applyRestrictiveExtractionModes(packageRoot, packageManifest);
   await assertPostPreflightSupervisorReplacementRefused(
@@ -1413,6 +1422,27 @@ async function testFreshAndCurrentPackagedRuntime(root, manifest) {
   assert.equal(healthyRecoveryStatus.status, 200);
   assert.equal(healthyRecoveryStatus.body.recovery_mode, false);
   assert.equal(healthyRecoveryStatus.body.actions.create_backup, true);
+  // Neither a changed bootstrap nor a mutable dependency may execute before
+  // preflight. Both failures preserve the database and create no backup.
+  for (const relative of [DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE, "scripts/distributable-package-launcher.mjs"]) {
+    const target = path.join(root, relative);
+    const original = readFileSync(target);
+    const marker = path.join(scenario.root, "synthetic-recovery-bootstrap-executed");
+    const injection = relative.endsWith(".cjs")
+      ? `require('node:fs').writeFileSync(${JSON.stringify(marker)},'synthetic');\n`
+      : `import {writeFileSync as syntheticWrite} from 'node:fs'; syntheticWrite(${JSON.stringify(marker)},'synthetic');\n`;
+    try {
+      writeFileSync(target, injection + original.toString("utf8").replace(/^#![^\n]*\n/u,""));
+      const admission = await postRecoveryAction(current.effective_url,
+        {action:"create_backup",request_id:randomUUID(),admission_binding:healthyRecoveryStatus.body.admission_binding}, current.effective_url);
+      assert.equal(admission.status,202);
+      const failure = await waitForRecoveryResult(current.effective_url,admission.body.request_id,"failed");
+      assert.equal(failure.operation.reason,"package_integrity_failed");
+      assert.equal(existsSync(marker),false,"unverified bootstrap/dependency must never execute");
+      assert.equal(failure.backup_count,0);
+      assert.deepEqual(readAuthorityCounts(scenario.databasePath),authorityBeforeManualBackup);
+    } finally { writeFileSync(target,original); }
+  }
   const manualBackup = await postRecoveryAction(
     current.effective_url,
     { action: "create_backup", request_id: randomUUID(), admission_binding: healthyRecoveryStatus.body.admission_binding },
@@ -4430,14 +4460,14 @@ function readAuthorityCounts(databasePath) {
   }
 }
 
-async function waitForRecoveryResult(origin, requestId) {
+async function waitForRecoveryResult(origin, requestId, expectedState = "completed") {
   const end = Date.now() + 40_000;
   while (Date.now() < end) {
     const response = await fetchJson(`${new URL(origin).origin}/api/recovery?request_id=${requestId}`);
     assert.equal(response.status,200,JSON.stringify(response.body));
     assert.equal(response.body.operation.request_id,requestId);
     if (!["accepted","running"].includes(response.body.operation.state)) {
-      assert.equal(response.body.operation.state,"completed",JSON.stringify(response.body.operation));
+      assert.equal(response.body.operation.state,expectedState,JSON.stringify(response.body.operation));
       return response.body;
     }
     await delay(100);

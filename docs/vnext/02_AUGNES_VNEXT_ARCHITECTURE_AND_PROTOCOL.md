@@ -2215,6 +2215,14 @@ worker identity/group settlement before classifying interruption; it never
 replays an unfinished request. Existing backup-journal reconciliation stays with
 its explicit lifecycle owner.
 
+Packaged admission verifies the bounded bootstrap bytes against the running
+build's manifest and hands those bytes to a fixed child trampoline. It does not
+execute the mutable worker path before preflight. The child still performs the
+complete fresh package/native preflight and loads the verified in-memory
+supervisor/validator. Bootstrap hashing is launch integrity, not cached backup
+validation. Pre-capability package manifests remain valid without the additive
+worker files; they do not thereby acquire the new operation capability.
+
 Status reads bounded metadata only, including historical observations. They do
 not inspect databases, reconcile, adopt, retain/delete backups or clean operation
 write residue. A completed exact result identifies the operation, target,

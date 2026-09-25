@@ -38,7 +38,10 @@ process.once("message", async (input) => {
             run = loadVerifiedDistributableSupervisor(preflight).runRecoveryWorkerJob;
         }
         else {
-            run = (await import("./recovery-control-job.mjs")).runRecoveryWorkerJob;
+            // Source-only dependency; the packaged bootstrap must contain only
+            // its preflight/verified-loader owner, not a second validator copy.
+            const jobUrl = new URL("./recovery-control-job.mjs", import.meta.url).href;
+            run = (await import(jobUrl)).runRecoveryWorkerJob;
         }
         const result = await run(input);
         if (input.scenario !== "output_loss") {
