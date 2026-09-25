@@ -38,6 +38,141 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Method-improvement evidence
+
+The joint development responsibilities live in [AGENTS.md](../../AGENTS.md#joint-method-improvement).
+This section governs evidence and interpretation for work that changes a method
+or claims improved quality, capability, cost, latency, reliability, or user burden.
+It creates no research phase, execution permission, evaluator, learning engine,
+or persistent subsystem. Product meaning remains in 01, Core semantics in 02,
+and development sequence in 03. Ordinary fixes and documentation need only
+proportionate checks; they do not automatically become usefulness studies.
+
+### Development, verification, and usefulness
+
+| Activity | What may change and what its evidence establishes |
+|---|---|
+| Development iteration | Refine a hypothesis, modify implementation, add discriminating instrumentation, and repeat focused checks within the task's approved scope and resource budget. Failures can guide another justified attempt. Record the candidate and observation; these attempts are development evidence. |
+| Exact-source correctness verification | Verify the fixed candidate source under the then-current [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md) and actual planner/consumer requirements. This establishes applicable repository contract conformance, not method usefulness. Preserve exact-source, deciding-run, cleanup, and no-favorable-rerun rules. |
+| Fixed usefulness evaluation | Declare the candidate, comparison, cases, conditions, outcomes, budget, and stopping rules before deciding observation. Keep the method fixed during that evaluation. Do not rerun an unchanged evaluation until a favorable result appears. |
+
+A case seen during development remains exposed. If its result informs a method
+change, it is development evidence for the revised method; a new source head or
+separate invocation does not restore independence. Use any further deciding
+comparison only within its explicit authorization and report exposure. Integrity
+rules do not prohibit legitimate iteration before fixing a candidate, and
+development permission does not waive deciding-evaluation or verification rules.
+There is no universal hypothesis, candidate, or revision count: a direct local
+change may suffice, while another task may authorize multiple bounded attempts.
+
+Keep three claims separate:
+
+- **Implementation improvement:** the code or mechanism works more correctly.
+- **Method improvement:** a fixed method performs better than its prior form or
+  an appropriate baseline under the declared comparison.
+- **Task-improvement continuity:** attributable prior experience improves a
+  separate later task's behavior, reliability, or total burden. Only this third
+  claim directly supports the product claim that experience improves later work.
+  ChatGPT manually supplying the next task's best strategy does not demonstrate
+  autonomous task-improvement continuity.
+
+### Diagnose the layer before adding structure
+
+An absent gain does not by itself justify more memory, prompt text, verification,
+or machinery. Choose the smallest permitted observation that distinguishes
+plausible causes. Relevant distinctions include:
+
+- required information never reached the worker;
+- it arrived but its applicability conditions were unclear;
+- the worker understood it but did not use it at the relevant decision;
+- the right action was selected but lacked an executable tool or path;
+- feedback existed but did not distinguish what should change;
+- behavior improved but the added method cost more than it saved;
+- a strong baseline left no marginal value for added structure;
+- the hypothesized bottleneck or implementation layer was wrong.
+
+These are not interchangeable memory problems. Do not fabricate a defect or a
+causal explanation to justify the next patch; report an unresolved cause when
+the observation cannot distinguish it.
+
+An optional development-only diagnostic may manually design high-quality support
+from permitted information to ask whether better support can improve the target
+behavior at all, then distinguish extraction, selection, timely delivery, and
+worker use. Record manual design cost and any solution or evaluation-case
+exposure. Support designed after seeing the solution or case carries that
+limitation. It establishes neither autonomous learning, generalization,
+successful extraction, nor a theoretical upper bound. This option grants no
+additional data, model/provider, or execution authority.
+
+### Strong comparisons and independence
+
+Use an appropriately strong baseline: for example, an adaptive/free-form memo,
+direct execution without the mechanism, or another task-justified alternative.
+Do not handicap it to make structure look useful. Control model, input, tools,
+source access, budget, and other relevant conditions, or report their differences
+and resulting limits. A concurrent model or other major condition change cannot
+be attributed to Augnes alone.
+
+Record task origin, historical versus constructed status, exposed expected
+answers/outcomes, evaluator authorship or prior case access, development use,
+and other material independence limits. A different model or session can add a
+review perspective; separate invocation alone does not make it an independent
+blind evaluator. Keep observations, developer reports, interpretations, and
+unobserved properties distinct.
+
+### Cost and user burden
+
+Distinguish method-development cost; reusable asset creation/update; per-task
+selection/retrieval/delivery; worker execution; verification/recovery; and user
+intervention burden. Improvements may include fewer failures, approved new
+capabilities, higher quality, lower compute or latency, fewer unnecessary checks,
+less repeated work or intervention, or a wider reliable operating range for a
+weaker/cheaper worker. Explain which outcome changed and which costs were counted.
+
+Unobserved provider tokens, billing, latency, or other components are unknown,
+not zero or negligible. A cheaper worker does not establish system savings if
+an expensive worker effectively re-solves each task. Amortizing expensive
+development or experience processing into reusable support for later tasks,
+including weaker workers, is a hypothesis to test with observed reuse and total
+burden, not an achieved saving by assumption.
+
+### Next decisions and concise reporting
+
+Return enough to connect the target opportunity/loss, working hypothesis and
+expected behavioral difference, approved change surface/resource boundary,
+candidate and development observations, exact-source checks, any fixed
+comparison, exposure/cost limits, and next decision. Keep artifacts concise and
+appropriate for repository history, such as a PR description or a bounded
+evaluation note under its existing owner. Do not require private reasoning
+traces, hidden chain-of-thought, secrets, raw provider payloads, or broad
+conversation histories.
+
+ChatGPT interprets that evidence and recommends a concrete next decision with
+its basis: modify, gather one specific missing observation, retain/no-change,
+simplify, narrow applicability, defer, or stop. Codex supplies source diagnosis
+and implementation alternatives, including challenges to the working hypothesis.
+Hypothesis rejected, insufficient observation, authority/environment blocked,
+method narrowed or simplified, development stopped for low expected value, and
+usefulness not demonstrated are valid outcomes. No implementation is mandatory.
+Do not stop solely because the first candidate failed when concrete evidence
+supports another approved bounded attempt; do not invest indefinitely without
+such evidence. Each justified attempt should improve the basis for the next
+action, even when that action is no change.
+
+Capability can improve without accumulating authority. Performance cannot
+compensate for violating user authority, scope, required verification, approved
+facts, semantic ownership, success criteria, tool/provider permissions, cost
+ceilings, or allowed external effects. Repetition, model agreement, and prior
+success cannot promote a claim to canonical truth or authority outside the
+existing process.
+
+This prospective methodology does not revise the negative/null findings or
+execution/termination conditions of [#1320/#1321](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md),
+transfer unused research budget, reopen prior HOLD/completed work, or change the
+current product-development priority. A null result remains evidence about the
+tested method and conditions, not a failed experiment merely because development
+guidance is now more explicit.
+
 ## Prospective expectation mechanics
 
 Keep task requirements, an author's prediction and the result's established

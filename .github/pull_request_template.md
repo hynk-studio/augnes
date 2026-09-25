@@ -1,6 +1,7 @@
 # Summary / outcome
 
 - What changed, and what outcome does this PR produce?
+- For material method changes or improvement claims only: target/opportunity → working hypothesis → observed behavioral/result change; burden/cost limits; next decision/uncertainty (including no-change). Distinguish development, correctness, and usefulness evidence.
 
 ## Scope / changed responsibilities
 
