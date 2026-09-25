@@ -1,13 +1,7 @@
 # Summary / outcome
 
 - What changed, and what outcome does this PR produce?
-
-For a material method change or a quality/cost/capability improvement claim,
-briefly connect the target problem or opportunity, working hypothesis,
-observed behavioral/result change, relevant cost or burden limits, and next
-decision or remaining uncertainty. Distinguish development observations,
-correctness verification, and usefulness evidence; no-change is valid.
-Omit this account for ordinary PRs where it is not relevant.
+- For material method changes or improvement claims only: target/opportunity → working hypothesis → observed behavioral/result change; burden/cost limits; next decision/uncertainty (including no-change). Distinguish development, correctness, and usefulness evidence.
 
 ## Scope / changed responsibilities
 
