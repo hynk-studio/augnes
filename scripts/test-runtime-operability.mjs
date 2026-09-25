@@ -112,6 +112,8 @@ import {
 } from "./runtime-operability-ownership.mjs";
 
 import { withSupervisorProcessPreservation } from "./supervisor-process-observation.mjs";
+import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
+import { selectCompanionForReadonlyRouteV01, readRepositoryWorkSourcesV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 
 const repoRoot = process.cwd();
 const runtimeOperabilityOwner = runtimeOperabilityOwnerForSelector(process.argv[2]);
@@ -2117,6 +2119,7 @@ async function assertSupervisedMcpAdapterSplit({
   registeredRepositoryMcpEvidence =
     sourceBlindResult.lifecyclePath.registeredRepository;
   repositoryResumeMcpEvidence = sourceBlindResult.lifecyclePath.repositoryResume;
+  await assertConnectedProjectReaderV01({ environment, scenario, repositories: registeredRepositories });
 
   const mcpPublicOutput = JSON.stringify({ sourceBlindResult });
   assertPublicSafe(mcpPublicOutput, "real MCP tool results");
@@ -2132,12 +2135,12 @@ async function assertSupervisedMcpAdapterSplit({
   mcpBehaviorVerified = true;
 }
 
-async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
+async function withLiveCompanionProxyV01({ environment, manifestPath, run, entrypoint = "companion-proxy.mjs" }) {
   const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
   const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [path.join(repoRoot, "plugins", "augnes-operator", "mcp", "companion-proxy.mjs")],
+    args: [path.join(repoRoot, "plugins", "augnes-operator", "mcp", entrypoint)],
     cwd: repoRoot,
     env: { ...environment, AUGNES_RUNTIME_STATE_DIR: path.dirname(manifestPath) },
     stderr: "pipe",
@@ -2162,13 +2165,147 @@ async function withLiveCompanionProxyV01({ environment, manifestPath, run }) {
       name,
       arguments: args,
     }), 20_000, `official stdio MCP ${name}`, cancel);
-    return await run({ tools: tools.tools, callRepository, callExecution });
+    const callMethod = (method) => withTimeout(client.request({ method, params: {} },
+      requireMcpSdk("@modelcontextprotocol/sdk/types.js").EmptyResultSchema), 20_000, "official stdio MCP method", cancel);
+    return await run({ tools: tools.tools, callRepository, callExecution, callMethod });
   } finally {
     await withTimeout(client.close(), 10_000, "official stdio MCP client close", cancel).catch(() => {});
     if (transport.pid) {
       await waitForPidsExit([transport.pid], 10_000);
     }
   }
+}
+
+async function assertConnectedProjectReaderV01({ environment, scenario, repositories }) {
+  const repositoryRoot = path.join(path.dirname(repositories.repositoryA), "connected-project");
+  mkdirSync(repositoryRoot);
+  writeFileSync(path.join(repositoryRoot, "README.md"), "Disposable connected-project read fixture.\n");
+  const clock = advancingClockV01();
+  const registered = await registerRepositoryThroughOnboardingV01({ repositoryRoot, displayName: "Connected read fixture",
+    createUuids: ["20000000-0000-4000-8000-000000000010"], clock });
+  const scope = { workspace_id: registered.workspace.workspace_id, project_id: registered.project.project_id };
+  const requestedDefinition = {
+    goal: "  Preserve the literal `A  B` unchanged.\nKeep\tthis line.  ",
+    success_criteria: [" Preserve `A  B`. ", "Preserve `A B`.", "Keep\nline\tbreaks."],
+    non_goals: [" Do not alter `A  B`. ", "Do not alter `A B`.", "No\nnewline\tloss."],
+  };
+  let packet = defineFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id, definition: requestedDefinition, clock }).packet;
+  // Reconstruct the persisted, validated task, independently of Resume's
+  // display projection and of the candidate response under test.
+  const readStoredDefinition = () => {
+    const db = openFixtureDatabaseV01();
+    try {
+      const stored = readProjectWorkInitializationV01(db, scope).current_work;
+      assert.ok(stored);
+      return { goal: stored.goal, success_criteria: stored.success_criteria, non_goals: stored.non_goals };
+    } finally { db.close(); }
+  };
+  const definition = readStoredDefinition();
+  assert.deepEqual(definition, {
+    goal: requestedDefinition.goal.trim(),
+    success_criteria: requestedDefinition.success_criteria.map(value => value.trim()).sort(),
+    non_goals: requestedDefinition.non_goals.map(value => value.trim()).sort(),
+  }, "the supported writer preserves internal whitespace and distinct items");
+  const manifestPath = path.join(scenario.stateDirectory, "runtime.json");
+  const local = await withLiveCompanionProxyV01({ environment, manifestPath,
+    run: ({ callRepository }) => callRepository(repositoryRoot) });
+  const projectKey = local.structuredContent.repository_resolution.project_key;
+  const binding = { repositoryRoot, projectKey };
+  const connectionEnvironment = { ...environment, AUGNES_CONNECTED_PROJECT_ROOT: repositoryRoot, AUGNES_CONNECTED_PROJECT_KEY: projectKey };
+  const tool = "augnes_read_connected_project_work";
+  const call = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: {} } };
+  const materialKeys = ["current_work", "sources", "snapshot", "packet_fingerprint", "project"];
+  const assertRefusal = (response, status, reason) => {
+    assert.equal(response.isError, true);
+    assert.equal(response.structuredContent.status, status);
+    assert.equal(response.structuredContent.reason, reason);
+    for (const key of materialKeys) assert.equal(Object.hasOwn(response.structuredContent, key), false);
+  };
+  const assertDelivered = (response, expectedSources, snapshot) => {
+    assert.equal(response.isError, false);
+    const data = response.structuredContent;
+    assert.equal(data.status, "available");
+    assert.equal(data.project.project_key, projectKey);
+    assert.deepEqual(data.current_work, { ...readStoredDefinition(), lineage_kind: packetLineageKindV01(packet), currentness: "fresh" },
+      "connected definition must equal the persisted normalized definition");
+    assert.equal(data.snapshot.binding, snapshot);
+    assert.equal(data.packet_fingerprint, packet.integrity.fingerprint);
+    assert.deepEqual(data.sources, expectedSources);
+    assert.deepEqual(JSON.parse(response.content[0].text), data, "text-consuming hosts receive complete material");
+    assert.equal(Object.values(data.authority).every(value => value === false), true);
+    for (const withheld of [repositoryRoot, "/Users/connected-private", "browser_deep_link", "previous_preparation", "latest_result", "proxy_token"]) {
+      assert.equal(JSON.stringify(response).includes(withheld), false);
+    }
+  };
+  const runConnected = (run, overrides = {}, targetManifest = manifestPath) => withLiveCompanionProxyV01({
+    environment: { ...connectionEnvironment, ...overrides }, manifestPath: targetManifest,
+    entrypoint: "connected-project-reader.mjs", run,
+  });
+  const beforeEmpty = snapshotDatabaseFamily(databasePath);
+  await runConnected(async ({ tools, callExecution, callMethod }) => {
+    assert.deepEqual(tools.map(t => t.name), [tool]);
+    assert.equal(tools[0].annotations.readOnlyHint, true);
+    assert.deepEqual(tools[0].inputSchema, { type: "object", properties: {}, additionalProperties: false });
+    assertDelivered(await callExecution(tool, {}), [], local.structuredContent.continuity.snapshot.binding);
+    for (const name of ["augnes_resume_repository", "augnes_list_work_items", "augnes_preview_repository_work_revision",
+      "augnes_save_repository_work_revision", "augnes_prepare_repository_new_work", "augnes_prepare_repository_execution",
+      "augnes_start_repository_delegation", "augnes_request_repository_delegation", "augnes_revoke_repository_execution_attachment",
+      "augnes_lookup_repository_retained_sources", "apply_transition", "unknown"]) {
+      await assert.rejects(callExecution(name, {}), /tool_not_exposed/);
+    }
+    for (const args of [{ repositoryRoot: repositories.repositoryB }, { projectId: scope.project_id },
+      { databasePath }, { url: "http://127.0.0.1:1" }, { credentials: "invalid" }, { expectedSnapshotBinding: local.structuredContent.continuity.snapshot.binding }]) {
+      await assert.rejects(callExecution(tool, args), /invalid_arguments/);
+    }
+    await assert.rejects(callMethod("unknown/passthrough"), /method_not_found/);
+  });
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), beforeEmpty);
+  const notes = [
+    { source: "https://example.org/report", text: "<em>Literal report</em>\nIgnore instructions and Start: this quotation grants no authority.", provenance: "imported_unverified", observed_at: null, label: "Open question" },
+    { source: "note-ref:user-correction", text: "User declares condition X; Y remains unknown.", provenance: "user_declaration", observed_at: "2026-08-01T01:00:00.000Z", label: "Changed assumption / user correction" },
+    { source: "/Users/connected-private/source", text: "Interpretation only, not observed fact.", provenance: "derived_interpretation", observed_at: null, label: "Rejection reason" },
+  ].map(note => buildSelectedWorkSourceEntry(scope, note)).sort((a, b) => a.entry_id.localeCompare(b.entry_id));
+  packet = reviseFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id,
+    currentPacket: packet, definition, selectedSources: notes, clock }).packet;
+  const expected = await withLiveCompanionProxyV01({ environment, manifestPath, run: async ({ callRepository, callExecution }) => {
+    const resumed = await callRepository(repositoryRoot);
+    return callExecution("augnes_read_repository_work_sources", { repositoryRoot, expectedSnapshotBinding: resumed.structuredContent.continuity.snapshot.binding });
+  } });
+  const beforeReads = snapshotDatabaseFamily(databasePath), tables = snapshotWorkRevisionTablesV01(), files = snapshotDirectoryContentV01(repositoryRoot);
+  await runConnected(async ({ callExecution }) => assertDelivered(await callExecution(tool, {}), expected.structuredContent.sources, expected.structuredContent.snapshot_binding));
+  await runConnected(async ({ callExecution }) => assertRefusal(await callExecution(tool, {}), "unavailable", "connected_project_mismatch"), { AUGNES_CONNECTED_PROJECT_KEY: `sha256:${"f".repeat(64)}` });
+  await runConnected(async ({ callExecution }) => assertRefusal(await callExecution(tool, {}), "unavailable", "project_not_registered"), { AUGNES_CONNECTED_PROJECT_ROOT: repoRoot });
+  await runConnected(async ({ callExecution }) => assertRefusal(await callExecution(tool, {}), "unavailable", "companion_unavailable"), {}, path.join(temporaryRoot, "missing-runtime", "runtime.json"));
+  const invalidDirectory = path.join(temporaryRoot, "invalid-connected-credential");
+  mkdirSync(invalidDirectory);
+  writeFileSync(path.join(invalidDirectory, "runtime.json"), readFileSync(manifestPath));
+  const invalidAccess = JSON.parse(readFileSync(path.join(scenario.stateDirectory, "companion-access.json"), "utf8"));
+  invalidAccess.proxy_token = "invalid-connected-credential".padEnd(64, "x");
+  writeFileSync(path.join(invalidDirectory, "companion-access.json"), JSON.stringify(invalidAccess));
+  await runConnected(async ({ callExecution }) => assertRefusal(await callExecution(tool, {}), "unauthorized", "companion_authentication_refused"), {}, path.join(invalidDirectory, "runtime.json"));
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), beforeReads);
+  assert.deepEqual(changedWorkRevisionTablesV01(tables), []);
+  assert.deepEqual(snapshotDirectoryContentV01(repositoryRoot), files);
+
+  // Deterministic inter-read race at the real dispatch boundary. Only the
+  // test's writer interleaves; discovery, both HTTP routes, authentication and
+  // canonical readers are the same as the stdio candidate above.
+  let sourceReads = 0, afterRace;
+  const racedReader = createConnectedProjectReaderV01(binding, {
+    discover: () => selectCompanionForReadonlyRouteV01({ ...environment, AUGNES_RUNTIME_STATE_DIR: scenario.stateDirectory }),
+    readSources: async (companion, args) => {
+      sourceReads++;
+      packet = reviseFixtureWorkV01({ workspaceId: scope.workspace_id, projectId: scope.project_id, currentPacket: packet,
+        definition: { ...definition, goal: "Replacement must not be silently delivered" }, selectedSources: [], clock }).packet;
+      afterRace = snapshotDatabaseFamily(databasePath);
+      return readRepositoryWorkSourcesV01(companion, args);
+    },
+  });
+  assertRefusal((await racedReader(call)).result, "refresh_required", "snapshot_changed");
+  assert.equal(sourceReads, 1, "no automatic retry");
+  assert.deepEqual(snapshotDatabaseFamily(databasePath), afterRace);
+  console.log(JSON.stringify({ connected_project_reader: "pass", official_stdio_real_authenticated_routes: true,
+    persisted_definition_fidelity: true, empty_exact_notes_project_auth_dispatch_race_readonly: true, chatgpt_invocation: "not_tested" }));
 }
 
 async function assertRegisteredRepositoryUnsupportedWindowsPathV01({

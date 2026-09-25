@@ -4,6 +4,8 @@ import { getDatabasePath } from "@/lib/db";
 import { isPublicSafeSourceLocatorV01 } from "@/lib/research-source/sanitize-source-ref";
 import { isSafeSourceProjectionMetadataV01 } from "@/lib/research-source/projection-metadata";
 import { selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
+import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
+import { INITIAL_PROJECT_WORK_LIMITS_V01, type ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
 import {
   CODEX_CURRENT_CONTINUITY_AUTHORITY_V01,
   readCodexCurrentContinuitySnapshotV01,
@@ -14,12 +16,15 @@ import {
 } from "./codex-repository-continuity";
 import {
   CODEX_REPOSITORY_WORK_SOURCES_VERSION_V01,
+  CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01,
   type CodexRepositoryWorkSourcesV01,
+  type CodexRepositoryWorkSourcesReadV01,
 } from "@/types/vnext/codex-repository-work-sources";
 
 export interface CodexRepositoryWorkSourcesInputV01 {
   repository_root: string;
   expected_snapshot_binding: string;
+  include_work_definition?: true;
 }
 
 /**
@@ -32,11 +37,15 @@ export async function readCodexRepositoryWorkSourcesV01(
   db: Database.Database,
   input: CodexRepositoryWorkSourcesInputV01,
   dependencies: CodexRepositoryContinuityDependenciesV01 = {},
-): Promise<CodexRepositoryWorkSourcesV01> {
+): Promise<CodexRepositoryWorkSourcesReadV01> {
   if (!/^sha256:[a-f0-9]{64}$/u.test(input.expected_snapshot_binding)) {
     throw new Error("expected_snapshot_binding_invalid");
   }
   if (db.inTransaction) throw new Error("work_sources_dedicated_read_required");
+  const project = (value: CodexRepositoryWorkSourcesV01, definition: ProjectWorkDefinitionV01 | null = null): CodexRepositoryWorkSourcesReadV01 =>
+    input.include_work_definition === true
+      ? { ...value, projection_version: CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01, work_definition: definition }
+      : value;
   db.exec("BEGIN");
   try {
     const resolution = await resolveCodexRepositoryProjectV01(db, input, dependencies);
@@ -51,36 +60,43 @@ export async function readCodexRepositoryWorkSourcesV01(
       source_material_authority: "untrusted_selected_context",
       authority: CODEX_CURRENT_CONTINUITY_AUTHORITY_V01,
     };
-    if (resolution.status !== "resolved_exact") return result;
+    if (resolution.status !== "resolved_exact") return project(result);
     const { projection: continuity, work_initialization: work } = await readCodexCurrentContinuitySnapshotV01(db, {
       viewed_project_id: resolution.project_id!,
     }, dependencies);
     result.reason = "current_work_unavailable";
-    if (continuity.snapshot.status !== "exact") return result;
+    if (continuity.snapshot.status !== "exact") return project(result);
     // A changed selection, work packet or other Resume-bound state is not
     // permission to deliver replacement work that the caller has not seen.
     if (continuity.snapshot.binding !== input.expected_snapshot_binding) {
-      return { ...result, status: "refresh_required", reason: "snapshot_changed" };
+      return project({ ...result, status: "refresh_required", reason: "snapshot_changed" });
     }
     if (
       continuity.current_work.status !== "current_work" ||
       continuity.current_work.currentness !== "fresh" ||
       continuity.project.root_availability !== "available"
-    ) return result;
-    if (!work?.current_packet || !work.current_work) return result;
+    ) return project(result);
+    if (!work?.current_packet || !work.current_work) return project(result);
+    // Use the validated persisted task from this same read transaction. Resume
+    // text is a display summary: never use it as the complete definition.
+    const definition = input.include_work_definition === true ? boundedWorkDefinitionV01(work.current_work) : null;
+    if (input.include_work_definition === true && !definition) {
+      return { ...result, projection_version: CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01,
+        reason: "work_definition_out_of_bounds", work_definition: null };
+    }
     // The snapshot owner already reconstructed and validated this exact work,
     // including source scope, lineage, bindings and whole-note limits. Repeating
     // that initialization scans every packet's lineage again and can exhaust
     // the client deadline on an otherwise valid retained revision chain.
     const sources = projectSelectedWorkSourcesV01(work.selected_source_context ?? []);
-    return {
+    return project({
       ...result,
       status: "available",
       reason: "current_selected_sources",
       snapshot_binding: continuity.snapshot.binding,
       packet_fingerprint: work.current_packet.packet_fingerprint,
       sources,
-    };
+    }, definition);
   } finally {
     db.exec("ROLLBACK");
   }
@@ -88,7 +104,7 @@ export async function readCodexRepositoryWorkSourcesV01(
 
 export async function loadCodexRepositoryWorkSourcesV01(
   input: CodexRepositoryWorkSourcesInputV01,
-): Promise<CodexRepositoryWorkSourcesV01> {
+): Promise<CodexRepositoryWorkSourcesReadV01> {
   const db = new Database(getDatabasePath(), { readonly: true, fileMustExist: true });
   try {
     db.pragma("query_only = ON");
@@ -98,6 +114,21 @@ export async function loadCodexRepositoryWorkSourcesV01(
   } finally {
     db.close();
   }
+}
+
+function boundedWorkDefinitionV01(work: ProjectWorkDefinitionV01): ProjectWorkDefinitionV01 | null {
+  const limits = INITIAL_PROJECT_WORK_LIMITS_V01;
+  const definition = { goal: work.goal, success_criteria: [...work.success_criteria], non_goals: [...work.non_goals] };
+  // Check the existing complete-definition budget without normalizing, sorting,
+  // deduplicating or truncating validated stored text. Other packet producers
+  // may exceed this supported delivery domain; refuse the entire read then.
+  if ([...definition.goal].length > limits.goal_characters ||
+      definition.success_criteria.length > limits.success_criteria ||
+      definition.success_criteria.some(value => [...value].length > limits.success_criterion_characters) ||
+      definition.non_goals.length > limits.non_goals ||
+      definition.non_goals.some(value => [...value].length > limits.non_goal_characters) ||
+      Buffer.byteLength(canonicalizeProtocolValueV01(definition), "utf8") > limits.definition_bytes) return null;
+  return definition;
 }
 
 /** Shared disclosure projection for read and revision preview. Canonical

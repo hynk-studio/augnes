@@ -58,7 +58,7 @@ export async function discoverVerifiedCompanionV01(environment = process.env) {
   return discoverCompanionV01(environment, verifyManifestV01);
 }
 
-async function selectCompanionForReadonlyRouteV01(environment = process.env) {
+export async function selectCompanionForReadonlyRouteV01(environment = process.env) {
   return discoverCompanionV01(environment, verifyManifestForReadonlyRouteV01);
 }
 
@@ -246,7 +246,7 @@ async function fetchJsonV01(url, headers = {}) {
   }
 }
 
-async function readRepositoryContinuityV01(companion, repositoryRoot) {
+export async function readRepositoryContinuityV01(companion, repositoryRoot) {
   const route = new URL("/api/augnes/read/codex-repository-continuity", `${companion.ui_url}/`);
   route.searchParams.set("scope", "repository:local");
   const response = await fetch(route, {
@@ -276,7 +276,7 @@ async function readRepositoryContinuityV01(companion, repositoryRoot) {
   return parseRepositoryContinuityResponseV01(JSON.parse(text));
 }
 
-async function readRepositoryWorkSourcesV01(companion, args) {
+export async function readRepositoryWorkSourcesV01(companion, args) {
   const route = new URL("/api/augnes/read/codex-repository-work-sources", `${companion.ui_url}/`);
   route.searchParams.set("scope", "repository:local");
   const response = await fetch(route, {
@@ -294,11 +294,12 @@ async function readRepositoryWorkSourcesV01(companion, args) {
     body: JSON.stringify({
       repository_root: args.repositoryRoot,
       expected_snapshot_binding: args.expectedSnapshotBinding,
+      ...(args.includeWorkDefinition === true ? { include_work_definition: true } : {}),
     }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok ||
-      response.headers.get("x-augnes-local-readonly") !== SOURCES_ROUTE_MARKER ||
+  if (!response.ok) throw new Error(`live_companion_sources_status_${response.status}`);
+  if (response.headers.get("x-augnes-local-readonly") !== SOURCES_ROUTE_MARKER ||
       response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
       response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
       response.headers.get("x-augnes-runtime-repository") !== companion.repository_fingerprint) {
@@ -306,15 +307,15 @@ async function readRepositoryWorkSourcesV01(companion, args) {
   }
   const text = await response.text();
   if (Buffer.byteLength(text, "utf8") > MAX_CONTINUITY_RESPONSE_BYTES) invalidContractV01();
-  const projection = parseRepositoryWorkSourcesResponseV01(JSON.parse(text));
+  const projection = parseRepositoryWorkSourcesResponseV01(JSON.parse(text), args.includeWorkDefinition === true);
   if (projection.status === "available" && projection.snapshot_binding !== args.expectedSnapshotBinding) invalidContractV01();
   return projection;
 }
 
 /** Closed metadata projection; excerpt text remains literal untrusted content. */
-export function parseRepositoryWorkSourcesResponseV01(value) {
-  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority"], "work sources");
-  if (value.projection_version !== "codex_repository_work_sources.v0.1" ||
+export function parseRepositoryWorkSourcesResponseV01(value, includeWorkDefinition = false) {
+  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority", ...(includeWorkDefinition ? ["work_definition"] : [])], "work sources");
+  if (value.projection_version !== (includeWorkDefinition ? "codex_repository_work_definition_sources.v0.1" : "codex_repository_work_sources.v0.1") ||
       !["available", "refresh_required", "unavailable"].includes(value.status) ||
       !["resolved_exact", "project_not_registered", "project_ambiguous", "root_unavailable", "repository_input_invalid"].includes(value.repository_resolution) ||
       value.source_material_authority !== "untrusted_selected_context" || !Array.isArray(value.sources)) invalidContractV01();
@@ -323,14 +324,28 @@ export function parseRepositoryWorkSourcesResponseV01(value) {
     if (value.reason !== "current_selected_sources" || value.repository_resolution !== "resolved_exact") invalidContractV01();
     fingerprintV01(value.snapshot_binding);
     fingerprintV01(value.packet_fingerprint);
+    if (includeWorkDefinition) workDefinitionV01(value.work_definition);
   } else {
     if (value.snapshot_binding !== null || value.packet_fingerprint !== null || value.sources.length !== 0) invalidContractV01();
+    if (includeWorkDefinition && value.work_definition !== null) invalidContractV01();
     if (value.status === "refresh_required") {
       if (value.reason !== "snapshot_changed" || value.repository_resolution !== "resolved_exact") invalidContractV01();
-    } else if (value.reason !== (value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved")) invalidContractV01();
+    } else if (value.reason !== (value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved") &&
+      !(includeWorkDefinition && value.repository_resolution === "resolved_exact" && value.reason === "work_definition_out_of_bounds")) invalidContractV01();
   }
   parseSourceEntriesV01(value.sources);
   return value;
+}
+
+function workDefinitionV01(value) {
+  exactObjectV01(value, ["goal", "success_criteria", "non_goals"], "work definition");
+  stringV01(value.goal);
+  stringArrayV01(value.success_criteria);
+  stringArrayV01(value.non_goals);
+  // Mirrors INITIAL_PROJECT_WORK_LIMITS_V01; validation never changes text.
+  if ([...value.goal].length > 2000 || value.success_criteria.length > 12 || value.non_goals.length > 12 ||
+      [...value.success_criteria, ...value.non_goals].some(text => [...text].length > 500) ||
+      Buffer.byteLength(JSON.stringify(value), "utf8") > 12000) invalidContractV01();
 }
 
 function parseSourceEntriesV01(sources) {
@@ -1636,7 +1651,7 @@ function exactKeysV01(value, keys) {
   return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
 }
 
-async function runStdioV01() {
+export async function runStdioV01(handleMessage = handleMessageV01) {
   let buffered = "";
   process.stdin.setEncoding("utf8");
   for await (const chunk of process.stdin) {
@@ -1649,7 +1664,7 @@ async function runStdioV01() {
       if (!line) continue;
       let response;
       try {
-        response = await handleMessageV01(JSON.parse(line));
+        response = await handleMessage(JSON.parse(line));
       } catch {
         response = { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse_error" } };
       }

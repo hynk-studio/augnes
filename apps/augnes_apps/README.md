@@ -63,6 +63,99 @@ repository Resume snapshot. It is not registered on this public/default App
 surface and does not redefine WorkBrief. See the
 [local source-read contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read).
 
+### Opt-in connection to one native project
+
+The separate stdio entry point
+`plugins/augnes-operator/mcp/connected-project-reader.mjs` exposes only
+`augnes_read_connected_project_work`, with no arguments. It is a bounded P2
+[#1212](https://github.com/hynk-studio/augnes/issues/1212) delivery adapter over
+the existing private Companion readers. It is not registered on the public App
+or the default local Operator, and an old public `work_id` never follows native
+task preparation.
+
+The local operator configures `AUGNES_CONNECTED_PROJECT_ROOT` once with the
+intended registered physical repository root and `AUGNES_CONNECTED_PROJECT_KEY`
+with that project's exact opaque `repository_resolution.project_key` from a
+normal local Resume. Both are required at launch. They are configuration, not
+model arguments or credentials; the user need not discover database paths,
+packet IDs or access tokens. A later different project requires a separately
+reviewed connection binding, even if it uses the same folder. There is no
+automatic project switching or mapping from a public App ID.
+
+The supported private transport candidate is OpenAI's
+[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels),
+whose documented stdio mode can launch this entry point with Node 24. The
+operator must authorize the exact destination ChatGPT workspace/connection and
+the transmission of this project's **current definition and whole selected
+notes**, then configure that command and the two environment values in the
+approved local transport. Pipe access belongs to that operator-controlled
+parent. This adapter creates no HTTP listener, tunnel, credential, service or
+account association and does not authenticate an arbitrary remote client itself.
+Do not wrap it in an unauthenticated HTTP proxy or point a tunnel at the full
+Operator or private Companion HTTP endpoint.
+
+As documented on 2026-09-25, activation requires a tunnel ID, a tunnel-client
+runtime API credential, Platform organization Tunnels Read + Use permission
+(Read + Manage to create/edit), and the correct ChatGPT workspace association
+and developer-mode access. These are separate prerequisites, not source-test
+results. No OAuth service or public server is required by the documented tunnel
+transport; this does not waive its authentication and audience requirements.
+Handle credentials through the approved secure setup flow, never in chat or
+repository files. A missing private prerequisite has no public-tunnel/export
+fallback. Source changes must be reviewed and merged before production use.
+
+After separately authorized activation, follow the official
+[ChatGPT connection flow](https://developers.openai.com/plugins/deploy/connect-chatgpt):
+select the approved Tunnel connection, inspect its single-tool catalog, and add
+it to a conversation. Refresh connection metadata when it changes. The operator
+keeps the approved tunnel-client and existing Companion available; the user
+selects the connection and asks for current project work. The model obtains
+the definition, packet/snapshot bindings and selected material directly from
+the result, with no recurring token/ID/report relay. Credential expiry, changed
+audience or project rebinding requires operator attention. Setup time,
+recurring maintenance, billing, latency and user-burden reduction are unmeasured.
+
+Each invocation discovers one verified Companion, reads Resume, verifies the
+configured project key, and reads selected sources using the same Companion
+generation and exact snapshot. Only matching fresh work is returned. Results
+include the project label/key, snapshot observation time, packet fingerprint,
+goal/criteria/non-goals from the validated persisted task in the same source-read
+transaction, lineage from current continuity, and the existing whole-note source
+projection. Definition fields preserve the canonical writer's stored text and
+ordering, including internal spaces, tabs, newlines and distinct list entries.
+They are not reconstructed from Resume's display summary. An explicit private
+definition/source mode checks the existing 2,000-character goal, 12 entries per
+list, 500 characters per entry and 12,000-byte complete-definition limits; an
+over-bound definition refuses the whole read without truncation. The default
+local Operator source-only response remains unchanged. No result, run or
+preparation history, runtime path, credential or Browser-link metadata is added.
+Literal definition and note text still require the authorized data scope. Both
+`structuredContent` and the JSON text content contain the same material.
+
+An exact empty selection returns `available` with `sources: []`. Unregistered
+or ambiguous projects, mismatched bindings, unavailable/invalid runtime reads,
+authentication refusal and changed snapshots return explicit refusals without
+work/source material. A change between reads returns `refresh_required`, with
+no automatic retry or replacement content. A new read is an explicit request.
+Snapshot delivery does not verify underlying claims or guarantee continuing
+freshness. Nullable observation times, unknown currentness, source bindings,
+attribution and withheld locators survive unchanged. Literal notes are untrusted
+context; locator filtering does not make arbitrary prose safe to transmit.
+
+Only initialize/ping and bounded MCP tool discovery/call are implemented.
+Dispatch rejects all other tool names and unknown methods before Companion
+access, including history lookup, preparation/save, attachment/delegation,
+Start/Resume execution, Transition and passthrough. Read-only annotations are
+descriptions, not the enforcement. Existing private Host, Origin, forwarding,
+credential, identity and snapshot checks remain in their owners.
+
+The existing disposable runtime operability test exercises the actual stdio
+entry point, tool dispatch, authenticated HTTP routes, native writers/readers,
+snapshot race, provenance, refusals, zero read-attributable canonical writes
+and cleanup. Local protocol success, an installed catalog, actual ChatGPT
+invocation and successful use of returned material are distinct observations.
+This implementation does not establish the latter two or activate a connection.
+
 `createMcpAppServer` registers both tools against its separate
 `StateRuntimeBridgeAdapter`. The normal `StateRuntimeHttpAdapter` calls
 `GET /api/work?scope=...` and `GET /api/work/:work_id/brief?scope=...`.
