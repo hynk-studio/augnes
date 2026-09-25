@@ -15,6 +15,30 @@ import {
   parseRepositoryWorkRevisionResponseV01,
   parseRepositoryRetainedSourcesResponseV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
+import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
+
+// The connected entry point has its own closed dispatch, not filtered Operator
+// advertisement. Invalid requests must never reach discovery or local readers.
+for (const binding of [{}, { repositoryRoot: "relative", projectKey: `sha256:${"a".repeat(64)}` },
+  { repositoryRoot: process.cwd(), projectKey: "invalid" }]) {
+  assert.throws(() => createConnectedProjectReaderV01(binding), /configuration_required/);
+}
+let connectedDiscoveryCalls = 0;
+const closedReader = createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: `sha256:${"a".repeat(64)}` }, {
+  discover: async () => { connectedDiscoveryCalls++; return { status: "companion_ambiguous" }; },
+});
+for (const args of [null, false, [], { repositoryRoot: process.cwd() }, { projectKey: `sha256:${"b".repeat(64)}` }, { method: "save" }]) {
+  const response = await closedReader({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "augnes_read_connected_project_work", arguments: args } });
+  assert.equal(response.error.message, "invalid_arguments");
+}
+for (const method of ["resources/read", "prompts/get", "unknown", "augnes_prepare_repository_new_work"]) {
+  assert.equal((await closedReader({ jsonrpc: "2.0", id: 1, method })).error.code, -32601);
+}
+assert.equal(connectedDiscoveryCalls, 0);
+const ambiguousConnection = await closedReader({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "augnes_read_connected_project_work", arguments: {} } });
+assert.equal(ambiguousConnection.result.structuredContent.reason, "companion_ambiguous");
+assert.equal(ambiguousConnection.result.structuredContent.sources, undefined);
+assert.equal(connectedDiscoveryCalls, 1);
 
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");

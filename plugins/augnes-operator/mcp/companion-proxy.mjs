@@ -58,7 +58,7 @@ export async function discoverVerifiedCompanionV01(environment = process.env) {
   return discoverCompanionV01(environment, verifyManifestV01);
 }
 
-async function selectCompanionForReadonlyRouteV01(environment = process.env) {
+export async function selectCompanionForReadonlyRouteV01(environment = process.env) {
   return discoverCompanionV01(environment, verifyManifestForReadonlyRouteV01);
 }
 
@@ -246,7 +246,7 @@ async function fetchJsonV01(url, headers = {}) {
   }
 }
 
-async function readRepositoryContinuityV01(companion, repositoryRoot) {
+export async function readRepositoryContinuityV01(companion, repositoryRoot) {
   const route = new URL("/api/augnes/read/codex-repository-continuity", `${companion.ui_url}/`);
   route.searchParams.set("scope", "repository:local");
   const response = await fetch(route, {
@@ -276,7 +276,7 @@ async function readRepositoryContinuityV01(companion, repositoryRoot) {
   return parseRepositoryContinuityResponseV01(JSON.parse(text));
 }
 
-async function readRepositoryWorkSourcesV01(companion, args) {
+export async function readRepositoryWorkSourcesV01(companion, args) {
   const route = new URL("/api/augnes/read/codex-repository-work-sources", `${companion.ui_url}/`);
   route.searchParams.set("scope", "repository:local");
   const response = await fetch(route, {
@@ -297,8 +297,8 @@ async function readRepositoryWorkSourcesV01(companion, args) {
     }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok ||
-      response.headers.get("x-augnes-local-readonly") !== SOURCES_ROUTE_MARKER ||
+  if (!response.ok) throw new Error(`live_companion_sources_status_${response.status}`);
+  if (response.headers.get("x-augnes-local-readonly") !== SOURCES_ROUTE_MARKER ||
       response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
       response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
       response.headers.get("x-augnes-runtime-repository") !== companion.repository_fingerprint) {
@@ -1636,7 +1636,7 @@ function exactKeysV01(value, keys) {
   return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
 }
 
-async function runStdioV01() {
+export async function runStdioV01(handleMessage = handleMessageV01) {
   let buffered = "";
   process.stdin.setEncoding("utf8");
   for await (const chunk of process.stdin) {
@@ -1649,7 +1649,7 @@ async function runStdioV01() {
       if (!line) continue;
       let response;
       try {
-        response = await handleMessageV01(JSON.parse(line));
+        response = await handleMessage(JSON.parse(line));
       } catch {
         response = { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse_error" } };
       }
