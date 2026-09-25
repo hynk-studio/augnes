@@ -1,3 +1,4 @@
+import { recoveryHasExactValidationV02 } from "./recovery-action-confirmation";
 import {
   RECOVERY_SAFETY_VIEW_VERSION_V01,
   type RecoverySafetyActionV01,
@@ -55,7 +56,7 @@ export function buildRecoverySafetyViewV01(input: {
   selected_backup_id: string | null;
 }): RecoverySafetyViewV01 {
   const { status } = input;
-  const verified = status.backups.filter((backup) => backup.verified);
+  const verified = recoveryHasExactValidationV02(status) ? status.backups.filter(backup => backup.backup_id === status.operation?.result?.backup_id) : [];
   const selectedVerified = input.selected_backup_id !== null &&
     verified.some((backup) => backup.backup_id === input.selected_backup_id);
   const recommendation = status.latest_operation?.next_action ?? null;
@@ -144,7 +145,7 @@ function selectPrimaryActionV01(input: {
     recommendation !== null &&
     RESTORE_RECOMMENDATIONS.has(recommendation) &&
     status.actions.restore_backup &&
-    status.backup_inventory_state === "available" &&
+    status.backup_inventory_state === "metadata_only" &&
     selectedVerified
   ) {
     return ACTIONS.restore_backup;
@@ -154,7 +155,7 @@ function selectPrimaryActionV01(input: {
     status.database.schema_classification === "current" &&
     recommendation !== null &&
     RETRY_RECOMMENDATIONS.has(recommendation) &&
-    status.actions.retry_update
+    status.actions.retry_update && recoveryHasExactValidationV02(status)
   ) {
     return ACTIONS.retry_update;
   }
@@ -173,8 +174,8 @@ function availableActionsV01(
 ): RecoverySafetyActionV01[] {
   return [
     ...(status.actions.create_backup ? [ACTIONS.create_backup] : []),
-    ...(status.actions.retry_update ? [ACTIONS.retry_update] : []),
-    ...(status.actions.restore_backup ? [ACTIONS.restore_backup] : []),
+    ...(status.actions.retry_update && recoveryHasExactValidationV02(status) ? [ACTIONS.retry_update] : []),
+    ...(status.actions.restore_backup && recoveryHasExactValidationV02(status) ? [ACTIONS.restore_backup] : []),
     {
       kind: "check_again",
       label: "Refresh status",
@@ -196,7 +197,7 @@ function operationSummaryV01(
   operation: NonNullable<RecoveryStatusV01["latest_operation"]>,
 ): string {
   if (operation.outcome === "backup_created" || operation.backup_verified) {
-    return "The latest recorded operation preserved data with a verified recovery point.";
+    return "A historical operation recorded successful backup validation. This status read does not revalidate it.";
   }
   if (operation.outcome === "restore_scheduled") {
     return "A restore was accepted and Augnes is waiting to restart.";
@@ -223,8 +224,11 @@ function backupNoticeV01(
   if (status.legacy_backup_unavailable_count > 0) {
     return "Older preserved recovery points require a compatible verified Augnes package.";
   }
+  if (status.operation?.state === "completed" && verifiedCount > 0) {
+    return `Exact validation completed at ${status.operation.result?.verified_at}. This is that operation’s observation, not perpetual freshness.`;
+  }
   if (verifiedCount === 0) {
-    return "No verified recovery point is currently available.";
+    return "Inventory metadata is shown without validation. Choose a backup and explicitly verify it to confirm an exact recovery checkpoint.";
   }
   return null;
 }

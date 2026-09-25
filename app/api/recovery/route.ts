@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const RECOVERY_CONTRACT = "augnes.recovery-product.v1" as const;
+const RECOVERY_CONTRACT = "augnes.recovery-product.v2" as const;
 const MAX_REQUEST_BYTES = 4_096;
 const MAX_RESPONSE_BYTES = 256 * 1_024;
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -23,6 +23,7 @@ const RESPONSE_HEADERS = {
 
 type RecoveryAction =
   | "create_backup"
+  | "verify_backup"
   | "restore_backup"
   | "retry_update"
   | "preview_support_report";
@@ -30,12 +31,17 @@ type RecoveryAction =
 interface RecoveryActionRequest {
   action: RecoveryAction;
   backup_id?: string;
+  request_id?: string;
+  admission_binding?: string;
+  backup_identity?: string;
+  target_binding?: string;
+  verification_request_id?: string;
 }
 
 export async function GET(request: Request): Promise<Response> {
-  let backupPage: number;
+  let query: {page: number; requestId: string | null};
   try {
-    backupPage = assertRequestBoundary(request);
+    query = assertRequestBoundary(request);
   } catch {
     return jsonResponse(
       {
@@ -48,7 +54,7 @@ export async function GET(request: Request): Promise<Response> {
   }
   let upstream;
   try {
-    upstream = await requestSupervisor("GET", undefined, backupPage);
+    upstream = await requestSupervisor("GET", undefined, query.page, query.requestId);
   } catch {
     return unavailableResponse("recovery_control_unavailable");
   }
@@ -57,6 +63,7 @@ export async function GET(request: Request): Promise<Response> {
   }
   try {
     const status = normalizeRecoveryStatus(upstream.value);
+    if ((status.operation?.request_id ?? null) !== query.requestId) throw new Error("recovery_request_mismatch");
     return jsonResponse(
       {
         ...status,
@@ -108,12 +115,13 @@ export async function POST(request: Request): Promise<Response> {
     }
     const upstream = await requestSupervisor("POST", body);
     const result = normalizeRecoveryActionResult(upstream.value);
+    if ((result.outcome === "operation_recorded" || result.outcome === "request_not_admitted") && result.request_id !== body.request_id) throw new Error("recovery_request_mismatch");
 
     if (
       !upstream.ok &&
       (upstream.status < 400 ||
         upstream.status >= 500 ||
-        result.outcome !== "refused")
+        !["refused", "request_not_admitted"].includes(result.outcome))
     ) {
       return actionOutcomeUnknownResponse();
     }
@@ -135,7 +143,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-function assertRequestBoundary(request: Request): number {
+function assertRequestBoundary(request: Request): {page: number; requestId: string | null} {
   const url = new URL(request.url);
   const host = request.headers.get("host");
   if (
@@ -157,10 +165,13 @@ function assertRequestBoundary(request: Request): number {
 
   if (request.method !== "GET") {
     if (url.search.length > 0) throw new RecoveryRequestError();
-    return 1;
+    return {page:1,requestId:null};
   }
-  const entries = [...url.searchParams.entries()];
-  if (entries.length === 0) return 1;
+  const requestIds=url.searchParams.getAll("request_id");
+  if(requestIds.length>1)throw new RecoveryRequestError();
+  const requestId=requestIds.length?uuidValue(requestIds[0]):null;
+  const entries = [...url.searchParams.entries()].filter(([key])=>key!=="request_id");
+  if (entries.length === 0) return {page:1,requestId};
   if (
     entries.length !== 1 ||
     entries[0][0] !== "page" ||
@@ -172,7 +183,7 @@ function assertRequestBoundary(request: Request): number {
   if (!Number.isSafeInteger(page) || page > 100) {
     throw new RecoveryRequestError();
   }
-  return page;
+  return {page,requestId};
 }
 
 async function readRecoveryAction(request: Request): Promise<RecoveryActionRequest> {
@@ -235,38 +246,28 @@ async function readRecoveryAction(request: Request): Promise<RecoveryActionReque
   }
   if (!isRecord(value)) throw new RecoveryRequestError();
 
-  const keys = Object.keys(value).sort();
-  if (
-    !(keys.length === 1 && keys[0] === "action") &&
-    !(
-      keys.length === 2 &&
-      keys[0] === "action" &&
-      keys[1] === "backup_id"
-    )
-  ) {
-    throw new RecoveryRequestError();
-  }
+  try {
+    if(value.action === "create_backup" || value.action === "verify_backup") {
+      return normalizeAdmissionMaterial(value);
+    }
+    if(value.action === "preview_support_report"){exactKeys(value,["action"]);return {action:value.action};}
+    if(value.action === "retry_update"){exactKeys(value,["action","verification_request_id"]);return {action:value.action,verification_request_id:uuidValue(value.verification_request_id)};}
+    if(value.action === "restore_backup"){exactKeys(value,["action","backup_id","verification_request_id"]);return {action:value.action,backup_id:backupIdValue(value.backup_id),verification_request_id:uuidValue(value.verification_request_id)};}
+  } catch { throw new RecoveryRequestError(); }
+  throw new RecoveryRequestError();
+}
 
-  if (
-    value.action !== "create_backup" &&
-    value.action !== "restore_backup" &&
-    value.action !== "retry_update" &&
-    value.action !== "preview_support_report"
-  ) {
-    throw new RecoveryRequestError();
-  }
-
-  if (value.backup_id === undefined) return { action: value.action };
-  return {
-    action: value.action,
-    backup_id: boundedOpaqueString(value.backup_id, 256),
-  };
+function normalizeAdmissionMaterial(value: Record<string, unknown>) {
+  const action = boundedEnum(value.action, ["create_backup", "verify_backup"] as const);
+  exactKeys(value, action === "create_backup" ? ["action","request_id","admission_binding"] : ["action","request_id","admission_binding","backup_id","backup_identity","target_binding"]);
+  return {action,request_id:uuidValue(value.request_id),admission_binding:uuidValue(value.admission_binding),...(action === "verify_backup"?{backup_id:backupIdValue(value.backup_id),backup_identity:shaValue(value.backup_identity),target_binding:shaValue(value.target_binding)}:{})};
 }
 
 async function requestSupervisor(
   method: "GET" | "POST",
   body?: RecoveryActionRequest,
   backupPage = 1,
+  requestId: string | null = null,
 ): Promise<{ ok: boolean; status: number; value: unknown }> {
   const port = runtimeControlPort();
   const instance = requiredEnvironment("AUGNES_RUNTIME_INSTANCE_ID");
@@ -276,7 +277,7 @@ async function requestSupervisor(
 
   try {
     const recoveryUrl = new URL(`http://127.0.0.1:${port}/v1/recovery`);
-    if (method === "GET") recoveryUrl.searchParams.set("page", String(backupPage));
+    if (method === "GET") { recoveryUrl.searchParams.set("page", String(backupPage)); if(requestId) recoveryUrl.searchParams.set("request_id", requestId); }
     const response = await fetch(recoveryUrl, {
       method,
       cache: "no-store",
@@ -310,10 +311,11 @@ async function requestSupervisor(
 
 function normalizeRecoveryStatus(value: unknown) {
   const root = recordValue(value);
-  if (root.contract !== RECOVERY_CONTRACT || root.schema_version !== 1) {
+  if (root.contract !== RECOVERY_CONTRACT || root.schema_version !== 2) {
     throw new Error("recovery_contract_invalid");
   }
 
+  exactKeys(root,["contract","schema_version","recovery_mode","application","database","runtime","latest_operation","backup_inventory_state","backup_count","legacy_backup_count","legacy_backup_unavailable_count","backup_inventory_truncated","backup_page","backup_page_count","backups","actions","admission_binding","operation"]);
   const application = recordValue(root.application);
   const database = recordValue(root.database);
   const actions = recordValue(root.actions);
@@ -325,7 +327,9 @@ function normalizeRecoveryStatus(value: unknown) {
   const backupIds = new Set<string>();
   const backups = rawBackups.map((entry) => {
     const backup = recordValue(entry);
-    const backupId = boundedOpaqueString(backup.backup_id, 256);
+    exactKeys(backup,["backup_id","backup_identity","target_binding","label","created_at","reason","source_application_version","verified"]);
+    const backupId = backupIdValue(backup.backup_id);
+    if(backup.verified!==false)throw new Error("metadata_not_validation");
     if (backupIds.has(backupId)) throw new Error("recovery_backup_duplicate");
     backupIds.add(backupId);
     const createdAt = boundedPublicString(backup.created_at, 64);
@@ -334,6 +338,8 @@ function normalizeRecoveryStatus(value: unknown) {
     }
     return {
       backup_id: backupId,
+      backup_identity: shaValue(backup.backup_identity),
+      target_binding: shaValue(backup.target_binding),
       label: boundedPublicString(backup.label, 160),
       created_at: createdAt,
       reason: boundedPublicString(backup.reason, 160),
@@ -347,7 +353,9 @@ function normalizeRecoveryStatus(value: unknown) {
 
   return {
     contract: RECOVERY_CONTRACT,
-    schema_version: 1,
+    schema_version: 2,
+    admission_binding:root.admission_binding===null?null:uuidValue(root.admission_binding),
+    operation:normalizeRequestOperation(root.operation),
     recovery_mode: booleanValue(root.recovery_mode),
     application: {
       version: boundedPublicString(application.version, 80),
@@ -383,7 +391,7 @@ function normalizeRecoveryStatus(value: unknown) {
         : normalizeLatestOperation(root.latest_operation),
     backup_inventory_state: boundedEnum(
       root.backup_inventory_state,
-      ["available", "unavailable"] as const,
+      ["metadata_only", "unavailable"] as const,
     ),
     backup_count: integerValue(root.backup_count),
     legacy_backup_count: integerValue(root.legacy_backup_count),
@@ -398,6 +406,7 @@ function normalizeRecoveryStatus(value: unknown) {
     backups,
     actions: {
       create_backup: booleanValue(actions.create_backup),
+      verify_backup: booleanValue(actions.verify_backup),
       retry_update: booleanValue(actions.retry_update),
       restore_backup: booleanValue(actions.restore_backup),
     },
@@ -455,18 +464,23 @@ function normalizeRecoveryActionResult(value: unknown) {
   if (
     result.outcome !== "restore_scheduled" &&
     result.outcome !== "retry_scheduled" &&
-    result.outcome !== "backup_created" &&
+    result.outcome !== "operation_recorded" &&
+    result.outcome !== "request_not_admitted" &&
     result.outcome !== "refused"
   ) {
     throw new Error("recovery_action_response_invalid");
   }
+  exactKeys(result,["accepted","outcome",...(result.request_id===undefined?[]:["request_id"]),...(result.reason_code===undefined?[]:["reason_code"]),...(result.next_action===undefined?[]:["next_action"])]);
+  if((["operation_recorded", "request_not_admitted"].includes(result.outcome)) !== (result.request_id!==undefined)) throw new Error("recovery_action_response_invalid");
+  if (result.outcome === "request_not_admitted" && !["recovery_action_in_progress", "recovery_backup_changed"].includes(String(result.reason_code))) throw new Error("recovery_action_response_invalid");
   const accepted = booleanValue(result.accepted);
-  if (accepted !== (result.outcome !== "refused")) {
+  if (accepted !== (!["refused", "request_not_admitted"].includes(result.outcome))) {
     throw new Error("recovery_action_response_invalid");
   }
   return {
     accepted,
     outcome: result.outcome,
+    ...(result.request_id===undefined?{}:{request_id:uuidValue(result.request_id)}),
     ...(result.reason_code === undefined
       ? {}
       : { reason_code: boundedPublicCode(result.reason_code, 120) }),
@@ -481,8 +495,58 @@ function publicActionStatus(
   result: ReturnType<typeof normalizeRecoveryActionResult>,
 ): number {
   if (upstreamStatus >= 200 && upstreamStatus <= 299) return upstreamStatus;
-  if (result.outcome === "refused") return 409;
+  if (result.outcome === "refused" || result.outcome === "request_not_admitted") return 409;
   return 202;
+}
+
+function exactKeys(value: Record<string, unknown>, keys: string[]) {
+    if (Object.keys(value).sort().join("|") !== keys.sort().join("|"))
+        throw new Error("recovery_value_invalid");
+}
+function uuidValue(value: unknown): string {
+    if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(value))
+        throw new Error("recovery_id_invalid");
+    return value;
+}
+function shaValue(value: unknown): string {
+    if (typeof value !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(value))
+        throw new Error("recovery_identity_invalid");
+    return value;
+}
+function backupIdValue(value: unknown): string {
+    if (typeof value !== "string" || !/^recovery:[0-9a-f-]{36}$/iu.test(value))
+        throw new Error("recovery_id_invalid");
+    return value;
+}
+function normalizeRequestOperation(value: unknown) {
+    if (value === null)
+        return null;
+    const row = recordValue(value);
+    const known = row.action !== undefined;
+    const notAdmitted = row.state === "not_admitted";
+    exactKeys(row, ["request_id", "state", "reason", "result", ...(known ? ["action", "accepted_at", "finished_at", "observation_boundary"] : []), ...(notAdmitted ? ["request"] : [])]);
+    const state = boundedEnum(row.state, ["accepted", "running", "completed", "failed", "interrupted", "unknown", "stale", "not_admitted"] as const);
+    const request = notAdmitted ? normalizeAdmissionMaterial(recordValue(row.request)) : null;
+    if (notAdmitted && (!request || row.accepted_at !== null || row.finished_at === null || request.request_id !== row.request_id || request.action !== row.action ||
+        !["recovery_action_in_progress", "recovery_backup_changed"].includes(String(row.reason)))) throw new Error("recovery_operation_invalid");
+    const result = row.result === null ? null : recordValue(row.result);
+    if (!known && (state !== "unknown" || result !== null))
+        throw new Error("recovery_operation_invalid");
+    if (result) {
+        exactKeys(result, ["backup_id", "backup_identity", "target_binding", "verified_at", "validator_contract", "application_version", "build_identity", "runtime_contract", "runtime_schema_version", "creation_completed"]);
+        if (result.validator_contract !== "augnes.recovery-backup.v1" || result.runtime_contract !== "augnes-local-runtime-supervisor-v1" || result.runtime_schema_version !== 2 || !Number.isFinite(Date.parse(String(result.verified_at))))
+            throw new Error("recovery_validation_result_invalid");
+    }
+    if ((state === "completed" || state === "stale") !== (result !== null))
+        throw new Error("recovery_validation_result_invalid");
+    if (known && ((!notAdmitted && !Number.isFinite(Date.parse(String(row.accepted_at)))) || (row.finished_at !== null && !Number.isFinite(Date.parse(String(row.finished_at))))))
+        throw new Error("recovery_operation_invalid");
+    if (result && booleanValue(result.creation_completed) !== (row.action === "create_backup"))
+        throw new Error("recovery_validation_result_invalid");
+    return { request_id: uuidValue(row.request_id), state, reason: row.reason === null ? null : boundedPublicCode(row.reason, 120),
+        ...(known ? { action: boundedEnum(row.action, ["create_backup", "verify_backup"] as const), accepted_at: notAdmitted ? null : boundedPublicString(row.accepted_at, 64), finished_at: nullableBoundedPublicString(row.finished_at, 64), observation_boundary: boundedEnum(row.observation_boundary, notAdmitted ? ["request_not_admitted"] as const : ["exact_operation_validation_not_perpetual_freshness"] as const) } : {}),
+        ...(request ? {request} : {}),
+        result: result ? { backup_id: backupIdValue(result.backup_id), backup_identity: shaValue(result.backup_identity), target_binding: shaValue(result.target_binding), verified_at: boundedPublicString(result.verified_at, 64), validator_contract: "augnes.recovery-backup.v1", application_version: boundedPublicString(result.application_version, 80), build_identity: nullablePublicBuildIdentity(result.build_identity), runtime_contract: "augnes-local-runtime-supervisor-v1", runtime_schema_version: 2, creation_completed: booleanValue(result.creation_completed) } : null };
 }
 
 function runtimeControlPort(): number {

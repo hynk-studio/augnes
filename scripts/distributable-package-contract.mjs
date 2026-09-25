@@ -68,6 +68,9 @@ export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/runtime-run-reconciliation.mjs",
   "scripts/continuity-operational-status.mjs",
   "scripts/recovery-backup.mjs",
+  "scripts/recovery-control-operation.mjs",
+  "scripts/recovery-control-worker.mjs",
+  "scripts/recovery-control-job.mjs",
   "scripts/recovery-canonical-record-validator.mjs",
 ]);
 
@@ -75,9 +78,19 @@ export const DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE =
   "scripts/augnes-runtime-supervisor.bundle.cjs";
 export const DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE =
   "scripts/recovery-canonical-record-validator.bundle.cjs";
+export const DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE =
+  "scripts/recovery-control-worker.bundle.cjs";
+// Additive recovery capability; manifests predating this capability stay valid.
+export const DISTRIBUTABLE_RECOVERY_CONTROL_FILES = Object.freeze([
+  "scripts/recovery-control-operation.mjs",
+  "scripts/recovery-control-worker.mjs",
+  "scripts/recovery-control-job.mjs",
+  DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
+]);
 export const DISTRIBUTABLE_COMPILED_RUNTIME_FILES = Object.freeze([
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
   DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
 ]);
 
 export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
@@ -91,8 +104,8 @@ export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
   "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
   "package.json",
   "server.js",
-  ...DISTRIBUTABLE_RUNTIME_SCRIPTS,
-  ...DISTRIBUTABLE_COMPILED_RUNTIME_FILES,
+  ...DISTRIBUTABLE_RUNTIME_SCRIPTS.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file)),
+  ...DISTRIBUTABLE_COMPILED_RUNTIME_FILES.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file)),
 ]);
 
 const ROOT_RUNTIME_FILES = new Set([

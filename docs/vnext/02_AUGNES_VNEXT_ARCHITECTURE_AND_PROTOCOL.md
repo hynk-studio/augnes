@@ -2191,6 +2191,62 @@ recovery backup/restore
 
 모델 호출 불가 시 candidate enrichment만 비활성화하고 Core continuity는 유지한다.
 
+### Recovery control and exact observations
+
+Recovery product v2 separates admission/status from full validation. Authenticated
+local admission binds a caller-retained UUID and server epoch to application
+scope, fixed operation kind, exact request material, and (for verification) the
+selected backup identity/binding. A private bounded `augnes.recovery-requests.v1`
+sidecar records acceptance before dispatch. It is operational metadata, not an
+application Core record, work receipt, execution grant or semantic acceptance.
+The 64-entry history does not automatically evict or redispatch requests. Exact
+replay returns the original operation; changed material, unknown epochs and
+unavailable history refuse. Capacity exhaustion requires separate reviewed
+history maintenance, not automatic deletion or epoch rotation.
+
+An active-operation or changed-target refusal may record `not_admitted` only
+after checking the current epoch and absence of an earlier exact request ID.
+It occupies the same bounded history, with no acceptance time, worker or result.
+Exact replay preserves the refusal. A normal status read must match its retained
+request material before the page permits a deliberate new request using current
+choices; reload follows that same read. Generic refusal, ID/material conflict,
+uncertain persistence and missing history do not prove non-admission. This path
+does not confirm a checkpoint or authorize restore/update.
+
+One supervisor-owned child executes complete backup creation or exact existing
+backup verification. It uses the existing validators, publication, retention and
+bookkeeping owners. Its 120-second deadline is separate from the unchanged
+five-second HTTP deadline (the incident's historical complete span was 34.672s,
+not measured subphases). Owned-tree settlement precedes terminal recording;
+publication alone, missing output and incomplete bookkeeping cannot be success.
+An independent child watchdog bounds orphan execution. Startup checks retained
+worker identity/group settlement before classifying interruption; it never
+replays an unfinished request. Existing backup-journal reconciliation stays with
+its explicit lifecycle owner.
+
+Packaged admission verifies the bounded bootstrap bytes against the running
+build's manifest and hands those bytes to a fixed child trampoline. It does not
+execute the mutable worker path before preflight. The child still performs the
+complete fresh package/native preflight and loads the verified in-memory
+supervisor/validator. Bootstrap hashing is launch integrity, not cached backup
+validation. Pre-capability package manifests remain valid without the additive
+worker files; they do not thereby acquire the new operation capability.
+
+Status reads bounded metadata only, including historical observations. They do
+not inspect databases, reconcile, adopt, retain/delete backups or clean operation
+write residue. A completed exact result identifies the operation, target,
+verification time and available validator/runtime provenance; source SHA
+attestation is not invented. Target metadata binds handoff and detects ordinary
+replacement/change, but is not a verification verdict or perpetual freshness
+claim. A new Verify request always runs complete validation. Restore/update
+remain separately authorized and revalidate their selected target at execution;
+metadata-only inventory and accepted/running requests do not unlock them.
+
+Existing backup manifests and historical operation records keep their v1 meaning.
+Older runtimes do not support correlated v2 admission/results; no backward
+consumer compatibility is claimed. Installation, a fresh real verification and
+operational adoption remain separate from disposable candidate-runtime tests.
+
 ---
 
 ## 15. Compatibility and Versioning

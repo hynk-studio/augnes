@@ -32,8 +32,10 @@ export interface RecoveryContinuityStatusV01 {
 }
 
 export interface RecoveryStatusV01 {
-  contract: "augnes.recovery-product.v1";
-  schema_version: 1;
+  contract: "augnes.recovery-product.v2";
+  schema_version: 2;
+  admission_binding: string | null;
+  operation: RecoveryRequestOperationV02 | null;
   recovery_mode: boolean;
   application: {
     version: string;
@@ -68,7 +70,7 @@ export interface RecoveryStatusV01 {
     safety_backup_created: boolean;
     next_action: string;
   } | null;
-  backup_inventory_state: "available" | "unavailable";
+  backup_inventory_state: "metadata_only" | "unavailable";
   backup_count: number;
   legacy_backup_count: number;
   legacy_backup_unavailable_count: number;
@@ -77,6 +79,8 @@ export interface RecoveryStatusV01 {
   backup_page_count: number;
   backups: Array<{
     backup_id: string;
+    backup_identity: string;
+    target_binding: string;
     label: string;
     created_at: string;
     reason: string;
@@ -85,6 +89,7 @@ export interface RecoveryStatusV01 {
   }>;
   actions: {
     create_backup: boolean;
+    verify_backup: boolean;
     retry_update: boolean;
     restore_backup: boolean;
   };
@@ -105,6 +110,7 @@ export interface RecoverySafetyActionV01 {
 
 export type RecoveryActionConfirmationStateV01 =
   | "confirmed"
+  | "unverified"
   | "refresh_required";
 
 export interface RecoveryActionControlViewV01 {
@@ -146,4 +152,21 @@ export interface RecoverySafetyViewV01 {
     performs_external_action: false;
     retries_automatically: false;
   };
+}
+
+export interface RecoveryRequestOperationV02 {
+  request_id: string;
+  state: "accepted" | "running" | "completed" | "failed" | "interrupted" | "unknown" | "stale" | "not_admitted";
+  reason: string | null;
+  action?: "create_backup" | "verify_backup";
+  accepted_at?: string | null;
+  finished_at?: string | null;
+  observation_boundary?: "exact_operation_validation_not_perpetual_freshness" | "request_not_admitted";
+  request?: Record<string, string>;
+  result: {
+    backup_id: string; backup_identity: string; target_binding: string;
+    verified_at: string; validator_contract: string; application_version: string;
+    build_identity: string | null; runtime_contract: string; runtime_schema_version: number;
+    creation_completed: boolean;
+  } | null;
 }

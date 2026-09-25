@@ -40,6 +40,7 @@ import {
   DISTRIBUTABLE_RUNTIME_SCHEMA_VERSION,
   DISTRIBUTABLE_RUNTIME_SCRIPTS,
   DISTRIBUTABLE_RECOVERY_VALIDATOR_BUNDLE_FILE,
+  DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
   DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS,
   PublicDistributablePackageError,
@@ -136,6 +137,7 @@ export async function buildDistributablePackage({
     buildBridgeBundle(sourceRoot, stagingRoot);
     await buildSupervisorBundle(sourceRoot, stagingRoot);
     buildRecoveryCanonicalValidatorBundle(sourceRoot, stagingRoot);
+    buildRecoveryWorkerBundle(sourceRoot, stagingRoot);
     stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage);
     sanitizePrivateBuildPaths(stagingRoot, sourceRoot, environment);
     normalizePackageMetadata(stagingRoot);
@@ -299,6 +301,20 @@ function buildBridgeBundle(sourceRoot, stagingRoot) {
       error,
     );
   }
+}
+
+function buildRecoveryWorkerBundle(sourceRoot, stagingRoot) {
+  const entry = path.join(sourceRoot, "scripts/recovery-control-worker.mjs");
+  assertSafeSourceFile(sourceRoot, entry);
+  const sourceRequire = createRequire(path.join(sourceRoot, "package.json"));
+  sourceRequire("esbuild").buildSync({
+    absWorkingDir: sourceRoot, entryPoints: [entry], bundle: true,
+    platform: "node", format: "cjs", target: "node20.9", charset: "utf8",
+    legalComments: "none", logLevel: "warning",
+    outfile: packagePath(stagingRoot, DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE),
+    banner: { js: 'const __augnesImportMetaUrl = require("node:url").pathToFileURL(__filename).href;' },
+    define: { "import.meta.url": "__augnesImportMetaUrl", "process.env.NODE_ENV": JSON.stringify("production") },
+  });
 }
 
 function buildRecoveryCanonicalValidatorBundle(sourceRoot, stagingRoot) {

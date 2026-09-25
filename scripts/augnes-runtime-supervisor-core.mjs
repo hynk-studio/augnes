@@ -28,6 +28,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import Database from "better-sqlite3";
+export { runRecoveryWorkerJob } from "./recovery-control-job.mjs";
 
 import { buildRuntimeChildEnvironment } from "./runtime-child-environment.mjs";
 import { isPathInsideOrEqual } from "./canonical-test-environment.mjs";
@@ -72,6 +73,7 @@ import {
   adoptLegacyRecoveryBackups,
   listRecoveryBackups,
   readRecoveryOperationResults,
+  readRecoveryOperationResultsMetadata,
   reconcileRecoveryBackupOperation,
   writePendingRecoveryAction,
   writeInstalledPackageIdentity,
@@ -93,6 +95,7 @@ import {
   stopVerifiedOrphanChildren,
   withRuntimeReconciliationPath,
 } from "./runtime-reconciliation.mjs";
+import { createRecoveryRequestController, normalizeRecoveryRequest, readRecoveryBackupCatalog, exactRecoveryTarget } from "./recovery-control-operation.mjs";
 import { reconcileDurableRunsAtStartup } from "./runtime-run-reconciliation.mjs";
 import { inspectCompanionService } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
@@ -1554,6 +1557,25 @@ async function runStartCommand({
       if (startupCompatibilityRefusal !== null) {
         throw new PublicRuntimeError(startupCompatibilityRefusal);
       }
+      runtime.recoveryController = createRecoveryRequestController({
+        backupDirectory: paths.local.backup_directory, databasePath: runtime.databasePath,
+        scope: targetCompatibility.applicationScopeFingerprint, sourceApplication: targetCompatibility.sourceApplication,
+        generation: runtime.generationId, environment: runtime.environment, stopOwnedChild,
+        validatorApplication: {
+          application_version: runtime.runtimeDistribution.applicationVersion,
+          build_identity: runtime.runtimeDistribution.buildIdentity,
+          runtime_contract: runtime.runtimeDistribution.runtimeContract,
+          runtime_schema_version: runtime.runtimeDistribution.runtimeSchemaVersion,
+        },
+        distribution: runtime.runtimeDistribution.mode === "packaged" ? {build_identity: runtime.runtimeDistribution.buildIdentity} : null,
+        protectedBackupIds: () => runtime.protectedRecoveryBackupId ? [runtime.protectedRecoveryBackupId] : [],
+        onCompleted: result => {
+          if (result.creation_completed) {
+            runtime.protectedRecoveryBackupId = result.backup_id;
+            runtime.protectedRecoveryBackupIdentity = result.backup_identity;
+          }
+        },
+      });
       runtime.recoveryBackupOperationReconciliation =
         await reconcileRecoveryBackupOperation({
           backupDirectory: paths.local.backup_directory,
@@ -3217,7 +3239,7 @@ function removeSignalHandlers(runtime) {
   }
 }
 
-async function startControlServer(runtime) {
+export async function startControlServer(runtime) {
   const server = createHttpServer((request, response) => {
     const requestUrl = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
     if (request.method === "GET" && requestUrl.pathname === "/v1/identity") {
@@ -3305,7 +3327,7 @@ export async function handleRecoveryControlRequest(
     respondJson(
       response,
       200,
-      buildRecoveryProductStatus(runtime, { backupPage }),
+      buildRecoveryProductStatus(runtime, { backupPage, requestId: requestUrl.searchParams.get("request_id") }),
     );
     return;
   }
@@ -3323,22 +3345,22 @@ export async function handleRecoveryControlRequest(
     return;
   }
   if (runtime.recoveryRequest !== null || runtime.shutdownRequested) {
+    // A concurrent request may already have this ID. Let the identity owner
+    // distinguish replay/conflict from a durably recorded non-admission, without
+    // dispatching work while the protected-action mutex is held.
+    try {
+      const action = await readBoundedRecoveryAction(request);
+      if (runtime.recoveryController && ["create_backup", "verify_backup"].includes(action.action)) {
+        const result = runtime.recoveryController.admit(action, { admissionBlocked: true });
+        respondJson(response, result.accepted ? 202 : 409, result);
+        return;
+      }
+    } catch { /* No proof of non-admission: retain the ordinary unresolved refusal. */ }
     respondJson(response, 409, {
       accepted: false,
       outcome: "refused",
       reason_code: "recovery_action_in_progress",
       next_action: "wait_for_the_current_action",
-    });
-    return;
-  }
-  try {
-    verifyCurrentPackagedDistribution(runtime);
-  } catch (error) {
-    respondJson(response, 409, {
-      accepted: false,
-      outcome: "refused",
-      reason_code: publicErrorCode(error, "package_integrity_failed"),
-      next_action: "relaunch_a_verified_augnes_package",
     });
     return;
   }
@@ -3376,99 +3398,27 @@ export async function handleRecoveryControlRequest(
     });
     return;
   }
-  if (action.action === "create_backup") {
-    recoveryRequest.action = "create_backup";
+  if (action.action === "restore_backup" || action.action === "retry_update") {
     try {
-      const sourceIdentity = restoreSourcePackageIdentity(runtime);
-      if (
-        runtime.runtimeDistribution.mode === "packaged" &&
-        sourceIdentity === null
-      ) {
-        throw new PublicRuntimeError("installed_package_identity_missing");
-      }
-      const targetCompatibility = databaseTargetCompatibility(
-        runtime.runtimeDistribution,
-        sourceIdentity,
-      );
-      const protectedBackupIds =
-        runtime.protectedRecoveryBackupId === null
-          ? []
-          : [runtime.protectedRecoveryBackupId];
-      const backup = await createRecoveryBackup({
-        databasePath: runtime.databasePath,
-        backupDirectory: runtime.paths.local.backup_directory,
-        applicationScopeFingerprint:
-          targetCompatibility.applicationScopeFingerprint,
-        sourceApplication: targetCompatibility.sourceApplication,
-        reason: "manual_recovery",
-        inspectDatabase: inspectRecoveryDatabaseFile,
-        protectedBackupIds,
-      });
-      runtime.protectedRecoveryBackupId = backup.manifest.backup_id;
-      runtime.protectedRecoveryBackupIdentity =
-        backup.manifest.backup_identity;
-      writeRecoveryOperationResult({
-        backupDirectory: runtime.paths.local.backup_directory,
-        event: {
-          operation_kind: "backup",
-          outcome: "recovery_backup_created",
-          reason_code: "manual_recovery_backup_verified",
-          finished_at: new Date().toISOString(),
-          application_version:
-            targetCompatibility.sourceApplication.application_version,
-          target_application_version:
-            runtime.runtimeDistribution.applicationVersion,
-          target_build_identity: runtime.runtimeDistribution.buildIdentity,
-          database_state: runtime.databaseState,
-          protected_backup_id: backup.manifest.backup_id,
-          protected_backup_identity: backup.manifest.backup_identity,
-          backup_verified: true,
-          safety_backup_created: false,
-          data_preserved: true,
-          next_action: "continue_with_current_data",
-        },
-      });
-      respondJson(response, 201, {
-        accepted: true,
-        outcome: "backup_created",
-        next_action: "continue_with_current_data",
-      });
+      if (!runtime.recoveryController) throw new PublicRuntimeError("recovery_request_history_unavailable");
+      await runtime.recoveryController.checkPackage();
     } catch (error) {
-      respondJson(response, 409, {
-        accepted: false,
-        outcome: "refused",
-        reason_code: publicErrorCode(
-          error,
-          "recovery_backup_creation_failed",
-        ),
-        next_action: "review_the_current_recovery_status",
-      });
+      respondJson(response, 409, {accepted:false,outcome:"refused",reason_code:publicErrorCode(error,"package_integrity_failed"),next_action:"relaunch_a_verified_augnes_package"});
+      return;
+    }
+  }
+  if (action.action === "create_backup" || action.action === "verify_backup") {
+    try {
+      if (!runtime.recoveryController) throw new PublicRuntimeError("recovery_request_history_unavailable");
+      const admitted = runtime.recoveryController.admit(action);
+      respondJson(response, admitted.accepted ? 202 : 409, admitted);
+    } catch (error) {
+      respondJson(response, error?.code === "recovery_admission_outcome_unknown" ? 503 : 409, {accepted:false,outcome:"refused",reason_code:publicErrorCode(error,"recovery_admission_refused"),next_action:"read_the_same_request_status"});
     }
   } else if (action.action === "restore_backup") {
-    let inventory;
-    try {
-      inventory = runtimeRecoveryInventory(runtime);
-    } catch {
-      respondJson(response, 409, {
-        accepted: false,
-        outcome: "refused",
-        reason_code: "recovery_backup_inventory_unavailable",
-        next_action: "review_the_current_recovery_status",
-      });
-      return;
-    }
-    const selectedBackup = inventory.verified.find(
-      (backup) => backup.manifest.backup_id === action.backup_id,
-    );
-    if (!selectedBackup) {
-      respondJson(response, 409, {
-        accepted: false,
-        outcome: "refused",
-        reason_code: "recovery_backup_not_found",
-        next_action: "choose_a_verified_recovery_backup",
-      });
-      return;
-    }
+    let selectedBackup;
+    try { selectedBackup = requireRecoveryValidation(runtime, action.verification_request_id, action.backup_id); }
+    catch (error) { respondJson(response,409,{accepted:false,outcome:"refused",reason_code:publicErrorCode(error,"recovery_validation_required"),next_action:"verify_the_exact_backup"});return; }
     let pendingAction;
     try {
       pendingAction = persistRuntimeRecoveryAction(runtime, {
@@ -3476,13 +3426,13 @@ export async function handleRecoveryControlRequest(
         selectedBackupId: action.backup_id,
         selectedBackupIdentity: selectedBackup.manifest.backup_identity,
         selectedBackupDirectoryIdentity:
-          selectedBackup.backupDirectoryIdentity,
+          {dev:selectedBackup.identities.directory.dev,ino:selectedBackup.identities.directory.ino},
         selectedBackupStateDirectoryIdentity:
-          selectedBackup.stateDirectoryIdentity,
+          {dev:selectedBackup.identities.state.dev,ino:selectedBackup.identities.state.ino},
         selectedBackupManifestFileIdentity:
-          selectedBackup.manifestFileIdentity,
+          {dev:selectedBackup.identities.manifest.dev,ino:selectedBackup.identities.manifest.ino},
         selectedBackupPayloadFileIdentity:
-          selectedBackup.payloadFileIdentity,
+          {dev:selectedBackup.identities.payload.dev,ino:selectedBackup.identities.payload.ino},
       });
     } catch (error) {
       respondJson(response, 409, {
@@ -3497,7 +3447,7 @@ export async function handleRecoveryControlRequest(
       action: "restore_backup",
       backupId: action.backup_id,
       backupIdentity: selectedBackup.manifest.backup_identity,
-      backupDirectoryIdentity: selectedBackup.backupDirectoryIdentity,
+      backupDirectoryIdentity: {dev:selectedBackup.identities.directory.dev,ino:selectedBackup.identities.directory.ino},
     });
     runtime.pendingRecoveryActionId = pendingAction.action_id;
     requestShutdownAfterResponse(runtime, response);
@@ -3511,25 +3461,14 @@ export async function handleRecoveryControlRequest(
     let reusableBackup = null;
     let pendingAction;
     try {
-      if (
-        runtime.protectedRecoveryBackupId !== null &&
-        runtime.protectedRecoveryBackupIdentity !== null
-      ) {
-        const protectedBackup = runtimeRecoveryInventory(runtime).verified.find(
-          (backup) =>
-            backup.manifest.backup_id ===
-              runtime.protectedRecoveryBackupId &&
-            backup.manifest.backup_identity ===
-              runtime.protectedRecoveryBackupIdentity,
-        );
-        if (!protectedBackup) {
-          throw new PublicRuntimeError("recovery_backup_changed");
-        }
-        reusableBackup =
-          protectedBackup.manifest.reason === "pre_update"
-            ? protectedBackup
-            : null;
-      }
+      const verified = requireRecoveryValidation(runtime, action.verification_request_id);
+      reusableBackup = verified.manifest.reason === "pre_update" ? {
+        ...verified,
+        backupDirectoryIdentity:{dev:verified.identities.directory.dev,ino:verified.identities.directory.ino},
+        stateDirectoryIdentity:{dev:verified.identities.state.dev,ino:verified.identities.state.ino},
+        manifestFileIdentity:{dev:verified.identities.manifest.dev,ino:verified.identities.manifest.ino},
+        payloadFileIdentity:{dev:verified.identities.payload.dev,ino:verified.identities.payload.ino},
+      } : null;
       pendingAction = persistRuntimeRecoveryAction(runtime, {
         action: "retry_update",
         selectedBackupId: reusableBackup?.manifest.backup_id ?? null,
@@ -3730,187 +3669,54 @@ export function requestShutdownAfterResponse(runtime, response) {
   response.once("close", completeAcceptedAction);
 }
 
-function buildRecoveryProductStatus(runtime, { backupPage = 1 } = {}) {
-  let databaseState = runtime.databaseState;
-  let schemaContract = null;
-  let schemaClassification = "unavailable";
-  let migrationState =
-    runtime.databaseSchemaVersion === "current" ? "current" : "unknown";
-  const verifiedReadyDatabase =
-    runtime.lifecycleState === "ready" &&
-    runtime.recoveryMode === false &&
-    runtime.databaseState === "current" &&
-    runtime.databaseSchemaVersion === "current" &&
-    existsSync(runtime.databasePath);
-  if (verifiedReadyDatabase) {
-    databaseState = "current";
-    schemaContract =
-      runtime.runtimeDistribution.databaseSchemaContract ??
-      DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT;
-    schemaClassification = "current";
-    migrationState = "current";
-  } else {
+function requireRecoveryValidation(runtime, requestId, backupId = null) {
+    if (!runtime.recoveryController || runtime.recoveryController.busy())
+        throw new PublicRuntimeError("recovery_action_in_progress");
+    const operation = runtime.recoveryController.status(requestId).operation;
+    if (operation?.state !== "completed" || !operation.result || (backupId !== null && operation.result.backup_id !== backupId))
+        throw new PublicRuntimeError("recovery_validation_required");
+    return exactRecoveryTarget(runtime.paths.local.backup_directory, runtime.runtimeDistribution.applicationScopeFingerprint, operation.result);
+}
+
+function buildRecoveryProductStatus(runtime, { backupPage = 1, requestId = null } = {}) {
+    let catalog = [], inventoryState = "metadata_only", requestStatus = null, latestOperation = null;
     try {
-      if (existsSync(runtime.databasePath)) {
-        const database = inspectRecoverySourceDatabaseFile(runtime.databasePath);
-        databaseState = database.schema_classification;
-        schemaContract = database.schema_contract;
-        schemaClassification = database.schema_classification;
-        migrationState =
-          database.schema_classification === "current" ? "current" : "update_ready";
-      }
-    } catch {
-      databaseState = "recovery_required";
-      migrationState = "incompatible_or_unavailable";
+        catalog = readRecoveryBackupCatalog(runtime.paths.local.backup_directory, runtime.runtimeDistribution.applicationScopeFingerprint);
     }
-  }
-  let inventory = { verified: [], rejected: [] };
-  let inventoryState = "available";
-  try {
-    inventory = runtimeRecoveryInventory(runtime);
-  } catch {
-    inventoryState = "unavailable";
-  }
-  const protection = recoveryProtectionDecision({
-    inventoryState,
-    verifiedBackupCount: inventory.verified.length,
-  });
-  let latestOperation = null;
-  try {
-    latestOperation = readRecoveryOperationResults(
-      runtime.paths.local.backup_directory,
-    ).events[0] ?? null;
-  } catch {
-    latestOperation = null;
-  }
-  if (latestOperation !== null) {
-    latestOperation = {
-      ...latestOperation,
-      backup_verified: isProtectedBackupVerified(
-        inventory,
-        latestOperation.protected_backup_id,
-        latestOperation.protected_backup_identity,
-      ),
+    catch {
+        inventoryState = "unavailable";
+    }
+    try {
+        requestStatus = runtime.recoveryController?.status(requestId) ?? null;
+    }
+    catch { /* Unknown history never admits a replacement. */ }
+    try {
+        latestOperation = readRecoveryOperationResultsMetadata(runtime.paths.local.backup_directory).events[0] ?? null;
+    }
+    catch { /* Historical observation unavailable. */ }
+    const page = paginateRecoveryInventory(catalog, backupPage);
+    const current = runtime.databaseSchemaVersion === "current" && runtime.databaseState === "current";
+    const classification = runtime.databaseSchemaVersion === "current" ? "current" : runtime.databaseSchemaVersion === "outdated" ? "old" : "unavailable";
+    const confirmed = requestStatus?.operation?.state === "completed";
+    const idle = requestStatus !== null && !requestStatus.busy && runtime.recoveryRequest === null && !runtime.shutdownRequested;
+    return {
+        contract: "augnes.recovery-product.v2", schema_version: 2, recovery_mode: runtime.recoveryMode,
+        application: { version: runtime.runtimeDistribution.applicationVersion, build_identity: runtime.runtimeDistribution.buildIdentity ?? "source_runtime", package_contract: runtime.runtimeDistribution.packageContract ?? null, package_contract_version: runtime.runtimeDistribution.packageContractVersion ?? null, compatibility: runtime.runtimeDistribution.mode === "packaged" ? "verified_package" : "source_runtime" },
+        database: { state: runtime.databaseState ?? "unknown", schema_contract: classification !== "unavailable" ? DISTRIBUTABLE_DATABASE_SCHEMA_CONTRACT : null, schema_classification: classification, migration_state: classification === "current" ? "current" : classification === "old" ? "update_ready" : "unknown" },
+        runtime: { runtime_contract: runtime.runtimeDistribution.runtimeContract ?? null, runtime_schema_version: runtime.runtimeDistribution.runtimeSchemaVersion ?? null, lifecycle_state: runtime.lifecycleState, bridge_health: runtime.bridgePort === null ? "unavailable" : "ready", capability_availability: runtime.bridgePort === null ? "runtime_only" : "runtime_and_bridge" },
+        latest_operation: latestOperation, backup_inventory_state: inventoryState,
+        legacy_backup_count: runtime.legacyBackupAdoption.adopted.length + runtime.legacyBackupAdoption.already_adopted.length + runtime.legacyBackupAdoption.rejected.length,
+        legacy_backup_unavailable_count: runtime.legacyBackupAdoption.rejected.length,
+        backup_count: catalog.length, backup_inventory_truncated: page.page_count > 1, backup_page: page.page, backup_page_count: page.page_count, backups: page.items.map(row => row.public),
+        admission_binding: requestStatus?.admission_binding ?? null, operation: requestStatus?.operation ?? (requestId ? { request_id: requestId, state: "unknown", reason: "recovery_request_history_unavailable", result: null } : null),
+        actions: { create_backup: idle && current && runtime.recoveryOperationStateAvailable && inventoryState === "metadata_only" && requestStatus.capacity_available, verify_backup: idle && inventoryState === "metadata_only" && requestStatus.capacity_available, retry_update: idle && confirmed && runtime.recoveryRetryAvailable, restore_backup: idle && confirmed && runtime.runtimeDistribution.mode === "packaged" && runtime.recoveryRestoreAvailable },
     };
-  }
-  if (runtime.recoveryMode || databaseState === "recovery_required") {
-    const persistedOperation = latestOperation;
-    const protectedBackupId =
-      runtime.protectedRecoveryBackupId ??
-      persistedOperation?.protected_backup_id ??
-      null;
-    const protectedBackupIdentity =
-      runtime.protectedRecoveryBackupIdentity ??
-      persistedOperation?.protected_backup_identity ??
-      null;
-    const publishedDatabaseNeedsRestart =
-      runtime.recoveryMode && runtime.publishedOperationPending !== null;
-    latestOperation = {
-      operation_kind:
-        persistedOperation?.operation_kind ??
-        (runtime.recoveryAction === "restore_backup" ? "restore" : "update"),
-      outcome: publishedDatabaseNeedsRestart
-        ? "recovery_available"
-        : runtime.recoveryAction === "restore_backup"
-          ? "restore_failed_preserved_current_state"
-          : "update_recovered",
-      reason_code: runtime.failure?.code ?? "recovery_required",
-      finished_at: new Date().toISOString(),
-      application_version:
-        persistedOperation?.application_version ??
-        runtime.updateHandoff?.source_application_version ??
-        runtime.databaseSourceApplicationVersion ??
-        null,
-      target_application_version:
-        persistedOperation?.target_application_version ??
-        runtime.runtimeDistribution.applicationVersion ??
-        null,
-      target_build_identity:
-        persistedOperation?.target_build_identity ??
-        runtime.runtimeDistribution.buildIdentity ??
-        null,
-      database_state: publishedDatabaseNeedsRestart
-        ? runtime.databaseState
-        : persistedOperation?.database_state ?? databaseState,
-      protected_backup_id: protectedBackupId,
-      protected_backup_identity: protectedBackupIdentity,
-      backup_verified: isProtectedBackupVerified(
-        inventory,
-        protectedBackupId,
-        protectedBackupIdentity,
-      ),
-      safety_backup_created:
-        runtime.safetyBackupCreated ||
-        persistedOperation?.safety_backup_created === true,
-      data_preserved: true,
-      next_action: recoveryNextAction(runtime, protection),
-    };
-  }
-  const paginatedInventory = paginateRecoveryInventory(
-    inventory.verified,
-    backupPage,
-  );
-  return {
-    contract: "augnes.recovery-product.v1",
-    schema_version: 1,
-    recovery_mode: runtime.recoveryMode,
-    application: {
-      version: runtime.runtimeDistribution.applicationVersion ?? "unknown",
-      build_identity:
-        runtime.runtimeDistribution.buildIdentity ?? "source_runtime",
-      package_contract: runtime.runtimeDistribution.packageContract ?? null,
-      package_contract_version:
-        runtime.runtimeDistribution.packageContractVersion ?? null,
-      compatibility:
-        runtime.runtimeDistribution.mode === "packaged"
-          ? "verified_package"
-          : "source_runtime",
-    },
-    database: {
-      state: databaseState ?? "unknown",
-      schema_contract: schemaContract,
-      schema_classification: schemaClassification,
-      migration_state: migrationState,
-    },
-    runtime: {
-      runtime_contract: runtime.runtimeDistribution.runtimeContract ?? null,
-      runtime_schema_version:
-        runtime.runtimeDistribution.runtimeSchemaVersion ?? null,
-      lifecycle_state: runtime.lifecycleState,
-      bridge_health: runtime.bridgePort === null ? "unavailable" : "ready",
-      capability_availability:
-        runtime.bridgePort === null ? "runtime_only" : "runtime_and_bridge",
-    },
-    latest_operation: latestOperation,
-    backup_inventory_state: inventoryState,
-    legacy_backup_count:
-      runtime.legacyBackupAdoption.adopted.length +
-      runtime.legacyBackupAdoption.already_adopted.length +
-      runtime.legacyBackupAdoption.rejected.length,
-    legacy_backup_unavailable_count:
-      runtime.legacyBackupAdoption.rejected.length,
-    backup_count: inventory.verified.length,
-    backup_inventory_truncated: paginatedInventory.page_count > 1,
-    backup_page: paginatedInventory.page,
-    backup_page_count: paginatedInventory.page_count,
-    backups: paginatedInventory.items.map((backup) => backup.public),
-    actions: {
-      create_backup:
-        runtime.recoveryOperationStateAvailable &&
-        schemaClassification === "current" &&
-        runtime.recoveryRequest === null &&
-        !runtime.shutdownRequested,
-      retry_update: runtime.recoveryRetryAvailable,
-      restore_backup:
-        runtime.runtimeDistribution.mode === "packaged" &&
-        runtime.recoveryRestoreAvailable &&
-        protection.restoreAvailable,
-    },
-  };
 }
 
 function parseRecoveryInventoryPage(requestUrl) {
-  const entries = [...requestUrl.searchParams.entries()];
+  const requestIds = requestUrl.searchParams.getAll("request_id");
+  if(requestIds.length>1 || (requestIds.length===1&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(requestIds[0]))) throw new PublicRuntimeError("recovery_request_invalid");
+  const entries = [...requestUrl.searchParams.entries()].filter(([key])=>key!=="request_id");
   if (entries.length === 0) return 1;
   if (
     entries.length !== 1 ||
@@ -4058,36 +3864,32 @@ function verifyCurrentPackagedDistribution(runtime) {
 }
 
 async function readBoundedRecoveryAction(request) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > 4_096) throw new Error("request too large");
-    chunks.push(chunk);
-  }
-  const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  if (!isObject(value)) throw new Error("request invalid");
-  const keys = Object.keys(value).sort();
-  if (
-    value.action === "create_backup" &&
-    JSON.stringify(keys) === '["action"]'
-  ) {
-    return { action: "create_backup", backup_id: null };
-  }
-  if (value.action === "retry_update" && JSON.stringify(keys) === '["action"]') {
-    return { action: "retry_update", backup_id: null };
-  }
-  if (
-    value.action === "restore_backup" &&
-    JSON.stringify(keys) === '["action","backup_id"]' &&
-    /^recovery:[0-9a-f-]{36}$/iu.test(value.backup_id ?? "")
-  ) {
-    return { action: "restore_backup", backup_id: value.backup_id };
-  }
-  throw new Error("request invalid");
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of request) {
+        size += chunk.length;
+        if (size > 4096)
+            throw new Error("request too large");
+        chunks.push(chunk);
+    }
+    const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (!isObject(value))
+        throw new Error("request invalid");
+    if (value.action === "create_backup" || value.action === "verify_backup")
+        return normalizeRecoveryRequest(value);
+    const keys = Object.keys(value).sort();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(value.verification_request_id ?? ""))
+        throw new Error("request invalid");
+    if (value.action === "retry_update" && JSON.stringify(keys) === '["action","verification_request_id"]')
+        return value;
+    if (value.action === "restore_backup" && JSON.stringify(keys) === '["action","backup_id","verification_request_id"]' && /^recovery:[0-9a-f-]{36}$/u.test(value.backup_id ?? ""))
+        return value;
+    throw new Error("request invalid");
 }
 
 async function cleanupOwnedRuntime(runtime) {
+  const recoveryCleanup = await Promise.allSettled([runtime.recoveryController?.stop()]);
+  const recoveryCleanupFailed = recoveryCleanup.some(result => result.status === "rejected");
   const records = [...runtime.children.values()];
   for (const record of records) {
     record.expectedExit = true;
@@ -4104,7 +3906,7 @@ async function cleanupOwnedRuntime(runtime) {
     await closeServer(runtime.controlServer);
   }
 
-  if (ownsLock(runtime.paths.lock, runtime)) {
+  if (!recoveryCleanupFailed && ownsLock(runtime.paths.lock, runtime)) {
     removeOwnedGenerationJson(runtime.paths.manifest, runtime);
     removeOwnedGenerationJson(runtime.paths.token, runtime);
     removeOwnedGenerationJson(runtime.paths.companionAccess, runtime);
@@ -4113,12 +3915,12 @@ async function cleanupOwnedRuntime(runtime) {
     removeDirectoryIfEmpty(runtime.paths.directory);
   }
 
-  if (childCleanupFailed) {
+  if (childCleanupFailed || recoveryCleanupFailed) {
     throw new PublicRuntimeError("owned_child_cleanup_failed");
   }
 }
 
-async function stopOwnedChild(record) {
+export async function stopOwnedChild(record) {
   if (!record.pid) return;
   record.expectedExit = true;
   if (!isOwnedProcessTreeAlive(record)) return;

@@ -12,6 +12,8 @@ import {
   RECOVERY_REFRESH_REQUIRED_NOTICE_V01,
   buildRecoveryActionControlViewV01,
   recoveryActionOutcomeRequiresRefreshV01,
+  recoveryConfirmationStateV02,
+  recoveryHasExactValidationV02,
 } from "../lib/vnext/recovery/recovery-action-confirmation";
 import {
   RECOVERY_RESTORE_RECOMMENDATION_CODES_V01,
@@ -38,6 +40,7 @@ const environment = {
   AUGNES_RECOVERY_MODE: "1",
   AUGNES_DB_PATH: routeDatabasePath,
 };
+const requestId = "11111111-1111-4111-8111-111111111111";
 const requestHeaders = {
   host: "127.0.0.1:3000",
   origin: "http://127.0.0.1:3000",
@@ -84,7 +87,7 @@ async function main() {
       });
     };
 
-    const response = await POST(recoveryRequest({ action: "retry_update" }));
+    const response = await POST(recoveryRequest({ action: "retry_update", verification_request_id: requestId }));
     assert.equal(response.status, 504);
     const body = await response.json();
     assert.deepEqual(body, {
@@ -184,6 +187,59 @@ async function main() {
       },
     });
     globalThis.fetch = async () => Response.json(recoveryStatusFixture());
+    // Closed v2 responses never forward unvalidated operation material.
+    for (const mutate of [
+      (value: Record<string, unknown>) => {value.preparation={synthetic_marker:"do_not_forward"};},
+      (value: Record<string, unknown>) => {value.operation={request_id:requestId,state:"completed",reason:null,result:null};},
+      (value: Record<string, unknown>) => {value.operation={request_id:requestId,state:"unknown",reason:null,result:null,synthetic_marker:true};},
+    ]) {
+      const value={...recoveryStatusFixture()};mutate(value);
+      globalThis.fetch=async()=>Response.json(value);
+      const rejected=await GET(new Request("http://127.0.0.1:3000/api/recovery",{headers:{host:"127.0.0.1:3000"}}));
+      assert.equal(rejected.status,503);assert.equal(JSON.stringify(await rejected.json()).includes("synthetic_marker"),false);
+    }
+    for (const action of ["create_backup","verify_backup"] as const) {
+      const material={action,request_id:requestId,admission_binding:requestId,...(action==="verify_backup"?{backup_id:`recovery:${requestId}`,backup_identity:`sha256:${"a".repeat(64)}`,target_binding:`sha256:${"b".repeat(64)}`}:{})};
+      globalThis.fetch=async(_input,init)=>{assert.deepEqual(JSON.parse(String(init?.body)),material);return Response.json({accepted:true,outcome:"operation_recorded",request_id:requestId},{status:202});};
+      const accepted=await POST(recoveryRequest(material));assert.equal(accepted.status,202);assert.equal((await accepted.json()).outcome,"operation_recorded");
+      globalThis.fetch=async()=>Response.json({accepted:true,outcome:"operation_recorded",request_id:"22222222-2222-4222-8222-222222222222"},{status:202});
+      assert.equal((await POST(recoveryRequest(material))).status,504,"mismatched acknowledgement is unknown, never retried");
+      const refusal={accepted:false,outcome:"request_not_admitted",request_id:requestId,reason_code:"recovery_action_in_progress",next_action:"refresh_before_new_request"};
+      globalThis.fetch=async()=>Response.json(refusal,{status:409});
+      assert.deepEqual(await (await POST(recoveryRequest(material))).json(),refusal);
+      for (const altered of [
+        {...refusal,request_id:"22222222-2222-4222-8222-222222222222"},
+        {...refusal,reason_code:"recovery_request_material_conflict"},
+        {...refusal,reason_code:"recovery_request_history_unknown"},
+        {...refusal,accepted:true},
+      ]) {
+        globalThis.fetch=async()=>Response.json(altered,{status:409});
+        assert.equal((await POST(recoveryRequest(material))).status,504,"uncorrelated or unsupported refusal remains unknown");
+      }
+      const refusedStatus={...recoveryStatusFixture(),operation:{request_id:requestId,state:"not_admitted",reason:"recovery_action_in_progress",result:null,
+        action,accepted_at:null,finished_at:"2026-09-25T00:00:00.000Z",observation_boundary:"request_not_admitted",request:material}};
+      globalThis.fetch=async()=>Response.json(refusedStatus);
+      const read=()=>GET(new Request(`http://127.0.0.1:3000/api/recovery?request_id=${requestId}`,{headers:{host:"127.0.0.1:3000"}}));
+      const refusedRead=await read();assert.equal(refusedRead.status,200);
+      const normalized=await refusedRead.json();
+      assert.equal(recoveryConfirmationStateV02(normalized,material),"unverified");
+      assert.equal(recoveryConfirmationStateV02(normalized,{...material,admission_binding:"22222222-2222-4222-8222-222222222222"}),"refresh_required");
+      assert.equal(recoveryHasExactValidationV02(normalized),false);
+      for(const operation of [
+        {...refusedStatus.operation,accepted_at:"2026-09-25T00:00:00.000Z"},
+        {...refusedStatus.operation,reason:"recovery_request_material_conflict"},
+        {...refusedStatus.operation,finished_at:null},
+        {...refusedStatus.operation,request:{...material,synthetic_marker:"do_not_forward"}},
+        {...refusedStatus.operation,request:{...material,request_id:"22222222-2222-4222-8222-222222222222"}},
+      ]){
+        globalThis.fetch=async()=>Response.json({...refusedStatus,operation});
+        const malformed=await read();assert.equal(malformed.status,503);
+        assert.equal(JSON.stringify(await malformed.json()).includes("synthetic_marker"),false);
+      }
+      const uncertain={...normalized,operation:{request_id:requestId,state:"unknown",reason:"recovery_request_history_unknown",result:null}};
+      assert.equal(recoveryConfirmationStateV02(uncertain,material),"refresh_required","missing history is never a non-admission proof");
+    }
+    globalThis.fetch=async()=>Response.json(recoveryStatusFixture());
     const diagnosticResponse = await GET(new Request(
       "http://127.0.0.1:3000/api/recovery",
       { headers: { host: "127.0.0.1:3000" } },
@@ -307,8 +363,11 @@ function testRecoverySafetyPresentationV01() {
           schema_classification: classification,
         },
         latest_operation: latestOperation("retry_update"),
+        operation: completedValidation(),
+        backups: [verifiedBackup()],
         actions: {
           create_backup: true,
+          verify_backup: true,
           retry_update: true,
           restore_backup: true,
         },
@@ -363,10 +422,12 @@ function testRecoverySafetyPresentationV01() {
     const status = recoveryPresentationFixture({
       recovery_mode: true,
       latest_operation: latestOperation(recommendation),
+      operation: completedValidation(),
       backups: [verifiedBackup()],
       backup_count: 1,
       actions: {
         create_backup: true,
+          verify_backup: true,
         retry_update: true,
         restore_backup: true,
       },
@@ -384,10 +445,12 @@ function testRecoverySafetyPresentationV01() {
     const status = recoveryPresentationFixture({
       recovery_mode: true,
       latest_operation: latestOperation(recommendation),
+      operation: completedValidation(),
       backups: [verifiedBackup()],
       backup_count: 1,
       actions: {
         create_backup: true,
+          verify_backup: true,
         retry_update: true,
         restore_backup: true,
       },
@@ -414,10 +477,12 @@ function testRecoverySafetyPresentationV01() {
       status: recoveryPresentationFixture({
         recovery_mode: true,
         latest_operation: latestOperation(ambiguous),
-        backups: [verifiedBackup()],
+        operation: completedValidation(),
+      backups: [verifiedBackup()],
         backup_count: 1,
         actions: {
           create_backup: true,
+          verify_backup: true,
           retry_update: true,
           restore_backup: true,
         },
@@ -434,6 +499,7 @@ function testRecoverySafetyPresentationV01() {
       latest_operation: null,
       actions: {
         create_backup: true,
+          verify_backup: true,
         retry_update: true,
         restore_backup: true,
       },
@@ -450,6 +516,7 @@ function testRecoverySafetyPresentationV01() {
       backup_count: 1,
       actions: {
         create_backup: false,
+        verify_backup: false,
         retry_update: false,
         restore_backup: true,
       },
@@ -468,6 +535,7 @@ function testRecoverySafetyPresentationV01() {
       backup_count: 0,
       actions: {
         create_backup: false,
+        verify_backup: false,
         retry_update: false,
         restore_backup: true,
       },
@@ -481,6 +549,7 @@ function testRecoverySafetyPresentationV01() {
     status: recoveryPresentationFixture({
       backup_inventory_truncated: true,
       backup_page_count: 2,
+      operation: completedValidation(),
       backups: [verifiedBackup()],
       backup_count: 2,
     }),
@@ -492,6 +561,7 @@ function testRecoverySafetyPresentationV01() {
     status: recoveryPresentationFixture({
       legacy_backup_count: 2,
       legacy_backup_unavailable_count: 1,
+      operation: completedValidation(),
       backups: [verifiedBackup()],
       backup_count: 1,
     }),
@@ -527,6 +597,13 @@ function testRecoverySafetyPresentationV01() {
   });
   assert.match(refused.latest_operation_summary ?? "", /not confirmed/u);
 
+  for (const state of ["accepted", "running", "unknown", "failed", "interrupted", "stale"] as const) {
+    const status = recoveryPresentationFixture({backups:[verifiedBackup()],operation:{...completedValidation(),state,result:state === "stale" ? completedValidation().result : null}});
+    assert.equal(recoveryHasExactValidationV02(status),false);
+    assert.notEqual(recoveryConfirmationStateV02(status),"confirmed");
+  }
+  assert.equal(recoveryHasExactValidationV02(recoveryPresentationFixture({backups:[verifiedBackup()],operation:completedValidation()})),true);
+  assert.equal(recoveryConfirmationStateV02(healthyStatus),"unverified");
   const acceptedBackup = buildRecoverySafetyViewV01({
     status: recoveryPresentationFixture({
       latest_operation: latestOperation("continue_with_current_data", {
@@ -537,7 +614,7 @@ function testRecoverySafetyPresentationV01() {
     }),
     selected_backup_id: null,
   });
-  assert.match(acceptedBackup.latest_operation_summary ?? "", /verified recovery point/u);
+  assert.match(acceptedBackup.latest_operation_summary ?? "", /historical operation recorded successful backup validation/u);
 
   const unavailable = buildUnavailableRecoverySafetyViewV01();
   assert.equal(unavailable.mode, "unknown");
@@ -557,7 +634,7 @@ function testRecoverySafetyPresentationV01() {
     "status_unknown",
     "restore_scheduled",
     "retry_scheduled",
-    "backup_created",
+    "operation_recorded",
   ]) {
     assert.equal(recoveryActionOutcomeRequiresRefreshV01(outcome), true);
   }
@@ -647,18 +724,28 @@ function latestOperation(
 function verifiedBackup(): RecoveryStatusV01["backups"][number] {
   return {
     backup_id: "backup:verified",
+    backup_identity: `sha256:${"b".repeat(64)}`,
+    target_binding: `sha256:${"c".repeat(64)}`,
     label: "Verified recovery point",
     created_at: "2026-07-21T04:00:00.000Z",
     reason: "pre_update",
     source_application_version: "0.1.0",
-    verified: true,
+    verified: false,
   };
+}
+
+function completedValidation(): NonNullable<RecoveryStatusV01["operation"]> {
+  const backup = verifiedBackup();
+  return {request_id:requestId,state:"completed",reason:null,action:"verify_backup",accepted_at:backup.created_at,finished_at:backup.created_at,observation_boundary:"exact_operation_validation_not_perpetual_freshness",
+    result:{backup_id:backup.backup_id,backup_identity:backup.backup_identity,target_binding:backup.target_binding,verified_at:backup.created_at,validator_contract:"augnes.recovery-backup.v1",application_version:"0.1.0",build_identity:null,runtime_contract:"augnes-local-runtime-supervisor-v1",runtime_schema_version:2,creation_completed:false}};
 }
 
 function recoveryStatusFixture(): Omit<RecoveryStatusV01, "continuity"> {
   return {
-    contract: "augnes.recovery-product.v1",
-    schema_version: 1,
+    contract: "augnes.recovery-product.v2",
+    schema_version: 2,
+    admission_binding: requestId,
+    operation: null,
     recovery_mode: false,
     application: {
       version: "0.1.0",
@@ -681,7 +768,7 @@ function recoveryStatusFixture(): Omit<RecoveryStatusV01, "continuity"> {
       capability_availability: "runtime_and_bridge",
     },
     latest_operation: null,
-    backup_inventory_state: "available",
+    backup_inventory_state: "metadata_only",
     backup_count: 0,
     legacy_backup_count: 0,
     legacy_backup_unavailable_count: 0,
@@ -691,6 +778,7 @@ function recoveryStatusFixture(): Omit<RecoveryStatusV01, "continuity"> {
     backups: [],
     actions: {
       create_backup: true,
+          verify_backup: true,
       retry_update: false,
       restore_backup: false,
     },

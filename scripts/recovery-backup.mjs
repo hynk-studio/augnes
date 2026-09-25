@@ -1936,6 +1936,13 @@ export function readRecoveryOperationResults(
 ) {
   assertAbsolute(backupDirectory, "recovery_backup_directory_invalid");
   cleanupRecoveryOperationWriteResidue(backupDirectory);
+  return readRecoveryOperationResultsMetadata(backupDirectory, dependencies);
+}
+
+// Status is observation only. Write-residue cleanup remains with the existing
+// explicitly owned lifecycle/writer, never with a status projection.
+export function readRecoveryOperationResultsMetadata(backupDirectory, dependencies = {}) {
+  assertAbsolute(backupDirectory, "recovery_backup_directory_invalid");
   const filePath = path.join(backupDirectory, RECOVERY_OPERATION_FILE);
   try {
     const value = readStableJsonFile(filePath, {
