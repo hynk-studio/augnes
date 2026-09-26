@@ -5,8 +5,12 @@ import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspect
 import { createRunResultReviewHrefV01 } from "@/lib/vnext/ai-workplane-review-href";
 import { readVNextLocalOperatorSessionHistoryV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
+import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01 } from "@/lib/vnext/runtime/authored-successor-revision";
+import { inspectAuthoredSuccessorPacketV01 } from "@/lib/vnext/runtime/authored-successor-task";
+import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
+import { readActiveProjectSelectionV01 } from "./project-lifecycle-registry";
 import { assertWorkExpectationRecord, buildWorkExpectationRecord, expectationCheck, expectationHash, expectationRef, expectationSourceRef } from "@/lib/vnext/work-expectation";
-import { WORK_EXPECTATION_VERSION, type WorkExpectation, type WorkExpectationAttempt, type WorkExpectationComparison, type WorkExpectationRecord, type WorkOutcomeReport } from "@/types/vnext/work-expectation";
+import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, WORK_EXPECTATION_VERSION, type WorkExpectation, type WorkExpectationAttempt, type WorkExpectationComparison, type WorkExpectationRecord, type WorkOutcomeReport } from "@/types/vnext/work-expectation";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { CriterionAssessmentReadbackV01 } from "@/types/vnext/criterion-assessment";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
@@ -56,6 +60,13 @@ export function readWorkExpectationRecords(db: Database.Database, scope: Scope):
       expectationCheck(forecast.kind === "expectation" && expectationHash(forecast.packet_ref) === expectationHash(r.packet_ref) &&
         expectationHash(expectationRef(forecast)) === expectationHash(r.expectation_ref) && Date.parse(r.recorded_at) > Date.parse(forecast.recorded_at));
       if (r.kind === "attempt_binding") {
+        if (r.chronology === ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY) {
+          expectationCheck(packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01), "expectation_chronology_profile_invalid");
+          // Validate the immutable family and genuine result anchor, without
+          // requiring the historical packet to remain current or a local run
+          // to be invented after import. Local chronology is checked separately.
+          inspectAuthoredSuccessorPacketV01(db, { config: { ...scope, enabled: true, database_path: db.name, operator_id: "expectation-reader" }, packet });
+        } else expectationCheck(!packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01), "expectation_chronology_profile_invalid");
         expectationCheck(records.filter(item => item.kind === "attempt_binding" && item.packet_ref.external_id === r.packet_ref.external_id).length === 1);
         const preceding = records.filter((item): item is WorkExpectation => item.kind === "expectation" && item.packet_ref.external_id === r.packet_ref.external_id);
         expectationCheck(preceding.at(-1)?.record_id === forecast.record_id && preceding.every(item => Date.parse(item.recorded_at) < Date.parse(r.recorded_at)));
@@ -88,17 +99,29 @@ export function readWorkExpectationRecords(db: Database.Database, scope: Scope):
   return records;
 }
 
-/** Called only in the existing first-run admission transaction, before its ledger insert.
+/** Called only in the existing Start transaction, before its ledger insert.
  * Invalid/unavailable optional material never grants or blocks Start. */
 export function bindWorkExpectationToAttempt(db: Database.Database, input: Scope & {
   packet: TaskContextPacketV01; run_id: string; started_at: string; mode: string;
 }): WorkExpectationAttempt | null {
   expectationCheck(db.inTransaction, "expectation_transaction_required");
-  if (input.mode !== "interactive" || inspectProjectManagedRunHistoryV01(db, input).status !== "none") return null;
+  if (input.mode !== "interactive") return null;
   let forecast: WorkExpectation | undefined;
+  let chronology: WorkExpectationAttempt["chronology"] = "same_transaction_as_first_local_interactive_run";
   try {
     const records = readWorkExpectationRecords(db, input);
-    if (records.length >= 256 || records.some(r => r.kind === "attempt_binding")) return null;
+    if (records.length >= 256) return null;
+    if (input.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)) {
+      const chain = inspectCurrentOrdinarySuccessorRevisionChainV01(db, input, input.started_at);
+      if (!chain?.projection_current || chain.tip_packet.packet_id !== input.packet.packet_id ||
+        chain.tip_packet.integrity.fingerprint !== input.packet.integrity.fingerprint ||
+        readActiveProjectSelectionV01(db, input.workspace_id)?.project_id !== input.project_id ||
+        ordinarySuccessorRevisionExecutionBlockedV01(db, input, chain) ||
+        records.some(r => r.kind === "attempt_binding" && chain.packet_ids.includes(r.packet_ref.external_id))) return null;
+      assertOrdinarySuccessorRevisionRootV01(db, input, chain);
+      chronology = ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY;
+    } else if (inspectProjectManagedRunHistoryV01(db, input).status !== "none" ||
+      records.some(r => r.kind === "attempt_binding")) return null;
     forecast = records.filter((r): r is WorkExpectation => r.kind === "expectation" &&
       r.packet_ref.external_id === input.packet.packet_id && r.packet_ref.source_ref === input.packet.integrity.fingerprint).at(-1);
     if (!forecast || Date.parse(forecast.recorded_at) >= Date.parse(input.started_at)) return null;
@@ -110,7 +133,7 @@ export function bindWorkExpectationToAttempt(db: Database.Database, input: Scope
   const binding = buildWorkExpectationRecord<WorkExpectationAttempt>({
     version: WORK_EXPECTATION_VERSION, kind: "attempt_binding", workspace_id: input.workspace_id, project_id: input.project_id,
     recorded_at: input.started_at, packet_ref: forecast.packet_ref, expectation_ref: expectationRef(forecast),
-    run_id: input.run_id, run_created_at: input.started_at, chronology: "same_transaction_as_first_local_interactive_run",
+    run_id: input.run_id, run_created_at: input.started_at, chronology,
   });
   insertWorkExpectationRecord(db, binding);
   return binding;

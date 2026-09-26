@@ -4,22 +4,27 @@ import { expectationSnapshotRefs, insertWorkExpectationRecord, readWorkExpectati
 import { buildWorkExpectationRecord, expectationCheck, expectationHash, expectationKeys, expectationRef, expectationSourceRef, expectationText } from "@/lib/vnext/work-expectation";
 import { deriveCriterionIdentityV01 } from "@/lib/vnext/criterion-identity";
 import { WORK_EXPECTATION_LIMIT, WORK_EXPECTATION_RULE, WORK_EXPECTATION_VERSION, type WorkExpectation, type WorkOutcomeReport } from "@/types/vnext/work-expectation";
-import { readProjectWorkRevisionEligibilityStrictV01 } from "./project-work-revision";
-import { inspectPreExecutionProjectWorkRevisionChainV01 } from "./pre-execution-project-work-revision";
+import { inspectRevisableProjectWorkChainV01, readProjectWorkRevisionEligibilityStrictV01 } from "./project-work-revision";
 import { readProjectRunResultSourceBindingV01 } from "./project-run-result-read-model";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSessionCredentialV01, type VNextLocalOperatorSecretSourceV01 } from "./local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 
+function expectationAuthoringAvailable(eligibility: ReturnType<typeof readProjectWorkRevisionEligibilityStrictV01>): boolean {
+  // A valid final ordinary revision may still receive a forecast. The packet
+  // revision budget does not authorize another packet or consume forecast capacity.
+  return eligibility.eligible || (eligibility.current_lineage_kind === "authored_successor_task" &&
+    eligibility.status === "revision_limit_reached");
+}
+
 export function readWorkExpectationPreparation(db: Database.Database, config: { workspace_id: string; project_id: string }) {
-  const revision = readProjectWorkRevisionEligibilityStrictV01(db, config);
-  const successor = revision.current_lineage_kind === "authored_successor_task";
-  const eligibility = successor ? { ...revision, eligible: false, status: "blocked_execution_started" as const,
-    reason: "managed_run_history_present" as const } : revision;
+  const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, config);
   const records = readWorkExpectationRecords(db, config);
   const history = records.filter((r): r is WorkExpectation => r.kind === "expectation" &&
     r.packet_ref.external_id === eligibility.current_packet_id && r.packet_ref.source_ref === eligibility.current_packet_fingerprint);
-  const criteria = !successor && eligibility.current_packet_id ? inspectPreExecutionProjectWorkRevisionChainV01(db, config).tip_packet.task.success_criteria.map(criterion => ({ criterion, criterion_id: deriveCriterionIdentityV01(criterion) })) : [];
-  return { eligibility, history, criteria, outcome_rule: WORK_EXPECTATION_RULE };
+  const criteria = eligibility.current_packet_id ? inspectRevisableProjectWorkChainV01(db, config).tip_packet.task.success_criteria.map(criterion => ({ criterion, criterion_id: deriveCriterionIdentityV01(criterion) })) : [];
+  return { eligibility, history, criteria, authoring_available: expectationAuthoringAvailable(eligibility),
+    capacity_available: records.length < 255 && history.length < WORK_EXPECTATION_LIMIT,
+    outcome_rule: WORK_EXPECTATION_RULE };
 }
 
 export function recordWorkExpectationMaterial(db: Database.Database, input: {
@@ -46,11 +51,11 @@ export function recordWorkExpectationMaterial(db: Database.Database, input: {
     const at = admission.action_observed_at;
     let saved: WorkExpectation | WorkOutcomeReport;
     if (forecast) {
-      const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, input.config);
-      expectationCheck(eligibility.eligible && eligibility.current_lineage_kind !== "authored_successor_task", "expectation_pre_start_only");
+      const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, input.config, { evaluated_at: at });
+      expectationCheck(expectationAuthoringAvailable(eligibility), "expectation_pre_start_only");
       expectationCheck(eligibility.current_packet_id === request.expected_packet_id && eligibility.current_packet_fingerprint === request.expected_packet_fingerprint,
         "expectation_packet_changed");
-      const packet = inspectPreExecutionProjectWorkRevisionChainV01(db, input.config).tip_packet;
+      const packet = inspectRevisableProjectWorkChainV01(db, input.config).tip_packet;
       const criterion = packet.task.success_criteria.find(c => deriveCriterionIdentityV01(c) === request.criterion_id);
       expectationCheck(criterion, "expectation_criterion_changed");
       const history = records.filter((r): r is WorkExpectation => r.kind === "expectation" && r.packet_ref.external_id === packet.packet_id);

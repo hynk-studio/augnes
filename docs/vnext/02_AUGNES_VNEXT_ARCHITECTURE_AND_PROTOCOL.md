@@ -651,11 +651,13 @@ predicted satisfied/unsatisfied outcome, short reason and applicability
 conditions. The server records operator/session provenance, time, information
 cutoff, source-currentness limits and exposure. External knowledge and external
 source currentness are unknown. Revision is an explicit append with a predecessor
-ref and compare-and-set admission, never replacement. The first scope is one
-criterion on the first upcoming interactive attempt of an initial or pre-start
-revised work packet. Packet changes retain the earlier record and require a new
-explicit binding. History is bounded to 32 versions per packet and 256 records
-per project; this does not add a Start or review action requirement.
+ref and compare-and-set admission, never replacement. The scope is one criterion
+on the first upcoming interactive attempt of an initial preparation, an ordinary
+outcome-linked preparation, or their supported same-task revisions. Packet
+changes retain the earlier record and require a newly authored expectation for
+the exact changed packet, even when the criterion text is unchanged. History is
+bounded to 32 versions per packet and 256 records per project; this does not add
+a Start or review action requirement.
 
 Prospective saves use the same immediate transaction, authenticated mutation and
 managed-run-history/currentness owners as pre-start work revision. Start freezes
@@ -664,10 +666,28 @@ the immutable binding ID/fingerprint in local run metadata. A save racing with o
 following admitted execution refuses. Client timestamps cannot establish an
 earlier commitment. The binding does not change the packet, worker-rendered
 instructions, task criteria, verification plan, grant or execution admission.
-An absent or invalid optional record does not supply new execution authority.
+Absent, invalid, unavailable or capacity-exhausted optional material neither
+grants nor blocks an otherwise eligible Start. Canonical execution safety checks
+remain binding. Prospective authoring reserves a slot for the attempt binding;
+if another legitimate optional record consumes it, Start proceeds without one.
 No expectation is automatically selected for worker or later context. The
 operator can see it; the workflow is not blinded, and attention/copying remain
 unknown.
+
+Initial-family bindings retain the chronology marker
+`same_transaction_as_first_local_interactive_run` and its zero-project-history
+meaning. Ordinary successors use the additive marker
+`same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1`.
+Its reader validates the immutable ordinary preparation family and genuine
+result anchor; its Start binder also requires the exact fresh current tip,
+active project, physical root, complete conflict checks and no admission or
+binding for that family. Settled predecessor runs and their separate forecasts
+do not consume the successor's first attempt. A final valid revision may receive
+an expectation after the packet revision budget is exhausted; this does not
+permit another packet revision or enlarge expectation budgets. Older scoped
+successor, revalidation, operational continuation and automated execution
+profiles are not admitted by this extension. Retries do not acquire another
+prospective binding. Normal restart rereads the existing immutable binding.
 
 The fixed rule `exact_criterion_or_operator_report.v0.1` compares only the bound
 attempt's exact result. A supported typed criterion plan retains its existing
@@ -792,8 +812,9 @@ extends the existing authenticated same-task revision writer to the exact
 current ordinary outcome-linked preparation and its revision tip. A settled
 historical predecessor does not prevent editing. Browser reopening and the
 repository-bound revision/source readers use the same validated family. The
-older initial preparation, different-task, scoped revalidation and prospective
-expectation contracts retain their existing eligibility boundaries.
+older initial preparation, different-task and scoped revalidation contracts
+retain their existing eligibility boundaries. Optional expectations for this
+ordinary family use the separately bounded pre-outcome expectation contract above.
 
 Each save appends one immutable TaskContextPacket with the immediate prior
 packet, original preparation, genuine predecessor receipt, source/root bindings

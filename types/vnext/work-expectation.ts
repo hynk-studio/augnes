@@ -4,6 +4,7 @@ import type { CriterionAssessmentBasisV01, CriterionAssessmentStatusV01 } from "
 export const WORK_EXPECTATION_VERSION = "work_expectation_record.v0.1" as const;
 export const WORK_EXPECTATION_RULE = "exact_criterion_or_operator_report.v0.1" as const;
 export const WORK_EXPECTATION_LIMIT = 32;
+export const ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY = "same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1" as const;
 
 interface ExpectationEnvelope {
   version: typeof WORK_EXPECTATION_VERSION;
@@ -39,7 +40,7 @@ export interface WorkExpectationAttempt extends ExpectationEnvelope {
   expectation_ref: ExternalRefV01;
   run_id: string;
   run_created_at: string;
-  chronology: "same_transaction_as_first_local_interactive_run";
+  chronology: "same_transaction_as_first_local_interactive_run" | typeof ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY;
 }
 
 export interface WorkOutcomeReport extends ExpectationEnvelope {

@@ -322,23 +322,32 @@ function expectationSnapshots() {
   const scopedCore = (kind, id, bindings = {}) => {
     const value = coreRow(kind, id, bindings); value.identity.project_id = "project:expectation"; return value;
   };
-  const packet = scopedCore("task_context_packet", "packet:expectation");
-  const receipt = scopedCore("run_receipt", "receipt:expectation", { run_id: "run:expectation" });
-  const forecast = scopedCore("work_expectation_record", "expectation:original");
-  const binding = scopedCore("work_expectation_record", "expectation:attempt");
-  const reports = [scopedCore("work_expectation_record", "report:first"), scopedCore("work_expectation_record", "report:corrected")];
-  const empty = { packet_id: packet.identity.record_id, packet_fingerprint: packet.identity.fingerprint, expectation_id: null, expectation_fingerprint: null, attempt_id: null, attempt_fingerprint: null, receipt_id: null, receipt_fingerprint: null, previous_id: null, previous_fingerprint: null, run_id: null };
-  forecast.identity.expectation_binding = { ...empty, kind: "expectation", revision: 1 };
-  binding.identity.expectation_binding = { ...empty, kind: "attempt_binding", revision: null, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, run_id: "run:expectation" };
-  reports.forEach((r, index) => { r.identity.expectation_binding = { ...empty, kind: "outcome_report", revision: index + 1, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, attempt_id: binding.identity.record_id, attempt_fingerprint: binding.identity.fingerprint, receipt_id: receipt.identity.record_id, receipt_fingerprint: receipt.identity.fingerprint, previous_id: index ? reports[0].identity.record_id : null, previous_fingerprint: index ? reports[0].identity.fingerprint : null }; });
-  const run = runRow("run:expectation", "project:expectation");
-  Object.assign(run.identity.metadata_bindings, { work_expectation_binding_id: binding.identity.record_id, work_expectation_binding_fingerprint: binding.identity.fingerprint });
+  const rows = [];
+  for (const [index, suffix] of ['a', 'b', 'b1', 'b2'].entries()) {
+    const packet = scopedCore("task_context_packet", `packet:expectation:${suffix}`);
+    const forecast = scopedCore("work_expectation_record", `expectation:original:${suffix}`);
+    const empty = { packet_id: packet.identity.record_id, packet_fingerprint: packet.identity.fingerprint, chronology: null,
+      expectation_id: null, expectation_fingerprint: null, attempt_id: null, attempt_fingerprint: null, receipt_id: null, receipt_fingerprint: null, previous_id: null, previous_fingerprint: null, run_id: null };
+    forecast.identity.expectation_binding = { ...empty, kind: "expectation", revision: 1 };
+    rows.push(packet, forecast);
+    if (suffix === 'b' || suffix === 'b1') continue;
+    const runId = `run:expectation:${suffix}`;
+    const receipt = scopedCore("run_receipt", `receipt:expectation:${suffix}`, { run_id: runId });
+    const binding = scopedCore("work_expectation_record", `expectation:attempt:${suffix}`);
+    const reports = [scopedCore("work_expectation_record", `report:first:${suffix}`), scopedCore("work_expectation_record", `report:corrected:${suffix}`)];
+    binding.identity.expectation_binding = { ...empty, kind: "attempt_binding", revision: null, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, run_id: runId,
+      chronology: suffix === 'a' ? 'same_transaction_as_first_local_interactive_run' : 'same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1' };
+    reports.forEach((r, i) => { r.identity.expectation_binding = { ...empty, kind: "outcome_report", revision: i + 1, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, attempt_id: binding.identity.record_id, attempt_fingerprint: binding.identity.fingerprint, receipt_id: receipt.identity.record_id, receipt_fingerprint: receipt.identity.fingerprint, previous_id: i ? reports[0].identity.record_id : null, previous_fingerprint: i ? reports[0].identity.fingerprint : null }; });
+    const run = runRow(runId, "project:expectation");
+    Object.assign(run.identity.metadata_bindings, { work_expectation_binding_id: binding.identity.record_id, work_expectation_binding_fingerprint: binding.identity.fingerprint });
+    const events = [["run_created", "running"], ["run_started", "running"], ["step_started", "running"], ["step_completed", "completed"], ["run_completed", "completed"]]
+      .map(([event, status], i) => eventRow(`expectation-event:${suffix}:${i}`, runId, event, status, index * 5 + i + 1));
+    rows.push(receipt, scopedCore("episode_delta_proposal", `proposal:expectation:${suffix}`), binding, ...reports, run, runStepRow(`step:expectation:${suffix}`, runId), ...events);
+  }
   const beforeSelection = activeSelectionRow("project:expectation", 1);
-  const afterSelection = activeSelectionRow("project:primary", 2);
-  afterSelection.stable_key = beforeSelection.stable_key;
+  const afterSelection = activeSelectionRow("project:primary", 2); afterSelection.stable_key = beforeSelection.stable_key;
   const roots = [rootBindingRow("project:expectation"), rootBindingRow("project:primary")];
-  const events = [["run_created", "running"], ["run_started", "running"], ["step_started", "running"], ["step_completed", "completed"], ["run_completed", "completed"]].map(([event, status], i) => eventRow(`expectation-event:${i}`, "run:expectation", event, status, i + 1));
-  return snapshots([beforeSelection, ...roots], [afterSelection, ...roots, recentRow("2026-08-02T00:00:00.000Z"), packet, receipt, scopedCore("episode_delta_proposal", "proposal:expectation"), forecast, binding, ...reports, run, runStepRow("step:expectation", "run:expectation"), ...events, sessionRow("session:expectation", "project:expectation"), sessionRow("session:primary")]);
+  return snapshots([beforeSelection, ...roots], [afterSelection, ...roots, recentRow("2026-08-02T00:00:00.000Z"), ...rows, sessionRow("session:expectation", "project:expectation"), sessionRow("session:primary")]);
 }
 
 function nativeSnapshots() {

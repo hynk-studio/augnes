@@ -40,7 +40,7 @@ export function WorkExpectationPreparation({ initialization }: { initialization:
     <summary>Expectation for this attempt (optional)</summary>
     <p className={styles.copy}>Keep what the task must achieve separate from what you predict. This record applies only to the first upcoming interactive attempt of this exact work version.</p>
     {latest ? <ExpectationHistory records={material!.history} /> : null}
-    {material?.eligibility.eligible ? <form className={styles.form} onSubmit={async event => {
+    {material?.authoring_available && material.capacity_available ? <form className={styles.form} onSubmit={async event => {
       event.preventDefault(); if (saving.current || !initialization.current_packet) return;
       saving.current = true; setBusy(true); setMessage("");
       try {
@@ -73,7 +73,9 @@ export function WorkExpectationPreparation({ initialization }: { initialization:
       <button className={styles.secondaryButton} disabled={busy || !reason.trim() || !conditions.trim()} data-expectation-action="save">
         {busy ? "Saving…" : latest ? "Record a new expectation version" : "Record expectation"}
       </button>
-    </form> : material ? <p>Prospective recording is unavailable after execution admission or for an unsupported work version.</p> : null}
+    </form> : material ? <p>{!material.capacity_available
+      ? "Optional expectation history is full for this work or project. Eligible work can still start without a new expectation."
+      : "Prospective recording is unavailable after execution admission or for an unsupported work version."}</p> : null}
     <p className={styles.muted}>{EXPOSURE}</p>
     {message ? <p role="status">{message}</p> : null}
   </details>;

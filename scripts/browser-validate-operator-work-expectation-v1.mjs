@@ -85,6 +85,7 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.restartRuntimePreservingBrowserSession(fixture.manifest.expectation_project_id);
       await lifecycle.navigate(resultUrl);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "comparison survives runtime restart");
+      await exerciseSavedSuccessorExpectation(fixture, lifecycle);
       result.work_expectation_preparation_result_reload_source = true;
       completeDetailedField('work_expectation_preparation_result_reload_source');
       await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(fixture.manifest.project_id)}`);
@@ -105,6 +106,93 @@ await runOperatorExecutionBrowserChildV1({
     });
   },
 });
+
+async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
+  const appOrigin = lifecycle.app_origin;
+  const projectId = fixture.manifest.expectation_project_id;
+  const initial = readExpectationState(fixture.writable_database_path, projectId);
+  const aReceipt = initial.receipts[0];
+  const resultUrl = `${appOrigin}/workbench/results/${aReceipt.receipt_id.replace(":", "~")}`;
+  await lifecycle.navigate(resultUrl);
+  await lifecycle.waitForCondition(`document.querySelector('[data-result-work-action="open"]') !== null`, 'settled A can prepare ordinary B');
+  await clickSelector(lifecycle, '[data-result-work-action="open"]');
+  await lifecycle.waitForCondition(`document.querySelector('#new-work-goal') !== null`, 'ordinary successor composer');
+  await lifecycle.setFormControlValue('#new-work-goal', 'Inspect the cold observation');
+  await lifecycle.setFormControlValue('#new-work-success-criteria', 'The cold condition is established');
+  await lifecycle.setFormControlValue('#new-work-non-goals', 'Do not infer warm behavior');
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+  await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('0 selected')`, 'explicit empty selection');
+  await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]') !== null`, 'ordinary B preview');
+  await clickSelector(lifecycle, '[data-result-work-action="save"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, 'ordinary B saved');
+  await clickSelector(lifecycle, '[data-result-work-saved] a');
+  await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === 'Inspect the cold observation'`, 'saved B fresh Browser read');
+  await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=reopen`);
+  await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B_FORECAST_ONLY');
+  const bForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  await clickSelector(lifecycle, '[data-work-revision-action="open"]');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B');
+  await lifecycle.setFormControlValue('#work-revision-goal', 'Inspect the cold observation with its uncertainty');
+  await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'definition-only B1 saved');
+  assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B prediction did not transfer to B1');
+  await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B1_FORECAST_ONLY');
+  const b1Forecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  await clickSelector(lifecycle, '[data-work-revision-action="open"]');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B1');
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+  await lifecycle.setFormControlValue('#selected-note-source', 'Explicit correction');
+  await lifecycle.setFormControlValue('#selected-note-provenance', 'user_declaration');
+  await lifecycle.setFormControlValue('#selected-note-kind', 'Changed assumption / user correction');
+  await lifecycle.setFormControlValue('#selected-note-text', 'Cold observations do not establish warm behavior. Warm remains unknown.');
+  await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('1 selected')`, 'note-only B2 comparison');
+  await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'note-only B2 saved');
+  assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
+  await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=final`);
+  await saveBrowserExpectation(lifecycle, 'unsatisfied', 'P33_B2_FORECAST_ONLY');
+  const finalForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  assert.notEqual(finalForecast.packet_ref.external_id, bForecast.packet_ref.external_id);
+  assert.notEqual(finalForecast.packet_ref.external_id, b1Forecast.packet_ref.external_id);
+  assert.equal(readExpectationState(fixture.writable_database_path, projectId).runs, 1, 'Authoring and revision create no execution');
+  await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(projectId)}`);
+  await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, 'hydrated B2 Project Home');
+  await openProjectOptions(lifecycle);
+  await clickSelector(lifecycle, '[data-direct-host-action="deterministic"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-direct-host-round-trip-status="completed"], [data-direct-host-round-trip-status="error"]') !== null`, 'normal B2 deterministic execution');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null`), true,
+    await lifecycle.evaluateString(`document.querySelector('[data-direct-host-round-trip-status="error"] [role="alert"]')?.textContent ?? 'B2 execution did not complete'`));
+  const state = readExpectationState(fixture.writable_database_path, projectId);
+  assert.equal(state.receipts.length, 2);
+  const receipt = state.receipts.find(r => r.task_context_packet_ref.external_id === finalForecast.packet_ref.external_id);
+  assert(receipt);
+  const bResultUrl = `${appOrigin}/workbench/results/${receipt.receipt_id.replace(":", "~")}`;
+  await lifecycle.navigate(bResultUrl);
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, 'B2 result reads exact prospective binding');
+  await reportBrowserExpectation(lifecycle, 'unsatisfied', 'The bounded observation did not establish the cold criterion.');
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="match"]') !== null`, 'B2 prediction matches reported failure');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
+  await reportBrowserExpectation(lifecycle, 'unknown', 'Correction: the observation is incomplete.');
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unknown"]') !== null`, 'B2 correction preserves unknown');
+  const comparison = (await readProtectedJson(lifecycle, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: receipt.receipt_id }))).result.expectation;
+  assert.deepEqual(comparison.expectation, finalForecast); assert.equal(comparison.attempt.run_id, receipt.run_id);
+  assert.equal(comparison.attempt.chronology, 'same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1');
+  assert.equal(comparison.history.length, 1); assert.equal(comparison.reports.length, 2);
+  await lifecycle.navigate('about:blank'); await lifecycle.terminateRuntime();
+  await lifecycle.restartRuntimePreservingBrowserSession(projectId);
+  await lifecycle.navigate(bResultUrl);
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unknown"]') !== null && document.body.textContent.includes('P33_B2_FORECAST_ONLY')`, 'B2 binding and comparison survive restart');
+  for (const width of [390, 768, 1280]) {
+    await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width === 390 });
+    assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth`), true, `successor expectation viewport ${width}`);
+  }
+  await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
+  console.log(JSON.stringify({ saved_successor_expectation_ui: 'pass', revisions: ['definition', 'note'], silent_transfer: false, actual_attempt_bound: true, restart_comparison: 'unknown' }));
+}
 
 async function readProtectedJson(lifecycle, route) {
   return lifecycle.evaluateJson(`(async () => {

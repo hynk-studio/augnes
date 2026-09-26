@@ -964,8 +964,9 @@ export function SemanticReviewSurface({
                   onAction={delegatedState.act}
                 />
               ) : null}
-              {delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
-                ["initial_user_defined", "pre_execution_user_revision", "pre_execution_new_task"].includes(firstWorkInitialization.current_packet.lineage_kind) ? (
+              {!firstWorkBusy && !workRevisionBusy && delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
+                (["initial_user_defined", "pre_execution_user_revision", "pre_execution_new_task"].includes(firstWorkInitialization.current_packet.lineage_kind) ||
+                  firstWorkInitialization.revision_eligibility.current_lineage_kind === "authored_successor_task") ? (
                 <WorkExpectationPreparation key={`${firstWorkInitialization.project_id}:${firstWorkInitialization.active_selection_revision}:${firstWorkInitialization.current_packet.packet_id}:${firstWorkInitialization.current_packet.packet_fingerprint}`}
                   initialization={firstWorkInitialization} />
               ) : null}
