@@ -752,6 +752,39 @@ natural-language contradiction detection. The authored handoff requires exact
 user review, and execution requires separate authority. A native-completed
 result missing a required comparison check is not verified task completion.
 
+#### Explicit outcome-linked working context
+
+The additive `augnes.authored-successor-context.v0.1` profile connects normal
+result review to ordinary next-work preparation through the same authenticated
+authored-successor writer. It requires the exact latest completed local run and
+receipt, fresh current packet, active selection and physical root. Failed or
+unsettled runs, expired or superseded context, stale previews and competing saves
+refuse; it does not renew a lifetime or reuse the scoped revalidation profile.
+Read, comparison and preview are zero-write. Explicit save appends one packet;
+execution still requires its independent normal admission.
+The ordinary save checks the complete project ledger for nonterminal or
+unresolved runs inside its atomic transaction, returning only an existence
+result. Retained terminal history alone imposes no run-count ceiling. Unknown
+statuses, malformed metadata and invalid reconciliation flags refuse; legacy
+terminal rows without a reconciliation flag remain supported. The older scoped
+revalidation profile keeps its existing conservative history bound.
+
+The existing source-note editor carries only explicitly selected whole notes,
+with original provenance, source time and unknown currentness. The result report
+is an optional attributed source, not verified truth. A reviewer can preserve an
+original interpretation alongside a correction, retention rationale or deferred
+question with its conditions. The full receipt and predecessor stay immutable;
+every omitted predecessor note has an explicit reason. Existing accepted-state
+context retains its independent semantic lineage. Selection does not accept a
+judgment, apply a Transition or create a grant. The existing fresh source reader
+and native-host request consume the saved selection.
+
+This profile uses the normal task definition with no scoped file inventory or
+approved-instruction hashes. The older authored read-only profile still requires
+its exact scoped adapter and inventory; it cannot fall through to whole-root
+execution. Older readers refuse the new request/definition. No Core kind, store,
+migration, model call, remote transport or automatic selection is added.
+
 #### Trusted-local read-only input snapshots
 
 An explicitly selected local host profile may execute independent copies of

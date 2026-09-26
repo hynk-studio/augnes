@@ -19,6 +19,7 @@ import {
   type RecoveredAutonomyDeltaBatch,
 } from "../../types/autonomy-runner-execution";
 import {
+  AUTONOMY_RUNNER_TERMINAL_STATUSES,
   buildDefaultRunnerAuthorityBoundary,
   buildDefaultRunnerBudgetSnapshot,
   buildDefaultRunnerSourceRefs,
@@ -619,6 +620,30 @@ export function listAutonomyRunLedgerRecords(
       .all(...params, limit) as RunRow[];
     return rows.map(parseRun);
   });
+}
+
+/** Complete project-scoped conflict check with constant-size returned data.
+ * Call inside the caller's save transaction when this gates a mutation.
+ * Legacy terminal rows may omit reconciliation metadata; malformed metadata,
+ * unknown statuses and any present flag other than false remain unresolved.
+ */
+export function hasUnsettledAutonomyRunLedgerRecords(
+  options: AutonomyRunnerLedgerDbOptions & { scope: string },
+): boolean {
+  return withAutonomyRunnerLedgerDb(options, (db) => db.prepare(
+    `SELECT 1 FROM autonomy_runs
+     WHERE scope = ? AND (
+       status NOT IN (${AUTONOMY_RUNNER_TERMINAL_STATUSES.map(() => "?").join(", ")})
+       OR CASE
+         WHEN json_valid(metadata_json) = 0 THEN 1
+         WHEN json_type(metadata_json) <> 'object' THEN 1
+         ELSE EXISTS (
+           SELECT 1 FROM json_each(metadata_json)
+           WHERE key = 'reconciliation_required' AND type <> 'false'
+         )
+       END
+     ) LIMIT 1`,
+  ).get(options.scope, ...AUTONOMY_RUNNER_TERMINAL_STATUSES) !== undefined);
 }
 
 export function updateAutonomyRunLedgerFields(

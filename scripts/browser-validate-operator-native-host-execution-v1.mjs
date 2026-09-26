@@ -19,6 +19,7 @@ import { activateProject, openProjectOptions, clickSelector, saveBrowserExpectat
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
 import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
+import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -2074,6 +2075,68 @@ await runOperatorExecutionBrowserChildV1({
         result.post_result_fresh_successor_execution = true;
         completeDetailedField("post_result_fresh_successor_execution");
         record("executed_result_user_correction_reaches_fresh_preparation_and_distinct_execution");
+        const beforeNextWork = readFirstWorkState(fixture.writable_database_path, projectId);
+        const retainedRows = historyRows();
+        await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(projectId)}`);
+        await lifecycle.waitForCondition(`document.querySelector('[data-review-result-link="true"]') !== null`, "latest result available");
+        await lifecycle.evaluateBoolean(`(() => {
+          const links = Array.from(document.querySelectorAll('[data-review-result-link="true"]'));
+          if (links.some(link => link.getBoundingClientRect().width > 0)) return true;
+          const details = links[0]?.closest('details');
+          details?.querySelector('summary')?.click();
+          return Boolean(details);
+        })()`);
+        await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-review-result-link="true"]')).some(link => link.getBoundingClientRect().width > 0)`, "visible result link after More context");
+        await clickSelector(lifecycle, '[data-review-result-link="true"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-result-work-action="open"]') !== null`, "result-to-next-work action");
+        await clickSelector(lifecycle, '[data-result-work-action="open"]');
+        await lifecycle.waitForCondition(`document.querySelector('#new-work-goal') !== null`, "receipt-bound next-work editor");
+        const nextGoal = "Check calibration before reconsidering the untested warm condition";
+        const nextJudgment = "Retain the bounded host observation. Revise the explanation: it does not establish warm behavior. Warm remains untested, not prohibited; defer judgment until calibration is available. This is an explicit user correction, not verified truth.";
+        await lifecycle.setFormControlValue('#new-work-goal', nextGoal);
+        await lifecycle.setFormControlValue('#new-work-success-criteria', 'Read the selected observation and preserve its applicability conditions');
+        await lifecycle.setFormControlValue('#new-work-non-goals', 'Do not test warm behavior or accept semantic changes');
+        await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+        await clickSelector(lifecycle, '[data-new-source-carry]');
+        await lifecycle.setFormControlValue('#selected-note-source', 'Explicit result review, revision 1');
+        await lifecycle.setFormControlValue('#selected-note-provenance', 'user_declaration');
+        await lifecycle.setFormControlValue('#selected-note-kind', 'Changed assumption / user correction');
+        await lifecycle.setFormControlValue('#selected-note-text', nextJudgment);
+        await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+        await lifecycle.setFormControlValue('#selected-note-source', 'Unrelated draft');
+        await lifecycle.setFormControlValue('#selected-note-text', 'EXCLUDED_NEXT_WORK_NOTE: unrelated typography');
+        await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+        await lifecycle.evaluateBoolean(`(() => { document.querySelectorAll('[data-selected-source-action="exclude"]')[2].click(); return true; })()`);
+        await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('2 selected')`, "explicit selected-material comparison");
+        await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]') !== null`, "next-work review preview");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-result-work-preview]').textContent.includes(${JSON.stringify(nextJudgment)})`), true);
+        await clickSelector(lifecycle, '[data-result-work-action="edit"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]') === null && document.querySelector('#new-work-goal')?.value === ${JSON.stringify(nextGoal)} && document.querySelectorAll('[data-selected-source-action="exclude"]').length === 2`, "edit preserves the reviewed draft and selection");
+        await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]')?.textContent.includes(${JSON.stringify(nextJudgment)})`, "revised preview retains the correction");
+        for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
+          await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, `result preparation fits ${width}px`);
+        }
+        assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), beforeNextWork);
+        await clickSelector(lifecycle, '[data-result-work-action="save"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, "receipt-backed next work saved");
+        assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), { ...beforeNextWork, packets: beforeNextWork.packets + 1 });
+        for (const row of retainedRows) assert.deepEqual(historyRows().find(value => value.record_id === row.record_id), row);
+        const fresh = new Database(fixture.writable_database_path, { readonly: true, fileMustExist: true });
+        try {
+          const initialization = readProjectWorkInitializationV01(fresh, { workspace_id: fixture.manifest.workspace_id, project_id: projectId });
+          assert.equal(initialization.current_work.goal, nextGoal);
+          assert.equal(initialization.selected_source_context.length, 2);
+          assert(initialization.selected_source_context.some(entry => entry.bounded_summary === nextJudgment && entry.trust_class === "user_declaration" && entry.currentness.status === "unknown"));
+          assert(!JSON.stringify(initialization.selected_source_context).includes('EXCLUDED_NEXT_WORK_NOTE'));
+        } finally { fresh.close(); }
+        await clickSelector(lifecycle, '[data-result-work-saved] a');
+        await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(nextGoal)} && document.querySelectorAll('[data-current-work-source-text]').length === 2`, "fresh current-work source consumer");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-current-work-sources]').textContent.includes(${JSON.stringify(nextJudgment)})`), true);
+        console.log(JSON.stringify({ outcome_judgment_next_work_ui: "pass", explicit_selected_notes: 2, outcome_source_copies: 0, new_runs: 0, semantic_changes: 0 }));
       } finally { db.close(); }
     });
 
@@ -2337,6 +2400,7 @@ await runOperatorExecutionBrowserChildV1({
         const assessment = review?.querySelector('[data-task-success-criteria="available"][data-task-success-status="satisfied"]');
         return {
           read_only: review?.getAttribute('data-result-review-read-only') === 'true',
+          preparation_action: review?.querySelector('[data-result-work-action="open"]') !== null,
           semantic_mutation: review?.getAttribute('data-semantic-mutation') ?? null,
           form_field_count: review?.querySelectorAll('input, textarea, select, [contenteditable="true"]').length ?? -1,
           compact_criterion_summary: assessment?.querySelector('[data-result-criterion-summary="compact"]') !== null && assessment?.textContent?.includes('Satisfied4') === true,
@@ -2345,7 +2409,8 @@ await runOperatorExecutionBrowserChildV1({
         };
       })()`);
       assert.deepEqual(exactResultRelationReadback, {
-        read_only: true,
+        read_only: false,
+        preparation_action: true,
         semantic_mutation: "false",
         form_field_count: 0,
         compact_criterion_summary: true,

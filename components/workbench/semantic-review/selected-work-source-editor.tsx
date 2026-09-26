@@ -6,15 +6,19 @@ import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-in
 import type { compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import styles from "./semantic-review.module.css";
 import { RetainedWorkSourceLookup } from "./retained-work-source-lookup";
+import type { ResultWorkBindingV01 } from "@/lib/vnext/runtime/authored-successor-task";
+import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
 
 type Comparison = ReturnType<typeof compareSelectedWorkSources>;
 const emptyNote = (): SelectedWorkSourceInput => ({ source: "", text: "", observed_at: null, provenance: "imported_unverified", label: "Unclassified / needs review" });
 type EditorNote = SelectedWorkSourceInput & { retainedSource?: RetainedWorkSourceRef };
 
-export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTask = false }: {
+export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTask = false, resultBinding, resultSource }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
   newTask?: boolean;
+  resultBinding?: ResultWorkBindingV01;
+  resultSource?: TaskContextPacketSelectedEntryV01 | null;
   onChange: (selection: SelectedWorkSourceSelection | null, pending: boolean) => void;
 }) {
   const [notes, setNotes] = useState<EditorNote[]>(() => (newTask ? [] : initialization.selected_source_context ?? []).map((entry) => ({
@@ -47,7 +51,7 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
       const response = await fetch("/api/vnext/operator/project-continuity", {
         method: "POST", cache: "no-store", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "compare_selected_work_sources",
+        body: JSON.stringify(resultBinding ? { action: "compare_result_work_sources", binding: resultBinding, notes } : { action: "compare_selected_work_sources",
           expected_current_packet_id: packet.packet_id,
           expected_current_packet_fingerprint: packet.packet_fingerprint,
           expected_active_project_id: initialization.active_project_id,
@@ -70,11 +74,12 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
 
   return <details className={styles.panel} data-selected-work-sources>
     <summary>Selected source notes for this work</summary>
-    <p className={styles.copy}>Keep a selected conversation excerpt, result or history note with its source and conditions. Comparing saves nothing. Save revision includes these notes as context for preparing the next work. You can save notes without changing the work definition or setting up execution.</p>
+    <p className={styles.copy}>Keep a selected conversation excerpt, result or history note with its source and conditions. Comparing saves nothing. {resultBinding ? "Review the previous judgment, what you retain or change and why, applicability conditions, and any unresolved question or revisit condition. Preparation carries only your selected notes." : "Save revision includes these notes as context for preparing the next work. You can save notes without changing the work definition or setting up execution."}</p>
     <p className={styles.muted}>Up to eight notes; 2,000 characters per note. Notes and source details must fit the combined context budget. Oversized selections are refused, never silently clipped. Include the source revision and meaningful chronology. Original source availability is not verified.</p>
     {newTask ? <>
       <p>Every carried note must be selected explicitly. Keep an original and its correction together when both matter.</p>
-      {(initialization.selected_source_context ?? []).map(entry => <div key={entry.entry_id}>
+      {[...(initialization.selected_source_context ?? []), ...(resultSource ? [resultSource] : [])].map(entry => <div key={entry.entry_id}>
+        <p>{entry.why_included} · {entry.trust_class.replaceAll("_", " ")} · {entry.compatibility_source_ref?.external_id} · {entry.external_ref?.observed_at ?? "Source time unknown"}</p>
         <p>{entry.bounded_summary}</p>
         <button type="button" data-new-source-carry className={styles.secondaryButton} disabled={busy || comparing || notes.length >= 8 || notes.some(note => note.text === entry.bounded_summary && note.source === entry.compatibility_source_ref!.external_id)}
           onClick={() => changeNotes([...notes, { source: entry.compatibility_source_ref!.external_id, text: entry.bounded_summary!,

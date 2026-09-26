@@ -10,6 +10,8 @@ import { INITIAL_PROJECT_WORK_LIMITS_V01 } from "@/types/vnext/project-work-init
 import { SEMANTIC_VISUAL_PRIORITY } from "@/lib/vnext/semantic-visual/semantic-visual-contract";
 import { SelectedWorkSourceEditor } from "./selected-work-source-editor";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
+import type { ResultWorkBindingV01 } from "@/lib/vnext/runtime/authored-successor-task";
+import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
 
 import styles from "./semantic-review.module.css";
 
@@ -20,6 +22,8 @@ export function FirstWorkComposer({
   mode = "initial",
   initialDefinition,
   onCancel,
+  resultBinding,
+  resultSource,
 }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
@@ -27,6 +31,8 @@ export function FirstWorkComposer({
   mode?: "initial" | "revision" | "new_task";
   initialDefinition?: ProjectWorkDefinitionV01;
   onCancel?: () => void;
+  resultBinding?: ResultWorkBindingV01;
+  resultSource?: TaskContextPacketSelectedEntryV01 | null;
 }) {
   const [goal, setGoal] = useState(initialDefinition?.goal ?? "");
   const [criteriaText, setCriteriaText] = useState(
@@ -81,10 +87,10 @@ export function FirstWorkComposer({
           {mode !== "initial" ? "Current project work" : "First project work"}
         </p>
         <h2 id={`${prefix}-title`}>
-          {mode === "new_task" ? "Prepare a different task" : mode === "revision" ? "Revise work definition" : "Define the first work"}
+          {resultBinding ? "Prepare next work from this result" : mode === "new_task" ? "Prepare a different task" : mode === "revision" ? "Revise work definition" : "Define the first work"}
         </h2>
         <p className={styles.copy}>
-          {mode === "new_task" ? "Declare a different task and explicitly select its context. The prior work stays in history and is not marked complete. Nothing starts execution." : mode === "revision"
+          {resultBinding ? "Review the recorded outcome and your working judgment, then explicitly choose material for the next task. The original observation stays in history. Preparing work does not accept a claim or start execution." : mode === "new_task" ? "Declare a different task and explicitly select its context. The prior work stays in history and is not marked complete. Nothing starts execution." : mode === "revision"
             ? "Save an append-only revision before work starts. This does not start Codex or change project files."
             : "Save one goal and the criteria that will show success. This does not start Codex or change project files."}
         </p>
@@ -146,7 +152,7 @@ export function FirstWorkComposer({
             {issues[0]!.message}
           </p>
         ) : null}
-        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"}
+        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource}
           onChange={(selection, pending) => { setSourceSelection(selection); setSourcesPending(pending); }} /> : null}
         {mode === "new_task" && omitted.map(entry => <label key={entry.entry_id}>
           Why omit this note? {entry.bounded_summary}

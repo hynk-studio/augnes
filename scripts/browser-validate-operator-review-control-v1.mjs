@@ -566,8 +566,8 @@ await runOperatorExecutionBrowserChildV1({
         `result_review_document_status:${resultDocumentResponse?.status ?? "missing"}`,
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-run-result-review="v0.1"][data-result-review-read-only="true"][data-semantic-mutation="false"]') !== null`,
-        "read-only result review",
+        `document.querySelector('[data-run-result-review="v0.1"][data-semantic-mutation="false"] [data-result-work-action="open"]') !== null`,
+        "result review with explicit preparation action",
       );
       await lifecycle.waitForCondition(
         `document.querySelector('[data-run-result-proposal="available"] [data-result-to-proposal-link="true"]') !== null && document.querySelector('[data-ai-workplane-guide="guide_brief.v0.2"][data-ai-workplane-guide-status="available"][data-ai-workplane-guide-loading="false"]') !== null`,
@@ -593,7 +593,7 @@ await runOperatorExecutionBrowserChildV1({
       })()`);
       const shapeDiagnostic = JSON.stringify(shape);
       assert.equal(shape.shell, true, shapeDiagnostic);
-      assert.equal(shape.read_only, true, shapeDiagnostic);
+      assert.equal(shape.read_only, false, shapeDiagnostic);
       assert.match(shape.proposal_link ?? "", /^\/workbench\/semantic-review\//u);
       assert.equal(shape.assessment, true, shapeDiagnostic);
       assert.equal(shape.execution_and_success, true, shapeDiagnostic);

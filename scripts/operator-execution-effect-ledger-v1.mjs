@@ -114,7 +114,8 @@ const PROFILE_CONTRACTS = Object.freeze({
       // then reselect it from retained history. P5.1a adds one reviewed
       // correction, its atomic semantic successor and one next host result.
       // P2.1 adds one explicit unexecuted different-task preparation.
-      task_context_packet: 8,
+      // #1333 explicitly authors one receipt-backed next task with selected notes.
+      task_context_packet: 9,
       run_receipt: 5,
       episode_delta_proposal: 6,
       review_decision: 1,
@@ -139,7 +140,7 @@ const PROFILE_CONTRACTS = Object.freeze({
         autonomy_run_events: 57,
         autonomy_run_steps: 5,
         autonomy_runs: 5,
-        vnext_core_records: 31,
+        vnext_core_records: 32,
         vnext_local_operator_sessions: 4,
         vnext_semantic_state_entries: 1,
         vnext_semantic_target_heads: 1,
