@@ -1,3 +1,4 @@
+import { realpathSync, statSync } from "node:fs";
 import { stat, realpath } from "node:fs/promises";
 import path from "node:path";
 
@@ -68,4 +69,20 @@ export function fingerprintNativeHostPhysicalRootIdentityV01(
   identity: NativeHostPhysicalRootIdentityV01,
 ): string {
   return createProtocolSha256V01(canonicalizeProtocolValueV01(identity));
+}
+
+/** Same physical identity owner for synchronous atomic preparation saves. */
+export function inspectNativeHostPhysicalRootIdentitySynchronouslyV01(canonicalRoot: string): NativeHostPosixPhysicalRootIdentityV01 {
+  if (!path.isAbsolute(canonicalRoot) || canonicalRoot.includes("\0")) {
+    throw new NativeHostProjectRootIdentityErrorV01("native_host_project_root_identity_invalid");
+  }
+  let resolvedRoot: string;
+  let rootStat: ReturnType<typeof statSync>;
+  try { resolvedRoot = realpathSync(canonicalRoot); rootStat = statSync(resolvedRoot); }
+  catch { throw new NativeHostProjectRootIdentityErrorV01("native_host_project_root_identity_unavailable"); }
+  if (!path.isAbsolute(resolvedRoot) || !rootStat.isDirectory()) {
+    throw new NativeHostProjectRootIdentityErrorV01("native_host_project_root_not_directory");
+  }
+  return { identity_version: "native_host_physical_root_identity.v0.1",
+    canonical_realpath_fingerprint: createProtocolSha256V01(resolvedRoot), device: String(rootStat.dev), inode: String(rootStat.ino) };
 }

@@ -332,6 +332,15 @@ unstarted repository work. They do not create initial work, switch projects,
 adopt roots, edit executed work, or track external Codex execution. Resume and
 source read remain unchanged and read-only.
 
+Same-task revision also supports the exact current ordinary outcome-linked
+preparation and its supported revisions. Its settled predecessor remains
+historical evidence; it is not treated as execution of the new preparation.
+The normal lineage owner preserves the genuine receipt anchor, inherited
+constraints and expiry. Any admitted family execution, unresolved project run,
+stale binding or ambiguous currentness refuses. Retained-note lookup is limited
+to this preparation's revision family. Different-task switching from this
+family and the older scoped revalidation profile are not broadened.
+
 Both take `repositoryRoot`, the exact Resume `expectedSnapshotBinding`, and a
 closed `changes` object. Definition fields (`goal`, `success_criteria`,
 `non_goals`) are optional; omitted fields remain unchanged. Optional `sources`

@@ -1497,6 +1497,7 @@ function requireTimestampV01(value: string): void {
 
 function revisionReasonV01(reason: ProjectWorkInitializationV01["revision_eligibility"]["reason"]): string {
   const copy: Record<typeof reason, string> = {
+    current_unexecuted_successor: "Current outcome-linked preparation has not started; same-task revision is available.",
     current_initial_packet_zero_history: "Current initial work may be revised before execution.",
     current_revision_packet_zero_history: "Current revised work may be revised again before execution.",
     managed_run_history_present: "Work revision closes after managed execution history exists.",

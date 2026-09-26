@@ -785,6 +785,43 @@ its exact scoped adapter and inventory; it cannot fall through to whole-root
 execution. Older readers refuse the new request/definition. No Core kind, store,
 migration, model call, remote transport or automatic selection is added.
 
+#### Revising an unexecuted outcome-linked preparation
+
+The additive `augnes.authored-successor-revision.v0.1` compatibility profile
+extends the existing authenticated same-task revision writer to the exact
+current ordinary outcome-linked preparation and its revision tip. A settled
+historical predecessor does not prevent editing. Browser reopening and the
+repository-bound revision/source readers use the same validated family. The
+older initial preparation, different-task, scoped revalidation and prospective
+expectation contracts retain their existing eligibility boundaries.
+
+Each save appends one immutable TaskContextPacket with the immediate prior
+packet, original preparation, genuine predecessor receipt, source/root bindings
+and authenticated revision request. Reconstruction follows one ordered tip,
+bounded to 32 revisions; branches, malformed lineage and ambiguous currentness
+refuse. Historical reads remain valid after legitimate execution and restore,
+without manufacturing a local run. A later ordinary successor binds the revised
+tip's actual result through the existing result writer.
+
+Revision preserves accepted-context lineage, mandatory checks and forbidden
+actions, classification, return contract, context limits and expiry. Editing
+the displayed task does not remove those inherited constraints or renew its
+lifetime. Only selected notes enter the revised consumer; omitted originals
+remain in immutable history. Retained-note lookup stays within this same-task
+family and requires explicit reselection. Selection never verifies a report,
+accepts an interpretation or erases its underlying observation.
+
+The atomic save checks the complete project ledger for unresolved runs and
+admission of any family packet, including terminal admission and conflicts
+outside earlier listing windows. Later or undated project execution also
+refuses conservatively. Settled historical and foreign-project run counts do
+not impose a lifetime ceiling. Selection, physical root, fresh current packet,
+source comparison and concurrent-save checks remain inside the save boundary.
+An unchanged request or exact immediate replay appends no packet. Successful
+saves add only the packet and normal session bookkeeping; refusals roll back
+both. There is no grant, Decision, Transition, semantic acceptance, execution,
+new Core kind, database, migration or automatic activation of historical work.
+
 #### Trusted-local read-only input snapshots
 
 An explicitly selected local host profile may execute independent copies of

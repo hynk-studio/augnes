@@ -11,11 +11,14 @@ import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOpe
 import type { VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 
 export function readWorkExpectationPreparation(db: Database.Database, config: { workspace_id: string; project_id: string }) {
-  const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, config);
+  const revision = readProjectWorkRevisionEligibilityStrictV01(db, config);
+  const successor = revision.current_lineage_kind === "authored_successor_task";
+  const eligibility = successor ? { ...revision, eligible: false, status: "blocked_execution_started" as const,
+    reason: "managed_run_history_present" as const } : revision;
   const records = readWorkExpectationRecords(db, config);
   const history = records.filter((r): r is WorkExpectation => r.kind === "expectation" &&
     r.packet_ref.external_id === eligibility.current_packet_id && r.packet_ref.source_ref === eligibility.current_packet_fingerprint);
-  const criteria = eligibility.current_packet_id ? inspectPreExecutionProjectWorkRevisionChainV01(db, config).tip_packet.task.success_criteria.map(criterion => ({ criterion, criterion_id: deriveCriterionIdentityV01(criterion) })) : [];
+  const criteria = !successor && eligibility.current_packet_id ? inspectPreExecutionProjectWorkRevisionChainV01(db, config).tip_packet.task.success_criteria.map(criterion => ({ criterion, criterion_id: deriveCriterionIdentityV01(criterion) })) : [];
   return { eligibility, history, criteria, outcome_rule: WORK_EXPECTATION_RULE };
 }
 
@@ -44,7 +47,7 @@ export function recordWorkExpectationMaterial(db: Database.Database, input: {
     let saved: WorkExpectation | WorkOutcomeReport;
     if (forecast) {
       const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, input.config);
-      expectationCheck(eligibility.eligible, "expectation_pre_start_only");
+      expectationCheck(eligibility.eligible && eligibility.current_lineage_kind !== "authored_successor_task", "expectation_pre_start_only");
       expectationCheck(eligibility.current_packet_id === request.expected_packet_id && eligibility.current_packet_fingerprint === request.expected_packet_fingerprint,
         "expectation_packet_changed");
       const packet = inspectPreExecutionProjectWorkRevisionChainV01(db, input.config).tip_packet;

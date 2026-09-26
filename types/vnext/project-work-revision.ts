@@ -35,6 +35,7 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 =
   "augnes.vnext.pre-execution-work-revision-compiler.v0.1" as const;
 export const PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 =
   "augnes.vnext.pre-execution-new-work-compiler.v0.1" as const;
+export const AUTHORED_SUCCESSOR_REVISION_V01 = "augnes.authored-successor-revision.v0.1" as const;
 export const MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 = 32 as const;
 
 export type PreExecutionProjectWorkLineageKindV01 =
@@ -45,6 +46,7 @@ export type PreExecutionProjectWorkLineageKindV01 =
 export type ProjectWorkRevisionEligibilityStatusV01 =
   | "eligible_initial_packet"
   | "eligible_revised_packet"
+  | "eligible_successor_packet"
   | "blocked_execution_started"
   | "blocked_work_history"
   | "blocked_operational_continuation"
@@ -62,10 +64,11 @@ export interface ProjectWorkRevisionEligibilityV01 {
   active_selection_revision: number | null;
   current_packet_id: string | null;
   current_packet_fingerprint: string | null;
-  current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | null;
+  current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task" | null;
   revision_count: number;
   status: ProjectWorkRevisionEligibilityStatusV01;
   reason:
+    | "current_unexecuted_successor"
     | "current_initial_packet_zero_history"
     | "current_revision_packet_zero_history"
     | "managed_run_history_present"
@@ -92,7 +95,7 @@ export interface RevisePreExecutionProjectWorkRequestV01 {
   expected_active_selection_revision: number;
   expected_current_packet_id: string;
   expected_current_packet_fingerprint: string;
-  expected_current_lineage_kind: PreExecutionProjectWorkLineageKindV01;
+  expected_current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task";
   goal: string;
   success_criteria: string[];
   non_goals: string[];

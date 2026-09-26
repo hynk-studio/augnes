@@ -67,7 +67,7 @@ interface WorkRevisionEditorBindingV01 {
   active_selection_revision: number;
   current_packet_id: string;
   current_packet_fingerprint: string;
-  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task";
+  current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task" | "authored_successor_task";
   session_id: string;
   session_workspace_id: string;
   session_project_id: string;
@@ -980,6 +980,7 @@ export function SemanticReviewSurface({
                     disabled={loadingPrivateView || !privateReadGuard.current.matchesProject(firstWorkInitialization)} />}
                   isUnstarted={workDefinitionIsUnstarted}
                   revisionAvailable={revisionAvailable}
+                  newTaskAvailable={currentRevisionEditorBinding?.current_lineage_kind !== "authored_successor_task"}
                   revisionButtonRef={revisionButtonRef}
                   onRevise={() => {
                     if (!currentRevisionEditorBinding) return;
@@ -1182,6 +1183,7 @@ function CurrentWorkDefinitionPanel({
   snapshotExport,
   isUnstarted,
   revisionAvailable,
+  newTaskAvailable,
   revisionButtonRef,
   onRevise,
 }: {
@@ -1192,6 +1194,7 @@ function CurrentWorkDefinitionPanel({
   snapshotExport: React.ReactNode;
   isUnstarted: boolean;
   revisionAvailable: boolean;
+  newTaskAvailable: boolean;
   revisionButtonRef: RefObject<HTMLButtonElement | null>;
   onRevise: () => void;
 }) {
@@ -1272,7 +1275,7 @@ function CurrentWorkDefinitionPanel({
           >
             Revise work definition
           </button>
-          <button type="button" className={styles.secondaryButton} data-new-work-action="open" onClick={onPrepareNew}>Prepare a different task</button>
+          {newTaskAvailable ? <button type="button" className={styles.secondaryButton} data-new-work-action="open" onClick={onPrepareNew}>Prepare a different task</button> : null}
         </div>
       ) : null}
     </section>

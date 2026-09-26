@@ -1081,3 +1081,30 @@ function parseJson<T>(value: string | null, fallback: T): T {
     return fallback;
   }
 }
+
+/** Any admission of this preparation family, or a later/undated project run,
+ * blocks editing. Historical settled runs do not impose a listing-window cap.
+ * A foreign scope explicitly claiming this workspace/project is ambiguous,
+ * unlike unrelated foreign history, and also refuses.
+ * The optional cutoff reconstructs admission history at an immutable revision.
+ */
+export function hasAutonomyRunAdmissionForPreparation(options: AutonomyRunnerLedgerDbOptions & {
+  scope: string; workspace_id: string; packet_ids: readonly string[]; prepared_at: string; through?: string;
+}): boolean {
+  if (!options.packet_ids.length || options.packet_ids.length > 33) throw new Error("preparation_packet_bound_invalid");
+  return withAutonomyRunnerLedgerDb(options, db => db.prepare(`WITH scoped_runs AS (
+      SELECT *, strftime('%Y-%m-%dT%H:%M:%fZ', created_at) = created_at AS valid_time FROM autonomy_runs
+      WHERE scope = ? OR CASE
+        WHEN json_valid(metadata_json) = 0 THEN 0 WHEN json_type(metadata_json) <> 'object' THEN 0
+        ELSE EXISTS (SELECT 1 FROM json_each(metadata_json) WHERE key = 'workspace_id' AND value = ?)
+         AND EXISTS (SELECT 1 FROM json_each(metadata_json) WHERE key = 'project_id' AND value = ?)
+      END
+    ) SELECT 1 FROM scoped_runs
+    WHERE (? IS NULL OR valid_time IS NOT 1 OR julianday(created_at) <= julianday(?)) AND (
+      scope <> ? OR valid_time IS NOT 1 OR julianday(created_at) >= julianday(?) OR
+      CASE WHEN json_valid(metadata_json) = 0 THEN 1 WHEN json_type(metadata_json) <> 'object' THEN 1
+      ELSE EXISTS (SELECT 1 FROM json_each(metadata_json) WHERE key = 'packet_id'
+        AND value IN (${options.packet_ids.map(() => "?").join(",")})) END
+    ) LIMIT 1`).get(options.scope, options.workspace_id, options.scope, options.through ?? null, options.through ?? null,
+      options.scope, options.prepared_at, ...options.packet_ids) !== undefined);
+}

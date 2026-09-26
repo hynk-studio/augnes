@@ -1,3 +1,4 @@
+import { AUTHORED_SUCCESSOR_REVISION_V01 } from "@/types/vnext/project-work-revision";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "./protocol-primitives";
 import { normalizeInitialProjectWorkDefinitionV01 } from "./runtime/initial-project-work-context";
@@ -59,9 +60,11 @@ export function readAuthoredSuccessorDefinitionV01(packet: TaskContextPacketV01)
   const definition = normalizeAuthoredSuccessorTaskV01(value, packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01));
   requireSuccessorV01(equalSuccessorV01(packet.task, { goal: definition.objective,
     success_criteria: definition.checks.map(c => c.criterion), non_goals: definition.stop_conditions }) &&
-    equalSuccessorV01(packet.constraints.required_checks, definition.checks.map(c => c.check_id).sort()) &&
+    (packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_REVISION_V01) ||
+      equalSuccessorV01(packet.constraints.required_checks, definition.checks.map(c => c.check_id).sort())) &&
     equalSuccessorV01(packet.return_contract.required_checks, packet.constraints.required_checks) &&
-    equalSuccessorV01(packet.constraints.forbidden_actions, definition.stop_conditions) &&
+    (packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_REVISION_V01) ||
+      equalSuccessorV01(packet.constraints.forbidden_actions, definition.stop_conditions)) &&
     packet.current_projection?.bounded_summary === definition.objective && !packet.capability_grant &&
     !packet.criterion_verification_plan, "task_contract_conflict");
   return definition;
