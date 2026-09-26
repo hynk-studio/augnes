@@ -762,6 +762,12 @@ unsettled runs, expired or superseded context, stale previews and competing save
 refuse; it does not renew a lifetime or reuse the scoped revalidation profile.
 Read, comparison and preview are zero-write. Explicit save appends one packet;
 execution still requires its independent normal admission.
+The ordinary save checks the complete project ledger for nonterminal or
+unresolved runs inside its atomic transaction, returning only an existence
+result. Retained terminal history alone imposes no run-count ceiling. Unknown
+statuses, malformed metadata and invalid reconciliation flags refuse; legacy
+terminal rows without a reconciliation flag remain supported. The older scoped
+revalidation profile keeps its existing conservative history bound.
 
 The existing source-note editor carries only explicitly selected whole notes,
 with original provenance, source time and unknown currentness. The result report

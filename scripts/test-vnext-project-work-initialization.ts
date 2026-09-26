@@ -19,7 +19,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { readAutonomyRunLedgerRecord, updateAutonomyRunLedgerFields } from "../lib/autonomy/runner-ledger";
+import { listAutonomyRunLedgerRecords, readAutonomyRunLedgerRecord, updateAutonomyRunLedgerFields } from "../lib/autonomy/runner-ledger";
+import { AUTONOMY_RUNNER_TERMINAL_STATUSES } from "../lib/autonomy/runner-state";
 import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { createCodexAppServerAdapterV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
@@ -223,8 +224,10 @@ async function main(): Promise<void> {
 }
 
 async function assertOutcomeReuseV01(): Promise<void> {
+  const failures: unknown[] = [];
   for (const disposition of ["revise", "retain", "defer"] as const) {
     const fixture = createFixtureV01(`outcome-reuse-${disposition}`, false, true);
+    const retainedRuns = { revise: 127, retain: 128, defer: 257 }[disposition];
     const originalFetch = globalThis.fetch;
     let network = 0;
     globalThis.fetch = (async () => { network++; throw new Error("outcome_reuse_network_forbidden"); }) as typeof fetch;
@@ -264,6 +267,23 @@ async function assertOutcomeReuseV01(): Promise<void> {
       assert.equal(observations, 1);
       assert.equal(first.receipt.execution.status, "completed");
       assert.match(first.receipt.result_summary.summary, /7 exceeds limit 5/);
+      // Constructed historical ledger rows are fixture data only. The eligible
+      // latest predecessor above is always produced by the real host path.
+      fixture.db.transaction(() => {
+        for (let index = 0; index < retainedRuns - 1; index++) insertManagedRunV01(fixture, {
+          run_id: `fixture:outcome-history:${index.toString().padStart(4, "0")}`, scope: fixture.project_id,
+          status: AUTONOMY_RUNNER_TERMINAL_STATUSES[index % AUTONOMY_RUNNER_TERMINAL_STATUSES.length],
+          created_at: new Date(Date.parse("2026-08-01T00:00:03.500Z") - index).toISOString(),
+          metadata_json: JSON.stringify({ fixture_only: true, ...(index % 2 ? { reconciliation_required: false } : {}) }),
+        });
+        for (let index = 0; index < 260; index++) insertManagedRunV01(fixture, {
+          run_id: `fixture:foreign-history:${index}`, scope: "project:foreign-history", status: "running",
+          metadata_json: JSON.stringify({ fixture_only: true, reconciliation_required: true }),
+          created_at: "2026-08-01T00:00:19.000Z",
+        });
+      })();
+      assert.equal((fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n, retainedRuns);
+      assert.equal(listAutonomyRunLedgerRecords({ db: fixture.db, scope: fixture.project_id, limit: 1 })[0]!.run_id, first.receipt.run_id);
       const credential = credentialFromCookieV01(first.session_admission!.cookie_value);
       const clock = fixedClock("2026-08-01T00:00:20.000Z");
       const frozen = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }).map(row => [row.record_id, canonicalizeProtocolValueV01(row.payload)]);
@@ -301,11 +321,40 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock, selected_sources,
         definition: { goal: "Prepare the calibration comparison", success_criteria: ["Read only the selected context and retain its conditions"], non_goals: ["Leave warm behavior untested"] } });
       assert(before.equals(fixture.db.serialize()), "Read, comparison and preview are read-only");
+      console.log(JSON.stringify({ outcome_history_preparation: disposition, retained_runs: retainedRuns, read: "available", preview: "available" }));
       const unchanged = async (request: unknown, pattern: RegExp) => {
         const bytes = fixture.db.serialize();
         await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request, clock }), pattern);
         assert(bytes.equals(fixture.db.serialize()), "Refusal is atomic, including session bookkeeping");
       };
+      if (disposition === "defer") {
+        const historicalId = `fixture:outcome-history:${(retainedRuns - 2).toString().padStart(4, "0")}`;
+        assert(!listAutonomyRunLedgerRecords({ db: fixture.db, scope: fixture.project_id, limit: 128 }).some(run => run.run_id === historicalId), "Conflict is older than the previous listing window");
+        const original = fixture.db.prepare("SELECT status, metadata_json FROM autonomy_runs WHERE run_id = ?").get(historicalId) as { status: string; metadata_json: string };
+        const replace = fixture.db.prepare("UPDATE autonomy_runs SET status = ?, metadata_json = ? WHERE run_id = ?");
+        for (const [status, metadata] of [
+          ["running", '{"fixture_only":true,"reconciliation_required":false}'],
+          ["completed", '{"fixture_only":true,"reconciliation_required":true}'],
+          ["unknown-fixture-status", '{}'], ["completed", 'not-json'], ["completed", 'null'],
+          ["completed", '[]'], ["completed", '{"reconciliation_required":null}'],
+          ["completed", '{"reconciliation_required":"false"}'], ["completed", '{"reconciliation_required":0}'],
+          ["completed", '{"reconciliation_required":false,"reconciliation_required":true}'],
+          ["completed", '{"reconciliation_required":true,"reconciliation_required":false}'],
+        ]) {
+          replace.run(status, metadata, historicalId);
+          try { await unchanged(preview.request, /conflicting_run/); }
+          finally { replace.run(original.status, original.metadata_json, historicalId); }
+        }
+        // Introduce a conflict after async root admission starts. The save must
+        // recheck under its own transaction, not trust read/preview/preflight.
+        const saving = defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: preview.request, clock });
+        replace.run("paused", '{"fixture_only":true}', historicalId);
+        const conflictState = fixture.db.serialize();
+        try {
+          await assert.rejects(saving, /conflicting_run/);
+          assert(conflictState.equals(fixture.db.serialize()), "A newly arrived conflict rolls back packet and session writes");
+        } finally { replace.run(original.status, original.metadata_json, historicalId); }
+      }
       await unchanged({ ...preview.request, expected_latest_receipt_fingerprint: `sha256:${"0".repeat(64)}` }, /predecessor_unsettled_or_mismatched/);
       await unchanged({ ...preview.request, expected_active_selection_revision: preparation.binding.expected_active_selection_revision + 1 }, /selection_changed/);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, omitted_sources: [] } }, /source_omissions_invalid/);
@@ -314,13 +363,28 @@ async function assertOutcomeReuseV01(): Promise<void> {
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, selected_source_context: [] } }, /source_comparison_changed/);
       const oversized = { ...notes[2]!, text: "x".repeat(2001) };
       assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [oversized], clock }), /selected_source_context_invalid/);
+      const unaffected = (fixture.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('vnext_core_records', 'vnext_local_operator_sessions')").all() as { name: string }[])
+        .map(({ name }) => ({ query: `SELECT * FROM "${name.replaceAll('"', '""')}"`, rows: fixture.db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all() }));
+      const sessionsBefore = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
       // Both calls inspect the same predecessor before the atomic writer chooses one.
       const racing = await Promise.allSettled([preview.request, { ...preview.request, definition: { ...preview.request.definition, objective: "Competing next task" } }]
         .map(request => defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request, clock })));
-      assert.equal(racing.filter(result => result.status === "fulfilled").length, 1);
+      assert.equal(racing.filter(result => result.status === "fulfilled").length, 1,
+        JSON.stringify(racing.map(result => result.status === "fulfilled" ? "saved" : String(result.reason))));
       const winner = racing.find(result => result.status === "fulfilled")!;
       if (winner.status !== "fulfilled") throw new Error("no_writer_succeeded");
       const saved = winner.value;
+      for (const table of unaffected) assert.deepEqual(fixture.db.prepare(table.query).all(), table.rows, "Save creates no run/grant or unrelated state change");
+      const sessionsAfter = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
+      assert.deepEqual(sessionsAfter.map(row => row.session_id), sessionsBefore.map(row => row.session_id));
+      for (let index = 0; index < sessionsBefore.length; index++) {
+        const previous = sessionsBefore[index]!, current = sessionsAfter[index]!;
+        if (previous.session_id === credential.session_id) {
+          assert.notEqual(current.action_nonce_hash, previous.action_nonce_hash);
+          assert.deepEqual(current, { ...previous, action_nonce_hash: current.action_nonce_hash,
+            action_nonce_expires_at: previous.expires_at, updated_at: clock.now() });
+        } else assert.deepEqual(current, previous);
+      }
       assert.equal(saved.semantic_transition_created, false); assert.equal(saved.execution_authority_granted, false);
       assert.deepEqual(readSelectedWorkSources(saved.packet), comparison.entries);
       for (const [id, payload] of frozen) assert.equal(canonicalizeProtocolValueV01(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }).find(row => row.record_id === id)!.payload), payload);
@@ -355,10 +419,14 @@ async function assertOutcomeReuseV01(): Promise<void> {
       assert.equal(consumer.packet.task.goal, saved.packet.task.goal);
       assert(!canonicalizeProtocolValueV01(consumer).includes("UNSELECTED_PRIVATE_NOTE"));
       assert.equal(network, 0);
-      console.log(JSON.stringify({ outcome_reuse: disposition, actual_predecessor_reads: observations, selected_notes: 3,
+      console.log(JSON.stringify({ outcome_reuse: disposition, retained_runs: retainedRuns, foreign_runs: 260, actual_predecessor_reads: observations, selected_notes: 3,
         fresh_reader: "available", prepared_consumer: "exact", stale_foreign_race: "refused", model_calls: 0, network_calls: network }));
+    } catch (error) {
+      console.error(JSON.stringify({ outcome_history_failed: disposition, retained_runs: retainedRuns, reason: error instanceof Error ? error.message : "unknown" }));
+      failures.push(error);
     } finally { globalThis.fetch = originalFetch; fixture.db.close(); }
   }
+  if (failures.length) throw new AggregateError(failures, "outcome_reuse_regression_failed");
 }
 
 // Fixed credential-free App Server transport; the adapter parser, direct
@@ -1671,6 +1739,16 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               updateAutonomyRunLedgerFields(olderRun.run_id, { status: "paused", metadata: { ...olderRun.metadata, reconciliation_required: true } }, { db: fixture.db });
               try { await assert.rejects(author(), /conflicting_run/); }
               finally { updateAutonomyRunLedgerFields(olderRun.run_id, { status: olderRun.status, metadata: olderRun.metadata }, { db: fixture.db }); }
+              // The ordinary profile's complete conflict query must not relax
+              // this older scoped revalidation profile's retained scan bound.
+              const runCount = (fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n;
+              for (let index = runCount; index < 128; index++) insertManagedRunV01(fixture, {
+                run_id: `fixture:scoped-history:${index}`, scope: fixture.project_id,
+                created_at: first.receipt.finished_at!, metadata_json: '{"fixture_only":true,"reconciliation_required":false}',
+              });
+              const boundedHistory = fixture.db.serialize();
+              await assert.rejects(author(), /conflicting_run/);
+              assert(boundedHistory.equals(fixture.db.serialize()), "Scoped history-bound refusal preserves packet and session state");
               for (const material of revalidated.definition.materials) {
                 const sourcePath = path.join(fixture.root, material.relative_path), bytes = readFileSync(sourcePath);
                 writeFileSync(sourcePath, "synthetic changed material\n");

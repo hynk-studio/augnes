@@ -5,7 +5,7 @@ import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "./persist
 import type Database from "better-sqlite3";
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 } from "./operator-pilot-semantic-transition";
-import { listAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
+import { hasUnsettledAutonomyRunLedgerRecords, listAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
 import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
   readAuthoredSuccessorDefinitionV01, requireSuccessorV01 as check, successorDigestV01 as digest,
   type AuthoredSuccessorTaskDefinitionV01 } from "@/lib/vnext/authored-successor-task";
@@ -309,8 +309,13 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
     check(predecessor.run, "local_predecessor_required");
     check(listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 1 })[0]?.run_id === predecessor.run.run_id, "latest_run_changed");
     if (request.revalidation || request.selected_sources) {
-      const runs = listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 128 });
-      check(runs.length < 128 && runs.every(r => isTerminalRunnerStatus(r.status) && r.metadata.reconciliation_required !== true), "conflicting_run");
+      if (request.selected_sources) {
+        check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
+      } else {
+        // Keep the older scoped revalidation contract unchanged.
+        const runs = listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 128 });
+        check(runs.length < 128 && runs.every(r => isTerminalRunnerStatus(r.status) && r.metadata.reconciliation_required !== true), "conflicting_run");
+      }
       check(predecessor.run.finished_at !== null && predecessor.run.finished_at === predecessor.receipt.finished_at &&
         predecessor.run.metadata.pending_approval == null &&
         predecessor.run.metadata.run_receipt_id === predecessor.receipt.receipt_id &&
