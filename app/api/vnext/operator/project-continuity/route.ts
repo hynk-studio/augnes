@@ -1,4 +1,8 @@
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
+import { AuthoredSuccessorTaskErrorV01 } from "@/lib/vnext/authored-successor-task";
+import { ProjectRunResultReadErrorV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
+import { compareResultWorkSourcesV01, defineAuthoredSuccessorTaskV01, previewResultWorkV01, readResultWorkPreparationV01,
+  type ResultWorkBindingV01, type DefineAuthoredSuccessorTaskRequestV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
@@ -156,6 +160,10 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         "preview_new_project_work",
         "prepare_new_project_work",
         "export_hosted_snapshot",
+        "read_result_work_preparation",
+        "compare_result_work_sources",
+        "preview_result_work",
+        "prepare_result_work",
       ].includes(body.action as string)) {
         throw new VNextLocalOperatorSessionErrorV01("operator_pilot_disabled", 404);
       }
@@ -204,6 +212,39 @@ export function createVNextOperatorContextUseReviewHandlerV01(
             "Content-Disposition": 'attachment; filename="augnes-hosted-research-projection.v0.2.json"',
           },
         });
+      }
+      if (["read_result_work_preparation", "compare_result_work_sources", "preview_result_work", "prepare_result_work"].includes(body.action as string)) {
+        authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
+        const fields = body.action === "read_result_work_preparation" ? ["action", "receipt_id"] :
+          body.action === "compare_result_work_sources" ? ["action", "binding", "notes"] :
+          body.action === "preview_result_work" ? ["action", "binding", "definition", "selected_sources"] : ["action", "request"];
+        if (Object.keys(body).sort().join(",") !== fields.sort().join(",")) throw new AuthoredSuccessorTaskErrorV01("successor_task_request_fields");
+        if (body.action === "prepare_result_work") {
+          const request = body.request as DefineAuthoredSuccessorTaskRequestV01;
+          if (!request?.selected_sources) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_required");
+          const result = await defineAuthoredSuccessorTaskV01(db, { config, credential, request, clock: options.clock, secret_source: options.secret_source });
+          return jsonResponse({ ok: true, status: result.status, packet_id: result.packet.packet_id,
+            packet_fingerprint: result.packet.integrity.fingerprint, execution_started: false, run_created: false,
+            semantic_state_changed: false, transition_created: false, execution_authority_granted: false }, 201,
+          serializeVNextLocalOperatorSessionCookieV01({ value: result.session_admission.cookie_value,
+            expires_at: result.session_admission.cookie_expires_at, max_age_seconds: result.session_admission.cookie_max_age_seconds, secure: url.protocol === "https:" }));
+        }
+        const result = db.transaction(() => {
+          const shared = { config, clock: options.clock };
+          if (body.action === "read_result_work_preparation") {
+            if (typeof body.receipt_id !== "string") throw new AuthoredSuccessorTaskErrorV01("successor_task_request_binding");
+            return { status: "result_work_preparation", ...readResultWorkPreparationV01(db!, { ...shared, receipt_id: body.receipt_id }) };
+          }
+          if (!body.binding || typeof body.binding !== "object") throw new AuthoredSuccessorTaskErrorV01("successor_task_request_binding");
+          const binding = body.binding as ResultWorkBindingV01;
+          if (body.action === "compare_result_work_sources") {
+            if (!Array.isArray(body.notes) || body.notes.length > 8) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_invalid");
+            return { status: "selected_source_comparison", comparison: compareResultWorkSourcesV01(db!, { ...shared, binding, notes: body.notes }) };
+          }
+          return { status: "result_work_preview", ...previewResultWorkV01(db!, { ...shared, binding,
+            definition: body.definition, selected_sources: body.selected_sources as DefineAuthoredSuccessorTaskRequestV01["selected_sources"] }) };
+        })();
+        return jsonResponse({ ok: true, ...result, projection_is_read_only: true });
       }
       if (body.action === "compare_selected_work_sources" || body.action === "lookup_retained_work_sources") {
         authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
@@ -356,6 +397,8 @@ export function createVNextOperatorContextUseReviewHandlerV01(
 export const POST = createVNextOperatorContextUseReviewHandlerV01();
 
 function errorResponse(error: unknown): NextResponse {
+  if (error instanceof AuthoredSuccessorTaskErrorV01 || error instanceof ProjectRunResultReadErrorV01) return jsonResponse({ ok: false, status: "error", error_code: error.code,
+    semantic_authority_granted: false, execution_authority_granted: false }, 409);
   if (error instanceof HostedResearchProjectionErrorV02) {
     return jsonResponse({
       ok: false, route_version: ROUTE_VERSION, status: "error",

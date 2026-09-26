@@ -1,4 +1,5 @@
 import { WorkExpectationResult } from "../semantic-review/work-expectation";
+import { ResultWorkComposer } from "./result-work-composer";
 import type { ReactNode } from "react";
 
 import { AIWorkplaneShell } from "@/components/workbench/ai-workplane/ai-workplane-shell";
@@ -83,7 +84,7 @@ export function RunResultReviewSurface({
         className={styles.page}
         data-run-result-review="v0.1"
         data-ai-workplane-result-review="v0.1"
-        data-result-review-read-only={result.expectation?.report_allowed ? "false" : "true"}
+        data-result-review-read-only={result.expectation?.report_allowed || result.summary.execution_status === "completed" ? "false" : "true"}
         data-semantic-mutation="false"
         data-ai-workplane-presentation={view.presentation_version}
       >
@@ -133,6 +134,7 @@ export function RunResultReviewSurface({
             >
               {view.primary_action.label}
             </a>
+            {result.summary.execution_status === "completed" ? <ResultWorkComposer key={result.identity.receipt_ref} receiptId={result.identity.receipt_ref} /> : null}
           </section>
 
           <section

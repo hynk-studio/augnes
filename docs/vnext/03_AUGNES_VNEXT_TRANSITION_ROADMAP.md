@@ -280,6 +280,27 @@ This does not complete P2, grant new tool authority, or authorize a later phase.
 #1212, #1209 and #1215 remain open; #1130 assignments and study allowances are
 unchanged.
 
+## P3/P5 outcome-linked judgment reuse (#1333)
+
+[#1333](https://github.com/hynk-studio/augnes/issues/1333) connects the normal
+result surface, existing selected-note comparison, receipt-backed authored
+successor writer, fresh reader and native-host input. The earlier scoped
+authorship API excluded predecessor notes and had no normal Browser entry.
+The additive ordinary preparation profile lets a reviewer retain, revise or
+defer a working judgment in attributed notes, explicitly select original and
+corrected material, preview the next definition and save one unexecuted packet.
+Result observations, report claims, user corrections and unknown conditions
+remain distinct; omission leaves history intact. No semantic or execution
+authority is inferred from selection.
+
+This is **Current while the linked Draft PR is open**, and **Completed within
+this bounded preparation/delivery scope after merge**. Disposable deterministic
+and Browser verification establish the producer-to-consumer mechanics only.
+Improved judgment, recurring user burden and later real-work usefulness remain
+unestablished. Completed P3/P5 studies and deferred remote transport stay closed
+to further execution under this issue. The next observation is one separately
+authorized ordinary use, retaining a strong source-linked note as the baseline.
+
 ## Completed P3.1 selected-change revision review
 
 Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and the

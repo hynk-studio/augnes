@@ -1,5 +1,6 @@
 import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
+import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { assertCodexScopedAdapterV01 } from "@/lib/vnext/native-host/codex-app-server-adapter";
 import { assertCodexAuthoredSuccessorScopeV01 } from "@/lib/vnext/native-host/codex-scoped-task";
 import { createHash } from "node:crypto";
@@ -813,7 +814,8 @@ export async function runDirectNativeHostRoundTripV01(
       repository_delegation_context: input.repository_delegation_context ?? null,
     });
   }
-  if (admitted.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01)) {
+  if (admitted.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) &&
+    !admitted.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)) {
     // This explicit read-only task profile must not silently take the desktop's
     // whole-root route. Authoring and readiness never manufacture an allowance.
     if (!dependencies.scoped_task || input.mode !== "interactive" || dependencies.resume_existing_run)
