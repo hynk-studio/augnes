@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { hasAutonomyRunAdmissionForPreparation, hasUnsettledAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
-import { compareSelectedWorkSources, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { assertReviewedOutcomeSourcesRetained, compareSelectedWorkSources, readSelectedWorkSources, reviewedOutcomeSourceRef } from "@/lib/intake/selected-work-source-comparison";
+import { REVIEWED_OUTCOME_SOURCE_V01 } from "@/types/vnext/project-work-revision";
 import { resolveRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 import { equalSuccessorV01 as equal, successorDigestV01 as digest } from "@/lib/vnext/authored-successor-task";
 import { fingerprintNativeHostPhysicalRootIdentityV01, inspectNativeHostPhysicalRootIdentitySynchronouslyV01 } from "@/lib/vnext/native-host/project-root-identity";
@@ -102,7 +103,8 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
     tensions: prior.tensions, risks: prior.risks, gaps: prior.gaps,
     constraints: prior.constraints, capability_grant: null, return_contract: prior.return_contract,
     source_status: { ...prior.source_status, currentness, source_refs: refs.map(r => r.source_ref!), external_refs: refs },
-    compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_REVISION_V01],
+    compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_REVISION_V01,
+      ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : [])],
       legacy_scope_ref: prior.compatibility.legacy_scope_ref, source_refs: refs, unmapped_fields: [], warnings: [] },
   }, { required_selected_entry_ids: entries.map(e => e.entry_id) });
   return { packet, successor_definition_ref: definitionRef, operator_action_ref: operatorRef, immediate_prior_packet_ref: priorRef, predecessor_receipt_ref: anchor.predecessor_receipt_ref };
@@ -131,6 +133,7 @@ export function inspectOrdinarySuccessorRevisionV01(db: Database.Database, input
   if (m.request.selected_source_context !== undefined) {
     const family = familyPackets(db, config, prior);
     const retained = resolveRetainedWorkSources({ packets: family, tip_packet: prior }, m.request.retained_source_refs ?? []);
+    assertReviewedOutcomeSourcesRetained(m.request.selected_source_context, [...readSelectedWorkSources(prior), ...retained.entries]);
     check(retained.entries.every(e => m.request.selected_source_context!.some(s => equal(e, s))) &&
       compareSelectedWorkSources(prior, m.request.selected_source_context, retained.refs).fingerprint === m.request.expected_source_comparison, "revision_source_comparison");
   }
@@ -202,6 +205,7 @@ export function saveOrdinarySuccessorRevisionInsideTransactionV01(db: Database.D
   }
   if (request.selected_source_context !== undefined) {
     const retained = resolveRetainedWorkSources(chain, request.retained_source_refs ?? []);
+    assertReviewedOutcomeSourcesRetained(request.selected_source_context, [...readSelectedWorkSources(chain.tip_packet), ...retained.entries]);
     check(retained.entries.every(e => request.selected_source_context!.some(s => equal(e, s))) &&
       compareSelectedWorkSources(chain.tip_packet, request.selected_source_context, retained.refs).fingerprint === request.expected_source_comparison, "revision_source_comparison");
   }

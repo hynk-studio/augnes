@@ -1064,6 +1064,7 @@ const integrationChildren = [
   "project-home",
   "project-work-initialization",
   "project-work-expectation",
+  "reviewed-outcome-reuse",
   "ordinary-successor-expectation",
   "ordinary-successor-expectation-final-slot",
   "project-work-scoped-host",
@@ -1153,6 +1154,11 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertWorkExpectationMech
 assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostConnectionV01();"), 1,
   "the default initialization path must not repeat the scoped matrix");
 const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
+const reviewedOutcomeRegistration = readCanonicalChildRegistration(integrationSource, "reviewed-outcome-reuse");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--reviewed-outcome-reuse-only"'])
+  requireText(reviewedOutcomeRegistration.block, fragment, "saved review reuse has one bounded producer-to-consumer owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertReviewedOutcomeReuseV01();"), 1);
+assert.equal(countOccurrences(firstWorkFixture, "await assertReviewedOutcomeReuseV01(true);"), 1);
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', 'requireNaturalExit: true', '"--successor-expectation-only"'])
   requireText(successorExpectationRegistration.block, fragment, "ordinary successor expectations retain one bounded complete owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01();"), 1,

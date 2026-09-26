@@ -123,8 +123,17 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
   await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('0 selected')`, 'explicit empty selection');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-reviewed-outcome-source]')?.textContent.includes('Correction: the operator now attests that the criterion was met.') === true`), true, 'Latest R2 is offered without retyping');
+  await clickSelector(lifecycle, '[data-reviewed-outcome-action="select"]');
+  await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('2 selected')`, 'explicit report and original conditions selection');
+  await clickSelector(lifecycle, '[data-reviewed-outcome-action="author"]');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-note-source').value.startsWith('New authored note based on ')`), true, 'Edited reuse is authored material, not an unchanged saved report');
+  await lifecycle.setFormControlValue('#selected-note-source', '');
+  await lifecycle.setFormControlValue('#selected-note-text', '');
   await clickSelector(lifecycle, '[data-augnes-primary-action="preview-new-work"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]') !== null`, 'ordinary B preview');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-result-work-preview]').textContent.includes('Historical operator-attested outcome report v2') && document.querySelector('[data-result-work-preview]').textContent.includes('Original applicability conditions:')`), true);
   await clickSelector(lifecycle, '[data-result-work-action="save"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, 'ordinary B saved');
   await clickSelector(lifecycle, '[data-result-work-saved] a');
@@ -134,6 +143,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   const bForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('Historical operator-attested outcome report v2')`), true, 'Reopened work preserves selected R2 identity');
   await lifecycle.setFormControlValue('#work-revision-goal', 'Inspect the cold observation with its uncertainty');
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'definition-only B1 saved');
@@ -149,7 +159,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.setFormControlValue('#selected-note-text', 'Cold observations do not establish warm behavior. Warm remains unknown.');
   await clickSelector(lifecycle, '[data-selected-source-action="add"]');
   await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
-  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('1 selected')`, 'note-only B2 comparison');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('3 selected')`, 'note-only B2 comparison retains the historical snapshot');
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'note-only B2 saved');
   assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
@@ -191,7 +201,8 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
     assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth`), true, `successor expectation viewport ${width}`);
   }
   await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
-  console.log(JSON.stringify({ saved_successor_expectation_ui: 'pass', revisions: ['definition', 'note'], silent_transfer: false, actual_attempt_bound: true, restart_comparison: 'unknown' }));
+  console.log(JSON.stringify({ saved_successor_expectation_ui: 'pass', revisions: ['definition', 'note'], silent_transfer: false, actual_attempt_bound: true, restart_comparison: 'unknown',
+    reviewed_outcome_reuse: 'saved_R2_and_original_conditions', review_text_retyped: false, selected_snapshot_notes: 2, explicit_selection_actions: 1, comparison_and_preview_retained: true }));
 }
 
 async function readProtectedJson(lifecycle, route) {

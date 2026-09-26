@@ -2,6 +2,7 @@ import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { AuthoredSuccessorTaskErrorV01 } from "@/lib/vnext/authored-successor-task";
 import { ProjectRunResultReadErrorV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
+import { WorkExpectationError } from "@/lib/vnext/work-expectation";
 import { compareResultWorkSourcesV01, defineAuthoredSuccessorTaskV01, previewResultWorkV01, readResultWorkPreparationV01,
   type ResultWorkBindingV01, type DefineAuthoredSuccessorTaskRequestV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
@@ -413,7 +414,7 @@ function errorResponse(error: unknown): NextResponse {
     error instanceof VNextOperatorPilotContinuityErrorV01 ||
     error instanceof VNextOperatorPilotContextUseReviewErrorV01 ||
     error instanceof NewProjectWorkPreparationErrorV01 || error instanceof ProjectWorkRevisionErrorV01 ||
-    error instanceof SelectedWorkSourceError ||
+    error instanceof SelectedWorkSourceError || error instanceof WorkExpectationError ||
     error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
     isProjectWorkInitializationErrorV01(error);
   const disabled =

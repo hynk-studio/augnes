@@ -301,6 +301,26 @@ unestablished. Completed P3/P5 studies and deferred remote transport stay closed
 to further execution under this issue. The next observation is one separately
 authorized ordinary use, retaining a strong source-linked note as the baseline.
 
+## P3/P5 explicit saved outcome-report reuse (#1339)
+
+[#1339](https://github.com/hynk-studio/augnes/issues/1339) connects saved operator
+reports and corrections to ordinary next-work source selection. The earlier
+path offered a receipt/host-summary note and manual attributed notes; it did not
+offer the saved report itself. A reviewer can now select the latest report and
+original forecast context without retyping them, compare and preview the exact
+selection, save B, reopen it and deliver its historical snapshot to B's consumer.
+Stale selected report versions refuse during save. Later corrections preserve
+the saved snapshot; eligible explicit revision owns subsequent removal or
+reselection. B's own forecast remains a separate operator-only record.
+
+This is **Current while its Draft PR is open**, and **Completed within this
+bounded selection/delivery scope after merge**. Disposable deterministic and
+Browser evidence establish the mechanics and observable transcription/selection
+steps only. They do not establish predictive accuracy, better judgment, human
+time savings or automatic learning. Production adoption, remote transport and
+held/consumed P3/P5 studies remain outside this issue. Next: review the bounded
+connection and retain or revise it on its producer-to-consumer evidence.
+
 ## P2/P3 saved outcome-linked preparation revision (#1335)
 
 [#1335](https://github.com/hynk-studio/augnes/issues/1335) extends same-task

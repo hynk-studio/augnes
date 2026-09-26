@@ -40,7 +40,7 @@ export function ResultWorkComposer({ receiptId }: { receiptId: string }) {
     {preparation ? <div hidden={preview !== null}>
       {!preparation.result_source ? <p>The whole result report cannot fit a source note. Select a bounded, attributed excerpt using the note editor; the full report remains above.</p> : null}
       <FirstWorkComposer initialization={preparation.initialization} mode="new_task" busy={busy}
-        resultBinding={preparation.binding} resultSource={preparation.result_source}
+        resultBinding={preparation.binding} resultSource={preparation.result_source} reviewedOutcome={preparation.reviewed_outcome}
         onCancel={() => setPreparation(null)} onSave={async (definition, selection, omitted_sources) => {
           await run(async () => setPreview(await post<Preview>({ action: "preview_result_work", binding: preparation.binding,
             definition, selected_sources: { ...selection, omitted_sources } })));
