@@ -1,3 +1,4 @@
+import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
@@ -340,6 +341,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
 export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: {
   config: VNextLocalOperatorPilotConfigV01; packet: TaskContextPacketV01;
 }): AuthoredSuccessorPacketLineageV01 {
+  if (isOrdinarySuccessorRevisionV01(input.packet)) return inspectOrdinarySuccessorRevisionV01(db, input);
   // Recovery/portable readers retain durable receipt and authenticated task
   // provenance without reconstructing a machine-local run or execution grant.
   const packet = input.packet, material = materialFrom(packet), prior = source(db, input.config, material.request);
@@ -374,7 +376,7 @@ export function hasAuthoredSuccessorOfPacketV01(db: Database.Database, config: P
   const rows = listVNextCoreRecordsV01(db, { ...config, record_kinds: ["task_context_packet"], limit: 256 });
   check(rows.length < 256, "packet_scan_bound");
   return rows.some(row => { const p = row.payload as TaskContextPacketV01;
-    return isStandaloneAuthoredSuccessorV01(p) && materialFrom(p).request.expected_current_packet_id === packetId; });
+    return isStandaloneAuthoredSuccessorV01(p) && (isOrdinarySuccessorRevisionV01(p) ? ordinarySuccessorRevisionMaterialV01(p) : materialFrom(p)).request.expected_current_packet_id === packetId; });
 }
 
 /** Trusted local preparation for this authored read-only profile. No window is
@@ -407,6 +409,7 @@ export async function prepareAuthoredSuccessorHandoffV01(db: Database.Database, 
 
 export function authoredSuccessorPacketIdempotencyKeyV01(packet: TaskContextPacketV01): string | null {
   if (!isStandaloneAuthoredSuccessorV01(packet)) return null;
+  if (isOrdinarySuccessorRevisionV01(packet)) return ordinarySuccessorRevisionIdempotencyKeyV01(packet);
   const request = materialFrom(packet).request;
   return digest({ action: ACTION, prior: request.expected_current_packet_fingerprint, request });
 }
@@ -414,4 +417,11 @@ export function authoredSuccessorPacketIdempotencyKeyV01(packet: TaskContextPack
 export function isStandaloneAuthoredSuccessorV01(packet: TaskContextPacketV01): boolean {
   return packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) &&
     !packet.compatibility.source_contracts.includes(VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01);
+}
+
+/** The ordinary revision compiler inherits these exact bindings without copying old notes. */
+export function readOrdinarySuccessorRootBindingV01(packet: TaskContextPacketV01) {
+  check(packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01) && !isOrdinarySuccessorRevisionV01(packet), "ordinary_preparation_required");
+  const { source_root_ref, physical_root_fingerprint } = materialFrom(packet);
+  return { source_root_ref, physical_root_fingerprint };
 }

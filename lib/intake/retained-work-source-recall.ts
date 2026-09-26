@@ -10,7 +10,7 @@ export const RETAINED_WORK_SOURCE_LIMITS = {
   note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.entries,
   scanned_entry_utf8_bytes: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.bytes,
 } as const;
-type Chain = PreExecutionProjectWorkChainInspectionV01;
+type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;
 export interface RetainedWorkSourceHit {
   source: RetainedWorkSourceRef;
   entry: TaskContextPacketSelectedEntryV01;

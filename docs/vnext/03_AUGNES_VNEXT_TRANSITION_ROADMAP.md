@@ -301,6 +301,25 @@ unestablished. Completed P3/P5 studies and deferred remote transport stay closed
 to further execution under this issue. The next observation is one separately
 authorized ordinary use, retaining a strong source-linked note as the baseline.
 
+## P2/P3 saved outcome-linked preparation revision (#1335)
+
+[#1335](https://github.com/hynk-studio/augnes/issues/1335) extends same-task
+revision to a saved, fresh, unexecuted ordinary successor. The initial-family
+revision owner previously refused historical execution, while result
+preparation correctly refused once its predecessor packet was superseded.
+The existing Browser editor and repository revision tools now append and
+reconstruct B → B1 → B2 while retaining A's actual receipt, inherited
+constraints and expiry. B2 may later execute through normal admission and
+produce the result for another ordinary successor.
+
+This is **Current while its Draft PR is open**, and **Completed within this
+bounded lifecycle scope after merge**. Disposable host, reader, refusal and
+Browser evidence establish correctness only. Different-task switching from
+this family, scoped revalidation, production adoption and new provider studies
+are outside this slice. Better judgments and reduced user effort remain
+unestablished; the next decision is review of this bounded extension, followed
+by separately authorized ordinary use if retained.
+
 ## Completed P3.1 selected-change revision review
 
 Under [P3 #1213](https://github.com/hynk-studio/augnes/issues/1213) and the

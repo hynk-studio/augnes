@@ -1,3 +1,4 @@
+import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
@@ -9,7 +10,6 @@ import { CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, readCodexCurrentContinuitySnaps
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { normalizeInitialProjectWorkDefinitionV01 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { COMPANION_WORK_OPERATOR_ID_V01, recordCompanionWorkAdmissionInsideTransactionV01 } from "@/lib/vnext/runtime/local-operator-session";
-import { inspectPreExecutionProjectWorkRevisionChainV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import { ProjectWorkRevisionErrorV01, packetLineageKindV01, readProjectWorkRevisionEligibilityStrictV01, revisePreExecutionProjectWorkInsideTransactionV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { CODEX_REPOSITORY_WORK_REVISION_VERSION_V01, type RepositoryWorkRevisionInputV01, type RepositoryWorkRevisionProjectionV01 } from "@/types/vnext/codex-repository-work-revision";
 import type { RevisePreExecutionProjectWorkRequestV01 } from "@/types/vnext/project-work-revision";
@@ -80,7 +80,8 @@ export async function reviseCodexRepositoryWorkV01(
     }, dependencies);
     if (continuity.snapshot.status !== "exact" || continuity.current_work.status !== "current_work" ||
       continuity.current_work.currentness !== "fresh" || continuity.project.root_availability !== "available") refuse("current_work_unavailable");
-    const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    const chain = inspectRevisableProjectWorkChainV01(db, scope);
+    if (input.intent === "new_task" && chain.tip_lineage_kind === "authored_successor_task") refuse("work_revision_not_eligible");
     const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
     stale = continuity.snapshot.binding !== input.expected_snapshot_binding;
     if (input.action === "preview" && stale) refuse("refresh_required");

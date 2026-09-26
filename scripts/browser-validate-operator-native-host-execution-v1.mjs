@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readProjectWorkRevisionEligibilityStrictV01 } from "../lib/vnext/runtime/project-work-revision.ts";
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -1930,7 +1931,7 @@ await runOperatorExecutionBrowserChildV1({
     await lifecycle.runPhase("executed_reviewed_follow_up", async () => {
       const projectId = fixture.manifest.project_id;
       const db = new Database(fixture.writable_database_path, { readonly: true, fileMustExist: true });
-      const historyRows = () => db.prepare("SELECT record_id, payload_json FROM vnext_core_records WHERE project_id = ? ORDER BY record_id").all(projectId);
+      const historyRows = () => db.prepare("SELECT record_id, record_kind, payload_json FROM vnext_core_records WHERE project_id = ? ORDER BY record_id").all(projectId);
       try {
         const originalRows = historyRows();
         assert.equal(JSON.stringify(originalRows).includes(postResultCorrection), false);
@@ -2129,6 +2130,9 @@ await runOperatorExecutionBrowserChildV1({
         try {
           const initialization = readProjectWorkInitializationV01(fresh, { workspace_id: fixture.manifest.workspace_id, project_id: projectId });
           assert.equal(initialization.current_work.goal, nextGoal);
+          const strictEligibility = readProjectWorkRevisionEligibilityStrictV01(fresh, { workspace_id: fixture.manifest.workspace_id, project_id: projectId });
+          assert.equal(strictEligibility.eligible, true, JSON.stringify(strictEligibility));
+          assert.equal(initialization.revision_eligibility.eligible, true, JSON.stringify(initialization.revision_eligibility));
           assert.equal(initialization.selected_source_context.length, 2);
           assert(initialization.selected_source_context.some(entry => entry.bounded_summary === nextJudgment && entry.trust_class === "user_declaration" && entry.currentness.status === "unknown"));
           assert(!JSON.stringify(initialization.selected_source_context).includes('EXCLUDED_NEXT_WORK_NOTE'));
@@ -2136,6 +2140,44 @@ await runOperatorExecutionBrowserChildV1({
         await clickSelector(lifecycle, '[data-result-work-saved] a');
         await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(nextGoal)} && document.querySelectorAll('[data-current-work-source-text]').length === 2`, "fresh current-work source consumer");
         assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-current-work-sources]').textContent.includes(${JSON.stringify(nextJudgment)})`), true);
+        // Reopen B only after its first save and a fresh navigation. This is
+        // the same-task editor, not the unsaved result composer above.
+        const savedBRows = historyRows();
+        const savedBPacket = savedBRows.filter(row => row.record_kind === "task_context_packet").map(row => JSON.parse(row.payload_json)).find(packet => packet.task.goal === nextGoal);
+        assert(savedBPacket?.expires_at, "The Browser case has a real inherited finite lifetime");
+        await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, "saved successor revision action");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-new-work-action="open"]') === null`), true);
+        await clickSelector(lifecycle, '[data-work-revision-action="open"]');
+        await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal')?.value === ${JSON.stringify(nextGoal)}`, "saved B reopened for revision");
+        const revisedGoal = "Review calibration evidence without generalizing to warm conditions";
+        await lifecycle.setFormControlValue('#work-revision-goal', revisedGoal);
+        await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+        await lifecycle.setFormControlValue('#selected-note-source', 'Explicit saved-preparation correction');
+        await lifecycle.setFormControlValue('#selected-note-provenance', 'user_declaration');
+        await lifecycle.setFormControlValue('#selected-note-kind', 'Deferred item / revisit condition');
+        const savedCorrection = "Defer a warm conclusion until warm evidence is selected; the cold observation is retained.";
+        await lifecycle.setFormControlValue('#selected-note-text', savedCorrection);
+        await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+        await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+        await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('3 selected')`, "saved B source revision compared");
+        for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
+          await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, `saved successor editor fits ${width}px`);
+        }
+        assert.deepEqual(historyRows(), savedBRows, "Editing and comparison do not append history");
+        await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
+        await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null && document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(revisedGoal)}`, "saved successor revision displayed");
+        assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), { ...beforeNextWork, packets: beforeNextWork.packets + 2 });
+        for (const row of savedBRows) assert.deepEqual(historyRows().find(value => value.record_id === row.record_id), row);
+        const revisedPacket = historyRows().filter(row => row.record_kind === "task_context_packet").map(row => JSON.parse(row.payload_json)).find(packet => packet.task.goal === revisedGoal);
+        assert.equal(revisedPacket.expires_at, savedBPacket.expires_at);
+        assert.deepEqual(revisedPacket.constraints.required_checks, savedBPacket.constraints.required_checks);
+        assert.deepEqual(revisedPacket.constraints.forbidden_actions, savedBPacket.constraints.forbidden_actions);
+        assert.deepEqual(revisedPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"), savedBPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"));
+        await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+        await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === ${JSON.stringify(revisedGoal)} && document.querySelectorAll('[data-current-work-source-text]').length === 3`, "revised successor fresh Browser read");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-current-work-sources]').textContent.includes(${JSON.stringify(savedCorrection)})`), true);
+        console.log(JSON.stringify({ saved_successor_reopen_revision_ui: "pass", fresh_selected_notes: 3, appended_revision_packets: 1, new_runs: 0, semantic_changes: 0 }));
         console.log(JSON.stringify({ outcome_judgment_next_work_ui: "pass", explicit_selected_notes: 2, outcome_source_copies: 0, new_runs: 0, semantic_changes: 0 }));
       } finally { db.close(); }
     });

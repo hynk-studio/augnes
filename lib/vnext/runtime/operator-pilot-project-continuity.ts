@@ -341,25 +341,7 @@ function projectContinuitySnapshotV01(
     throw continuityError("operator_pilot_target_head_bound_exceeded", 422);
   }
   validateTargetHeads(db, input.config, targetHeads);
-  const packets = loadCurrentWorkPackets(db, input.config);
-  const latestSemanticPacket =
-    packets
-      .filter(
-        (entry) =>
-          entry.lineage_kind === "semantic_transition" &&
-          entry.projection_current,
-      )
-      .at(-1) ?? null;
-  const currentNonSemanticPackets = packets.filter(
-    (entry) =>
-      entry.lineage_kind !== "semantic_transition" &&
-      entry.projection_current,
-  );
-  if (!latestSemanticPacket && currentNonSemanticPackets.length > 1) {
-    throw continuityError("operator_pilot_current_packet_ambiguous", 409);
-  }
-  const latestPacketBinding =
-    latestSemanticPacket ?? currentNonSemanticPackets[0] ?? null;
+  const latestPacketBinding = readCurrentProjectWorkPacketLineageV01(db, input.config);
   const latestPacket = latestPacketBinding?.packet ?? null;
   const contextUseReceipts = loadContextUseReceipts(db, input.config);
   const latestContextUse = latestPacket
@@ -947,6 +929,29 @@ function validateTargetHeads(
   }
 }
 
+/** Packet currentness is shared by preparation readers. It validates packet and
+ * semantic lineage, not the separate operator-specific review projection. */
+export function readCurrentProjectWorkPacketLineageV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+  const packets = loadCurrentWorkPackets(db, config);
+  const latestSemanticPacket =
+    packets
+      .filter(
+        (entry) =>
+          entry.lineage_kind === "semantic_transition" &&
+          entry.projection_current,
+      )
+      .at(-1) ?? null;
+  const currentNonSemanticPackets = packets.filter(
+    (entry) =>
+      entry.lineage_kind !== "semantic_transition" &&
+      entry.projection_current,
+  );
+  if (!latestSemanticPacket && currentNonSemanticPackets.length > 1) {
+    throw continuityError("operator_pilot_current_packet_ambiguous", 409);
+  }
+  return latestSemanticPacket ?? currentNonSemanticPackets[0] ?? null;
+}
+
 function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
   const lineages = loadRecords(db, config, "task_context_packet")
     .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
@@ -967,9 +972,13 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
     .map((packet) => inspectVNextOperatorPilotPacketLineageV01(db, {
       config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
     }));
+  // Sparse semantic predecessors may still match accepted state. Their exact
+  // successor edges nevertheless make them historical work, just as in the
+  // normal project-work reader; they must not hide a later authored tip.
   const superseded = new Set(lineages.flatMap(lineage =>
-    lineage.lineage_kind === "authored_successor_task" ? [lineage.prior_packet.packet_id] : []));
-  return lineages.map(lineage => superseded.has(lineage.packet.packet_id)
+    (lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition")
+      ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
+  return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
     ? { ...lineage, projection_current: false } : lineage);
 }
 

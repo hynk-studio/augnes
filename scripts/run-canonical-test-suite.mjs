@@ -687,6 +687,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "unexecuted-successor-revision",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "saved outcome-linked preparation revision, immutable lineage, fresh consumer and admission refusal",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-revision-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "authored-successor-handoff",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],

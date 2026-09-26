@@ -1,3 +1,5 @@
+import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01, saveOrdinarySuccessorRevisionInsideTransactionV01 } from "./authored-successor-revision";
+import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "./new-project-work-preparation";
 import { accessSync, constants, statSync } from "node:fs";
 
@@ -72,6 +74,7 @@ export class ProjectWorkRevisionErrorV01 extends Error {
 
 export interface ProjectWorkRevisionDependenciesV01 {
   root_available?: (root: string) => boolean;
+  evaluated_at?: string;
 }
 
 export function readProjectWorkRevisionEligibilityV01(
@@ -139,6 +142,18 @@ export function readProjectWorkRevisionEligibilityStrictV01(
       status: "blocked_not_current",
       reason: "current_packet_stale_or_unavailable",
     });
+  }
+  const successor = inspectCurrentOrdinarySuccessorRevisionChainV01(db, input, dependencies.evaluated_at);
+  if (successor) {
+    const binding = { ...activeBinding, current_packet_id: successor.tip_packet.packet_id,
+      current_packet_fingerprint: successor.tip_packet.integrity.fingerprint, current_lineage_kind: successor.tip_lineage_kind,
+      revision_count: successor.revision_count };
+    if (!successor.projection_current) return eligibilityV01(input, { ...binding, status: "blocked_not_current", reason: "current_packet_stale_or_unavailable" });
+    try { assertOrdinarySuccessorRevisionRootV01(db, input, successor); }
+    catch { return eligibilityV01(input, { ...binding, status: "blocked_root_unavailable", reason: "root_unavailable" }); }
+    if (ordinarySuccessorRevisionExecutionBlockedV01(db, input, successor)) return eligibilityV01(input, { ...binding, status: "blocked_execution_started", reason: "managed_run_history_present" });
+    if (successor.revision_count >= MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01) return eligibilityV01(input, { ...binding, status: "revision_limit_reached", reason: "revision_limit_reached" });
+    return eligibilityV01(input, { ...binding, status: "eligible_successor_packet", reason: "current_unexecuted_successor" });
   }
   const continuation = readOperationalContinuationLineageStateV01(db, input);
   if (continuation) {
@@ -275,7 +290,7 @@ export function revisePreExecutionProjectWorkV01(
   dependencies: ProjectWorkRevisionDependenciesV01 = {},
 ): RevisePreExecutionProjectWorkResultV01 {
   // Preserve Browser validation order before credential admission.
-  const request = parseRequestV01(input.request);
+  const request = parseProjectWorkRevisionRequestV01(input.request);
   normalizeInitialProjectWorkDefinitionV01(request);
   if (request.workspace_id !== input.config.workspace_id ||
     request.project_id !== input.config.project_id ||
@@ -317,7 +332,7 @@ export function revisePreExecutionProjectWorkInsideTransactionV01(
   dependencies: ProjectWorkRevisionDependenciesV01 = {},
 ): Omit<RevisePreExecutionProjectWorkResultV01, "session_admission"> {
   if (!db.inTransaction) refuse("work_revision_transaction_conflict", 409);
-  const request = parseRequestV01(input.request);
+  const request = parseProjectWorkRevisionRequestV01(input.request);
   const definition = normalizeInitialProjectWorkDefinitionV01(request);
   if (request.workspace_id !== input.scope.workspace_id ||
     request.project_id !== input.scope.project_id ||
@@ -340,6 +355,11 @@ export function revisePreExecutionProjectWorkInsideTransactionV01(
     dependencies.root_available ?? rootAvailableSynchronouslyV01;
   if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
     refuse("work_revision_root_unavailable", 409);
+  }
+  if (request.expected_current_lineage_kind === "authored_successor_task") {
+    const saved = saveOrdinarySuccessorRevisionInsideTransactionV01(db, { ...input, request });
+    return resultV01(saved.status, saved.packet, definition, readProjectWorkRevisionEligibilityStrictV01(db, input.scope,
+      { ...dependencies, evaluated_at: input.admission.action_observed_at }));
   }
   const chain = inspectPreExecutionProjectWorkRevisionChainV01(
     db,
@@ -557,7 +577,7 @@ function assertEligibleForExactSuccessorReplayV01(
   refuse("work_revision_not_eligible", 409);
 }
 
-function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV01 {
+export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV01 {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     refuse("work_revision_request_invalid", 400);
   }
@@ -582,6 +602,7 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
       "initial_user_defined",
       "pre_execution_user_revision",
       "pre_execution_new_task",
+      "authored_successor_task",
     ].includes(String(request.expected_current_lineage_kind))
   ) {
     refuse("work_revision_request_invalid", 400);
@@ -608,6 +629,7 @@ function parseRequestV01(value: unknown): RevisePreExecutionProjectWorkRequestV0
 export function packetLineageKindV01(
   packet: TaskContextPacketV01,
 ): RevisePreExecutionProjectWorkRequestV01["expected_current_lineage_kind"] | null {
+  if (packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)) return "authored_successor_task";
   if (packet.compatibility.source_contracts.includes(PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) return "pre_execution_new_task";
   if (
     packet.compatibility.source_contracts.includes(
@@ -655,7 +677,7 @@ function eligibilityV01(
     reason: values.reason,
     eligible:
       values.status === "eligible_initial_packet" ||
-      values.status === "eligible_revised_packet",
+      values.status === "eligible_revised_packet" || values.status === "eligible_successor_packet",
     projection_only: true,
     semantic_authority_granted: false,
     execution_authority_granted: false,
@@ -751,6 +773,11 @@ export function previewNewProjectWorkV01(db: Database.Database, scope: { workspa
     fields.expected_current_lineage_kind !== chain.tip_lineage_kind) refuse("work_revision_current_packet_changed", 409);
   const draft = { ...fields, action: "prepare_new_project_work" } as RevisePreExecutionProjectWorkRequestV01;
   const comparison = compareNewProjectWorkV01(chain.tip_packet, draft, currentPreparationRootBindingV01(db, scope), omitted_sources);
-  const request = parseRequestV01({ ...draft, preparation: comparison.preparation });
+  const request = parseProjectWorkRevisionRequestV01({ ...draft, preparation: comparison.preparation });
   return { status: "new_work_preview" as const, comparison, request };
+}
+
+/** The selected-source readers use only the current, validated same-task family. */
+export function inspectRevisableProjectWorkChainV01(db: Database.Database, scope: { workspace_id: string; project_id: string }) {
+  return inspectCurrentOrdinarySuccessorRevisionChainV01(db, scope) ?? inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
 }

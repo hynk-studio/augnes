@@ -345,7 +345,7 @@ function nativeSnapshots() {
   const coreCounts = {
     automation_work_item: 4,
     capability_grant: 1,
-    task_context_packet: 9, // Includes the explicit outcome-linked next-work preparation.
+    task_context_packet: 10, // Includes the outcome-linked preparation and its same-task revision.
     run_receipt: 5,
     episode_delta_proposal: 6,
     work_expectation_record: 2,

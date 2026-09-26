@@ -1,3 +1,4 @@
+import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { AuthoredSuccessorTaskErrorV01 } from "@/lib/vnext/authored-successor-task";
 import { ProjectRunResultReadErrorV01 } from "@/lib/vnext/runtime/project-run-result-read-model";
@@ -46,7 +47,7 @@ import {
   previewNewProjectWorkV01,
   readProjectWorkRevisionEligibilityStrictV01,
 } from "@/lib/vnext/runtime/project-work-revision";
-import { PreExecutionProjectWorkRevisionErrorV01, inspectPreExecutionProjectWorkRevisionChainV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { PreExecutionProjectWorkRevisionErrorV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -267,7 +268,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
               throw new ProjectWorkRevisionErrorV01("retained_source_work_selection_changed_or_unavailable", 409);
             }
           }
-          const chain = inspectPreExecutionProjectWorkRevisionChainV01(db!, config);
+          const chain = inspectRevisableProjectWorkChainV01(db!, config);
           if (!chain.projection_current || chain.tip_packet.packet_id !== body.expected_current_packet_id ||
             chain.tip_packet.integrity.fingerprint !== body.expected_current_packet_fingerprint) {
             throw new ProjectWorkRevisionErrorV01("work_revision_current_packet_changed", 409);

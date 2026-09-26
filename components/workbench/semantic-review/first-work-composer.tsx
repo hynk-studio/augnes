@@ -94,6 +94,9 @@ export function FirstWorkComposer({
             ? "Save an append-only revision before work starts. This does not start Codex or change project files."
             : "Save one goal and the criteria that will show success. This does not start Codex or change project files."}
         </p>
+        {mode === "revision" && initialization.current_packet?.lineage_kind === "authored_successor_task" ? (
+          <p className={styles.copy}>This remains the same task. Its inherited mandatory constraints and expiry still apply.</p>
+        ) : null}
       </div>
       <form
         className={styles.form}

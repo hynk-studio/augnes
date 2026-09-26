@@ -1066,6 +1066,7 @@ const integrationChildren = [
   "project-work-expectation",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
+  "unexecuted-successor-revision",
   "authored-successor-handoff",
   "settled-expired-successor",
   "settled-expired-successor-refusals",
@@ -1149,6 +1150,11 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertWorkExpectationMech
   "the default initialization path must not repeat the expectation cases");
 assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostConnectionV01();"), 1,
   "the default initialization path must not repeat the scoped matrix");
+const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
+  requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 1,
+  "the successor revision lifecycle runs once without extending the initial preparation child");
 const successorRegistration = readCanonicalChildRegistration(integrationSource, "authored-successor-handoff");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--successor-handoff-only"'])
   requireText(successorRegistration.block, fragment, "authored successor retains one bounded serial owner");

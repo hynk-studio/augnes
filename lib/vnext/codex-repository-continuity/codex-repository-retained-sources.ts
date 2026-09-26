@@ -1,10 +1,11 @@
+import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import Database from "better-sqlite3";
 import { getDatabasePath } from "@/lib/db";
 import { recallRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 import { SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, readCodexProjectContinuityV01 } from "@/lib/vnext/codex-current-continuity/codex-current-continuity";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
-import { inspectPreExecutionProjectWorkRevisionChainV01, PreExecutionProjectWorkRevisionErrorV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { PreExecutionProjectWorkRevisionErrorV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import { readProjectWorkRevisionEligibilityStrictV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { CODEX_REPOSITORY_RETAINED_SOURCES_VERSION_V01, type CodexRepositoryRetainedSourcesV01 } from "@/types/vnext/codex-repository-retained-sources";
 import { resolveCodexRepositoryProjectV01, type CodexRepositoryContinuityDependenciesV01 } from "./codex-repository-continuity";
@@ -45,7 +46,7 @@ export async function readCodexRepositoryRetainedSourcesV01(
       ...result, status: "ineligible", reason: "work_revision_not_eligible",
     };
     try {
-      const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+      const chain = inspectRevisableProjectWorkChainV01(db, scope);
       const recall = recallRetainedWorkSources(chain, input.query, { include_source_locator: isDisclosedWorkSourceLocatorV01 });
       const results = recall.results.map(({ entry, ...hit }) => ({ ...hit, note: projectSelectedWorkSourcesV01([entry])[0]! }));
       // Canonical recall bounds whole original rows before disclosure. Neither
