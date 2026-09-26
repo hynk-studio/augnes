@@ -66,7 +66,7 @@ function packetFrom(db: Database.Database, scope: Scope, id: string, fingerprint
   return packet;
 }
 
-function build(prior: TaskContextPacketV01, anchor: AuthoredSuccessorPacketLineageV01, material: Material, operator: string, at: string) {
+export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, anchor: AuthoredSuccessorPacketLineageV01, material: Material, operator: string, at: string) {
   const definition = normalizeInitialProjectWorkDefinitionV01(material.request);
   const selected = material.request.selected_source_context ?? readSelectedWorkSources(prior);
   const fingerprint = digest({ compiler: AUTHORED_SUCCESSOR_REVISION_V01, material, at, operator });
@@ -134,7 +134,7 @@ export function inspectOrdinarySuccessorRevisionV01(db: Database.Database, input
     check(retained.entries.every(e => m.request.selected_source_context!.some(s => equal(e, s))) &&
       compareSelectedWorkSources(prior, m.request.selected_source_context, retained.refs).fingerprint === m.request.expected_source_comparison, "revision_source_comparison");
   }
-  const expected = build(prior, lineage, m, session.operator_id, packet.generated_at);
+  const expected = buildOrdinarySuccessorRevisionV01(prior, lineage, m, session.operator_id, packet.generated_at);
   check(equal(expected.packet, packet), "revision_compiler_binding");
   return { ...expected, lineage_kind: "authored_successor_task", prior_packet: { packet_id: prior.packet_id, packet_fingerprint: prior.integrity.fingerprint },
     inherited_context_current: lineage.inherited_context_current, projection_current: lineage.inherited_context_current && !hasAuthoredSuccessorOfPacketV01(db, config, packet.packet_id), source_transition_receipt: null };
@@ -213,7 +213,7 @@ export function saveOrdinarySuccessorRevisionInsideTransactionV01(db: Database.D
   const material: Material = { request, revision_number: chain.revision_count + 1, session_id: admission.session.session_id,
     origin_packet_id: chain.packets[0]!.packet_id, origin_packet_fingerprint: chain.packets[0]!.integrity.fingerprint,
     source_root_ref: chain.root.source_root_ref, physical_root_fingerprint: chain.root.physical_root_fingerprint };
-  const built = build(chain.tip_packet, chain.lineage, material, scope.operator_id, admission.action_observed_at);
+  const built = buildOrdinarySuccessorRevisionV01(chain.tip_packet, chain.lineage, material, scope.operator_id, admission.action_observed_at);
   check(validateTaskContextPacketV01(built.packet, { evaluated_at: admission.action_observed_at }).status === "valid", "revision_packet_invalid");
   const write = insertVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: built.packet.packet_id,
     fingerprint: built.packet.integrity.fingerprint, idempotency_key: requestDigest(request), payload: built.packet, created_at: built.packet.generated_at });

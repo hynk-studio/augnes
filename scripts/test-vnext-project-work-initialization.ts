@@ -1,10 +1,13 @@
+import { buildWorkExpectationRecord, expectationRef } from "../lib/vnext/work-expectation";
+import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, type WorkExpectation, type WorkExpectationAttempt } from "../types/vnext/work-expectation";
 import { createWorkExpectationHandler } from "../app/api/vnext/operator/work-expectations/route";
 import { assertWebMcpCurrentWork } from "./test-webmcp-current-work";
 import { recordWorkExpectationMaterial, readWorkExpectationPreparation } from "../lib/vnext/runtime/work-expectation";
-import { readWorkExpectationRecords, readWorkExpectationComparison } from "../lib/vnext/persistence/work-expectation-store";
+import { bindWorkExpectationToAttempt, insertWorkExpectationRecord, readWorkExpectationRecords, readWorkExpectationComparison } from "../lib/vnext/persistence/work-expectation-store";
 import { deriveCriterionIdentityV01 } from "../lib/vnext/criterion-identity";
 import { readProjectRunResultDetailV01, readProjectRunResultSourceBindingV01 } from "../lib/vnext/runtime/project-run-result-read-model";
 import { defineAuthoredSuccessorTaskV01, prepareAuthoredSuccessorHandoffV01, inspectAuthoredSuccessorPacketV01, readResultWorkPreparationV01, compareResultWorkSourcesV01, previewResultWorkV01 } from "../lib/vnext/runtime/authored-successor-task";
+import { buildOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "../lib/vnext/runtime/authored-successor-revision";
 import { selectedWorkSourceInput } from "../lib/intake/selected-work-source-comparison";
 import { readCodexCurrentContinuityV01 } from "../lib/vnext/codex-current-continuity/codex-current-continuity";
 import { readCodexRepositoryWorkSourcesV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-work-sources";
@@ -136,6 +139,8 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
+    if (process.argv.includes("--successor-expectation-limit-only")) { await assertSuccessorExpectationV01(true); return; }
     if (process.argv.includes("--successor-revision-only")) { await assertUnexecutedSuccessorRevisionV01(); return; }
     if (process.argv.includes("--outcome-reuse-only")) { await assertOutcomeReuseV01(); return; }
     if (process.argv.includes("--webmcp-only")) { await assertWebMcpCurrentReadV01(); return; }
@@ -263,7 +268,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     console.log(JSON.stringify({ case: "reopen_saved_ordinary_successor", state: current.state, eligibility }));
     assert.equal(current.current_packet?.packet_id, saved.packet.packet_id);
     assert.equal(eligibility.eligible, true, "A settled historical predecessor must not block same-task revision of unexecuted B");
-    assert.equal(readWorkExpectationPreparation(fixture.db, fixture.config).eligibility.eligible, false, "The older prospective expectation scope is not broadened");
+    assert.equal(readWorkExpectationPreparation(fixture.db, fixture.config).eligibility.eligible, true, "Ordinary successor expectations share the validated unexecuted family");
     // Constructed terminal history remains explicitly fixture data. A itself
     // was produced by the supported host above, never by these inserts.
     let historyIndex = 0;
@@ -4755,6 +4760,376 @@ async function assertRevisedNativeHostStartV01(): Promise<void> {
   }
 }
 
+
+async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise<void> {
+  const fixture = createFixtureV01("successor-expectation", false, true);
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "forecast-author"), request: requestV01(fixture), clock: fixedClock(T2) });
+    let credential = credentialFromCookieV01(initial.session_admission.cookie_value);
+    const forecastRequest = (packet: TaskContextPacketV01, previous: string | null = null) => ({
+      action: "record_work_expectation", expected_active_project_id: fixture.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!.selection_revision,
+      expected_packet_id: packet.packet_id, expected_packet_fingerprint: packet.integrity.fingerprint,
+      expected_previous_id: previous, criterion_id: deriveCriterionIdentityV01(packet.task.success_criteria[0]!),
+      predicted_outcome: "satisfied", reason: "SUCCESSOR_FORECAST_ONLY: expect the bounded criterion.", conditions: "Only the stated cold condition; warm conditions are unknown.",
+    });
+    const firstForecast = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential,
+      request: forecastRequest(initial.packet), clock: fixedClock("2026-08-01T00:00:03.000Z") });
+    credential = credentialFromCookieV01(firstForecast.session_admission.cookie_value);
+    const firstUnstarted = fixture.db.serialize();
+    const first = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential, clock: fixedClock("2026-08-01T00:00:04.000Z") } }, {
+      adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:00:05.000Z") }),
+      now: timestampSequenceV01("2026-08-01T00:00:04.000Z"),
+    });
+    assert.equal(first.receipt.execution.status, "completed");
+    const firstComparison = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: first.receipt.receipt_id }).expectation!;
+    assert.equal(firstComparison.attempt?.chronology, "same_transaction_as_first_local_interactive_run");
+    const invalidProfile = new Database(firstUnstarted);
+    try {
+      // Malformed compatibility fixture only: a successor chronology marker
+      // must never reinterpret the genuine initial packet's historical meaning.
+      const { record_id: _id, integrity: _integrity, ...body } = firstComparison.attempt!;
+      const wrongProfile = buildWorkExpectationRecord<WorkExpectationAttempt>({ ...body, chronology: ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY });
+      invalidProfile.transaction(() => insertWorkExpectationRecord(invalidProfile, wrongProfile))();
+      assert.throws(() => readWorkExpectationRecords(invalidProfile, fixture), /chronology_profile_invalid/);
+      assert.throws(() => buildWorkExpectationRecord({ ...body, chronology: "unknown_chronology" } as never), /record_invalid/);
+    } finally { invalidProfile.close(); }
+    const clock = fixedClock("2026-08-01T00:00:20.000Z");
+    const preparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: first.receipt.receipt_id, clock });
+    const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [
+      { source: "Disposable observation", text: "Cold observation retained; warm conditions remain untested.", observed_at: null, provenance: "imported_unverified", label: "Open question" },
+    ], clock });
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+      definition: { goal: "Review the cold observation", success_criteria: ["Preserve the condition boundary"], non_goals: ["No warm-condition conclusion"] },
+      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] },
+    });
+    const b = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
+      credential: credentialFromCookieV01(first.session_admission!.cookie_value), request: preview.request, clock });
+    credential = credentialFromCookieV01(b.session_admission.cookie_value);
+    assert.equal(b.packet.criterion_verification_plan, undefined);
+    assert.throws(() => readAuthoredSuccessorDefinitionV01({ ...b.packet, criterion_verification_plan: {} as never }), /task_contract_conflict/,
+      "Ordinary authoring does not acquire a typed verification plan; supported typed relations retain their separate conformance owner");
+    console.log(JSON.stringify({ case: "saved_successor_expectation", predecessor: first.receipt.execution.status,
+      predecessor_expectation_bound: !!firstComparison.attempt, preparation: readWorkExpectationPreparation(fixture.db, fixture).eligibility }));
+    assert.equal(readWorkExpectationPreparation(fixture.db, fixture).eligibility.eligible, true,
+      "A genuine settled A and its separate expectation history must not block an optional B expectation");
+    const writeForecast = (packet: TaskContextPacketV01, at: string, previous: string | null = null) => {
+      const before = fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+      const unaffected = (fixture.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('vnext_core_records', 'vnext_local_operator_sessions')").all() as { name: string }[])
+        .map(({ name }) => ({ name, rows: fixture.db.prepare(`SELECT * FROM "${name}"`).all() }));
+      const saved = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: forecastRequest(packet, previous), clock: fixedClock(at) });
+      credential = credentialFromCookieV01(saved.session_admission.cookie_value);
+      assert.equal(saved.record.kind, "expectation");
+      const after = fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all() as { record_id: string }[];
+      assert.deepEqual(after.filter(r => r.record_id !== saved.record.record_id), before, "Authoring appends only the optional record; original A/B stay immutable");
+      for (const table of unaffected) assert.deepEqual(fixture.db.prepare(`SELECT * FROM "${table.name}"`).all(), table.rows, "No execution, grant, Decision, Transition or unrelated state change");
+      return saved.record;
+    };
+    const bForecast = writeForecast(b.packet, "2026-08-01T00:00:21.000Z");
+    const bSnapshot = fixture.db.serialize(), bCredential = credential;
+    const b1 = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+      request: revisionRequestV01(fixture, b.packet, "authored_successor_task", { ...b.packet.task, goal: "Review the cold observation and its uncertainty" }), clock: fixedClock("2026-08-01T00:00:22.000Z") });
+    credential = credentialFromCookieV01(b1.session_admission.cookie_value);
+    assert.equal(readWorkExpectationPreparation(fixture.db, fixture).history.length, 0, "Definition-only revision never silently carries a forecast, even with identical criterion text");
+    const b1Forecast = writeForecast(b1.packet, "2026-08-01T00:00:23.000Z");
+    const correction = buildSelectedWorkSourceEntry(fixture, { source: "Explicit user correction", observed_at: null, provenance: "user_declaration",
+      label: "Changed assumption / user correction", text: "Cold failure does not predict warm failure. Warm conditions remain unknown." });
+    const sources = compareSelectedWorkSources(b1.packet, [...readSelectedWorkSources(b1.packet), correction]);
+    const b2 = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+      request: { ...revisionRequestV01(fixture, b1.packet, "authored_successor_task", b1.packet.task), selected_source_context: sources.entries, expected_source_comparison: sources.fingerprint },
+      clock: fixedClock("2026-08-01T00:00:24.000Z") });
+    credential = credentialFromCookieV01(b2.session_admission.cookie_value);
+    assert.equal(readWorkExpectationPreparation(fixture.db, fixture).history.length, 0, "Note-only revision never transfers the old expectation");
+    assert.deepEqual(b2.packet.task, b1.packet.task);
+    const refusal = (request: unknown, expected: RegExp, at = "2026-08-01T00:00:25.000Z") => {
+      const before = fixture.db.serialize();
+      assert.throws(() => recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request, clock: fixedClock(at) }), expected);
+      assert(before.equals(fixture.db.serialize()), "Refusal leaves records, session and execution state unchanged");
+    };
+    refusal(forecastRequest(b.packet), /packet_changed/);
+    refusal(forecastRequest(b1.packet), /packet_changed/);
+    const currentRequest = forecastRequest(b2.packet);
+    const branchDb = new Database(bSnapshot), ambiguousDb = new Database(fixture.db.serialize());
+    try {
+      const branch = revisePreExecutionProjectWorkV01(branchDb, { config: fixture.config, credential: bCredential,
+        request: revisionRequestV01(fixture, b.packet, "authored_successor_task", { ...b.packet.task, goal: "Disposable competing branch" }), clock: fixedClock("2026-08-01T00:00:22.100Z") });
+      const branchRow = listVNextCoreRecordsV01(branchDb, { ...fixture, record_kinds: ["task_context_packet"], limit: 256 }).find(r => r.record_id === branch.packet.packet_id)!;
+      // Combine genuine fixture writes solely to exercise corrupt ambiguity.
+      insertVNextCoreRecordV01(ambiguousDb, branchRow);
+      const before = ambiguousDb.serialize();
+      assert.throws(() => recordWorkExpectationMaterial(ambiguousDb, { config: fixture.config, credential, request: currentRequest, clock: fixedClock("2026-08-01T00:00:25.000Z") }), /current|pre_start_only/);
+      assert(before.equals(ambiguousDb.serialize()));
+      ambiguousDb.exec("BEGIN IMMEDIATE");
+      assert.equal(bindWorkExpectationToAttempt(ambiguousDb, { ...fixture, packet: b2.packet, run_id: "fixture:ambiguous", mode: "interactive", started_at: "2026-08-01T00:00:30.000Z" }), null);
+      ambiguousDb.exec("ROLLBACK");
+    } finally { branchDb.close(); ambiguousDb.close(); }
+    refusal({ ...currentRequest, expected_active_project_id: "foreign" }, /selection_changed/);
+    refusal({ ...currentRequest, expected_active_selection_revision: 999 }, /selection_changed/);
+    refusal({ ...currentRequest, criterion_id: "foreign" }, /criterion_changed/);
+    refusal({ ...currentRequest, predicted_outcome: "maybe" }, /record_invalid/);
+    refusal({ ...currentRequest, recorded_at: T0 }, /record_invalid/);
+    refusal({ ...currentRequest, reason: "x".repeat(601) }, /text_invalid/);
+    if (finalRevisionOnly) {
+      await assertSuccessorExpectationOptionalV01(fixture, b2.packet, credential, fixture.db.serialize(), first.receipt, firstForecast.record.record_id, true);
+      return;
+    }
+    // Constructed history is only fixture data. The eligible A receipt above
+    // came from the real deterministic host and is never replaced by it.
+    for (let index = 0; index < 256; index++) {
+      insertManagedRunV01(fixture, { run_id: `fixture:expectation-history:${index}`, scope: fixture.project_id, status: "completed",
+        metadata_json: JSON.stringify({ fixture_only: true, reconciliation_required: false }), created_at: new Date(Date.parse("2026-08-01T00:00:03.500Z") - index).toISOString() });
+      if ([125, 126, 255].includes(index)) assert.equal(readWorkExpectationPreparation(fixture.db, fixture).eligibility.eligible, true, `${index + 2} terminal runs do not consume B's first-attempt eligibility`);
+    }
+    insertManagedRunV01(fixture, { run_id: "fixture:foreign-expectation", scope: "foreign", status: "running", metadata_json: "{}", created_at: T1 });
+    assert.equal(readWorkExpectationPreparation(fixture.db, fixture).eligibility.eligible, true);
+    const oldId = "fixture:expectation-history:255";
+    for (const [status, metadata] of [["running", { reconciliation_required: false }], ["completed", { reconciliation_required: true }],
+      ["future-status", {}], ["completed", []], ["completed", { packet_id: b.packet.packet_id }]] as const) {
+      fixture.db.prepare("UPDATE autonomy_runs SET status = ?, metadata_json = ? WHERE run_id = ?").run(status, JSON.stringify(metadata), oldId);
+      assert(!listAutonomyRunLedgerRecords({ db: fixture.db, scope: fixture.project_id, limit: 128 }).some(r => r.run_id === oldId));
+      refusal(currentRequest, /pre_start_only|revision_execution_history/);
+      fixture.db.exec("BEGIN IMMEDIATE");
+      assert.equal(bindWorkExpectationToAttempt(fixture.db, { ...fixture, packet: b2.packet, run_id: "fixture:must-not-bind", started_at: "2026-08-01T00:00:30.000Z", mode: "interactive" }), null);
+      fixture.db.exec("ROLLBACK");
+    }
+    fixture.db.prepare("UPDATE autonomy_runs SET status = 'completed', metadata_json = ? WHERE run_id = ?").run(JSON.stringify({ fixture_only: true, reconciliation_required: false }), oldId);
+    const moved = `${fixture.root}-moved`; renameSync(fixture.root, moved); mkdirSync(fixture.root);
+    try { refusal(currentRequest, /pre_start_only/); } finally { rmSync(fixture.root, { recursive: true }); renameSync(moved, fixture.root); }
+    const snapshotWithoutForecast = fixture.db.serialize();
+    await assertSuccessorExpectationOptionalV01(fixture, b2.packet, credential, snapshotWithoutForecast, first.receipt, firstForecast.record.record_id);
+    const finalForecast = writeForecast(b2.packet, "2026-08-01T00:00:26.000Z");
+    refusal(currentRequest, /revision_changed/, "2026-08-01T00:00:27.000Z");
+    const frozenHistory = readWorkExpectationRecords(fixture.db, fixture);
+    const reopened = new Database(fixture.config.database_path, { readonly: true });
+    try { assert.deepEqual(readWorkExpectationPreparation(reopened, fixture).history, [finalForecast]); }
+    finally { reopened.close(); }
+    // A separate authenticated Start is pending async source admission while a
+    // second connection saves a newer expectation. Start must freeze the winner.
+    const starter = { ...fixture, config: { ...fixture.config } };
+    const startCredential = authenticatedSessionV01(starter, "start");
+    let workerInput: NativeHostRequestV01 | undefined;
+    let winningForecast: ReturnType<typeof recordWorkExpectationMaterial>;
+    const starting = runDirectNativeHostRoundTripV01(fixture.db, { config: starter.config, mode: "interactive",
+      operator_mutation: { credential: startCredential, clock: fixedClock("2026-08-01T00:00:30.000Z") } }, {
+      adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:00:31.000Z"), observe: ({ request }) => {
+        workerInput = structuredClone(request);
+        assert.equal(JSON.stringify(request).includes("SUCCESSOR_FORECAST_ONLY"), false, "Predictions are absent from the actual worker input");
+        refusal(forecastRequest(b2.packet, winningForecast.record.record_id), /pre_start_only/, "2026-08-01T00:00:31.000Z");
+      } }), now: timestampSequenceV01("2026-08-01T00:00:30.000Z"),
+    });
+    const savingDb = new Database(fixture.config.database_path);
+    try {
+      winningForecast = recordWorkExpectationMaterial(savingDb, { config: fixture.config, credential,
+        request: { ...forecastRequest(b2.packet, finalForecast.record_id), reason: "SUCCESSOR_FORECAST_ONLY: last explicit version before admission." }, clock: fixedClock("2026-08-01T00:00:28.000Z") });
+      credential = credentialFromCookieV01(winningForecast.session_admission.cookie_value);
+    } finally { savingDb.close(); }
+    const result = await starting;
+    assert.equal(result.receipt.execution.status, "completed");
+    assert.deepEqual(workerInput!.packet, b2.packet);
+    let detail = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: result.receipt.receipt_id });
+    assert.equal(detail.expectation?.attempt?.run_id, result.receipt.run_id);
+    assert.equal(detail.expectation?.attempt?.chronology, "same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1");
+    assert.equal(detail.expectation?.expectation.record_id, winningForecast.record.record_id);
+    assert.equal(detail.expectation?.comparison, "unassessed");
+    for (const historical of [b.packet, b1.packet]) assert.equal(readWorkExpectationComparison(fixture.db, { ...fixture, packet: historical, receipt: result.receipt, assessment: detail.criterion_assessment })?.report_allowed, false);
+    assert.deepEqual(readWorkExpectationRecords(fixture.db, fixture).filter(r => frozenHistory.some(old => old.record_id === r.record_id)), frozenHistory);
+    for (const historical of [bForecast, b1Forecast]) assert(!readWorkExpectationRecords(fixture.db, fixture).some(r => r.kind === "attempt_binding" && r.expectation_ref.external_id === historical.record_id));
+    const protectedResult = canonicalizeProtocolValueV01({ packet: b2.packet, receipt: result.receipt, assessment: detail.criterion_assessment });
+    // Reports are attributed observations, declared after actual execution. They
+    // never change typed assessment or turn correctly predicted failure into success.
+    for (const [index, outcome, applicability, expected] of [[0, "satisfied", "applied", "match"], [1, "unsatisfied", "applied", "mismatch"],
+      [2, "unknown", "applied", "unknown"], [3, "satisfied", "not_established", "unknown"]] as const) {
+      const reported = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential,
+        request: { action: "report_work_expectation_outcome", expected_active_project_id: fixture.project_id, expected_active_selection_revision: currentRequest.expected_active_selection_revision,
+          expected_previous_id: detail.expectation!.reports.at(-1)?.record_id ?? null, expectation_id: winningForecast.record.record_id,
+          receipt_id: result.receipt.receipt_id, receipt_fingerprint: result.receipt.integrity.fingerprint,
+          outcome, applicability, observation: `Explicit disposable operator report ${index}; no typed verification claim.` }, clock: fixedClock(`2026-08-01T00:00:${40 + index}.000Z`) });
+      credential = credentialFromCookieV01(reported.session_admission.cookie_value);
+      detail = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: result.receipt.receipt_id });
+      assert.equal(detail.expectation?.comparison, expected); assert.equal(detail.expectation?.basis, "attested");
+      assert.equal(detail.expectation?.outcome_source, "operator_report");
+      assert.equal(canonicalizeProtocolValueV01({ packet: b2.packet, receipt: result.receipt, assessment: detail.criterion_assessment }), protectedResult);
+    }
+    const beforeReplay = readWorkExpectationRecords(fixture.db, fixture);
+    const replay = await runDirectNativeHostRoundTripV01(fixture.db, { config: starter.config, mode: "interactive",
+      operator_mutation: { credential: credentialFromCookieV01(result.session_admission!.cookie_value), clock: fixedClock("2026-08-01T00:00:44.000Z") } }, {
+      adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:00:45.000Z") }), now: timestampSequenceV01("2026-08-01T00:00:44.000Z"),
+    });
+    assert.equal(replay.status, "exact_replay"); assert.deepEqual(readWorkExpectationRecords(fixture.db, fixture), beforeReplay);
+    fixture.db.exec("BEGIN IMMEDIATE");
+    assert.equal(bindWorkExpectationToAttempt(fixture.db, { ...fixture, packet: b2.packet, run_id: "fixture:later-attempt", started_at: "2026-08-01T00:00:46.000Z", mode: "interactive" }), null);
+    fixture.db.exec("ROLLBACK");
+    const backup = path.join(ROOT, "successor-expectation-backup.db"); await fixture.db.backup(backup);
+    const restored = new Database(backup, { readonly: true });
+    try {
+      assert.equal(validateRecoveryCanonicalDatabaseV01(restored).status, "valid");
+      assert.deepEqual(readProjectRunResultDetailV01(restored, { ...fixture, receipt_id: result.receipt.receipt_id }).expectation, detail.expectation);
+    } finally { restored.close(); }
+    const portable = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: "2026-08-01T00:00:46.000Z" });
+    parseAndValidatePortableProjectV01(portable.bytes);
+    const imported = new Database(":memory:");
+    try {
+      applyCanonicalDatabaseMigrations(imported); const destination = path.join(ROOT, "successor-expectation-import"); mkdirSync(destination);
+      assert.equal(importPortableProjectV01(imported, { bytes: portable.bytes, destination_root_base: destination, imported_at: "2026-08-01T00:00:47.000Z" }).status, "imported");
+      assert.deepEqual(readWorkExpectationRecords(imported, fixture), readWorkExpectationRecords(fixture.db, fixture));
+      const importedComparison = readWorkExpectationComparison(imported, { ...fixture, packet: b2.packet, receipt: result.receipt, assessment: detail.criterion_assessment })!;
+      assert.equal(importedComparison.eligibility, "local_chronology_unavailable"); assert.equal(importedComparison.report_allowed, false);
+      assert.equal(listAutonomyRunLedgerRecords({ db: imported, scope: fixture.project_id }).length, 0);
+    } finally { imported.close(); }
+    assert.deepEqual(readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: first.receipt.receipt_id }).expectation, firstComparison, "A's historical first-work comparison and chronology stay unchanged");
+    const laterClock = fixedClock("2026-08-01T00:00:50.000Z");
+    const next = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: result.receipt.receipt_id, clock: laterClock });
+    const nextSources = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: next.binding, notes: [], clock: laterClock });
+    const nextPreview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: next.binding, clock: laterClock,
+      definition: { goal: "Pursue a separate warm observation", success_criteria: ["Keep the warm observation attributed"], non_goals: ["Do not generalize"] },
+      selected_sources: { selected_source_context: nextSources.entries, expected_source_comparison: nextSources.fingerprint,
+        omitted_sources: nextSources.unselected_previous.map(e => ({ source_binding: e.source_ref!, reason: "Not selected for the later fixture task" })) },
+    });
+    const c = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: nextPreview.request, clock: laterClock });
+    credential = credentialFromCookieV01(c.session_admission.cookie_value);
+    const cForecast = writeForecast(c.packet, "2026-08-01T00:00:51.000Z");
+    const cResult = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential, clock: fixedClock("2026-08-01T00:00:55.000Z") } }, {
+      adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:00:56.000Z") }), now: timestampSequenceV01("2026-08-01T00:00:55.000Z"),
+    });
+    assert.equal(readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: cResult.receipt.receipt_id }).expectation?.expectation.record_id, cForecast.record_id);
+    console.log(JSON.stringify({ case: "ordinary_successor_expectation_lifecycle", actual_predecessor: true, revisions: 2, binding: "final_explicit_version", prior_history_preserved: true,
+      source_delivery: "selected_observation_and_correction_only", worker_forecast_delivery: false, later_successor_bound: true, report_comparisons: ["match", "mismatch", "unknown"], restore: "local_binding_preserved_import_chronology_unavailable" }));
+  } finally { fixture.db.close(); }
+}
+
+async function assertSuccessorExpectationOptionalV01(original: FixtureV01, packet: TaskContextPacketV01,
+  originalCredential: VNextLocalOperatorSessionCredentialV01, snapshot: Buffer, priorReceipt: RunReceiptV01, priorExpectationId: string, finalRevisionOnly = false): Promise<void> {
+  const cases = finalRevisionOnly ? ["final_revision"] as const : ["no_forecast", "optional_unavailable", "capacity", "start_rollback"] as const;
+  for (const testCase of cases) {
+    // Each clone retains the genuinely executed A and normal B/B1/B2 writers.
+    // It is disposable fixture isolation, not an invented predecessor or receipt.
+    const databasePath = path.join(ROOT, `successor-expectation-${testCase}.db`);
+    writeFileSync(databasePath, snapshot);
+    const fixture = { ...original, db: new Database(databasePath), config: { ...original.config, database_path: databasePath } };
+    let credential = originalCredential, current = packet;
+    const now = timestampSequenceV01("2026-08-01T00:01:00.000Z");
+    const selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    const request = (previous: string | null = null) => ({ action: "record_work_expectation", expected_active_project_id: fixture.project_id,
+      expected_active_selection_revision: selection.selection_revision, expected_previous_id: previous,
+      expected_packet_id: current.packet_id, expected_packet_fingerprint: current.integrity.fingerprint,
+      criterion_id: deriveCriterionIdentityV01(current.task.success_criteria[0]!), predicted_outcome: "satisfied",
+      reason: "OPTIONAL_FORECAST_ONLY capacity fixture", conditions: "Only this exact packet attempt." });
+    try {
+      let finalForecastId: string | null = null;
+      if (testCase === "final_revision") {
+        const anchor = inspectAuthoredSuccessorPacketV01(fixture.db, { config: fixture.config, packet: current });
+        const origin = ordinarySuccessorRevisionMaterialV01(current);
+        // Existing bounded-prefix fixture pattern: the same packet builder and
+        // immutable store, then actual admission/writers at the deciding boundary.
+        // No predecessor execution or authority-bearing result is manufactured.
+        for (let number = 3; number < 32; number++) {
+          const at = now();
+          const request = revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: `Final-slot fixture revision ${number}` });
+          const built = buildOrdinarySuccessorRevisionV01(current, anchor, { ...origin, request, revision_number: number }, fixture.config.operator_id, at);
+          insertVNextCoreRecordV01(fixture.db, { record_kind: "task_context_packet", ...fixture.config, record_id: built.packet.packet_id,
+            fingerprint: built.packet.integrity.fingerprint, idempotency_key: ordinarySuccessorRevisionIdempotencyKeyV01(built.packet), payload: built.packet, created_at: at });
+          current = built.packet;
+        }
+        console.log(JSON.stringify({ successor_final_slot: "bounded_prefix_built" }));
+        const revised = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "Final-slot fixture revision 32" }), clock: fixedClock(now()) });
+        current = revised.packet; credential = credentialFromCookieV01(revised.session_admission.cookie_value);
+        console.log(JSON.stringify({ successor_final_slot: "final_revision_saved" }));
+        const preparation = readWorkExpectationPreparation(fixture.db, fixture);
+        assert.equal(preparation.eligibility.status, "revision_limit_reached");
+        assert.equal(preparation.authoring_available, true, "A supported final revision can receive its own explicit expectation");
+        const before = fixture.db.serialize();
+        assert.throws(() => revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "No 33rd revision" }), clock: fixedClock(now()) }), /revision_limit/);
+        assert(before.equals(fixture.db.serialize()));
+        const saved = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(), clock: fixedClock(now()) });
+        credential = credentialFromCookieV01(saved.session_admission.cookie_value); finalForecastId = saved.record.record_id;
+        console.log(JSON.stringify({ successor_final_slot: "explicit_expectation_saved" }));
+      }
+      if (testCase === "optional_unavailable") fixture.db.prepare("INSERT INTO vnext_core_records (record_kind, record_id, workspace_id, project_id, fingerprint, idempotency_key, payload_json, created_at) SELECT record_kind, 'fixture:malformed-optional', workspace_id, project_id, fingerprint, NULL, '{}', created_at FROM vnext_core_records WHERE record_id = ?").run(priorExpectationId);
+      if (testCase === "capacity" || testCase === "start_rollback") {
+        let previous: string | null = null, versions = 0;
+        let count = readWorkExpectationRecords(fixture.db, fixture).length;
+        let seed: WorkExpectation | undefined;
+        while (count < 255) {
+          if (versions === 32) {
+            assert.equal(readWorkExpectationPreparation(fixture.db, fixture).capacity_available, false);
+            const before = fixture.db.serialize();
+            assert.throws(() => recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(previous), clock: fixedClock(now()) }), /chronology_invalid/);
+            assert(before.equals(fixture.db.serialize()), "Per-packet capacity refusal has no effects");
+            const revision = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+              request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: current.task.goal + "." }), clock: fixedClock(now()) });
+            current = revision.packet; credential = credentialFromCookieV01(revision.session_admission.cookie_value); versions = 0; previous = null;
+          }
+          if (versions === 0) {
+            const saved = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(), clock: fixedClock(now()) });
+            credential = credentialFromCookieV01(saved.session_admission.cookie_value);
+            assert.equal(saved.record.kind, "expectation"); seed = saved.record as WorkExpectation;
+          } else {
+            // Explicit capacity fixture data through the existing immutable
+            // builder/writer. This is not production authorship or an eligible
+            // predecessor; A and each prepared packet use the normal owners.
+            const { record_id: _id, integrity: _integrity, ...body } = seed!;
+            const at = now();
+            const next = buildWorkExpectationRecord<WorkExpectation>({ ...body, previous_ref: expectationRef(seed!), revision: versions + 1,
+              reason: "OPTIONAL_FORECAST_ONLY: constructed capacity fixture data", recorded_at: at, information_cutoff: at });
+            fixture.db.transaction(() => insertWorkExpectationRecord(fixture.db, next))(); seed = next;
+          }
+          previous = seed!.record_id; versions++; count++;
+          if (testCase === "start_rollback") break;
+        }
+        if (testCase === "capacity") {
+          assert.equal(readWorkExpectationPreparation(fixture.db, fixture).capacity_available, false);
+          const before = fixture.db.serialize();
+          assert.throws(() => recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(previous), clock: fixedClock(now()) }), /history_bound_exceeded/);
+          assert(before.equals(fixture.db.serialize()));
+          // A legitimate report for A can consume the reserved slot. The optional
+          // binder must then skip without expanding the 256-record budget.
+          const report = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, clock: fixedClock(now()), request: {
+            action: "report_work_expectation_outcome", expected_active_project_id: fixture.project_id, expected_active_selection_revision: selection.selection_revision,
+            expected_previous_id: null, expectation_id: priorExpectationId, receipt_id: priorReceipt.receipt_id, receipt_fingerprint: priorReceipt.integrity.fingerprint,
+            outcome: "unknown", observation: "A's observation remains incomplete.", applicability: "not_established",
+          } });
+          credential = credentialFromCookieV01(report.session_admission.cookie_value);
+          assert.equal(readWorkExpectationRecords(fixture.db, fixture).length, 256);
+        }
+      }
+      if (testCase === "start_rollback") fixture.db.exec("CREATE TEMP TRIGGER refuse_fixture_start BEFORE INSERT ON autonomy_runs BEGIN SELECT RAISE(ABORT, 'fixture_start_rollback'); END");
+      const beforeStart = fixture.db.serialize();
+      let invocations = 0;
+      const starting = runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+        operator_mutation: { credential, clock: fixedClock("2026-08-01T00:10:00.000Z") } }, {
+        adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:10:01.000Z"), observe: ({ request: input }) => {
+          invocations++; assert(!JSON.stringify(input).includes("FORECAST_ONLY")); assert.deepEqual(input.packet, current);
+        } }), now: timestampSequenceV01("2026-08-01T00:10:00.000Z"),
+      });
+      if (testCase === "start_rollback") {
+        await assert.rejects(starting, /fixture_start_rollback/); assert.equal(invocations, 0);
+        assert(beforeStart.equals(fixture.db.serialize()), "Failed Start rolls back binding, session and run together");
+      } else {
+        const result = await starting;
+        assert.equal(result.receipt.execution.status, "completed"); assert.equal(invocations, 1);
+        const run = readAutonomyRunLedgerRecord(result.run_id, { db: fixture.db })!;
+        if (testCase !== "final_revision") assert.equal(run.metadata.work_expectation_binding_id, undefined);
+        const detail = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: result.receipt.receipt_id });
+        if (testCase === "final_revision") {
+          assert.equal(detail.expectation?.eligibility, "eligible");
+          assert.equal(detail.expectation?.expectation.record_id, finalForecastId);
+        }
+        if (testCase === "no_forecast") assert.equal(detail.expectation, null);
+        if (testCase === "optional_unavailable") assert.equal(detail.expectation_unavailable, true);
+        if (testCase === "capacity") {
+          assert.equal(detail.expectation?.eligibility, "local_chronology_unavailable");
+          assert.equal(readWorkExpectationRecords(fixture.db, fixture).length, 256);
+        }
+      }
+      console.log(JSON.stringify({ successor_optional_case: testCase, start: testCase === "start_rollback" ? "atomic_rollback" : testCase === "final_revision" ? "completed_with_exact_final_binding" : "completed_without_binding" }));
+    } finally { fixture.db.close(); }
+  }
+}
 
 async function assertWorkExpectationMechanics(): Promise<void> {
   await assertExpectationSchemaCompatibilityV01();

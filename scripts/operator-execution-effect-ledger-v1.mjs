@@ -198,17 +198,17 @@ const PROFILE_CONTRACTS = Object.freeze({
   work_expectation: Object.freeze({
     allowed_tables: Object.freeze(["vnext_core_records", "vnext_active_project_selections", "vnext_recent_projects", "vnext_local_operator_sessions", "autonomy_runs", "autonomy_run_steps", "autonomy_run_events"]),
     allowed_projects: Object.freeze(["primary", "expectation"]),
-    core_insert_counts: Object.freeze({ task_context_packet: 1, run_receipt: 1, episode_delta_proposal: 1, work_expectation_record: 4 }),
+    core_insert_counts: Object.freeze({ task_context_packet: 4, run_receipt: 2, episode_delta_proposal: 2, work_expectation_record: 10 }),
     operator_session_insert_count: 2,
     operator_session_project_counts: Object.freeze({ primary: 1, expectation: 1 }),
     operator_session_status_counts: Object.freeze({ active_consumed: 2 }),
     table_operation_counts: Object.freeze({
-      inserted: Object.freeze({ autonomy_run_events: 5, autonomy_run_steps: 1, autonomy_runs: 1, vnext_core_records: 7, vnext_local_operator_sessions: 2, vnext_recent_projects: 1 }),
+      inserted: Object.freeze({ autonomy_run_events: 10, autonomy_run_steps: 2, autonomy_runs: 2, vnext_core_records: 18, vnext_local_operator_sessions: 2, vnext_recent_projects: 1 }),
       updated: Object.freeze({ vnext_active_project_selections: 1 }),
       deleted: Object.freeze({}),
     }),
-    event_type_counts: Object.freeze({ run_completed: 1, run_created: 1, run_started: 1, step_completed: 1, step_started: 1 }),
-    event_type_status_counts: Object.freeze({ "run_completed:completed": 1, "run_created:running": 1, "run_started:running": 1, "step_completed:completed": 1, "step_started:running": 1 }),
+    event_type_counts: Object.freeze({ run_completed: 2, run_created: 2, run_started: 2, step_completed: 2, step_started: 2 }),
+    event_type_status_counts: Object.freeze({ "run_completed:completed": 2, "run_created:running": 2, "run_started:running": 2, "step_completed:completed": 2, "step_started:running": 2 }),
     approval_trace_event_kinds: Object.freeze([]),
     allowed_seam_keys: Object.freeze([]),
     active_selection_contract: "expectation_to_primary_revision_plus_1",
@@ -625,7 +625,7 @@ function publicIdentity(table, row, stableKey) {
     if (row.record_kind === "work_expectation_record") {
       const value = JSON.parse(row.payload_json);
       identity.expectation_binding = {
-        kind: value.kind, revision: value.revision ?? null,
+        kind: value.kind, revision: value.revision ?? null, chronology: value.chronology ?? null,
         packet_id: value.packet_ref.external_id, packet_fingerprint: value.packet_ref.source_ref,
         expectation_id: value.expectation_ref?.external_id ?? null,
         expectation_fingerprint: value.expectation_ref?.source_ref ?? null,
@@ -953,7 +953,7 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
         `${entry.identity.scope}:${entry.identity.status}:${entry.identity.autonomy_contract_ref}`,
     ),
     manifest.profile === "work_expectation" ? {
-      [`${manifest.expectation_project_id}:completed:direct_native_host_round_trip.v0.1`]: 1,
+      [`${manifest.expectation_project_id}:completed:direct_native_host_round_trip.v0.1`]: 2,
     } : {
       [`${manifest.automation_project_id}:needs_review:direct_native_host_round_trip.v0.1`]: 1,
       [`${manifest.profile_project_id}:cancelled:direct_native_host_round_trip.v0.1`]: 1,
@@ -962,9 +962,9 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
     "operator_effect_native_run_scope_status_contract_mismatch",
   );
   if (manifest.profile === "work_expectation") {
-    assert.deepEqual([...events].sort((a, b) => a.identity.row_order - b.identity.row_order).map(e => e.identity.event_type),
+    for (const run of runs) assert.deepEqual(events.filter(e => e.identity.run_id === run.identity.run_id).sort((a, b) => a.identity.row_order - b.identity.row_order).map(e => e.identity.event_type),
       ["run_created", "run_started", "step_started", "step_completed", "run_completed"], "operator_effect_expectation_event_order");
-    assertExpectationRecordBindings(diff, manifest, runs[0]);
+    assertExpectationRecordBindings(diff, manifest, runs);
   }
   const rootFingerprintByProject = new Map(
     before.rows
@@ -1015,38 +1015,49 @@ function assertRunAndEventBindings(diff, contract, manifest, before) {
   }
 }
 
-function assertExpectationRecordBindings(diff, manifest, run) {
-  const core = diff.inserted.filter(e => e.table === "vnext_core_records");
-  assert(core.every(e => e.identity.project_id === manifest.expectation_project_id), "operator_effect_expectation_core_scope");
-  const packet = core.find(e => e.identity.record_kind === "task_context_packet").identity;
-  const receipt = core.find(e => e.identity.record_kind === "run_receipt").identity;
-  assert.equal(receipt.semantic_bindings.run_id, run.identity.run_id, "operator_effect_expectation_receipt_run");
-  const rows = core.filter(e => e.identity.record_kind === "work_expectation_record").map(e => e.identity);
-  assert.deepEqual(countBy(rows, e => e.expectation_binding?.kind), { attempt_binding: 1, expectation: 1, outcome_report: 2 });
-  const forecast = rows.find(e => e.expectation_binding.kind === "expectation");
-  const binding = rows.find(e => e.expectation_binding.kind === "attempt_binding");
-  const reports = rows.filter(e => e.expectation_binding.kind === "outcome_report").sort((a, b) => a.expectation_binding.revision - b.expectation_binding.revision);
-  for (const row of rows) {
-    assert.equal(row.expectation_binding.packet_id, packet.record_id, "operator_effect_expectation_packet");
-    assert.equal(row.expectation_binding.packet_fingerprint, packet.fingerprint, "operator_effect_expectation_packet_fingerprint");
-    if (row !== forecast) {
+function assertExpectationRecordBindings(diff, manifest, runs) {
+  const core = diff.inserted.filter(e => e.table === "vnext_core_records").map(e => e.identity);
+  assert(core.every(e => e.project_id === manifest.expectation_project_id), "operator_effect_expectation_core_scope");
+  const packets = core.filter(e => e.record_kind === "task_context_packet");
+  const rows = core.filter(e => e.record_kind === "work_expectation_record");
+  assert.deepEqual(countBy(rows, e => e.expectation_binding?.kind), { attempt_binding: 2, expectation: 4, outcome_report: 4 });
+  const forecasts = rows.filter(e => e.expectation_binding.kind === "expectation");
+  const bindings = rows.filter(e => e.expectation_binding.kind === "attempt_binding");
+  assert.deepEqual(bindings.map(e => e.expectation_binding.chronology).sort(), [
+    "same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1", "same_transaction_as_first_local_interactive_run",
+  ]);
+  for (const packet of packets) {
+    const forecast = forecasts.filter(e => e.expectation_binding.packet_id === packet.record_id);
+    assert.equal(forecast.length, 1, "one explicitly authored forecast for each exact packet");
+    assert.equal(forecast[0].expectation_binding.revision, 1); assert.equal(forecast[0].expectation_binding.previous_id, null);
+    assert.equal(forecast[0].expectation_binding.packet_fingerprint, packet.fingerprint);
+  }
+  for (const run of runs) {
+    const binding = bindings.find(e => e.record_id === run.identity.metadata_bindings.work_expectation_binding_id);
+    assert(binding, "operator_effect_expectation_attempt_run");
+    const packet = packets.find(e => e.record_id === binding.expectation_binding.packet_id);
+    const forecast = forecasts.find(e => e.record_id === binding.expectation_binding.expectation_id);
+    const receipt = core.find(e => e.record_kind === "run_receipt" && e.semantic_bindings.run_id === run.identity.run_id);
+    assert(packet && forecast && receipt);
+    assert.equal(binding.expectation_binding.run_id, run.identity.run_id);
+    assert.equal(run.identity.metadata_bindings.work_expectation_binding_fingerprint, binding.fingerprint);
+    const reports = rows.filter(e => e.expectation_binding.kind === "outcome_report" && e.expectation_binding.attempt_id === binding.record_id)
+      .sort((a, b) => a.expectation_binding.revision - b.expectation_binding.revision);
+    assert.equal(reports.length, 2);
+    for (const row of [binding, ...reports]) {
+      assert.equal(row.expectation_binding.packet_id, packet.record_id, "operator_effect_expectation_packet");
+      assert.equal(row.expectation_binding.packet_fingerprint, packet.fingerprint, "operator_effect_expectation_packet_fingerprint");
       assert.equal(row.expectation_binding.expectation_id, forecast.record_id, "operator_effect_expectation_forecast");
       assert.equal(row.expectation_binding.expectation_fingerprint, forecast.fingerprint);
     }
+    reports.forEach((report, index) => {
+      const b = report.expectation_binding;
+      assert.equal(b.attempt_fingerprint, binding.fingerprint);
+      assert.equal(b.receipt_id, receipt.record_id, "operator_effect_expectation_report_receipt"); assert.equal(b.receipt_fingerprint, receipt.fingerprint);
+      assert.equal(b.revision, index + 1); assert.equal(b.previous_id, index ? reports[0].record_id : null);
+      assert.equal(b.previous_fingerprint, index ? reports[0].fingerprint : null);
+    });
   }
-  assert.equal(binding.expectation_binding.run_id, run.identity.run_id, "operator_effect_expectation_attempt_run");
-  assert.equal(run.identity.metadata_bindings.work_expectation_binding_id, binding.record_id);
-  assert.equal(run.identity.metadata_bindings.work_expectation_binding_fingerprint, binding.fingerprint);
-  assert.equal(forecast.expectation_binding.revision, 1);
-  assert.equal(forecast.expectation_binding.previous_id, null);
-  reports.forEach((report, index) => {
-    const b = report.expectation_binding;
-    assert.equal(b.attempt_id, binding.record_id); assert.equal(b.attempt_fingerprint, binding.fingerprint);
-    assert.equal(b.receipt_id, receipt.record_id, "operator_effect_expectation_report_receipt"); assert.equal(b.receipt_fingerprint, receipt.fingerprint);
-    assert.equal(b.revision, index + 1);
-    assert.equal(b.previous_id, index ? reports[0].record_id : null, "operator_effect_expectation_report_history");
-    assert.equal(b.previous_fingerprint, index ? reports[0].fingerprint : null);
-  });
 }
 
 function assertSessionContract(sessions, contract, manifest) {

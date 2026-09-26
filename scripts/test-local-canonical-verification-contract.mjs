@@ -1064,6 +1064,8 @@ const integrationChildren = [
   "project-home",
   "project-work-initialization",
   "project-work-expectation",
+  "ordinary-successor-expectation",
+  "ordinary-successor-expectation-final-slot",
   "project-work-scoped-host",
     "executed-reviewed-follow-up",
   "unexecuted-successor-revision",
@@ -1150,6 +1152,15 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertWorkExpectationMech
   "the default initialization path must not repeat the expectation cases");
 assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostConnectionV01();"), 1,
   "the default initialization path must not repeat the scoped matrix");
+const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', 'requireNaturalExit: true', '"--successor-expectation-only"'])
+  requireText(successorExpectationRegistration.block, fragment, "ordinary successor expectations retain one bounded complete owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01();"), 1,
+  "the ordinary expectation lifecycle runs once without extending the initial preparation child");
+const successorExpectationLimitRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation-final-slot");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"--successor-expectation-limit-only"'])
+  requireText(successorExpectationLimitRegistration.block, fragment, "the final ordinary revision boundary has a separate bounded owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectationV01(true);"), 1);
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");

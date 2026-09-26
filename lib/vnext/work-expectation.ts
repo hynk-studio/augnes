@@ -1,7 +1,7 @@
 import { canonicalizeProtocolValueV01, createProtocolSha256V01, parseStrictIsoTimestampV01 } from "./protocol-primitives";
 import { deriveCriterionIdentityV01 } from "./criterion-identity";
 import { validateExternalRefV01 } from "./task-context-packet";
-import { WORK_EXPECTATION_LIMIT, WORK_EXPECTATION_RULE, WORK_EXPECTATION_VERSION, type WorkExpectationRecord } from "@/types/vnext/work-expectation";
+import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, WORK_EXPECTATION_LIMIT, WORK_EXPECTATION_RULE, WORK_EXPECTATION_VERSION, type WorkExpectationRecord } from "@/types/vnext/work-expectation";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
 export class WorkExpectationError extends Error {
@@ -86,7 +86,8 @@ export function assertWorkExpectationRecord(input: unknown): asserts input is Wo
     ref(r.expectation_ref, "work_expectation_record");
     if (r.kind === "attempt_binding") {
       expectationText(r.run_id, 256);
-      expectationCheck(r.run_created_at === r.recorded_at && r.chronology === "same_transaction_as_first_local_interactive_run");
+      expectationCheck(r.run_created_at === r.recorded_at &&
+        ["same_transaction_as_first_local_interactive_run", ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY].includes(r.chronology));
     } else {
       ref(r.attempt_ref, "work_expectation_record"); ref(r.receipt_ref, "run_receipt");
       expectationCheck(["satisfied", "unsatisfied", "unknown", "not_applicable"].includes(r.outcome) &&

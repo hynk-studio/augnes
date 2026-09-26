@@ -661,6 +661,29 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "ordinary-successor-expectation",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "ordinary successor expectation authoring, revisions, exact Start binding, optional capacity and result lifecycle",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-expectation-only"),
+      // The complete bounded lifecycle, including 256-record fixture capacity,
+      // measured 36.6s in development; no older child's deadline is extended.
+      timeoutMs: 45_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "ordinary-successor-expectation-final-slot",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "final ordinary revision expectation, unchanged edit budget and actual attempt binding",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-expectation-limit-only"),
+      // The 32-revision boundary uses the existing builder/store fixture prefix
+      // and real final save/Start/result owners; measured 82.4s independently.
+      // Keep it separate from the 45s lifecycle and all older child budgets.
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-scoped-host",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

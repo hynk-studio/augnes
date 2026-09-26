@@ -358,10 +358,23 @@ and evaluation distinctions belong to [04](04_AUGNES_VNEXT_EVALUATION_AND_MATURI
 
 Disposable fixtures establish recording, binding, comparison and delivery mechanics only.
 Actual-work collection, predictive accuracy, calibration, forecast learning,
-improved judgment and reduced burden remain unmeasured. Authored successors,
-automation, retries, restart lineages and cross-project comparisons are outside
-this first-work scope. The expectation is operator-visible with no automatic
-worker delivery; human attention and external copying are unknown.
+improved judgment and reduced burden remain unmeasured. Authored successors were
+outside the original first-work scope. Automation, retries, restart lineages and
+cross-project comparisons remain outside this scope. The expectation is
+operator-visible with no automatic worker delivery; human attention and external
+copying are unknown.
+
+[#1337](https://github.com/hynk-studio/augnes/issues/1337) extends the existing
+mechanism to ordinary outcome-linked preparations and their supported same-task
+revisions: genuine settled A -> saved B -> optional expectation -> B1/B2 ->
+explicit final-packet expectation -> normal first eligible local interactive
+Start -> exact result comparison. The current source includes authenticated
+authoring, a distinct ordinary-family chronology marker, bounded optional
+capacity handling, and saved-successor Browser/result coverage. Definition and
+note revisions preserve old forecasts without transferring them. No forecast
+is required or automatically delivered to the worker. This is a bounded
+implementation for PR review; production adoption and usefulness remain
+unestablished. Exact compatibility semantics belong to 02.
 
 The parent and coordination issues remain open: [#1213](https://github.com/hynk-studio/augnes/issues/1213),
 [#1212](https://github.com/hynk-studio/augnes/issues/1212), [#1209](https://github.com/hynk-studio/augnes/issues/1209)
